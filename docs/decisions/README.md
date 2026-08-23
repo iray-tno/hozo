@@ -24,3 +24,4 @@ smaller questions that came up on the way, and their answers.
 | --- | --- |
 | [001](001-disabled-and-focus.md) | `disabled` means one thing, and it is not focusable |
 | [002](002-what-hozo-abstracts.md) | What Hozo abstracts, and what it carries |
+| [003](003-which-variants-hozo-compiles.md) | Which Tailwind variants Hozo compiles |
