@@ -1194,6 +1194,20 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
 /// the same reason. `[@supports(display:grid)]:grid` is not a media query,
 /// and hardcoding `@media` at the emission site would have made supports
 /// queries unreachable by construction.
+/// An at-rule with its condition negated, the way Tailwind writes it:
+/// `@media (prefers-color-scheme: dark)` becomes `@media not
+/// (prefers-color-scheme: dark)`.
+fn negate_at_rule(rule: &str) -> String {
+    match rule.strip_prefix("@media ") {
+        Some(query) => format!("@media not {query}"),
+        // `@supports` and the arbitrary at-rules are not negated by this
+        // path -- `is_negatable` lets them through, and Tailwind spells
+        // their negation with the at-rule's own `not` operator, which is
+        // where this will grow when one of them needs it.
+        None => rule.to_string(),
+    }
+}
+
 /// The at-rule each environment query is, verbatim from Tailwind.
 fn environment_at_rule(query: Environment) -> &'static str {
     match query {
@@ -1297,6 +1311,23 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
         // A condition that produces at-rules instead is refused, as
         // Tailwind refuses `group-dark:` -- a media query around the
         // ancestor says nothing about the descendant.
+        // Whichever form the inner has, negated -- and it has exactly one,
+        // which is what `is_negatable` guarantees at parse time.
+        //
+        // `:not()` takes its argument's specificity, and so does the
+        // negated at-rule's absence of one, so `not-first:` weighs what
+        // `first:` weighs. Which is the same reason Tailwind's version
+        // does.
+        Condition::Not(inner) => {
+            let (at_rules, suffix) = condition_shape(inner);
+            match suffix.strip_prefix('&') {
+                Some(rest) if !rest.is_empty() => (Vec::new(), format!("&:not({rest})")),
+                _ => (
+                    at_rules.iter().map(|rule| negate_at_rule(rule)).collect(),
+                    "&".to_string(),
+                ),
+            }
+        }
         Condition::Group(inner) | Condition::Peer(inner) => {
             let (at_rules, suffix) = condition_shape(inner);
             let marker = if matches!(condition, Condition::Group(_)) { "group" } else { "peer" };

@@ -68,12 +68,24 @@ const VARIANTS = [
   'noscript',
   // Direction relates: it is inherited, so an ancestor can differ on it.
   'group-rtl',
+  // Negation, which is a selector or a query depending on what it wraps --
+  // and is refused for the one condition that is both. `not-hover` sits
+  // in the unsupported block below for that reason.
+  'not-first',
+  'not-aria-checked',
+  'not-motion-reduce',
+  'not-disabled',
   // Not implemented, and included on purpose: an unsupported variant
   // should read as an honest gap here rather than being absent from the
   // list that decides what "supported" means.
   'last',
   'active',
   'focus-visible',
+  // Two rules in Tailwind -- the selector negated, and `@media not
+  // (hover: hover)` for a device where nothing is ever hovered. One
+  // condition returning two rules does not fit the shape the backends
+  // read, so this is an honest gap rather than a wrong answer.
+  'not-hover',
 ]
 
 /**
@@ -148,9 +160,16 @@ export async function buildVariantCatalog(): Promise<VariantCatalog> {
  * substitution invisible to everything except the element it now reaches.
  */
 function canonicalSuffix(suffix: string): string {
-  return suffix
-    .replace(':not([data-hozo-disabled])', ':enabled')
-    .replace('[data-hozo-disabled]', ':disabled')
+  return (
+    suffix
+      .replace(':not([data-hozo-disabled])', ':enabled')
+      .replace('[data-hozo-disabled]', ':disabled')
+      // Both sides, because the substitution shows up twice over: Tailwind
+      // writes `enabled:` as `:enabled` and `not-disabled:` as
+      // `:not(:disabled)`, which are the same set said two ways. Folding
+      // only Hozo's side made the second one look like a difference.
+      .replace(':not(:disabled)', ':enabled')
+  )
 }
 
 export function compareVariant(entry: VariantCase, vars: Map<string, string>): VariantVerdict {

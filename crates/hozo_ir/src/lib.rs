@@ -2239,6 +2239,15 @@ pub enum Condition {
     /// Native. `Dark` predates this and is the same shape; it is left
     /// where it is because every backend already matches on it by name.
     Environment(Environment),
+    /// Tailwind's `not-…:` -- the inner condition, negated.
+    ///
+    /// Only conditions with one form. `hover:` is both a media query and
+    /// a pseudo-class, so Tailwind's `not-hover:` is two rules -- the
+    /// selector negated, and `@media not (hover: hover)` for a device
+    /// where nothing is ever hovered. One condition producing two rules
+    /// does not fit the shape the backends read, so that one is refused
+    /// rather than half-answered.
+    Not(Box<Condition>),
     /// Tailwind's `group-…:` -- a condition on a marked *ancestor*.
     ///
     /// Holds the inner condition rather than naming the states it can
@@ -2484,6 +2493,38 @@ impl Condition {
     /// subtree, while refusing `group-motion-reduce:`. Checked against it
     /// rather than reasoned about, which is how the criterion turned out
     /// to be the form and not the subject.
+    /// Whether this condition is expressed as an at-rule *around* the
+    /// rule, rather than as part of its selector.
+    ///
+    /// Not the complement of `is_elemental`, and the one place they
+    /// overlap is the interesting one: `hover:` is both, because a
+    /// pointer that can hover is an environment fact and being hovered is
+    /// an element fact. Everything else is one or the other.
+    pub fn is_ambient(&self) -> bool {
+        match self {
+            Condition::Dark | Condition::Responsive(_) | Condition::ArbitraryAtRule(_) => true,
+            // The one condition that is both.
+            Condition::Hover => true,
+            Condition::Environment(query) => {
+                !matches!(query, Environment::Ltr | Environment::Rtl)
+            }
+            // A relation carries its inner condition's at-rules through.
+            Condition::Group(inner) | Condition::Peer(inner) | Condition::Not(inner) => {
+                inner.is_ambient()
+            }
+            Condition::All(conditions) => conditions.iter().any(Condition::is_ambient),
+            _ => false,
+        }
+    }
+
+    /// Whether `not-` can negate this condition into a single rule.
+    ///
+    /// A condition with both forms would need two, which the backends
+    /// have no way to return -- see `Not`.
+    pub fn is_negatable(&self) -> bool {
+        !(self.is_ambient() && self.is_elemental())
+    }
+
     pub fn is_elemental(&self) -> bool {
         match self {
             Condition::Always
@@ -2493,6 +2534,9 @@ impl Condition {
             Condition::Environment(query) => {
                 matches!(query, Environment::Ltr | Environment::Rtl)
             }
+            // Negating a selector is a selector; negating a query is a
+            // query. So this follows whatever it wraps.
+            Condition::Not(inner) => inner.is_elemental(),
             _ => true,
         }
     }

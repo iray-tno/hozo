@@ -2547,6 +2547,16 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
         };
         return (condition, rest);
     }
+    // `not-` negates whatever follows, by the same recursion. Refused
+    // when the inner condition has both a query and a selector, because
+    // negating both is two rules and the backends return one -- see
+    // `Condition::Not`. Today that is `hover:` and nothing else.
+    if let Some(inner) = token.strip_prefix("not-") {
+        let (condition, tail) = parse_one_variant(inner);
+        if condition != Condition::Always && condition.is_negatable() {
+            return (Condition::Not(Box::new(condition)), tail);
+        }
+    }
     // `group-` and `peer-` wrap whatever variant follows them, so they
     // are parsed by recursion rather than by a list of the combinations.
     // An inner variant Hozo does not know leaves `Always`, and the token

@@ -2214,6 +2214,19 @@ fn build_style_entries(
                     Severity::Error,
                 )),
             },
+            // Negation is a guard like any other, so this is wired
+            // wherever the thing it negates is -- but the inner condition
+            // has to be resolved first, and that resolution lives in the
+            // arms below rather than in a function this can call. Reported
+            // for now, which is at least not silence.
+            Condition::Not(inner) => diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`not-{}:` is not wired on React Native yet. On Web the same class works.",
+                    condition_suffix(inner).unwrap_or_default()
+                ),
+                Severity::Error,
+            )),
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -2763,6 +2776,9 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::LastChild => Some("last".to_string()),
         Condition::Disabled => Some("disabled".to_string()),
         Condition::Enabled => Some("enabled".to_string()),
+        Condition::Not(inner) => {
+            Some(format!("not{}", condition_suffix(inner).unwrap_or_default()))
+        }
         Condition::Environment(query) => Some(environment_name(*query).replace('-', "")),
         Condition::Group(inner) => {
             Some(format!("group{}", condition_suffix(inner).unwrap_or_default()))
