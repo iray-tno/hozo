@@ -12,7 +12,13 @@
 // `hozo_native::LowerOutput::runtime_imports` for that list.
 
 export * from './index.ts'
-export { useHozoDark, useHozoBreakpoint, useHozoViewport, useHozoSpin } from './hooks.native.ts'
+export {
+  useHozoDark,
+  useHozoBreakpoint,
+  useHozoViewport,
+  useHozoSpin,
+  useHozoEnvironment,
+} from './hooks.native.ts'
 export { HozoSpaced } from './spacing.native.tsx'
 export { HozoGrid, HozoGridItem } from './grid.native.tsx'
 export { HozoLink, type HozoLinkProps } from './link.native.tsx'

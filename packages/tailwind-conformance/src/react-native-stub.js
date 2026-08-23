@@ -43,6 +43,21 @@ export const Appearance = {
   addChangeListener: () => ({ remove: () => {} }),
 }
 
+// Everything off, which is what a device reports until a user turns one
+// on. The queries resolve asynchronously on the real platform, so the
+// runtime starts at `false` and corrects itself; these return the same
+// first answer without the crossing.
+export const AccessibilityInfo = {
+  isReduceMotionEnabled: async () => false,
+  isInvertColorsEnabled: async () => false,
+  addEventListener: () => ({ remove: () => {} }),
+}
+
+export const I18nManager = {
+  isRTL: false,
+  doLeftAndRightSwapInRTL: true,
+}
+
 export const Easing = {
   linear: (value) => value,
   ease: (value) => value,

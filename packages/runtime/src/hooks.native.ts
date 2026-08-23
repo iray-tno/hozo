@@ -8,14 +8,25 @@
 // hand.
 
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
-import { Animated, Appearance, Dimensions, Easing, type ScaledSize } from 'react-native'
+import {
+  AccessibilityInfo,
+  Animated,
+  Appearance,
+  Dimensions,
+  Easing,
+  I18nManager,
+  type ScaledSize,
+} from 'react-native'
 
 import {
   bucketFor,
   createStore,
   isAtLeast,
   sameViewport,
+  isPortrait,
+  ENVIRONMENT_FACTS,
   type BreakpointName,
+  type EnvironmentQuery,
   type Viewport,
 } from './ambient.ts'
 
@@ -114,4 +125,60 @@ export function useHozoSpin() {
     }),
     [progress],
   )
+}
+
+// The environment queries, on the same one-subscription-per-app footing as
+// `dark:` above. Four facts answer seven queries: `motion-safe` is
+// `motion-reduce` negated, `landscape` is `portrait` negated, `ltr` is
+// `rtl` negated.
+
+const reduceMotionStore = createStore(false)
+const invertColorsStore = createStore(false)
+const orientationStore = createStore(isPortrait(Dimensions.get('window')))
+
+// Asynchronous, unlike `Appearance.getColorScheme()`: these cross to the
+// platform. The store starts at `false` and corrects itself, which is the
+// right way round -- a first frame that under-reports reduced motion
+// animates once, and one that over-reports it silently drops an animation
+// the user asked for.
+void AccessibilityInfo.isReduceMotionEnabled().then((value) => reduceMotionStore.set(value))
+void AccessibilityInfo.isInvertColorsEnabled().then((value) => invertColorsStore.set(value))
+AccessibilityInfo.addEventListener('reduceMotionChanged', (value) => reduceMotionStore.set(value))
+AccessibilityInfo.addEventListener('invertColorsChanged', (value) => invertColorsStore.set(value))
+Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
+  orientationStore.set(isPortrait(window))
+})
+
+/**
+ * Whether an environment query holds. Drives `motion-reduce:`, `ltr:` and
+ * the rest.
+ *
+ * `I18nManager.isRTL` has no store because it has no event: React Native
+ * requires a reload for a direction change to take effect, so within one
+ * run it is a constant.
+ */
+export function useHozoEnvironment(query: EnvironmentQuery): boolean {
+  const { fact, negate } = ENVIRONMENT_FACTS[query]
+  const reduceMotion = useSyncExternalStore(
+    reduceMotionStore.subscribe,
+    reduceMotionStore.get,
+    reduceMotionStore.get,
+  )
+  const invertColors = useSyncExternalStore(
+    invertColorsStore.subscribe,
+    invertColorsStore.get,
+    invertColorsStore.get,
+  )
+  const portrait = useSyncExternalStore(
+    orientationStore.subscribe,
+    orientationStore.get,
+    orientationStore.get,
+  )
+  const value = {
+    reduceMotion,
+    invertColors,
+    portrait,
+    rtl: I18nManager.isRTL,
+  }[fact]
+  return negate ? !value : value
 }

@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { bucketFor, createStore, isAtLeast, sameViewport } from './ambient.ts'
+import {
+  bucketFor,
+  createStore,
+  isAtLeast,
+  isPortrait,
+  sameViewport,
+  ENVIRONMENT_FACTS,
+} from './ambient.ts'
 
 test('a store notifies only when the value actually changes', () => {
   // The whole reason the snapshot is coarse: React bails out of a re-render
@@ -92,4 +99,31 @@ test('viewport equality ignores nothing that matters and nothing that does not',
   assert.equal(sameViewport({ width: 1, height: 2 }, { width: 1, height: 2 }), true)
   assert.equal(sameViewport({ width: 1, height: 2 }, { width: 1, height: 3 }), false)
   assert.equal(sameViewport({ width: 1, height: 2 }, { width: 2, height: 2 }), false)
+})
+
+test('an environment query rides on the fact behind it', () => {
+  // Seven queries, four subscriptions. The pairs are one boolean read two
+  // ways, so `motion-safe:` costs nothing that `motion-reduce:` has not
+  // already paid for.
+  const facts = new Set(Object.values(ENVIRONMENT_FACTS).map(({ fact }) => fact))
+  assert.equal(Object.keys(ENVIRONMENT_FACTS).length, 7)
+  assert.equal(facts.size, 4)
+
+  for (const [a, b] of [
+    ['motion-reduce', 'motion-safe'],
+    ['portrait', 'landscape'],
+    ['rtl', 'ltr'],
+  ] as const) {
+    assert.equal(ENVIRONMENT_FACTS[a].fact, ENVIRONMENT_FACTS[b].fact, `${a}/${b}`)
+    assert.notEqual(ENVIRONMENT_FACTS[a].negate, ENVIRONMENT_FACTS[b].negate, `${a}/${b}`)
+  }
+})
+
+test('orientation breaks the tie the way the media query does', () => {
+  // `(orientation: portrait)` is `height >= width`, so a square is
+  // portrait. Worth pinning: the obvious `>` would disagree with CSS on
+  // exactly one shape, which is the kind of thing nobody tests by hand.
+  assert.equal(isPortrait({ width: 100, height: 200 }), true)
+  assert.equal(isPortrait({ width: 200, height: 100 }), false)
+  assert.equal(isPortrait({ width: 100, height: 100 }), true)
 })

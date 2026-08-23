@@ -1784,6 +1784,12 @@ enum RuntimeHook {
     Viewport,
     /// A native-driver rotation loop used by `animate-spin`.
     Spin,
+    /// One environment query, by Tailwind's name for it.
+    ///
+    /// Seven queries, four subscriptions: the runtime answers
+    /// `motion-safe` from `motion-reduce` and `landscape` from
+    /// `portrait`, so the pairs cost nothing extra.
+    Environment(Environment),
 }
 
 impl RuntimeHook {
@@ -1794,6 +1800,9 @@ impl RuntimeHook {
             RuntimeHook::Breakpoint(bp) => format!("__hozoBp_{}", breakpoint_name(bp)),
             RuntimeHook::Viewport => "__hozoViewport".to_string(),
             RuntimeHook::Spin => "__hozoSpin".to_string(),
+            RuntimeHook::Environment(query) => {
+                format!("__hozoEnv_{}", environment_name(*query).replace('-', "_"))
+            }
         }
     }
 
@@ -1803,6 +1812,7 @@ impl RuntimeHook {
             RuntimeHook::Breakpoint(_) => "useHozoBreakpoint",
             RuntimeHook::Viewport => "useHozoViewport",
             RuntimeHook::Spin => "useHozoSpin",
+            RuntimeHook::Environment(_) => "useHozoEnvironment",
         }
     }
 
@@ -1816,6 +1826,14 @@ impl RuntimeHook {
             ),
             RuntimeHook::Viewport => format!("const {} = useHozoViewport()", self.binding()),
             RuntimeHook::Spin => format!("const {} = useHozoSpin()", self.binding()),
+            // The query goes through as Tailwind's name, the way the
+            // breakpoint one does -- so the generated call reads as the
+            // class it came from.
+            RuntimeHook::Environment(query) => format!(
+                "const {} = useHozoEnvironment('{}')",
+                self.binding(),
+                environment_name(*query)
+            ),
         }
     }
 }
@@ -1951,6 +1969,7 @@ fn build_style_entries(
                             | Condition::Aria(_)
                             | Condition::Enabled
                             | Condition::Group(_)
+                            | Condition::Environment(_)
                             | Condition::Pressed
                             | Condition::Expr(_)
                             | Condition::Hover
@@ -2099,6 +2118,21 @@ fn build_style_entries(
                                 guards.push(hook.binding().to_string());
                                 runtime.hooks.push(hook);
                             }
+                            Condition::Environment(query) => match native_environment(*query) {
+                                Some(query) => {
+                                    let hook = RuntimeHook::Environment(query);
+                                    guards.push(hook.binding().to_string());
+                                    runtime.hooks.push(hook);
+                                }
+                                None => {
+                                    diagnostics.push(unwired_variant(
+                                        node,
+                                        &environment_unwired_message(*query),
+                                        Severity::Error,
+                                    ));
+                                    applies = false;
+                                }
+                            },
                             Condition::FirstChild | Condition::LastChild => {
                                 let known = match atom {
                                     Condition::FirstChild => position.first,
@@ -2168,14 +2202,18 @@ fn build_style_entries(
                     Severity::Error,
                 )),
             },
-            Condition::Environment(query) => diagnostics.push(unwired_variant(
-                node,
-                &format!(
-                    "`{}:` is not wired on React Native yet. On Web the same class works from                      a media query.",
-                    environment_name(*query)
-                ),
-                Severity::Error,
-            )),
+            Condition::Environment(query) => match native_environment(*query) {
+                Some(query) => {
+                    let hook = RuntimeHook::Environment(query);
+                    conditional_parts.extend(guarded(&format!("{} && ", hook.binding())));
+                    runtime.hooks.push(hook);
+                }
+                None => diagnostics.push(unwired_variant(
+                    node,
+                    &environment_unwired_message(*query),
+                    Severity::Error,
+                )),
+            },
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -2646,6 +2684,34 @@ fn group_unwired_message(inner: &Condition, interaction_context: bool) -> String
 
 /// Tailwind's name for an environment query, for the message and the
 /// style-entry suffix.
+/// The queries React Native can answer, and only those.
+///
+/// `contrast-more` and `contrast-less` are absent deliberately: React
+/// Native's nearest is Android's high-contrast *text* setting, which is a
+/// different thing wearing a similar name, and answering with it would be
+/// worse than saying nothing. A printer, a scripting-disabled page and
+/// Windows' forced-colours mode have no meaning on a device at all.
+fn native_environment(query: Environment) -> Option<Environment> {
+    matches!(
+        query,
+        Environment::MotionReduce
+            | Environment::MotionSafe
+            | Environment::Portrait
+            | Environment::Landscape
+            | Environment::InvertedColors
+            | Environment::Ltr
+            | Environment::Rtl
+    )
+    .then_some(query)
+}
+
+fn environment_unwired_message(query: Environment) -> String {
+    format!(
+        "`{}:` has no React Native equivalent, so the style is not applied there. On Web the          same class works from a media query.",
+        environment_name(query)
+    )
+}
+
 fn environment_name(query: Environment) -> &'static str {
     match query {
         Environment::MotionReduce => "motion-reduce",

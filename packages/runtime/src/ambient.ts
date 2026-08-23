@@ -114,3 +114,55 @@ export function isAtLeast(bucket: BreakpointName | '', name: BreakpointName): bo
   const indexOf = (want: string) => BREAKPOINTS.findIndex(([n]) => n === want)
   return indexOf(bucket) <= indexOf(name)
 }
+
+/**
+ * The environment queries React Native can answer.
+ *
+ * Tailwind's names, because that is what the author wrote and what the
+ * generated call carries. The pairs are one fact each -- `motion-safe` is
+ * `motion-reduce` negated, `landscape` is `portrait` negated -- so seven
+ * queries ride on four subscriptions.
+ *
+ * `contrast-more`, `contrast-less`, `forced-colors`, `print` and
+ * `noscript` are absent on purpose: React Native's nearest to the first
+ * two is Android's high-contrast *text* setting, which is a different
+ * thing wearing a similar name, and the last three have no meaning on a
+ * device at all. Those compile for Web and are reported on Native rather
+ * than answered wrongly.
+ */
+export type EnvironmentQuery =
+  | 'motion-reduce'
+  | 'motion-safe'
+  | 'portrait'
+  | 'landscape'
+  | 'ltr'
+  | 'rtl'
+  | 'inverted-colors'
+
+/** The fact behind a query, and whether the query is its negation. */
+export const ENVIRONMENT_FACTS: Record<
+  EnvironmentQuery,
+  { fact: 'reduceMotion' | 'portrait' | 'rtl' | 'invertColors'; negate: boolean }
+> = {
+  'motion-reduce': { fact: 'reduceMotion', negate: false },
+  'motion-safe': { fact: 'reduceMotion', negate: true },
+  portrait: { fact: 'portrait', negate: false },
+  landscape: { fact: 'portrait', negate: true },
+  rtl: { fact: 'rtl', negate: false },
+  ltr: { fact: 'rtl', negate: true },
+  'inverted-colors': { fact: 'invertColors', negate: false },
+}
+
+/**
+ * Orientation from a window size, as a coarse fact.
+ *
+ * Square counts as portrait, which is the same tie-break CSS makes: the
+ * media query is `(orientation: portrait)` for `height >= width`.
+ *
+ * Coarse on purpose, for the reason the breakpoint bucket is: a component
+ * using only `portrait:` must not re-render on every resize that does not
+ * turn the device over, and on Android those fire on keyboard show/hide.
+ */
+export function isPortrait(size: { width: number; height: number }): boolean {
+  return size.height >= size.width
+}
