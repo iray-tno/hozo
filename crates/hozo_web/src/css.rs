@@ -18,7 +18,7 @@ use hozo_ir::{
     Align, AlignSelf, Angle, BorderStyle, Breakpoint, Clamp, Color, Condition, ConditionExpr,
     FilterFunction, Scale,
     DecorationStyle,
-    ColumnCount, Dimension, Display, Edge, GradientStop, GridLine, GridSpan, GridTracks, MaskSlot,
+    ColumnCount, Dimension, Display, Edge, Environment, GradientStop, GridLine, GridSpan, GridTracks, MaskSlot,
     MaskStop,
     Em, FlexDirection, LetterSpacing, FlexShorthand, Justify, Length, LineHeight, Overflow, Position, Radius,
     StyleProperty, TextAlign, TextOverflow, TextTransform, Theme, WhiteSpace,
@@ -1194,6 +1194,24 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
 /// the same reason. `[@supports(display:grid)]:grid` is not a media query,
 /// and hardcoding `@media` at the emission site would have made supports
 /// queries unreachable by construction.
+/// The at-rule each environment query is, verbatim from Tailwind.
+fn environment_at_rule(query: Environment) -> &'static str {
+    match query {
+        Environment::MotionReduce => "@media (prefers-reduced-motion: reduce)",
+        Environment::MotionSafe => "@media (prefers-reduced-motion: no-preference)",
+        Environment::Portrait => "@media (orientation: portrait)",
+        Environment::Landscape => "@media (orientation: landscape)",
+        Environment::InvertedColors => "@media (inverted-colors: inverted)",
+        Environment::ContrastMore => "@media (prefers-contrast: more)",
+        Environment::ContrastLess => "@media (prefers-contrast: less)",
+        Environment::ForcedColors => "@media (forced-colors: active)",
+        Environment::Print => "@media print",
+        Environment::Noscript => "@media (scripting: none)",
+        // Selectors, handled by the caller.
+        Environment::Ltr | Environment::Rtl => "",
+    }
+}
+
 pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
     match condition {
         // Stacked variants. The at-rules nest in written order, outermost
@@ -1251,6 +1269,21 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
         // `:enabled` gives -- `:not()` takes its argument's, which is one
         // attribute, exactly as a pseudo-class is one.
         Condition::Enabled => (Vec::new(), "&:not([data-hozo-disabled])".to_string()),
+        // Read from Tailwind's output rather than recalled. Direction is
+        // the odd one: a selector rather than a query, and wrapped in
+        // `:where()` so it weighs nothing -- an `rtl:` utility orders
+        // against its unprefixed twin by source position, not by winning.
+        Condition::Environment(query) => match query {
+            Environment::Ltr => (
+                Vec::new(),
+                "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)".to_string(),
+            ),
+            Environment::Rtl => (
+                Vec::new(),
+                "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)".to_string(),
+            ),
+            _ => (vec![environment_at_rule(*query).to_string()], "&".to_string()),
+        },
         // `:is(:where(.group):hover *)`, which is Tailwind's own shape --
         // read from it rather than reconstructed. `:where()` is what keeps
         // the ancestor's class out of the specificity, so `group-hover:`

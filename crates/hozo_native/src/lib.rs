@@ -55,7 +55,7 @@ mod markup;
 mod style;
 
 use hozo_ir::{
-    AlignSelf, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, ExprRef,
+    AlignSelf, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, Environment, ExprRef,
     GridLine, GridSpan, GridTracks, Length, Node, Primitive,
     Severity, StyleDeclaration, StyleProperty, TextOverflow, Theme, WhiteSpace,
 };
@@ -2168,6 +2168,14 @@ fn build_style_entries(
                     Severity::Error,
                 )),
             },
+            Condition::Environment(query) => diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`{}:` is not wired on React Native yet. On Web the same class works from                      a media query.",
+                    environment_name(*query)
+                ),
+                Severity::Error,
+            )),
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -2636,6 +2644,25 @@ fn group_unwired_message(inner: &Condition, interaction_context: bool) -> String
     }
 }
 
+/// Tailwind's name for an environment query, for the message and the
+/// style-entry suffix.
+fn environment_name(query: Environment) -> &'static str {
+    match query {
+        Environment::MotionReduce => "motion-reduce",
+        Environment::MotionSafe => "motion-safe",
+        Environment::Portrait => "portrait",
+        Environment::Landscape => "landscape",
+        Environment::InvertedColors => "inverted-colors",
+        Environment::Ltr => "ltr",
+        Environment::Rtl => "rtl",
+        Environment::ContrastMore => "contrast-more",
+        Environment::ContrastLess => "contrast-less",
+        Environment::ForcedColors => "forced-colors",
+        Environment::Print => "print",
+        Environment::Noscript => "noscript",
+    }
+}
+
 fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
     let value = node.props.accessibility_state?;
     // An object literal says which keys it has, so one that does not name
@@ -2670,6 +2697,7 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::LastChild => Some("last".to_string()),
         Condition::Disabled => Some("disabled".to_string()),
         Condition::Enabled => Some("enabled".to_string()),
+        Condition::Environment(query) => Some(environment_name(*query).replace('-', "")),
         Condition::Group(inner) => {
             Some(format!("group{}", condition_suffix(inner).unwrap_or_default()))
         }

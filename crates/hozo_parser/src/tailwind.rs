@@ -6,7 +6,7 @@
 
 use hozo_ir::{
     Align, AlignSelf, Angle, Animation, BorderStyle, Breakpoint, Clamp, Color, Condition, Dimension,
-    ColumnCount, DecorationStyle, Display, Edge, Em, GradientKind, GradientStop, GridLine, GridSpan,
+    ColumnCount, DecorationStyle, Display, Edge, Em, Environment, GradientKind, GradientStop, GridLine, GridSpan,
     GridTracks, LetterSpacing,
     MaskSlot, MaskStop,
     FilterFunction, FlexDirection, FlexShorthand, FontWeight, Justify, Length, LineHeight, Overflow,
@@ -2509,6 +2509,26 @@ pub fn parse_variant_prefix(token: &str) -> (Condition, &str) {
     (condition, rest)
 }
 
+/// Tailwind's environment variants, with the colon they are written with.
+///
+/// `dark:` is not here: it predates this and every backend matches on
+/// `Condition::Dark` by name, so moving it would be churn for a tidier
+/// list.
+const ENVIRONMENT_VARIANTS: &[(&str, Environment)] = &[
+    ("motion-safe:", Environment::MotionSafe),
+    ("motion-reduce:", Environment::MotionReduce),
+    ("portrait:", Environment::Portrait),
+    ("landscape:", Environment::Landscape),
+    ("inverted-colors:", Environment::InvertedColors),
+    ("ltr:", Environment::Ltr),
+    ("rtl:", Environment::Rtl),
+    ("contrast-more:", Environment::ContrastMore),
+    ("contrast-less:", Environment::ContrastLess),
+    ("forced-colors:", Environment::ForcedColors),
+    ("print:", Environment::Print),
+    ("noscript:", Environment::Noscript),
+];
+
 /// Strips one recognized `variant:` prefix, or returns `Always` and the
 /// token unchanged.
 fn parse_one_variant(token: &str) -> (Condition, &str) {
@@ -2582,6 +2602,13 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     // everywhere except here.
     if let Some(rest) = token.strip_prefix("pressed:").or_else(|| token.strip_prefix("active:")) {
         return (Condition::Pressed, rest);
+    }
+    // One table rather than a branch each: these differ only in which
+    // query they are, and the names are Tailwind's.
+    for (name, query) in ENVIRONMENT_VARIANTS {
+        if let Some(rest) = token.strip_prefix(name) {
+            return (Condition::Environment(*query), rest);
+        }
     }
     if let Some(rest) = token.strip_prefix("dark:") {
         return (Condition::Dark, rest);

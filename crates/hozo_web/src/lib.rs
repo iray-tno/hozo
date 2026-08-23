@@ -1648,6 +1648,24 @@ export function Login() {
     }
 
     #[test]
+    fn direction_is_a_selector_and_weighs_nothing() {
+        // The odd one in the environment group, and the reason the whole
+        // group was read out of Tailwind rather than assumed: `ltr:` is
+        // not a media query. Its `:where()` wrapper is what keeps an
+        // `rtl:` utility ordering against its unprefixed twin by source
+        // position rather than by outweighing it.
+        let (at_rules, suffix) =
+            css::condition_shape(&hozo_ir::Condition::Environment(hozo_ir::Environment::Ltr));
+        assert!(at_rules.is_empty());
+        assert!(suffix.contains(":where("), "{suffix}");
+
+        let (at_rules, suffix) =
+            css::condition_shape(&hozo_ir::Condition::Environment(hozo_ir::Environment::Print));
+        assert_eq!(at_rules, vec!["@media print".to_string()]);
+        assert_eq!(suffix, "&");
+    }
+
+    #[test]
     fn a_class_hozo_cannot_compile_is_carried_not_deleted() {
         // Dropped before this, which deleted a project's own class from
         // the element -- and Tailwind's `group` and `peer`, which carry no

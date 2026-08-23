@@ -2230,6 +2230,15 @@ pub enum Condition {
     /// `accessibilityState` and become a runtime guard -- the same
     /// division `Disabled` already has.
     Aria(String),
+    /// A condition about the environment the whole page is in.
+    ///
+    /// Grouped rather than given a variant each because they share
+    /// everything that matters: none of them says anything about the
+    /// element, all of them are one at-rule (or, for direction, one
+    /// zero-specificity selector) on Web, and each is one subscription on
+    /// Native. `Dark` predates this and is the same shape; it is left
+    /// where it is because every backend already matches on it by name.
+    Environment(Environment),
     /// Tailwind's `group-…:` -- a condition on a marked *ancestor*.
     ///
     /// Holds the inner condition rather than naming the states it can
@@ -2420,23 +2429,72 @@ pub enum ConditionExpr {
     Or(Box<ConditionExpr>, Box<ConditionExpr>),
 }
 
+/// The environment queries Tailwind names, as Tailwind names them.
+///
+/// Split by what each platform can answer rather than by what it is:
+/// React Native reports reduced motion, inverted colours, orientation and
+/// text direction, and has nothing for a printer, a scripting-disabled
+/// page, or Windows' forced-colours mode. The ones it cannot answer are
+/// still compiled for Web and reported on Native, which is the rule
+/// `peer-` established -- a concept that exists on one platform is better
+/// implemented there and named absent on the other than left out of both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Environment {
+    /// `@media (prefers-reduced-motion: reduce)`.
+    MotionReduce,
+    /// `@media (prefers-reduced-motion: no-preference)`.
+    MotionSafe,
+    /// `@media (orientation: portrait)`.
+    Portrait,
+    /// `@media (orientation: landscape)`.
+    Landscape,
+    /// `@media (inverted-colors: inverted)`.
+    InvertedColors,
+    /// A selector, not a query: `:where(:dir(ltr), [dir="ltr"], [dir="ltr"] *)`.
+    Ltr,
+    /// The same, right to left.
+    Rtl,
+    /// `@media (prefers-contrast: more)`. Web only -- React Native's
+    /// nearest is Android's high-contrast *text* setting, which is a
+    /// different thing wearing a similar name.
+    ContrastMore,
+    /// `@media (prefers-contrast: less)`. Web only, as above.
+    ContrastLess,
+    /// `@media (forced-colors: active)`. Web only.
+    ForcedColors,
+    /// `@media print`. Web only, and unambiguously so.
+    Print,
+    /// `@media (scripting: none)`. Web only.
+    Noscript,
+}
+
 impl Condition {
-    /// Whether this condition is about the element itself rather than the
-    /// environment around it.
+    /// Whether this condition is expressed as a *selector* rather than as
+    /// a query around one.
     ///
     /// Which is what decides whether `group-` and `peer-` can relate it
-    /// to another element: a dark-mode preference or a viewport width is
-    /// true of the page, so asking whether an *ancestor* is in dark mode
-    /// says nothing the element does not already know. Tailwind refuses
-    /// `group-dark:` for the same reason.
+    /// to another element: relating means moving the condition onto a
+    /// different subject, and only a selector has a subject to move. A
+    /// media query wraps the rule and names nobody.
+    ///
+    /// Read as "is it about the element" first, which is nearly the same
+    /// answer and wrong in one place: text direction is inherited, so
+    /// `ltr:` is about the environment *and* is a selector -- and
+    /// Tailwind does allow `group-rtl:`, an ancestor in a right-to-left
+    /// subtree, while refusing `group-motion-reduce:`. Checked against it
+    /// rather than reasoned about, which is how the criterion turned out
+    /// to be the form and not the subject.
     pub fn is_elemental(&self) -> bool {
-        !matches!(
-            self,
-            Condition::Dark
-                | Condition::Responsive(_)
-                | Condition::ArbitraryAtRule(_)
-                | Condition::Always
-        )
+        match self {
+            Condition::Always
+            | Condition::Dark
+            | Condition::Responsive(_)
+            | Condition::ArbitraryAtRule(_) => false,
+            Condition::Environment(query) => {
+                matches!(query, Environment::Ltr | Environment::Rtl)
+            }
+            _ => true,
+        }
     }
 }
 

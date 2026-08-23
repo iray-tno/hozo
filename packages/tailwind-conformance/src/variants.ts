@@ -51,6 +51,23 @@ const VARIANTS = [
   'group-first',
   'peer-hover',
   'peer-aria-expanded',
+  // Environment queries: nothing about the element, one at-rule each --
+  // except direction, which is a zero-specificity selector and the reason
+  // this group is worth comparing rather than assuming.
+  'motion-safe',
+  'motion-reduce',
+  'portrait',
+  'landscape',
+  'inverted-colors',
+  'ltr',
+  'rtl',
+  'contrast-more',
+  'contrast-less',
+  'forced-colors',
+  'print',
+  'noscript',
+  // Direction relates: it is inherited, so an ancestor can differ on it.
+  'group-rtl',
   // Not implemented, and included on purpose: an unsupported variant
   // should read as an honest gap here rather than being absent from the
   // list that decides what "supported" means.
