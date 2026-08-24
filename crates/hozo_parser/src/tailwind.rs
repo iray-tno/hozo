@@ -4471,3 +4471,24 @@ pub fn has_unstripped_variant(token: &str) -> bool {
         _ => false,
     })
 }
+
+/// The name of the Tailwind variant in `token` that Hozo does not compile.
+///
+/// `None` for a class that was never Tailwind's. A project's own `my-card`
+/// is not a gap in Hozo and saying so would be noise -- the whole value of
+/// this is telling the two apart, which needs Tailwind's own list rather
+/// than a set of prefixes somebody remembered.
+///
+/// Reads the prefix Hozo could not strip: `parse_variant_prefix` removes
+/// the variants it implements, so whatever colon is left is the first one
+/// it did not.
+pub fn unsupported_variant_name(token: &str) -> Option<&str> {
+    let (_, rest) = parse_variant_prefix(token);
+    let (prefix, _) = rest.split_once(':')?;
+    // An arbitrary variant (`[&:hover]:p-4`) is a different report -- it
+    // is not a name Tailwind defines, and `is_arbitrary` covers it.
+    if prefix.starts_with('[') {
+        return None;
+    }
+    crate::tailwind_variants::is_variant(prefix).then_some(prefix)
+}

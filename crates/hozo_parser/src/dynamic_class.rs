@@ -39,11 +39,28 @@ pub struct Decomposed {
     /// scannable again, which costs an unused rule rather than a missing
     /// one.
     pub consumed: Vec<SourceSpan>,
+    /// Tokens whose variant Tailwind defines and Hozo does not compile.
+    ///
+    /// Collected rather than reported here, because this module has no
+    /// diagnostics and the reason is worth keeping: it decomposes an
+    /// expression and knows nothing about what a message should say.
+    pub unsupported_variants: Vec<UnsupportedVariant>,
+}
+
+/// A class the author wrote that Hozo could not compile, and why.
+///
+/// The span is the whole string literal, not the token: a literal is what
+/// the source has an offset for, and pointing at `'p-4 open:p-4'` is more
+/// use than pointing inside it.
+pub struct UnsupportedVariant {
+    pub variant: String,
+    pub token: String,
+    pub span: SourceSpan,
 }
 
 pub fn decompose_class_name(expr: &JSXExpression, module_record: &ModuleRecord) -> Decomposed {
     let mut out = Decomposed::default();
-    decompose(classify_jsx_expression(expr), None, &mut out, module_record);
+    decompose(classify_jsx_expression(expr), None, None, &mut out, module_record);
     out
 }
 
@@ -141,18 +158,72 @@ fn is_recognized_cx_identifier(
     })
 }
 
+/// Re-emits `span` verbatim, once.
+///
+/// Once, because a ternary whose branches both fail is one expression and
+/// would otherwise be written into the output twice.
+fn fall_back_to(out: &mut Decomposed, span: Span) {
+    let expr_ref = to_expr_ref(span);
+    if !out.fallback.contains(&expr_ref) {
+        out.fallback.push(expr_ref);
+    }
+}
+
 fn decompose(
     target: Target,
     condition: Option<ConditionExpr>,
+    // The expression the condition came from, and therefore what has to be
+    // re-emitted when something inside it cannot be compiled.
+    //
+    // Falling back the string literal alone would drop the guard around it:
+    // `cond ? 'my-card' : 'p-8'` would put `my-card` on the element
+    // unconditionally, which is a different wrong answer from deleting it
+    // and not obviously a better one. The outermost guard is the one kept,
+    // since an inner one re-emitted alone loses everything above it.
+    guard: Option<Span>,
     out: &mut Decomposed,
     module_record: &ModuleRecord,
 ) {
     match target {
         Target::StringLiteral(lit) => {
+            let fallback_span = guard.unwrap_or(lit.span);
             let mut fell_back = false;
             for token in lit.value.split_whitespace() {
-                let (token_condition, properties) = tailwind::expand_utility(token);
+                // The same question the `className` path asks, and for the
+                // same reason: an unrecognised variant leaves its own text
+                // in front of the utility, and the utility parser will read
+                // that text as a value.
+                let (token_condition, properties) = if tailwind::has_unstripped_variant(token) {
+                    (Condition::Always, Vec::new())
+                } else {
+                    tailwind::expand_utility(token)
+                };
                 if properties.is_empty() {
+                    // Nothing compiled, so the literal has to reach the DOM
+                    // as written -- a project's own `my-card` carries no
+                    // styles Hozo could have produced, and a variant Hozo
+                    // does not compile is the author's to see.
+                    //
+                    // This was a `continue`, which deleted the token. The
+                    // static path was taught to carry back when `group` and
+                    // `peer` turned out to be vanishing from it; this path
+                    // was not, so `cn('open:p-4')` still compiled to
+                    // nothing and said nothing about it.
+                    //
+                    // A token has no expression of its own, so what gets
+                    // carried is the literal -- or whatever guards it, so
+                    // the guard survives with it.
+                    if !fell_back {
+                        fall_back_to(out, fallback_span);
+                        fell_back = true;
+                    }
+                    if let Some(variant) = tailwind::unsupported_variant_name(token) {
+                        out.unsupported_variants.push(UnsupportedVariant {
+                            variant: variant.to_string(),
+                            token: token.to_string(),
+                            span: SourceSpan { start: lit.span.start, end: lit.span.end },
+                        });
+                    }
                     continue;
                 }
                 if token_condition == Condition::Always {
@@ -173,8 +244,13 @@ fn decompose(
                     // combine a CSS-native condition with a JS-tracked one
                     // -- Condition doesn't support that composition yet.
                     // Falls back rather than silently dropping either half.
-                    out.fallback.push(to_expr_ref(lit.span));
-                    fell_back = true;
+                    //
+                    // Guarded, because a literal with two such tokens would
+                    // otherwise be re-emitted twice.
+                    if !fell_back {
+                        fall_back_to(out, fallback_span);
+                        fell_back = true;
+                    }
                 }
             }
             if !fell_back {
@@ -183,22 +259,24 @@ fn decompose(
         }
         Target::Logical(logical) => {
             let guarded = and_ref(&condition, logical.left.span());
-            decompose(classify_expression(&logical.right), guarded, out, module_record);
+            let guard = guard.or(Some(logical.span));
+            decompose(classify_expression(&logical.right), guarded, guard, out, module_record);
         }
         Target::Conditional(cond) => {
+            let guard = guard.or(Some(cond.span));
             let when_true = and_ref(&condition, cond.test.span());
-            decompose(classify_expression(&cond.consequent), when_true, out, module_record);
+            decompose(classify_expression(&cond.consequent), when_true, guard, out, module_record);
             let when_false = and_not_ref(&condition, cond.test.span());
-            decompose(classify_expression(&cond.alternate), when_false, out, module_record);
+            decompose(classify_expression(&cond.alternate), when_false, guard, out, module_record);
         }
         Target::Call(call) if is_recognized_cx_call(&call.callee, module_record).is_some() => {
             for arg in &call.arguments {
-                decompose(classify_argument(arg), condition.clone(), out, module_record);
+                decompose(classify_argument(arg), condition.clone(), guard, out, module_record);
             }
         }
         Target::Call(call) => {
             // Unrecognized callee: opaque leaf, same as `Other` below.
-            out.fallback.push(to_expr_ref(call.span));
+            fall_back_to(out, guard.unwrap_or(call.span));
         }
         Target::Spread(span) | Target::Other(span) => {
             // Opaque leaf: a spread argument or any other expression shape.
@@ -206,7 +284,12 @@ fn decompose(
             // itself already inside a recognized guard, the guard was
             // applied to the *literals* it selects between, not to whether
             // the leaf needs runtime evaluation at all.
-            out.fallback.push(to_expr_ref(span));
+            //
+            // But the guard still has to come with it. `a ? (b ? 'x' : 'p-4')
+            // : 'p-8'` reaches here on the parenthesised inner ternary, and
+            // re-emitting that alone put `x` on the element whenever `b`
+            // held, whether or not `a` did.
+            fall_back_to(out, guard.unwrap_or(span));
         }
     }
 }
@@ -343,5 +426,80 @@ mod tests {
                 condition: Condition::Always,
             }]
         );
+    }
+
+    /// The source text of everything this decomposition gave up on.
+    fn carried(source: &str) -> Vec<String> {
+        decompose_source(source)
+            .fallback
+            .iter()
+            .map(|expr_ref| {
+                source[expr_ref.0.start as usize..expr_ref.0.end as usize].to_string()
+            })
+            .collect()
+    }
+
+    fn wrap(expression: &str) -> String {
+        format!(
+            "
+import {{ View }} from '@hozo/core'
+import cn from 'clsx'
+const el = <View className={{{expression}}} />
+"
+        )
+    }
+
+    #[test]
+    fn a_class_it_cannot_compile_is_carried_rather_than_deleted() {
+        // The static path learned this when `group` and `peer` turned out
+        // to be vanishing from it. This path kept the `continue`, so a
+        // project's own class written under a condition was deleted and
+        // nothing said so.
+        assert_eq!(carried(&wrap("cond ? 'my-card' : 'p-8'")), ["cond ? 'my-card' : 'p-8'"]);
+        assert_eq!(carried(&wrap("cn('p-4', 'open:p-4')")), ["'open:p-4'"]);
+    }
+
+    #[test]
+    fn what_is_carried_keeps_the_condition_around_it() {
+        // The reason the whole guarded expression goes back rather than the
+        // literal inside it. Carrying `'my-card'` alone would put the class
+        // on the element unconditionally -- a different wrong answer from
+        // deleting it, and not a better one.
+        assert!(carried(&wrap("cond ? 'my-card' : 'p-8'"))[0].starts_with("cond ?"));
+        assert!(carried(&wrap("cond && 'my-card'"))[0].starts_with("cond &&"));
+        // Including the guard that is not the nearest one. An inner ternary
+        // re-emitted alone applies whenever *it* holds, whether or not the
+        // outer test did.
+        assert_eq!(
+            carried(&wrap("a ? (b ? 'my-card' : 'p-4') : 'p-8'")),
+            ["a ? (b ? 'my-card' : 'p-4') : 'p-8'"],
+        );
+    }
+
+    #[test]
+    fn one_expression_is_carried_once() {
+        // Both branches fail, and they are one expression.
+        assert_eq!(carried(&wrap("cond ? 'my-card' : 'other-card'")).len(), 1);
+        // Two failing tokens in one literal, likewise.
+        assert_eq!(carried(&wrap("cn('my-card other-card')")).len(), 1);
+    }
+
+    #[test]
+    fn a_variant_tailwind_defines_and_hozo_does_not_is_named() {
+        let out = decompose_source(&wrap("cn('open:p-4')"));
+        assert_eq!(out.unsupported_variants.len(), 1);
+        assert_eq!(out.unsupported_variants[0].variant, "open");
+        // A project's own class is not a gap in Hozo, so it gets carried
+        // without being reported.
+        assert!(decompose_source(&wrap("cn('my-card')")).unsupported_variants.is_empty());
+    }
+
+    #[test]
+    fn a_class_that_compiles_is_still_compiled_away() {
+        // The carry is for what fails. Everything that worked before has to
+        // keep producing no fallback at all, or this fix would have turned
+        // every dynamic className into a runtime string.
+        assert!(carried(&wrap("cond ? 'p-4' : 'p-8'")).is_empty());
+        assert!(carried(&wrap("cn('p-4', 'bg-blue-500')")).is_empty());
     }
 }

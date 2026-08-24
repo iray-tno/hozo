@@ -342,23 +342,18 @@ fn object_literal_keys(attr: &JSXAttribute) -> Option<Vec<String>> {
 /// The Tailwind variant in `token` that Hozo does not compile, if that is
 /// why nothing was produced for it.
 ///
-/// `None` for a class that was never Tailwind's. A project's own `my-card`
-/// is not a gap in Hozo and saying so would be noise -- the whole value of
-/// this is telling the two apart, which needs Tailwind's own list rather
-/// than a set of prefixes somebody remembered.
+/// The wording, which both `className` paths share.
 ///
-/// Reads the prefix Hozo could not strip: `parse_variant_prefix` removes
-/// the variants it implements, so whatever colon is left is the first one
-/// it did not.
-fn unsupported_variant(token: &str) -> Option<&str> {
-    let (_, rest) = tailwind::parse_variant_prefix(token);
-    let (prefix, _) = rest.split_once(':')?;
-    // An arbitrary variant (`[&:hover]:p-4`) is a different report -- it
-    // is not a name Tailwind defines, and `is_arbitrary` covers it.
-    if prefix.starts_with('[') {
-        return None;
-    }
-    crate::tailwind_variants::is_variant(prefix).then_some(prefix)
+/// `tailwind::unsupported_variant_name` decides *whether* to say anything;
+/// this is what gets said. Kept together because the two paths reached the
+/// same conclusion in different words until the dynamic one learned to
+/// report at all.
+fn unsupported_variant_message(variant: &str, token: &str) -> String {
+    format!(
+        "`{variant}:` is a Tailwind variant Hozo does not compile yet, so `{token}` produces \
+         no style. The class is still on the element, so it will work if the project runs \
+         its own Tailwind build over it."
+    )
 }
 
 /// `focusable` on an element that is also `disabled`.
@@ -534,7 +529,7 @@ fn build_node(
                             // descendant.
                             let unsupported = properties
                                 .is_empty()
-                                .then(|| unsupported_variant(token))
+                                .then(|| tailwind::unsupported_variant_name(token))
                                 .flatten();
                             if properties.is_empty() {
                                 carried_classes.push(token.to_string());
@@ -543,12 +538,7 @@ fn build_node(
                                 diagnostics.push(Diagnostic {
                                     code: DiagnosticCode::TailwindVariantNotSupported,
                                     severity: Severity::Warning,
-                                    message: format!(
-                                        "`{variant}:` is a Tailwind variant Hozo does not \
-                                         compile yet, so `{token}` produces no style. The class \
-                                         is still on the element, so it will work if the \
-                                         project runs its own Tailwind build over it."
-                                    ),
+                                    message: unsupported_variant_message(variant, token),
                                     span: to_span(literal.span()),
                                 });
                             }
@@ -593,6 +583,20 @@ fn build_node(
                         style.extend(decomposed.declarations);
                         class_name_fallback.extend(decomposed.fallback);
                         consumed.extend(decomposed.consumed);
+                        // The same report the static path gives, which this
+                        // path did not give at all: `cn('open:p-4')` used to
+                        // compile to nothing and say nothing.
+                        for report in decomposed.unsupported_variants {
+                            diagnostics.push(Diagnostic {
+                                code: DiagnosticCode::TailwindVariantNotSupported,
+                                severity: Severity::Warning,
+                                message: unsupported_variant_message(
+                                    &report.variant,
+                                    &report.token,
+                                ),
+                                span: report.span,
+                            });
+                        }
                     }
                     _ => {}
                 }
