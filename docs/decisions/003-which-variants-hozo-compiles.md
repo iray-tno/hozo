@@ -50,17 +50,44 @@ Web to no one's benefit.
 | Breakpoints | `sm` `md` `lg` `xl` `2xl` |
 | Colour scheme | `dark` |
 | ARIA state | `aria-busy` `aria-checked` `aria-disabled` `aria-expanded` `aria-hidden` `aria-pressed` `aria-readonly` `aria-required` `aria-selected` |
-| Relational | `group-…` `peer-…`, wrapping any of the above |
+| Relational | `group-…` `peer-…` `has-…`, wrapping any of the above |
 | Environment | `motion-safe` `motion-reduce` `portrait` `landscape` `inverted-colors` `ltr` `rtl` `contrast-more` `contrast-less` `forced-colors` `print` `noscript` |
+| Compositional | `not-…` `data-…` `supports-…` |
 | Arbitrary | `[&_p]:`, `[@supports…]:` |
 
-Native compiles all of those except `peer-…`, `contrast-more`,
-`contrast-less`, `forced-colors`, `print` and `noscript`, and reports each
-one it cannot.
+Native compiles all of those except `peer-…`, `has-…`, `not-…`, `data-…`,
+`supports-…`, `contrast-more`, `contrast-less`, `forced-colors`, `print`
+and `noscript`, and reports each one it cannot.
 
 `crates/hozo_parser/src/tailwind_variants.rs` is generated from Tailwind
-and holds all 83 names; the conformance suite compares 4218 single and
+and holds all 83 names; the conformance suite compares 5940 single and
 stacked combinations against Tailwind's own output.
+
+One variant is refused rather than unbuilt. `not-hover:` is two rules in
+Tailwind — the selector negated, and `@media not (hover: hover)` for a
+device where nothing is ever hovered — and one condition returning two
+rules does not fit the shape the backends read. Named, rather than
+answered with the half that fits.
+
+## A class whose variant is not compiled must not be read as a utility
+
+Its own rule, because it was got wrong and the way it failed is the
+reason the first rule above is worded as it is.
+
+An unrecognised variant leaves its own text in front of the utility.
+Handing the whole token to the utility parser lets that text be read as a
+*value*: `placeholder-shown:bg-blue-500` matched the placeholder-colour
+family with `shown:bg-blue-500` as the colour, and emitted a rule for a
+pseudo-element nobody asked about, naming a custom property whose name
+contains a colon.
+
+No diagnostic fired, because a diagnostic is what happens when a class
+produces nothing — and this produced something. So "carry what you cannot
+compile" needs a companion: **know that you cannot compile it before the
+utility parser gets a chance to disagree.** The test is a colon left at
+the top level once every variant Hozo knows has been stripped, in
+`tailwind::has_unstripped_variant`, and both the `className` path and the
+project-wide scan ask it.
 
 ## What "relatable" means, and how it was got wrong
 
@@ -81,10 +108,7 @@ everything in this file.
 
 ## Planned, in order
 
-**② Compositional.** `not-*`, `data-*`, `has-*`, `supports-*`, `min-*`,
-`max-*`. `not-*` is the same recursion `group-`/`peer-` already use.
-`data-[state=open]:` is the shadcn and Radix idiom and the one with real
-demand.
+**② Compositional.** Done, except `min-*` and `max-*`.
 
 **③ Structural.** `odd` `even` `only` `empty` `focus-within` `target`
 `nth-*`. Trivial on Web; Native follows the `first:`/`last:` precedent,
@@ -115,11 +139,22 @@ high-contrast text expects a `contrast-more:` class to fire.
 
 **`data-*` and Hozo's own attributes.** Hozo emits `data-hozo-disabled`,
 `data-hozo-cond-*`, `data-hozo-pointer-events` and more, and `data-[…]:`
-would let an author select on attributes in the same namespace. They cannot
-collide — `hozo-` is prefixed — but the two would sit side by side in
-generated output, and a line needs drawing before `data-*` lands: whether
-`data-hozo-*` is documented surface an author may select on, or an
-implementation detail that happens to be visible.
+now lets an author select on attributes in the same namespace. They cannot
+collide — `hozo-` is prefixed — but the two sit side by side in generated
+output, and nothing yet says which of them an author may rely on.
+
+The working answer is that `data-hozo-*` is Hozo's, not a stable
+interface: `data-hozo-disabled` exists because `:disabled` cannot match a
+`<div>` (decision 001), and if that stops being true the attribute should
+be free to go. `group-data-[hozo-disabled]:` would work today and would
+break on a release that changed its mind.
+
+Working, not settled, because the argument against is real: an attribute
+that appears in shipped HTML is observable whatever the documentation
+says, and telling people not to use the thing they can see is a position
+that needs a migration story behind it. What would settle it is one
+concrete case of someone needing to select on Hozo's own state and having
+no other way to ask.
 
 **React Native settings Tailwind has no variant for.** `isBoldTextEnabled`,
 `isGrayscaleEnabled`, `isReduceTransparencyEnabled`, `isScreenReaderEnabled`.
