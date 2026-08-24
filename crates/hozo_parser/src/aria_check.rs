@@ -444,7 +444,7 @@ mod variant_tests {
             "empty:bg-blue-500",
             "odd:bg-blue-500",
             "open:bg-blue-500",
-            "only:bg-blue-500",
+            "placeholder-shown:bg-blue-500",
         ] {
             assert_eq!(
                 codes(class_name),

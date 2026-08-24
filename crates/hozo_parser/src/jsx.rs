@@ -499,7 +499,27 @@ fn build_node(
                             // Several groups only for a shorthand like
                             // `container`, which is a width plus a
                             // max-width at each breakpoint.
-                            let groups = tailwind::expand_class(token);
+                            // Asked before the utility parser sees the
+                            // token, not after. An unrecognised variant
+                            // leaves its own text in front of the utility,
+                            // and the utility parser will read that text as
+                            // a value: `placeholder-shown:bg-blue-500`
+                            // became a `placeholder-<colour>` whose colour
+                            // was `shown:bg-blue-500`, emitting
+                            // `.hozo-0::placeholder { color:
+                            // var(--hozo-color-shown:bg-blue-500) }` --
+                            // a rule that should not exist, naming a custom
+                            // property that cannot exist.
+                            //
+                            // Worse than a missing style, because it is the
+                            // one failure the author cannot see: no
+                            // diagnostic fires when properties come back
+                            // non-empty, so Hozo reported success.
+                            let groups = if tailwind::has_unstripped_variant(token) {
+                                Vec::new()
+                            } else {
+                                tailwind::expand_class(token)
+                            };
                             let properties: Vec<_> =
                                 groups.iter().flat_map(|(_, p)| p.clone()).collect();
                             // Nothing recognised, so it goes back into the

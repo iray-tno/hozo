@@ -1786,6 +1786,46 @@ const el = {element}
         let output = lower(&parsed.roots[0].node, dynamic, &Theme::default());
         assert_eq!(output.jsx, "<List ordered={ranked}><li>First</li></List>");
     }
+
+    #[test]
+    fn an_unrecognized_variant_does_not_become_part_of_a_utility_name() {
+        // The one failure mode that reports success. An unknown variant
+        // leaves its own text in front of the utility, and the utility
+        // parser read that text as a *value*: `placeholder-shown:` matched
+        // the `placeholder-<colour>` family and wrote
+        //
+        //   .hozo-0::placeholder { color: var(--hozo-color-shown:bg-blue-500) }
+        //
+        // -- a rule for a pseudo-element nobody asked about, naming a
+        // custom property whose name contains a colon and so cannot exist.
+        // Nothing was reported, because a diagnostic is what happens when a
+        // class produces *nothing*, and this produced something.
+        //
+        // Checked on the CSS rather than only on the diagnostic, because
+        // the missing diagnostic was the consequence and not the defect.
+        for classes in [
+            "placeholder-shown:bg-blue-500",
+            "bg-nonsense:p-4",
+            "text-x:y",
+            "border-bottom:12px",
+        ] {
+            // `.hozo-0` is the class the element's own utilities go into;
+            // `View`'s base rule is always there and is not this.
+            assert!(!css_for(classes).contains(".hozo-0"), "{classes}: {}", css_for(classes));
+        }
+    }
+
+    #[test]
+    fn a_colon_inside_an_arbitrary_value_is_the_values_own() {
+        // The guard is "a colon left at the top level", so it has to know
+        // that brackets hold their own. Both of these are real utilities
+        // whose value contains a colon.
+        assert!(css_for("bg-[url(a:b)]").contains("background-image: url(a:b);"));
+        assert!(css_for("supports-[display:grid]:p-4").contains("@supports (display:grid)"));
+        // And the pseudo-element family still works where it is genuinely
+        // the utility rather than a variant that resembled one.
+        assert!(css_for("placeholder-blue-500").contains("::placeholder"));
+    }
 }
 
 #[cfg(test)]

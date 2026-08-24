@@ -4435,3 +4435,39 @@ mod tests {
         );
     }
 }
+
+/// Whether a class still holds a variant separator after every variant Hozo
+/// knows has been stripped.
+///
+/// A top-level colon separates variants from their utility, so one left
+/// over means the front of the token is a variant Hozo did not recognise.
+/// The rest of the token is therefore not a utility name, and reading it as
+/// one invents a value out of the variant's own text: `bg-nonsense:p-4`
+/// became `background-color: var(--hozo-color-nonsense:p-4)` -- a custom
+/// property whose name contains a colon, which is not a name at all.
+///
+/// Colons inside brackets are the arbitrary value's own (`bg-[url(a:b)]`),
+/// and do not count.
+///
+/// Both callers need this and only one had it. The project-wide scan has
+/// tested it since it was written, because a scan also sees CSS text such
+/// as `border-bottom:12px` and would have resolved that to a border colour.
+/// The `className` path sees the same shape whenever an author writes a
+/// variant Hozo has not implemented, which is a far more ordinary thing to
+/// do than to write a stylesheet inside a class attribute.
+pub fn has_unstripped_variant(token: &str) -> bool {
+    let (_, base) = parse_variant_prefix(token);
+    let mut depth = 0usize;
+    base.bytes().any(|byte| match byte {
+        b'[' => {
+            depth += 1;
+            false
+        }
+        b']' => {
+            depth = depth.saturating_sub(1);
+            false
+        }
+        b':' => depth == 0,
+        _ => false,
+    })
+}
