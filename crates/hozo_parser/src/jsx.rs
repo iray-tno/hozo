@@ -401,6 +401,35 @@ fn object_literal_keys(attr: &JSXAttribute) -> Option<Vec<String>> {
 /// The Tailwind variant in `token` that Hozo does not compile, if that is
 /// why nothing was produced for it.
 ///
+/// The form-state condition inside `condition`, if there is one.
+///
+/// Looks through the wrappers rather than only at the top, because
+/// `md:required:` and `not-invalid:` are the same claim about the same
+/// element. `group-` and `peer-` are *not* looked through: those move the
+/// condition onto a different element, and whether that one is a form
+/// control is not something this element's primitive can answer.
+fn form_state_atom(condition: &hozo_ir::Condition) -> Option<hozo_ir::FormState> {
+    match condition {
+        hozo_ir::Condition::FormState(state) => Some(*state),
+        hozo_ir::Condition::Not(inner) => form_state_atom(inner),
+        hozo_ir::Condition::All(conditions) => conditions.iter().find_map(form_state_atom),
+        _ => None,
+    }
+}
+
+/// What this primitive becomes on Web, for a message that has to say why
+/// a selector cannot reach it.
+fn web_tag_hint(primitive: Primitive) -> &'static str {
+    match primitive {
+        Primitive::Text => "span",
+        Primitive::Button => "button",
+        Primitive::Link => "a",
+        Primitive::Image => "img",
+        Primitive::TextInput => "input",
+        _ => "div",
+    }
+}
+
 /// The wording, which both `className` paths share.
 ///
 /// `tailwind::unsupported_variant_name` decides *whether* to say anything;
@@ -592,6 +621,29 @@ fn build_node(
                                 .flatten();
                             if properties.is_empty() {
                                 carried_classes.push(token.to_string());
+                            }
+                            // A selector that matches a form control, on
+                            // an element that is not one. Rule 2 in
+                            // decision 003 refuses a variant that can
+                            // never match *anything* Hozo emits; these can
+                            // match, but only here, so the refusal is per
+                            // element rather than per variant.
+                            for (condition, _) in &groups {
+                                if let Some(state) = form_state_atom(condition) {
+                                    if primitive != Primitive::TextInput {
+                                        diagnostics.push(Diagnostic {
+                                            code: DiagnosticCode::TailwindVariantCannotMatch,
+                                            severity: Severity::Warning,
+                                            message: format!(
+                                                "`{}:` compiles to `{}`, which matches a form                                                  control. This is a <{}>, so the rule is                                                  generated and can never apply. Hozo's `TextInput`                                                  is a real `<input>`; nothing else is.",
+                                                state.variant_name(),
+                                                state.selector(),
+                                                web_tag_hint(primitive),
+                                            ),
+                                            span: to_span(literal.span()),
+                                        });
+                                    }
+                                }
                             }
                             if let Some(variant) = unsupported {
                                 diagnostics.push(Diagnostic {

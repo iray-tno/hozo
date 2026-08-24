@@ -444,7 +444,7 @@ mod variant_tests {
             "checked:bg-blue-500",
             "visited:bg-blue-500",
             "open:bg-blue-500",
-            "placeholder-shown:bg-blue-500",
+            "marker:bg-blue-500",
         ] {
             assert_eq!(
                 codes(class_name),
@@ -746,6 +746,79 @@ mod negation_tests {
         // `group-not-dark:` does not.
         assert!(Condition::Not(Box::new(Condition::FirstChild)).is_elemental());
         assert!(!Condition::Not(Box::new(Condition::Dark)).is_elemental());
+    }
+}
+
+#[cfg(test)]
+mod form_state_tests {
+    use hozo_ir::DiagnosticCode;
+
+    fn codes(element: &str, class_name: &str) -> Vec<DiagnosticCode> {
+        // Only the field gets a name. A `<div>` is `generic`, which
+        // *prohibits* one -- so labelling it would add a second, unrelated
+        // report and hide what these tests are about.
+        let name = if element == "TextInput" { " accessibilityLabel=\"N\"" } else { "" };
+        let source = format!(
+            "import {{ View, Text, TextInput }} from '@hozo/core'
+             const el = <{element}{name} className=\"{class_name}\" />
+"
+        );
+        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+    }
+
+    #[test]
+    fn a_form_state_variant_is_reported_on_an_element_it_cannot_reach() {
+        // Not the same report as an unimplemented variant, and the
+        // difference is which thing is at fault. These are built, the CSS
+        // is correct, and the rule will never apply because a `<div>`
+        // cannot be required.
+        for class_name in ["required:flex", "invalid:flex", "read-only:flex"] {
+            assert_eq!(
+                codes("View", class_name),
+                vec![DiagnosticCode::TailwindVariantCannotMatch],
+                "{class_name}",
+            );
+        }
+        // Including under a wrapper that doesn't change which element is
+        // being talked about.
+        assert_eq!(
+            codes("View", "md:required:flex"),
+            vec![DiagnosticCode::TailwindVariantCannotMatch],
+        );
+        assert_eq!(
+            codes("View", "not-invalid:flex"),
+            vec![DiagnosticCode::TailwindVariantCannotMatch],
+        );
+    }
+
+    #[test]
+    fn a_relation_is_about_another_element_so_it_is_not_reported() {
+        // `group-invalid:` and `has-[:invalid]:` ask about an ancestor and
+        // a descendant. Whether *those* are form controls is not something
+        // this element's primitive can answer, so saying anything would be
+        // a guess.
+        assert!(codes("View", "group-invalid:flex").is_empty());
+        assert!(codes("View", "has-[:invalid]:flex").is_empty());
+    }
+
+    #[test]
+    fn on_the_one_primitive_that_is_a_form_control_nothing_is_said() {
+        for class_name in ["required:flex", "invalid:flex", "placeholder-shown:flex"] {
+            assert!(codes("TextInput", class_name).is_empty(), "{class_name}");
+        }
+    }
+
+    #[test]
+    fn the_three_that_need_a_control_hozo_does_not_have_stay_refused() {
+        // Rule 2 of decision 003, unchanged: no primitive becomes a
+        // checkbox, a radio, or a form's default button.
+        for class_name in ["checked:flex", "indeterminate:flex", "default:flex"] {
+            assert_eq!(
+                codes("TextInput", class_name),
+                vec![DiagnosticCode::TailwindVariantNotSupported],
+                "{class_name}",
+            );
+        }
     }
 }
 

@@ -10,7 +10,8 @@ use hozo_ir::{
     GridTracks, LetterSpacing,
     MaskSlot, MaskStop,
     FilterFunction, FlexDirection, FlexShorthand, FontWeight, Justify, Length, LineHeight, Overflow,
-    Position, Radius, Scale, Structural, StyleProperty, TextAlign, TextOverflow, TextTransform,
+    FormState, Position, Radius, Scale, Structural, StyleProperty, TextAlign, TextOverflow,
+    TextTransform,
     WhiteSpace,
 };
 
@@ -2688,6 +2689,13 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     if let Some((structural, rest)) = structural(token) {
         return (Condition::Structural(structural), rest);
     }
+    // Longest name first: `read-only:` also starts with `read`, and
+    // `user-invalid:` with `user`.
+    for (name, state) in FORM_STATES {
+        if let Some(rest) = token.strip_prefix(name) {
+            return (Condition::FormState(*state), rest);
+        }
+    }
     if let Some(rest) = token.strip_prefix("sm:") {
         return (Condition::Responsive(Breakpoint::Sm), rest);
     }
@@ -4568,3 +4576,24 @@ fn nth_argument(argument: &str) -> Option<(String, &str)> {
     }
     Some((formula.to_string(), rest))
 }
+
+
+/// The form-state variants, with their names spelled out.
+///
+/// Derived from `FormState::variant_name` at the point of use would read
+/// better and cannot be done: matching a prefix needs the trailing colon,
+/// and a `const` cannot concatenate. Written out, and kept honest by a
+/// test that walks both.
+const FORM_STATES: &[(&str, FormState)] = &[
+    ("placeholder-shown:", FormState::PlaceholderShown),
+    ("out-of-range:", FormState::OutOfRange),
+    ("user-invalid:", FormState::UserInvalid),
+    ("user-valid:", FormState::UserValid),
+    ("read-only:", FormState::ReadOnly),
+    ("in-range:", FormState::InRange),
+    ("required:", FormState::Required),
+    ("optional:", FormState::Optional),
+    ("autofill:", FormState::Autofill),
+    ("invalid:", FormState::Invalid),
+    ("valid:", FormState::Valid),
+];

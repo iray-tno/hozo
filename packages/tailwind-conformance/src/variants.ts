@@ -98,6 +98,16 @@ const VARIANTS = [
   // state of the subtree, the other a fact about the URL.
   'focus-within',
   'target',
+  // Form state. Compiled because Hozo's `TextInput` is a real `<input>`,
+  // and reported on anything else -- which is why they are compared here
+  // on the `View` this file uses and expected to *match*: the diagnostic
+  // is about the element, and the CSS is the same either way.
+  'required',
+  'invalid',
+  'read-only',
+  'placeholder-shown',
+  'user-invalid',
+  'autofill',
   // The rest of the interaction family, here so a stacked combination of
   // two implemented variants is compared rather than assumed.
   'last',

@@ -53,13 +53,14 @@ Web to no one's benefit.
 | Relational | `group-…` `peer-…` `has-…`, wrapping any of the above |
 | Environment | `motion-safe` `motion-reduce` `portrait` `landscape` `inverted-colors` `ltr` `rtl` `contrast-more` `contrast-less` `forced-colors` `print` `noscript` |
 | Compositional | `not-…` `data-…` `supports-…` |
+| Form state | `required` `optional` `valid` `invalid` `user-valid` `user-invalid` `in-range` `out-of-range` `read-only` `placeholder-shown` `autofill` |
 | Document | `target` |
 | Arbitrary | `[&_p]:`, `[@supports…]:` |
 
 Native compiles all of those except `peer-…`, `has-…`, `not-…`, `data-…`,
-`supports-…`, `focus-within`, `target`, the `-of-type` family,
-`contrast-more`, `contrast-less`, `forced-colors`, `print` and
-`noscript`, and reports each one it cannot.
+`supports-…`, `focus-within`, `target`, the `-of-type` family, the form
+states other than `read-only`, `contrast-more`, `contrast-less`,
+`forced-colors`, `print` and `noscript`, and reports each one it cannot.
 
 The structural family is where the two platforms differ most interestingly.
 React Native has no selector engine, so `:nth-child()` cannot be asked at
@@ -79,7 +80,7 @@ rather than ones whose meaning has a dependency. On Native they are named
 absent, because there the tag was never chosen at all.
 
 `crates/hozo_parser/src/tailwind_variants.rs` is generated from Tailwind
-and holds all 83 names; the conformance suite compares 8586 single and
+and holds all 83 names; the conformance suite compares 10620 single and
 stacked combinations against Tailwind's own output.
 
 One variant is refused rather than unbuilt. `not-hover:` is two rules in
@@ -108,6 +109,29 @@ the top level once every variant Hozo knows has been stripped, in
 `tailwind::has_unstripped_variant`, and both the `className` path and the
 project-wide scan ask it.
 
+## Rule 2 is about the element, not only the variant
+
+The form states sharpened it. `required:`, `invalid:`, `read-only:` and
+the rest compile to pseudo-classes that match a form control, and Hozo's
+`TextInput` is a real `<input>` — so the selector matches something.
+Refusing them outright would fail rule 3: a concept one platform has is
+better implemented there than left out of both.
+
+But on a `View` the same class is exactly what rule 2 warns about: correct
+CSS, generated, applying to nothing, silently. So the refusal moved down a
+level. The variant compiles; the *element* is reported, by name, with what
+it became on Web and why the selector cannot reach it.
+
+`group-invalid:` and `has-[:invalid]:` are not reported, and the reason is
+the same one that decides which variants `group-` may wrap: they move the
+question onto a different element, and whether *that* one is a form control
+is not something this element's primitive can answer.
+
+`checked:`, `indeterminate:` and `default:` stay refused everywhere, which
+is the original rule still doing its job — no Hozo primitive becomes a
+checkbox, a radio, or a form's default button, so there is no element to
+point the report at.
+
 ## What "relatable" means, and how it was got wrong
 
 `group-` and `peer-` wrap whatever variant follows, by recursion rather
@@ -128,11 +152,6 @@ everything in this file.
 ## Planned, in order
 
 **② Compositional.** Done, except `min-*` and `max-*`.
-
-**④ Form state, in part.** Hozo's `TextInput` is a real `<input>`, so
-`required:`, `invalid:`, `read-only:` and `placeholder-shown:` can match
-what Hozo emits. `checked:`, `indeterminate:` and `default:` cannot, and
-stay refused under rule 2.
 
 **⑤ Pseudo-elements.** `before` `after` `placeholder` `selection`
 `marker`. Web only, and `before:`/`after:` need `content` handling.

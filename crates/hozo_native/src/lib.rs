@@ -56,7 +56,7 @@ mod style;
 
 use hozo_ir::{
     AlignSelf, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, Environment, ExprRef,
-    GridLine, GridSpan, GridTracks, Length, Node, Primitive,
+    FormState, GridLine, GridSpan, GridTracks, Length, Node, Primitive,
     Severity, Structural, StyleDeclaration, StyleProperty, TextOverflow, Theme, WhiteSpace,
 };
 
@@ -420,6 +420,24 @@ fn structural_holds(
 ///
 /// `multiline` rather than `multiline={true}`, which is what the author
 /// wrote and what React Native's own code reads like.
+/// Whether this element is read-only, from either spelling.
+///
+/// `readOnly` if it was written; otherwise the negation of `editable`,
+/// which is the same state said backwards. `None` when neither is there
+/// -- not `false`, because a `TextInput` with no such prop is editable by
+/// default and a `read-only:` class on it is a style that will never
+/// apply, which is worth saying rather than silently dropping.
+fn native_read_only(props: &hozo_ir::TextInputProps) -> Option<ConditionExpr> {
+    if let Some(read_only) = props.read_only.as_ref() {
+        return Some(read_only.clone());
+    }
+    let editable = props.editable.as_ref()?;
+    Some(match editable {
+        ConditionExpr::Static(value) => ConditionExpr::Static(!value),
+        other => ConditionExpr::Not(Box::new(other.clone())),
+    })
+}
+
 fn native_flag(name: &str, value: &ConditionExpr, source: &str) -> String {
     match value {
         ConditionExpr::Static(true) => format!(" {name}"),
@@ -2353,6 +2371,37 @@ fn build_style_entries(
                 "`target:` matches the element the document's URL fragment points at. React                  Native has no document and no URL to point with, so there is nothing for this                  to be true of. On Web the same class works.",
                 Severity::Error,
             )),
+            // `read-only:` is the one the compiler can answer: React Native
+            // has the state, under two names, as a prop it is looking at.
+            // The other ten are the DOM's constraint validation, and
+            // React Native has no such thing -- no `required`, no
+            // `pattern`, no `:invalid` for them to be true of.
+            Condition::FormState(FormState::ReadOnly) => {
+                match native_read_only(&node.props.text_input) {
+                    // A value known at build time decides the style rather
+                    // than guarding it, the same way `first:` does: `true
+                    // && style` in the output would be a condition that
+                    // was already resolved, written out anyway.
+                    Some(ConditionExpr::Static(true)) => conditional_parts.extend(guarded("")),
+                    Some(ConditionExpr::Static(false)) => {}
+                    Some(guard) => {
+                        conditional_parts.extend(guarded(&format!("{} && ", render_condition_expr(source, &guard))))
+                    }
+                    None => diagnostics.push(unwired_variant(
+                        node,
+                        "`read-only:` needs this element to say whether it is read-only, and                          it doesn't. Add `readOnly` or `editable` -- either spelling -- and                          the style resolves at build time.",
+                        Severity::Error,
+                    )),
+                }
+            }
+            Condition::FormState(state) => diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`{}:` is the DOM's constraint validation, which React Native does not                      have -- there is no `required`, no `pattern`, and nothing for `:invalid`                      to be true of. Validate in your own code and drive the style from a                      `className` guard. On Web the same class works.",
+                    state.variant_name(),
+                ),
+                Severity::Error,
+            )),
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -2935,6 +2984,7 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::Structural(structural) => {
             Some(structural.variant_name().replace(['-', '+', '(', ')'], ""))
         }
+        Condition::FormState(state) => Some(state.variant_name().replace('-', "")),
         Condition::FocusWithin => Some("focuswithin".to_string()),
         Condition::Target => Some("target".to_string()),
         // Named by position rather than by content: a selector can hold
@@ -3799,6 +3849,54 @@ export function Login() {
         // ...and the second doesn't get one at all, which is exactly what
         // `:first-child` would do.
         assert!(!output.jsx.contains("hozoStyles.hozo2_first"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn read_only_is_the_one_form_state_native_can_answer() {
+        // React Native has the state -- under two names -- as a prop the
+        // compiler is looking at, so `read-only:` resolves the same way
+        // `disabled:` does rather than being reported.
+        let cases = [
+            (r#"<TextInput accessibilityLabel="N" readOnly className="read-only:p-4" />"#, "true"),
+            (
+                r#"<TextInput accessibilityLabel="N" editable={canEdit} className="read-only:p-4" />"#,
+                "false",
+            ),
+        ];
+        for (element, kind) in cases {
+            let source =
+                format!("import {{ TextInput }} from '@hozo/core'
+const el = {element}
+");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+            assert!(output.jsx.contains("hozo0_readonly"), "{}", output.jsx);
+            if kind == "true" {
+                // Known at build time, so it decides the style instead of
+                // guarding it -- no `true &&` in the output.
+                assert!(!output.jsx.contains("true &&"), "{}", output.jsx);
+            } else {
+                assert!(output.jsx.contains("!(canEdit)"), "{}", output.jsx);
+            }
+        }
+    }
+
+    #[test]
+    fn the_rest_of_the_form_states_are_named_absent() {
+        // Constraint validation is a DOM feature. React Native has no
+        // `required`, no `pattern`, and nothing for `:invalid` to be true
+        // of -- so this is a refusal with a reason, not an unbuilt gap.
+        for class_name in ["invalid:p-4", "required:p-4", "placeholder-shown:p-4"] {
+            let source = format!(
+                "import {{ TextInput }} from '@hozo/core'
+                 const el = <TextInput accessibilityLabel=\"N\" className=\"{class_name}\" />
+"
+            );
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert_eq!(output.diagnostics.len(), 1, "{class_name}: {:?}", output.diagnostics);
+        }
     }
 
     #[test]

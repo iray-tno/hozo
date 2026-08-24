@@ -1975,8 +1975,13 @@ const el = {element}
         //
         // Checked on the CSS rather than only on the diagnostic, because
         // the missing diagnostic was the consequence and not the defect.
+        //
+        // `placeholder-shown:` is compiled now, so the example that found
+        // this is no longer one -- but the shape is unchanged and the
+        // collision is still there for any `placeholder-…` Hozo does not
+        // know, which is what the first entry keeps.
         for classes in [
-            "placeholder-shown:bg-blue-500",
+            "placeholder-nonsense:bg-blue-500",
             "bg-nonsense:p-4",
             "text-x:y",
             "border-bottom:12px",

@@ -37,6 +37,7 @@ fn diagnostic_code_str(code: DiagnosticCode) -> &'static str {
         DiagnosticCode::WebOnlyPropertyOnNative => "WEB_ONLY_PROPERTY_ON_NATIVE",
         DiagnosticCode::DynamicClassNameNotResolved => "DYNAMIC_CLASS_NAME_NOT_RESOLVED",
         DiagnosticCode::DynamicPropNotResolved => "DYNAMIC_PROP_NOT_RESOLVED",
+        DiagnosticCode::TailwindVariantCannotMatch => "TAILWIND_VARIANT_CANNOT_MATCH",
         DiagnosticCode::NotWiredOnNative => "NOT_WIRED_ON_NATIVE",
         DiagnosticCode::PrimitiveNotLowered => "PRIMITIVE_NOT_LOWERED",
         DiagnosticCode::UnreadableArbitraryValue => "UNREADABLE_ARBITRARY_VALUE",

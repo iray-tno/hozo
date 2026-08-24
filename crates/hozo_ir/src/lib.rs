@@ -166,6 +166,16 @@ pub enum DiagnosticCode {
     /// ternary to write: `multiline` chooses between `<textarea>` and
     /// `<input>`, and only one element goes into the file.
     DynamicPropNotResolved,
+    /// A Tailwind variant Hozo compiles, on an element its selector cannot
+    /// reach.
+    ///
+    /// Distinct from `TailwindVariantNotSupported`, which is about Hozo
+    /// and says "not built yet". This one is about the element: the
+    /// variant is built, the CSS is generated, and the rule will simply
+    /// never apply here. `required:` on a `<div>` is the case -- a
+    /// perfectly good selector pointed at something that can never be
+    /// required.
+    TailwindVariantCannotMatch,
     /// A utility React Native could express, that Hozo doesn't lower yet.
     ///
     /// Distinct from `WebOnlyPropertyOnNative`, and the distinction is the
@@ -2379,6 +2389,15 @@ pub enum Condition {
     /// `LastChild` predate it and are the same idea; they stayed separate
     /// because renaming them touches every backend and buys nothing.
     Structural(Structural),
+    /// `required:`, `invalid:`, `read-only:`, `placeholder-shown:` and
+    /// the rest of the form-control pseudo-classes.
+    ///
+    /// These are the ones rule 2 in decision 003 was written about, and
+    /// they are compiled rather than refused because Hozo's `TextInput`
+    /// really is an `<input>`. On anything else they can never match, and
+    /// that is diagnosed where the class is read rather than left to be
+    /// discovered.
+    FormState(FormState),
     /// `focus-within:`. Grouped with `Focus` rather than with the
     /// structural pseudo-classes despite reading like one: it is a state
     /// that changes while the page is being used, and the DOM is what
@@ -2679,6 +2698,59 @@ fn parse_an_plus_b(text: &str) -> Option<(i64, i64)> {
         other => other.strip_prefix('+').unwrap_or(other).parse().ok()?,
     };
     Some((a, b))
+}
+
+/// A form control's state, as the DOM asks about it.
+///
+/// One variant per pseudo-class and no shared structure, because there is
+/// none to share: these are eleven unrelated questions that happen to be
+/// answerable only of a form control.
+///
+/// The three Tailwind ships that are missing -- `checked`, `indeterminate`
+/// and `default` -- are refused under rule 2 of decision 003 rather than
+/// unbuilt. They match a checkbox, a radio or a form's default button, and
+/// Hozo has no primitive that becomes one; an author writing
+/// `<Pressable accessibilityRole="checkbox">` would get a rule that could
+/// never apply.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FormState {
+    Required,
+    Optional,
+    Valid,
+    Invalid,
+    /// `:user-valid` and `:user-invalid`, which differ from the pair above
+    /// by *when*: they hold only once the field has been interacted with,
+    /// so an empty required field is not red before it has been visited.
+    UserValid,
+    UserInvalid,
+    InRange,
+    OutOfRange,
+    ReadOnly,
+    PlaceholderShown,
+    Autofill,
+}
+
+impl FormState {
+    pub fn selector(&self) -> &'static str {
+        match self {
+            FormState::Required => ":required",
+            FormState::Optional => ":optional",
+            FormState::Valid => ":valid",
+            FormState::Invalid => ":invalid",
+            FormState::UserValid => ":user-valid",
+            FormState::UserInvalid => ":user-invalid",
+            FormState::InRange => ":in-range",
+            FormState::OutOfRange => ":out-of-range",
+            FormState::ReadOnly => ":read-only",
+            FormState::PlaceholderShown => ":placeholder-shown",
+            FormState::Autofill => ":autofill",
+        }
+    }
+
+    /// Tailwind's name for it, which is the selector without its colon.
+    pub fn variant_name(&self) -> &'static str {
+        &self.selector()[1..]
+    }
 }
 
 /// The environment queries Tailwind names, as Tailwind names them.

@@ -1405,6 +1405,7 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
         // One arm for eight variants, because the difference between them
         // is entirely in the pseudo-class text -- see `Structural`.
         Condition::Structural(structural) => (Vec::new(), format!("&{}", structural.selector())),
+        Condition::FormState(state) => (Vec::new(), format!("&{}", state.selector())),
         Condition::FocusWithin => (Vec::new(), "&:focus-within".to_string()),
         Condition::Target => (Vec::new(), "&:target".to_string()),
         // Passed through exactly as written. Hozo does not parse it and
