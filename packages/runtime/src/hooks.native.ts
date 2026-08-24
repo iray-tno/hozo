@@ -78,6 +78,25 @@ export function useHozoBreakpoint(name: BreakpointName): boolean {
 }
 
 /**
+ * Whether the window is at least `px` wide. Drives `min-[500px]:` and,
+ * negated, `max-[…]:` and `max-<breakpoint>:`.
+ *
+ * A threshold rather than a bucket, because an arbitrary one is by
+ * definition not one of the five. Just as cheap, though, and for a reason
+ * worth stating: the snapshot is the *predicate*, not the width, so React
+ * compares a boolean and skips the render on every resize that doesn't
+ * cross `px`. Rounding to buckets buys nothing over that -- it is the
+ * older of the two ideas, not the cheaper one.
+ */
+export function useHozoWidthAtLeast(px: number): boolean {
+  return useSyncExternalStore(
+    viewportStore.subscribe,
+    () => viewportStore.get().width >= px,
+    () => viewportStore.get().width >= px,
+  )
+}
+
+/**
  * The current window size. Drives the viewport-relative sizes -- `h-screen`
  * compiles to `{ height: useHozoViewport().height }`.
  *

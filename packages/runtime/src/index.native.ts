@@ -15,6 +15,7 @@ export * from './index.ts'
 export {
   useHozoDark,
   useHozoBreakpoint,
+  useHozoWidthAtLeast,
   useHozoViewport,
   useHozoSpin,
   useHozoEnvironment,

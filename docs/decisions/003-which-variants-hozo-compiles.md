@@ -47,7 +47,7 @@ Web to no one's benefit.
 | --- | --- |
 | Interaction | `hover` `focus` `focus-visible` `focus-within` `active`/`pressed` `disabled` `enabled` |
 | Structure | `first` `last` `only` `empty` `odd` `even` `nth-*` `nth-last-*` and the `-of-type` spellings of all of these |
-| Breakpoints | `sm` `md` `lg` `xl` `2xl` |
+| Breakpoints | `sm` `md` `lg` `xl` `2xl`, and `min-…`/`max-…` at a named breakpoint or an arbitrary length |
 | Colour scheme | `dark` |
 | ARIA state | `aria-busy` `aria-checked` `aria-disabled` `aria-expanded` `aria-hidden` `aria-pressed` `aria-readonly` `aria-required` `aria-selected` |
 | Relational | `group-…` `peer-…` `has-…`, wrapping any of the above |
@@ -82,7 +82,7 @@ rather than ones whose meaning has a dependency. On Native they are named
 absent, because there the tag was never chosen at all.
 
 `crates/hozo_parser/src/tailwind_variants.rs` is generated from Tailwind
-and holds all 83 names; the conformance suite compares 13668 single and
+and holds all 83 names; the conformance suite compares 14490 single and
 stacked combinations against Tailwind's own output, with nothing
 unsupported and nothing mismatched.
 
@@ -127,6 +127,33 @@ utility parser gets a chance to disagree.** The test is a colon left at
 the top level once every variant Hozo knows has been stripped, in
 `tailwind::has_unstripped_variant`, and both the `className` path and the
 project-wide scan ask it.
+
+## The breakpoints are written as ranges
+
+`sm:` compiled to `@media (min-width: 640px)` where Tailwind v4 writes
+`@media (width >= 40rem)`. Two spellings of one query, and the conformance
+suite folded them.
+
+`max-…:` is what settled it. The old spelling has no exact opposite: the
+convention is `@media (max-width: 767.98px)`, which leaves a hundredth of a
+pixel unstyled and picks that number out of the air. The range syntax says
+`(width < 768px)` and means it. So both directions use it now — which is
+also what Tailwind writes, inside the browser baseline Tailwind v4 already
+requires.
+
+What is left for the suite to fold is the unit, and only the unit.
+
+`min-<breakpoint>:` parses to the same condition as the bare breakpoint
+rather than to a width, because Tailwind emits identical CSS for the two.
+That is not tidiness: it is what lets React Native answer `min-md:` from
+its cheap bucketed hook instead of a threshold.
+
+On Native, an arbitrary threshold gets `useHozoWidthAtLeast(500)`, and
+`max-…:` is that hook negated. It costs no more than the buckets do: the
+hook's snapshot is the predicate rather than the width, so React skips
+every resize that doesn't cross the threshold. A threshold in any unit but
+`px` is reported — `rem` has no root font size on a device, and guessing
+16 would disagree with the browser for anyone who changed theirs.
 
 ## Rule 2 is about the element, not only the variant
 
@@ -176,8 +203,8 @@ either refused with a reason or genuinely unbuilt:
 **Refused under rule 2**, because no Hozo primitive becomes the element
 the selector needs: `checked` `indeterminate` `default` `open`.
 
-**Unbuilt:** `min-*` and `max-*` (arbitrary breakpoints), `visited`, and
-`starting` (`@starting-style`). Each is reported by name.
+**Unbuilt:** `visited` and `starting` (`@starting-style`). Both are
+reported by name.
 
 Container queries (`@min-*`, `*`, `**`) are a separate feature, not a
 variant to add.

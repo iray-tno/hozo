@@ -1443,8 +1443,17 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         // compiled onClick doesn't count. Fine for the common desktop/
         // Android case; tracked as a real gap, not silently "handled."
         Condition::Pressed => one(Vec::new(), "&:active"),
+        // Range syntax, which is what Tailwind v4 writes and what
+        // `max-…:` needs: the old spelling has no exact opposite, only the
+        // `(max-width: 767.98px)` convention that leaves a hundredth of a
+        // pixel unstyled. Within Tailwind v4's own browser baseline, which
+        // is the baseline Hozo is compatible with.
         Condition::Responsive(bp) => one(
-            vec![format!("@media (min-width: {}px)", breakpoint_min_width_px(*bp))],
+            vec![format!("@media (width >= {}px)", breakpoint_min_width_px(*bp))],
+            "&",
+        ),
+        Condition::Width { at_least, value } => one(
+            vec![format!("@media (width {} {value})", if *at_least { ">=" } else { "<" })],
             "&",
         ),
         // Tailwind v4's default dark strategy, and the one whose meaning
@@ -2065,7 +2074,7 @@ mod variant_tests {
             Condition::Hover,
         ]));
         // Written order, outermost first, and `hover:` brings its own.
-        assert_eq!(at_rules, vec!["@media (min-width: 768px)", "@media (hover: hover)"]);
+        assert_eq!(at_rules, vec!["@media (width >= 768px)", "@media (hover: hover)"]);
         // Suffixes append in written order: `:first-child:hover`, not the
         // reverse. Which is why the fold substitutes the accumulated
         // selector *into* each new template.

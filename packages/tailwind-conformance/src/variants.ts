@@ -119,6 +119,13 @@ const VARIANTS = [
   'first-letter',
   'file',
   'backdrop',
+  // Width thresholds. `min-<bp>` is here to prove it is the *same*
+  // condition as the bare breakpoint rather than a second one that
+  // happens to agree, and `max-` to check the direction and the unit.
+  'min-md',
+  'min-[500px]',
+  'max-md',
+  'max-[40rem]',
   // The rest of the interaction family, here so a stacked combination of
   // two implemented variants is compared rather than assumed.
   'last',
@@ -265,15 +272,21 @@ export function compareVariant(entry: VariantCase, vars: Map<string, string>): V
 }
 
 /**
- * `@media (width >= 48rem)` and `@media (min-width: 768px)` are the same
- * query written two ways -- Tailwind's range syntax and Hozo's.
+ * `48rem` and `768px` are the same width written two ways.
+ *
+ * Only the unit now. Hozo wrote `(min-width: 768px)` against Tailwind's
+ * `(width >= 48rem)` until `max-…:` arrived and the old spelling turned
+ * out to have no exact opposite -- `(max-width: 767.98px)` is a
+ * convention, not an equivalent. Both sides use the range syntax now, so
+ * what is left to fold is the unit, and rem resolves against a root font
+ * size the browser fixes at 16px.
  *
  * Rewritten rather than accepted as a difference: it is a spelling, and
  * leaving it in place would drown every real one.
  */
 function canonicalAtRule(rule: string): string {
   return rule
-    .replace(/\(width >= ([\d.]+)rem\)/g, (_, rem: string) => `(min-width: ${parseFloat(rem) * 16}px)`)
+    .replace(/([\d.]+)rem/g, (_, rem: string) => `${parseFloat(rem) * 16}px`)
     .replace(/\s+/g, ' ')
     .trim()
 }

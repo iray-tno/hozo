@@ -1896,6 +1896,15 @@ enum RuntimeHook {
     /// `motion-safe` from `motion-reduce` and `landscape` from
     /// `portrait`, so the pairs cost nothing extra.
     Environment(Environment),
+    /// A width threshold that is not one of the five named breakpoints.
+    ///
+    /// Its own hook rather than a number handed to the bucketed one,
+    /// because the buckets are the five and this is not one of them. Just
+    /// as cheap, though: the hook's snapshot is the *predicate* rather
+    /// than the width, so React bails out on every resize that doesn't
+    /// cross the threshold -- which is the same guarantee the buckets give
+    /// by rounding.
+    WidthAtLeast(u32),
 }
 
 impl RuntimeHook {
@@ -1904,6 +1913,7 @@ impl RuntimeHook {
         match self {
             RuntimeHook::Dark => "__hozoDark".to_string(),
             RuntimeHook::Breakpoint(bp) => format!("__hozoBp_{}", breakpoint_name(bp)),
+            RuntimeHook::WidthAtLeast(px) => format!("__hozoWidth_{px}"),
             RuntimeHook::Viewport => "__hozoViewport".to_string(),
             RuntimeHook::Spin => "__hozoSpin".to_string(),
             RuntimeHook::Environment(query) => {
@@ -1919,6 +1929,7 @@ impl RuntimeHook {
             RuntimeHook::Viewport => "useHozoViewport",
             RuntimeHook::Spin => "useHozoSpin",
             RuntimeHook::Environment(_) => "useHozoEnvironment",
+            RuntimeHook::WidthAtLeast(_) => "useHozoWidthAtLeast",
         }
     }
 
@@ -1930,6 +1941,9 @@ impl RuntimeHook {
                 self.binding(),
                 breakpoint_name(bp)
             ),
+            RuntimeHook::WidthAtLeast(px) => {
+                format!("const {} = useHozoWidthAtLeast({px})", self.binding())
+            }
             RuntimeHook::Viewport => format!("const {} = useHozoViewport()", self.binding()),
             RuntimeHook::Spin => format!("const {} = useHozoSpin()", self.binding()),
             // The query goes through as Tailwind's name, the way the
@@ -2082,6 +2096,7 @@ fn build_style_entries(
                             | Condition::Focus
                             | Condition::FocusVisible
                             | Condition::Responsive(_)
+                            | Condition::Width { .. }
                             | Condition::Dark
                             | Condition::FirstChild
                             | Condition::LastChild
@@ -2219,6 +2234,29 @@ fn build_style_entries(
                                 let hook = RuntimeHook::Breakpoint(*bp);
                                 guards.push(hook.binding().to_string());
                                 runtime.hooks.push(hook);
+                            }
+                            Condition::Width { at_least, value } => {
+                                match width_threshold_px(value) {
+                                    Some(px) => {
+                                        let hook = RuntimeHook::WidthAtLeast(px);
+                                        guards.push(if *at_least {
+                                            hook.binding().to_string()
+                                        } else {
+                                            format!("!{}", hook.binding())
+                                        });
+                                        runtime.hooks.push(hook);
+                                    }
+                                    None => {
+                                        diagnostics.push(unwired_variant(
+                                            node,
+                                            &format!(
+                                                "`{value}` in this stacked variant is not a                                                  pixel width, and React Native has nothing to                                                  resolve it against.",
+                                            ),
+                                            Severity::Error,
+                                        ));
+                                        applies = false;
+                                    }
+                                }
                             }
                             Condition::Dark => {
                                 let hook = RuntimeHook::Dark;
@@ -2490,6 +2528,27 @@ fn build_style_entries(
             // hook so this component re-renders when it changes. The hook
             // declaration goes to the caller rather than into the JSX --
             // see `LowerOutput::prelude` for why inlining it is unsafe.
+            // `max-…:` is the same question read from the other side, so
+            // it is the same hook negated rather than a second one.
+            Condition::Width { at_least, value } => match width_threshold_px(value) {
+                Some(px) => {
+                    let hook = RuntimeHook::WidthAtLeast(px);
+                    let guard = if *at_least {
+                        format!("{} && ", hook.binding())
+                    } else {
+                        format!("!{} && ", hook.binding())
+                    };
+                    conditional_parts.extend(guarded(&guard));
+                    runtime.hooks.push(hook);
+                }
+                None => diagnostics.push(unwired_variant(
+                    node,
+                    &format!(
+                        "`{value}` is not a pixel width, and React Native has nothing to                          resolve it against -- no root font size for `rem`, and a viewport                          unit compared against the viewport answers itself. Write the                          threshold in `px`. On Web the same class works.",
+                    ),
+                    Severity::Error,
+                )),
+            },
             Condition::Responsive(bp) => {
                 let hook = RuntimeHook::Breakpoint(*bp);
                 conditional_parts.extend(guarded(&format!("{} && ", hook.binding())));
@@ -3001,6 +3060,14 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
             Some(structural.variant_name().replace(['-', '+', '(', ')'], ""))
         }
         Condition::FormState(state) => Some(state.variant_name().replace('-', "")),
+        // Named by the threshold, since a length can hold characters a
+        // style identifier cannot -- and by direction, so `min-[500px]:`
+        // and `max-[500px]:` don't share an entry.
+        Condition::Width { at_least, value } => Some(format!(
+            "{}{}",
+            if *at_least { "min" } else { "max" },
+            value.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>(),
+        )),
         Condition::PseudoElement(pseudo) => Some(pseudo.variant_name().replace('-', "")),
         Condition::FocusWithin => Some("focuswithin".to_string()),
         Condition::Target => Some("target".to_string()),
@@ -3866,6 +3933,42 @@ export function Login() {
         // ...and the second doesn't get one at all, which is exactly what
         // `:first-child` would do.
         assert!(!output.jsx.contains("hozoStyles.hozo2_first"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn an_arbitrary_width_gets_its_own_hook_and_max_reuses_it() {
+        // The buckets are the five named breakpoints and this is not one
+        // of them, so it needs a threshold of its own. `max-` is the same
+        // question from the other side, so it is that hook negated rather
+        // than a second one.
+        let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="min-[500px]:p-4 max-md:m-2">x</View>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.prelude.iter().any(|line| line.contains("useHozoWidthAtLeast(500)")));
+        assert!(output.prelude.iter().any(|line| line.contains("useHozoWidthAtLeast(768)")));
+        assert!(output.jsx.contains("__hozoWidth_500 &&"), "{}", output.jsx);
+        assert!(output.jsx.contains("!__hozoWidth_768 &&"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn a_threshold_react_native_cannot_resolve_is_named() {
+        // `rem` has no root font size on a device and a viewport unit
+        // compared against the viewport answers itself. Guessing 16px per
+        // rem would disagree with the browser for anyone who changed their
+        // font size, which is the reader this project is for.
+        let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="min-[40rem]:p-4">x</View>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert_eq!(output.diagnostics.len(), 1, "{:?}", output.diagnostics);
+        assert!(output.diagnostics[0].message.contains("40rem"), "{}", output.diagnostics[0].message);
     }
 
     #[test]
@@ -4971,4 +5074,19 @@ export const C = (p) => <List {...p}>x</List>
             "<View accessibilityRole=\"list\"><View role=\"listitem\"><Text>First</Text></View></View>"
         );
     }
+}
+
+
+/// The pixel threshold a `Condition::Width` names, if React Native can be
+/// asked about it.
+///
+/// `None` for a unit that has no fixed pixel value on a device -- `rem`
+/// has no root font size to resolve against, and a viewport unit compared
+/// against the viewport is a question that answers itself. Reported by
+/// name rather than approximated: guessing 16px per rem would silently
+/// disagree with the browser for anyone who changed their font size,
+/// which is precisely the reader this project is for.
+fn width_threshold_px(value: &str) -> Option<u32> {
+    let digits = value.strip_suffix("px")?;
+    digits.parse::<f64>().ok().map(|px| px.round() as u32)
 }

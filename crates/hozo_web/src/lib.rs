@@ -2005,6 +2005,26 @@ const el = {element}
     }
 
     #[test]
+    fn the_breakpoints_are_written_as_ranges() {
+        // `(min-width: 768px)` until `max-…:` arrived and turned out to
+        // have no exact opposite in that spelling: `(max-width: 767.98px)`
+        // is a convention that leaves a hundredth of a pixel unstyled.
+        // Both directions use the range syntax, which is also what
+        // Tailwind v4 writes.
+        assert!(css_for("md:flex").contains("@media (width >= 768px)"));
+        assert!(css_for("max-md:flex").contains("@media (width < 768px)"));
+        // The unit is the author's. Nothing here resolves `rem`, because
+        // the browser does and it knows the root font size.
+        assert!(css_for("max-[40rem]:flex").contains("@media (width < 40rem)"));
+        // And a nested pair nests, outermost first.
+        let both = css_for("md:max-lg:flex");
+        assert!(
+            both.find("(width >= 768px)") < both.find("(width < 1024px)"),
+            "{both}",
+        );
+    }
+
+    #[test]
     fn a_variant_can_be_more_than_one_rule() {
         // `condition_shape` returned one shape per condition until this,
         // and `marker:` is four: the element's own `::marker`, a
@@ -2042,7 +2062,7 @@ const el = {element}
         assert!(narrow.contains(".hozo-0::before {
   content: var(--hozo-content);
 }"), "{narrow}");
-        assert!(narrow.contains("@media (min-width: 768px)"), "{narrow}");
+        assert!(narrow.contains("@media (width >= 768px)"), "{narrow}");
         // Two pseudo-elements, two boxes, two `content` declarations --
         // the outer one is not inherited by the inner.
         assert_eq!(css_for("before:after:flex").matches("content:").count(), 3);

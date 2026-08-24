@@ -2706,6 +2706,9 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
             return (Condition::FormState(*state), rest);
         }
     }
+    if let Some((condition, rest)) = width_variant(token) {
+        return (condition, rest);
+    }
     if let Some(rest) = token.strip_prefix("sm:") {
         return (Condition::Responsive(Breakpoint::Sm), rest);
     }
@@ -4627,3 +4630,45 @@ const PSEUDO_ELEMENTS: &[(&str, PseudoElement)] = &[
     ("after:", PseudoElement::After),
     ("file:", PseudoElement::File),
 ];
+
+
+/// The named breakpoints, and the widths they stand for.
+const BREAKPOINTS: &[(&str, Breakpoint, u32)] = &[
+    ("sm", Breakpoint::Sm, 640),
+    ("md", Breakpoint::Md, 768),
+    ("lg", Breakpoint::Lg, 1024),
+    ("xl", Breakpoint::Xl, 1280),
+    ("2xl", Breakpoint::Xl2, 1536),
+];
+
+/// `min-…:` and `max-…:`, either named or an arbitrary length.
+///
+/// `min-<bp>:` returns the plain `Responsive` rather than a `Width`,
+/// because Tailwind emits exactly what the bare breakpoint emits -- the
+/// two are one condition spelled twice, and keeping them as one is what
+/// lets React Native reuse its cheap bucketed hook for both.
+///
+/// Ordered so `2xl` is tried before `xl`: `max-2xl:` starts with neither
+/// prefix cleanly, and a shorter name matching first would leave a `2`
+/// where the colon should be. Handled by requiring the colon, which is
+/// also what keeps `min-w-0` and `max-h-[50px]` out of here -- neither has
+/// one after the prefix.
+fn width_variant(token: &str) -> Option<(Condition, &str)> {
+    for (prefix, at_least) in [("min-", true), ("max-", false)] {
+        let Some(after) = token.strip_prefix(prefix) else { continue };
+        if let Some((value, rest)) = crate::arbitrary::split_variant(after) {
+            return Some((Condition::Width { at_least, value }, rest));
+        }
+        for (name, breakpoint, px) in BREAKPOINTS {
+            let Some(rest) = after.strip_prefix(name).and_then(|r| r.strip_prefix(':')) else {
+                continue;
+            };
+            return Some(if at_least {
+                (Condition::Responsive(*breakpoint), rest)
+            } else {
+                (Condition::Width { at_least, value: format!("{px}px") }, rest)
+            });
+        }
+    }
+    None
+}

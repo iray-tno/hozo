@@ -2294,6 +2294,21 @@ pub enum Condition {
     /// this repository contained one.
     All(Vec<Condition>),
     Responsive(Breakpoint),
+    /// `min-[500px]:`, `max-md:`, `max-[40rem]:` -- a width threshold that
+    /// isn't one of the five named breakpoints, or is one read from the
+    /// other side.
+    ///
+    /// `min-<bp>:` is not here: Tailwind emits exactly what the bare
+    /// breakpoint emits, so it parses to `Responsive` and the two are the
+    /// same condition rather than two spellings of one.
+    ///
+    /// The value is carried as written rather than parsed into a number.
+    /// Tailwind does not validate it either -- `max-[min-width:500px]:`
+    /// compiles to `@media (width < min-width:500px)`, which is nonsense
+    /// the browser drops -- and a length is a length whatever unit it is
+    /// in. React Native is where it has to become a number, and that is
+    /// where the failure to be one is reported.
+    Width { at_least: bool, value: String },
     /// Compiles straight to a real CSS pseudo-class on Web (zero runtime).
     Hover,
     Focus,
@@ -2915,7 +2930,10 @@ impl Condition {
     /// an element fact. Everything else is one or the other.
     pub fn is_ambient(&self) -> bool {
         match self {
-            Condition::Dark | Condition::Responsive(_) | Condition::ArbitraryAtRule(_) => true,
+            Condition::Dark
+            | Condition::Responsive(_)
+            | Condition::Width { .. }
+            | Condition::ArbitraryAtRule(_) => true,
             // The one condition that is both.
             Condition::Hover => true,
             Condition::Environment(query) => {
@@ -2962,6 +2980,7 @@ impl Condition {
             Condition::Always
             | Condition::Dark
             | Condition::Responsive(_)
+            | Condition::Width { .. }
             | Condition::ArbitraryAtRule(_) => false,
             Condition::Environment(query) => {
                 matches!(query, Environment::Ltr | Environment::Rtl)
