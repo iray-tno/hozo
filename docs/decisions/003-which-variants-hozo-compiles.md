@@ -54,13 +54,15 @@ Web to no one's benefit.
 | Environment | `motion-safe` `motion-reduce` `portrait` `landscape` `inverted-colors` `ltr` `rtl` `contrast-more` `contrast-less` `forced-colors` `print` `noscript` |
 | Compositional | `not-…` `data-…` `supports-…` |
 | Form state | `required` `optional` `valid` `invalid` `user-valid` `user-invalid` `in-range` `out-of-range` `read-only` `placeholder-shown` `autofill` |
+| Pseudo-element | `before` `after` `placeholder` `selection` `marker` `first-letter` `first-line` `file` `backdrop` |
 | Document | `target` |
 | Arbitrary | `[&_p]:`, `[@supports…]:` |
 
 Native compiles all of those except `peer-…`, `has-…`, `not-…`, `data-…`,
 `supports-…`, `focus-within`, `target`, the `-of-type` family, the form
-states other than `read-only`, `contrast-more`, `contrast-less`,
-`forced-colors`, `print` and `noscript`, and reports each one it cannot.
+states other than `read-only`, every pseudo-element, `contrast-more`,
+`contrast-less`, `forced-colors`, `print` and `noscript`, and reports each
+one it cannot.
 
 The structural family is where the two platforms differ most interestingly.
 React Native has no selector engine, so `:nth-child()` cannot be asked at
@@ -80,14 +82,31 @@ rather than ones whose meaning has a dependency. On Native they are named
 absent, because there the tag was never chosen at all.
 
 `crates/hozo_parser/src/tailwind_variants.rs` is generated from Tailwind
-and holds all 83 names; the conformance suite compares 10620 single and
-stacked combinations against Tailwind's own output.
+and holds all 83 names; the conformance suite compares 13668 single and
+stacked combinations against Tailwind's own output, with nothing
+unsupported and nothing mismatched.
 
-One variant is refused rather than unbuilt. `not-hover:` is two rules in
-Tailwind — the selector negated, and `@media not (hover: hover)` for a
-device where nothing is ever hovered — and one condition returning two
-rules does not fit the shape the backends read. Named, rather than
-answered with the half that fits.
+## One variant can be more than one rule
+
+The backend returned a single `(at-rules, selector)` per condition, and
+that shape decided which variants existed. `not-hover:` was refused for
+it — Tailwind writes the selector negated *and* `@media not (hover: hover)`
+for a device where nothing is ever hovered, and there was nowhere to put
+the second rule. It was recorded here as a deliberate gap.
+
+It was not a fact about the variant. `marker:` made that plain: Tailwind
+writes it as four rules — the element's own `::marker`, a descendant's, and
+both again under Safari's `::-webkit-details-marker` — and `selection:` as
+two. Three variants wanted the same thing, so the backend returns a list
+now, and stacking is a product: `hover:marker:` is hover's one shape times
+marker's four.
+
+Lifting it closed the last hole. `not-hover:` compiles.
+
+The lesson is worth keeping separate from the rule it revised: a refusal
+whose reason is "the compiler has no way to say that" is a note about the
+compiler, and belongs in a different category from one whose reason is
+"the platform cannot do that". Only the second kind is settled.
 
 ## A class whose variant is not compiled must not be read as a utility
 
@@ -149,12 +168,16 @@ media query wraps the rule and names nobody.
 Found by asking Tailwind rather than by reasoning, which is the pattern for
 everything in this file.
 
-## Planned, in order
+## What is left
 
-**② Compositional.** Done, except `min-*` and `max-*`.
+Groups ② through ⑤ are done. What remains of Tailwind's 83 names is
+either refused with a reason or genuinely unbuilt:
 
-**⑤ Pseudo-elements.** `before` `after` `placeholder` `selection`
-`marker`. Web only, and `before:`/`after:` need `content` handling.
+**Refused under rule 2**, because no Hozo primitive becomes the element
+the selector needs: `checked` `indeterminate` `default` `open`.
+
+**Unbuilt:** `min-*` and `max-*` (arbitrary breakpoints), `visited`, and
+`starting` (`@starting-style`). Each is reported by name.
 
 Container queries (`@min-*`, `*`, `**`) are a separate feature, not a
 variant to add.

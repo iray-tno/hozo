@@ -24,6 +24,15 @@ export function loadThemeVars(): Map<string, string> {
   while ((match = re.exec(css))) {
     vars.set(match[1], match[2].trim())
   }
+  // Hozo's own register, which has no theme file to be read from.
+  //
+  // `before:` writes `content: var(--hozo-content)` for the same reason
+  // Tailwind writes `var(--tw-content)`: a `::before` with no `content`
+  // generates no box. Both are declared with `@property` and an initial
+  // value of `""`, so both sides resolve to the same declaration -- but
+  // Tailwind's default arrives through `registerDefaults`, read out of its
+  // output, and there is nothing equivalent to read Hozo's out of.
+  vars.set('--hozo-content', '""')
   return vars
 }
 

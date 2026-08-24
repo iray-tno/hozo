@@ -724,6 +724,16 @@ pub enum StyleProperty {
     /// and `-moz-osx-font-smoothing`. Held as one property because they
     /// are one intention, and because a `Keyword` can only carry one.
     KeywordPair(&'static str, &'static str, &'static str, &'static str),
+    /// `content-['x']` and `content-none`, as written.
+    ///
+    /// Two declarations rather than one, and they cannot be a
+    /// `KeywordPair` because that holds `&'static str` and this value
+    /// comes from the source. The custom property is what lets a
+    /// `content-*` utility reach a `::before` rule written elsewhere in
+    /// the stylesheet: every before/after rule reads
+    /// `content: var(--hozo-content)`, so the two compose whatever order
+    /// they land in.
+    Content(String),
     /// One CSS declaration with a fixed value, as `(property, value)`.
     ///
     /// The deliberate escape hatch for the long tail: `touch-action`,
@@ -1326,6 +1336,10 @@ impl StyleProperty {
         // inline style read from a hook -- see
         // `hozo_native::viewport_object`.
         match self {
+            StyleProperty::Content(_) => Some(
+                "`content-*`: React Native has no generated content. `::before` and `::after`                  are boxes the browser makes, and there is nothing here to make one"
+                    .to_string(),
+            ),
             StyleProperty::Display(d) if !d.is_supported_on_native() => Some(format!(
                 "`display: {}`: React Native's layout engine supports only flex, none and contents",
                 match d {
@@ -2398,6 +2412,13 @@ pub enum Condition {
     /// that is diagnosed where the class is read rather than left to be
     /// discovered.
     FormState(FormState),
+    /// `before:`, `after:`, `placeholder:`, `marker:` and the rest.
+    ///
+    /// A pseudo-element is not a state of the element but a box the
+    /// browser makes beside it, which is why React Native has nothing
+    /// resembling one: its styles are objects handed to components, and
+    /// there is no component to hand these to.
+    PseudoElement(PseudoElement),
     /// `focus-within:`. Grouped with `Focus` rather than with the
     /// structural pseudo-classes despite reading like one: it is a state
     /// that changes while the page is being used, and the DOM is what
@@ -2700,6 +2721,83 @@ fn parse_an_plus_b(text: &str) -> Option<(i64, i64)> {
     Some((a, b))
 }
 
+/// The box a browser makes beside an element.
+///
+/// Two of these are more than one selector, which is the whole reason
+/// `condition_shapes` returns a list: Tailwind writes `marker:` as four
+/// rules -- the element's own `::marker`, a descendant's, and both again
+/// under `::-webkit-details-marker` for Safari -- and `selection:` as two.
+/// Read from its output rather than its documentation, which says none of
+/// this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PseudoElement {
+    Before,
+    After,
+    Placeholder,
+    Selection,
+    Marker,
+    FirstLetter,
+    FirstLine,
+    /// `file:`, which is `::file-selector-button`.
+    File,
+    Backdrop,
+}
+
+impl PseudoElement {
+    /// The selector suffixes, in the order Tailwind emits them.
+    ///
+    /// Order matters because it is the order the rules come out in, and a
+    /// later rule of equal specificity wins.
+    pub fn suffixes(&self) -> Vec<&'static str> {
+        match self {
+            PseudoElement::Before => vec!["&::before"],
+            PseudoElement::After => vec!["&::after"],
+            PseudoElement::Placeholder => vec!["&::placeholder"],
+            PseudoElement::FirstLetter => vec!["&::first-letter"],
+            PseudoElement::FirstLine => vec!["&::first-line"],
+            PseudoElement::File => vec!["&::file-selector-button"],
+            PseudoElement::Backdrop => vec!["&::backdrop"],
+            // A descendant's and the element's own, because a selection
+            // crosses element boundaries and styling only the element
+            // would leave its children unstyled mid-drag.
+            PseudoElement::Selection => vec!["& ::selection", "&::selection"],
+            // The same pair, twice: Safari renders a `<details>` marker as
+            // `::-webkit-details-marker` and does not answer to `::marker`.
+            PseudoElement::Marker => vec![
+                "& ::marker",
+                "&::marker",
+                "& ::-webkit-details-marker",
+                "&::-webkit-details-marker",
+            ],
+        }
+    }
+
+    /// Whether this one needs `content` to exist at all.
+    ///
+    /// `::before` and `::after` generate nothing without it, so Tailwind
+    /// writes `content: var(--tw-content)` into every rule that targets
+    /// them and registers the property with an initial value of `""`.
+    /// Without that, `before:bg-red-500` would style a box that is never
+    /// created.
+    pub fn needs_content(&self) -> bool {
+        matches!(self, PseudoElement::Before | PseudoElement::After)
+    }
+
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            PseudoElement::Before => "before",
+            PseudoElement::After => "after",
+            PseudoElement::Placeholder => "placeholder",
+            PseudoElement::Selection => "selection",
+            PseudoElement::Marker => "marker",
+            PseudoElement::FirstLetter => "first-letter",
+            PseudoElement::FirstLine => "first-line",
+            PseudoElement::File => "file",
+            PseudoElement::Backdrop => "backdrop",
+        }
+    }
+}
+
 /// A form control's state, as the DOM asks about it.
 ///
 /// One variant per pseudo-class and no shared structure, because there is
@@ -2835,12 +2933,28 @@ impl Condition {
         }
     }
 
-    /// Whether `not-` can negate this condition into a single rule.
+    /// The pseudo-element this condition targets, if it targets one.
     ///
-    /// A condition with both forms would need two, which the backends
-    /// have no way to return -- see `Not`.
+    /// Looks through the wrappers, because `hover:before:` still writes
+    /// into a `::before` and still needs its `content`.
+    pub fn pseudo_element(&self) -> Option<PseudoElement> {
+        match self {
+            Condition::PseudoElement(pseudo) => Some(*pseudo),
+            Condition::All(conditions) => conditions.iter().find_map(Condition::pseudo_element),
+            _ => None,
+        }
+    }
+
+    /// Whether `not-` can negate this condition.
+    ///
+    /// Everything with a form to negate, which is everything except
+    /// `Always`. It used to exclude a condition that is *both* a query and
+    /// a selector -- `hover:` and nothing else -- because negating both is
+    /// two rules and `condition_shape` returned one. That was a limit of
+    /// the backend rather than a fact about the variant, and the backend
+    /// returns a list now.
     pub fn is_negatable(&self) -> bool {
-        !(self.is_ambient() && self.is_elemental())
+        self.is_ambient() || self.is_elemental()
     }
 
     pub fn is_elemental(&self) -> bool {
@@ -2857,6 +2971,10 @@ impl Condition {
             Condition::Not(inner) => inner.is_elemental(),
             Condition::Supports(_) => false,
             Condition::Has(inner) => inner.is_elemental(),
+            // A pseudo-element is a box, not a condition on one, so there
+            // is nothing to move onto an ancestor -- Tailwind refuses
+            // `group-marker:` for the same reason.
+            Condition::PseudoElement(_) => false,
             _ => true,
         }
     }

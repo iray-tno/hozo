@@ -550,6 +550,13 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
     let integer = || value.parse::<i32>().ok();
     let one = |property: StyleProperty| Some(vec![property]);
 
+    // Its own arm because it is two declarations, and the custom property
+    // is the whole point: a `before:` rule elsewhere in the stylesheet
+    // reads `content: var(--hozo-content)`, so the two compose without
+    // either knowing about the other.
+    if prefix == "content" {
+        return one(StyleProperty::Content(value.to_string()));
+    }
     // The families where one prefix means one property and the value is a
     // size. Grouped rather than spelled out because the mapping is
     // mechanical: every one of them takes the same value vocabulary.

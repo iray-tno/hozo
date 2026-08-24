@@ -69,8 +69,8 @@ const VARIANTS = [
   // Direction relates: it is inherited, so an ancestor can differ on it.
   'group-rtl',
   // Negation, which is a selector or a query depending on what it wraps --
-  // and is refused for the one condition that is both. `not-hover` sits
-  // in the unsupported block below for that reason.
+  // and both at once for `hover`, which is why `not-hover` is at the end
+  // of this list rather than in it twice.
   'not-first',
   'not-aria-checked',
   'not-motion-reduce',
@@ -108,15 +108,27 @@ const VARIANTS = [
   'placeholder-shown',
   'user-invalid',
   'autofill',
+  // Pseudo-elements, and the two that are more than one rule each: this
+  // section compares rule *counts* as well as their contents, which is
+  // what makes `marker:` worth having here rather than in the catalogue.
+  'before',
+  'after',
+  'placeholder',
+  'marker',
+  'selection',
+  'first-letter',
+  'file',
+  'backdrop',
   // The rest of the interaction family, here so a stacked combination of
   // two implemented variants is compared rather than assumed.
   'last',
   'active',
   'focus-visible',
   // Two rules in Tailwind -- the selector negated, and `@media not
-  // (hover: hover)` for a device where nothing is ever hovered. One
-  // condition returning two rules does not fit the shape the backends
-  // read, so this is an honest gap rather than a wrong answer.
+  // (hover: hover)` for a device where nothing is ever hovered. It was
+  // the one variant Hozo refused, because a backend could return one
+  // shape per condition and this needs two. It returns a list now, which
+  // `marker:` forced and this benefited from.
   'not-hover',
 ]
 
@@ -194,6 +206,15 @@ export async function buildVariantCatalog(): Promise<VariantCatalog> {
 function canonicalSuffix(suffix: string): string {
   return (
     suffix
+      // First, because it is a spelling and the folds below are meanings.
+      // CSS nesting inserts an implicit universal selector: Tailwind
+      // writes `not-first:` as `:not(:first-child)` at the top level and
+      // `:not(*:first-child)` inside a nested rule, and likewise
+      // `:has(*:hover)`, `:not(*[aria-checked="true"])` and
+      // `&::before *::marker`. `*` adds nothing to the match and nothing
+      // to the specificity. Leaving it until last meant `:not(*:disabled)`
+      // never reached the `:enabled` fold below.
+      .replace(/(^|[\s(])\*(?=[:[])/g, '$1')
       .replace(':not([data-hozo-disabled])', ':enabled')
       .replace('[data-hozo-disabled]', ':disabled')
       // Both sides, because the substitution shows up twice over: Tailwind

@@ -10,7 +10,8 @@ use hozo_ir::{
     GridTracks, LetterSpacing,
     MaskSlot, MaskStop,
     FilterFunction, FlexDirection, FlexShorthand, FontWeight, Justify, Length, LineHeight, Overflow,
-    FormState, Position, Radius, Scale, Structural, StyleProperty, TextAlign, TextOverflow,
+    FormState, Position, PseudoElement, Radius, Scale, Structural, StyleProperty, TextAlign,
+    TextOverflow,
     TextTransform,
     WhiteSpace,
 };
@@ -128,6 +129,11 @@ pub fn parse_utility(token: &str) -> Option<StyleProperty> {
         "self-end" => return Some(StyleProperty::AlignSelf(AlignSelf::End)),
         "self-stretch" => return Some(StyleProperty::AlignSelf(AlignSelf::Stretch)),
         "self-baseline" => return Some(StyleProperty::AlignSelf(AlignSelf::Baseline)),
+        // Not a `Keyword`, and the test that noticed is
+        // `no_keyword_property_is_also_written_by_a_variant`: `before:`
+        // writes `content` too, and a `Keyword` and a modelled property
+        // that reach the same declaration stop overriding each other.
+        "content-none" => return Some(StyleProperty::Content("none".to_string())),
         "content-start" => return Some(StyleProperty::AlignContent(Justify::Start)),
         "content-center" => return Some(StyleProperty::AlignContent(Justify::Center)),
         "content-end" => return Some(StyleProperty::AlignContent(Justify::End)),
@@ -1844,7 +1850,6 @@ const KEYWORD_UTILITIES: &[(&str, &str, &str)] = &[
         ("backface-visible", "backface-visibility", "visible"),
         ("box-border", "box-sizing", "border-box"),
         ("box-content", "box-sizing", "content-box"),
-        ("content-none", "content", "none"),
         ("flex-nowrap", "flex-wrap", "nowrap"),
         ("flex-wrap-reverse", "flex-wrap", "wrap-reverse"),
         ("flex-wrap", "flex-wrap", "wrap"),
@@ -2598,10 +2603,10 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
             return (Condition::Has(Box::new(condition)), tail);
         }
     }
-    // `not-` negates whatever follows, by the same recursion. Refused
-    // when the inner condition has both a query and a selector, because
-    // negating both is two rules and the backends return one -- see
-    // `Condition::Not`. Today that is `hover:` and nothing else.
+    // `not-` negates whatever follows, by the same recursion. A condition
+    // that is both a query and a selector negates into two rules, which
+    // is what `not-hover:` is -- `:not(:hover)`, plus a rule for a device
+    // where nothing is ever hovered.
     if let Some(inner) = token.strip_prefix("not-") {
         let (condition, tail) = parse_one_variant(inner);
         if condition != Condition::Always && condition.is_negatable() {
@@ -2688,6 +2693,11 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     }
     if let Some((structural, rest)) = structural(token) {
         return (Condition::Structural(structural), rest);
+    }
+    for (name, pseudo) in PSEUDO_ELEMENTS {
+        if let Some(rest) = token.strip_prefix(name) {
+            return (Condition::PseudoElement(*pseudo), rest);
+        }
     }
     // Longest name first: `read-only:` also starts with `read`, and
     // `user-invalid:` with `user`.
@@ -4596,4 +4606,24 @@ const FORM_STATES: &[(&str, FormState)] = &[
     ("autofill:", FormState::Autofill),
     ("invalid:", FormState::Invalid),
     ("valid:", FormState::Valid),
+];
+
+
+/// The pseudo-element variants.
+///
+/// Before the form states in `parse_one_variant`, because
+/// `placeholder:` and `placeholder-shown:` share a prefix and the
+/// element has to win: `placeholder-shown:` is checked first inside its
+/// own table, and `placeholder:` here would otherwise take the front of
+/// it. Longest-first within the table for `first-letter`/`first-line`.
+const PSEUDO_ELEMENTS: &[(&str, PseudoElement)] = &[
+    ("placeholder:", PseudoElement::Placeholder),
+    ("first-letter:", PseudoElement::FirstLetter),
+    ("first-line:", PseudoElement::FirstLine),
+    ("selection:", PseudoElement::Selection),
+    ("backdrop:", PseudoElement::Backdrop),
+    ("before:", PseudoElement::Before),
+    ("marker:", PseudoElement::Marker),
+    ("after:", PseudoElement::After),
+    ("file:", PseudoElement::File),
 ];

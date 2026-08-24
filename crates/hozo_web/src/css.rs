@@ -845,6 +845,11 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
             .to_string(),
         ),
         StyleProperty::AlignContent(justify) => ("align-content", justify_keyword(justify).to_string()),
+        // Two declarations, so `render_shape` writes it directly and this
+        // arm is only here to keep the match exhaustive. Reached only if a
+        // `Content` escapes that path, and the value it gives is the
+        // useful half rather than a panic.
+        StyleProperty::Content(value) => ("content", value.clone()),
         StyleProperty::JustifyContent(justify) => {
             ("justify-content", justify_keyword(justify).to_string())
         }
@@ -1240,7 +1245,37 @@ fn environment_at_rule(query: Environment) -> &'static str {
     }
 }
 
-pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
+/// One rule's worth of shape: the at-rules around it, and the selector
+/// suffix with `&` standing for the element.
+pub type Shape = (Vec<String>, String);
+
+/// The shape a condition takes, or the shapes -- some conditions are more
+/// than one rule.
+///
+/// This returned a single shape until `marker:` needed four. Tailwind
+/// writes it as `::marker`, a descendant `::marker`, and both again for
+/// `::-webkit-details-marker`; `selection:` is two; and `not-hover:` is
+/// the selector negated *plus* `@media not (hover: hover)` for a device
+/// where nothing is ever hovered.
+///
+/// `not-hover:` was refused for exactly this reason and is the reason the
+/// signature changed: the gap was never in the variant, it was in what a
+/// backend could say.
+/// One shape, as a list of one. Most conditions are this.
+fn one(at_rules: Vec<String>, selector: impl Into<String>) -> Vec<Shape> {
+    vec![(at_rules, selector.into())]
+}
+
+/// The first shape a condition takes.
+///
+/// For everything except `marker:`, `selection:` and `not-…:` that is the
+/// only one. Kept for callers that genuinely want a single answer -- the
+/// emitter uses `condition_shapes`.
+pub fn condition_shape(condition: &Condition) -> Shape {
+    condition_shapes(condition).into_iter().next().unwrap_or_default()
+}
+
+pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
     match condition {
         // Stacked variants. The at-rules nest in written order, outermost
         // first, and the selector suffixes append in the same order --
@@ -1250,27 +1285,35 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
         // each new template rather than the other way round: a template's
         // `&` is where the thing it qualifies goes, so the later variant
         // wraps the earlier one.
+        // A product where more than one variant is more than one rule,
+        // which is what `hover:marker:` is: hover's single shape times
+        // marker's four, all inside the one `@media (hover: hover)`.
         Condition::All(conditions) => {
-            let mut preludes = Vec::new();
-            let mut selector = "&".to_string();
+            let mut shapes: Vec<Shape> = vec![(Vec::new(), "&".to_string())];
             for condition in conditions {
-                let (mut inner, template) = condition_shape(condition);
-                preludes.append(&mut inner);
-                selector = template.replace('&', &selector);
+                let mut next = Vec::new();
+                for (preludes, selector) in &shapes {
+                    for (inner, template) in condition_shapes(condition) {
+                        let mut preludes = preludes.clone();
+                        preludes.extend(inner);
+                        next.push((preludes, template.replace('&', selector)));
+                    }
+                }
+                shapes = next;
             }
-            (preludes, selector)
+            shapes
         }
-        Condition::Always => (Vec::new(), "&".to_string()),
+        Condition::Always => one(Vec::new(), "&"),
         // The capability query is not decoration. Without it a `:hover`
         // style sticks on a touch device after a tap -- the element keeps
         // matching until something else is tapped -- which is why Tailwind
         // v4 wraps every hover utility this way. Hozo emitted the bare
         // pseudo-class until 2026-08-17, and nothing noticed because no
         // comparison here looked at at-rules.
-        Condition::Hover => (vec!["@media (hover: hover)".to_string()], "&:hover".to_string()),
-        Condition::Focus => (Vec::new(), "&:focus".to_string()),
-        Condition::FocusVisible => (Vec::new(), "&:focus-visible".to_string()),
-        Condition::LastChild => (Vec::new(), "&:last-child".to_string()),
+        Condition::Hover => one(vec!["@media (hover: hover)".to_string()], "&:hover"),
+        Condition::Focus => one(Vec::new(), "&:focus"),
+        Condition::FocusVisible => one(Vec::new(), "&:focus-visible"),
+        Condition::LastChild => one(Vec::new(), "&:last-child"),
         // Hozo's own attribute rather than `:disabled`, because `:disabled`
         // matches form controls and nothing else. `Pressable` is a `<div>`,
         // so `disabled:opacity-50` on one used to compile to a rule that
@@ -1284,33 +1327,31 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
         // dimmed region all carry it, so one selector covers all three and
         // the ARIA question and the CSS question stop being the same
         // question. Specificity is (0,1,0), exactly what `:disabled` was.
-        Condition::Disabled => (Vec::new(), "&[data-hozo-disabled]".to_string()),
+        Condition::Disabled => one(Vec::new(), "&[data-hozo-disabled]"),
         // Exactly what Tailwind generates, checked against it rather than
         // recalled: `.aria-checked\:p-4[aria-checked="true"]`. Which means
         // it needs nothing from the element's props -- the selector matches
         // whatever the element actually carries, whether that came from
         // `accessibilityState`, an `aria-checked` prop, or a spread the
         // compiler never read.
-        Condition::Aria(state) => (Vec::new(), format!("&[aria-{state}=\"true\"]")),
+        Condition::Aria(state) => one(Vec::new(), format!("&[aria-{state}=\"true\"]")),
         // The negation of the same attribute, so `disabled:` and
         // `enabled:` cannot disagree. Specificity matches what Tailwind's
         // `:enabled` gives -- `:not()` takes its argument's, which is one
         // attribute, exactly as a pseudo-class is one.
-        Condition::Enabled => (Vec::new(), "&:not([data-hozo-disabled])".to_string()),
+        Condition::Enabled => one(Vec::new(), "&:not([data-hozo-disabled])"),
         // Read from Tailwind's output rather than recalled. Direction is
         // the odd one: a selector rather than a query, and wrapped in
         // `:where()` so it weighs nothing -- an `rtl:` utility orders
         // against its unprefixed twin by source position, not by winning.
         Condition::Environment(query) => match query {
-            Environment::Ltr => (
-                Vec::new(),
-                "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)".to_string(),
-            ),
-            Environment::Rtl => (
-                Vec::new(),
-                "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)".to_string(),
-            ),
-            _ => (vec![environment_at_rule(*query).to_string()], "&".to_string()),
+            Environment::Ltr => {
+                one(Vec::new(), "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)")
+            }
+            Environment::Rtl => {
+                one(Vec::new(), "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)")
+            }
+            _ => one(vec![environment_at_rule(*query).to_string()], "&"),
         },
         // `:is(:where(.group):hover *)`, which is Tailwind's own shape --
         // read from it rather than reconstructed. `:where()` is what keeps
@@ -1332,7 +1373,7 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
         // negated at-rule's absence of one, so `not-first:` weighs what
         // `first:` weighs. Which is the same reason Tailwind's version
         // does.
-        Condition::DataAttribute(selector) => (Vec::new(), format!("&{selector}")),
+        Condition::DataAttribute(selector) => one(Vec::new(), format!("&{selector}")),
         // Parenthesised unless the author already did it, which is what
         // Tailwind emits: `supports-[display:grid]:` is
         // `@supports (display:grid)`.
@@ -1342,80 +1383,95 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
             } else {
                 format!("({query})")
             };
-            (vec![format!("@supports {query}")], "&".to_string())
+            one(vec![format!("@supports {query}")], "&")
         }
         // `:is()` around the inner selector is Tailwind's, and it is what
         // keeps `has-[:focus]:` weighing the same as `has-[.a.b.c]:`.
         Condition::HasSelector(selector) => {
-            (Vec::new(), format!("&:has({})", has_argument(selector)))
+            one(Vec::new(), format!("&:has({})", has_argument(selector)))
         }
-        Condition::Has(inner) => {
-            let (at_rules, suffix) = condition_shape(inner);
-            match suffix.strip_prefix('&') {
+        Condition::Has(inner) => condition_shapes(inner)
+            .into_iter()
+            .filter_map(|(at_rules, suffix)| {
                 // Not wrapped: a variant's suffix is one compound already,
                 // and Tailwind writes `has-hover:` as `:has(:hover)`.
-                Some(rest) if !rest.is_empty() => (at_rules, format!("&:has({rest})")),
-                _ => (Vec::new(), String::new()),
-            }
-        }
-        Condition::Not(inner) => {
-            let (at_rules, suffix) = condition_shape(inner);
-            match suffix.strip_prefix('&') {
-                Some(rest) if !rest.is_empty() => (Vec::new(), format!("&:not({rest})")),
-                _ => (
-                    at_rules.iter().map(|rule| negate_at_rule(rule)).collect(),
-                    "&".to_string(),
-                ),
-            }
-        }
+                let rest = suffix.strip_prefix('&').filter(|rest| !rest.is_empty())?;
+                Some((at_rules, format!("&:has({rest})")))
+            })
+            .collect(),
+        // The one condition that turns a single rule into two, and the
+        // reason this function returns a list. `not-hover:` is the
+        // selector negated -- with the capability query *dropped*, since
+        // an element on a hover-less device is never hovered and the
+        // negation holds there too -- plus a rule for that device.
+        Condition::Not(inner) => condition_shapes(inner)
+            .into_iter()
+            .flat_map(|(at_rules, suffix)| {
+                let mut shapes = Vec::new();
+                if let Some(rest) = suffix.strip_prefix('&').filter(|rest| !rest.is_empty()) {
+                    shapes.push((Vec::new(), format!("&:not({rest})")));
+                }
+                if !at_rules.is_empty() {
+                    shapes.push((
+                        at_rules.iter().map(|rule| negate_at_rule(rule)).collect(),
+                        "&".to_string(),
+                    ));
+                }
+                shapes
+            })
+            .collect(),
         Condition::Group(inner) | Condition::Peer(inner) => {
-            let (at_rules, suffix) = condition_shape(inner);
             let marker = if matches!(condition, Condition::Group(_)) { "group" } else { "peer" };
             let combinator = if matches!(condition, Condition::Group(_)) { " " } else { " ~ " };
             // The at-rules are the inner variant's and survive the
             // relation -- `group-hover:` is inside `@media (hover: hover)`
             // exactly as `hover:` is. Only the selector moves.
-            match suffix.strip_prefix('&') {
-                Some(rest) if !rest.is_empty() => (
-                    at_rules,
-                    format!("&:is(:where(.{marker}){rest}{combinator}*)"),
-                ),
-                // Refused at parse time, so unreachable -- kept so a
-                // future condition with no selector form degrades to no
-                // rule rather than to a malformed one.
-                _ => (Vec::new(), String::new()),
-            }
+            condition_shapes(inner)
+                .into_iter()
+                .filter_map(|(at_rules, suffix)| {
+                    // Refused at parse time, so the `None` is unreachable
+                    // -- kept so a future condition with no selector form
+                    // degrades to no rule rather than to a malformed one.
+                    let rest = suffix.strip_prefix('&').filter(|rest| !rest.is_empty())?;
+                    Some((at_rules, format!("&:is(:where(.{marker}){rest}{combinator}*)")))
+                })
+                .collect()
         }
         // Known gotcha, not fixed here: iOS Safari doesn't reliably fire
         // `:active` from a tap unless the element has some touch-event
         // listener attached (a long-documented WebKit quirk). Hozo's
         // compiled onClick doesn't count. Fine for the common desktop/
         // Android case; tracked as a real gap, not silently "handled."
-        Condition::Pressed => (Vec::new(), "&:active".to_string()),
-        Condition::Responsive(bp) => (
+        Condition::Pressed => one(Vec::new(), "&:active"),
+        Condition::Responsive(bp) => one(
             vec![format!("@media (min-width: {}px)", breakpoint_min_width_px(*bp))],
-            "&".to_string(),
+            "&",
         ),
         // Tailwind v4's default dark strategy, and the one whose meaning
         // React Native's `useColorScheme()` shares.
-        Condition::Dark => {
-            (vec!["@media (prefers-color-scheme: dark)".to_string()], "&".to_string())
-        }
-        Condition::FirstChild => (Vec::new(), "&:first-child".to_string()),
+        Condition::Dark => one(vec!["@media (prefers-color-scheme: dark)".to_string()], "&"),
+        Condition::FirstChild => one(Vec::new(), "&:first-child"),
         // One arm for eight variants, because the difference between them
         // is entirely in the pseudo-class text -- see `Structural`.
-        Condition::Structural(structural) => (Vec::new(), format!("&{}", structural.selector())),
-        Condition::FormState(state) => (Vec::new(), format!("&{}", state.selector())),
-        Condition::FocusWithin => (Vec::new(), "&:focus-within".to_string()),
-        Condition::Target => (Vec::new(), "&:target".to_string()),
+        Condition::Structural(structural) => one(Vec::new(), format!("&{}", structural.selector())),
+        Condition::FormState(state) => one(Vec::new(), format!("&{}", state.selector())),
+        // The only condition whose *count* varies: `marker:` is four
+        // rules and `selection:` two, because a selection and a list
+        // marker both cross into descendants and Safari spells a
+        // `<details>` marker its own way.
+        Condition::PseudoElement(pseudo) => {
+            pseudo.suffixes().into_iter().map(|s| (Vec::new(), s.to_string())).collect()
+        }
+        Condition::FocusWithin => one(Vec::new(), "&:focus-within"),
+        Condition::Target => one(Vec::new(), "&:target"),
         // Passed through exactly as written. Hozo does not parse it and
         // deliberately so: a selector it doesn't recognise is one the
         // browser may well support, and the author reached past the design
         // system on purpose. Validating it here would mean maintaining a
         // second, worse copy of the CSS selector grammar.
-        Condition::ArbitrarySelector(selector) => (Vec::new(), selector.clone()),
-        Condition::ArbitraryAtRule(rule) => (vec![rule.clone()], "&".to_string()),
-        Condition::Expr(expr) => (Vec::new(), format!("&{}", condition_expr_selector(expr))),
+        Condition::ArbitrarySelector(selector) => one(Vec::new(), selector.clone()),
+        Condition::ArbitraryAtRule(rule) => one(vec![rule.clone()], "&"),
+        Condition::Expr(expr) => one(Vec::new(), format!("&{}", condition_expr_selector(expr))),
     }
 }
 
@@ -1603,7 +1659,77 @@ pub fn render_rule(
     props: &[StyleProperty],
     theme: &Theme,
 ) -> String {
-    let (at_rule, selector) = condition_shape(condition);
+    // One condition can be several rules -- `marker:` is four and
+    // `not-hover:` is two -- so this is a loop rather than a call. In
+    // written order, which is the order Tailwind emits them and therefore
+    // the order the conformance suite compares them in.
+    // `::before` and `::after` generate no box at all without `content`,
+    // so a rule targeting one carries it whether or not the author wrote
+    // a `content-*` utility -- which is what makes `before:bg-red-500`
+    // paint anything.
+    //
+    // At the level of the pseudo-element itself, not at the end. Tailwind
+    // writes `before:md:flex` with native nesting --
+    // `::before { content: …; @media … { display: flex } }` -- so the box
+    // exists at every width and only the style is conditional. Putting the
+    // content inside the query instead would mean no `::before` at all
+    // below the breakpoint, which is a different thing to have written.
+    let chain = match condition {
+        Condition::All(conditions) => conditions.as_slice(),
+        single => std::slice::from_ref(single),
+    };
+    let generates: Vec<usize> = chain
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| matches!(c, Condition::PseudoElement(p) if p.needs_content()))
+        .map(|(index, _)| index)
+        .collect();
+
+    let mut rules: Vec<String> = Vec::new();
+    // One content-only rule per pseudo-element that something follows.
+    // `before:after:flex` is two of them nested, and each box needs its
+    // own `content` -- the outer one is not inherited by the inner.
+    for index in generates.iter().copied().filter(|index| index + 1 < chain.len()) {
+        rules.push(render_rule_shapes(class_name, &prefix_of(chain, index), &[], theme, true));
+    }
+    let ends_in_content = generates.last().is_some_and(|index| index + 1 == chain.len());
+    rules.push(render_rule_shapes(class_name, condition, props, theme, ends_in_content));
+    rules.join("
+
+")
+}
+
+/// The chain up to and including `index`, as a condition.
+fn prefix_of(chain: &[Condition], index: usize) -> Condition {
+    match &chain[..=index] {
+        [single] => single.clone(),
+        many => Condition::All(many.to_vec()),
+    }
+}
+
+fn render_rule_shapes(
+    class_name: &str,
+    condition: &Condition,
+    props: &[StyleProperty],
+    theme: &Theme,
+    needs_content: bool,
+) -> String {
+    condition_shapes(condition)
+        .into_iter()
+        .map(|shape| render_shape(class_name, shape, props, theme, needs_content))
+        .collect::<Vec<_>>()
+        .join("
+
+")
+}
+
+fn render_shape(
+    class_name: &str,
+    (at_rule, selector): Shape,
+    props: &[StyleProperty],
+    theme: &Theme,
+    needs_content: bool,
+) -> String {
     let target = fill_selector(&selector, class_name);
 
     // Some utilities target something other than the element itself, so
@@ -1654,7 +1780,10 @@ pub fn render_rule(
         rest.into_iter().partition(|p| is_border_spacing(p));
 
     let mut rules: Vec<String> = Vec::new();
-    if !own_props.is_empty()
+    // `needs_content` on its own is a rule: the hoisted `::before` that
+    // exists only to make the box, whose whole body is one declaration.
+    if needs_content
+        || !own_props.is_empty()
         || !shadow_props.is_empty()
         || !mask_props.is_empty()
         || !gradient_props.is_empty()
@@ -1669,7 +1798,19 @@ pub fn render_rule(
         || !spacing_props.is_empty()
     {
         let mut body = String::new();
+        // First, as Tailwind writes it -- and the order matters: a
+        // `content-none` beside it sets `content` again, and the last
+        // declaration is the one that wins.
+        if needs_content {
+            body.push_str("  content: var(--hozo-content);\n");
+        }
         for prop in own_props {
+            if let StyleProperty::Content(value) = prop {
+                body.push_str(&format!("  --hozo-content: {value};\n"));
+                let resolved = if value == "none" { "none" } else { "var(--hozo-content)" };
+                body.push_str(&format!("  content: {resolved};\n"));
+                continue;
+            }
             let (name, value) = property_and_value(prop, theme);
             body.push_str(&format!("  {name}: {value};\n"));
         }

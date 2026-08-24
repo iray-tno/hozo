@@ -444,7 +444,7 @@ mod variant_tests {
             "checked:bg-blue-500",
             "visited:bg-blue-500",
             "open:bg-blue-500",
-            "marker:bg-blue-500",
+            "indeterminate:bg-blue-500",
         ] {
             assert_eq!(
                 codes(class_name),
@@ -722,17 +722,22 @@ mod negation_tests {
     }
 
     #[test]
-    fn a_condition_with_both_forms_is_refused_rather_than_half_answered() {
+    fn a_condition_with_both_forms_negates_into_two_rules() {
         // `hover:` is a media query *and* a pseudo-class -- a pointer that
         // can hover is an environment fact, being hovered is an element
-        // fact. Tailwind's `not-hover:` is therefore two rules, and one
-        // condition returning two does not fit the shape the backends
-        // read. Refused, and reported, rather than answered with half.
-        assert!(conditions("not-hover:p-4").is_empty());
-        assert_eq!(
-            codes("not-hover:p-4"),
-            vec![DiagnosticCode::TailwindVariantNotSupported],
-        );
+        // fact. So `not-hover:` is two rules: the selector negated, and
+        // a rule for a device where nothing is ever hovered.
+        //
+        // It was refused for a year of commits because `condition_shape`
+        // returned one shape per condition. That was a limit of the
+        // backend and not a fact about the variant, and `marker:` -- four
+        // rules -- is what finally made it worth lifting.
+        assert!(codes("not-hover:p-4").is_empty());
+        // One condition, on each of the four declarations `p-4` writes.
+        assert!(conditions("not-hover:p-4")
+            .iter()
+            .all(|c| *c == Condition::Not(Box::new(Condition::Hover))));
+        assert!(!conditions("not-hover:p-4").is_empty());
     }
 
     fn codes(class_name: &str) -> Vec<DiagnosticCode> {

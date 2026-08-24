@@ -88,6 +88,30 @@ const DISABLED_BASE_CSS: &str = "@media (forced-colors: active) {\n  \
     [data-hozo-disabled] { color: GrayText; }\n\
 }\n\n";
 
+/// The register `before:` and `after:` read, and the fallback for
+/// browsers that cannot register it.
+///
+/// `::before` generates nothing without `content`, so every rule that
+/// targets one writes `content: var(--hozo-content)` -- which needs an
+/// initial value of `""` or the declaration is invalid and the box is
+/// never made. `@property` supplies it where it is supported; the
+/// `@supports` test below is Tailwind's own, and it detects Safari and
+/// Firefox versions that have `::before` but not `@property`.
+///
+/// Copied from Tailwind's output rather than reasoned about, including
+/// the shape of the feature test, which is not something to re-derive.
+const CONTENT_BASE_CSS: &str = "@property --hozo-content {
+      syntax: \"*\";
+      inherits: false;
+      initial-value: \"\";
+}
+
+@supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+      *, ::before, ::after, ::backdrop { --hozo-content: \"\"; }
+}
+
+";
+
 const POINTER_EVENTS_BASE_CSS: &str = "[data-hozo-pointer-events='none'] { pointer-events: none; }\n\
 [data-hozo-pointer-events='auto'] { pointer-events: auto; }\n\
 [data-hozo-pointer-events='box-none'] { pointer-events: none; }\n\
@@ -144,6 +168,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     }
     if contains_prop(root, marks_disabled) {
         css.push_str(DISABLED_BASE_CSS);
+    }
+    if uses_generated_content(root) {
+        css.push_str(CONTENT_BASE_CSS);
     }
     // An `animation` declaration is inert without its `@keyframes`, and
     // those are document-level rather than per-node -- so they're collected
@@ -235,6 +262,24 @@ fn contains_prop(node: &Node, predicate: fn(&Node) -> bool) -> bool {
         hozo_ir::Child::Node(child) => contains_prop(child, predicate),
         hozo_ir::Child::Verbatim { nested, .. } => nested.iter().any(|entry| contains_prop(&entry.node, predicate)),
         hozo_ir::Child::Text(_) => false,
+    })
+}
+
+/// Whether anything in this tree writes into a `::before` or `::after`.
+///
+/// Either by targeting one, or by setting the register a rule elsewhere
+/// reads. The second is what makes `content-['x']` on its own still worth
+/// the base rules: the utility is only useful because some `before:` rule
+/// picks the value up.
+fn uses_generated_content(node: &Node) -> bool {
+    contains_prop(node, |node| {
+        node.style.iter().any(|declaration| {
+            matches!(declaration.property, hozo_ir::StyleProperty::Content(_))
+                || declaration
+                    .condition
+                    .pseudo_element()
+                    .is_some_and(|pseudo| pseudo.needs_content())
+        })
     })
 }
 
@@ -1957,6 +2002,65 @@ const el = {element}
         // when the DOM has it under another name.
         assert!(jsx_for(r#"<TextInput accessibilityLabel="N" underlineColorAndroid="red" />"#)
             .contains("underlineColorAndroid"));
+    }
+
+    #[test]
+    fn a_variant_can_be_more_than_one_rule() {
+        // `condition_shape` returned one shape per condition until this,
+        // and `marker:` is four: the element's own `::marker`, a
+        // descendant's, and both again under Safari's
+        // `::-webkit-details-marker`. Read out of Tailwind's output, which
+        // documents none of it.
+        let css = css_for("marker:flex");
+        for suffix in ["::marker", " ::marker", "::-webkit-details-marker"] {
+            assert!(css.contains(&format!(".hozo-0{suffix}")), "{suffix} missing from {css}");
+        }
+        // Counted on the generated class rather than the declaration:
+        // `View`'s own base rule sets `display: flex` too.
+        assert_eq!(css.matches(".hozo-0").count(), 4, "{css}");
+        // A selection crosses element boundaries, so it is two.
+        assert_eq!(css_for("selection:flex").matches(".hozo-0").count(), 2);
+    }
+
+    #[test]
+    fn not_hover_is_the_two_rules_it_always_was() {
+        // The one variant Hozo refused, and the refusal was about the
+        // backend rather than the variant: negating a condition that is
+        // both a query and a selector needs a rule for each, and there was
+        // nowhere to put the second.
+        let css = css_for("not-hover:flex");
+        assert!(css.contains(".hozo-0:not(:hover)"), "{css}");
+        assert!(css.contains("@media not (hover: hover)"), "{css}");
+    }
+
+    #[test]
+    fn generated_content_is_written_where_the_box_is_made() {
+        // A `::before` with no `content` generates nothing, so the
+        // declaration is unconditional even when the style is not:
+        // `before:md:flex` makes the box at every width.
+        let narrow = css_for("before:md:flex");
+        assert!(narrow.contains(".hozo-0::before {
+  content: var(--hozo-content);
+}"), "{narrow}");
+        assert!(narrow.contains("@media (min-width: 768px)"), "{narrow}");
+        // Two pseudo-elements, two boxes, two `content` declarations --
+        // the outer one is not inherited by the inner.
+        assert_eq!(css_for("before:after:flex").matches("content:").count(), 3);
+        // And the register they read, once per file.
+        assert!(css_for("before:flex").contains("@property --hozo-content"));
+        assert!(!css_for("hover:flex").contains("@property"));
+    }
+
+    #[test]
+    fn the_content_utility_sets_what_those_rules_read() {
+        // Which is the whole reason it is a custom property: the utility
+        // and the `before:` rule that picks it up need not be the same
+        // rule, or written in any particular order.
+        assert!(css_for("content-['x']").contains("--hozo-content: 'x';"));
+        assert!(css_for("content-['x']").contains("content: var(--hozo-content);"));
+        // `none` resolves at the declaration instead, because a
+        // `var()` holding `none` would still be a string.
+        assert!(css_for("content-none").contains("content: none;"));
     }
 
     #[test]

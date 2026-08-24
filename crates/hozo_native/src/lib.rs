@@ -2394,6 +2394,22 @@ fn build_style_entries(
                     )),
                 }
             }
+            // Not a gap that could be closed. React Native's styles are
+            // objects handed to components, and a pseudo-element is a box
+            // the browser makes that has no component to hand one to.
+            // `placeholder:` is the near miss: React Native carries a
+            // placeholder's colour on `TextInput`'s own
+            // `placeholderTextColor` prop, which is a colour and not a
+            // style object, so it cannot take the rest of what
+            // `placeholder:` is allowed to set.
+            Condition::PseudoElement(pseudo) => diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`{}:` styles a pseudo-element, which React Native does not have -- its                      styles go to components, and there is no component here to give one to.                      Render the content as a real element instead. On Web the same class works.",
+                    pseudo.variant_name(),
+                ),
+                Severity::Error,
+            )),
             Condition::FormState(state) => diagnostics.push(unwired_variant(
                 node,
                 &format!(
@@ -2985,6 +3001,7 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
             Some(structural.variant_name().replace(['-', '+', '(', ')'], ""))
         }
         Condition::FormState(state) => Some(state.variant_name().replace('-', "")),
+        Condition::PseudoElement(pseudo) => Some(pseudo.variant_name().replace('-', "")),
         Condition::FocusWithin => Some("focuswithin".to_string()),
         Condition::Target => Some("target".to_string()),
         // Named by position rather than by content: a selector can hold

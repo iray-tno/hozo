@@ -85,7 +85,23 @@ export function extractRules(css: string): Rule[] {
       if (name.startsWith('@')) {
         const folded = name.startsWith('@supports')
         if (!folded) open.push(name)
-        stack.push({ target: folded ? parent : null, opened: !folded })
+        // A conditional at-rule *inside* a style rule is that rule again
+        // under a condition, not a different element -- so it becomes its
+        // own rule with the same selector rather than having its
+        // declarations dropped. Tailwind writes `before:md:flex` that way:
+        // `::before { content: …; @media … { display: flex } }`, and the
+        // `display` was invisible here until this existed.
+        const conditional = !folded && parent ? nest(rules, parent.selector, open) : null
+        stack.push({ target: conditional ?? (folded ? parent : null), opened: !folded })
+      } else if (parent) {
+        // A nested style rule, resolved against the one containing it.
+        // `&` is the parent's selector, which is how CSS nesting reads it
+        // and how Tailwind writes a stacked variant after a
+        // pseudo-element.
+        stack.push({
+          target: nest(rules, name.replaceAll('&', parent.selector), open),
+          opened: false,
+        })
       } else {
         const rule: Rule = { selector: name, declarations: '', atRules: [...open] }
         rules.push(rule)
@@ -109,7 +125,26 @@ export function extractRules(css: string): Rule[] {
   // declarations to compare, and the `to`/`50%` steps inside `@keyframes`
   // are not rules any candidate produced. Both are filtered by the
   // callers, which know which selectors they care about.
-  return rules
+  //
+  // A rule with nothing in it is dropped, though. Reading CSS nesting
+  // produces them: `::before { content: …; &:hover { @media … { … } } }`
+  // has a `&:hover` whose whole body is the query, and counting that as a
+  // rule made the flattened output one longer than the same CSS written
+  // without nesting. Nothing downstream compares an empty rule; it only
+  // shifts the ones after it.
+  return rules.filter((rule) => rule.declarations.trim() !== '')
+}
+
+/**
+ * A rule for `selector` under `atRules`, appended and returned.
+ *
+ * Separate from the top-level path only because a nested rule's selector
+ * and at-rules are computed rather than read.
+ */
+function nest(rules: Rule[], selector: string, atRules: string[]): Rule {
+  const rule: Rule = { selector, declarations: '', atRules: [...atRules] }
+  rules.push(rule)
+  return rule
 }
 
 /** The index of the quote closing the one at `start`. */

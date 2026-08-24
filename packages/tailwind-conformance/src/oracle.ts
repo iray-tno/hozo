@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { compile } from 'tailwindcss'
-import { extractRules } from './extract.ts'
+import { extractRules, type Rule } from './extract.ts'
 import { tailwindPackageDir } from './theme.ts'
 
 export type OracleRules = Map<string, string>
@@ -29,6 +29,35 @@ export interface Oracle {
 }
 
 /** Compiles `candidates` and returns each one's declaration block. */
+/**
+ * Rules at the shallowest at-rule depth *for each class*.
+ *
+ * The same rule `compare.ts` applies to Hozo's side, and it has to be
+ * applied to both or the comparison is between different things. It used
+ * to hold by accident: `extractRules` dropped the declarations inside a
+ * nested `@media`, so `outline-hidden`'s forced-colours branch never
+ * reached this function. Teaching the extractor to read CSS nesting --
+ * which it had to learn for `before:md:flex` -- made those declarations
+ * visible, and they arrived on one side only.
+ *
+ * Per class rather than globally, because one build holds every candidate
+ * and a responsive one is legitimately deeper than a plain one.
+ */
+function leastConditional(rules: Rule[]): Rule[] {
+  const depth = new Map<string, number>()
+  for (const rule of rules) {
+    for (const name of classNamesIn(rule.selector)) {
+      const current = depth.get(name)
+      if (current === undefined || rule.atRules.length < current) {
+        depth.set(name, rule.atRules.length)
+      }
+    }
+  }
+  return rules.filter((rule) =>
+    classNamesIn(rule.selector).some((name) => depth.get(name) === rule.atRules.length),
+  )
+}
+
 export async function buildOracle(candidates: string[]): Promise<Oracle> {
   const dir = tailwindPackageDir()
   const compiler = await compile('@import "tailwindcss";', {
@@ -45,7 +74,7 @@ export async function buildOracle(candidates: string[]): Promise<Oracle> {
   const rules: OracleRules = new Map()
   const byName = new Map(candidates.map((c) => [escapeClassName(c), c]))
 
-  for (const { selector, declarations } of extractRules(utilities)) {
+  for (const { selector, declarations } of leastConditional(extractRules(utilities))) {
     // Read the class names *out of* the selector and look each one up,
     // rather than testing every candidate against every selector. The
     // latter is fine for a hand-picked hundred and quadratic against the
