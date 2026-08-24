@@ -416,6 +416,18 @@ fn structural_holds(
     structural.matches_position(position.ordinal?, position.count?)
 }
 
+/// A boolean prop, in the shortest spelling its value allows.
+///
+/// `multiline` rather than `multiline={true}`, which is what the author
+/// wrote and what React Native's own code reads like.
+fn native_flag(name: &str, value: &ConditionExpr, source: &str) -> String {
+    match value {
+        ConditionExpr::Static(true) => format!(" {name}"),
+        ConditionExpr::Static(false) => format!(" {name}={{false}}"),
+        other => format!(" {name}={{{}}}", render_condition_expr(source, other)),
+    }
+}
+
 fn render_node(
     node: &Node,
     position: SiblingPosition,
@@ -835,6 +847,37 @@ fn render_node(
             props_text.push_str(&format!(" defaultSource={{hozoImageSource({value})}}"));
         }
     }
+    // Given back exactly as written. These props are React Native's own;
+    // they are modelled only because the DOM spells them differently, and
+    // there is nothing to translate on the platform they came from.
+    if !node.props.text_input.is_empty() {
+        let text_input = &node.props.text_input;
+        if let Some(handler) = text_input.on_change_text {
+            props_text.push_str(&format!(" onChangeText={{{}}}", source_text(source, handler)));
+        }
+        for (name, value) in [
+            ("editable", &text_input.editable),
+            ("readOnly", &text_input.read_only),
+            ("multiline", &text_input.multiline),
+            ("secureTextEntry", &text_input.secure_text_entry),
+        ] {
+            if let Some(value) = value {
+                props_text.push_str(&native_flag(name, value, source));
+            }
+        }
+        if let Some(rows) = text_input.number_of_lines {
+            props_text.push_str(&format!(" numberOfLines={{{}}}", source_text(source, rows)));
+        }
+        for (name, value) in [
+            ("keyboardType", &text_input.keyboard_type),
+            ("inputMode", &text_input.input_mode),
+        ] {
+            if let Some(value) = value {
+                props_text.push_str(&format!(" {name}=\"{value}\""));
+            }
+        }
+    }
+
     if let Some(horizontal) = &node.props.scroll_horizontal {
         props_text.push_str(&format!(" horizontal={{{}}}", render_condition_expr(source, horizontal)));
     }
@@ -3756,6 +3799,44 @@ export function Login() {
         // ...and the second doesn't get one at all, which is exactly what
         // `:first-child` would do.
         assert!(!output.jsx.contains("hozoStyles.hozo2_first"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn the_text_input_props_come_back_exactly_as_written() {
+        // Modelling a prop means both backends own it. Web needed these
+        // because the DOM spells them differently; Native needs them
+        // *unchanged*, and the moment they moved out of `passthrough`
+        // they stopped being emitted here at all.
+        let source = r#"
+            import { TextInput } from '@hozo/core'
+            const el = (
+              <TextInput
+                accessibilityLabel="Notes"
+                onChangeText={handle}
+                multiline
+                numberOfLines={4}
+                editable={canEdit}
+                secureTextEntry={false}
+                keyboardType="email-address"
+              />
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        for expected in [
+            "onChangeText={handle}",
+            // Bare, the way it was written and the way React Native's own
+            // code reads -- not `multiline={true}`.
+            " multiline",
+            "numberOfLines={4}",
+            "editable={canEdit}",
+            "secureTextEntry={false}",
+            "keyboardType=\"email-address\"",
+        ] {
+            assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+        }
     }
 
     #[test]

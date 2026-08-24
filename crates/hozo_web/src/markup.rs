@@ -128,7 +128,9 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
             }
             (if node.props.has_responder_handlers() { "Pressable" } else { "div" }, attrs)
         }
-        Primitive::TextInput => ("input", missing_label(node, diagnostics)),
+        // `multiline` is a prop on React Native and an element on the
+        // DOM, so it is decided here rather than added as an attribute.
+        Primitive::TextInput => (text_input_tag(node, diagnostics), missing_label(node, diagnostics)),
         // Lowered to `@hozo/a11y`'s component, not to a bare `<dialog>`:
         // the element gives the trap and the inert background, but only
         // once something calls `showModal()`, and keeping `open` in step
@@ -190,6 +192,31 @@ fn dialog_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static
         });
     }
     Vec::new()
+}
+
+/// `<textarea>` or `<input>`.
+///
+/// The one place a React Native prop decides a DOM *element*, which is
+/// why a runtime value cannot be honoured: the compiler writes one tag
+/// into the file. `multiline={isLong}` is reported and falls back to
+/// `<input>`, because a single-line field that should have wrapped is a
+/// visible problem, and the alternative -- silently choosing -- makes the
+/// same field wrong with nothing said.
+fn text_input_tag(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> &'static str {
+    match &node.props.text_input.multiline {
+        Some(hozo_ir::ConditionExpr::Static(true)) => "textarea",
+        None | Some(hozo_ir::ConditionExpr::Static(false)) => "input",
+        Some(_) => {
+            diagnostics.push(Diagnostic {
+                code: DiagnosticCode::DynamicPropNotResolved,
+                severity: Severity::Warning,
+                message: "`multiline` decides which element this becomes on Web -- `<textarea>`                           or `<input>` -- and its value isn't known until runtime, so the                           compiler cannot write one. It falls back to `<input>`. Render two                           elements, or make `multiline` a constant."
+                    .to_string(),
+                span: node.span,
+            });
+            "input"
+        }
+    }
 }
 
 fn missing_label(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static str, AttrValue)> {

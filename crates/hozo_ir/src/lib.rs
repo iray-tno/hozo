@@ -157,6 +157,15 @@ pub enum DiagnosticCode {
     /// reach the DOM, but Hozo generates no CSS for whatever they turn out
     /// to be -- only for classes it could read at build time.
     DynamicClassNameNotResolved,
+    /// A prop whose value decides something the compiler has to write down
+    /// once, and whose value isn't known until runtime.
+    ///
+    /// Rare, because Hozo carries an expression it can't read rather than
+    /// evaluating it -- `disabled={busy}` becomes a ternary in the output
+    /// and needs nothing decided. This is for the case where there is no
+    /// ternary to write: `multiline` chooses between `<textarea>` and
+    /// `<input>`, and only one element goes into the file.
+    DynamicPropNotResolved,
     /// A utility React Native could express, that Hozo doesn't lower yet.
     ///
     /// Distinct from `WebOnlyPropertyOnNative`, and the distinction is the
@@ -449,9 +458,54 @@ pub struct PropSet {
     /// needs to know is that a name-less field has one, which is the case
     /// worth naming.
     pub has_placeholder: bool,
+    /// The `TextInput` props whose Web spelling differs from React
+    /// Native's. Empty on every other primitive.
+    pub text_input: TextInputProps,
     /// Props Hozo doesn't model explicitly -- re-emitted unchanged, in
     /// source order (which JSX's last-wins duplicate resolution depends on).
     pub passthrough: Vec<PassthroughProp>,
+}
+
+/// React Native `TextInput` props that the DOM has under another name.
+///
+/// Modelled rather than passed through, which is a narrower rule than it
+/// sounds: the passthrough default is right for a prop that is *only*
+/// React Native's, because a visible React warning beats silently deleting
+/// behaviour. It is wrong for a prop the DOM has and spells differently,
+/// and every field here is one of those.
+///
+/// `onChangeText` is the one that mattered. Passed through, it reached
+/// `<input onChangeText={…}>` -- a prop the DOM does not have, on the
+/// element whose entire job is to report what was typed. The field
+/// rendered and did nothing, which the fallback `TextInput` in
+/// `@hozo/core` had handled correctly all along; compiling made it worse.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct TextInputProps {
+    /// `onChangeText={f}`, which the DOM spells `onChange` and hands an
+    /// event rather than a string.
+    pub on_change_text: Option<ExprRef>,
+    /// `editable={false}`, React Native's older spelling of `readOnly`.
+    ///
+    /// Kept as its own field rather than folded into `read_only`: React
+    /// Native 0.87 has both, an author may write either, and Native has to
+    /// get back the one that was written.
+    pub editable: Option<ConditionExpr>,
+    pub read_only: Option<ConditionExpr>,
+    /// `multiline`, which on Web is not a prop but a different element.
+    pub multiline: Option<ConditionExpr>,
+    /// `numberOfLines`, which a `<textarea>` calls `rows`.
+    pub number_of_lines: Option<ExprRef>,
+    /// `secureTextEntry`, which on Web is `type="password"`.
+    pub secure_text_entry: Option<ConditionExpr>,
+    /// `keyboardType`, as written. React Native's own values, which map
+    /// onto the DOM's `inputmode` for the seven that are cross-platform
+    /// and have no answer for the iOS- and Android-only ones.
+    pub keyboard_type: Option<String>,
+    /// `inputMode`. React Native took the DOM's attribute and its values
+    /// verbatim, and documents it as taking precedence over
+    /// `keyboardType` -- so Web follows that precedence rather than
+    /// inventing one.
+    pub input_mode: Option<String>,
 }
 
 impl PropSet {
@@ -2981,5 +3035,53 @@ mod structural_tests {
             Structural::Nth { of_type: true, from_end: true, formula: "3".to_string() }.selector(),
             ":nth-last-of-type(3)",
         );
+    }
+}
+
+impl TextInputProps {
+    /// The DOM `inputmode` this asks for, if the DOM has one.
+    ///
+    /// `inputMode` wins where both are written, which is React Native's own
+    /// documented precedence rather than a choice made here.
+    ///
+    /// `None` covers three different situations and deliberately does not
+    /// distinguish them: nothing was asked for, `default` was asked for
+    /// (which is the absence of a request), or one of the five values only
+    /// one platform's keyboard has. `ascii-capable`, `twitter` and
+    /// `visible-password` describe a keyboard layout, and the DOM has no
+    /// vocabulary for that at all -- `inputmode` names the *kind of data*
+    /// and lets the platform choose a keyboard.
+    pub fn dom_input_mode(&self) -> Option<&'static str> {
+        if let Some(mode) = self.input_mode.as_deref() {
+            return match mode {
+                "none" | "text" | "decimal" | "numeric" | "tel" | "search" | "email" | "url" => {
+                    Some(match mode {
+                        "none" => "none",
+                        "text" => "text",
+                        "decimal" => "decimal",
+                        "numeric" => "numeric",
+                        "tel" => "tel",
+                        "search" => "search",
+                        "email" => "email",
+                        _ => "url",
+                    })
+                }
+                _ => None,
+            };
+        }
+        match self.keyboard_type.as_deref()? {
+            "number-pad" | "numeric" => Some("numeric"),
+            "decimal-pad" => Some("decimal"),
+            "email-address" => Some("email"),
+            "phone-pad" => Some("tel"),
+            "url" => Some("url"),
+            "web-search" => Some("search"),
+            _ => None,
+        }
+    }
+
+    /// Whether anything here was written at all.
+    pub fn is_empty(&self) -> bool {
+        *self == TextInputProps::default()
     }
 }

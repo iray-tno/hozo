@@ -308,6 +308,65 @@ fn capture_prop_expr(
     };
 }
 
+/// A boolean-shaped prop: bare (`multiline`), or an expression Hozo
+/// carries without reading (`editable={canEdit}`).
+///
+/// The same shape `disabled` and `horizontal` already use, factored out
+/// because `TextInput` brought four more of them at once.
+fn capture_flag(
+    attr: &JSXAttribute,
+    target: &mut Option<ConditionExpr>,
+    passthrough: &mut Vec<PassthroughProp>,
+    scope: &Scope,
+    diagnostics: &mut Vec<Diagnostic>,
+    consumed: &mut Vec<SourceSpan>,
+) {
+    match &attr.value {
+        None => *target = Some(ConditionExpr::Static(true)),
+        Some(JSXAttributeValue::ExpressionContainer(container)) => {
+            // `multiline={true}` is the bare form written out, and a
+            // backend that has to *decide* something from it -- Web picks
+            // `<textarea>` or `<input>` and writes one of them into the
+            // file -- can only do that for a value it knows. Reading the
+            // literal is the difference between compiling that and
+            // reporting it.
+            *target = Some(match &container.expression {
+                JSXExpression::BooleanLiteral(literal) => ConditionExpr::Static(literal.value),
+                other => ConditionExpr::Ref(to_expr_ref(other.span())),
+            });
+        }
+        _ => passthrough.push(passthrough_prop(attr, scope, diagnostics, consumed)),
+    }
+}
+
+/// A prop whose *value* Hozo has to read, not just delimit.
+///
+/// `keyboardType` and `inputMode` pick a DOM attribute between them, so a
+/// span is not enough -- unlike every other prop here, the compiler needs
+/// to know which string was written. A dynamic value is carried instead,
+/// because the mapping cannot be made at build time from an expression.
+fn capture_literal(
+    attr: &JSXAttribute,
+    target: &mut Option<String>,
+    passthrough: &mut Vec<PassthroughProp>,
+    scope: &Scope,
+    diagnostics: &mut Vec<Diagnostic>,
+    consumed: &mut Vec<SourceSpan>,
+) {
+    let literal = match &attr.value {
+        Some(JSXAttributeValue::StringLiteral(lit)) => Some(lit.value.to_string()),
+        Some(JSXAttributeValue::ExpressionContainer(container)) => match &container.expression {
+            JSXExpression::StringLiteral(lit) => Some(lit.value.to_string()),
+            _ => None,
+        },
+        _ => None,
+    };
+    match literal {
+        Some(value) => *target = Some(value),
+        None => passthrough.push(passthrough_prop(attr, scope, diagnostics, consumed)),
+    }
+}
+
 /// The property names an object-literal attribute writes, if all of them
 /// can be read from the source.
 ///
@@ -821,6 +880,70 @@ fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed));
             }
+            "onChangeText" if primitive == Primitive::TextInput => capture_prop_expr(
+                attr,
+                &mut props.text_input.on_change_text,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
+            "editable" if primitive == Primitive::TextInput => capture_flag(
+                attr,
+                &mut props.text_input.editable,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
+            "readOnly" if primitive == Primitive::TextInput => capture_flag(
+                attr,
+                &mut props.text_input.read_only,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
+            "multiline" if primitive == Primitive::TextInput => capture_flag(
+                attr,
+                &mut props.text_input.multiline,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
+            "secureTextEntry" if primitive == Primitive::TextInput => capture_flag(
+                attr,
+                &mut props.text_input.secure_text_entry,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
+            "numberOfLines" if primitive == Primitive::TextInput => capture_prop_expr(
+                attr,
+                &mut props.text_input.number_of_lines,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
+            "keyboardType" if primitive == Primitive::TextInput => capture_literal(
+                attr,
+                &mut props.text_input.keyboard_type,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
+            "inputMode" if primitive == Primitive::TextInput => capture_literal(
+                attr,
+                &mut props.text_input.input_mode,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
             "placeholder" => {
                 props.has_placeholder = true;
                 props

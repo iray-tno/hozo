@@ -258,6 +258,31 @@ fn collect_keyframes_into(node: &Node, found: &mut Vec<&'static str>) {
 /// Byte-slices `source` at an `ExprRef`'s span. Spans come from oxc's own
 /// tokenizer over this same `source`, so they're always on UTF-8 character
 /// boundaries -- not re-validated here.
+/// A boolean DOM attribute, written the shortest way the value allows.
+///
+/// `readOnly` and nothing at all, rather than `readOnly={true}` and
+/// `readOnly={false}` -- a constant known at compile time should read like
+/// one in the output.
+fn boolean_attribute(name: &str, value: &hozo_ir::ConditionExpr, source: &str) -> String {
+    match value {
+        hozo_ir::ConditionExpr::Static(true) => format!(" {name}"),
+        hozo_ir::ConditionExpr::Static(false) => String::new(),
+        other => format!(" {name}={{{}}}", render_condition_expr(source, other)),
+    }
+}
+
+/// Whether this `TextInput` becomes a `<textarea>` rather than an
+/// `<input>`.
+///
+/// React Native switches on a prop; the DOM switches on the element, and
+/// there is no `multiline` attribute to fall back to. So a `multiline`
+/// whose value isn't known until runtime cannot be answered here -- one
+/// element has to be written into the file -- and `markup.rs` reports it
+/// rather than picking the one that happens to be right half the time.
+fn is_textarea(node: &Node) -> bool {
+    matches!(node.props.text_input.multiline, Some(hozo_ir::ConditionExpr::Static(true)))
+}
+
 fn source_text(source: &str, expr_ref: hozo_ir::ExprRef) -> &str {
     &source[expr_ref.0.start as usize..expr_ref.0.end as usize]
 }
@@ -727,6 +752,58 @@ fn render_node(
     // rule the state attributes above follow.
     if let Some(expr) = disabled_expr.as_ref().filter(|_| !synthesized_control) {
         attrs.push_str(&format!(" data-hozo-disabled={{({expr}) ? '' : undefined}}"));
+    }
+
+    // The `TextInput` props the DOM has under another name.
+    //
+    // Every one of these was passed through before, which is the right
+    // default for a prop only React Native has and the wrong one for a
+    // prop the DOM has and spells differently. `onChangeText` reached
+    // `<input onChangeText={…}>`: the field rendered, React warned, and
+    // typing in it did nothing.
+    if !node.props.text_input.is_empty() {
+        let text_input = &node.props.text_input;
+        if let Some(handler) = text_input.on_change_text {
+            // The wrapper the fallback `TextInput` in `@hozo/core` has
+            // always written, generated here instead. Parenthesised
+            // because the handler is an arbitrary expression and
+            // `a || b` beside a call would bind the wrong way.
+            attrs.push_str(&format!(
+                " onChange={{(event) => ({})(event.target.value)}}",
+                source_text(source, handler),
+            ));
+        }
+        // Two spellings of one attribute. React Native 0.87 has both, so
+        // an author may write either, and `editable` is the negative of
+        // the two -- `editable={false}` is `readOnly`.
+        if let Some(editable) = text_input.editable.as_ref() {
+            attrs.push_str(&match editable {
+                hozo_ir::ConditionExpr::Static(true) => String::new(),
+                hozo_ir::ConditionExpr::Static(false) => " readOnly".to_string(),
+                other => format!(" readOnly={{!({})}}", render_condition_expr(source, other)),
+            });
+        }
+        if let Some(read_only) = text_input.read_only.as_ref() {
+            attrs.push_str(&boolean_attribute("readOnly", read_only, source));
+        }
+        if let Some(secure) = text_input.secure_text_entry.as_ref() {
+            attrs.push_str(&match secure {
+                hozo_ir::ConditionExpr::Static(true) => " type=\"password\"".to_string(),
+                hozo_ir::ConditionExpr::Static(false) => String::new(),
+                other => format!(
+                    " type={{({}) ? 'password' : 'text'}}",
+                    render_condition_expr(source, other),
+                ),
+            });
+        }
+        if let Some(mode) = text_input.dom_input_mode() {
+            attrs.push_str(&format!(" inputMode=\"{mode}\""));
+        }
+        // `numberOfLines` is only `rows` on the element `multiline`
+        // produces. On an `<input>` there are no rows to set.
+        if let Some(rows) = text_input.number_of_lines.filter(|_| is_textarea(node)) {
+            attrs.push_str(&format!(" rows={{{}}}", source_text(source, rows)));
+        }
     }
 
     // CSS attribute selectors (`[data-hozo-cond-x-y]`, built in css.rs)
@@ -1785,6 +1862,101 @@ const el = {element}
         let parsed = hozo_parser::parse_tsx(dynamic);
         let output = lower(&parsed.roots[0].node, dynamic, &Theme::default());
         assert_eq!(output.jsx, "<List ordered={ranked}><li>First</li></List>");
+    }
+
+    /// Compiles one element and returns its JSX.
+    fn jsx_for(element: &str) -> String {
+        let source = format!("import {{ TextInput }} from '@hozo/core'
+const el = {element}
+");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default()).jsx
+    }
+
+    #[test]
+    fn on_change_text_becomes_the_handler_the_dom_actually_has() {
+        // The one that made a compiled `TextInput` worse than the runtime
+        // fallback beside it. `onChangeText` is not a DOM prop, so
+        // `<input onChangeText={f}>` rendered a field that reported
+        // nothing -- and `@hozo/core`'s `TextInput` had been wrapping it
+        // correctly the whole time.
+        let jsx = jsx_for(r#"<TextInput accessibilityLabel="N" onChangeText={handle} />"#);
+        assert!(jsx.contains("onChange={(event) => (handle)(event.target.value)}"), "{jsx}");
+        assert!(!jsx.contains("onChangeText"), "{jsx}");
+    }
+
+    #[test]
+    fn multiline_chooses_the_element_because_the_dom_has_no_such_prop() {
+        // React Native switches on a prop; the DOM switches on the tag.
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" multiline />"#).contains("<textarea"));
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" />"#).contains("<input"));
+        // `numberOfLines` is `rows`, and only where there are rows.
+        let area = jsx_for(r#"<TextInput accessibilityLabel="N" multiline numberOfLines={4} />"#);
+        assert!(area.contains("rows={4}"), "{area}");
+        let line = jsx_for(r#"<TextInput accessibilityLabel="N" numberOfLines={4} />"#);
+        assert!(!line.contains("rows="), "{line}");
+    }
+
+    #[test]
+    fn a_multiline_only_known_at_runtime_is_reported_rather_than_guessed() {
+        // One tag goes into the file, so there is no ternary to write
+        // here -- unlike every other prop, where carrying the expression
+        // is enough.
+        let source = "import { TextInput } from '@hozo/core'
+                      const el = <TextInput accessibilityLabel=\"N\" multiline={isLong} />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(
+            output.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::DynamicPropNotResolved),
+            "{:?}",
+            output.diagnostics,
+        );
+        assert!(output.jsx.contains("<input"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn editable_is_read_only_said_the_other_way_round() {
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" editable={false} />"#)
+            .contains(" readOnly"));
+        // A literal in braces is as known as a bare attribute, so it gets
+        // the same short spelling rather than a negated expression.
+        assert!(!jsx_for(r#"<TextInput accessibilityLabel="N" editable={false} />"#)
+            .contains("readOnly={"));
+        // An expression cannot be folded, so it is carried and negated.
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" editable={canEdit} />"#)
+            .contains("readOnly={!(canEdit)}"));
+        // And React Native's newer spelling passes straight through.
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" readOnly />"#).contains(" readOnly"));
+    }
+
+    #[test]
+    fn the_keyboard_props_become_the_attribute_the_dom_names_data_with() {
+        // `keyboardType` names a keyboard and `inputmode` names a kind of
+        // data, which is why the mapping is partial rather than a rename:
+        // `visible-password` and `twitter` describe a layout and the DOM
+        // has no vocabulary for one.
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" keyboardType="phone-pad" />"#)
+            .contains(r#"inputMode="tel""#));
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" keyboardType="email-address" />"#)
+            .contains(r#"inputMode="email""#));
+        assert!(!jsx_for(r#"<TextInput accessibilityLabel="N" keyboardType="visible-password" />"#)
+            .contains("inputMode"));
+        // React Native documents `inputMode` as taking precedence, so Web
+        // follows that rather than inventing an order.
+        assert!(jsx_for(
+            r#"<TextInput accessibilityLabel="N" keyboardType="phone-pad" inputMode="text" />"#
+        )
+        .contains(r#"inputMode="text""#));
+    }
+
+    #[test]
+    fn a_prop_only_react_native_has_is_still_carried() {
+        // The rule this commit narrows rather than replaces: passing a
+        // prop through is right when only React Native has it, and wrong
+        // when the DOM has it under another name.
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" underlineColorAndroid="red" />"#)
+            .contains("underlineColorAndroid"));
     }
 
     #[test]
