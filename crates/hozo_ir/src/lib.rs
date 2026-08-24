@@ -2239,6 +2239,25 @@ pub enum Condition {
     /// Native. `Dark` predates this and is the same shape; it is left
     /// where it is because every backend already matches on it by name.
     Environment(Environment),
+    /// Tailwind's `data-…:` -- an attribute selector, ready-formed.
+    ///
+    /// Holds the selector text (`[data-state="open"]`) rather than the
+    /// name and value: the shapes Tailwind accepts include presence,
+    /// equality and every other attribute operator, and re-deriving the
+    /// selector from parts would be reimplementing a syntax CSS already
+    /// has.
+    DataAttribute(String),
+    /// Tailwind's `supports-[…]:`, an `@supports` query as written.
+    Supports(String),
+    /// Tailwind's `has-…:` -- a condition on a *descendant*.
+    ///
+    /// The third relation, after `group-` (ancestor) and `peer-`
+    /// (sibling), and like them it holds what the other element has to
+    /// satisfy. Web only: `:has()` is a selector, and React Native has no
+    /// selectors and no way for a child to hand state up.
+    Has(Box<Condition>),
+    /// An arbitrary selector inside `:has()`, as written: `has-[>img]:`.
+    HasSelector(String),
     /// Tailwind's `not-…:` -- the inner condition, negated.
     ///
     /// Only conditions with one form. `hover:` is both a media query and
@@ -2513,6 +2532,9 @@ impl Condition {
                 inner.is_ambient()
             }
             Condition::All(conditions) => conditions.iter().any(Condition::is_ambient),
+            Condition::Supports(_) => true,
+            // `has-hover:` carries the media query the hover it wraps has.
+            Condition::Has(inner) => inner.is_ambient(),
             _ => false,
         }
     }
@@ -2537,6 +2559,8 @@ impl Condition {
             // Negating a selector is a selector; negating a query is a
             // query. So this follows whatever it wraps.
             Condition::Not(inner) => inner.is_elemental(),
+            Condition::Supports(_) => false,
+            Condition::Has(inner) => inner.is_elemental(),
             _ => true,
         }
     }

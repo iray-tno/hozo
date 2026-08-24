@@ -2227,6 +2227,23 @@ fn build_style_entries(
                 ),
                 Severity::Error,
             )),
+            // `data-…:` selects on an attribute, and React Native views
+            // have none: what the DOM keeps in an attribute a React Native
+            // component keeps in a prop, and Hozo cannot read a prop it
+            // does not model. `has-…:` and `supports-…:` are a descendant
+            // selector and a CSS feature query, neither of which exists
+            // here at all.
+            Condition::DataAttribute(_)
+            | Condition::Supports(_)
+            | Condition::Has(_)
+            | Condition::HasSelector(_) => diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`{}:` has no React Native equivalent -- it selects on an attribute, a                      descendant or a CSS feature, and there are no selectors here. On Web the                      same class works.",
+                    condition_suffix(&condition).unwrap_or_default()
+                ),
+                Severity::Error,
+            )),
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -2776,6 +2793,17 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::LastChild => Some("last".to_string()),
         Condition::Disabled => Some("disabled".to_string()),
         Condition::Enabled => Some("enabled".to_string()),
+        // Named by position rather than by content, the same way the
+        // arbitrary selectors are: an attribute or a query can hold any
+        // character and a style identifier cannot. These are refused
+        // before anything references them, so the name never reaches the
+        // output.
+        Condition::DataAttribute(_) => Some("data".to_string()),
+        Condition::Supports(_) => Some("supports".to_string()),
+        Condition::HasSelector(_) => Some("has".to_string()),
+        Condition::Has(inner) => {
+            Some(format!("has{}", condition_suffix(inner).unwrap_or_default()))
+        }
         Condition::Not(inner) => {
             Some(format!("not{}", condition_suffix(inner).unwrap_or_default()))
         }

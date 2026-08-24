@@ -2509,6 +2509,31 @@ pub fn parse_variant_prefix(token: &str) -> (Condition, &str) {
     (condition, rest)
 }
 
+/// A `data-…` variant's attribute selector, and what follows it.
+///
+/// Three shapes, all of them Tailwind's: a bare name is presence
+/// (`data-open:` is `[data-open]`), a bracketed name without `=` is the
+/// same (`data-[foo]:`), and a bracketed `name=value` is quoted unless
+/// the author quoted it already (`data-[state=open]:` is
+/// `[data-state="open"]`, `data-[state~="a"]:` is left alone).
+fn data_attribute(rest: &str) -> Option<(String, &str)> {
+    if let Some((inner, tail)) = crate::arbitrary::split_variant(rest) {
+        let selector = match inner.split_once('=') {
+            None => format!("[data-{inner}]"),
+            Some((name, value)) if value.starts_with('"') => format!("[data-{name}={value}]"),
+            // The operator, if any, rides with the name: `state~` keeps
+            // its tilde and `state` has none.
+            Some((name, value)) => format!("[data-{name}=\"{value}\"]"),
+        };
+        return Some((selector, tail));
+    }
+    let (name, tail) = rest.split_once(':')?;
+    if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
+        return None;
+    }
+    Some((format!("[data-{name}]"), tail))
+}
+
 /// Tailwind's environment variants, with the colon they are written with.
 ///
 /// `dark:` is not here: it predates this and every backend matches on
@@ -2546,6 +2571,30 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
             Condition::ArbitrarySelector(selector)
         };
         return (condition, rest);
+    }
+    // `data-…:` is an attribute selector and `supports-[…]:` an
+    // `@supports` query; `has-…:` is the third relation, wrapping either
+    // an arbitrary selector or another variant.
+    if let Some(rest) = token.strip_prefix("data-") {
+        if let Some((selector, tail)) = data_attribute(rest) {
+            return (Condition::DataAttribute(selector), tail);
+        }
+    }
+    if let Some(rest) = token.strip_prefix("supports-") {
+        if let Some((query, tail)) = crate::arbitrary::split_variant(rest) {
+            return (Condition::Supports(query), tail);
+        }
+    }
+    if let Some(rest) = token.strip_prefix("has-") {
+        // The arbitrary form first, because a bracket can contain a colon
+        // and would otherwise be cut at the wrong one.
+        if let Some((selector, tail)) = crate::arbitrary::split_variant(rest) {
+            return (Condition::HasSelector(selector), tail);
+        }
+        let (condition, tail) = parse_one_variant(rest);
+        if condition.is_elemental() || condition.is_ambient() {
+            return (Condition::Has(Box::new(condition)), tail);
+        }
     }
     // `not-` negates whatever follows, by the same recursion. Refused
     // when the inner condition has both a query and a selector, because

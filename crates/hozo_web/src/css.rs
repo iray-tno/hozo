@@ -1194,6 +1194,20 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
 /// the same reason. `[@supports(display:grid)]:grid` is not a media query,
 /// and hardcoding `@media` at the emission site would have made supports
 /// queries unreachable by construction.
+/// An arbitrary selector as `:has()` takes it, the way Tailwind writes it.
+///
+/// Wrapped in `:is()` unless it opens with a combinator: `has-[:focus]:`
+/// is `:has(:is(:focus))` and `has-[>img]:` is `:has( > img)`. The
+/// wrapper is what keeps a compound argument weighing what a simple one
+/// does, and a combinator cannot go inside it.
+fn has_argument(selector: &str) -> String {
+    if selector.starts_with(['>', '+', '~']) {
+        format!(" {selector}")
+    } else {
+        format!(":is({selector})")
+    }
+}
+
 /// An at-rule with its condition negated, the way Tailwind writes it:
 /// `@media (prefers-color-scheme: dark)` becomes `@media not
 /// (prefers-color-scheme: dark)`.
@@ -1318,6 +1332,32 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
         // negated at-rule's absence of one, so `not-first:` weighs what
         // `first:` weighs. Which is the same reason Tailwind's version
         // does.
+        Condition::DataAttribute(selector) => (Vec::new(), format!("&{selector}")),
+        // Parenthesised unless the author already did it, which is what
+        // Tailwind emits: `supports-[display:grid]:` is
+        // `@supports (display:grid)`.
+        Condition::Supports(query) => {
+            let query = if query.starts_with('(') {
+                query.clone()
+            } else {
+                format!("({query})")
+            };
+            (vec![format!("@supports {query}")], "&".to_string())
+        }
+        // `:is()` around the inner selector is Tailwind's, and it is what
+        // keeps `has-[:focus]:` weighing the same as `has-[.a.b.c]:`.
+        Condition::HasSelector(selector) => {
+            (Vec::new(), format!("&:has({})", has_argument(selector)))
+        }
+        Condition::Has(inner) => {
+            let (at_rules, suffix) = condition_shape(inner);
+            match suffix.strip_prefix('&') {
+                // Not wrapped: a variant's suffix is one compound already,
+                // and Tailwind writes `has-hover:` as `:has(:hover)`.
+                Some(rest) if !rest.is_empty() => (at_rules, format!("&:has({rest})")),
+                _ => (Vec::new(), String::new()),
+            }
+        }
         Condition::Not(inner) => {
             let (at_rules, suffix) = condition_shape(inner);
             match suffix.strip_prefix('&') {

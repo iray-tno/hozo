@@ -75,6 +75,13 @@ const VARIANTS = [
   'not-aria-checked',
   'not-motion-reduce',
   'not-disabled',
+  // Compositional: an attribute, a feature query, and the third relation
+  // after group and peer.
+  'data-open',
+  'data-[state=open]',
+  'has-[:focus]',
+  'has-hover',
+  'supports-[display:grid]',
   // Not implemented, and included on purpose: an unsupported variant
   // should read as an honest gap here rather than being absent from the
   // list that decides what "supported" means.
