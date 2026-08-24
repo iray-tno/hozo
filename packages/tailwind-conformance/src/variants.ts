@@ -82,9 +82,24 @@ const VARIANTS = [
   'has-[:focus]',
   'has-hover',
   'supports-[display:grid]',
-  // Not implemented, and included on purpose: an unsupported variant
-  // should read as an honest gap here rather than being absent from the
-  // list that decides what "supported" means.
+  // Structural: one pseudo-class each and no runtime state, which makes
+  // the argument the only thing to get wrong -- `nth-3` and `nth-[2n+1]`
+  // reach the same `:nth-child()` by different spellings, and the
+  // `-of-type` family counts a different set of siblings.
+  'odd',
+  'even',
+  'only',
+  'empty',
+  'nth-3',
+  'nth-[2n+1]',
+  'first-of-type',
+  'nth-last-of-type-3',
+  // Neither of these is structural despite sitting beside them: one is a
+  // state of the subtree, the other a fact about the URL.
+  'focus-within',
+  'target',
+  // The rest of the interaction family, here so a stacked combination of
+  // two implemented variants is compared rather than assumed.
   'last',
   'active',
   'focus-visible',

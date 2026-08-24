@@ -57,7 +57,7 @@ mod style;
 use hozo_ir::{
     AlignSelf, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, Environment, ExprRef,
     GridLine, GridSpan, GridTracks, Length, Node, Primitive,
-    Severity, StyleDeclaration, StyleProperty, TextOverflow, Theme, WhiteSpace,
+    Severity, Structural, StyleDeclaration, StyleProperty, TextOverflow, Theme, WhiteSpace,
 };
 
 pub struct LowerOutput {
@@ -361,18 +361,59 @@ fn render_condition_expr(source: &str, expr: &ConditionExpr) -> String {
 /// first" unknowable and says nothing about "is it last".
 ///
 /// `None` is not a failure to compute; it's the honest answer whenever the
-/// position genuinely isn't decidable here (see `Node::children_complete`),
+/// position genuinely isn't decidable here -- a `Verbatim` sibling --
 /// and it is never quietly treated as `false`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct SiblingPosition {
     first: Option<bool>,
     last: Option<bool>,
+    /// 1-based position among the element siblings, counted the way
+    /// `:nth-child` counts: text is not an element and does not take a
+    /// place. Knowable when nothing before this element could render an
+    /// unknown number of them.
+    ordinal: Option<usize>,
+    /// How many element siblings there are altogether.
+    ///
+    /// A stricter question than `ordinal`: one `Verbatim` anywhere among
+    /// the siblings, before or after, makes the total unknown even where
+    /// the position is not.
+    count: Option<usize>,
 }
 
 impl SiblingPosition {
     /// Neither end is decidable: a component root, whose position its
     /// caller chooses.
-    const UNKNOWN: SiblingPosition = SiblingPosition { first: None, last: None };
+    const UNKNOWN: SiblingPosition =
+        SiblingPosition { first: None, last: None, ordinal: None, count: None };
+}
+
+/// Whether a structural variant holds for this element, or `None` when
+/// the JSX doesn't say.
+///
+/// The whole family resolves the same way `first:` and `last:` already
+/// do: React Native has no selector engine, but a sibling position is a
+/// fact about the tree the compiler is reading, so the question can be
+/// asked earlier instead of never.
+///
+/// `None` is not a failure to compute. A `Verbatim` sibling may render
+/// nothing or a hundred elements, and a `-of-type` spelling asks which
+/// siblings share this element's tag -- which on Native is not a question
+/// about the tree but about a Web lowering decision that was never made.
+fn structural_holds(
+    structural: &Structural,
+    node: &Node,
+    position: SiblingPosition,
+) -> Option<bool> {
+    if let Structural::Empty = structural {
+        // Its own children, not its siblings. `:empty` is strict -- a
+        // single space disqualifies -- so any child at all decides it, and
+        // a `Verbatim` decides nothing.
+        if node.children.iter().any(|c| matches!(c, hozo_ir::Child::Verbatim { .. })) {
+            return None;
+        }
+        return Some(node.children.is_empty());
+    }
+    structural.matches_position(position.ordinal?, position.count?)
 }
 
 fn render_node(
@@ -913,6 +954,10 @@ fn render_node(
             SiblingPosition {
                 first: (!before.iter().any(is_verbatim)).then(|| !before.iter().any(is_element)),
                 last: (!after.iter().any(is_verbatim)).then(|| !after.iter().any(is_element)),
+                ordinal: (!before.iter().any(is_verbatim))
+                    .then(|| before.iter().filter(|c| is_element(c)).count() + 1),
+                count: (!node.children.iter().any(is_verbatim))
+                    .then(|| node.children.iter().filter(|c| is_element(c)).count()),
             }
         })
         .collect();
@@ -1979,6 +2024,7 @@ fn build_style_entries(
                             | Condition::Dark
                             | Condition::FirstChild
                             | Condition::LastChild
+                            | Condition::Structural(_)
                     )
                 });
                 if !supported {
@@ -2133,10 +2179,16 @@ fn build_style_entries(
                                     applies = false;
                                 }
                             },
-                            Condition::FirstChild | Condition::LastChild => {
+                            Condition::FirstChild
+                            | Condition::LastChild
+                            | Condition::Structural(_) => {
                                 let known = match atom {
                                     Condition::FirstChild => position.first,
-                                    _ => position.last,
+                                    Condition::LastChild => position.last,
+                                    Condition::Structural(structural) => {
+                                        structural_holds(structural, node, position)
+                                    }
+                                    _ => unreachable!("matched above"),
                                 };
                                 match known {
                                     Some(true) => {}
@@ -2244,6 +2296,20 @@ fn build_style_entries(
                 ),
                 Severity::Error,
             )),
+            // Focus on a *descendant*, which is a relation, and relations
+            // on Native are the one thing this backend keeps having to
+            // refuse -- see `peer-` below. `focus:` works because an
+            // element knows its own focus; nothing here knows a subtree's.
+            Condition::FocusWithin => diagnostics.push(unwired_variant(
+                node,
+                "`focus-within:` asks whether anything *inside* this element has focus, and                  React Native gives an element no way to know that. `focus:` on the element                  that actually takes focus is the version that works on both platforms.",
+                Severity::Error,
+            )),
+            Condition::Target => diagnostics.push(unwired_variant(
+                node,
+                "`target:` matches the element the document's URL fragment points at. React                  Native has no document and no URL to point with, so there is nothing for this                  to be true of. On Web the same class works.",
+                Severity::Error,
+            )),
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -2330,10 +2396,15 @@ fn build_style_entries(
             // engine. Both decided answers are exact -- the same thing
             // `:first-child` would do on Web -- so neither reports
             // anything; only an undecidable position does.
-            Condition::FirstChild | Condition::LastChild => {
+            Condition::FirstChild | Condition::LastChild | Condition::Structural(_) => {
                 let (end, known) = match condition {
-                    Condition::FirstChild => ("first", position.first),
-                    _ => ("last", position.last),
+                    Condition::FirstChild => ("first".to_string(), position.first),
+                    Condition::LastChild => ("last".to_string(), position.last),
+                    Condition::Structural(structural) => (
+                        structural.variant_name(),
+                        structural_holds(&structural, node, position),
+                    ),
+                    _ => unreachable!("matched above"),
                 };
                 match known {
                     Some(true) => conditional_parts.extend(guarded("")),
@@ -2818,6 +2889,11 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::Pressed => Some("pressed".to_string()),
         Condition::Dark => Some("dark".to_string()),
         Condition::FirstChild => Some("first".to_string()),
+        Condition::Structural(structural) => {
+            Some(structural.variant_name().replace(['-', '+', '(', ')'], ""))
+        }
+        Condition::FocusWithin => Some("focuswithin".to_string()),
+        Condition::Target => Some("target".to_string()),
         // Named by position rather than by content: a selector can hold
         // any character at all, and a style identifier can't. The name
         // only has to be unique within the file and stable across a
@@ -3680,6 +3756,93 @@ export function Login() {
         // ...and the second doesn't get one at all, which is exactly what
         // `:first-child` would do.
         assert!(!output.jsx.contains("hozoStyles.hozo2_first"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn the_structural_family_is_decided_at_compile_time_too() {
+        // Same trade `first:` already made, applied to the rest of the
+        // family: React Native has no selector engine, but the compiler is
+        // reading the tree and a sibling position is a fact about it.
+        //
+        // Striped rows are the reason this is worth having. `odd:bg-…` is
+        // one class on Web and a manual index check in React Native.
+        let source = r#"
+            import { View, Text } from '@hozo/core'
+            const el = (
+              <View>
+                <Text className="odd:mt-0">a</Text>
+                <Text className="odd:mt-0">b</Text>
+                <Text className="odd:mt-0">c</Text>
+              </View>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.contains("hozo1_odd"), "{}", output.jsx);
+        assert!(!output.jsx.contains("hozo2_odd"), "{}", output.jsx);
+        assert!(output.jsx.contains("hozo3_odd"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn only_child_counts_the_siblings_rather_than_assuming_one() {
+        // `:only-child` needs the total, which is a stricter question than
+        // `first:` asks -- a `Verbatim` *after* this element changes the
+        // answer without changing the position.
+        let one = r#"
+            import { View, Text } from '@hozo/core'
+            const el = <View><Text className="only:mt-0">a</Text></View>
+            "#;
+        let two = r#"
+            import { View, Text } from '@hozo/core'
+            const el = <View><Text className="only:mt-0">a</Text><Text>b</Text></View>
+            "#;
+        for (source, applies) in [(one, true), (two, false)] {
+            let parsed = hozo_parser::parse_tsx(source);
+            let output = lower(&parsed.roots[0].node, source, &Theme::default());
+            assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+            assert_eq!(output.jsx.contains("hozo1_only"), applies, "{}", output.jsx);
+        }
+    }
+
+    #[test]
+    fn empty_asks_about_this_elements_own_children() {
+        // The one in the family that isn't about siblings at all.
+        let childless = r#"
+            import { View } from '@hozo/core'
+            const el = <View><View className="empty:mt-0" /></View>
+            "#;
+        let occupied = r#"
+            import { View, Text } from '@hozo/core'
+            const el = <View><View className="empty:mt-0"><Text>a</Text></View></View>
+            "#;
+        for (source, applies) in [(childless, true), (occupied, false)] {
+            let parsed = hozo_parser::parse_tsx(source);
+            let output = lower(&parsed.roots[0].node, source, &Theme::default());
+            assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+            assert_eq!(output.jsx.contains("hozo1_empty"), applies, "{}", output.jsx);
+        }
+    }
+
+    #[test]
+    fn of_type_is_named_absent_rather_than_answered_wrongly() {
+        // React Native has no tags to count, and the tag this element
+        // would have taken on Web is a lowering decision that was never
+        // made here. Deciding it from the position would be a guess that
+        // happens to be right whenever the siblings are homogeneous.
+        let source = r#"
+            import { View, Text } from '@hozo/core'
+            const el = <View><Text className="first-of-type:mt-0">a</Text></View>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert_eq!(output.diagnostics.len(), 1, "{:?}", output.diagnostics);
+        assert!(
+            output.diagnostics[0].message.contains("first-of-type"),
+            "{}",
+            output.diagnostics[0].message,
+        );
     }
 
     #[test]

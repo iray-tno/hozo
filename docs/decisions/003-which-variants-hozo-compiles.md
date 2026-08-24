@@ -45,22 +45,41 @@ Web to no one's benefit.
 
 | | |
 | --- | --- |
-| Interaction | `hover` `focus` `focus-visible` `active`/`pressed` `disabled` `enabled` |
-| Structure | `first` `last` |
+| Interaction | `hover` `focus` `focus-visible` `focus-within` `active`/`pressed` `disabled` `enabled` |
+| Structure | `first` `last` `only` `empty` `odd` `even` `nth-*` `nth-last-*` and the `-of-type` spellings of all of these |
 | Breakpoints | `sm` `md` `lg` `xl` `2xl` |
 | Colour scheme | `dark` |
 | ARIA state | `aria-busy` `aria-checked` `aria-disabled` `aria-expanded` `aria-hidden` `aria-pressed` `aria-readonly` `aria-required` `aria-selected` |
 | Relational | `group-…` `peer-…` `has-…`, wrapping any of the above |
 | Environment | `motion-safe` `motion-reduce` `portrait` `landscape` `inverted-colors` `ltr` `rtl` `contrast-more` `contrast-less` `forced-colors` `print` `noscript` |
 | Compositional | `not-…` `data-…` `supports-…` |
+| Document | `target` |
 | Arbitrary | `[&_p]:`, `[@supports…]:` |
 
 Native compiles all of those except `peer-…`, `has-…`, `not-…`, `data-…`,
-`supports-…`, `contrast-more`, `contrast-less`, `forced-colors`, `print`
-and `noscript`, and reports each one it cannot.
+`supports-…`, `focus-within`, `target`, the `-of-type` family,
+`contrast-more`, `contrast-less`, `forced-colors`, `print` and
+`noscript`, and reports each one it cannot.
+
+The structural family is where the two platforms differ most interestingly.
+React Native has no selector engine, so `:nth-child()` cannot be asked at
+runtime — but a sibling position is a fact about the JSX tree, and the
+compiler is reading that tree. So Native answers the question earlier
+instead of never, and `odd:bg-…` — one class on Web and a manual index
+check in React Native — works on both. It reports rather than guesses
+wherever the tree does not say: a `{items.map(…)}` sibling may render
+nothing or a hundred elements.
+
+The `-of-type` spellings are the exception, and were nearly refused
+outright. `:nth-of-type` counts only siblings sharing this element's tag,
+and in a Hozo tree that tag is Hozo's choice rather than the author's.
+They compile on Web anyway: the selector does match, Hozo's tag choice is
+documented behaviour, and rule 2 is about selectors that *cannot* match
+rather than ones whose meaning has a dependency. On Native they are named
+absent, because there the tag was never chosen at all.
 
 `crates/hozo_parser/src/tailwind_variants.rs` is generated from Tailwind
-and holds all 83 names; the conformance suite compares 5940 single and
+and holds all 83 names; the conformance suite compares 8586 single and
 stacked combinations against Tailwind's own output.
 
 One variant is refused rather than unbuilt. `not-hover:` is two rules in
@@ -109,10 +128,6 @@ everything in this file.
 ## Planned, in order
 
 **② Compositional.** Done, except `min-*` and `max-*`.
-
-**③ Structural.** `odd` `even` `only` `empty` `focus-within` `target`
-`nth-*`. Trivial on Web; Native follows the `first:`/`last:` precedent,
-which resolves statically for known children and reports otherwise.
 
 **④ Form state, in part.** Hozo's `TextInput` is a real `<input>`, so
 `required:`, `invalid:`, `read-only:` and `placeholder-shown:` can match

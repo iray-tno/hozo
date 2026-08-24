@@ -441,8 +441,8 @@ mod variant_tests {
         // These produced no CSS, reached the DOM as nothing, and said
         // nothing. `group-hover:` is not an exotic class.
         for class_name in [
-            "empty:bg-blue-500",
-            "odd:bg-blue-500",
+            "checked:bg-blue-500",
+            "visited:bg-blue-500",
             "open:bg-blue-500",
             "placeholder-shown:bg-blue-500",
         ] {
@@ -465,6 +465,11 @@ mod variant_tests {
         assert!(codes("enabled:bg-blue-500").is_empty());
         assert!(codes("group-hover:bg-blue-500").is_empty());
         assert!(codes("peer-hover:bg-blue-500").is_empty());
+        // `empty:`, `odd:` and `nth-[2n+1]:` were in that list until the
+        // structural family landed.
+        assert!(codes("empty:bg-blue-500").is_empty());
+        assert!(codes("odd:bg-blue-500").is_empty());
+        assert!(codes("nth-[2n+1]:bg-blue-500").is_empty());
     }
 
     #[test]
@@ -482,7 +487,7 @@ mod variant_tests {
         // draw two reports -- the unreadable-arbitrary one and the
         // unsupported-variant one. The variant is the accurate half.
         assert_eq!(
-            codes("nth-[2n+1]:bg-blue-500"),
+            codes("in-range-[2]:bg-blue-500"),
             vec![DiagnosticCode::TailwindVariantNotSupported],
         );
     }

@@ -1402,6 +1402,11 @@ pub fn condition_shape(condition: &Condition) -> (Vec<String>, String) {
             (vec!["@media (prefers-color-scheme: dark)".to_string()], "&".to_string())
         }
         Condition::FirstChild => (Vec::new(), "&:first-child".to_string()),
+        // One arm for eight variants, because the difference between them
+        // is entirely in the pseudo-class text -- see `Structural`.
+        Condition::Structural(structural) => (Vec::new(), format!("&{}", structural.selector())),
+        Condition::FocusWithin => (Vec::new(), "&:focus-within".to_string()),
+        Condition::Target => (Vec::new(), "&:target".to_string()),
         // Passed through exactly as written. Hozo does not parse it and
         // deliberately so: a selector it doesn't recognise is one the
         // browser may well support, and the author reached past the design

@@ -10,7 +10,8 @@ use hozo_ir::{
     GridTracks, LetterSpacing,
     MaskSlot, MaskStop,
     FilterFunction, FlexDirection, FlexShorthand, FontWeight, Justify, Length, LineHeight, Overflow,
-    Position, Radius, Scale, StyleProperty, TextAlign, TextOverflow, TextTransform, WhiteSpace,
+    Position, Radius, Scale, Structural, StyleProperty, TextAlign, TextOverflow, TextTransform,
+    WhiteSpace,
 };
 
 /// The property lists Tailwind's `transition`/`transition-colors` expand
@@ -2678,6 +2679,15 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     if let Some(rest) = token.strip_prefix("last:") {
         return (Condition::LastChild, rest);
     }
+    if let Some(rest) = token.strip_prefix("focus-within:") {
+        return (Condition::FocusWithin, rest);
+    }
+    if let Some(rest) = token.strip_prefix("target:") {
+        return (Condition::Target, rest);
+    }
+    if let Some((structural, rest)) = structural(token) {
+        return (Condition::Structural(structural), rest);
+    }
     if let Some(rest) = token.strip_prefix("sm:") {
         return (Condition::Responsive(Breakpoint::Sm), rest);
     }
@@ -4491,4 +4501,70 @@ pub fn unsupported_variant_name(token: &str) -> Option<&str> {
         return None;
     }
     crate::tailwind_variants::is_variant(prefix).then_some(prefix)
+}
+
+/// The structural variants, in the order their names would shadow one
+/// another.
+///
+/// Longest prefix first, because `nth-last-of-type-3:` also starts with
+/// `nth-` and `nth-last-`. Read out of Tailwind's output rather than its
+/// documentation, which is where the shape of the argument came from:
+/// `nth-3:` takes a bare number and `nth-[2n+1]:` a bracketed formula, and
+/// both end up inside the same `:nth-child()`.
+fn structural(token: &str) -> Option<(Structural, &str)> {
+    for (name, of_type) in [("only-of-type:", true), ("only:", false)] {
+        if let Some(rest) = token.strip_prefix(name) {
+            return Some((Structural::Only { of_type }, rest));
+        }
+    }
+    for (name, last) in [("first-of-type:", false), ("last-of-type:", true)] {
+        if let Some(rest) = token.strip_prefix(name) {
+            return Some((Structural::Edge { last }, rest));
+        }
+    }
+    if let Some(rest) = token.strip_prefix("empty:") {
+        return Some((Structural::Empty, rest));
+    }
+    // Tailwind's two named formulas. Not `nth-odd:`.
+    for name in ["odd", "even"] {
+        if let Some(rest) = token.strip_prefix(name).and_then(|r| r.strip_prefix(':')) {
+            return Some((
+                Structural::Nth {
+                    of_type: false,
+                    from_end: false,
+                    formula: name.to_string(),
+                },
+                rest,
+            ));
+        }
+    }
+    for (prefix, of_type, from_end) in [
+        ("nth-last-of-type-", true, true),
+        ("nth-of-type-", true, false),
+        ("nth-last-", false, true),
+        ("nth-", false, false),
+    ] {
+        let Some(argument) = token.strip_prefix(prefix) else { continue };
+        let (formula, rest) = nth_argument(argument)?;
+        return Some((Structural::Nth { of_type, from_end, formula }, rest));
+    }
+    None
+}
+
+/// An `nth-…` variant's argument, bracketed or bare.
+///
+/// `None` for anything that is neither, which leaves the token to be
+/// reported as an unsupported variant rather than compiled into a
+/// `:nth-child()` whose argument the browser would throw away.
+fn nth_argument(argument: &str) -> Option<(String, &str)> {
+    if let Some((inner, rest)) = crate::arbitrary::split_variant(argument) {
+        return Some((inner, rest));
+    }
+    let (formula, rest) = argument.split_once(':')?;
+    // A bare argument is a plain child number. Anything else -- a formula
+    // written without brackets -- is not something Tailwind accepts either.
+    if formula.is_empty() || !formula.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some((formula.to_string(), rest))
 }
