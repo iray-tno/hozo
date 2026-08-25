@@ -37,13 +37,21 @@ after(async () => {
 })
 
 function project(files: Record<string, string>): string {
-  // Through `realpathSync`, because on macOS `/tmp` is a symlink to
-  // `/private/tmp` and Vite resolves its root before comparing paths
-  // against it. Handing it the unresolved path made every file in the
-  // project "not in cwd" -- on a runner whose `TMPDIR` happens to be
-  // `/tmp`, which is not what a Mac gives you interactively, so this
-  // was invisible outside CI.
-  const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'hozo-dev-')))
+  // Canonicalised, because Vite resolves its root before comparing paths
+  // against it and `tmpdir()` does not hand back a canonical path on
+  // either CI platform. On macOS `/tmp` is a symlink to `/private/tmp`;
+  // on Windows the runner's home is `runneradmin`, long enough that the
+  // temp path comes back as the 8.3 short name `RUNNER~1`. Either way
+  // every file in the project was "not in cwd".
+  //
+  // `.native` rather than `realpathSync`, and that is the whole fix on
+  // Windows: the JavaScript implementation follows symlinks, which
+  // settles macOS, and leaves a short name short. Only the OS call
+  // expands it.
+  //
+  // Neither shape occurs on a developer's machine, which is why a runner
+  // was the first thing to see this.
+  const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'hozo-dev-')))
   roots.push(root)
   for (const [name, content] of Object.entries(files)) {
     const file = path.join(root, name)
