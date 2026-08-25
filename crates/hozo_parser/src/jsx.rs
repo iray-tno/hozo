@@ -676,6 +676,24 @@ fn build_node(
                                     span: to_span(literal.span()),
                                 });
                             }
+                            // Hozo's own attributes, selected on from the
+                            // outside. They work today, which is why this
+                            // is a warning and not silence: the ones that
+                            // look stable are reachable through a variant
+                            // that compiles to the identical selector, and
+                            // one of them is named after byte offsets and
+                            // is not stable at all.
+                            for (condition, _) in &groups {
+                                let Some(attribute) = condition.hozo_private_attribute() else {
+                                    continue;
+                                };
+                                diagnostics.push(Diagnostic {
+                                    code: DiagnosticCode::HozoAttributeIsPrivate,
+                                    severity: Severity::Warning,
+                                    message: private_attribute_message(attribute),
+                                    span: to_span(literal.span()),
+                                });
+                            }
                             for (condition, _) in &groups {
                                 if let Some(state) = form_state_atom(condition) {
                                     if primitive != Primitive::TextInput {
@@ -1452,5 +1470,34 @@ mod tests {
             "#,
         );
         assert_eq!(output.roots[0].node.props.accessibility_role, None);
+    }
+}
+
+/// What to say about a `data-[hozo-…]:` in a class attribute.
+///
+/// Named per attribute rather than generically, because the honest answer
+/// differs. `hozo-disabled` has an exact replacement and the message
+/// should hand it over. `hozo-cond-…` has none and needs none -- its name
+/// is a pair of source byte offsets, so a blank line added above the
+/// element renames it, and code selecting on one is already broken in a
+/// way nothing has noticed yet.
+fn private_attribute_message(attribute: &str) -> String {
+    let replacement = match attribute {
+        "hozo-disabled" => Some("`disabled:`, which compiles to exactly this selector"),
+        "hozo-pointer-events" => Some("the `pointerEvents` prop you already wrote"),
+        "hozo-horizontal" => Some("the `horizontal` prop you already wrote"),
+        _ => None,
+    };
+    match replacement {
+        Some(instead) => format!(
+            "`data-{attribute}` is Hozo's own state rather than an interface, and a release is \
+             free to stop emitting it. Use {instead}."
+        ),
+        None => format!(
+            "`data-{attribute}` is Hozo's own state rather than an interface, and this one is \
+             not even stable between builds -- the names in that family are made from source \
+             byte offsets, so adding a line above the element changes them. There is nothing to \
+             select on here."
+        ),
     }
 }

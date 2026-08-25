@@ -392,24 +392,55 @@ judgement, not a measurement, and it is worth revisiting with a device in
 hand. The question to answer there is whether a user who turns on Android's
 high-contrast text expects a `contrast-more:` class to fire.
 
-**`data-*` and Hozo's own attributes.** Hozo emits `data-hozo-disabled`,
-`data-hozo-cond-*`, `data-hozo-pointer-events` and more, and `data-[…]:`
-now lets an author select on attributes in the same namespace. They cannot
-collide — `hozo-` is prefixed — but the two sit side by side in generated
-output, and nothing yet says which of them an author may rely on.
+## `data-hozo-*` is Hozo's, and the compiler says so
 
-The working answer is that `data-hozo-*` is Hozo's, not a stable
-interface: `data-hozo-disabled` exists because `:disabled` cannot match a
-`<div>` (decision 001), and if that stops being true the attribute should
-be free to go. `group-data-[hozo-disabled]:` would work today and would
-break on a release that changed its mind.
+Hozo emits `data-hozo-disabled`, `data-hozo-cond-*`,
+`data-hozo-pointer-events`, `data-hozo-hide-scrollbar` and
+`data-hozo-horizontal`, and `data-[…]:` lets an author select on any of
+them. This was recorded as open, with a test for settling it: one concrete
+case of someone needing to select on Hozo's own state and having no other
+way to ask.
 
-Working, not settled, because the argument against is real: an attribute
-that appears in shipped HTML is observable whatever the documentation
-says, and telling people not to use the thing they can see is a position
-that needs a migration story behind it. What would settle it is one
-concrete case of someone needing to select on Hozo's own state and having
-no other way to ask.
+Looking for that case is what settled it, in the opposite direction.
+
+There is none, and the reason is stronger than "we could not think of
+one". Every state worth selecting on is already reachable through a
+variant that compiles to the **identical** selector:
+
+```
+disabled:opacity-50              →  .hozo-0[data-hozo-disabled]
+data-[hozo-disabled]:opacity-50  →  .hozo-0[data-hozo-disabled]
+```
+
+The other four are not user state at all. `pointer-events` and
+`horizontal` carry back a value the author wrote as a prop a moment
+earlier, so selecting on the attribute is asking Hozo to repeat something
+they already know. `hide-scrollbar` is internal to how a `ScrollView`
+lowers.
+
+And one member of the family cannot be an interface under any policy.
+`data-hozo-cond-142-197` is named after a pair of **source byte offsets** —
+adding a blank line above the element renames it. A namespace that already
+contains something nobody can depend on is not one anything should be
+depended on from.
+
+So: private. The counter-argument recorded here — that an attribute in
+shipped HTML is observable whatever the documentation says, and telling
+people not to use what they can see needs a migration story behind it — is
+answered rather than dismissed. The migration is one token, because the
+variant that replaces it emits the same selector.
+
+The compiler warns rather than staying quiet, and that is a deliberate
+exception to the rule that a diagnostic must not fire on working code. It
+*is* working code today. It is also code with a one-token fix, sitting on
+something a release may remove — and for the `cond-` family it is already
+broken in a way nothing has noticed yet. The message names the replacement
+where there is one and says there is nothing to select on where there is
+not.
+
+Only the `hozo-` prefix is claimed. `data-[state=open]:` is the project's
+own and always was, and `data-[hozolike]:` is somebody else's attribute
+that happens to begin with the same letters.
 
 ## The four settings React Native reports and Tailwind cannot name
 

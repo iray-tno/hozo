@@ -145,6 +145,15 @@ pub enum DiagnosticCode {
     /// decidable in one file: two headings adjacent here are adjacent on
     /// the page whatever wraps them. Starting at 3 says nothing.
     A11yHeadingLevelSkipped,
+    /// A class selecting on one of Hozo's own `data-hozo-*` attributes.
+    ///
+    /// They are working state, not an interface. Every state worth
+    /// selecting on is reachable through a variant that compiles to the
+    /// identical selector, and one member of the family is named after
+    /// source byte offsets -- so the namespace already contains something
+    /// that cannot be depended on. See
+    /// `Condition::hozo_private_attribute`.
+    HozoAttributeIsPrivate,
     /// A Tailwind variant this platform cannot express, on Web.
     ///
     /// The mirror of `NotWiredOnNative`, and the first diagnostic to point
@@ -3470,6 +3479,37 @@ impl Condition {
     /// `not-visited:p-4` -- if the negation were unrestricted, the two
     /// halves could be compared and the history read back out of the
     /// difference.
+    /// The `data-hozo-*` attribute this condition selects on, if any.
+    ///
+    /// Those are Hozo's own working state rather than an interface. What
+    /// settles it is not a preference: the namespace already contains
+    /// `data-hozo-cond-142-197`, whose name is a pair of byte offsets into
+    /// the source file, so adding a blank line above the element renames
+    /// it. A namespace holding something that cannot be depended on is not
+    /// one anything should be depended on from.
+    ///
+    /// And nothing is lost by saying so. Every state an author could want
+    /// is reachable through a variant that compiles to the *identical*
+    /// selector -- `disabled:` and `data-[hozo-disabled]:` are the same
+    /// `.hozo-0[data-hozo-disabled]` -- so the migration for anyone who
+    /// used the attribute is one token.
+    pub fn hozo_private_attribute(&self) -> Option<&str> {
+        match self {
+            Condition::DataAttribute(selector) => selector
+                .strip_prefix("[data-")
+                .and_then(|rest| rest.split(['=', ']']).next())
+                .filter(|name| name.starts_with("hozo-")),
+            Condition::All(conditions) => {
+                conditions.iter().find_map(Condition::hozo_private_attribute)
+            }
+            Condition::Not(inner)
+            | Condition::Group(inner)
+            | Condition::Peer(inner)
+            | Condition::Has(inner) => inner.hozo_private_attribute(),
+            _ => None,
+        }
+    }
+
     pub fn contains_visited(&self) -> bool {
         match self {
             Condition::Visited => true,
