@@ -2456,6 +2456,16 @@ fn build_style_entries(
                 ),
                 Severity::Error,
             )),
+            // Answerable, and not answered yet. A container's width is
+            // something only the element itself can report, through
+            // `onLayout` and a context -- unlike the window, whose width
+            // the runtime already knows. That machinery is the next
+            // commit; this is the honest state until it lands.
+            Condition::Container { .. } => diagnostics.push(unwired_variant(
+                node,
+                "`@…:` queries the width of an ancestor container, which React Native has no                  equivalent for yet. On Web the same class works.",
+                Severity::Warning,
+            )),
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -3063,6 +3073,12 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         // Named by the threshold, since a length can hold characters a
         // style identifier cannot -- and by direction, so `min-[500px]:`
         // and `max-[500px]:` don't share an entry.
+        Condition::Container { name, at_least, value } => Some(format!(
+            "cq{}{}{}",
+            name.as_deref().unwrap_or(""),
+            if *at_least { "min" } else { "max" },
+            value.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>(),
+        )),
         Condition::Width { at_least, value } => Some(format!(
             "{}{}",
             if *at_least { "min" } else { "max" },

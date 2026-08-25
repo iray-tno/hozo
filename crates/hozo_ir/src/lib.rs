@@ -724,6 +724,12 @@ pub enum StyleProperty {
     /// and `-moz-osx-font-smoothing`. Held as one property because they
     /// are one intention, and because a `Keyword` can only carry one.
     KeywordPair(&'static str, &'static str, &'static str, &'static str),
+    /// The `container-name` half of `@container/main`.
+    ///
+    /// Its own property because the name comes from the class and cannot
+    /// be a `KeywordPair`, which holds `&'static str`. The
+    /// `container-type` half is an ordinary keyword utility.
+    ContainerName(String),
     /// `content-['x']` and `content-none`, as written.
     ///
     /// Two declarations rather than one, and they cannot be a
@@ -2294,6 +2300,20 @@ pub enum Condition {
     /// this repository contained one.
     All(Vec<Condition>),
     Responsive(Breakpoint),
+    /// `@sm:`, `@max-md:`, `@min-[400px]:`, and the `/name` forms of each.
+    ///
+    /// The same question as `Width`, asked of an ancestor rather than the
+    /// window -- which is why the two are separate conditions rather than
+    /// one with a flag. They resolve against different things, and on
+    /// React Native they resolve through entirely different machinery: a
+    /// window has one width the runtime already knows, and a container
+    /// has a width only the element itself can report.
+    ///
+    /// The breakpoint names are Tailwind's container scale, which is not
+    /// the viewport scale -- `@sm` is 24rem where `sm` is 40rem. Two
+    /// scales sharing five names is a trap worth stating rather than
+    /// discovering.
+    Container { name: Option<String>, at_least: bool, value: String },
     /// `min-[500px]:`, `max-md:`, `max-[40rem]:` -- a width threshold that
     /// isn't one of the five named breakpoints, or is one read from the
     /// other side.
@@ -2933,6 +2953,7 @@ impl Condition {
             Condition::Dark
             | Condition::Responsive(_)
             | Condition::Width { .. }
+            | Condition::Container { .. }
             | Condition::ArbitraryAtRule(_) => true,
             // The one condition that is both.
             Condition::Hover => true,
@@ -2981,6 +3002,7 @@ impl Condition {
             | Condition::Dark
             | Condition::Responsive(_)
             | Condition::Width { .. }
+            | Condition::Container { .. }
             | Condition::ArbitraryAtRule(_) => false,
             Condition::Environment(query) => {
                 matches!(query, Environment::Ltr | Environment::Rtl)

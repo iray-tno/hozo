@@ -2005,6 +2005,23 @@ const el = {element}
     }
 
     #[test]
+    fn a_container_query_asks_an_ancestor_the_width_question() {
+        // Same shape as the viewport query, addressed to a container --
+        // and the scale is Tailwind's container one, so `@sm` is 384px
+        // where `sm:` is 640px.
+        assert!(css_for("@sm:flex").contains("@container (width >= 384px)"));
+        assert!(css_for("sm:flex").contains("@media (width >= 640px)"));
+        assert!(css_for("@max-md:flex").contains("@container (width < 448px)"));
+        // A name says which ancestor answers; without one it is the
+        // nearest container.
+        assert!(css_for("@sm/main:flex").contains("@container main (width >= 384px)"));
+        // And declaring one under a name is two declarations.
+        let named = css_for("@container/main");
+        assert!(named.contains("container-type: inline-size;"), "{named}");
+        assert!(named.contains("container-name: main;"), "{named}");
+    }
+
+    #[test]
     fn the_breakpoints_are_written_as_ranges() {
         // `(min-width: 768px)` until `max-…:` arrived and turned out to
         // have no exact opposite in that spelling: `(max-width: 767.98px)`

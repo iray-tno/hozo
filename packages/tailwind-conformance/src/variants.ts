@@ -126,6 +126,17 @@ const VARIANTS = [
   'min-[500px]',
   'max-md',
   'max-[40rem]',
+  // Container queries. Their breakpoint names are Tailwind's container
+  // scale and not the viewport one -- `@sm` is 24rem where `sm` is 40rem
+  // -- so a name shared between the two lists is exactly the mistake this
+  // section would catch.
+  '@sm',
+  '@3xl',
+  '@min-md',
+  '@max-md',
+  '@min-[400px]',
+  '@sm/main',
+  '@max-md/sidebar',
   // The rest of the interaction family, here so a stacked combination of
   // two implemented variants is compared rather than assumed.
   'last',

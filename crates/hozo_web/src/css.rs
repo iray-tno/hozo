@@ -850,6 +850,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         // `Content` escapes that path, and the value it gives is the
         // useful half rather than a panic.
         StyleProperty::Content(value) => ("content", value.clone()),
+        StyleProperty::ContainerName(name) => ("container-name", name.clone()),
         StyleProperty::JustifyContent(justify) => {
             ("justify-content", justify_keyword(justify).to_string())
         }
@@ -1454,6 +1455,16 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         ),
         Condition::Width { at_least, value } => one(
             vec![format!("@media (width {} {value})", if *at_least { ">=" } else { "<" })],
+            "&",
+        ),
+        // The same query asked of an ancestor. A name narrows which
+        // ancestor answers; without one it is the nearest container.
+        Condition::Container { name, at_least, value } => one(
+            vec![format!(
+                "@container {}(width {} {value})",
+                name.as_ref().map(|n| format!("{n} ")).unwrap_or_default(),
+                if *at_least { ">=" } else { "<" },
+            )],
             "&",
         ),
         // Tailwind v4's default dark strategy, and the one whose meaning

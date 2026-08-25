@@ -48,6 +48,7 @@ Web to no one's benefit.
 | Interaction | `hover` `focus` `focus-visible` `focus-within` `active`/`pressed` `disabled` `enabled` |
 | Structure | `first` `last` `only` `empty` `odd` `even` `nth-*` `nth-last-*` and the `-of-type` spellings of all of these |
 | Breakpoints | `sm` `md` `lg` `xl` `2xl`, and `min-…`/`max-…` at a named breakpoint or an arbitrary length |
+| Container | `@3xs`…`@7xl`, `@min-…`/`@max-…`, arbitrary lengths, and the `/name` form of each |
 | Colour scheme | `dark` |
 | ARIA state | `aria-busy` `aria-checked` `aria-disabled` `aria-expanded` `aria-hidden` `aria-pressed` `aria-readonly` `aria-required` `aria-selected` |
 | Relational | `group-…` `peer-…` `has-…`, wrapping any of the above |
@@ -82,7 +83,7 @@ rather than ones whose meaning has a dependency. On Native they are named
 absent, because there the tag was never chosen at all.
 
 `crates/hozo_parser/src/tailwind_variants.rs` is generated from Tailwind
-and holds all 83 names; the conformance suite compares 14490 single and
+and holds all 83 names; the conformance suite compares 17100 single and
 stacked combinations against Tailwind's own output, with nothing
 unsupported and nothing mismatched.
 
@@ -155,6 +156,28 @@ every resize that doesn't cross the threshold. A threshold in any unit but
 `px` is reported — `rem` has no root font size on a device, and guessing
 16 would disagree with the browser for anyone who changed theirs.
 
+## The container scale is not the viewport scale
+
+Five names appear in both lists and none of them mean the same width.
+`@sm` is 24rem where `sm` is 40rem; the container scale runs `@3xs` at
+16rem to `@7xl` at 80rem, and the viewport one runs `sm` at 40rem to
+`2xl` at 96rem. Two scales sharing five names is a trap worth stating
+rather than leaving to be discovered, and it is why the two are separate
+conditions in the IR rather than one with a flag.
+
+They also resolve against different things, which matters more than the
+numbers. A window has one width the runtime already knows. A container
+has a width only the element itself can report, so React Native needs
+`onLayout` and a context where the viewport needed a hook — different
+machinery for what reads like the same question.
+
+Both are resolved to px, as Tailwind's viewport breakpoints already were.
+These are Tailwind's own numbers rather than a length the author wrote,
+so resolving the name is Hozo's job and not the browser's — and it is
+what lets React Native answer them at all. An author who writes
+`@min-[40rem]:` is stating a CSS length and gets the CSS answer, which is
+that Native reports it.
+
 ## Rule 2 is about the element, not only the variant
 
 The form states sharpened it. `required:`, `invalid:`, `read-only:` and
@@ -206,8 +229,10 @@ the selector needs: `checked` `indeterminate` `default` `open`.
 **Unbuilt:** `visited` and `starting` (`@starting-style`). Both are
 reported by name.
 
-Container queries (`@min-*`, `*`, `**`) are a separate feature, not a
-variant to add.
+`*:` and `**:` — the direct-child and descendant selectors — are still
+unbuilt. They were filed here as container queries, which they are not:
+`*:flex` is `:is(.*:flex > *)`, a selector about children and nothing to
+do with an ancestor's width.
 
 ## Open
 

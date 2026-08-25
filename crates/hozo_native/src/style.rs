@@ -739,7 +739,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::Keyword(..) => Vec::new(),
         // Every one of these is a vendor-prefixed Web property or a text
         // shaping control React Native doesn't have; refused upstream.
-        StyleProperty::KeywordPair(..) | StyleProperty::Content(_) => Vec::new(),
+        StyleProperty::KeywordPair(..)
+        | StyleProperty::Content(_)
+        | StyleProperty::ContainerName(_) => Vec::new(),
         StyleProperty::MixBlendMode(m) => match *m {
             "plus-darker" => Vec::new(),
             _ => vec![("mixBlendMode", js_string(m))],
