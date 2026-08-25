@@ -43,7 +43,7 @@
   "scripts": {
     "build": "tsc -p .",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node --test src/*.test.ts"
+    "test": "tsc -p . && node --test src/*.test.ts"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -56,7 +56,9 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-native": "^0.87.0"
   }
 }
