@@ -63,7 +63,8 @@ Native compiles all of those except `peer-…`, `has-…`, `not-…`, `data-…`
 `supports-…`, `focus-within`, `target`, the `-of-type` family, the form
 states other than `read-only`, every pseudo-element, `contrast-more`,
 `contrast-less`, `forced-colors`, `print` and `noscript`, and reports each
-one it cannot.
+one it cannot. Container queries it does compile, through a component
+that measures itself.
 
 The structural family is where the two platforms differ most interestingly.
 React Native has no selector engine, so `:nth-child()` cannot be asked at
@@ -170,6 +171,19 @@ numbers. A window has one width the runtime already knows. A container
 has a width only the element itself can report, so React Native needs
 `onLayout` and a context where the viewport needed a hook — different
 machinery for what reads like the same question.
+
+That machinery is two components, and the split is forced by React rather
+than chosen: a component cannot read a context whose provider it renders,
+so the element that *is* a container and the element that *queries* one
+cannot be hooks in the same function body. `HozoContainer` measures and
+provides; `HozoContainerQuery` consumes through a render prop and renders
+no element of its own — putting a View in the way would change the layout
+being measured.
+
+The guard tests for a width before comparing one, and that is not
+defensiveness. CSS says a query with no container in scope matches nothing
+in *either* direction, so evaluating `undefined < 448` would fire every
+`@max-…:` on every element that has no container, which is most of them.
 
 Both are resolved to px, as Tailwind's viewport breakpoints already were.
 These are Tailwind's own numbers rather than a length the author wrote,

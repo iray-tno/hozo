@@ -659,6 +659,10 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // Only the three React Native has; the rest are refused upstream by
         // name. The key is the camelCase of the CSS property, which is how
         // RN spells all three.
+        // Consumed by `HozoContainer`, which is what `@container` becomes
+        // here. Emitting a `containerType` key would be a style React
+        // Native drops on the floor.
+        StyleProperty::Keyword("container-type", _) => Vec::new(),
         StyleProperty::Keyword("user-select", value) => {
             vec![("userSelect", js_string(value))]
         }

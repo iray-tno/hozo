@@ -731,7 +731,30 @@ fn render_node(
             matches!(condition, Condition::Hover | Condition::Focus | Condition::FocusVisible)
         })
     });
-    let rendered_component = if component == "Pressable" && (needs_hover_or_focus || transition.is_some()) {
+    // `@container`, which on Web is a property and here is a component:
+    // an element has to measure itself before anything below it can query
+    // its width.
+    let container_name = own_declarations.iter().find_map(|declaration| {
+        match &declaration.property {
+            StyleProperty::ContainerName(name) => Some(name.clone()),
+            _ => None,
+        }
+    });
+    let declares_container = own_declarations.iter().any(|declaration| {
+        matches!(&declaration.property, StyleProperty::Keyword("container-type", kind) if *kind != "normal")
+    });
+    // And the other half: an element whose styles ask about a container's
+    // width has to read that width from a component boundary away, which
+    // is what `HozoContainerQuery` is for.
+    let uses_container_query = own_declarations.iter().any(|declaration| {
+        condition_contains(&declaration.condition, |condition| {
+            matches!(condition, Condition::Container { .. })
+        })
+    });
+    let rendered_component = if declares_container {
+        runtime.need_component("HozoContainer");
+        "HozoContainer"
+    } else if component == "Pressable" && (needs_hover_or_focus || transition.is_some()) {
         runtime.need_component("HozoPressable");
         "HozoPressable"
     } else if component == "Text" && interaction_context && !pressed_parts.is_empty() {
@@ -894,6 +917,13 @@ fn render_node(
                 props_text.push_str(&format!(" {name}=\"{value}\""));
             }
         }
+    }
+
+    // `@container/main`. The unnamed form needs nothing: the component
+    // registers under the empty key either way, which is what an unnamed
+    // `@sm:` reads.
+    if let Some(name) = &container_name {
+        props_text.push_str(&format!(" hozoContainerName=\"{name}\""));
     }
 
     if let Some(horizontal) = &node.props.scroll_horizontal {
@@ -1115,6 +1145,15 @@ fn render_node(
         format!("<{rendered_component}{props_text} />")
     } else {
         format!("<{rendered_component}{props_text}>{inner}</{rendered_component}>")
+    };
+    // Inside the grid item rather than outside it: `HozoGrid` reads its
+    // children's types to place them, so anything between the two would
+    // make a grid item stop looking like one.
+    let rendered = if uses_container_query {
+        runtime.need_component("HozoContainerQuery");
+        format!("<HozoContainerQuery>{{(__hozoCq) => ({rendered})}}</HozoContainerQuery>")
+    } else {
+        rendered
     };
     if let Some(item) = grid_item {
         runtime.need_component("HozoGridItem");
@@ -2097,6 +2136,7 @@ fn build_style_entries(
                             | Condition::FocusVisible
                             | Condition::Responsive(_)
                             | Condition::Width { .. }
+                            | Condition::Container { .. }
                             | Condition::Dark
                             | Condition::FirstChild
                             | Condition::LastChild
@@ -2234,6 +2274,21 @@ fn build_style_entries(
                                 let hook = RuntimeHook::Breakpoint(*bp);
                                 guards.push(hook.binding().to_string());
                                 runtime.hooks.push(hook);
+                            }
+                            Condition::Container { name, at_least, value } => {
+                                match container_guard(name, *at_least, value) {
+                                    Some(guard) => guards.push(format!("({guard})")),
+                                    None => {
+                                        diagnostics.push(unwired_variant(
+                                            node,
+                                            &format!(
+                                                "`{value}` in this stacked variant is not a                                                  pixel width, and React Native has nothing to                                                  resolve it against.",
+                                            ),
+                                            Severity::Error,
+                                        ));
+                                        applies = false;
+                                    }
+                                }
                             }
                             Condition::Width { at_least, value } => {
                                 match width_threshold_px(value) {
@@ -2456,16 +2511,20 @@ fn build_style_entries(
                 ),
                 Severity::Error,
             )),
-            // Answerable, and not answered yet. A container's width is
-            // something only the element itself can report, through
-            // `onLayout` and a context -- unlike the window, whose width
-            // the runtime already knows. That machinery is the next
-            // commit; this is the honest state until it lands.
-            Condition::Container { .. } => diagnostics.push(unwired_variant(
-                node,
-                "`@…:` queries the width of an ancestor container, which React Native has no                  equivalent for yet. On Web the same class works.",
-                Severity::Warning,
-            )),
+            // The width comes from an ancestor that measured itself, read
+            // through the render prop `HozoContainerQuery` puts in the way.
+            Condition::Container { name, at_least, value } => {
+                match container_guard(name, *at_least, value) {
+                    Some(guard) => conditional_parts.extend(guarded(&format!("{guard} && "))),
+                    None => diagnostics.push(unwired_variant(
+                        node,
+                        &format!(
+                            "`{value}` is not a pixel width, and React Native has nothing to                              resolve it against -- no root font size for `rem`. Write the                              threshold in `px`, or use one of Tailwind's container sizes. On                              Web the same class works.",
+                        ),
+                        Severity::Error,
+                    )),
+                }
+            }
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -3952,6 +4011,86 @@ export function Login() {
     }
 
     #[test]
+    fn a_container_measures_itself_and_its_subtree_reads_the_width() {
+        // The one width the runtime cannot already know. A window has one
+        // and `useHozoViewport` reports it; a container's is whatever
+        // layout gave that element, so the element has to say.
+        let source = r#"
+            import { View, Text } from '@hozo/core'
+            const el = (
+              <View className="@container">
+                <Text className="@sm:mt-0">a</Text>
+              </View>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<HozoContainer"), "{}", output.jsx);
+        // A render prop, because the querying element is in the same
+        // component as the container and a hook there would read the
+        // context from outside the provider.
+        assert!(output.jsx.contains("<HozoContainerQuery>{(__hozoCq) =>"), "{}", output.jsx);
+        assert!(output.jsx.contains(r#"__hozoCq[""] >= 384"#), "{}", output.jsx);
+    }
+
+    #[test]
+    fn no_container_in_scope_matches_nothing_in_either_direction() {
+        // CSS says a query with no container matches nothing at all, so
+        // the guard tests for a width before comparing one -- otherwise
+        // `@max-md:` would fire on every element that has no container,
+        // which is the majority of them.
+        let source = r#"
+            import { Text } from '@hozo/core'
+            const el = <Text className="@max-md:mt-0">a</Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.contains(r#"__hozoCq[""] !== undefined"#), "{}", output.jsx);
+    }
+
+    #[test]
+    fn a_named_container_answers_under_its_name_and_the_nearest_one() {
+        let source = r#"
+            import { View, Text } from '@hozo/core'
+            const el = (
+              <View className="@container/main">
+                <Text className="@sm/main:mt-0">a</Text>
+              </View>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.contains(r#"hozoContainerName="main""#), "{}", output.jsx);
+        assert!(output.jsx.contains(r#"__hozoCq["main"]"#), "{}", output.jsx);
+    }
+
+    #[test]
+    fn declaring_a_container_is_not_a_style_react_native_is_asked_to_hold() {
+        // `container-type` is consumed by the component, not emitted --
+        // and not refused either, which it was until the component
+        // existed.
+        let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="@container">a</View>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(!output.styles.contains("containerType"), "{}", output.styles);
+        // `@container-normal` declares nothing, so it stays a View.
+        let normal = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="@container-normal">a</View>
+            "#;
+        let parsed = hozo_parser::parse_tsx(normal);
+        let output = lower(&parsed.roots[0].node, normal, &Theme::default());
+        assert!(output.jsx.starts_with("<View"), "{}", output.jsx);
+    }
+
+    #[test]
     fn an_arbitrary_width_gets_its_own_hook_and_max_reuses_it() {
         // The buckets are the five named breakpoints and this is not one
         // of them, so it needs a threshold of its own. `max-` is the same
@@ -5092,6 +5231,19 @@ export const C = (p) => <List {...p}>x</List>
     }
 }
 
+
+/// The test a container query becomes, or `None` when React Native has
+/// nothing to resolve the threshold against.
+///
+/// The `!== undefined` half is not defensive. CSS says a query with no
+/// container in scope matches nothing in *either* direction, so a
+/// `@max-md:` must not fire merely because no width came back -- which is
+/// exactly what comparing `undefined < 448` would do.
+fn container_guard(name: &Option<String>, at_least: bool, value: &str) -> Option<String> {
+    let px = width_threshold_px(value)?;
+    let read = format!("__hozoCq[{:?}]", name.as_deref().unwrap_or(""));
+    Some(format!("{read} !== undefined && {read} {} {px}", if at_least { ">=" } else { "<" }))
+}
 
 /// The pixel threshold a `Condition::Width` names, if React Native can be
 /// asked about it.

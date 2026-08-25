@@ -26,9 +26,9 @@
     "skipped": 0
   },
   "refusalAudit": {
-    "refusals": 10098,
-    "checkable": 10052,
-    "confirmed": 10024,
+    "refusals": 10096,
+    "checkable": 10050,
+    "confirmed": 10022,
     "partial": 28,
     "suspect": 0,
     "uncheckable": 28
@@ -64,9 +64,9 @@
   },
   "nativeVariants": {
     "total": 17100,
-    "covered": 1386,
-    "restricted": 1386,
-    "refused": 15714,
+    "covered": 2268,
+    "restricted": 2268,
+    "refused": 14832,
     "silent": 0,
     "noOp": 0
   }

@@ -22,6 +22,12 @@ export {
 } from './hooks.native.ts'
 export { HozoSpaced } from './spacing.native.tsx'
 export { HozoGrid, HozoGridItem } from './grid.native.tsx'
+export {
+  HozoContainer,
+  HozoContainerQuery,
+  type HozoContainerProps,
+  type HozoContainerWidths,
+} from './container.native.tsx'
 export { HozoLink, type HozoLinkProps } from './link.native.tsx'
 export { hozoImageSource } from './image-source.native.ts'
 export type { GridTrack } from './grid.ts'

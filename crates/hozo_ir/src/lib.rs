@@ -1514,6 +1514,12 @@ impl StyleProperty {
                         | "font-style"
                         | "font-family"
                         | "flex-wrap"
+                        // Not a style on React Native, and not refused
+                        // either: `@container` is honoured by rendering
+                        // the element as a component that measures itself.
+                        // The declaration is consumed there rather than
+                        // emitted, the way the grid utilities are.
+                        | "container-type"
                 ) =>
             {
                 Some(format!("`{property}`: React Native has no such style"))
