@@ -1,0 +1,164 @@
+// Turns the report into a check.
+//
+// `run.ts` prints fifteen-odd numbers that are this project's headline
+// claims -- 0 mismatches against Tailwind's own 20222-entry catalogue, 0
+// classes that compile to nothing without saying so, 0 rules that reach
+// the DOM with nothing behind them. Until this file existed it printed
+// them and exited 0, which meant every "0 mismatches" in a commit message
+// was there because a human remembered to run a nine-minute script and
+// read the output. Nothing stopped a change from moving any of them.
+//
+// A snapshot rather than a set of thresholds, and the difference matters.
+// A threshold catches `mismatch: 0 -> 3`. It does not catch
+// `unsupported: 0 -> 3`, or `match: 20222 -> 20219`, or a variant family
+// quietly falling out of the denominator -- and those are the shapes a
+// regression here actually takes, because a compiler that stops
+// recognising something reports *less*, not wrong.
+//
+// So every number is recorded, and any change fails. Including an
+// improvement: 14490 combinations passing where 13668 did is a fact worth
+// a line in the diff of the commit that earned it. The failure message
+// says which direction each number moved and whether that direction is
+// the good one, so updating the file is a decision rather than a reflex.
+//
+// The Tailwind and React Native versions are recorded too. When a bump
+// legitimately moves the numbers, the diff shows the bump beside them
+// instead of leaving someone to guess.
+
+import { readFileSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'snapshot.json')
+
+/**
+ * Names whose rise is a regression.
+ *
+ * Read as "more of this is worse". A count of things Hozo could not do,
+ * did wrong, or declined to claim.
+ */
+const WORSE_WHEN_UP = new Set([
+  'mismatch',
+  'unsupported',
+  'silent',
+  'dangling',
+  'skipped',
+  'suspect',
+  'rejected',
+])
+
+/** Names whose fall is a regression: how much is covered, and correctly. */
+const WORSE_WHEN_DOWN = new Set(['match', 'coverage', 'fidelity', 'covered', 'total', 'comparable'])
+
+type Section = Record<string, number | string>
+
+const sections: Record<string, Section> = {}
+
+/**
+ * Records one section's numbers, under the heading the report prints.
+ *
+ * Called beside the `console.log` that prints them, from the same
+ * variables, so the file and the output cannot drift into disagreeing.
+ * A second derivation would be a second thing to get wrong.
+ */
+export function record(section: string, values: Section): void {
+  sections[section] = { ...(sections[section] ?? {}), ...values }
+}
+
+export interface Change {
+  path: string
+  before: number | string
+  after: number | string
+}
+
+/**
+ * Writes the snapshot, or compares against it and exits 1 on any change.
+ *
+ * `--check` is the CI mode. Without it this rewrites the file, which is
+ * what you run after a change you meant to make.
+ */
+export function finish(check: boolean): void {
+  const current = JSON.stringify(sections, null, 2) + '\n'
+  if (!check) {
+    // The failure this whole file exists to prevent, in its own image: if
+    // `--check` were ever dropped on the way to this script -- a task
+    // runner not forwarding it, a workflow edited in a hurry -- CI would
+    // rewrite the snapshot, discard it with the runner, and go green
+    // having checked nothing. Writing is a local act; in CI it is a
+    // misconfiguration, so it says so instead.
+    if (process.env.CI) {
+      console.error(
+        '\n\nRunning in CI without `--check`, which would write the snapshot and\n' +
+          'report success without comparing anything. Refusing.',
+      )
+      process.exit(1)
+    }
+    writeFileSync(FILE, current)
+    console.log(`\n\nwrote ${path.relative(process.cwd(), FILE)}`)
+    return
+  }
+
+  let recorded: Record<string, Section>
+  try {
+    recorded = JSON.parse(readFileSync(FILE, 'utf8'))
+  } catch {
+    console.error(`\n\nNo snapshot at ${FILE}. Run the report without --check to write one.`)
+    process.exit(1)
+  }
+
+  const changes = diff(recorded, sections)
+  if (changes.length === 0) {
+    console.log('\n\nSnapshot matches. Nothing moved.')
+    return
+  }
+
+  console.error(`\n\n${changes.length} number(s) moved since the snapshot:\n`)
+  for (const change of changes) {
+    console.error(`  ${change.path.padEnd(38)} ${change.before} -> ${change.after}  ${verdict(change)}`)
+  }
+  console.error(
+    '\nIf these are the numbers you meant to produce, rerun the report without\n' +
+      '`--check` and commit the file. That is the point: the claim moves in a\n' +
+      'diff someone signed off on, rather than quietly.',
+  )
+  process.exit(1)
+}
+
+/**
+ * Every key present in either side whose value differs.
+ *
+ * Exported so the checker itself is testable. `finish` is the shell that
+ * reads a file and exits a process, which is not.
+ */
+export function diff(before: Record<string, Section>, after: Record<string, Section>): Change[] {
+  const changes: Change[] = []
+  for (const section of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const left = before[section] ?? {}
+    const right = after[section] ?? {}
+    for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
+      if (left[key] === right[key]) continue
+      changes.push({
+        path: `${section}.${key}`,
+        before: left[key] ?? '(absent)',
+        after: right[key] ?? '(absent)',
+      })
+    }
+  }
+  return changes
+}
+
+/**
+ * What a move means, where the direction has a meaning.
+ *
+ * Silent about the rest -- `refused` going up is how a refusal with a
+ * reason gets added, and calling that a regression would train people to
+ * ignore this column.
+ */
+export function verdict({ path: key, before, after }: Change): string {
+  const name = key.split('.').pop() ?? ''
+  if (typeof before !== 'number' || typeof after !== 'number') return ''
+  const up = after > before
+  if (WORSE_WHEN_UP.has(name)) return up ? '<-- REGRESSION' : 'improvement'
+  if (WORSE_WHEN_DOWN.has(name)) return up ? 'improvement' : '<-- REGRESSION'
+  return ''
+}

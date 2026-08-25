@@ -1,0 +1,73 @@
+{
+  "versions": {
+    "tailwind": "4.3.3",
+    "reactNative": "0.87.0"
+  },
+  "web": {
+    "candidates": 120,
+    "comparable": 120,
+    "coverage": 120,
+    "fidelity": 120,
+    "skipped": 0
+  },
+  "native": {
+    "candidates": 120,
+    "covered": 113,
+    "refused": 7,
+    "silent": 0,
+    "noOp": 0
+  },
+  "catalogue": {
+    "entries": 23286,
+    "comparable": 20222,
+    "match": 20222,
+    "mismatch": 0,
+    "unsupported": 0,
+    "skipped": 0
+  },
+  "refusalAudit": {
+    "refusals": 10098,
+    "checkable": 10052,
+    "confirmed": 10024,
+    "partial": 28,
+    "suspect": 0,
+    "uncheckable": 28
+  },
+  "nativeTypes": {
+    "entries": 19106,
+    "rejected": 0
+  },
+  "render": {
+    "rendered": 120,
+    "dangling": 0
+  },
+  "arbitrary": {
+    "candidates": 2845,
+    "match": 2250,
+    "mismatch": 0,
+    "unsupported": 0,
+    "skipped": 482
+  },
+  "compositions": {
+    "candidates": 50,
+    "match": 50,
+    "mismatch": 0,
+    "unsupported": 0,
+    "skipped": 0,
+    "inert": 0
+  },
+  "variants": {
+    "total": 14490,
+    "match": 14490,
+    "mismatch": 0,
+    "unsupported": 0
+  },
+  "nativeVariants": {
+    "total": 14490,
+    "covered": 1386,
+    "restricted": 1386,
+    "refused": 13104,
+    "silent": 0,
+    "noOp": 0
+  }
+}

@@ -226,7 +226,8 @@ packages/
   next/            @hozo/next        — Next.js integration, Turbopack and webpack
   metro/           @hozo/metro       — Metro integration (Native backend)
   storybook/       @hozo/storybook   — Storybook preset over @hozo/vite
-  tailwind-conformance/              — differential tests against real Tailwind
+  tailwind-conformance/              — differential tests against real Tailwind,
+                                       and snapshot.json, the numbers CI holds
 
 crates/
   hozo_ir/         platform-independent IR shared across the pipeline
@@ -276,7 +277,11 @@ to check every entry point is actually in them.
   through Metro bundles and `react-test-renderer`, not on a device.
 - **The Grid subset is partial**, and the Tailwind surface is wide but not
   complete — `@hozo/tailwind-conformance` reports exactly which utilities
-  match the real engine.
+  match the real engine. Its current numbers are committed at
+  [packages/tailwind-conformance/snapshot.json](packages/tailwind-conformance/snapshot.json),
+  and CI fails if a change moves any of them without moving that file too.
+  They are not repeated here: a number copied into prose is a number that
+  can drift from the thing it describes.
 
 ## License
 

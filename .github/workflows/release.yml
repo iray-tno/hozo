@@ -81,7 +81,14 @@ jobs:
           path: artifacts/
           if-no-files-found: error
 
+  # Tags only. `workflow_dispatch` runs `build` and stops, which is the
+  # dry run this workflow needed: eight targets, of which this repository
+  # has only ever built one, and the note at the top of this file says the
+  # musl and cross-arch jobs are where it will break. Finding that out by
+  # pushing a tag is the expensive way -- npm allows unpublishing for 72
+  # hours and only while nothing depends on the package.
   publish:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
     permissions:

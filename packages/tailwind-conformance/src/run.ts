@@ -1,5 +1,10 @@
 // Prints the conformance report: per-group coverage and fidelity, plus
 // every individual mismatch. `pnpm --filter @hozo/tailwind-conformance report`
+//
+// With `--check`, also compares every headline number against
+// `snapshot.json` and exits 1 on any change. That is what makes this a
+// check rather than a thing someone remembers to read -- see
+// `./snapshot.ts` for why a snapshot and not a set of thresholds.
 
 import { auditRefusal, type RefusalAudit, type RefusalVerdict } from './audit.ts'
 import { CANDIDATE_GROUPS, ALL_CANDIDATES, stripVariant } from './candidates.ts'
@@ -22,6 +27,7 @@ import { buildOracle } from './oracle.ts'
 import { loadThemeVars, tailwindVersion } from './theme.ts'
 import { A11Y_CONTEXTUAL_CASES, compareA11yContextual } from './a11y-contextual.ts'
 import { compareRnwFree, RNW_FREE_CASES } from './rnw-free.ts'
+import { finish, record } from './snapshot.ts'
 
 const oracle = await buildOracle(ALL_CANDIDATES)
 // Theme values plus the `@property` register defaults the utilities
@@ -41,6 +47,10 @@ const count = (verdict: string, list: Comparison[] = all) => list.filter((r) => 
 const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFixed(1)}%`)
 
 console.log(`Tailwind conformance vs tailwindcss v${tailwindVersion()}\n`)
+// In the snapshot as well as the output. A version bump legitimately
+// moves these numbers, and the diff should carry the reason beside them
+// rather than leave someone to work out why 20222 became 20240.
+record('versions', { tailwind: tailwindVersion(), reactNative: reactNativeVersion() })
 console.log('== Web (hozo_web) ==')
 // Stated up front so the Web numbers can't be read as covering both
 // backends: Tailwind only exists as CSS, so it can only be an oracle for
@@ -65,6 +75,13 @@ const supported = count('MATCH') + count('MISMATCH')
 console.log(`Candidates:  ${all.length}   (comparable: ${comparable}, skipped: ${count('SKIPPED')})`)
 console.log(`Coverage:    ${supported}/${comparable} = ${pct(supported, comparable)}  (Hozo emits something)`)
 console.log(`Fidelity:    ${count('MATCH')}/${supported} = ${pct(count('MATCH'), supported)}  (of those, matches Tailwind exactly)`)
+record('web', {
+  candidates: all.length,
+  comparable,
+  coverage: supported,
+  fidelity: count('MATCH'),
+  skipped: count('SKIPPED'),
+})
 
 const mismatches = all.filter((r) => r.verdict === 'MISMATCH')
 if (mismatches.length > 0) {
@@ -140,6 +157,13 @@ console.log(
     `Silent:      ${nativeCount('SILENT')}   (no style, no diagnostic -- the one that has to stay at zero)\n` +
     `No-op:       ${nativeCount('NO_OP')}   (React Native already does this, so there is nothing to emit)`,
 )
+record('native', {
+  candidates: nativeAll.length,
+  covered: nativeCount('COVERED'),
+  refused: nativeCount('REFUSED'),
+  silent: nativeCount('SILENT'),
+  noOp: nativeCount('NO_OP'),
+})
 
 const noOps = nativeAll.filter((r) => r.verdict === 'NO_OP')
 if (noOps.length > 0) {
@@ -305,6 +329,14 @@ console.log(
     `Unsupported: ${catalogCounts.UNSUPPORTED}   (Hozo emits nothing)\n` +
     `Skipped:     ${catalogCounts.SKIPPED}   (one side wouldn't resolve; no claim made)`,
 )
+record('catalogue', {
+  entries: catalog.length,
+  comparable: catalogComparable,
+  match: catalogCounts.MATCH,
+  mismatch: catalogCounts.MISMATCH,
+  unsupported: catalogCounts.UNSUPPORTED,
+  skipped: catalogCounts.SKIPPED,
+})
 console.log(
   '\nRead the percentage with the shape in mind: value expansion dominates it.\n' +
     'Covering bg-blue-500 and bg-blue-600 is one code path, and mask-* alone is\n' +
@@ -372,6 +404,14 @@ console.log(
     `Suspect:     ${auditCount('SUSPECT')}   (every property it sets is expressible -- re-read these)\n` +
     `Uncheckable: ${auditCount('UNCHECKABLE')}   (Tailwind's own output resolves to no plain declaration)`,
 )
+record('refusalAudit', {
+  refusals: nativeRefusals,
+  checkable: checked,
+  confirmed: auditCount('CONFIRMED'),
+  partial: auditCount('PARTIAL'),
+  suspect: auditCount('SUSPECT'),
+  uncheckable: auditCount('UNCHECKABLE'),
+})
 
 // Grouped by the CSS the utilities set, because the suspects come in
 // families: one wrong refusal is usually hundreds of candidates, and the
@@ -434,6 +474,7 @@ console.log(
   `Entries:     ${emitted.length} style objects, from every candidate that matches on Web\n` +
     `Rejected:    ${typeErrors.length}   (by react-native ${reactNativeVersion()}'s own declarations)`,
 )
+record('nativeTypes', { entries: emitted.length, rejected: typeErrors.length })
 if (typeErrors.length > 0) {
   const byCandidate = new Map<string, string>()
   for (const error of typeErrors) {
@@ -482,6 +523,7 @@ console.log(
   `Rendered:    ${rendering.length}/${ALL_CANDIDATES.length} components mounted\n` +
     `Dangling:    ${dangling.length}   (a class reached the DOM with no rule behind it)`,
 )
+record('render', { rendered: rendering.length, dangling: dangling.length })
 if (dangling.length > 0) {
   console.log(`  ${dangling.join(' ')}`)
 }
@@ -512,6 +554,13 @@ console.log(
     `Unsupported: ${arbitraryCount('UNSUPPORTED')}\n` +
     `Skipped:     ${arbitraryCount('SKIPPED')}   (one side unresolvable; no claim made)`,
 )
+record('arbitrary', {
+  candidates: arbitrary.candidates.length,
+  match: arbitraryCount('MATCH'),
+  mismatch: arbitraryMismatches.length,
+  unsupported: arbitraryCount('UNSUPPORTED'),
+  skipped: arbitraryCount('SKIPPED'),
+})
 for (const mismatch of arbitraryMismatches) {
   console.log(`  ${mismatch.candidate.padEnd(34)} ${mismatch.detail ?? ''}`)
 }
@@ -546,6 +595,14 @@ console.log(
     `Skipped:     ${compositionCount('SKIPPED')}   (one side unresolvable; no claim made)\n` +
     `Inert:       ${compositionCount('COMPOSITION_ONLY')}   (still paints nothing even combined)`,
 )
+record('compositions', {
+  candidates: compositions.candidates.length,
+  match: compositionCount('MATCH'),
+  mismatch: compositionCount('MISMATCH'),
+  unsupported: compositionCount('UNSUPPORTED'),
+  skipped: compositionCount('SKIPPED'),
+  inert: compositionCount('COMPOSITION_ONLY'),
+})
 for (const result of compositionResults) {
   if (result.verdict === 'MATCH') continue
   console.log(`  ${result.verdict.padEnd(17)} ${result.candidate}\n    ${result.detail ?? ''}`)
@@ -571,6 +628,12 @@ console.log(
     `Mismatch:    ${variantCount('MISMATCH')}\n` +
     `Unsupported: ${variantCount('UNSUPPORTED')}   (Hozo emits no rule)`,
 )
+record('variants', {
+  total: variants.cases.length,
+  match: variantCount('MATCH'),
+  mismatch: variantCount('MISMATCH'),
+  unsupported: variantCount('UNSUPPORTED'),
+})
 for (const result of variantResults) {
   if (result.verdict === 'MATCH') continue
   console.log(`  ${result.verdict.padEnd(12)} ${result.candidate}\n    ${result.detail ?? ''}`)
@@ -591,7 +654,19 @@ console.log(
     `Silent:     ${nativeVariantCount('SILENT')}\n` +
     `No-op:      ${nativeVariantCount('NO_OP')}`,
 )
+record('nativeVariants', {
+  total: variants.cases.length,
+  covered: nativeVariantCount('COVERED'),
+  restricted: nativeVariantRestricted.length,
+  refused: nativeVariantCount('REFUSED'),
+  silent: nativeVariantCount('SILENT'),
+  noOp: nativeVariantCount('NO_OP'),
+})
 for (const result of nativeVariantResults) {
   if (result.verdict === 'COVERED') continue
   console.log(`  ${result.verdict.padEnd(12)} ${result.candidate}\n    ${result.detail ?? ''}`)
 }
+
+// Last, so a report that throws part-way writes nothing rather than a
+// half-built snapshot that would read as a pile of regressions.
+finish(process.argv.includes('--check'))

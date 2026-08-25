@@ -23,6 +23,12 @@
         "^build"
       ]
     },
+    "report": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false
+    },
     "typecheck": {
       "dependsOn": [
         "^build"
