@@ -23,7 +23,10 @@
 // rather than guessing, which is the same rule the rest of the compiler
 // follows.
 
-use hozo_ir::{AccessibilityRole, Child, Diagnostic, DiagnosticCode, Node, Primitive, Severity};
+use hozo_ir::{
+    AccessibilityRole, Child, ConditionExpr, Diagnostic, DiagnosticCode, HeadingLevel, Node,
+    Primitive, Severity,
+};
 
 use crate::aria;
 
@@ -39,6 +42,81 @@ fn is_state_prop(property: &str) -> bool {
 
 pub fn check(root: &Node, diagnostics: &mut Vec<Diagnostic>) {
     walk(root, &[], diagnostics);
+    check_heading_levels(root, diagnostics);
+}
+
+/// Heading levels that jump.
+///
+/// The levels are the document's outline, and a screen reader's "next
+/// heading" and heading-list navigation are built on it. A jump from 1 to
+/// 3 says there is a level-2 section the reader has been moved out of
+/// without being told, which is why WCAG treats the outline as structure
+/// rather than as typography -- the visual size is a separate decision
+/// and `text-2xl` is how you make a level-2 look big.
+///
+/// Sound in one file despite the outline being a whole-document idea:
+/// whatever wraps this component, two headings adjacent in *its* document
+/// order are adjacent in the page's, and a jump between them is a jump.
+/// Starting at 3 says nothing -- a component that renders a subsection is
+/// doing the right thing, and only its caller knows what came before.
+///
+/// Anything the compiler is merely carrying resets the comparison. A
+/// `{sections.map(...)}` between two headings may render any number of
+/// them at any level, so the two on either side are not adjacent and
+/// nothing can be said about the pair.
+fn check_heading_levels(root: &Node, diagnostics: &mut Vec<Diagnostic>) {
+    let mut previous: Option<u8> = None;
+    collect_heading_levels(root, &mut previous, diagnostics);
+}
+
+fn collect_heading_levels(
+    node: &Node,
+    previous: &mut Option<u8>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    if node.primitive == Primitive::Heading {
+        // A dynamic level is a level nobody here knows.
+        let level = match node.props.heading_level {
+            Some(HeadingLevel::Static(level)) => Some(level),
+            // `<Heading>` with no level is `h1`, which is what the Web
+            // backend emits for it.
+            None => Some(1),
+            Some(HeadingLevel::Dynamic(_)) => None,
+        };
+        match level {
+            Some(level) => {
+                if let Some(before) = *previous {
+                    if level > before + 1 {
+                        diagnostics.push(Diagnostic {
+                            code: DiagnosticCode::A11yHeadingLevelSkipped,
+                            severity: Severity::Warning,
+                            message: format!(
+                                "This heading is level {level} and the one before it is level \
+                                 {before}, so the outline skips level {}. Screen readers navigate \
+                                 by that outline, and a jump reads as a section the listener was \
+                                 moved out of without being told. Levels are structure; use a \
+                                 type utility if what you wanted was a smaller heading.",
+                                before + 1,
+                            ),
+                            span: node.span,
+                        });
+                    }
+                }
+                *previous = Some(level);
+            }
+            None => *previous = None,
+        }
+    }
+    for child in &node.children {
+        match child {
+            Child::Node(child_node) => collect_heading_levels(child_node, previous, diagnostics),
+            // Any number of headings, at any level, may come out of this.
+            // The two on either side are not adjacent and the pair says
+            // nothing.
+            Child::Verbatim { .. } => *previous = None,
+            _ => {}
+        }
+    }
 }
 
 fn walk(node: &Node, ancestors: &[&str], diagnostics: &mut Vec<Diagnostic>) {
@@ -57,6 +135,8 @@ fn walk(node: &Node, ancestors: &[&str], diagnostics: &mut Vec<Diagnostic>) {
     if let Some(spec) = own_role.or_else(|| implicit_role(node)).and_then(aria::role) {
         check_name_allowed(node, spec, diagnostics);
     }
+    check_hidden_focusable(node, diagnostics);
+    check_tab_order(node, diagnostics);
 
     let mut inner: Vec<&str> = ancestors.to_vec();
     if let Some(name) = own_role {
@@ -268,6 +348,107 @@ fn check_allowed(node: &Node, spec: &aria::AriaRole, diagnostics: &mut Vec<Diagn
             spec.name,
             list(&refused),
             if refused.len() == 1 { "it" } else { "them" },
+        ),
+        span: node.span,
+    });
+}
+
+/// The literal value of a prop the compiler could read, if it is there.
+fn literal<'a>(node: &'a Node, name: &str) -> Option<&'a str> {
+    node.props
+        .passthrough
+        .iter()
+        .find(|prop| prop.name.as_deref() == Some(name))
+        .and_then(|prop| prop.literal.as_deref())
+}
+
+/// Whether this element takes keyboard focus.
+///
+/// Only what the element itself says. A `Pressable` is focusable because
+/// Hozo makes it a `<button>`; anything else needs `focusable` or a
+/// `tabIndex` that is not `-1`.
+fn is_focusable(node: &Node) -> bool {
+    if matches!(node.props.focusable, Some(ConditionExpr::Static(false))) {
+        return false;
+    }
+    if node.props.focusable.is_some() || node.props.on_press.is_some() {
+        return true;
+    }
+    matches!(literal(node, "tabIndex"), Some(value) if value != "-1")
+}
+
+/// Hidden from assistive technology, and still in the tab order.
+///
+/// The failure is that the two do not agree: `aria-hidden` takes a subtree
+/// out of the accessibility tree, and it does not take anything out of the
+/// tab order. A keyboard user tabs into a control a screen reader has been
+/// told does not exist, and is told nothing about where they are -- WCAG
+/// 4.1.2, and one of the most common ways a page becomes unusable while
+/// looking correct.
+///
+/// Only when both halves are visible here. `aria-hidden` on something
+/// whose children the compiler is merely carrying says nothing, the same
+/// rule the rest of this file follows.
+fn check_hidden_focusable(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
+    let hidden = literal(node, "aria-hidden") == Some("true")
+        || literal(node, "accessibilityElementsHidden") == Some("true")
+        || literal(node, "importantForAccessibility") == Some("no-hide-descendants");
+    if !hidden {
+        return;
+    }
+    if !focusable_within(node) {
+        return;
+    }
+    diagnostics.push(Diagnostic {
+        code: DiagnosticCode::A11yHiddenButFocusable,
+        severity: Severity::Warning,
+        message: "This is hidden from assistive technology and still reachable by keyboard. \
+                  `aria-hidden` takes the subtree out of the accessibility tree and leaves it \
+                  in the tab order, so someone tabbing lands on a control a screen reader has \
+                  been told is not there. Hide it from both -- `display: none`, or `hidden`, \
+                  or `tabIndex={-1}` on what can be focused -- or from neither."
+            .to_string(),
+        span: node.span,
+    });
+}
+
+/// Whether anything the compiler can see in this subtree takes focus.
+fn focusable_within(node: &Node) -> bool {
+    if is_focusable(node) {
+        return true;
+    }
+    node.children.iter().any(|child| match child {
+        Child::Node(child_node) => focusable_within(child_node),
+        // An expression the compiler is carrying may render anything,
+        // including a button. Saying nothing is the answer everywhere else
+        // in this file and it is the answer here.
+        _ => false,
+    })
+}
+
+/// A `tabIndex` above zero.
+///
+/// It does not order this element relative to its neighbours; it lifts it
+/// in front of *every* element that has no positive one, on the whole
+/// page. So one component's choice reorders documents it has never met,
+/// and the order it produces depends on what else happens to be rendered.
+/// `tabIndex={0}` joins the natural order and is what almost every use of
+/// a positive value was reaching for.
+fn check_tab_order(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
+    let Some(value) = literal(node, "tabIndex") else { return };
+    let Ok(index) = value.parse::<i32>() else { return };
+    if index <= 0 {
+        return;
+    }
+    diagnostics.push(Diagnostic {
+        code: DiagnosticCode::A11yPositiveTabIndex,
+        severity: Severity::Warning,
+        message: format!(
+            "`tabIndex={{{index}}}` puts this in front of every element on the page that has no \
+             positive tabIndex, not just the ones around it -- so the tab order it produces \
+             depends on what else is rendered, including from components this one has never \
+             met. Use `tabIndex={{0}}` to join the natural order, and put the element where it \
+             belongs in the markup."
         ),
         span: node.span,
     });
@@ -1100,5 +1281,138 @@ mod compositional_tests {
         // differ on it -- the same rule that refuses `group-dark:`.
         assert!(!Condition::Supports("display:grid".to_string()).is_elemental());
         assert!(conditions("group-supports-[display:grid]:p-4").is_empty());
+    }
+}
+
+#[cfg(test)]
+mod reachability_tests {
+    use hozo_ir::DiagnosticCode;
+
+    fn codes(element: &str) -> Vec<DiagnosticCode> {
+        let source = format!(
+            "import {{ View, Text, Pressable, TextInput }} from '@hozo/core'\nconst el = {element}\n"
+        );
+        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+    }
+
+    #[test]
+    fn hidden_from_screen_readers_and_still_tabbable_is_reported() {
+        // The two halves disagree: `aria-hidden` takes the subtree out of
+        // the accessibility tree and takes nothing out of the tab order.
+        assert!(codes(
+            r#"<View aria-hidden="true"><Pressable accessibilityRole="button" onPress={go}>Tap</Pressable></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHiddenButFocusable));
+        // React Native spells it two other ways, and both mean the same
+        // thing to the platform they are for.
+        assert!(codes(
+            r#"<View accessibilityElementsHidden={true}><Pressable accessibilityRole="button" onPress={go}>Tap</Pressable></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHiddenButFocusable));
+        assert!(codes(
+            r#"<View importantForAccessibility="no-hide-descendants"><Pressable accessibilityRole="button" onPress={go}>Tap</Pressable></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHiddenButFocusable));
+    }
+
+    #[test]
+    fn hidden_with_nothing_focusable_under_it_is_not() {
+        // The usual and correct use: a decorative subtree with no
+        // controls in it.
+        assert!(!codes(r#"<View aria-hidden="true"><Text>decorative</Text></View>"#)
+            .contains(&DiagnosticCode::A11yHiddenButFocusable));
+        // `aria-hidden="false"` is not hiding anything, and reading the
+        // name without the value could not tell the two apart.
+        assert!(!codes(
+            r#"<View aria-hidden="false"><Pressable accessibilityRole="button" onPress={go}>Tap</Pressable></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHiddenButFocusable));
+        // Taken out of the tab order as well, which is the fix.
+        assert!(!codes(
+            r#"<View aria-hidden="true"><Pressable accessibilityRole="button" focusable={false}>Tap</Pressable></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHiddenButFocusable));
+    }
+
+    #[test]
+    fn a_positive_tab_index_is_reported_and_zero_is_not() {
+        assert!(codes(r#"<Pressable accessibilityRole="button" tabIndex={3} onPress={go}>x</Pressable>"#)
+            .contains(&DiagnosticCode::A11yPositiveTabIndex));
+        // The two values that are ordinary: join the natural order, and
+        // leave it while staying focusable from script.
+        for element in [
+            r#"<Pressable accessibilityRole="button" tabIndex={0} onPress={go}>x</Pressable>"#,
+            r#"<Pressable accessibilityRole="button" tabIndex={-1} onPress={go}>x</Pressable>"#,
+        ] {
+            assert!(
+                !codes(element).contains(&DiagnosticCode::A11yPositiveTabIndex),
+                "{element}"
+            );
+        }
+        // A value only the runtime knows says nothing.
+        assert!(!codes(r#"<Pressable accessibilityRole="button" tabIndex={n} onPress={go}>x</Pressable>"#)
+            .contains(&DiagnosticCode::A11yPositiveTabIndex));
+    }
+
+}
+
+#[cfg(test)]
+mod outline_tests {
+    use hozo_ir::DiagnosticCode;
+
+    fn codes(element: &str) -> Vec<DiagnosticCode> {
+        let source = format!(
+            "import {{ View, Heading, Section, Text }} from '@hozo/core'\nconst el = {element}\n"
+        );
+        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+    }
+
+    #[test]
+    fn a_skipped_level_is_reported() {
+        assert!(codes(
+            r#"<View><Heading level={1}>A</Heading><Heading level={3}>B</Heading></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHeadingLevelSkipped));
+        // Nesting does not change document order, so the jump is the same
+        // jump when the second heading is deeper in the tree.
+        assert!(codes(
+            r#"<View><Heading level={1}>A</Heading><Section><Heading level={4}>B</Heading></Section></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHeadingLevelSkipped));
+    }
+
+    #[test]
+    fn descending_or_stepping_by_one_is_not() {
+        for element in [
+            r#"<View><Heading level={1}>A</Heading><Heading level={2}>B</Heading></View>"#,
+            r#"<View><Heading level={2}>A</Heading><Heading level={2}>B</Heading></View>"#,
+            // Coming back up is how a document leaves a subsection.
+            r#"<View><Heading level={3}>A</Heading><Heading level={1}>B</Heading></View>"#,
+            // Starting deep says nothing: only the caller knows what came
+            // before a component that renders a subsection.
+            r#"<View><Heading level={4}>A</Heading><Heading level={5}>B</Heading></View>"#,
+        ] {
+            assert!(
+                !codes(element).contains(&DiagnosticCode::A11yHeadingLevelSkipped),
+                "{element}"
+            );
+        }
+    }
+
+    #[test]
+    fn something_the_compiler_only_carries_ends_the_comparison() {
+        // `{sections.map(...)}` may render any number of headings at any
+        // level, so the two on either side of it are not adjacent and the
+        // pair says nothing -- the same rule the rest of this file follows
+        // wherever the tree stops being knowable.
+        assert!(!codes(
+            r#"<View><Heading level={1}>A</Heading>{rest}<Heading level={3}>B</Heading></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHeadingLevelSkipped));
+        // And a level only the runtime knows is a level nobody here knows.
+        assert!(!codes(
+            r#"<View><Heading level={1}>A</Heading><Heading level={n}>B</Heading><Heading level={6}>C</Heading></View>"#
+        )
+        .contains(&DiagnosticCode::A11yHeadingLevelSkipped));
     }
 }

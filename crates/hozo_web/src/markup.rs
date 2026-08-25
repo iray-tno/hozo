@@ -141,7 +141,11 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
 }
 
 fn image_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static str, AttrValue)> {
-    if node.props.accessibility_label.is_none() {
+    // `alt` names an image and nothing else, so it is added here rather
+    // than to the shared list. An empty one is a name: it says the image
+    // is decorative, which is a claim and not an omission.
+    let alt = node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("alt"));
+    if !alt && node.props.has_accessible_name() == Some(false) {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
@@ -173,7 +177,7 @@ fn image_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static 
 /// button on Android both arrive there, so without it the modal ignores
 /// both and reads as a trap.
 fn dialog_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static str, AttrValue)> {
-    if node.props.accessibility_label.is_none() {
+    if node.props.has_accessible_name() == Some(false) {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
@@ -220,7 +224,7 @@ fn text_input_tag(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> &'static st
 }
 
 fn missing_label(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static str, AttrValue)> {
-    if node.props.accessibility_label.is_none() {
+    if node.props.has_accessible_name() == Some(false) {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
@@ -247,10 +251,64 @@ pub fn html_escape(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hozo_ir::{ExprRef, PropSet, SourceSpan};
+    use hozo_ir::{ExprRef, PassthroughProp, PropSet, SourceSpan};
 
     fn empty_span() -> SourceSpan {
         SourceSpan { start: 0, end: 0 }
+    }
+
+    /// A `TextInput` whose only props are the passthrough ones named.
+    fn text_input_named_by(props: &[&str]) -> Vec<DiagnosticCode> {
+        let node = Node {
+            primitive: Primitive::TextInput,
+            style: Vec::new(),
+            props: PropSet {
+                passthrough: props
+                    .iter()
+                    .map(|name| PassthroughProp {
+                        span: ExprRef(empty_span()),
+                        is_spread: *name == "spread",
+                        name: (*name != "spread").then(|| (*name).to_string()),
+                        literal: Some("lbl".to_string()),
+                        nested: Vec::new(),
+                    })
+                    .collect(),
+                ..PropSet::default()
+            },
+            children: Vec::new(),
+            class_name_fallback: Vec::new(),
+            carried_classes: Vec::new(),
+            span: empty_span(),
+        };
+        let mut diagnostics = Vec::new();
+        element_shape(&node, &mut diagnostics);
+        diagnostics.into_iter().map(|d| d.code).collect()
+    }
+
+    #[test]
+    fn a_labelledby_reference_is_an_accessible_name() {
+        // It was not counted as one. A field labelled the correct way --
+        // a `<Text nativeID="lbl">` beside a
+        // `<TextInput accessibilityLabelledBy="lbl" />` -- was told it had
+        // no accessible name and advised to add an `accessibilityLabel`,
+        // which either does nothing or replaces a name that was already
+        // right: the two are not additive and `aria-labelledby` wins.
+        //
+        // A wrong diagnostic costs more than a missing one. It is the
+        // channel that stops being believed, and this one is warning
+        // people away from the correct answer.
+        for prop in ["accessibilityLabelledBy", "aria-labelledby", "aria-label", "title"] {
+            assert!(
+                !text_input_named_by(&[prop]).contains(&DiagnosticCode::A11yMissingAccessibleName),
+                "{prop}"
+            );
+        }
+        // Still said where there is genuinely nothing.
+        assert!(text_input_named_by(&[]).contains(&DiagnosticCode::A11yMissingAccessibleName));
+        // And not said where a spread might be carrying one: a diagnostic
+        // about a name that might be there is one people learn to ignore.
+        assert!(!text_input_named_by(&["spread"])
+            .contains(&DiagnosticCode::A11yMissingAccessibleName));
     }
 
     #[test]

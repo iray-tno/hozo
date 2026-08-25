@@ -123,6 +123,36 @@ pub enum DiagnosticCode {
     /// A semantic text container has a statically-known child that its Web
     /// element cannot contain (for example a Section inside a Paragraph).
     InvalidSemanticNesting,
+    /// Hidden from assistive technology and still in the tab order.
+    ///
+    /// `aria-hidden` removes a subtree from the accessibility tree and
+    /// removes nothing from the tab order, so a keyboard user can land on
+    /// a control a screen reader has been told does not exist and be told
+    /// nothing about where they are. WCAG 4.1.2, and one of the commonest
+    /// ways a page becomes unusable while looking entirely correct.
+    ///
+    /// Decidable here because both halves are in the same tree: the
+    /// attribute is on this element and the focusable thing is under it.
+    A11yHiddenButFocusable,
+    /// Heading levels that jump.
+    ///
+    /// The levels are the document's outline and a screen reader navigates
+    /// by it: "next heading", and a list of them all. A jump from 1 to 3
+    /// says there is a level-2 section the listener has been moved out of
+    /// without being told.
+    ///
+    /// Reported per pair rather than per document, which is what makes it
+    /// decidable in one file: two headings adjacent here are adjacent on
+    /// the page whatever wraps them. Starting at 3 says nothing.
+    A11yHeadingLevelSkipped,
+    /// A `tabIndex` greater than zero.
+    ///
+    /// Not a local choice, which is what makes it worth a diagnostic
+    /// rather than a style note: a positive value orders this element
+    /// ahead of every element on the page without one, so a component
+    /// reorders documents it has never met and the result depends on what
+    /// else happens to be rendered.
+    A11yPositiveTabIndex,
     /// A class carries square brackets or a `(--var)` -- Tailwind's
     /// arbitrary syntax -- and Hozo couldn't read it.
     ///
@@ -381,6 +411,20 @@ pub struct PassthroughProp {
     /// author's is last, but wrong to read and noise in any snapshot of
     /// the output.
     pub name: Option<String>,
+    /// The value, when it is a literal.
+    ///
+    /// `None` for anything the compiler cannot read at build time -- an
+    /// expression, a template with a hole, a spread. Several
+    /// accessibility checks are about a value rather than a presence:
+    /// `aria-hidden="true"` hides a subtree and `aria-hidden="false"` does
+    /// not, `tabIndex={3}` breaks the tab order and `tabIndex={0}` is how
+    /// you join it. Carrying only the name meant those could not be told
+    /// apart, and a check that cannot tell them apart is one that has to
+    /// stay silent.
+    ///
+    /// A boolean shorthand (`<View hidden />`) reads as `"true"`, which is
+    /// what JSX means by it.
+    pub literal: Option<String>,
     /// True for `{...expr}`. Tracked separately because a spread's
     /// *position* matters: JSX resolves duplicate props last-wins, so a
     /// spread after Hozo's compiled className can silently override it at
@@ -533,7 +577,54 @@ pub struct TextInputProps {
     pub input_mode: Option<String>,
 }
 
+/// The props that give an element an accessible name, in either
+/// vocabulary.
+///
+/// `alt` is not here: it names an image and nothing else, so the image
+/// check adds it rather than every check carrying it.
+const NAMING_PROPS: &[&str] = &[
+    "aria-label",
+    "aria-labelledby",
+    "accessibilityLabelledBy",
+    "title",
+];
+
 impl PropSet {
+    /// Whether this element has an accessible name.
+    ///
+    /// `None` means "cannot tell": a `{...spread}` may carry any of these,
+    /// and a diagnostic about a name that might be there is a diagnostic
+    /// people learn to ignore.
+    ///
+    /// The naming props matter as much as `accessibilityLabel` and were
+    /// not consulted at all. A field labelled the correct way --
+    /// a `<Text nativeID="lbl">` beside a
+    /// `<TextInput accessibilityLabelledBy="lbl" />`
+    /// -- was told it had no accessible name and advised to add
+    /// `accessibilityLabel`, which is the *worse* answer: a label and a
+    /// labelledby on one element are not additive, `aria-labelledby` wins,
+    /// and following the advice either does nothing or replaces a name
+    /// that was already right. A wrong diagnostic costs more than a
+    /// missing one, because it is the whole channel that stops being
+    /// believed.
+    pub fn has_accessible_name(&self) -> Option<bool> {
+        if self.accessibility_label.is_some() {
+            return Some(true);
+        }
+        if self
+            .passthrough
+            .iter()
+            .filter_map(|prop| prop.name.as_deref())
+            .any(|name| NAMING_PROPS.contains(&name))
+        {
+            return Some(true);
+        }
+        if self.passthrough.iter().any(|prop| prop.is_spread) {
+            return None;
+        }
+        Some(false)
+    }
+
     pub fn has_responder_handlers(&self) -> bool {
         self.on_start_should_set_responder.is_some()
             || self.on_start_should_set_responder_capture.is_some()

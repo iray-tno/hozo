@@ -285,7 +285,29 @@ fn passthrough_prop(
             JSXAttributeName::Identifier(name) => Some(name.name.to_string()),
             JSXAttributeName::NamespacedName(_) => None,
         },
+        literal: attribute_literal(&attr.value),
         nested: finder.nested,
+    }
+}
+
+/// An attribute's value, when it is one the compiler can read.
+///
+/// The three shapes JSX writes a constant in: a bare string, a literal
+/// inside an expression container, and the boolean shorthand. Everything
+/// else is a value only the runtime knows, and the checks that read this
+/// stay silent rather than guess.
+fn attribute_literal(value: &Option<JSXAttributeValue>) -> Option<String> {
+    match value {
+        Some(JSXAttributeValue::StringLiteral(literal)) => Some(literal.value.to_string()),
+        Some(JSXAttributeValue::ExpressionContainer(container)) => match &container.expression {
+            JSXExpression::StringLiteral(literal) => Some(literal.value.to_string()),
+            JSXExpression::NumericLiteral(literal) => Some(literal.value.to_string()),
+            JSXExpression::BooleanLiteral(literal) => Some(literal.value.to_string()),
+            _ => None,
+        },
+        // `<View hidden />`, which JSX reads as `hidden={true}`.
+        None => Some("true".to_string()),
+        _ => None,
     }
 }
 
@@ -557,6 +579,7 @@ fn build_node(
                         span: to_expr_ref(spread.span()),
                         is_spread: true,
                         name: None,
+                        literal: None,
                         nested: Vec::new(),
                     });
                 continue;

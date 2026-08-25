@@ -78,7 +78,11 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
 }
 
 fn image_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static str, String)> {
-    if node.props.accessibility_label.is_none() {
+    // `alt` names an image and nothing else, so it is added here rather
+    // than to the shared list. An empty one is a name: it says the image
+    // is decorative, which is a claim and not an omission.
+    let alt = node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("alt"));
+    if !alt && node.props.has_accessible_name() == Some(false) {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
@@ -102,7 +106,7 @@ fn image_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static 
 /// button on Android both arrive there, so without it the modal ignores
 /// both and reads as a trap.
 fn dialog_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static str, String)> {
-    if node.props.accessibility_label.is_none() {
+    if node.props.has_accessible_name() == Some(false) {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
@@ -124,7 +128,7 @@ fn dialog_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static
 }
 
 fn missing_label(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static str, String)> {
-    if node.props.accessibility_label.is_none() {
+    if node.props.has_accessible_name() == Some(false) {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
