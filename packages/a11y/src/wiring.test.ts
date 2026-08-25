@@ -26,10 +26,12 @@ import { renderToStaticMarkup } from 'react-dom/server'
 // can load -- which also makes this a check of what actually ships rather
 // than of what tsc was handed.
 import {
+  HozoListbox,
   HozoMenu,
   HozoRadioGroup,
   HozoTabs,
   HozoToolbar,
+  HozoTree,
   type HozoTabsProps,
 } from '../dist/index.js'
 
@@ -160,4 +162,90 @@ test('a group with nothing chosen is still reachable', () => {
   )
   assert.deepEqual(attributes(html, 'tabindex'), ['-1', '0'])
   assert.deepEqual(attributes(html, 'aria-checked'), ['false', 'false'])
+})
+
+test('a single-select listbox says so and follows its value', () => {
+  const html = renderToStaticMarkup(
+    createElement(HozoListbox, {
+      accessibilityLabel: 'Sort',
+      value: 'name',
+      options: [
+        { value: 'name', label: 'Name' },
+        { value: 'date', label: 'Date' },
+      ],
+    }),
+  )
+  assert.match(html, /role="listbox"/)
+  // Said always, not only when true: a screen reader announces the model
+  // on entry, and leaving it off a multi-select means someone finds out
+  // that several are allowed by trying.
+  assert.match(html, /aria-multiselectable="false"/)
+  assert.deepEqual(attributes(html, 'aria-selected'), ['true', 'false'])
+  assert.deepEqual(attributes(html, 'tabindex'), ['0', '-1'], 'the tab stop is the chosen option')
+})
+
+test('a multi-select listbox keeps focus and selection apart', () => {
+  const html = renderToStaticMarkup(
+    createElement(HozoListbox, {
+      accessibilityLabel: 'Tags',
+      multiple: true,
+      value: ['b', 'c'],
+      options: [
+        { value: 'a', label: 'Alpha' },
+        { value: 'b', label: 'Beta' },
+        { value: 'c', label: 'Gamma' },
+      ],
+    }),
+  )
+  assert.match(html, /aria-multiselectable="true"/)
+  assert.deepEqual(attributes(html, 'aria-selected'), ['false', 'true', 'true'])
+  // Not on a selected option: with several chosen there is no single
+  // answer to land on, so the stop is where the arrows left off.
+  assert.deepEqual(attributes(html, 'tabindex'), ['0', '-1', '-1'])
+})
+
+test('a tree announces the depth that the indentation only shows', () => {
+  const html = renderToStaticMarkup(
+    createElement(HozoTree, {
+      accessibilityLabel: 'Files',
+      defaultExpanded: ['src'],
+      nodes: [
+        {
+          id: 'src',
+          label: 'src',
+          children: [
+            { id: 'index', label: 'index.ts' },
+            { id: 'lib', label: 'lib', children: [{ id: 'util', label: 'util.ts' }] },
+          ],
+        },
+        { id: 'readme', label: 'README.md' },
+      ],
+    }),
+  )
+  assert.match(html, /role="tree"/)
+  assert.equal(attributes(html, 'role').filter((role) => role === 'treeitem').length, 4)
+  // Without these the tree renders identically and announces as a flat
+  // list: the depth lives in the CSS, which is what a screen reader does
+  // not read.
+  assert.deepEqual(attributes(html, 'aria-level'), ['1', '2', '2', '1'])
+  assert.deepEqual(attributes(html, 'aria-posinset'), ['1', '1', '2', '2'])
+  assert.deepEqual(attributes(html, 'aria-setsize'), ['2', '2', '2', '2'])
+})
+
+test('only a branch of the tree says whether it is open', () => {
+  const html = renderToStaticMarkup(
+    createElement(HozoTree, {
+      accessibilityLabel: 'Files',
+      nodes: [
+        { id: 'src', label: 'src', children: [{ id: 'index', label: 'index.ts' }] },
+        { id: 'readme', label: 'README.md' },
+      ],
+    }),
+  )
+  // One `aria-expanded`, on the branch. A leaf carrying one tells a screen
+  // reader it can be opened, which it cannot.
+  assert.deepEqual(attributes(html, 'aria-expanded'), ['false'])
+  // And the collapsed branch's child is not rendered at all, which is what
+  // makes the rows "what is on screen".
+  assert.doesNotMatch(html, /index\.ts/)
 })

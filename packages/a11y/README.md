@@ -146,6 +146,58 @@ because that is where you were last time tells you nothing about what is
 selected now. With nothing chosen yet it falls to the first option that
 can hold it, so the group stays reachable.
 
+## Listbox
+
+```tsx
+import { Listbox } from '@hozo/core'
+
+<Listbox accessibilityLabel="Sort" value={sort} onValueChange={setSort}
+  options={[{ value: 'name', label: 'Name' }, { value: 'date', label: 'Date' }]} />
+
+<Listbox accessibilityLabel="Tags" multiple value={tags} onValueChange={setTags}
+  options={[{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }]} />
+```
+
+Single select follows focus, like the radio group. Multiple must not: with
+twelve options, walking down to the fourth would select the first four on
+the way. So the arrows move, Space toggles, and `aria-multiselectable` is
+written either way -- a screen reader announces the model on entry, and
+leaving it off a multi-select means someone finds out that several are
+allowed by trying one.
+
+Typing jumps, the same rule the menu uses.
+
+## Tree
+
+```tsx
+import { Tree } from '@hozo/core'
+
+<Tree
+  accessibilityLabel="Files"
+  defaultExpanded={['src']}
+  selectedId={open}
+  onSelect={setOpen}
+  nodes={[{ id: 'src', label: 'src', children: [{ id: 'index', label: 'index.ts' }] }]}
+/>
+```
+
+Up and Down move through the **visible rows**, not through siblings.
+Pressing Down on the last child of an open branch goes to that branch's
+next sibling -- a different parent at a different depth -- because that is
+the next line on the screen. So the tree flattens to what it is showing,
+and from there it is a list: roving and typeahead work unchanged.
+
+Right opens a closed branch and steps into an open one; Left closes an
+open branch and steps out of anything else. Those four cases are the only
+keys a list has no answer for.
+
+Each row carries `aria-level`, `aria-posinset` and `aria-setsize`.
+Without them the tree renders identically and announces as a flat list --
+the depth lives in the indentation, and indentation is CSS, which is
+exactly what a screen reader does not read. On Native there is no such
+attribute at all, so the position goes into the label: "lib, level 2, 2 of
+2". Ugly written down, correct when heard.
+
 ## Scope
 
 This package grows as patterns are added. Everything in it is here because it needs state, keyboard handling or platform APIs; anything that can be a compile-time attribute is not here.
