@@ -90,6 +90,62 @@ behind it stops being readable. The keyboard half has nothing to do there:
 there are no arrow keys and no tab order, and a screen reader reaches the
 menu by swiping the moment it is on screen.
 
+## Toolbar
+
+```tsx
+import { Toolbar } from '@hozo/core'
+
+<Toolbar
+  accessibilityLabel="Formatting"
+  items={[
+    { render: (props) => <button {...props} onClick={bold}>B</button> },
+    { render: (props) => <button {...props} onClick={italic}>I</button> },
+  ]}
+/>
+```
+
+The controls are yours; what the toolbar supplies is the tab stop, the
+arrow keys, and the props that connect them -- spread the argument onto
+whatever you render. This is where one-tab-stop matters most: a formatting
+bar with twelve buttons is otherwise twelve presses to get past on the way
+to the text, every time, and with a mouse it behaves identically so the
+mistake is invisible.
+
+The ends do not join up here, unlike the tab strip. A toolbar is a row of
+unrelated actions rather than a ring of alternatives, and arriving back at
+Bold after pressing Right at the end reads as a jump.
+
+## Radio group
+
+```tsx
+import { RadioGroup } from '@hozo/core'
+
+<RadioGroup
+  accessibilityLabel="Delivery"
+  value={speed}
+  onValueChange={setSpeed}
+  options={[
+    { value: 'standard', label: 'Standard' },
+    { value: 'express', label: 'Express' },
+  ]}
+/>
+```
+
+Two things here disagree with every other pattern in this package, and
+both are required rather than preferences.
+
+**The arrows select.** The tab strip refuses to do that and says why --
+arrowing would mount panels nobody asked for. A radio group has nothing to
+mount, and it holds a single value, so a focused-but-unchosen option is a
+state the control does not have. Someone who arrows to Express and tabs
+away has chosen Express.
+
+**The tab stop is the chosen option, not the last-focused one.** That is
+what Tab into the group should land on: arriving at the third option
+because that is where you were last time tells you nothing about what is
+selected now. With nothing chosen yet it falls to the first option that
+can hold it, so the group stays reachable.
+
 ## Scope
 
 This package grows as patterns are added. Everything in it is here because it needs state, keyboard handling or platform APIs; anything that can be a compile-time attribute is not here.

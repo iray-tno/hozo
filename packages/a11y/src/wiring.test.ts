@@ -25,7 +25,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 // transforms types but not JSX, so the built output is the only thing it
 // can load -- which also makes this a check of what actually ships rather
 // than of what tsc was handed.
-import { HozoMenu, HozoTabs, type HozoTabsProps } from '../dist/index.js'
+import {
+  HozoMenu,
+  HozoRadioGroup,
+  HozoTabs,
+  HozoToolbar,
+  type HozoTabsProps,
+} from '../dist/index.js'
 
 const tabs = [
   { label: 'Profile', content: 'profile' },
@@ -100,4 +106,58 @@ test('a closed menu is a button that says it opens one', () => {
   // screen reader following it finds nothing.
   assert.doesNotMatch(html, /aria-controls/)
   assert.doesNotMatch(html, /role="menu"/)
+})
+
+test('the toolbar is one tab stop and says which way it goes', () => {
+  const html = renderToStaticMarkup(
+    createElement(HozoToolbar, {
+      accessibilityLabel: 'Formatting',
+      items: [
+        { render: (props) => createElement('button', { ...props, key: 'b' }, 'B') },
+        { render: (props) => createElement('button', { ...props, key: 'i' }, 'I') },
+        { render: (props) => createElement('button', { ...props, key: 'u' }, 'U') },
+      ],
+    }),
+  )
+  assert.match(html, /role="toolbar"/)
+  const stops = attributes(html, 'tabindex')
+  assert.deepEqual(stops, ['0', '-1', '-1'], 'twelve buttons should be one Tab, not twelve')
+})
+
+test('the radio group puts its tab stop on the chosen option', () => {
+  // Not on wherever the keyboard was last. Tabbing into a group and
+  // landing on the third option because that is where you were before
+  // tells you nothing about what is selected now.
+  const html = renderToStaticMarkup(
+    createElement(HozoRadioGroup, {
+      accessibilityLabel: 'Delivery',
+      value: 'express',
+      options: [
+        { value: 'standard', label: 'Standard' },
+        { value: 'express', label: 'Express' },
+        { value: 'courier', label: 'Courier', disabled: true },
+      ],
+    }),
+  )
+  assert.match(html, /role="radiogroup"/)
+  assert.deepEqual(attributes(html, 'tabindex'), ['-1', '0', '-1'])
+  assert.deepEqual(attributes(html, 'aria-checked'), ['false', 'true', 'false'])
+  assert.match(html, /aria-disabled="true"/)
+})
+
+test('a group with nothing chosen is still reachable', () => {
+  // An ordinary state, and one where "the tab stop is the chosen option"
+  // has no answer -- so it falls to the first option that can hold it,
+  // and Tab lands somewhere the arrows can start from.
+  const html = renderToStaticMarkup(
+    createElement(HozoRadioGroup, {
+      accessibilityLabel: 'Delivery',
+      options: [
+        { value: 'standard', label: 'Standard', disabled: true },
+        { value: 'express', label: 'Express' },
+      ],
+    }),
+  )
+  assert.deepEqual(attributes(html, 'tabindex'), ['-1', '0'])
+  assert.deepEqual(attributes(html, 'aria-checked'), ['false', 'false'])
 })
