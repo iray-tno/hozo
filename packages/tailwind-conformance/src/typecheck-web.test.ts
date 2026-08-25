@@ -94,6 +94,46 @@ test('accessibility state and value type-check', () => {
   )
 })
 
+test('a partial accessibility value type-checks', () => {
+  // The test above is named for both and exercised only the state, which
+  // is how `accessibilityValue` kept the defect `accessibilityState` had
+  // already been fixed for: four ARIA attributes emitted unconditionally,
+  // so `{ min, max, now }` produced `aria-valuetext={(…).text}` and
+  // `Property 'text' does not exist` in the author's own build.
+  //
+  // Both partial shapes, because the gap is per key rather than per
+  // count -- a value that is only a `text` is the ordinary way to label a
+  // slider whose position is not a number.
+  assertClean(
+    `
+    import { View, Text } from '@hozo/core'
+    export function Volume() {
+      return (
+        <View accessibilityRole="slider" accessibilityLabel="Volume"
+          accessibilityValue={{ min: 0, max: 10, now: level }}>
+          <Text>Volume</Text>
+        </View>
+      )
+    }
+    `,
+    ['level'],
+  )
+  assertClean(
+    `
+    import { View, Text } from '@hozo/core'
+    export function Size() {
+      return (
+        <View accessibilityRole="slider" accessibilityLabel="Size"
+          accessibilityValue={{ text: label }}>
+          <Text>Size</Text>
+        </View>
+      )
+    }
+    `,
+    ['label'],
+  )
+})
+
 test('a scroll container and a text input type-check', () => {
   assertClean(
     `

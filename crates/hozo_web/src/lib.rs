@@ -570,10 +570,24 @@ fn render_node(
         if is_hozo_component {
             attrs.push_str(&format!(" accessibilityValue={{{value}}}"));
         } else {
-            attrs.push_str(&format!(" aria-valuemin={{({value}).min}}"));
-            attrs.push_str(&format!(" aria-valuemax={{({value}).max}}"));
-            attrs.push_str(&format!(" aria-valuenow={{({value}).now}}"));
-            attrs.push_str(&format!(" aria-valuetext={{({value}).text}}"));
+            // Only the keys the literal has, for the reason the state
+            // above does the same: reading `.text` off `{ min, max, now }`
+            // is a type error in the author's own project, and `next
+            // build` type-checks by default. `None` keys means the
+            // expression is opaque, and reading any of the four off that
+            // is fine -- React Native declares all of them optional.
+            for (attr_name, key) in
+                [("aria-valuemin", "min"), ("aria-valuemax", "max"), ("aria-valuenow", "now"), ("aria-valuetext", "text")]
+            {
+                let written = node
+                    .props
+                    .accessibility_value_keys
+                    .as_ref()
+                    .is_none_or(|keys| keys.iter().any(|written| written == key));
+                if written {
+                    attrs.push_str(&format!(" {attr_name}={{({value}).{key}}}"));
+                }
+            }
         }
     }
     if let Some(value) = node.props.accessibility_live_region {

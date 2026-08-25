@@ -797,7 +797,10 @@ fn build_node(
                 props.accessibility_state_keys = object_literal_keys(attr);
                 capture_prop_expr(attr, &mut props.accessibility_state, &mut props.passthrough, scope, diagnostics, consumed)
             }
-            "accessibilityValue" => capture_prop_expr(attr, &mut props.accessibility_value, &mut props.passthrough, scope, diagnostics, consumed),
+            "accessibilityValue" => {
+                props.accessibility_value_keys = object_literal_keys(attr);
+                capture_prop_expr(attr, &mut props.accessibility_value, &mut props.passthrough, scope, diagnostics, consumed)
+            }
             "accessibilityLiveRegion" => capture_prop_expr(attr, &mut props.accessibility_live_region, &mut props.passthrough, scope, diagnostics, consumed),
             "focusable" => match &attr.value {
                 None => props.focusable = Some(ConditionExpr::Static(true)),

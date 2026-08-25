@@ -502,6 +502,17 @@ pub struct PropSet {
     /// attributes, four of which did not type-check.
     pub accessibility_state_keys: Option<Vec<String>>,
     pub accessibility_value: Option<ExprRef>,
+    /// The keys `accessibility_value`'s object literal writes, when it is
+    /// one this can be read statically.
+    ///
+    /// Exactly what `accessibility_state_keys` is for, arrived at the same
+    /// way and later: the Web backend turns this into four ARIA
+    /// attributes, and reading a key off an object literal that does not
+    /// have it is a type error in the author's own project. `{ min, max,
+    /// now }` compiled to four attributes, the fourth of which did not
+    /// type-check -- the identical defect `accessibilityState` had been
+    /// fixed for, on the prop beside it.
+    pub accessibility_value_keys: Option<Vec<String>>,
     pub accessibility_live_region: Option<ExprRef>,
     /// React Native's own name for the keyboard focus order.
     ///
