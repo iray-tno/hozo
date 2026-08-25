@@ -16,12 +16,11 @@
 # independent derivations of one fact and a disagreement only shows up on
 # the platform nobody develops on.
 #
-# NOT YET RUN. This was written on a machine that can build exactly one of
-# these eight targets and has no way to execute a GitHub Actions workflow,
-# so it is a design that compiles in principle. The first real run should
-# be expected to need corrections -- most likely the musl and cross-arch
-# jobs, which are the ones with a toolchain step that cannot be checked
-# from here.
+# The build half has been run, as a `workflow_dispatch` dry run: six of the
+# eight targets passed first time and both musl ones failed, for one reason
+# (see `RUSTFLAGS` below). The `publish` job has still never executed --
+# `workflow_dispatch` stops before it by design, and the first time it runs
+# will be the tag that publishes.
 name: release
 
 on:
@@ -74,6 +73,19 @@ jobs:
 
       - run: node scripts/pack-native.mjs --target ${{ matrix.triple }}
         working-directory: packages/compiler
+        env:
+          # Rust's musl targets link the C runtime statically by default,
+          # and a statically linked target cannot produce a cdylib at all --
+          # `cargo build` refuses with "does not support these crate types"
+          # rather than failing at link time. Node loads the addon as a
+          # shared object, so the static default is the wrong one here and
+          # turning it off is what every napi-rs project does for musl.
+          #
+          # Found by running this workflow. The note at the top of this file
+          # guessed the musl and cross-arch jobs would be where it broke:
+          # half right, since both cross-arch jobs passed and both musl ones
+          # failed for this single reason.
+          RUSTFLAGS: ${{ matrix.musl && '-C target-feature=-crt-static' || '' }}
 
       - uses: actions/upload-artifact@v4
         with:

@@ -4,4 +4,6 @@
 // arrangement and why it is needed.
 
 export { initialFocusIndex, shouldRestoreFocus, type FocusCandidate } from './focus.ts'
+export { nextIndex, tabStops, type Orientation, type RovingKey, type RovingOptions } from './roving.ts'
 export { HozoDialog, type HozoDialogProps } from './dialog.native.tsx'
+export { HozoTabs, type HozoTabsProps, type HozoTab } from './tabs.native.tsx'

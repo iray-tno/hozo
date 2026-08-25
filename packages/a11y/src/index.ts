@@ -7,4 +7,6 @@
 // shortcut.
 
 export { initialFocusIndex, shouldRestoreFocus, type FocusCandidate } from './focus.ts'
+export { nextIndex, tabStops, type Orientation, type RovingKey, type RovingOptions } from './roving.ts'
 export { HozoDialog, type HozoDialogProps } from './dialog.tsx'
+export { HozoTabs, type HozoTabsProps, type HozoTab } from './tabs.tsx'
