@@ -3179,6 +3179,15 @@ fn native_environment(query: Environment) -> Option<Environment> {
             | Environment::InvertedColors
             | Environment::Ltr
             | Environment::Rtl
+            // The four React Native reports and Tailwind has no name for.
+            // Three of them are iOS settings, which is the same shape
+            // `inverted-colors` already has: absent on Android is a value
+            // of `false` rather than an error, and a style that does not
+            // fire on a platform without the setting is correct.
+            | Environment::ReduceTransparency
+            | Environment::BoldText
+            | Environment::Grayscale
+            | Environment::ScreenReader
     )
     .then_some(query)
 }
@@ -3204,6 +3213,10 @@ fn environment_name(query: Environment) -> &'static str {
         Environment::ForcedColors => "forced-colors",
         Environment::Print => "print",
         Environment::Noscript => "noscript",
+        Environment::ReduceTransparency => "reduce-transparency",
+        Environment::BoldText => "bold-text",
+        Environment::Grayscale => "grayscale",
+        Environment::ScreenReader => "screen-reader",
     }
 }
 

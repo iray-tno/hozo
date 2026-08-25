@@ -42,6 +42,7 @@ fn diagnostic_code_str(code: DiagnosticCode) -> &'static str {
         DiagnosticCode::A11yHiddenButFocusable => "A11Y_HIDDEN_BUT_FOCUSABLE",
         DiagnosticCode::A11yPositiveTabIndex => "A11Y_POSITIVE_TAB_INDEX",
         DiagnosticCode::A11yHeadingLevelSkipped => "A11Y_HEADING_LEVEL_SKIPPED",
+        DiagnosticCode::NotWiredOnWeb => "NOT_WIRED_ON_WEB",
         DiagnosticCode::A11yDuplicateId => "A11Y_DUPLICATE_ID",
         DiagnosticCode::A11yInteractiveNesting => "A11Y_INTERACTIVE_NESTING",
         DiagnosticCode::A11yPressWithoutKeyboard => "A11Y_PRESS_WITHOUT_KEYBOARD",

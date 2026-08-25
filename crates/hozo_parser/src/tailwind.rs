@@ -2639,6 +2639,23 @@ const ENVIRONMENT_VARIANTS: &[(&str, Environment)] = &[
     ("forced-colors:", Environment::ForcedColors),
     ("print:", Environment::Print),
     ("noscript:", Environment::Noscript),
+    // Not Tailwind's. These four are the accessibility settings React
+    // Native reports and Tailwind has no name for, and they are spelled
+    // the way Tailwind spells the ones it does have -- after the user
+    // preference (`motion-reduce`, `inverted-colors`) rather than after
+    // the CSS. `grayscale:` shares a name with the filter utility, which
+    // is the arrangement `contrast-more:contrast-125` already has and
+    // reads unambiguously for the same reason: a variant is what comes
+    // before the colon.
+    //
+    // They need `@custom-variant` in the project's stylesheet to exist in
+    // Tailwind too -- see `scripts/` and decision 003. Adding them here
+    // without that would compile classes Tailwind does not, which is the
+    // one direction the conformance suite is built to catch.
+    ("reduce-transparency:", Environment::ReduceTransparency),
+    ("bold-text:", Environment::BoldText),
+    ("grayscale:", Environment::Grayscale),
+    ("screen-reader:", Environment::ScreenReader),
 ];
 
 /// Strips one recognized `variant:` prefix, or returns `Always` and the
@@ -4998,5 +5015,52 @@ fn register_color(suffix: &str) -> Color {
     match suffix {
         "initial" => Color::Keyword("initial"),
         _ => Color::Token(suffix.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod platform_setting_tests {
+    use super::*;
+
+    #[test]
+    fn the_settings_tailwind_has_no_name_for_parse() {
+        for (token, query) in [
+            ("reduce-transparency:p-4", Environment::ReduceTransparency),
+            ("bold-text:p-4", Environment::BoldText),
+            ("grayscale:p-4", Environment::Grayscale),
+            ("screen-reader:p-4", Environment::ScreenReader),
+        ] {
+            assert_eq!(expand_utility(token).0, Condition::Environment(query), "{token}");
+        }
+    }
+
+    #[test]
+    fn the_grayscale_utility_still_exists() {
+        // The variant shares a name with the filter, which is the
+        // arrangement `contrast-more:contrast-125` already has: a variant
+        // is what comes before the colon, so the two never meet.
+        assert_eq!(expand_utility("grayscale").0, Condition::Always);
+        assert!(!expand_utility("grayscale").1.is_empty());
+        assert_eq!(
+            expand_utility("grayscale:grayscale").0,
+            Condition::Environment(Environment::Grayscale),
+        );
+    }
+
+    #[test]
+    fn they_compose_like_any_other_environment() {
+        // Nothing about them is special to the fold, which is the point of
+        // adding them as environments rather than as a new kind.
+        assert_eq!(
+            expand_utility("dark:screen-reader:p-4").0,
+            Condition::All(vec![
+                Condition::Dark,
+                Condition::Environment(Environment::ScreenReader),
+            ]),
+        );
+        assert_eq!(
+            expand_utility("not-bold-text:p-4").0,
+            Condition::Not(Box::new(Condition::Environment(Environment::BoldText))),
+        );
     }
 }

@@ -102,12 +102,18 @@ test('viewport equality ignores nothing that matters and nothing that does not',
 })
 
 test('an environment query rides on the fact behind it', () => {
-  // Seven queries, four subscriptions. The pairs are one boolean read two
-  // ways, so `motion-safe:` costs nothing that `motion-reduce:` has not
-  // already paid for.
+  // Eleven queries, eight subscriptions. The pairs are one boolean read
+  // two ways, so `motion-safe:` costs nothing that `motion-reduce:` has
+  // not already paid for.
+  //
+  // The four added later have no negated spelling, and that is Tailwind's
+  // shape rather than an omission: `inverted-colors` has no
+  // `not-inverted-colors` either, because `not-` composes with any
+  // condition and writing a second name for it would be two ways to say
+  // the same thing.
   const facts = new Set(Object.values(ENVIRONMENT_FACTS).map(({ fact }) => fact))
-  assert.equal(Object.keys(ENVIRONMENT_FACTS).length, 7)
-  assert.equal(facts.size, 4)
+  assert.equal(Object.keys(ENVIRONMENT_FACTS).length, 11)
+  assert.equal(facts.size, 8)
 
   for (const [a, b] of [
     ['motion-reduce', 'motion-safe'],

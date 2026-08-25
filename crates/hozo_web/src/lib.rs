@@ -375,6 +375,19 @@ fn render_node(
         if props.is_empty() {
             continue;
         }
+        // The mirror of what the Native backend does with `print:` and
+        // `forced-colors:`: a condition this platform cannot express emits
+        // no rule and says so, rather than emitting one with an empty
+        // query that would apply to everyone.
+        if let Some(query) = css::inexpressible_on_web(&condition) {
+            diagnostics.push(hozo_ir::Diagnostic {
+                code: hozo_ir::DiagnosticCode::NotWiredOnWeb,
+                severity: hozo_ir::Severity::Warning,
+                message: query.web_gap_message(),
+                span: node.span,
+            });
+            continue;
+        }
         rules.push_str(&css::render_rule(&class_name, &condition, &props, theme));
         rules.push_str("\n\n");
     }

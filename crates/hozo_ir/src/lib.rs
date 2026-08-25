@@ -145,6 +145,14 @@ pub enum DiagnosticCode {
     /// decidable in one file: two headings adjacent here are adjacent on
     /// the page whatever wraps them. Starting at 3 says nothing.
     A11yHeadingLevelSkipped,
+    /// A Tailwind variant this platform cannot express, on Web.
+    ///
+    /// The mirror of `NotWiredOnNative`, and the first diagnostic to point
+    /// that way: until the React Native accessibility settings were added,
+    /// every variant Hozo compiled could be asked of a browser. Three of
+    /// those four cannot, and one of them never will be -- see
+    /// `Environment::web_gap_message`.
+    NotWiredOnWeb,
     /// Two elements in one file with the same id.
     ///
     /// Every reference naming it -- `aria-labelledby`, `aria-controls`,
@@ -3252,6 +3260,95 @@ pub enum Environment {
     Print,
     /// `@media (scripting: none)`. Web only.
     Noscript,
+    /// `@media (prefers-reduced-transparency: reduce)`, and React Native's
+    /// `isReduceTransparencyEnabled`.
+    ///
+    /// The four below are not Tailwind's -- they are the accessibility
+    /// settings React Native reports and Tailwind has no name for, added
+    /// through the extension point Tailwind ships for exactly this
+    /// (`@custom-variant`), which is what makes them an extension rather
+    /// than an invention. Decision 002 rejected inventing vocabulary; it
+    /// did not reject using the vocabulary a project is invited to add.
+    ///
+    /// This first one is the only one of the four that both platforms
+    /// have. The media query is real and Tailwind simply has no variant
+    /// for it, so it was uncovered on Web as well.
+    ReduceTransparency,
+    /// React Native's `isBoldTextEnabled`. Native only: the Web has no
+    /// media query for it, and the OS setting it reports is iOS's.
+    BoldText,
+    /// React Native's `isGrayscaleEnabled`. Native only.
+    ///
+    /// CSS's `monochrome` is not this. That asks how many bits per colour
+    /// the *display* has -- an e-ink screen, a receipt printer -- and this
+    /// is a person who has asked the system to drain the colour out of a
+    /// full-colour one. Answering with `monochrome` would be right for
+    /// almost nobody it fired for.
+    Grayscale,
+    /// React Native's `isScreenReaderEnabled`. Native only, and the only
+    /// condition here the Web *refuses* rather than lacks.
+    ///
+    /// There is no media query for it and there deliberately never will
+    /// be: whether assistive technology is running is a strong
+    /// fingerprinting signal, and exposing it would let any page identify
+    /// the people least able to avoid being identified. So the usual
+    /// asymmetry inverts -- everywhere else Web has the richer vocabulary
+    /// and Native is the platform that cannot answer.
+    ///
+    /// Rule 3 in decision 003 still decides it: a concept one platform has
+    /// is better implemented there and named absent on the other than left
+    /// out of both. The Web refusal message says *refuses* rather than
+    /// *lacks*, because those are different facts and only one of them
+    /// might change.
+    ScreenReader,
+}
+
+impl Environment {
+    /// Whether the Web can express this at all.
+    ///
+    /// Three of the four React Native settings cannot be asked from CSS.
+    /// The Native backend has refused Web-only queries since it existed;
+    /// this is the same refusal pointing the other way, and the first time
+    /// it has pointed that way at all.
+    pub fn web_query(self) -> bool {
+        !matches!(
+            self,
+            Environment::BoldText | Environment::Grayscale | Environment::ScreenReader
+        )
+    }
+
+    /// Why the Web cannot answer this one.
+    ///
+    /// Two different facts, and the wording keeps them apart because only
+    /// one of them might change. `bold-text` and `grayscale` are settings
+    /// CSS has no query for -- an absence. `screen-reader` is a refusal:
+    /// there is no query and there deliberately will not be one, because
+    /// whether assistive technology is running is a strong fingerprinting
+    /// signal and exposing it would identify exactly the people least able
+    /// to avoid being identified.
+    pub fn web_gap_message(self) -> String {
+        match self {
+            Environment::ScreenReader => "`screen-reader:` cannot work on the Web, and not \
+                 because nobody has built it: there is no media query for whether a screen \
+                 reader is running and the platform declines to add one, since it would be a \
+                 strong fingerprinting signal against the people least able to avoid being \
+                 identified. On React Native the same class works. If the intent is content \
+                 for screen readers only, `sr-only` says that on both platforms."
+                .to_string(),
+            Environment::BoldText => "`bold-text:` reports an iOS setting, and CSS has no query \
+                 for it, so the style is not applied on Web. On React Native the same class \
+                 works. A `prefers-contrast` or a larger type scale is the nearest thing the \
+                 Web can be asked."
+                .to_string(),
+            Environment::Grayscale => "`grayscale:` reports an iOS setting, and CSS has no query \
+                 for it. `monochrome` is not it -- that asks how many bits of colour the \
+                 *display* has, which is an e-ink screen rather than a person who has asked the \
+                 system to drain the colour out of a full-colour one. On React Native the same \
+                 class works."
+                .to_string(),
+            _ => String::new(),
+        }
+    }
 }
 
 impl Condition {

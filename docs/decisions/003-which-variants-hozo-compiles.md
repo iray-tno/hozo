@@ -53,6 +53,7 @@ Web to no one's benefit.
 | ARIA state | `aria-busy` `aria-checked` `aria-disabled` `aria-expanded` `aria-hidden` `aria-pressed` `aria-readonly` `aria-required` `aria-selected` |
 | Relational | `group-…` `peer-…` `has-…`, wrapping any of the above |
 | Environment | `motion-safe` `motion-reduce` `portrait` `landscape` `inverted-colors` `ltr` `rtl` `contrast-more` `contrast-less` `forced-colors` `print` `noscript` |
+| Platform setting | `reduce-transparency` `bold-text` `grayscale` `screen-reader` — not Tailwind's; see below |
 | Compositional | `not-…` `data-…` `supports-…` |
 | Form state | `required` `optional` `valid` `invalid` `user-valid` `user-invalid` `in-range` `out-of-range` `read-only` `placeholder-shown` `autofill` |
 | Subtree | `*` `**` |
@@ -61,11 +62,13 @@ Web to no one's benefit.
 | Transition | `starting` |
 | Arbitrary | `[&_p]:`, `[@supports…]:` |
 
-Native compiles all of those except `peer-…`, `has-…`, `not-…`, `data-…`,
-`supports-…`, `focus-within`, `target`, the `-of-type` family, the form
-states other than `read-only`, every pseudo-element, `contrast-more`,
-`contrast-less`, `forced-colors`, `print` and `noscript`, and reports each
-one it cannot. Container queries it does compile, through a component
+The platform-setting row is the one place Native compiles more than Web
+does: three of those four have no CSS query at all. Everywhere else it is
+the other way round, and Native compiles all of the above except `peer-…`,
+`has-…`, `not-…`, `data-…`, `supports-…`, `focus-within`, `target`, the
+`-of-type` family, the form states other than `read-only`, every
+pseudo-element, `contrast-more`, `contrast-less`, `forced-colors`, `print`
+and `noscript`, and reports each one it cannot. Container queries it does compile, through a component
 that measures itself.
 
 The structural family is where the two platforms differ most interestingly.
@@ -408,10 +411,54 @@ that needs a migration story behind it. What would settle it is one
 concrete case of someone needing to select on Hozo's own state and having
 no other way to ask.
 
-**React Native settings Tailwind has no variant for.** `isBoldTextEnabled`,
-`isGrayscaleEnabled`, `isReduceTransparencyEnabled`, `isScreenReaderEnabled`.
-Decision 002 rejected inventing vocabulary, but Tailwind ships
-`@custom-variant` precisely so projects can extend it, which makes this an
-extension rather than an invention. `screen-reader:` is the interesting one
-for a project with this subtitle — and it inverts the usual asymmetry,
-because the Web has no media query that answers it.
+## The four settings React Native reports and Tailwind cannot name
+
+`reduce-transparency:`, `bold-text:`, `grayscale:`, `screen-reader:`.
+
+Decision 002 rejected inventing vocabulary. These are not invented:
+Tailwind ships `@custom-variant` precisely so a project can add names, so
+using one is taking an offer rather than making something up. They are
+spelled the way Tailwind spells the environment variants it does have —
+after the user's setting (`motion-reduce`, `inverted-colors`) rather than
+after the CSS.
+
+`grayscale:` shares its name with the filter utility. That is the
+arrangement `contrast-more:contrast-125` already has and it reads
+unambiguously for the same reason: a variant is what comes before the
+colon.
+
+`reduce-transparency:` turned out to be the surprise. It is a real media
+query — `prefers-reduced-transparency` — that Tailwind has no variant for,
+so it was uncovered on *both* platforms rather than being a Native-only
+concession. Adding it is a gap closed on Web too.
+
+The other three cannot be asked from CSS, and the reasons differ enough
+that the diagnostics say different things. `bold-text` and `grayscale` are
+absences: iOS settings with no query. `screen-reader` is a **refusal**.
+There is no media query for whether assistive technology is running and
+the platform declines to add one, because it would be a strong
+fingerprinting signal against exactly the people least able to avoid being
+identified. Those are different facts and only one of them might change,
+so the message distinguishes them.
+
+That inverts the asymmetry every other variant here has. Everywhere else
+the Web has the richer vocabulary and React Native is the platform that
+cannot answer; `screen-reader:` is the one case where Native knows
+something the Web has decided not to know. Rule 3 decides it the same way
+regardless — implemented where the platform has it, named absent on the
+other — and this is the first time the refusal has pointed at Web, which
+is why `NotWiredOnWeb` exists at all.
+
+Worth stating for anyone reaching for `screen-reader:`: making a screen
+differ when assistive technology is present is usually a mistake, because
+it produces an experience nobody else can see, describe or review. The
+legitimate use is content that is *only* for screen readers, and `sr-only`
+says that on both platforms without a variant.
+
+**A project has to declare them.** Hozo compiles these four whether or not
+the project's stylesheet does, because Hozo generates its own scoped CSS.
+Tailwind will not, so an element on the fallback path — one whose classes
+Hozo could not resolve statically — gets nothing for them. A project using
+these should add the matching `@custom-variant` lines to its entry
+stylesheet; only `reduce-transparency` produces CSS on Web, so it is the
+only one where the difference is visible.

@@ -138,11 +138,31 @@ export type EnvironmentQuery =
   | 'ltr'
   | 'rtl'
   | 'inverted-colors'
+  // The four React Native reports and Tailwind has no name for. Three are
+  // iOS settings; absent on Android reads as `false`, which is the
+  // arrangement `inverted-colors` already has and the right one -- a style
+  // that does not fire on a platform without the setting is correct rather
+  // than missing.
+  | 'reduce-transparency'
+  | 'bold-text'
+  | 'grayscale'
+  | 'screen-reader'
 
 /** The fact behind a query, and whether the query is its negation. */
 export const ENVIRONMENT_FACTS: Record<
   EnvironmentQuery,
-  { fact: 'reduceMotion' | 'portrait' | 'rtl' | 'invertColors'; negate: boolean }
+  {
+    fact:
+      | 'reduceMotion'
+      | 'portrait'
+      | 'rtl'
+      | 'invertColors'
+      | 'reduceTransparency'
+      | 'boldText'
+      | 'grayscale'
+      | 'screenReader'
+    negate: boolean
+  }
 > = {
   'motion-reduce': { fact: 'reduceMotion', negate: false },
   'motion-safe': { fact: 'reduceMotion', negate: true },
@@ -151,6 +171,10 @@ export const ENVIRONMENT_FACTS: Record<
   rtl: { fact: 'rtl', negate: false },
   ltr: { fact: 'rtl', negate: true },
   'inverted-colors': { fact: 'invertColors', negate: false },
+  'reduce-transparency': { fact: 'reduceTransparency', negate: false },
+  'bold-text': { fact: 'boldText', negate: false },
+  grayscale: { fact: 'grayscale', negate: false },
+  'screen-reader': { fact: 'screenReader', negate: false },
 }
 
 /**

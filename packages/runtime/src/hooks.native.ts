@@ -154,6 +154,14 @@ export function useHozoSpin() {
 const reduceMotionStore = createStore(false)
 const invertColorsStore = createStore(false)
 const orientationStore = createStore(isPortrait(Dimensions.get('window')))
+// The four Tailwind has no name for. Three are iOS-only, and React Native
+// resolves those to `false` on Android rather than rejecting them, so
+// nothing here needs a platform check: a style that does not fire where
+// the setting does not exist is correct.
+const reduceTransparencyStore = createStore(false)
+const boldTextStore = createStore(false)
+const grayscaleStore = createStore(false)
+const screenReaderStore = createStore(false)
 
 // Asynchronous, unlike `Appearance.getColorScheme()`: these cross to the
 // platform. The store starts at `false` and corrects itself, which is the
@@ -164,6 +172,35 @@ void AccessibilityInfo.isReduceMotionEnabled().then((value) => reduceMotionStore
 void AccessibilityInfo.isInvertColorsEnabled().then((value) => invertColorsStore.set(value))
 AccessibilityInfo.addEventListener('reduceMotionChanged', (value) => reduceMotionStore.set(value))
 AccessibilityInfo.addEventListener('invertColorsChanged', (value) => invertColorsStore.set(value))
+// Asked for by name rather than called directly, because this runs at
+// import time and a missing method there takes the whole app down before
+// anything renders. These four are newer than the two above and are not
+// all present on every React Native version or every platform's native
+// module -- and a setting Hozo cannot read is a `false`, which is what the
+// store already holds.
+function track(
+  read: keyof typeof AccessibilityInfo,
+  event: Parameters<typeof AccessibilityInfo.addEventListener>[0],
+  store: { set: (value: boolean) => void },
+) {
+  const method = AccessibilityInfo[read]
+  if (typeof method !== 'function') return
+  void (method as () => Promise<boolean>)
+    .call(AccessibilityInfo)
+    .then((value) => store.set(value))
+    // A rejection is the same answer as a missing method: unknown, and
+    // `false` is the safe reading of unknown for all four.
+    .catch(() => {})
+  AccessibilityInfo.addEventListener(event, (value) => store.set(value as boolean))
+}
+
+track('isReduceTransparencyEnabled', 'reduceTransparencyChanged', reduceTransparencyStore)
+track('isBoldTextEnabled', 'boldTextChanged', boldTextStore)
+track('isGrayscaleEnabled', 'grayscaleChanged', grayscaleStore)
+// The one that changes mid-session more than any of the others: someone
+// turning VoiceOver on to read a screen they are already looking at is the
+// ordinary case, not an edge one.
+track('isScreenReaderEnabled', 'screenReaderChanged', screenReaderStore)
 Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
   orientationStore.set(isPortrait(window))
 })
@@ -193,11 +230,35 @@ export function useHozoEnvironment(query: EnvironmentQuery): boolean {
     orientationStore.get,
     orientationStore.get,
   )
+  const reduceTransparency = useSyncExternalStore(
+    reduceTransparencyStore.subscribe,
+    reduceTransparencyStore.get,
+    reduceTransparencyStore.get,
+  )
+  const boldText = useSyncExternalStore(
+    boldTextStore.subscribe,
+    boldTextStore.get,
+    boldTextStore.get,
+  )
+  const grayscale = useSyncExternalStore(
+    grayscaleStore.subscribe,
+    grayscaleStore.get,
+    grayscaleStore.get,
+  )
+  const screenReader = useSyncExternalStore(
+    screenReaderStore.subscribe,
+    screenReaderStore.get,
+    screenReaderStore.get,
+  )
   const value = {
     reduceMotion,
     invertColors,
     portrait,
     rtl: I18nManager.isRTL,
+    reduceTransparency,
+    boldText,
+    grayscale,
+    screenReader,
   }[fact]
   return negate ? !value : value
 }
