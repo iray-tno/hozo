@@ -785,7 +785,13 @@ fn build_node(
             "onResponderTerminate" if matches!(primitive, Primitive::View | Primitive::Pressable) => capture_prop_expr(attr, &mut props.on_responder_terminate, &mut props.passthrough, scope, diagnostics, consumed),
             "onResponderTerminationRequest" if matches!(primitive, Primitive::View | Primitive::Pressable) => capture_prop_expr(attr, &mut props.on_responder_termination_request, &mut props.passthrough, scope, diagnostics, consumed),
             "testID" => capture_prop_expr(attr, &mut props.test_id, &mut props.passthrough, scope, diagnostics, consumed),
-            "nativeID" => capture_prop_expr(attr, &mut props.native_id, &mut props.passthrough, scope, diagnostics, consumed),
+            "nativeID" => {
+                // Kept as text as well as as a span: two elements sharing
+                // an id break every reference to either, and the check for
+                // that needs the value rather than where it was written.
+                props.native_id_literal = attribute_literal(&attr.value);
+                capture_prop_expr(attr, &mut props.native_id, &mut props.passthrough, scope, diagnostics, consumed)
+            }
             "pointerEvents" => capture_prop_expr(attr, &mut props.pointer_events, &mut props.passthrough, scope, diagnostics, consumed),
             "accessibilityState" => {
                 props.accessibility_state_keys = object_literal_keys(attr);

@@ -43,6 +43,50 @@ fn is_state_prop(property: &str) -> bool {
 pub fn check(root: &Node, diagnostics: &mut Vec<Diagnostic>) {
     walk(root, &[], diagnostics);
     check_heading_levels(root, diagnostics);
+    check_duplicate_ids(root, diagnostics);
+}
+
+/// Two elements in one tree with the same `nativeID`.
+///
+/// Not a tidiness complaint. Every `aria-labelledby`, `aria-controls` and
+/// `aria-describedby` naming that id resolves to the first element, so one
+/// of the two references silently points at the wrong thing -- and it
+/// points somewhere, which is why nothing about it looks broken. A field
+/// labelled by the second of two `id="label"` elements announces the
+/// first's text.
+///
+/// Only literals, and only within one file. Anything the compiler is
+/// carrying may render an id it cannot see, but that can only *add* a
+/// collision this does not report -- it cannot make one of these two into
+/// a false positive, because both of these are here.
+fn check_duplicate_ids(root: &Node, diagnostics: &mut Vec<Diagnostic>) {
+    let mut seen: Vec<String> = Vec::new();
+    collect_ids(root, &mut seen, diagnostics);
+}
+
+fn collect_ids(node: &Node, seen: &mut Vec<String>, diagnostics: &mut Vec<Diagnostic>) {
+    if let Some(id) = node.props.native_id_literal.as_deref() {
+        if seen.iter().any(|earlier| earlier == id) {
+            diagnostics.push(Diagnostic {
+                code: DiagnosticCode::A11yDuplicateId,
+                severity: Severity::Warning,
+                message: format!(
+                    "`nativeID=\"{id}\"` is already used earlier in this file. Every \
+                     `aria-labelledby` or `aria-controls` naming it resolves to the first one, \
+                     so a reference meant for this element points at that one instead -- and it \
+                     points somewhere, which is why nothing looks wrong."
+                ),
+                span: node.span,
+            });
+        } else {
+            seen.push(id.to_string());
+        }
+    }
+    for child in &node.children {
+        if let Child::Node(child_node) = child {
+            collect_ids(child_node, seen, diagnostics);
+        }
+    }
 }
 
 /// Heading levels that jump.
@@ -120,6 +164,17 @@ fn collect_heading_levels(
 }
 
 fn walk(node: &Node, ancestors: &[&str], diagnostics: &mut Vec<Diagnostic>) {
+    walk_inner(node, ancestors, None, diagnostics)
+}
+
+/// `interactive` is the nearest interactive ancestor, once one has been
+/// seen on the way down.
+fn walk_inner(
+    node: &Node,
+    ancestors: &[&str],
+    interactive: Option<&str>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let own_role = aria_role(node);
     if let Some(name) = own_role {
         if let Some(spec) = aria::role(name) {
@@ -137,14 +192,20 @@ fn walk(node: &Node, ancestors: &[&str], diagnostics: &mut Vec<Diagnostic>) {
     }
     check_hidden_focusable(node, diagnostics);
     check_tab_order(node, diagnostics);
+    check_interactive_nesting(node, interactive, diagnostics);
+    check_press_without_keyboard(node, diagnostics);
 
     let mut inner: Vec<&str> = ancestors.to_vec();
     if let Some(name) = own_role {
         inner.push(name);
     }
+    // The nearest interactive ancestor for the children. Once one is
+    // found it stays: a button three levels down inside a link is the same
+    // problem as one directly inside it.
+    let enclosing = interactive_role(node).or(interactive);
     for child in &node.children {
         if let Child::Node(child_node) = child {
-            walk(child_node, &inner, diagnostics);
+            walk_inner(child_node, &inner, enclosing, diagnostics);
         }
     }
 }
@@ -450,6 +511,114 @@ fn check_tab_order(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
              met. Use `tabIndex={{0}}` to join the natural order, and put the element where it \
              belongs in the markup."
         ),
+        span: node.span,
+    });
+}
+
+/// What this element is, for the purpose of "can it be pressed".
+///
+/// `Button` and `Link` are interactive by being what they are; a
+/// `Pressable` is interactive once it has a handler or a role saying so.
+/// A plain `View` with an `onClick` counts too -- that is the case
+/// proposal §10.2 is written about.
+fn interactive_role(node: &Node) -> Option<&'static str> {
+    match node.primitive {
+        Primitive::Button => return Some("button"),
+        Primitive::Link => return Some("link"),
+        Primitive::TextInput => return Some("textbox"),
+        _ => {}
+    }
+    match &node.props.accessibility_role {
+        Some(AccessibilityRole::Button) => return Some("button"),
+        Some(AccessibilityRole::Link) => return Some("link"),
+        _ => {}
+    }
+    if node.props.on_press.is_some() {
+        return Some("button");
+    }
+    if node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("onClick")) {
+        return Some("button");
+    }
+    None
+}
+
+/// One interactive element inside another.
+///
+/// Not a style question. The DOM does not allow it -- a `<button>` inside
+/// a `<button>`, or anything interactive inside an `<a>` -- and a browser
+/// meeting one *reparents* the markup, so what renders is not what was
+/// written and the inner control ends up beside the outer one rather than
+/// in it. Before that it is ambiguous to everyone: a screen reader
+/// announces two controls occupying the same place, a keyboard user gets
+/// one tab stop or two depending on the engine, and a press is claimed by
+/// whichever handler happens to be closer.
+///
+/// Decidable here because both are in the same tree. Anything the compiler
+/// is only carrying between them means nothing is claimed, the same rule
+/// the rest of this file follows.
+fn check_interactive_nesting(node: &Node, outer: Option<&str>, diagnostics: &mut Vec<Diagnostic>) {
+    let (Some(outer), Some(inner)) = (outer, interactive_role(node)) else { return };
+    diagnostics.push(Diagnostic {
+        code: DiagnosticCode::A11yInteractiveNesting,
+        severity: Severity::Warning,
+        message: format!(
+            "This is a `{inner}` inside a `{outer}`, which the DOM does not allow: a browser \
+             meeting one moves the inner element out, so what renders is not what is written \
+             here. Before that it is ambiguous to everyone -- a screen reader announces two \
+             controls in one place, and a press goes to whichever handler is closer. Put them \
+             side by side, or make the outer one a plain container."
+        ),
+        span: node.span,
+    });
+}
+
+/// A press handler on something nobody can press with a keyboard.
+///
+/// Two shapes, and they fail differently. `onClick` on a `View` is the
+/// case proposal §10.2 is written about: it works with a mouse, it is not
+/// in the tab order, it announces as nothing, and it is invisible to
+/// whoever built it because they have a pointer. `onPress` on a `View` is
+/// worse and quieter -- neither platform has such a prop on a plain view,
+/// so it is carried to the output and does nothing at all, on Web *and* on
+/// device.
+///
+/// `Pressable` is exempt: it is Hozo's interactive primitive, it gets a
+/// `tabIndex` from the Web backend, and the role it is missing is already
+/// reported as `A11yInteractiveWithoutRole`.
+fn check_press_without_keyboard(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
+    if !matches!(node.primitive, Primitive::View | Primitive::Text) {
+        return;
+    }
+    // `onPress` is modelled rather than carried, so it is on the props
+    // and not in the passthrough list -- looking only at the latter found
+    // `onClick` and missed the worse of the two.
+    let handler = if node.props.on_press.is_some() {
+        Some("onPress")
+    } else {
+        node.props
+            .passthrough
+            .iter()
+            .filter_map(|prop| prop.name.as_deref())
+            .find(|name| *name == "onPress" || *name == "onClick")
+    };
+    let Some(handler) = handler else { return };
+
+    let message = if handler == "onPress" {
+        "`onPress` is not a prop a plain View has, on either platform: React Native puts it on \
+         `Pressable` and the DOM has no such event at all. It is carried into the output and \
+         does nothing there -- not a missing keyboard path but a missing press. Use `Pressable`."
+            .to_string()
+    } else {
+        "This View has an `onClick` and nothing that makes it a control: it is not in the tab \
+         order, it announces as a group rather than as a button, and Enter and Space do \
+         nothing. It works with a pointer, which is why this is easy to ship. Use `Pressable` \
+         with an `accessibilityRole`, which gives all three."
+            .to_string()
+    };
+    diagnostics.push(Diagnostic {
+        code: DiagnosticCode::A11yPressWithoutKeyboard,
+        severity: Severity::Warning,
+        message,
         span: node.span,
     });
 }
@@ -1414,5 +1583,87 @@ mod outline_tests {
             r#"<View><Heading level={1}>A</Heading><Heading level={n}>B</Heading><Heading level={6}>C</Heading></View>"#
         )
         .contains(&DiagnosticCode::A11yHeadingLevelSkipped));
+    }
+}
+
+#[cfg(test)]
+mod structure_tests {
+    use hozo_ir::DiagnosticCode;
+
+    fn codes(element: &str) -> Vec<DiagnosticCode> {
+        let source = format!(
+            "import {{ View, Text, Pressable, Button, Heading }} from '@hozo/core'\nconst el = {element}\n"
+        );
+        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+    }
+
+    #[test]
+    fn one_control_inside_another_is_reported() {
+        // The DOM does not allow it, and a browser meeting one moves the
+        // inner element out -- so what renders is not what was written.
+        for element in [
+            r#"<Pressable accessibilityRole="button" onPress={a}><Pressable accessibilityRole="button" onPress={b}>x</Pressable></Pressable>"#,
+            r#"<Pressable accessibilityRole="link" onPress={a}><Button onPress={b}>x</Button></Pressable>"#,
+            // Depth does not matter: a button three levels inside a link
+            // is the same problem as one directly inside it.
+            r#"<Pressable accessibilityRole="link" onPress={a}><View><View><Button onPress={b}>x</Button></View></View></Pressable>"#,
+        ] {
+            assert!(
+                codes(element).contains(&DiagnosticCode::A11yInteractiveNesting),
+                "{element}",
+            );
+        }
+    }
+
+    #[test]
+    fn controls_beside_each_other_are_not() {
+        assert!(!codes(
+            r#"<View><Button onPress={a}>x</Button><Button onPress={b}>y</Button></View>"#
+        )
+        .contains(&DiagnosticCode::A11yInteractiveNesting));
+        // A container inside a control is ordinary -- that is how a button
+        // gets an icon and a label.
+        assert!(!codes(r#"<Button onPress={a}><View><Text>x</Text></View></Button>"#)
+            .contains(&DiagnosticCode::A11yInteractiveNesting));
+    }
+
+    #[test]
+    fn a_press_handler_with_no_keyboard_path_is_reported() {
+        // `onClick` on a View works with a pointer, is not in the tab
+        // order and announces as nothing -- proposal 10.2's own example.
+        assert!(codes(r#"<View onClick={go}>Tap</View>"#)
+            .contains(&DiagnosticCode::A11yPressWithoutKeyboard));
+        // `onPress` on a View is quieter and worse: neither platform has
+        // that prop on a plain view, so it does nothing at all.
+        assert!(codes(r#"<View onPress={go}>Tap</View>"#)
+            .contains(&DiagnosticCode::A11yPressWithoutKeyboard));
+        assert!(codes(r#"<Text onPress={go}>Tap</Text>"#)
+            .contains(&DiagnosticCode::A11yPressWithoutKeyboard));
+    }
+
+    #[test]
+    fn the_primitive_that_is_a_control_is_not_reported() {
+        // `Pressable` is Hozo's interactive primitive: the Web backend
+        // gives it a `tabIndex`, and the role it is missing is reported
+        // separately as `A11yInteractiveWithoutRole`.
+        assert!(!codes(r#"<Pressable accessibilityRole="button" onPress={go}>Tap</Pressable>"#)
+            .contains(&DiagnosticCode::A11yPressWithoutKeyboard));
+        assert!(!codes(r#"<Button onPress={go}>Tap</Button>"#)
+            .contains(&DiagnosticCode::A11yPressWithoutKeyboard));
+    }
+
+    #[test]
+    fn two_elements_with_one_id_are_reported() {
+        // Every reference naming it resolves to the first, so one of the
+        // two points at the wrong element -- and it points somewhere,
+        // which is why nothing looks broken.
+        assert!(codes(r#"<View><Text nativeID="x">A</Text><Text nativeID="x">B</Text></View>"#)
+            .contains(&DiagnosticCode::A11yDuplicateId));
+        // Different ids, and a repeated id in an expression the compiler
+        // is only carrying, say nothing.
+        assert!(!codes(r#"<View><Text nativeID="x">A</Text><Text nativeID="y">B</Text></View>"#)
+            .contains(&DiagnosticCode::A11yDuplicateId));
+        assert!(!codes(r#"<View><Text nativeID={id}>A</Text><Text nativeID={id}>B</Text></View>"#)
+            .contains(&DiagnosticCode::A11yDuplicateId));
     }
 }

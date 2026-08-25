@@ -145,6 +145,30 @@ pub enum DiagnosticCode {
     /// decidable in one file: two headings adjacent here are adjacent on
     /// the page whatever wraps them. Starting at 3 says nothing.
     A11yHeadingLevelSkipped,
+    /// Two elements in one file with the same id.
+    ///
+    /// Every reference naming it -- `aria-labelledby`, `aria-controls`,
+    /// `aria-describedby` -- resolves to the first, so one of the two
+    /// points at the wrong element. It points *somewhere*, which is
+    /// exactly why nothing about it looks broken.
+    A11yDuplicateId,
+    /// One interactive element inside another.
+    ///
+    /// Not a style question: the DOM does not allow it, and a browser
+    /// meeting one reparents the markup -- so what renders is not what
+    /// was written, and the inner control ends up beside the outer one.
+    /// Before that it is ambiguous to everyone, since a press goes to
+    /// whichever handler is closer and a screen reader announces two
+    /// controls occupying one place.
+    A11yInteractiveNesting,
+    /// A press handler on something no keyboard can press.
+    ///
+    /// Two shapes that fail differently. `onClick` on a `View` works
+    /// with a pointer and is not in the tab order and announces as
+    /// nothing -- proposal §10.2's own example. `onPress` on a `View` is
+    /// quieter and worse: neither platform has that prop on a plain
+    /// view, so it reaches the output and does nothing at all.
+    A11yPressWithoutKeyboard,
     /// A `tabIndex` greater than zero.
     ///
     /// Not a local choice, which is what makes it worth a diagnostic
@@ -456,6 +480,15 @@ pub struct PropSet {
     /// event shapes differ between React Native and the DOM.
     pub test_id: Option<ExprRef>,
     pub native_id: Option<ExprRef>,
+    /// The `nativeID`'s value, when it is a literal.
+    ///
+    /// Two elements in one file sharing an id is not a style question:
+    /// every `aria-labelledby`, `aria-controls` and `aria-describedby`
+    /// that names it resolves to the first one, so one of the two
+    /// references silently points at the wrong element -- and the markup
+    /// is invalid besides. The check needs the text; the span says only
+    /// where it was written.
+    pub native_id_literal: Option<String>,
     pub pointer_events: Option<ExprRef>,
     pub accessibility_state: Option<ExprRef>,
     /// The keys `accessibility_state`'s object literal writes, when it is
