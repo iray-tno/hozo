@@ -26,6 +26,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 // can load -- which also makes this a check of what actually ships rather
 // than of what tsc was handed.
 import {
+  HozoCombobox,
   HozoListbox,
   HozoMenu,
   HozoRadioGroup,
@@ -248,4 +249,28 @@ test('only a branch of the tree says whether it is open', () => {
   // And the collapsed branch's child is not rendered at all, which is what
   // makes the rows "what is on screen".
   assert.doesNotMatch(html, /index\.ts/)
+})
+
+test('the combobox field keeps focus and names the option instead', () => {
+  // The structural decision the whole pattern rests on. Focus never leaves
+  // the field -- a field that loses focus stops receiving keystrokes -- so
+  // no option carries a tabindex and none can be focused.
+  const html = renderToStaticMarkup(
+    createElement(HozoCombobox, {
+      accessibilityLabel: 'City',
+      options: [
+        { value: 'mad', label: 'Madrid' },
+        { value: 'man', label: 'Manchester' },
+      ],
+    }),
+  )
+  assert.match(html, /role="combobox"/)
+  assert.match(html, /aria-expanded="false"/)
+  assert.match(html, /aria-autocomplete="list"/)
+  // Closed, so there is nothing to control and nothing to point at:
+  // naming an element that is not in the document is a dangling
+  // reference, and a screen reader following it finds nothing.
+  assert.doesNotMatch(html, /aria-controls/)
+  assert.doesNotMatch(html, /aria-activedescendant/)
+  assert.doesNotMatch(html, /tabindex/)
 })

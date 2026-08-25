@@ -623,3 +623,8 @@ export {
   type HozoListboxOption as ListboxOption,
 } from '@hozo/a11y'
 export { HozoTree as Tree, type HozoTreeProps as TreeProps, type TreeNode } from '@hozo/a11y'
+export {
+  HozoCombobox as Combobox,
+  type HozoComboboxProps as ComboboxProps,
+  type HozoComboboxOption as ComboboxOption,
+} from '@hozo/a11y'

@@ -198,6 +198,48 @@ exactly what a screen reader does not read. On Native there is no such
 attribute at all, so the position goes into the label: "lib, level 2, 2 of
 2". Ugly written down, correct when heard.
 
+## Combobox
+
+```tsx
+import { Combobox } from '@hozo/core'
+
+<Combobox
+  accessibilityLabel="City"
+  autocomplete="both"
+  value={city}
+  onValueChange={setCity}
+  options={[{ value: 'mad', label: 'Madrid' }, { value: 'mil', label: 'Milan' }]}
+/>
+```
+
+The one pattern here where **focus never moves**. Everywhere else the
+thing with focus is the thing you are acting on; a combobox is different
+only because the user is typing, and a field that loses focus stops
+receiving keystrokes. So ArrowDown does not move into the list -- what
+moves is `aria-activedescendant`, an attribute on the field naming an
+option's id, and the screen reader announces that option while the field
+keeps focus. No option carries a `tabIndex`, because an option that can
+take focus is one the field can lose it to.
+
+Getting that wrong is the commonest structural mistake in a hand-built
+combobox, and it is invisible with a mouse: real focus moves into the
+list and typing stops working.
+
+`autocomplete="both"` completes inline and selects the part you did not
+type, so the next keystroke replaces it rather than landing after it. It
+does not complete while you are deleting -- otherwise Backspace on
+"Madrid" leaves "Madri", the completion puts "Madrid" back, and the field
+cannot be cleared one character at a time.
+
+Home and End belong to the text, not to the list.
+
+On Native it is a different control wearing the same name, said plainly
+rather than papered over: there is no `aria-activedescendant` and no
+problem for it to solve, so the list is a list of pressable rows. Inline
+completion is left out because text selection in a React Native
+`TextInput` is per-platform, and a completion that half-works is worse
+than none in the field someone is typing into.
+
 ## Scope
 
 This package grows as patterns are added. Everything in it is here because it needs state, keyboard handling or platform APIs; anything that can be a compile-time attribute is not here.

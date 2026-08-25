@@ -34,3 +34,12 @@ export {
 } from './listbox.tsx'
 export { horizontalMove, visibleRows, type TreeNode, type TreeRow, type TreeMove } from './tree.ts'
 export { HozoTree, type HozoTreeProps } from './treeview.tsx'
+export {
+  activeAfter,
+  filterOptions,
+  inlineCompletion,
+  type Autocomplete,
+  type Completion,
+  type FilterOptions,
+} from './combobox.ts'
+export { HozoCombobox, type HozoComboboxProps, type HozoComboboxOption } from './combo.tsx'
