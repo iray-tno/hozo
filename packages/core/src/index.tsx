@@ -595,3 +595,10 @@ export { TextInput, type TextInputProps } from './text-input.tsx'
 // (proposal §10.3), and that lives in `@hozo/a11y` so there is exactly one
 // implementation for the compiler to lower to and for tests to cover.
 export { HozoDialog as Dialog, type HozoDialogProps as DialogProps } from '@hozo/a11y'
+// Tabs for the same reason. Unlike Dialog it is not a compiler primitive
+// -- there is no `Primitive::Tabs` and nothing lowers to it -- because
+// what a tab strip needs is keyboard behaviour rather than a different
+// element, and a compiler has nothing to contribute to that. It is a
+// component an app imports, and it is here so it is imported from the same
+// place as everything else.
+export { HozoTabs as Tabs, type HozoTabsProps as TabsProps, type HozoTab as Tab } from '@hozo/a11y'
