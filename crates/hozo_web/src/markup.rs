@@ -177,7 +177,7 @@ fn dialog_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
-            message: "Dialog has no accessible name, so a screen reader announces only that a \n                      dialog opened. Add `accessibilityLabel`."
+            message: "Dialog has no accessible name, so a screen reader announces only that a dialog opened. Add `accessibilityLabel`."
                 .to_string(),
             span: node.span,
         });
@@ -186,7 +186,7 @@ fn dialog_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yDialogWithoutDismiss,
             severity: Severity::Warning,
-            message: "Dialog has no `onClose`, so Escape and the Android back button do nothing \n                      and the modal is a trap. Add `onClose`."
+            message: "Dialog has no `onClose`, so Escape and the Android back button do nothing and the modal is a trap. Add `onClose`."
                 .to_string(),
             span: node.span,
         });
@@ -210,7 +210,7 @@ fn text_input_tag(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> &'static st
             diagnostics.push(Diagnostic {
                 code: DiagnosticCode::DynamicPropNotResolved,
                 severity: Severity::Warning,
-                message: "`multiline` decides which element this becomes on Web -- `<textarea>`                           or `<input>` -- and its value isn't known until runtime, so the                           compiler cannot write one. It falls back to `<input>`. Render two                           elements, or make `multiline` a constant."
+                message: "`multiline` decides which element this becomes on Web -- `<textarea>` or `<input>` -- and its value isn't known until runtime, so the compiler cannot write one. It falls back to `<input>`. Render two elements, or make `multiline` a constant."
                     .to_string(),
                 span: node.span,
             });

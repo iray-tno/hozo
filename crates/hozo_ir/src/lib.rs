@@ -1343,7 +1343,7 @@ impl StyleProperty {
         // `hozo_native::viewport_object`.
         match self {
             StyleProperty::Content(_) => Some(
-                "`content-*`: React Native has no generated content. `::before` and `::after`                  are boxes the browser makes, and there is nothing here to make one"
+                "`content-*`: React Native has no generated content. `::before` and `::after` are boxes the browser makes, and there is nothing here to make one"
                     .to_string(),
             ),
             StyleProperty::Display(d) if !d.is_supported_on_native() => Some(format!(
@@ -1499,7 +1499,7 @@ impl StyleProperty {
                 ))
             }
             StyleProperty::MixBlendMode("plus-darker") => Some(
-                "`mix-blend-plus-darker`: React Native's blend modes have plus-lighter and not \n                 plus-darker"
+                "`mix-blend-plus-darker`: React Native's blend modes have plus-lighter and not plus-darker"
                     .to_string(),
             ),
             StyleProperty::Keyword(property, _)
@@ -1525,7 +1525,7 @@ impl StyleProperty {
                 Some(format!("`{property}`: React Native has no such style"))
             }
             StyleProperty::BackgroundBlendMode(_) => Some(
-                "`bg-blend-*`: React Native has `mixBlendMode` but no background-blend-mode -- \n                 there is no separate background layer there to blend against"
+                "`bg-blend-*`: React Native has `mixBlendMode` but no background-blend-mode -- there is no separate background layer there to blend against"
                     .to_string(),
             ),
             // `filter` is real on React Native; `backdrop-filter` is not --
@@ -2220,13 +2220,13 @@ impl Animation {
     /// Verbatim from Tailwind's own definitions.
     pub fn keyframes(self) -> Option<&'static str> {
         Some(match self {
-            Animation::Spin => "@keyframes spin {\n  to {\n    transform: rotate(360deg);\n  }\n}",
+            Animation::Spin => "@keyframes spin { to { transform: rotate(360deg); }\n}",
             Animation::Ping => {
-                "@keyframes ping {\n  75%, 100% {\n    transform: scale(2);\n    opacity: 0;\n  }\n}"
+                "@keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; }\n}"
             }
-            Animation::Pulse => "@keyframes pulse {\n  50% {\n    opacity: 0.5;\n  }\n}",
+            Animation::Pulse => "@keyframes pulse { 50% { opacity: 0.5; }\n}",
             Animation::Bounce => {
-                "@keyframes bounce {\n  0%, 100% {\n    transform: translateY(-25%);\n    \
+                "@keyframes bounce { 0%, 100% { transform: translateY(-25%); \
                  animation-timing-function: cubic-bezier(0.8, 0, 1, 1);\n  }\n  50% {\n    \
                  transform: none;\n    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);\n  }\n}"
             }

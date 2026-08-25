@@ -635,7 +635,7 @@ fn build_node(
                                             code: DiagnosticCode::TailwindVariantCannotMatch,
                                             severity: Severity::Warning,
                                             message: format!(
-                                                "`{}:` compiles to `{}`, which matches a form                                                  control. This is a <{}>, so the rule is                                                  generated and can never apply. Hozo's `TextInput`                                                  is a real `<input>`; nothing else is.",
+                                                "`{}:` compiles to `{}`, which matches a form control. This is a <{}>, so the rule is generated and can never apply. Hozo's `TextInput` is a real `<input>`; nothing else is.",
                                                 state.variant_name(),
                                                 state.selector(),
                                                 web_tag_hint(primitive),

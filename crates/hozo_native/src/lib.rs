@@ -2211,7 +2211,7 @@ fn build_style_entries(
                                         diagnostics.push(unwired_variant(
                                             node,
                                             &format!(
-                                                "`aria-{state}:` in a stacked variant needs an                                                  `accessibilityState` on the same element to                                                  drive it on Native, and this one has none."
+                                                "`aria-{state}:` in a stacked variant needs an `accessibilityState` on the same element to drive it on Native, and this one has none."
                                             ),
                                             Severity::Error,
                                         ));
@@ -2282,7 +2282,7 @@ fn build_style_entries(
                                         diagnostics.push(unwired_variant(
                                             node,
                                             &format!(
-                                                "`{value}` in this stacked variant is not a                                                  pixel width, and React Native has nothing to                                                  resolve it against.",
+                                                "`{value}` in this stacked variant is not a pixel width, and React Native has nothing to resolve it against.",
                                             ),
                                             Severity::Error,
                                         ));
@@ -2305,7 +2305,7 @@ fn build_style_entries(
                                         diagnostics.push(unwired_variant(
                                             node,
                                             &format!(
-                                                "`{value}` in this stacked variant is not a                                                  pixel width, and React Native has nothing to                                                  resolve it against.",
+                                                "`{value}` in this stacked variant is not a pixel width, and React Native has nothing to resolve it against.",
                                             ),
                                             Severity::Error,
                                         ));
@@ -2445,7 +2445,7 @@ fn build_style_entries(
             | Condition::HasSelector(_) => diagnostics.push(unwired_variant(
                 node,
                 &format!(
-                    "`{}:` has no React Native equivalent -- it selects on an attribute, a                      descendant or a CSS feature, and there are no selectors here. On Web the                      same class works.",
+                    "`{}:` has no React Native equivalent -- it selects on an attribute, a descendant or a CSS feature, and there are no selectors here. On Web the same class works.",
                     condition_suffix(&condition).unwrap_or_default()
                 ),
                 Severity::Error,
@@ -2456,12 +2456,12 @@ fn build_style_entries(
             // element knows its own focus; nothing here knows a subtree's.
             Condition::FocusWithin => diagnostics.push(unwired_variant(
                 node,
-                "`focus-within:` asks whether anything *inside* this element has focus, and                  React Native gives an element no way to know that. `focus:` on the element                  that actually takes focus is the version that works on both platforms.",
+                "`focus-within:` asks whether anything *inside* this element has focus, and React Native gives an element no way to know that. `focus:` on the element that actually takes focus is the version that works on both platforms.",
                 Severity::Error,
             )),
             Condition::Target => diagnostics.push(unwired_variant(
                 node,
-                "`target:` matches the element the document's URL fragment points at. React                  Native has no document and no URL to point with, so there is nothing for this                  to be true of. On Web the same class works.",
+                "`target:` matches the element the document's URL fragment points at. React Native has no document and no URL to point with, so there is nothing for this to be true of. On Web the same class works.",
                 Severity::Error,
             )),
             // `read-only:` is the one the compiler can answer: React Native
@@ -2482,7 +2482,7 @@ fn build_style_entries(
                     }
                     None => diagnostics.push(unwired_variant(
                         node,
-                        "`read-only:` needs this element to say whether it is read-only, and                          it doesn't. Add `readOnly` or `editable` -- either spelling -- and                          the style resolves at build time.",
+                        "`read-only:` needs this element to say whether it is read-only, and it doesn't. Add `readOnly` or `editable` -- either spelling -- and the style resolves at build time.",
                         Severity::Error,
                     )),
                 }
@@ -2498,7 +2498,7 @@ fn build_style_entries(
             Condition::PseudoElement(pseudo) => diagnostics.push(unwired_variant(
                 node,
                 &format!(
-                    "`{}:` styles a pseudo-element, which React Native does not have -- its                      styles go to components, and there is no component here to give one to.                      Render the content as a real element instead. On Web the same class works.",
+                    "`{}:` styles a pseudo-element, which React Native does not have -- its styles go to components, and there is no component here to give one to. Render the content as a real element instead. On Web the same class works.",
                     pseudo.variant_name(),
                 ),
                 Severity::Error,
@@ -2506,7 +2506,7 @@ fn build_style_entries(
             Condition::FormState(state) => diagnostics.push(unwired_variant(
                 node,
                 &format!(
-                    "`{}:` is the DOM's constraint validation, which React Native does not                      have -- there is no `required`, no `pattern`, and nothing for `:invalid`                      to be true of. Validate in your own code and drive the style from a                      `className` guard. On Web the same class works.",
+                    "`{}:` is the DOM's constraint validation, which React Native does not have -- there is no `required`, no `pattern`, and nothing for `:invalid` to be true of. Validate in your own code and drive the style from a `className` guard. On Web the same class works.",
                     state.variant_name(),
                 ),
                 Severity::Error,
@@ -2519,7 +2519,7 @@ fn build_style_entries(
                     None => diagnostics.push(unwired_variant(
                         node,
                         &format!(
-                            "`{value}` is not a pixel width, and React Native has nothing to                              resolve it against -- no root font size for `rem`. Write the                              threshold in `px`, or use one of Tailwind's container sizes. On                              Web the same class works.",
+                            "`{value}` is not a pixel width, and React Native has nothing to resolve it against -- no root font size for `rem`. Write the threshold in `px`, or use one of Tailwind's container sizes. On Web the same class works.",
                         ),
                         Severity::Error,
                     )),
@@ -2553,7 +2553,7 @@ fn build_style_entries(
                     None => diagnostics.push(unwired_variant(
                         node,
                         &format!(
-                            "`aria-{state}:` needs an `accessibilityState` on the same element                              to drive it on Native, and this one has none. On Web the same class                              works from the attribute alone."
+                            "`aria-{state}:` needs an `accessibilityState` on the same element to drive it on Native, and this one has none. On Web the same class works from the attribute alone."
                         ),
                         Severity::Error,
                     )),
@@ -2613,7 +2613,7 @@ fn build_style_entries(
                 None => diagnostics.push(unwired_variant(
                     node,
                     &format!(
-                        "`{value}` is not a pixel width, and React Native has nothing to                          resolve it against -- no root font size for `rem`, and a viewport                          unit compared against the viewport answers itself. Write the                          threshold in `px`. On Web the same class works.",
+                        "`{value}` is not a pixel width, and React Native has nothing to resolve it against -- no root font size for `rem`, and a viewport unit compared against the viewport answers itself. Write the threshold in `px`. On Web the same class works.",
                     ),
                     Severity::Error,
                 )),
@@ -2876,7 +2876,7 @@ fn placeholder_props(node: &Node, theme: &Theme) -> Option<Vec<(&'static str, St
 
 fn placeholder_only_reason(property: &StyleProperty) -> Option<String> {
     matches!(property, StyleProperty::PlaceholderColor(_)).then(|| {
-        "`placeholder-*`: React Native carries this as `TextInput`'s `placeholderTextColor` \n         prop, so it only means something on a TextInput"
+        "`placeholder-*`: React Native carries this as `TextInput`'s `placeholderTextColor` prop, so it only means something on a TextInput"
             .to_string()
     })
 }
@@ -3010,11 +3010,11 @@ fn group_unwired_message(inner: &Condition, interaction_context: bool) -> String
     let name = condition_suffix(inner).unwrap_or_else(|| "…".to_string());
     if interaction_context {
         format!(
-            "`group-{name}:` reads a state React Native's Pressable context does not carry.              Only `hover`, `focus`, `focus-visible` and `pressed` are handed down; a              condition on the ancestor's own props is not. On Web the same class works from              the selector."
+            "`group-{name}:` reads a state React Native's Pressable context does not carry. Only `hover`, `focus`, `focus-visible` and `pressed` are handed down; a condition on the ancestor's own props is not. On Web the same class works from the selector."
         )
     } else {
         format!(
-            "`group-{name}:` needs an ancestor that hands its state down, which on React              Native means a `Pressable`. Nothing above this element is one. On Web the same              class works from the selector."
+            "`group-{name}:` needs an ancestor that hands its state down, which on React Native means a `Pressable`. Nothing above this element is one. On Web the same class works from the selector."
         )
     }
 }
@@ -3044,7 +3044,7 @@ fn native_environment(query: Environment) -> Option<Environment> {
 
 fn environment_unwired_message(query: Environment) -> String {
     format!(
-        "`{}:` has no React Native equivalent, so the style is not applied there. On Web the          same class works from a media query.",
+        "`{}:` has no React Native equivalent, so the style is not applied there. On Web the same class works from a media query.",
         environment_name(query)
     )
 }
@@ -4464,7 +4464,7 @@ export const C = (p) => <List {...p}>x</List>
         // choosing not to ship. Reported when used, not at build time:
         // appearing in the scan doesn't prove anything produces it.
         let module = render_candidate_module(&["hover:bg-blue-500".to_string()], &Theme::default());
-        assert!(!module.contains("styles = {\n  \"hover"), "{module}");
+        assert!(!module.contains("styles = { \"hover"), "{module}");
         assert!(module.contains(r#""hover:bg-blue-500": "`hover:bg-blue-500` is conditional"#), "{module}");
     }
 

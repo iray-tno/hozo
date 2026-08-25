@@ -51,7 +51,7 @@ const ARIA_STATE_ATTRS: &[(&str, &str)] = &[
 
 /// The proposal §8.1 "hozo-view" shared base style: applied to every
 /// `View`, emitted once as a shared rule rather than duplicated per node.
-const VIEW_BASE_CSS: &str = ".hozo-view {\n  \
+const VIEW_BASE_CSS: &str = ".hozo-view { \
     display: flex;\n  \
     flex-direction: column;\n  \
     flex-shrink: 0;\n  \
@@ -60,7 +60,7 @@ const VIEW_BASE_CSS: &str = ".hozo-view {\n  \
     box-sizing: border-box;\n\
 }\n\n";
 
-const SCROLL_VIEW_BASE_CSS: &str = ".hozo-scroll-view {\n  \
+const SCROLL_VIEW_BASE_CSS: &str = ".hozo-scroll-view { \
     overflow-x: hidden;\n  \
     overflow-y: auto;\n  \
     -webkit-overflow-scrolling: touch;\n\
@@ -84,7 +84,7 @@ const SCROLL_VIEW_BASE_CSS: &str = ".hozo-scroll-view {\n  \
 /// enabled one. Browsers avoid that by painting disabled *form controls*
 /// with the `GrayText` system colour -- which a `<div role="button">` is
 /// not, and never gets. Same value, so a real `<button>` is unaffected.
-const DISABLED_BASE_CSS: &str = "@media (forced-colors: active) {\n  \
+const DISABLED_BASE_CSS: &str = "@media (forced-colors: active) { \
     [data-hozo-disabled] { color: GrayText; }\n\
 }\n\n";
 
@@ -1368,7 +1368,7 @@ export function Login() {
         assert!(output.css.contains(":where(.hozo-0 > :not(:last-child)) {"));
         assert!(output.css.contains("margin-inline-end: 8px;"));
         // Not on the element itself.
-        assert!(!output.css.contains(".hozo-0 {\n  margin-inline-end"));
+        assert!(!output.css.contains(".hozo-0 { margin-inline-end"));
     }
 
     /// Compiles one element with `classes` and returns its CSS.

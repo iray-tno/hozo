@@ -106,7 +106,7 @@ fn dialog_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
-            message: "Dialog has no accessible name, so a screen reader announces only that a \n                      dialog opened. Add `accessibilityLabel`."
+            message: "Dialog has no accessible name, so a screen reader announces only that a dialog opened. Add `accessibilityLabel`."
                 .to_string(),
             span: node.span,
         });
@@ -115,7 +115,7 @@ fn dialog_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yDialogWithoutDismiss,
             severity: Severity::Warning,
-            message: "Dialog has no `onClose`, so Escape and the Android back button do nothing \n                      and the modal is a trap. Add `onClose`."
+            message: "Dialog has no `onClose`, so Escape and the Android back button do nothing and the modal is a trap. Add `onClose`."
                 .to_string(),
             span: node.span,
         });
@@ -129,10 +129,10 @@ fn missing_label(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'stati
             code: DiagnosticCode::A11yMissingAccessibleName,
             severity: Severity::Warning,
             message: if node.props.has_placeholder {
-                "TextInput has a placeholder but no accessible name. A placeholder is not a \n                 label: it may not be announced as one, and it disappears as soon as the user \n                 types. Add `accessibilityLabel`."
+                "TextInput has a placeholder but no accessible name. A placeholder is not a label: it may not be announced as one, and it disappears as soon as the user types. Add `accessibilityLabel`."
                     .to_string()
             } else {
-                "TextInput has no accessible name, so a screen reader announces only that it is \n                 a text field. Add `accessibilityLabel`."
+                "TextInput has no accessible name, so a screen reader announces only that it is a text field. Add `accessibilityLabel`."
                     .to_string()
             },
             span: node.span,
