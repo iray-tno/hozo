@@ -11,12 +11,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iray-tno/dowel.git",
+    "url": "git+https://github.com/iray-tno/hozo.git",
     "directory": "packages/metro"
   },
-  "homepage": "https://github.com/iray-tno/dowel/tree/main/packages/metro#readme",
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/metro#readme",
   "bugs": {
-    "url": "https://github.com/iray-tno/dowel/issues"
+    "url": "https://github.com/iray-tno/hozo/issues"
   },
   "type": "module",
   "main": "./dist/index.js",

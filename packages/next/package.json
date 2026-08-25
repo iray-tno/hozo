@@ -12,12 +12,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iray-tno/dowel.git",
+    "url": "git+https://github.com/iray-tno/hozo.git",
     "directory": "packages/next"
   },
-  "homepage": "https://github.com/iray-tno/dowel/tree/main/packages/next#readme",
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/next#readme",
   "bugs": {
-    "url": "https://github.com/iray-tno/dowel/issues"
+    "url": "https://github.com/iray-tno/hozo/issues"
   },
   "type": "module",
   "main": "./dist/index.js",

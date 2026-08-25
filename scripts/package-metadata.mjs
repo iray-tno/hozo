@@ -35,7 +35,7 @@ export const VERSION = JSON.parse(
   readFileSync(path.join(root, 'packages', 'compiler', 'package.json'), 'utf8'),
 ).version
 
-const REPOSITORY = 'https://github.com/iray-tno/dowel'
+const REPOSITORY = 'https://github.com/iray-tno/hozo'
 
 /**
  * Per-package entry points and keywords.
