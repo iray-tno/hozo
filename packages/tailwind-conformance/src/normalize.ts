@@ -83,6 +83,20 @@ function resolveVars(value: string, vars: Map<string, string>, depth = 0): strin
     // Set only by an explicit `leading-*`; absent here, so the fallback
     // (the text-size's own line-height) applies.
     replacement = fallback
+  } else if (vars.get(name)?.trim() === 'initial') {
+    // `initial` on a custom property is not a value -- it is the property
+    // reverting to its initial value, and for a `@property` declared
+    // `syntax: "*"` with no `initial-value` that is the guaranteed-invalid
+    // value. So `var(--x, fallback)` takes the fallback and a bare
+    // `var(--x)` is invalid at computed-value time.
+    //
+    // Tailwind spells several utilities this way -- `shadow-initial`,
+    // `inset-shadow-initial`, `text-shadow-initial`, `via-none` -- and
+    // every one of them means "put this register back the way it was".
+    // Substituting the keyword instead produced `box-shadow: … initial`
+    // as the expected value, which is not what any browser computes, and
+    // read as a mismatch against a Hozo output that was right.
+    replacement = fallback
   } else if (vars.has(name)) {
     replacement = vars.get(name)
   } else if (fallback !== undefined) {

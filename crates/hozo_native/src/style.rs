@@ -19,7 +19,7 @@
 //!   property to defer to the way Web's `var(--hozo-color-x)` does.
 
 use hozo_ir::{
-    Align, AlignSelf, BorderStyle, Color, DecorationStyle, Dimension, Display, FilterFunction,
+    Align, AlignSelf, Axis, BorderStyle, Color, DecorationStyle, Dimension, Display, FilterFunction,
     GradientKind, GradientStop,
     Edge,
     FlexDirection,
@@ -232,7 +232,7 @@ pub fn background_image_entry(
 
     let color = |stop: GradientStop| {
         props.iter().find_map(|p| match p {
-            StyleProperty::GradientStopColor(s, c) if *s == stop => Some(resolve_theme_color(c, theme)),
+            StyleProperty::GradientStopColor(s, c) if *s == stop && !c.is_initial() => Some(resolve_theme_color(c, theme)),
             _ => None,
         })
     };
@@ -273,20 +273,35 @@ pub fn background_image_entry(
 /// string, in `FilterFunction` order -- the same order the Web backend
 /// uses, so the two platforms compose identically. React Native 0.76+
 /// accepts the CSS syntax here, so the value text is shared.
-pub fn filter_entry(props: &[StyleProperty]) -> Option<(&'static str, String)> {
-    let mut functions: Vec<(FilterFunction, &str)> = Vec::new();
+pub fn filter_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static str, String)> {
+    let mut functions: Vec<(FilterFunction, String)> = Vec::new();
+    // `drop-shadow-<colour>` repaints the shadow the other utility drew,
+    // the same composition the Web backend does -- React Native takes the
+    // whole chain as a string, so the two sides can share the shape.
+    let drop_shadow_color = props
+        .iter()
+        .find_map(|p| match p {
+            StyleProperty::DropShadowColor(c) if !c.is_initial() => Some(resolve_theme_color(c, theme)),
+            _ => None,
+        });
     for prop in props {
         let StyleProperty::Filter(function, value) = prop else { continue };
         if *function == FilterFunction::None {
             return Some(("filter", "'none'".to_string()));
         }
-        functions.push((*function, value.as_str()));
+        let value = if *function == FilterFunction::DropShadow {
+            repaint_shadow(value, drop_shadow_color.as_deref())
+        } else {
+            value.clone()
+        };
+        functions.push((*function, value));
     }
     if functions.is_empty() {
         return None;
     }
     functions.sort_by_key(|(function, _)| *function);
-    let chain: Vec<&str> = functions.iter().map(|(_, v)| *v).filter(|v| !v.is_empty()).collect();
+    let chain: Vec<&str> =
+        functions.iter().map(|(_, v)| v.as_str()).filter(|v| !v.is_empty()).collect();
     Some(("filter", format!("'{}'", chain.join(" "))))
 }
 
@@ -330,8 +345,15 @@ pub fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'sta
         StyleProperty::RingOffsetWidth(Length::Px(v)) => Some(*v),
         _ => None,
     });
+    // `shadow-initial` and its siblings unset the register, so the layer
+    // keeps its own default -- found and then discarded rather than never
+    // parsed, since it has to beat a `shadow-red-500` written before it.
     let color_of = |find: fn(&StyleProperty) -> Option<&Color>| {
-        props.iter().find_map(find).map(|c| resolve_color(c).trim_matches('\'').to_string())
+        props
+            .iter()
+            .find_map(find)
+            .filter(|c| !c.is_initial())
+            .map(|c| resolve_color(c).trim_matches('\'').to_string())
     };
     let shadow_color = color_of(|p| match p {
         StyleProperty::ShadowColor(c) => Some(c),
@@ -354,9 +376,13 @@ pub fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'sta
     }
     // Under the ring and pushing it outwards, the same as on Web. The
     // register default is white.
+    //
+    // `ring-inset` moves the ring inside the box and the offset with it:
+    // the two layers are concentric and would come apart otherwise.
+    let inset = if props.iter().any(|p| matches!(p, StyleProperty::RingInset)) { "inset " } else { "" };
     if let Some(width) = ring_offset {
         layers.push(format!(
-            "0 0 0 {width}px {}",
+            "{inset}0 0 0 {width}px {}",
             color_of(|p| match p {
                 StyleProperty::RingOffsetColor(c) => Some(c),
                 _ => None,
@@ -366,7 +392,7 @@ pub fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'sta
     }
     if let Some(width) = ring {
         layers.push(format!(
-            "0 0 0 {}px {}",
+            "{inset}0 0 0 {}px {}",
             width + ring_offset.unwrap_or(0.0),
             paint(ring_color)
         ));
@@ -462,8 +488,10 @@ pub fn is_child_scoped(prop: &StyleProperty) -> bool {
         prop,
         StyleProperty::SpaceX(_)
             | StyleProperty::SpaceY(_)
+            | StyleProperty::SpaceReverse(_)
             | StyleProperty::DivideX(_)
             | StyleProperty::DivideY(_)
+            | StyleProperty::DivideReverse(_)
             | StyleProperty::DivideColor(_)
             | StyleProperty::DivideStyle(_)
     )
@@ -478,35 +506,60 @@ pub fn is_child_scoped(prop: &StyleProperty) -> bool {
 /// style at all -- only `borderStyle` -- so the style is written once. That
 /// is not a loss here: only one edge is given a width, so which edges the
 /// style nominally applies to makes no visible difference.
-pub fn child_property_and_value(prop: &StyleProperty, theme: &Theme) -> Vec<(&'static str, String)> {
+pub fn child_property_and_value(
+    prop: &StyleProperty,
+    theme: &Theme,
+    reversed: [bool; 2],
+) -> Vec<(&'static str, String)> {
     let resolve_color = |color: &Color| resolve_theme_color(color, theme);
+    // Which edge carries the gap. Both are always written, which is what
+    // lets a separate `-reverse` utility flip them.
+    let split = |axis: Axis, l: &Dimension| {
+        let gap = dimension_value(l, theme);
+        if reversed[axis as usize] {
+            (gap, "0".to_string())
+        } else {
+            ("0".to_string(), gap)
+        }
+    };
     match prop {
         // Both edges are written, zeroing the leading one, matching what
         // Web emits -- a child with its own margin utility still overrides
         // this, since `HozoSpaced` merges the parent's style behind the
         // child's.
-        StyleProperty::SpaceX(l) => vec![
-            ("marginInlineStart", "0".to_string()),
-            ("marginInlineEnd", dimension_value(l, theme)),
-        ],
-        StyleProperty::SpaceY(l) => {
-            vec![("marginTop", "0".to_string()), ("marginBottom", dimension_value(l, theme))]
+        StyleProperty::SpaceX(l) => {
+            let (start, end) = split(Axis::X, l);
+            vec![("marginInlineStart", start), ("marginInlineEnd", end)]
         }
-        StyleProperty::DivideX(l) => vec![
-            ("borderStyle", "'solid'".to_string()),
-            // RN spells the logical border widths `borderStartWidth`/
-            // `borderEndWidth`; it has no `borderInline*Width`, unlike the
-            // margins just above, which do take the CSS logical names.
-            ("borderStartWidth", "0".to_string()),
-            ("borderEndWidth", dimension_value(l, theme)),
-        ],
-        StyleProperty::DivideY(l) => vec![
-            ("borderStyle", "'solid'".to_string()),
-            ("borderTopWidth", "0".to_string()),
-            ("borderBottomWidth", dimension_value(l, theme)),
-        ],
+        StyleProperty::SpaceY(l) => {
+            let (start, end) = split(Axis::Y, l);
+            vec![("marginTop", start), ("marginBottom", end)]
+        }
+        StyleProperty::DivideX(l) => {
+            let (start, end) = split(Axis::X, l);
+            vec![
+                ("borderStyle", "'solid'".to_string()),
+                // RN spells the logical border widths `borderStartWidth`/
+                // `borderEndWidth`; it has no `borderInline*Width`, unlike
+                // the margins just above, which do take the CSS logical
+                // names.
+                ("borderStartWidth", start),
+                ("borderEndWidth", end),
+            ]
+        }
+        StyleProperty::DivideY(l) => {
+            let (start, end) = split(Axis::Y, l);
+            vec![
+                ("borderStyle", "'solid'".to_string()),
+                ("borderTopWidth", start),
+                ("borderBottomWidth", end),
+            ]
+        }
         StyleProperty::DivideColor(c) => vec![("borderColor", resolve_color(c))],
         StyleProperty::DivideStyle(s) => vec![("borderStyle", border_style_literal(s))],
+        // Read by the widths above, which are the only things that know
+        // how big the gap is.
+        StyleProperty::SpaceReverse(_) | StyleProperty::DivideReverse(_) => Vec::new(),
         _ => Vec::new(),
     }
 }
@@ -895,16 +948,18 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::GridColumn(_)
         | StyleProperty::GridRow(_)
         | StyleProperty::TransitionProperty(_)
-        | StyleProperty::TransitionDuration(_)
-        | StyleProperty::TransitionTimingFunction(_)
+        | StyleProperty::TransitionDuration(..)
+        | StyleProperty::TransitionTimingFunction(..)
         | StyleProperty::Animation(_)
         // Child-scoped: these mean something for the element's children, not
         // for the element, and are routed to `child_property_and_value`
         // before they reach here. Nothing to emit on the element itself.
         | StyleProperty::SpaceX(_)
         | StyleProperty::SpaceY(_)
+        | StyleProperty::SpaceReverse(_)
         | StyleProperty::DivideX(_)
         | StyleProperty::DivideY(_)
+        | StyleProperty::DivideReverse(_)
         | StyleProperty::DivideColor(_)
         | StyleProperty::DivideStyle(_)
         // No React Native equivalent at all; each refused by name upstream.
@@ -1002,13 +1057,21 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::InsetRingWidth(_)
         | StyleProperty::RingOffsetWidth(_)
         | StyleProperty::RingOffsetColor(_)
+        | StyleProperty::RingInset
         | StyleProperty::ShadowColor(_)
         | StyleProperty::InsetShadowColor(_)
         | StyleProperty::InsetRingColor(_)
         | StyleProperty::InsetShadow(_) => vec![],
         // Composed, not emitted here -- see `filter_entry`. `BackdropFilter`
         // is refused upstream: React Native has no such style key.
-        StyleProperty::Filter(..) | StyleProperty::BackdropFilter(..) => vec![],
+        StyleProperty::Filter(..)
+        | StyleProperty::BackdropFilter(..)
+        | StyleProperty::DropShadowColor(_) => vec![],
+        // Refused upstream, with the shadow it would have coloured.
+        StyleProperty::TextShadowColor(_) | StyleProperty::TextShadow(_) => vec![],
+        // Refused upstream: scroll snapping is a ScrollView prop on React
+        // Native, not a style.
+        StyleProperty::ScrollSnapType(_) | StyleProperty::ScrollSnapStrictness(_) => vec![],
         StyleProperty::TextTransform(t) => vec![(
             "textTransform",
             match t {
@@ -1081,9 +1144,34 @@ fn repaint_shadow(shadow: &str, color: Option<&str>) -> String {
     shadow
         .split(',')
         .map(|layer| match layer.rfind("rgb(") {
-            Some(cut) => format!("{}{paint}", &layer[..cut]),
+            // The colour's extent, not everything after it -- a
+            // `drop-shadow(...)` layer has the wrapper's closing bracket
+            // behind the colour, and truncating there left the filter one
+            // bracket short of parsing.
+            Some(cut) => {
+                let end = close_paren(layer, cut + "rgb(".len() - 1);
+                format!("{}{paint}{}", &layer[..cut], &layer[end + 1..])
+            }
             None => layer.trim().to_string(),
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// The index of the `)` closing the `(` at `open`.
+fn close_paren(value: &str, open: usize) -> usize {
+    let mut depth = 0usize;
+    for (index, ch) in value.char_indices().skip(open) {
+        match ch {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return index;
+                }
+            }
+            _ => {}
+        }
+    }
+    value.len() - 1
 }

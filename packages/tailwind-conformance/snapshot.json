@@ -26,12 +26,12 @@
     "skipped": 0
   },
   "refusalAudit": {
-    "refusals": 10096,
+    "refusals": 10402,
     "checkable": 10050,
     "confirmed": 10022,
     "partial": 28,
     "suspect": 0,
-    "uncheckable": 28
+    "uncheckable": 334
   },
   "nativeTypes": {
     "entries": 19106,
@@ -57,14 +57,14 @@
     "inert": 0
   },
   "composed": {
-    "candidates": 3077,
+    "candidates": 3074,
     "value": 3006,
-    "structure": 71,
-    "match": 2438,
-    "mismatch": 599,
-    "unsupported": 6,
-    "skipped": 4,
-    "inert": 30,
+    "structure": 68,
+    "match": 3074,
+    "mismatch": 0,
+    "unsupported": 0,
+    "skipped": 0,
+    "inert": 0,
     "unreachable": 0
   },
   "variants": {

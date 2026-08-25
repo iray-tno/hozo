@@ -55,7 +55,7 @@ mod markup;
 mod style;
 
 use hozo_ir::{
-    AlignSelf, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, Environment, ExprRef,
+    AlignSelf, Axis, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, Environment, ExprRef,
     FormState, GridLine, GridSpan, GridTracks, Length, Node, Primitive,
     Severity, Structural, StyleDeclaration, StyleProperty, TextOverflow, Theme, WhiteSpace,
 };
@@ -283,6 +283,17 @@ fn quote(text: &str) -> String {
 /// written once.
 fn style_pairs<'a>(props: &'a [StyleProperty], theme: &Theme) -> Vec<(&'a str, String)> {
     let mut emitted: Vec<(&'a str, String)> = Vec::new();
+    // Which axes a `-reverse` utility flipped, read across the whole set
+    // because it is a second utility describing the first.
+    let flipped = |axis: Axis| {
+        props.iter().any(|p| {
+            matches!(
+                p,
+                StyleProperty::SpaceReverse(a) | StyleProperty::DivideReverse(a) if *a == axis
+            )
+        })
+    };
+    let reversed = [flipped(Axis::X), flipped(Axis::Y)];
     for prop in props {
         // A child-scoped property (`space-*`/`divide-*`) means something
         // different from a property of the same name on the element itself,
@@ -290,7 +301,7 @@ fn style_pairs<'a>(props: &'a [StyleProperty], theme: &Theme) -> Vec<(&'a str, S
         // children, so the dispatch is on the property rather than on which
         // entry is being built.
         let pairs = if style::is_child_scoped(prop) {
-            style::child_property_and_value(prop, theme)
+            style::child_property_and_value(prop, theme, reversed)
         } else {
             style::property_and_value(prop, theme)
         };
@@ -311,7 +322,7 @@ fn style_pairs<'a>(props: &'a [StyleProperty], theme: &Theme) -> Vec<(&'a str, S
     if let Some(transform) = style::transform_entry(props, theme) {
         emitted.push(transform);
     }
-    if let Some(filter) = style::filter_entry(props) {
+    if let Some(filter) = style::filter_entry(props, theme) {
         emitted.push(filter);
     }
     if let Some(shadow) = style::box_shadow_entry(props, theme) {
@@ -604,8 +615,8 @@ fn render_node(
             && matches!(
                 declaration.property,
                 StyleProperty::TransitionProperty(_)
-                    | StyleProperty::TransitionDuration(_)
-                    | StyleProperty::TransitionTimingFunction(_)
+                    | StyleProperty::TransitionDuration(..)
+                    | StyleProperty::TransitionTimingFunction(..)
             )
         {
             continue;
@@ -787,8 +798,8 @@ fn render_node(
         !matches!(
             d.property,
             StyleProperty::TransitionProperty(_)
-                | StyleProperty::TransitionDuration(_)
-                | StyleProperty::TransitionTimingFunction(_)
+                | StyleProperty::TransitionDuration(..)
+                | StyleProperty::TransitionTimingFunction(..)
         )
     });
     let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
@@ -1747,11 +1758,11 @@ fn native_driver_transition(
     let colors = interactive_colors && includes(&["color", "background-color"]);
     if !opacity && !transform && !colors { return None; }
     let duration = declarations.iter().rev().find_map(|declaration| match declaration.property {
-        StyleProperty::TransitionDuration(duration) => Some(duration),
+        StyleProperty::TransitionDuration(duration, _) => Some(duration),
         _ => None,
     }).unwrap_or(150);
     let timing = declarations.iter().rev().find_map(|declaration| match &declaration.property {
-        StyleProperty::TransitionTimingFunction(timing) => Some(timing.as_str()),
+        StyleProperty::TransitionTimingFunction(timing, _) => Some(timing.as_str()),
         _ => None,
     }).unwrap_or("cubic-bezier(0.4, 0, 0.2, 1)");
     let easing = match timing {

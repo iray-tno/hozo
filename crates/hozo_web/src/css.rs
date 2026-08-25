@@ -15,7 +15,7 @@
 //! correct-but-unresolved, not silently wrong.
 
 use hozo_ir::{
-    Align, AlignSelf, Angle, BorderStyle, Breakpoint, Clamp, Color, Condition, ConditionExpr,
+    Align, AlignSelf, Angle, Axis, BorderStyle, Breakpoint, Clamp, Color, Condition, ConditionExpr,
     FilterFunction, Scale,
     DecorationStyle,
     ColumnCount, Dimension, Display, Edge, Environment, GradientStop, GridLine, GridSpan, GridTracks, MaskSlot,
@@ -431,8 +431,21 @@ fn is_translate(prop: &StyleProperty) -> bool {
 /// fixed by the order its registers appear in the value. A slot cleared by
 /// a `-none` utility contributes an empty register there and so nothing
 /// here.
-fn filter_value(props: &[&StyleProperty], backdrop: bool) -> Option<String> {
-    let mut functions: Vec<(FilterFunction, &str)> = Vec::new();
+fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Option<String> {
+    let mut functions: Vec<(FilterFunction, String)> = Vec::new();
+    // The colour `drop-shadow-<colour>` set, if a second utility set one.
+    // Only for the element's own filter: Tailwind has no
+    // `backdrop-drop-shadow-<colour>`, so there is nothing to repaint on
+    // that side.
+    let drop_shadow_color = (!backdrop)
+        .then(|| {
+            props.iter().find_map(|p| match p {
+                StyleProperty::DropShadowColor(c) => Some(c),
+                _ => None,
+            })
+        })
+        .flatten()
+        .filter(|color| !color.is_initial());
     for prop in props {
         let (function, value) = match (prop, backdrop) {
             (StyleProperty::Filter(f, v), false) | (StyleProperty::BackdropFilter(f, v), true) => {
@@ -444,13 +457,19 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool) -> Option<String> {
         if function == FilterFunction::None {
             return Some("none".to_string());
         }
+        let value = if function == FilterFunction::DropShadow {
+            repaint_shadow(value, drop_shadow_color, theme)
+        } else {
+            value.to_string()
+        };
         functions.push((function, value));
     }
     if functions.is_empty() {
         return None;
     }
     functions.sort_by_key(|(function, _)| *function);
-    let chain: Vec<&str> = functions.iter().map(|(_, v)| *v).filter(|v| !v.is_empty()).collect();
+    let chain: Vec<&str> =
+        functions.iter().map(|(_, v)| v.as_str()).filter(|v| !v.is_empty()).collect();
     // Every slot cleared still leaves a declaration -- Tailwind emits
     // `filter: ` with an empty value, which is what an all-`-none` chain
     // resolves to.
@@ -496,9 +515,15 @@ fn gradient_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     })?;
     let Some((kind, prelude)) = latest else { return Some("none".to_string()) };
 
+    // `via-none` sets the stop to `initial`, which takes it back out of
+    // the list rather than painting it. Kept as a stop that resolves to
+    // nothing rather than never parsed, so it still overrides a
+    // `via-red-500` written before it.
     let color = |stop: GradientStop| {
         props.iter().find_map(|p| match p {
-            StyleProperty::GradientStopColor(s, c) if *s == stop => Some(resolve_theme_color(c, theme)),
+            StyleProperty::GradientStopColor(s, c) if *s == stop && !c.is_initial() => {
+                Some(resolve_theme_color(c, theme))
+            }
             _ => None,
         })
     };
@@ -547,8 +572,73 @@ fn gradient_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     Some(format!("{}({prelude}, {})", kind.css(), stops.join(", ")))
 }
 
+fn is_scroll_snap(prop: &StyleProperty) -> bool {
+    matches!(
+        prop,
+        StyleProperty::ScrollSnapType(_) | StyleProperty::ScrollSnapStrictness(_)
+    )
+}
+
+/// The `scroll-snap-type` an axis and a strictness make between them.
+///
+/// `proximity` is the strictness Tailwind declares as the register's
+/// initial value, so an axis on its own still means something -- and a
+/// strictness on its own means nothing, which is why the axis is what this
+/// requires.
+fn scroll_snap_value(props: &[&StyleProperty]) -> Option<String> {
+    let axis = props.iter().find_map(|p| match p {
+        StyleProperty::ScrollSnapType(axis) => Some(*axis),
+        _ => None,
+    })?;
+    if axis == "none" {
+        return Some("none".to_string());
+    }
+    let strictness = props
+        .iter()
+        .find_map(|p| match p {
+            StyleProperty::ScrollSnapStrictness(s) => Some(*s),
+            _ => None,
+        })
+        .unwrap_or("proximity");
+    Some(format!("{axis} {strictness}"))
+}
+
+/// `text-shadow` and the colour utility that repaints it.
+fn is_text_shadow(prop: &StyleProperty) -> bool {
+    matches!(prop, StyleProperty::TextShadow(_) | StyleProperty::TextShadowColor(_))
+}
+
+/// The `text-shadow` a size and a colour make between them.
+fn text_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
+    let shadow = props.iter().find_map(|p| match p {
+        StyleProperty::TextShadow(value) => Some(value.as_str()),
+        _ => None,
+    })?;
+    // `text-shadow-none` is the property off, and there is nothing in it
+    // to paint.
+    if shadow == "none" {
+        return Some(shadow.to_string());
+    }
+    let color = props
+        .iter()
+        .find_map(|p| match p {
+            StyleProperty::TextShadowColor(c) => Some(c),
+            _ => None,
+        })
+        .filter(|color| !color.is_initial());
+    Some(repaint_shadow(shadow, color, theme))
+}
+
 fn is_filter(prop: &StyleProperty) -> bool {
-    matches!(prop, StyleProperty::Filter(..) | StyleProperty::BackdropFilter(..))
+    matches!(
+        prop,
+        StyleProperty::Filter(..)
+            | StyleProperty::BackdropFilter(..)
+            // Partitioned with the chain because it is composed into one
+            // of its functions rather than emitted: `drop-shadow-blue-500`
+            // is a colour for whatever `drop-shadow-lg` drew.
+            | StyleProperty::DropShadowColor(_)
+    )
 }
 
 fn is_scale_axis(prop: &StyleProperty) -> bool {
@@ -1074,14 +1164,17 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
             .to_string(),
         ),
         StyleProperty::TransitionProperty(p) => ("transition-property", p.clone()),
-        StyleProperty::TransitionDuration(ms) => ("transition-duration", format!("{ms}ms")),
-        StyleProperty::TransitionTimingFunction(f) => ("transition-timing-function", f.clone()),
+        StyleProperty::TransitionDuration(ms, _) => ("transition-duration", format!("{ms}ms")),
+        StyleProperty::TransitionTimingFunction(f, _) => ("transition-timing-function", f.clone()),
         StyleProperty::Animation(a) => ("animation", a.shorthand().to_string()),
         // Never reached: `render_rule` partitions these out into their own
         // child-scoped rule before calling this. Emitting the margin on the
         // element itself would be wrong, so there's nothing sensible to
         // return -- an empty name is filtered by the caller.
-        StyleProperty::SpaceX(_) | StyleProperty::SpaceY(_) => ("", String::new()),
+        StyleProperty::SpaceX(_)
+        | StyleProperty::SpaceY(_)
+        | StyleProperty::SpaceReverse(_)
+        | StyleProperty::DivideReverse(_) => ("", String::new()),
         StyleProperty::TextAlign(align) => (
             "text-align",
             match align {
@@ -1135,11 +1228,21 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         | StyleProperty::InsetRingWidth(_)
         | StyleProperty::RingOffsetWidth(_)
         | StyleProperty::RingOffsetColor(_)
+        | StyleProperty::RingInset
         | StyleProperty::ShadowColor(_)
         | StyleProperty::InsetShadowColor(_)
         | StyleProperty::InsetRingColor(_)
         | StyleProperty::InsetShadow(_) => ("box-shadow", String::new()),
-        // Composed, not emitted here -- see `filter_value`.
+        // Composed, not emitted here -- see `filter_value` and
+        // `text_shadow_value`.
+        StyleProperty::DropShadowColor(_) => ("filter", String::new()),
+        StyleProperty::TextShadowColor(_) | StyleProperty::TextShadow(_) => {
+            ("text-shadow", String::new())
+        }
+        // Composed by `scroll_snap_value`; partitioned out above.
+        StyleProperty::ScrollSnapType(_) | StyleProperty::ScrollSnapStrictness(_) => {
+            ("scroll-snap-type", String::new())
+        }
         StyleProperty::Filter(..) => ("filter", String::new()),
         StyleProperty::BackdropFilter(..) => ("backdrop-filter", String::new()),
         StyleProperty::TextTransform(t) => (
@@ -1528,6 +1631,7 @@ fn is_shadow_layer(prop: &StyleProperty) -> bool {
             | StyleProperty::InsetRingWidth(_)
             | StyleProperty::RingOffsetWidth(_)
             | StyleProperty::RingOffsetColor(_)
+            | StyleProperty::RingInset
             | StyleProperty::ShadowColor(_)
             | StyleProperty::InsetShadowColor(_)
             | StyleProperty::InsetRingColor(_)
@@ -1563,11 +1667,37 @@ fn repaint_shadow(shadow: &str, color: Option<&Color>, theme: &Theme) -> String 
     split_layers(shadow)
         .into_iter()
         .map(|layer| match layer.rfind("rgb(") {
-            Some(cut) => format!("{}{paint}", &layer[..cut]),
+            // The colour's own extent, not everything after it. A
+            // `box-shadow` layer ends at the colour so truncating worked;
+            // a `drop-shadow(…)` layer has the wrapper's `)` behind it,
+            // and dropping that produced a filter one bracket short of
+            // parsing.
+            Some(cut) => {
+                let end = close_paren(layer, cut + "rgb(".len() - 1);
+                format!("{}{paint}{}", &layer[..cut], &layer[end + 1..])
+            }
             None => layer.to_string(),
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// The index of the `)` closing the `(` at `open`.
+fn close_paren(value: &str, open: usize) -> usize {
+    let mut depth = 0usize;
+    for (index, ch) in value.char_indices().skip(open) {
+        match ch {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return index;
+                }
+            }
+            _ => {}
+        }
+    }
+    value.len() - 1
 }
 
 /// A comma-separated shadow list, split on the commas *between* layers --
@@ -1593,7 +1723,13 @@ fn split_layers(value: &str) -> Vec<&str> {
 
 fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     let find_length = |f: fn(&StyleProperty) -> Option<Length>| props.iter().find_map(|p| f(p));
-    let find_color = |f: fn(&StyleProperty) -> Option<&Color>| props.iter().find_map(|p| f(p));
+    // `shadow-initial` and its siblings *unset* the register, so the
+    // layer keeps its own default. Found and then discarded rather than
+    // never parsed, because it has to beat a `shadow-red-500` written
+    // before it.
+    let find_color = |f: fn(&StyleProperty) -> Option<&Color>| {
+        props.iter().find_map(|p| f(p)).filter(|color| !color.is_initial())
+    };
 
     let ring = find_length(|p| match p {
         StyleProperty::RingWidth(l) => Some(*l),
@@ -1656,9 +1792,14 @@ fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     // pushes the ring outwards by its own width. Tailwind's register
     // default is white, which is the assumption that the element sits on
     // a white page -- inherited here rather than second-guessed.
+    // `ring-inset` moves the ring inside the box, and the offset with it:
+    // Tailwind puts `var(--tw-ring-inset,)` at the head of *both* layers,
+    // which are concentric and would come apart otherwise.
+    let ring_inset = props.iter().any(|p| matches!(p, StyleProperty::RingInset));
+    let inset = if ring_inset { "inset " } else { "" };
     if let Some(width) = ring_offset {
         layers.push(format!(
-            "0 0 0 {} {}",
+            "{inset}0 0 0 {} {}",
             length_px(width, theme),
             ring_offset_color
                 .map_or_else(|| "#fff".to_string(), |color| resolve_theme_color(color, theme)),
@@ -1671,7 +1812,7 @@ fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
             Some(offset) => length_px(Length::Px(width.px(theme) + offset.px(theme)), theme),
             None => length_px(width, theme),
         };
-        layers.push(format!("0 0 0 {spread} {}", paint(ring_color)));
+        layers.push(format!("{inset}0 0 0 {spread} {}", paint(ring_color)));
     }
     if let Some(shadow) = shadow {
         // `shadow-none` removes the *shadow* layer, not the whole
@@ -1774,8 +1915,10 @@ fn render_shape(
             p,
             StyleProperty::SpaceX(_)
                 | StyleProperty::SpaceY(_)
+                | StyleProperty::SpaceReverse(_)
                 | StyleProperty::DivideX(_)
                 | StyleProperty::DivideY(_)
+                | StyleProperty::DivideReverse(_)
                 | StyleProperty::DivideColor(_)
                 | StyleProperty::DivideStyle(_)
                 | StyleProperty::PlaceholderColor(_)
@@ -1809,8 +1952,12 @@ fn render_shape(
         rest.into_iter().partition(|p| is_scale_axis(p));
     let (transform_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_transform_function(p));
-    let (spacing_props, own_props): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
+    let (spacing_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_border_spacing(p));
+    let (text_shadow_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
+        rest.into_iter().partition(|p| is_text_shadow(p));
+    let (snap_props, own_props): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
+        rest.into_iter().partition(|p| is_scroll_snap(p));
 
     let mut rules: Vec<String> = Vec::new();
     // `needs_content` on its own is a rule: the hoisted `::before` that
@@ -1829,6 +1976,8 @@ fn render_shape(
         || !scale_props.is_empty()
         || !transform_props.is_empty()
         || !spacing_props.is_empty()
+        || !text_shadow_props.is_empty()
+        || !snap_props.is_empty()
     {
         let mut body = String::new();
         // First, as Tailwind writes it -- and the order matters: a
@@ -1863,11 +2012,18 @@ fn render_shape(
         if let Some(value) = translate_value(&translate_props, theme) {
             body.push_str(&format!("  translate: {value};\n"));
         }
-        if let Some(value) = filter_value(&filter_props, false) {
+        if let Some(value) = text_shadow_value(&text_shadow_props, theme) {
+            body.push_str(&format!("  text-shadow: {value};\n"));
+        }
+        if let Some(value) = scroll_snap_value(&snap_props) {
+            body.push_str(&format!("  scroll-snap-type: {value};
+"));
+        }
+        if let Some(value) = filter_value(&filter_props, false, theme) {
             body.push_str(&format!("  filter: {value};
 "));
         }
-        if let Some(value) = filter_value(&filter_props, true) {
+        if let Some(value) = filter_value(&filter_props, true, theme) {
             // The unprefixed property is not enough: Safari still ships
             // backdrop-filter only behind the -webkit- prefix, and Tailwind
             // emits both.
@@ -1916,8 +2072,20 @@ fn render_shape(
     }
     if !child_props.is_empty() {
         let mut body = String::new();
-        for prop in child_props {
-            for (name, value) in space_declarations(prop, theme) {
+        // Which axes the sibling `-reverse` utilities flipped, read before
+        // the widths are written because it decides which edge each one
+        // goes on.
+        let flipped = |axis: Axis| {
+            child_props.iter().any(|p: &&&StyleProperty| {
+                matches!(
+                    ***p,
+                    StyleProperty::SpaceReverse(a) | StyleProperty::DivideReverse(a) if a == axis
+                )
+            })
+        };
+        let reversed = [flipped(Axis::X), flipped(Axis::Y)];
+        for prop in &child_props {
+            for (name, value) in space_declarations(prop, theme, reversed) {
                 body.push_str(&format!("  {name}: {value};\n"));
             }
         }
@@ -1961,30 +2129,55 @@ pub fn escape_class_selector(class_name: &str) -> String {
 /// Both sides are written, not just the gap-bearing one, because Tailwind
 /// does the same -- its reverse-direction support needs the zero side to
 /// be explicit.
-fn space_declarations(prop: &StyleProperty, theme: &Theme) -> Vec<(&'static str, String)> {
+fn space_declarations(
+    prop: &StyleProperty,
+    theme: &Theme,
+    reversed: [bool; 2],
+) -> Vec<(&'static str, String)> {
     let color_var = |color: &Color| resolve_theme_color(color, theme);
+    // The gap and the zero, in the order the two edges are written. Both
+    // are always written, which is the whole reason a separate `-reverse`
+    // utility can work at all.
+    let split = |axis: Axis, l: &Dimension| {
+        let gap = dimension_value(l, theme);
+        if reversed[axis as usize] {
+            (gap, "0".to_string())
+        } else {
+            ("0".to_string(), gap)
+        }
+    };
     match prop {
-        StyleProperty::SpaceX(l) => vec![
-            ("margin-inline-start", "0".to_string()),
-            ("margin-inline-end", dimension_value(l, theme)),
-        ],
+        StyleProperty::SpaceX(l) => {
+            let (start, end) = split(Axis::X, l);
+            vec![("margin-inline-start", start), ("margin-inline-end", end)]
+        }
         StyleProperty::SpaceY(l) => {
-            vec![("margin-top", "0".to_string()), ("margin-bottom", dimension_value(l, theme))]
+            let (start, end) = split(Axis::Y, l);
+            vec![("margin-top", start), ("margin-bottom", end)]
         }
         // Tailwind writes both edges, zeroing the leading one, so that
         // `divide-x-reverse` can flip which edge carries the border without
         // a different rule. Matching that shape keeps the output identical.
-        StyleProperty::DivideX(l) => vec![
-            ("border-inline-style", "solid".to_string()),
-            ("border-inline-start-width", "0".to_string()),
-            ("border-inline-end-width", dimension_value(l, theme)),
-        ],
-        StyleProperty::DivideY(l) => vec![
-            ("border-bottom-style", "solid".to_string()),
-            ("border-top-style", "solid".to_string()),
-            ("border-top-width", "0".to_string()),
-            ("border-bottom-width", dimension_value(l, theme)),
-        ],
+        StyleProperty::DivideX(l) => {
+            let (start, end) = split(Axis::X, l);
+            vec![
+                ("border-inline-style", "solid".to_string()),
+                ("border-inline-start-width", start),
+                ("border-inline-end-width", end),
+            ]
+        }
+        StyleProperty::DivideY(l) => {
+            let (start, end) = split(Axis::Y, l);
+            vec![
+                ("border-bottom-style", "solid".to_string()),
+                ("border-top-style", "solid".to_string()),
+                ("border-top-width", start),
+                ("border-bottom-width", end),
+            ]
+        }
+        // The flip itself writes nothing: it is read by the width above,
+        // which is the only thing that knows how big the gap is.
+        StyleProperty::SpaceReverse(_) | StyleProperty::DivideReverse(_) => Vec::new(),
         StyleProperty::DivideColor(c) => vec![("border-color", color_var(c))],
         StyleProperty::DivideStyle(s) => {
             let keyword = border_style_keyword(s).to_string();
@@ -2046,11 +2239,11 @@ mod tests {
         ];
         let refs: Vec<&StyleProperty> = props.iter().collect();
         assert_eq!(
-            filter_value(&refs, false),
+            filter_value(&refs, false, &Theme::default()),
             Some("blur(8px) grayscale(100%) invert(100%)".to_string())
         );
         // The element's own chain and the backdrop's are independent.
-        assert_eq!(filter_value(&refs, true), None);
+        assert_eq!(filter_value(&refs, true, &Theme::default()), None);
     }
 
     #[test]
@@ -2060,14 +2253,14 @@ mod tests {
             StyleProperty::Filter(FilterFunction::Invert, "invert(100%)".to_string()),
         ];
         let refs: Vec<&StyleProperty> = cleared.iter().collect();
-        assert_eq!(filter_value(&refs, false), Some("invert(100%)".to_string()));
+        assert_eq!(filter_value(&refs, false, &Theme::default()), Some("invert(100%)".to_string()));
 
         let off = vec![
             StyleProperty::Filter(FilterFunction::Invert, "invert(100%)".to_string()),
             StyleProperty::Filter(FilterFunction::None, String::new()),
         ];
         let refs: Vec<&StyleProperty> = off.iter().collect();
-        assert_eq!(filter_value(&refs, false), Some("none".to_string()));
+        assert_eq!(filter_value(&refs, false, &Theme::default()), Some("none".to_string()));
     }
 
     #[test]

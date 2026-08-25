@@ -38,7 +38,7 @@ import { buildOracle } from './oracle.ts'
  * gradient stop in the catalogue -- a pairing that compiles, produces
  * output, and measures nothing.
  */
-const REGISTER = /var\(\s*(--tw-[\w-]+)/g
+const REGISTER = /var\(\s*(--tw-[\w-]+)\s*([,)])/g
 
 /** Function calls in a value, which is what tells two shapes apart. */
 const FUNCTION = /([\w-]+)\(/g
@@ -49,6 +49,16 @@ interface Rule {
   sets: Set<string>
   /** The ones it reads. */
   reads: Set<string>
+  /**
+   * The ones it reads with no fallback, which are the only ones something
+   * else has to supply.
+   *
+   * `var(--tw-blur,)` has one -- an empty one -- and resolves to nothing
+   * quite happily; the filter chain is built out of nine of those and
+   * every one is optional. `var(--tw-drop-shadow-size)` has none, and a
+   * rule reading it paints nothing until another rule sets it.
+   */
+  needs: Set<string>
   /** Whether it puts anything into a real CSS property. */
   paints: boolean
   /**
@@ -70,6 +80,7 @@ interface Rule {
 function read(candidate: string, block: string): Rule {
   const sets = new Set<string>()
   const reads = new Set<string>()
+  const needs = new Set<string>()
   const properties: string[] = []
   const functions: string[] = []
   let paints = false
@@ -81,11 +92,26 @@ function read(candidate: string, block: string): Rule {
     if (property.startsWith('--tw-')) sets.add(property)
     else if (!property.startsWith('--')) paints = true
     properties.push(property)
-    for (const [, name] of value.matchAll(REGISTER)) reads.add(name)
+    for (const [, name, after] of value.matchAll(REGISTER)) {
+      reads.add(name)
+      if (after === ')') needs.add(name)
+    }
     for (const [, name] of value.matchAll(FUNCTION)) if (name !== 'var') functions.push(name)
   }
   const shape = `${properties.join(',')}|${functions.join(',')}|${[...reads].sort().join(',')}`
-  return { candidate, sets, reads, paints, shape }
+  return { candidate, sets, reads, needs, paints, shape }
+}
+
+/** Whether `block` sets `register` to something rather than to nothing. */
+function fills(block: string, register: string): boolean {
+  for (const declaration of block.split(';')) {
+    const at = declaration.indexOf(':')
+    if (at === -1) continue
+    if (declaration.slice(0, at).trim() !== register) continue
+    const value = declaration.slice(at + 1).trim()
+    if (value !== '' && value !== 'initial') return true
+  }
+  return false
 }
 
 /** The shortest name, then alphabetical, so the choice never drifts. */
@@ -149,7 +175,21 @@ export async function buildComposedCatalog(): Promise<ComposedCatalog> {
       const next: { rule: Rule; path: string[] }[] = []
       for (const { rule, path } of frontier) {
         for (const name of rule.sets) {
-          const here = (readers.get(name) ?? []).filter((other) => painting.has(other))
+          // A consumer that *clears* the register it is being paired
+          // through is not consuming it: `drop-shadow-none` reads
+          // `--tw-drop-shadow` and sets it to nothing, so the pair
+          // measures the clearing rather than the producer.
+          //
+          // Setting it is fine, and common -- `space-y-1` declares
+          // `--tw-space-y-reverse: 0` as its own default and then reads
+          // it, which is exactly what `space-y-reverse` overrides.
+          // Excluding those too left all four reverse utilities with no
+          // consumer at all, which is what `unreachable` is for saying.
+          const here = (readers.get(name) ?? []).filter(
+            (other) =>
+              painting.has(other) &&
+              (!other.sets.has(name) || fills(oracle.rules.get(other.candidate) ?? '', name)),
+          )
           if (here.length > 0) return [cheapest(here).candidate, ...path, producer.candidate]
           for (const via of readers.get(name) ?? []) {
             if (seen.has(via.candidate)) continue
@@ -185,6 +225,49 @@ export async function buildComposedCatalog(): Promise<ComposedCatalog> {
   // not one three hops away. The walk above is what establishes that a
   // producer is reachable at all; it is not what makes two rules a
   // structural pair, and using it for both crossed things that never meet.
+  const byName = new Map(rules.map((rule) => [rule.candidate, rule]))
+
+  /**
+   * Adds whatever the chain still needs to paint.
+   *
+   * A pair can satisfy the producer and still be inert, because reaching a
+   * painted declaration is not the same as filling it: `drop-shadow-black`
+   * writes `--tw-drop-shadow-color` and also `--tw-drop-shadow`, whose
+   * value is `var(--tw-drop-shadow-size)` -- a register nothing in the
+   * pair sets and which has no declared default. The walk finds `blur-lg`
+   * reading `--tw-drop-shadow` and stops, and the result is two utilities
+   * that between them still paint nothing.
+   *
+   * So every register the chain reads has to be set by the chain or have a
+   * `@property` default. Where one is missing, the cheapest rule that sets
+   * it joins the chain. Thirty combinations were inert before this and
+   * none are now.
+   */
+  function complete(chain: string[]): string[] {
+    for (let round = 0; round < 4; round += 1) {
+      const members = chain.map((name) => byName.get(name)).filter((r) => r !== undefined)
+      const set = new Set(members.flatMap((rule) => [...rule.sets]))
+      const missing = members
+        .flatMap((rule) => [...rule.needs])
+        .find((name) => !set.has(name) && !oracle.registerDefaults.has(name))
+      if (missing === undefined) return chain
+      // A supplier that sets the register to nothing is not one.
+      // `drop-shadow-none` is the cheapest rule that mentions
+      // `--tw-drop-shadow-size` and it clears it, so choosing it left the
+      // chain exactly as inert as before and added a utility to the class
+      // attribute for nothing.
+      const suppliers = rules.filter(
+        (rule) =>
+          rule.sets.has(missing) &&
+          !chain.includes(rule.candidate) &&
+          fills(oracle.rules.get(rule.candidate) ?? '', missing),
+      )
+      if (suppliers.length === 0) return chain
+      chain = [cheapest(suppliers).candidate, ...chain]
+    }
+    return chain
+  }
+
   const combinations = new Set<string>()
   const unreachable: string[] = []
   let value = 0
@@ -194,16 +277,21 @@ export async function buildComposedCatalog(): Promise<ComposedCatalog> {
       unreachable.push(producer.candidate)
       continue
     }
-    if (!combinations.has(chain.join(' '))) value += 1
-    combinations.add(chain.join(' '))
+    const whole = complete(chain).join(' ')
+    if (!combinations.has(whole)) value += 1
+    combinations.add(whole)
   }
 
   const before = combinations.size
   for (const producer of perShape(producers)) {
     for (const name of producer.sets) {
-      const here = (readers.get(name) ?? []).filter((other) => painting.has(other))
+      const here = (readers.get(name) ?? []).filter(
+        (other) =>
+          painting.has(other) &&
+          (!other.sets.has(name) || fills(oracle.rules.get(other.candidate) ?? '', name)),
+      )
       for (const consumer of perShape(here)) {
-        combinations.add(`${consumer.candidate} ${producer.candidate}`)
+        combinations.add(complete([consumer.candidate, producer.candidate]).join(' '))
       }
     }
   }

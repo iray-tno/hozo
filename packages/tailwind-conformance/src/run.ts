@@ -656,6 +656,15 @@ record('composed', {
   inert: composedCount('COMPOSITION_ONLY'),
   unreachable: composed.unreachable.length,
 })
+// Named rather than only counted: a producer with no consumer is a hole in
+// this section's own search, and the number alone would say a hole exists
+// without saying where. Four appeared the first time this ran -- every
+// `-reverse` utility at once -- because the rule that keeps a *clearing*
+// consumer out of a pair was written wide enough to exclude a consumer
+// that declares the register's default and then reads it.
+for (const candidate of composed.unreachable) {
+  console.log(`  UNREACHABLE       ${candidate}\n    nothing in the catalogue reads what it writes`)
+}
 for (const result of composedResults) {
   if (result.verdict === 'MATCH') continue
   console.log(`  ${result.verdict.padEnd(17)} ${result.candidate}\n    ${result.detail ?? ''}`)

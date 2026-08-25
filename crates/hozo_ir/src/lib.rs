@@ -963,6 +963,25 @@ pub enum StyleProperty {
     /// `hozo_web::css::box_shadow_value` rather than each emitting text.
     RingOffsetWidth(Length),
     RingOffsetColor(Color),
+    /// `snap-x` / `snap-y` / `snap-both` / `snap-none`, and the strictness
+    /// that `snap-mandatory` / `snap-proximity` set beside them.
+    ///
+    /// One CSS property written by two utilities, so it cannot be a
+    /// `Keyword` -- the axis was one, with `proximity` baked into its
+    /// text, and `snap-mandatory` had nowhere to go. Tailwind keeps the
+    /// strictness in a register with `proximity` as its declared initial
+    /// value, which is why the axis alone still means something.
+    ScrollSnapType(&'static str),
+    ScrollSnapStrictness(&'static str),
+    /// `ring-inset`: the ring drawn inside the element's box.
+    ///
+    /// A flag on the ring rather than a ring of its own -- Tailwind writes
+    /// it as `var(--tw-ring-inset,)` at the head of the ring's own layer,
+    /// with an empty fallback, so the layer reads `inset 0 0 0 …` when the
+    /// utility is present and `0 0 0 …` when it is not. Distinct from
+    /// `inset-ring-*`, which is a separate layer with its own width and
+    /// colour.
+    RingInset,
     /// `shadow-<colour>` / `inset-shadow-<colour>`: the colour every layer
     /// of the matching shadow is painted in.
     ///
@@ -973,6 +992,29 @@ pub enum StyleProperty {
     /// `hozo_web::css::repaint_shadow`.
     ShadowColor(Color),
     InsetShadowColor(Color),
+    /// `text-shadow-<size>`: the shadow list, as its composed CSS text.
+    ///
+    /// A `Keyword` until the colour utility existed. The invariant
+    /// `Keyword` documents is that no CSS property may be reachable both
+    /// as a keyword and as a variant of its own -- the two stop overriding
+    /// each other when they are -- and adding the colour made
+    /// `hozo_web::css` write `text-shadow` from a composition. The test
+    /// that guards it caught this within the same minute; the property
+    /// moving out of the table is what it was asking for.
+    TextShadow(String),
+    /// `drop-shadow-<colour>` / `text-shadow-<colour>`: the same idea for
+    /// the other two shadow families.
+    ///
+    /// They were missing, and nothing could see it. Both compose across
+    /// two utilities exactly as `shadow-*` does, and neither the
+    /// one-utility catalogue nor the hand-written composition list
+    /// contained the pair: `drop-shadow-lg drop-shadow-blue-500` came out
+    /// the default black, and `drop-shadow-blue-500` on its own came out
+    /// as nothing at all. 586 of the first 599 findings from the derived
+    /// composition denominator were these two, which is one colour palette
+    /// times two code paths.
+    DropShadowColor(Color),
+    TextShadowColor(Color),
     /// One function of the `filter` chain, and its already-formatted CSS
     /// argument (`blur(12px)` is `Blur` + `"blur(12px)"`).
     ///
@@ -1007,8 +1049,22 @@ pub enum StyleProperty {
     /// there is imperative (Animated/Reanimated), which is a runtime
     /// dependency rather than a lowering.
     TransitionProperty(String),
-    TransitionDuration(u32),
-    TransitionTimingFunction(String),
+    /// The duration and easing, with where the value came from.
+    ///
+    /// A `transition-*` utility supplies both as well as the property
+    /// list, and Tailwind reads them through registers -- `transition`
+    /// writes `transition-duration: var(--tw-duration, 150ms)` and
+    /// `duration-75` writes the register. So an explicit `duration-*` wins
+    /// wherever it is written, and `duration-75 transition` means 75ms
+    /// just as much as `transition duration-75` does.
+    ///
+    /// Hozo resolves the indirection at build time, which erased that: the
+    /// default was one more declaration in written order, so it won
+    /// whenever `transition` came second. `Origin` is how the two stay
+    /// distinguishable long enough for `dedupe_last_wins` to prefer the
+    /// written one.
+    TransitionDuration(u32, Origin),
+    TransitionTimingFunction(String, Origin),
     /// Carries the named animation rather than its shorthand text so Web
     /// can emit the matching `@keyframes` and Native can select a dedicated
     /// runtime lowering. Native currently wires Spin and refuses the other
@@ -1178,6 +1234,18 @@ pub enum StyleProperty {
     DivideY(Dimension),
     DivideColor(Color),
     DivideStyle(BorderStyle),
+    /// `space-*-reverse` / `divide-*-reverse`: which edge of each child
+    /// carries the gap.
+    ///
+    /// A separate utility from the width, and a composition like every
+    /// other one here: `space-y-1` writes both edges, zeroing the leading
+    /// one, precisely so this can flip them without a second rule. Both
+    /// backends already emitted the zero side and said in a comment that
+    /// it was for the reverse form -- which did not exist yet, and which
+    /// nothing measured, because one utility on its own paints nothing and
+    /// the other was never paired with it.
+    SpaceReverse(Axis),
+    DivideReverse(Axis),
     SpaceX(Dimension),
     SpaceY(Dimension),
     TextAlign(TextAlign),
@@ -1513,6 +1581,24 @@ impl StyleProperty {
                     "`align-{value}`: React Native's verticalAlign is auto, top, bottom or middle"
                 ))
             }
+            // The colour half of a family whose other half React Native
+            // does not have. `text-shadow` is refused by the keyword arm
+            // below and the colour has to be refused with it, or a rule
+            // that says nothing on Native would quietly say nothing *and*
+            // report nothing.
+            // Was refused by the keyword arm below until it stopped being
+            // a keyword; naming it here keeps the refusal it always had.
+            StyleProperty::ScrollSnapType(_) | StyleProperty::ScrollSnapStrictness(_) => Some(
+                "`snap-*`: React Native scroll-snaps through ScrollView's own props, not \
+                 through a style"
+                    .to_string(),
+            ),
+            StyleProperty::TextShadow(_) | StyleProperty::TextShadowColor(_) => Some(
+                "`text-shadow-*`: React Native has textShadowColor, textShadowOffset and \
+                 textShadowRadius on Text and no way to write more than one layer, which is \
+                 what every size in this scale is"
+                    .to_string(),
+            ),
             StyleProperty::MixBlendMode("plus-darker") => Some(
                 "`mix-blend-plus-darker`: React Native's blend modes have plus-lighter and not plus-darker"
                     .to_string(),
@@ -1579,8 +1665,8 @@ impl StyleProperty {
             // absorbing them into props where it can and refusing them
             // where it can't.
             StyleProperty::TransitionProperty(_)
-            | StyleProperty::TransitionDuration(_)
-            | StyleProperty::TransitionTimingFunction(_) => Some(
+            | StyleProperty::TransitionDuration(..)
+            | StyleProperty::TransitionTimingFunction(..) => Some(
                 "CSS transitions: React Native has no declarative transition in its StyleSheet"
                     .to_string(),
             ),
@@ -1988,6 +2074,25 @@ pub enum Color {
     /// author asked for; the whole point of an arbitrary value is that it
     /// escapes the design system.
     Css(String),
+}
+
+impl Color {
+    /// Whether this is `initial` -- the utility that *unsets* a colour
+    /// rather than choosing one.
+    ///
+    /// Tailwind spells it `shadow-initial`, `inset-shadow-initial` and
+    /// `text-shadow-initial`, each setting its register to `initial` so
+    /// the shadow falls back to the colour it carries by default. It is
+    /// not a colour to paint with: putting the keyword where a colour goes
+    /// gives `box-shadow: … initial`, which a browser drops entirely.
+    ///
+    /// So the composers ask this and treat it as "no colour was set",
+    /// which is the output the shadow would have had alone -- and, unlike
+    /// simply declining to parse the utility, it still overrides a
+    /// `shadow-red-500` written before it.
+    pub fn is_initial(&self) -> bool {
+        matches!(self, Color::Keyword("initial"))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2626,6 +2731,32 @@ pub enum MaskStop {
 /// Which edge (or edge pair) a per-side property targets, for the families
 /// where the number of edges makes one variant each impractical.
 ///
+/// Whether a value was asked for or came with something else.
+///
+/// Only for the two `transition-*` supplies, because they are the only
+/// place Hozo resolves a Tailwind register whose fallback and whose
+/// override live in different utilities. Everything else that composes
+/// this way keeps both halves as separate properties.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Origin {
+    /// A utility that exists to set this: `duration-75`, `ease-in`.
+    Written,
+    /// The fallback a `transition-*` utility carries.
+    Default,
+}
+
+/// Which of the two directions a utility runs in.
+///
+/// `X` is the inline axis and `Y` the block one, following Tailwind's own
+/// naming rather than CSS's -- these come from utilities spelled `-x-` and
+/// `-y-`, and renaming them here would only put a translation step between
+/// the class and the code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Axis {
+    X,
+    Y,
+}
+
 /// Named to match the CSS longhand suffixes, so each backend's lookup table
 /// reads as the property list it is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -3188,6 +3319,25 @@ pub fn group_by_condition(declarations: &[StyleDeclaration]) -> Vec<(Condition, 
 /// value), keeping only the last occurrence of each while preserving
 /// overall relative order.
 pub fn dedupe_last_wins(props: Vec<StyleProperty>) -> Vec<StyleProperty> {
+    // Written order decides everything except the two values a
+    // `transition-*` utility carries as fallbacks. Those lose to their own
+    // utility wherever it appears, because Tailwind reads them through a
+    // register rather than a declaration: `duration-75 transition` is 75ms
+    // and so is `transition duration-75`. Resolving the indirection at
+    // build time turned the fallback into an ordinary declaration, and it
+    // beat the explicit one whenever `transition` was written second.
+    let written: std::collections::HashSet<_> = props
+        .iter()
+        .filter(|prop| prop.origin() == Some(Origin::Written))
+        .map(StyleProperty::dedupe_key)
+        .collect();
+    let props: Vec<StyleProperty> = props
+        .into_iter()
+        .filter(|prop| {
+            prop.origin() != Some(Origin::Default) || !written.contains(&prop.dedupe_key())
+        })
+        .collect();
+
     let mut seen = std::collections::HashSet::new();
     let mut kept: Vec<StyleProperty> = Vec::new();
     for prop in props.into_iter().rev() {
@@ -3265,7 +3415,17 @@ impl StyleProperty {
         )
     }
 
-    fn dedupe_key(&self) -> (std::mem::Discriminant<Self>, u32, String) {
+    /// Where this value came from, for the two properties that have an
+    /// answer. See `Origin`.
+    pub fn origin(&self) -> Option<Origin> {
+        match self {
+            StyleProperty::TransitionDuration(_, origin)
+            | StyleProperty::TransitionTimingFunction(_, origin) => Some(*origin),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn dedupe_key(&self) -> (std::mem::Discriminant<Self>, u32, String) {
         if let StyleProperty::Keyword(property, _) = self {
             return (std::mem::discriminant(self), 0, (*property).to_string());
         }
