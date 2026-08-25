@@ -602,3 +602,8 @@ export { HozoDialog as Dialog, type HozoDialogProps as DialogProps } from '@hozo
 // component an app imports, and it is here so it is imported from the same
 // place as everything else.
 export { HozoTabs as Tabs, type HozoTabsProps as TabsProps, type HozoTab as Tab } from '@hozo/a11y'
+export {
+  HozoMenu as Menu,
+  type HozoMenuProps as MenuProps,
+  type HozoMenuItem as MenuItem,
+} from '@hozo/a11y'

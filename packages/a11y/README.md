@@ -60,6 +60,36 @@ and which items are disabled, which index takes focus next. Tabs is the
 first thing on it; menus, toolbars, radio groups and trees are the same
 rule with different parameters.
 
+## Menu
+
+```tsx
+import { Menu } from '@hozo/core'
+
+<Menu
+  trigger="Actions"
+  accessibilityLabel="Actions"
+  items={[
+    { label: 'Duplicate', onSelect: duplicate },
+    { label: 'Delete', onSelect: remove, disabled: locked },
+  ]}
+/>
+```
+
+ArrowDown opens onto the first item and ArrowUp onto the last, which is
+how the bottom of a long menu is reached without arrowing through it.
+Typing jumps: `de` goes to Delete, and pressing the same letter again
+walks through every item starting with it.
+
+Escape closes, and so does choosing an item, and both put focus back on
+the button. That is the part that gets left out and the part that matters
+most -- a menu that closes without returning focus drops the user at the
+top of the document and nothing announces that it happened.
+
+On Native it is a `Modal` with `accessibilityViewIsModal`, so the screen
+behind it stops being readable. The keyboard half has nothing to do there:
+there are no arrow keys and no tab order, and a screen reader reaches the
+menu by swiping the moment it is on screen.
+
 ## Scope
 
 This package grows as patterns are added. Everything in it is here because it needs state, keyboard handling or platform APIs; anything that can be a compile-time attribute is not here.

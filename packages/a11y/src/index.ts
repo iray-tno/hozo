@@ -8,5 +8,13 @@
 
 export { initialFocusIndex, shouldRestoreFocus, type FocusCandidate } from './focus.ts'
 export { nextIndex, tabStops, type Orientation, type RovingKey, type RovingOptions } from './roving.ts'
+export {
+  isTypeaheadKey,
+  nextSearch,
+  searchIndex,
+  TYPEAHEAD_TIMEOUT_MS,
+  type TypeaheadOptions,
+} from './typeahead.ts'
 export { HozoDialog, type HozoDialogProps } from './dialog.tsx'
 export { HozoTabs, type HozoTabsProps, type HozoTab } from './tabs.tsx'
+export { HozoMenu, type HozoMenuProps, type HozoMenuItem } from './menu.tsx'

@@ -5,5 +5,13 @@
 
 export { initialFocusIndex, shouldRestoreFocus, type FocusCandidate } from './focus.ts'
 export { nextIndex, tabStops, type Orientation, type RovingKey, type RovingOptions } from './roving.ts'
+export {
+  isTypeaheadKey,
+  nextSearch,
+  searchIndex,
+  TYPEAHEAD_TIMEOUT_MS,
+  type TypeaheadOptions,
+} from './typeahead.ts'
 export { HozoDialog, type HozoDialogProps } from './dialog.native.tsx'
 export { HozoTabs, type HozoTabsProps, type HozoTab } from './tabs.native.tsx'
+export { HozoMenu, type HozoMenuProps, type HozoMenuItem } from './menu.native.tsx'
