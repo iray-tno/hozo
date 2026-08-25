@@ -45,10 +45,31 @@ const WORSE_WHEN_UP = new Set([
   'skipped',
   'suspect',
   'rejected',
+  // A producer nothing reads is a hole in the composed section, not a
+  // fact about Tailwind: every one of the 3006 was reachable when it was
+  // written, so one appearing means the search for its consumer broke.
+  'unreachable',
 ])
 
-/** Names whose fall is a regression: how much is covered, and correctly. */
-const WORSE_WHEN_DOWN = new Set(['match', 'coverage', 'fidelity', 'covered', 'total', 'comparable'])
+/**
+ * Names whose fall is a regression: how much is covered, and correctly.
+ *
+ * `candidates` is here because a denominator that shrinks is the failure
+ * this whole file exists to catch. It happened: nine variants left the
+ * variant catalogue at once and every number printed about the smaller
+ * set was correct. A denominator is allowed to be small and not allowed
+ * to shrink quietly, so a fall gets the word REGRESSION next to it even
+ * when Tailwind is the one that dropped a utility.
+ */
+const WORSE_WHEN_DOWN = new Set([
+  'match',
+  'coverage',
+  'fidelity',
+  'covered',
+  'total',
+  'comparable',
+  'candidates',
+])
 
 type Section = Record<string, number | string>
 

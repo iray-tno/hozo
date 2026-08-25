@@ -56,6 +56,17 @@
     "skipped": 0,
     "inert": 0
   },
+  "composed": {
+    "candidates": 3077,
+    "value": 3006,
+    "structure": 71,
+    "match": 2438,
+    "mismatch": 599,
+    "unsupported": 6,
+    "skipped": 4,
+    "inert": 30,
+    "unreachable": 0
+  },
   "variants": {
     "total": 22446,
     "match": 22446,

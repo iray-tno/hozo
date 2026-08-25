@@ -9,6 +9,7 @@
 import { auditRefusal, type RefusalAudit, type RefusalVerdict } from './audit.ts'
 import { CANDIDATE_GROUPS, ALL_CANDIDATES, stripVariant } from './candidates.ts'
 import { buildArbitraryCatalog } from './arbitrary-catalog.ts'
+import { buildComposedCatalog } from './composed.ts'
 import { buildCompositionCatalog } from './compositions.ts'
 import { buildVariantCatalog, compareVariant } from './variants.ts'
 import { loadFullCatalog, namespaceOf } from './catalog.ts'
@@ -604,6 +605,58 @@ record('compositions', {
   inert: compositionCount('COMPOSITION_ONLY'),
 })
 for (const result of compositionResults) {
+  if (result.verdict === 'MATCH') continue
+  console.log(`  ${result.verdict.padEnd(17)} ${result.candidate}\n    ${result.detail ?? ''}`)
+}
+
+// == Composed (Tailwind's own registers say which utilities meet) ==========
+//
+// The section above is fifty combinations somebody chose. This one is the
+// same question asked of everything, with the pairing read out of the
+// stylesheet rather than decided: a utility that writes `--tw-ring-color`
+// and one that reads it belong together, and Tailwind says which is which.
+//
+// It closes the largest measurement gap left in this report. Of 23286
+// catalogue entries, 3006 paint nothing on their own and leave the
+// denominator for it -- `ring-*` at 6 of 594, `shadow-*` at 10 of 302,
+// `from-*`/`via-*`/`to-*` at zero of 937. Every one of those verdicts was
+// true and none of them was a measurement.
+//
+// See `composed.ts` for why the two axes are counted separately rather
+// than crossed, and for the `transition` trap that made a naive version
+// pair every gradient stop with the wrong utility.
+const composed = await buildComposedCatalog()
+const composedVars = new Map([...loadThemeVars(), ...composed.registerDefaults])
+const composedResults = composed.candidates.map((candidate) =>
+  compareCandidate(candidate, composed.expected.get(candidate), composedVars),
+)
+const composedCount = (verdict: Verdict) =>
+  composedResults.filter((result) => result.verdict === verdict).length
+console.log(
+  `\n\n== Composed (${composed.candidates.length} derived from ${composed.counts.producers} ` +
+    `producers and ${composed.counts.consumers} consumers) ==\n` +
+    'Which utilities meet is read from the registers Tailwind writes and reads,\n' +
+    'not from a list. Every producer once against the consumer that reaches it,\n' +
+    'plus every producer shape against every consumer shape that reads it.\n\n' +
+    `Match:       ${composedCount('MATCH')}\n` +
+    `Mismatch:    ${composedCount('MISMATCH')}\n` +
+    `Unsupported: ${composedCount('UNSUPPORTED')}\n` +
+    `Skipped:     ${composedCount('SKIPPED')}   (one side unresolvable; no claim made)\n` +
+    `Inert:       ${composedCount('COMPOSITION_ONLY')}   (still paints nothing even combined)\n` +
+    `Unreachable: ${composed.unreachable.length}   (a producer nothing reads -- a hole in this section)`,
+)
+record('composed', {
+  candidates: composed.candidates.length,
+  value: composed.counts.value,
+  structure: composed.counts.structure,
+  match: composedCount('MATCH'),
+  mismatch: composedCount('MISMATCH'),
+  unsupported: composedCount('UNSUPPORTED'),
+  skipped: composedCount('SKIPPED'),
+  inert: composedCount('COMPOSITION_ONLY'),
+  unreachable: composed.unreachable.length,
+})
+for (const result of composedResults) {
   if (result.verdict === 'MATCH') continue
   console.log(`  ${result.verdict.padEnd(17)} ${result.candidate}\n    ${result.detail ?? ''}`)
 }

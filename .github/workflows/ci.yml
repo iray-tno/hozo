@@ -73,7 +73,11 @@ jobs:
     # Generous, because the number that matters is measured on a laptop
     # and CI hardware is slower. Present at all so a hang is a failure
     # rather than an hour.
-    timeout-minutes: 45
+    #
+    # Raised from 45 when the composed section landed: the run before it
+    # took 30 minutes here, and a denominator that grows is the normal
+    # direction of travel for this suite.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
