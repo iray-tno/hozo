@@ -1,0 +1,17 @@
+# Line endings are LF everywhere, including on Windows checkouts.
+#
+# Two files in this repository are generated and then checked, by tests
+# that regenerate them and compare against what is on disk -- that is how
+# `aria.rs` and `tailwind_variants.rs` are kept honest about the ARIA
+# specification and Tailwind's own variant list.
+#
+# GitHub's Windows runners set `core.autocrlf=true`, so a checkout there
+# rewrote every LF to CRLF while the generators kept writing LF. The
+# comparison then failed on every line of both files, for a difference
+# that exists only in the checkout. It passed on Linux, on macOS, and on
+# the Windows machine this is developed on, because none of those rewrite
+# anything -- the one configuration that does is the one nobody was
+# looking at.
+#
+# `text=auto` still lets Git detect binary files and leave them alone.
+* text=auto eol=lf

@@ -11,7 +11,15 @@
 // agreement with Vite, and a mock would be a copy of my belief about it.
 
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -29,7 +37,13 @@ after(async () => {
 })
 
 function project(files: Record<string, string>): string {
-  const root = mkdtempSync(path.join(tmpdir(), 'hozo-dev-'))
+  // Through `realpathSync`, because on macOS `/tmp` is a symlink to
+  // `/private/tmp` and Vite resolves its root before comparing paths
+  // against it. Handing it the unresolved path made every file in the
+  // project "not in cwd" -- on a runner whose `TMPDIR` happens to be
+  // `/tmp`, which is not what a Mac gives you interactively, so this
+  // was invisible outside CI.
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'hozo-dev-')))
   roots.push(root)
   for (const [name, content] of Object.entries(files)) {
     const file = path.join(root, name)

@@ -14,9 +14,11 @@
 // it is handed so a class written during `next dev` reaches the candidate
 // stylesheet without a restart.
 
+import { existsSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
+import { cssFileNameFor } from '@hozo/compiler/lower'
 import {
   scanProject,
   scanSummary,
@@ -118,6 +120,26 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
   // before any module that imports it is compiled, and an empty file here
   // is what makes the import resolve at all.
   writeFileIfChanged(candidateCssPath, project.cache.renderCss(undefined))
+  // And the same treatment for the per-module stylesheets, for the same
+  // reason one layer down. The loader writes a module's CSS beside it and
+  // imports it from the code it returns; Turbopack resolves that import
+  // against a view of the directory it took before the loader ran, so on
+  // a tree where the file does not already exist the build fails with
+  // "Can't resolve ./page.tsx.hozo.css" -- for a file that is on disk by
+  // the time anyone looks.
+  //
+  // It only ever worked because the file survived from a previous build.
+  // Every local run had one; CI checks out a clean tree and was the first
+  // thing to try this from nothing.
+  //
+  // Empty, and only for the extension Turbopack's rule matches. The
+  // loader fills them in, and a module that lowers to no CSS is left with
+  // an empty file nobody imports.
+  for (const file of project.files) {
+    if (!file.endsWith('.tsx')) continue
+    const sidecar = path.join(path.dirname(file), cssFileNameFor(file))
+    if (!existsSync(sidecar)) writeFileSync(sidecar, '')
+  }
   project.cache.persist()
   if (options.debug) {
     console.info(scanSummary(project.stats))

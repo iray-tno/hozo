@@ -105,6 +105,24 @@ export function moduleIdHash(id: string): string {
   return (hash >>> 0).toString(36)
 }
 
+/**
+ * The stylesheet a module of this name writes beside itself.
+ *
+ * Exported because a bundler may need the name *before* the module is
+ * compiled. Turbopack resolves a module's imports against a view of the
+ * directory it took earlier, so a stylesheet the loader writes and then
+ * imports in the same pass does not exist as far as the resolver is
+ * concerned -- `@hozo/next` creates these empty up front for the same
+ * reason it already creates `candidates.css` empty up front.
+ *
+ * Only the plain form. A derived module's name carries a hash of an id
+ * that does not exist until something asks for it, so those cannot be
+ * predicted and are not pre-created.
+ */
+export function cssFileNameFor(file: string): string {
+  return `${path.basename(file)}.hozo.css`
+}
+
 export function sideEffectImport(specifier: string): string {
   return `import ${JSON.stringify(specifier)}\n`
 }
@@ -195,7 +213,7 @@ export function lowerModule(
   const isDerivedModule = id.includes('?')
   const cssFileName = isDerivedModule
     ? `${path.basename(file)}.${moduleIdHash(id)}.hozo.css`
-    : `${path.basename(file)}.hozo.css`
+    : cssFileNameFor(file)
 
   return {
     code: next,
