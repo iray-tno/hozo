@@ -2620,7 +2620,11 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
             return (Condition::HasSelector(selector), tail);
         }
         let (condition, tail) = parse_one_variant(rest);
-        if condition.is_elemental() || condition.is_ambient() {
+        // `is_queryable` rather than `is_ambient`, which differ on exactly
+        // one condition: `has-starting:` would have to mean "has a
+        // descendant that is having its first frame", and Tailwind emits
+        // nothing for it.
+        if condition.is_elemental() || condition.is_queryable() {
             return (Condition::Has(Box::new(condition)), tail);
         }
     }
@@ -2712,6 +2716,12 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     if let Some(rest) = token.strip_prefix("target:") {
         return (Condition::Target, rest);
     }
+    if let Some(rest) = token.strip_prefix("visited:") {
+        return (Condition::Visited, rest);
+    }
+    if let Some(rest) = token.strip_prefix("starting:") {
+        return (Condition::StartingStyle, rest);
+    }
     if let Some((structural, rest)) = structural(token) {
         return (Condition::Structural(structural), rest);
     }
@@ -2726,6 +2736,15 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
         if let Some(rest) = token.strip_prefix(name) {
             return (Condition::FormState(*state), rest);
         }
+    }
+    // Before the container variants, which also start with a character
+    // that is not a letter -- and before anything that could read `*` as
+    // part of a utility name.
+    if let Some(rest) = token.strip_prefix("**:") {
+        return (Condition::Subtree { direct: false }, rest);
+    }
+    if let Some(rest) = token.strip_prefix("*:") {
+        return (Condition::Subtree { direct: true }, rest);
     }
     if let Some((condition, rest)) = container_variant(token) {
         return (condition, rest);
@@ -3222,6 +3241,54 @@ fn parse_border_width_px(suffix: &str) -> Option<Length> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn starting_style_composes_but_cannot_be_asked_about() {
+        assert_eq!(
+            expand_utility("starting:opacity-0"),
+            (Condition::StartingStyle, vec![StyleProperty::Opacity(0.0)])
+        );
+        // Stacking is fine in either order -- it is an at-rule like any
+        // other and nests where it was written.
+        assert_eq!(
+            expand_utility("md:starting:opacity-0").0,
+            Condition::All(vec![
+                Condition::Responsive(Breakpoint::Md),
+                Condition::StartingStyle,
+            ])
+        );
+        // Wrapping is not. `@starting-style` describes a moment in the
+        // rendering process, and there is no element to ask about it and
+        // no absence of it to select on -- so the variant is left
+        // unstripped and reported, which is what Tailwind does by emitting
+        // nothing at all for these four.
+        for token in [
+            "not-starting:opacity-0",
+            "has-starting:opacity-0",
+            "group-starting:opacity-0",
+            "peer-starting:opacity-0",
+        ] {
+            assert!(has_unstripped_variant(token), "{token}");
+        }
+    }
+
+    #[test]
+    fn visited_is_a_plain_pseudo_class_and_composes_every_way() {
+        assert_eq!(
+            expand_utility("visited:text-red-500").0,
+            Condition::Visited
+        );
+        // Unlike `starting:`, this one is a question about an element, so
+        // all four wrappers take it -- Tailwind emits a rule for each.
+        for token in [
+            "not-visited:text-red-500",
+            "has-visited:text-red-500",
+            "group-visited:text-red-500",
+            "peer-visited:text-red-500",
+        ] {
+            assert!(!has_unstripped_variant(token), "{token}");
+        }
+    }
 
     #[test]
     fn parses_opacity_scale() {

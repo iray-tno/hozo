@@ -13,6 +13,7 @@
 use hozo_ir::{
     AccessibilityRole, Child, ConditionExpr, Diagnostic, DiagnosticCode, ExprRef, HeadingLevel,
     NestedNode, Node, PassthroughProp, Primitive, PropSet, Severity, SourceSpan, StyleDeclaration,
+    StyleProperty,
 };
 use oxc_ast::ast::{
     ArrowFunctionExpression, Function, JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue,
@@ -628,6 +629,30 @@ fn build_node(
                             // never match *anything* Hozo emits; these can
                             // match, but only here, so the refusal is per
                             // element rather than per variant.
+                            // A rule the browser will filter. Not about
+                            // Hozo and not about the element: `:visited`
+                            // could leak the user's history, so engines
+                            // apply a handful of colour properties there
+                            // and drop everything else. The CSS is emitted
+                            // regardless, to match Tailwind; this is the
+                            // only warning the author will get that it
+                            // does nothing.
+                            for (condition, properties) in &groups {
+                                if !condition.contains_visited() {
+                                    continue;
+                                }
+                                if properties.iter().all(StyleProperty::survives_visited) {
+                                    continue;
+                                }
+                                diagnostics.push(Diagnostic {
+                                    code: DiagnosticCode::VisitedStyleIgnored,
+                                    severity: Severity::Warning,
+                                    message: format!(
+                                        "`{token}` styles something the browser will discard. A page that could see a `:visited` style could read the user's history, so engines apply only `color`, `background-color`, the border and outline colours, `text-decoration-color`, `caret-color`, `fill` and `stroke` there -- and paint even those fully opaque. The CSS is emitted to match Tailwind; nothing will apply."
+                                    ),
+                                    span: to_span(literal.span()),
+                                });
+                            }
                             for (condition, _) in &groups {
                                 if let Some(state) = form_state_atom(condition) {
                                     if primitive != Primitive::TextInput {

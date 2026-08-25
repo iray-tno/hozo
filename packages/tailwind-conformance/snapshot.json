@@ -57,16 +57,16 @@
     "inert": 0
   },
   "variants": {
-    "total": 17100,
-    "match": 17100,
+    "total": 22446,
+    "match": 22446,
     "mismatch": 0,
     "unsupported": 0
   },
   "nativeVariants": {
-    "total": 17100,
-    "covered": 2268,
-    "restricted": 2268,
-    "refused": 14832,
+    "total": 22446,
+    "covered": 3354,
+    "restricted": 3354,
+    "refused": 19092,
     "silent": 0,
     "noOp": 0
   }

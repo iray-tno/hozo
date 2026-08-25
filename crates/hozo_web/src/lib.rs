@@ -2005,6 +2005,20 @@ const el = {element}
     }
 
     #[test]
+    fn the_subtree_variants_move_the_styled_element_not_the_condition() {
+        // The mirror of `group-`: that moves the condition onto another
+        // element and styles this one, and this styles another element
+        // under the condition as written. Which is why the two orders mean
+        // different things and fall out of the fold rather than a list.
+        assert!(css_for("*:flex").contains(":is(.hozo-0 > *) {"));
+        assert!(css_for("**:flex").contains(":is(.hozo-0 *) {"));
+        // The child is hovered.
+        assert!(css_for("*:hover:flex").contains(":is(.hozo-0 > *):hover"));
+        // The parent is hovered.
+        assert!(css_for("hover:*:flex").contains(":is(.hozo-0:hover > *)"));
+    }
+
+    #[test]
     fn a_container_query_asks_an_ancestor_the_width_question() {
         // Same shape as the viewport query, addressed to a container --
         // and the scale is Tailwind's container one, so `@sm` is 384px

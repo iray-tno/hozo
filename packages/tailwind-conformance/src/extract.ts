@@ -52,7 +52,7 @@ export function extractRules(css: string): Rule[] {
   // nested `@supports`, and nothing for anything else: a top-level
   // at-rule's body is other rules rather than declarations, and a nested
   // conditional's declarations describe a different element state.
-  const stack: { target: Rule | null; opened: boolean }[] = []
+  const stack: { target: Rule | null; opened: boolean; foldInto?: Rule }[] = []
   // The at-rule preludes currently open, outermost first. A nested
   // `@supports` folded into its rule is *not* one of these -- it describes
   // the same element, which is why its declarations were folded in the
@@ -83,7 +83,16 @@ export function extractRules(css: string): Rule[] {
       buffer = ''
       const parent = stack.length > 0 ? stack[stack.length - 1].target : null
       if (name.startsWith('@')) {
-        const folded = name.startsWith('@supports')
+        // Only *inside* a style rule. A top-level `@supports` is an
+        // ordinary conditional block whose body is rules, and treating it
+        // as an enhancement dropped the at-rule from every one of them --
+        // symmetrically, for a long time, because Tailwind writes
+        // `supports-[…]:flex` at the top level too. It stopped being
+        // symmetric the moment Tailwind nested one and Hozo did not:
+        // `before:supports-[display:grid]:flex` reads as a rule with no
+        // condition on one side and a condition on the other, for two
+        // outputs that mean the same thing.
+        const folded = name.startsWith('@supports') && parent !== null
         if (!folded) open.push(name)
         // A conditional at-rule *inside* a style rule is that rule again
         // under a condition, not a different element -- so it becomes its
@@ -92,7 +101,15 @@ export function extractRules(css: string): Rule[] {
         // `::before { content: …; @media … { display: flex } }`, and the
         // `display` was invisible here until this existed.
         const conditional = !folded && parent ? nest(rules, parent.selector, open) : null
-        stack.push({ target: conditional ?? (folded ? parent : null), opened: !folded })
+        // A nested `@supports` gets a rule of its own too, and then gives
+        // back at close whichever declarations restate a property the
+        // enclosing rule already set -- see `settleSupports`.
+        const enhancement = folded && parent ? nest(rules, parent.selector, [...open, name]) : null
+        stack.push({
+          target: conditional ?? enhancement ?? (folded ? parent : null),
+          opened: !folded,
+          foldInto: enhancement ? parent : undefined,
+        })
       } else if (parent) {
         // A nested style rule, resolved against the one containing it.
         // `&` is the parent's selector, which is how CSS nesting reads it
@@ -113,7 +130,9 @@ export function extractRules(css: string): Rule[] {
     if (ch === '}') {
       // A last declaration without its semicolon still counts.
       flush()
-      if (stack.pop()?.opened) open.pop()
+      const frame = stack.pop()
+      if (frame?.opened) open.pop()
+      if (frame?.foldInto && frame.target) settleSupports(frame.target, frame.foldInto)
       continue
     }
 
@@ -145,6 +164,49 @@ function nest(rules: Rule[], selector: string, atRules: string[]): Rule {
   const rule: Rule = { selector, declarations: '', atRules: [...atRules] }
   rules.push(rule)
   return rule
+}
+
+/**
+ * Splits a nested `@supports` between an enhancement and a new rule.
+ *
+ * Two different things wear this shape and they need opposite treatment.
+ *
+ * Tailwind writes a progressive enhancement by setting a property twice --
+ * `--tw-gradient-position: to right`, then the same property again as
+ * `to right in oklab` inside `@supports`. The browsers this compiles for
+ * have the feature, so the enhanced value is the real one, and folding it
+ * into the enclosing rule is what makes the comparison see what will
+ * actually apply.
+ *
+ * `before:supports-[display:grid]:flex` is the other thing. There the
+ * enclosing rule sets `content` and the nested block adds `display` --
+ * a declaration that exists *only* under the condition. Folding that one
+ * in claimed the rule sets `display: flex` unconditionally, which is a
+ * claim about a different rule, and it read as a mismatch against a Hozo
+ * output that was correct.
+ *
+ * The line between them is whether the nested block restates a property
+ * the enclosing rule already has. Same property: an enhancement, folded.
+ * New property: its own rule, under its own at-rule.
+ */
+function settleSupports(nested: Rule, parent: Rule): void {
+  const existing = new Set(propertiesIn(parent.declarations))
+  const kept: string[] = []
+  for (const declaration of nested.declarations.split(';')) {
+    if (declaration.trim() === '') continue
+    const property = declaration.slice(0, declaration.indexOf(':')).trim().toLowerCase()
+    if (existing.has(property)) parent.declarations += `${declaration};`
+    else kept.push(declaration)
+  }
+  nested.declarations = kept.length > 0 ? `${kept.join(';')};` : ''
+}
+
+/** The property names a declaration block sets. */
+function propertiesIn(declarations: string): string[] {
+  return declarations
+    .split(';')
+    .filter((declaration) => declaration.includes(':'))
+    .map((declaration) => declaration.slice(0, declaration.indexOf(':')).trim().toLowerCase())
 }
 
 /** The index of the quote closing the one at `start`. */

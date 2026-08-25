@@ -98,6 +98,13 @@ const VARIANTS = [
   // state of the subtree, the other a fact about the URL.
   'focus-within',
   'target',
+  // A link the user has been to, and the first frame of a transition. The
+  // second is the only variant here whose at-rule is not a query: it nests
+  // like `@media` does and composes like it, but `not-`, `has-`, `group-`
+  // and `peer-` all refuse it, so the stacked pairs this file builds are
+  // where that shows up.
+  'visited',
+  'starting',
   // Form state. Compiled because Hozo's `TextInput` is a real `<input>`,
   // and reported on anything else -- which is why they are compared here
   // on the `View` this file uses and expected to *match*: the diagnostic
@@ -137,6 +144,12 @@ const VARIANTS = [
   '@min-[400px]',
   '@sm/main',
   '@max-md/sidebar',
+  // The two that move the *styled* element rather than the condition,
+  // which is why order matters between them and everything else:
+  // `hover:*:` is the children of a hovered element and `*:hover:` is the
+  // hovered children. Stacking is what this section is for.
+  '*',
+  '**',
   // The rest of the interaction family, here so a stacked combination of
   // two implemented variants is compared rather than assumed.
   'last',
@@ -184,13 +197,22 @@ export interface VariantVerdict {
   detail?: string
 }
 
-/** Every single and stacked pair, kept if Tailwind generates a rule. */
-export async function buildVariantCatalog(): Promise<VariantCatalog> {
+/**
+ * Every single and stacked pair, kept if Tailwind generates a rule.
+ *
+ * `variants` is a parameter so a subset can be checked on its own. The
+ * full list is twenty-odd minutes of Tailwind compiling twenty thousand
+ * candidates, which is the right cost for CI and the wrong one for asking
+ * whether a handful of entries behave.
+ */
+export async function buildVariantCatalog(
+  variants: readonly string[] = VARIANTS,
+): Promise<VariantCatalog> {
   const candidates: string[] = []
   for (const utility of UTILITIES) {
-    for (const one of VARIANTS) {
+    for (const one of variants) {
       candidates.push(`${one}:${utility}`)
-      for (const two of VARIANTS) {
+      for (const two of variants) {
         if (one === two) continue
         candidates.push(`${one}:${two}:${utility}`)
       }
@@ -199,10 +221,47 @@ export async function buildVariantCatalog(): Promise<VariantCatalog> {
 
   const oracle = await buildOracle(candidates)
   const cases: VariantCase[] = []
-  for (const candidate of candidates) {
-    const shapes = shapesFor(oracle.css, escapeForSelector(candidate))
-    if (shapes.length > 0) cases.push({ candidate, expected: shapes })
+  // Which variants got at least one case, tracked here rather than parsed
+  // back out of the candidate strings -- `has-[:focus]` has a colon inside
+  // its brackets, so splitting on colons finds the wrong name for exactly
+  // the entries this is watching.
+  const covered = new Set<string>()
+  for (const utility of UTILITIES) {
+    for (const one of variants) {
+      for (const [candidate, names] of [
+        [`${one}:${utility}`, [one]] as const,
+        ...variants.filter((two) => two !== one).map(
+          (two) => [`${one}:${two}:${utility}`, [one, two]] as const,
+        ),
+      ]) {
+        const shapes = shapesFor(oracle.css, classNamePattern(candidate))
+        if (shapes.length === 0) continue
+        cases.push({ candidate, expected: shapes })
+        for (const name of names) covered.add(name)
+      }
+    }
   }
+
+  // A variant that produced nothing at all is not a gap in Hozo -- it is a
+  // gap in this file. It means Tailwind emitted no rule the search could
+  // find, and the search is the part more likely to be wrong: a candidate
+  // that finds no rule is dropped for producing none, so the count goes
+  // down and nothing says so.
+  //
+  // That is not hypothetical. Nine of these were missing at once, every
+  // one with a bracket in its name, because the class name was escaped for
+  // CSS and then used as a regex -- see `classNamePattern`. The totals
+  // this section reported were correct about everything it looked at and
+  // silent about what it had stopped looking at.
+  const missing = variants.filter((name) => !covered.has(name))
+  if (missing.length > 0) {
+    throw new Error(
+      `${missing.length} variant(s) in this file produced no case at all: ` +
+        `${missing.join(' ')}\nTailwind emitted no rule for them, or the search for it is ` +
+        `wrong. Either way the denominator is smaller than it looks.`,
+    )
+  }
+
   return { cases, vars: new Map([...loadThemeVars(), ...oracle.registerDefaults]) }
 }
 
@@ -341,7 +400,37 @@ function shapesFor(css: string, className: string, isPattern = false): RuleShape
   return shapes
 }
 
-/** How Tailwind escapes a candidate when writing it as a CSS selector. */
-function escapeForSelector(candidate: string): string {
-  return candidate.replace(/[^\w-]/g, (ch) => (ch.charCodeAt(0) > 127 ? ch : `\\\\${ch}`))
+/**
+ * How Tailwind escapes a candidate when writing it as a CSS selector.
+ *
+ * `hover:flex` becomes `hover\:flex`. One backslash, because that is what
+ * is in the stylesheet.
+ */
+export function cssClassName(candidate: string): string {
+  return candidate.replace(/[^\w-]/g, (ch) => (ch.charCodeAt(0) > 127 ? ch : `\\${ch}`))
+}
+
+/**
+ * That name again, as a pattern that matches it and nothing else.
+ *
+ * Two escapings, and they were one function until it silently emptied a
+ * ninth of this section's denominator. A single pass emitting `\\` before
+ * each special character happens to work as a regex for `:` and `@` --
+ * `\\` is a literal backslash and the character follows it plainly -- and
+ * quietly does something else for the characters that mean something to a
+ * regex. `\\[` opens a character class. `\\*` and `\\+` are quantifiers on
+ * the backslash.
+ *
+ * So every candidate with a bracket found no rule, was dropped from the
+ * catalogue for producing none, and was counted as nothing rather than as
+ * a gap: `data-[state=open]`, `has-[:focus]`, `supports-[display:grid]`,
+ * `nth-[2n+1]`, `min-[500px]`, `max-[40rem]`, `@min-[400px]`, and `*` and
+ * `**` besides. Nine variants this file lists, verified by a number that
+ * never included them.
+ *
+ * The escapes are separate now because they are answers to different
+ * questions: what does the stylesheet contain, and how do I look for it.
+ */
+export function classNamePattern(candidate: string): string {
+  return cssClassName(candidate).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

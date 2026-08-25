@@ -442,7 +442,6 @@ mod variant_tests {
         // nothing. `group-hover:` is not an exotic class.
         for class_name in [
             "checked:bg-blue-500",
-            "visited:bg-blue-500",
             "open:bg-blue-500",
             "indeterminate:bg-blue-500",
         ] {
@@ -465,6 +464,12 @@ mod variant_tests {
         assert!(codes("enabled:bg-blue-500").is_empty());
         assert!(codes("group-hover:bg-blue-500").is_empty());
         assert!(codes("peer-hover:bg-blue-500").is_empty());
+        // `visited:` was in that list until the browser's own restriction
+        // became something Hozo could report rather than a reason not to
+        // compile the variant at all. A background colour is one of the
+        // few properties `:visited` keeps, so this one is silent.
+        assert!(codes("visited:bg-blue-500").is_empty());
+        assert!(codes("starting:opacity-0").is_empty());
         // `empty:`, `odd:` and `nth-[2n+1]:` were in that list until the
         // structural family landed.
         assert!(codes("empty:bg-blue-500").is_empty());
@@ -976,6 +981,38 @@ mod form_state_tests {
             codes("View", "not-invalid:flex"),
             vec![DiagnosticCode::TailwindVariantCannotMatch],
         );
+    }
+
+    #[test]
+    fn a_visited_utility_the_browser_will_discard_is_reported() {
+        // The third shape of "this will not do anything", and the only one
+        // that is nobody's fault: the variant is built, the selector
+        // matches the link it was written for, and the browser throws the
+        // declaration away because keeping it would leak the user's
+        // history.
+        for class_name in ["visited:flex", "visited:p-4", "visited:shadow-lg"] {
+            assert_eq!(
+                codes("View", class_name),
+                vec![DiagnosticCode::VisitedStyleIgnored],
+                "{class_name}",
+            );
+        }
+        // The colours it does keep say nothing.
+        for class_name in ["visited:text-red-500", "visited:bg-blue-500", "visited:border-red-500"] {
+            assert!(codes("View", class_name).is_empty(), "{class_name}");
+        }
+        // The restriction is on the *rule*, so it follows `:visited`
+        // wherever in the selector it lands -- including onto an ancestor,
+        // and including through a negation. If `not-visited:` were
+        // unrestricted, the two halves could be compared and the history
+        // read back out of the difference.
+        for class_name in ["group-visited:p-4", "peer-visited:p-4", "not-visited:p-4"] {
+            assert_eq!(
+                codes("View", class_name),
+                vec![DiagnosticCode::VisitedStyleIgnored],
+                "{class_name}",
+            );
+        }
     }
 
     #[test]

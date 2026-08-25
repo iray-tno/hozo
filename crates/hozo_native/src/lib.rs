@@ -145,6 +145,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
         None,
         theme,
         &[],
+        FromAncestor::default(),
         source,
         &mut allocator,
         &mut style_entries,
@@ -446,6 +447,68 @@ fn native_flag(name: &str, value: &ConditionExpr, source: &str) -> String {
     }
 }
 
+/// Declarations an ancestor handed down through `*:` or `**:`.
+///
+/// React Native has no selector, so a style written on the parent has to
+/// arrive at the child as the child's own. The compiler is looking at the
+/// children this would style, which is what makes that possible -- the
+/// same trade `first:` and `odd:` already make.
+///
+/// Two lists because the two variants stop at different depths, and
+/// nothing else in this backend needed that distinction: `inherited`
+/// carries text properties to every descendant and is re-derived at each
+/// level, which is `**:` behaviour and not `*:` behaviour.
+#[derive(Clone, Copy, Default)]
+struct FromAncestor<'a> {
+    /// The parent's `*:`. Applied here, not passed on.
+    direct: &'a [StyleDeclaration],
+    /// An ancestor's `**:`. Applied here and passed on.
+    all: &'a [StyleDeclaration],
+}
+
+/// A parent's subtree declarations, rewritten as the child's own.
+///
+/// The half of the condition that qualifies the parent is kept only when
+/// it is ambient -- a media query, the colour scheme, a container width.
+/// Those are answered by a hook declared once for the whole component, so
+/// a child reads the same binding the parent would. An *elemental* half
+/// is about the parent as an element -- `hover:*:` is the children of a
+/// hovered element -- and React Native has no way to hand that down
+/// except the interaction context `group-` uses. Reported rather than
+/// quietly turned into `*:hover:`, which is a different rule.
+fn subtree_for_children(
+    declarations: &[StyleDeclaration],
+    node: &Node,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> (Vec<StyleDeclaration>, Vec<StyleDeclaration>) {
+    let mut direct = Vec::new();
+    let mut all = Vec::new();
+    for declaration in declarations {
+        let Some((before, after, is_direct)) = declaration.condition.split_subtree() else {
+            continue;
+        };
+        if let Some(elemental) = before.iter().find(|condition| condition.is_elemental()) {
+            let name = condition_suffix(elemental).unwrap_or_else(|| "…".to_string());
+            diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`{name}:` in front of `*:` asks about *this* element while styling its children, and React Native has no way to hand an element's own state down. Put the condition after the `*:` if you meant the children, or move the style to a Pressable and use `group-{name}:` on them. On Web the same class works from the selector."
+                ),
+                Severity::Error,
+            ));
+            continue;
+        }
+        let condition = Condition::all(before.into_iter().chain(after).collect());
+        let rewritten = StyleDeclaration { property: declaration.property.clone(), condition };
+        if is_direct {
+            direct.push(rewritten);
+        } else {
+            all.push(rewritten);
+        }
+    }
+    (direct, all)
+}
+
 fn render_node(
     node: &Node,
     position: SiblingPosition,
@@ -459,6 +522,8 @@ fn render_node(
     // renders at the default size on device while looking right on Web --
     // the silent divergence this backend exists to avoid.
     inherited: &[StyleDeclaration],
+    // Styles an ancestor wrote for this element with `*:` or `**:`.
+    from_ancestor: FromAncestor,
     source: &str,
     allocator: &mut NameAllocator,
     style_entries: &mut Vec<(String, Vec<StyleProperty>)>,
@@ -626,6 +691,36 @@ fn render_node(
     } else {
         style
     };
+
+    // What an ancestor's `*:`/`**:` wrote for this element, before its
+    // own, so the element's own win -- `dedupe_last_wins` keeps the last
+    // of a property, which is where CSS specificity would land too.
+    let style: Vec<StyleDeclaration> = from_ancestor
+        .direct
+        .iter()
+        .cloned()
+        .chain(from_ancestor.all.iter().cloned())
+        .chain(style)
+        .collect();
+    // And what this element writes for its own subtree, taken out before
+    // anything tries to apply it here.
+    let (subtree, style): (Vec<_>, Vec<_>) =
+        style.into_iter().partition(|d| d.condition.split_subtree().is_some());
+    let (to_children, to_descendants) = subtree_for_children(&subtree, node, diagnostics);
+    // An ancestor's `**:` keeps going; a parent's `*:` stops here.
+    let descendants: Vec<StyleDeclaration> =
+        from_ancestor.all.iter().cloned().chain(to_descendants).collect();
+    // A child the compiler cannot read may render anything, so a style
+    // meant for "every child" would reach some of them and not others.
+    if !(to_children.is_empty() && descendants.is_empty())
+        && node.children.iter().any(|c| matches!(c, hozo_ir::Child::Verbatim { .. }))
+    {
+        diagnostics.push(unwired_variant(
+            node,
+            "`*:`/`**:` hands a style to each child, and one of this element's children is an expression or a component the compiler doesn't read. It reaches the children it can see and not that one. On Web the selector reaches all of them.",
+            Severity::Warning,
+        ));
+    }
 
     // Everything else hands its text properties down rather than keeping
     // them: React Native's View has no `fontSize`, so leaving them here
@@ -1065,6 +1160,7 @@ fn render_node(
                     grid.as_ref().and_then(|grid| grid.row_track_count),
                     theme,
                     &descend,
+                    FromAncestor { direct: &to_children, all: &descendants },
                     source,
                     allocator,
                     style_entries,
@@ -1771,6 +1867,11 @@ fn render_verbatim(
             None,
             theme,
             inherited,
+            // Nothing: this element is inside an expression the compiler
+            // only carries, so the `*:` above it could not have been
+            // resolved to reach it either -- which is what the warning at
+            // that element says.
+            FromAncestor::default(),
             source,
             allocator,
             style_entries,
@@ -2459,6 +2560,24 @@ fn build_style_entries(
                 "`focus-within:` asks whether anything *inside* this element has focus, and React Native gives an element no way to know that. `focus:` on the element that actually takes focus is the version that works on both platforms.",
                 Severity::Error,
             )),
+            // Two that are not gaps in this backend so much as questions
+            // the platform cannot be asked. A link the user has been to
+            // needs links and a history to have been in them, and neither
+            // is a thing React Native has. `@starting-style` needs a
+            // declarative first frame, and React Native's transitions take
+            // their starting value as an argument instead -- which is not
+            // a worse answer, only one the author writes rather than one
+            // a class can.
+            Condition::Visited => diagnostics.push(unwired_variant(
+                node,
+                "`visited:` styles a link the user has already been to. React Native has no browsing history and no links to have been in one, so there is nothing here for this to be true of. On Web the same class works -- for colours; the browser discards the rest.",
+                Severity::Error,
+            )),
+            Condition::StartingStyle => diagnostics.push(unwired_variant(
+                node,
+                "`starting:` is the value a property has for its first frame, so a transition has somewhere to start. React Native transitions through `Animated` and Reanimated, which take that starting value as an argument rather than reading it off a rule -- write it there. On Web the same class works.",
+                Severity::Error,
+            )),
             Condition::Target => diagnostics.push(unwired_variant(
                 node,
                 "`target:` matches the element the document's URL fragment points at. React Native has no document and no URL to point with, so there is nothing for this to be true of. On Web the same class works.",
@@ -2525,6 +2644,17 @@ fn build_style_entries(
                     )),
                 }
             }
+            // A subtree marker that survived the partition above, which
+            // means it is wrapped in something -- `not-*:` and the like.
+            // Handing a style down is the answer to `*:`; there is no
+            // answer to the negation of one, because the set it names is
+            // "everything that is not a child of this", which React Native
+            // has no way to enumerate.
+            Condition::Subtree { .. } => diagnostics.push(unwired_variant(
+                node,
+                "`*:`/`**:` is handed to this element's children at build time, and this one is wrapped in a variant that cannot be. On Web the same class works from the selector.",
+                Severity::Error,
+            )),
             Condition::Peer(_) => diagnostics.push(unwired_variant(
                 node,
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
@@ -3144,8 +3274,13 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
             value.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>(),
         )),
         Condition::PseudoElement(pseudo) => Some(pseudo.variant_name().replace('-', "")),
+        Condition::Subtree { direct } => {
+            Some(if *direct { "child".to_string() } else { "descendant".to_string() })
+        }
         Condition::FocusWithin => Some("focuswithin".to_string()),
         Condition::Target => Some("target".to_string()),
+        Condition::Visited => Some("visited".to_string()),
+        Condition::StartingStyle => Some("starting".to_string()),
         // Named by position rather than by content: a selector can hold
         // any character at all, and a style identifier can't. The name
         // only has to be unique within the file and stable across a
@@ -4008,6 +4143,125 @@ export function Login() {
         // ...and the second doesn't get one at all, which is exactly what
         // `:first-child` would do.
         assert!(!output.jsx.contains("hozoStyles.hozo2_first"), "{}", output.jsx);
+    }
+
+    /// Compiles one tree and returns its JSX.
+    fn native_jsx(source: &str) -> LowerOutput {
+        let parsed = hozo_parser::parse_tsx(source);
+        lower(&parsed.roots[0].node, source, &Theme::default())
+    }
+
+    #[test]
+    fn a_style_for_the_children_is_handed_to_each_of_them() {
+        // React Native has no selector, so the parent cannot say
+        // "my children". The compiler is looking at those children, which
+        // is what makes this answerable at all -- the same trade `first:`
+        // and `odd:` already make.
+        let output = native_jsx(
+            r#"
+            import { View, Text } from '@hozo/core'
+            const el = (
+              <View className="*:mt-2">
+                <Text>a</Text>
+                <Text>b</Text>
+              </View>
+            )
+            "#,
+        );
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        // On the children, and not on the parent.
+        assert!(output.jsx.contains("hozo1"), "{}", output.jsx);
+        assert!(output.jsx.contains("hozo2"), "{}", output.jsx);
+        assert!(output.styles.contains("marginTop: 8"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_direct_child_style_stops_at_the_children_and_a_descendant_one_does_not() {
+        let source = r#"
+            import { View, Text } from '@hozo/core'
+            const el = (
+              <View className="CLASS">
+                <View>
+                  <Text>deep</Text>
+                </View>
+              </View>
+            )
+            "#;
+        // `*:` reaches the inner View and stops.
+        let direct = native_jsx(&source.replace("CLASS", "*:mt-2"));
+        assert_eq!(direct.styles.matches("marginTop: 8").count(), 1, "{}", direct.styles);
+        // `**:` reaches the inner View *and* the Text below it.
+        let all = native_jsx(&source.replace("CLASS", "**:mt-2"));
+        assert_eq!(all.styles.matches("marginTop: 8").count(), 2, "{}", all.styles);
+    }
+
+    #[test]
+    fn which_element_the_condition_is_about_survives_the_handing_down() {
+        // The half of this that a selector states and a style object
+        // cannot. `md:*:` is answerable because a breakpoint is a hook
+        // declared once for the component, so a child reads the same
+        // binding. `hover:*:` is not: that is the parent's own state, and
+        // handing it down would silently turn it into `*:hover:`, which is
+        // a different rule.
+        let source = r#"
+            import { View, Text } from '@hozo/core'
+            const el = <View className="CLASS"><Text>a</Text></View>
+            "#;
+        let responsive = native_jsx(&source.replace("CLASS", "md:*:mt-2"));
+        assert!(responsive.diagnostics.is_empty(), "{:?}", responsive.diagnostics);
+        assert!(responsive.jsx.contains("__hozoBp_md"), "{}", responsive.jsx);
+
+        let hovered = native_jsx(&source.replace("CLASS", "hover:*:mt-2"));
+        assert_eq!(hovered.diagnostics.len(), 1, "{:?}", hovered.diagnostics);
+        assert!(
+            hovered.diagnostics[0].message.contains("hand an element's own state down"),
+            "{}",
+            hovered.diagnostics[0].message,
+        );
+
+        // And the other order is the children's own state, which needs
+        // nothing from the parent.
+        let child_hover = native_jsx(&source.replace("CLASS", "*:hover:mt-2"));
+        assert!(
+            !child_hover.diagnostics.iter().any(|d| d.message.contains("own state down")),
+            "{:?}",
+            child_hover.diagnostics,
+        );
+    }
+
+    #[test]
+    fn a_child_the_compiler_cannot_read_is_named_rather_than_skipped() {
+        // "Every child" reaching some of them is the divergence worth a
+        // build message: the selector reaches all of them on Web.
+        let output = native_jsx(
+            r#"
+            import { View, Text } from '@hozo/core'
+            const el = (
+              <View className="*:mt-2">
+                <Text>a</Text>
+                {items.map((i) => <Text key={i}>x</Text>)}
+              </View>
+            )
+            "#,
+        );
+        assert!(
+            output.diagnostics.iter().any(|d| d.message.contains("doesn't read")),
+            "{:?}",
+            output.diagnostics,
+        );
+    }
+
+    #[test]
+    fn the_elements_own_style_wins_over_what_it_was_handed() {
+        // Last-wins, which is where CSS specificity lands too.
+        let output = native_jsx(
+            r#"
+            import { View, Text } from '@hozo/core'
+            const el = <View className="*:mt-2"><Text className="mt-8">a</Text></View>
+            "#,
+        );
+        assert!(output.styles.contains("marginTop: 32"), "{}", output.styles);
+        assert!(!output.styles.contains("marginTop: 8"), "{}", output.styles);
     }
 
     #[test]

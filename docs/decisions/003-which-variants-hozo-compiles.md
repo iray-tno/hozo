@@ -1,6 +1,6 @@
 # 3. Which Tailwind variants Hozo compiles
 
-**Status:** rules settled, coverage in progress
+**Status:** settled; every variant Tailwind defines is compiled or refused with a reason
 **Date:** 2026-08-24
 
 ## Three rules
@@ -55,8 +55,10 @@ Web to no one's benefit.
 | Environment | `motion-safe` `motion-reduce` `portrait` `landscape` `inverted-colors` `ltr` `rtl` `contrast-more` `contrast-less` `forced-colors` `print` `noscript` |
 | Compositional | `not-…` `data-…` `supports-…` |
 | Form state | `required` `optional` `valid` `invalid` `user-valid` `user-invalid` `in-range` `out-of-range` `read-only` `placeholder-shown` `autofill` |
+| Subtree | `*` `**` |
 | Pseudo-element | `before` `after` `placeholder` `selection` `marker` `first-letter` `first-line` `file` `backdrop` |
-| Document | `target` |
+| Document | `target` `visited` |
+| Transition | `starting` |
 | Arbitrary | `[&_p]:`, `[@supports…]:` |
 
 Native compiles all of those except `peer-…`, `has-…`, `not-…`, `data-…`,
@@ -84,7 +86,7 @@ rather than ones whose meaning has a dependency. On Native they are named
 absent, because there the tag was never chosen at all.
 
 `crates/hozo_parser/src/tailwind_variants.rs` is generated from Tailwind
-and holds all 83 names; the conformance suite compares 17100 single and
+and holds all 83 names; the conformance suite compares 22446 single and
 stacked combinations against Tailwind's own output, with nothing
 unsupported and nothing mismatched.
 
@@ -192,6 +194,28 @@ what lets React Native answer them at all. An author who writes
 `@min-[40rem]:` is stating a CSS length and gets the CSS answer, which is
 that Native reports it.
 
+## `*:` moves the styled element, and off the Web that loses something
+
+`group-` and `peer-` move the *condition* onto another element and style
+this one. `*:` and `**:` are the mirror: the condition stays and the
+styled element moves. Which is why they compose by the same fold and need
+no list of combinations — `hover:*:` is the children of a hovered element
+and `*:hover:` is the hovered children, from the order alone.
+
+A selector states which element each half is about. Handing the style down
+to the children, which is the only thing React Native can do, does not.
+So the condition is split at the marker, and the half in front of it is
+kept only when it is *ambient*: a media query, the colour scheme, a
+container width. Those are answered by a hook declared once for the whole
+component, so a child reads the binding the parent would have read. An
+elemental half — `hover:*:` — is about the parent as an element, and
+there is no way to hand that down short of the interaction context
+`group-` uses. It is reported.
+
+Reported rather than quietly turned into `*:hover:`, which is the thing
+worth being careful about: those are different rules, and a compiler that
+silently swaps one for the other is worse than one that refuses.
+
 ## Rule 2 is about the element, not only the variant
 
 The form states sharpened it. `required:`, `invalid:`, `read-only:` and
@@ -215,6 +239,54 @@ is the original rule still doing its job — no Hozo primitive becomes a
 checkbox, a radio, or a form's default button, so there is no element to
 point the report at.
 
+## A denominator can shrink without saying so
+
+The variants section reported "0 mismatches" across a number that had
+quietly stopped including nine of the variants its own list names. Every
+one with a bracket — `data-[state=open]`, `has-[:focus]`,
+`supports-[display:grid]`, `nth-[2n+1]`, `min-[500px]`, `max-[40rem]`,
+`@min-[400px]` — plus `*` and `**`.
+
+One function was doing two escapes. A class name was escaped for CSS and
+the result used as a regular expression, which happens to work for `:` and
+`@` and does something else entirely for the characters a regex reads as
+syntax: `[` opens a character class, `*` and `+` are quantifiers.
+
+The failure mode is what makes it worth a section. A candidate whose rule
+is not found is dropped for producing none — so the total goes down, every
+remaining comparison passes, and the report is *correct about everything
+it looked at* while silent about what it had stopped looking at. Three
+separate additions in one sitting were reported as verified against a
+denominator that never contained them.
+
+The escapes are separate now, and there is a test per metacharacter. But
+the fix that matters is the other one: `buildVariantCatalog` throws when a
+variant in its list produced no case at all. A denominator is allowed to
+be small; it is not allowed to shrink quietly.
+
+The repaired count is 22446 where the reported one was 17100. A third of
+the measurement was missing, and every number printed about it was right.
+
+Fixing the search then exposed two more faults in the extractor, both
+about `@supports` and both invisible until now because they were
+symmetric. A nested `@supports` was folded into its enclosing rule even
+when it added a property the rule did not have — correct for the
+progressive enhancement Tailwind writes gradients with, where the same
+property is restated, and wrong for `before:supports-[display:grid]:flex`,
+where folding claims a `display` that only exists under the condition. And
+a *top-level* `@supports` was classified as folded too, dropping its
+at-rule from every rule inside it. That one had been wrong for as long as
+it had existed, in both directions at once: Tailwind writes
+`supports-[…]:flex` at the top level, so both sides lost the same thing
+and the comparison passed. It stopped being symmetric the first time
+Tailwind nested one and Hozo did not.
+
+That makes five, counting `getClassList()` not enumerating variants and
+`extractRules` not reading CSS nesting. Every one of them was found while
+looking for something else, and in every one of them Hozo's output was
+already correct. The pattern is stable enough to plan around: when a new
+variant appears not to match, check the ruler before the thing measured.
+
 ## What "relatable" means, and how it was got wrong
 
 `group-` and `peer-` wrap whatever variant follows, by recursion rather
@@ -235,18 +307,75 @@ everything in this file.
 ## What is left
 
 Groups ② through ⑤ are done. What remains of Tailwind's 83 names is
-either refused with a reason or genuinely unbuilt:
+either refused with a reason or compiled:
 
 **Refused under rule 2**, because no Hozo primitive becomes the element
-the selector needs: `checked` `indeterminate` `default` `open`.
+the selector needs: `checked` `indeterminate` `default` `open`. Those four
+are the whole of what is left, and each is a decision rather than a
+backlog item.
 
-**Unbuilt:** `visited` and `starting` (`@starting-style`). Both are
-reported by name.
+Container queries are a feature of their own and are done; nothing here
+is a variant left to add, and with `visited:` and `starting:` compiled
+there is nothing left unbuilt either.
 
-`*:` and `**:` — the direct-child and descendant selectors — are still
-unbuilt. They were filed here as container queries, which they are not:
-`*:flex` is `:is(.*:flex > *)`, a selector about children and nothing to
-do with an ancestor's width.
+## `@starting-style` is an at-rule that is not a query
+
+`starting:` compiles to `@starting-style` — the value a property has for
+its first frame, so a transition has somewhere to start. Structurally it
+is an at-rule around the rule, which is exactly what `md:` and
+`supports-[…]:` are, and it nests the same way: Tailwind writes
+`md:starting:` as `@media` around `@starting-style` and `starting:md:` as
+the reverse, and the fold that composes stacked variants already gets that
+right without knowing what either one means.
+
+The difference shows up at the edges. `not-starting:`, `has-starting:`,
+`group-starting:` and `peer-starting:` all emit nothing in Tailwind, and
+the reason is not a gap — it is that `@starting-style` asks nothing. It
+describes a moment in the rendering process rather than a condition on an
+element, so there is no state to select the absence of and no element to
+select it on. "When this is *not* the first frame" is every other frame,
+which is the unprefixed utility.
+
+Hozo had one predicate where it needed two. `is_ambient` meant "contributes
+an at-rule", and `not-`/`has-` were gated on it because until now every
+at-rule condition was also a question. `is_queryable` is that second
+predicate: every ambient condition except this one. Splitting them is what
+makes the four refusals fall out of the parser instead of being a list
+somebody has to keep.
+
+## `visited:` compiles, and the browser throws most of it away
+
+The rule that decides this is rule 2 — do not implement a variant whose
+selector cannot match what Hozo emits — and `visited:` looks like a case
+for it right up until you notice the selector matches fine. `:visited`
+matches the link. It is the *declarations* the browser discards.
+
+History is private, and a `:visited` style that changed anything observable
+would leak it: layout would leak it through element sizes,
+`getComputedStyle` would hand it over outright, a background image would
+leak it through the request. So engines resolve `:visited` against a short
+list of colour properties and drop the rest — and paint the survivors with
+the alpha channel forced opaque, so a half-transparent colour cannot be
+told from an opaque one.
+
+That is a third shape of "this will not do anything", and it needed a third
+diagnostic. `TailwindVariantNotSupported` is about Hozo and says *not built
+yet*. `TailwindVariantCannotMatch` is about the element and says *the rule
+will never apply here*. `VisitedStyleIgnored` is about the browser: the
+variant is built, the rule applies, and the declaration is discarded
+anyway. The fix is unlike either neighbour's — nothing to add and nothing
+to build, only a different utility to reach for.
+
+The CSS is emitted regardless, matching Tailwind byte for byte. Hozo's job
+here is not to second-guess the oracle; it is to say out loud what the
+oracle does not.
+
+One consequence worth stating, because it is the kind of thing a narrower
+implementation gets wrong: the restriction is on the *rule*, not on the
+element. A selector that mentions `:visited` anywhere has its declarations
+filtered, so `group-visited:p-4` is filtered too — and so is
+`not-visited:p-4`, because if the negation were unrestricted the two halves
+could be compared and the history read back out of the difference.
 
 ## Open
 

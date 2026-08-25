@@ -176,6 +176,21 @@ pub enum DiagnosticCode {
     /// perfectly good selector pointed at something that can never be
     /// required.
     TailwindVariantCannotMatch,
+    /// A `visited:` utility the browser will refuse to apply.
+    ///
+    /// The third shape of "this will not do anything", and distinct from
+    /// both of the others. `TailwindVariantNotSupported` is about Hozo and
+    /// `TailwindVariantCannotMatch` is about the element; this one is
+    /// about the *browser*. The variant is compiled, the selector matches
+    /// the link it was written for, and the declaration is discarded
+    /// anyway -- because a page that could observe a `:visited` style
+    /// could read the user's browsing history, so engines apply a short
+    /// list of colour properties there and nothing else.
+    ///
+    /// Worth its own code because the fix is unlike either neighbour's:
+    /// there is nothing to add and nothing to build, only a different
+    /// utility to reach for.
+    VisitedStyleIgnored,
     /// A utility React Native could express, that Hozo doesn't lower yet.
     ///
     /// Distinct from `WebOnlyPropertyOnNative`, and the distinction is the
@@ -2306,6 +2321,15 @@ pub enum Condition {
     /// this repository contained one.
     All(Vec<Condition>),
     Responsive(Breakpoint),
+    /// `*:` and `**:` -- the direct children, and every descendant.
+    ///
+    /// The mirror of `Group`/`Peer`: those move the condition onto a
+    /// different element and leave the styled one where it is, and this
+    /// moves the *styled* element while the condition stays. Which is why
+    /// it composes with the same fold and needs no list of combinations:
+    /// `hover:*:` is the children of a hovered element and `*:hover:` is
+    /// the hovered children, from the order alone.
+    Subtree { direct: bool },
     /// `@sm:`, `@max-md:`, `@min-[400px]:`, and the `/name` forms of each.
     ///
     /// The same question as `Width`, asked of an ancestor rather than the
@@ -2472,6 +2496,39 @@ pub enum Condition {
     /// element or its environment, which is also why React Native has
     /// nothing resembling it: there is no address bar to disagree with.
     Target,
+    /// `visited:`. A link the user has been to before.
+    ///
+    /// The one condition whose *declarations* the browser censors. History
+    /// is private, and a page that could read a `:visited` style back --
+    /// through `getComputedStyle`, through layout, through anything
+    /// observable -- could read the user's history. So engines apply a
+    /// short list of colour properties and silently drop everything else,
+    /// and paint even those with the alpha channel forced opaque.
+    ///
+    /// Hozo emits what Tailwind emits, including for the properties that
+    /// will be dropped, and says so at compile time instead: see
+    /// `StyleProperty::survives_visited`.
+    ///
+    /// React Native has no history, no links to have been to, and nothing
+    /// to censor.
+    Visited,
+    /// `starting:` -- `@starting-style`, the value a property has for the
+    /// first frame so a transition has somewhere to start.
+    ///
+    /// Ambient by the only test that matters to a backend: it is an
+    /// at-rule around the rule rather than a condition on the selector.
+    /// It is not a *query*, though, and that difference is why
+    /// `not-starting:`, `has-starting:`, `group-starting:` and
+    /// `peer-starting:` are all refused -- Tailwind emits nothing for any
+    /// of them. There is no state to test for the absence of and no
+    /// element to test it on; `@starting-style` describes a moment in the
+    /// rendering process, and the only thing that can be said about that
+    /// moment is what the value is during it.
+    ///
+    /// React Native transitions through `Animated`/Reanimated with an
+    /// explicit starting value, which is the author's to write; there is
+    /// no declarative first frame for this to lower to.
+    StartingStyle,
     /// `focus-visible:`. Distinct from `Focus` and not a nicety: it is the
     /// one that doesn't put a ring around a button someone clicked, which
     /// is why it exists at all.
@@ -2961,6 +3018,10 @@ impl Condition {
             | Condition::Width { .. }
             | Condition::Container { .. }
             | Condition::ArbitraryAtRule(_) => true,
+            // An at-rule around the rule, so ambient by the test that
+            // decides what a backend has to do with it -- though not a
+            // query, which is what `is_queryable` is for.
+            Condition::StartingStyle => true,
             // The one condition that is both.
             Condition::Hover => true,
             Condition::Environment(query) => {
@@ -2990,6 +3051,40 @@ impl Condition {
         }
     }
 
+    /// Splits a condition at its subtree marker.
+    ///
+    /// Returns what qualifies the *parent*, what qualifies the *child*,
+    /// and which of the two markers it was. `None` when there is no
+    /// marker, which is nearly every condition.
+    ///
+    /// The split matters only off the Web. A selector says which element
+    /// each half is about -- `:is(.x:hover > *)` and `:is(.x > *):hover`
+    /// are different rules. Handing the style down to the children loses
+    /// that, so a backend without selectors has to know which half it is
+    /// holding.
+    pub fn split_subtree(&self) -> Option<(Vec<Condition>, Vec<Condition>, bool)> {
+        match self {
+            Condition::Subtree { direct } => Some((Vec::new(), Vec::new(), *direct)),
+            Condition::All(conditions) => {
+                let at = conditions
+                    .iter()
+                    .position(|c| matches!(c, Condition::Subtree { .. }))?;
+                let direct = matches!(conditions[at], Condition::Subtree { direct: true });
+                Some((conditions[..at].to_vec(), conditions[at + 1..].to_vec(), direct))
+            }
+            _ => None,
+        }
+    }
+
+    /// One condition from a list, as the backends want it.
+    pub fn all(mut conditions: Vec<Condition>) -> Condition {
+        match conditions.len() {
+            0 => Condition::Always,
+            1 => conditions.pop().expect("length checked"),
+            _ => Condition::All(conditions),
+        }
+    }
+
     /// Whether `not-` can negate this condition.
     ///
     /// Everything with a form to negate, which is everything except
@@ -2999,12 +3094,49 @@ impl Condition {
     /// the backend rather than a fact about the variant, and the backend
     /// returns a list now.
     pub fn is_negatable(&self) -> bool {
-        self.is_ambient() || self.is_elemental()
+        self.is_queryable() || self.is_elemental()
+    }
+
+    /// Whether `:visited` appears anywhere in this condition.
+    ///
+    /// Anywhere, because the browser's restriction is on the *rule*, not
+    /// on the element: a selector that mentions `:visited` at all has its
+    /// declarations filtered, and that includes the ones that mention it
+    /// on some other element. `group-visited:p-4` styles a descendant of a
+    /// visited link and is filtered just the same, and so is
+    /// `not-visited:p-4` -- if the negation were unrestricted, the two
+    /// halves could be compared and the history read back out of the
+    /// difference.
+    pub fn contains_visited(&self) -> bool {
+        match self {
+            Condition::Visited => true,
+            Condition::All(conditions) => conditions.iter().any(Condition::contains_visited),
+            Condition::Not(inner)
+            | Condition::Group(inner)
+            | Condition::Peer(inner)
+            | Condition::Has(inner) => inner.contains_visited(),
+            _ => false,
+        }
+    }
+
+    /// Whether this is a *question* -- something that can be true or false
+    /// of an element or its environment.
+    ///
+    /// Every ambient condition except one. `@starting-style` is the
+    /// exception: it is an at-rule, so it is ambient, but it asks nothing.
+    /// Negating it, or putting it inside `:has()`, would have to mean
+    /// "when the element is *not* being rendered for the first frame",
+    /// which is every other frame -- the unprefixed utility. Tailwind
+    /// emits nothing for `not-starting:` or `has-starting:` and this is
+    /// how that refusal is spelled here.
+    pub fn is_queryable(&self) -> bool {
+        !matches!(self, Condition::StartingStyle) && self.is_ambient()
     }
 
     pub fn is_elemental(&self) -> bool {
         match self {
             Condition::Always
+            | Condition::StartingStyle
             | Condition::Dark
             | Condition::Responsive(_)
             | Condition::Width { .. }
@@ -3088,6 +3220,51 @@ impl StyleProperty {
     /// them apart. It is a string rather than a number on purpose --
     /// hashing into the integer would make a collision silently drop a
     /// declaration, which is the failure this key exists to prevent.
+    /// Whether a browser will apply this property inside `:visited`.
+    ///
+    /// History is private, and a `:visited` style that changed anything
+    /// observable would leak it: layout would leak it through element
+    /// sizes, `getComputedStyle` would hand it over outright, even a
+    /// background image would leak it through the request. So engines
+    /// resolve `:visited` against a short list of colour properties and
+    /// discard the rest, and paint the survivors with the alpha channel
+    /// forced opaque so a half-transparent colour cannot be told from an
+    /// opaque one.
+    ///
+    /// The list is the union of what the Selectors spec names and what
+    /// Chromium, Gecko and WebKit actually implement, taken wide on
+    /// purpose: this decides whether Hozo *warns*, and warning about a
+    /// property that does work is worse than staying quiet about one that
+    /// doesn't.
+    ///
+    /// `RingColor` and `ShadowColor` are deliberately absent even though
+    /// their names say colour. They reach `box-shadow`, which is not on
+    /// the list, and they get there through a custom property, which is
+    /// not on it either.
+    pub fn survives_visited(&self) -> bool {
+        matches!(
+            self,
+            StyleProperty::TextColor(_)
+                | StyleProperty::BackgroundColor(_)
+                | StyleProperty::BorderColor(_)
+                | StyleProperty::BorderTopColor(_)
+                | StyleProperty::BorderRightColor(_)
+                | StyleProperty::BorderBottomColor(_)
+                | StyleProperty::BorderLeftColor(_)
+                | StyleProperty::BorderInlineColor(_)
+                | StyleProperty::BorderBlockColor(_)
+                | StyleProperty::BorderInlineStartColor(_)
+                | StyleProperty::BorderInlineEndColor(_)
+                | StyleProperty::BorderBlockStartColor(_)
+                | StyleProperty::BorderBlockEndColor(_)
+                | StyleProperty::OutlineColor(_)
+                | StyleProperty::TextDecorationColor(_)
+                | StyleProperty::CaretColor(_)
+                | StyleProperty::Fill(_)
+                | StyleProperty::Stroke(_)
+        )
+    }
+
     fn dedupe_key(&self) -> (std::mem::Discriminant<Self>, u32, String) {
         if let StyleProperty::Keyword(property, _) = self {
             return (std::mem::discriminant(self), 0, (*property).to_string());

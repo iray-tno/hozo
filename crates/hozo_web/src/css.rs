@@ -1482,8 +1482,21 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         Condition::PseudoElement(pseudo) => {
             pseudo.suffixes().into_iter().map(|s| (Vec::new(), s.to_string())).collect()
         }
+        // `:is()` around it is Tailwind's, and it is what keeps the
+        // specificity at the parent's rather than the parent-plus-child
+        // it would otherwise be.
+        Condition::Subtree { direct } => {
+            one(Vec::new(), if *direct { ":is(& > *)" } else { ":is(& *)" })
+        }
         Condition::FocusWithin => one(Vec::new(), "&:focus-within"),
         Condition::Target => one(Vec::new(), "&:target"),
+        Condition::Visited => one(Vec::new(), "&:visited"),
+        // The only at-rule here that is not a query, and the only reason
+        // that matters to this function is that it still has to nest in
+        // written order like one: `md:starting:` is `@media` around
+        // `@starting-style` and `starting:md:` is the reverse, which the
+        // fold in `All` already gets right.
+        Condition::StartingStyle => one(vec!["@starting-style".to_string()], "&"),
         // Passed through exactly as written. Hozo does not parse it and
         // deliberately so: a selector it doesn't recognise is one the
         // browser may well support, and the author reached past the design
@@ -2090,6 +2103,22 @@ mod variant_tests {
         // reverse. Which is why the fold substitutes the accumulated
         // selector *into* each new template.
         assert_eq!(fill_selector(&selector, "hozo-0"), ".hozo-0:first-child:hover");
+    }
+
+    #[test]
+    fn starting_style_nests_in_written_order_like_a_query() {
+        // The only at-rule here that is not a query, and it still has to
+        // nest where it was written: Tailwind puts `@media` outside for
+        // `md:starting:` and inside for `starting:md:`, and the two mean
+        // different things to a browser resolving the first frame.
+        let md = Condition::Responsive(hozo_ir::Breakpoint::Md);
+        let (outer, _) = condition_shape(&Condition::All(vec![md.clone(), Condition::StartingStyle]));
+        assert_eq!(outer, vec!["@media (width >= 768px)", "@starting-style"]);
+        let (inner, selector) = condition_shape(&Condition::All(vec![Condition::StartingStyle, md]));
+        assert_eq!(inner, vec!["@starting-style", "@media (width >= 768px)"]);
+        // It qualifies the rule rather than the element, so the selector
+        // is untouched.
+        assert_eq!(fill_selector(&selector, "hozo-0"), ".hozo-0");
     }
 
     #[test]
