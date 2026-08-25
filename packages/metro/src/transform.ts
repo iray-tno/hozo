@@ -226,8 +226,19 @@ export function transformHozoSource(
     ? `const hozoStyles = StyleSheet.create(${mergedStyles})\n`
     : ''
   next = `${rnImport}${styleDeclaration}${next}`
-  if (runtimeImports.size > 0) {
-    next = `import { ${[...runtimeImports].join(', ')} } from '@hozo/runtime'\n${next}`
+  // SVG comes from a subpath rather than the main entry, and that is not
+  // tidiness. `react-native-svg` is an optional peer dependency, and a
+  // re-export from `@hozo/runtime`'s index would load it on every import
+  // of the package -- an optional dependency that is always loaded is not
+  // optional, and a project without it would fail on its first component.
+  // Splitting the import here is what keeps that promise true.
+  const svg = [...runtimeImports].filter((name) => SVG_EXPORTS.has(name))
+  const rest = [...runtimeImports].filter((name) => !SVG_EXPORTS.has(name))
+  if (rest.length > 0) {
+    next = `import { ${rest.join(', ')} } from '@hozo/runtime'\n${next}`
+  }
+  if (svg.length > 0) {
+    next = `import { ${svg.join(', ')} } from '@hozo/runtime/svg'\n${next}`
   }
 
   // Only when something actually calls it. The candidate module is
@@ -247,3 +258,32 @@ export function transformHozoSource(
 
   return next
 }
+
+/**
+ * The names `@hozo/runtime/svg` exports, so they can be told apart from
+ * the ones on the main entry.
+ *
+ * Duplicated from that module rather than imported, because this runs in
+ * the bundler's process and importing the Native entry would pull
+ * `react-native` and `react-native-svg` into it. A list of sixteen names
+ * that changes when SVG does, which is roughly never, and the compiler's
+ * own `SvgElement` is the source both sides copy from.
+ */
+const SVG_EXPORTS = new Set([
+  'Svg',
+  'G',
+  'Rect',
+  'Circle',
+  'Ellipse',
+  'Line',
+  'Path',
+  'Polygon',
+  'Polyline',
+  'SvgText',
+  'Defs',
+  'LinearGradient',
+  'RadialGradient',
+  'Stop',
+  'ClipPath',
+  'Use',
+])

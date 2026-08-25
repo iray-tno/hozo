@@ -594,7 +594,48 @@ fn render_node(
     // Pressable interaction state can stay entirely on the native driver.
     let transition = native_driver_transition(node, &style);
 
+    // `react-native-svg` takes paint as *props*, not as style, so on an
+    // SVG element these three stop being Web-only and become something to
+    // lower. The refusal that used to name them said the library "is a
+    // separate dependency with its own props, not a style Hozo can lower
+    // to" -- true about the style and beside the point about the props,
+    // which is exactly the sort of asymmetry the compiler is for: one
+    // class, `fill-blue-500`, becomes a CSS declaration on Web and an
+    // attribute here.
+    let svg_paint: Vec<(&'static str, String)> = if matches!(node.primitive, Primitive::Svg(_)) {
+        style
+            .iter()
+            .filter_map(|declaration| match &declaration.property {
+                // Trimmed: the style resolver returns a JavaScript string
+                // literal, quotes included, because that is what a
+                // StyleSheet entry needs. A JSX attribute brings its own.
+                StyleProperty::Fill(color) => Some((
+                    "fill",
+                    crate::style::resolve_theme_color(color, theme).trim_matches('\'').to_string(),
+                )),
+                StyleProperty::Stroke(color) => Some((
+                    "stroke",
+                    crate::style::resolve_theme_color(color, theme).trim_matches('\'').to_string(),
+                )),
+                StyleProperty::StrokeWidth(width) => Some(("strokeWidth", format!("{{{width}}}"))),
+                _ => None,
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     for declaration in &style {
+        // Lowered as a prop just above, so it must not also be reported as
+        // a style this platform cannot hold.
+        if !svg_paint.is_empty()
+            && matches!(
+                declaration.property,
+                StyleProperty::Fill(_) | StyleProperty::Stroke(_) | StyleProperty::StrokeWidth(_)
+            )
+        {
+            continue;
+        }
         if grid.is_some() && grid_absorbs(&declaration.property) {
             continue;
         }
@@ -938,6 +979,19 @@ fn render_node(
         }
         props_text.push_str(&format!(r#" {key}="{value}""#));
     }
+    // The paint from `fill-*`/`stroke-*`, which is a prop here and a CSS
+    // declaration on Web. A `fill` the author wrote themselves wins: they
+    // said it later and more specifically than a class did.
+    for (key, value) in &svg_paint {
+        if authored.contains(key) {
+            continue;
+        }
+        if value.starts_with('{') {
+            props_text.push_str(&format!(" {key}={value}"));
+        } else {
+            props_text.push_str(&format!(r#" {key}="{value}""#));
+        }
+    }
     for (name, value) in [
         ("testID", node.props.test_id),
         ("nativeID", node.props.native_id),
@@ -1072,6 +1126,13 @@ fn render_node(
         // the styles and checks the props.
         runtime.need_component("HozoDialog");
     }
+    // Re-exported by `@hozo/runtime` from `react-native-svg` rather than
+    // imported from there directly, so the one import channel the emitter
+    // already has keeps working -- and so the optional peer dependency is
+    // declared in one package instead of appearing in generated files.
+    if let Primitive::Svg(element) = node.primitive {
+        runtime.need_component(element.runtime_name());
+    }
     if node.primitive == Primitive::Link {
         runtime.need_component("HozoLink");
     }
@@ -1181,7 +1242,13 @@ fn render_node(
             }
             hozo_ir::Child::Text(text) => {
                 let escaped = escape_jsx_text(text);
-                inner.push_str(&if component != "Text" {
+                // `SvgText` holds a string itself, so wrapping one in React
+                // Native's `Text` puts a text node where an SVG element
+                // belongs -- the string vanishes rather than rendering.
+                // The wrapper exists because a bare string inside a `View`
+                // crashes; inside `<Svg.Text>` there is nothing to fix.
+                let holds_text = component == "Text" || component == "SvgText";
+                inner.push_str(&if !holds_text {
                     wrap_in_text(
                         &escaped,
                         &descend,
@@ -5535,4 +5602,58 @@ fn container_guard(name: &Option<String>, at_least: bool, value: &str) -> Option
 fn width_threshold_px(value: &str) -> Option<u32> {
     let digits = value.strip_suffix("px")?;
     digits.parse::<f64>().ok().map(|px| px.round() as u32)
+}
+
+#[cfg(test)]
+mod svg_tests {
+    use super::*;
+
+    fn compile(source: &str) -> LowerOutput {
+        let parsed = hozo_parser::parse_tsx(source);
+        lower(&parsed.roots[0].node, source, &Theme::default())
+    }
+
+    #[test]
+    fn paint_becomes_a_prop_rather_than_a_style() {
+        // The asymmetry the compiler exists for: one class,
+        // `fill-blue-500`, is a CSS declaration on Web and an attribute
+        // here, because `react-native-svg` takes paint as props.
+        let out = compile(
+            "import { Svg } from '@hozo/core'\n\
+             export const C = () => <Svg.Rect className=\"fill-blue-500 stroke-2\" />\n",
+        );
+        assert!(out.jsx.contains(r##"fill="#"##), "{}", out.jsx);
+        assert!(out.jsx.contains("strokeWidth={2}"), "{}", out.jsx);
+        // And not reported as a Web-only style, which is what it was
+        // before the SVG elements existed to lower it onto.
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    }
+
+    #[test]
+    fn svg_text_holds_its_own_string() {
+        // A bare string inside a `View` crashes on this platform, so the
+        // compiler inserts a `Text`. Inside `<Svg.Text>` there is nothing
+        // to fix, and inserting one puts a text node where an SVG element
+        // belongs -- the string vanishes rather than rendering.
+        let out = compile(
+            "import { Svg } from '@hozo/core'\n\
+             export const C = () => <Svg.Text>hi</Svg.Text>\n",
+        );
+        assert!(out.jsx.contains("<SvgText>hi</SvgText>"), "{}", out.jsx);
+    }
+
+    #[test]
+    fn the_import_comes_from_the_svg_subpath_by_name() {
+        // `SvgText`, not `Text`: generated files already import `Text`
+        // from `react-native` for the wrapper above, and two bindings of
+        // one name in a file neither of them wrote is not a collision
+        // anyone could debug.
+        let out = compile(
+            "import { Svg } from '@hozo/core'\n\
+             export const C = () => <Svg><Svg.Text>hi</Svg.Text></Svg>\n",
+        );
+        assert!(out.runtime_imports.contains(&"Svg"), "{:?}", out.runtime_imports);
+        assert!(out.runtime_imports.contains(&"SvgText"), "{:?}", out.runtime_imports);
+        assert!(!out.runtime_imports.contains(&"Text"), "{:?}", out.runtime_imports);
+    }
 }

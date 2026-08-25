@@ -27,7 +27,12 @@
       "react-native": "./dist/index.native.js",
       "default": "./dist/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./svg": {
+      "types": "./dist/svg.d.ts",
+      "react-native": "./dist/svg.native.js",
+      "default": "./dist/svg.js"
+    }
   },
   "files": [
     "dist",
@@ -49,16 +54,21 @@
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-native": ">=0.76"
+    "react-native": ">=0.76",
+    "react-native-svg": ">=15"
   },
   "peerDependenciesMeta": {
     "react-native": {
+      "optional": true
+    },
+    "react-native-svg": {
       "optional": true
     }
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
-    "react-native": "^0.87.0"
+    "react-native": "^0.87.0",
+    "react-native-svg": "^15.15.5"
   }
 }

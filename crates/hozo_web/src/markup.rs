@@ -41,6 +41,10 @@ pub fn element_shape(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'stati
 
 fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'static str, Vec<(&'static str, AttrValue)>) {
     match node.primitive {
+        // The DOM tag, which is the lowercase name except for the three
+        // SVG spells in camelCase -- `linearGradient` lowercased is an
+        // element that parses and never renders.
+        Primitive::Svg(element) => (element.tag(), Vec::new()),
         Primitive::View if node.props.on_layout.is_some() || node.props.has_responder_handlers() => ("View", Vec::new()),
         Primitive::View => ("div", Vec::new()),
         Primitive::Text if node.props.on_layout.is_some() => ("Text", Vec::new()),

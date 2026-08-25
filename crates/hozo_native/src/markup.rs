@@ -21,6 +21,11 @@ pub fn native_component(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'st
 
 fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'static str, Vec<(&'static str, String)>) {
     match node.primitive {
+        // `react-native-svg` exports these under exactly the names SVG
+        // gives them, which is why the JSX spelling is a namespace rather
+        // than a prefix: the name that reaches the output here is the same
+        // name the author wrote after `Svg.`.
+        Primitive::Svg(element) => (element.runtime_name(), Vec::new()),
         Primitive::View => ("View", Vec::new()),
         Primitive::Text => ("Text", Vec::new()),
         Primitive::Paragraph => ("Text", Vec::new()),

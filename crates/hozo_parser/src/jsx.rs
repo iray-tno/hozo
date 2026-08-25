@@ -13,6 +13,7 @@
 use hozo_ir::{
     AccessibilityRole, Child, ConditionExpr, Diagnostic, DiagnosticCode, ExprRef, HeadingLevel,
     NestedNode, Node, PassthroughProp, Primitive, PropSet, Severity, SourceSpan, StyleDeclaration,
+    SvgElement,
     StyleProperty,
 };
 use oxc_ast::ast::{
@@ -236,6 +237,7 @@ fn primitive_name(name: &str) -> Option<&'static str> {
         "Image" => Some("Image"),
         "ScrollView" => Some("ScrollView"),
         "FlatList" => Some("FlatList"),
+        "Svg" => Some("Svg"),
         _ => None,
     }
 }
@@ -524,6 +526,8 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Image" => Some(Primitive::Image),
         "ScrollView" => Some(Primitive::ScrollView),
         "FlatList" => Some(Primitive::FlatList),
+        // The root, which is both the element and the namespace object.
+        "Svg" => Some(Primitive::Svg(SvgElement::Root)),
         _ => None,
     }
 }
@@ -537,17 +541,34 @@ fn build_node(
     diagnostics: &mut Vec<Diagnostic>,
     consumed: &mut Vec<SourceSpan>,
 ) -> Option<Node> {
-    let JSXElementName::IdentifierReference(ident) = &el.opening_element.name else {
-        return None;
+    let (local, primitive) = match &el.opening_element.name {
+        JSXElementName::IdentifierReference(ident) => {
+            (ident.name.as_str(), primitive_for_name(ident.name.as_str())?)
+        }
+        // `<Svg.Rect>`. The only member expression Hozo reads, and it is
+        // read for a name collision: `Text` is both an SVG element and a
+        // Hozo primitive, so the SVG elements live under a namespace
+        // rather than being renamed into something neither the
+        // specification nor `react-native-svg` calls them.
+        JSXElementName::MemberExpression(member) => {
+            let object = member.object.get_identifier()?;
+            let element = SvgElement::from_name(member.property.name.as_str())?;
+            // Only when the object is the `Svg` this file imported. A
+            // project's own `Chart.Rect` is its own.
+            if object.name.as_str() != "Svg" {
+                return None;
+            }
+            (object.name.as_str(), Primitive::Svg(element))
+        }
+        _ => return None,
     };
     // A name the project's own components own. Declining here is what
     // turns it into a `Child::Verbatim` at the call site -- carried and
     // re-emitted from source, the same treatment any unmodeled component
     // gets -- so the tree around it still compiles.
-    if scope.foreign.contains(ident.name.as_str()) {
+    if scope.foreign.contains(local) {
         return None;
     }
-    let primitive = primitive_for_name(ident.name.as_str())?;
 
     let mut style: Vec<StyleDeclaration> = Vec::new();
     let mut class_name_fallback = Vec::new();

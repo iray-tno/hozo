@@ -442,7 +442,7 @@ fn border_style_literal(style: &BorderStyle) -> String {
 /// docs); otherwise falls back to a marker string deliberately not
 /// real-color-shaped, so a missed resolution fails loudly instead of
 /// rendering a plausible-but-wrong color.
-fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
+pub(crate) fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
     let token = match color {
         Color::Token(token) => token,
         Color::Keyword(keyword) => return js_string(keyword),

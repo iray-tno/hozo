@@ -348,6 +348,137 @@ pub enum Primitive {
     /// A data-driven list. Web keeps the lightweight core renderer while
     /// Native lowers to React Native's virtualized FlatList.
     FlatList,
+    /// An SVG element, by its own name: `Svg`, `Rect`, `Path`, `G`.
+    ///
+    /// One variant rather than fourteen because the lowering really is
+    /// uniform -- Web writes the lowercase tag, React Native imports the
+    /// capitalised component of the same name from `react-native-svg` --
+    /// so a variant each would be fourteen identical match arms in every
+    /// backend and one more place to forget an element.
+    ///
+    /// The name is the SVG one, and the JSX spelling is `<Svg.Rect>`: a
+    /// namespace rather than a prefix, because `Text` is both an SVG
+    /// element and a Hozo primitive and `SvgText` would be a name neither
+    /// the specification nor `react-native-svg` uses.
+    Svg(SvgElement),
+}
+
+/// The SVG elements Hozo lowers.
+///
+/// Chosen for what a chart needs to exist -- shapes, grouping, gradients,
+/// clipping, text -- rather than for coverage of the specification. SVG
+/// has around eighty elements and most of them are filters, which are a
+/// different problem and one `react-native-svg` answers differently.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SvgElement {
+    /// The root. Also the namespace object, so `<Svg>` and `<Svg.Rect>`
+    /// come from one import.
+    Root,
+    G,
+    Rect,
+    Circle,
+    Ellipse,
+    Line,
+    Path,
+    Polygon,
+    Polyline,
+    Text,
+    Defs,
+    LinearGradient,
+    RadialGradient,
+    Stop,
+    ClipPath,
+    Use,
+}
+
+impl SvgElement {
+    /// The name under `Svg.` in JSX, which is also `react-native-svg`'s
+    /// export and the capitalised form of the SVG tag.
+    pub fn name(self) -> &'static str {
+        match self {
+            SvgElement::Root => "Svg",
+            SvgElement::G => "G",
+            SvgElement::Rect => "Rect",
+            SvgElement::Circle => "Circle",
+            SvgElement::Ellipse => "Ellipse",
+            SvgElement::Line => "Line",
+            SvgElement::Path => "Path",
+            SvgElement::Polygon => "Polygon",
+            SvgElement::Polyline => "Polyline",
+            SvgElement::Text => "Text",
+            SvgElement::Defs => "Defs",
+            SvgElement::LinearGradient => "LinearGradient",
+            SvgElement::RadialGradient => "RadialGradient",
+            SvgElement::Stop => "Stop",
+            SvgElement::ClipPath => "ClipPath",
+            SvgElement::Use => "Use",
+        }
+    }
+
+    /// The name the emitted React Native code uses.
+    ///
+    /// The same as `name()` except for text. Generated files already
+    /// import `Text` from `react-native` -- the compiler inserts one
+    /// around any bare string, because a raw string outside a `Text` is a
+    /// crash on that platform -- so an SVG `Text` imported beside it would
+    /// be two bindings of one name in a file neither of them wrote.
+    /// `@hozo/runtime` re-exports it under this name for the same reason.
+    pub fn runtime_name(self) -> &'static str {
+        match self {
+            SvgElement::Text => "SvgText",
+            other => other.name(),
+        }
+    }
+
+    /// The DOM tag. Not `name().to_lowercase()`: three of these are
+    /// camelCase in SVG and lowercasing them produces elements that parse
+    /// and never render.
+    pub fn tag(self) -> &'static str {
+        match self {
+            SvgElement::Root => "svg",
+            SvgElement::LinearGradient => "linearGradient",
+            SvgElement::RadialGradient => "radialGradient",
+            SvgElement::ClipPath => "clipPath",
+            other => match other {
+                SvgElement::G => "g",
+                SvgElement::Rect => "rect",
+                SvgElement::Circle => "circle",
+                SvgElement::Ellipse => "ellipse",
+                SvgElement::Line => "line",
+                SvgElement::Path => "path",
+                SvgElement::Polygon => "polygon",
+                SvgElement::Polyline => "polyline",
+                SvgElement::Text => "text",
+                SvgElement::Defs => "defs",
+                SvgElement::Stop => "stop",
+                SvgElement::Use => "use",
+                _ => unreachable!("handled above"),
+            },
+        }
+    }
+
+    /// Reads the name after `Svg.`, or the bare `Svg` root.
+    pub fn from_name(name: &str) -> Option<SvgElement> {
+        Some(match name {
+            "Svg" => SvgElement::Root,
+            "G" => SvgElement::G,
+            "Rect" => SvgElement::Rect,
+            "Circle" => SvgElement::Circle,
+            "Ellipse" => SvgElement::Ellipse,
+            "Line" => SvgElement::Line,
+            "Path" => SvgElement::Path,
+            "Polygon" => SvgElement::Polygon,
+            "Polyline" => SvgElement::Polyline,
+            "Text" => SvgElement::Text,
+            "Defs" => SvgElement::Defs,
+            "LinearGradient" => SvgElement::LinearGradient,
+            "RadialGradient" => SvgElement::RadialGradient,
+            "Stop" => SvgElement::Stop,
+            "ClipPath" => SvgElement::ClipPath,
+            "Use" => SvgElement::Use,
+            _ => return None,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
