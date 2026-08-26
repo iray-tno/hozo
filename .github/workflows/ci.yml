@@ -103,7 +103,16 @@ jobs:
           node-version: 25
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @hozo/compiler build:native
+      # Release, unlike the gate above. This job is almost entirely the
+      # addon: comparing 400 arbitrary candidates on Native is 495ms with a
+      # debug build and 63ms with an optimised one, while Tailwind's own
+      # half of that same comparison is 11ms and does not move either way.
+      #
+      # The gate stays on debug deliberately. It was measured too, and
+      # `pnpm test` takes the same 120 seconds under both -- the JS suite is
+      # bound by TypeScript and process startup -- so paying eleven extra
+      # seconds of `cargo build` there would buy nothing.
+      - run: pnpm --filter @hozo/compiler build:native:release
 
       # `--check` compares every headline number against
       # `packages/tailwind-conformance/snapshot.json` and fails on any
