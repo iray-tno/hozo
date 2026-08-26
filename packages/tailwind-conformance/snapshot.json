@@ -12,10 +12,10 @@
   },
   "native": {
     "candidates": 120,
-    "covered": 113,
-    "refused": 7,
+    "covered": 114,
+    "refused": 5,
     "silent": 0,
-    "noOp": 0
+    "noOp": 1
   },
   "catalogue": {
     "entries": 23286,
@@ -26,9 +26,9 @@
     "skipped": 0
   },
   "refusalAudit": {
-    "refusals": 10402,
-    "checkable": 10050,
-    "confirmed": 10022,
+    "refusals": 10381,
+    "checkable": 10047,
+    "confirmed": 10019,
     "partial": 28,
     "suspect": 0,
     "uncheckable": 334
@@ -47,6 +47,13 @@
     "mismatch": 0,
     "unsupported": 0,
     "skipped": 482
+  },
+  "arbitraryNative": {
+    "candidates": 2845,
+    "covered": 681,
+    "refused": 2070,
+    "noOp": 74,
+    "silent": 20
   },
   "compositions": {
     "candidates": 50,
@@ -75,9 +82,9 @@
   },
   "nativeVariants": {
     "total": 22446,
-    "covered": 3354,
-    "restricted": 3354,
-    "refused": 19092,
+    "covered": 3786,
+    "restricted": 2088,
+    "refused": 18660,
     "silent": 0,
     "noOp": 0
   }

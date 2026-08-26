@@ -570,11 +570,16 @@ pub fn child_property_and_value(
 pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'a str, String)> {
     let resolve_color = |color: &Color| resolve_theme_color(color, theme);
     match prop {
-        // Refused upstream by `unsupported_on_native`, so this is only
-        // reached if something bypassed it. Emitting nothing is the safe
-        // end of that: a CSS property name means nothing to React Native,
-        // and inventing a camelCase spelling would turn a build error into
-        // a style that silently does nothing on a device.
+        // Refused by `unsupported_on_native`, so this is only reached if
+        // something bypassed it. Emitting nothing is the safe end of
+        // that: a CSS property name means nothing to React Native, and
+        // inventing a camelCase spelling would turn a build error into a
+        // style that silently does nothing on a device.
+        //
+        // The refusal was claimed here before it existed. Nothing matched
+        // `Arbitrary` upstream, so this arm was the only thing that saw
+        // one -- and it returns nothing, which is exactly the silence the
+        // comment said could not happen.
         StyleProperty::Arbitrary(..) => Vec::new(),
         // Composed into one `backgroundImage` by `background_image_entry`,
         // the same way the transform axes are.

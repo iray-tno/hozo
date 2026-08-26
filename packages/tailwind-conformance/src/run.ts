@@ -566,6 +566,59 @@ for (const mismatch of arbitraryMismatches) {
   console.log(`  ${mismatch.candidate.padEnd(34)} ${mismatch.detail ?? ''}`)
 }
 
+// The same candidates asked of the Native backend, and only for silence.
+//
+// Fidelity is not the question here -- an arbitrary value is a CSS
+// property written out by name, and React Native's style keys are a
+// different vocabulary, so nearly all of these are refusals and the
+// interesting number is how many are refused *without saying so*.
+//
+// This section existed and looked only at Web, which is how
+// `animate-[wiggle_1s_infinite]` came to compile on Native to an empty
+// style object with no diagnostic at all -- the exact "silent" category
+// the sections above keep at zero, in the one place nothing was counting
+// it. The Native emitter even carried a comment saying the case was
+// refused upstream; nothing refused it.
+// A utility that paints nothing standalone paints nothing here either,
+// and that is the right answer rather than a silence. Which ones those
+// are is already decided a few lines above, by Tailwind: the Web
+// comparison calls them COMPOSITION_ONLY because the reference engine's
+// own output for them sets only `--tw-*` registers. Reusing that verdict
+// keeps the two sections agreeing about what a composition is, instead of
+// a second list to maintain and disagree with.
+const compositionOnly = new Set(
+  arbitraryResults.filter((r) => r.verdict === 'COMPOSITION_ONLY').map((r) => r.candidate),
+)
+const arbitraryNative = arbitrary.candidates
+  .map(compareNativeCandidate)
+  .map((result) =>
+    result.verdict === 'SILENT' && compositionOnly.has(result.candidate)
+      ? { ...result, verdict: 'NO_OP' as const, detail: 'paints nothing standalone on either platform' }
+      : result,
+  )
+const arbitraryNativeCount = (verdict: NativeVerdict) =>
+  arbitraryNative.filter((result) => result.verdict === verdict).length
+console.log(
+  `\n\n== Arbitrary values on Native (${arbitrary.candidates.length}) ==\n` +
+    'Almost all of these are refusals, which is the right answer. The number that\n' +
+    'matters is the last one.\n\n' +
+    `Covered:  ${arbitraryNativeCount('COVERED')}\n` +
+    `Refused:  ${arbitraryNativeCount('REFUSED')}\n` +
+    `No-op:    ${arbitraryNativeCount('NO_OP')}\n` +
+    `Silent:   ${arbitraryNativeCount('SILENT')}   (no style, no diagnostic)`,
+)
+record('arbitraryNative', {
+  candidates: arbitrary.candidates.length,
+  covered: arbitraryNativeCount('COVERED'),
+  refused: arbitraryNativeCount('REFUSED'),
+  noOp: arbitraryNativeCount('NO_OP'),
+  silent: arbitraryNativeCount('SILENT'),
+})
+for (const result of arbitraryNative) {
+  if (result.verdict !== 'SILENT') continue
+  console.log(`  SILENT  ${result.candidate}`)
+}
+
 // == Compositions =========================================================
 //
 // The third denominator, and the one that measures what the other two

@@ -1687,12 +1687,66 @@ impl StyleProperty {
             | StyleProperty::TextIndent(d)
             | StyleProperty::TextUnderlineOffset(d)
             | StyleProperty::TranslateX(d)
-            | StyleProperty::TranslateY(d) => Some(d),
+            | StyleProperty::TranslateY(d)
+            // Everything else that carries one. The list was the sizing
+            // family alone, which meant `bottom-[calc(100%-2rem)]` had no
+            // dimension to inspect, was never refused, and reached the
+            // emitter -- where `Dimension::Css` renders as an empty string
+            // and the whole declaration disappeared without a word.
+            //
+            // 121 arbitrary values were being dropped that way, and no
+            // number saw it: the Web comparison passes them through and
+            // matches Tailwind exactly, so only the Native side is wrong
+            // and the Native side had no silence check that worked.
+            | StyleProperty::TranslateZ(d)
+            | StyleProperty::InsetTop(d)
+            | StyleProperty::InsetRight(d)
+            | StyleProperty::InsetBottom(d)
+            | StyleProperty::InsetLeft(d)
+            | StyleProperty::InsetBlock(d)
+            | StyleProperty::InsetBlockStart(d)
+            | StyleProperty::InsetBlockEnd(d)
+            | StyleProperty::InsetInline(d)
+            | StyleProperty::InsetInlineStart(d)
+            | StyleProperty::InsetInlineEnd(d)
+            | StyleProperty::MarginTop(d)
+            | StyleProperty::MarginRight(d)
+            | StyleProperty::MarginBottom(d)
+            | StyleProperty::MarginLeft(d)
+            | StyleProperty::MarginBlockStart(d)
+            | StyleProperty::MarginBlockEnd(d)
+            | StyleProperty::MarginInlineStart(d)
+            | StyleProperty::MarginInlineEnd(d)
+            | StyleProperty::SpaceX(d)
+            | StyleProperty::SpaceY(d)
+            | StyleProperty::DivideX(d)
+            | StyleProperty::DivideY(d)
+            | StyleProperty::BorderSpacingX(d)
+            | StyleProperty::BorderSpacingY(d) => Some(d),
             _ => None,
         }
     }
 
     pub fn unsupported_on_native(&self) -> Option<String> {
+        // An arbitrary value is a CSS property written out by name, and
+        // React Native's style keys are a different vocabulary -- there is
+        // no rule that turns one into the other, and guessing a camelCase
+        // spelling would produce a key the platform ignores.
+        //
+        // The Native emitter said this was "refused upstream by
+        // `unsupported_on_native`" and it was not: nothing refused it, and
+        // `animate-[wiggle_1s_infinite]` compiled to an empty style object
+        // with no diagnostic at all. That is the "silent" category the
+        // conformance report keeps at zero, and the report did not see it
+        // because the arbitrary catalogue is checked for *fidelity* on Web
+        // and never for silence on Native.
+        if let StyleProperty::Arbitrary(property, value) = self {
+            return Some(format!(
+                "`{property}: {value}`: an arbitrary value is a CSS property by name, and React \
+                 Native's style keys are a different vocabulary -- there is nothing to translate \
+                 it into"
+            ));
+        }
         // Asked before the property-by-property match: a value React Native
         // has no way to hold is unusable whichever size carries it.
         if let Some(Dimension::Css(value)) = self.dimension() {

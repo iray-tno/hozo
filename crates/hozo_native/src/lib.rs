@@ -5795,7 +5795,7 @@ fn ambient_transition(node: &Node, declarations: &[StyleDeclaration]) -> Option<
                 | StyleProperty::ScaleX(_)
                 | StyleProperty::ScaleY(_)
         );
-        interpolatable && declaration.condition.is_ambient()
+        interpolatable && condition_contains(&declaration.condition, runtime_variable)
     });
     if !animatable {
         return None;
@@ -5892,4 +5892,29 @@ mod ambient_transition_tests {
         assert!(out.jsx.contains("opacity: true"), "{}", out.jsx);
         assert_eq!(out.jsx.matches("hozoTransition").count(), 1, "{}", out.jsx);
     }
+}
+
+/// Whether this condition is one the React Native runtime can change its
+/// mind about while the app is running.
+///
+/// Not `Condition::is_ambient`, which was the first version and is a
+/// question about CSS: it asks whether the condition becomes an at-rule,
+/// and `Hover` answers yes because on Web it is both a media query and a
+/// pseudo-class. On a device there is no hover on a plain View at all --
+/// the compiler reports it as unwired a few lines above -- so treating it
+/// as a reason to animate wrapped every `hover:` element in a component
+/// that would never see its style change.
+///
+/// These five are exactly the ones with a runtime hook behind them, which
+/// is the same thing said from the other side: a condition Hozo subscribes
+/// to is a condition that can flip.
+fn runtime_variable(condition: &Condition) -> bool {
+    matches!(
+        condition,
+        Condition::Dark
+            | Condition::Responsive(_)
+            | Condition::Width { .. }
+            | Condition::Container { .. }
+            | Condition::Environment(_)
+    )
 }
