@@ -30,7 +30,7 @@ use hozo_ir::{
 
 fn radius_number(radius: &Radius, theme: &Theme) -> String {
     match radius {
-        Radius::Length(l) => number(*l, theme),
+        Radius::Length(l) => number(l, theme),
         // RN has no infinity. Any radius past half the box's shorter side
         // already renders as a pill, so a large finite value is the
         // standard way to express this -- the approximation is forced here,
@@ -48,13 +48,13 @@ fn aspect_number(value: &str) -> Option<String> {
 
 /// A length as a React Native style number, against the project's spacing
 /// scale. See `Length::Spacing`.
-fn number(length: Length, theme: &Theme) -> String {
+fn number(length: &Length, theme: &Theme) -> String {
     format!("{}", length.px(theme))
 }
 
 fn dimension_value(dim: &Dimension, theme: &Theme) -> String {
     match dim {
-        Dimension::Length(length) => number(*length, theme),
+        Dimension::Length(length) => number(length, theme),
         Dimension::Percent(pct) => format!("'{pct}%'"),
         Dimension::Auto => "'auto'".to_string(),
         // Refused upstream by `StyleProperty::unsupported_on_native`, which
@@ -660,23 +660,23 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::JustifyContent(Justify::Stretch | Justify::Baseline) => Vec::new(),
         StyleProperty::AlignContent(justify) => vec![("alignContent", justify_literal(justify))],
         StyleProperty::JustifyContent(justify) => vec![("justifyContent", justify_literal(justify))],
-        StyleProperty::Gap(l) => vec![("gap", number(*l, theme))],
-        StyleProperty::RowGap(l) => vec![("rowGap", number(*l, theme))],
-        StyleProperty::ColumnGap(l) => vec![("columnGap", number(*l, theme))],
+        StyleProperty::Gap(l) => vec![("gap", number(l, theme))],
+        StyleProperty::RowGap(l) => vec![("rowGap", number(l, theme))],
+        StyleProperty::ColumnGap(l) => vec![("columnGap", number(l, theme))],
         StyleProperty::MarginTop(d) => vec![("marginTop", dimension_value(d, theme))],
         StyleProperty::MarginRight(d) => vec![("marginRight", dimension_value(d, theme))],
         StyleProperty::MarginBottom(d) => vec![("marginBottom", dimension_value(d, theme))],
         StyleProperty::MarginLeft(d) => vec![("marginLeft", dimension_value(d, theme))],
-        StyleProperty::PaddingTop(l) => vec![("paddingTop", number(*l, theme))],
-        StyleProperty::PaddingRight(l) => vec![("paddingRight", number(*l, theme))],
-        StyleProperty::PaddingBottom(l) => vec![("paddingBottom", number(*l, theme))],
-        StyleProperty::PaddingLeft(l) => vec![("paddingLeft", number(*l, theme))],
+        StyleProperty::PaddingTop(l) => vec![("paddingTop", number(l, theme))],
+        StyleProperty::PaddingRight(l) => vec![("paddingRight", number(l, theme))],
+        StyleProperty::PaddingBottom(l) => vec![("paddingBottom", number(l, theme))],
+        StyleProperty::PaddingLeft(l) => vec![("paddingLeft", number(l, theme))],
         // RN's own direction-relative props; they resolve against
         // `I18nManager.isRTL` at runtime, same role as CSS's inline-start/end.
         StyleProperty::MarginInlineStart(d) => vec![("marginStart", dimension_value(d, theme))],
         StyleProperty::MarginInlineEnd(d) => vec![("marginEnd", dimension_value(d, theme))],
-        StyleProperty::PaddingInlineStart(l) => vec![("paddingStart", number(*l, theme))],
-        StyleProperty::PaddingInlineEnd(l) => vec![("paddingEnd", number(*l, theme))],
+        StyleProperty::PaddingInlineStart(l) => vec![("paddingStart", number(l, theme))],
+        StyleProperty::PaddingInlineEnd(l) => vec![("paddingEnd", number(l, theme))],
         StyleProperty::Width(d) => vec![("width", dimension_value(d, theme))],
         StyleProperty::Height(d) => vec![("height", dimension_value(d, theme))],
         StyleProperty::MinWidth(d) => vec![("minWidth", dimension_value(d, theme))],
@@ -692,8 +692,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::MinInlineSize(d) => vec![("minWidth", dimension_value(d, theme))],
         StyleProperty::MarginBlockStart(d) => vec![("marginTop", dimension_value(d, theme))],
         StyleProperty::MarginBlockEnd(d) => vec![("marginBottom", dimension_value(d, theme))],
-        StyleProperty::PaddingBlockStart(l) => vec![("paddingTop", number(*l, theme))],
-        StyleProperty::PaddingBlockEnd(l) => vec![("paddingBottom", number(*l, theme))],
+        StyleProperty::PaddingBlockStart(l) => vec![("paddingTop", number(l, theme))],
+        StyleProperty::PaddingBlockEnd(l) => vec![("paddingBottom", number(l, theme))],
         // Refused upstream by `unsupported_on_native`.
         StyleProperty::TranslateZ(_)
         | StyleProperty::TextIndent(_)
@@ -760,15 +760,15 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // no per-edge border style at all -- and needs none, because a
         // width renders on its own.
         StyleProperty::BorderLogicalWidth(edge, l) => match edge {
-            Edge::InlineStart => vec![("borderStartWidth", number(*l, theme))],
-            Edge::InlineEnd => vec![("borderEndWidth", number(*l, theme))],
-            Edge::BlockStart => vec![("borderTopWidth", number(*l, theme))],
-            Edge::BlockEnd => vec![("borderBottomWidth", number(*l, theme))],
+            Edge::InlineStart => vec![("borderStartWidth", number(l, theme))],
+            Edge::InlineEnd => vec![("borderEndWidth", number(l, theme))],
+            Edge::BlockStart => vec![("borderTopWidth", number(l, theme))],
+            Edge::BlockEnd => vec![("borderBottomWidth", number(l, theme))],
             Edge::Inline => {
-                vec![("borderStartWidth", number(*l, theme)), ("borderEndWidth", number(*l, theme))]
+                vec![("borderStartWidth", number(l, theme)), ("borderEndWidth", number(l, theme))]
             }
             Edge::Block => {
-                vec![("borderTopWidth", number(*l, theme)), ("borderBottomWidth", number(*l, theme))]
+                vec![("borderTopWidth", number(l, theme)), ("borderBottomWidth", number(l, theme))]
             }
             _ => Vec::new(),
         },
@@ -873,10 +873,10 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // Unlike Web, RN defaults borderStyle to 'solid' and borderColor to
         // black, so a width alone already renders -- the opposite gotcha
         // from CSS's "invisible without border-style".
-        StyleProperty::BorderTopWidth(l) => vec![("borderTopWidth", number(*l, theme))],
-        StyleProperty::BorderRightWidth(l) => vec![("borderRightWidth", number(*l, theme))],
-        StyleProperty::BorderBottomWidth(l) => vec![("borderBottomWidth", number(*l, theme))],
-        StyleProperty::BorderLeftWidth(l) => vec![("borderLeftWidth", number(*l, theme))],
+        StyleProperty::BorderTopWidth(l) => vec![("borderTopWidth", number(l, theme))],
+        StyleProperty::BorderRightWidth(l) => vec![("borderRightWidth", number(l, theme))],
+        StyleProperty::BorderBottomWidth(l) => vec![("borderBottomWidth", number(l, theme))],
+        StyleProperty::BorderLeftWidth(l) => vec![("borderLeftWidth", number(l, theme))],
         // RN has no per-side border style -- one `borderStyle` covers all
         // four. Collapsing is safe here in a way it wouldn't be on Web:
         // RN defaults every border width to 0, so a style on a side with
@@ -889,7 +889,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::BorderRadius(r) => vec![(
             "borderRadius",
             match r {
-                Radius::Length(l) => number(*l, theme),
+                Radius::Length(l) => number(l, theme),
                 // RN has no infinity. Any radius past half the box's
                 // shorter side already renders as a pill, so a large
                 // finite value is the standard way to express this -- the
@@ -913,7 +913,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::BorderStartEndRadius(r) => vec![("borderStartEndRadius", radius_number(r, theme))],
         StyleProperty::BorderEndStartRadius(r) => vec![("borderEndStartRadius", radius_number(r, theme))],
         StyleProperty::BorderEndEndRadius(r) => vec![("borderEndEndRadius", radius_number(r, theme))],
-        StyleProperty::FontSize(l) => vec![("fontSize", number(*l, theme))],
+        StyleProperty::FontSize(l) => vec![("fontSize", number(l, theme))],
         // RN's `fontWeight` type is a *string* ('100'..'900'/'normal'/
         // 'bold'), not a number -- unlike CSS's numeric font-weight.
         StyleProperty::FontWeight(w) => vec![("fontWeight", format!("'{}'", w.0))],
@@ -922,11 +922,11 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // element to resolve it against, and it was refused by name there --
         // emitting nothing keeps the object valid if that error is ignored.
         StyleProperty::LineHeight(lh) => match lh {
-            LineHeight::Length(l) => vec![("lineHeight", number(*l, theme))],
+            LineHeight::Length(l) => vec![("lineHeight", number(l, theme))],
             LineHeight::Ratio(_) => Vec::new(),
         },
         StyleProperty::LetterSpacing(ls) => match ls {
-            LetterSpacing::Px(l) => vec![("letterSpacing", number(*l, theme))],
+            LetterSpacing::Px(l) => vec![("letterSpacing", number(l, theme))],
             LetterSpacing::Em(_) => Vec::new(),
         },
         StyleProperty::Overflow(o) => vec![(
@@ -1020,7 +1020,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
             }
             .to_string(),
         )],
-        StyleProperty::OutlineWidth(l) => vec![("outlineWidth", number(*l, theme))],
+        StyleProperty::OutlineWidth(l) => vec![("outlineWidth", number(l, theme))],
         // RN's `outlineStyle` accepts only solid/dotted/dashed -- verified
         // against react-native-css's own parser, which warns on anything
         // else. So `outline-none` is expressed the way a border is hidden:
@@ -1031,7 +1031,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         }
         StyleProperty::OutlineStyle(s) => vec![("outlineStyle", border_style_literal(s))],
         StyleProperty::OutlineColor(c) => vec![("outlineColor", resolve_color(c))],
-        StyleProperty::OutlineOffset(l) => vec![("outlineOffset", number(*l, theme))],
+        StyleProperty::OutlineOffset(l) => vec![("outlineOffset", number(l, theme))],
         StyleProperty::TextAlign(align) => vec![(
             "textAlign",
             match align {

@@ -1597,7 +1597,7 @@ fn responsive_gap(
     let mut base = 0.0;
     let mut responsive: Vec<(Breakpoint, f64)> = Vec::new();
     for declaration in declarations {
-        let value = match declaration.property {
+        let value = match &declaration.property {
             StyleProperty::Gap(length) => Some(length.px(theme)),
             StyleProperty::ColumnGap(length) if column => Some(length.px(theme)),
             StyleProperty::RowGap(length) if !column => Some(length.px(theme)),

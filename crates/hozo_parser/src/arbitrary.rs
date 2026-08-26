@@ -234,7 +234,32 @@ fn trim_end(bytes: &[u8]) -> &[u8] {
 /// `32px` becomes `Px` rather than `Unit(32, Px)` -- there is no pixel
 /// variant, because a pixel is what every other length resolves *to*.
 /// Unitless zero is a length too, which CSS allows and RN needs.
+/// Whether the value is one of CSS's math functions.
+///
+/// Named here because three questions depend on it -- `is_color`,
+/// `is_line_width` and `is_length_percentage` all reduce to "does
+/// `parse_length` accept this?" -- and all three used to get the same wrong
+/// answer for the same reason. Tailwind resolves a math function to the
+/// *size* side of every slot that has one, and to the colour side only
+/// where there is no size to resolve to; `var()` goes the other way,
+/// because nothing about it says which type it holds.
+///
+/// The list is CSS Values 4's math functions. `attr()` and `env()` are
+/// deliberately absent: neither is arithmetic, and both can hold a colour.
+fn is_math(value: &str) -> bool {
+    let Some((function, _)) = value.split_once('(') else {
+        return false;
+    };
+    matches!(
+        function.to_ascii_lowercase().as_str(),
+        "calc" | "min" | "max" | "clamp" | "round" | "mod" | "rem" | "abs" | "sign"
+    )
+}
+
 pub fn parse_length(css: &str) -> Option<Length> {
+    if is_math(css) {
+        return Some(Length::Css(css.to_string()));
+    }
     if let Ok(zero) = css.parse::<f64>() {
         // Only zero: CSS requires a unit on every other length, and
         // accepting `w-[32]` would be accepting more than Tailwind does.
@@ -264,6 +289,14 @@ pub fn parse_dimension(css: &str) -> Dimension {
         if let Ok(value) = percent.parse::<f64>() {
             return Dimension::Percent(value);
         }
+    }
+    // Asked before `parse_length`, which now answers for math functions
+    // too. A `Dimension` has carried its own `Css` variant since long
+    // before `Length` did, and both refuse identically on Native -- so
+    // routing `w-[calc(…)]` through the newer one would change nothing
+    // except which arm the refusal comes out of. Left where it was.
+    if is_math(css) {
+        return Dimension::Css(css.to_string());
     }
     match parse_length(css) {
         Some(length) => Dimension::Length(length),
@@ -1125,8 +1158,8 @@ fn corner_radius(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
     Some(
         corners
             .iter()
-            .map(|(variant, property)| match length {
-                Some(l) => variant(Radius::Length(l)),
+            .map(|(variant, property)| match &length {
+                Some(l) => variant(Radius::Length(l.clone())),
                 None => StyleProperty::Arbitrary(property.to_string(), value.to_string()),
             })
             .collect(),
@@ -1334,13 +1367,15 @@ fn spacing(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
 
     Some(match prefix {
         "p" => vec![
-            StyleProperty::PaddingTop(l),
-            StyleProperty::PaddingRight(l),
-            StyleProperty::PaddingBottom(l),
+            StyleProperty::PaddingTop(l.clone()),
+            StyleProperty::PaddingRight(l.clone()),
+            StyleProperty::PaddingBottom(l.clone()),
             StyleProperty::PaddingLeft(l),
         ],
-        "px" => vec![StyleProperty::PaddingInlineStart(l), StyleProperty::PaddingInlineEnd(l)],
-        "py" => vec![StyleProperty::PaddingTop(l), StyleProperty::PaddingBottom(l)],
+        "px" => {
+            vec![StyleProperty::PaddingInlineStart(l.clone()), StyleProperty::PaddingInlineEnd(l)]
+        }
+        "py" => vec![StyleProperty::PaddingTop(l.clone()), StyleProperty::PaddingBottom(l)],
         "pt" => vec![StyleProperty::PaddingTop(l)],
         "pr" => vec![StyleProperty::PaddingRight(l)],
         "pb" => vec![StyleProperty::PaddingBottom(l)],
@@ -1546,6 +1581,57 @@ mod tests {
         assert!(is_color("#fff", None));
         assert!(is_color("rgb(0 0 0)", None));
         assert!(is_color("nonsense", None));
+        // Not a math function, though. Tailwind resolves those to the size
+        // side of every slot that has one, and treating them as colours is
+        // what made `ring-[calc(…)]` compile to nothing.
+        assert!(!is_color("calc(100% - 2rem)", None));
+        assert!(!is_color("min(1px, 2px)", None));
+        // `var()` stays a colour: nothing about it says which type it is.
+        assert!(is_color("var(--x)", None));
+    }
+
+    #[test]
+    fn a_math_function_is_a_length_that_only_a_browser_can_work_out() {
+        assert_eq!(
+            parse_length("calc(100% - 2rem)"),
+            Some(Length::Css("calc(100% - 2rem)".to_string()))
+        );
+        // Named because the alternative is a wrong number rather than a
+        // refusal: `Length::px` ends in a zero default, so anything that
+        // reaches Native unrefused is a layout that looks deliberate.
+        let ring = StyleProperty::RingWidth(Length::Css("calc(100% - 2rem)".to_string()));
+        assert_eq!(ring.css_expression_length(), Some("calc(100% - 2rem)"));
+        assert!(ring.unsupported_on_native().is_some_and(|m| m.contains("calc(100% - 2rem)")));
+        // And the unit question is left unanswered rather than answered
+        // wrongly -- there may be no unit here, or several.
+        assert_eq!(ring.unresolved_length_unit(), None);
+    }
+
+    #[test]
+    fn a_length_inside_a_wrapper_is_still_asked_about() {
+        // Found by this change rather than caused by it: a radius, a line
+        // height and a letter spacing each wrap a `Length` next to
+        // something that is not one, and none of the three was ever asked.
+        // So `rounded-[1.5em]` compiled to `borderRadius: 0` on React
+        // Native with no diagnostic, exactly the way `p-[1.5em]` used to.
+        let radius = StyleProperty::BorderRadius(Radius::Length(Length::Unit(1.5, LengthUnit::Em)));
+        assert_eq!(radius.unresolved_length_unit(), Some(LengthUnit::Em));
+        assert!(radius.unsupported_on_native().is_some());
+
+        let radius = StyleProperty::BorderTopLeftRadius(Radius::Length(Length::Css(
+            "calc(100% - 2rem)".to_string(),
+        )));
+        assert_eq!(radius.css_expression_length(), Some("calc(100% - 2rem)"));
+
+        let ch = Length::Unit(2.0, LengthUnit::Ch);
+        let leading = StyleProperty::LineHeight(LineHeight::Length(ch));
+        assert_eq!(leading.unresolved_length_unit(), Some(LengthUnit::Ch));
+
+        // `Full` and `Ratio` carry no length, and asking must stay quiet
+        // rather than guess one.
+        assert_eq!(StyleProperty::BorderRadius(Radius::Full).unresolved_length_unit(), None);
+        let ratio = StyleProperty::LineHeight(LineHeight::Ratio(1.5));
+        assert_eq!(ratio.unresolved_length_unit(), None);
     }
 
     #[test]
@@ -1676,6 +1762,59 @@ mod tests {
         assert_eq!(
             properties("line-clamp-[1.5]"),
             Some(vec![StyleProperty::LineClamp(Some(Clamp::Css("1.5".to_string())))])
+        );
+    }
+
+    #[test]
+    fn a_math_function_is_a_length_and_not_a_colour() {
+        // The bug this is here for: `parse_length` refused `calc(…)`, and
+        // `is_color` reads any refusal as "then it is a colour". So a ring
+        // width became a ring *colour*, a colour alone paints nothing, and
+        // the class compiled to nothing while reporting nothing.
+        assert_eq!(
+            properties("ring-[calc(100%-2rem)]"),
+            Some(vec![StyleProperty::RingWidth(Length::Css(
+                "calc(100% - 2rem)".to_string()
+            ))])
+        );
+        assert_eq!(
+            properties("inset-ring-[min(1px,2px)]"),
+            Some(vec![StyleProperty::InsetRingWidth(Length::Css(
+                "min(1px, 2px)".to_string()
+            ))])
+        );
+        // Every slot with a size side goes the same way, which is what
+        // Tailwind's own engine does with these.
+        assert_eq!(
+            properties("text-[clamp(1px,2vw,3px)]"),
+            Some(vec![StyleProperty::FontSize(Length::Css(
+                "clamp(1px, 2vw, 3px)".to_string()
+            ))])
+        );
+    }
+
+    #[test]
+    fn a_var_is_still_a_colour() {
+        // The other half of the same rule, and the reason it is not "any
+        // function is a length": nothing about `var(--x)` says what type it
+        // holds, so Tailwind puts it on the colour side and so does this.
+        assert_eq!(
+            properties("ring-[var(--x)]"),
+            Some(vec![StyleProperty::RingColor(Color::Css("var(--x)".to_string()))])
+        );
+    }
+
+    #[test]
+    fn a_size_keeps_taking_the_dimension_route() {
+        // `Dimension` has carried its own `Css` since long before `Length`
+        // did. Both refuse identically on Native, so sending `w-[calc(…)]`
+        // through the newer one would change nothing except which arm the
+        // refusal comes from -- and this asserts it did not move.
+        assert_eq!(
+            properties("w-[calc(100%-2rem)]"),
+            Some(vec![StyleProperty::Width(Dimension::Css(
+                "calc(100% - 2rem)".to_string()
+            ))])
         );
     }
 }
