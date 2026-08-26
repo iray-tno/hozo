@@ -315,11 +315,14 @@ pub fn filter_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static 
 pub fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static str, String)> {
     let resolve_color = |color: &Color| resolve_theme_color(color, theme);
     let ring = props.iter().find_map(|p| match p {
-        StyleProperty::RingWidth(Length::Px(v)) => Some(*v),
+        // Any length, not only pixels: `ring-[2rem]` resolves to 32 the
+        // same way `p-[2rem]` does, and matching `Px` alone dropped it
+        // into an empty style with no diagnostic.
+        StyleProperty::RingWidth(l) => Some(l.px(theme)),
         _ => None,
     });
     let inset_ring = props.iter().find_map(|p| match p {
-        StyleProperty::InsetRingWidth(Length::Px(v)) => Some(*v),
+        StyleProperty::InsetRingWidth(l) => Some(l.px(theme)),
         _ => None,
     });
     let ring_color = props.iter().find_map(|p| match p {
@@ -342,7 +345,7 @@ pub fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'sta
     };
 
     let ring_offset = props.iter().find_map(|p| match p {
-        StyleProperty::RingOffsetWidth(Length::Px(v)) => Some(*v),
+        StyleProperty::RingOffsetWidth(l) => Some(l.px(theme)),
         _ => None,
     });
     // `shadow-initial` and its siblings unset the register, so the layer

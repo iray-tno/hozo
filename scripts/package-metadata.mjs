@@ -65,7 +65,12 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'components', 'accessibility', 'universal'],
   },
   runtime: {
-    exports: { '.': './dist/index.js' },
+    // `./svg` is a separate entry because `react-native-svg` is an
+    // optional peer dependency, and a re-export from the main entry would
+    // load it on every import of this package -- an optional dependency
+    // that is always loaded is not optional. The compiler emits an import
+    // from here only for a file that uses an SVG element.
+    exports: { '.': './dist/index.js', './svg': './dist/svg.js' },
     // Metro resolves `.native.js` by filename suffix only while a package
     // has no `exports`; once it does, conditions take over and the suffix
     // is ignored. Naming the condition is what keeps the native build
@@ -136,7 +141,11 @@ export function metadataFor(name) {
     // `types` first: the resolver takes the first matching condition, and
     // a `default` ahead of it wins for a TypeScript consumer too.
     exportsField[subpath] = target.startsWith('./dist')
-      ? spec.native && subpath === '.'
+      // Every subpath, not only the root. `@hozo/runtime/svg` has a
+      // `.native.js` of its own and was getting the plain map, so Metro
+      // resolved the Web file -- which re-exports nothing -- and the
+      // components the compiler imported from it did not exist.
+      ? spec.native
         ? {
             types,
             'react-native': target.replace(/\.js$/, '.native.js'),

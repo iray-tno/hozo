@@ -1669,6 +1669,57 @@ impl StyleProperty {
     /// `100dvh`) is unusable on all of them -- and listing the properties
     /// one at a time is how the last batch of those came to be dropped in
     /// silence rather than refused.
+    /// The unit standing between this property's length and a pixel
+    /// value, when one does.
+    ///
+    /// `Length::unresolved_unit` has existed for this since it was
+    /// written and had no callers at all, so nothing ever asked. What
+    /// happened instead is worse than a refusal: `Length::px` ends in
+    /// `unwrap_or(0.0)`, so `p-[1.5em]` and `p-[100vh]` compiled to a
+    /// padding of **zero** on React Native, with no diagnostic. A wrong
+    /// number is not something the silence check can see -- a style was
+    /// emitted -- and there is no oracle for the Native side to compare it
+    /// against, so nothing in the report could have caught it either.
+    ///
+    /// `em` is answerable where a font size is on the same element and
+    /// `vh`/`vw` where the viewport hook is in play; both of those resolve
+    /// before this is asked. What reaches here is a length with nothing to
+    /// resolve it against.
+    pub fn unresolved_length_unit(&self) -> Option<LengthUnit> {
+        if let Some(Dimension::Length(length)) = self.dimension() {
+            return length.unresolved_unit();
+        }
+        let length = match self {
+            StyleProperty::Gap(l)
+            | StyleProperty::RowGap(l)
+            | StyleProperty::ColumnGap(l)
+            | StyleProperty::PaddingTop(l)
+            | StyleProperty::PaddingRight(l)
+            | StyleProperty::PaddingBottom(l)
+            | StyleProperty::PaddingLeft(l)
+            | StyleProperty::PaddingInlineStart(l)
+            | StyleProperty::PaddingInlineEnd(l)
+            | StyleProperty::PaddingBlockStart(l)
+            | StyleProperty::PaddingBlockEnd(l)
+            | StyleProperty::BorderTopWidth(l)
+            | StyleProperty::BorderRightWidth(l)
+            | StyleProperty::BorderBottomWidth(l)
+            | StyleProperty::BorderLeftWidth(l)
+            | StyleProperty::BorderLogicalWidth(_, l)
+            | StyleProperty::RingWidth(l)
+            | StyleProperty::InsetRingWidth(l)
+            | StyleProperty::RingOffsetWidth(l)
+            | StyleProperty::FontSize(l)
+            | StyleProperty::ScrollMargin(_, l)
+            | StyleProperty::ScrollPadding(_, l)
+            | StyleProperty::TextDecorationThickness(l)
+            | StyleProperty::OutlineWidth(l)
+            | StyleProperty::OutlineOffset(l) => *l,
+            _ => return None,
+        };
+        length.unresolved_unit()
+    }
+
     pub fn dimension(&self) -> Option<&Dimension> {
         match self {
             StyleProperty::Width(d)
@@ -1728,6 +1779,23 @@ impl StyleProperty {
     }
 
     pub fn unsupported_on_native(&self) -> Option<String> {
+        // A length with nothing to resolve it against. Asked before the
+        // property match because it is about the value rather than the
+        // property: an `em` is unresolvable in a padding for the same
+        // reason it is in a border width.
+        //
+        // What this replaces is not a gap but a wrong answer. `Length::px`
+        // ends in `unwrap_or(0.0)`, so `p-[1.5em]` compiled to a padding
+        // of zero and said nothing -- and a wrong number is invisible to
+        // the silence check, since a style *was* emitted.
+        if let Some(unit) = self.unresolved_length_unit() {
+            return Some(format!(
+                "`{unit:?}`: React Native has no viewport units and no font-relative lengths \
+                 outside text, so there is nothing here to resolve this against -- and resolving \
+                 it to zero, which is what happened before this refusal existed, is a layout \
+                 that looks deliberate"
+            ));
+        }
         // An arbitrary value is a CSS property written out by name, and
         // React Native's style keys are a different vocabulary -- there is
         // no rule that turns one into the other, and guessing a camelCase

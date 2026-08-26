@@ -53,11 +53,20 @@ export interface NativeComparison {
 }
 
 /// Diagnostic codes that mean "Hozo knows it can't render this, and says
-/// so". Both count as REFUSED, since the distinction this report draws is
+/// so". All count as REFUSED, since the distinction this report draws is
 /// named-gap vs. silent-gap, not error vs. warning:
 /// - WEB_ONLY: impossible on the platform (Yoga has no grid).
 /// - NOT_WIRED: possible, not built yet (`dark:`, `placeholder-*`).
-const NAMED_GAPS = new Set(['WEB_ONLY_PROPERTY_ON_NATIVE', 'NOT_WIRED_ON_NATIVE'])
+/// - UNREADABLE_ARBITRARY_VALUE: the value could not be read at all, on
+///   either platform. It was missing from this list, so twelve
+///   `transition-[…]` candidates that raise it were counted as silent --
+///   the compiler saying exactly the right thing and the report calling
+///   it silence.
+const NAMED_GAPS = new Set([
+  'WEB_ONLY_PROPERTY_ON_NATIVE',
+  'NOT_WIRED_ON_NATIVE',
+  'UNREADABLE_ARBITRARY_VALUE',
+])
 
 /// Whether a utility works can depend on where it's written, so each
 /// candidate is tried in several places and counts as covered if *any* of
