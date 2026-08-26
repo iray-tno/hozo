@@ -17,6 +17,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The audit only. Every denominator in this repository is *derived* from
+  # somebody else's package -- Tailwind's own engine enumerates the
+  # utilities and variants, React Native's types decide which refusals are
+  # supportable, `aria-query` supplies the roles. So the numbers can move
+  # without anyone here touching anything, and a release of Tailwind is
+  # the one kind of change no commit will ever announce. This is the only
+  # thing watching for it.
+  schedule:
+    - cron: '0 3 * * 1'
 
 # A second push supersedes the first, and the audit is long enough that
 # two of them overlapping is worth avoiding. Keyed on the ref, so a push
@@ -69,6 +78,12 @@ jobs:
   # that comparison cannot come out differently on macOS. The matrix is
   # what covers platform differences.
   audit:
+    # Not on pull requests. It takes thirty minutes where `test` takes
+    # five, and at this stage the cost of waiting for it on every PR is
+    # worse than the cost of noticing a moved number after a merge -- the
+    # same run fires on the push to main, so nothing goes unmeasured, only
+    # unblocked.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # Generous, because the number that matters is measured on a laptop
     # and CI hardware is slower. Present at all so a hang is a failure
