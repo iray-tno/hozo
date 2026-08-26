@@ -64,6 +64,12 @@ export const Easing = {
   in: (easing) => easing,
   out: (easing) => easing,
   inOut: (easing) => easing,
+  // Identity rather than a real cubic bezier: nothing here samples an
+  // easing curve, and a wrong curve would be a wrong answer where a
+  // missing function is an honest one. It is here because the runtime
+  // calls it, and a stub that omits a method the real module has reports
+  // the absence as a crash somewhere unrelated.
+  bezier: () => (value) => value,
 }
 
 export const Animated = {

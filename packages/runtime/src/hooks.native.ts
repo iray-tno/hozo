@@ -114,36 +114,117 @@ export function useHozoViewport(): Viewport {
   return useSyncExternalStore(viewportStore.subscribe, viewportStore.get, viewportStore.get)
 }
 
-/** Tailwind's `animate-spin`: one clockwise turn per second, forever. */
-export function useHozoSpin() {
+/**
+ * Tailwind's four looping animations, as one hook.
+ *
+ * All four move only `opacity` and `transform`, which is what lets every
+ * one of them run on the native driver -- the animation continues on the
+ * UI thread while JavaScript is busy, which is exactly the moment a
+ * spinner or a skeleton is on screen. An animation that stalls while the
+ * work it is reporting on happens is worse than none.
+ *
+ * One `Animated.Value` running 0 → 1 on a loop, with the shape of each
+ * animation in the interpolation rather than in the timing. That keeps the
+ * timing identical between them and puts every difference in one place.
+ *
+ * `reduce-motion` is deliberately not consulted here. Tailwind's answer is
+ * `motion-safe:animate-spin`, a variant the compiler already handles, and
+ * making the hook second-guess it would mean a class that says animate
+ * sometimes not animating for reasons the source does not show.
+ */
+export type HozoAnimation = 'spin' | 'pulse' | 'bounce' | 'ping'
+
+const DURATIONS: Record<HozoAnimation, number> = {
+  spin: 1000,
+  // Tailwind's `pulse` is 2s and the others are 1s.
+  pulse: 2000,
+  bounce: 1000,
+  ping: 1000,
+}
+
+/**
+ * The easing for one animation, built when it is asked for.
+ *
+ * A function rather than a table, because a table is evaluated at import
+ * time and `Easing.bezier` would be called on every native import of this
+ * package -- which is how the accessibility settings above ended up
+ * needing the same treatment. Nothing here should run for a project that
+ * imports the module and never animates.
+ */
+function easingFor(name: HozoAnimation): (value: number) => number {
+  switch (name) {
+    // `cubic-bezier(.4,0,.6,1)`, which is symmetric, so the fade out and
+    // back read as one breath rather than two movements.
+    case 'pulse':
+      return Easing.bezier(0.4, 0, 0.6, 1)
+    case 'ping':
+      return Easing.bezier(0, 0, 0.2, 1)
+    // Linear on purpose for the bounce: its shape is in the interpolation
+    // below, and easing it again would ease it twice.
+    default:
+      return Easing.linear
+  }
+}
+
+export function useHozoAnimation(name: HozoAnimation) {
   const progress = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
+    progress.setValue(0)
     const animation = Animated.loop(
       Animated.timing(progress, {
         toValue: 1,
-        duration: 1000,
-        easing: Easing.linear,
+        duration: DURATIONS[name],
+        easing: easingFor(name),
         useNativeDriver: true,
       }),
     )
     animation.start()
     return () => animation.stop()
-  }, [progress])
+  }, [progress, name])
 
-  return useMemo(
-    () => ({
-      transform: [
-        {
-          rotate: progress.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '360deg'],
-          }),
-        },
-      ],
-    }),
-    [progress],
-  )
+  return useMemo(() => {
+    switch (name) {
+      case 'spin':
+        return {
+          transform: [
+            { rotate: progress.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+          ],
+        }
+      case 'pulse':
+        return {
+          opacity: progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.5, 1] }),
+        }
+      case 'bounce':
+        return {
+          transform: [
+            {
+              // A percentage, because Tailwind's bounce is -25% of the
+              // element's own height and a pixel figure would be right at
+              // one size only. React Native has taken percentages in
+              // `translateY` since 0.76, which is this package's floor.
+              //
+              // The two halves are not symmetric: Tailwind eases the rise
+              // with `cubic-bezier(.8,0,1,1)` and the fall with
+              // `cubic-bezier(0,0,.2,1)`, so it leaves slowly and lands
+              // quickly. The extra input points are that asymmetry drawn
+              // out, since one `Animated.timing` cannot hold two easings.
+              translateY: progress.interpolate({
+                inputRange: [0, 0.25, 0.5, 0.75, 1],
+                outputRange: ['0%', '-15%', '-25%', '-10%', '0%'],
+              }),
+            },
+          ],
+        }
+      case 'ping':
+        return {
+          opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+          transform: [
+            { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) },
+          ],
+        }
+    }
+  }, [progress, name])
 }
 
 // The environment queries, on the same one-subscription-per-app footing as

@@ -17,7 +17,8 @@ export {
   useHozoBreakpoint,
   useHozoWidthAtLeast,
   useHozoViewport,
-  useHozoSpin,
+  useHozoAnimation,
+  type HozoAnimation,
   useHozoEnvironment,
 } from './hooks.native.ts'
 export { HozoSpaced } from './spacing.native.tsx'

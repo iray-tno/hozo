@@ -1953,16 +1953,21 @@ impl StyleProperty {
                 "CSS transitions: React Native has no declarative transition in its StyleSheet"
                     .to_string(),
             ),
-            StyleProperty::Animation(Animation::Spin | Animation::None) => None,
-            StyleProperty::Animation(_) => Some(
-                "CSS animations: React Native animates imperatively (Animated/Reanimated), which \
-                 requires a dedicated runtime lowering; only spin is wired today"
-                    .to_string(),
-            ),
+            // All four of Tailwind's loops are wired now. They move only
+            // opacity and transform, which is what let them share one
+            // native-driver hook -- and what keeps them running on the UI
+            // thread while JavaScript is busy, the moment a spinner or a
+            // skeleton is usually on screen.
+            StyleProperty::Animation(_) => None,
+            // Paint on an SVG element is lowered as a *prop*, which is
+            // where `react-native-svg` takes it -- so it is not refused
+            // there. This message is for paint on anything else, where
+            // there is no SVG element under it to paint.
             StyleProperty::Fill(_) | StyleProperty::Stroke(_) | StyleProperty::StrokeWidth(_) => {
                 Some(
-                    "SVG paint: React Native has no SVG in core -- `react-native-svg` is a \
-                     separate dependency with its own props, not a style Hozo can lower to"
+                    "SVG paint on something that is not an SVG element. React Native has no SVG \
+                     in core; inside `<Svg>` Hozo lowers this to a `react-native-svg` prop, and \
+                     outside one there is nothing for it to paint"
                         .to_string(),
                 )
             }

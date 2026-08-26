@@ -2106,8 +2106,6 @@ enum RuntimeHook {
     /// exactly, and it's why the breakpoints keep their coarse snapshot
     /// rather than being rebuilt on top of this.
     Viewport,
-    /// A native-driver rotation loop used by `animate-spin`.
-    Spin,
     /// One environment query, by Tailwind's name for it.
     ///
     /// Seven queries, four subscriptions: the runtime answers
@@ -2123,6 +2121,13 @@ enum RuntimeHook {
     /// cross the threshold -- which is the same guarantee the buckets give
     /// by rounding.
     WidthAtLeast(u32),
+    /// One of Tailwind's four looping animations.
+    ///
+    /// Was `Spin` alone, because spin was the only one wired. The other
+    /// three move only opacity and transform too, so they run on the
+    /// same native driver and differ from it in nothing a separate hook
+    /// would have expressed.
+    Animation(hozo_ir::Animation),
 }
 
 impl RuntimeHook {
@@ -2133,7 +2138,7 @@ impl RuntimeHook {
             RuntimeHook::Breakpoint(bp) => format!("__hozoBp_{}", breakpoint_name(bp)),
             RuntimeHook::WidthAtLeast(px) => format!("__hozoWidth_{px}"),
             RuntimeHook::Viewport => "__hozoViewport".to_string(),
-            RuntimeHook::Spin => "__hozoSpin".to_string(),
+            RuntimeHook::Animation(name) => format!("__hozoAnim_{}", animation_name(*name)),
             RuntimeHook::Environment(query) => {
                 format!("__hozoEnv_{}", environment_name(*query).replace('-', "_"))
             }
@@ -2145,7 +2150,7 @@ impl RuntimeHook {
             RuntimeHook::Dark => "useHozoDark",
             RuntimeHook::Breakpoint(_) => "useHozoBreakpoint",
             RuntimeHook::Viewport => "useHozoViewport",
-            RuntimeHook::Spin => "useHozoSpin",
+            RuntimeHook::Animation(_) => "useHozoAnimation",
             RuntimeHook::Environment(_) => "useHozoEnvironment",
             RuntimeHook::WidthAtLeast(_) => "useHozoWidthAtLeast",
         }
@@ -2163,7 +2168,11 @@ impl RuntimeHook {
                 format!("const {} = useHozoWidthAtLeast({px})", self.binding())
             }
             RuntimeHook::Viewport => format!("const {} = useHozoViewport()", self.binding()),
-            RuntimeHook::Spin => format!("const {} = useHozoSpin()", self.binding()),
+            RuntimeHook::Animation(name) => format!(
+                "const {} = useHozoAnimation('{}')",
+                self.binding(),
+                animation_name(*name)
+            ),
             // The query goes through as Tailwind's name, the way the
             // breakpoint one does -- so the generated call reads as the
             // class it came from.
@@ -2252,14 +2261,16 @@ fn build_style_entries(
         }
         let (animation_props, props): (Vec<_>, Vec<_>) =
             props.into_iter().partition(|property| matches!(property, StyleProperty::Animation(_)));
-        let animation = animation_props.iter().find_map(|property| match property {
-            StyleProperty::Animation(hozo_ir::Animation::Spin) => {
-                Some(RuntimeHook::Spin.binding())
-            }
+        // `animate-none` asks for no hook: it turns an animation off
+        // rather than being one.
+        let animation_hook = animation_props.iter().find_map(|property| match property {
+            StyleProperty::Animation(hozo_ir::Animation::None) => None,
+            StyleProperty::Animation(name) => Some(RuntimeHook::Animation(*name)),
             _ => None,
         });
-        if animation.is_some() {
-            runtime.hooks.push(RuntimeHook::Spin);
+        let animation = animation_hook.as_ref().map(RuntimeHook::binding);
+        if let Some(hook) = animation_hook {
+            runtime.hooks.push(hook);
         }
         if props.is_empty() && viewport.is_none() && animation.is_none() {
             continue;
@@ -5441,16 +5452,16 @@ export const C = (p) => <List {...p}>x</List>
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(
-            output.prelude.iter().filter(|line| line.contains("useHozoSpin")).count(),
+            output.prelude.iter().filter(|line| line.contains("useHozoAnimation('spin')")).count(),
             1
         );
-        assert!(output.jsx.contains("style={__hozoSpin}"), "{}", output.jsx);
+        assert!(output.jsx.contains("style={__hozoAnim_spin}"), "{}", output.jsx);
         assert!(
-            output.jsx.contains("__hozoBp_md && __hozoSpin"),
+            output.jsx.contains("__hozoBp_md && __hozoAnim_spin"),
             "{}",
             output.jsx
         );
-        assert!(output.runtime_imports.contains(&"useHozoSpin"));
+        assert!(output.runtime_imports.contains(&"useHozoAnimation"));
     }
 
     #[test]
@@ -5655,5 +5666,64 @@ mod svg_tests {
         assert!(out.runtime_imports.contains(&"Svg"), "{:?}", out.runtime_imports);
         assert!(out.runtime_imports.contains(&"SvgText"), "{:?}", out.runtime_imports);
         assert!(!out.runtime_imports.contains(&"Text"), "{:?}", out.runtime_imports);
+    }
+}
+
+/// Tailwind's name for an animation, which is also the runtime hook's
+/// argument -- so the generated call reads as the class it came from.
+fn animation_name(animation: hozo_ir::Animation) -> &'static str {
+    match animation {
+        hozo_ir::Animation::Spin => "spin",
+        hozo_ir::Animation::Pulse => "pulse",
+        hozo_ir::Animation::Bounce => "bounce",
+        hozo_ir::Animation::Ping => "ping",
+        // Not an animation to run: `animate-none` turns one off, and the
+        // hook is never asked for.
+        hozo_ir::Animation::None => "none",
+    }
+}
+
+#[cfg(test)]
+mod animation_tests {
+    use super::*;
+
+    fn compile(source: &str) -> LowerOutput {
+        let parsed = hozo_parser::parse_tsx(source);
+        lower(&parsed.roots[0].node, source, &Theme::default())
+    }
+
+    #[test]
+    fn all_four_of_tailwinds_loops_reach_the_native_driver() {
+        // Three of these were refused with "only spin is wired today".
+        // They move nothing but opacity and transform, which is what let
+        // them share one hook rather than needing three.
+        for (class_name, name) in [
+            ("animate-spin", "spin"),
+            ("animate-pulse", "pulse"),
+            ("animate-bounce", "bounce"),
+            ("animate-ping", "ping"),
+        ] {
+            let out = compile(&format!(
+                "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+            ));
+            assert!(out.diagnostics.is_empty(), "{class_name}: {:?}", out.diagnostics);
+            assert!(
+                out.prelude.iter().any(|line| line.contains(&format!("useHozoAnimation('{name}')"))),
+                "{class_name}: {:?}",
+                out.prelude,
+            );
+            assert!(out.jsx.contains(&format!("__hozoAnim_{name}")), "{class_name}: {}", out.jsx);
+        }
+    }
+
+    #[test]
+    fn animate_none_asks_for_no_hook() {
+        // It turns an animation off rather than being one, so reaching for
+        // the runtime would start a loop in order to express stopping.
+        let out = compile(
+            "import { View } from '@hozo/core'\nconst el = <View className=\"animate-none\" />\n",
+        );
+        assert!(out.prelude.is_empty(), "{:?}", out.prelude);
+        assert!(!out.jsx.contains("__hozoAnim"), "{}", out.jsx);
     }
 }
