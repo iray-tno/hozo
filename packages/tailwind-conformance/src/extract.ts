@@ -221,3 +221,34 @@ function closingQuote(css: string, start: number): number {
   }
   return css.length - 1
 }
+
+/**
+ * The escaped class names a selector targets.
+ *
+ * Backslash escapes are part of the name (`.hover\:bg-blue-500:hover` is
+ * the class `hover\:bg-blue-500` followed by a pseudo-class), so an escaped
+ * character is consumed together with its backslash -- otherwise the `:` in
+ * `\:` would look like the start of a pseudo-class and cut the name short.
+ */
+export function classNamesIn(selector: string): string[] {
+  const names: string[] = []
+  for (let i = 0; i < selector.length; i += 1) {
+    if (selector[i] !== '.') continue
+    let name = ''
+    let j = i + 1
+    while (j < selector.length) {
+      const ch = selector[j]
+      if (ch === '\\' && j + 1 < selector.length) {
+        name += ch + selector[j + 1]
+        j += 2
+        continue
+      }
+      if (!/[\w-]/.test(ch)) break
+      name += ch
+      j += 1
+    }
+    if (name) names.push(name)
+    i = j - 1
+  }
+  return names
+}

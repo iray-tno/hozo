@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { compile } from 'tailwindcss'
-import { extractRules, type Rule } from './extract.ts'
+import { classNamesIn, extractRules, type Rule } from './extract.ts'
 import { tailwindPackageDir } from './theme.ts'
 
 export type OracleRules = Map<string, string>
@@ -92,36 +92,6 @@ export async function buildOracle(candidates: string[]): Promise<Oracle> {
   return { css: utilities, rules, registerDefaults: extractRegisterDefaults(css) }
 }
 
-/**
- * The escaped class names a selector targets.
- *
- * Backslash escapes are part of the name (`.hover\:bg-blue-500:hover` is
- * the class `hover\:bg-blue-500` followed by a pseudo-class), so an escaped
- * character is consumed together with its backslash -- otherwise the `:` in
- * `\:` would look like the start of a pseudo-class and cut the name short.
- */
-function classNamesIn(selector: string): string[] {
-  const names: string[] = []
-  for (let i = 0; i < selector.length; i += 1) {
-    if (selector[i] !== '.') continue
-    let name = ''
-    let j = i + 1
-    while (j < selector.length) {
-      const ch = selector[j]
-      if (ch === '\\' && j + 1 < selector.length) {
-        name += ch + selector[j + 1]
-        j += 2
-        continue
-      }
-      if (!/[\w-]/.test(ch)) break
-      name += ch
-      j += 1
-    }
-    if (name) names.push(name)
-    i = j - 1
-  }
-  return names
-}
 
 function extractRegisterDefaults(css: string): Map<string, string> {
   const defaults = new Map<string, string>()
