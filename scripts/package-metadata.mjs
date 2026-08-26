@@ -50,11 +50,17 @@ const REPOSITORY = 'https://github.com/iray-tno/hozo'
  * published shape never being the shape under test.
  */
 const PACKAGES = {
+  canvas: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'canvas', 'graphics', 'skia', 'charts'],
+  },
   compiler: {
     exports: {
       '.': './dist/index.js',
       './project': './dist/project.js',
       './lower': './dist/lower.js',
+      './canvas': './dist/canvas.js',
       './diagnostics': './dist/diagnostics.js',
       './sources': './dist/sources.js',
     },

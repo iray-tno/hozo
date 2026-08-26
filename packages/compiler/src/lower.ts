@@ -15,6 +15,7 @@
 import path from 'node:path'
 
 import { compile, type CompileDiagnostic, type Theme } from './index.ts'
+import { lowerCanvasPaints } from './canvas.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 
 const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
@@ -165,10 +166,12 @@ export function lowerModule(
   if (!file.endsWith('.tsx')) return undefined
 
   const allowed = options.sources ?? DEFAULT_PRIMITIVE_SOURCES
+  const canvas = lowerCanvasPaints(code, theme, false)
   // A cheap reject before parsing: a file mentioning none of the trusted
   // modules has nothing this can lower, and most of a project's files are
   // that. The real decision needs the AST and comes next.
-  if (!allowed.some((module) => code.includes(module))) return undefined
+  const hasSemanticCandidate = allowed.some((module) => code.includes(module))
+  if (!hasSemanticCandidate && !canvas.touched) return undefined
 
   // Per tag, not per file. A file mixing `react-native` with `@expo/ui`
   // is ordinary in an Expo app, and both export `Text`, `Button`, `List`,
@@ -176,10 +179,13 @@ export function lowerModule(
   // left the half Hozo understands uncompiled, and accepting it would have
   // replaced a native SwiftUI button with a `<div>`. The compiler carries
   // a foreign tag verbatim and lowers the tree around it.
-  const components = compile(code, theme, allowed)
-  if (components.length === 0) return undefined
+  // Canvas edits run first because a semantic root may carry a Canvas tree
+  // verbatim. Compiling the semantic span from the original source would
+  // otherwise paste the old className back over the nested Canvas edit.
+  const components = hasSemanticCandidate ? compile(canvas.code, theme, allowed) : []
+  if (components.length === 0 && !canvas.touched) return undefined
 
-  let next = code
+  let next = canvas.code
   let css = ''
   // Splice from the last span to the first so earlier offsets stay valid as
   // later (in the string, not necessarily in array order) edits are applied.
@@ -220,6 +226,9 @@ export function lowerModule(
     css,
     cssFileName,
     cssPath: path.join(path.dirname(file), cssFileName),
-    diagnostics: components.flatMap((component) => component.diagnostics),
+    diagnostics: [
+      ...canvas.diagnostics,
+      ...components.flatMap((component) => component.diagnostics),
+    ],
   }
 }

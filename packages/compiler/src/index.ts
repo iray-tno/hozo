@@ -51,6 +51,13 @@ export interface CompiledNativeComponent {
   spanEnd: number
 }
 
+export interface CompiledCanvasPaint {
+  replacement: string
+  diagnostics: CompileDiagnostic[]
+  spanStart: number
+  spanEnd: number
+}
+
 /// Accumulates the project's runtime-resolvable class candidates (proposal
 /// §7's third tier) and turns them into one stylesheet. See the Rust side's
 /// doc comment for why this is project-wide rather than per file.
@@ -104,6 +111,11 @@ interface NativeBinding {
     theme: Theme | undefined,
     sources: string[] | undefined,
   ): CompiledNativeComponent[]
+  compileCanvasPaints(
+    source: string,
+    theme: Theme | undefined,
+    native: boolean,
+  ): CompiledCanvasPaint[]
   moduleImports(source: string, module: string): string[]
   foreignPrimitives(source: string, sources: string[]): string[]
   CandidateCache: CandidateCacheConstructor
@@ -153,6 +165,15 @@ export function compileNative(
   sources?: readonly string[],
 ): CompiledNativeComponent[] {
   return loadNative().compileNative(source, theme, sources ? [...sources] : undefined)
+}
+
+/** Canvas-specific paint edits; kept separate from semantic component IR. */
+export function compileCanvasPaints(
+  source: string,
+  theme?: Theme,
+  native = false,
+): CompiledCanvasPaint[] {
+  return loadNative().compileCanvasPaints(source, theme, native)
 }
 
 export function openCandidateCache(path?: string): CandidateCache {

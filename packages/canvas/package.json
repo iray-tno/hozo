@@ -1,21 +1,21 @@
 {
-  "name": "@hozo/a11y",
+  "name": "@hozo/canvas",
   "version": "0.1.0",
-  "description": "Complex accessibility primitives (Dialog, etc.) with runtime-managed focus and keyboard behavior.",
+  "description": "A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.",
   "keywords": [
     "react-native",
-    "accessibility",
-    "a11y",
-    "aria",
-    "dialog"
+    "canvas",
+    "graphics",
+    "skia",
+    "charts"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iray-tno/hozo.git",
-    "directory": "packages/a11y"
+    "directory": "packages/canvas"
   },
-  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/a11y#readme",
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/canvas#readme",
   "bugs": {
     "url": "https://github.com/iray-tno/hozo/issues"
   },
@@ -43,7 +43,7 @@
   "scripts": {
     "build": "tsc -p .",
     "typecheck": "tsc -p . --noEmit",
-    "test": "tsc -p . --noEmit && node --test src/*.test.ts"
+    "test": "tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -59,6 +59,7 @@
     "@types/react-dom": "^19.2.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-native": "^0.87.0"
+    "react-native": "^0.87.0",
+    "react-test-renderer": "^19.2.8"
   }
 }

@@ -15,6 +15,7 @@
 //   file, since that's the idiomatic RN pattern.
 
 import { compileNative, moduleImports, type CompiledNativeComponent, type Theme } from '@hozo/compiler'
+import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { DEFAULT_PRIMITIVE_SOURCES, foreignPrimitives } from '@hozo/compiler/sources'
 import { importSpecifier } from '@hozo/compiler/project'
@@ -65,17 +66,26 @@ export function transformHozoSource(
     return null
   }
   // A cheap reject before parsing; the real decision needs the AST.
-  if (!sources.some((module) => code.includes(module))) {
+  const hasSemanticCandidate = sources.some((module) => code.includes(module))
+  if (!hasSemanticCandidate && !code.includes('@hozo/canvas')) {
     return null
   }
+  const canvas = lowerCanvasPaints(code, theme, true)
+  code = canvas.code
+  reportDiagnostics(
+    canvas.diagnostics,
+    filename,
+    // eslint-disable-next-line no-console
+    (message) => console.warn(message),
+  )
   // `sources` reaches the compiler rather than gating the file here. It
   // was `code.includes('@hozo/core')`, which skipped every Expo and React
   // Native project on the grounds that it had not been rewritten -- while
   // the compiler underneath had always handled `react-native` imports and
   // produced identical output for them. See `@hozo/compiler/sources`.
-  const components = compileNative(code, theme, sources)
+  const components = hasSemanticCandidate ? compileNative(code, theme, sources) : []
   if (components.length === 0) {
-    return null
+    return canvas.touched ? code : null
   }
 
   // Error-severity diagnostics stop the build. The case this exists for --

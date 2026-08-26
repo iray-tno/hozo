@@ -75,3 +75,39 @@ test('the import survives even when lowering left nothing using it', () => {
 test('namespacing leaves the shared base class alone', () => {
   assert.equal(namespaceHozoClasses('hozo-view hozo-0', 2), 'hozo-view hozo-r2-0')
 })
+
+test('lowers Canvas paint classes without treating the scene as semantic DOM', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export function Chart() {
+  return <Canvas decorative width={100} height={40}>
+    <Canvas.Rect className="fill-blue-500 stroke-red-500 stroke-2 opacity-50" width={100} height={40} />
+  </Canvas>
+}
+`
+  const lowered = lowerModule(source, file, file, undefined)!
+  assert.ok(lowered)
+  assert.match(lowered.code, /<Canvas decorative/)
+  assert.match(lowered.code, /<Canvas\.Rect fill="oklch\(62\.3% 0\.214 259\.815\)" stroke="oklch\(63\.7% 0\.237 25\.331\)" strokeWidth=\{2\} opacity=\{0\.5\}/)
+  assert.equal(lowered.css, '')
+})
+
+test('Canvas paint survives inside a semantic root that is rewritten afterward', () => {
+  const source = `import { View } from '@hozo/core'
+import { Canvas } from '@hozo/canvas'
+export function Chart() {
+  return <View className="p-4"><Canvas decorative width={20} height={20}><Canvas.Circle className="fill-blue-500" cx={10} cy={10} radius={8} /></Canvas></View>
+}
+`
+  const lowered = lowerModule(source, file, file, undefined)!
+  assert.match(lowered.code, /<div[^>]*><Canvas decorative/)
+  assert.match(lowered.code, /<Canvas\.Circle fill="oklch\(62\.3% 0\.214 259\.815\)"/)
+})
+
+test('diagnoses Canvas classes that have no paint-prop lowering', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+const Chart = () => <Canvas decorative><Canvas.Rect className={active ? 'fill-blue-500' : 'fill-gray-500'} width={1} height={1} /></Canvas>
+`
+  const lowered = lowerModule(source, file, file, undefined)!
+  assert.equal(lowered.code, source)
+  assert.equal(lowered.diagnostics[0]?.code, 'CANVAS_CLASS_NOT_LOWERED')
+})

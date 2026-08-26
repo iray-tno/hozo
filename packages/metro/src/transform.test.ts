@@ -22,6 +22,20 @@ test('returns null when there is no @hozo/core usage', () => {
   assert.equal(transformHozoSource('export const x = 1\n', 'x.tsx'), null)
 })
 
+test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export function Chart() {
+  return <Canvas decorative width={100} height={40}>
+    <Canvas.Path className="fill-none stroke-blue-500 stroke-2 opacity-50" path="M0 0L10 10" />
+  </Canvas>
+}
+`
+  const output = transformHozoSource(source, 'Chart.tsx')
+  assert.ok(output)
+  assert.match(output, /<Canvas\.Path fill="none" stroke="#2b7fff" strokeWidth=\{2\} opacity=\{0\.5\}/)
+  assert.ok(!output.includes('StyleSheet.create'))
+})
+
 test('strips the @hozo/core import and adds a react-native one', () => {
   const output = transformHozoSource(LOGIN_SOURCE, 'Login.tsx')
   assert.ok(output)
