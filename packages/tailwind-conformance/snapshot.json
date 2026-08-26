@@ -50,10 +50,10 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 681,
-    "refused": 2070,
-    "noOp": 74,
-    "silent": 20
+    "covered": 563,
+    "refused": 2230,
+    "noOp": 50,
+    "silent": 2
   },
   "compositions": {
     "candidates": 50,
