@@ -1,10 +1,6 @@
 packages:
   - "packages/*"
   - "examples/*"
-# Optional platform peers must stay optional in the development workspace as
-# well. Otherwise adding @hozo/canvas makes a Web-only install download every
-# Skia native binary merely to satisfy an optional peer.
-autoInstallPeers: false
 allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:

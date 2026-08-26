@@ -105,6 +105,27 @@ interface StoredNode {
   node: FlatNode
 }
 
+function sceneValueEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left)
+      && Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) => sceneValueEqual(value, right[index]))
+  }
+  const leftRecord = left as Record<string, unknown>
+  const rightRecord = right as Record<string, unknown>
+  const leftKeys = Object.keys(leftRecord)
+  const rightKeys = Object.keys(rightRecord)
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key) => key in rightRecord && sceneValueEqual(leftRecord[key], rightRecord[key]))
+}
+
+function flatNodeEqual(left: FlatNode, right: FlatNode) {
+  return left.kind === right.kind && sceneValueEqual(left.props, right.props)
+}
+
 /** A small platform-neutral retained scene. It is deliberately not Hozo's semantic/SVG IR. */
 export class CanvasSceneStore {
   readonly #nodes = new Map<string, StoredNode>()
@@ -125,6 +146,7 @@ export class CanvasSceneStore {
 
   upsert(id: string, parentId: string | undefined, node: FlatNode) {
     const previous = this.#nodes.get(id)
+    if (previous && previous.parentId === parentId && flatNodeEqual(previous.node, node)) return
     this.#nodes.set(id, {
       id,
       parentId,
@@ -241,8 +263,17 @@ export function useCanvasScene(children: ReactNode) {
     return store.subscribe(() => setRevision(store.version))
   }, [store])
 
+  const rootContext = useMemo(() => ({ store }), [store])
+  const collector = useMemo(
+    () => <SceneContext.Provider value={rootContext}>{children}</SceneContext.Provider>,
+    [rootContext, children],
+  )
+
   return {
     scene: useMemo(() => store.snapshot(), [store, revision]),
-    collector: <SceneContext.Provider value={{ store }}>{children}</SceneContext.Provider>,
+    // A scene revision redraws the platform surface, but must not rerender
+    // every marker just because the root observed it. Stable provider value
+    // and element identity keep large scenes from doing that second pass.
+    collector,
   }
 }

@@ -30,5 +30,13 @@ Canvas pixels are not semantic content. Every root must therefore either have
 an `accessibilityLabel`, provide an `accessibleFallback` (for example a data
 table), or opt out explicitly with `decorative`.
 
-The Skia peer is optional so a Web-only installation does not download it. It
-is required when this package is used from React Native.
+Skia is not installed by this package, so a Web-only installation does not
+download its native binaries. Add it only to a React Native app:
+
+```sh
+npx expo install @shopify/react-native-skia
+```
+
+The Native entry imports Skia directly and will fail at bundle time with a
+missing-module error until it is installed. It remains an app-level dependency
+so Web-only Hozo installations stay small.

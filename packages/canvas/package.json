@@ -46,14 +46,10 @@
     "test": "tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
   "peerDependencies": {
-    "@shopify/react-native-skia": ">=2",
     "react": "^19.0.0",
     "react-native": ">=0.76"
   },
   "peerDependenciesMeta": {
-    "@shopify/react-native-skia": {
-      "optional": true
-    },
     "react-native": {
       "optional": true
     }
@@ -63,6 +59,7 @@
     "@types/react-dom": "^19.2.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-native": "^0.87.0"
+    "react-native": "^0.87.0",
+    "react-test-renderer": "^19.2.8"
   }
 }

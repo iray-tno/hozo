@@ -60,6 +60,7 @@ const PACKAGES = {
       '.': './dist/index.js',
       './project': './dist/project.js',
       './lower': './dist/lower.js',
+      './canvas': './dist/canvas.js',
       './diagnostics': './dist/diagnostics.js',
       './sources': './dist/sources.js',
     },
