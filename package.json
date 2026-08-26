@@ -9,7 +9,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "test": "turbo run test && node scripts/check-packages.mjs",
+    "test": "turbo run build --filter=./packages/* && turbo run test && node scripts/check-packages.mjs",
     "typecheck": "turbo run typecheck",
     "changeset": "changeset",
     "version": "changeset version && node scripts/package-metadata.mjs && pnpm install --lockfile-only",
