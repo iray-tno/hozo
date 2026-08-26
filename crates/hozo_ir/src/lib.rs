@@ -1686,10 +1686,46 @@ impl StyleProperty {
     /// before this is asked. What reaches here is a length with nothing to
     /// resolve it against.
     pub fn unresolved_length_unit(&self) -> Option<LengthUnit> {
+        self.length().and_then(Length::unresolved_unit)
+    }
+
+    /// The CSS expression this property's length is, when it is one.
+    ///
+    /// The other half of the same question `unresolved_length_unit` asks,
+    /// split out because the answers are not interchangeable: a unit can
+    /// sometimes be supplied from context, and `calc(100% - 2rem)` never
+    /// can. Native refuses on this before it looks at units at all.
+    pub fn css_expression_length(&self) -> Option<&str> {
+        self.length().and_then(Length::css_expression)
+    }
+
+    /// The length this property carries, wherever it keeps it.
+    ///
+    /// Four shapes hold one: the `Dimension`-typed properties, the ones
+    /// typed directly as a length, and the three small enums that wrap one
+    /// alongside something that is not a length at all -- a radius that may
+    /// be `Full`, a line height that may be a ratio, a letter spacing that
+    /// may be an `em`.
+    ///
+    /// Every one of those lists has been wrong. `dimension()` covered 17 of
+    /// 43 properties for a while; the direct list did not exist at all
+    /// until `p-[1.5em]` was found compiling to a padding of zero; and the
+    /// three wrappers below were still missing when `rounded-[1.5em]` was
+    /// found doing the same thing to a radius. A property absent from here
+    /// is not a gap in a report -- it is a number the compiler invents.
+    fn length(&self) -> Option<&Length> {
         if let Some(Dimension::Length(length)) = self.dimension() {
-            return length.unresolved_unit();
+            return Some(length);
         }
-        let length = match self {
+        if let Some(Radius::Length(length)) = self.radius() {
+            return Some(length);
+        }
+        match self {
+            StyleProperty::LineHeight(LineHeight::Length(l))
+            | StyleProperty::LetterSpacing(LetterSpacing::Px(l)) => return Some(l),
+            _ => {}
+        }
+        match self {
             StyleProperty::Gap(l)
             | StyleProperty::RowGap(l)
             | StyleProperty::ColumnGap(l)
@@ -1714,10 +1750,29 @@ impl StyleProperty {
             | StyleProperty::ScrollPadding(_, l)
             | StyleProperty::TextDecorationThickness(l)
             | StyleProperty::OutlineWidth(l)
-            | StyleProperty::OutlineOffset(l) => *l,
-            _ => return None,
-        };
-        length.unresolved_unit()
+            | StyleProperty::OutlineOffset(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    /// The corner radius this property carries, if it carries one.
+    ///
+    /// Separate from `length()` so the list lives in one place: nine
+    /// properties take a `Radius`, and each of them had to be asked about
+    /// the length inside it.
+    fn radius(&self) -> Option<&Radius> {
+        match self {
+            StyleProperty::BorderRadius(r)
+            | StyleProperty::BorderTopLeftRadius(r)
+            | StyleProperty::BorderTopRightRadius(r)
+            | StyleProperty::BorderBottomRightRadius(r)
+            | StyleProperty::BorderBottomLeftRadius(r)
+            | StyleProperty::BorderStartStartRadius(r)
+            | StyleProperty::BorderStartEndRadius(r)
+            | StyleProperty::BorderEndStartRadius(r)
+            | StyleProperty::BorderEndEndRadius(r) => Some(r),
+            _ => None,
+        }
     }
 
     pub fn dimension(&self) -> Option<&Dimension> {
@@ -1788,6 +1843,18 @@ impl StyleProperty {
         // ends in `unwrap_or(0.0)`, so `p-[1.5em]` compiled to a padding
         // of zero and said nothing -- and a wrong number is invisible to
         // the silence check, since a style *was* emitted.
+        // Before the unit question, because the two are not alternatives:
+        // `calc(100% - 2rem)` may contain no unit at all, or several, and
+        // naming one of them would describe the wrong obstacle. The
+        // arithmetic is against layout state, which a `StyleSheet` computed
+        // ahead of time does not have.
+        if let Some(css) = self.css_expression_length() {
+            return Some(format!(
+                "`{css}`: a CSS expression is resolved against layout, and a React Native style \
+                 is a value decided before there is any -- so there is nothing here to compute \
+                 it from, and computing it to zero is a size that looks deliberate"
+            ));
+        }
         if let Some(unit) = self.unresolved_length_unit() {
             return Some(format!(
                 "`{unit:?}`: React Native has no viewport units and no font-relative lengths \
@@ -2205,13 +2272,13 @@ pub enum BorderStyle {
 /// `infinity`, React Native does not and needs a finite stand-in. Baking
 /// the finite value into the IR would force the Web backend to emit an
 /// approximation of something it can state exactly.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Radius {
     Length(Length),
     Full,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Length {
     Px(f64),
     /// A count of Tailwind spacing steps: `p-4` is `Spacing(4.0)`.
@@ -2235,6 +2302,25 @@ pub enum Length {
     /// changes their browser's font size. Native converts what it can and
     /// refuses the rest by name; see `LengthUnit::px`.
     Unit(f64, LengthUnit),
+    /// A length CSS can state and only a browser can work out:
+    /// `ring-[calc(100%-2rem)]`, `text-[min(1rem,2vw)]`.
+    ///
+    /// The same admission `Dimension::Css` makes, one level down. It exists
+    /// because of a specific way its absence went wrong: a value like this
+    /// failed `parse_length`, and every caller reads that failure as "then
+    /// it must be a colour" -- so `ring-[calc(100%-2rem)]` became a ring
+    /// *colour*, a colour alone paints nothing, and the class compiled to
+    /// nothing while saying nothing about it.
+    ///
+    /// Holding the text keeps Web byte-identical to Tailwind, which splices
+    /// the expression straight into its own output. Native cannot: the
+    /// arithmetic is against layout state a `StyleSheet` does not have, so
+    /// it refuses by name.
+    ///
+    /// This variant is what costs `Length` its `Copy`, and that is the
+    /// price of the type staying closed: every consumer is still a `match`
+    /// the compiler checks, which was the point of the units being an enum.
+    Css(String),
 }
 
 /// The CSS length units an arbitrary value may carry.
@@ -2396,9 +2482,9 @@ impl Length {
     /// A `Unit` this can't convert reports zero, which is why no backend
     /// should reach here without having asked `resolvable` first. Web never
     /// does (it prints the unit); Native refuses first.
-    pub fn px(self, theme: &Theme) -> f64 {
+    pub fn px(&self, theme: &Theme) -> f64 {
         match self {
-            Length::Px(value) => value,
+            Length::Px(value) => *value,
             // Rounded, because the product is written into the output as a
             // literal. Tailwind emits `calc(var(--spacing) * 3)` and lets
             // the browser do the arithmetic; Hozo resolves it, so binary
@@ -2407,6 +2493,11 @@ impl Length {
             // short of where the noise starts.
             Length::Spacing(steps) => round(steps * theme.spacing_px()),
             Length::Unit(value, unit) => round(value * unit.px().unwrap_or(0.0)),
+            // The same contract an unconvertible `Unit` has, and reached
+            // the same way: never, if the caller asked first. `Css` is
+            // refused by `css_expression`, one question earlier than
+            // `unresolved_unit`.
+            Length::Css(_) => 0.0,
         }
     }
 
@@ -2417,10 +2508,26 @@ impl Length {
     /// caller decides whether it can supply what's missing (an `em` against
     /// a known font size, a `vh` against the viewport hook) or has to
     /// refuse.
-    pub fn unresolved_unit(self) -> Option<LengthUnit> {
+    pub fn unresolved_unit(&self) -> Option<LengthUnit> {
         match self {
             Length::Px(_) | Length::Spacing(_) => None,
-            Length::Unit(_, unit) => unit.px().map(|_| ()).map_or(Some(unit), |()| None),
+            Length::Unit(_, unit) => unit.px().map(|_| ()).map_or(Some(*unit), |()| None),
+            // Not a unit problem. `calc(100% - 2rem)` has no single unit to
+            // name, and naming one would send the caller looking for a
+            // conversion that was never the obstacle.
+            Length::Css(_) => None,
+        }
+    }
+
+    /// The CSS expression this length is, if it is one.
+    ///
+    /// Asked before `unresolved_unit`, because the two refusals differ:
+    /// that one says "this unit needs something I don't have", this one
+    /// says "this is arithmetic against layout".
+    pub fn css_expression(&self) -> Option<&str> {
+        match self {
+            Length::Css(css) => Some(css),
+            _ => None,
         }
     }
 }
@@ -2704,7 +2811,7 @@ pub enum ColumnCount {
 /// One variant rather than a second `StyleProperty`, so that the two forms
 /// still dedupe against each other -- `dedupe_last_wins` keys on the
 /// property's discriminant.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LetterSpacing {
     Em(Em),
     Px(Length),
@@ -2713,7 +2820,7 @@ pub enum LetterSpacing {
 /// CSS allows a line height to be an absolute length or a unitless
 /// multiplier of the font size. Tailwind uses both: `leading-6` is the
 /// spacing scale, `leading-tight` is a ratio.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LineHeight {
     Length(Length),
     /// React Native has no unitless line height -- its `lineHeight` is an

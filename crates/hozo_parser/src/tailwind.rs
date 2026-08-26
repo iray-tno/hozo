@@ -477,7 +477,7 @@ fn expand_dimension_family(token: &str) -> Option<Vec<StyleProperty>> {
         return parse_spacing_suffix(rest)
             .map(|l| {
                 vec![
-                    StyleProperty::BorderSpacingX(Dimension::Length(l)),
+                    StyleProperty::BorderSpacingX(Dimension::Length(l.clone())),
                     StyleProperty::BorderSpacingY(Dimension::Length(l)),
                 ]
             });
@@ -650,7 +650,7 @@ fn expand_mask_gradient(token: &str) -> Option<Vec<StyleProperty>> {
         })
     } else if let Some(length) = parse_spacing_suffix(value) {
         Box::new(move |slot| {
-            StyleProperty::MaskStopPosition(slot, stop, Dimension::Length(length))
+            StyleProperty::MaskStopPosition(slot, stop, Dimension::Length(length.clone()))
         })
     } else {
         let token = value.to_string();
@@ -1348,27 +1348,27 @@ fn expand_border_radius(token: &str) -> Option<Vec<StyleProperty>> {
 
     Some(match corner {
         "t" => vec![
-            StyleProperty::BorderTopLeftRadius(r),
+            StyleProperty::BorderTopLeftRadius(r.clone()),
             StyleProperty::BorderTopRightRadius(r),
         ],
         "r" => vec![
-            StyleProperty::BorderTopRightRadius(r),
+            StyleProperty::BorderTopRightRadius(r.clone()),
             StyleProperty::BorderBottomRightRadius(r),
         ],
         "b" => vec![
-            StyleProperty::BorderBottomRightRadius(r),
+            StyleProperty::BorderBottomRightRadius(r.clone()),
             StyleProperty::BorderBottomLeftRadius(r),
         ],
         "l" => vec![
-            StyleProperty::BorderTopLeftRadius(r),
+            StyleProperty::BorderTopLeftRadius(r.clone()),
             StyleProperty::BorderBottomLeftRadius(r),
         ],
         "s" => vec![
-            StyleProperty::BorderStartStartRadius(r),
+            StyleProperty::BorderStartStartRadius(r.clone()),
             StyleProperty::BorderEndStartRadius(r),
         ],
         "e" => vec![
-            StyleProperty::BorderStartEndRadius(r),
+            StyleProperty::BorderStartEndRadius(r.clone()),
             StyleProperty::BorderEndEndRadius(r),
         ],
         "tl" => vec![StyleProperty::BorderTopLeftRadius(r)],
@@ -2957,6 +2957,11 @@ fn negated_length(length: Length) -> Option<Length> {
         // Negated in place, keeping the unit: `-mt-[2rem]` is `-2rem`, and
         // the unit is what makes it a length at all.
         Length::Unit(v, unit) => Length::Unit(signed(v, true), unit),
+        // Wrapped rather than folded, because there is no number here to
+        // put a sign on. This is what Tailwind writes for every negated
+        // arbitrary value -- `-mt-[2rem]` is `calc(2rem * -1)` in its own
+        // output -- so the shape is Tailwind's, not an invention.
+        Length::Css(css) => Length::Css(format!("calc({css} * -1)")),
     })
 }
 
@@ -3076,20 +3081,23 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
     // Tailwind's own output and composes correctly with `ps-*`/`pe-*`.
     if let Some(rest) = token.strip_prefix("px-") {
         if let Some(v) = parse_spacing_suffix(rest) {
-            return vec![StyleProperty::PaddingInlineStart(v), StyleProperty::PaddingInlineEnd(v)];
+            return vec![
+                StyleProperty::PaddingInlineStart(v.clone()),
+                StyleProperty::PaddingInlineEnd(v),
+            ];
         }
     }
     if let Some(rest) = token.strip_prefix("py-") {
         if let Some(v) = parse_spacing_suffix(rest) {
-            return vec![StyleProperty::PaddingTop(v), StyleProperty::PaddingBottom(v)];
+            return vec![StyleProperty::PaddingTop(v.clone()), StyleProperty::PaddingBottom(v)];
         }
     }
     if let Some(rest) = token.strip_prefix("p-") {
         if let Some(v) = parse_spacing_suffix(rest) {
             return vec![
-                StyleProperty::PaddingTop(v),
-                StyleProperty::PaddingRight(v),
-                StyleProperty::PaddingBottom(v),
+                StyleProperty::PaddingTop(v.clone()),
+                StyleProperty::PaddingRight(v.clone()),
+                StyleProperty::PaddingBottom(v.clone()),
                 StyleProperty::PaddingLeft(v),
             ];
         }
@@ -3361,9 +3369,9 @@ fn expand_border_width(token: &str) -> Option<Vec<StyleProperty>> {
 
 fn all_sides_border(width: Length) -> Vec<StyleProperty> {
     vec![
-        StyleProperty::BorderTopWidth(width),
-        StyleProperty::BorderRightWidth(width),
-        StyleProperty::BorderBottomWidth(width),
+        StyleProperty::BorderTopWidth(width.clone()),
+        StyleProperty::BorderRightWidth(width.clone()),
+        StyleProperty::BorderBottomWidth(width.clone()),
         StyleProperty::BorderLeftWidth(width),
         StyleProperty::BorderTopStyle(BorderStyle::Solid),
         StyleProperty::BorderRightStyle(BorderStyle::Solid),
@@ -4442,24 +4450,24 @@ mod tests {
         assert_eq!(
             expand_utility("rounded-t-lg").1,
             vec![
-                StyleProperty::BorderTopLeftRadius(lg),
-                StyleProperty::BorderTopRightRadius(lg),
+                StyleProperty::BorderTopLeftRadius(lg.clone()),
+                StyleProperty::BorderTopRightRadius(lg.clone()),
             ]
         );
         assert_eq!(
             expand_utility("rounded-tl-lg").1,
-            vec![StyleProperty::BorderTopLeftRadius(lg)]
+            vec![StyleProperty::BorderTopLeftRadius(lg.clone())]
         );
         // Logical corners stay logical, so RTL keeps working.
         assert_eq!(
             expand_utility("rounded-s-lg").1,
             vec![
-                StyleProperty::BorderStartStartRadius(lg),
-                StyleProperty::BorderEndStartRadius(lg),
+                StyleProperty::BorderStartStartRadius(lg.clone()),
+                StyleProperty::BorderEndStartRadius(lg.clone()),
             ]
         );
         // The all-corners form is unaffected.
-        assert_eq!(expand_utility("rounded-lg").1, vec![StyleProperty::BorderRadius(lg)]);
+        assert_eq!(expand_utility("rounded-lg").1, vec![StyleProperty::BorderRadius(lg.clone())]);
     }
 
     #[test]
