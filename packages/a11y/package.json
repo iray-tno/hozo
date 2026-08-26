@@ -43,7 +43,7 @@
   "scripts": {
     "build": "tsc -p .",
     "typecheck": "tsc -p . --noEmit",
-    "test": "tsc -p . && node --test src/*.test.ts"
+    "test": "tsc -p . --noEmit && node --test src/*.test.ts"
   },
   "peerDependencies": {
     "react": "^19.0.0",
