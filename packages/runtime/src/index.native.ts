@@ -46,3 +46,8 @@ export {
 export { HozoDialog, type HozoDialogProps } from '@hozo/a11y'
 export type { BreakpointName, Viewport } from './ambient.ts'
 
+export {
+  HozoAnimated,
+  type HozoAnimatedProps,
+  type HozoTransitionSpec,
+} from './transition.native.tsx'
