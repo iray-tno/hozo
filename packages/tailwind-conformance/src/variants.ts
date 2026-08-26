@@ -15,7 +15,7 @@
 // it. The last two are the ones nothing else looks at.
 
 import { compile as hozoCompile } from '@hozo/compiler'
-import { extractRules } from './extract.ts'
+import { classNamesIn, extractRules, type Rule } from './extract.ts'
 import { normalize } from './normalize.ts'
 import { buildOracle } from './oracle.ts'
 import { loadThemeVars } from './theme.ts'
@@ -220,6 +220,7 @@ export async function buildVariantCatalog(
   }
 
   const oracle = await buildOracle(candidates)
+  const rulesByClass = indexByClassName(oracle.css)
   const cases: VariantCase[] = []
   // Which variants got at least one case, tracked here rather than parsed
   // back out of the candidate strings -- `has-[:focus]` has a colon inside
@@ -234,7 +235,8 @@ export async function buildVariantCatalog(
           (two) => [`${one}:${two}:${utility}`, [one, two]] as const,
         ),
       ]) {
-        const shapes = shapesFor(oracle.css, classNamePattern(candidate))
+        const bucket = rulesByClass.get(cssClassName(candidate)) ?? []
+        const shapes = toShapes(bucket, new RegExp(`\\.${classNamePattern(candidate)}(?![\\w-])`))
         if (shapes.length === 0) continue
         cases.push({ candidate, expected: shapes })
         for (const name of names) covered.add(name)
@@ -385,8 +387,12 @@ function declarationText(declarations: string, vars: Map<string, string>): strin
  */
 function shapesFor(css: string, className: string, isPattern = false): RuleShape[] {
   const target = isPattern ? new RegExp(className) : new RegExp(`\\.${className}(?![\\w-])`)
+  return toShapes(extractRules(css), target)
+}
+
+function toShapes(rules: readonly Rule[], target: RegExp): RuleShape[] {
   const shapes: RuleShape[] = []
-  for (const rule of extractRules(css)) {
+  for (const rule of rules) {
     if (!target.test(rule.selector)) continue
     // The base `.hozo-view` rule is View's own semantics, not this
     // candidate's.
@@ -398,6 +404,34 @@ function shapesFor(css: string, className: string, isPattern = false): RuleShape
     })
   }
   return shapes
+}
+
+/**
+ * The oracle's rules, bucketed by the class names they target.
+ *
+ * Built once, because the alternative was quadratic and this section is
+ * big enough for that to be the whole cost of the audit. `shapesFor`
+ * parses the stylesheet and then scans every rule in it, and
+ * `buildVariantCatalog` called it once per candidate -- 23232 of them
+ * against a stylesheet holding a rule for each. Two nested loops over the
+ * same number, and the report spent 98% of its 41 minutes here.
+ *
+ * A rule lands in a bucket per class name in its selector, in the order
+ * the stylesheet gives them, so a bucket is the same list the scan used
+ * to find -- the shapes come out in the same order and say the same
+ * thing. The candidate's own regex still runs, on its bucket rather than
+ * on all 23232 rules, because the suffix is computed from it.
+ */
+function indexByClassName(css: string): Map<string, Rule[]> {
+  const index = new Map<string, Rule[]>()
+  for (const rule of extractRules(css)) {
+    for (const name of classNamesIn(rule.selector)) {
+      const bucket = index.get(name)
+      if (bucket) bucket.push(rule)
+      else index.set(name, [rule])
+    }
+  }
+  return index
 }
 
 /**
