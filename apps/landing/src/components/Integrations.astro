@@ -1,0 +1,147 @@
+---
+---
+<section id="integrations" class="py-24 border-t border-white/5 relative">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-xs font-bold uppercase tracking-widest text-sky-400 mb-3">Ecosystem</h2>
+      <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+        Zero-Hassle Bundler Integrations
+      </h3>
+      <p class="text-slate-400 text-base sm:text-lg leading-relaxed">
+        Hozo provides first-class plugins across the major JavaScript build tools. Configure once with your design token stylesheet.
+      </p>
+    </div>
+
+    <!-- Integrations Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+      <!-- Vite -->
+      <div class="p-6 rounded-2xl glass-panel hover:border-sky-500/30 transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-yellow-500/10 text-yellow-400 flex items-center justify-center font-mono text-xs font-bold">V</span>
+              Vite
+            </h4>
+            <span class="text-xs font-mono text-slate-400">@hozo/vite</span>
+          </div>
+          <p class="text-slate-400 text-xs mb-4">
+            Runs before React plugin to transform JSX directly into semantic DOM and CSS.
+          </p>
+          <pre class="p-3 rounded-lg bg-black/60 border border-white/5 font-mono text-[11px] text-slate-300 overflow-x-auto"><code><span class="text-indigo-400">import</span> &#123; hozo &#125; <span class="text-indigo-400">from</span> <span class="text-emerald-300">'@hozo/vite'</span>
+
+<span class="text-indigo-400">export default</span> defineConfig(&#123;
+  <span class="text-slate-400">plugins:</span> [
+    hozo(&#123; <span class="text-slate-400">css:</span> <span class="text-emerald-300">'src/theme.css'</span> &#125;),
+    react(),
+  ],
+&#125;)</code></pre>
+        </div>
+      </div>
+
+      <!-- Next.js -->
+      <div class="p-6 rounded-2xl glass-panel hover:border-indigo-500/30 transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-white/10 text-white flex items-center justify-center font-mono text-xs font-bold">N</span>
+              Next.js
+            </h4>
+            <span class="text-xs font-mono text-slate-400">@hozo/next</span>
+          </div>
+          <p class="text-slate-400 text-xs mb-4">
+            Full support for Turbopack (Next.js 16) and Webpack with zero configuration.
+          </p>
+          <pre class="p-3 rounded-lg bg-black/60 border border-white/5 font-mono text-[11px] text-slate-300 overflow-x-auto"><code><span class="text-indigo-400">import</span> &#123; withHozo &#125; <span class="text-indigo-400">from</span> <span class="text-emerald-300">'@hozo/next'</span>
+
+<span class="text-indigo-400">export default</span> withHozo(
+  &#123; <span class="text-slate-500">/* next config */</span> &#125;,
+  &#123; <span class="text-slate-400">css:</span> <span class="text-emerald-300">'src/theme.css'</span> &#125;
+)</code></pre>
+        </div>
+      </div>
+
+      <!-- Metro (Expo / React Native) -->
+      <div class="p-6 rounded-2xl glass-panel hover:border-emerald-500/30 transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-mono text-xs font-bold">M</span>
+              Metro / Expo
+            </h4>
+            <span class="text-xs font-mono text-slate-400">@hozo/metro</span>
+          </div>
+          <p class="text-slate-400 text-xs mb-4">
+            Native backend lowering into React Native StyleSheet and Fabric primitives.
+          </p>
+          <pre class="p-3 rounded-lg bg-black/60 border border-white/5 font-mono text-[11px] text-slate-300 overflow-x-auto"><code><span class="text-indigo-400">const</span> &#123; withHozo &#125; = require(<span class="text-emerald-300">'@hozo/metro/config'</span>)
+
+module.exports = withHozo(
+  getDefaultConfig(__dirname),
+  &#123; <span class="text-slate-400">css:</span> <span class="text-emerald-300">'src/theme.css'</span> &#125;
+)</code></pre>
+        </div>
+      </div>
+
+      <!-- Storybook -->
+      <div class="p-6 rounded-2xl glass-panel hover:border-pink-500/30 transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-pink-500/10 text-pink-400 flex items-center justify-center font-mono text-xs font-bold">S</span>
+              Storybook
+            </h4>
+            <span class="text-xs font-mono text-slate-400">@hozo/storybook</span>
+          </div>
+          <p class="text-slate-400 text-xs mb-4">
+            Zero-configuration preset built on top of the Vite Web backend.
+          </p>
+          <pre class="p-3 rounded-lg bg-black/60 border border-white/5 font-mono text-[11px] text-slate-300 overflow-x-auto"><code><span class="text-indigo-400">export default</span> &#123;
+  <span class="text-slate-400">framework:</span> <span class="text-emerald-300">'@storybook/react-vite'</span>,
+  <span class="text-slate-400">addons:</span> [<span class="text-emerald-300">'@hozo/storybook'</span>],
+&#125;</code></pre>
+        </div>
+      </div>
+
+      <!-- TanStack Start -->
+      <div class="p-6 rounded-2xl glass-panel hover:border-amber-500/30 transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-mono text-xs font-bold">T</span>
+              TanStack Start
+            </h4>
+            <span class="text-xs font-mono text-slate-400">@hozo/vite</span>
+          </div>
+          <p class="text-slate-400 text-xs mb-4">
+            Full-stack SSR with TanStack Start, Nitro, and Hozo Vite compilation.
+          </p>
+          <pre class="p-3 rounded-lg bg-black/60 border border-white/5 font-mono text-[11px] text-slate-300 overflow-x-auto"><code><span class="text-indigo-400">export default</span> defineConfig(&#123;
+  <span class="text-slate-400">plugins:</span> [
+    hozo(&#123; <span class="text-slate-400">css:</span> <span class="text-emerald-300">'src/theme.css'</span> &#125;),
+    tanstackStart(),
+  ],
+&#125;)</code></pre>
+        </div>
+      </div>
+
+      <!-- Conformance -->
+      <div class="p-6 rounded-2xl glass-panel hover:border-indigo-500/30 transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-mono text-xs font-bold">C</span>
+              Conformance
+            </h4>
+            <span class="text-xs font-mono text-slate-400">@hozo/tailwind-conformance</span>
+          </div>
+          <p class="text-slate-400 text-xs mb-4">
+            Differential automated test suite comparing Hozo against real Tailwind engine.
+          </p>
+          <div class="p-3 rounded-lg bg-black/60 border border-white/5 text-xs text-emerald-400 font-mono">
+            &check; Continuous differential snapshots verified in CI
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

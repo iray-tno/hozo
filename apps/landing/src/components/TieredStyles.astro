@@ -1,0 +1,95 @@
+---
+---
+<section id="tiered-styles" class="py-24 border-t border-white/5 relative bg-gradient-to-b from-transparent via-slate-950/40 to-transparent">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-xs font-bold uppercase tracking-widest text-sky-400 mb-3">Style Engine</h2>
+      <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+        Tiered Style Resolution
+      </h3>
+      <p class="text-slate-400 text-base sm:text-lg leading-relaxed">
+        Hozo does not give up when a class name is dynamic. Styles are resolved across three tiers, where only truly indeterminate cases touch the runtime.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Tier 1 -->
+      <div class="rounded-2xl glass-panel p-6 border-t-2 border-t-emerald-400 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+              Tier 1 • Static
+            </span>
+            <span class="text-xs font-mono text-emerald-400 font-semibold">0ms Runtime</span>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Compiled Away</h4>
+          <p class="text-slate-400 text-sm mb-6">
+            Static string literals are fully extracted at build time into real scoped stylesheets on Web or precomputed StyleSheet objects on Native.
+          </p>
+          <div class="rounded-xl bg-black/60 border border-white/10 p-4 font-mono text-xs text-slate-300 mb-4 overflow-x-auto">
+            <div class="text-slate-500">// Source</div>
+            <div class="text-white">&lt;<span class="text-indigo-400">View</span> <span class="text-sky-300">className</span>=<span class="text-emerald-300">"p-4 bg-blue-500"</span> /&gt;</div>
+            <div class="text-slate-500 mt-3">// Web Output</div>
+            <div class="text-emerald-400">&lt;<span class="text-indigo-400">div</span> <span class="text-sky-300">class</span>=<span class="text-emerald-300">"hz-p-4 hz-bg-blue-500"</span> /&gt;</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-400 border-t border-white/5 pt-4">
+          &bull; Zero JavaScript runtime cost<br />
+          &bull; Real browser CSS cascade
+        </div>
+      </div>
+
+      <!-- Tier 2 -->
+      <div class="rounded-2xl glass-panel p-6 border-t-2 border-t-sky-400 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold px-2.5 py-1 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">
+              Tier 2 • Structural
+            </span>
+            <span class="text-xs font-mono text-sky-400 font-semibold">Boolean Branch</span>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Compiled Conditional</h4>
+          <p class="text-slate-400 text-sm mb-6">
+            Conditionals like <code class="text-slate-300">cn(...)</code> preserve their expression shape. Both branches are compiled at build time, leaving only a boolean toggle at runtime.
+          </p>
+          <div class="rounded-xl bg-black/60 border border-white/10 p-4 font-mono text-xs text-slate-300 mb-4 overflow-x-auto">
+            <div class="text-slate-500">// Source</div>
+            <div class="text-white">&lt;<span class="text-indigo-400">View</span> <span class="text-sky-300">className</span>=&#123;<span class="text-yellow-300">cn</span>(<span class="text-emerald-300">'p-4'</span>, <span class="text-indigo-300">active</span> &amp;&amp; <span class="text-emerald-300">'bg-blue-500'</span>)&#125; /&gt;</div>
+            <div class="text-slate-500 mt-3">// Web Output</div>
+            <div class="text-sky-400">&lt;<span class="text-indigo-400">div</span> <span class="text-sky-300">class</span>=&#123;<span class="text-emerald-300">"hz-p-4 "</span> + (<span class="text-indigo-300">active</span> ? <span class="text-emerald-300">"hz-bg-blue-500"</span> : <span class="text-emerald-300">""</span>)&#125; /&gt;</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-400 border-t border-white/5 pt-4">
+          &bull; Pre-calculated CSS classes<br />
+          &bull; No style recalculation engine
+        </div>
+      </div>
+
+      <!-- Tier 3 -->
+      <div class="rounded-2xl glass-panel p-6 border-t-2 border-t-amber-400 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold px-2.5 py-1 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+              Tier 3 • Dynamic
+            </span>
+            <span class="text-xs font-mono text-amber-400 font-semibold">Cached Fallback</span>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Project-wide Cache</h4>
+          <p class="text-slate-400 text-sm mb-6">
+            For variables passed from props or state, Hozo scans all candidate classes across the codebase and compiles them into a cached lookup table.
+          </p>
+          <div class="rounded-xl bg-black/60 border border-white/10 p-4 font-mono text-xs text-slate-300 mb-4 overflow-x-auto">
+            <div class="text-slate-500">// Source</div>
+            <div class="text-white">&lt;<span class="text-indigo-400">View</span> <span class="text-sky-300">className</span>=&#123;<span class="text-indigo-300">props.className</span>&#125; /&gt;</div>
+            <div class="text-slate-500 mt-3">// Web Output</div>
+            <div class="text-amber-400">&lt;<span class="text-indigo-400">div</span> <span class="text-sky-300">class</span>=&#123;<span class="text-yellow-300">hzRuntime</span>(<span class="text-indigo-300">props.className</span>)&#125; /&gt;</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-400 border-t border-white/5 pt-4">
+          &bull; Incremental candidate cache<br />
+          &bull; Zero missed CSS rules
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

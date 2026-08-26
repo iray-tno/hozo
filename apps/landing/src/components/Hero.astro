@@ -1,0 +1,84 @@
+---
+---
+<section class="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+  <!-- Glow backgrounds -->
+  <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+  <div class="absolute top-1/3 left-1/3 w-[400px] h-[300px] bg-sky-500/15 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-4xl mx-auto">
+      <!-- Tag badge -->
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/60 shadow-inner mb-8">
+        <span class="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-xs font-semibold text-slate-300">
+          Rust-powered Universal UI Compiler
+        </span>
+        <span class="text-xs text-slate-500">•</span>
+        <span class="text-xs text-indigo-400 font-medium">React Native Ecosystem</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-6 leading-[1.1]">
+        Compile React Native to <br />
+        <span class="gradient-text">Semantic Web & Fabric</span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="text-lg sm:text-xl text-slate-300 mb-10 leading-relaxed max-w-3xl mx-auto">
+        Hozo lowers React Native components toward their native platforms:
+        <strong class="text-white font-semibold">Semantic HTML, CSS, and ARIA on Web</strong>, and
+        <strong class="text-white font-semibold">Fabric components and StyleSheet on Native</strong>.
+        Zero-runtime overhead for static styles, with built-in accessibility from Day 1.
+      </p>
+
+      <!-- CTA Buttons -->
+      <div class="flex flex-wrap items-center justify-center gap-4 mb-12">
+        <a
+          href="#integrations"
+          class="px-6 py-3.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          Explore Integrations
+        </a>
+        <a
+          href="https://github.com/iray-tno/hozo/blob/main/docs/proposal.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="px-6 py-3.5 rounded-xl font-semibold text-sm text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-slate-600 transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
+        >
+          <span>Read Proposal (日本語)</span>
+          <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </div>
+
+      <!-- Quick Command Snippet -->
+      <div class="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-black/60 border border-white/10 text-xs font-mono text-slate-300 shadow-2xl backdrop-blur-md">
+        <span class="text-emerald-400 select-none">$</span>
+        <span class="text-slate-200 font-medium">npm install --save-dev @hozo/vite @hozo/compiler</span>
+        <span class="text-slate-600">|</span>
+        <span class="text-slate-400">Zero config fallback</span>
+      </div>
+
+      <!-- Key Metrics & Badges -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl mx-auto text-left">
+        <div class="p-4 rounded-xl glass-panel">
+          <div class="text-2xl font-bold text-white mb-1">0 ms</div>
+          <div class="text-xs text-slate-400">Static Style Runtime Overhead</div>
+        </div>
+        <div class="p-4 rounded-xl glass-panel">
+          <div class="text-2xl font-bold text-sky-400 mb-1">W3C ARIA</div>
+          <div class="text-xs text-slate-400">Validated via <code class="text-slate-300">aria-query</code></div>
+        </div>
+        <div class="p-4 rounded-xl glass-panel">
+          <div class="text-2xl font-bold text-emerald-400 mb-1">5 Bundlers</div>
+          <div class="text-xs text-slate-400">Vite, Next.js, Metro, Storybook, TanStack</div>
+        </div>
+        <div class="p-4 rounded-xl glass-panel">
+          <div class="text-2xl font-bold text-indigo-400 mb-1">Rust Core</div>
+          <div class="text-xs text-slate-400">Fast AST Lowering with oxc</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

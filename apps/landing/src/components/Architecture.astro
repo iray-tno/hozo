@@ -1,0 +1,84 @@
+---
+---
+<section id="architecture" class="py-24 border-t border-white/5 relative bg-gradient-to-b from-transparent via-indigo-950/20 to-transparent">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-3">Internal Design</h2>
+      <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+        Compiler Architecture
+      </h3>
+      <p class="text-slate-400 text-base sm:text-lg leading-relaxed">
+        Built in Rust with <a href="https://oxc.rs/" target="_blank" class="text-indigo-400 hover:underline">oxc</a> for ultra-fast AST parsing and transformations. Platform-independent IR guarantees symmetry between Web and Native.
+      </p>
+    </div>
+
+    <!-- Architecture Pipeline Diagram -->
+    <div class="max-w-4xl mx-auto p-8 rounded-2xl glass-panel-glow border border-indigo-500/20">
+      <div class="space-y-6">
+        <!-- Level 1: Input -->
+        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-700 text-center">
+          <div class="text-xs font-mono uppercase tracking-widest text-slate-400 mb-1">Source Code</div>
+          <div class="text-base font-bold text-white">React Native TSX / @hozo/core Primitives</div>
+        </div>
+
+        <div class="flex justify-center text-indigo-400">
+          <svg class="w-6 h-6 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+        </div>
+
+        <!-- Level 2: Rust Compiler Core -->
+        <div class="p-6 rounded-xl bg-indigo-950/40 border border-indigo-500/30">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-mono font-bold text-indigo-300 uppercase tracking-widest">Rust Compiler Engine</span>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">hozo_parser & hozo_ir</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+            <div class="p-3 rounded-lg bg-black/40 border border-indigo-500/20 text-xs">
+              <div class="font-bold text-sky-400 mb-1">Style IR</div>
+              <div class="text-slate-400 text-[11px]">Tailwind & static styles</div>
+            </div>
+            <div class="p-3 rounded-lg bg-black/40 border border-indigo-500/20 text-xs">
+              <div class="font-bold text-emerald-400 mb-1">Semantic IR</div>
+              <div class="text-slate-400 text-[11px]">Roles, elements, states</div>
+            </div>
+            <div class="p-3 rounded-lg bg-black/40 border border-indigo-500/20 text-xs">
+              <div class="font-bold text-amber-400 mb-1">Diagnostics</div>
+              <div class="text-slate-400 text-[11px]">W3C ARIA validation</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-center text-indigo-400">
+          <svg class="w-6 h-6 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+        </div>
+
+        <!-- Level 3: Platform Lowering -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Web Backend -->
+          <div class="p-5 rounded-xl bg-sky-950/30 border border-sky-500/30">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono font-bold text-sky-300">Web Backend</span>
+              <span class="text-[10px] font-mono text-slate-400">crates/hozo_web</span>
+            </div>
+            <div class="text-sm font-semibold text-white mb-2">Semantic DOM + CSS + ARIA</div>
+            <p class="text-xs text-slate-400">
+              Lowers to pure semantic HTML tags (&lt;h1&gt;, &lt;p&gt;, &lt;button&gt;), CSS class generation, and zero-runtime bindings.
+            </p>
+          </div>
+
+          <!-- Native Backend -->
+          <div class="p-5 rounded-xl bg-emerald-950/30 border border-emerald-500/30">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono font-bold text-emerald-300">Native Backend</span>
+              <span class="text-[10px] font-mono text-slate-400">crates/hozo_native</span>
+            </div>
+            <div class="text-sm font-semibold text-white mb-2">React Native Fabric</div>
+            <p class="text-xs text-slate-400">
+              Lowers to View, Text, Pressable, and precomputed StyleSheet objects with Metro AST integration.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
