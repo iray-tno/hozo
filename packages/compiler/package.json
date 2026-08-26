@@ -59,6 +59,7 @@
     "build": "tsc -p .",
     "typecheck": "tsc -p . --noEmit",
     "build:native": "node scripts/build-native.mjs",
+    "build:native:release": "node scripts/build-native.mjs --release",
     "test": "node --test src/*.test.ts",
     "pack:native": "node scripts/pack-native.mjs"
   },

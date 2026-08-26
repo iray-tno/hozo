@@ -82,8 +82,44 @@ const sections: Record<string, Section> = {}
  * variables, so the file and the output cannot drift into disagreeing.
  * A second derivation would be a second thing to get wrong.
  */
+/**
+ * Wall time per section, in seconds.
+ *
+ * Falls out of `record` rather than being wired in at each site: the
+ * report is sequential and every section ends by recording its numbers,
+ * so the gap between two calls is the section between them. The first
+ * one absorbs the catalogue building that precedes it, which is where
+ * that cost belongs anyway.
+ *
+ * Here because its absence produced a wrong answer. The addon was
+ * measured on one section, found to be eight times faster in release, and
+ * that ratio was extrapolated to the whole report -- which turned out to
+ * be 45.5 minutes against 37.8, a fifth of what the extrapolation
+ * claimed. The report could not say where its time went, so the guess had
+ * nothing to correct it.
+ *
+ * Not recorded in the snapshot. These are properties of a machine, not of
+ * the compiler, and `--check` would fail on every run.
+ */
+const elapsed: Record<string, number> = {}
+let lastMark = performance.now()
+
 export function record(section: string, values: Section): void {
+  const now = performance.now()
+  elapsed[section] = (elapsed[section] ?? 0) + (now - lastMark) / 1000
+  lastMark = now
   sections[section] = { ...(sections[section] ?? {}), ...values }
+}
+
+function reportTimings(): void {
+  const rows = Object.entries(elapsed).sort(([, a], [, b]) => b - a)
+  const total = rows.reduce((sum, [, seconds]) => sum + seconds, 0)
+  if (total === 0) return
+  console.log(`\n\n== Where the time went (${total.toFixed(0)}s) ==`)
+  for (const [section, seconds] of rows) {
+    const share = Math.round((seconds / total) * 100)
+    console.log(`  ${section.padEnd(22)} ${seconds.toFixed(1).padStart(7)}s  ${String(share).padStart(3)}%`)
+  }
 }
 
 export interface Change {
@@ -99,6 +135,7 @@ export interface Change {
  * what you run after a change you meant to make.
  */
 export function finish(check: boolean): void {
+  reportTimings()
   const current = JSON.stringify(sections, null, 2) + '\n'
   if (!check) {
     // The failure this whole file exists to prevent, in its own image: if

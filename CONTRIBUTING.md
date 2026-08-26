@@ -34,12 +34,18 @@ both have to appear:
 ```
 
 If your change moves any conformance number, also run the audit and commit the
-new snapshot:
+new snapshot. Build the addon in release first — the audit is almost entirely
+that binary, and an optimised one is about eight times faster:
 
 ```sh
+pnpm --filter @hozo/compiler build:native:release
 pnpm turbo run report            # writes packages/tailwind-conformance/snapshot.json
 pnpm turbo run report -- --check # what CI asserts
 ```
+
+Switch back to `build:native` afterwards if you are returning to the edit-test
+loop; the debug build is six times quicker to produce and the JS suite runs at
+the same speed under either.
 
 ## Five things that will bite you
 
