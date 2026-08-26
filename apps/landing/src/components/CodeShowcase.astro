@@ -1,0 +1,99 @@
+---
+---
+<section id="code-showcase" class="py-24 border-t border-white/5 relative">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-3">Side-by-Side Lowering</h2>
+      <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+        One Source, Two Native Targets
+      </h3>
+      <p class="text-slate-400 text-base sm:text-lg leading-relaxed">
+        Write unified components with React Native or Hozo Core. Hozo lowers them directly to their platform's best idiom.
+      </p>
+    </div>
+
+    <!-- Code Comparison Box -->
+    <div class="rounded-2xl border border-white/10 bg-[#0d1117] overflow-hidden shadow-2xl max-w-6xl mx-auto">
+      <!-- Top Bar: Source Input -->
+      <div class="border-b border-white/10 p-4 sm:p-6 bg-slate-950/60">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+            <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+            <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+            <span class="text-xs font-mono text-slate-400 ml-2">Input: Universal Source (ButtonCard.tsx)</span>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
+            React Native / @hozo/core
+          </span>
+        </div>
+        <pre class="font-mono text-xs sm:text-sm text-slate-300 overflow-x-auto leading-relaxed"><code><span class="text-indigo-400">import</span> &#123; <span class="text-sky-300">View</span>, <span class="text-sky-300">Heading</span>, <span class="text-sky-300">Paragraph</span>, <span class="text-sky-300">Button</span> &#125; <span class="text-indigo-400">from</span> <span class="text-emerald-300">'@hozo/core'</span>
+
+<span class="text-indigo-400">export function</span> <span class="text-yellow-300">NotificationCard</span>(&#123; <span class="text-slate-300">title</span>, <span class="text-slate-300">message</span>, <span class="text-slate-300">onDismiss</span> &#125;) &#123;
+  <span class="text-indigo-400">return</span> (
+    &lt;<span class="text-sky-300">View</span> <span class="text-slate-400">role</span>=<span class="text-emerald-300">"alert"</span> <span class="text-slate-400">className</span>=<span class="text-emerald-300">"p-6 rounded-2xl bg-slate-900 border border-slate-800"</span>&gt;
+      &lt;<span class="text-sky-300">Heading</span> <span class="text-slate-400">level</span>=&#123;<span class="text-purple-300">2</span>&#125; <span class="text-slate-400">className</span>=<span class="text-emerald-300">"text-xl font-bold text-white mb-2"</span>&gt;&#123;title&#125;&lt;/<span class="text-sky-300">Heading</span>&gt;
+      &lt;<span class="text-sky-300">Paragraph</span> <span class="text-slate-400">className</span>=<span class="text-emerald-300">"text-slate-400 text-sm mb-4"</span>&gt;&#123;message&#125;&lt;/<span class="text-sky-300">Paragraph</span>&gt;
+      &lt;<span class="text-sky-300">Button</span> <span class="text-slate-400">onPress</span>=&#123;onDismiss&#125; <span class="text-slate-400">className</span>=<span class="text-emerald-300">"bg-indigo-600 px-4 py-2 rounded-lg text-white font-medium"</span>&gt;
+        Dismiss
+      &lt;/<span class="text-sky-300">Button</span>&gt;
+    &lt;/<span class="text-sky-300">View</span>&gt;
+  )
+&#125;</code></pre>
+      </div>
+
+      <!-- Split Bottom: Web vs Native Output -->
+      <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/10">
+        <!-- Left: Web Output -->
+        <div class="p-4 sm:p-6 bg-[#0a0d14]">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-sky-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+              Web Lowering (DOM + CSS + ARIA)
+            </span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">
+              No RNW Wrapper
+            </span>
+          </div>
+          <pre class="font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed"><code><span class="text-slate-500">// Semantic HTML & scoped CSS classes</span>
+<span class="text-indigo-400">export function</span> <span class="text-yellow-300">NotificationCard</span>(&#123; <span class="text-slate-300">title</span>, <span class="text-slate-300">message</span>, <span class="text-slate-300">onDismiss</span> &#125;) &#123;
+  <span class="text-indigo-400">return</span> (
+    &lt;<span class="text-emerald-400">div</span> <span class="text-sky-300">role</span>=<span class="text-emerald-300">"alert"</span> <span class="text-sky-300">class</span>=<span class="text-emerald-300">"hz-p-6 hz-rounded-2xl hz-bg-slate-900 hz-border hz-border-slate-800"</span>&gt;
+      &lt;<span class="text-emerald-400">h2</span> <span class="text-sky-300">class</span>=<span class="text-emerald-300">"hz-text-xl hz-font-bold hz-text-white hz-mb-2"</span>&gt;&#123;title&#125;&lt;/<span class="text-emerald-400">h2</span>&gt;
+      &lt;<span class="text-emerald-400">p</span> <span class="text-sky-300">class</span>=<span class="text-emerald-300">"hz-text-slate-400 hz-text-sm hz-mb-4"</span>&gt;&#123;message&#125;&lt;/<span class="text-emerald-400">p</span>&gt;
+      &lt;<span class="text-emerald-400">button</span> <span class="text-sky-300">type</span>=<span class="text-emerald-300">"button"</span> <span class="text-sky-300">onClick</span>=&#123;onDismiss&#125; <span class="text-sky-300">class</span>=<span class="text-emerald-300">"hz-bg-indigo-600 hz-px-4 hz-py-2 hz-rounded-lg hz-text-white hz-font-medium"</span>&gt;
+        Dismiss
+      &lt;/<span class="text-emerald-400">button</span>&gt;
+    &lt;/<span class="text-emerald-400">div</span>&gt;
+  )
+&#125;</code></pre>
+        </div>
+
+        <!-- Right: Native Output -->
+        <div class="p-4 sm:p-6 bg-[#0a0d14]">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+              Native Lowering (Fabric / StyleSheet)
+            </span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+              Fabric Native
+            </span>
+          </div>
+          <pre class="font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed"><code><span class="text-slate-500">// React Native primitives + precomputed styles</span>
+<span class="text-indigo-400">export function</span> <span class="text-yellow-300">NotificationCard</span>(&#123; <span class="text-slate-300">title</span>, <span class="text-slate-300">message</span>, <span class="text-slate-300">onDismiss</span> &#125;) &#123;
+  <span class="text-indigo-400">return</span> (
+    &lt;<span class="text-sky-300">View</span> <span class="text-slate-400">accessibilityRole</span>=<span class="text-emerald-300">"alert"</span> <span class="text-slate-400">style</span>=&#123;styles.card&#125;&gt;
+      &lt;<span class="text-sky-300">Text</span> <span class="text-slate-400">accessibilityRole</span>=<span class="text-emerald-300">"header"</span> <span class="text-slate-400">style</span>=&#123;styles.title&#125;&gt;&#123;title&#125;&lt;/<span class="text-sky-300">Text</span>&gt;
+      &lt;<span class="text-sky-300">Text</span> <span class="text-slate-400">style</span>=&#123;styles.body&#125;&gt;&#123;message&#125;&lt;/<span class="text-sky-300">Text</span>&gt;
+      &lt;<span class="text-sky-300">Pressable</span> <span class="text-slate-400">accessibilityRole</span>=<span class="text-emerald-300">"button"</span> <span class="text-slate-400">onPress</span>=&#123;onDismiss&#125; <span class="text-slate-400">style</span>=&#123;styles.button&#125;&gt;
+        &lt;<span class="text-sky-300">Text</span> <span class="text-slate-400">style</span>=&#123;styles.buttonText&#125;&gt;Dismiss&lt;/<span class="text-sky-300">Text</span>&gt;
+      &lt;/<span class="text-sky-300">Pressable</span>&gt;
+    &lt;/<span class="text-sky-300">View</span>&gt;
+  )
+&#125;</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

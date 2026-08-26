@@ -1,0 +1,85 @@
+---
+---
+<section id="accessibility" class="py-24 border-t border-white/5 relative bg-gradient-to-b from-slate-950/50 via-indigo-950/10 to-transparent">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-3">Accessibility-First</h2>
+      <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+        ARIA is Not an Afterthought
+      </h3>
+      <p class="text-slate-400 text-base sm:text-lg leading-relaxed">
+        Accessibility is treated as a compiler invariant from Day 1. Hozo catches accessibility violations at build time and ships rich interactive patterns with real keyboard & focus management.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto items-stretch">
+      <!-- Feature 1: Compile-time Diagnostics -->
+      <div class="p-8 rounded-2xl glass-panel flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-6">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h4 class="text-xl font-bold text-white mb-3">Compile-Time ARIA Validation</h4>
+          <p class="text-slate-400 text-sm leading-relaxed mb-6">
+            The role table is derived directly from <code class="text-slate-300">aria-query</code> (the machine-readable W3C specification). Invalid roles, abstract roles, and incomplete attribute combinations are reported before code ever hits production.
+          </p>
+
+          <div class="p-4 rounded-xl bg-red-950/20 border border-red-500/20 font-mono text-xs text-red-200">
+            <div class="text-red-400 font-semibold mb-1">&#x2715; Hozo Diagnostic [A11Y-004]</div>
+            <div class="text-slate-300">Element with role="checkbox" requires aria-checked (or accessibilityState.checked)</div>
+          </div>
+        </div>
+
+        <ul class="mt-6 text-xs text-slate-400 space-y-2 border-t border-white/5 pt-4">
+          <li class="flex items-center gap-2">
+            <span class="text-emerald-400">&#x2713;</span> Automatic mapping (<code class="text-slate-300">header &rarr; heading</code>, <code class="text-slate-300">search &rarr; searchbox</code>)
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="text-emerald-400">&#x2713;</span> Abstract role warnings (<code class="text-slate-300">role="widget"</code>)
+          </li>
+        </ul>
+      </div>
+
+      <!-- Feature 2: @hozo/a11y Runtime Patterns -->
+      <div class="p-8 rounded-2xl glass-panel flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-6">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+            </svg>
+          </div>
+          <h4 class="text-xl font-bold text-white mb-3">@hozo/a11y Pattern Library</h4>
+          <p class="text-slate-400 text-sm leading-relaxed mb-6">
+            Interactive patterns that need runtime behaviour — focus management, keyboard navigation, roving tabindex, and portal anchoring — built specifically for cross-platform apps.
+          </p>
+
+          <div class="grid grid-cols-2 gap-3 font-mono text-xs">
+            <div class="p-3 rounded-lg bg-black/40 border border-white/5 text-slate-300 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-sky-400"></span> Dialog & Modal
+            </div>
+            <div class="p-3 rounded-lg bg-black/40 border border-white/5 text-slate-300 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-indigo-400"></span> Combobox & Listbox
+            </div>
+            <div class="p-3 rounded-lg bg-black/40 border border-white/5 text-slate-300 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Tabs & Panels
+            </div>
+            <div class="p-3 rounded-lg bg-black/40 border border-white/5 text-slate-300 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span> Menu & Toolbar
+            </div>
+          </div>
+        </div>
+
+        <ul class="mt-6 text-xs text-slate-400 space-y-2 border-t border-white/5 pt-4">
+          <li class="flex items-center gap-2">
+            <span class="text-emerald-400">&#x2713;</span> WAI-ARIA compliant keyboard listeners
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="text-emerald-400">&#x2713;</span> Focus restoration on modal close
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

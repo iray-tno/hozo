@@ -1,8 +1,10 @@
 packages:
   - "packages/*"
   - "examples/*"
+  - "apps/*"
 allowBuilds:
   esbuild: true
+  sharp: true
 minimumReleaseAgeExclude:
   - '@storybook/builder-vite@10.5.9'
   - '@storybook/csf-plugin@10.5.9'

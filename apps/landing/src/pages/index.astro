@@ -1,0 +1,47 @@
+---
+import Navbar from '../components/Navbar.astro'
+import Hero from '../components/Hero.astro'
+import Philosophy from '../components/Philosophy.astro'
+import TieredStyles from '../components/TieredStyles.astro'
+import CodeShowcase from '../components/CodeShowcase.astro'
+import Accessibility from '../components/Accessibility.astro'
+import Integrations from '../components/Integrations.astro'
+import Architecture from '../components/Architecture.astro'
+import Footer from '../components/Footer.astro'
+import '../styles/global.css'
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Hozo — Universal UI Compiler for React Native</title>
+    <meta
+      name="description"
+      content="A Rust-powered universal UI compiler and accessibility-first layer for React Native. Compiles to Semantic Web and Fabric."
+    />
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-[#0a0c10] text-slate-200 antialiased min-h-screen relative grid-background">
+    <Navbar />
+    <main>
+      <Hero />
+      <Philosophy />
+      <TieredStyles />
+      <CodeShowcase />
+      <Accessibility />
+      <Integrations />
+      <Architecture />
+    </main>
+    <Footer />
+  </body>
+</html>
