@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { createCompiler } from '@hozo/compiler'
 import { transformHozoSource } from './transform.ts'
 
 const LOGIN_SOURCE = `import { View, Text, Button } from '@hozo/core'
@@ -337,11 +338,8 @@ test('a project can add its own module to the trusted list', () => {
   const source =
     "import { View } from './ui'\nexport function Card() { return (<View className=\"p-4\" />) }\n"
   assert.equal(transformHozoSource(source, 'Card.tsx'), null)
-  const output = transformHozoSource(source, 'Card.tsx', undefined, undefined, [
-    '@hozo/core',
-    'react-native',
-    './ui',
-  ])
+  const withUi = createCompiler(undefined, ['@hozo/core', 'react-native', './ui'])
+  const output = transformHozoSource(source, 'Card.tsx', undefined, withUi)
   assert.ok(output)
   assert.match(output, /StyleSheet\.create/)
 })

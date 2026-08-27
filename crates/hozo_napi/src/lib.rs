@@ -121,13 +121,16 @@ fn js_string(value: &str) -> String {
 /// Compiles Canvas shape paint utilities without routing Canvas through the
 /// semantic/SVG node tree. Each result is one source attribute edit.
 #[napi]
-pub fn compile_canvas_paints(
-    source: String,
-    theme: Option<JsTheme>,
+pub fn compile_canvas_paints(source: String, native: bool) -> Vec<CompiledCanvasPaint> {
+    lower_canvas_paints(&source, &hozo_ir::Theme::default(), native)
+}
+
+fn lower_canvas_paints(
+    source: &str,
+    theme: &hozo_ir::Theme,
     native: bool,
 ) -> Vec<CompiledCanvasPaint> {
-    let theme = to_theme(theme);
-    hozo_parser::parse_canvas_paints(&source)
+    hozo_parser::parse_canvas_paints(source)
         .into_iter()
         .map(|paint| {
             let original = source
@@ -223,18 +226,21 @@ fn parser_diagnostics_for(
 /// per component's returned JSX, see `hozo_parser::parse_tsx`) to Web
 /// output. Returns one `CompiledComponent` per root found, in source order.
 #[napi]
-pub fn compile(
-    source: String,
-    theme: Option<JsTheme>,
-    sources: Option<Vec<String>>,
+pub fn compile(source: String) -> Vec<CompiledComponent> {
+    lower_web(&source, &hozo_ir::Theme::default(), None)
+}
+
+fn lower_web(
+    source: &str,
+    theme: &hozo_ir::Theme,
+    sources: Option<&[String]>,
 ) -> Vec<CompiledComponent> {
-    let theme = to_theme(theme);
-    let parsed = hozo_parser::parse_tsx_with(&source, sources.as_deref());
+    let parsed = hozo_parser::parse_tsx_with(source, sources);
     parsed
         .roots
         .iter()
         .map(|root| {
-            let output = hozo_web::lower(&root.node, &source, &theme);
+            let output = hozo_web::lower(&root.node, source, theme);
             let mut diagnostics = parser_diagnostics_for(&parsed, &root.node);
             diagnostics.extend(output.diagnostics.into_iter().map(to_js_diagnostic));
             CompiledComponent {
@@ -251,6 +257,55 @@ pub fn compile(
             }
         })
         .collect()
+}
+
+/// A compiler holding what a project decided once: its theme and which
+/// modules its primitives may come from.
+///
+/// The free functions above take neither, and that is the point. They used
+/// to take both as optional arguments, so every caller marshalled 288
+/// colours across this boundary on every file -- 0.134ms against the 0.003ms
+/// it takes to compile a one-element file, a fixed cost with nothing to do
+/// with the file. Worse, a theme is easy to leave out, and leaving it out
+/// does not fail: the compiler quietly uses the default palette and spacing
+/// scale, and the output looks entirely reasonable. `packages/compiler`
+/// still carries a note about a declaration that "said `compile(source)`
+/// while every caller passed three arguments".
+///
+/// So the argument is gone rather than defaulted. Compiling against a
+/// project's theme now requires holding one of these, and there is nothing
+/// left to forget.
+#[napi]
+pub struct Compiler {
+    theme: hozo_ir::Theme,
+    /// Modules whose primitive-named exports may be lowered. `None` trusts
+    /// every module, which is what a caller with no project configuration
+    /// wants; it is per-project, not per-file, which is the other reason it
+    /// belongs here.
+    sources: Option<Vec<String>>,
+}
+
+#[napi]
+impl Compiler {
+    #[napi(constructor)]
+    pub fn new(theme: Option<JsTheme>, sources: Option<Vec<String>>) -> Self {
+        Compiler { theme: to_theme(theme), sources }
+    }
+
+    #[napi]
+    pub fn compile(&self, source: String) -> Vec<CompiledComponent> {
+        lower_web(&source, &self.theme, self.sources.as_deref())
+    }
+
+    #[napi]
+    pub fn compile_native(&self, source: String) -> Vec<CompiledNativeComponent> {
+        lower_native(&source, &self.theme, self.sources.as_deref())
+    }
+
+    #[napi]
+    pub fn compile_canvas_paints(&self, source: String, native: bool) -> Vec<CompiledCanvasPaint> {
+        lower_canvas_paints(&source, &self.theme, native)
+    }
 }
 
 /// The build-side half of proposal §7's third tier.
@@ -375,18 +430,21 @@ pub struct CompiledNativeComponent {
 /// docs for the current Phase 0 scope/limitations (non-Always conditions
 /// aren't wired into the rendered `style` prop yet).
 #[napi]
-pub fn compile_native(
-    source: String,
-    theme: Option<JsTheme>,
-    sources: Option<Vec<String>>,
+pub fn compile_native(source: String) -> Vec<CompiledNativeComponent> {
+    lower_native(&source, &hozo_ir::Theme::default(), None)
+}
+
+fn lower_native(
+    source: &str,
+    theme: &hozo_ir::Theme,
+    sources: Option<&[String]>,
 ) -> Vec<CompiledNativeComponent> {
-    let theme = to_theme(theme);
-    let parsed = hozo_parser::parse_tsx_with(&source, sources.as_deref());
+    let parsed = hozo_parser::parse_tsx_with(source, sources);
     parsed
         .roots
         .iter()
         .map(|root| {
-            let output = hozo_native::lower(&root.node, &source, &theme);
+            let output = hozo_native::lower(&root.node, source, theme);
             let mut diagnostics = parser_diagnostics_for(&parsed, &root.node);
             diagnostics.extend(output.diagnostics.into_iter().map(to_js_diagnostic));
             CompiledNativeComponent {

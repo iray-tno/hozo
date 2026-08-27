@@ -1,4 +1,4 @@
-import { compileCanvasPaints, type CompileDiagnostic, type Theme } from './index.ts'
+import type { Compiler, CompileDiagnostic } from './index.ts'
 
 export interface LoweredCanvasPaints {
   code: string
@@ -11,13 +11,13 @@ export interface LoweredCanvasPaints {
 /** Applies the Canvas-only AST edits back-to-front so source offsets remain valid. */
 export function lowerCanvasPaints(
   code: string,
-  theme: Theme | undefined,
+  compiler: Compiler,
   native: boolean,
 ): LoweredCanvasPaints {
   if (!code.includes('@hozo/canvas')) {
     return { code, diagnostics: [], touched: false, changed: false }
   }
-  const edits = compileCanvasPaints(code, theme, native)
+  const edits = compiler.compileCanvasPaints(code, native)
   let next = code
   let changed = false
   for (const edit of [...edits].sort((a, b) => b.spanStart - a.spanStart)) {

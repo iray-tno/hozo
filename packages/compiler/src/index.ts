@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
 import { loadNativeBinding } from './native-loader.ts'
+import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 
 const require = createRequire(import.meta.url)
 
@@ -101,24 +102,25 @@ interface CandidateCacheConstructor {
  * the one to move to when `pack:native` grows up into its CLI.
  */
 interface NativeBinding {
-  compile(
-    source: string,
-    theme: Theme | undefined,
-    sources: string[] | undefined,
-  ): CompiledComponent[]
-  compileNative(
-    source: string,
-    theme: Theme | undefined,
-    sources: string[] | undefined,
-  ): CompiledNativeComponent[]
-  compileCanvasPaints(
-    source: string,
-    theme: Theme | undefined,
-    native: boolean,
-  ): CompiledCanvasPaint[]
+  compile(source: string): CompiledComponent[]
+  compileNative(source: string): CompiledNativeComponent[]
+  compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
   moduleImports(source: string, module: string): string[]
   foreignPrimitives(source: string, sources: string[]): string[]
   CandidateCache: CandidateCacheConstructor
+  Compiler: CompilerConstructor
+}
+
+/// The napi class itself. It knows nothing about `sources` beyond having
+/// been handed them; `createCompiler` is what makes them readable back.
+interface NativeCompiler {
+  compile(source: string): CompiledComponent[]
+  compileNative(source: string): CompiledNativeComponent[]
+  compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
+}
+
+interface CompilerConstructor {
+  new (theme?: Theme, sources?: string[]): NativeCompiler
 }
 
 let native: NativeBinding | undefined
@@ -136,44 +138,81 @@ function loadNative(): NativeBinding {
 /**
  * A project's design tokens, as `@hozo/tailwind` extracts them.
  *
- * Optional everywhere: an absent theme means Tailwind's default palette,
- * which is what every caller got before themes existed. Passing one only
- * ever resolves more, never less.
+ * Given to a `Compiler` once, not to every call. See `createCompiler`.
  */
 export interface Theme {
   colors: { token: string; oklch: string; hex: string }[]
 }
 
-export function compile(
-  source: string,
-  theme?: Theme,
-  sources?: readonly string[],
-): CompiledComponent[] {
-  // `sources` is per *tag*: a name imported from a module not on the list
-  // is carried verbatim instead of lowered. Left out, every module is
-  // trusted, which is what a caller with no project configuration wants.
-  return loadNative().compile(source, theme, sources ? [...sources] : undefined)
+/**
+ * A compiler holding what a project decided once.
+ *
+ * Everything a build knows before it sees a file lives here: the theme,
+ * and which modules its primitives may come from. Both are per-project,
+ * and passing them per-file was costing 0.134ms a file to marshal a
+ * 288-colour palette across the addon boundary -- forty-five times what
+ * compiling a small file costs, for something that does not depend on the
+ * file at all.
+ *
+ * The stronger reason is that a theme was easy to leave out and leaving it
+ * out did not fail. The compiler used the default palette and spacing
+ * scale, and the output looked entirely reasonable. There is no argument
+ * left to forget: the free `compile` below takes no theme, so compiling
+ * against a project's own requires holding one of these.
+ */
+export interface Compiler {
+  compile(source: string): CompiledComponent[]
+  compileNative(source: string): CompiledNativeComponent[]
+  compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
+  /**
+   * The modules the compiler will lower a primitive-named tag from.
+   *
+   * Readable because callers need the same list for a cheap reject before
+   * they hand anything over -- a file mentioning none of these has nothing
+   * to lower, and most of a project's files mention none. Read from here
+   * rather than passed again beside the compiler: two copies of one
+   * decision is how they come to disagree.
+   */
+  readonly sources: readonly string[]
 }
 
-// Not yet wired into a Metro transformer (@hozo/vite's Metro
-// counterpart doesn't exist yet -- Native was deliberately validated after
-// Web, per the A-phase decision). Exposed now so the binding layer mirrors
-// both backends; the transformer-side integration is separate future work.
-export function compileNative(
-  source: string,
-  theme?: Theme,
-  sources?: readonly string[],
-): CompiledNativeComponent[] {
-  return loadNative().compileNative(source, theme, sources ? [...sources] : undefined)
+/**
+ * A compiler for one project.
+ *
+ * `sources` is per *tag*: a name imported from a module not on the list is
+ * carried verbatim instead of lowered. Left out, the default set applies.
+ */
+export function createCompiler(theme?: Theme, sources?: readonly string[]): Compiler {
+  const allowed = sources ? [...sources] : [...DEFAULT_PRIMITIVE_SOURCES]
+  const inner = new (loadNative().Compiler)(theme, allowed)
+  return {
+    compile: (source) => inner.compile(source),
+    compileNative: (source) => inner.compileNative(source),
+    compileCanvasPaints: (source, native) => inner.compileCanvasPaints(source, native),
+    sources: allowed,
+  }
+}
+
+/**
+ * Compiles against Tailwind's default theme, trusting every module.
+ *
+ * For tests and one-off inspection. A build wants `createCompiler` -- this
+ * one cannot be given a project's palette, which is deliberate: an
+ * argument that can be omitted silently is how the wrong palette gets
+ * compiled in without anything failing.
+ */
+export function compile(source: string): CompiledComponent[] {
+  return loadNative().compile(source)
+}
+
+/** The Native backend, against the default theme. See `compile`. */
+export function compileNative(source: string): CompiledNativeComponent[] {
+  return loadNative().compileNative(source)
 }
 
 /** Canvas-specific paint edits; kept separate from semantic component IR. */
-export function compileCanvasPaints(
-  source: string,
-  theme?: Theme,
-  native = false,
-): CompiledCanvasPaint[] {
-  return loadNative().compileCanvasPaints(source, theme, native)
+export function compileCanvasPaints(source: string, native = false): CompiledCanvasPaint[] {
+  return loadNative().compileCanvasPaints(source, native)
 }
 
 export function openCandidateCache(path?: string): CandidateCache {

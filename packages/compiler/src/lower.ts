@@ -14,9 +14,8 @@
 
 import path from 'node:path'
 
-import { compile, type CompileDiagnostic, type Theme } from './index.ts'
+import type { Compiler, CompileDiagnostic } from './index.ts'
 import { lowerCanvasPaints } from './canvas.ts'
-import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 
 const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
 
@@ -128,15 +127,6 @@ export function sideEffectImport(specifier: string): string {
   return `import ${JSON.stringify(specifier)}\n`
 }
 
-export interface LowerOptions {
-  /**
-   * Modules whose primitives may be lowered. Defaults to
-   * `DEFAULT_PRIMITIVE_SOURCES`, which includes `react-native` -- see
-   * `./sources.ts` for why the gate is not a substring test.
-   */
-  sources?: readonly string[]
-}
-
 export interface LoweredModule {
   /** The source with every compiled component spliced back in. */
   code: string
@@ -160,13 +150,12 @@ export function lowerModule(
   code: string,
   id: string,
   file: string,
-  theme: Theme | undefined,
-  options: LowerOptions = {},
+  compiler: Compiler,
 ): LoweredModule | undefined {
   if (!file.endsWith('.tsx')) return undefined
 
-  const allowed = options.sources ?? DEFAULT_PRIMITIVE_SOURCES
-  const canvas = lowerCanvasPaints(code, theme, false)
+  const allowed = compiler.sources
+  const canvas = lowerCanvasPaints(code, compiler, false)
   // A cheap reject before parsing: a file mentioning none of the trusted
   // modules has nothing this can lower, and most of a project's files are
   // that. The real decision needs the AST and comes next.
@@ -182,7 +171,7 @@ export function lowerModule(
   // Canvas edits run first because a semantic root may carry a Canvas tree
   // verbatim. Compiling the semantic span from the original source would
   // otherwise paste the old className back over the nested Canvas edit.
-  const components = hasSemanticCandidate ? compile(canvas.code, theme, allowed) : []
+  const components = hasSemanticCandidate ? compiler.compile(canvas.code) : []
   if (components.length === 0 && !canvas.touched) return undefined
 
   let next = canvas.code

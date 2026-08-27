@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import { createCompiler } from './index.ts'
 import { lowerModule } from './lower.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 
 const rn = "import { View, Text } from 'react-native'\n"
+const compiler = createCompiler()
 const card = 'export function Card() { return (<View className="p-4"><Text>Hi</Text></View>) }\n'
 
 test('a plain React Native file compiles', () => {
@@ -12,7 +14,7 @@ test('a plain React Native file compiles', () => {
   // Hozo-specific API. True of the compiler since it was written, and
   // false of every integration until the gate stopped being a
   // `code.includes('@hozo/core')` substring test.
-  const lowered = lowerModule(rn + card, 'Card.tsx', 'Card.tsx', undefined)
+  const lowered = lowerModule(rn + card, 'Card.tsx', 'Card.tsx', compiler)
   assert.ok(lowered)
   assert.match(lowered.code, /<div/)
   assert.match(lowered.css, /padding-top: 16px/)
@@ -22,7 +24,7 @@ test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.
   const source = "import { View } from 'some-ui-kit'\n" + card
-  assert.equal(lowerModule(source, 'Card.tsx', 'Card.tsx', undefined), undefined)
+  assert.equal(lowerModule(source, 'Card.tsx', 'Card.tsx', compiler), undefined)
 })
 
 test('a mixed Expo file lowers one half and carries the other', () => {
@@ -38,7 +40,7 @@ test('a mixed Expo file lowers one half and carries the other', () => {
     'export function Screen() {\n' +
     '  return (<View className="p-4"><Host><Button label="Save" /></Host></View>)\n' +
     '}\n'
-  const lowered = lowerModule(source, 'Screen.tsx', 'Screen.tsx', undefined)
+  const lowered = lowerModule(source, 'Screen.tsx', 'Screen.tsx', compiler)
 
   assert.ok(lowered)
   assert.match(lowered.code, /<div className="hozo-view hozo-r0-0">/, 'the View should have lowered')
@@ -56,7 +58,7 @@ test('the same name resolves differently in the same file', () => {
     'export function Screen() {\n' +
     '  return (<View><Text className="font-bold">a</Text><NativeText>b</NativeText></View>)\n' +
     '}\n'
-  const lowered = lowerModule(source, 'Screen.tsx', 'Screen.tsx', undefined)
+  const lowered = lowerModule(source, 'Screen.tsx', 'Screen.tsx', compiler)
   assert.ok(lowered)
   assert.match(lowered.code, /<span className="hozo-r0-1">a<\/span>/)
   assert.match(lowered.code, /<NativeText>b<\/NativeText>/)
@@ -66,15 +68,14 @@ test('a project can add its own module to the trusted list', () => {
   // The re-export case: a design system wrapping the primitives it
   // re-exports is still handing Hozo the components it knows.
   const source = "import { View } from './ui'\n" + card
-  assert.equal(lowerModule(source, 'Card.tsx', 'Card.tsx', undefined), undefined)
+  assert.equal(lowerModule(source, 'Card.tsx', 'Card.tsx', compiler), undefined)
 
-  const lowered = lowerModule(source, 'Card.tsx', 'Card.tsx', undefined, {
-    sources: [...DEFAULT_PRIMITIVE_SOURCES, './ui'],
-  })
+  const withUi = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES, './ui'])
+  const lowered = lowerModule(source, 'Card.tsx', 'Card.tsx', withUi)
   assert.ok(lowered)
   assert.match(lowered.code, /<div/)
 })
 
 test('a file with no primitives at all is skipped outright', () => {
-  assert.equal(lowerModule('export const x = 1\n', 'a.tsx', 'a.tsx', undefined), undefined)
+  assert.equal(lowerModule('export const x = 1\n', 'a.tsx', 'a.tsx', compiler), undefined)
 })

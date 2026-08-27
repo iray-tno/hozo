@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import { createCompiler } from './index.ts'
 import { lowerModule, namespaceHozoClasses, referencesHozoPrimitive } from './lower.ts'
 
 const file = 'Page.tsx'
+const compiler = createCompiler()
 
 test('lowers a component and namespaces its classes', () => {
   const source =
     `import { View } from '@hozo/core'\n` +
     `export function Page() { return <View className="p-4">x</View> }\n`
-  const lowered = lowerModule(source, file, file, undefined)
+  const lowered = lowerModule(source, file, file, compiler)
 
   assert.ok(lowered)
   assert.match(lowered.code, /<div/)
@@ -19,8 +21,9 @@ test('lowers a component and namespaces its classes', () => {
 })
 
 test('leaves alone what it has nothing to do with', () => {
-  assert.equal(lowerModule('export const x = 1\n', file, file, undefined), undefined)
-  assert.equal(lowerModule("import { View } from '@hozo/core'\n", 'a.ts', 'a.ts', undefined), undefined)
+  assert.equal(lowerModule('export const x = 1\n', file, file, compiler), undefined)
+  const notTsx = "import { View } from '@hozo/core'\n"
+  assert.equal(lowerModule(notTsx, 'a.ts', 'a.ts', compiler), undefined)
 })
 
 test('a derived module gets its own companion stylesheet', () => {
@@ -30,8 +33,8 @@ test('a derived module gets its own companion stylesheet', () => {
   const source =
     `import { View } from '@hozo/core'\n` +
     `export function Page() { return <View className="p-4">x</View> }\n`
-  const plain = lowerModule(source, file, file, undefined)!
-  const derived = lowerModule(source, `${file}?ssr=true`, file, undefined)!
+  const plain = lowerModule(source, file, file, compiler)!
+  const derived = lowerModule(source, `${file}?ssr=true`, file, compiler)!
   assert.notEqual(plain.cssFileName, derived.cssFileName)
   assert.match(derived.cssFileName, /^Page\.tsx\..+\.hozo\.css$/)
 })
@@ -53,7 +56,7 @@ test('keeps the @hozo/core import when a primitive survived lowering', () => {
     `import { PanResponder, View } from '@hozo/core'\n` +
     `const pan = PanResponder.create({})\n` +
     `export function Page() { return <View className="p-4">x</View> }\n`
-  const lowered = lowerModule(source, file, file, undefined)!
+  const lowered = lowerModule(source, file, file, compiler)!
   assert.ok(lowered.code.includes('@hozo/core'), 'the import a survivor needs was stripped')
 })
 
@@ -67,7 +70,7 @@ test('the import survives even when lowering left nothing using it', () => {
   const source =
     `import { View } from '@hozo/core'\n` +
     `export function Page() { return <View className="p-4">x</View> }\n`
-  const lowered = lowerModule(source, file, file, undefined)!
+  const lowered = lowerModule(source, file, file, compiler)!
   assert.ok(lowered.code.includes('@hozo/core'))
   assert.ok(!/<View/.test(lowered.code), 'the tag itself should be gone')
 })
@@ -84,7 +87,7 @@ export function Chart() {
   </Canvas>
 }
 `
-  const lowered = lowerModule(source, file, file, undefined)!
+  const lowered = lowerModule(source, file, file, compiler)!
   assert.ok(lowered)
   assert.match(lowered.code, /<Canvas decorative/)
   assert.match(lowered.code, /<Canvas\.Rect fill="oklch\(62\.3% 0\.214 259\.815\)" stroke="oklch\(63\.7% 0\.237 25\.331\)" strokeWidth=\{2\} opacity=\{0\.5\}/)
@@ -98,7 +101,7 @@ export function Chart() {
   return <View className="p-4"><Canvas decorative width={20} height={20}><Canvas.Circle className="fill-blue-500" cx={10} cy={10} radius={8} /></Canvas></View>
 }
 `
-  const lowered = lowerModule(source, file, file, undefined)!
+  const lowered = lowerModule(source, file, file, compiler)!
   assert.match(lowered.code, /<div[^>]*><Canvas decorative/)
   assert.match(lowered.code, /<Canvas\.Circle fill="oklch\(62\.3% 0\.214 259\.815\)"/)
 })
@@ -107,7 +110,7 @@ test('diagnoses Canvas classes that have no paint-prop lowering', () => {
   const source = `import { Canvas } from '@hozo/canvas'
 const Chart = () => <Canvas decorative><Canvas.Rect className={active ? 'fill-blue-500' : 'fill-gray-500'} width={1} height={1} /></Canvas>
 `
-  const lowered = lowerModule(source, file, file, undefined)!
+  const lowered = lowerModule(source, file, file, compiler)!
   assert.equal(lowered.code, source)
   assert.equal(lowered.diagnostics[0]?.code, 'CANVAS_CLASS_NOT_LOWERED')
 })

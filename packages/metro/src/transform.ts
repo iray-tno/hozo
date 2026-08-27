@@ -14,10 +14,15 @@
 //   `const hozoStyles = StyleSheet.create({...})` declaration in the same
 //   file, since that's the idiomatic RN pattern.
 
-import { compileNative, moduleImports, type CompiledNativeComponent, type Theme } from '@hozo/compiler'
+import {
+  createCompiler,
+  moduleImports,
+  type CompiledNativeComponent,
+  type Compiler,
+} from '@hozo/compiler'
 import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
-import { DEFAULT_PRIMITIVE_SOURCES, foreignPrimitives } from '@hozo/compiler/sources'
+import { foreignPrimitives } from '@hozo/compiler/sources'
 import { importSpecifier } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
@@ -51,6 +56,16 @@ function mergeStyleObjects(blocks: string[]): string {
   return `{\n${inner}\n}`
 }
 
+/// A compiler with no project theme, for the callers that have no project:
+/// the unit tests, and anyone calling `transformHozoSource` directly. Made
+/// once rather than per call -- it is the palette crossing the addon
+/// boundary that this whole shape exists to do only once.
+let fallback: Compiler | undefined
+function defaultCompiler(): Compiler {
+  fallback ??= createCompiler()
+  return fallback
+}
+
 /**
  * Returns the rewritten source, or `null` if there's nothing for Hozo to
  * do: not a `.tsx` file, or no primitives from a module the project trusts.
@@ -59,18 +74,17 @@ export function transformHozoSource(
   code: string,
   filename: string,
   projectRoot?: string,
-  theme?: Theme,
-  sources: readonly string[] = DEFAULT_PRIMITIVE_SOURCES,
+  compiler: Compiler = defaultCompiler(),
 ): string | null {
   if (!filename.endsWith('.tsx')) {
     return null
   }
   // A cheap reject before parsing; the real decision needs the AST.
-  const hasSemanticCandidate = sources.some((module) => code.includes(module))
+  const hasSemanticCandidate = compiler.sources.some((module) => code.includes(module))
   if (!hasSemanticCandidate && !code.includes('@hozo/canvas')) {
     return null
   }
-  const canvas = lowerCanvasPaints(code, theme, true)
+  const canvas = lowerCanvasPaints(code, compiler, true)
   code = canvas.code
   reportDiagnostics(
     canvas.diagnostics,
@@ -83,7 +97,7 @@ export function transformHozoSource(
   // Native project on the grounds that it had not been rewritten -- while
   // the compiler underneath had always handled `react-native` imports and
   // produced identical output for them. See `@hozo/compiler/sources`.
-  const components = hasSemanticCandidate ? compileNative(code, theme, sources) : []
+  const components = hasSemanticCandidate ? compiler.compileNative(code) : []
   if (components.length === 0) {
     return canvas.touched ? code : null
   }
@@ -104,7 +118,7 @@ export function transformHozoSource(
   // Names this file imports from a module the project does not trust, so
   // the guards below can tell a component Hozo declined from one it failed
   // to lower.
-  const foreign = foreignPrimitives(code, sources)
+  const foreign = foreignPrimitives(code, compiler.sources)
   const usedTags = new Set<string>()
   const styleBlocks: string[] = []
   components.forEach((component: CompiledNativeComponent, index: number) => {
