@@ -108,6 +108,30 @@ function declarationMap(declarations: string[]): Map<string, string> {
       if (property === 'border-style') {
         return ['border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style']
       }
+      if (property === 'border-block-color') {
+        return ['border-top-color', 'border-bottom-color']
+      }
+      if (property === 'inset') {
+        return ['top', 'right', 'bottom', 'left']
+      }
+      if (property === 'inset-block') {
+        return ['top', 'bottom']
+      }
+      if (property === 'inset-inline') {
+        return ['inset-inline-start', 'inset-inline-end']
+      }
+      if (property === 'margin-block') {
+        return ['margin-top', 'margin-bottom']
+      }
+      if (property === 'margin-inline') {
+        return ['margin-inline-start', 'margin-inline-end']
+      }
+      if (property === 'padding-block') {
+        return ['padding-top', 'padding-bottom']
+      }
+      if (property === 'padding-inline') {
+        return ['padding-inline-start', 'padding-inline-end']
+      }
       return [property]
     })()
     for (const name of expanded) result.set(name, value)
@@ -210,6 +234,26 @@ test('the expanded RN-portable StyleX property slice agrees with the official CS
     ['textDecorationStyle', `'dotted'`],
     ['userSelect', `'none'`],
     ['verticalAlign', `'top'`],
+    ['borderBlockColor', `'#123456'`],
+    ['borderBlockStartColor', `'#123456'`],
+    ['borderBlockEndColor', `'#123456'`],
+    ['start', '4'],
+    ['end', '4'],
+    ['inset', '4'],
+    ['insetBlock', '4'],
+    ['insetBlockStart', '4'],
+    ['insetBlockEnd', '4'],
+    ['insetInline', '4'],
+    ['insetInlineStart', '4'],
+    ['insetInlineEnd', '4'],
+    ['marginBlock', '4'],
+    ['marginBlockStart', '4'],
+    ['marginBlockEnd', '4'],
+    ['marginInline', '4'],
+    ['paddingBlock', '4'],
+    ['paddingBlockStart', '4'],
+    ['paddingBlockEnd', '4'],
+    ['paddingInline', '4'],
   ] as const
 
   for (const [property, value] of samples) {

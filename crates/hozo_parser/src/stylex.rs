@@ -9,7 +9,8 @@
 use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
-    Color, Condition, ConditionExpr, ExprRef, Length, SourceSpan, StyleDeclaration, StyleProperty,
+    Color, Condition, ConditionExpr, Dimension, ExprRef, Length, SourceSpan, StyleDeclaration,
+    StyleProperty,
 };
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
@@ -133,6 +134,26 @@ fn px_length(value: &StaticValue) -> Option<Length> {
             .strip_suffix("px")
             .and_then(|value| value.parse::<f64>().ok())
             .map(Length::Px),
+    }
+}
+
+fn dimension(value: &StaticValue) -> Option<Dimension> {
+    match value {
+        StaticValue::Number(value) => Some(Dimension::Length(Length::Px(*value))),
+        StaticValue::String(value) if value == "auto" => Some(Dimension::Auto),
+        StaticValue::String(value) => value
+            .strip_suffix('%')
+            .and_then(|value| value.parse::<f64>().ok())
+            .map(Dimension::Percent)
+            .or_else(|| {
+                if value == "0" {
+                    return Some(Dimension::Length(Length::Px(0.0)));
+                }
+                value
+                    .strip_suffix("px")
+                    .and_then(|value| value.parse::<f64>().ok())
+                    .map(|value| Dimension::Length(Length::Px(value)))
+            }),
     }
 }
 
@@ -484,6 +505,7 @@ fn token_for(property: &str, value: &StaticValue) -> Option<String> {
 
 fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StyleProperty>> {
     let width = || px_length(value);
+    let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
         // Tailwind's border-width utilities intentionally add a solid
@@ -518,10 +540,86 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "borderRightColor" => vec![StyleProperty::BorderRightColor(color()?)],
         "borderBottomColor" => vec![StyleProperty::BorderBottomColor(color()?)],
         "borderLeftColor" => vec![StyleProperty::BorderLeftColor(color()?)],
+        "borderBlockColor" => {
+            let value = color()?;
+            vec![
+                StyleProperty::BorderTopColor(value.clone()),
+                StyleProperty::BorderBottomColor(value),
+            ]
+        }
+        // StyleX defines these aliases in terms of physical top/bottom,
+        // which its official compiler confirms. Follow that contract even
+        // though the CSS names themselves look writing-mode-relative.
+        "borderBlockStartColor" => vec![StyleProperty::BorderTopColor(color()?)],
+        "borderBlockEndColor" => vec![StyleProperty::BorderBottomColor(color()?)],
         // The arbitrary Tailwind outline-width form also adds `solid`;
         // StyleX does not. Keep width and offset independent here.
         "outlineWidth" => vec![StyleProperty::OutlineWidth(width()?)],
         "outlineOffset" => vec![StyleProperty::OutlineOffset(width()?)],
+        // StyleX exposes both the modern inset names and React Native's
+        // start/end aliases. Keep all of them logical in IR so RTL is
+        // decided by the platform rather than baked into the compiler.
+        "start" => vec![StyleProperty::InsetInlineStart(dimension()?)],
+        "insetInlineStart" => vec![StyleProperty::InsetInlineStart(dimension()?)],
+        "end" => vec![StyleProperty::InsetInlineEnd(dimension()?)],
+        "insetInlineEnd" => vec![StyleProperty::InsetInlineEnd(dimension()?)],
+        "insetInline" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::InsetInlineStart(value.clone()),
+                StyleProperty::InsetInlineEnd(value),
+            ]
+        }
+        "insetBlockStart" => vec![StyleProperty::InsetTop(dimension()?)],
+        "insetBlockEnd" => vec![StyleProperty::InsetBottom(dimension()?)],
+        "insetBlock" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::InsetTop(value.clone()),
+                StyleProperty::InsetBottom(value),
+            ]
+        }
+        "inset" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::InsetTop(value.clone()),
+                StyleProperty::InsetRight(value.clone()),
+                StyleProperty::InsetBottom(value.clone()),
+                StyleProperty::InsetLeft(value),
+            ]
+        }
+        "marginInline" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::MarginInlineStart(value.clone()),
+                StyleProperty::MarginInlineEnd(value),
+            ]
+        }
+        "marginBlockStart" => vec![StyleProperty::MarginTop(dimension()?)],
+        "marginBlockEnd" => vec![StyleProperty::MarginBottom(dimension()?)],
+        "marginBlock" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::MarginTop(value.clone()),
+                StyleProperty::MarginBottom(value),
+            ]
+        }
+        "paddingInline" => {
+            let value = width()?;
+            vec![
+                StyleProperty::PaddingInlineStart(value.clone()),
+                StyleProperty::PaddingInlineEnd(value),
+            ]
+        }
+        "paddingBlockStart" => vec![StyleProperty::PaddingTop(width()?)],
+        "paddingBlockEnd" => vec![StyleProperty::PaddingBottom(width()?)],
+        "paddingBlock" => {
+            let value = width()?;
+            vec![
+                StyleProperty::PaddingTop(value.clone()),
+                StyleProperty::PaddingBottom(value),
+            ]
+        }
         _ => return None,
     })
 }

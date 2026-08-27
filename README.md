@@ -193,8 +193,8 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **88/522 property names
-(16.9%)**, or **88/114 (77.2%)** when the denominator is restricted to names
+Against StyleX 0.19.0's published types that is **108/522 property names
+(20.7%)**, or **108/114 (94.7%)** when the denominator is restricted to names
 React Native also publishes. These are property-name upper bounds: each
 property still accepts only the statically safe value subset the shared IR can
 represent.
