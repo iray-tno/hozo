@@ -8,7 +8,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use hozo_ir::{Condition, ConditionExpr, ExprRef, SourceSpan, StyleDeclaration, StyleProperty};
+use hozo_ir::{
+    Color, Condition, ConditionExpr, Dimension, ExprRef, Length, SourceSpan, StyleDeclaration,
+    StyleProperty,
+};
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
     LogicalOperator, ObjectExpression, ObjectPropertyKind, PropertyKey, VariableDeclarator,
@@ -123,6 +126,45 @@ fn length_value(value: &StaticValue) -> String {
     }
 }
 
+fn px_length(value: &StaticValue) -> Option<Length> {
+    match value {
+        StaticValue::Number(value) => Some(Length::Px(*value)),
+        StaticValue::String(value) if value == "0" => Some(Length::Px(0.0)),
+        StaticValue::String(value) => value
+            .strip_suffix("px")
+            .and_then(|value| value.parse::<f64>().ok())
+            .map(Length::Px),
+    }
+}
+
+fn dimension(value: &StaticValue) -> Option<Dimension> {
+    match value {
+        StaticValue::Number(value) => Some(Dimension::Length(Length::Px(*value))),
+        StaticValue::String(value) if value == "auto" => Some(Dimension::Auto),
+        StaticValue::String(value) => value
+            .strip_suffix('%')
+            .and_then(|value| value.parse::<f64>().ok())
+            .map(Dimension::Percent)
+            .or_else(|| {
+                if value == "0" {
+                    return Some(Dimension::Length(Length::Px(0.0)));
+                }
+                value
+                    .strip_suffix("px")
+                    .and_then(|value| value.parse::<f64>().ok())
+                    .map(|value| Dimension::Length(Length::Px(value)))
+            }),
+    }
+}
+
+fn css_color(value: &StaticValue) -> Option<Color> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    (!value.is_empty() && !value.contains("var(") && !value.contains("env("))
+        .then(|| Color::Css(value.clone()))
+}
+
 /// Variables, fallbacks, and values needing escaping belong with the later
 /// defineVars/theme slice. Refusing them is safer than lossy underscore
 /// encoding that merely looks supported.
@@ -214,6 +256,19 @@ fn token_for(property: &str, value: &StaticValue) -> Option<String> {
                 ("stretch", "self-stretch"),
             ],
         ),
+        "alignContent" => named(
+            value,
+            &[
+                ("flex-start", "content-start"),
+                ("flex-end", "content-end"),
+                ("center", "content-center"),
+                ("space-between", "content-between"),
+                ("space-around", "content-around"),
+                ("space-evenly", "content-evenly"),
+                ("stretch", "content-stretch"),
+                ("baseline", "content-baseline"),
+            ],
+        ),
         "justifyContent" => named(
             value,
             &[
@@ -264,6 +319,138 @@ fn token_for(property: &str, value: &StaticValue) -> Option<String> {
         "borderTopRightRadius" => length("rounded-tr"),
         "borderBottomRightRadius" => length("rounded-br"),
         "borderBottomLeftRadius" => length("rounded-bl"),
+        "borderStartStartRadius" => length("rounded-ss"),
+        "borderStartEndRadius" => length("rounded-se"),
+        "borderEndStartRadius" => length("rounded-es"),
+        "borderEndEndRadius" => length("rounded-ee"),
+        "borderStyle" => named(
+            value,
+            &[
+                ("solid", "border-solid"),
+                ("dashed", "border-dashed"),
+                ("dotted", "border-dotted"),
+                ("double", "border-double"),
+                ("hidden", "border-hidden"),
+                ("none", "border-none"),
+            ],
+        ),
+        "aspectRatio" => named(
+            value,
+            &[
+                ("auto", "aspect-auto"),
+                ("1 / 1", "aspect-square"),
+                ("16 / 9", "aspect-video"),
+            ],
+        ),
+        "backfaceVisibility" => named(
+            value,
+            &[
+                ("hidden", "backface-hidden"),
+                ("visible", "backface-visible"),
+            ],
+        ),
+        "boxSizing" => named(
+            value,
+            &[("border-box", "box-border"), ("content-box", "box-content")],
+        ),
+        "flex" => named(
+            value,
+            &[
+                ("auto", "flex-auto"),
+                ("initial", "flex-initial"),
+                ("none", "flex-none"),
+                ("1", "flex-1"),
+            ],
+        ),
+        "fontStyle" => named(value, &[("italic", "italic"), ("normal", "not-italic")]),
+        "isolation" => named(value, &[("isolate", "isolate"), ("auto", "isolation-auto")]),
+        "mixBlendMode" => {
+            let StaticValue::String(value) = value else {
+                return None;
+            };
+            [
+                "normal",
+                "multiply",
+                "screen",
+                "overlay",
+                "darken",
+                "lighten",
+                "color-dodge",
+                "color-burn",
+                "hard-light",
+                "soft-light",
+                "difference",
+                "exclusion",
+                "hue",
+                "saturation",
+                "color",
+                "luminosity",
+                "plus-darker",
+                "plus-lighter",
+            ]
+            .contains(&value.as_str())
+            .then(|| format!("mix-blend-{value}"))
+        }
+        "pointerEvents" => named(
+            value,
+            &[
+                ("auto", "pointer-events-auto"),
+                ("none", "pointer-events-none"),
+            ],
+        ),
+        "textDecorationColor" => raw("decoration"),
+        "textDecorationLine" => named(
+            value,
+            &[
+                ("underline", "underline"),
+                ("overline", "overline"),
+                ("line-through", "line-through"),
+                ("none", "no-underline"),
+            ],
+        ),
+        "textDecorationStyle" => named(
+            value,
+            &[
+                ("solid", "decoration-solid"),
+                ("double", "decoration-double"),
+                ("dotted", "decoration-dotted"),
+                ("dashed", "decoration-dashed"),
+                ("wavy", "decoration-wavy"),
+            ],
+        ),
+        "userSelect" => named(
+            value,
+            &[
+                ("all", "select-all"),
+                ("auto", "select-auto"),
+                ("none", "select-none"),
+                ("text", "select-text"),
+            ],
+        ),
+        "verticalAlign" => named(
+            value,
+            &[
+                ("baseline", "align-baseline"),
+                ("bottom", "align-bottom"),
+                ("middle", "align-middle"),
+                ("sub", "align-sub"),
+                ("super", "align-super"),
+                ("text-bottom", "align-text-bottom"),
+                ("text-top", "align-text-top"),
+                ("top", "align-top"),
+            ],
+        ),
+        "outlineColor" => raw("outline"),
+        "outlineStyle" => named(
+            value,
+            &[
+                ("solid", "outline-solid"),
+                ("dashed", "outline-dashed"),
+                ("dotted", "outline-dotted"),
+                ("double", "outline-double"),
+                ("none", "outline-none"),
+            ],
+        ),
         "fontSize" => length("text"),
         "fontWeight" => raw("font"),
         "lineHeight" => raw("leading"),
@@ -314,6 +501,127 @@ fn token_for(property: &str, value: &StaticValue) -> Option<String> {
         ),
         _ => None,
     }
+}
+
+fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let width = || px_length(value);
+    let dimension = || dimension(value);
+    let color = || css_color(value);
+    Some(match property {
+        // Tailwind's border-width utilities intentionally add a solid
+        // style so they paint without a reset. StyleX declares exactly the
+        // requested property, so it must bypass that Tailwind-specific
+        // expansion or `borderWidth: 2` would also change borderStyle.
+        "borderWidth" => {
+            let value = width()?;
+            vec![
+                StyleProperty::BorderTopWidth(value.clone()),
+                StyleProperty::BorderRightWidth(value.clone()),
+                StyleProperty::BorderBottomWidth(value.clone()),
+                StyleProperty::BorderLeftWidth(value),
+            ]
+        }
+        "borderTopWidth" => vec![StyleProperty::BorderTopWidth(width()?)],
+        "borderRightWidth" => vec![StyleProperty::BorderRightWidth(width()?)],
+        "borderBottomWidth" => vec![StyleProperty::BorderBottomWidth(width()?)],
+        "borderLeftWidth" => vec![StyleProperty::BorderLeftWidth(width()?)],
+        // Expanding the shorthand into the four typed slots makes its
+        // overlap with a side longhand visible to `same_property_as`.
+        "borderColor" => {
+            let value = color()?;
+            vec![
+                StyleProperty::BorderTopColor(value.clone()),
+                StyleProperty::BorderRightColor(value.clone()),
+                StyleProperty::BorderBottomColor(value.clone()),
+                StyleProperty::BorderLeftColor(value),
+            ]
+        }
+        "borderTopColor" => vec![StyleProperty::BorderTopColor(color()?)],
+        "borderRightColor" => vec![StyleProperty::BorderRightColor(color()?)],
+        "borderBottomColor" => vec![StyleProperty::BorderBottomColor(color()?)],
+        "borderLeftColor" => vec![StyleProperty::BorderLeftColor(color()?)],
+        "borderBlockColor" => {
+            let value = color()?;
+            vec![
+                StyleProperty::BorderTopColor(value.clone()),
+                StyleProperty::BorderBottomColor(value),
+            ]
+        }
+        // StyleX defines these aliases in terms of physical top/bottom,
+        // which its official compiler confirms. Follow that contract even
+        // though the CSS names themselves look writing-mode-relative.
+        "borderBlockStartColor" => vec![StyleProperty::BorderTopColor(color()?)],
+        "borderBlockEndColor" => vec![StyleProperty::BorderBottomColor(color()?)],
+        // The arbitrary Tailwind outline-width form also adds `solid`;
+        // StyleX does not. Keep width and offset independent here.
+        "outlineWidth" => vec![StyleProperty::OutlineWidth(width()?)],
+        "outlineOffset" => vec![StyleProperty::OutlineOffset(width()?)],
+        // StyleX exposes both the modern inset names and React Native's
+        // start/end aliases. Keep all of them logical in IR so RTL is
+        // decided by the platform rather than baked into the compiler.
+        "start" => vec![StyleProperty::InsetInlineStart(dimension()?)],
+        "insetInlineStart" => vec![StyleProperty::InsetInlineStart(dimension()?)],
+        "end" => vec![StyleProperty::InsetInlineEnd(dimension()?)],
+        "insetInlineEnd" => vec![StyleProperty::InsetInlineEnd(dimension()?)],
+        "insetInline" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::InsetInlineStart(value.clone()),
+                StyleProperty::InsetInlineEnd(value),
+            ]
+        }
+        "insetBlockStart" => vec![StyleProperty::InsetTop(dimension()?)],
+        "insetBlockEnd" => vec![StyleProperty::InsetBottom(dimension()?)],
+        "insetBlock" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::InsetTop(value.clone()),
+                StyleProperty::InsetBottom(value),
+            ]
+        }
+        "inset" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::InsetTop(value.clone()),
+                StyleProperty::InsetRight(value.clone()),
+                StyleProperty::InsetBottom(value.clone()),
+                StyleProperty::InsetLeft(value),
+            ]
+        }
+        "marginInline" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::MarginInlineStart(value.clone()),
+                StyleProperty::MarginInlineEnd(value),
+            ]
+        }
+        "marginBlockStart" => vec![StyleProperty::MarginTop(dimension()?)],
+        "marginBlockEnd" => vec![StyleProperty::MarginBottom(dimension()?)],
+        "marginBlock" => {
+            let value = dimension()?;
+            vec![
+                StyleProperty::MarginTop(value.clone()),
+                StyleProperty::MarginBottom(value),
+            ]
+        }
+        "paddingInline" => {
+            let value = width()?;
+            vec![
+                StyleProperty::PaddingInlineStart(value.clone()),
+                StyleProperty::PaddingInlineEnd(value),
+            ]
+        }
+        "paddingBlockStart" => vec![StyleProperty::PaddingTop(width()?)],
+        "paddingBlockEnd" => vec![StyleProperty::PaddingBottom(width()?)],
+        "paddingBlock" => {
+            let value = width()?;
+            vec![
+                StyleProperty::PaddingTop(value.clone()),
+                StyleProperty::PaddingBottom(value),
+            ]
+        }
+        _ => return None,
+    })
 }
 
 /// CSS shorthands and longhands StyleX assigns different atomic priorities.
@@ -369,23 +677,29 @@ fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
                 span: source_span(property.value.span()),
             });
         };
-        let Some(token) = token_for(&name, &value) else {
-            return Err(Gap {
-                message: format!(
-                    "StyleX property `{name}` or its value is not in Hozo's typed universal subset yet."
-                ),
-                span: source_span(property.span),
-            });
+        let properties = match direct_properties(&name, &value) {
+            Some(properties) => properties,
+            None => {
+                let Some(token) = token_for(&name, &value) else {
+                    return Err(Gap {
+                        message: format!(
+                            "StyleX property `{name}` or its value is not in Hozo's typed universal subset yet."
+                        ),
+                        span: source_span(property.span),
+                    });
+                };
+                let (condition, properties) = tailwind::expand_utility(&token);
+                if condition != Condition::Always || properties.is_empty() {
+                    return Err(Gap {
+                        message: format!(
+                            "StyleX property `{name}` could not become a typed Hozo style without losing meaning."
+                        ),
+                        span: source_span(property.span),
+                    });
+                }
+                properties
+            }
         };
-        let (condition, properties) = tailwind::expand_utility(&token);
-        if condition != Condition::Always || properties.is_empty() {
-            return Err(Gap {
-                message: format!(
-                    "StyleX property `{name}` could not become a typed Hozo style without losing meaning."
-                ),
-                span: source_span(property.span),
-            });
-        }
         out.push(Entry {
             css_name: name,
             properties,

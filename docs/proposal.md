@@ -945,6 +945,12 @@ same-file・module-scope の `stylex.create` と、
 公式 StyleX 0.19.0 の CSS 出力との差分テストも持つ。未対応式は消さず
 `STYLEX_NOT_LOWERED` として公式コンパイラへ残す。
 
+StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
+を機械的に交差させる分母も conformance report に追加した。2026-08-27 時点では
+全 CSS 名で 108/522 (20.7%)、両 platform に名前が存在する集合で 108/114
+(94.7%)。これは value や API を含めた互換率ではなく property-name の上限値で、
+代表値は公式 Babel plugin の CSS と個別に差分検証する。
+
 共存実測の結論は **Hozo → StyleX の順だけが安全**。StyleX を先にすると
 spread が第二の `className` になり、Hozo は JSX の last-wins で本来消える
 Tailwind class まで合成してしまう。Hozo を先にすると元の `create/props` 関係を
@@ -962,10 +968,11 @@ Native の lowering は一行も変えずに使える。IR をフロントエン
 した理由がここにある。
 
 反対する理由は原理ではなくコストで、それは分母の話。Hozo の確信は
-「Tailwind 自身のエンジンと差分を取る」から来ている。StyleX にも
-コンパイラがあるので同じ手は使えるが、22446 の variant と 23286 の
-utility と 3074 の合成の隣に、もう一組を維持し続けることになる。
-**Phase 1 のカバレッジが埋まる前に始めると、どちらの分母も薄くなる。**
+「Tailwind 自身のエンジンと差分を取る」から来ている。StyleX 側も手書きの
+対応表を分母にせず、公式 type declaration を読むようにしたため、依存更新で
+分母が変われば snapshot が失敗する。22446 の variant と 23286 の utility と
+3074 の合成の隣にもう一組を維持するコストは残るが、少なくとも未対応名が
+報告から黙って消える形にはしない。
 
 StyleX の atomic CSS は別の話で、StyleX を採らなくてもできる。今の
 Hozo は要素ごとに完結したルールを書くので、同じクラスを持つ二つの

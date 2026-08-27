@@ -10,6 +10,18 @@ It measures against two lists, and they say different things.
 
 **Full catalogue** (`catalog.ts`) — every class Tailwind's own design system can generate, asked for through `__unstable__loadDesignSystem().getClassList()`, the entry point the official IntelliSense extension uses. Nothing in it is our choice. Entries Tailwind itself produces no standalone CSS for (a gradient stop with no gradient, a negative form of something that takes none) leave the denominator, and Tailwind decides that too.
 
+## StyleX property surface
+
+The report also measures the experimental StyleX frontend against StyleX's
+published `CSSProperties` declaration. It prints both the complete CSS
+property-name denominator and its intersection with React Native's published
+style keys. The numerator is read from the Rust frontend's lowering arms, so a
+new mapping cannot be added without moving the snapshot.
+
+This is intentionally called a **property-name upper bound**. One mapped name
+does not imply every value is accepted, and it says nothing about StyleX APIs
+such as themes, variables, keyframes, nested conditions, or cross-file sheets.
+
 Read the full percentage with its shape in mind: value expansion dominates it. `mask-*` alone is over a quarter of the catalogue, and covering `bg-blue-500` and `bg-blue-600` is one code path counted twice. The per-namespace table is the actionable view — which families Hozo handles, which it doesn't, and where it emits something *wrong*.
 
 ## Sections

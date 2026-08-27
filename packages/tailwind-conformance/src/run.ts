@@ -31,6 +31,7 @@ import { loadThemeVars, tailwindVersion } from './theme.ts'
 import { A11Y_CONTEXTUAL_CASES, compareA11yContextual } from './a11y-contextual.ts'
 import { compareRnwFree, RNW_FREE_CASES } from './rnw-free.ts'
 import { finish, record } from './snapshot.ts'
+import { stylexSurface, stylexVersion } from './stylex-surface.ts'
 
 const oracle = await buildOracle(ALL_CANDIDATES)
 // Theme values plus the `@property` register defaults the utilities
@@ -53,7 +54,27 @@ console.log(`Tailwind conformance vs tailwindcss v${tailwindVersion()}\n`)
 // In the snapshot as well as the output. A version bump legitimately
 // moves these numbers, and the diff should carry the reason beside them
 // rather than leave someone to work out why 20222 became 20240.
-record('versions', { tailwind: tailwindVersion(), reactNative: reactNativeVersion() })
+record('versions', {
+  tailwind: tailwindVersion(),
+  reactNative: reactNativeVersion(),
+  stylex: stylexVersion(),
+})
+
+const stylex = stylexSurface()
+console.log('== StyleX static property-name surface ==')
+console.log(
+  `All CSS names:       ${stylex.mapped.size}/${stylex.official.size} = ${pct(stylex.mapped.size, stylex.official.size)}`,
+)
+console.log(
+  `RN-portable names:   ${stylex.mappedNative.size}/${stylex.native.size} = ${pct(stylex.mappedNative.size, stylex.native.size)}`,
+)
+console.log('These are property-name upper bounds; accepted values and StyleX APIs are narrower.\n')
+record('stylex', {
+  properties: stylex.official.size,
+  mapped: stylex.mapped.size,
+  nativeProperties: stylex.native.size,
+  mappedNative: stylex.mappedNative.size,
+})
 console.log('== Web (hozo_web) ==')
 // Stated up front so the Web numbers can't be read as covering both
 // backends: Tailwind only exists as CSS, so it can only be an oracle for
