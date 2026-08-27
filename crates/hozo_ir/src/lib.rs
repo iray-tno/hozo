@@ -1701,135 +1701,289 @@ impl StyleProperty {
 
     /// The length this property carries, wherever it keeps it.
     ///
-    /// Four shapes hold one: the `Dimension`-typed properties, the ones
-    /// typed directly as a length, and the three small enums that wrap one
-    /// alongside something that is not a length at all -- a radius that may
-    /// be `Full`, a line height that may be a ratio, a letter spacing that
-    /// may be an `em`.
+    /// Six shapes hold one, and `value()` is what knows which: the
+    /// `Dimension`-typed properties, the ones typed directly as a length,
+    /// and the three small enums that wrap one alongside something that is
+    /// not a length at all -- a radius that may be `Full`, a line height
+    /// that may be a ratio, a letter spacing that may be an `em`.
     ///
-    /// Every one of those lists has been wrong. `dimension()` covered 17 of
-    /// 43 properties for a while; the direct list did not exist at all
-    /// until `p-[1.5em]` was found compiling to a padding of zero; and the
-    /// three wrappers below were still missing when `rounded-[1.5em]` was
-    /// found doing the same thing to a radius. A property absent from here
-    /// is not a gap in a report -- it is a number the compiler invents.
+    /// The wildcard below is safe in a way the one this replaced was not.
+    /// It falls through the seven kinds of value a property can hold, not
+    /// the two hundred properties there are; a new property cannot reach it
+    /// without `value()` having classified it first, and `value()` does not
+    /// compile until someone does.
     fn length(&self) -> Option<&Length> {
-        if let Some(Dimension::Length(length)) = self.dimension() {
-            return Some(length);
-        }
-        if let Some(Radius::Length(length)) = self.radius() {
-            return Some(length);
-        }
-        match self {
-            StyleProperty::LineHeight(LineHeight::Length(l))
-            | StyleProperty::LetterSpacing(LetterSpacing::Px(l)) => return Some(l),
-            _ => {}
-        }
-        match self {
-            StyleProperty::Gap(l)
-            | StyleProperty::RowGap(l)
-            | StyleProperty::ColumnGap(l)
-            | StyleProperty::PaddingTop(l)
-            | StyleProperty::PaddingRight(l)
-            | StyleProperty::PaddingBottom(l)
-            | StyleProperty::PaddingLeft(l)
-            | StyleProperty::PaddingInlineStart(l)
-            | StyleProperty::PaddingInlineEnd(l)
-            | StyleProperty::PaddingBlockStart(l)
-            | StyleProperty::PaddingBlockEnd(l)
-            | StyleProperty::BorderTopWidth(l)
-            | StyleProperty::BorderRightWidth(l)
-            | StyleProperty::BorderBottomWidth(l)
-            | StyleProperty::BorderLeftWidth(l)
-            | StyleProperty::BorderLogicalWidth(_, l)
-            | StyleProperty::RingWidth(l)
-            | StyleProperty::InsetRingWidth(l)
-            | StyleProperty::RingOffsetWidth(l)
-            | StyleProperty::FontSize(l)
-            | StyleProperty::ScrollMargin(_, l)
-            | StyleProperty::ScrollPadding(_, l)
-            | StyleProperty::TextDecorationThickness(l)
-            | StyleProperty::OutlineWidth(l)
-            | StyleProperty::OutlineOffset(l) => Some(l),
+        match self.value() {
+            PropertyValue::Length(length) => Some(length),
+            PropertyValue::Dimension(Dimension::Length(length)) => Some(length),
+            PropertyValue::Radius(Radius::Length(length)) => Some(length),
+            PropertyValue::LineHeight(LineHeight::Length(length)) => Some(length),
+            PropertyValue::LetterSpacing(LetterSpacing::Px(length)) => Some(length),
             _ => None,
         }
     }
 
-    /// The corner radius this property carries, if it carries one.
+    /// The `Dimension` this property carries, if it carries one.
     ///
-    /// Separate from `length()` so the list lives in one place: nine
-    /// properties take a `Radius`, and each of them had to be asked about
-    /// the length inside it.
-    fn radius(&self) -> Option<&Radius> {
-        match self {
-            StyleProperty::BorderRadius(r)
-            | StyleProperty::BorderTopLeftRadius(r)
-            | StyleProperty::BorderTopRightRadius(r)
-            | StyleProperty::BorderBottomRightRadius(r)
-            | StyleProperty::BorderBottomLeftRadius(r)
-            | StyleProperty::BorderStartStartRadius(r)
-            | StyleProperty::BorderStartEndRadius(r)
-            | StyleProperty::BorderEndStartRadius(r)
-            | StyleProperty::BorderEndEndRadius(r) => Some(r),
+    /// Exists so `unsupported_on_native` can ask about a *value* once
+    /// instead of per property. Every size utility takes the same value
+    /// vocabulary, so a value React Native can't hold (`fit-content`,
+    /// `100dvh`) is unusable on all of them.
+    pub fn dimension(&self) -> Option<&Dimension> {
+        match self.value() {
+            PropertyValue::Dimension(dimension) => Some(dimension),
             _ => None,
         }
     }
 
-    pub fn dimension(&self) -> Option<&Dimension> {
+    /// What this property holds, as a borrowed view.
+    ///
+    /// One list, and the only one. Three functions used to answer this
+    /// question with three hand-written lists of variants, each ending in a
+    /// `_ => None` that let a new property escape all of them -- and every
+    /// one of the three was wrong at some point:
+    ///
+    /// - `dimension()` covered 17 of the 42 that carry one, so
+    ///   `bottom-[calc(100%-2rem)]` was never refused and emitted nothing.
+    /// - The direct length list did not exist until `p-[1.5em]` was found
+    ///   compiling to a padding of **zero** on React Native, silently:
+    ///   `Length::px` ends in `unwrap_or(0.0)`, and a wrong number looks
+    ///   exactly like a right one.
+    /// - It then still missed the three wrappers, so `rounded-[1.5em]` did
+    ///   the same thing to a radius, months later.
+    ///
+    /// Three incidents of one shape: a list beside an enum of two hundred
+    /// variants goes stale, and nothing says so, because adding a variant
+    /// compiles.
+    ///
+    /// This match has no wildcard. Adding a variant to `StyleProperty` now
+    /// fails to build until it is classified here, and every question about
+    /// a property's value is asked through this instead of listing
+    /// properties again. `unsupported_on_native` is deliberately left
+    /// alone: its wildcards mean "nothing here is a problem on Native",
+    /// which is a judgement about the platform rather than a fact about the
+    /// shape of a variant, and mixing the two would make it unclear which
+    /// kind of completeness the compiler was checking.
+    pub fn value(&self) -> PropertyValue<'_> {
         match self {
-            StyleProperty::Width(d)
-            | StyleProperty::Height(d)
-            | StyleProperty::MinWidth(d)
-            | StyleProperty::MinHeight(d)
-            | StyleProperty::MaxWidth(d)
-            | StyleProperty::MaxHeight(d)
-            | StyleProperty::BlockSize(d)
-            | StyleProperty::InlineSize(d)
-            | StyleProperty::MinBlockSize(d)
-            | StyleProperty::MinInlineSize(d)
-            | StyleProperty::MaxBlockSize(d)
-            | StyleProperty::MaxInlineSize(d)
-            | StyleProperty::FlexBasis(d)
-            | StyleProperty::TextIndent(d)
-            | StyleProperty::TextUnderlineOffset(d)
-            | StyleProperty::TranslateX(d)
-            | StyleProperty::TranslateY(d)
-            // Everything else that carries one. The list was the sizing
-            // family alone, which meant `bottom-[calc(100%-2rem)]` had no
-            // dimension to inspect, was never refused, and reached the
-            // emitter -- where `Dimension::Css` renders as an empty string
-            // and the whole declaration disappeared without a word.
-            //
-            // 121 arbitrary values were being dropped that way, and no
-            // number saw it: the Web comparison passes them through and
-            // matches Tailwind exactly, so only the Native side is wrong
-            // and the Native side had no silence check that worked.
-            | StyleProperty::TranslateZ(d)
-            | StyleProperty::InsetTop(d)
-            | StyleProperty::InsetRight(d)
-            | StyleProperty::InsetBottom(d)
-            | StyleProperty::InsetLeft(d)
-            | StyleProperty::InsetBlock(d)
-            | StyleProperty::InsetBlockStart(d)
-            | StyleProperty::InsetBlockEnd(d)
-            | StyleProperty::InsetInline(d)
-            | StyleProperty::InsetInlineStart(d)
-            | StyleProperty::InsetInlineEnd(d)
-            | StyleProperty::MarginTop(d)
-            | StyleProperty::MarginRight(d)
-            | StyleProperty::MarginBottom(d)
-            | StyleProperty::MarginLeft(d)
-            | StyleProperty::MarginBlockStart(d)
-            | StyleProperty::MarginBlockEnd(d)
-            | StyleProperty::MarginInlineStart(d)
-            | StyleProperty::MarginInlineEnd(d)
-            | StyleProperty::SpaceX(d)
-            | StyleProperty::SpaceY(d)
-            | StyleProperty::DivideX(d)
-            | StyleProperty::DivideY(d)
-            | StyleProperty::BorderSpacingX(d)
-            | StyleProperty::BorderSpacingY(d) => Some(d),
-            _ => None,
+            StyleProperty::MarginTop(v)
+            | StyleProperty::MarginRight(v)
+            | StyleProperty::MarginBottom(v)
+            | StyleProperty::MarginLeft(v)
+            | StyleProperty::MarginInlineStart(v)
+            | StyleProperty::MarginInlineEnd(v)
+            | StyleProperty::Width(v)
+            | StyleProperty::Height(v)
+            | StyleProperty::MinWidth(v)
+            | StyleProperty::MinHeight(v)
+            | StyleProperty::MaxWidth(v)
+            | StyleProperty::MaxHeight(v)
+            | StyleProperty::TextUnderlineOffset(v)
+            | StyleProperty::InsetTop(v)
+            | StyleProperty::InsetRight(v)
+            | StyleProperty::InsetBottom(v)
+            | StyleProperty::InsetLeft(v)
+            | StyleProperty::InsetInlineStart(v)
+            | StyleProperty::InsetInlineEnd(v)
+            | StyleProperty::InsetInline(v)
+            | StyleProperty::InsetBlock(v)
+            | StyleProperty::InsetBlockStart(v)
+            | StyleProperty::InsetBlockEnd(v)
+            | StyleProperty::TranslateX(v)
+            | StyleProperty::TranslateY(v)
+            | StyleProperty::TranslateZ(v)
+            | StyleProperty::GradientStopPosition(_, v)
+            | StyleProperty::MaskStopPosition(_, _, v)
+            | StyleProperty::FlexBasis(v)
+            | StyleProperty::BlockSize(v)
+            | StyleProperty::InlineSize(v)
+            | StyleProperty::MaxBlockSize(v)
+            | StyleProperty::MaxInlineSize(v)
+            | StyleProperty::MinBlockSize(v)
+            | StyleProperty::MinInlineSize(v)
+            | StyleProperty::TextIndent(v)
+            | StyleProperty::BorderSpacingX(v)
+            | StyleProperty::BorderSpacingY(v)
+            | StyleProperty::MarginBlockStart(v)
+            | StyleProperty::MarginBlockEnd(v)
+            | StyleProperty::DivideX(v)
+            | StyleProperty::DivideY(v)
+            | StyleProperty::SpaceX(v)
+            | StyleProperty::SpaceY(v) => PropertyValue::Dimension(v),
+
+            StyleProperty::Gap(v)
+            | StyleProperty::RowGap(v)
+            | StyleProperty::ColumnGap(v)
+            | StyleProperty::PaddingTop(v)
+            | StyleProperty::PaddingRight(v)
+            | StyleProperty::PaddingBottom(v)
+            | StyleProperty::PaddingLeft(v)
+            | StyleProperty::PaddingInlineStart(v)
+            | StyleProperty::PaddingInlineEnd(v)
+            | StyleProperty::BorderLogicalWidth(_, v)
+            | StyleProperty::BorderTopWidth(v)
+            | StyleProperty::BorderRightWidth(v)
+            | StyleProperty::BorderBottomWidth(v)
+            | StyleProperty::BorderLeftWidth(v)
+            | StyleProperty::RingWidth(v)
+            | StyleProperty::InsetRingWidth(v)
+            | StyleProperty::RingOffsetWidth(v)
+            | StyleProperty::FontSize(v)
+            | StyleProperty::PaddingBlockStart(v)
+            | StyleProperty::PaddingBlockEnd(v)
+            | StyleProperty::ScrollMargin(_, v)
+            | StyleProperty::ScrollPadding(_, v)
+            | StyleProperty::TextDecorationThickness(v)
+            | StyleProperty::OutlineWidth(v)
+            | StyleProperty::OutlineOffset(v) => PropertyValue::Length(v),
+
+            StyleProperty::BorderRadius(v)
+            | StyleProperty::BorderTopLeftRadius(v)
+            | StyleProperty::BorderTopRightRadius(v)
+            | StyleProperty::BorderBottomRightRadius(v)
+            | StyleProperty::BorderBottomLeftRadius(v)
+            | StyleProperty::BorderStartStartRadius(v)
+            | StyleProperty::BorderStartEndRadius(v)
+            | StyleProperty::BorderEndStartRadius(v)
+            | StyleProperty::BorderEndEndRadius(v) => PropertyValue::Radius(v),
+
+            StyleProperty::LineHeight(v) => PropertyValue::LineHeight(v),
+
+            StyleProperty::LetterSpacing(v) => PropertyValue::LetterSpacing(v),
+
+            StyleProperty::BackgroundColor(v)
+            | StyleProperty::BorderColor(v)
+            | StyleProperty::BorderTopColor(v)
+            | StyleProperty::BorderRightColor(v)
+            | StyleProperty::BorderBottomColor(v)
+            | StyleProperty::BorderLeftColor(v)
+            | StyleProperty::BorderInlineColor(v)
+            | StyleProperty::BorderBlockColor(v)
+            | StyleProperty::BorderInlineStartColor(v)
+            | StyleProperty::BorderInlineEndColor(v)
+            | StyleProperty::BorderBlockStartColor(v)
+            | StyleProperty::BorderBlockEndColor(v)
+            | StyleProperty::RingColor(v)
+            | StyleProperty::InsetRingColor(v)
+            | StyleProperty::RingOffsetColor(v)
+            | StyleProperty::ShadowColor(v)
+            | StyleProperty::InsetShadowColor(v)
+            | StyleProperty::DropShadowColor(v)
+            | StyleProperty::TextShadowColor(v)
+            | StyleProperty::GradientStopColor(_, v)
+            | StyleProperty::MaskStopColor(_, _, v)
+            | StyleProperty::ScrollbarThumbColor(v)
+            | StyleProperty::ScrollbarTrackColor(v)
+            | StyleProperty::Fill(v)
+            | StyleProperty::Stroke(v)
+            | StyleProperty::AccentColor(v)
+            | StyleProperty::CaretColor(v)
+            | StyleProperty::TextDecorationColor(v)
+            | StyleProperty::PlaceholderColor(v)
+            | StyleProperty::OutlineColor(v)
+            | StyleProperty::DivideColor(v)
+            | StyleProperty::TextColor(v) => PropertyValue::Color(v),
+
+            StyleProperty::Display(..)
+            | StyleProperty::FlexDirection(..)
+            | StyleProperty::Flex(..)
+            | StyleProperty::AlignItems(..)
+            | StyleProperty::AlignSelf(..)
+            | StyleProperty::AlignContent(..)
+            | StyleProperty::JustifyContent(..)
+            | StyleProperty::ZIndex(..)
+            | StyleProperty::Order(..)
+            | StyleProperty::Cursor(..)
+            | StyleProperty::Columns(..)
+            | StyleProperty::RotateNone
+            | StyleProperty::ScaleNone
+            | StyleProperty::TranslateNone
+            | StyleProperty::TransformNone
+            | StyleProperty::TransformEmpty
+            | StyleProperty::TransformGpu
+            | StyleProperty::LineClamp(..)
+            | StyleProperty::FlexGrow(..)
+            | StyleProperty::FlexShrink(..)
+            | StyleProperty::AspectRatio(..)
+            | StyleProperty::BorderLogicalStyle(..)
+            | StyleProperty::OverflowX(..)
+            | StyleProperty::OverflowY(..)
+            | StyleProperty::ObjectFit(..)
+            | StyleProperty::UserSelect(..)
+            | StyleProperty::TextDecorationLine(..)
+            | StyleProperty::MixBlendMode(..)
+            | StyleProperty::BackgroundBlendMode(..)
+            | StyleProperty::KeywordPair(..)
+            | StyleProperty::ContainerName(..)
+            | StyleProperty::Content(..)
+            | StyleProperty::Keyword(..)
+            | StyleProperty::Arbitrary(..)
+            | StyleProperty::GridTemplateColumns(..)
+            | StyleProperty::GridTemplateRows(..)
+            | StyleProperty::GridColumnStart(..)
+            | StyleProperty::GridColumnEnd(..)
+            | StyleProperty::GridRowStart(..)
+            | StyleProperty::GridRowEnd(..)
+            | StyleProperty::GridColumn(..)
+            | StyleProperty::GridRow(..)
+            | StyleProperty::Position(..)
+            | StyleProperty::Opacity(..)
+            | StyleProperty::BorderTopStyle(..)
+            | StyleProperty::BorderRightStyle(..)
+            | StyleProperty::BorderBottomStyle(..)
+            | StyleProperty::BorderLeftStyle(..)
+            | StyleProperty::Rotate(..)
+            | StyleProperty::ScaleX(..)
+            | StyleProperty::ScaleY(..)
+            | StyleProperty::ScaleZ(..)
+            | StyleProperty::Scale3d
+            | StyleProperty::RotateX(..)
+            | StyleProperty::RotateY(..)
+            | StyleProperty::RotateZ(..)
+            | StyleProperty::SkewX(..)
+            | StyleProperty::SkewY(..)
+            | StyleProperty::BoxShadow(..)
+            | StyleProperty::InsetShadow(..)
+            | StyleProperty::ScrollSnapType(..)
+            | StyleProperty::ScrollSnapStrictness(..)
+            | StyleProperty::RingInset
+            | StyleProperty::TextShadow(..)
+            | StyleProperty::Filter(..)
+            | StyleProperty::BackdropFilter(..)
+            | StyleProperty::FontWeight(..)
+            | StyleProperty::Overflow(..)
+            | StyleProperty::TextOverflow(..)
+            | StyleProperty::WhiteSpace(..)
+            | StyleProperty::TransitionProperty(..)
+            | StyleProperty::TransitionDuration(..)
+            | StyleProperty::TransitionTimingFunction(..)
+            | StyleProperty::Animation(..)
+            | StyleProperty::BackgroundImageNone
+            | StyleProperty::Gradient(..)
+            | StyleProperty::MaskClip(..)
+            | StyleProperty::MaskOrigin(..)
+            | StyleProperty::MaskMode(..)
+            | StyleProperty::MaskType(..)
+            | StyleProperty::MaskSize(..)
+            | StyleProperty::MaskPosition(..)
+            | StyleProperty::MaskRepeat(..)
+            | StyleProperty::MaskImageNone
+            | StyleProperty::MaskSlotArgument(..)
+            | StyleProperty::MaskRadialShape(..)
+            | StyleProperty::MaskRadialSize(..)
+            | StyleProperty::MaskRadialPosition(..)
+            | StyleProperty::MaskComposite(..)
+            | StyleProperty::ScrollbarWidth(..)
+            | StyleProperty::ScrollbarGutter(..)
+            | StyleProperty::ScrollBehavior(..)
+            | StyleProperty::StrokeWidth(..)
+            | StyleProperty::TextDecorationStyle(..)
+            | StyleProperty::OutlineStyle(..)
+            | StyleProperty::DivideStyle(..)
+            | StyleProperty::SpaceReverse(..)
+            | StyleProperty::DivideReverse(..)
+            | StyleProperty::TextAlign(..)
+            | StyleProperty::TextTransform(..) => PropertyValue::Other,
         }
     }
 
@@ -2530,6 +2684,31 @@ impl Length {
             _ => None,
         }
     }
+}
+
+/// What a `StyleProperty` holds, borrowed from it.
+///
+/// The kinds are the value vocabularies a property can be written in, not
+/// the properties themselves -- which is the whole point: there are two
+/// hundred properties and seven of these, so a question asked here stays
+/// answerable as the enum grows. See `StyleProperty::value`.
+///
+/// `Other` is every property whose payload is not a value in this sense:
+/// the typed keyword enums (`Display`, `Position`, `Overflow`), the raw
+/// CSS text ones (`BoxShadow`, `Arbitrary`), the plain numbers, and the
+/// variants with no payload at all. They are grouped rather than
+/// enumerated because nothing asks them anything -- but each one still had
+/// to be named in `value()` to get here, which is the property that
+/// matters.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PropertyValue<'a> {
+    Dimension(&'a Dimension),
+    Length(&'a Length),
+    Radius(&'a Radius),
+    LineHeight(&'a LineHeight),
+    LetterSpacing(&'a LetterSpacing),
+    Color(&'a Color),
+    Other,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -4150,6 +4329,68 @@ mod grouping_tests {
         ];
         let groups = group_by_condition(&decls);
         assert_eq!(groups.len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod property_value_tests {
+    use super::*;
+
+    #[test]
+    fn a_length_is_found_in_every_shape_that_wraps_one() {
+        let em = Length::Unit(1.5, LengthUnit::Em);
+        // Typed as a length, inside a `Dimension`, and inside each of the
+        // three small enums that carry one beside something that is not a
+        // length. The last three are the ones a hand-written list kept
+        // missing, and each miss was a zero emitted in silence.
+        for property in [
+            StyleProperty::PaddingTop(em.clone()),
+            StyleProperty::Width(Dimension::Length(em.clone())),
+            StyleProperty::BorderRadius(Radius::Length(em.clone())),
+            StyleProperty::LineHeight(LineHeight::Length(em.clone())),
+            StyleProperty::LetterSpacing(LetterSpacing::Px(em.clone())),
+            // The value is the last field wherever a property carries more
+            // than one, which is what lets `value()` group them.
+            StyleProperty::ScrollMargin(Edge::Top, em.clone()),
+        ] {
+            assert_eq!(
+                property.unresolved_length_unit(),
+                Some(LengthUnit::Em),
+                "{property:?} hides its length from `value()`"
+            );
+        }
+    }
+
+    #[test]
+    fn the_alternatives_inside_those_wrappers_carry_no_length() {
+        // `Full` and `Ratio` are the halves that are not lengths, and
+        // answering for them would be worse than answering nothing.
+        assert_eq!(StyleProperty::BorderRadius(Radius::Full).unresolved_length_unit(), None);
+        let ratio = StyleProperty::LineHeight(LineHeight::Ratio(1.5));
+        assert_eq!(ratio.unresolved_length_unit(), None);
+    }
+
+    #[test]
+    fn a_gradient_stop_position_is_a_dimension_like_any_other() {
+        // Both of these carry a `Dimension` and neither was in the list
+        // `dimension()` used to keep, which is what the exhaustive match
+        // found the moment it was written.
+        let css = Dimension::Css("calc(100% - 2rem)".to_string());
+        let stop = StyleProperty::GradientStopPosition(GradientStop::From, css.clone());
+        assert_eq!(stop.dimension(), Some(&css));
+        let mask =
+            StyleProperty::MaskStopPosition(MaskSlot::Top, MaskStop::From, css.clone());
+        assert_eq!(mask.dimension(), Some(&css));
+    }
+
+    #[test]
+    fn a_property_that_holds_no_value_says_so() {
+        assert_eq!(StyleProperty::Display(Display::Flex).value(), PropertyValue::Other);
+        assert_eq!(StyleProperty::TransformNone.value(), PropertyValue::Other);
+        assert_eq!(
+            StyleProperty::Arbitrary("z-index".to_string(), "3".to_string()).value(),
+            PropertyValue::Other
+        );
     }
 }
 
