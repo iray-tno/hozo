@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 
-import { compile, compileNative } from '@hozo/compiler'
+import { compile, compileNative, createCompiler } from '@hozo/compiler'
 import { loadTheme, toHex } from './theme.ts'
 
 /** Writes a stylesheet somewhere Tailwind can resolve imports from. */
@@ -42,7 +42,8 @@ test('a token the project redefines wins over the built-in copy', async () => {
   const source =
     `import { View } from '@hozo/core'\n` +
     `export function C() { return <View className="bg-blue-500" /> }\n`
-  assert.match(compile(source, theme)[0].css, /background-color: oklch\(50% 0\.2 200\)/)
+  const css = createCompiler(theme).compile(source)[0].css
+  assert.match(css, /background-color: oklch\(50% 0\.2 200\)/)
 })
 
 test('a custom colour reaches both backends in the spelling each needs', async () => {
@@ -54,8 +55,9 @@ test('a custom colour reaches both backends in the spelling each needs', async (
 
   // Web keeps the oklch Tailwind itself would emit; React Native has no
   // `oklch()`, so it takes the hex.
-  assert.match(compile(source, theme)[0].css, /background-color: oklch\(62% 0\.19 259\)/)
-  assert.match(compileNative(source, theme)[0].styles, /backgroundColor: '#3581f6'/)
+  const css = createCompiler(theme).compile(source)[0].css
+  assert.match(css, /background-color: oklch\(62% 0\.19 259\)/)
+  assert.match(createCompiler(theme).compileNative(source)[0].styles, /backgroundColor: '#3581f6'/)
 })
 
 test('without a theme the same source is unresolved, not wrong', async () => {
@@ -88,7 +90,7 @@ test('a project spacing scale reaches every spacing utility', async () => {
   const source =
     `import { View } from '@hozo/core'\n` +
     `export function C() { return <View className="p-4 -mt-2 gap-3 border-2" /> }\n`
-  const css = compile(source, theme)[0].css
+  const css = createCompiler(theme).compile(source)[0].css
 
   assert.match(css, /padding-top: 12\.8px/)
   // Negation happens in steps, so the sign survives the scale.
@@ -116,5 +118,6 @@ test('p-px stays one physical pixel', async () => {
   const source =
     `import { View } from '@hozo/core'\n` +
     `export function C() { return <View className="p-px" /> }\n`
-  assert.match(compile(source, theme)[0].css, /padding-top: 1px/)
+  const css = createCompiler(theme).compile(source)[0].css
+  assert.match(css, /padding-top: 1px/)
 })

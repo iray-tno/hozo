@@ -29,7 +29,7 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
-import type { CandidateCache, Theme } from '@hozo/compiler'
+import { createCompiler, type CandidateCache, type Compiler, type Theme } from '@hozo/compiler'
 import { loadProjectTheme } from '@hozo/tailwind'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
@@ -58,6 +58,10 @@ export type HozoOptions = HozoProjectOptions
 
 export function hozo(options: HozoOptions = {}): Plugin {
   let theme: Theme | undefined
+  // Built once the theme is known and reused for every file after, so the
+  // palette crosses the addon boundary at `buildStart` rather than on every
+  // module. See `createCompiler`.
+  let compiler: Compiler
   let root = process.cwd()
   let cache: CandidateCache
   let candidateCssPath = ''
@@ -94,6 +98,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
         css: options.css,
         warn: (message) => this.warn(message),
       })
+      compiler = createCompiler(theme, options.sources)
 
       // The whole project, not just what the bundler happens to reach: a
       // class can be produced by a module the graph never resolves
@@ -141,7 +146,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
       }
 
       if (!file) return
-      const lowered = lowerModule(code, id, file, theme, { sources: options.sources })
+      const lowered = lowerModule(code, id, file, compiler)
       if (!lowered) return
 
       // Shared with Metro and Next, which is new: this warned on

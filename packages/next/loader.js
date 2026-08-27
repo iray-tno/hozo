@@ -12,7 +12,7 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 
-import { openCandidateCache } from '@hozo/compiler'
+import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
@@ -48,6 +48,10 @@ function projectState(options) {
       // reading what `next dev` actually served.
       theme: theme.then((resolved) => {
         writeFileIfChanged(options.candidateCssPath, cache.renderCss(resolved))
+        // The compiler is built here rather than per module, which is the
+        // only place it can be: the theme is what it needs and the theme is
+        // a promise. See `createCompiler`.
+        state.compiler = createCompiler(resolved, options.sources)
         return resolved
       }),
     }
@@ -79,9 +83,7 @@ export default function hozoLoader(source) {
           state.cache.persist()
         }
 
-        const lowered = lowerModule(source, this.resourcePath, file, theme, {
-          sources: options.sources,
-        })
+        const lowered = lowerModule(source, this.resourcePath, file, state.compiler)
         if (!lowered) {
           callback(null, source)
           return

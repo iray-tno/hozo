@@ -77,6 +77,16 @@ pub struct LowerOutput {
     pub prelude: Vec<String>,
     /// Named imports `prelude` needs from `@hozo/runtime`.
     pub runtime_imports: Vec<&'static str>,
+    /// Components `jsx` needs from `react-native` itself.
+    ///
+    /// Reported rather than left to the caller to work out. Metro used to
+    /// scan the generated JSX with a regular expression per candidate tag
+    /// per component, and then subtract the names the file imports from a
+    /// module the project does not trust -- because a regex cannot tell
+    /// React Native's `Text` from `@expo/ui`'s, while this can: a tag the
+    /// author wrote and the compiler carried verbatim never passes through
+    /// here at all.
+    pub native_imports: Vec<&'static str>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -93,12 +103,27 @@ pub struct LowerOutput {
 struct RuntimeNeeds {
     hooks: Vec<RuntimeHook>,
     components: Vec<&'static str>,
+    /// Tags this lowering emitted that `react-native` exports.
+    ///
+    /// Derived rather than listed. A tag reaching the output is one of
+    /// three things and the other two are recognisable: `Primitive::Svg`
+    /// comes from `react-native-svg`, and anything Hozo ships is spelled
+    /// `Hozo…` -- so what is left is React Native's own. A list beside the
+    /// mapping would be a second copy of it, and this repository has
+    /// already paid three times for that shape.
+    native: Vec<&'static str>,
 }
 
 impl RuntimeNeeds {
     fn need_component(&mut self, name: &'static str) {
         if !self.components.contains(&name) {
             self.components.push(name);
+        }
+    }
+
+    fn need_native(&mut self, name: &'static str) {
+        if !name.starts_with("Hozo") && !self.native.contains(&name) {
+            self.native.push(name);
         }
     }
 }
@@ -163,6 +188,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
         }
     }
     let prelude: Vec<String> = distinct.iter().map(RuntimeHook::declaration).collect();
+    let native_imports = runtime.native;
     let mut runtime_imports: Vec<&'static str> = runtime.components;
     for hook in &distinct {
         if !runtime_imports.contains(&hook.import()) {
@@ -180,7 +206,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     }
     styles.push('}');
 
-    LowerOutput { jsx, styles, prelude, runtime_imports, diagnostics }
+    LowerOutput { jsx, styles, prelude, runtime_imports, native_imports, diagnostics }
 }
 
 /// The Native counterpart of `hozo_web::render_candidate_stylesheet`:
@@ -730,6 +756,12 @@ fn render_node(
     }
 
     let (mut component, extra_props) = markup::native_component(node, diagnostics);
+    // Recorded here, where the tag is decided, and only for the primitives
+    // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
+    // imported and must not be imported over.
+    if !matches!(node.primitive, Primitive::Svg(_)) {
+        runtime.need_native(component);
+    }
     // A transition on something that is not a control. `Pressable` has its
     // own path above, driven by the four interaction booleans; this one is
     // driven by the style changing, which is the shape an ambient
@@ -1131,6 +1163,12 @@ fn render_node(
         let on_refresh = node.props.on_refresh
             .map(|value| format!(" onRefresh={{{}}}", source_text(source, value)))
             .unwrap_or_default();
+        // The one React Native component that reaches the output through a
+        // prop rather than through `native_component`, so it has to be
+        // recorded by hand here. Missing it means a bundle that builds and
+        // dies on first render, which is exactly how `TextInput` was found
+        // missing from Metro's list in the first place.
+        runtime.need_native("RefreshControl");
         props_text.push_str(&format!(
             " refreshControl={{<RefreshControl refreshing={{{refreshing}}}{on_refresh} />}}"
         ));
@@ -2004,6 +2042,13 @@ fn wrap_in_text(
     runtime: &mut RuntimeNeeds,
     interaction_context: bool,
 ) -> String {
+    // A `Text` that no `Primitive::Text` asked for: the author wrote a bare
+    // string inside a View, and React Native crashes on one. Synthesized
+    // here rather than by `native_component`, so it has to say so here too.
+    // Found by the render tests, with `ReferenceError: Text is not defined`
+    // -- which is the failure this whole reporting exists to make
+    // impossible, arriving from the one path that bypasses it.
+    runtime.need_native("Text");
     let mut style_array_parts = Vec::new();
     // The wrapper is a Text, so a `pressed:` style has nowhere to go on it.
     // The enclosing Pressable reports it -- `build_style_entries` runs over

@@ -12,6 +12,7 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { loadProjectTheme } from '@hozo/tailwind'
+import { createCompiler, type Compiler, type Theme } from '@hozo/compiler'
 import { readMetroState } from './config.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { transformHozoSource } from './transform.ts'
@@ -86,6 +87,30 @@ function loadUpstream(projectRoot?: string): UpstreamTransformer {
   )
 }
 
+/// One compiler per project, not per file.
+///
+/// Metro hands transformers one file at a time with no build-start hook to
+/// hang project state on, so this is where "once" has to be arranged.
+/// `loadProjectTheme` already memoizes, so the theme itself was cheap after
+/// the first file -- what was not is handing 288 colours to the addon
+/// again for each one, which costs more than compiling a small file does.
+///
+/// Keyed by root, because a monorepo can transform files from more than one.
+const compilers = new Map<string, Compiler>()
+function compilerFor(
+  projectRoot: string | undefined,
+  theme: Theme | undefined,
+  sources: readonly string[],
+): Compiler {
+  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}`
+  let compiler = compilers.get(key)
+  if (!compiler) {
+    compiler = createCompiler(theme, sources)
+    compilers.set(key, compiler)
+  }
+  return compiler
+}
+
 // Async because the theme comes from Tailwind's own resolver, which is
 // async. Metro allows it, and the alternative -- compiling against the
 // default palette while the project defines its own -- is the failure this
@@ -103,8 +128,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
     params.src,
     params.filename,
     projectRoot,
-    theme,
-    state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
+    compilerFor(projectRoot, theme, state?.sources ?? DEFAULT_PRIMITIVE_SOURCES),
   )
   const nextParams = rewritten === null ? params : { ...params, src: rewritten }
   return loadUpstream(projectRoot).transform(nextParams)
