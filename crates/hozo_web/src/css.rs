@@ -1272,6 +1272,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         }
         StyleProperty::Filter(..) | StyleProperty::FilterRaw(..) => ("filter", String::new()),
         StyleProperty::BackdropFilter(..) => ("backdrop-filter", String::new()),
+        StyleProperty::FontFamily(value) => ("font-family", value.clone()),
+        StyleProperty::FontVariant(values) => ("font-variant", values.join(" ")),
         StyleProperty::TextTransform(t) => (
             "text-transform",
             match t {

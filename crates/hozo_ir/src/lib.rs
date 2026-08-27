@@ -1323,6 +1323,13 @@ pub enum StyleProperty {
     BackdropFilter(FilterFunction, String),
 
     // Typography
+    /// A complete font-family value. Static StyleX declarations use one
+    /// portable family name; Tailwind's named utilities retain their CSS
+    /// fallback stack for Web.
+    FontFamily(String),
+    /// The intersection of CSS font-variant keywords and React Native's
+    /// `FontVariant[]`, retained in authored order.
+    FontVariant(Vec<&'static str>),
     FontSize(Length),
     FontWeight(FontWeight),
     LineHeight(LineHeight),
@@ -1965,6 +1972,8 @@ impl StyleProperty {
             | StyleProperty::FilterRaw(..)
             | StyleProperty::BackdropFilter(..)
             | StyleProperty::FontWeight(..)
+            | StyleProperty::FontFamily(..)
+            | StyleProperty::FontVariant(..)
             | StyleProperty::Overflow(..)
             | StyleProperty::TextOverflow(..)
             | StyleProperty::WhiteSpace(..)
@@ -2254,7 +2263,7 @@ impl StyleProperty {
                         | "isolation"
                         | "pointer-events"
                         | "font-style"
-                        | "font-family"
+                        | "direction"
                         | "flex-wrap"
                         // Not a style on React Native, and not refused
                         // either: `@container` is honoured by rendering

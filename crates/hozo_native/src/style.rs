@@ -766,7 +766,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
             vec![("pointerEvents", js_string(v))]
         }
         StyleProperty::Keyword("font-style", v) => vec![("fontStyle", js_string(v))],
-        StyleProperty::Keyword("font-family", v) => vec![("fontFamily", js_string(v))],
+        StyleProperty::Keyword("direction", v) => vec![("direction", js_string(v))],
         StyleProperty::Keyword("flex-wrap", v) => vec![("flexWrap", js_string(v))],
         // RN has `objectFit` with the same five keywords, `userSelect`, and
         // `textDecorationLine` with all but `overline`. The per-axis
@@ -1093,6 +1093,14 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::FilterRaw(..)
         | StyleProperty::BackdropFilter(..)
         | StyleProperty::DropShadowColor(_) => vec![],
+        StyleProperty::FontFamily(value) => vec![("fontFamily", js_string(value))],
+        StyleProperty::FontVariant(values) => vec![(
+            "fontVariant",
+            format!(
+                "[{}]",
+                values.iter().map(|value| js_string(value)).collect::<Vec<_>>().join(", ")
+            ),
+        )],
         // Refused upstream, with the shadow it would have coloured.
         StyleProperty::TextShadowColor(_) | StyleProperty::TextShadow(_) => vec![],
         // Refused upstream: scroll snapping is a ScrollView prop on React

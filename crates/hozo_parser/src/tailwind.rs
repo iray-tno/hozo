@@ -1934,9 +1934,6 @@ const KEYWORD_UTILITIES: &[(&str, &str, &str)] = &[
         ("collapse", "visibility", "collapse"),
         ("invisible", "visibility", "hidden"),
         ("visible", "visibility", "visible"),
-        ("font-mono", "font-family", "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"),
-        ("font-sans", "font-family", "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"),
-        ("font-serif", "font-family", "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif"),
         ("align-baseline", "vertical-align", "baseline"),
         ("align-bottom", "vertical-align", "bottom"),
         ("align-middle", "vertical-align", "middle"),
@@ -2356,6 +2353,15 @@ fn container_declaration(token: &str) -> Option<Vec<StyleProperty>> {
 
 /// The one-declaration utilities; see `KEYWORD_UTILITIES`.
 fn keyword_utility(token: &str) -> Option<StyleProperty> {
+    let family = match token {
+        "font-mono" => Some("ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"),
+        "font-sans" => Some("-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"),
+        "font-serif" => Some("ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif"),
+        _ => None,
+    };
+    if let Some(family) = family {
+        return Some(StyleProperty::FontFamily(family.to_string()));
+    }
     KEYWORD_UTILITIES
         .iter()
         .find(|(name, _, _)| *name == token)
@@ -3924,6 +3930,14 @@ mod tests {
                 "{token} is shadowed by a modelled utility: {:?}",
                 props[0]
             );
+        }
+    }
+
+    #[test]
+    fn named_font_families_use_the_shared_owned_property() {
+        for token in ["font-sans", "font-serif", "font-mono"] {
+            let (_, props) = expand_utility(token);
+            assert!(matches!(props.as_slice(), [StyleProperty::FontFamily(_)]), "{token}: {props:?}");
         }
     }
 

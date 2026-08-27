@@ -222,9 +222,12 @@ test('the expanded RN-portable StyleX property slice agrees with the official CS
     ['borderLeftWidth', '2'],
     ['borderStyle', `'solid'`],
     ['boxSizing', `'border-box'`],
+    ['direction', `'rtl'`],
     ['flex', `'auto'`],
     ['filter', `'sepia(60%) hue-rotate(20deg)'`],
+    ['fontFamily', `'Inter'`],
     ['fontStyle', `'italic'`],
+    ['fontVariant', `'small-caps tabular-nums'`],
     ['isolation', `'isolate'`],
     ['mixBlendMode', `'multiply'`],
     ['outlineColor', `'#123456'`],
@@ -312,6 +315,15 @@ export const Card = () => <View {...stylex.props(styles.root)} />
     }
     if (property === 'filter') {
       assert.match(native.styles, /filter: 'sepia\(60%\) hue-rotate\(20deg\)'/, property)
+    }
+    if (property === 'fontVariant') {
+      assert.match(native.styles, /fontVariant: \['small-caps', 'tabular-nums'\]/, property)
+    }
+    if (property === 'direction') {
+      assert.match(native.styles, /direction: 'rtl'/, property)
+    }
+    if (property === 'fontFamily') {
+      assert.match(native.styles, /fontFamily: 'Inter'/, property)
     }
   }
 })

@@ -547,6 +547,32 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             }
             vec![StyleProperty::FilterRaw(value.to_string())]
         }
+        "direction" => {
+            let StaticValue::String(value) = value else { return None };
+            let value = ["inherit", "ltr", "rtl"]
+                .into_iter()
+                .find(|candidate| *candidate == value)?;
+            vec![StyleProperty::Keyword("direction", value)]
+        }
+        "fontFamily" => {
+            let StaticValue::String(value) = value else { return None };
+            let value = value.trim();
+            if value.is_empty() || value.contains(',') || value.contains("var(") {
+                return None;
+            }
+            vec![StyleProperty::FontFamily(value.to_string())]
+        }
+        "fontVariant" => {
+            let StaticValue::String(value) = value else { return None };
+            let variants = value
+                .split_whitespace()
+                .map(portable_font_variant)
+                .collect::<Option<Vec<_>>>()?;
+            if variants.is_empty() {
+                return None;
+            }
+            vec![StyleProperty::FontVariant(variants)]
+        }
         // Tailwind's border-width utilities intentionally add a solid
         // style so they paint without a reset. StyleX declares exactly the
         // requested property, so it must bypass that Tailwind-specific
@@ -661,6 +687,22 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         }
         _ => return None,
     })
+}
+
+fn portable_font_variant(value: &str) -> Option<&'static str> {
+    const VALUES: &[&str] = &[
+        "small-caps", "oldstyle-nums", "lining-nums", "tabular-nums",
+        "common-ligatures", "no-common-ligatures", "discretionary-ligatures",
+        "no-discretionary-ligatures", "historical-ligatures", "no-historical-ligatures",
+        "contextual", "no-contextual", "proportional-nums", "stylistic-one",
+        "stylistic-two", "stylistic-three", "stylistic-four", "stylistic-five",
+        "stylistic-six", "stylistic-seven", "stylistic-eight", "stylistic-nine",
+        "stylistic-ten", "stylistic-eleven", "stylistic-twelve", "stylistic-thirteen",
+        "stylistic-fourteen", "stylistic-fifteen", "stylistic-sixteen",
+        "stylistic-seventeen", "stylistic-eighteen", "stylistic-nineteen",
+        "stylistic-twenty",
+    ];
+    VALUES.iter().copied().find(|candidate| *candidate == value)
 }
 
 fn supported_filter_list(value: &str) -> bool {
