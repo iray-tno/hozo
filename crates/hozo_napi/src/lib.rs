@@ -416,6 +416,7 @@ pub struct CompiledNativeComponent {
     pub prelude: Vec<String>,
     /// Named imports `prelude` needs from `@hozo/runtime`.
     pub runtime_imports: Vec<String>,
+    pub native_imports: Vec<String>,
     /// Byte offset just inside the enclosing function's `{`, the only safe
     /// place for `prelude`. `None` when this JSX isn't inside a function
     /// body a statement can go in -- module scope, or a concise arrow.
@@ -453,6 +454,11 @@ fn lower_native(
                 prelude: output.prelude,
                 runtime_imports: output
                     .runtime_imports
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect(),
+                native_imports: output
+                    .native_imports
                     .into_iter()
                     .map(str::to_string)
                     .collect(),

@@ -41,6 +41,12 @@ export interface CompiledNativeComponent {
   prelude: string[]
   /// Named imports `prelude` needs from `@hozo/runtime`.
   runtimeImports: string[]
+  /// Components `jsx` needs from `react-native` itself.
+  ///
+  /// Reported rather than left to the caller to work out from the JSX. A
+  /// tag the author wrote and the compiler carried verbatim is not in
+  /// here, which is the distinction a regular expression could not make.
+  nativeImports: string[]
   /// Byte offset just inside the enclosing function's `{` -- the only safe
   /// place for `prelude`, since a hook must be called unconditionally and
   /// in the same order every render. Absent (`null`/`undefined` -- napi

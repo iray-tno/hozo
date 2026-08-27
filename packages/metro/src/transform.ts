@@ -27,16 +27,16 @@ import { importSpecifier } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
 const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
-/// The components the Native backend lowers to that come from
-/// `react-native` itself. `HozoSpaced` and `HozoDialog` are Hozo's own
-/// and arrive through `runtimeImports` instead.
+/// Values the *author* imports from `@hozo/core` that resolve to
+/// `react-native` exports. Not components: those arrive through the
+/// compiler's own `nativeImports` now.
 ///
-/// `TextInput` was missing here until 2026-08-16, so a compiled TextInput
-/// referred to an identifier nothing imported. Metro bundles that happily
-/// -- an undefined identifier is only an error when it runs -- so the
-/// example built cleanly and would have crashed on first render. Reading
-/// the bundle is what found it; building it was not enough.
-const RN_PRIMITIVE_TAGS = ['View', 'Text', 'Pressable', 'TextInput', 'Image', 'ScrollView', 'FlatList', 'RefreshControl'] as const
+/// The component list that used to live here went missing a `TextInput`
+/// for a while, so a compiled TextInput referred to an identifier nothing
+/// imported. Metro bundles that happily -- an undefined identifier is only
+/// an error when it runs -- so the example built cleanly and would have
+/// crashed on first render. Nothing here can go stale that way again: the
+/// compiler reports what it emitted.
 const RN_VALUE_EXPORTS = ['PanResponder'] as const
 
 /// Renames this component's `hozoN`/`hozoN_suffix` style/JSX identifiers
@@ -123,20 +123,17 @@ export function transformHozoSource(
   const styleBlocks: string[] = []
   components.forEach((component: CompiledNativeComponent, index: number) => {
     styleBlocks.push(namespaceHozoIdentifiers(component.styles, index))
-    for (const tag of RN_PRIMITIVE_TAGS) {
-      // A foreign tag of the same name is not one of these. `@expo/ui`
-      // exports `Text`, and importing React Native's beside it is
-      // `Identifier 'Text' has already been declared` -- the file already
-      // binds that name to a different component, which is the whole
-      // reason the compiler carried the tag instead of lowering it.
-      if (foreign.has(tag)) continue
-      if (new RegExp(`<${tag}[\\s/>]`).test(component.jsx)) {
-        usedTags.add(tag)
-      }
-    }
-    for (const name of RN_VALUE_EXPORTS) {
-      if (new RegExp(`\\b${name}\\b`).test(code)) usedTags.add(name)
-    }
+    // What the compiler says it emitted, rather than what a regular
+    // expression can find in what it emitted.
+    //
+    // The scan this replaces built a fresh `RegExp` per candidate tag per
+    // component, tested each against the generated JSX, and then subtracted
+    // the names the file imports from a module the project does not trust
+    // -- because `<Text>` in the output might be React Native's or might be
+    // `@expo/ui`'s carried through verbatim, and the text cannot say which.
+    // The compiler can: a carried tag never passed through its lowering at
+    // all, so it is not in this list.
+    for (const tag of component.nativeImports) usedTags.add(tag)
     // `View`/`Text`/`Pressable` carried through `Child::Verbatim` are fine:
     // they resolve to the react-native imports above, which are the very
     // components Hozo lowers to. `Button` is not -- Hozo's Button is a
@@ -157,6 +154,14 @@ export function transformHozoSource(
       )
     }
   })
+  // After the components, so the import reads the way it always has.
+  // Still a scan, and still Metro's business: `PanResponder` is a value the
+  // *author* imported from `@hozo/core`, not something the compiler emits.
+  // Stripping that import leaves the name unbound, so it has to be added
+  // back from `react-native`.
+  for (const name of RN_VALUE_EXPORTS) {
+    if (new RegExp(`\\b${name}\\b`).test(code)) usedTags.add(name)
+  }
 
   // Every rewrite as an offset-keyed edit, applied back-to-front so
   // earlier offsets stay valid. Two kinds share the list: replacing a
