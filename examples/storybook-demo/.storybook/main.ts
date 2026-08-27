@@ -4,6 +4,9 @@ const config: StorybookConfig = {
   framework: '@storybook/react-vite',
   stories: ['../src/**/*.stories.tsx'],
   addons: ['@hozo/storybook'],
+  typescript: {
+    reactDocgen: false,
+  },
 }
 
 export default config

@@ -8,7 +8,9 @@
     "test": "node scripts/build.mjs && node scripts/check-build.mjs"
   },
   "dependencies": {
+    "@hozo/a11y": "workspace:*",
     "@hozo/core": "workspace:*",
+    "@hozo/runtime": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

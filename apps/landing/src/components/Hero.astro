@@ -34,8 +34,17 @@
       <!-- CTA Buttons -->
       <div class="flex flex-wrap items-center justify-center gap-4 mb-12">
         <a
+          href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/storybook/`}
+          class="px-6 py-3.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 shadow-lg shadow-pink-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
+        >
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <path d="M16.71 1.76a1.14 1.14 0 0 0-.66-.18c-.28 0-.55.1-.75.3l-3.3 3.3a1.05 1.05 0 0 0 0 1.5l3.3 3.3a1.05 1.05 0 0 0 1.5 0l3.3-3.3a1.05 1.05 0 0 0 0-1.5l-3.3-3.3a1.07 1.07 0 0 0-.09-.12zM3 4.5A1.5 1.5 0 0 1 4.5 3h6a1.5 1.5 0 0 1 1.5 1.5v15a1.5 1.5 0 0 1-1.5 1.5h-6A1.5 1.5 0 0 1 3 19.5v-15z"/>
+          </svg>
+          <span>Explore Storybook</span>
+        </a>
+        <a
           href="#integrations"
-          class="px-6 py-3.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          class="px-6 py-3.5 rounded-xl font-semibold text-sm text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
         >
           Explore Integrations
         </a>
