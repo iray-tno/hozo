@@ -6,6 +6,8 @@ on:
     paths:
       - 'apps/landing/**'
       - 'examples/storybook-demo/**'
+      - 'packages/**'
+      - 'crates/**'
       - '.github/workflows/deploy-pages.yml'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
