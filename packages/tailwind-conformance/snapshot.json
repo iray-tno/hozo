@@ -63,6 +63,34 @@
     "noOp": 32,
     "silent": 0
   },
+  "canvas": {
+    "candidates": 23286,
+    "covered": 609,
+    "refused": 22677,
+    "silent": 0,
+    "unresolvable": 0
+  },
+  "canvasArbitrary": {
+    "candidates": 2845,
+    "covered": 16,
+    "refused": 2825,
+    "silent": 0,
+    "unresolvable": 4
+  },
+  "canvasNative": {
+    "candidates": 23286,
+    "covered": 609,
+    "refused": 22677,
+    "silent": 0,
+    "unresolvable": 0
+  },
+  "canvasArbitraryNative": {
+    "candidates": 2845,
+    "covered": 16,
+    "refused": 2825,
+    "silent": 0,
+    "unresolvable": 4
+  },
   "compositions": {
     "candidates": 50,
     "match": 50,

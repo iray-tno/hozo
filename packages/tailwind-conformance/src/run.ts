@@ -24,6 +24,7 @@ import {
 import { typeCheckStyles } from './typecheck.ts'
 import { classesDefinedIn, renderWeb } from './render.ts'
 import { measureRuntimeCost } from './runtime-cost.ts'
+import { compareCanvasCandidate, type CanvasVerdict } from './canvas.ts'
 import { compile as hozoCompile, compileNative } from '@hozo/compiler'
 import { buildOracle } from './oracle.ts'
 import { loadThemeVars, tailwindVersion } from './theme.ts'
@@ -560,6 +561,7 @@ record('runtime', {
   breakpointCross: runtime.breakpointCross,
 })
 
+
 // == Arbitrary syntax =====================================================
 //
 // A separate denominator because it has to be built differently: the named
@@ -668,6 +670,45 @@ record('arbitraryNative', {
 for (const result of arbitraryNative) {
   if (result.verdict !== 'SILENT') continue
   console.log(`  SILENT  ${result.candidate}`)
+}
+
+// == Canvas paint =========================================================
+//
+// A shape has a fill, a stroke, a stroke width and an opacity, so almost
+// every utility is a refusal here and the number that matters is how many
+// are refused without saying so. See `canvas.ts`; the section exists
+// because Canvas had no denominator at all.
+const canvasCatalogue = await loadFullCatalog()
+for (const [platform, native] of [['web', false], ['native', true]] as const) {
+  for (const [name, list] of [
+    ['canvas', canvasCatalogue],
+    ['canvasArbitrary', arbitrary.candidates],
+  ] as const) {
+    const results = list.map((candidate) => compareCanvasCandidate(candidate, native))
+    const count = (verdict: CanvasVerdict) =>
+      results.filter((result) => result.verdict === verdict).length
+    console.log(
+      `\n\n== Canvas paint, ${platform} (${list.length} ` +
+        `${name === 'canvas' ? 'utilities' : 'arbitrary values'}) ==\n` +
+        `Covered:      ${count('COVERED')}\n` +
+        `Refused:      ${count('REFUSED')}\n` +
+        `Silent:       ${count('SILENT')}   (no paint, no diagnostic)\n` +
+        `Unresolvable: ${count('UNRESOLVABLE')}   ` +
+        `(painted with a value no canvas resolves)`,
+    )
+    record(`${name}${platform === 'native' ? 'Native' : ''}`, {
+      candidates: list.length,
+      covered: count('COVERED'),
+      refused: count('REFUSED'),
+      silent: count('SILENT'),
+      unresolvable: count('UNRESOLVABLE'),
+    })
+    for (const result of results) {
+      if (result.verdict !== 'UNRESOLVABLE' && result.verdict !== 'SILENT') continue
+      const paint = result.replacement ?? ''
+      console.log(`  ${result.verdict.padEnd(13)} ${result.candidate.padEnd(28)} ${paint}`)
+    }
+  }
 }
 
 // == Compositions =========================================================

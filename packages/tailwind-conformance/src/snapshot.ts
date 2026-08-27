@@ -60,6 +60,11 @@ const WORSE_WHEN_UP = new Set([
   'colorSchemeChange',
   'resizeWithinBreakpoint',
   'breakpointCross',
+  // A paint prop came out, so the compiler thinks it handled the class --
+  // but the value is a `var()` or a `calc()`, and neither Canvas 2D's
+  // `fillStyle` nor Skia resolves those. Worse than a refusal, because a
+  // refusal is visible: this one draws nothing and says nothing.
+  'unresolvable',
 ])
 
 /**
