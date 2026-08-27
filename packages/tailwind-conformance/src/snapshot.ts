@@ -49,6 +49,17 @@ const WORSE_WHEN_UP = new Set([
   // fact about Tailwind: every one of the 3006 was reachable when it was
   // written, so one appearing means the search for its consumer broke.
   'unreachable',
+  // Re-renders. Every one of these is work a device does to show the same
+  // screen, so more of it is worse without qualification -- including
+  // `mount`, which is one per component and has nowhere to go but up.
+  // `resizeWithinBreakpoint` is the one that should be zero: a component
+  // using only `md:` has no reason to render again because the window
+  // moved 30 pixels, and the two separate stores in `hooks.native.ts` are
+  // there so it does not.
+  'mount',
+  'colorSchemeChange',
+  'resizeWithinBreakpoint',
+  'breakpointCross',
 ])
 
 /**
@@ -69,6 +80,10 @@ const WORSE_WHEN_DOWN = new Set([
   'total',
   'comparable',
   'candidates',
+  // The runtime section's denominator, for the same reason `candidates` is
+  // here: a scene that quietly got smaller makes every count below it look
+  // better.
+  'components',
 ])
 
 type Section = Record<string, number | string>

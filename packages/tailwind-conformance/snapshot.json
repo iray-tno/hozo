@@ -41,6 +41,13 @@
     "rendered": 120,
     "dangling": 0
   },
+  "runtime": {
+    "components": 24,
+    "mount": 24,
+    "colorSchemeChange": 8,
+    "resizeWithinBreakpoint": 0,
+    "breakpointCross": 8
+  },
   "arbitrary": {
     "candidates": 2845,
     "match": 2250,

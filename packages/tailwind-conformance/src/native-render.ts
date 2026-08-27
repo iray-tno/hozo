@@ -140,12 +140,15 @@ export function renderNativeWithLayouts(
   return renderNativeFixture(source, componentName, scope, layoutPasses)
 }
 
-function renderNativeFixture(
-  source: string,
-  componentName: string,
-  scope: Record<string, unknown>,
-  layoutPasses: readonly (readonly NativeLayoutBox[])[],
-): Tree {
+/**
+ * Transforms a source file the way Metro would and evaluates the result.
+ *
+ * Separated from rendering because there is more than one question to ask
+ * of a generated module: what tree it builds (below) and what it costs to
+ * keep it on screen (`runtime-cost.ts`). Both need the same module, and
+ * neither should be hand-assembling one.
+ */
+export function loadNativeModule(source: string): Record<string, unknown> {
   const transformed = transformHozoSource(source, 'Component.tsx')
   if (transformed === null) {
     throw new Error('the transformer declined this source')
@@ -167,7 +170,20 @@ function renderNativeFixture(
     const compiled = readFileSync(path.join(dir, 'input.js'), 'utf8')
     const exports: Record<string, unknown> = {}
     new Function('require', 'exports', compiled)(nativeRequire, exports)
+    return exports
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 
+function renderNativeFixture(
+  source: string,
+  componentName: string,
+  scope: Record<string, unknown>,
+  layoutPasses: readonly (readonly NativeLayoutBox[])[],
+): Tree {
+  const exports = loadNativeModule(source)
+  {
     interface TestInstance {
       props: Record<string, unknown>
     }
@@ -212,8 +228,6 @@ function renderNativeFixture(
     } finally {
       for (const [key, value] of restore) globals[key] = value
     }
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
   }
 }
 
