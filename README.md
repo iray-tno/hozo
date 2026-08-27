@@ -159,6 +159,43 @@ entry stylesheet by running Tailwind's resolver, rather than by parsing a
 config file — the same discipline the conformance suite uses when it asks
 Tailwind for its own class list instead of keeping a copy.
 
+### StyleX frontend (experimental)
+
+Hozo can also read a static same-file StyleX sheet into the same IR. This
+works alongside Tailwind on one element and lowers through the ordinary Web
+and Native backends:
+
+```tsx
+import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+
+const styles = stylex.create({
+  root: { padding: 16, backgroundColor: '#2563eb' },
+  active: { opacity: 0.7 },
+})
+
+export function Card({ active }: { active: boolean }) {
+  return <View className="rounded-xl" {...stylex.props(styles.root, active && styles.active)} />
+}
+```
+
+The transform order is load-bearing: **Hozo must run before the official
+StyleX transform**. Hozo consumes `stylex.props` from the original TSX; the
+StyleX pass afterward eliminates the now-unused `stylex.create` definition.
+Running StyleX first turns the spread into a second `className`, after which
+JSX last-wins semantics have already lost the information needed to combine
+the two frontends safely. Vite plugin order should therefore put `hozo()`
+before the StyleX plugin; Metro's Hozo wrapper already sends its rewritten
+source to the configured Babel transformer afterward.
+
+The first slice accepts a namespace import, a same-file module-scope static
+`stylex.create`, static string/number values, and
+`stylex.props(styles.base, condition && styles.variant)`. It covers the common
+universal layout, spacing, size, colour, opacity, radius and text properties.
+Themes/variables, nested selectors, keyframes, cross-file sheets, `sx`, and
+StyleX shorthand/longhand priority overlap are not guessed: the spread is
+preserved for StyleX and Hozo emits `STYLEX_NOT_LOWERED`.
+
 ## Accessibility
 
 ARIA is the vocabulary. React Native has supported the `role` prop since

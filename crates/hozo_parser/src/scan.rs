@@ -173,6 +173,15 @@ mod tests {
     }
 
     #[test]
+    fn stylex_values_are_not_mistaken_for_tailwind_candidates() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({ root: { display: 'flex', color: 'red' } })
+        "#;
+        assert!(scan_class_candidates(source).is_empty(), "{:?}", scan_class_candidates(source));
+    }
+
+    #[test]
     fn keeps_the_unreadable_half_of_a_mixed_class_name() {
         // `p-4` compiled away; `bg-blue-500` only exists as a call's
         // return value, so it still needs a rule under its own name.

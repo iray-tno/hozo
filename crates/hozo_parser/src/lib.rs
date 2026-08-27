@@ -7,6 +7,7 @@ mod canvas;
 mod dynamic_class;
 mod jsx;
 mod scan;
+mod stylex;
 mod tailwind;
 pub(crate) mod tailwind_variants;
 
@@ -121,10 +122,13 @@ pub fn parse_tsx_with(source_text: &str, sources: Option<&[String]>) -> ParseOut
         None => std::collections::HashSet::new(),
         Some(sources) => foreign_primitives(source_text, sources),
     };
-    let scope = jsx::Scope { module_record: &ret.module_record, foreign };
+    let stylex = stylex::Frontend::collect(&ret.program, &ret.module_record);
+    let stylex_scan_spans = stylex.scan_spans.clone();
+    let scope = jsx::Scope { module_record: &ret.module_record, foreign, stylex };
 
     let mut collector = JsxCollector::new(&scope);
     collector.visit_program(&ret.program);
+    collector.consumed.extend(stylex_scan_spans);
 
     for root in &collector.roots {
         aria_check::check(&root.node, &mut collector.diagnostics);

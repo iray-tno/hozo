@@ -291,6 +291,11 @@ pub enum DiagnosticCode {
     /// is worth saying out loud rather than leaving the user to wonder why
     /// one element behaves differently.
     PrimitiveNotLowered,
+    /// A StyleX expression was recognized, but was outside the deliberately
+    /// static subset the StyleX frontend can lower without changing meaning.
+    /// It is carried verbatim so the official StyleX compiler can still
+    /// handle it; Native gets a named gap instead of an empty style object.
+    StylexNotLowered,
 }
 
 // ---------------------------------------------------------------------------
@@ -4166,6 +4171,15 @@ pub fn dedupe_last_wins(props: Vec<StyleProperty>) -> Vec<StyleProperty> {
 }
 
 impl StyleProperty {
+    /// Whether two declarations write the same final style slot.
+    ///
+    /// StyleX needs this above `dedupe_last_wins`: a later unconditional
+    /// argument removes an earlier conditional value for the same property.
+    /// The key itself stays private so its tuple shape is not frontend API.
+    pub fn same_property_as(&self, other: &Self) -> bool {
+        self.dedupe_key() == other.dedupe_key()
+    }
+
     /// What makes two declarations "the same property" for last-wins
     /// flattening.
     ///
