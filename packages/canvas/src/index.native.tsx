@@ -1,5 +1,12 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
-import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native'
+import {
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 import {
   Canvas as SkiaCanvas,
   Circle as SkiaCircle,
@@ -11,6 +18,10 @@ import {
   RoundedRect as SkiaRoundedRect,
 } from '@shopify/react-native-skia'
 
+import {
+  canvasAccessibilityMode,
+  type CanvasAccessibilityProps,
+} from './accessibility.ts'
 import {
   Circle,
   Clip,
@@ -43,13 +54,9 @@ export type {
   RoundedRectProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
+export type { CanvasAccessibleFallback, CanvasAccessibilityProps } from './accessibility.ts'
 
-type AccessibleCanvas =
-  | { decorative: true; accessibilityLabel?: never; accessibleFallback?: never }
-  | { decorative?: false; accessibilityLabel: string; accessibleFallback?: ReactNode }
-  | { decorative?: false; accessibilityLabel?: string; accessibleFallback: ReactNode }
-
-export type CanvasProps = AccessibleCanvas & {
+export type CanvasProps = CanvasAccessibilityProps & {
   children?: ReactNode
   className?: string
   style?: StyleProp<ViewStyle>
@@ -238,23 +245,42 @@ function Root({
     [viewBox, layout, fit],
   )
   const nativeClass = { className } as Record<string, unknown>
+  const accessibilityMode = canvasAccessibilityMode({ decorative, accessibleFallback })
+  const fallbackContent =
+    typeof accessibleFallback === 'string' ||
+    typeof accessibleFallback === 'number' ||
+    typeof accessibleFallback === 'bigint'
+      ? <Text>{String(accessibleFallback)}</Text>
+      : accessibleFallback
 
   return (
     <View
       {...nativeClass}
       style={[styles.root, width === undefined ? null : { width }, height === undefined ? null : { height }, style]}
       onLayout={onLayout}
-      accessible={!decorative}
-      accessibilityRole={decorative ? undefined : 'image'}
-      accessibilityLabel={decorative ? undefined : accessibilityLabel}
+      accessible={accessibilityMode === 'label'}
+      accessibilityRole={accessibilityMode === 'label' ? 'image' : undefined}
+      accessibilityLabel={accessibilityMode === 'label' ? accessibilityLabel : undefined}
       testID={testID}
     >
       {collector}
-      <SkiaCanvas style={StyleSheet.absoluteFill}>
-        <Scene scene={scene} transform={transform} />
-      </SkiaCanvas>
-      {accessibleFallback
-        ? <View style={styles.accessibleFallback}>{accessibleFallback}</View>
+      <View
+        style={StyleSheet.absoluteFill}
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <SkiaCanvas style={StyleSheet.absoluteFill}>
+          <Scene scene={scene} transform={transform} />
+        </SkiaCanvas>
+      </View>
+      {accessibilityMode === 'fallback'
+        ? (
+            <View style={styles.accessibleFallback} accessible={false}>
+              {accessibilityLabel ? <Text>{accessibilityLabel}</Text> : null}
+              {fallbackContent}
+            </View>
+          )
         : null}
     </View>
   )
@@ -266,8 +292,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 1,
     height: 1,
+    padding: 0,
+    margin: -1,
     overflow: 'hidden',
-    opacity: 0,
   },
 })
 

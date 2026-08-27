@@ -2,7 +2,19 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { canvasAccessibilityMode } from './accessibility.ts'
 import { Canvas, CanvasSceneStore, renderCanvas2D, type CanvasScene } from './index.tsx'
+
+const checkAccessibilityTypes = () => {
+  // @ts-expect-error A meaningful Canvas must choose one accessibility mode.
+  const missingMode = <Canvas width={10} height={10} />
+  // @ts-expect-error A decorative surface cannot also expose an alternative.
+  const decorativeFallback = <Canvas decorative accessibleFallback="data" />
+  // @ts-expect-error A null React node is not an accessible equivalent.
+  const emptyFallback = <Canvas accessibleFallback={null} />
+  return [missingMode, decorativeFallback, emptyFallback]
+}
+void checkAccessibilityTypes
 
 test('the retained store builds a nested scene without coupling it to semantic nodes', () => {
   const store = new CanvasSceneStore()
@@ -71,7 +83,23 @@ test('Canvas 2D rendering applies DPR and a contained viewBox before drawing', (
   assert.ok(calls.some((call) => call[0] === 'fill'))
 })
 
-test('the Web fallback exposes an explicit accessible equivalent', () => {
+test('the three accessibility modes stay mutually exclusive', () => {
+  assert.equal(canvasAccessibilityMode({ decorative: true }), 'decorative')
+  assert.equal(canvasAccessibilityMode({ accessibilityLabel: 'Revenue' }), 'label')
+  assert.equal(canvasAccessibilityMode({ accessibleFallback: 'Revenue was 42' }), 'fallback')
+})
+
+test('a label-only Canvas is exposed as one named image', () => {
+  const html = renderToStaticMarkup(
+    <Canvas width={100} height={50} accessibilityLabel="Quarterly revenue" />,
+  )
+
+  assert.match(html, /<canvas[^>]+aria-label="Quarterly revenue"[^>]+role="img"/)
+  assert.doesNotMatch(html, /aria-hidden/)
+  assert.doesNotMatch(html, /data-hozo-canvas-fallback/)
+})
+
+test('the Web fallback is a semantic sibling rather than a child of role=img', () => {
   const html = renderToStaticMarkup(
     <Canvas
       width={100}
@@ -83,7 +111,13 @@ test('the Web fallback exposes an explicit accessible equivalent', () => {
     </Canvas>,
   )
 
-  assert.match(html, /<canvas[^>]+aria-label="Quarterly revenue"[^>]+role="img"/)
+  const canvasEnd = html.indexOf('</canvas>')
+  const fallbackStart = html.indexOf('data-hozo-canvas-fallback')
+  const tableStart = html.indexOf('<table>')
+  assert.ok(canvasEnd >= 0 && fallbackStart > canvasEnd && tableStart > fallbackStart)
+  assert.match(html, /<canvas[^>]+aria-hidden="true"/)
+  assert.doesNotMatch(html.slice(0, canvasEnd), /role="img"|aria-label/)
+  assert.match(html, /<div[^>]+role="group"[^>]+aria-label="Quarterly revenue"[^>]+data-hozo-canvas-fallback=""/)
   assert.match(html, /<table><tbody><tr><td>Q1<\/td><td>42<\/td><\/tr><\/tbody><\/table>/)
 })
 

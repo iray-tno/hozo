@@ -7,6 +7,10 @@ import {
   type ReactNode,
 } from 'react'
 
+import {
+  canvasAccessibilityMode,
+  type CanvasAccessibilityProps,
+} from './accessibility.ts'
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
   Circle,
@@ -36,13 +40,9 @@ export type {
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
 export { renderCanvas2D, type CanvasViewport } from './render-canvas-2d.ts'
+export type { CanvasAccessibleFallback, CanvasAccessibilityProps } from './accessibility.ts'
 
-type AccessibleCanvas =
-  | { decorative: true; accessibilityLabel?: never; accessibleFallback?: never }
-  | { decorative?: false; accessibilityLabel: string; accessibleFallback?: ReactNode }
-  | { decorative?: false; accessibilityLabel?: string; accessibleFallback: ReactNode }
-
-export type CanvasProps = AccessibleCanvas & {
+export type CanvasProps = CanvasAccessibilityProps & {
   children?: ReactNode
   className?: string
   style?: CSSProperties
@@ -116,23 +116,50 @@ function Root({
     ...(width === undefined ? null : { width }),
     ...(height === undefined ? null : { height }),
   }
+  const accessibilityMode = canvasAccessibilityMode({ decorative, accessibleFallback })
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={rootStyle}
-      width={Math.max(1, Math.round(size.width * size.pixelRatio))}
-      height={Math.max(1, Math.round(size.height * size.pixelRatio))}
-      aria-hidden={decorative || undefined}
-      aria-label={decorative ? undefined : accessibilityLabel}
-      role={decorative ? undefined : 'img'}
-      data-testid={testID}
-    >
-      {collector}
-      {accessibleFallback}
-    </canvas>
+    <>
+      <canvas
+        ref={canvasRef}
+        className={className}
+        style={rootStyle}
+        width={Math.max(1, Math.round(size.width * size.pixelRatio))}
+        height={Math.max(1, Math.round(size.height * size.pixelRatio))}
+        aria-hidden={accessibilityMode === 'label' ? undefined : true}
+        aria-label={accessibilityMode === 'label' ? accessibilityLabel : undefined}
+        role={accessibilityMode === 'label' ? 'img' : undefined}
+        data-testid={testID}
+      >
+        {collector}
+      </canvas>
+      {accessibilityMode === 'fallback'
+        ? (
+            <div
+              style={accessibleOnlyStyle}
+              role={accessibilityLabel ? 'group' : undefined}
+              aria-label={accessibilityLabel}
+              data-hozo-canvas-fallback=""
+            >
+              {accessibleFallback}
+            </div>
+          )
+        : null}
+    </>
   )
+}
+
+const accessibleOnlyStyle: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  clipPath: 'inset(50%)',
+  whiteSpace: 'nowrap',
+  border: 0,
 }
 
 /** Canvas root plus its platform-neutral scene vocabulary. */
