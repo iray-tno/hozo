@@ -1,7 +1,14 @@
 {
   "versions": {
     "tailwind": "4.3.3",
-    "reactNative": "0.87.0"
+    "reactNative": "0.87.0",
+    "stylex": "0.19.0"
+  },
+  "stylex": {
+    "properties": 522,
+    "mapped": 55,
+    "nativeProperties": 114,
+    "mappedNative": 55
   },
   "web": {
     "candidates": 120,
