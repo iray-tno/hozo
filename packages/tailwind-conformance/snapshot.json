@@ -46,7 +46,10 @@
     "match": 2250,
     "mismatch": 0,
     "unsupported": 0,
-    "skipped": 482
+    "skipped": 482,
+    "skippedNoRule": 0,
+    "skippedExpectedUnresolvable": 461,
+    "skippedActualUnresolvable": 21
   },
   "arbitraryNative": {
     "candidates": 2845,

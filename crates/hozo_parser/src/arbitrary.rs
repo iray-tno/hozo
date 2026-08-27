@@ -718,6 +718,25 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
             ])
         }
         "outline" => one(StyleProperty::OutlineColor(color())),
+        // Three declarations, so it cannot join the raw-property table
+        // above the way `duration-[…]` and `ease-[…]` do: a `transition-*`
+        // sets the property list *and* Tailwind's default timing and
+        // duration, and an `ease-*` written after it overrides one of them
+        // under last-wins flattening. Exactly what the named forms
+        // (`transition-colors`, `transition-opacity`) already expand to;
+        // the arbitrary form was the only one of the family missing, and
+        // reported as `UNREADABLE_ARBITRARY_VALUE` rather than compiled.
+        "transition" => Some(vec![
+            StyleProperty::TransitionProperty(value.to_string()),
+            StyleProperty::TransitionTimingFunction(
+                crate::tailwind::DEFAULT_TRANSITION_TIMING.to_string(),
+                hozo_ir::Origin::Default,
+            ),
+            StyleProperty::TransitionDuration(
+                crate::tailwind::DEFAULT_TRANSITION_DURATION_MS,
+                hozo_ir::Origin::Default,
+            ),
+        ]),
         "ring" if is_color(value, hint) => one(StyleProperty::RingColor(color())),
         "ring" => one(StyleProperty::RingWidth(length()?)),
         "placeholder" => one(StyleProperty::PlaceholderColor(color())),
@@ -1802,6 +1821,40 @@ mod tests {
             properties("ring-[var(--x)]"),
             Some(vec![StyleProperty::RingColor(Color::Css("var(--x)".to_string()))])
         );
+    }
+
+    #[test]
+    fn an_arbitrary_transition_expands_like_the_named_ones() {
+        // The whole family sets three declarations, and the arbitrary form
+        // was the only member that set none -- it reported
+        // `UNREADABLE_ARBITRARY_VALUE` and compiled to nothing. The report
+        // could not see it: Tailwind writes the timing and duration through
+        // registers this suite cannot reduce, so the candidate was skipped
+        // before anyone asked whether Hozo had emitted anything.
+        //
+        // Its correctness is inherited rather than asserted twice: this is
+        // the same triple `transition-colors` produces, and that one is
+        // compared against Tailwind's own output on every run.
+        assert_eq!(
+            properties("transition-[opacity]"),
+            Some(vec![
+                StyleProperty::TransitionProperty("opacity".to_string()),
+                StyleProperty::TransitionTimingFunction(
+                    crate::tailwind::DEFAULT_TRANSITION_TIMING.to_string(),
+                    hozo_ir::Origin::Default,
+                ),
+                StyleProperty::TransitionDuration(
+                    crate::tailwind::DEFAULT_TRANSITION_DURATION_MS,
+                    hozo_ir::Origin::Default,
+                ),
+            ])
+        );
+        // A list stays a list. Tailwind writes `opacity,transform` without
+        // the space, and matching its text is the requirement.
+        assert!(matches!(
+            properties("transition-[opacity,transform]").as_deref(),
+            Some([StyleProperty::TransitionProperty(list), ..]) if list == "opacity,transform"
+        ));
     }
 
     #[test]

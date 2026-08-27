@@ -18,10 +18,32 @@ import { normalize } from './normalize.ts'
 
 export type Verdict = 'MATCH' | 'MISMATCH' | 'UNSUPPORTED' | 'SKIPPED' | 'COMPOSITION_ONLY'
 
+/**
+ * Why no claim was made, when none was.
+ *
+ * `skipped` used to be one number sitting under `Mismatch: 0`, where it
+ * read like a fourth kind of pass. It is not: it is the count of questions
+ * this file declined to ask, and the three reasons for declining are not
+ * equally comfortable.
+ *
+ * - `no-rule` is Tailwind's decision and nothing to do with Hozo.
+ * - `expected-unresolvable` is a value only a browser can reduce -- a
+ *   `var(--x)` the project defines, a `calc()` against layout. Honest, but
+ *   it is where a real defect hid: `ring-[calc(100%-2rem)]` compiled to
+ *   nothing on Web while Tailwind painted a ring, and this section said
+ *   nothing because it had stopped looking one step earlier.
+ * - `actual-unresolvable` is the uncomfortable one: Hozo emitted something
+ *   the normalizer could not reduce, so the comparison gave up on output
+ *   this project controls.
+ */
+export type SkipReason = 'no-rule' | 'expected-unresolvable' | 'actual-unresolvable'
+
 export interface Comparison {
   candidate: string
   verdict: Verdict
   detail?: string
+  /** Set exactly when `verdict` is `SKIPPED`. */
+  skipReason?: SkipReason
 }
 
 /**
@@ -112,14 +134,35 @@ export function compareCandidate(
   vars: Map<string, string>,
 ): Comparison {
   if (!oracleBlock) {
-    return { candidate, verdict: 'SKIPPED', detail: 'tailwind produced no rule for this candidate' }
+    return {
+      candidate,
+      verdict: 'SKIPPED',
+      skipReason: 'no-rule',
+      detail: 'tailwind produced no rule for this candidate',
+    }
   }
 
   const expected = normalize(oracleBlock, vars)
   if (expected.unresolved.length > 0) {
+    // One question survives an unresolvable expectation, and it is the one
+    // that matters most: did Hozo emit anything at all? A value only a
+    // browser can reduce says nothing about whether the utility compiled,
+    // and skipping before asking is how `ring-[calc(100%-2rem)]` sat here
+    // for months compiling to nothing while Tailwind painted a ring. The
+    // Native side caught it in the end, by counting silences.
+    if (hozoDeclarations(candidate).trim() === '') {
+      return {
+        candidate,
+        verdict: 'UNSUPPORTED',
+        detail:
+          `tailwind emits ${expected.unresolved.length} declaration(s) this cannot reduce, ` +
+          'and hozo emits none at all',
+      }
+    }
     return {
       candidate,
       verdict: 'SKIPPED',
+      skipReason: 'expected-unresolvable',
       detail: `unresolvable in tailwind output: ${expected.unresolved.join(', ')}`,
     }
   }
@@ -148,6 +191,7 @@ export function compareCandidate(
     return {
       candidate,
       verdict: 'SKIPPED',
+      skipReason: 'actual-unresolvable',
       detail: `unresolvable in hozo output: ${actual.unresolved.join(', ')}`,
     }
   }

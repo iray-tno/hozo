@@ -14,7 +14,7 @@ import { buildCompositionCatalog } from './compositions.ts'
 import { buildVariantCatalog, compareVariant } from './variants.ts'
 import { loadFullCatalog, namespaceOf } from './catalog.ts'
 import { reactNativeCssProperties, reactNativeVersion } from './native-surface.ts'
-import { compareCandidate, type Comparison, type Verdict } from './compare.ts'
+import { compareCandidate, type Comparison, type SkipReason, type Verdict } from './compare.ts'
 import { compareNativeCandidate, type NativeComparison, type NativeVerdict } from './native.ts'
 import { compareNativeContextual, NATIVE_CONTEXTUAL_CASES } from './native-contextual.ts'
 import {
@@ -548,12 +548,22 @@ const arbitraryResults = arbitrary.candidates.map((candidate) =>
 const arbitraryCount = (verdict: Verdict) =>
   arbitraryResults.filter((result) => result.verdict === verdict).length
 const arbitraryMismatches = arbitraryResults.filter((r) => r.verdict === 'MISMATCH')
+// Broken out because one number here read like a fourth kind of pass,
+// sitting under `Mismatch: 0` at four times its size. It is the count of
+// questions this section declined to ask, and the reasons are not equally
+// comfortable: a value only a browser can reduce is honest, Hozo's own
+// output failing to reduce is not.
+const arbitrarySkips = (reason: SkipReason) =>
+  arbitraryResults.filter((result) => result.skipReason === reason).length
 console.log(
   `\n== Arbitrary values (${arbitrary.candidates.length} candidates Tailwind generates) ==\n` +
     `Match:       ${arbitraryCount('MATCH')}\n` +
     `Mismatch:    ${arbitraryMismatches.length}\n` +
     `Unsupported: ${arbitraryCount('UNSUPPORTED')}\n` +
-    `Skipped:     ${arbitraryCount('SKIPPED')}   (one side unresolvable; no claim made)`,
+    `Skipped:     ${arbitraryCount('SKIPPED')}   (no claim made; by reason)\n` +
+    `  tailwind emits no rule            ${arbitrarySkips('no-rule')}\n` +
+    `  tailwind's value needs a browser  ${arbitrarySkips('expected-unresolvable')}\n` +
+    `  hozo's own value would not reduce ${arbitrarySkips('actual-unresolvable')}`,
 )
 record('arbitrary', {
   candidates: arbitrary.candidates.length,
@@ -561,6 +571,9 @@ record('arbitrary', {
   mismatch: arbitraryMismatches.length,
   unsupported: arbitraryCount('UNSUPPORTED'),
   skipped: arbitraryCount('SKIPPED'),
+  skippedNoRule: arbitrarySkips('no-rule'),
+  skippedExpectedUnresolvable: arbitrarySkips('expected-unresolvable'),
+  skippedActualUnresolvable: arbitrarySkips('actual-unresolvable'),
 })
 for (const mismatch of arbitraryMismatches) {
   console.log(`  ${mismatch.candidate.padEnd(34)} ${mismatch.detail ?? ''}`)
