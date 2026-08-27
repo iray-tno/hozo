@@ -111,10 +111,63 @@ test('reports unresolvable values instead of guessing', () => {
   assert.deepEqual(inert.unresolved, [])
 
   // Anything else unresolved is still reported, so a resolution bug can't
-  // hide as "it paints nothing".
+  // hide as "it paints nothing". It is now *also* kept as a declaration,
+  // resolved as far as it goes: a value only a browser can reduce still
+  // says something, and two sides that reduce to the same text agree.
+  // `unresolved` names it so the comparison can say the agreement was
+  // textual.
   const unknown = normalize('box-shadow: var(--shadow-of-doubt);', vars)
-  assert.equal(unknown.declarations.size, 0)
-  assert.equal(unknown.unresolved.length, 1)
+  assert.deepEqual([...unknown.declarations], [['box-shadow', 'var(--shadow-of-doubt)']])
+  assert.deepEqual(unknown.unresolved, ['box-shadow'])
+})
+
+test('an irreducible value is still compared, in the shorthand it expands to', () => {
+  // `margin: var(--x)` and four `margin-*: var(--x)` are one declaration
+  // written two ways, and Tailwind writes the first where Hozo writes the
+  // second. Neither reduces to a number and both reduce to the same four.
+  assert.deepEqual(normalize('margin: var(--x);', vars).declarations, new Map([
+    ['margin-top', 'var(--x)'],
+    ['margin-right', 'var(--x)'],
+    ['margin-bottom', 'var(--x)'],
+    ['margin-left', 'var(--x)'],
+  ]))
+})
+
+test('a box shorthand splits where CSS splits it, not on every space', () => {
+  // `calc(100% - 32px)` is one value carrying two spaces. Splitting there
+  // gave a top of `calc(100%`, a right of `-` and a bottom of `32px)`.
+  assert.deepEqual(normalize('padding: calc(100% - 32px);', vars).declarations, new Map([
+    ['padding-top', 'calc(100% - 32px)'],
+    ['padding-right', 'calc(100% - 32px)'],
+    ['padding-bottom', 'calc(100% - 32px)'],
+    ['padding-left', 'calc(100% - 32px)'],
+  ]))
+})
+
+test('folds the factors and terms that need no arithmetic', () => {
+  // Tailwind's reversible spacing is `calc(X * var(--tw-space-x-reverse))`
+  // and its ring spread is `calc(X + var(--tw-ring-offset-width))`, and
+  // both registers are zero unless another utility fills them.
+  // `evaluateArithmetic` cannot fold either -- it needs one unit across
+  // every term, and `100vh * 0` and `2rem + 0px` have two.
+  assert.deepEqual(decls('width: calc(100vh * 0);'), { width: '0' })
+  assert.deepEqual(decls('width: calc(100vh * calc(1 - 0));'), { width: '100vh' })
+  assert.deepEqual(decls('width: calc(2rem + 0px);'), { width: '32px' })
+  assert.deepEqual(decls('width: calc(calc(100% - 32px) + 0px);'), { width: 'calc(100% - 32px)' })
+  // A negative number is not a subtraction: CSS requires spaces around a
+  // real `-` operator, and this must not read `-0.025em` as one.
+  assert.deepEqual(decls('letter-spacing: calc(-0.025em * -1);'), { 'letter-spacing': '0.025em' })
+})
+
+test('an unresolvable var does not stop the ones after it', () => {
+  // Tailwind's `mask-image` is three registers in a row. Returning at the
+  // author's own `var(--x)` inside the first left the other two spelled
+  // `--tw-`, `unfilledRegisters` read them as unfilled slots, and the
+  // whole declaration was dropped -- so `mask-t-from-[var(--x)]` compared
+  // as if Tailwind painted no mask at all.
+  const scoped = new Map([['--known', 'red']])
+  const out = normalize('color: var(--unknown) var(--known);', scoped)
+  assert.deepEqual([...out.declarations], [['color', 'var(--unknown) red']])
 })
 
 test('declines to fold calc() mixing incompatible units', () => {
