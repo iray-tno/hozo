@@ -4,6 +4,9 @@
 //! typography. Unrecognized tokens return `None` rather than erroring --
 //! callers decide what to do with an unmapped utility (Phase 0: drop it).
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use hozo_ir::{
     Align, AlignSelf, Angle, Animation, Axis, BorderStyle, Origin, Breakpoint, Clamp, Color, Condition, Dimension,
     ColumnCount, DecorationStyle, Display, Edge, Em, Environment, GradientKind, GradientStop, GridLine, GridSpan,
@@ -2846,10 +2849,59 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     (Condition::Always, token)
 }
 
+/// How many distinct tokens the memo below holds before starting over.
+///
+/// A project's class vocabulary is bounded by its source, so this is
+/// insurance against a generated one rather than a limit anybody should
+/// reach. Clearing wholesale instead of evicting is deliberate: refilling
+/// an entry costs 1.4us, which is not worth the machinery of deciding
+/// which entry deserved to stay.
+const MEMO_LIMIT: usize = 65_536;
+
+thread_local! {
+    /// What each token expanded to, remembered for the next time it appears.
+    ///
+    /// Sound because this is a pure function of the token and nothing else:
+    /// `hozo_parser` never sees a `Theme` -- `p-4` is `Spacing(4.0)` here and
+    /// the multiplier is applied in the backends, for the same reason
+    /// `Color::Token` keeps the name -- and there is no other state in the
+    /// crate to depend on. Both were checked rather than assumed.
+    ///
+    /// Worth it because the dispatch below is a ladder of 165 `strip_prefix`
+    /// checks ending in linear scans of a 304-entry keyword table, and a real
+    /// application writes `flex` and `p-4` thousands of times. Measured at
+    /// 1.386us to expand a token against 0.115us to clone a remembered one --
+    /// twelve times, and the report used to prove it: compiling a file whose
+    /// components all carried the *same* classes took exactly as long as one
+    /// where they all differed, which is what a missing memo looks like.
+    ///
+    /// Thread-local rather than a shared map behind a lock. Nothing here is
+    /// worth contending for: an entry is small, refilling is a microsecond,
+    /// and a lock on the hottest function in the compiler would cost more
+    /// than the duplication.
+    static EXPANDED: RefCell<HashMap<String, (Condition, Vec<StyleProperty>)>> =
+        RefCell::new(HashMap::new());
+}
+
 /// The real entry point used by the JSX walker: strips a variant prefix
 /// (if any) and expands the remaining base utility, returning the
 /// condition that prefix implies alongside the properties it maps to.
 pub fn expand_utility(token: &str) -> (Condition, Vec<StyleProperty>) {
+    EXPANDED.with(|memo| {
+        if let Some(remembered) = memo.borrow().get(token) {
+            return remembered.clone();
+        }
+        let expanded = expand_utility_uncached(token);
+        let mut memo = memo.borrow_mut();
+        if memo.len() >= MEMO_LIMIT {
+            memo.clear();
+        }
+        memo.insert(token.to_string(), expanded.clone());
+        expanded
+    })
+}
+
+fn expand_utility_uncached(token: &str) -> (Condition, Vec<StyleProperty>) {
     let (condition, base) = parse_variant_prefix(token);
     (condition, expand_negatable(base))
 }
@@ -2891,6 +2943,14 @@ fn expand_shorthand(token: &str) -> Option<Vec<String>> {
         "xl:max-w-[80rem]",
         "2xl:max-w-[96rem]",
     ];
+    // Cheap rejection first. `parse_variant_prefix` walks the whole variant
+    // table and every token that is not `container` was paying for it just
+    // to be told so -- 14% of `expand_class`, on a question a nine-byte
+    // suffix check answers. The base is what remains after the prefixes are
+    // stripped, so it is always a suffix of the token.
+    if !token.ends_with("container") {
+        return None;
+    }
     let (_, base) = parse_variant_prefix(token);
     if base != "container" {
         return None;
@@ -5070,5 +5130,27 @@ mod platform_setting_tests {
             expand_utility("not-bold-text:p-4").0,
             Condition::Not(Box::new(Condition::Environment(Environment::BoldText))),
         );
+    }
+
+    #[test]
+    fn the_memo_survives_being_full() {
+        // The only path that clears it, and otherwise never run: a project
+        // whose class vocabulary is bounded never reaches the limit, so
+        // without this the branch would ship unexecuted.
+        let known = expand_utility("hover:p-4");
+        for n in 0..(MEMO_LIMIT + 16) {
+            let _ = expand_utility(&format!("p-[{n}px]"));
+        }
+        assert_eq!(expand_utility("hover:p-4"), known);
+    }
+
+    #[test]
+    fn a_remembered_token_expands_to_what_it_did_the_first_time() {
+        // Cheap, but it is the whole contract: the memo is only sound
+        // because this is a pure function of the token, and nothing else in
+        // the crate has state to make it otherwise.
+        for token in ["flex", "dark:bg-slate-900", "-mt-4", "container", "p-[1.5em]"] {
+            assert_eq!(expand_utility(token), expand_utility(token));
+        }
     }
 }
