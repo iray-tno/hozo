@@ -16,8 +16,21 @@ const ROOT_FONT_SIZE_PX = 16
 
 export interface Normalized {
   declarations: Map<string, string>
-  /// Raw text of anything the normalizer declined to interpret. Non-empty
-  /// means the comparison for this rule is not trustworthy.
+  /// Properties whose value still holds a `var()` or `calc()` after every
+  /// substitution this knows how to make.
+  ///
+  /// They are in `declarations` too, resolved as far as they go. That is
+  /// the point: a value only a browser can reduce still says something,
+  /// and two sides that reduce to the same text agree whether or not the
+  /// text is a number. What this list marks is that the agreement is
+  /// textual rather than computed -- see `compare.ts`, which reports it.
+  ///
+  /// It used to hold the *raw* text instead, before any substitution, and
+  /// the comparison bailed the moment it was non-empty. Both halves of
+  /// that hid things: 323 candidates whose two sides were already
+  /// identical were never compared, and `bg-linear-[var(--x)]` looked
+  /// different only because Tailwind's `var(--tw-gradient-stops, var(--x))`
+  /// had not been given the chance to become its own fallback.
   unresolved: string[]
 }
 
@@ -53,7 +66,7 @@ function splitOne(decl: string): [string, string] {
  * Hozo supports are resolved here explicitly, and anything else `--tw-*`
  * is left in place so the caller marks the rule unresolved.
  */
-function resolveVars(value: string, vars: Map<string, string>, depth = 0): string {
+function resolveVars(value: string, vars: Map<string, string>, depth = 0, from = 0): string {
   // Generous, because each pass resolves only the first `var()` and a
   // single declaration can chain many: Tailwind's `filter` alone splices in
   // nine. The cap is here to stop a self-referential custom property from
@@ -70,7 +83,7 @@ function resolveVars(value: string, vars: Map<string, string>, depth = 0): strin
   // carrying a stray paren. Gradients are built almost entirely out of
   // nested fallbacks like that, which is why nothing noticed until one
   // was measured.
-  const call = firstVarCall(value)
+  const call = firstVarCall(value, from)
   if (!call) return value
 
   const { start, end, name, fallback } = call
@@ -102,7 +115,17 @@ function resolveVars(value: string, vars: Map<string, string>, depth = 0): strin
   } else if (fallback !== undefined) {
     replacement = fallback
   }
-  if (replacement === undefined) return value
+  // Past it rather than out of here. A `var()` this cannot resolve says
+  // nothing about the ones after it, and returning left them alone --
+  // which mattered: Tailwind's `mask-image` is
+  // `var(--tw-mask-linear), var(--tw-mask-radial), var(--tw-mask-conic)`,
+  // and once an author's `var(--x)` had been reached inside the first, the
+  // other two kept their `--tw-` spelling. `unfilledRegisters` then read
+  // them as slots nothing had filled and dropped the whole declaration, so
+  // `mask-t-from-[var(--x)]` compared as if Tailwind painted no mask --
+  // while `mask-t-from-[10px]`, with nothing to stop the scan, compared
+  // fine. The difference was in this line, not in either compiler.
+  if (replacement === undefined) return resolveVars(value, vars, depth + 1, end + 1)
   return resolveVars(value.replace(full, replacement), vars, depth + 1)
 }
 
@@ -121,9 +144,10 @@ interface VarCall {
  * never be used, and resolving it before knowing whether the fallback
  * applies would substitute a value the browser never reaches.
  */
-function firstVarCall(value: string): VarCall | undefined {
-  const start = value.search(/\bvar\(/i)
-  if (start === -1) return undefined
+function firstVarCall(value: string, from = 0): VarCall | undefined {
+  const offset = value.slice(from).search(/\bvar\(/i)
+  if (offset === -1) return undefined
+  const start = from + offset
   const open = value.indexOf('(', start)
   let depth = 0
   let end = -1
@@ -165,14 +189,143 @@ function firstVarCall(value: string): VarCall | undefined {
 /** Evaluates `calc(...)` for the +,-,*,/ arithmetic Tailwind actually emits. */
 function evaluateCalc(value: string): string {
   let out = value
-  for (let i = 0; i < 8; i++) {
-    const match = /calc\(([^()]*)\)/.exec(out)
-    if (!match) break
-    const evaluated = evaluateArithmetic(match[1])
-    if (evaluated === null) return out
-    out = out.replace(match[0], evaluated)
+  for (let i = 0; i < 16; i++) {
+    // Identities first, and again after every arithmetic step: the factor
+    // that makes one appear is often produced by the step before.
+    // `calc(1rem * calc(1 - var(--tw-space-x-reverse)))` becomes
+    // `calc(1rem * calc(1 - 0))` when the register resolves, then
+    // `calc(1rem * 1)` when the inner calc folds, and only then is there
+    // an identity to see.
+    const folded = foldIdentityFactors(out)
+    if (folded !== out) {
+      out = folded
+      continue
+    }
+    // Every innermost `calc()`, not just the first. One this cannot fold
+    // says nothing about the others, and stopping at it left them alone --
+    // `calc(calc(100% - 32px) * calc(1 - 0))` bailed on the mixed units of
+    // the left factor and never reached the `calc(1 - 0)` on the right,
+    // which would have folded to `1` and taken the whole multiplication
+    // with it. Same shape as the `var()` scan above, in a different loop.
+    const innermost = [...out.matchAll(/calc\(([^()]*)\)/g)]
+    if (innermost.length === 0) break
+    let advanced = false
+    for (const match of innermost) {
+      const evaluated = evaluateArithmetic(match[1])
+      if (evaluated === null) continue
+      out = out.replace(match[0], evaluated)
+      advanced = true
+      break
+    }
+    if (!advanced) break
   }
   return out
+}
+
+/**
+ * `calc(X * 0)` is `0` and `calc(X * 1)` is `X`, whatever X is.
+ *
+ * Tailwind's reversible spacing utilities are written entirely this way.
+ * `space-x-4` is
+ *
+ *   margin-inline-start: calc(1rem * var(--tw-space-x-reverse))
+ *   margin-inline-end:   calc(1rem * calc(1 - var(--tw-space-x-reverse)))
+ *
+ * and the register is 0 unless `space-x-reverse` is written beside it, so
+ * standalone those are `0` and `1rem` -- which is what Hozo emits, having
+ * resolved the reversal at compile time rather than deferring it to a
+ * custom property. `evaluateArithmetic` cannot fold them because it needs
+ * every term to share a unit, and `100vh * 0` does not.
+ *
+ * Only the two factors that need no arithmetic at all. Anything else stays
+ * for `evaluateArithmetic`, which knows when folding is safe.
+ */
+function foldIdentityFactors(value: string): string {
+  // Scanned rather than matched. A factor can carry parens of its own --
+  // `calc(rgb(0 0 0) * 0)` is one Tailwind really emits, for a colour
+  // written where a length belongs -- and a `[^()]*` pattern cannot see
+  // past them.
+  let index = value.indexOf('calc(')
+  for (; index !== -1; index = value.indexOf('calc(', index + 1)) {
+    const open = index + 'calc('.length - 1
+    const close = matchingParen(value, open)
+    if (close === -1) continue
+    const inner = value.slice(open + 1, close)
+    let replacement: string | undefined
+
+    const factors = splitTopLevel(inner, '*')
+    if (factors.length === 2) {
+      const [left, right] = factors.map((factor) => factor.trim())
+      if (left === '0' || right === '0') replacement = '0'
+      else if (left === '1') replacement = right
+      else if (right === '1') replacement = left
+    }
+
+    // Adding zero, which `evaluateArithmetic` cannot do because it needs
+    // one unit across every term and `calc(2rem + 0px)` has two. Zero is
+    // zero in any of them, so this is exact where the arithmetic is not --
+    // and Tailwind writes it constantly: a ring's spread is
+    // `calc(<width> + var(--tw-ring-offset-width))` and that register is
+    // `0px` unless a `ring-offset-*` is written beside it.
+    if (replacement === undefined) {
+      // The operator must be surrounded by spaces, which CSS requires for
+      // `+` and `-` -- and which is what keeps a negative number like
+      // `-0.025em` from being read as a subtraction.
+      const terms = splitAdditive(inner)
+      if (terms.length === 2 && !/[*/]/.test(inner)) {
+        const isZero = (term: string) => /^0(px|rem|em|%|vh|vw|deg)?$/.test(term)
+        if (isZero(terms[1])) replacement = terms[0]
+        // Only from the right for subtraction: `0 - x` is `-x`, not `x`.
+        else if (isZero(terms[0]) && !inner.includes('- ')) replacement = terms[1]
+      }
+    }
+
+    if (replacement === undefined) continue
+    return value.slice(0, index) + replacement + value.slice(close + 1)
+  }
+  return value
+}
+
+/**
+ * A calc body's top-level `+`/`-` terms.
+ *
+ * Parenthesis-aware, because a nested `calc(100% - 32px)` has an operator
+ * of its own and splitting on it produces three terms from what is really
+ * two. The operator has to be surrounded by spaces, which CSS requires for
+ * `+` and `-` and which is also what keeps `-0.025em` from reading as a
+ * subtraction.
+ */
+function splitAdditive(value: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let current = ''
+  for (let i = 0; i < value.length; i += 1) {
+    const ch = value[i]
+    if (ch === '(') depth += 1
+    else if (ch === ')') depth -= 1
+    const spaced = /\s/.test(value[i - 1] ?? '') && /\s/.test(value[i + 1] ?? '')
+    if (depth === 0 && (ch === '+' || ch === '-') && spaced) {
+      parts.push(current.trim())
+      current = ''
+      continue
+    }
+    current += ch
+  }
+  parts.push(current.trim())
+  return parts
+}
+
+/** The index of the `)` closing the `(` at `open`, or -1. */
+function matchingParen(value: string, open: number): number {
+  let depth = 0
+  for (let i = open; i < value.length; i += 1) {
+    if (value[i] === '(') depth += 1
+    else if (value[i] === ')') {
+      depth -= 1
+      if (depth === 0) return i
+    }
+  }
+  return -1
 }
 
 function evaluateArithmetic(expr: string): string | null {
@@ -329,9 +482,38 @@ function splitTopLevel(value: string, sep: string): string[] {
 const FOUR_SIDES = ['top', 'right', 'bottom', 'left'] as const
 
 /** Expands the shorthands that appear in either side's output. */
+/**
+ * A box shorthand's values, split where CSS splits them.
+ *
+ * Not `split(/\s+/)`: a single value can contain spaces of its own, and
+ * `calc(100% - 32px)` is three of them. Splitting there turned
+ * `border-width: calc(100% - 32px)` into a top of `calc(100%`, a right of
+ * `-` and a bottom of `32px)` -- three wrong declarations and a lost
+ * paren. It could not happen while only reduced values reached here,
+ * because a reduced `calc()` is a number; it happens the moment an
+ * irreducible one does.
+ */
+function splitBoxValues(value: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let current = ''
+  for (const ch of value) {
+    if (ch === '(') depth += 1
+    if (ch === ')') depth -= 1
+    if (depth === 0 && /\s/.test(ch)) {
+      if (current !== '') parts.push(current)
+      current = ''
+      continue
+    }
+    current += ch
+  }
+  if (current !== '') parts.push(current)
+  return parts
+}
+
 function expandShorthand(prop: string, value: string): Array<[string, string]> {
   const sides = (prefix: string, suffix = '') => {
-    const parts = value.split(/\s+/)
+    const parts = splitBoxValues(value)
     // CSS 1/2/3/4-value box syntax.
     const [t, r, b, l] =
       parts.length === 1
@@ -351,7 +533,7 @@ function expandShorthand(prop: string, value: string): Array<[string, string]> {
 
   // The inline/block logical shorthands take 1 or 2 values (start, end).
   const axis = (prefix: string, suffix: string, names: [string, string]) => {
-    const parts = value.split(/\s+/)
+    const parts = splitBoxValues(value)
     const [start, end] = parts.length === 1 ? [parts[0], parts[0]] : parts
     return [
       [`${prefix}-${suffix}-${names[0]}`, start],
@@ -380,7 +562,7 @@ function expandShorthand(prop: string, value: string): Array<[string, string]> {
       return sides('border', '-style')
     case 'inset':
       return FOUR_SIDES.map((side, i) => {
-        const parts = value.split(/\s+/)
+        const parts = splitBoxValues(value)
         const v = parts.length === 1 ? parts[0] : parts[i] ?? parts[0]
         return [side, v] as [string, string]
       })
@@ -479,8 +661,12 @@ export function normalize(block: string, vars: Map<string, string>): Normalized 
       // drops it. Reporting that as inert is what lets the comparison
       // call it composition-only rather than leaving no claim at all.
       if (unfilledRegisters(value).length > 0) continue
-      unresolved.push(`${prop}: ${rawValue}`)
-      continue
+      unresolved.push(prop)
+      // Falls through rather than `continue`: an irreducible value is
+      // still a value, and `margin: var(--x)` against four
+      // `margin-*: var(--x)` is the same declaration written two ways --
+      // which `expandShorthand` already knows and never got to say,
+      // because this returned before reaching it.
     }
     for (const [expandedProp, expandedValue] of expandShorthand(prop, value)) {
       const name = canonicalizePropertyName(expandedProp)

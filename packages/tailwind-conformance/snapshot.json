@@ -50,13 +50,11 @@
   },
   "arbitrary": {
     "candidates": 2845,
-    "match": 2250,
+    "match": 2762,
+    "textual": 467,
     "mismatch": 0,
     "unsupported": 0,
-    "skipped": 482,
-    "skippedNoRule": 0,
-    "skippedExpectedUnresolvable": 461,
-    "skippedActualUnresolvable": 21
+    "skipped": 0
   },
   "arbitraryNative": {
     "candidates": 2845,

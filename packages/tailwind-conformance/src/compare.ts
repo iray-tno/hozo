@@ -44,6 +44,17 @@ export interface Comparison {
   detail?: string
   /** Set exactly when `verdict` is `SKIPPED`. */
   skipReason?: SkipReason
+  /**
+   * Whether the verdict rests on text rather than on computed values.
+   *
+   * A `var(--x)` names a variable this suite has never seen and a `calc()`
+   * resolves against layout only a browser has, so neither side can be
+   * reduced to a number -- but both sides can still be reduced as far as
+   * the substitutions go, and compared there. That is a weaker claim than
+   * the rest of this file makes, and it is counted separately for exactly
+   * that reason.
+   */
+  textual?: boolean
 }
 
 /**
@@ -143,29 +154,6 @@ export function compareCandidate(
   }
 
   const expected = normalize(oracleBlock, vars)
-  if (expected.unresolved.length > 0) {
-    // One question survives an unresolvable expectation, and it is the one
-    // that matters most: did Hozo emit anything at all? A value only a
-    // browser can reduce says nothing about whether the utility compiled,
-    // and skipping before asking is how `ring-[calc(100%-2rem)]` sat here
-    // for months compiling to nothing while Tailwind painted a ring. The
-    // Native side caught it in the end, by counting silences.
-    if (hozoDeclarations(candidate).trim() === '') {
-      return {
-        candidate,
-        verdict: 'UNSUPPORTED',
-        detail:
-          `tailwind emits ${expected.unresolved.length} declaration(s) this cannot reduce, ` +
-          'and hozo emits none at all',
-      }
-    }
-    return {
-      candidate,
-      verdict: 'SKIPPED',
-      skipReason: 'expected-unresolvable',
-      detail: `unresolvable in tailwind output: ${expected.unresolved.join(', ')}`,
-    }
-  }
   // Checked before Hozo's side, deliberately. Some utilities only set a
   // custom property and paint nothing on their own -- `ring-blue-500` is
   // the colour a ring renders in, and does nothing until a `ring-2` exists
@@ -187,19 +175,19 @@ export function compareCandidate(
   }
 
   const actual = normalize(hozoBlock, vars)
-  if (actual.unresolved.length > 0) {
-    return {
-      candidate,
-      verdict: 'SKIPPED',
-      skipReason: 'actual-unresolvable',
-      detail: `unresolvable in hozo output: ${actual.unresolved.join(', ')}`,
-    }
-  }
 
   const accepted = ACCEPTED_DIFFERENCES[candidate]
   const detail = diffSummary(expected.declarations, actual.declarations, accepted)
-  if (detail !== '') return { candidate, verdict: 'MISMATCH', detail }
-  return accepted
-    ? { candidate, verdict: 'MATCH', detail: `accepted difference: ${accepted.reason}` }
-    : { candidate, verdict: 'MATCH' }
+  // Whether either side held something only a browser could reduce. The
+  // comparison happened either way -- two sides that reduce to the same
+  // text agree -- but a match reached that way is a claim about spelling
+  // rather than about computed values, and the report says which.
+  const textual = expected.unresolved.length > 0 || actual.unresolved.length > 0
+  if (detail !== '') return { candidate, verdict: 'MISMATCH', detail, textual }
+  return {
+    candidate,
+    verdict: 'MATCH',
+    textual,
+    ...(accepted ? { detail: `accepted difference: ${accepted.reason}` } : {}),
+  }
 }

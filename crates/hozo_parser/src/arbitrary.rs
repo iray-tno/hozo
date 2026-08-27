@@ -826,7 +826,17 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // A `font-[...]` is a weight when it reads as one and a family
         // otherwise -- the same value-shaped decision `text-` makes, with
         // the roles of the two answers swapped.
-        "font" if is_line_width(value) || is_percentage(value) => {
+        //
+        // A `var()` reads as one. Nothing about `font-[var(--x)]` says
+        // which it holds, and Tailwind resolves that ambiguity towards the
+        // weight: it emits `font-weight: var(--x)` and expects
+        // `font-[family-name:var(--x)]` from anyone who meant the family.
+        // Hozo read it the other way, which is a `font-family` where the
+        // author's variable holds `600`.
+        "font"
+            if hint != Some("family-name")
+                && (is_line_width(value) || is_percentage(value) || value.starts_with("var(")) =>
+        {
             one(StyleProperty::Arbitrary("font-weight".to_string(), value.to_string()))
         }
         // Not just the line count: a clamp needs `display: -webkit-box`
@@ -1820,6 +1830,37 @@ mod tests {
         assert_eq!(
             properties("ring-[var(--x)]"),
             Some(vec![StyleProperty::RingColor(Color::Css("var(--x)".to_string()))])
+        );
+    }
+
+    #[test]
+    fn a_bare_var_in_a_font_is_a_weight() {
+        // Nothing about `font-[var(--x)]` says which of the two it holds,
+        // and Tailwind resolves the ambiguity towards the weight --
+        // `font-[family-name:var(--x)]` is how it expects a family to be
+        // asked for. Reading it the other way produced a `font-family` for
+        // a variable holding `600`.
+        assert_eq!(
+            properties("font-[var(--x)]"),
+            Some(vec![StyleProperty::Arbitrary(
+                "font-weight".to_string(),
+                "var(--x)".to_string()
+            )])
+        );
+        assert_eq!(
+            properties("font-[family-name:var(--x)]"),
+            Some(vec![StyleProperty::Arbitrary(
+                "font-family".to_string(),
+                "var(--x)".to_string()
+            )])
+        );
+        // A name is still a name.
+        assert_eq!(
+            properties("font-[Inter]"),
+            Some(vec![StyleProperty::Arbitrary(
+                "font-family".to_string(),
+                "Inter".to_string()
+            )])
         );
     }
 

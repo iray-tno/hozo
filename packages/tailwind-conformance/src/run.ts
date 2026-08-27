@@ -574,37 +574,44 @@ record('runtime', {
 // them would produce a number that answers neither question.
 const arbitrary = await buildArbitraryCatalog()
 const arbitraryResults = arbitrary.candidates.map((candidate) =>
-  compareCandidate(candidate, arbitrary.oracle.rules.get(candidate), arbitrary.oracle.registerDefaults),
+  // Theme values as well as the `@property` defaults, the way every other
+  // section resolves. This section had only the defaults, so
+  // `var(--default-transition-duration)` never resolved here -- invisible
+  // while an unresolved value ended the comparison, and 24 mismatches the
+  // moment one stopped doing that.
+  compareCandidate(
+    candidate,
+    arbitrary.oracle.rules.get(candidate),
+    new Map([...loadThemeVars(), ...arbitrary.oracle.registerDefaults]),
+  ),
 )
 const arbitraryCount = (verdict: Verdict) =>
   arbitraryResults.filter((result) => result.verdict === verdict).length
 const arbitraryMismatches = arbitraryResults.filter((r) => r.verdict === 'MISMATCH')
-// Broken out because one number here read like a fourth kind of pass,
-// sitting under `Mismatch: 0` at four times its size. It is the count of
-// questions this section declined to ask, and the reasons are not equally
-// comfortable: a value only a browser can reduce is honest, Hozo's own
-// output failing to reduce is not.
 const arbitrarySkips = (reason: SkipReason) =>
   arbitraryResults.filter((result) => result.skipReason === reason).length
+// A value only a browser can reduce is still compared -- as text, as far
+// as the substitutions go -- so it no longer leaves the denominator. This
+// counts how many of the matches rest on that, because it is a weaker
+// claim than the rest of the section makes and the number saying so should
+// be visible rather than implied.
+const arbitraryTextual = arbitraryResults.filter((result) => result.textual).length
 console.log(
   `\n== Arbitrary values (${arbitrary.candidates.length} candidates Tailwind generates) ==\n` +
-    `Match:       ${arbitraryCount('MATCH')}\n` +
+    `Match:       ${arbitraryCount('MATCH')}   (${arbitraryTextual} of them compared as text, ` +
+    `not as computed values)\n` +
     `Mismatch:    ${arbitraryMismatches.length}\n` +
     `Unsupported: ${arbitraryCount('UNSUPPORTED')}\n` +
-    `Skipped:     ${arbitraryCount('SKIPPED')}   (no claim made; by reason)\n` +
-    `  tailwind emits no rule            ${arbitrarySkips('no-rule')}\n` +
-    `  tailwind's value needs a browser  ${arbitrarySkips('expected-unresolvable')}\n` +
-    `  hozo's own value would not reduce ${arbitrarySkips('actual-unresolvable')}`,
+    `Skipped:     ${arbitraryCount('SKIPPED')}   ` +
+    `(tailwind emits no rule: ${arbitrarySkips('no-rule')})`,
 )
 record('arbitrary', {
   candidates: arbitrary.candidates.length,
   match: arbitraryCount('MATCH'),
+  textual: arbitraryTextual,
   mismatch: arbitraryMismatches.length,
   unsupported: arbitraryCount('UNSUPPORTED'),
   skipped: arbitraryCount('SKIPPED'),
-  skippedNoRule: arbitrarySkips('no-rule'),
-  skippedExpectedUnresolvable: arbitrarySkips('expected-unresolvable'),
-  skippedActualUnresolvable: arbitrarySkips('actual-unresolvable'),
 })
 for (const mismatch of arbitraryMismatches) {
   console.log(`  ${mismatch.candidate.padEnd(34)} ${mismatch.detail ?? ''}`)
