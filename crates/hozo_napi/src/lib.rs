@@ -50,6 +50,7 @@ fn diagnostic_code_str(code: DiagnosticCode) -> &'static str {
         DiagnosticCode::NotWiredOnNative => "NOT_WIRED_ON_NATIVE",
         DiagnosticCode::PrimitiveNotLowered => "PRIMITIVE_NOT_LOWERED",
         DiagnosticCode::UnreadableArbitraryValue => "UNREADABLE_ARBITRARY_VALUE",
+        DiagnosticCode::StylexNotLowered => "STYLEX_NOT_LOWERED",
     }
 }
 

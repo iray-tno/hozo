@@ -50,15 +50,16 @@ test('StyleX before Hozo cannot preserve JSX last-wins styling semantics', () =>
   assert.match(hozoSecond.code, /className="hozo-view hozo-r0-0 [^" ]+"/)
 })
 
-test('Hozo before StyleX leaves a later StyleX className that replaces Hozo at runtime', () => {
+test('Hozo before StyleX consumes the spread and is the safe ordering', () => {
   const hozoFirst = lowerModule(source, filename, filename, undefined)
   assert.ok(hozoFirst)
   const stylexSecond = officialStylex(hozoFirst.code)
 
-  // Hozo's class is present, but the StyleX spread became a later className.
-  // JSX duplicate-prop resolution is last-wins, so the padding class has CSS
-  // but no longer reaches the DOM. Ordering alone therefore cannot make the
-  // two frontends safe on the same element.
-  assert.match(stylexSecond, /className="hozo-view hozo-r0-0" className="[^" ]+"/)
+  // Hozo reads the same-file static StyleX value into IR and removes the
+  // spread from its JSX. The official compiler then sees an unused create,
+  // eliminates it, and has no second className left to overwrite Hozo.
+  assert.match(stylexSecond, /className="hozo-view hozo-r0-0"/)
+  assert.doesNotMatch(stylexSecond, /stylex\.props|className="[^"]+" className=/)
   assert.match(hozoFirst.css, /padding-top: 16px/)
+  assert.match(hozoFirst.css, /color: red/)
 })

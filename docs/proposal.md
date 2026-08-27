@@ -938,6 +938,24 @@ Skia の React API は `<Canvas><Rect/></Canvas>` なので、命令的なのは
 
 ### StyleX について
 
+**2026-08-27 更新:** 最初の縦切りは実装済み。namespace import された
+same-file・module-scope の `stylex.create` と、
+`stylex.props(styles.base, condition && styles.active)` を直接 Hozo IR に読む。
+静的 string/number の universal property は Web/Native の既存 lowering を通り、
+公式 StyleX 0.19.0 の CSS 出力との差分テストも持つ。未対応式は消さず
+`STYLEX_NOT_LOWERED` として公式コンパイラへ残す。
+
+共存実測の結論は **Hozo → StyleX の順だけが安全**。StyleX を先にすると
+spread が第二の `className` になり、Hozo は JSX の last-wins で本来消える
+Tailwind class まで合成してしまう。Hozo を先にすると元の `create/props` 関係を
+IR に取り込み spread を消せるため、後段 StyleX は未使用 definition を除去する。
+この二つの失敗/成功形は公式 Babel plugin を実行する回帰テストに固定した。
+
+残る境界は、defineVars/theme、nested selector/keyframes、cross-file sheet、
+新しい `sx`/`atoms` API、そして StyleX 独自の atomic priority である。特に
+shorthand と longhand の組合せは普通の CSS 詳細度では再現できないため、現状は
+明示的に拒否する。対応するなら priority を IR に持たせる設計が先になる。
+
 §6.2 の「Tailwind はフロントエンド、Hozo IR は内部表現」がそのまま効く。
 `stylex.create({ button: { padding: 16 } })` を IR に落とせば、Web と
 Native の lowering は一行も変えずに使える。IR をフロントエンド非依存に

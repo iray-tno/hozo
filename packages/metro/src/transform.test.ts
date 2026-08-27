@@ -80,6 +80,28 @@ test('injects a StyleSheet.create declaration and rewrites the JSX span', () => 
   )
 })
 
+test('lowers static StyleX through the same Native StyleSheet path', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: { padding: 16, backgroundColor: '#ff0000' },
+  active: { opacity: 0.5 },
+})
+export function Card({ active }) {
+  return <View {...stylex.props(styles.root, active && styles.active)} />
+}
+`
+  const output = transformHozoSource(source, 'Card.tsx')
+  assert.ok(output)
+  assert.doesNotMatch(output, /stylex\.props/)
+  assert.match(output, /paddingTop: 16/)
+  assert.match(output, /backgroundColor: '#ff0000'/)
+  assert.match(output, /active\) && hozoStyles\.hozo_r0_0_cond_/)
+  // The definition remains for the project's existing StyleX Babel pass to
+  // eliminate. Hozo must run before it; the coexistence test pins why.
+  assert.match(output, /stylex\.create/)
+})
+
 test('imports and directly lowers the canonical Image primitive', () => {
   const source = `import { Image } from '@hozo/core'
 export function Cover() {

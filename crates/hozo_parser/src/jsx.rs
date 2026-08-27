@@ -115,6 +115,8 @@ pub(crate) struct Scope<'r, 'a> {
     /// with nothing in common with the Hozo primitive of the same name
     /// beyond the spelling.
     pub foreign: std::collections::HashSet<String>,
+    /// Static same-file StyleX definitions available to JSX spreads.
+    pub stylex: crate::stylex::Frontend,
 }
 
 /// Finds and lowers Hozo primitives nested inside something the compiler
@@ -579,6 +581,24 @@ fn build_node(
         let attr = match attr_item {
             JSXAttributeItem::Attribute(attr) => attr,
             JSXAttributeItem::SpreadAttribute(spread) => {
+                match scope.stylex.resolve_props(&spread.argument) {
+                    crate::stylex::Resolution::Ready(declarations) => {
+                        // Styling input, not an opaque prop spread. Appending
+                        // here preserves order with className and reuses the
+                        // IR's normal last-wins behavior.
+                        style.extend(declarations);
+                        continue;
+                    }
+                    crate::stylex::Resolution::Gap { message, span } => {
+                        diagnostics.push(Diagnostic {
+                            code: DiagnosticCode::StylexNotLowered,
+                            severity: Severity::Warning,
+                            message,
+                            span,
+                        });
+                    }
+                    crate::stylex::Resolution::NotStylex => {}
+                }
                 if seen_class_name {
                     // JSX resolves duplicate props last-wins, so a spread
                     // *after* className can override Hozo's compiled
