@@ -32,8 +32,8 @@ const COLOR_TRANSITION_PROPERTIES: &str = "color, background-color, border-color
 
 /// Tailwind's `--default-transition-*`, applied by every `transition-*`
 /// utility unless an explicit `duration-*`/`ease-*` overrides them.
-const DEFAULT_TRANSITION_TIMING: &str = "cubic-bezier(0.4, 0, 0.2, 1)";
-const DEFAULT_TRANSITION_DURATION_MS: u32 = 150;
+pub(crate) const DEFAULT_TRANSITION_TIMING: &str = "cubic-bezier(0.4, 0, 0.2, 1)";
+pub(crate) const DEFAULT_TRANSITION_DURATION_MS: u32 = 150;
 
 fn parse_transition_properties(token: &str) -> Option<&'static str> {
     Some(match token {
