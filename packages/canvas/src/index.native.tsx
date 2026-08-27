@@ -1,8 +1,9 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   StyleSheet,
   Text,
   View,
+  type GestureResponderEvent,
   type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
@@ -22,6 +23,7 @@ import {
   canvasAccessibilityMode,
   type CanvasAccessibilityProps,
 } from './accessibility.ts'
+import { hitTestCanvas, type CanvasPoint } from './hit-test.ts'
 import {
   Circle,
   Clip,
@@ -40,7 +42,9 @@ import {
 } from './scene.tsx'
 
 export type {
+  CanvasInteractionProps,
   CanvasPaintProps,
+  CanvasPressEvent,
   CanvasScene,
   CanvasSceneNode,
   CanvasTransform,
@@ -54,6 +58,12 @@ export type {
   RoundedRectProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
+export {
+  hitTestCanvas,
+  type CanvasHitTestResult,
+  type CanvasHitTestViewport,
+  type CanvasPoint,
+} from './hit-test.ts'
 export type { CanvasAccessibleFallback, CanvasAccessibilityProps } from './accessibility.ts'
 
 export type CanvasProps = CanvasAccessibilityProps & {
@@ -229,7 +239,8 @@ function Root({
   accessibleFallback,
   testID,
 }: CanvasProps) {
-  const { scene, collector } = useCanvasScene(children)
+  const pressedTarget = useRef<{ id: string; touchId: number } | undefined>(undefined)
+  const { scene, collector, isInteractive, press } = useCanvasScene(children)
   const [layout, setLayout] = useState({
     width: width ?? viewBox?.[2] ?? 0,
     height: height ?? viewBox?.[3] ?? 0,
@@ -244,6 +255,12 @@ function Root({
     () => viewportTransform(viewBox, layout.width, layout.height, fit),
     [viewBox, layout, fit],
   )
+  const hasValidViewport = !viewBox || (
+    layout.width > 0
+    && layout.height > 0
+    && viewBox[2] > 0
+    && viewBox[3] > 0
+  )
   const nativeClass = { className } as Record<string, unknown>
   const accessibilityMode = canvasAccessibilityMode({ decorative, accessibleFallback })
   const fallbackContent =
@@ -252,6 +269,41 @@ function Root({
     typeof accessibleFallback === 'bigint'
       ? <Text>{String(accessibleFallback)}</Text>
       : accessibleFallback
+  const surfacePoint = (event: GestureResponderEvent): CanvasPoint => ({
+    x: event.nativeEvent.locationX,
+    y: event.nativeEvent.locationY,
+  })
+  const hitAt = (point: CanvasPoint) => hitTestCanvas(
+    scene,
+    point,
+    { width: layout.width, height: layout.height, viewBox, fit },
+    isInteractive,
+  )
+  const onStartShouldSetResponder = (event: GestureResponderEvent) => {
+    pressedTarget.current = undefined
+    if (event.nativeEvent.touches.length !== 1) return false
+    const hit = hitAt(surfacePoint(event))
+    if (hit) {
+      pressedTarget.current = { id: hit.id, touchId: event.nativeEvent.identifier }
+    }
+    return hit !== undefined
+  }
+  const onResponderRelease = (event: GestureResponderEvent) => {
+    const startedTarget = pressedTarget.current
+    pressedTarget.current = undefined
+    if (
+      !startedTarget
+      || event.nativeEvent.touches.length > 0
+      || event.nativeEvent.identifier !== startedTarget.touchId
+    ) return
+    const point = surfacePoint(event)
+    const hit = hitAt(point)
+    if (!hit || hit.id !== startedTarget.id) return
+    press(hit.id, { point: hit.point, surfacePoint: point })
+  }
+  const onResponderTerminate = () => {
+    pressedTarget.current = undefined
+  }
 
   return (
     <View
@@ -262,6 +314,9 @@ function Root({
       accessibilityRole={accessibilityMode === 'label' ? 'image' : undefined}
       accessibilityLabel={accessibilityMode === 'label' ? accessibilityLabel : undefined}
       testID={testID}
+      onStartShouldSetResponder={onStartShouldSetResponder}
+      onResponderRelease={onResponderRelease}
+      onResponderTerminate={onResponderTerminate}
     >
       {collector}
       <View
@@ -269,14 +324,15 @@ function Root({
         accessible={false}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
+        pointerEvents="none"
       >
         <SkiaCanvas style={StyleSheet.absoluteFill}>
-          <Scene scene={scene} transform={transform} />
+          {hasValidViewport ? <Scene scene={scene} transform={transform} /> : null}
         </SkiaCanvas>
       </View>
       {accessibilityMode === 'fallback'
         ? (
-            <View style={styles.accessibleFallback} accessible={false}>
+            <View style={styles.accessibleFallback} accessible={false} pointerEvents="none">
               {accessibilityLabel ? <Text>{accessibilityLabel}</Text> : null}
               {fallbackContent}
             </View>

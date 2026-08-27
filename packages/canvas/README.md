@@ -26,6 +26,43 @@ export function Sparkline() {
 }
 ```
 
+## Interaction
+
+`Rect`, `RoundedRect`, `Circle`, and `Ellipse` support a portable `onPress`.
+The same topmost shape must contain both the pointer/touch start and release;
+dragging away cancels activation. Non-interactive drawing above a target does
+not block it.
+
+```tsx
+<Canvas.Rect
+  x={40}
+  y={10}
+  width={20}
+  height={30}
+  onPress={({ point, surfacePoint }) => {
+    // point uses viewBox/scene coordinates; surfacePoint uses CSS pixels or
+    // React Native layout points and is useful for positioning a tooltip.
+    selectBar(point.x, surfacePoint.x)
+  }}
+/>
+```
+
+Hit testing follows reverse paint order, `viewBox`, `fit`, nested group
+translation/rotation/scale/origin, and rectangle clips. It uses the closed
+shape's geometry rather than inspecting painted pixels. Changing only an event
+handler or `disabled` updates a separate registry and does not redraw the
+scene.
+
+`Line`, `Path`, hover, pointer-move, and path-clip hit testing are deliberately
+outside this first portable contract. `Line` and `Path` do not accept
+`onPress`; placing an interactive closed shape under a path clip throws an
+explicit error rather than silently creating an inert target.
+
+Canvas pixels still cannot provide keyboard or screen-reader interaction. Any
+selection or drill-down exposed through `onPress` must also have equivalent,
+visible controls outside the Canvas. Do not put those controls in the visually
+hidden `accessibleFallback`.
+
 Canvas pixels are not semantic content. Every root must therefore either have
 an `accessibilityLabel`, provide an `accessibleFallback` (for example a data
 table), or opt out explicitly with `decorative`.

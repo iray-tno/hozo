@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 
@@ -11,6 +12,7 @@ import {
   canvasAccessibilityMode,
   type CanvasAccessibilityProps,
 } from './accessibility.ts'
+import { hitTestCanvas, type CanvasPoint } from './hit-test.ts'
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
   Circle,
@@ -26,6 +28,8 @@ import {
 
 export type {
   CanvasPaintProps,
+  CanvasInteractionProps,
+  CanvasPressEvent,
   CanvasScene,
   CanvasSceneNode,
   CanvasTransform,
@@ -40,6 +44,12 @@ export type {
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
 export { renderCanvas2D, type CanvasViewport } from './render-canvas-2d.ts'
+export {
+  hitTestCanvas,
+  type CanvasHitTestResult,
+  type CanvasHitTestViewport,
+  type CanvasPoint,
+} from './hit-test.ts'
 export type { CanvasAccessibleFallback, CanvasAccessibilityProps } from './accessibility.ts'
 
 export type CanvasProps = CanvasAccessibilityProps & {
@@ -75,7 +85,8 @@ function Root({
   testID,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { scene, collector } = useCanvasScene(children)
+  const pressedTargets = useRef(new Map<number, string>())
+  const { scene, collector, isInteractive, press } = useCanvasScene(children)
   const [size, setSize] = useState<Size>(() => ({
     width: width ?? viewBox?.[2] ?? 300,
     height: height ?? viewBox?.[3] ?? 150,
@@ -117,6 +128,39 @@ function Root({
     ...(height === undefined ? null : { height }),
   }
   const accessibilityMode = canvasAccessibilityMode({ decorative, accessibleFallback })
+  const surfacePoint = (event: ReactPointerEvent<HTMLCanvasElement>): CanvasPoint => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    return {
+      x: (event.clientX - bounds.left) * size.width / (bounds.width || size.width || 1),
+      y: (event.clientY - bounds.top) * size.height / (bounds.height || size.height || 1),
+    }
+  }
+  const hitAt = (point: CanvasPoint) => hitTestCanvas(
+    scene,
+    point,
+    { width: size.width, height: size.height, viewBox, fit },
+    isInteractive,
+  )
+  const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    pressedTargets.current.delete(event.pointerId)
+    if (!event.isPrimary || event.button !== 0) return
+    const hit = hitAt(surfacePoint(event))
+    if (!hit) return
+    pressedTargets.current.set(event.pointerId, hit.id)
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+  const onPointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const startedTarget = pressedTargets.current.get(event.pointerId)
+    pressedTargets.current.delete(event.pointerId)
+    if (!startedTarget) return
+    const point = surfacePoint(event)
+    const hit = hitAt(point)
+    if (!hit || hit.id !== startedTarget) return
+    press(hit.id, { point: hit.point, surfacePoint: point })
+  }
+  const onPointerCancel = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    pressedTargets.current.delete(event.pointerId)
+  }
 
   return (
     <>
@@ -130,6 +174,10 @@ function Root({
         aria-label={accessibilityMode === 'label' ? accessibilityLabel : undefined}
         role={accessibilityMode === 'label' ? 'img' : undefined}
         data-testid={testID}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onLostPointerCapture={onPointerCancel}
       >
         {collector}
       </canvas>
