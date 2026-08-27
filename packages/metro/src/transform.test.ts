@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createCompiler } from '@hozo/compiler'
+import { createCompiler, type Compiler } from '@hozo/compiler'
 import { transformHozoSource } from './transform.ts'
 
 const LOGIN_SOURCE = `import { View, Text, Button } from '@hozo/core'
@@ -64,6 +64,68 @@ test('maps the cross-platform PanResponder value to React Native', () => {
   assert.ok(!output.includes('StyleSheet'), output)
   assert.match(output, /<View \{\.\.\.pan\.panHandlers\}/)
   assert.doesNotMatch(output, /@hozo\/core/)
+})
+
+test('moves an aliased PanResponder import without losing its local binding', () => {
+  const output = transformHozoSource(
+    `
+      import { View, PanResponder as GestureResponder } from '@hozo/core'
+      const pan = GestureResponder.create({ onMoveShouldSetPanResponder: () => true })
+      export function Drag() { return <View {...pan.panHandlers} /> }
+    `,
+    'Drag.tsx',
+  )
+  assert.ok(output)
+  assert.match(output, /import \{[^}]*PanResponder as GestureResponder[^}]*\} from 'react-native'/)
+  assert.match(output, /GestureResponder\.create/)
+  assert.doesNotMatch(output, /@hozo\/core/)
+})
+
+test('does not infer a native value import from unrelated source text', () => {
+  const output = transformHozoSource(
+    `
+      import { View } from '@hozo/core'
+      // PanResponder is deliberately only prose here.
+      export function Card() { return <View /> }
+    `,
+    'Card.tsx',
+  )
+  assert.ok(output)
+  assert.doesNotMatch(output, /import \{[^}]*PanResponder[^}]*\} from 'react-native'/)
+})
+
+test('asks the compiler for one module analysis on an ordinary Native file', () => {
+  const base = createCompiler()
+  let moduleCalls = 0
+  let legacyCalls = 0
+  let canvasCalls = 0
+  const measured: Compiler = {
+    ...base,
+    compileNative(source) {
+      legacyCalls += 1
+      return base.compileNative(source)
+    },
+    compileNativeModule(source) {
+      moduleCalls += 1
+      return base.compileNativeModule(source)
+    },
+    compileCanvasPaints(source, native) {
+      canvasCalls += 1
+      return base.compileCanvasPaints(source, native)
+    },
+  }
+
+  const output = transformHozoSource(
+    "import { View } from 'react-native'\nexport const Card = () => <View className=\"p-4\" />\n",
+    'Card.tsx',
+    undefined,
+    measured,
+  )
+
+  assert.ok(output)
+  assert.equal(moduleCalls, 1)
+  assert.equal(legacyCalls, 0)
+  assert.equal(canvasCalls, 0, 'a file without @hozo/canvas needs no Canvas parse')
 })
 
 test('injects a StyleSheet.create declaration and rewrites the JSX span', () => {

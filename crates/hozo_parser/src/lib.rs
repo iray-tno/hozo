@@ -22,6 +22,17 @@ use oxc_allocator::Allocator;
 use oxc_ast_visit::Visit;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
+use oxc_syntax::module_record::{ImportImportName, ModuleRecord};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ImportBinding {
+    /// Module specifier as written, for example `react-native`.
+    pub source: String,
+    /// Exported name, or `default` / `*` for those import forms.
+    pub imported: String,
+    /// Binding visible to expressions and JSX in this module.
+    pub local: String,
+}
 
 pub struct ParseOutput {
     pub roots: Vec<Root>,
@@ -32,6 +43,38 @@ pub struct ParseOutput {
     /// rules. The candidate scan subtracts these, so a class that already
     /// compiled away doesn't also ship under its Tailwind name.
     pub consumed_class_spans: Vec<hozo_ir::SourceSpan>,
+    /// Runtime imports collected from the same module record as `roots`.
+    /// Backends use these instead of parsing the source again to rediscover
+    /// bindings the parser has already resolved.
+    pub imports: Vec<ImportBinding>,
+    /// Primitive-named bindings deliberately carried rather than lowered.
+    /// Kept because a backend may need to distinguish a carried foreign tag
+    /// from one of Hozo's own primitives that unexpectedly survived.
+    pub foreign_primitives: std::collections::HashSet<String>,
+}
+
+fn import_bindings(module_record: &ModuleRecord<'_>) -> Vec<ImportBinding> {
+    module_record
+        .import_entries
+        .iter()
+        .filter(|entry| !entry.is_type)
+        .map(|entry| ImportBinding {
+            source: entry.module_request.name.to_string(),
+            imported: match &entry.import_name {
+                ImportImportName::Name(name) => name.name.to_string(),
+                ImportImportName::NamespaceObject => "*".to_string(),
+                ImportImportName::Default(_) => "default".to_string(),
+            },
+            local: entry.local_name.name.to_string(),
+        })
+        .collect()
+}
+
+fn parse_import_bindings(source_text: &str) -> Vec<ImportBinding> {
+    let allocator = Allocator::default();
+    let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
+    let ret = Parser::new(&allocator, source_text, source_type).parse();
+    import_bindings(&ret.module_record)
 }
 
 /// Every binding a source file imports from one module, by local name.
@@ -40,15 +83,10 @@ pub struct ParseOutput {
 /// re-declaring a binding the file already imported from `react-native`,
 /// which is a SyntaxError rather than a duplicate.
 pub fn module_imports(source_text: &str, module: &str) -> Vec<String> {
-    let allocator = Allocator::default();
-    let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
-    let ret = Parser::new(&allocator, source_text, source_type).parse();
-
-    ret.module_record
-        .import_entries
-        .iter()
-        .filter(|entry| !entry.is_type && entry.module_request.name.as_str() == module)
-        .map(|entry| entry.local_name.name.to_string())
+    parse_import_bindings(source_text)
+        .into_iter()
+        .filter(|entry| entry.source == module)
+        .map(|entry| entry.local)
         .collect()
 }
 
@@ -73,22 +111,23 @@ pub fn foreign_primitives(
     source_text: &str,
     sources: &[String],
 ) -> std::collections::HashSet<String> {
-    let allocator = Allocator::default();
-    let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
-    let ret = Parser::new(&allocator, source_text, source_type).parse();
+    foreign_primitives_from_imports(&parse_import_bindings(source_text), sources)
+}
 
-    ret.module_record
-        .import_entries
+fn foreign_primitives_from_imports(
+    imports: &[ImportBinding],
+    sources: &[String],
+) -> std::collections::HashSet<String> {
+    imports
         .iter()
-        .filter(|entry| !entry.is_type)
-        .filter(|entry| jsx::is_primitive_name(entry.local_name.name.as_str()))
+        .filter(|entry| jsx::is_primitive_name(&entry.local))
         .filter(|entry| {
-            let module = entry.module_request.name.as_str();
-            let local = entry.local_name.name.as_str();
+            let module = entry.source.as_str();
+            let local = entry.local.as_str();
             !sources.iter().any(|s| s == module)
                 || INCOMPATIBLE_PRIMITIVES.contains(&(module, local))
         })
-        .map(|entry| entry.local_name.name.to_string())
+        .map(|entry| entry.local.clone())
         .collect()
 }
 
@@ -118,13 +157,14 @@ pub fn parse_tsx_with(source_text: &str, sources: Option<&[String]>) -> ParseOut
     let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
     let ret = Parser::new(&allocator, source_text, source_type).parse();
 
+    let imports = import_bindings(&ret.module_record);
     let foreign = match sources {
         None => std::collections::HashSet::new(),
-        Some(sources) => foreign_primitives(source_text, sources),
+        Some(sources) => foreign_primitives_from_imports(&imports, sources),
     };
     let stylex = stylex::Frontend::collect(&ret.program, &ret.module_record);
     let stylex_scan_spans = stylex.scan_spans.clone();
-    let scope = jsx::Scope { module_record: &ret.module_record, foreign, stylex };
+    let scope = jsx::Scope { module_record: &ret.module_record, foreign: &foreign, stylex };
 
     let mut collector = JsxCollector::new(&scope);
     collector.visit_program(&ret.program);
@@ -138,6 +178,8 @@ pub fn parse_tsx_with(source_text: &str, sources: Option<&[String]>) -> ParseOut
         roots: collector.roots,
         diagnostics: collector.diagnostics,
         consumed_class_spans: collector.consumed,
+        imports,
+        foreign_primitives: foreign,
     }
 }
 
@@ -392,6 +434,33 @@ mod import_tests {
     fn ordinary_imports_are_not_primitives() {
         assert!(foreign_primitives("import { useState } from 'react'
 ", &trusted()).is_empty());
+    }
+
+    #[test]
+    fn the_component_parse_keeps_runtime_import_metadata() {
+        let source = "import DefaultThing, { View as Box, type Text } from 'react-native'\n\
+                      import * as UI from '@expo/ui'\n\
+                      import { Pressable as View } from 'some-ui-kit'\n\
+                      export const Card = () => <View />\n";
+        let output = parse_tsx_with(source, Some(&trusted()));
+
+        assert!(output.imports.contains(&ImportBinding {
+            source: "react-native".to_string(),
+            imported: "default".to_string(),
+            local: "DefaultThing".to_string(),
+        }));
+        assert!(output.imports.contains(&ImportBinding {
+            source: "react-native".to_string(),
+            imported: "View".to_string(),
+            local: "Box".to_string(),
+        }));
+        assert!(output.imports.contains(&ImportBinding {
+            source: "@expo/ui".to_string(),
+            imported: "*".to_string(),
+            local: "UI".to_string(),
+        }));
+        assert!(!output.imports.iter().any(|entry| entry.local == "Text"));
+        assert!(output.foreign_primitives.contains("View"));
     }
 }
 

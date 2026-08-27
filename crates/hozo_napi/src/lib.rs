@@ -303,6 +303,13 @@ impl Compiler {
         lower_native(&source, &self.theme, self.sources.as_deref())
     }
 
+    /// Native output plus module metadata collected by the same TSX parse.
+    /// Metro needs both to rewrite imports without reparsing the file.
+    #[napi]
+    pub fn compile_native_module(&self, source: String) -> CompiledNativeModule {
+        lower_native_module(&source, &self.theme, self.sources.as_deref())
+    }
+
     #[napi]
     pub fn compile_canvas_paints(&self, source: String, native: bool) -> Vec<CompiledCanvasPaint> {
         lower_canvas_paints(&source, &self.theme, native)
@@ -427,6 +434,23 @@ pub struct CompiledNativeComponent {
     pub span_end: u32,
 }
 
+#[napi(object)]
+pub struct SourceImport {
+    pub source: String,
+    pub imported: String,
+    pub local: String,
+}
+
+/// Per-module Native output. The import and foreign-binding metadata comes
+/// from the exact parser pass that produced `components`; bundler adapters
+/// must not parse the source again to recover it from text.
+#[napi(object)]
+pub struct CompiledNativeModule {
+    pub components: Vec<CompiledNativeComponent>,
+    pub imports: Vec<SourceImport>,
+    pub foreign_primitives: Vec<String>,
+}
+
 /// Same shape as `compile`, but lowers to React Native (Pressable/View/Text
 /// + a StyleSheet object) instead of DOM/CSS. See `hozo_native`'s module
 /// docs for the current Phase 0 scope/limitations (non-Always conditions
@@ -442,6 +466,36 @@ fn lower_native(
     sources: Option<&[String]>,
 ) -> Vec<CompiledNativeComponent> {
     let parsed = hozo_parser::parse_tsx_with(source, sources);
+    lower_native_components(source, theme, &parsed)
+}
+
+fn lower_native_module(
+    source: &str,
+    theme: &hozo_ir::Theme,
+    sources: Option<&[String]>,
+) -> CompiledNativeModule {
+    let parsed = hozo_parser::parse_tsx_with(source, sources);
+    let components = lower_native_components(source, theme, &parsed);
+    let imports = parsed
+        .imports
+        .iter()
+        .map(|entry| SourceImport {
+            source: entry.source.clone(),
+            imported: entry.imported.clone(),
+            local: entry.local.clone(),
+        })
+        .collect();
+    let mut foreign_primitives: Vec<String> = parsed.foreign_primitives.iter().cloned().collect();
+    foreign_primitives.sort();
+
+    CompiledNativeModule { components, imports, foreign_primitives }
+}
+
+fn lower_native_components(
+    source: &str,
+    theme: &hozo_ir::Theme,
+    parsed: &hozo_parser::ParseOutput,
+) -> Vec<CompiledNativeComponent> {
     parsed
         .roots
         .iter()
