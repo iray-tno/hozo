@@ -4,9 +4,11 @@ import { test } from 'node:test'
 import { transformSync } from '@babel/core'
 import stylexPlugin from '@stylexjs/babel-plugin'
 
+import { createCompiler } from './index.ts'
 import { lowerModule } from './lower.ts'
 
 const filename = '/app/Card.tsx'
+const compiler = createCompiler()
 const source = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
 
@@ -38,7 +40,7 @@ test('StyleX before Hozo cannot preserve JSX last-wins styling semantics', () =>
   const stylexFirst = officialStylex(source)
   assert.match(stylexFirst, /className="p-4" className="[^" ]+"/)
 
-  const hozoSecond = lowerModule(stylexFirst, filename, filename, undefined)
+  const hozoSecond = lowerModule(stylexFirst, filename, filename, compiler)
   assert.ok(hozoSecond)
 
   // The source JSX says the second className replaces the first. Once both
@@ -51,7 +53,7 @@ test('StyleX before Hozo cannot preserve JSX last-wins styling semantics', () =>
 })
 
 test('Hozo before StyleX consumes the spread and is the safe ordering', () => {
-  const hozoFirst = lowerModule(source, filename, filename, undefined)
+  const hozoFirst = lowerModule(source, filename, filename, compiler)
   assert.ok(hozoFirst)
   const stylexSecond = officialStylex(hozoFirst.code)
 
