@@ -204,6 +204,7 @@ test('the expanded RN-portable StyleX property slice agrees with the official CS
     ['alignContent', `'center'`],
     ['aspectRatio', `'1 / 1'`],
     ['backfaceVisibility', `'hidden'`],
+    ['backgroundImage', `'linear-gradient(90deg, #123456, #abcdef)'`],
     ['boxShadow', `'inset 0 1px 2px #123456, 0 2px 4px #00000080'`],
     ['borderStartStartRadius', '6'],
     ['borderStartEndRadius', '6'],
@@ -222,6 +223,7 @@ test('the expanded RN-portable StyleX property slice agrees with the official CS
     ['borderStyle', `'solid'`],
     ['boxSizing', `'border-box'`],
     ['flex', `'auto'`],
+    ['filter', `'sepia(60%) hue-rotate(20deg)'`],
     ['fontStyle', `'italic'`],
     ['isolation', `'isolate'`],
     ['mixBlendMode', `'multiply'`],
@@ -304,6 +306,12 @@ export const Card = () => <View {...stylex.props(styles.root)} />
         /boxShadow: 'inset 0 1px 2px #123456,0 2px 4px #00000080'/,
         property,
       )
+    }
+    if (property === 'backgroundImage') {
+      assert.match(native.styles, /backgroundImage: 'linear-gradient\(90deg,#123456,#abcdef\)'/, property)
+    }
+    if (property === 'filter') {
+      assert.match(native.styles, /filter: 'sepia\(60%\) hue-rotate\(20deg\)'/, property)
     }
   }
 })
