@@ -37,6 +37,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm build
       - run: pnpm --filter @hozo/landing build
       - run: pnpm --filter @hozo/example-storybook build
 
