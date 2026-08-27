@@ -508,6 +508,20 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
+        // The shared IR deliberately keeps the complete shadow list as CSS
+        // text. That preserves authored layer order and also maps directly
+        // to React Native's string-valued `boxShadow` support.
+        "boxShadow" => {
+            let StaticValue::String(value) = value else {
+                return None;
+            };
+            let value = value
+                .split(',')
+                .map(str::trim)
+                .collect::<Vec<_>>()
+                .join(",");
+            vec![StyleProperty::BoxShadow(value)]
+        }
         // Tailwind's border-width utilities intentionally add a solid
         // style so they paint without a reset. StyleX declares exactly the
         // requested property, so it must bypass that Tailwind-specific

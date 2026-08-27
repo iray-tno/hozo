@@ -204,6 +204,7 @@ test('the expanded RN-portable StyleX property slice agrees with the official CS
     ['alignContent', `'center'`],
     ['aspectRatio', `'1 / 1'`],
     ['backfaceVisibility', `'hidden'`],
+    ['boxShadow', `'inset 0 1px 2px #123456, 0 2px 4px #00000080'`],
     ['borderStartStartRadius', '6'],
     ['borderStartEndRadius', '6'],
     ['borderEndStartRadius', '6'],
@@ -297,5 +298,12 @@ export const Card = () => <View {...stylex.props(styles.root)} />
     assert.equal(native.diagnostics.length, 0, `${property}: ${JSON.stringify(native.diagnostics)}`)
     assert.doesNotMatch(native.jsx, /stylex\.props/, property)
     assert.notEqual(native.styles.trim(), '', property)
+    if (property === 'boxShadow') {
+      assert.match(
+        native.styles,
+        /boxShadow: 'inset 0 1px 2px #123456,0 2px 4px #00000080'/,
+        property,
+      )
+    }
   }
 })
