@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -9,6 +10,21 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+
+import type { CanvasPoint } from './hit-test.ts'
+
+export interface CanvasPressEvent {
+  /** Position in the root Canvas scene coordinate system. */
+  point: CanvasPoint
+  /** Position in logical CSS pixels or React Native points. */
+  surfacePoint: CanvasPoint
+}
+
+export interface CanvasInteractionProps {
+  /** Portable discrete activation for closed Canvas geometry. */
+  onPress?: (event: CanvasPressEvent) => void
+  disabled?: boolean
+}
 
 export interface CanvasPaintProps {
   /** Compiler input. Runtime drawing uses the explicit paint props below. */
@@ -38,7 +54,7 @@ export interface GroupProps {
   transform?: CanvasTransform
 }
 
-export interface RectProps extends CanvasPaintProps {
+export interface RectProps extends CanvasPaintProps, CanvasInteractionProps {
   x?: number
   y?: number
   width: number
@@ -49,13 +65,13 @@ export interface RoundedRectProps extends RectProps {
   radius: number
 }
 
-export interface CircleProps extends CanvasPaintProps {
+export interface CircleProps extends CanvasPaintProps, CanvasInteractionProps {
   cx: number
   cy: number
   radius: number
 }
 
-export interface EllipseProps extends CanvasPaintProps {
+export interface EllipseProps extends CanvasPaintProps, CanvasInteractionProps {
   cx: number
   cy: number
   radiusX: number
@@ -79,17 +95,19 @@ export type ClipProps = (
   | { path?: never; x?: number; y?: number; width: number; height: number }
 ) & { children?: ReactNode }
 
+type SceneProps<Props> = Omit<Props, keyof CanvasInteractionProps>
+
 export type CanvasLeafNode =
-  | { kind: 'rect'; props: RectProps }
-  | { kind: 'rounded-rect'; props: RoundedRectProps }
-  | { kind: 'circle'; props: CircleProps }
-  | { kind: 'ellipse'; props: EllipseProps }
-  | { kind: 'line'; props: LineProps }
-  | { kind: 'path'; props: PathProps }
+  | { id?: string; kind: 'rect'; props: SceneProps<RectProps> }
+  | { id?: string; kind: 'rounded-rect'; props: SceneProps<RoundedRectProps> }
+  | { id?: string; kind: 'circle'; props: SceneProps<CircleProps> }
+  | { id?: string; kind: 'ellipse'; props: SceneProps<EllipseProps> }
+  | { id?: string; kind: 'line'; props: LineProps }
+  | { id?: string; kind: 'path'; props: PathProps }
 
 export type CanvasSceneNode = CanvasLeafNode
-  | { kind: 'group'; props: Omit<GroupProps, 'children'>; children: readonly CanvasSceneNode[] }
-  | { kind: 'clip'; props: Omit<ClipProps, 'children'>; children: readonly CanvasSceneNode[] }
+  | { id?: string; kind: 'group'; props: Omit<GroupProps, 'children'>; children: readonly CanvasSceneNode[] }
+  | { id?: string; kind: 'clip'; props: Omit<ClipProps, 'children'>; children: readonly CanvasSceneNode[] }
 
 export type CanvasScene = readonly CanvasSceneNode[]
 
@@ -103,6 +121,26 @@ interface StoredNode {
   parentId?: string
   order: number
   node: FlatNode
+}
+
+class CanvasInteractionStore {
+  readonly #handlers = new Map<string, (event: CanvasPressEvent) => void>()
+
+  set(id: string, handler: (event: CanvasPressEvent) => void) {
+    this.#handlers.set(id, handler)
+  }
+
+  remove(id: string) {
+    this.#handlers.delete(id)
+  }
+
+  has(id: string) {
+    return this.#handlers.has(id)
+  }
+
+  press(id: string, event: CanvasPressEvent) {
+    this.#handlers.get(id)?.(event)
+  }
 }
 
 function sceneValueEqual(left: unknown, right: unknown): boolean {
@@ -182,10 +220,11 @@ export class CanvasSceneStore {
           const nextAncestors = new Set(ancestors).add(stored.id)
           result.push({
             ...stored.node,
+            id: stored.id,
             children: build(stored.id, nextAncestors),
           } as CanvasSceneNode)
         } else {
-          result.push(stored.node)
+          result.push({ ...stored.node, id: stored.id })
         }
       }
       return result
@@ -202,7 +241,9 @@ export class CanvasSceneStore {
 
 interface SceneContextValue {
   store: CanvasSceneStore
+  interactions: CanvasInteractionStore
   parentId?: string
+  interactionBlockReason?: 'path-clip'
 }
 
 const SceneContext = createContext<SceneContextValue | undefined>(undefined)
@@ -219,7 +260,12 @@ function useSceneNode(node: FlatNode) {
   useIsoLayoutEffect(() => {
     context.store.upsert(id, context.parentId, node)
   }, [context.store, context.parentId, id, node])
-  return { store: context.store, id }
+  return {
+    store: context.store,
+    interactions: context.interactions,
+    interactionBlockReason: context.interactionBlockReason,
+    id,
+  }
 }
 
 function leaf<P>(kind: CanvasLeafNode['kind']) {
@@ -232,23 +278,73 @@ function leaf<P>(kind: CanvasLeafNode['kind']) {
   return Component
 }
 
-export const Rect = leaf<RectProps>('rect')
-export const RoundedRect = leaf<RoundedRectProps>('rounded-rect')
-export const Circle = leaf<CircleProps>('circle')
-export const Ellipse = leaf<EllipseProps>('ellipse')
+function interactiveLeaf<P extends CanvasInteractionProps>(
+  kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse',
+) {
+  const Component = ({ onPress, disabled, ...props }: P) => {
+    const node = useMemo(() => ({ kind, props }) as unknown as FlatNode, [props])
+    const context = useSceneNode(node)
+    useIsoLayoutEffect(() => {
+      if (!onPress || disabled) {
+        context.interactions.remove(context.id)
+        return
+      }
+      context.interactions.set(context.id, onPress)
+      return () => context.interactions.remove(context.id)
+    }, [context.interactions, context.id, onPress, disabled])
+    if (onPress && !disabled && context.interactionBlockReason === 'path-clip') {
+      throw new Error(
+        'Canvas interactions inside path clips are unsupported. '
+        + 'Use a rectangle clip or move the interactive shape outside the path clip.',
+      )
+    }
+    return null
+  }
+  Component.displayName = `Canvas.${kind}`
+  return Component
+}
+
+export const Rect = interactiveLeaf<RectProps>('rect')
+export const RoundedRect = interactiveLeaf<RoundedRectProps>('rounded-rect')
+export const Circle = interactiveLeaf<CircleProps>('circle')
+export const Ellipse = interactiveLeaf<EllipseProps>('ellipse')
 export const Line = leaf<LineProps>('line')
 export const Path = leaf<PathProps>('path')
 
 export function Group({ children, ...props }: GroupProps) {
   const node = useMemo(() => ({ kind: 'group' as const, props }), [props])
   const context = useSceneNode(node)
-  return <SceneContext.Provider value={{ store: context.store, parentId: context.id }}>{children}</SceneContext.Provider>
+  return (
+    <SceneContext.Provider
+      value={{
+        store: context.store,
+        interactions: context.interactions,
+        parentId: context.id,
+        interactionBlockReason: context.interactionBlockReason,
+      }}
+    >
+      {children}
+    </SceneContext.Provider>
+  )
 }
 
 export function Clip({ children, ...props }: ClipProps) {
   const node = useMemo(() => ({ kind: 'clip' as const, props }), [props])
   const context = useSceneNode(node)
-  return <SceneContext.Provider value={{ store: context.store, parentId: context.id }}>{children}</SceneContext.Provider>
+  return (
+    <SceneContext.Provider
+      value={{
+        store: context.store,
+        interactions: context.interactions,
+        parentId: context.id,
+        interactionBlockReason: props.path !== undefined
+          ? 'path-clip'
+          : context.interactionBlockReason,
+      }}
+    >
+      {children}
+    </SceneContext.Provider>
+  )
 }
 
 /** Shared by the Web and Native roots; `collector` executes arbitrary React composition. */
@@ -256,6 +352,9 @@ export function useCanvasScene(children: ReactNode) {
   const storeRef = useRef<CanvasSceneStore | null>(null)
   if (!storeRef.current) storeRef.current = new CanvasSceneStore()
   const store = storeRef.current
+  const interactionStoreRef = useRef<CanvasInteractionStore | null>(null)
+  if (!interactionStoreRef.current) interactionStoreRef.current = new CanvasInteractionStore()
+  const interactions = interactionStoreRef.current
   const [revision, setRevision] = useState(store.version)
 
   useIsoLayoutEffect(() => {
@@ -263,10 +362,16 @@ export function useCanvasScene(children: ReactNode) {
     return store.subscribe(() => setRevision(store.version))
   }, [store])
 
-  const rootContext = useMemo(() => ({ store }), [store])
+  const rootContext = useMemo(() => ({ store, interactions }), [store, interactions])
   const collector = useMemo(
     () => <SceneContext.Provider value={rootContext}>{children}</SceneContext.Provider>,
     [rootContext, children],
+  )
+
+  const isInteractive = useCallback((id: string) => interactions.has(id), [interactions])
+  const press = useCallback(
+    (id: string, event: CanvasPressEvent) => interactions.press(id, event),
+    [interactions],
   )
 
   return {
@@ -275,5 +380,7 @@ export function useCanvasScene(children: ReactNode) {
     // every marker just because the root observed it. Stable provider value
     // and element identity keep large scenes from doing that second pass.
     collector,
+    isInteractive,
+    press,
   }
 }

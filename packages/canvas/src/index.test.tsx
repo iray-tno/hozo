@@ -12,7 +12,10 @@ const checkAccessibilityTypes = () => {
   const decorativeFallback = <Canvas decorative accessibleFallback="data" />
   // @ts-expect-error A null React node is not an accessible equivalent.
   const emptyFallback = <Canvas accessibleFallback={null} />
-  return [missingMode, decorativeFallback, emptyFallback]
+  const interactiveRect = <Canvas.Rect width={10} height={10} onPress={(event) => event.point.x} />
+  // @ts-expect-error Line hit testing is not part of the portable interaction contract.
+  const interactiveLine = <Canvas.Line x1={0} y1={0} x2={10} y2={10} onPress={() => undefined} />
+  return [missingMode, decorativeFallback, emptyFallback, interactiveRect, interactiveLine]
 }
 void checkAccessibilityTypes
 
@@ -30,13 +33,14 @@ test('the retained store builds a nested scene without coupling it to semantic n
 
   assert.deepEqual(store.snapshot(), [
     {
+      id: 'group',
       kind: 'group',
       props: { opacity: 0.5 },
       children: [
-        { kind: 'rect', props: { x: 2, y: 3, width: 10, height: 12, fill: '#2563eb' } },
+        { id: 'rect', kind: 'rect', props: { x: 2, y: 3, width: 10, height: 12, fill: '#2563eb' } },
       ],
     },
-    { kind: 'circle', props: { cx: 8, cy: 8, radius: 4, fill: '#ef4444' } },
+    { id: 'circle', kind: 'circle', props: { cx: 8, cy: 8, radius: 4, fill: '#ef4444' } },
   ])
 })
 
@@ -129,4 +133,17 @@ test('decorative canvases are explicitly hidden from accessibility APIs', () => 
   )
   assert.match(html, /aria-hidden="true"/)
   assert.doesNotMatch(html, /role="img"/)
+})
+
+test('interactions inside path clips fail explicitly instead of becoming inert', () => {
+  assert.throws(
+    () => renderToStaticMarkup(
+      <Canvas accessibilityLabel="Clipped chart">
+        <Canvas.Clip path="M0 0H10V10Z">
+          <Canvas.Rect width={10} height={10} onPress={() => undefined} />
+        </Canvas.Clip>
+      </Canvas>,
+    ),
+    /interactions inside path clips are unsupported/,
+  )
 })
