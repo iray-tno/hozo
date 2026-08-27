@@ -316,6 +316,23 @@ fn token_for(property: &str, value: &StaticValue) -> Option<String> {
     }
 }
 
+/// CSS shorthands and longhands StyleX assigns different atomic priorities.
+/// Typed Hozo properties make most physical overlaps visible through
+/// `same_property_as`; logical/physical pairs and `gap` need the family too.
+fn priority_family(property: &str) -> Option<&'static str> {
+    if property.starts_with("padding") {
+        Some("padding")
+    } else if property.starts_with("margin") {
+        Some("margin")
+    } else if matches!(property, "gap" | "rowGap" | "columnGap") {
+        Some("gap")
+    } else if property == "borderRadius" || property.ends_with("Radius") {
+        Some("border-radius")
+    } else {
+        None
+    }
+}
+
 fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
     let Expression::ObjectExpression(object) = expression else {
         return Err(Gap {
@@ -545,10 +562,13 @@ impl Frontend {
             // that priority explicitly.
             if out.iter().any(|existing| {
                 existing.css_name != entry.css_name
-                    && entry
+                    && (entry
                         .properties
                         .iter()
                         .any(|property| property.same_property_as(&existing.declaration.property))
+                        || priority_family(&entry.css_name).is_some_and(|family| {
+                            priority_family(&existing.css_name) == Some(family)
+                        }))
             }) {
                 return Err(Gap {
                     message: format!(
@@ -770,6 +790,18 @@ mod tests {
             hozo_ir::DiagnosticCode::StylexNotLowered
         );
         assert!(parsed.diagnostics[0].message.contains("atomic priority"));
+    }
+
+    #[test]
+    fn logical_and_axis_longhands_are_part_of_the_same_priority_families() {
+        for (shorthand, longhand) in [
+            ("padding", "paddingInlineStart"),
+            ("margin", "marginInlineEnd"),
+            ("gap", "rowGap"),
+            ("borderRadius", "borderTopLeftRadius"),
+        ] {
+            assert_eq!(priority_family(shorthand), priority_family(longhand));
+        }
     }
 
     #[test]
