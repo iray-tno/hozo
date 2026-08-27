@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'apps/landing/**'
+      - 'examples/storybook-demo/**'
       - '.github/workflows/deploy-pages.yml'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
@@ -26,6 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -33,7 +36,14 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm --filter @hozo/landing build
+      - run: pnpm --filter @hozo/example-storybook build
+
+      - name: Integrate Storybook into Landing Dist
+        run: |
+          mkdir -p apps/landing/dist/storybook
+          cp -r examples/storybook-demo/storybook-static/* apps/landing/dist/storybook/
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
