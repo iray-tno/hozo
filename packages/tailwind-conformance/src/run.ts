@@ -23,6 +23,7 @@ import {
 } from './native-grid-contextual.ts'
 import { typeCheckStyles } from './typecheck.ts'
 import { classesDefinedIn, renderWeb } from './render.ts'
+import { measureRuntimeCost } from './runtime-cost.ts'
 import { compile as hozoCompile, compileNative } from '@hozo/compiler'
 import { buildOracle } from './oracle.ts'
 import { loadThemeVars, tailwindVersion } from './theme.ts'
@@ -528,6 +529,36 @@ record('render', { rendered: rendering.length, dangling: dangling.length })
 if (dangling.length > 0) {
   console.log(`  ${dangling.join(' ')}`)
 }
+
+// == Runtime cost =========================================================
+//
+// The first measurement in this package that is about the runtime rather
+// than the compiler. Everything above asks what Hozo emits; this asks what
+// keeping it on screen costs, which nothing did -- the only runtime number
+// this project had was a bundle size.
+//
+// Counts rather than milliseconds, because the claims the runtime makes
+// are counts: a component using only `md:` must not re-render when the
+// window moves inside a breakpoint. That is why the viewport and the
+// breakpoint are two stores, it is written down in `hooks.native.ts`, and
+// nothing checked it until now. See `runtime-cost.ts`.
+const runtime = measureRuntimeCost()
+console.log(
+  `\n\n== Runtime cost (${runtime.components} components on screen) ==\n` +
+    'Re-renders, counted per component. Fewer is better everywhere except\n' +
+    'the mount, which is one apiece by definition.\n\n' +
+    `Mount:                     ${runtime.mount}\n` +
+    `Colour scheme changed:     ${runtime.colorSchemeChange}   (the ones using dark:)\n` +
+    `Resized inside a breakpoint: ${runtime.resizeWithinBreakpoint}   (has to be zero)\n` +
+    `Crossed a breakpoint:      ${runtime.breakpointCross}   (the ones using md:)`,
+)
+record('runtime', {
+  components: runtime.components,
+  mount: runtime.mount,
+  colorSchemeChange: runtime.colorSchemeChange,
+  resizeWithinBreakpoint: runtime.resizeWithinBreakpoint,
+  breakpointCross: runtime.breakpointCross,
+})
 
 // == Arbitrary syntax =====================================================
 //

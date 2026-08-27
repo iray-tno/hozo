@@ -33,14 +33,44 @@ export const StyleSheet = {
   flatten: (style) => Object.assign({}, ...(Array.isArray(style) ? style.filter(Boolean) : [style || {}])),
 }
 
+// Drivable, unlike the rest of this file.
+//
+// These two used to drop their listeners on the floor and hand back a
+// `remove` that removed nothing, which is fine for asserting what a tree
+// looks like once. It is not enough to ask the question the runtime's own
+// design makes -- that a component using only `md:` does not re-render
+// when the window moves inside a breakpoint -- because answering it needs
+// the event to actually arrive. See `runtime-cost.ts`.
+//
+// The `__hozo` prefix says these are the harness's, not React Native's. A
+// stub that grows methods the real module lacks is a stub that stops
+// being a stand-in.
+let window = { width: 390, height: 844, scale: 3, fontScale: 1 }
+const dimensionListeners = new Set()
 export const Dimensions = {
-  get: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }),
-  addEventListener: () => ({ remove: () => {} }),
+  get: () => window,
+  addEventListener: (_event, listener) => {
+    dimensionListeners.add(listener)
+    return { remove: () => dimensionListeners.delete(listener) }
+  },
+  __hozoSetWindow: (next) => {
+    window = { ...window, ...next }
+    for (const listener of dimensionListeners) listener({ window, screen: window })
+  },
 }
 
+let colorScheme = 'light'
+const appearanceListeners = new Set()
 export const Appearance = {
-  getColorScheme: () => 'light',
-  addChangeListener: () => ({ remove: () => {} }),
+  getColorScheme: () => colorScheme,
+  addChangeListener: (listener) => {
+    appearanceListeners.add(listener)
+    return { remove: () => appearanceListeners.delete(listener) }
+  },
+  __hozoSetColorScheme: (next) => {
+    colorScheme = next
+    for (const listener of appearanceListeners) listener({ colorScheme })
+  },
 }
 
 // Everything off, which is what a device reports until a user turns one
