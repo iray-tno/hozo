@@ -181,11 +181,14 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     }
     css.push_str(&rules);
 
-    let runtime_imports = if uses_key_activation {
+    let mut runtime_imports = if uses_key_activation {
         KEY_ACTIVATION_IMPORTS.to_vec()
     } else {
         Vec::new()
     };
+    if contains_primitive(root, Primitive::Dialog) {
+        runtime_imports.push("HozoDialog");
+    }
     LowerOutput { jsx, css, runtime_imports, diagnostics }
 }
 
@@ -2255,4 +2258,14 @@ mod role_tests {
         );
         assert!(!output.jsx.contains(r#"role="widget""#), "{}", output.jsx);
     }
+
+    #[test]
+    fn a_dialog_lowers_to_hozo_dialog_and_imports_from_runtime() {
+        let output = lower_source(
+            "import { Dialog } from '@hozo/core'\nexport const C = () => <Dialog open={true} onClose={() => {}} accessibilityLabel=\"Modal\">x</Dialog>\n",
+        );
+        assert!(output.jsx.contains("<HozoDialog"), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoDialog"), "{:?}", output.runtime_imports);
+    }
 }
+
