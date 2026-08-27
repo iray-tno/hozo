@@ -16,13 +16,11 @@
 
 import {
   createCompiler,
-  moduleImports,
   type CompiledNativeComponent,
   type Compiler,
 } from '@hozo/compiler'
 import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
-import { foreignPrimitives } from '@hozo/compiler/sources'
 import { importSpecifier } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
@@ -97,10 +95,16 @@ export function transformHozoSource(
   // Native project on the grounds that it had not been rewritten -- while
   // the compiler underneath had always handled `react-native` imports and
   // produced identical output for them. See `@hozo/compiler/sources`.
-  const components = hasSemanticCandidate ? compiler.compileNative(code) : []
-  if (components.length === 0) {
+  // Native lowering and the source binding metadata come from one parser
+  // pass. Metro used to call `compileNative`, `foreignPrimitives`, then
+  // `moduleImports` over the rewritten source -- three public operations
+  // that each parsed the whole module, even though the compiler already
+  // held the module record needed to answer all three.
+  const compiled = hasSemanticCandidate ? compiler.compileNativeModule(code) : undefined
+  if (!compiled || compiled.components.length === 0) {
     return canvas.touched ? code : null
   }
+  const components = compiled.components
 
   // Error-severity diagnostics stop the build. The case this exists for --
   // a Web-only utility like `block`/`grid` reaching the Native backend --
@@ -118,7 +122,7 @@ export function transformHozoSource(
   // Names this file imports from a module the project does not trust, so
   // the guards below can tell a component Hozo declined from one it failed
   // to lower.
-  const foreign = foreignPrimitives(code, compiler.sources)
+  const foreign = new Set(compiled.foreignPrimitives)
   const usedTags = new Set<string>()
   const styleBlocks: string[] = []
   components.forEach((component: CompiledNativeComponent, index: number) => {
@@ -154,14 +158,20 @@ export function transformHozoSource(
       )
     }
   })
-  // After the components, so the import reads the way it always has.
-  // Still a scan, and still Metro's business: `PanResponder` is a value the
-  // *author* imported from `@hozo/core`, not something the compiler emits.
-  // Stripping that import leaves the name unbound, so it has to be added
-  // back from `react-native`.
-  for (const name of RN_VALUE_EXPORTS) {
-    if (new RegExp(`\\b${name}\\b`).test(code)) usedTags.add(name)
-  }
+  // Values the author imported from `@hozo/core`, including aliases. The
+  // import is stripped below, so these specifiers move to `react-native`.
+  // Reading the module record also avoids the old whole-source regex, which
+  // could mistake a comment or unrelated identifier for an authored import.
+  const nativeValueImports = compiled.imports
+    .filter(
+      (entry) =>
+        entry.source === '@hozo/core' &&
+        RN_VALUE_EXPORTS.includes(entry.imported as (typeof RN_VALUE_EXPORTS)[number]),
+    )
+    .map((entry) => ({
+      local: entry.local,
+      specifier: entry.imported === entry.local ? entry.imported : `${entry.imported} as ${entry.local}`,
+    }))
 
   // Every rewrite as an offset-keyed edit, applied back-to-front so
   // earlier offsets stay valid. Two kinds share the list: replacing a
@@ -229,16 +239,15 @@ export function transformHozoSource(
 
   next = next.replace(HOZO_CORE_IMPORT_RE, '')
 
-  // Only the bindings the file does not already have.
-  //
-  // The prepended import was unconditional while the only accepted source
-  // was `@hozo/core`, whose import this strips -- so nothing could collide
-  // with it. A React Native file imports its `View` from `react-native`
-  // itself, that import is not stripped (it may also carry `Animated`,
-  // `Platform`, things Hozo knows nothing about), and re-declaring `View`
-  // beside it is a SyntaxError: `Identifier 'View' has already been
-  // declared`.
-  const alreadyImported = new Set(moduleImports(next, 'react-native'))
+  // Only the bindings the file does not already have. These came from the
+  // same original module record as the compiled roots; none of the edits
+  // above changes an existing `react-native` import, so parsing `next` again
+  // used to rediscover information that was already stable.
+  const alreadyImported = new Set(
+    compiled.imports
+      .filter((entry) => entry.source === 'react-native')
+      .map((entry) => entry.local),
+  )
   const mergedStyles = mergeStyleObjects(styleBlocks)
   // No styles means no declaration, and no `StyleSheet` import to go with
   // it. A React Native file with no Tailwind classes still reaches this --
@@ -249,8 +258,14 @@ export function transformHozoSource(
   const needed = [...usedTags, ...(hasStyles ? ['StyleSheet'] : [])].filter(
     (name) => !alreadyImported.has(name),
   )
+  const valueSpecifiers = nativeValueImports
+    .filter((entry) => !alreadyImported.has(entry.local))
+    .map((entry) => entry.specifier)
+  const nativeSpecifiers = [...needed, ...valueSpecifiers]
   const rnImport =
-    needed.length > 0 ? `import { ${needed.join(', ')} } from 'react-native'\n` : ''
+    nativeSpecifiers.length > 0
+      ? `import { ${nativeSpecifiers.join(', ')} } from 'react-native'\n`
+      : ''
   const styleDeclaration = hasStyles
     ? `const hozoStyles = StyleSheet.create(${mergedStyles})\n`
     : ''
