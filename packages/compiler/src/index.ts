@@ -58,6 +58,23 @@ export interface CompiledNativeComponent {
   spanEnd: number
 }
 
+export interface SourceImport {
+  /** Module specifier as written, for example `react-native`. */
+  source: string
+  /** Exported name, or `default` / `*` for those import forms. */
+  imported: string
+  /** Binding visible to expressions and JSX in this module. */
+  local: string
+}
+
+/** Native output and source metadata produced by one TSX parser pass. */
+export interface CompiledNativeModule {
+  components: CompiledNativeComponent[]
+  imports: SourceImport[]
+  /** Primitive-named bindings the compiler deliberately carried verbatim. */
+  foreignPrimitives: string[]
+}
+
 export interface CompiledCanvasPaint {
   replacement: string
   diagnostics: CompileDiagnostic[]
@@ -122,6 +139,7 @@ interface NativeBinding {
 interface NativeCompiler {
   compile(source: string): CompiledComponent[]
   compileNative(source: string): CompiledNativeComponent[]
+  compileNativeModule(source: string): CompiledNativeModule
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
 }
 
@@ -169,6 +187,12 @@ export interface Theme {
 export interface Compiler {
   compile(source: string): CompiledComponent[]
   compileNative(source: string): CompiledNativeComponent[]
+  /**
+   * Native lowering plus source imports and foreign primitive bindings from
+   * that same parse. Bundler integrations should prefer this over reparsing
+   * the file around `compileNative`.
+   */
+  compileNativeModule(source: string): CompiledNativeModule
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
   /**
    * The modules the compiler will lower a primitive-named tag from.
@@ -194,6 +218,7 @@ export function createCompiler(theme?: Theme, sources?: readonly string[]): Comp
   return {
     compile: (source) => inner.compile(source),
     compileNative: (source) => inner.compileNative(source),
+    compileNativeModule: (source) => inner.compileNativeModule(source),
     compileCanvasPaints: (source, native) => inner.compileCanvasPaints(source, native),
     sources: allowed,
   }

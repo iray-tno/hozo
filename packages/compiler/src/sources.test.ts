@@ -79,3 +79,30 @@ test('a project can add its own module to the trusted list', () => {
 test('a file with no primitives at all is skipped outright', () => {
   assert.equal(lowerModule('export const x = 1\n', 'a.tsx', 'a.tsx', compiler), undefined)
 })
+
+test('Native module analysis returns bindings from the component parser pass', () => {
+  const source =
+    "import { View, StyleSheet, type Image } from 'react-native'\n" +
+    "import { PanResponder as GestureResponder } from '@hozo/core'\n" +
+    "import { Text } from '@expo/ui/swift-ui'\n" +
+    'export function Screen() { return <View><Text>Hi</Text></View> }\n'
+  const result = compiler.compileNativeModule(source)
+
+  assert.equal(result.components.length, 1)
+  assert.deepEqual(
+    result.imports.filter((entry) => entry.source === 'react-native'),
+    [
+      { source: 'react-native', imported: 'View', local: 'View' },
+      { source: 'react-native', imported: 'StyleSheet', local: 'StyleSheet' },
+    ],
+  )
+  assert.ok(
+    result.imports.some(
+      (entry) =>
+        entry.source === '@hozo/core' &&
+        entry.imported === 'PanResponder' &&
+        entry.local === 'GestureResponder',
+    ),
+  )
+  assert.deepEqual(result.foreignPrimitives, ['Text'])
+})

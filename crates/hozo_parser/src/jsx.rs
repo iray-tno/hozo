@@ -114,7 +114,7 @@ pub(crate) struct Scope<'r, 'a> {
     /// `TextInput`, and every one of them is a native platform component
     /// with nothing in common with the Hozo primitive of the same name
     /// beyond the spelling.
-    pub foreign: std::collections::HashSet<String>,
+    pub foreign: &'r std::collections::HashSet<String>,
     /// Static same-file StyleX definitions available to JSX spreads.
     pub stylex: crate::stylex::Frontend,
 }
