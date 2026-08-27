@@ -104,9 +104,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Release, unlike the gate above. This job is almost entirely the
-      # addon: comparing 400 arbitrary candidates on Native is 495ms with a
-      # debug build and 63ms with an optimised one, while Tailwind's own
-      # half of that same comparison is 11ms and does not move either way.
+      # addon -- 312 seconds against 48 for the whole report.
+      #
+      # It was worth only 1.20x when it landed, because a quadratic lookup
+      # in the variants section dwarfed everything. With that gone the
+      # addon is what is left, and the two changes multiply: `refusalAudit`
+      # and `nativeVariants` are 39% each now, and both are this binary.
       #
       # The gate stays on debug deliberately. It was measured too, and
       # `pnpm test` takes the same 120 seconds under both -- the JS suite is
