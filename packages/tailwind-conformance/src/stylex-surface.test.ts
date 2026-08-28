@@ -19,7 +19,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the StyleX numerator is the Rust frontend mapping, not a curated copy', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 124)
+  assert.equal(mapped.size, 144)
   for (const name of [
     'display',
     'padding',
@@ -31,6 +31,7 @@ test('the StyleX numerator is the Rust frontend mapping, not a curated copy', ()
     assert.ok(mapped.has(name), `${name} should have a lowering arm`)
   }
   assert.ok(!mapped.has('animationDuration'))
+  assert.ok(mapped.has('scrollbarWidth'))
 })
 
 test('the universal denominator is derived from StyleX and React Native', () => {
@@ -59,7 +60,11 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 392)
-  assert.equal(surface.mappedWebOnly.size, 0)
+  assert.equal(surface.mappedWebOnly.size, 20)
+  assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
+  assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
+  assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
+  assert.ok(surface.mappedWebOnly.has('touchAction'))
   assert.equal(
     surface.native.size + surface.contextual.size + surface.adapter.size + surface.webOnly.size,
     surface.official.size,
