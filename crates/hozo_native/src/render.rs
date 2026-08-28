@@ -4,6 +4,7 @@
 //! helpers without widening their visibility outside this crate.
 
 use super::*;
+use super::text::*;
 
 pub(super) fn render_node(
     node: &Node,
