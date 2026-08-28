@@ -48,7 +48,7 @@ function TextInputGallery() {
         </View>
 
         <Button
-          className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm inline-flex justify-center items-center cursor-pointer mt-2"
+          className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm flex justify-center items-center cursor-pointer mt-2"
           onPress={() => alert(`Submitted: ${email}`)}
         >
           Sign In

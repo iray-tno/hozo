@@ -12,7 +12,7 @@ function LayoutGallery() {
     <View className="max-w-2xl w-full space-y-8 rounded-2xl bg-white p-8 shadow-sm">
       {/* Landmarks */}
       <Section className="space-y-4 rounded-xl border border-slate-200 p-6">
-        <Nav className="flex flex-row items-center gap-2 text-xs font-semibold text-indigo-600">
+        <Nav className="flex flex-row flex-wrap items-center gap-2 text-xs font-semibold text-indigo-600">
           <Text className="hover:underline cursor-pointer">Home</Text>
           <Text className="text-slate-300">/</Text>
           <Text className="hover:underline cursor-pointer">Documentation</Text>
@@ -35,10 +35,10 @@ function LayoutGallery() {
         <Heading level={3} className="text-lg font-bold text-slate-900">
           Ordered & Unordered Lists
         </Heading>
-        <List ordered className="list-decimal space-y-2 pl-6 text-sm text-slate-700">
-          <ListItem>First item in an ordered sequence</ListItem>
-          <ListItem>Second item with automatic semantic tagging</ListItem>
-          <ListItem>Third item preserving React Native list structure</ListItem>
+        <List ordered className="list-decimal pl-6 space-y-2 text-sm text-slate-700">
+          <ListItem className="pl-1">First item in an ordered sequence</ListItem>
+          <ListItem className="pl-1">Second item with automatic semantic tagging</ListItem>
+          <ListItem className="pl-1">Third item preserving React Native list structure</ListItem>
         </List>
       </View>
 

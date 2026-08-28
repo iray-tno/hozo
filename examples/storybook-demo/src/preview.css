@@ -1,31 +1,99 @@
+/* Tailwind Preflight & Global Storybook Preview Styles */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-*, ::before, ::after {
+*,
+::before,
+::after {
   box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: #e2e8f0;
+}
+
+html {
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  -moz-tab-size: 4;
+  tab-size: 4;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-feature-settings: normal;
+  font-variation-settings: normal;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 2rem 1.5rem;
+  line-height: inherit;
   background-color: #f8fafc;
   color: #0f172a;
-  margin: 0;
-  padding: 1.5rem;
   min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-button {
+#storybook-root {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* Reset headings and paragraphs margin */
+h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* Reset lists */
+ol, ul, menu {
+  margin: 0;
+  padding: 0;
+}
+
+/* Reset buttons and form controls */
+button, input, optgroup, select, textarea {
   font-family: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
+button, [role="button"] {
+  cursor: pointer;
+}
+
+/* Code element reset */
+code, kbd, samp, pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 1em;
+}
+
+/* Dialog element reset */
 dialog {
   border: none;
   padding: 0;
   margin: auto;
+  background: transparent;
+  color: inherit;
 }
 
 dialog::backdrop {
-  background: rgba(15, 23, 42, 0.6);
+  background-color: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(4px);
+}
+
+/* Word wrapping */
+p, h1, h2, h3, h4, h5, h6, span {
+  overflow-wrap: break-word;
 }

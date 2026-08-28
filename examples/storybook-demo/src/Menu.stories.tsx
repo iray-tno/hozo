@@ -30,7 +30,7 @@ function MenuDemo() {
           triggerClassName="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm text-white hover:bg-indigo-500 transition-colors inline-flex items-center shadow-sm cursor-pointer"
           items={menuItems}
           className="relative inline-block"
-          menuClassName="absolute left-0 mt-2 w-48 rounded-xl bg-white shadow-xl border border-slate-200 p-1.5 z-20"
+          menuClassName="absolute left-0 mt-2 w-52 rounded-xl bg-white shadow-xl border border-slate-200 p-1.5 z-20"
           itemClassName="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-100 text-slate-700 cursor-pointer transition-colors"
         />
       </View>
@@ -47,7 +47,7 @@ function MenuDemo() {
           value={theme}
           onValueChange={setTheme}
           accessibilityLabel="Color Theme"
-          className="space-y-1.5"
+          className="space-y-1.5 w-full"
           optionClassName="flex flex-row items-center gap-3 p-3 rounded-lg hover:bg-slate-50 cursor-pointer text-sm text-slate-700 transition-colors border border-transparent aria-checked:border-indigo-200 aria-checked:bg-indigo-50 aria-checked:font-semibold aria-checked:text-indigo-700"
         />
       </View>
