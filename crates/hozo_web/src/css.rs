@@ -939,6 +939,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         // anything -- see `StyleProperty::Arbitrary` for why that is the
         // deal an arbitrary property makes rather than an omission.
         StyleProperty::Arbitrary(property, value) => (property.as_str(), value.clone()),
+        StyleProperty::WebOnly(property, value) => (property.as_str(), value.clone()),
         StyleProperty::Display(d) => (
             "display",
             match d {

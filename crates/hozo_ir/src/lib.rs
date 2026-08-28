@@ -1141,6 +1141,13 @@ pub enum StyleProperty {
     /// does mean the emitted rule can carry a declaration Tailwind would
     /// have dropped.
     Arbitrary(String, String),
+    /// A static declaration accepted by StyleX's published Web surface but
+    /// absent from React Native's style interface.
+    ///
+    /// Unlike `Arbitrary`, both the property and its value were checked by
+    /// the StyleX frontend. Keeping this lane explicit lets Web emit it
+    /// directly while Native produces an intentional, actionable refusal.
+    WebOnly(String, String),
     /// Column count for `grid-cols-<n>`. Native's initial grid solver can
     /// consume counts and simple fixed/fr lists when paired with `grid`;
     /// richer track functions remain an explicit refusal.
@@ -2008,6 +2015,7 @@ impl StyleProperty {
             | StyleProperty::Content(..)
             | StyleProperty::Keyword(..)
             | StyleProperty::Arbitrary(..)
+            | StyleProperty::WebOnly(..)
             | StyleProperty::GridTemplateColumns(..)
             | StyleProperty::GridTemplateRows(..)
             | StyleProperty::GridColumnStart(..)
@@ -2128,6 +2136,11 @@ impl StyleProperty {
                 "`{property}: {value}`: an arbitrary value is a CSS property by name, and React \
                  Native's style keys are a different vocabulary -- there is nothing to translate \
                  it into"
+            ));
+        }
+        if let StyleProperty::WebOnly(property, value) = self {
+            return Some(format!(
+                "`{property}: {value}` is part of StyleX's Web surface, but React Native has no corresponding style property"
             ));
         }
         // Asked before the property-by-property match: a value React Native
@@ -4369,6 +4382,9 @@ impl StyleProperty {
         // arbitrary property, so the name is the only thing that tells two
         // of them apart.
         if let StyleProperty::Arbitrary(property, _) = self {
+            return (std::mem::discriminant(self), 0, property.clone());
+        }
+        if let StyleProperty::WebOnly(property, _) = self {
             return (std::mem::discriminant(self), 0, property.clone());
         }
         let target = match self {

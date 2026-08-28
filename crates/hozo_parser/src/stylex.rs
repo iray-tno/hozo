@@ -419,6 +419,62 @@ fn named(value: &StaticValue, choices: &[(&str, &str)]) -> Option<String> {
         .map(|(_, token)| (*token).to_string())
 }
 
+/// Closed-keyword declarations from StyleX's published CSSProperties that
+/// have no React Native style key. Values outside this deliberately small
+/// grammar remain with the official StyleX transform.
+fn web_only_keyword(property: &str, value: &StaticValue) -> Option<StyleProperty> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let (css_property, choices): (&str, &[&str]) = match property {
+        "appearance" => ("appearance", &["auto", "none", "textfield"]),
+        "WebkitAppearance" => ("-webkit-appearance", &["auto", "none", "textfield"]),
+        "colorScheme" => (
+            "color-scheme",
+            &["normal", "light", "dark", "light dark", "only light", "only dark"],
+        ),
+        "forcedColorAdjust" => ("forced-color-adjust", &["auto", "none"]),
+        "imageRendering" => (
+            "image-rendering",
+            &["auto", "crisp-edges", "pixelated", "optimizeSpeed", "optimizeQuality"],
+        ),
+        "overflowAnchor" => ("overflow-anchor", &["auto", "none"]),
+        "overscrollBehavior" => ("overscroll-behavior", &["auto", "contain", "none"]),
+        "overscrollBehaviorBlock" => {
+            ("overscroll-behavior-block", &["auto", "contain", "none"])
+        }
+        "overscrollBehaviorInline" => {
+            ("overscroll-behavior-inline", &["auto", "contain", "none"])
+        }
+        "overscrollBehaviorX" => ("overscroll-behavior-x", &["auto", "contain", "none"]),
+        "overscrollBehaviorY" => ("overscroll-behavior-y", &["auto", "contain", "none"]),
+        "printColorAdjust" => ("print-color-adjust", &["economy", "exact"]),
+        "resize" => ("resize", &["none", "both", "horizontal", "vertical"]),
+        "scrollSnapAlign" => ("scroll-snap-align", &["none", "start", "end", "center"]),
+        "scrollSnapStop" => ("scroll-snap-stop", &["normal", "always"]),
+        "scrollSnapType" => (
+            "scroll-snap-type",
+            &[
+                "none", "block", "block mandatory", "block proximity", "both",
+                "both mandatory", "both proximity", "inline", "inline mandatory",
+                "inline proximity", "x", "x mandatory", "x proximity", "y",
+                "y mandatory", "y proximity",
+            ],
+        ),
+        "scrollbarGutter" => ("scrollbar-gutter", &["auto", "stable", "stable both-edges"]),
+        "scrollbarWidth" => ("scrollbar-width", &["auto", "thin", "none"]),
+        "textRendering" => (
+            "text-rendering",
+            &["auto", "optimizeSpeed", "optimizeLegibility", "geometricPrecision"],
+        ),
+        "touchAction" => ("touch-action", &["auto", "none", "manipulation"]),
+        _ => return None,
+    };
+    choices
+        .contains(&value.as_str())
+        .then(|| StyleProperty::WebOnly(css_property.to_string(), value.clone()))
+}
+
 /// Maps CSS-in-JS property spelling onto the already-tested Tailwind parser.
 /// The tokens are internal only; no generated class string reaches output.
 fn token_for(property: &str, value: &StaticValue) -> Option<String> {
@@ -740,6 +796,26 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
+        "appearance" => vec![web_only_keyword(property, value)?],
+        "WebkitAppearance" => vec![web_only_keyword(property, value)?],
+        "colorScheme" => vec![web_only_keyword(property, value)?],
+        "forcedColorAdjust" => vec![web_only_keyword(property, value)?],
+        "imageRendering" => vec![web_only_keyword(property, value)?],
+        "overflowAnchor" => vec![web_only_keyword(property, value)?],
+        "overscrollBehavior" => vec![web_only_keyword(property, value)?],
+        "overscrollBehaviorBlock" => vec![web_only_keyword(property, value)?],
+        "overscrollBehaviorInline" => vec![web_only_keyword(property, value)?],
+        "overscrollBehaviorX" => vec![web_only_keyword(property, value)?],
+        "overscrollBehaviorY" => vec![web_only_keyword(property, value)?],
+        "printColorAdjust" => vec![web_only_keyword(property, value)?],
+        "resize" => vec![web_only_keyword(property, value)?],
+        "scrollSnapAlign" => vec![web_only_keyword(property, value)?],
+        "scrollSnapStop" => vec![web_only_keyword(property, value)?],
+        "scrollSnapType" => vec![web_only_keyword(property, value)?],
+        "scrollbarGutter" => vec![web_only_keyword(property, value)?],
+        "scrollbarWidth" => vec![web_only_keyword(property, value)?],
+        "textRendering" => vec![web_only_keyword(property, value)?],
+        "touchAction" => vec![web_only_keyword(property, value)?],
         // StyleX emits these as CSS shorthands at a lower atomic priority
         // than their longhands. Split them into the typed final slots here
         // so the same priority resolution works on Web and Native.
@@ -1885,7 +1961,7 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             import { View } from '@hozo/core'
             const styles = stylex.create({
-              root: { padding: 16, scrollbarWidth: 'thin' }
+              root: { padding: 16, scrollbarColor: 'red blue' }
             })
             const card = <View {...stylex.props(styles.root)} />
         "#;
@@ -1895,7 +1971,7 @@ mod tests {
         assert!(node.props.passthrough.is_empty());
         assert_eq!(node.props.stylex_residuals.len(), 1);
         let residual = node.props.stylex_residuals[0].render_expression(source);
-        assert!(residual.contains("scrollbarWidth: 'thin'"));
+        assert!(residual.contains("scrollbarColor: 'red blue'"));
         assert!(!residual.contains("padding: 16"));
         assert_eq!(parsed.diagnostics.len(), 1);
         assert!(parsed.diagnostics[0].span.start >= node.span.start);
