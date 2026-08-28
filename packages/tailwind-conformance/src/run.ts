@@ -29,6 +29,7 @@ import { compile as hozoCompile, compileNative } from '@hozo/compiler'
 import { buildOracle } from './oracle.ts'
 import { loadThemeVars, tailwindVersion } from './theme.ts'
 import { A11Y_CONTEXTUAL_CASES, compareA11yContextual } from './a11y-contextual.ts'
+import { ariaRoleCases, compareAriaRole } from './aria-roles.ts'
 import { compareRnwFree, RNW_FREE_CASES } from './rnw-free.ts'
 import { finish, record } from './snapshot.ts'
 import { stylexSurface, stylexVersion } from './stylex-surface.ts'
@@ -299,6 +300,23 @@ console.log(
   `\nRNW-free primitive contract: ${rnwFreeCovered}/${rnwFree.length} = ` +
     `${pct(rnwFreeCovered, rnwFree.length)}  (direct DOM and Native/runtime lowering)`,
 )
+// Every concrete role in the specification, written correctly, asked
+// whether the compiler complains. The seven accessibility diagnostics had
+// no denominator at all -- not one of them appeared in this package -- so
+// the half that decides whether anyone leaves them switched on was
+// unmeasured. A check that cries wolf gets turned off, and the real
+// findings go with it. See `aria-roles.ts`.
+const ariaRoles = ariaRoleCases().map(compareAriaRole)
+const ariaComplaints = ariaRoles.filter((result) => result.verdict === 'COMPLAINED')
+console.log(
+  `\nARIA roles written correctly: ${ariaRoles.length}   ` +
+    `false positives: ${ariaComplaints.length}   (has to be zero)`,
+)
+for (const result of ariaComplaints) {
+  console.log(`  ${result.role.padEnd(20)} ${result.codes.join(', ')}`)
+}
+record('ariaRoles', { roles: ariaRoles.length, falsePositives: ariaComplaints.length })
+
 record('rnwFree', { cases: rnwFree.length, covered: rnwFreeCovered })
 for (const result of rnwFree) {
   console.log(
