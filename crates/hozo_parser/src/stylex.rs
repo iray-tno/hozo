@@ -9,9 +9,9 @@
 use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
-    Angle, Color, Condition, ConditionExpr, Dimension, ExprRef, GridLine, GridSpan, GridTracks,
-    Length, Radius, SourceSpan, StyleDeclaration, StyleProperty, StylexResidual,
-    StylexResidualArgument, TransformFunction,
+    Angle, Color, Condition, ConditionExpr, Dimension, Edge, ExprRef, GridLine, GridSpan,
+    GridTracks, Length, Overflow, Radius, SourceSpan, StyleDeclaration, StyleProperty,
+    StylexResidual, StylexResidualArgument, TransformFunction,
 };
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
@@ -475,6 +475,43 @@ fn web_only_keyword(property: &str, value: &StaticValue) -> Option<StyleProperty
         .then(|| StyleProperty::WebOnly(css_property.to_string(), value.clone()))
 }
 
+fn stylex_order(value: &StaticValue) -> Option<i32> {
+    let value = match value {
+        StaticValue::Number(value) if value.is_finite() && value.fract() == 0.0 => *value,
+        StaticValue::String(value) => value.parse::<f64>().ok().filter(|value| value.fract() == 0.0)?,
+        _ => return None,
+    };
+    (value >= i32::MIN as f64 && value <= i32::MAX as f64).then_some(value as i32)
+}
+
+fn stylex_overflow(value: &StaticValue) -> Option<Overflow> {
+    let StaticValue::String(value) = value else { return None };
+    Some(match value.as_str() {
+        "visible" => Overflow::Visible,
+        "hidden" => Overflow::Hidden,
+        "clip" => Overflow::Css("clip"),
+        "scroll" => Overflow::Scroll,
+        "auto" => Overflow::Css("auto"),
+        _ => return None,
+    })
+}
+
+fn stylex_scroll_edge(property: &str) -> Option<Edge> {
+    Some(match property {
+        "scrollMarginTop" | "scrollPaddingTop" => Edge::Top,
+        "scrollMarginRight" | "scrollPaddingRight" => Edge::Right,
+        "scrollMarginBottom" | "scrollPaddingBottom" => Edge::Bottom,
+        "scrollMarginLeft" | "scrollPaddingLeft" => Edge::Left,
+        "scrollMarginBlockStart" => Edge::Top,
+        "scrollMarginBlockEnd" => Edge::Bottom,
+        "scrollPaddingBlockStart" => Edge::BlockStart,
+        "scrollPaddingBlockEnd" => Edge::BlockEnd,
+        "scrollMarginInlineStart" | "scrollPaddingInlineStart" => Edge::InlineStart,
+        "scrollMarginInlineEnd" | "scrollPaddingInlineEnd" => Edge::InlineEnd,
+        _ => return None,
+    })
+}
+
 /// Maps CSS-in-JS property spelling onto the already-tested Tailwind parser.
 /// The tokens are internal only; no generated class string reaches output.
 fn token_for(property: &str, value: &StaticValue) -> Option<String> {
@@ -816,6 +853,35 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "scrollbarWidth" => vec![web_only_keyword(property, value)?],
         "textRendering" => vec![web_only_keyword(property, value)?],
         "touchAction" => vec![web_only_keyword(property, value)?],
+        "order" => vec![StyleProperty::Order(stylex_order(value)?)],
+        "overflowX" => vec![StyleProperty::OverflowX(stylex_overflow(value)?)],
+        "overflowY" => vec![StyleProperty::OverflowY(stylex_overflow(value)?)],
+        "scrollBehavior" => {
+            let StaticValue::String(value) = value else { return None };
+            let value = match value.as_str() {
+                "auto" => "auto",
+                "smooth" => "smooth",
+                _ => return None,
+            };
+            vec![StyleProperty::ScrollBehavior(value)]
+        }
+        "scrollMarginTop" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
+        "scrollMarginRight" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
+        "scrollMarginBottom" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
+        "scrollMarginLeft" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
+        "scrollMarginBlockStart" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
+        "scrollMarginBlockEnd" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
+        "scrollMarginInlineStart" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
+        "scrollMarginInlineEnd" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
+        "scrollPaddingTop" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "scrollPaddingRight" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "scrollPaddingBottom" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "scrollPaddingLeft" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "scrollPaddingBlockStart" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "scrollPaddingBlockEnd" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "scrollPaddingInlineStart" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "scrollPaddingInlineEnd" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "textIndent" => vec![StyleProperty::TextIndent(dimension()?)],
         // StyleX emits these as CSS shorthands at a lower atomic priority
         // than their longhands. Split them into the typed final slots here
         // so the same priority resolution works on Web and Native.
@@ -1109,6 +1175,8 @@ fn canonical_property(property: &str) -> &str {
         "marginBlockEnd" => "marginBottom",
         "paddingBlockStart" => "paddingTop",
         "paddingBlockEnd" => "paddingBottom",
+        "scrollMarginBlockStart" => "scrollMarginTop",
+        "scrollMarginBlockEnd" => "scrollMarginBottom",
         "start" => "insetInlineStart",
         "end" => "insetInlineEnd",
         _ => property,
@@ -1255,6 +1323,10 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("grid-row")
     } else if property == "overflow" || matches!(property, "overflowX" | "overflowY") {
         Some("overflow")
+    } else if property.starts_with("scrollMargin") {
+        Some("scroll-margin")
+    } else if property.starts_with("scrollPadding") {
+        Some("scroll-padding")
     } else {
         None
     }
