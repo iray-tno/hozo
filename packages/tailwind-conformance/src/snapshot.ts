@@ -89,6 +89,10 @@ const WORSE_WHEN_DOWN = new Set([
   // here: a scene that quietly got smaller makes every count below it look
   // better.
   'components',
+  // And the contract sections'. These are lists somebody chose rather than
+  // denominators derived from anything, which makes shrinking one the
+  // easiest way to make them pass.
+  'cases',
 ])
 
 type Section = Record<string, number | string>
