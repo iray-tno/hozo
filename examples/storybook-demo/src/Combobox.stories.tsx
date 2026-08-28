@@ -13,7 +13,7 @@ function ComboboxDemo() {
   ]
 
   return (
-    <View className="max-w-xl space-y-8 rounded-2xl bg-white p-8 shadow-sm">
+    <View className="max-w-xl w-full space-y-8 rounded-2xl bg-white p-8 shadow-sm">
       <View className="space-y-3">
         <Heading level={2} className="text-xl font-bold text-slate-900">
           Combobox (@hozo/a11y)
@@ -28,9 +28,9 @@ function ComboboxDemo() {
           placeholder="Search bundler integration..."
           accessibilityLabel="Select bundler"
           className="relative"
-          inputClassName="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          listClassName="absolute top-full mt-1 w-full rounded-xl bg-white shadow-xl border border-slate-200 p-1 z-10"
-          optionClassName="p-2 rounded-lg text-sm cursor-pointer hover:bg-slate-100 data-[hozo-active]:bg-indigo-50 data-[hozo-active]:text-indigo-700"
+          inputClassName="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-sm"
+          listClassName="absolute top-full left-0 mt-1.5 w-full rounded-xl bg-white shadow-xl border border-slate-200 p-1.5 z-20 max-h-60 overflow-auto"
+          optionClassName="p-2 rounded-lg text-sm cursor-pointer hover:bg-slate-100 transition-colors aria-selected:bg-indigo-50 aria-selected:text-indigo-700 aria-selected:font-semibold"
         />
       </View>
 
@@ -46,8 +46,8 @@ function ComboboxDemo() {
           value={selectedBundler}
           onValueChange={setSelectedBundler}
           accessibilityLabel="Bundler options listbox"
-          className="rounded-xl border border-slate-200 p-2 divide-y divide-slate-100"
-          optionClassName="p-2.5 rounded-lg text-sm cursor-pointer hover:bg-slate-100 data-[hozo-selected]:bg-indigo-50 data-[hozo-selected]:text-indigo-700 data-[hozo-selected]:font-semibold"
+          className="rounded-xl border border-slate-200 p-1.5 divide-y divide-slate-100 bg-white"
+          optionClassName="p-2.5 rounded-lg text-sm cursor-pointer hover:bg-slate-100 transition-colors aria-selected:bg-indigo-50 aria-selected:text-indigo-700 aria-selected:font-semibold"
         />
       </View>
     </View>

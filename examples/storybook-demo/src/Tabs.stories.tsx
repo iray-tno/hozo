@@ -30,7 +30,7 @@ function TabsDemo() {
   ]
 
   return (
-    <View className="max-w-xl space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+    <View className="max-w-xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
       <Heading level={2} className="text-xl font-bold text-slate-900">
         Tabs Pattern (@hozo/a11y)
       </Heading>
@@ -42,9 +42,9 @@ function TabsDemo() {
         defaultIndex={0}
         accessibilityLabel="Hozo documentation sections"
         className="space-y-4"
-        tabListClassName="flex border-b border-slate-200 gap-2"
-        tabClassName="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-indigo-600 cursor-pointer rounded-t-lg transition-colors border-b-2 border-transparent data-[hozo-selected]:border-indigo-600 data-[hozo-selected]:text-indigo-600"
-        panelClassName="rounded-xl bg-slate-50 p-6 min-h-[100px]"
+        tabListClassName="flex flex-row border-b border-slate-200 gap-1"
+        tabClassName="px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-indigo-600 cursor-pointer rounded-t-lg transition-all border-b-2 border-transparent aria-selected:border-indigo-600 aria-selected:text-indigo-600 aria-selected:font-semibold"
+        panelClassName="rounded-xl bg-slate-50 p-6 min-h-[100px] border border-slate-100"
       />
     </View>
   )
