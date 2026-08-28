@@ -623,7 +623,7 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   }
 })
 
-test('unsupported values inside the Web-only lane stay with official StyleX', () => {
+test('unsupported values inside the Web-only lanes stay with official StyleX', () => {
   const source = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
 const styles = stylex.create({ root: { touchAction: 'pan-x pinch-zoom' } })
@@ -633,6 +633,84 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   assert.ok(web)
   assert.equal(web.diagnostics[0]?.code, 'STYLEX_NOT_LOWERED')
   assert.match(web.jsx, /stylex\.props\(styles\.root\)/)
+
+  const typedSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({ root: { order: 1.5, scrollMarginTop: 'calc(1px + 1%)' } })
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+  const typedWeb = compile(typedSource)[0]
+  assert.ok(typedWeb)
+  assert.equal(typedWeb.diagnostics.length, 1)
+  assert.equal(typedWeb.diagnostics[0]?.code, 'STYLEX_NOT_LOWERED')
+  assert.match(typedWeb.jsx, /stylex\.props\(styles\.root\)/)
+})
+
+test('existing typed Web-only longhands match official StyleX and retain Native refusals', () => {
+  const samples = [
+    ['order', '3'],
+    ['overflowX', `'auto'`],
+    ['overflowY', `'clip'`],
+    ['scrollBehavior', `'smooth'`],
+    ['scrollMarginTop', '4'],
+    ['scrollMarginRight', '5'],
+    ['scrollMarginBottom', '6'],
+    ['scrollMarginLeft', '7'],
+    ['scrollMarginBlockStart', '8'],
+    ['scrollMarginBlockEnd', '9'],
+    ['scrollMarginInlineStart', '10'],
+    ['scrollMarginInlineEnd', '11'],
+    ['scrollPaddingTop', '12'],
+    ['scrollPaddingRight', '13'],
+    ['scrollPaddingBottom', '14'],
+    ['scrollPaddingLeft', '15'],
+    ['scrollPaddingBlockStart', '16'],
+    ['scrollPaddingBlockEnd', '17'],
+    ['scrollPaddingInlineStart', '18'],
+    ['scrollPaddingInlineEnd', '19'],
+    ['textIndent', `'12%'`],
+  ] as const
+
+  for (const [property, value] of samples) {
+    const propertySource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({ root: { ${property}: ${value} } })
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+    const official = transformSync(propertySource, {
+      filename: `/app/web-only-typed-${property}.tsx`,
+      babelrc: false,
+      configFile: false,
+      parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+      plugins: [[stylexPlugin, { runtimeInjection: false }]],
+    })
+    const metadata = official?.metadata as {
+      stylex?: [string, { ltr: string }, number][]
+    }
+    const expected = (metadata.stylex ?? []).map(([, css]) =>
+      css.ltr.slice(css.ltr.indexOf('{') + 1, -1),
+    )
+
+    const web = compile(propertySource)[0]
+    assert.ok(web, property)
+    assert.equal(web.diagnostics.length, 0, property)
+    const rule = web.css.match(/\.hozo-0 \{\n([\s\S]*?)\n\}/)?.[1]
+    assert.ok(rule, `${property}: ${web.css}`)
+    const actual = [...rule.matchAll(/^\s*(-?[a-z-]+): ([^;]+);$/gm)].map(
+      ([, name, declaration]) => `${name}: ${declaration}`,
+    )
+    assert.deepEqual(
+      Object.fromEntries(declarationMap(actual)),
+      Object.fromEntries(declarationMap(expected)),
+      property,
+    )
+
+    const native = compileNative(propertySource)[0]
+    assert.ok(native, property)
+    assert.equal(native.diagnostics.length, 1, property)
+    assert.equal(native.diagnostics[0]?.code, 'WEB_ONLY_PROPERTY_ON_NATIVE', property)
+    assert.doesNotMatch(native.jsx, /stylex\.props/, property)
+  }
 })
 
 test('StyleX transform order is preserved on Web and Native', () => {

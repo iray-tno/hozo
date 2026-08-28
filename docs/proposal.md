@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-08-28 時点では
-全 CSS 名で 144/522 (27.6%)、両 platform に名前が存在する集合で 116/116
-(100%)、contextual runtime 集合で 8/13 (61.5%)、Web-only 集合で 20/392
-(5.1%)。残りは contextual runtime 候補 5、optional adapter 候補 1、未対応の
+全 CSS 名で 165/522 (31.6%)、両 platform に名前が存在する集合で 116/116
+(100%)、contextual runtime 集合で 8/13 (61.5%)、Web-only 集合で 41/392
+(10.5%)。残りは contextual runtime 候補 5、optional adapter 候補 1、未対応の
 Web-only 名と別集計する。これは value や API
 を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
@@ -961,6 +961,11 @@ text-rendering、touch-action の closed-keyword longhand である。共通 IR 
 CSS と同じ宣言を出す。Native は spread を消費したうえで
 `WEB_ONLY_PROPERTY_ON_NATIVE` を error にし、黙って drop しない。許可した keyword
 集合外の値は対応済みと数えず、従来どおり公式 StyleX の residual に残す。
+
+第2 slice の21名は、新しい任意CSS経路を増やさず既存 typed IR を再利用する。
+整数 `order`、軸別 overflow、scroll behavior、物理/論理 scroll margin/padding
+longhand、text indent が対象で、Web出力とNative refusalはTailwind frontendと共有する。
+scroll shorthand はlonghandとのatomic priorityを明示できるまで residual に残す。
 
 contextual の実装済み 8 名は Grid の template/placement である。静的な正の
 `fr`、非負の `px`、`minmax(px, fr)`、等幅 `repeat` track と、整数 line、

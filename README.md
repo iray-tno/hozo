@@ -193,10 +193,10 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **144/522 property names
-(27.6%)**, including **116/116 (100%)** when the denominator is restricted to
+Against StyleX 0.19.0's published types that is **165/522 property names
+(31.6%)**, including **116/116 (100%)** when the denominator is restricted to
 names React Native also publishes and **8/13 (61.5%)** contextual-runtime
-names. Web-only lowering is reported independently at **20/392 (5.1%)**. The
+names. Web-only lowering is reported independently at **41/392 (10.5%)**. The
 remaining surface is reported separately as 5 contextual-runtime candidates,
 1 optional-adapter candidate, and the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -210,6 +210,12 @@ longhands. Their CSS is differential-tested against the official StyleX
 plugin. Native consumes the StyleX spread but emits
 `WEB_ONLY_PROPERTY_ON_NATIVE` rather than silently dropping the declaration;
 values outside the checked keyword grammar remain with official StyleX.
+The second Web-only slice reuses existing typed IR for integer `order`,
+axis-specific overflow, scroll behavior, physical/logical scroll margin and
+padding longhands, and text indentation. This keeps their established
+Tailwind lowering and Native refusal policy rather than introducing another
+CSS-string path. StyleX shorthands remain residual until their atomic priority
+against these longhands is modeled explicitly.
 
 The contextual slice is currently Grid: static `gridTemplateColumns`/
 `gridTemplateRows` tracks made from positive `fr`, non-negative `px`, or
