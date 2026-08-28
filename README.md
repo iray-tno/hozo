@@ -214,6 +214,15 @@ the shared IR, so physical longhands still beat later shorthands on both Web
 and Native; conditional arguments retain their fallback and override behavior.
 This is frontend-only work and adds no runtime priority machinery.
 
+A mixed rule no longer makes its supported declarations all-or-nothing.
+Hozo lowers the supported static properties and rebuilds the unsupported
+properties as a residual inline `stylex.create`; the official transform
+continues to own that residual, while its generated `className` is combined
+with Hozo's class instead of replacing it. Conditional `props()` arguments
+keep the same guards. If the residual overlaps a lowered property family, or
+the rule contains an opaque object spread/computed key, Hozo keeps the original
+call intact rather than approximating the cascade.
+
 Themes/variables, nested selectors, keyframes, cross-file sheets, and `sx`
 remain with StyleX. Direction-dependent logical/physical edge conflicts and
 Grid shorthand/line conflicts also remain explicit `STYLEX_NOT_LOWERED` gaps:

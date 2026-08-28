@@ -589,6 +589,21 @@ fn build_node(
                         style.extend(declarations);
                         continue;
                     }
+                    crate::stylex::Resolution::Partial {
+                        declarations,
+                        residual,
+                        gaps,
+                    } => {
+                        style.extend(declarations);
+                        props.stylex_residuals.push(residual);
+                        diagnostics.extend(gaps.into_iter().map(|gap| Diagnostic {
+                            code: DiagnosticCode::StylexNotLowered,
+                            severity: Severity::Warning,
+                            message: gap.message,
+                            span: gap.span,
+                        }));
+                        continue;
+                    }
                     crate::stylex::Resolution::Gap { message, span } => {
                         diagnostics.push(Diagnostic {
                             code: DiagnosticCode::StylexNotLowered,

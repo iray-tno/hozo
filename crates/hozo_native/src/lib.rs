@@ -975,7 +975,14 @@ fn render_node(
         ));
     }
 
-    let mut props_text = String::new();
+    // The official StyleX residue lands before Hozo's generated `style`, so
+    // it cannot replace the declarations that were successfully lowered.
+    let mut props_text = node
+        .props
+        .stylex_residuals
+        .iter()
+        .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
+        .collect::<String>();
     if needs_pressed_fn {
         let state = if needs_focus_visible {
             "{ pressed, hovered, focused, focusVisible }"
