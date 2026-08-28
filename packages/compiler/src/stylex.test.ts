@@ -199,6 +199,78 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   )
 })
 
+test('StyleX grid reuses the contextual Web and Native grid lowerings', () => {
+  const gridSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gridTemplateRows: '80px 1fr',
+    gap: 12,
+  },
+  span: {
+    gridColumn: 'span 2 / span 2',
+    gridRow: 'span 2 / span 2',
+  },
+  lines: {
+    gridColumnStart: 2,
+    gridColumnEnd: -1,
+    gridRowStart: 2,
+    gridRowEnd: -1,
+  },
+})
+export const Grid = () => (
+  <View {...stylex.props(styles.grid)}>
+    <View {...stylex.props(styles.span)} />
+    <View {...stylex.props(styles.lines)} />
+  </View>
+)
+`
+  const official = transformSync(gridSource, {
+    filename: '/app/Grid.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as {
+    stylex?: [string, { ltr: string }, number][]
+  }
+  const officialDeclarations = (metadata.stylex ?? []).map(([, css]) =>
+    css.ltr.slice(css.ltr.indexOf('{') + 1, -1),
+  )
+
+  const web = compile(gridSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  const hozoDeclarations = [...web.css.matchAll(/^\s+([a-z-]+): ([^;]+);$/gm)].map(
+    ([, property, value]) => `${property}: ${value}`,
+  )
+  const expected = declarationMap(officialDeclarations)
+  const actual = new Map(
+    [...declarationMap(hozoDeclarations)].filter(([property]) => expected.has(property)),
+  )
+  assert.deepEqual(
+    Object.fromEntries(actual),
+    Object.fromEntries(expected),
+  )
+
+  const native = compileNative(gridSource)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.deepEqual(new Set(native.runtimeImports), new Set(['HozoGrid', 'HozoGridItem']))
+  assert.match(
+    native.jsx,
+    /tracks=\{\[\{ kind: 'fr', value: 1 \}, \{ kind: 'fr', value: 1 \}, \{ kind: 'fr', value: 1 \}\]\}/,
+  )
+  assert.match(native.jsx, /rowTracks=\{\[\{ kind: 'points', value: 80 \}, \{ kind: 'fr', value: 1 \}\]\}/)
+  assert.match(native.jsx, /columnGap=\{12\}/)
+  assert.match(native.jsx, /rowGap=\{12\}/)
+  assert.match(native.jsx, /HozoGridItem columnSpan=\{2\} rowSpan=\{2\}/)
+  assert.match(native.jsx, /HozoGridItem columnSpan=\{2\} columnStart=\{1\} rowStart=\{1\}/)
+})
+
 test('the expanded RN-portable StyleX property slice agrees with the official CSS oracle', () => {
   const samples = [
     ['alignContent', `'center'`],

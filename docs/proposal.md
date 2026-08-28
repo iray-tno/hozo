@@ -938,7 +938,7 @@ Skia の React API は `<Canvas><Rect/></Canvas>` なので、命令的なのは
 
 ### StyleX について
 
-**2026-08-27 更新:** 最初の縦切りは実装済み。namespace import された
+**2026-08-28 更新:** 最初の縦切りと contextual Grid は実装済み。namespace import された
 same-file・module-scope の `stylex.create` と、
 `stylex.props(styles.base, condition && styles.active)` を直接 Hozo IR に読む。
 静的 string/number の universal property は Web/Native の既存 lowering を通り、
@@ -946,11 +946,18 @@ same-file・module-scope の `stylex.create` と、
 `STYLEX_NOT_LOWERED` として公式コンパイラへ残す。
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
-を機械的に交差させる分母も conformance report に追加した。2026-08-27 時点では
-全 CSS 名で 116/522 (22.2%)、両 platform に名前が存在する集合で 116/116
-(100%)。残りは contextual runtime 候補 13、optional adapter 候補 1、Web-only
-392 と別集計する。これは value や API を含めた互換率ではなく property-name の上限値で、
+を機械的に交差させる分母も conformance report に追加した。2026-08-28 時点では
+全 CSS 名で 124/522 (23.8%)、両 platform に名前が存在する集合で 116/116
+(100%)、contextual runtime 集合で 8/13 (61.5%)。残りは contextual runtime
+候補 5、optional adapter 候補 1、Web-only 392 と別集計する。これは value や API
+を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
+
+contextual の実装済み 8 名は Grid の template/placement である。静的な正の
+`fr`、非負の `px`、`minmax(px, fr)`、等幅 `repeat` track と、整数 line、
+`auto`、等しい span、full span を既存 Grid IR に読み、Native では
+`HozoGrid`/`HozoGridItem` solver を再利用する。それより広い CSS Grid value は
+近似せず `STYLEX_NOT_LOWERED` として StyleX に残す。
 
 共存実測の結論は **Hozo → StyleX の順だけが安全**。StyleX を先にすると
 spread が第二の `className` になり、Hozo は JSX の last-wins で本来消える

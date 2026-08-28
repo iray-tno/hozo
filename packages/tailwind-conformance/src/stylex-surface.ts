@@ -82,8 +82,8 @@ export interface StylexSurface {
 
 // Property names beyond React Native's direct StyleSheet surface that have
 // an existing Hozo semantic/runtime destination. They are candidates, not
-// claims of StyleX support: `mappedContextual` remains empty until the
-// StyleX frontend actually reaches those typed IR variants.
+// claims of StyleX support: a name enters `mappedContextual` only when the
+// StyleX frontend actually reaches that typed IR variant.
 const CONTEXTUAL_PROPERTIES = new Set([
   'containerName',
   'containerType',

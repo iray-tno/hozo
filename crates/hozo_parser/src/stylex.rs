@@ -9,8 +9,8 @@
 use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
-    Angle, Color, Condition, ConditionExpr, Dimension, ExprRef, Length, SourceSpan,
-    StyleDeclaration, StyleProperty, TransformFunction,
+    Angle, Color, Condition, ConditionExpr, Dimension, ExprRef, GridLine, GridSpan, GridTracks,
+    Length, SourceSpan, StyleDeclaration, StyleProperty, TransformFunction,
 };
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
@@ -163,6 +163,128 @@ fn css_color(value: &StaticValue) -> Option<Color> {
     };
     (!value.is_empty() && !value.contains("var(") && !value.contains("env("))
         .then(|| Color::Css(value.clone()))
+}
+
+fn stylex_grid_tracks(value: &StaticValue) -> Option<GridTracks> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let value = value.trim();
+    let compact = value
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    if let Some(inner) = compact
+        .strip_prefix("repeat(")
+        .and_then(|value| value.strip_suffix(",minmax(0,1fr))"))
+    {
+        let count = inner.parse::<u32>().ok()?;
+        return (count > 0)
+            .then(|| GridTracks::Css(format!("repeat({count},minmax(0,1fr))")));
+    }
+
+    // StyleX removes whitespace around commas inside functions but keeps
+    // whitespace between tracks. Match that CSS while accepting the usual
+    // authored spelling (`minmax(120px, 2fr) 1fr`).
+    let mut normalized = String::new();
+    let characters = value.chars().collect::<Vec<_>>();
+    let mut index = 0;
+    while index < characters.len() {
+        let character = characters[index];
+        if character.is_whitespace() {
+            let previous = normalized.chars().next_back();
+            let next = characters[index + 1..]
+                .iter()
+                .copied()
+                .find(|character| !character.is_whitespace());
+            if !matches!(previous, Some('(' | ','))
+                && !matches!(next, Some(')' | ','))
+                && !normalized.ends_with(' ')
+            {
+                normalized.push(' ');
+            }
+            index += 1;
+            continue;
+        }
+        normalized.push(character);
+        index += 1;
+    }
+    let valid = normalized.split_whitespace().all(|track| {
+        if let Some(inner) = track
+            .strip_prefix("minmax(")
+            .and_then(|value| value.strip_suffix(')'))
+        {
+            let Some((min, max)) = inner.split_once(',') else {
+                return false;
+            };
+            let Some(min) = min
+                .strip_suffix("px")
+                .and_then(|value| value.parse::<f64>().ok())
+            else {
+                return false;
+            };
+            let Some(fr) = max
+                .strip_suffix("fr")
+                .and_then(|value| value.parse::<f64>().ok())
+            else {
+                return false;
+            };
+            return min.is_finite() && min >= 0.0 && fr.is_finite() && fr > 0.0;
+        }
+        if let Some(fr) = track
+            .strip_suffix("fr")
+            .and_then(|value| value.parse::<f64>().ok())
+        {
+            return fr.is_finite() && fr > 0.0;
+        }
+        if let Some(points) = track
+            .strip_suffix("px")
+            .and_then(|value| value.parse::<f64>().ok())
+        {
+            return points.is_finite() && points >= 0.0;
+        }
+        false
+    });
+    (valid && !normalized.is_empty()).then_some(GridTracks::Css(normalized))
+}
+
+fn stylex_grid_line(value: &StaticValue) -> Option<GridLine> {
+    match value {
+        StaticValue::String(value) if value.trim() == "auto" => Some(GridLine::Auto),
+        StaticValue::String(value) => value
+            .trim()
+            .parse::<i32>()
+            .ok()
+            .filter(|line| *line != 0)
+            .map(GridLine::Line),
+        StaticValue::Number(value)
+            if value.is_finite()
+                && value.fract() == 0.0
+                && *value >= i32::MIN as f64
+                && *value <= i32::MAX as f64
+                && *value != 0.0 =>
+        {
+            Some(GridLine::Line(*value as i32))
+        }
+        _ => None,
+    }
+}
+
+fn stylex_grid_span(value: &StaticValue) -> Option<GridSpan> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let value = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    if value == "auto" {
+        return Some(GridSpan::Auto);
+    }
+    if value == "1 / -1" {
+        return Some(GridSpan::Full);
+    }
+    let (start, end) = value.split_once(" / ")?;
+    let start = start.strip_prefix("span ")?.parse::<u32>().ok()?;
+    let end = end.strip_prefix("span ")?.parse::<u32>().ok()?;
+    (start > 0 && start == end).then_some(GridSpan::Span(start))
 }
 
 fn transform_angle(value: &str) -> Option<Angle> {
@@ -600,6 +722,18 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
+        "gridTemplateColumns" => vec![StyleProperty::GridTemplateColumns(stylex_grid_tracks(
+            value,
+        )?)],
+        "gridTemplateRows" => vec![StyleProperty::GridTemplateRows(stylex_grid_tracks(
+            value,
+        )?)],
+        "gridColumnStart" => vec![StyleProperty::GridColumnStart(stylex_grid_line(value)?)],
+        "gridColumnEnd" => vec![StyleProperty::GridColumnEnd(stylex_grid_line(value)?)],
+        "gridRowStart" => vec![StyleProperty::GridRowStart(stylex_grid_line(value)?)],
+        "gridRowEnd" => vec![StyleProperty::GridRowEnd(stylex_grid_line(value)?)],
+        "gridColumn" => vec![StyleProperty::GridColumn(stylex_grid_span(value)?)],
+        "gridRow" => vec![StyleProperty::GridRow(stylex_grid_span(value)?)],
         "transform" => vec![StyleProperty::Transform(transform_functions(value)?)],
         "transformOrigin" => vec![StyleProperty::TransformOrigin(transform_origin(value)?)],
         // The shared IR deliberately keeps the complete shadow list as CSS
@@ -849,6 +983,14 @@ fn priority_family(property: &str) -> Option<&'static str> {
     }
 }
 
+fn priority_overlap(left: &str, right: &str) -> bool {
+    priority_family(left).is_some_and(|family| priority_family(right) == Some(family))
+        || (left == "gridColumn" && right.starts_with("gridColumn"))
+        || (right == "gridColumn" && left.starts_with("gridColumn"))
+        || (left == "gridRow" && right.starts_with("gridRow"))
+        || (right == "gridRow" && left.starts_with("gridRow"))
+}
+
 fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
     let Expression::ObjectExpression(object) = expression else {
         return Err(Gap {
@@ -1088,9 +1230,7 @@ impl Frontend {
                         .properties
                         .iter()
                         .any(|property| property.same_property_as(&existing.declaration.property))
-                        || priority_family(&entry.css_name).is_some_and(|family| {
-                            priority_family(&existing.css_name) == Some(family)
-                        }))
+                        || priority_overlap(&entry.css_name, &existing.css_name))
             }) {
                 return Err(Gap {
                     message: format!(
@@ -1257,6 +1397,99 @@ mod tests {
             entries[1].properties,
             vec![StyleProperty::TransformOrigin("left top".to_string())]
         );
+    }
+
+    #[test]
+    fn static_grid_values_become_the_existing_contextual_ir() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              grid: {
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gridTemplateRows: '80px minmax(120px, 2fr) 1fr'
+              },
+              span: { gridColumn: 'span 2 / span 2', gridRow: '1 / -1' },
+              lines: {
+                gridColumnStart: 2,
+                gridColumnEnd: -1,
+                gridRowStart: '2',
+                gridRowEnd: 'auto'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready(grid) = &frontend.sheets["styles"]["grid"] else {
+            panic!("grid rule was not lowerable")
+        };
+        assert_eq!(
+            grid[0].properties,
+            vec![StyleProperty::GridTemplateColumns(GridTracks::Css(
+                "repeat(3,minmax(0,1fr))".to_string()
+            ))]
+        );
+        assert_eq!(
+            grid[1].properties,
+            vec![StyleProperty::GridTemplateRows(GridTracks::Css(
+                "80px minmax(120px,2fr) 1fr".to_string()
+            ))]
+        );
+        let Rule::Ready(span) = &frontend.sheets["styles"]["span"] else {
+            panic!("span rule was not lowerable")
+        };
+        assert_eq!(
+            span[0].properties,
+            vec![StyleProperty::GridColumn(GridSpan::Span(2))]
+        );
+        assert_eq!(
+            span[1].properties,
+            vec![StyleProperty::GridRow(GridSpan::Full)]
+        );
+        let Rule::Ready(lines) = &frontend.sheets["styles"]["lines"] else {
+            panic!("line rule was not lowerable")
+        };
+        assert_eq!(
+            lines[0].properties,
+            vec![StyleProperty::GridColumnStart(GridLine::Line(2))]
+        );
+        assert_eq!(
+            lines[1].properties,
+            vec![StyleProperty::GridColumnEnd(GridLine::Line(-1))]
+        );
+        assert_eq!(
+            lines[2].properties,
+            vec![StyleProperty::GridRowStart(GridLine::Line(2))]
+        );
+        assert_eq!(
+            lines[3].properties,
+            vec![StyleProperty::GridRowEnd(GridLine::Auto)]
+        );
+    }
+
+    #[test]
+    fn grid_values_outside_the_native_solver_subset_remain_stylex_gaps() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              autoTrack: { gridTemplateColumns: 'auto 1fr' },
+              namedLine: { gridColumnStart: 'content' },
+              unequalSpan: { gridColumn: 'span 2 / span 3' }
+            })
+        "#,
+        );
+        assert!(matches!(
+            frontend.sheets["styles"]["autoTrack"],
+            Rule::Gap(_)
+        ));
+        assert!(matches!(
+            frontend.sheets["styles"]["namedLine"],
+            Rule::Gap(_)
+        ));
+        assert!(matches!(
+            frontend.sheets["styles"]["unequalSpan"],
+            Rule::Gap(_)
+        ));
     }
 
     #[test]

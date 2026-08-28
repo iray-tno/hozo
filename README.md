@@ -193,13 +193,21 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **116/522 property names
-(22.2%)**, or **116/116 (100%)** when the denominator is restricted to names
-React Native also publishes. The remaining surface is reported separately as
-13 contextual-runtime candidates, 1 optional-adapter candidate, and 392
-Web-only names. These are property-name upper bounds: each
+Against StyleX 0.19.0's published types that is **124/522 property names
+(23.8%)**, including **116/116 (100%)** when the denominator is restricted to
+names React Native also publishes and **8/13 (61.5%)** contextual-runtime
+names. The remaining surface is reported separately as 5 contextual-runtime
+candidates, 1 optional-adapter candidate, and 392 Web-only names. These are
+property-name upper bounds: each
 property still accepts only the statically safe value subset the shared IR can
 represent.
+
+The contextual slice is currently Grid: static `gridTemplateColumns`/
+`gridTemplateRows` tracks made from positive `fr`, non-negative `px`, or
+`minmax(px, fr)` values (plus equal-track `repeat`), and integer line or
+`auto`/equal-span/full-span item placement. On Native these reuse `HozoGrid`
+and `HozoGridItem`; unsupported CSS Grid values remain with StyleX and produce
+`STYLEX_NOT_LOWERED` instead of being approximated.
 Themes/variables, nested selectors, keyframes, cross-file sheets, `sx`, and
 StyleX shorthand/longhand priority overlap are not guessed: the spread is
 preserved for StyleX and Hozo emits `STYLEX_NOT_LOWERED`.
