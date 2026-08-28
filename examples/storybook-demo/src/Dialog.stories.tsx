@@ -14,7 +14,7 @@ function DialogDemo() {
         Native HTML &lt;dialog&gt; modal with focus trapping, keyboard Escape handling, and focus restoration to opener button.
       </Paragraph>
       <Button
-        className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors inline-flex justify-center items-center"
+        className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors inline-flex justify-center items-center cursor-pointer"
         onPress={() => setOpen(true)}
       >
         Open Confirmation Dialog
@@ -34,13 +34,13 @@ function DialogDemo() {
           </Paragraph>
           <View className="flex flex-row justify-end gap-3 pt-4 border-t border-slate-100">
             <Button
-              className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition-colors"
+              className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
               onPress={() => setOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors cursor-pointer"
               onPress={() => {
                 alert('Confirmed!')
                 setOpen(false)

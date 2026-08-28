@@ -19,7 +19,7 @@ function ComboboxDemo() {
           Combobox (@hozo/a11y)
         </Heading>
         <Paragraph className="text-sm text-slate-600">
-          Accessible autocomplete dropdown where focus stays in the text field and active options are announced via <code className="text-xs bg-slate-100 px-1 py-0.5 rounded font-mono">aria-activedescendant</code>.
+          Accessible autocomplete dropdown where focus stays in the text field and active options are announced via <code className="text-xs bg-slate-100 px-1 py-0.5 rounded font-mono border border-slate-200">aria-activedescendant</code>.
         </Paragraph>
         <Combobox
           options={options}
@@ -27,9 +27,9 @@ function ComboboxDemo() {
           onValueChange={setSelectedBundler}
           placeholder="Search bundler integration..."
           accessibilityLabel="Select bundler"
-          className="relative"
+          className="relative w-full"
           inputClassName="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-sm"
-          listClassName="absolute top-full left-0 mt-1.5 w-full rounded-xl bg-white shadow-xl border border-slate-200 p-1.5 z-20 max-h-60 overflow-auto"
+          listClassName="absolute top-full left-0 mt-1.5 w-full rounded-xl bg-white shadow-xl border border-slate-200 p-1.5 z-20 max-h-60 overflow-y-auto"
           optionClassName="p-2 rounded-lg text-sm cursor-pointer hover:bg-slate-100 transition-colors aria-selected:bg-indigo-50 aria-selected:text-indigo-700 aria-selected:font-semibold"
         />
       </View>
@@ -46,7 +46,7 @@ function ComboboxDemo() {
           value={selectedBundler}
           onValueChange={setSelectedBundler}
           accessibilityLabel="Bundler options listbox"
-          className="rounded-xl border border-slate-200 p-1.5 divide-y divide-slate-100 bg-white"
+          className="rounded-xl border border-slate-200 p-1.5 divide-y divide-slate-100 bg-white w-full"
           optionClassName="p-2.5 rounded-lg text-sm cursor-pointer hover:bg-slate-100 transition-colors aria-selected:bg-indigo-50 aria-selected:text-indigo-700 aria-selected:font-semibold"
         />
       </View>
