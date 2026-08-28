@@ -1313,12 +1313,23 @@ pub enum StyleProperty {
     /// `FilterFunction` is also the dedupe key, so `blur-sm blur-lg`
     /// replaces rather than stacks.
     Filter(FilterFunction, String),
+    /// A complete authored `filter` value, as opposed to one Tailwind
+    /// register-backed function above. Keeping it whole preserves function
+    /// order, which is observable because filter functions do not commute.
+    FilterRaw(String),
     /// The same chain applied to what's *behind* the element. A separate
     /// property, not a flag on `Filter`: an element can carry both, and
     /// they compose independently.
     BackdropFilter(FilterFunction, String),
 
     // Typography
+    /// A complete font-family value. Static StyleX declarations use one
+    /// portable family name; Tailwind's named utilities retain their CSS
+    /// fallback stack for Web.
+    FontFamily(String),
+    /// The intersection of CSS font-variant keywords and React Native's
+    /// `FontVariant[]`, retained in authored order.
+    FontVariant(Vec<&'static str>),
     FontSize(Length),
     FontWeight(FontWeight),
     LineHeight(LineHeight),
@@ -1385,6 +1396,10 @@ pub enum StyleProperty {
     /// overriding each other. `dedupe_last_wins` keys on the variant, so
     /// the two have to be the same one to resolve.
     BackgroundImageNone,
+    /// A complete static StyleX gradient. React Native accepts CSS strings
+    /// for linear and radial gradients, so both backends can retain it
+    /// without introducing a runtime gradient representation.
+    BackgroundImage(String),
     /// A background gradient: which function, and everything before the
     /// stops.
     ///
@@ -1954,8 +1969,11 @@ impl StyleProperty {
             | StyleProperty::RingInset
             | StyleProperty::TextShadow(..)
             | StyleProperty::Filter(..)
+            | StyleProperty::FilterRaw(..)
             | StyleProperty::BackdropFilter(..)
             | StyleProperty::FontWeight(..)
+            | StyleProperty::FontFamily(..)
+            | StyleProperty::FontVariant(..)
             | StyleProperty::Overflow(..)
             | StyleProperty::TextOverflow(..)
             | StyleProperty::WhiteSpace(..)
@@ -1964,6 +1982,7 @@ impl StyleProperty {
             | StyleProperty::TransitionTimingFunction(..)
             | StyleProperty::Animation(..)
             | StyleProperty::BackgroundImageNone
+            | StyleProperty::BackgroundImage(..)
             | StyleProperty::Gradient(..)
             | StyleProperty::MaskClip(..)
             | StyleProperty::MaskOrigin(..)
@@ -2244,7 +2263,7 @@ impl StyleProperty {
                         | "isolation"
                         | "pointer-events"
                         | "font-style"
-                        | "font-family"
+                        | "direction"
                         | "flex-wrap"
                         // Not a style on React Native, and not refused
                         // either: `@container` is honoured by rendering

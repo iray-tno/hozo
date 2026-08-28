@@ -508,6 +508,71 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
+        // The shared IR deliberately keeps the complete shadow list as CSS
+        // text. That preserves authored layer order and also maps directly
+        // to React Native's string-valued `boxShadow` support.
+        "boxShadow" => {
+            let StaticValue::String(value) = value else {
+                return None;
+            };
+            let value = value
+                .split(',')
+                .map(str::trim)
+                .collect::<Vec<_>>()
+                .join(",");
+            vec![StyleProperty::BoxShadow(value)]
+        }
+        "backgroundImage" => {
+            let StaticValue::String(value) = value else { return None };
+            let value = value.trim();
+            if value == "none" {
+                vec![StyleProperty::BackgroundImageNone]
+            } else if (value.starts_with("linear-gradient(")
+                || value.starts_with("radial-gradient("))
+                && value.ends_with(')')
+                && !value.contains("var(")
+                && !value.contains("env(")
+            {
+                let value = value.split(',').map(str::trim).collect::<Vec<_>>().join(",");
+                vec![StyleProperty::BackgroundImage(value)]
+            } else {
+                return None;
+            }
+        }
+        "filter" => {
+            let StaticValue::String(value) = value else { return None };
+            let value = value.trim();
+            if value != "none" && !supported_filter_list(value) {
+                return None;
+            }
+            vec![StyleProperty::FilterRaw(value.to_string())]
+        }
+        "direction" => {
+            let StaticValue::String(value) = value else { return None };
+            let value = ["inherit", "ltr", "rtl"]
+                .into_iter()
+                .find(|candidate| *candidate == value)?;
+            vec![StyleProperty::Keyword("direction", value)]
+        }
+        "fontFamily" => {
+            let StaticValue::String(value) = value else { return None };
+            let value = value.trim();
+            if value.is_empty() || value.contains(',') || value.contains("var(") {
+                return None;
+            }
+            vec![StyleProperty::FontFamily(value.to_string())]
+        }
+        "fontVariant" => {
+            let StaticValue::String(value) = value else { return None };
+            let variants = value
+                .split_whitespace()
+                .map(portable_font_variant)
+                .collect::<Option<Vec<_>>>()?;
+            if variants.is_empty() {
+                return None;
+            }
+            vec![StyleProperty::FontVariant(variants)]
+        }
         // Tailwind's border-width utilities intentionally add a solid
         // style so they paint without a reset. StyleX declares exactly the
         // requested property, so it must bypass that Tailwind-specific
@@ -622,6 +687,55 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         }
         _ => return None,
     })
+}
+
+fn portable_font_variant(value: &str) -> Option<&'static str> {
+    const VALUES: &[&str] = &[
+        "small-caps", "oldstyle-nums", "lining-nums", "tabular-nums",
+        "common-ligatures", "no-common-ligatures", "discretionary-ligatures",
+        "no-discretionary-ligatures", "historical-ligatures", "no-historical-ligatures",
+        "contextual", "no-contextual", "proportional-nums", "stylistic-one",
+        "stylistic-two", "stylistic-three", "stylistic-four", "stylistic-five",
+        "stylistic-six", "stylistic-seven", "stylistic-eight", "stylistic-nine",
+        "stylistic-ten", "stylistic-eleven", "stylistic-twelve", "stylistic-thirteen",
+        "stylistic-fourteen", "stylistic-fifteen", "stylistic-sixteen",
+        "stylistic-seventeen", "stylistic-eighteen", "stylistic-nineteen",
+        "stylistic-twenty",
+    ];
+    VALUES.iter().copied().find(|candidate| *candidate == value)
+}
+
+fn supported_filter_list(value: &str) -> bool {
+    let mut rest = value.trim();
+    while !rest.is_empty() {
+        let Some(open) = rest.find('(') else { return false };
+        let name = rest[..open].trim();
+        if !matches!(
+            name,
+            "blur" | "brightness" | "contrast" | "drop-shadow" | "grayscale"
+                | "hue-rotate" | "invert" | "opacity" | "saturate" | "sepia"
+        ) {
+            return false;
+        }
+        let mut depth = 0_u32;
+        let mut close = None;
+        for (index, character) in rest[open..].char_indices() {
+            match character {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = Some(open + index + 1);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(close) = close else { return false };
+        rest = rest[close..].trim_start();
+    }
+    true
 }
 
 /// CSS shorthands and longhands StyleX assigns different atomic priorities.

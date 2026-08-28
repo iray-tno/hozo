@@ -19,7 +19,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the StyleX numerator is the Rust frontend mapping, not a curated copy', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 108)
+  assert.equal(mapped.size, 114)
   for (const name of ['display', 'padding', 'backgroundColor', 'textAlign']) {
     assert.ok(mapped.has(name), `${name} should have a lowering arm`)
   }
@@ -29,10 +29,10 @@ test('the StyleX numerator is the Rust frontend mapping, not a curated copy', ()
 test('the universal denominator is derived from StyleX and React Native', () => {
   const surface = stylexSurface()
   assert.equal(surface.native.size, 114)
-  assert.equal(surface.mappedNative.size, 108)
-  assert.equal(surface.missingNative.size, 6)
+  assert.equal(surface.mappedNative.size, 114)
+  assert.equal(surface.missingNative.size, 0)
   assert.ok(!surface.missingNative.has('borderWidth'))
   assert.ok(!surface.missingNative.has('pointerEvents'))
-  assert.ok(surface.missingNative.has('fontFamily'))
+  assert.ok(!surface.missingNative.has('fontFamily'))
   assert.ok(!surface.missingNative.has('animationDuration'))
 })

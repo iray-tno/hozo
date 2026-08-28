@@ -204,6 +204,8 @@ test('the expanded RN-portable StyleX property slice agrees with the official CS
     ['alignContent', `'center'`],
     ['aspectRatio', `'1 / 1'`],
     ['backfaceVisibility', `'hidden'`],
+    ['backgroundImage', `'linear-gradient(90deg, #123456, #abcdef)'`],
+    ['boxShadow', `'inset 0 1px 2px #123456, 0 2px 4px #00000080'`],
     ['borderStartStartRadius', '6'],
     ['borderStartEndRadius', '6'],
     ['borderEndStartRadius', '6'],
@@ -220,8 +222,12 @@ test('the expanded RN-portable StyleX property slice agrees with the official CS
     ['borderLeftWidth', '2'],
     ['borderStyle', `'solid'`],
     ['boxSizing', `'border-box'`],
+    ['direction', `'rtl'`],
     ['flex', `'auto'`],
+    ['filter', `'sepia(60%) hue-rotate(20deg)'`],
+    ['fontFamily', `'Inter'`],
     ['fontStyle', `'italic'`],
+    ['fontVariant', `'small-caps tabular-nums'`],
     ['isolation', `'isolate'`],
     ['mixBlendMode', `'multiply'`],
     ['outlineColor', `'#123456'`],
@@ -297,5 +303,27 @@ export const Card = () => <View {...stylex.props(styles.root)} />
     assert.equal(native.diagnostics.length, 0, `${property}: ${JSON.stringify(native.diagnostics)}`)
     assert.doesNotMatch(native.jsx, /stylex\.props/, property)
     assert.notEqual(native.styles.trim(), '', property)
+    if (property === 'boxShadow') {
+      assert.match(
+        native.styles,
+        /boxShadow: 'inset 0 1px 2px #123456,0 2px 4px #00000080'/,
+        property,
+      )
+    }
+    if (property === 'backgroundImage') {
+      assert.match(native.styles, /backgroundImage: 'linear-gradient\(90deg,#123456,#abcdef\)'/, property)
+    }
+    if (property === 'filter') {
+      assert.match(native.styles, /filter: 'sepia\(60%\) hue-rotate\(20deg\)'/, property)
+    }
+    if (property === 'fontVariant') {
+      assert.match(native.styles, /fontVariant: \['small-caps', 'tabular-nums'\]/, property)
+    }
+    if (property === 'direction') {
+      assert.match(native.styles, /direction: 'rtl'/, property)
+    }
+    if (property === 'fontFamily') {
+      assert.match(native.styles, /fontFamily: 'Inter'/, property)
+    }
   }
 })

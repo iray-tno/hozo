@@ -209,15 +209,23 @@ pub fn background_image_entry(
     props: &[StyleProperty],
     theme: &Theme,
 ) -> Option<(&'static str, String)> {
+    enum Image<'a> {
+        None,
+        Raw(&'a str),
+        Gradient(GradientKind, &'a str),
+    }
     // Last wins between a gradient and `bg-none`, the same scan the Web
     // backend does for the same reason.
     let latest = props.iter().rev().find_map(|p| match p {
-        StyleProperty::Gradient(kind, prelude) => Some(Some((*kind, prelude.as_str()))),
-        StyleProperty::BackgroundImageNone => Some(None),
+        StyleProperty::Gradient(kind, prelude) => Some(Image::Gradient(*kind, prelude)),
+        StyleProperty::BackgroundImageNone => Some(Image::None),
+        StyleProperty::BackgroundImage(value) => Some(Image::Raw(value)),
         _ => None,
     })?;
-    let Some((kind, prelude)) = latest else {
-        return Some(("backgroundImage", "'none'".to_string()));
+    let (kind, prelude) = match latest {
+        Image::None => return Some(("backgroundImage", "'none'".to_string())),
+        Image::Raw(value) => return Some(("backgroundImage", js_string(value))),
+        Image::Gradient(kind, prelude) => (kind, prelude),
     };
     if kind == GradientKind::Conic {
         return None;
@@ -274,6 +282,14 @@ pub fn background_image_entry(
 /// uses, so the two platforms compose identically. React Native 0.76+
 /// accepts the CSS syntax here, so the value text is shared.
 pub fn filter_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static str, String)> {
+    let last_raw = props.iter().rposition(|p| matches!(p, StyleProperty::FilterRaw(_)));
+    let last_slots = props.iter().rposition(|p| matches!(p, StyleProperty::Filter(..)));
+    if last_raw > last_slots {
+        return props.iter().rev().find_map(|p| match p {
+            StyleProperty::FilterRaw(value) => Some(("filter", js_string(value))),
+            _ => None,
+        });
+    }
     let mut functions: Vec<(FilterFunction, String)> = Vec::new();
     // `drop-shadow-<colour>` repaints the shadow the other utility drew,
     // the same composition the Web backend does -- React Native takes the
@@ -587,6 +603,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // Composed into one `backgroundImage` by `background_image_entry`,
         // the same way the transform axes are.
         StyleProperty::BackgroundImageNone
+        | StyleProperty::BackgroundImage(..)
         | StyleProperty::Gradient(..)
         | StyleProperty::GradientStopColor(..)
         | StyleProperty::GradientStopPosition(..) => Vec::new(),
@@ -749,7 +766,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
             vec![("pointerEvents", js_string(v))]
         }
         StyleProperty::Keyword("font-style", v) => vec![("fontStyle", js_string(v))],
-        StyleProperty::Keyword("font-family", v) => vec![("fontFamily", js_string(v))],
+        StyleProperty::Keyword("direction", v) => vec![("direction", js_string(v))],
         StyleProperty::Keyword("flex-wrap", v) => vec![("flexWrap", js_string(v))],
         // RN has `objectFit` with the same five keywords, `userSelect`, and
         // `textDecorationLine` with all but `overline`. The per-axis
@@ -1073,8 +1090,17 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // Composed, not emitted here -- see `filter_entry`. `BackdropFilter`
         // is refused upstream: React Native has no such style key.
         StyleProperty::Filter(..)
+        | StyleProperty::FilterRaw(..)
         | StyleProperty::BackdropFilter(..)
         | StyleProperty::DropShadowColor(_) => vec![],
+        StyleProperty::FontFamily(value) => vec![("fontFamily", js_string(value))],
+        StyleProperty::FontVariant(values) => vec![(
+            "fontVariant",
+            format!(
+                "[{}]",
+                values.iter().map(|value| js_string(value)).collect::<Vec<_>>().join(", ")
+            ),
+        )],
         // Refused upstream, with the shadow it would have coloured.
         StyleProperty::TextShadowColor(_) | StyleProperty::TextShadow(_) => vec![],
         // Refused upstream: scroll snapping is a ScrollView prop on React
@@ -1140,6 +1166,28 @@ mod tests {
         assert_eq!(
             property_and_value(&StyleProperty::TextColor(Color::Token("brand-primary".to_string())), &Theme::default()),
             vec![("color", "'hozo-unresolved:brand-primary'".to_string())]
+        );
+    }
+
+    #[test]
+    fn raw_filter_and_background_image_keep_their_css_order() {
+        let filter = vec![
+            StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".to_string()),
+            StyleProperty::FilterRaw("sepia(60%) hue-rotate(20deg)".to_string()),
+        ];
+        assert_eq!(
+            filter_entry(&filter, &Theme::default()),
+            Some(("filter", "'sepia(60%) hue-rotate(20deg)'".to_string()))
+        );
+        let image = vec![StyleProperty::BackgroundImage(
+            "linear-gradient(90deg,#123456,#abcdef)".to_string(),
+        )];
+        assert_eq!(
+            background_image_entry(&image, &Theme::default()),
+            Some((
+                "backgroundImage",
+                "'linear-gradient(90deg,#123456,#abcdef)'".to_string()
+            ))
         );
     }
 }

@@ -947,8 +947,8 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-08-27 時点では
-全 CSS 名で 108/522 (20.7%)、両 platform に名前が存在する集合で 108/114
-(94.7%)。これは value や API を含めた互換率ではなく property-name の上限値で、
+全 CSS 名で 114/522 (21.8%)、両 platform に名前が存在する集合で 114/114
+(100%)。これは value や API を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
 
 共存実測の結論は **Hozo → StyleX の順だけが安全**。StyleX を先にすると

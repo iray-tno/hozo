@@ -18,7 +18,7 @@ use hozo_ir::{
     Align, AlignSelf, Angle, Axis, BorderStyle, Breakpoint, Clamp, Color, Condition, ConditionExpr,
     FilterFunction, Scale,
     DecorationStyle,
-    ColumnCount, Dimension, Display, Edge, Environment, GradientStop, GridLine, GridSpan, GridTracks, MaskSlot,
+    ColumnCount, Dimension, Display, Edge, Environment, GradientKind, GradientStop, GridLine, GridSpan, GridTracks, MaskSlot,
     MaskStop,
     Em, FlexDirection, LetterSpacing, FlexShorthand, Justify, Length, LineHeight, Overflow, Position, Radius,
     StyleProperty, TextAlign, TextOverflow, TextTransform, Theme, WhiteSpace,
@@ -436,6 +436,16 @@ fn is_translate(prop: &StyleProperty) -> bool {
 /// a `-none` utility contributes an empty register there and so nothing
 /// here.
 fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Option<String> {
+    if !backdrop {
+        let last_raw = props.iter().rposition(|p| matches!(p, StyleProperty::FilterRaw(_)));
+        let last_slots = props.iter().rposition(|p| matches!(p, StyleProperty::Filter(..)));
+        if last_raw > last_slots {
+            return props.iter().rev().find_map(|p| match p {
+                StyleProperty::FilterRaw(value) => Some(value.clone()),
+                _ => None,
+            });
+        }
+    }
     let mut functions: Vec<(FilterFunction, String)> = Vec::new();
     // The colour `drop-shadow-<colour>` set, if a second utility set one.
     // Only for the element's own filter: Tailwind has no
@@ -487,6 +497,7 @@ fn is_gradient(prop: &StyleProperty) -> bool {
             | StyleProperty::GradientStopColor(..)
             | StyleProperty::GradientStopPosition(..)
             | StyleProperty::BackgroundImageNone
+            | StyleProperty::BackgroundImage(..)
     )
 }
 
@@ -508,16 +519,26 @@ fn is_gradient(prop: &StyleProperty) -> bool {
 /// interpolation still gets a gradient. Hozo emits only the modern form,
 /// the same call `Radius::Full` makes with `calc(infinity * 1px)`.
 fn gradient_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
+    enum Image<'a> {
+        None,
+        Raw(&'a str),
+        Gradient(GradientKind, String),
+    }
     // `bg-none` and a gradient constructor write the same declaration, so
     // whichever came last wins -- which means scanning from the end. The
     // inner `Option` is the answer, the outer one is "did anything here
     // set a background image at all".
     let latest = props.iter().rev().find_map(|p| match p {
-        StyleProperty::Gradient(kind, prelude) => Some(Some((*kind, prelude.clone()))),
-        StyleProperty::BackgroundImageNone => Some(None),
+        StyleProperty::Gradient(kind, prelude) => Some(Image::Gradient(*kind, prelude.clone())),
+        StyleProperty::BackgroundImageNone => Some(Image::None),
+        StyleProperty::BackgroundImage(value) => Some(Image::Raw(value)),
         _ => None,
     })?;
-    let Some((kind, prelude)) = latest else { return Some("none".to_string()) };
+    let (kind, prelude) = match latest {
+        Image::None => return Some("none".to_string()),
+        Image::Raw(value) => return Some(value.to_string()),
+        Image::Gradient(kind, prelude) => (kind, prelude),
+    };
 
     // `via-none` sets the stop to `initial`, which takes it back out of
     // the list rather than painting it. Kept as a stop that resolves to
@@ -637,6 +658,7 @@ fn is_filter(prop: &StyleProperty) -> bool {
     matches!(
         prop,
         StyleProperty::Filter(..)
+            | StyleProperty::FilterRaw(..)
             | StyleProperty::BackdropFilter(..)
             // Partitioned with the chain because it is composed into one
             // of its functions rather than emitted: `drop-shadow-blue-500`
@@ -1023,6 +1045,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         }
         // Composed by `gradient_value`, partitioned out before this runs.
         StyleProperty::BackgroundImageNone
+        | StyleProperty::BackgroundImage(..)
         | StyleProperty::Gradient(..)
         | StyleProperty::GradientStopColor(..)
         | StyleProperty::GradientStopPosition(..) => ("background-image", String::new()),
@@ -1247,8 +1270,10 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::ScrollSnapType(_) | StyleProperty::ScrollSnapStrictness(_) => {
             ("scroll-snap-type", String::new())
         }
-        StyleProperty::Filter(..) => ("filter", String::new()),
+        StyleProperty::Filter(..) | StyleProperty::FilterRaw(..) => ("filter", String::new()),
         StyleProperty::BackdropFilter(..) => ("backdrop-filter", String::new()),
+        StyleProperty::FontFamily(value) => ("font-family", value.clone()),
+        StyleProperty::FontVariant(values) => ("font-variant", values.join(" ")),
         StyleProperty::TextTransform(t) => (
             "text-transform",
             match t {
@@ -2283,6 +2308,19 @@ mod tests {
         ];
         let refs: Vec<&StyleProperty> = off.iter().collect();
         assert_eq!(filter_value(&refs, false, &Theme::default()), Some("none".to_string()));
+    }
+
+    #[test]
+    fn a_raw_filter_keeps_authored_order_and_replaces_the_earlier_chain() {
+        let props = vec![
+            StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".to_string()),
+            StyleProperty::FilterRaw("sepia(60%) hue-rotate(20deg)".to_string()),
+        ];
+        let refs: Vec<&StyleProperty> = props.iter().collect();
+        assert_eq!(
+            filter_value(&refs, false, &Theme::default()),
+            Some("sepia(60%) hue-rotate(20deg)".to_string())
+        );
     }
 
     #[test]
