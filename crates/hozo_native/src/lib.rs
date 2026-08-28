@@ -1918,8 +1918,9 @@ fn native_driver_transition(
     }).unwrap_or("cubic-bezier(0.4, 0, 0.2, 1)");
     let easing = match timing {
         "linear" => "linear",
-        "cubic-bezier(0.4, 0, 1, 1)" => "ease-in",
-        "cubic-bezier(0, 0, 0.2, 1)" => "ease-out",
+        "ease-in" | "cubic-bezier(0.4, 0, 1, 1)" => "ease-in",
+        "ease-out" | "cubic-bezier(0, 0, 0.2, 1)" => "ease-out",
+        "ease-in-out" => "ease-in-out",
         _ => "ease-in-out",
     };
     Some((duration, easing, opacity, transform, colors))
@@ -5885,8 +5886,9 @@ fn ambient_transition(node: &Node, declarations: &[StyleDeclaration]) -> Option<
         .unwrap_or("cubic-bezier(0.4, 0, 0.2, 1)");
     let easing = match timing {
         "linear" => "linear",
-        "cubic-bezier(0.4, 0, 1, 1)" => "ease-in",
-        "cubic-bezier(0, 0, 0.2, 1)" => "ease-out",
+        "ease-in" | "cubic-bezier(0.4, 0, 1, 1)" => "ease-in",
+        "ease-out" | "cubic-bezier(0, 0, 0.2, 1)" => "ease-out",
+        "ease-in-out" => "ease-in-out",
         _ => "ease-in-out",
     };
     Some((duration, easing))

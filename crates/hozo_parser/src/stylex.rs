@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
     Angle, Color, Condition, ConditionExpr, Dimension, Edge, ExprRef, GridLine, GridSpan,
-    GridTracks, Length, Overflow, Radius, SourceSpan, StyleDeclaration, StyleProperty,
+    GridTracks, Length, Origin, Overflow, Radius, SourceSpan, StyleDeclaration, StyleProperty,
     StylexResidual, StylexResidualArgument, TransformFunction,
 };
 use oxc_ast::ast::{
@@ -512,6 +512,53 @@ fn stylex_scroll_edge(property: &str) -> Option<Edge> {
     })
 }
 
+fn stylex_transition_property(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let properties: Vec<_> = value.split(',').map(str::trim).collect();
+    if properties.is_empty()
+        || properties.iter().any(|property| {
+            !matches!(
+                *property,
+                "all"
+                    | "none"
+                    | "opacity"
+                    | "transform"
+                    | "translate"
+                    | "scale"
+                    | "rotate"
+                    | "color"
+                    | "background-color"
+            )
+        })
+        || (properties.len() > 1 && properties.iter().any(|property| matches!(*property, "all" | "none")))
+    {
+        return None;
+    }
+    Some(properties.join(","))
+}
+
+fn stylex_transition_duration(value: &StaticValue) -> Option<u32> {
+    let StaticValue::String(value) = value else { return None };
+    let milliseconds = if let Some(value) = value.strip_suffix("ms") {
+        value.parse::<f64>().ok()?
+    } else if let Some(value) = value.strip_suffix('s') {
+        value.parse::<f64>().ok()? * 1000.0
+    } else {
+        return None;
+    };
+    (milliseconds.is_finite()
+        && milliseconds >= 0.0
+        && milliseconds.fract() == 0.0
+        && milliseconds <= u32::MAX as f64)
+        .then_some(milliseconds as u32)
+}
+
+fn stylex_transition_timing(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    matches!(value.as_str(), "linear" | "ease-in" | "ease-out" | "ease-in-out")
+        .then(|| value.clone())
+}
+
 /// Maps CSS-in-JS property spelling onto the already-tested Tailwind parser.
 /// The tokens are internal only; no generated class string reaches output.
 fn token_for(property: &str, value: &StaticValue) -> Option<String> {
@@ -882,6 +929,17 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "scrollPaddingInlineStart" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
         "scrollPaddingInlineEnd" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
         "textIndent" => vec![StyleProperty::TextIndent(dimension()?)],
+        "transitionProperty" => vec![StyleProperty::TransitionProperty(
+            stylex_transition_property(value)?,
+        )],
+        "transitionDuration" => vec![StyleProperty::TransitionDuration(
+            stylex_transition_duration(value)?,
+            Origin::Written,
+        )],
+        "transitionTimingFunction" => vec![StyleProperty::TransitionTimingFunction(
+            stylex_transition_timing(value)?,
+            Origin::Written,
+        )],
         // StyleX emits these as CSS shorthands at a lower atomic priority
         // than their longhands. Split them into the typed final slots here
         // so the same priority resolution works on Web and Native.
@@ -1327,6 +1385,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("scroll-margin")
     } else if property.starts_with("scrollPadding") {
         Some("scroll-padding")
+    } else if property == "transition" || property.starts_with("transition") {
+        Some("transition")
     } else {
         None
     }
@@ -1934,6 +1994,92 @@ mod tests {
             lines[3].properties,
             vec![StyleProperty::GridRowEnd(GridLine::Auto)]
         );
+    }
+
+    #[test]
+    fn static_transition_configuration_becomes_the_existing_contextual_ir() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              motion: {
+                transitionProperty: 'opacity, transform',
+                transitionDuration: '.2s',
+                transitionTimingFunction: 'ease-in-out'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["motion"]
+        else {
+            panic!("rule was not lowerable")
+        };
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+        assert_eq!(
+            entries
+                .iter()
+                .flat_map(|entry| entry.properties.clone())
+                .collect::<Vec<_>>(),
+            vec![
+                StyleProperty::TransitionProperty("opacity,transform".to_string()),
+                StyleProperty::TransitionDuration(200, Origin::Written),
+                StyleProperty::TransitionTimingFunction(
+                    "ease-in-out".to_string(),
+                    Origin::Written
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn transition_values_the_native_runtime_cannot_preserve_remain_residual() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              motion: {
+                transitionProperty: 'filter',
+                transitionDuration: '0.5ms',
+                transitionTimingFunction: 'steps(2, jump-none)'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["motion"]
+        else {
+            panic!("static unsupported values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 3);
+        assert_eq!(gaps.len(), 3);
+    }
+
+    #[test]
+    fn transition_shorthand_overlap_keeps_the_original_stylex_rule() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { Pressable } from '@hozo/core'
+            const styles = stylex.create({
+              motion: { transition: 'opacity 100ms linear', transitionDuration: '200ms' }
+            })
+            const card = <Pressable {...stylex.props(styles.motion)} />
+        "#,
+        );
+        let node = &parsed.roots[0].node;
+        assert!(node.style.is_empty());
+        assert_eq!(node.props.passthrough.len(), 1);
+        assert!(node.props.stylex_residuals.is_empty());
+        assert!(parsed.diagnostics[0].message.contains("cascade is not approximated"));
     }
 
     #[test]
