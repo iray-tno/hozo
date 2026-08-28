@@ -38,6 +38,13 @@
     "roles": 83,
     "falsePositives": 0
   },
+  "diagnostics": {
+    "declared": 28,
+    "fires": 27,
+    "silent": 0,
+    "noCase": 0,
+    "unreachable": 1
+  },
   "rnwFree": {
     "cases": 20,
     "covered": 20

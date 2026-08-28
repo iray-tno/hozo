@@ -30,6 +30,11 @@ import { buildOracle } from './oracle.ts'
 import { loadThemeVars, tailwindVersion } from './theme.ts'
 import { A11Y_CONTEXTUAL_CASES, compareA11yContextual } from './a11y-contextual.ts'
 import { ariaRoleCases, compareAriaRole } from './aria-roles.ts'
+import {
+  compareDiagnostic,
+  declaredDiagnosticCodes,
+  type DiagnosticVerdict,
+} from './diagnostics.ts'
 import { compareRnwFree, RNW_FREE_CASES } from './rnw-free.ts'
 import { finish, record } from './snapshot.ts'
 import { stylexSurface, stylexVersion } from './stylex-surface.ts'
@@ -316,6 +321,35 @@ for (const result of ariaComplaints) {
   console.log(`  ${result.role.padEnd(20)} ${result.codes.join(', ')}`)
 }
 record('ariaRoles', { roles: ariaRoles.length, falsePositives: ariaComplaints.length })
+
+// The other half. The section above asks whether the checks stay quiet on
+// correct code; this asks whether they speak at all -- which is the half
+// that can rot invisibly, because a check that stopped firing looks exactly
+// like a codebase with no defects in it. Every diagnostic in this compiler
+// could be replaced with `return` today and nothing else here would move.
+const diagnosticCodes = declaredDiagnosticCodes()
+const diagnostics = diagnosticCodes.map(compareDiagnostic)
+const diagnosticCount = (verdict: DiagnosticVerdict) =>
+  diagnostics.filter((result) => result.verdict === verdict).length
+console.log(
+  `\nDiagnostics the compiler declares: ${diagnosticCodes.length}\n` +
+    `  fire when provoked  ${diagnosticCount('FIRES')}\n` +
+    `  stayed silent       ${diagnosticCount('SILENT')}   (has to be zero)\n` +
+    `  no case written     ${diagnosticCount('NO_CASE')}   (has to be zero)\n` +
+    `  unreachable by design ${diagnosticCount('UNREACHABLE')}`,
+)
+for (const result of diagnostics) {
+  if (result.verdict === 'FIRES') continue
+  const detail = result.reason ?? `raised: ${result.raised.join(', ') || 'nothing'}`
+  console.log(`  ${result.verdict.padEnd(12)} ${result.code.padEnd(32)} ${detail}`)
+}
+record('diagnostics', {
+  declared: diagnosticCodes.length,
+  fires: diagnosticCount('FIRES'),
+  silent: diagnosticCount('SILENT'),
+  noCase: diagnosticCount('NO_CASE'),
+  unreachable: diagnosticCount('UNREACHABLE'),
+})
 
 record('rnwFree', { cases: rnwFree.length, covered: rnwFreeCovered })
 for (const result of rnwFree) {

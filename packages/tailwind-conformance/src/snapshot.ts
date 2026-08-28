@@ -69,6 +69,10 @@ const WORSE_WHEN_UP = new Set([
   // the first thing anyone does with a noisy one is turn it off, and the
   // real findings leave with it.
   'falsePositives',
+  // A declared diagnostic that no source makes fire, and one with no case
+  // to try. Both mean the same thing from outside: a check whose absence
+  // would look exactly like clean code.
+  'noCase',
 ])
 
 /**
@@ -100,6 +104,10 @@ const WORSE_WHEN_DOWN = new Set([
   // The ARIA denominator is derived, so a fall here means the
   // specification's own role list shrank -- or the filter reading it did.
   'roles',
+  // Every diagnostic the compiler declares. A fall means one was deleted,
+  // which is a decision that belongs in a diff.
+  'declared',
+  'fires',
 ])
 
 type Section = Record<string, number | string>
