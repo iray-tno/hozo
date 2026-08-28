@@ -65,13 +65,13 @@ export interface StyleKey {
   percent?: boolean
 }
 
-/// Only the interfaces that describe a style. The file also declares the
-/// shapes of things that appear *inside* a style value -- `BoxShadowValue`
-/// has `blurRadius`, `offsetX`, `spreadDistance`; the transform interfaces
-/// have `scaleX`, `translateY` -- and those are not keys you can write at
-/// the top level of a StyleSheet entry. Including them would manufacture
-/// suspect refusals for properties React Native does not actually have.
-const STYLE_INTERFACES = ['FlexStyle', 'ShadowStyleIOS', 'ViewStyle', 'TextStyleIOS', 'TextStyleAndroid', 'TextStyle', 'ImageStyle']
+/// Public style roots. Their inherited interfaces are followed recursively:
+/// `ViewStyle` extends `TransformsStyle`, for example, and omitting that
+/// edge quietly removed `transform` and `transformOrigin` from the
+/// denominator. Starting from roots also avoids shapes that merely occur
+/// inside a value, such as `BoxShadowValue` and the individual transform
+/// function records.
+const STYLE_ROOT_INTERFACES = ['ViewStyle', 'TextStyle', 'ImageStyle']
 
 function styleTypesSource(): string {
   return readFileSync(
@@ -134,18 +134,34 @@ export function reactNativeStyleKeys(): Map<string, StyleKey> {
   return keys
 }
 
-/** The body text of each interface in `STYLE_INTERFACES`. */
+/** The body text of each reachable public style interface. */
 function styleInterfaceBodies(source: string): string[] {
-  const bodies: string[] = []
-  for (const name of STYLE_INTERFACES) {
-    const start = source.search(new RegExp(`^(?:export )?interface ${name}\\b[^{]*\\{$`, 'm'))
-    if (start === -1) continue
-    const open = source.indexOf('{', start)
-    // These interfaces contain no nested braces at the declaration level,
-    // so the first `^}` closes them.
+  const declarations = new Map<string, { parents: string[]; body: string }>()
+  for (const match of source.matchAll(/^(?:export )?interface ([A-Za-z][A-Za-z0-9]*)([^\n{]*)\{$/gm)) {
+    const [, name, tail] = match
+    const open = source.indexOf('{', match.index)
+    // These interfaces contain no nested braces at declaration level, so
+    // the first unindented brace closes the interface even when a property
+    // type contains an inline object.
     const end = source.indexOf('\n}', open)
-    bodies.push(source.slice(open + 1, end))
+    const extendsMatch = /\bextends\s+(.+)$/.exec(tail.trim())
+    const parents = extendsMatch
+      ? extendsMatch[1].split(',').map((value) => value.trim().split('<', 1)[0])
+      : []
+    declarations.set(name, { parents, body: source.slice(open + 1, end) })
   }
+
+  const bodies: string[] = []
+  const seen = new Set<string>()
+  const visit = (name: string): void => {
+    if (seen.has(name)) return
+    seen.add(name)
+    const declaration = declarations.get(name)
+    if (!declaration) return
+    bodies.push(declaration.body)
+    for (const parent of declaration.parents) visit(parent)
+  }
+  for (const root of STYLE_ROOT_INTERFACES) visit(root)
   return bodies
 }
 

@@ -194,8 +194,10 @@ The first slice accepts a namespace import, a same-file module-scope static
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
 Against StyleX 0.19.0's published types that is **114/522 property names
-(21.8%)**, or **114/114 (100%)** when the denominator is restricted to names
-React Native also publishes. These are property-name upper bounds: each
+(21.8%)**, or **114/116 (98.3%)** when the denominator is restricted to names
+React Native also publishes. The remaining surface is reported separately as
+13 contextual-runtime candidates, 1 optional-adapter candidate, and 392
+Web-only names. These are property-name upper bounds: each
 property still accepts only the statically safe value subset the shared IR can
 represent.
 Themes/variables, nested selectors, keyframes, cross-file sheets, `sx`, and

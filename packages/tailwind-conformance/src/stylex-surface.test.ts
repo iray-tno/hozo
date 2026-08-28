@@ -28,11 +28,30 @@ test('the StyleX numerator is the Rust frontend mapping, not a curated copy', ()
 
 test('the universal denominator is derived from StyleX and React Native', () => {
   const surface = stylexSurface()
-  assert.equal(surface.native.size, 114)
+  assert.equal(surface.native.size, 116)
   assert.equal(surface.mappedNative.size, 114)
-  assert.equal(surface.missingNative.size, 0)
+  assert.equal(surface.missingNative.size, 2)
   assert.ok(!surface.missingNative.has('borderWidth'))
   assert.ok(!surface.missingNative.has('pointerEvents'))
   assert.ok(!surface.missingNative.has('fontFamily'))
+  assert.ok(surface.missingNative.has('transform'))
+  assert.ok(surface.missingNative.has('transformOrigin'))
   assert.ok(!surface.missingNative.has('animationDuration'))
+})
+
+test('coverage tiers partition the published StyleX property surface', () => {
+  const surface = stylexSurface()
+  assert.equal(surface.contextual.size, 13)
+  assert.equal(surface.mappedContextual.size, 0)
+  assert.ok(surface.contextual.has('gridTemplateColumns'))
+  assert.ok(surface.contextual.has('transitionProperty'))
+  assert.equal(surface.adapter.size, 1)
+  assert.equal(surface.mappedAdapter.size, 0)
+  assert.ok(surface.adapter.has('backdropFilter'))
+  assert.equal(surface.webOnly.size, 392)
+  assert.equal(surface.mappedWebOnly.size, 0)
+  assert.equal(
+    surface.native.size + surface.contextual.size + surface.adapter.size + surface.webOnly.size,
+    surface.official.size,
+  )
 })
