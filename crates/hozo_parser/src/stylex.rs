@@ -9,8 +9,8 @@
 use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
-    Color, Condition, ConditionExpr, Dimension, ExprRef, Length, SourceSpan, StyleDeclaration,
-    StyleProperty,
+    Angle, Color, Condition, ConditionExpr, Dimension, ExprRef, Length, SourceSpan,
+    StyleDeclaration, StyleProperty, TransformFunction,
 };
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
@@ -163,6 +163,98 @@ fn css_color(value: &StaticValue) -> Option<Color> {
     };
     (!value.is_empty() && !value.contains("var(") && !value.contains("env("))
         .then(|| Color::Css(value.clone()))
+}
+
+fn transform_angle(value: &str) -> Option<Angle> {
+    if value == "0" {
+        return Some(Angle::Deg(0.0));
+    }
+    value.strip_suffix("deg")
+        .and_then(|value| value.parse::<f64>().ok())
+        .filter(|value| value.is_finite())
+        .map(Angle::Deg)
+}
+
+fn transform_dimension(value: &str) -> Option<Dimension> {
+    match dimension(&StaticValue::String(value.to_string()))? {
+        value @ (Dimension::Length(_) | Dimension::Percent(_)) => Some(value),
+        _ => None,
+    }
+}
+
+fn transform_arguments(value: &str) -> Vec<&str> {
+    if value.contains(',') {
+        value.split(',').map(str::trim).filter(|value| !value.is_empty()).collect()
+    } else {
+        value.split_whitespace().collect()
+    }
+}
+
+/// Parse only functions React Native's public transform array can represent.
+fn transform_functions(value: &StaticValue) -> Option<Vec<TransformFunction>> {
+    let StaticValue::String(value) = value else { return None };
+    let mut rest = value.trim();
+    if rest == "none" {
+        return Some(Vec::new());
+    }
+    let mut functions = Vec::new();
+    while !rest.is_empty() {
+        let open = rest.find('(')?;
+        let name = rest[..open].trim();
+        if name.is_empty() || !name.chars().all(|character| character.is_ascii_alphanumeric()) {
+            return None;
+        }
+        let tail = &rest[open + 1..];
+        let close = tail.find(')')?;
+        if tail[..close].contains('(') {
+            return None;
+        }
+        let arguments = transform_arguments(tail[..close].trim());
+        let number = |value: &str| value.parse::<f64>().ok().filter(|value| value.is_finite());
+        let one = || (arguments.len() == 1).then_some(arguments[0]);
+        match name {
+            "perspective" => functions.push(TransformFunction::Perspective(px_length(
+                &StaticValue::String(one()?.to_string()),
+            )?)),
+            "rotate" => functions.push(TransformFunction::Rotate(transform_angle(one()?)?)),
+            "rotateX" => functions.push(TransformFunction::RotateX(transform_angle(one()?)?)),
+            "rotateY" => functions.push(TransformFunction::RotateY(transform_angle(one()?)?)),
+            "rotateZ" => functions.push(TransformFunction::RotateZ(transform_angle(one()?)?)),
+            "scale" if arguments.len() == 1 => functions.push(TransformFunction::Scale(number(arguments[0])?)),
+            "scale" if arguments.len() == 2 => {
+                functions.push(TransformFunction::ScaleX(number(arguments[0])?));
+                functions.push(TransformFunction::ScaleY(number(arguments[1])?));
+            }
+            "scaleX" => functions.push(TransformFunction::ScaleX(number(one()?)?)),
+            "scaleY" => functions.push(TransformFunction::ScaleY(number(one()?)?)),
+            "translate" if arguments.len() == 1 || arguments.len() == 2 => {
+                functions.push(TransformFunction::TranslateX(transform_dimension(arguments[0])?));
+                if arguments.len() == 2 {
+                    functions.push(TransformFunction::TranslateY(transform_dimension(arguments[1])?));
+                }
+            }
+            "translateX" => functions.push(TransformFunction::TranslateX(transform_dimension(one()?)?)),
+            "translateY" => functions.push(TransformFunction::TranslateY(transform_dimension(one()?)?)),
+            "skewX" => functions.push(TransformFunction::SkewX(transform_angle(one()?)?)),
+            "skewY" => functions.push(TransformFunction::SkewY(transform_angle(one()?)?)),
+            _ => return None,
+        }
+        rest = tail[close + 1..].trim_start();
+    }
+    (!functions.is_empty()).then_some(functions)
+}
+
+fn transform_origin(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let parts: Vec<_> = value.split_whitespace().collect();
+    if !(1..=3).contains(&parts.len()) {
+        return None;
+    }
+    let valid = |part: &str| {
+        matches!(part, "left" | "center" | "right" | "top" | "bottom")
+            || transform_dimension(part).is_some()
+    };
+    parts.iter().all(|part| valid(part)).then(|| parts.join(" "))
 }
 
 /// Variables, fallbacks, and values needing escaping belong with the later
@@ -508,6 +600,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
+        "transform" => vec![StyleProperty::Transform(transform_functions(value)?)],
+        "transformOrigin" => vec![StyleProperty::TransformOrigin(transform_origin(value)?)],
         // The shared IR deliberately keeps the complete shadow list as CSS
         // text. That preserves authored layer order and also maps directly
         // to React Native's string-valued `boxShadow` support.
@@ -1129,10 +1223,40 @@ mod tests {
         let frontend = frontend(
             r#"
             import * as stylex from '@stylexjs/stylex'
-            const styles = stylex.create({ root: { transform: 'rotate(10deg)' } })
+            const styles = stylex.create({ root: { transform: 'translateX(calc(100% - 2px))' } })
         "#,
         );
         assert!(matches!(frontend.sheets["styles"]["root"], Rule::Gap(_)));
+    }
+
+    #[test]
+    fn ordered_static_transforms_and_origin_become_typed_ir() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              root: {
+                transform: 'translateX(12px) rotate(10deg) scale(0.9)',
+                transformOrigin: 'left top'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready(entries) = &frontend.sheets["styles"]["root"] else {
+            panic!("rule was not lowerable")
+        };
+        assert_eq!(
+            entries[0].properties,
+            vec![StyleProperty::Transform(vec![
+                TransformFunction::TranslateX(Dimension::Length(Length::Px(12.0))),
+                TransformFunction::Rotate(Angle::Deg(10.0)),
+                TransformFunction::Scale(0.9),
+            ])]
+        );
+        assert_eq!(
+            entries[1].properties,
+            vec![StyleProperty::TransformOrigin("left top".to_string())]
+        );
     }
 
     #[test]
@@ -1184,7 +1308,7 @@ mod tests {
             r#"
             import * as stylex from '@stylexjs/stylex'
             import { View } from '@hozo/core'
-            const styles = stylex.create({ root: { transform: 'rotate(10deg)' } })
+            const styles = stylex.create({ root: { transform: 'translateX(calc(100% - 2px))' } })
             const card = <View {...stylex.props(styles.root)} />
         "#,
         );

@@ -6,9 +6,9 @@
   },
   "stylex": {
     "properties": 522,
-    "mapped": 114,
+    "mapped": 116,
     "nativeProperties": 116,
-    "mappedNative": 114,
+    "mappedNative": 116,
     "contextualProperties": 13,
     "mappedContextual": 0,
     "adapterProperties": 1,
@@ -71,8 +71,8 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 514,
-    "refused": 2299,
+    "covered": 526,
+    "refused": 2287,
     "noOp": 32,
     "silent": 0
   },

@@ -19,23 +19,30 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the StyleX numerator is the Rust frontend mapping, not a curated copy', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 114)
-  for (const name of ['display', 'padding', 'backgroundColor', 'textAlign']) {
+  assert.equal(mapped.size, 116)
+  for (const name of [
+    'display',
+    'padding',
+    'backgroundColor',
+    'textAlign',
+    'transform',
+    'transformOrigin',
+  ]) {
     assert.ok(mapped.has(name), `${name} should have a lowering arm`)
   }
-  assert.ok(!mapped.has('transform'))
+  assert.ok(!mapped.has('animationDuration'))
 })
 
 test('the universal denominator is derived from StyleX and React Native', () => {
   const surface = stylexSurface()
   assert.equal(surface.native.size, 116)
-  assert.equal(surface.mappedNative.size, 114)
-  assert.equal(surface.missingNative.size, 2)
+  assert.equal(surface.mappedNative.size, 116)
+  assert.equal(surface.missingNative.size, 0)
   assert.ok(!surface.missingNative.has('borderWidth'))
   assert.ok(!surface.missingNative.has('pointerEvents'))
   assert.ok(!surface.missingNative.has('fontFamily'))
-  assert.ok(surface.missingNative.has('transform'))
-  assert.ok(surface.missingNative.has('transformOrigin'))
+  assert.ok(!surface.missingNative.has('transform'))
+  assert.ok(!surface.missingNative.has('transformOrigin'))
   assert.ok(!surface.missingNative.has('animationDuration'))
 })
 

@@ -2098,15 +2098,6 @@ const KEYWORD_UTILITIES: &[(&str, &str, &str)] = &[
         ("object-top-right", "object-position", "right top"),
         ("oldstyle-nums", "font-variant-numeric", "oldstyle-nums"),
         ("ordinal", "font-variant-numeric", "ordinal"),
-        ("origin-bottom", "transform-origin", "bottom"),
-        ("origin-bottom-left", "transform-origin", "0 100%"),
-        ("origin-bottom-right", "transform-origin", "100% 100%"),
-        ("origin-center", "transform-origin", "center"),
-        ("origin-left", "transform-origin", "0"),
-        ("origin-right", "transform-origin", "100%"),
-        ("origin-top", "transform-origin", "top"),
-        ("origin-top-left", "transform-origin", "0 0"),
-        ("origin-top-right", "transform-origin", "100% 0"),
         ("overscroll-auto", "overscroll-behavior", "auto"),
         ("overscroll-contain", "overscroll-behavior", "contain"),
         ("overscroll-none", "overscroll-behavior", "none"),
@@ -2353,6 +2344,21 @@ fn container_declaration(token: &str) -> Option<Vec<StyleProperty>> {
 
 /// The one-declaration utilities; see `KEYWORD_UTILITIES`.
 fn keyword_utility(token: &str) -> Option<StyleProperty> {
+    let origin = match token {
+        "origin-bottom" => Some("bottom"),
+        "origin-bottom-left" => Some("0 100%"),
+        "origin-bottom-right" => Some("100% 100%"),
+        "origin-center" => Some("center"),
+        "origin-left" => Some("0"),
+        "origin-right" => Some("100%"),
+        "origin-top" => Some("top"),
+        "origin-top-left" => Some("0 0"),
+        "origin-top-right" => Some("100% 0"),
+        _ => None,
+    };
+    if let Some(value) = origin {
+        return Some(StyleProperty::TransformOrigin(value.to_string()));
+    }
     let family = match token {
         "font-mono" => Some("ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"),
         "font-sans" => Some("-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"),
@@ -3864,8 +3870,6 @@ mod tests {
         for (token, property, value) in [
             // "safe" is a prefix on the alignment, not a separate keyword.
             ("place-content-center-safe", "place-content", "safe center"),
-            // A percentage, not the keyword `left`.
-            ("origin-left", "transform-origin", "0"),
             // Two values, in the order CSS wants them.
             ("bg-top-right", "background-position", "right top"),
             ("touch-pan-x", "touch-action", "pan-x"),
@@ -3877,6 +3881,12 @@ mod tests {
                 "{token}"
             );
         }
+        // A percentage, not the keyword `left`, now carried by the same
+        // owned slot the StyleX frontend uses.
+        assert_eq!(
+            expand_utility("origin-left").1,
+            vec![StyleProperty::TransformOrigin("0".to_string())]
+        );
     }
 
     #[test]

@@ -16,7 +16,7 @@
 
 use hozo_ir::{
     Align, AlignSelf, Angle, Axis, BorderStyle, Breakpoint, Clamp, Color, Condition, ConditionExpr,
-    FilterFunction, Scale,
+    FilterFunction, Scale, TransformFunction,
     DecorationStyle,
     ColumnCount, Dimension, Display, Edge, Environment, GradientKind, GradientStop, GridLine, GridSpan, GridTracks, MaskSlot,
     MaskStop,
@@ -680,7 +680,8 @@ fn is_scale_axis(prop: &StyleProperty) -> bool {
 fn is_transform_function(prop: &StyleProperty) -> bool {
     matches!(
         prop,
-        StyleProperty::RotateX(_)
+        StyleProperty::Transform(_)
+            | StyleProperty::RotateX(_)
             | StyleProperty::RotateY(_)
             | StyleProperty::RotateZ(_)
             | StyleProperty::SkewX(_)
@@ -730,7 +731,15 @@ fn scale_value(props: &[&StyleProperty]) -> Option<String> {
 /// which is the order its `--tw-*` registers appear in the value. Transform
 /// functions don't commute, so a different order is a different rendering
 /// rather than a different spelling.
-fn transform_value(props: &[&StyleProperty]) -> Option<String> {
+fn transform_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
+    let last_authored = props.iter().rposition(|property| matches!(property, StyleProperty::Transform(_)));
+    let last_slots = props.iter().rposition(|property| !matches!(property, StyleProperty::Transform(_)));
+    if last_authored > last_slots {
+        return props.iter().rev().find_map(|property| match property {
+            StyleProperty::Transform(functions) => Some(authored_transform_value(functions, theme)),
+            _ => None,
+        });
+    }
     let mut parts: Vec<String> = Vec::new();
     let mut push = |name: &str, angle: Option<&Angle>| {
         if let Some(a) = angle {
@@ -759,6 +768,34 @@ fn transform_value(props: &[&StyleProperty]) -> Option<String> {
         _ => None,
     }));
     (!parts.is_empty()).then(|| parts.join(" "))
+}
+
+fn authored_transform_value(functions: &[TransformFunction], theme: &Theme) -> String {
+    if functions.is_empty() {
+        return "none".to_string();
+    }
+    functions.iter().map(|function| match function {
+        TransformFunction::Perspective(value) => format!("perspective({})", length_px(value, theme)),
+        TransformFunction::Rotate(value) => format!("rotate({})", value.css()),
+        TransformFunction::RotateX(value) => format!("rotateX({})", value.css()),
+        TransformFunction::RotateY(value) => format!("rotateY({})", value.css()),
+        TransformFunction::RotateZ(value) => format!("rotateZ({})", value.css()),
+        TransformFunction::Scale(value) => format!("scale({})", compact_number(*value)),
+        TransformFunction::ScaleX(value) => format!("scaleX({})", compact_number(*value)),
+        TransformFunction::ScaleY(value) => format!("scaleY({})", compact_number(*value)),
+        TransformFunction::TranslateX(value) => format!("translateX({})", dimension_value(value, theme)),
+        TransformFunction::TranslateY(value) => format!("translateY({})", dimension_value(value, theme)),
+        TransformFunction::SkewX(value) => format!("skewX({})", value.css()),
+        TransformFunction::SkewY(value) => format!("skewY({})", value.css()),
+    }).collect::<Vec<_>>().join(" ")
+}
+
+fn compact_number(value: f64) -> String {
+    let value = value.to_string();
+    value.strip_prefix("0.")
+        .map(|rest| format!(".{rest}"))
+        .or_else(|| value.strip_prefix("-0.").map(|rest| format!("-.{rest}")))
+        .unwrap_or(value)
 }
 
 /// CSS's `translate` is one property taking up to three values, so the
@@ -1145,6 +1182,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::TransformNone => ("transform", "none".to_string()),
         StyleProperty::TransformEmpty => ("transform", String::new()),
         StyleProperty::TransformGpu => ("transform", "translateZ(0)".to_string()),
+        StyleProperty::Transform(functions) => ("transform", authored_transform_value(functions, theme)),
+        StyleProperty::TransformOrigin(value) => ("transform-origin", value.clone()),
         StyleProperty::LineClamp(_) => ("-webkit-line-clamp", String::new()),
         StyleProperty::FlexGrow(n) => ("flex-grow", format!("{n}")),
         StyleProperty::FlexShrink(n) => ("flex-shrink", format!("{n}")),
@@ -2109,7 +2148,7 @@ fn render_shape(
         if let Some(value) = scale_value(&scale_props) {
             body.push_str(&format!("  scale: {value};\n"));
         }
-        if let Some(value) = transform_value(&transform_props) {
+        if let Some(value) = transform_value(&transform_props, theme) {
             body.push_str(&format!("  transform: {value};\n"));
         }
         if let Some(value) = border_spacing_value(&spacing_props, theme) {
