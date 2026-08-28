@@ -56,7 +56,7 @@ test('the same StyleX IR lowers to React Native StyleSheet entries', () => {
 test('unsupported StyleX remains available to the official compiler and is named', () => {
   const unsupported = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
-const styles = stylex.create({ root: { transform: 'rotate(10deg)' } })
+const styles = stylex.create({ root: { transform: 'translateX(calc(100% - 2px))' } })
 export const Card = () => <View {...stylex.props(styles.root)} />
 `
   const component = compile(unsupported)[0]
@@ -238,6 +238,8 @@ test('the expanded RN-portable StyleX property slice agrees with the official CS
     ['textDecorationColor', `'#123456'`],
     ['textDecorationLine', `'underline'`],
     ['textDecorationStyle', `'dotted'`],
+    ['transform', `'translateX(12px) rotate(10deg) scale(0.9)'`],
+    ['transformOrigin', `'left top'`],
     ['userSelect', `'none'`],
     ['verticalAlign', `'top'`],
     ['borderBlockColor', `'#123456'`],
@@ -326,4 +328,68 @@ export const Card = () => <View {...stylex.props(styles.root)} />
       assert.match(native.styles, /fontFamily: 'Inter'/, property)
     }
   }
+})
+
+test('StyleX transform order is preserved on Web and Native', () => {
+  const transformSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: {
+    transform: 'scale(0.9) translateX(12px) rotate(10deg)',
+    transformOrigin: 'left top',
+  },
+})
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+  const web = compile(transformSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.match(web.css, /transform: scale\(\.9\) translateX\(12px\) rotate\(10deg\)/)
+  assert.match(web.css, /transform-origin: left top/)
+
+  const native = compileNative(transformSource)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.match(
+    native.styles,
+    /transform: \[\{ scale: 0\.9 \}, \{ translateX: 12 \}, \{ rotate: '10deg' \}\]/,
+  )
+  assert.match(native.styles, /transformOrigin: 'left top'/)
+})
+
+test('StyleX and Tailwind transform declarations retain JSX last-wins order', () => {
+  const component = (attributes: string, native = false) => {
+    const input = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({ root: { transform: 'rotate(10deg)' } })
+export const Card = () => <View ${attributes} />
+`
+    return (native ? compileNative(input) : compile(input))[0]
+  }
+
+  const stylexWeb = component(`className="skew-x-3" {...stylex.props(styles.root)}`)
+  assert.ok(stylexWeb)
+  assert.match(stylexWeb.css, /transform: rotate\(10deg\)/)
+  assert.doesNotMatch(stylexWeb.css, /transform: skewX/)
+
+  const tailwindWeb = component(`{...stylex.props(styles.root)} className="skew-x-3"`)
+  assert.ok(tailwindWeb)
+  assert.match(tailwindWeb.css, /transform: skewX\(3deg\)/)
+  assert.doesNotMatch(tailwindWeb.css, /transform: rotate\(10deg\)/)
+
+  const stylexNative = component(
+    `className="skew-x-3" {...stylex.props(styles.root)}`,
+    true,
+  )
+  assert.ok(stylexNative)
+  assert.match(stylexNative.styles, /transform: \[\{ rotate: '10deg' \}\]/)
+  assert.doesNotMatch(stylexNative.styles, /skewX/)
+
+  const tailwindNative = component(
+    `{...stylex.props(styles.root)} className="skew-x-3"`,
+    true,
+  )
+  assert.ok(tailwindNative)
+  assert.match(tailwindNative.styles, /transform: \[\{ skewX: '3deg' \}\]/)
+  assert.doesNotMatch(tailwindNative.styles, /rotate:/)
 })

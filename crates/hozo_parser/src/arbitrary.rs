@@ -1000,6 +1000,8 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         }
         "mask" => one(StyleProperty::Arbitrary("mask-image".to_string(), value.to_string())),
 
+        "origin" => one(StyleProperty::TransformOrigin(value.to_string())),
+
         // The long tail, where the prefix names one CSS property and the
         // value goes through untouched. Everything here is Web-only by
         // construction: `StyleProperty::Arbitrary` is refused on Native,
@@ -1063,7 +1065,6 @@ const PASSTHROUGH: &[(&str, &str)] = &[
     ("min-block", "min-block-size"),
     ("min-inline", "min-inline-size"),
     ("object", "object-position"),
-    ("origin", "transform-origin"),
     ("pbe", "padding-block-end"),
     ("pbs", "padding-block-start"),
     ("perspective", "perspective"),

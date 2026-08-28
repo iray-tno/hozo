@@ -1221,6 +1221,12 @@ pub enum StyleProperty {
     TranslateX(Dimension),
     TranslateY(Dimension),
     TranslateZ(Dimension),
+    /// An authored `transform` declaration. Unlike Tailwind's standalone
+    /// translate/rotate/scale slots, CSS transform functions are applied in
+    /// source order, so the list stays ordered all the way to both backends.
+    Transform(Vec<TransformFunction>),
+    /// The complete transform-origin value, shared by Tailwind and StyleX.
+    TransformOrigin(String),
     /// Kept as the already-composed CSS value rather than a structured
     /// list. React Native accepts a string for `boxShadow`/`filter` too, so
     /// both backends emit the same text and there's nothing for a
@@ -1921,6 +1927,8 @@ impl StyleProperty {
             | StyleProperty::TransformNone
             | StyleProperty::TransformEmpty
             | StyleProperty::TransformGpu
+            | StyleProperty::Transform(..)
+            | StyleProperty::TransformOrigin(..)
             | StyleProperty::LineClamp(..)
             | StyleProperty::FlexGrow(..)
             | StyleProperty::FlexShrink(..)
@@ -2873,6 +2881,23 @@ impl Angle {
 pub enum Scale {
     Percent(f64),
     Css(String),
+}
+
+/// CSS transform functions with direct React Native array equivalents.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TransformFunction {
+    Perspective(Length),
+    Rotate(Angle),
+    RotateX(Angle),
+    RotateY(Angle),
+    RotateZ(Angle),
+    Scale(f64),
+    ScaleX(f64),
+    ScaleY(f64),
+    TranslateX(Dimension),
+    TranslateY(Dimension),
+    SkewX(Angle),
+    SkewY(Angle),
 }
 
 impl Scale {

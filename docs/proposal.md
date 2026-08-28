@@ -947,8 +947,8 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-08-27 時点では
-全 CSS 名で 114/522 (21.8%)、両 platform に名前が存在する集合で 114/116
-(98.3%)。残りは contextual runtime 候補 13、optional adapter 候補 1、Web-only
+全 CSS 名で 116/522 (22.2%)、両 platform に名前が存在する集合で 116/116
+(100%)。残りは contextual runtime 候補 13、optional adapter 候補 1、Web-only
 392 と別集計する。これは value や API を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
 

@@ -26,6 +26,7 @@ use hozo_ir::{
     LetterSpacing,
     FlexShorthand, Justify,
     Length, LineHeight, Overflow, Position, Radius, StyleProperty, TextAlign, TextTransform, Theme,
+    TransformFunction,
 };
 
 fn radius_number(radius: &Radius, theme: &Theme) -> String {
@@ -74,6 +75,12 @@ fn dimension_value(dim: &Dimension, theme: &Theme) -> String {
 /// standalone properties, so the two platforms compose identically.
 pub fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static str, String)> {
     let mut parts: Vec<String> = Vec::new();
+    let last_authored = props.iter().rposition(|property| matches!(property, StyleProperty::Transform(_)));
+    let last_function_slots = props.iter().rposition(|property| matches!(
+        property,
+        StyleProperty::RotateX(_) | StyleProperty::RotateY(_) | StyleProperty::RotateZ(_)
+            | StyleProperty::SkewX(_) | StyleProperty::SkewY(_)
+    ));
     for prop in props {
         if let StyleProperty::TranslateX(d) = prop {
             parts.push(format!("{{ translateX: {} }}", dimension_value(d, theme)));
@@ -97,15 +104,17 @@ pub fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'stat
     }
     // React Native has the 3D rotations and the skews as transform entries
     // of their own, in the same order CSS applies them.
-    for (name, angle) in [
-        ("rotateX", props.iter().find_map(rotate_x)),
-        ("rotateY", props.iter().find_map(rotate_y)),
-        ("rotateZ", props.iter().find_map(rotate_z)),
-        ("skewX", props.iter().find_map(skew_x)),
-        ("skewY", props.iter().find_map(skew_y)),
-    ] {
-        if let Some(degrees) = angle {
-            parts.push(format!("{{ {name}: '{degrees}deg' }}"));
+    if last_function_slots > last_authored {
+        for (name, angle) in [
+            ("rotateX", props.iter().find_map(rotate_x)),
+            ("rotateY", props.iter().find_map(rotate_y)),
+            ("rotateZ", props.iter().find_map(rotate_z)),
+            ("skewX", props.iter().find_map(skew_x)),
+            ("skewY", props.iter().find_map(skew_y)),
+        ] {
+            if let Some(degrees) = angle {
+                parts.push(format!("{{ {name}: '{degrees}deg' }}"));
+            }
         }
     }
     // Scale is a ratio here, not a percentage. RN's public transform type
@@ -134,6 +143,31 @@ pub fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'stat
             parts.push(format!(
                 "{{ matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, {z}, 0, 0, 0, 0, 1] }}"
             ));
+        }
+    }
+    // CSS applies the authored transform list after its standalone
+    // translate/rotate/scale properties. Preserve the list's own order.
+    if last_authored > last_function_slots {
+        let functions = props.iter().rev().find_map(|property| match property {
+            StyleProperty::Transform(functions) => Some(functions),
+            _ => None,
+        }).expect("last authored transform index came from a transform");
+        for function in functions {
+            let entry = match function {
+                TransformFunction::Perspective(value) => format!("{{ perspective: {} }}", number(value, theme)),
+                TransformFunction::Rotate(value) => format!("{{ rotate: '{}' }}", value.css()),
+                TransformFunction::RotateX(value) => format!("{{ rotateX: '{}' }}", value.css()),
+                TransformFunction::RotateY(value) => format!("{{ rotateY: '{}' }}", value.css()),
+                TransformFunction::RotateZ(value) => format!("{{ rotateZ: '{}' }}", value.css()),
+                TransformFunction::Scale(value) => format!("{{ scale: {value} }}"),
+                TransformFunction::ScaleX(value) => format!("{{ scaleX: {value} }}"),
+                TransformFunction::ScaleY(value) => format!("{{ scaleY: {value} }}"),
+                TransformFunction::TranslateX(value) => format!("{{ translateX: {} }}", dimension_value(value, theme)),
+                TransformFunction::TranslateY(value) => format!("{{ translateY: {} }}", dimension_value(value, theme)),
+                TransformFunction::SkewX(value) => format!("{{ skewX: '{}' }}", value.css()),
+                TransformFunction::SkewY(value) => format!("{{ skewY: '{}' }}", value.css()),
+            };
+            parts.push(entry);
         }
     }
     if parts.is_empty() {
@@ -753,6 +787,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::Keyword("transform-origin", value) => {
             vec![("transformOrigin", js_string(value))]
         }
+        StyleProperty::TransformOrigin(value) => {
+            vec![("transformOrigin", js_string(value))]
+        }
         // The camelCase of the CSS name, which is how RN spells each of
         // these. `font-family` keeps the whole stack: RN takes one family
         // name, but a stack is a legal string there and the platform picks
@@ -1072,7 +1109,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::SkewX(_)
         | StyleProperty::SkewY(_)
         | StyleProperty::TranslateX(_)
-        | StyleProperty::TranslateY(_) => Vec::new(),
+        | StyleProperty::TranslateY(_)
+        | StyleProperty::Transform(_) => Vec::new(),
         // RN accepts a string for both, so the CSS text carries over as-is.
         // Composed with any ring layers by `box_shadow_entry`, not emitted
         // here -- `style_pairs` filters these out before this runs.
