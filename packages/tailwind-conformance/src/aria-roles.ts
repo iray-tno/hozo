@@ -32,6 +32,16 @@ interface AriaRoleDefinition {
   requiredProps?: Record<string, unknown>
   requireContextRole?: string[]
   /**
+   * The ontology chains this role descends through, outermost last.
+   *
+   * `button` is `[["roletype", "widget", "command"]]`. A chain containing
+   * `widget` is what the specification means by interactive, which is how
+   * the second family below decides who gets a press handler: putting one
+   * on a `paragraph` deserves a complaint, and counting that complaint as
+   * a false positive would be exactly backwards.
+   */
+  superClass?: string[][]
+  /**
    * Children the role is incomplete without, as alternatives: a `table`
    * lists `[["row"], ["row", "rowgroup"]]`, meaning either shape will do.
    */
@@ -59,6 +69,8 @@ const REQUIRED_PROP_VALUES: Record<string, string> = {
 export interface AriaRoleCase {
   role: string
   source: string
+  /** Which family it belongs to, for the report. */
+  family: 'static' | 'interactive'
 }
 
 export type AriaRoleVerdict = 'CLEAN' | 'COMPLAINED'
@@ -193,13 +205,81 @@ function nestedAround(
 /** One correctly-written element per concrete role in the specification. */
 export function ariaRoleCases(): AriaRoleCase[] {
   const definitions = roleDefinitions()
-  return [...definitions.entries()]
-    // Abstract roles are ones the specification forbids authors to write,
-    // so "written correctly" does not apply: the diagnostic for using one
-    // is the right answer, and counting it as a false positive would be
-    // exactly backwards.
-    .filter(([, definition]) => !definition.abstract)
-    .map(([role]) => ({ role, source: nested(role, definitions) }))
+  // Abstract roles are ones the specification forbids authors to write, so
+  // "written correctly" does not apply: the diagnostic for using one is the
+  // right answer, and counting it as a false positive would be exactly
+  // backwards.
+  const concrete = [...definitions.entries()].filter(([, definition]) => !definition.abstract)
+
+  const staticCases: AriaRoleCase[] = concrete.map(([role]) => ({
+    role,
+    source: nested(role, definitions),
+    family: 'static' as const,
+  }))
+
+  // The same roles again, made interactive -- and only the ones the
+  // specification calls interactive.
+  //
+  // Four diagnostics could not be reached by the family above, because a
+  // correctly-written role carries no tabIndex, no id, no nesting and no
+  // handler: `A11Y_POSITIVE_TAB_INDEX`, `A11Y_DUPLICATE_ID`,
+  // `A11Y_INTERACTIVE_NESTING` and `A11Y_PRESS_WITHOUT_KEYBOARD`. Every one
+  // of them is proved to *fire* by `diagnostics.ts`; nothing proved they
+  // stay quiet, which is the half that decides whether a check survives
+  // contact with a real codebase.
+  //
+  // A `Pressable` rather than a `View`, because `onPress` is not a View
+  // prop on either platform -- React Native puts it on Pressable and the
+  // DOM has no such event. Found by writing it the other way first.
+  const interactiveCases: AriaRoleCase[] = concrete
+    .filter(([, definition]) => isWidget(definition))
+    .map(([role], index) => ({
+      role,
+      source: interactive(role, definitions, index),
+      family: 'interactive' as const,
+    }))
+
+  return [...staticCases, ...interactiveCases]
+}
+
+function isWidget(definition: AriaRoleDefinition): boolean {
+  return (definition.superClass ?? []).some((chain) => chain.includes('widget'))
+}
+
+/**
+ * The role again, on something that can actually be pressed.
+ *
+ * `tabIndex={0}` joins the natural tab order, which is the value the
+ * diagnostic asks for; a positive one is what it refuses. The id is unique
+ * per case so the duplicate check has something correct to be quiet about,
+ * and nothing here nests one interactive element inside another -- the
+ * required-context wrappers are plain `View`s.
+ */
+function interactive(
+  name: string,
+  definitions: Map<string, AriaRoleDefinition>,
+  index: number,
+): string {
+  const definition = definitions.get(name)
+  if (!definition) return `<Pressable role="${name}">x</Pressable>`
+  const attributes = [
+    attributesFor(name, definition),
+    `tabIndex={0}`,
+    `nativeID="hozo-role-${index}"`,
+    `onPress={go}`,
+  ]
+  // A name, even where the role does not demand one: an interactive
+  // element without one is `A11Y_INTERACTIVE_WITHOUT_ROLE` territory, and
+  // that complaint would be correct rather than a false positive.
+  const prohibited = definition.prohibitedProps ?? []
+  if (!prohibited.includes('aria-label') && !definition.accessibleNameRequired) {
+    attributes.push('aria-label="Name"')
+  }
+  const inside = children(definition, definitions, 0)
+  const element = `<Pressable ${attributes.join(' ')}>${inside}</Pressable>`
+  const context = definition.requireContextRole?.[0]
+  if (!context) return element
+  return nestedAround(element, name, context, definitions, 1)
 }
 
 export function compareAriaRole(testCase: AriaRoleCase): AriaRoleResult {

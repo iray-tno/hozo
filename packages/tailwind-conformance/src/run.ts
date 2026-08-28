@@ -313,14 +313,28 @@ console.log(
 // findings go with it. See `aria-roles.ts`.
 const ariaRoles = ariaRoleCases().map(compareAriaRole)
 const ariaComplaints = ariaRoles.filter((result) => result.verdict === 'COMPLAINED')
+// Two families. The static one is every concrete role written correctly;
+// the interactive one is the roles the specification calls widgets, given
+// a press handler, `tabIndex={0}` and an id of their own -- because four
+// diagnostics cannot be reached without those, and a correctly-written
+// role carries none of them.
+const ariaFamily = (family: 'static' | 'interactive') =>
+  ariaRoles.filter((result) => result.family === family)
 console.log(
   `\nARIA roles written correctly: ${ariaRoles.length}   ` +
-    `false positives: ${ariaComplaints.length}   (has to be zero)`,
+    `false positives: ${ariaComplaints.length}   (has to be zero)\n` +
+    `  static       ${ariaFamily('static').length}\n` +
+    `  interactive  ${ariaFamily('interactive').length}`,
 )
 for (const result of ariaComplaints) {
-  console.log(`  ${result.role.padEnd(20)} ${result.codes.join(', ')}`)
+  console.log(`  ${result.family.padEnd(12)} ${result.role.padEnd(20)} ${result.codes.join(', ')}`)
 }
-record('ariaRoles', { roles: ariaRoles.length, falsePositives: ariaComplaints.length })
+record('ariaRoles', {
+  roles: ariaRoles.length,
+  staticRoles: ariaFamily('static').length,
+  interactiveRoles: ariaFamily('interactive').length,
+  falsePositives: ariaComplaints.length,
+})
 
 // The other half. The section above asks whether the checks stay quiet on
 // correct code; this asks whether they speak at all -- which is the half

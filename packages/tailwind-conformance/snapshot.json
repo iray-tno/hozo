@@ -35,7 +35,9 @@
     "covered": 13
   },
   "ariaRoles": {
-    "roles": 83,
+    "roles": 113,
+    "staticRoles": 83,
+    "interactiveRoles": 30,
     "falsePositives": 0
   },
   "diagnostics": {
