@@ -26,7 +26,7 @@ import path from 'node:path'
 import { after, test } from 'node:test'
 import { createServer, type ViteDevServer } from 'vite'
 
-import { hozo } from './index.ts'
+import { hozo, type HozoOptions } from './index.ts'
 
 const roots: string[] = []
 const servers: ViteDevServer[] = []
@@ -61,7 +61,7 @@ function project(files: Record<string, string>): string {
   return root
 }
 
-async function serve(root: string) {
+async function serve(root: string, options: HozoOptions = {}) {
   const server = await createServer({
     root,
     configFile: false,
@@ -78,7 +78,7 @@ async function serve(root: string) {
         react: createRequire(import.meta.url).resolve('react'),
       },
     },
-    plugins: [hozo()],
+    plugins: [hozo(options)],
   })
   servers.push(server)
   return server
@@ -86,6 +86,24 @@ async function serve(root: string) {
 
 const candidates = (root: string) =>
   readFileSync(path.join(root, 'node_modules', '.hozo', 'candidates.css'), 'utf8')
+
+const preflight = (root: string) =>
+  readFileSync(path.join(root, 'node_modules', '.hozo', 'preflight.css'), 'utf8')
+
+/**
+ * A project with no Tailwind class anywhere, which is what a StyleX-only
+ * codebase looks like to the scanner.
+ *
+ * Written without `stylex.create` only because `@stylexjs/stylex` is not
+ * a dependency of this package and Vite resolves the import for real. What
+ * is under test is the absence of candidates, and the two are identical
+ * there.
+ */
+const NO_TAILWIND_APP = `import { View } from '@hozo/core'
+export const App = () => <View style={{ padding: 16 }} />
+`
+
+const ACCENT = "export const accent = () => 'bg-emerald-500'\n"
 
 const APP = `import { View } from '@hozo/core'
 import { accent } from './accent.ts'
@@ -202,4 +220,90 @@ test('editing a component rewrites its stylesheet, and only when it changed', as
   server.moduleGraph.invalidateAll()
   await server.transformRequest('/App.tsx')
   assert.match(readFileSync(companion, 'utf8'), /padding-top: 32px/, 'the edit never reached the CSS')
+})
+
+test("Tailwind's utilities arrive with the base layer they were written against", async () => {
+  // Preflight is not a utility and names no classes: nothing in a source
+  // file ever asks for `img { max-width: 100% }`. Which is exactly why a
+  // project that gets the utilities and not the base sees images overflow
+  // and links come out browser blue, with every class it *did* ask for
+  // present and correct.
+  const root = project({ 'App.tsx': APP, 'accent.ts': ACCENT })
+  const server = await serve(root)
+
+  const css = preflight(root)
+  assert.match(css, /max-width: 100%/, 'images would overflow their container')
+  assert.match(css, /text-decoration: inherit/, 'links would be browser blue')
+
+  const result = await server.transformRequest('/App.tsx')
+  assert.ok(result)
+  assert.match(result.code, /preflight\.css/, 'the module did not import the base layer')
+  // Ahead of the utilities. Element selectors lose every specificity
+  // contest against a class, so this is the order with no ties to lose
+  // rather than the order that wins them.
+  assert.ok(
+    result.code.indexOf('preflight.css') < result.code.indexOf('candidates.css'),
+    'the base layer was imported after the utilities',
+  )
+})
+
+test('a project with no Tailwind classes is handed no reset', async () => {
+  // StyleX styles are literal property values: `{ padding: 16 }` is 16px
+  // whatever the user agent thinks a `<div>` should be. Preflight is an
+  // opinionated reset, and a project with no stake in Tailwind's
+  // assumptions has not asked for one.
+  const root = project({ 'App.tsx': NO_TAILWIND_APP })
+  const server = await serve(root)
+
+  assert.equal(candidates(root), '', 'the project was not Tailwind-free after all')
+  assert.equal(preflight(root), '', "a StyleX-only project was given Tailwind's reset")
+
+  // Still imported, and deliberately: an import that came and went as the
+  // first Tailwind class was added would be a graph edge the bundler has
+  // to be told about at the moment the decision flips.
+  const result = await server.transformRequest('/App.tsx')
+  assert.ok(result)
+  assert.match(result.code, /preflight\.css/)
+})
+
+test('`preflight` overrides the inference in both directions', async () => {
+  const off = project({ 'App.tsx': APP, 'accent.ts': ACCENT })
+  await serve(off, { preflight: false })
+  assert.equal(preflight(off), '', 'a project that declined the base layer was given one')
+
+  const on = project({ 'App.tsx': NO_TAILWIND_APP })
+  await serve(on, { preflight: true })
+  assert.match(preflight(on), /max-width: 100%/, 'a project that asked for it went without')
+})
+
+test('the base layer follows the project across an edit', async () => {
+  // The candidate stylesheet decides it, and that is rewritten whenever a
+  // scanned file changes. A project that gains its first Tailwind class
+  // while the server is up gains the base layer with it.
+  const root = project({ 'App.tsx': NO_TAILWIND_APP })
+  const server = await serve(root)
+  assert.equal(preflight(root), '')
+
+  writeFileSync(path.join(root, 'App.tsx'), APP)
+  writeFileSync(path.join(root, 'accent.ts'), ACCENT)
+  await server.transformRequest('/App.tsx')
+
+  assert.match(preflight(root), /max-width: 100%/, 'the first Tailwind class brought no base layer')
+})
+
+test('a project whose Tailwind is all static still gets the base layer', async () => {
+  // The case the first version of this got wrong. It read "does the
+  // project use Tailwind" off the candidate stylesheet, and candidates are
+  // by definition the classes the compiler *couldn't* read -- so a project
+  // written the ordinary way, static `className` the compiler reads
+  // exactly, reported none and was refused the reset it most needed.
+  const root = project({
+    'App.tsx':
+      `import { View } from '@hozo/core'\n` +
+      `export const App = () => <View className="p-4" />\n`,
+  })
+  await serve(root)
+
+  assert.equal(candidates(root), '', 'a static class is not supposed to be a candidate')
+  assert.match(preflight(root), /max-width: 100%/, 'the base layer went missing')
 })

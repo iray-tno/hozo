@@ -17,10 +17,11 @@ import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
   importSpecifier,
+  preflightCssFor,
   scannableFile,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
-import { loadProjectTheme } from '@hozo/tailwind'
+import { loadProjectTheme, preflightCss } from '@hozo/tailwind'
 
 /** One cache and one theme per worker process, keyed by project root. */
 const projects = new Map()
@@ -48,6 +49,7 @@ function projectState(options) {
       // reading what `next dev` actually served.
       theme: theme.then((resolved) => {
         writeFileIfChanged(options.candidateCssPath, cache.renderCss(resolved))
+        writePreflight(options, cache)
         // The compiler is built here rather than per module, which is the
         // only place it can be: the theme is what it needs and the theme is
         // a promise. See `createCompiler`.
@@ -80,6 +82,10 @@ export default function hozoLoader(source) {
         const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0
         if (state.cache.scanFile(path.resolve(file), source, modifiedMs)) {
           writeFileIfChanged(options.candidateCssPath, state.cache.renderCss(theme))
+          // A project's first Tailwind class can arrive in a file compiled
+          // long after `withHozo` ran, and the base layer is decided by
+          // whether there are any.
+          writePreflight(options, state.cache)
           state.cache.persist()
         }
 
@@ -97,6 +103,11 @@ export default function hozoLoader(source) {
         // whichever module the dynamic className lives in, and a bundler
         // resolves the repeated import to a single module in its graph.
         const code =
+          // The base layer first. Preflight is element selectors only, so
+          // every utility outranks it on specificity either way, but order
+          // is what decides the ties and there is no reason to leave them
+          // to the graph.
+          sideEffectImport(importSpecifier(file, options.preflightPath)) +
           sideEffectImport(`./${lowered.cssFileName}`) +
           sideEffectImport(importSpecifier(file, options.candidateCssPath)) +
           lowered.code
@@ -106,6 +117,14 @@ export default function hozoLoader(source) {
       }
     },
     (error) => callback(error),
+  )
+}
+
+/** Tailwind's base layer, on the terms `preflightCssFor` describes. */
+function writePreflight(options, cache) {
+  writeFileIfChanged(
+    options.preflightPath,
+    preflightCssFor(options.preflight, preflightCss(), cache.usesTailwind),
   )
 }
 

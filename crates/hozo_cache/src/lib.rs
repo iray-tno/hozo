@@ -62,14 +62,21 @@ impl CandidateCache {
     /// anything was written. Saving a file with no class edits bumps its
     /// mtime, which the cache must store but which leaves the generated
     /// stylesheet byte-identical; callers use this to skip rewriting it.
-    pub fn record(&mut self, path: &str, modified_ms: u64, class_names: Vec<String>) -> bool {
-        let entry = FileEntry { modified_ms, class_names };
+    pub fn record(
+        &mut self,
+        path: &str,
+        modified_ms: u64,
+        class_names: Vec<String>,
+        uses_tailwind: bool,
+    ) -> bool {
+        let entry = FileEntry { modified_ms, class_names, uses_tailwind };
         if self.snapshot.files.get(path) == Some(&entry) {
             return false;
         }
 
         let previous = self.snapshot.files.insert(path.to_string(), entry.clone());
-        let changed = previous.as_ref().map(|old| &old.class_names) != Some(&entry.class_names);
+        let changed = previous.as_ref().map(|old| &old.class_names) != Some(&entry.class_names)
+            || previous.as_ref().map(|old| old.uses_tailwind) != Some(entry.uses_tailwind);
         if changed {
             if let Some(old) = previous {
                 self.remove_references(&old.class_names);
@@ -78,6 +85,15 @@ impl CandidateCache {
         }
         self.dirty = true;
         changed
+    }
+
+    /// Whether any file in the project names a Tailwind utility.
+    ///
+    /// What the Web integrations emit the base layer for. Walks the files
+    /// rather than keeping a count: it is asked once per regeneration of
+    /// the candidate stylesheet, not per file.
+    pub fn uses_tailwind(&self) -> bool {
+        self.snapshot.files.values().any(|entry| entry.uses_tailwind)
     }
 
     /// Drops a file's entry -- for when a source file is deleted, so its
@@ -176,16 +192,16 @@ mod tests {
     #[test]
     fn union_deduplicates_across_files_and_is_sorted() {
         let mut cache = in_memory();
-        cache.record("b.tsx", 1, vec!["p-4".into(), "gap-2".into()]);
-        cache.record("a.tsx", 1, vec!["p-4".into(), "flex-1".into()]);
+        cache.record("b.tsx", 1, vec!["p-4".into(), "gap-2".into()], true);
+        cache.record("a.tsx", 1, vec!["p-4".into(), "flex-1".into()], true);
         assert_eq!(cache.union(), vec!["flex-1", "gap-2", "p-4"]);
     }
 
     #[test]
     fn a_shared_candidate_survives_until_its_last_file_leaves() {
         let mut cache = in_memory();
-        cache.record("a.tsx", 1, vec!["p-4".into()]);
-        cache.record("b.tsx", 1, vec!["p-4".into()]);
+        cache.record("a.tsx", 1, vec!["p-4".into()], true);
+        cache.record("b.tsx", 1, vec!["p-4".into()], true);
 
         cache.forget("a.tsx");
         assert_eq!(cache.union(), vec!["p-4"]);
@@ -196,10 +212,10 @@ mod tests {
     #[test]
     fn replacing_a_files_candidates_updates_only_its_references() {
         let mut cache = in_memory();
-        cache.record("a.tsx", 1, vec!["p-4".into(), "gap-2".into()]);
-        cache.record("b.tsx", 1, vec!["p-4".into()]);
+        cache.record("a.tsx", 1, vec!["p-4".into(), "gap-2".into()], true);
+        cache.record("b.tsx", 1, vec!["p-4".into()], true);
 
-        cache.record("a.tsx", 2, vec!["m-4".into()]);
+        cache.record("a.tsx", 2, vec!["m-4".into()], true);
         assert_eq!(cache.union(), vec!["m-4", "p-4"]);
     }
 
@@ -207,7 +223,7 @@ mod tests {
     fn is_current_tracks_modification_time() {
         let mut cache = in_memory();
         assert!(!cache.is_current("a.tsx", 1), "unknown file is never current");
-        cache.record("a.tsx", 1, vec!["p-4".into()]);
+        cache.record("a.tsx", 1, vec!["p-4".into()], true);
         assert!(cache.is_current("a.tsx", 1));
         assert!(!cache.is_current("a.tsx", 2), "a newer mtime means rescan");
     }
@@ -215,7 +231,7 @@ mod tests {
     #[test]
     fn forget_removes_a_deleted_file_from_the_union() {
         let mut cache = in_memory();
-        cache.record("a.tsx", 1, vec!["p-4".into()]);
+        cache.record("a.tsx", 1, vec!["p-4".into()], true);
         cache.forget("a.tsx");
         assert!(cache.union().is_empty());
     }
@@ -223,8 +239,8 @@ mod tests {
     #[test]
     fn retain_files_sweeps_entries_missing_from_a_complete_walk() {
         let mut cache = in_memory();
-        cache.record("a.tsx", 1, vec!["p-4".into()]);
-        cache.record("b.tsx", 1, vec!["gap-2".into()]);
+        cache.record("a.tsx", 1, vec!["p-4".into()], true);
+        cache.record("b.tsx", 1, vec!["gap-2".into()], true);
 
         assert_eq!(cache.retain_files(vec!["b.tsx".into()]), 1);
         assert_eq!(cache.union(), vec!["gap-2"]);
@@ -234,22 +250,22 @@ mod tests {
     #[test]
     fn record_reports_candidate_changes_not_mere_rewrites() {
         let mut cache = in_memory();
-        assert!(cache.record("a.tsx", 1, vec!["p-4".into()]), "a new file is a change");
+        assert!(cache.record("a.tsx", 1, vec!["p-4".into()], true), "a new file is a change");
         assert!(
-            !cache.record("a.tsx", 2, vec!["p-4".into()]),
+            !cache.record("a.tsx", 2, vec!["p-4".into()], true),
             "a touched file with the same classes leaves the stylesheet identical"
         );
         assert!(cache.is_current("a.tsx", 2), "...but the new mtime is still stored");
-        assert!(cache.record("a.tsx", 3, vec!["p-8".into()]));
+        assert!(cache.record("a.tsx", 3, vec!["p-8".into()], true));
     }
 
     #[test]
     fn persist_is_a_no_op_when_nothing_changed() {
         let mut cache = in_memory();
-        cache.record("a.tsx", 1, vec!["p-4".into()]);
+        cache.record("a.tsx", 1, vec!["p-4".into()], true);
         cache.persist().unwrap();
         // Re-recording identical content must not mark it dirty again.
-        cache.record("a.tsx", 1, vec!["p-4".into()]);
+        cache.record("a.tsx", 1, vec!["p-4".into()], true);
         assert!(!cache.dirty);
     }
 
@@ -259,7 +275,7 @@ mod tests {
         let path = dir.path().join("candidates.json");
 
         let mut cache = CandidateCache::open(Box::new(JsonFileStore::new(&path)));
-        cache.record("a.tsx", 7, vec!["p-4".into()]);
+        cache.record("a.tsx", 7, vec!["p-4".into()], true);
         cache.persist().unwrap();
 
         let reopened = CandidateCache::open(Box::new(JsonFileStore::new(&path)));
@@ -301,9 +317,35 @@ mod tests {
             )),
         ] {
             let mut cache = CandidateCache::open(store);
-            cache.record("a.tsx", 1, vec!["p-4".into()]);
+            cache.record("a.tsx", 1, vec!["p-4".into()], true);
             assert_eq!(cache.union(), vec!["p-4"]);
             cache.persist().unwrap();
         }
     }
+
+    #[test]
+    fn uses_tailwind_is_true_while_any_file_says_so() {
+        // Separate from the candidate union on purpose: a file whose
+        // Tailwind is all static contributes no candidates at all, so an
+        // empty union is no evidence that a project is Tailwind-free.
+        let mut cache = in_memory();
+        cache.record("a.tsx", 1, vec![], true);
+        cache.record("b.tsx", 1, vec![], false);
+        assert!(cache.union().is_empty());
+        assert!(cache.uses_tailwind());
+
+        cache.forget("a.tsx");
+        assert!(!cache.uses_tailwind(), "the last Tailwind file left and the answer did not");
+    }
+
+    #[test]
+    fn dropping_the_last_utility_is_a_change_worth_reporting() {
+        // Callers regenerate the stylesheets when `record` returns true,
+        // and the base layer is one of them. Same candidates, different
+        // answer, and returning false would leave a reset behind.
+        let mut cache = in_memory();
+        cache.record("a.tsx", 1, vec![], true);
+        assert!(cache.record("a.tsx", 2, vec![], false));
+    }
+
 }

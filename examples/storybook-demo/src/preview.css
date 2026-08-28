@@ -1,26 +1,16 @@
-/* Tailwind's own Preflight, plus the few things that are this demo's.
+/* What is this demo's, and nothing that is Hozo's.
  *
- * Imported rather than transcribed. What was here before was a
- * hand-written approximation, and it had drifted in exactly the way a copy
- * of somebody else's stylesheet does -- 26 selectors against the real
- * file's 32, and the six missing ones were the ones that showed:
+ * Tailwind's Preflight used to be here -- first transcribed by hand, then
+ * imported from the `tailwindcss` package. Neither belongs in an
+ * application. Hozo compiles Tailwind's utilities and those utilities are
+ * authored against Preflight, so `@hozo/vite` now emits the base layer
+ * alongside the candidate stylesheet and this file has nothing to say
+ * about it. See `preflightCssFor` for when it does and does not.
  *
- *   img, video { max-width: 100%; height: auto }   images overflowed their card
- *   img, svg, ... { display: block }               SVGs sat on the text baseline
- *   a { color: inherit; text-decoration: inherit } links were browser blue
- *   [hidden] { display: none !important }          `hidden` did nothing
- *   ::placeholder, table, hr, sub, sup, strong,    each left at the default
- *   small, abbr, summary, progress, object
- *
- * Hozo compiles Tailwind's utilities and does not ship its base layer, so
- * an application has to supply one; this is what supplying one should look
- * like. The `tailwindcss` devDependency is for this file and nothing else:
- * the compiler does read Tailwind at build time -- that is where the theme
- * comes from -- but it reaches it through `@hozo/vite` -> `@hozo/tailwind`,
- * so an application never declares it for the compiler's sake.
+ * The rules below are the ones a base layer should *not* carry: a
+ * typeface, a page background, and two element defaults that exist
+ * because of what this demo puts on the page.
  */
-@import 'tailwindcss/preflight.css';
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 html {

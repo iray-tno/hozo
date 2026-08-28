@@ -13,7 +13,7 @@ pub(crate) mod tailwind_variants;
 
 pub use jsx::is_primitive_name;
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
-pub use scan::{resolve_class_name, scan_class_candidates, ScannedUtility};
+pub use scan::{resolve_class_name, scan_class_candidates, source_uses_tailwind, ScannedUtility};
 
 use hozo_ir::Diagnostic;
 use jsx::JsxCollector;
