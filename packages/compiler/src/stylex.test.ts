@@ -713,6 +713,76 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   }
 })
 
+test('StyleX transition configuration drives the existing Native interaction runtime', () => {
+  const transitionSource = `import * as stylex from '@stylexjs/stylex'
+import { Pressable } from '@hozo/core'
+const styles = stylex.create({
+  motion: {
+    transitionProperty: 'opacity, transform',
+    transitionDuration: '200ms',
+    transitionTimingFunction: 'ease-in-out',
+  },
+})
+export const Card = () => (
+  <Pressable
+    accessibilityRole="button"
+    className="opacity-100 hover:opacity-50"
+    {...stylex.props(styles.motion)}
+  />
+)
+`
+  const official = transformSync(transitionSource, {
+    filename: '/app/contextual-transition.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as {
+    stylex?: [string, { ltr: string }, number][]
+  }
+  const officialCss = (metadata.stylex ?? []).map(([, css]) => css.ltr).join('\n')
+
+  const web = compile(transitionSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.match(web.css, /transition-property: opacity,transform/)
+  assert.match(web.css, /transition-duration: 200ms/)
+  assert.match(web.css, /transition-timing-function: ease-in-out/)
+  assert.match(officialCss, /transition-property:opacity,transform/)
+  assert.match(officialCss, /transition-duration:\.2s/)
+  assert.match(officialCss, /transition-timing-function:ease-in-out/)
+
+  const native = compileNative(transitionSource)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+  assert.match(native.jsx, /HozoPressable/)
+  assert.match(
+    native.jsx,
+    /hozoTransition=\{\{ duration: 200, easing: 'ease-in-out', opacity: true, transform: false, colors: false \}\}/,
+  )
+})
+
+test('StyleX transition values outside the Native runtime subset stay official', () => {
+  const transitionSource = `import * as stylex from '@stylexjs/stylex'
+import { Pressable } from '@hozo/core'
+const styles = stylex.create({
+  motion: {
+    transitionProperty: 'filter',
+    transitionDuration: '0.5ms',
+    transitionTimingFunction: 'steps(2, jump-none)',
+  },
+})
+export const Card = () => <Pressable {...stylex.props(styles.motion)} />
+`
+  const web = compile(transitionSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 1)
+  assert.ok(web.diagnostics.every((diagnostic) => diagnostic.code === 'STYLEX_NOT_LOWERED'))
+  assert.match(web.jsx, /stylex\.props/)
+})
+
 test('StyleX transform order is preserved on Web and Native', () => {
   const transformSource = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
