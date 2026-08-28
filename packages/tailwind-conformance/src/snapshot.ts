@@ -104,6 +104,8 @@ const WORSE_WHEN_DOWN = new Set([
   // The ARIA denominator is derived, so a fall here means the
   // specification's own role list shrank -- or the filter reading it did.
   'roles',
+  'staticRoles',
+  'interactiveRoles',
   // Every diagnostic the compiler declares. A fall means one was deleted,
   // which is a decision that belongs in a diff.
   'declared',
