@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
     Angle, Color, Condition, ConditionExpr, Dimension, ExprRef, GridLine, GridSpan, GridTracks,
-    Length, SourceSpan, StyleDeclaration, StyleProperty, TransformFunction,
+    Length, Radius, SourceSpan, StyleDeclaration, StyleProperty, TransformFunction,
 };
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
@@ -43,12 +43,14 @@ enum Rule {
 #[derive(Debug, Clone)]
 struct Entry {
     css_name: String,
+    priority: u16,
     properties: Vec<StyleProperty>,
     span: SourceSpan,
 }
 
 struct ResolvedEntry {
     css_name: String,
+    priority: u16,
     declaration: StyleDeclaration,
 }
 
@@ -722,6 +724,42 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
+        // StyleX emits these as CSS shorthands at a lower atomic priority
+        // than their longhands. Split them into the typed final slots here
+        // so the same priority resolution works on Web and Native.
+        "gap" => {
+            let value = width()?;
+            vec![
+                StyleProperty::RowGap(value.clone()),
+                StyleProperty::ColumnGap(value),
+            ]
+        }
+        "borderRadius" => {
+            let value = Radius::Length(width()?);
+            vec![
+                StyleProperty::BorderTopLeftRadius(value.clone()),
+                StyleProperty::BorderTopRightRadius(value.clone()),
+                StyleProperty::BorderBottomRightRadius(value.clone()),
+                StyleProperty::BorderBottomLeftRadius(value),
+            ]
+        }
+        "flex" => {
+            let StaticValue::String(value) = value else {
+                return None;
+            };
+            let (grow, shrink, basis) = match value.as_str() {
+                "auto" => (1.0, 1.0, Dimension::Auto),
+                "initial" => (0.0, 1.0, Dimension::Auto),
+                "none" => (0.0, 0.0, Dimension::Auto),
+                "1" => (1.0, 1.0, Dimension::Percent(0.0)),
+                _ => return None,
+            };
+            vec![
+                StyleProperty::FlexGrow(grow),
+                StyleProperty::FlexShrink(shrink),
+                StyleProperty::FlexBasis(basis),
+            ]
+        }
         "gridTemplateColumns" => vec![StyleProperty::GridTemplateColumns(stylex_grid_tracks(
             value,
         )?)],
@@ -966,29 +1004,158 @@ fn supported_filter_list(value: &str) -> bool {
     true
 }
 
-/// CSS shorthands and longhands StyleX assigns different atomic priorities.
-/// Typed Hozo properties make most physical overlaps visible through
-/// `same_property_as`; logical/physical pairs and `gap` need the family too.
-fn priority_family(property: &str) -> Option<&'static str> {
-    if property.starts_with("padding") {
-        Some("padding")
-    } else if property.starts_with("margin") {
-        Some("margin")
-    } else if matches!(property, "gap" | "rowGap" | "columnGap") {
-        Some("gap")
-    } else if property == "borderRadius" || property.ends_with("Radius") {
-        Some("border-radius")
-    } else {
-        None
+/// The aliases StyleX's default `property-specificity` mode normalizes before
+/// it gives a declaration a property key. Exact-key last-wins must therefore
+/// see `paddingBlockStart` and `paddingTop` as the same namespace too.
+fn canonical_property(property: &str) -> &str {
+    match property {
+        "borderBlockStartColor" => "borderTopColor",
+        "borderBlockEndColor" => "borderBottomColor",
+        "insetBlockStart" => "top",
+        "insetBlockEnd" => "bottom",
+        "marginBlockStart" => "marginTop",
+        "marginBlockEnd" => "marginBottom",
+        "paddingBlockStart" => "paddingTop",
+        "paddingBlockEnd" => "paddingBottom",
+        "start" => "insetInlineStart",
+        "end" => "insetInlineEnd",
+        _ => property,
     }
 }
 
-fn priority_overlap(left: &str, right: &str) -> bool {
-    priority_family(left).is_some_and(|family| priority_family(right) == Some(family))
-        || (left == "gridColumn" && right.starts_with("gridColumn"))
-        || (right == "gridColumn" && left.starts_with("gridColumn"))
-        || (left == "gridRow" && right.starts_with("gridRow"))
-        || (right == "gridRow" && left.starts_with("gridRow"))
+/// StyleX 0.19's published property-priority table has four CSS tiers. The
+/// frontend expands the supported shorthands into final typed slots, but keeps
+/// this rank so a longhand still wins independently of `props()` argument
+/// order on both backends.
+fn property_priority(property: &str) -> u16 {
+    let property = canonical_property(property);
+    if matches!(property, "padding" | "margin" | "inset") {
+        return 1000;
+    }
+    if matches!(
+        property,
+        "borderColor"
+            | "borderStyle"
+            | "borderWidth"
+            | "borderRadius"
+            | "flex"
+            | "fontVariant"
+            | "gap"
+            | "gridColumn"
+            | "gridRow"
+            | "insetBlock"
+            | "insetInline"
+            | "marginBlock"
+            | "marginInline"
+            | "overflow"
+            | "paddingBlock"
+            | "paddingInline"
+    ) {
+        return 2000;
+    }
+    if matches!(
+        property,
+        "borderTopColor"
+            | "borderRightColor"
+            | "borderBottomColor"
+            | "borderLeftColor"
+            | "borderTopWidth"
+            | "borderRightWidth"
+            | "borderBottomWidth"
+            | "borderLeftWidth"
+            | "borderTopLeftRadius"
+            | "borderTopRightRadius"
+            | "borderBottomRightRadius"
+            | "borderBottomLeftRadius"
+            | "bottom"
+            | "height"
+            | "left"
+            | "marginTop"
+            | "marginRight"
+            | "marginBottom"
+            | "marginLeft"
+            | "maxHeight"
+            | "maxWidth"
+            | "minHeight"
+            | "minWidth"
+            | "paddingTop"
+            | "paddingRight"
+            | "paddingBottom"
+            | "paddingLeft"
+            | "right"
+            | "top"
+            | "width"
+    ) {
+        return 4000;
+    }
+    3000
+}
+
+fn directional_overlap_one_way(left: &StyleProperty, right: &StyleProperty) -> bool {
+    matches!(
+        (left, right),
+        (StyleProperty::PaddingInlineStart(_), StyleProperty::PaddingLeft(_))
+            | (StyleProperty::PaddingInlineStart(_), StyleProperty::PaddingRight(_))
+            | (StyleProperty::PaddingInlineEnd(_), StyleProperty::PaddingLeft(_))
+            | (StyleProperty::PaddingInlineEnd(_), StyleProperty::PaddingRight(_))
+            | (StyleProperty::MarginInlineStart(_), StyleProperty::MarginLeft(_))
+            | (StyleProperty::MarginInlineStart(_), StyleProperty::MarginRight(_))
+            | (StyleProperty::MarginInlineEnd(_), StyleProperty::MarginLeft(_))
+            | (StyleProperty::MarginInlineEnd(_), StyleProperty::MarginRight(_))
+            | (StyleProperty::InsetInlineStart(_), StyleProperty::InsetLeft(_))
+            | (StyleProperty::InsetInlineStart(_), StyleProperty::InsetRight(_))
+            | (StyleProperty::InsetInlineEnd(_), StyleProperty::InsetLeft(_))
+            | (StyleProperty::InsetInlineEnd(_), StyleProperty::InsetRight(_))
+            | (StyleProperty::BorderStartStartRadius(_), StyleProperty::BorderTopLeftRadius(_))
+            | (StyleProperty::BorderStartStartRadius(_), StyleProperty::BorderTopRightRadius(_))
+            | (StyleProperty::BorderStartEndRadius(_), StyleProperty::BorderTopLeftRadius(_))
+            | (StyleProperty::BorderStartEndRadius(_), StyleProperty::BorderTopRightRadius(_))
+            | (StyleProperty::BorderEndStartRadius(_), StyleProperty::BorderBottomLeftRadius(_))
+            | (StyleProperty::BorderEndStartRadius(_), StyleProperty::BorderBottomRightRadius(_))
+            | (StyleProperty::BorderEndEndRadius(_), StyleProperty::BorderBottomLeftRadius(_))
+            | (StyleProperty::BorderEndEndRadius(_), StyleProperty::BorderBottomRightRadius(_))
+    )
+}
+
+fn needs_platform_priority(left: &Entry, right: &ResolvedEntry) -> bool {
+    let grid_overlap = (left.css_name == "gridColumn" && right.css_name.starts_with("gridColumn"))
+        || (right.css_name == "gridColumn" && left.css_name.starts_with("gridColumn"))
+        || (left.css_name == "gridRow" && right.css_name.starts_with("gridRow"))
+        || (right.css_name == "gridRow" && left.css_name.starts_with("gridRow"));
+    grid_overlap
+        || left.properties.iter().any(|left| {
+            directional_overlap_one_way(left, &right.declaration.property)
+                || directional_overlap_one_way(&right.declaration.property, left)
+        })
+}
+
+fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclaration> {
+    // A higher-priority unconditional declaration makes a lower-priority
+    // value for the same final slot unreachable, even when that lower value
+    // has a runtime guard. Removing it is necessary on Web because Hozo's
+    // guard selector is more specific than its base selector; leaving it in
+    // would let selector specificity undo StyleX's property priority.
+    let unconditional = entries
+        .iter()
+        .filter(|entry| entry.declaration.condition == Condition::Always)
+        .map(|entry| (entry.priority, entry.declaration.property.clone()))
+        .collect::<Vec<_>>();
+    entries.retain(|entry| {
+        !unconditional.iter().any(|(priority, property)| {
+            *priority > entry.priority
+                && property.same_property_as(&entry.declaration.property)
+        })
+    });
+
+    // Stable sort: priority decides across different StyleX property keys;
+    // source/argument order remains the tiebreaker within one tier. Both Web
+    // declaration order and Native style-array order then inherit the same
+    // already-resolved cascade without runtime work.
+    entries.sort_by_key(|entry| entry.priority);
+    entries
+        .into_iter()
+        .map(|entry| entry.declaration)
+        .collect()
 }
 
 fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
@@ -1051,7 +1218,8 @@ fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
             }
         };
         out.push(Entry {
-            css_name: name,
+            css_name: canonical_property(&name).to_string(),
+            priority: property_priority(&name),
             properties,
             span: source_span(property.span),
         });
@@ -1219,22 +1387,18 @@ impl Frontend {
             return Err(gap.clone());
         };
         for entry in entries {
-            // StyleX gives shorthands and longhands different atomic
-            // priorities. Hozo can preserve either, but must not pretend its
-            // ordinary condition specificity is the same priority system.
-            // Refuse only the overlapping combination until the IR carries
-            // that priority explicitly.
-            if out.iter().any(|existing| {
-                existing.css_name != entry.css_name
-                    && (entry
-                        .properties
-                        .iter()
-                        .any(|property| property.same_property_as(&existing.declaration.property))
-                        || priority_overlap(&entry.css_name, &existing.css_name))
-            }) {
+            // Logical/physical edge conflicts need the element's resolved
+            // writing direction on Native, and grid shorthands cannot be
+            // split into independent lines without changing placement.
+            // Keep those two genuinely platform-dependent cases explicit;
+            // ordinary shorthand/longhand priority is resolved below.
+            if out
+                .iter()
+                .any(|existing| needs_platform_priority(entry, existing))
+            {
                 return Err(Gap {
                     message: format!(
-                        "StyleX `{}` overlaps a shorthand or longhand in the same `props` call; preserving StyleX's atomic priority needs the planned priority-aware IR.",
+                        "StyleX `{}` overlaps a logical/physical edge or grid shorthand whose Native priority needs runtime context.",
                         entry.css_name
                     ),
                     span: entry.span,
@@ -1259,6 +1423,7 @@ impl Frontend {
                     .cloned()
                     .map(|property| ResolvedEntry {
                         css_name: entry.css_name.clone(),
+                        priority: entry.priority,
                         declaration: StyleDeclaration {
                             property,
                             condition: condition.clone(),
@@ -1309,12 +1474,7 @@ impl Frontend {
                 };
             }
         }
-        Resolution::Ready(
-            declarations
-                .into_iter()
-                .map(|entry| entry.declaration)
-                .collect(),
-        )
+        Resolution::Ready(resolve_property_priority(declarations))
     }
 }
 
@@ -1557,7 +1717,7 @@ mod tests {
     }
 
     #[test]
-    fn shorthand_longhand_overlap_is_refused_instead_of_changing_stylex_priority() {
+    fn physical_longhand_beats_a_later_shorthand_by_stylex_priority() {
         let parsed = crate::parse_tsx(
             r#"
             import * as stylex from '@stylexjs/stylex'
@@ -1569,24 +1729,80 @@ mod tests {
             const card = <View {...stylex.props(styles.top, styles.all)} />
         "#,
         );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert!(matches!(
+            style.last().map(|declaration| &declaration.property),
+            Some(StyleProperty::PaddingTop(Length::Px(8.0)))
+        ));
+        let flattened = hozo_ir::dedupe_last_wins(
+            style
+                .iter()
+                .map(|declaration| declaration.property.clone())
+                .collect(),
+        );
+        assert_eq!(flattened.len(), 4);
+        assert!(flattened.contains(&StyleProperty::PaddingTop(Length::Px(8.0))));
+    }
+
+    #[test]
+    fn unconditional_longhand_removes_an_unreachable_conditional_shorthand_slot() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              all: { padding: 16 },
+              top: { paddingTop: 8 }
+            })
+            const card = <View {...stylex.props(styles.top, active && styles.all)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert_eq!(style.len(), 4);
+        assert_eq!(
+            style
+                .iter()
+                .filter(|declaration| matches!(declaration.condition, Condition::Expr(_)))
+                .count(),
+            3
+        );
+        assert!(!style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && matches!(declaration.property, StyleProperty::PaddingTop(_))
+        }));
+    }
+
+    #[test]
+    fn the_official_four_property_priority_tiers_are_explicit() {
+        assert_eq!(property_priority("padding"), 1000);
+        assert_eq!(property_priority("paddingInline"), 2000);
+        assert_eq!(property_priority("paddingInlineStart"), 3000);
+        assert_eq!(property_priority("paddingTop"), 4000);
+        assert_eq!(property_priority("paddingBlockStart"), 4000);
+        assert_eq!(canonical_property("paddingBlockStart"), "paddingTop");
+    }
+
+    #[test]
+    fn direction_dependent_physical_and_logical_priority_remains_explicit() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              logical: { paddingInlineStart: 16 },
+              physical: { paddingLeft: 8 }
+            })
+            const card = <View {...stylex.props(styles.logical, styles.physical)} />
+        "#,
+        );
         assert!(parsed.roots[0].node.style.is_empty());
         assert_eq!(
             parsed.diagnostics[0].code,
             hozo_ir::DiagnosticCode::StylexNotLowered
         );
-        assert!(parsed.diagnostics[0].message.contains("atomic priority"));
-    }
-
-    #[test]
-    fn logical_and_axis_longhands_are_part_of_the_same_priority_families() {
-        for (shorthand, longhand) in [
-            ("padding", "paddingInlineStart"),
-            ("margin", "marginInlineEnd"),
-            ("gap", "rowGap"),
-            ("borderRadius", "borderTopLeftRadius"),
-        ] {
-            assert_eq!(priority_family(shorthand), priority_family(longhand));
-        }
+        assert!(parsed.diagnostics[0].message.contains("runtime context"));
     }
 
     #[test]
