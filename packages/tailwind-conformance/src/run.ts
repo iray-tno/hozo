@@ -66,7 +66,16 @@ console.log(
   `All CSS names:       ${stylex.mapped.size}/${stylex.official.size} = ${pct(stylex.mapped.size, stylex.official.size)}`,
 )
 console.log(
-  `RN-portable names:   ${stylex.mappedNative.size}/${stylex.native.size} = ${pct(stylex.mappedNative.size, stylex.native.size)}`,
+  `Universal names:     ${stylex.mappedNative.size}/${stylex.native.size} = ${pct(stylex.mappedNative.size, stylex.native.size)}`,
+)
+console.log(
+  `Contextual names:    ${stylex.mappedContextual.size}/${stylex.contextual.size} = ${pct(stylex.mappedContextual.size, stylex.contextual.size)}`,
+)
+console.log(
+  `Adapter names:       ${stylex.mappedAdapter.size}/${stylex.adapter.size} = ${pct(stylex.mappedAdapter.size, stylex.adapter.size)}`,
+)
+console.log(
+  `Web-only names:      ${stylex.mappedWebOnly.size}/${stylex.webOnly.size} = ${pct(stylex.mappedWebOnly.size, stylex.webOnly.size)}`,
 )
 console.log('These are property-name upper bounds; accepted values and StyleX APIs are narrower.\n')
 record('stylex', {
@@ -74,6 +83,12 @@ record('stylex', {
   mapped: stylex.mapped.size,
   nativeProperties: stylex.native.size,
   mappedNative: stylex.mappedNative.size,
+  contextualProperties: stylex.contextual.size,
+  mappedContextual: stylex.mappedContextual.size,
+  adapterProperties: stylex.adapter.size,
+  mappedAdapter: stylex.mappedAdapter.size,
+  webOnlyProperties: stylex.webOnly.size,
+  mappedWebOnly: stylex.mappedWebOnly.size,
 })
 console.log('== Web (hozo_web) ==')
 // Stated up front so the Web numbers can't be read as covering both

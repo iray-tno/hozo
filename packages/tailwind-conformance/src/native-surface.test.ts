@@ -26,6 +26,8 @@ test('finds keys from every style interface', () => {
     'includeFontPadding', // TextStyleAndroid
     'fontWeight', // TextStyle
     'resizeMode', // ImageStyle
+    'transform', // inherited TransformsStyle
+    'transformOrigin', // inherited TransformsStyle
   ]) {
     assert.ok(keys.has(key), `missing ${key}`)
   }

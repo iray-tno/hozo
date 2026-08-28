@@ -7,8 +7,14 @@
   "stylex": {
     "properties": 522,
     "mapped": 114,
-    "nativeProperties": 114,
-    "mappedNative": 114
+    "nativeProperties": 116,
+    "mappedNative": 114,
+    "contextualProperties": 13,
+    "mappedContextual": 0,
+    "adapterProperties": 1,
+    "mappedAdapter": 0,
+    "webOnlyProperties": 392,
+    "mappedWebOnly": 0
   },
   "web": {
     "candidates": 120,
@@ -35,9 +41,9 @@
   "refusalAudit": {
     "refusals": 10381,
     "checkable": 10047,
-    "confirmed": 10019,
+    "confirmed": 10015,
     "partial": 28,
-    "suspect": 0,
+    "suspect": 4,
     "uncheckable": 334
   },
   "nativeTypes": {

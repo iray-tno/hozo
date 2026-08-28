@@ -72,7 +72,37 @@ export interface StylexSurface {
   mapped: Set<string>
   mappedNative: Set<string>
   missingNative: Set<string>
+  contextual: Set<string>
+  mappedContextual: Set<string>
+  adapter: Set<string>
+  mappedAdapter: Set<string>
+  webOnly: Set<string>
+  mappedWebOnly: Set<string>
 }
+
+// Property names beyond React Native's direct StyleSheet surface that have
+// an existing Hozo semantic/runtime destination. They are candidates, not
+// claims of StyleX support: `mappedContextual` remains empty until the
+// StyleX frontend actually reaches those typed IR variants.
+const CONTEXTUAL_PROPERTIES = new Set([
+  'containerName',
+  'containerType',
+  'gridColumn',
+  'gridColumnEnd',
+  'gridColumnStart',
+  'gridRow',
+  'gridRowEnd',
+  'gridRowStart',
+  'gridTemplateColumns',
+  'gridTemplateRows',
+  'transitionDuration',
+  'transitionProperty',
+  'transitionTimingFunction',
+])
+
+// Optional integration candidates are separate from contextual support so
+// installing Expo/Reanimated/Skia can never inflate the core Native claim.
+const ADAPTER_PROPERTIES = new Set(['backdropFilter'])
 
 export function stylexSurface(): StylexSurface {
   const official = officialStylexProperties()
@@ -81,5 +111,33 @@ export function stylexSurface(): StylexSurface {
   const mapped = mappedHozoStylexProperties()
   const mappedNative = new Set([...mapped].filter((name) => native.has(name)))
   const missingNative = new Set([...native].filter((name) => !mapped.has(name)))
-  return { official, native, mapped, mappedNative, missingNative }
+  const contextual = new Set(
+    [...CONTEXTUAL_PROPERTIES].filter((name) => official.has(name) && !native.has(name)),
+  )
+  const mappedContextual = new Set([...mapped].filter((name) => contextual.has(name)))
+  const adapter = new Set(
+    [...ADAPTER_PROPERTIES].filter(
+      (name) => official.has(name) && !native.has(name) && !contextual.has(name),
+    ),
+  )
+  const mappedAdapter = new Set([...mapped].filter((name) => adapter.has(name)))
+  const webOnly = new Set(
+    [...official].filter(
+      (name) => !native.has(name) && !contextual.has(name) && !adapter.has(name),
+    ),
+  )
+  const mappedWebOnly = new Set([...mapped].filter((name) => webOnly.has(name)))
+  return {
+    official,
+    native,
+    mapped,
+    mappedNative,
+    missingNative,
+    contextual,
+    mappedContextual,
+    adapter,
+    mappedAdapter,
+    webOnly,
+    mappedWebOnly,
+  }
 }
