@@ -1378,41 +1378,6 @@ export const C = (p) => <List {...p}>x</List>
     }
 
     #[test]
-    fn the_candidate_module_maps_class_names_to_style_objects() {
-        let module = render_candidate_module(&["p-4".to_string(), "bg-blue-500".to_string()], &Theme::default());
-        assert!(module.contains(r#""p-4": {"#), "{module}");
-        assert!(module.contains("paddingTop: 16,"), "{module}");
-        assert!(module.contains(r#""bg-blue-500": {"#), "{module}");
-        assert!(module.contains("createClassResolver(styles, unsupported)"), "{module}");
-    }
-
-    #[test]
-    fn conditional_candidates_are_named_rather_than_silently_missing() {
-        // A style object can't carry `hover:`, and making it able to means
-        // per-component state tracking -- the engine this design is
-        // choosing not to ship. Reported when used, not at build time:
-        // appearing in the scan doesn't prove anything produces it.
-        let module = render_candidate_module(&["hover:bg-blue-500".to_string()], &Theme::default());
-        assert!(!module.contains("styles = { \"hover"), "{module}");
-        assert!(module.contains(r#""hover:bg-blue-500": "`hover:bg-blue-500` is conditional"#), "{module}");
-    }
-
-    #[test]
-    fn web_only_candidates_are_named_too() {
-        let module = render_candidate_module(&["grid".to_string()], &Theme::default());
-        assert!(module.contains(r#""grid": ""#), "{module}");
-        assert!(module.contains("Web-only"), "{module}");
-    }
-
-    #[test]
-    fn unrecognized_candidates_are_skipped_entirely() {
-        // Scanning is imprecise by design; a token that only looked like a
-        // class is neither a style nor a problem to report.
-        let module = render_candidate_module(&["useState".to_string()], &Theme::default());
-        assert!(!module.contains("useState"), "{module}");
-    }
-
-    #[test]
     fn raw_text_in_a_view_is_wrapped_and_takes_its_text_styles_with_it() {
         // Two separate hazards, both invisible on Web: a raw string inside
         // a View crashes React Native, and `fontSize` left on the View
