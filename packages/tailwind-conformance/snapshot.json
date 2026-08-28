@@ -34,6 +34,10 @@
     "cases": 13,
     "covered": 13
   },
+  "ariaRoles": {
+    "roles": 83,
+    "falsePositives": 0
+  },
   "rnwFree": {
     "cases": 20,
     "covered": 20

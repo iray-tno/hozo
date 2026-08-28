@@ -65,6 +65,10 @@ const WORSE_WHEN_UP = new Set([
   // `fillStyle` nor Skia resolves those. Worse than a refusal, because a
   // refusal is visible: this one draws nothing and says nothing.
   'unresolvable',
+  // A diagnostic that fires on correct code. Worse than a missing check:
+  // the first thing anyone does with a noisy one is turn it off, and the
+  // real findings leave with it.
+  'falsePositives',
 ])
 
 /**
@@ -93,6 +97,9 @@ const WORSE_WHEN_DOWN = new Set([
   // denominators derived from anything, which makes shrinking one the
   // easiest way to make them pass.
   'cases',
+  // The ARIA denominator is derived, so a fall here means the
+  // specification's own role list shrank -- or the filter reading it did.
+  'roles',
 ])
 
 type Section = Record<string, number | string>
