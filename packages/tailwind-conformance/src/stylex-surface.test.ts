@@ -19,7 +19,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the StyleX numerator is the Rust frontend mapping, not a curated copy', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 116)
+  assert.equal(mapped.size, 124)
   for (const name of [
     'display',
     'padding',
@@ -49,8 +49,11 @@ test('the universal denominator is derived from StyleX and React Native', () => 
 test('coverage tiers partition the published StyleX property surface', () => {
   const surface = stylexSurface()
   assert.equal(surface.contextual.size, 13)
-  assert.equal(surface.mappedContextual.size, 0)
+  assert.equal(surface.mappedContextual.size, 8)
   assert.ok(surface.contextual.has('gridTemplateColumns'))
+  assert.ok(surface.mappedContextual.has('gridTemplateColumns'))
+  assert.ok(surface.mappedContextual.has('gridRowEnd'))
+  assert.ok(!surface.mappedContextual.has('transitionProperty'))
   assert.ok(surface.contextual.has('transitionProperty'))
   assert.equal(surface.adapter.size, 1)
   assert.equal(surface.mappedAdapter.size, 0)

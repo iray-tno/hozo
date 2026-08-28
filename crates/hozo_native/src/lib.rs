@@ -1552,9 +1552,24 @@ type NativeTracks = Vec<NativeTrack>;
 fn parse_grid_tracks(tracks: &GridTracks) -> Option<NativeTracks> {
     match tracks {
         GridTracks::Count(count) if *count > 0 => Some(vec![NativeTrack::Fr(1.0); *count as usize]),
-        GridTracks::Css(css) => parse_native_grid_tracks(css),
+        GridTracks::Css(css) => {
+            parse_equal_grid_repeat(css).or_else(|| parse_native_grid_tracks(css))
+        }
         GridTracks::None | GridTracks::Subgrid | GridTracks::Count(_) => None,
     }
+}
+
+fn parse_equal_grid_repeat(css: &str) -> Option<NativeTracks> {
+    let compact = css
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    let count = compact
+        .strip_prefix("repeat(")?
+        .strip_suffix(",minmax(0,1fr))")?
+        .parse::<usize>()
+        .ok()?;
+    (count > 0).then(|| vec![NativeTrack::Fr(1.0); count])
 }
 
 fn tracks_js(tracks: &NativeTracks) -> String {
