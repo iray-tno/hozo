@@ -31,8 +31,10 @@
     "noOp": 1
   },
   "a11yContracts": {
-    "cases": 13,
-    "covered": 13
+    "cases": 19,
+    "covered": 19,
+    "primitives": 18,
+    "uncontracted": 0
   },
   "ariaRoles": {
     "roles": 113,

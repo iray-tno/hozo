@@ -28,7 +28,13 @@ import { compareCanvasCandidate, type CanvasVerdict } from './canvas.ts'
 import { compile as hozoCompile, compileNative } from '@hozo/compiler'
 import { buildOracle } from './oracle.ts'
 import { loadThemeVars, tailwindVersion } from './theme.ts'
-import { A11Y_CONTEXTUAL_CASES, compareA11yContextual } from './a11y-contextual.ts'
+import {
+  A11Y_CONTEXTUAL_CASES,
+  compareA11yContextual,
+  CONTRACT_EXEMPT,
+  primitivesUnderContract,
+} from './a11y-contextual.ts'
+import { declaredPrimitives } from './primitives.ts'
 import { ariaRoleCases, compareAriaRole } from './aria-roles.ts'
 import {
   compareDiagnostic,
@@ -288,9 +294,27 @@ console.log(
 //
 // The accessibility contracts are the last place that should hold, and
 // they were the one place a regression printed itself and passed.
+// Which primitives have a contract at all, against the enum that declares
+// them. The expectations above cannot be derived -- what `<Nav>` becomes
+// on each platform is Hozo's decision and appears in no specification --
+// but the coverage can, and that is the half that goes stale. It had:
+// `FlatList`, `ScrollView`, `Svg` and `View` were declared primitives with
+// no contract, and the only thing that would ever have said so was
+// somebody noticing.
+const primitives = declaredPrimitives()
+const underContract = primitivesUnderContract()
+const uncontracted = primitives.filter(
+  (primitive) => !underContract.has(primitive) && !(primitive in CONTRACT_EXEMPT),
+)
+console.log(
+  `  primitives ${primitives.length}, without a contract ${uncontracted.length}` +
+    (uncontracted.length > 0 ? `: ${uncontracted.join(' ')}` : ''),
+)
 record('a11yContracts', {
   cases: contextualA11y.length,
   covered: contextualA11yCovered,
+  primitives: primitives.length,
+  uncontracted: uncontracted.length,
 })
 for (const result of contextualA11y) {
   console.log(
