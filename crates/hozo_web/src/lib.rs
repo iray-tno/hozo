@@ -494,7 +494,9 @@ fn render_node(
     // is matched by the project-wide candidate stylesheet
     // (`render_candidate_stylesheet`) -- the browser's own CSS engine does
     // the resolution, with no runtime code involved.
-    let mut attrs = if node.class_name_fallback.is_empty() {
+    let mut attrs = if node.class_name_fallback.is_empty()
+        && node.props.stylex_residuals.is_empty()
+    {
         if classes.is_empty() {
             String::new()
         } else {
@@ -516,6 +518,9 @@ fn render_node(
             });
         }
         let parts: Vec<String> = std::iter::once(format!(r#""{classes}""#))
+            .chain(node.props.stylex_residuals.iter().map(|residual| {
+                format!("({}).className", residual.render_expression(source))
+            }))
             .chain(node.class_name_fallback.iter().map(|r| source_text(source, *r).to_string()))
             .collect();
         format!(" className={{[{}].filter(Boolean).join(' ')}}", parts.join(", "))
@@ -2268,4 +2273,3 @@ mod role_tests {
         assert!(output.runtime_imports.contains(&"HozoDialog"), "{:?}", output.runtime_imports);
     }
 }
-

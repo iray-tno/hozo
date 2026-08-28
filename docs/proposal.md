@@ -977,6 +977,14 @@ IR に取り込み spread を消せるため、後段 StyleX は未使用 defini
 Grid shorthand と個別 line の衝突は現在の Grid IR では分解できない。この二種類は
 近似せず、引き続き `STYLEX_NOT_LOWERED` として公式 StyleX に残す。
 
+同じ rule に対応済みと未対応の宣言が混ざる場合も、rule 全体を諦めない。対応済み
+宣言は通常の typed IR に落とし、未対応 property の source span だけから inline の
+`stylex.create` を再構成する。公式 Babel plugin は inline create を hoist できるため、
+元の mixed definition は参照されなくなり、JSX には残余 StyleX class と Hozo class を
+結合した一つの `className` だけが残る。条件付き `props()` 引数の guard も残余へ
+コピーする。残余と lowering 側が同じ property family で競合する場合、object spread
+や computed key で競合を判定できない場合は分割せず、従来どおり元の call を保つ。
+
 §6.2 の「Tailwind はフロントエンド、Hozo IR は内部表現」がそのまま効く。
 `stylex.create({ button: { padding: 16 } })` を IR に落とせば、Web と
 Native の lowering は一行も変えずに使える。IR をフロントエンド非依存に

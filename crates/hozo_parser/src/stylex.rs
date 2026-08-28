@@ -10,7 +10,8 @@ use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
     Angle, Color, Condition, ConditionExpr, Dimension, ExprRef, GridLine, GridSpan, GridTracks,
-    Length, Radius, SourceSpan, StyleDeclaration, StyleProperty, TransformFunction,
+    Length, Radius, SourceSpan, StyleDeclaration, StyleProperty, StylexResidual,
+    StylexResidualArgument, TransformFunction,
 };
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
@@ -29,15 +30,25 @@ use crate::tailwind;
 const STYLEX_MODULE: &str = "@stylexjs/stylex";
 
 #[derive(Debug, Clone)]
-struct Gap {
-    message: String,
-    span: SourceSpan,
+pub(crate) struct Gap {
+    pub(crate) message: String,
+    pub(crate) span: SourceSpan,
 }
 
 #[derive(Debug, Clone)]
 enum Rule {
-    Ready(Vec<Entry>),
+    Ready {
+        entries: Vec<Entry>,
+        residual: Vec<ResidualProperty>,
+        gaps: Vec<Gap>,
+    },
     Gap(Gap),
+}
+
+#[derive(Debug, Clone)]
+struct ResidualProperty {
+    css_name: String,
+    span: ExprRef,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +78,11 @@ pub(crate) struct Frontend {
 pub(crate) enum Resolution {
     NotStylex,
     Ready(Vec<StyleDeclaration>),
+    Partial {
+        declarations: Vec<StyleDeclaration>,
+        residual: StylexResidual,
+        gaps: Vec<Gap>,
+    },
     Gap { message: String, span: SourceSpan },
 }
 
@@ -1129,6 +1145,53 @@ fn needs_platform_priority(left: &Entry, right: &ResolvedEntry) -> bool {
         })
 }
 
+fn property_name_family(property: &str) -> Option<&'static str> {
+    let property = canonical_property(property);
+    if property.starts_with("padding") {
+        Some("padding")
+    } else if property.starts_with("margin") {
+        Some("margin")
+    } else if matches!(property, "top" | "right" | "bottom" | "left")
+        || property.starts_with("inset")
+    {
+        Some("inset")
+    } else if matches!(property, "gap" | "rowGap" | "columnGap") {
+        Some("gap")
+    } else if property == "borderRadius" || property.ends_with("Radius") {
+        Some("border-radius")
+    } else if property == "borderColor"
+        || property.ends_with("Color") && property.starts_with("border")
+    {
+        Some("border-color")
+    } else if property == "borderWidth"
+        || property.ends_with("Width") && property.starts_with("border")
+    {
+        Some("border-width")
+    } else if property == "borderStyle"
+        || property.ends_with("Style") && property.starts_with("border")
+    {
+        Some("border-style")
+    } else if property == "flex" || matches!(property, "flexGrow" | "flexShrink" | "flexBasis") {
+        Some("flex")
+    } else if property.starts_with("gridColumn") {
+        Some("grid-column")
+    } else if property.starts_with("gridRow") {
+        Some("grid-row")
+    } else if property == "overflow" || matches!(property, "overflowX" | "overflowY") {
+        Some("overflow")
+    } else {
+        None
+    }
+}
+
+fn property_names_overlap(left: &str, right: &str) -> bool {
+    let left = canonical_property(left);
+    let right = canonical_property(right);
+    left == right
+        || property_name_family(left)
+            .is_some_and(|family| property_name_family(right) == Some(family))
+}
+
 fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclaration> {
     // A higher-priority unconditional declaration makes a lower-priority
     // value for the same final slot unreachable, even when that lower value
@@ -1158,7 +1221,9 @@ fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclar
         .collect()
 }
 
-fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
+fn parse_rule(
+    expression: &Expression,
+) -> Result<(Vec<Entry>, Vec<ResidualProperty>, Vec<Gap>), Gap> {
     let Expression::ObjectExpression(object) = expression else {
         return Err(Gap {
             message: "StyleX style entries must be static object literals.".to_string(),
@@ -1166,6 +1231,8 @@ fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
         });
     };
     let mut out = Vec::new();
+    let mut residual = Vec::new();
+    let mut gaps = Vec::new();
     for item in &object.properties {
         let ObjectPropertyKind::ObjectProperty(property) = item else {
             return Err(Gap {
@@ -1187,32 +1254,47 @@ fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
             });
         };
         let Some(value) = static_value(&property.value) else {
-            return Err(Gap {
+            residual.push(ResidualProperty {
+                css_name: canonical_property(&name).to_string(),
+                span: ExprRef(source_span(property.span)),
+            });
+            gaps.push(Gap {
                 message: format!(
                     "`{name}` has a dynamic or nested StyleX value; this frontend slice accepts static strings and numbers."
                 ),
                 span: source_span(property.value.span()),
             });
+            continue;
         };
         let properties = match direct_properties(&name, &value) {
             Some(properties) => properties,
             None => {
                 let Some(token) = token_for(&name, &value) else {
-                    return Err(Gap {
+                    residual.push(ResidualProperty {
+                        css_name: canonical_property(&name).to_string(),
+                        span: ExprRef(source_span(property.span)),
+                    });
+                    gaps.push(Gap {
                         message: format!(
                             "StyleX property `{name}` or its value is not in Hozo's typed universal subset yet."
                         ),
                         span: source_span(property.span),
                     });
+                    continue;
                 };
                 let (condition, properties) = tailwind::expand_utility(&token);
                 if condition != Condition::Always || properties.is_empty() {
-                    return Err(Gap {
+                    residual.push(ResidualProperty {
+                        css_name: canonical_property(&name).to_string(),
+                        span: ExprRef(source_span(property.span)),
+                    });
+                    gaps.push(Gap {
                         message: format!(
                             "StyleX property `{name}` could not become a typed Hozo style without losing meaning."
                         ),
                         span: source_span(property.span),
                     });
+                    continue;
                 }
                 properties
             }
@@ -1224,7 +1306,7 @@ fn parse_rule(expression: &Expression) -> Result<Vec<Entry>, Gap> {
             span: source_span(property.span),
         });
     }
-    Ok(out)
+    Ok((out, residual, gaps))
 }
 
 fn create_object<'a>(
@@ -1297,7 +1379,11 @@ impl<'a> Visit<'a> for SheetCollector<'_> {
                 continue;
             };
             let rule = match parse_rule(&property.value) {
-                Ok(properties) => Rule::Ready(properties),
+                Ok((entries, residual, gaps)) => Rule::Ready {
+                    entries,
+                    residual,
+                    gaps,
+                },
                 Err(gap) => Rule::Gap(gap),
             };
             rules.insert(name, rule);
@@ -1338,14 +1424,15 @@ impl Frontend {
         }
     }
 
-    fn is_props_call(&self, call: &CallExpression) -> bool {
+    fn props_namespace<'a>(&self, call: &'a CallExpression) -> Option<&'a str> {
         let Expression::StaticMemberExpression(member) = &call.callee else {
-            return false;
+            return None;
         };
         let Expression::Identifier(object) = &member.object else {
-            return false;
+            return None;
         };
-        member.property.name.as_str() == "props" && self.namespaces.contains(object.name.as_str())
+        (member.property.name.as_str() == "props" && self.namespaces.contains(object.name.as_str()))
+            .then_some(object.name.as_str())
     }
 
     fn rule_from_member(
@@ -1376,16 +1463,12 @@ impl Frontend {
         })
     }
 
-    fn append_rule(
+    fn append_entries(
         &self,
-        rule: &Rule,
+        entries: &[Entry],
         condition: Condition,
         out: &mut Vec<ResolvedEntry>,
     ) -> Result<(), Gap> {
-        let Rule::Ready(entries) = rule else {
-            let Rule::Gap(gap) = rule else { unreachable!() };
-            return Err(gap.clone());
-        };
         for entry in entries {
             // Logical/physical edge conflicts need the element's resolved
             // writing direction on Native, and grid shorthands cannot be
@@ -1438,16 +1521,18 @@ impl Frontend {
         let Expression::CallExpression(call) = expression else {
             return Resolution::NotStylex;
         };
-        if !self.is_props_call(call) {
+        let Some(namespace) = self.props_namespace(call) else {
             return Resolution::NotStylex;
-        }
+        };
         let mut declarations = Vec::new();
+        let mut residual_arguments = Vec::new();
+        let mut residual_properties = Vec::new();
+        let mut gaps = Vec::new();
         for argument in &call.arguments {
-            let result = match argument {
-                Argument::StaticMemberExpression(member) => self
-                    .rule_from_member(member)
-                    .and_then(|rule| self.append_rule(rule, Condition::Always, &mut declarations))
-                    .map_err(|gap| Gap { span: source_span(member.span), ..gap }),
+            let (member, condition, condition_ref) = match argument {
+                Argument::StaticMemberExpression(member) => {
+                    (member, Condition::Always, None)
+                }
                 Argument::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
                     let Expression::StaticMemberExpression(member) = &logical.right else {
                         return Resolution::Gap {
@@ -1455,26 +1540,93 @@ impl Frontend {
                             span: source_span(logical.right.span()),
                         };
                     };
-                    let condition = Condition::Expr(ConditionExpr::Ref(ExprRef(source_span(logical.left.span()))));
-                    self.rule_from_member(member)
-                        .and_then(|rule| self.append_rule(rule, condition, &mut declarations))
-                        .map_err(|gap| Gap { span: source_span(member.span), ..gap })
+                    let condition_ref = ExprRef(source_span(logical.left.span()));
+                    (
+                        member,
+                        Condition::Expr(ConditionExpr::Ref(condition_ref)),
+                        Some(condition_ref),
+                    )
                 }
-                Argument::BooleanLiteral(literal) if !literal.value => Ok(()),
-                Argument::NullLiteral(_) => Ok(()),
-                other => Err(Gap {
-                    message: "Hozo currently accepts `styles.rule`, falsy values, and `condition && styles.rule` in `stylex.props`.".to_string(),
-                    span: source_span(other.span()),
-                }),
+                Argument::BooleanLiteral(literal) if !literal.value => continue,
+                Argument::NullLiteral(_) => continue,
+                other => {
+                    return Resolution::Gap {
+                        message: "Hozo currently accepts `styles.rule`, falsy values, and `condition && styles.rule` in `stylex.props`.".to_string(),
+                        span: source_span(other.span()),
+                    };
+                }
             };
-            if let Err(gap) = result {
+            let rule = match self.rule_from_member(member) {
+                Ok(rule) => rule,
+                Err(gap) => {
+                    return Resolution::Gap {
+                        message: gap.message,
+                        span: gap.span,
+                    };
+                }
+            };
+            let Rule::Ready {
+                entries,
+                residual,
+                gaps: rule_gaps,
+            } = rule
+            else {
+                let Rule::Gap(gap) = rule else { unreachable!() };
+                return Resolution::Gap {
+                    message: gap.message.clone(),
+                    span: source_span(member.span),
+                };
+            };
+            if let Err(gap) = self.append_entries(entries, condition, &mut declarations) {
                 return Resolution::Gap {
                     message: gap.message,
-                    span: gap.span,
+                    span: source_span(member.span),
                 };
             }
+            if !residual.is_empty() {
+                residual_arguments.push(StylexResidualArgument {
+                    properties: residual.iter().map(|property| property.span).collect(),
+                    condition: condition_ref,
+                });
+                residual_properties.extend(residual.iter().cloned());
+                gaps.extend(rule_gaps.iter().cloned().map(|gap| Gap {
+                    span: source_span(member.span),
+                    ..gap
+                }));
+            }
         }
-        Resolution::Ready(resolve_property_priority(declarations))
+        if residual_arguments.is_empty() {
+            return Resolution::Ready(resolve_property_priority(declarations));
+        }
+        if declarations.is_empty() {
+            let gap = gaps.into_iter().next().expect("a residual property has a gap");
+            return Resolution::Gap {
+                message: gap.message,
+                span: source_span(call.span),
+            };
+        }
+        if let Some((residual, declaration)) = residual_properties.iter().find_map(|residual| {
+            declarations
+                .iter()
+                .find(|declaration| property_names_overlap(&residual.css_name, &declaration.css_name))
+                .map(|declaration| (residual, declaration))
+        }) {
+            return Resolution::Gap {
+                message: format!(
+                    "StyleX residual `{}` overlaps lowered `{}`; the rule stays with StyleX so its cascade is not approximated.",
+                    residual.css_name, declaration.css_name
+                ),
+                span: source_span(call.span),
+            };
+        }
+        Resolution::Partial {
+            declarations: resolve_property_priority(declarations),
+            residual: StylexResidual {
+                namespace: namespace.to_string(),
+                arguments: residual_arguments,
+            },
+            gaps,
+        }
     }
 }
 
@@ -1506,7 +1658,7 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready(entries) = &frontend.sheets["styles"]["root"] else {
+        let Rule::Ready { entries, .. } = &frontend.sheets["styles"]["root"] else {
             panic!("rule was not lowerable")
         };
         assert_eq!(
@@ -1526,7 +1678,17 @@ mod tests {
             const styles = stylex.create({ root: { transform: 'translateX(calc(100% - 2px))' } })
         "#,
         );
-        assert!(matches!(frontend.sheets["styles"]["root"], Rule::Gap(_)));
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["root"]
+        else {
+            panic!("static unsupported property should remain as a residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
     }
 
     #[test]
@@ -1542,7 +1704,7 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready(entries) = &frontend.sheets["styles"]["root"] else {
+        let Rule::Ready { entries, .. } = &frontend.sheets["styles"]["root"] else {
             panic!("rule was not lowerable")
         };
         assert_eq!(
@@ -1579,7 +1741,7 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready(grid) = &frontend.sheets["styles"]["grid"] else {
+        let Rule::Ready { entries: grid, .. } = &frontend.sheets["styles"]["grid"] else {
             panic!("grid rule was not lowerable")
         };
         assert_eq!(
@@ -1594,7 +1756,7 @@ mod tests {
                 "80px minmax(120px,2fr) 1fr".to_string()
             ))]
         );
-        let Rule::Ready(span) = &frontend.sheets["styles"]["span"] else {
+        let Rule::Ready { entries: span, .. } = &frontend.sheets["styles"]["span"] else {
             panic!("span rule was not lowerable")
         };
         assert_eq!(
@@ -1605,7 +1767,7 @@ mod tests {
             span[1].properties,
             vec![StyleProperty::GridRow(GridSpan::Full)]
         );
-        let Rule::Ready(lines) = &frontend.sheets["styles"]["lines"] else {
+        let Rule::Ready { entries: lines, .. } = &frontend.sheets["styles"]["lines"] else {
             panic!("line rule was not lowerable")
         };
         assert_eq!(
@@ -1638,18 +1800,19 @@ mod tests {
             })
         "#,
         );
-        assert!(matches!(
-            frontend.sheets["styles"]["autoTrack"],
-            Rule::Gap(_)
-        ));
-        assert!(matches!(
-            frontend.sheets["styles"]["namedLine"],
-            Rule::Gap(_)
-        ));
-        assert!(matches!(
-            frontend.sheets["styles"]["unequalSpan"],
-            Rule::Gap(_)
-        ));
+        for name in ["autoTrack", "namedLine", "unequalSpan"] {
+            let Rule::Ready {
+                entries,
+                residual,
+                gaps,
+            } = &frontend.sheets["styles"][name]
+            else {
+                panic!("static unsupported Grid value should remain as a residual")
+            };
+            assert!(entries.is_empty());
+            assert_eq!(residual.len(), 1);
+            assert_eq!(gaps.len(), 1);
+        }
     }
 
     #[test]
@@ -1714,6 +1877,50 @@ mod tests {
             hozo_ir::DiagnosticCode::StylexNotLowered
         );
         assert!(parsed.diagnostics[0].span.start >= node.span.start);
+    }
+
+    #[test]
+    fn supported_declarations_survive_beside_a_static_stylex_residual() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              root: { padding: 16, scrollbarWidth: 'thin' }
+            })
+            const card = <View {...stylex.props(styles.root)} />
+        "#;
+        let parsed = crate::parse_tsx(source);
+        let node = &parsed.roots[0].node;
+        assert_eq!(node.style.len(), 4);
+        assert!(node.props.passthrough.is_empty());
+        assert_eq!(node.props.stylex_residuals.len(), 1);
+        let residual = node.props.stylex_residuals[0].render_expression(source);
+        assert!(residual.contains("scrollbarWidth: 'thin'"));
+        assert!(!residual.contains("padding: 16"));
+        assert_eq!(parsed.diagnostics.len(), 1);
+        assert!(parsed.diagnostics[0].span.start >= node.span.start);
+    }
+
+    #[test]
+    fn an_overlapping_residual_keeps_the_original_stylex_call_intact() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              root: {
+                transform: 'rotate(10deg)',
+                transform: 'translateX(calc(100% - 2px))'
+              }
+            })
+            const card = <View {...stylex.props(styles.root)} />
+        "#,
+        );
+        let node = &parsed.roots[0].node;
+        assert!(node.style.is_empty());
+        assert_eq!(node.props.passthrough.len(), 1);
+        assert!(node.props.stylex_residuals.is_empty());
+        assert!(parsed.diagnostics[0].message.contains("cascade is not approximated"));
     }
 
     #[test]

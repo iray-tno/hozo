@@ -612,6 +612,63 @@ pub struct PassthroughProp {
     pub nested: Vec<NestedNode>,
 }
 
+/// The unsupported half of a partially lowered static StyleX `props()` call.
+///
+/// This is source-rewrite metadata rather than style IR: supported
+/// declarations already became `StyleProperty`, while these property spans
+/// must be handed to the official StyleX transform without also handing it
+/// the supported declarations a second time.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StylexResidual {
+    pub namespace: String,
+    pub arguments: Vec<StylexResidualArgument>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StylexResidualArgument {
+    /// Full object-property source spans, including each key and value.
+    pub properties: Vec<ExprRef>,
+    /// The left side of `condition && styles.rule`, when present.
+    pub condition: Option<ExprRef>,
+}
+
+impl StylexResidual {
+    /// Rebuild a StyleX call containing only the declarations Hozo left for
+    /// the official transform. Inline `create` is intentionally used here:
+    /// StyleX's Babel plugin hoists it, while the original mixed definition
+    /// becomes unreferenced and can disappear.
+    pub fn render_expression(&self, source: &str) -> String {
+        let arguments = self
+            .arguments
+            .iter()
+            .enumerate()
+            .map(|(index, argument)| {
+                let key = format!("__hozo{index}");
+                let properties = argument
+                    .properties
+                    .iter()
+                    .filter_map(|property| {
+                        source.get(property.0.start as usize..property.0.end as usize)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let style = format!(
+                    "{}.create({{ {key}: {{ {properties} }} }}).{key}",
+                    self.namespace
+                );
+                argument.condition.map_or(style.clone(), |condition| {
+                    let condition = source
+                        .get(condition.0.start as usize..condition.0.end as usize)
+                        .unwrap_or("false");
+                    format!("({condition}) && {style}")
+                })
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("{}.props({arguments})", self.namespace)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PropSet {
     pub on_press: Option<ExprRef>,
@@ -730,6 +787,11 @@ pub struct PropSet {
     /// Props Hozo doesn't model explicitly -- re-emitted unchanged, in
     /// source order (which JSX's last-wins duplicate resolution depends on).
     pub passthrough: Vec<PassthroughProp>,
+    /// Residual StyleX declarations from mixed supported/unsupported rules.
+    /// Backends rebuild an inline `stylex.create` containing only these
+    /// declarations, so the official transform remains authoritative for
+    /// them without duplicating the declarations Hozo already lowered.
+    pub stylex_residuals: Vec<StylexResidual>,
 }
 
 /// React Native `TextInput` props that the DOM has under another name.

@@ -65,6 +65,39 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   assert.equal(component.diagnostics[0]?.code, 'STYLEX_NOT_LOWERED')
 })
 
+test('mixed StyleX rules lower supported declarations and isolate the residual', () => {
+  const mixed = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: { padding: 16, scrollbarWidth: 'thin' },
+  active: { opacity: 0.5, scrollbarColor: 'red blue' },
+})
+export const Card = ({ active }) => (
+  <View {...stylex.props(styles.root, active && styles.active)} />
+)
+`
+  const web = compile(mixed)[0]
+  assert.ok(web)
+  assert.match(web.css, /padding-top: 16px/)
+  assert.match(web.css, /opacity: 0.5/)
+  assert.match(web.jsx, /stylex\.create\(\{ __hozo0: \{ scrollbarWidth: 'thin' \} \}\)/)
+  assert.match(web.jsx, /active\) && stylex\.create\(\{ __hozo1: \{ scrollbarColor: 'red blue' \} \}\)/)
+  assert.match(web.jsx, /\.className\]\.filter\(Boolean\)\.join\(' '\)/)
+  assert.doesNotMatch(web.jsx, /styles\.root|styles\.active/)
+  assert.equal(web.diagnostics.length, 2)
+  assert.ok(web.diagnostics.every((diagnostic) => diagnostic.code === 'STYLEX_NOT_LOWERED'))
+
+  const native = compileNative(mixed)[0]
+  assert.ok(native)
+  assert.match(native.styles, /paddingTop: 16/)
+  assert.match(native.styles, /opacity: 0.5/)
+  assert.match(native.jsx, /^<View \{\.\.\.\(stylex\.props\(stylex\.create/)
+  assert.ok(native.jsx.indexOf('{...(stylex.props') < native.jsx.indexOf(' style='))
+  assert.match(native.jsx, /style=\{\[hozoStyles\.hozo0,/)
+  assert.doesNotMatch(native.jsx, /styles\.root|styles\.active/)
+  assert.equal(native.diagnostics.length, 2)
+})
+
 function declarationMap(declarations: string[]): Map<string, string> {
   const result = new Map<string, string>()
   for (const declaration of declarations.flatMap((value) => value.split(';'))) {
