@@ -1,30 +1,36 @@
-/* Tailwind Preflight & Global Storybook Preview Styles */
+/* Tailwind's own Preflight, plus the few things that are this demo's.
+ *
+ * Imported rather than transcribed. What was here before was a
+ * hand-written approximation, and it had drifted in exactly the way a copy
+ * of somebody else's stylesheet does -- 26 selectors against the real
+ * file's 32, and the six missing ones were the ones that showed:
+ *
+ *   img, video { max-width: 100%; height: auto }   images overflowed their card
+ *   img, svg, ... { display: block }               SVGs sat on the text baseline
+ *   a { color: inherit; text-decoration: inherit } links were browser blue
+ *   [hidden] { display: none !important }          `hidden` did nothing
+ *   ::placeholder, table, hr, sub, sup, strong,    each left at the default
+ *   small, abbr, summary, progress, object
+ *
+ * Hozo compiles Tailwind's utilities and does not ship its base layer, so
+ * an application has to supply one; this is what supplying one should look
+ * like. The `tailwindcss` devDependency is for this file and nothing else:
+ * the compiler does read Tailwind at build time -- that is where the theme
+ * comes from -- but it reaches it through `@hozo/vite` -> `@hozo/tailwind`,
+ * so an application never declares it for the compiler's sake.
+ */
+@import 'tailwindcss/preflight.css';
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-*,
-::before,
-::after {
-  box-sizing: border-box;
-  border-width: 0;
-  border-style: solid;
-  border-color: #e2e8f0;
-}
-
 html {
-  line-height: 1.5;
-  -webkit-text-size-adjust: 100%;
-  -moz-tab-size: 4;
-  tab-size: 4;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  font-feature-settings: normal;
-  font-variation-settings: normal;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Oxygen, Ubuntu, Cantarell, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  margin: 0;
   padding: 2rem 1.5rem;
-  line-height: inherit;
   background-color: #f8fafc;
   color: #0f172a;
   min-height: 100vh;
@@ -43,43 +49,8 @@ body {
   align-items: flex-start;
 }
 
-/* Reset headings and paragraphs margin */
-h1, h2, h3, h4, h5, h6, p {
-  margin: 0;
-  font-size: inherit;
-  font-weight: inherit;
-}
-
-/* Reset lists */
-ol, ul, menu {
-  margin: 0;
-  padding: 0;
-}
-
-/* Reset buttons and form controls */
-button, input, optgroup, select, textarea {
-  font-family: inherit;
-  font-size: 100%;
-  font-weight: inherit;
-  line-height: inherit;
-  color: inherit;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  border: none;
-}
-
-button, [role="button"] {
-  cursor: pointer;
-}
-
-/* Code element reset */
-code, kbd, samp, pre {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 1em;
-}
-
-/* Dialog element reset */
+/* Preflight leaves `dialog` alone; Hozo's Dialog lowers to one and wants a
+ * surface of its own rather than the browser's centred white box. */
 dialog {
   border: none;
   padding: 0;
@@ -93,7 +64,16 @@ dialog::backdrop {
   backdrop-filter: blur(4px);
 }
 
-/* Word wrapping */
-p, h1, h2, h3, h4, h5, h6, span {
+/* Long unbroken strings -- a URL in a paragraph, an identifier in a
+ * heading -- have nowhere to wrap without this, and the card they sit in
+ * has a max width. */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span {
   overflow-wrap: break-word;
 }
