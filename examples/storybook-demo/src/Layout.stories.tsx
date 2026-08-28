@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { Article, FlatList, Heading, List, ListItem, Nav, Paragraph, ScrollView, Section, Text, View } from '@hozo/core'
+import { Article, FlatList, Heading, List, ListItem, Nav, Paragraph, Section, Text, View } from '@hozo/core'
 
 function LayoutGallery() {
   const sampleItems = [
@@ -9,13 +9,13 @@ function LayoutGallery() {
   ]
 
   return (
-    <View className="max-w-2xl space-y-8 rounded-2xl bg-white p-8 shadow-sm">
+    <View className="max-w-2xl w-full space-y-8 rounded-2xl bg-white p-8 shadow-sm">
       {/* Landmarks */}
       <Section className="space-y-4 rounded-xl border border-slate-200 p-6">
-        <Nav className="flex items-center gap-4 text-xs font-semibold text-indigo-600">
-          <Text className="hover:underline">Home</Text>
+        <Nav className="flex flex-row items-center gap-2 text-xs font-semibold text-indigo-600">
+          <Text className="hover:underline cursor-pointer">Home</Text>
           <Text className="text-slate-300">/</Text>
-          <Text className="hover:underline">Documentation</Text>
+          <Text className="hover:underline cursor-pointer">Documentation</Text>
           <Text className="text-slate-300">/</Text>
           <Text className="text-slate-600">Landmarks</Text>
         </Nav>
@@ -35,7 +35,7 @@ function LayoutGallery() {
         <Heading level={3} className="text-lg font-bold text-slate-900">
           Ordered & Unordered Lists
         </Heading>
-        <List ordered className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
+        <List ordered className="list-decimal space-y-2 pl-6 text-sm text-slate-700">
           <ListItem>First item in an ordered sequence</ListItem>
           <ListItem>Second item with automatic semantic tagging</ListItem>
           <ListItem>Third item preserving React Native list structure</ListItem>
@@ -50,9 +50,9 @@ function LayoutGallery() {
         <FlatList
           data={sampleItems}
           keyExtractor={(item) => item.id}
-          className="divide-y divide-slate-100 rounded-xl border border-slate-200"
+          className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden"
           renderItem={({ item }) => (
-            <View className="p-4 hover:bg-slate-50">
+            <View className="p-4 hover:bg-slate-50 transition-colors">
               <Text className="font-semibold text-slate-900">{item.title}</Text>
               <Paragraph className="mt-1 text-xs text-slate-500">{item.desc}</Paragraph>
             </View>
@@ -69,6 +69,4 @@ const meta = {
 } satisfies Meta<typeof LayoutGallery>
 
 export default meta
-type Story = StoryObj<typeof meta>
-
-export const Default: Story = {}
+export const Default: StoryObj<typeof meta> = {}
