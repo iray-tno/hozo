@@ -273,6 +273,19 @@ console.log(
   `\nCross-platform accessibility contracts: ${contextualA11yCovered}/${contextualA11y.length} = ` +
     `${pct(contextualA11yCovered, contextualA11y.length)}  (semantics plus required diagnostics)`,
 )
+// Recorded, which it was not. These printed `MISMATCH` beside a coverage
+// figure and reached no exit path at all: `run.ts` has no `throw` and no
+// `process.exit`, and the only gate is the snapshot comparing numbers that
+// were handed to `record`. Verified by breaking one -- the line said
+// `MISMATCH`, the figure fell to 12/13, and the audit finished with
+// "Snapshot matches. Nothing moved." and exit 0.
+//
+// The accessibility contracts are the last place that should hold, and
+// they were the one place a regression printed itself and passed.
+record('a11yContracts', {
+  cases: contextualA11y.length,
+  covered: contextualA11yCovered,
+})
 for (const result of contextualA11y) {
   console.log(
     `  ${result.name}: ${result.covered ? 'COVERED' : 'MISMATCH'} -- ${result.purpose}` +
@@ -286,6 +299,7 @@ console.log(
   `\nRNW-free primitive contract: ${rnwFreeCovered}/${rnwFree.length} = ` +
     `${pct(rnwFreeCovered, rnwFree.length)}  (direct DOM and Native/runtime lowering)`,
 )
+record('rnwFree', { cases: rnwFree.length, covered: rnwFreeCovered })
 for (const result of rnwFree) {
   console.log(
     `  ${result.primitive}: ${result.covered ? 'COVERED' : 'MISMATCH'}` +

@@ -30,6 +30,14 @@
     "silent": 0,
     "noOp": 1
   },
+  "a11yContracts": {
+    "cases": 13,
+    "covered": 13
+  },
+  "rnwFree": {
+    "cases": 20,
+    "covered": 20
+  },
   "catalogue": {
     "entries": 23286,
     "comparable": 20222,
