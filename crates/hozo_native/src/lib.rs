@@ -66,11 +66,6 @@ use grid::{grid_absorbs, native_grid, native_grid_item};
 use render::render_node;
 use transition::{ambient_transition, native_driver_transition};
 pub use candidate::render_candidate_module;
-#[cfg(test)]
-use grid::resolve_row_line;
-#[cfg(test)]
-use hozo_ir::GridLine;
-
 use hozo_ir::{
     AlignSelf, Axis, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, Environment, ExprRef,
     FormState, Length, Node, Primitive,
