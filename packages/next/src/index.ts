@@ -20,11 +20,14 @@ import path from 'node:path'
 
 import { cssFileNameFor } from '@hozo/compiler/lower'
 import {
+  preflightCssFor,
+  preflightCssPath,
   scanProject,
   scanSummary,
   writeFileIfChanged,
   type HozoProjectOptions,
 } from '@hozo/compiler/project'
+import { preflightCss } from '@hozo/tailwind'
 
 /**
  * The same options every Hozo integration takes, under this one's name.
@@ -38,6 +41,7 @@ export type HozoNextOptions = HozoProjectOptions
 export interface HozoLoaderOptions extends HozoNextOptions {
   root: string
   candidateCssPath: string
+  preflightPath: string
 }
 
 /**
@@ -115,11 +119,21 @@ interface WebpackConfig {
 function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptions {
   const project = scanProject(root, options.content)
   const candidateCssPath = path.join(project.dir, 'candidates.css')
+  const preflightPath = preflightCssPath(project.dir)
   // Rendered with no theme: the theme is loaded asynchronously and this
   // runs synchronously. The loader rewrites the file with the real theme
   // before any module that imports it is compiled, and an empty file here
   // is what makes the import resolve at all.
   writeFileIfChanged(candidateCssPath, project.cache.renderCss(undefined))
+  // And the base layer beside it, on the same terms and for the same
+  // reason: it has to be on disk before the first module imports it.
+  // Empty when the project uses no Tailwind classes, so the import stays
+  // one fixed edge in the graph rather than one that appears and
+  // disappears -- see `preflightCssFor`.
+  writeFileIfChanged(
+    preflightPath,
+    preflightCssFor(options.preflight, preflightCss(), project.cache.usesTailwind),
+  )
   // And the same treatment for the per-module stylesheets, for the same
   // reason one layer down. The loader writes a module's CSS beside it and
   // imports it from the code it returns; Turbopack resolves that import
@@ -144,5 +158,5 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
   if (options.debug) {
     console.info(scanSummary(project.stats))
   }
-  return { ...options, root, candidateCssPath }
+  return { ...options, root, candidateCssPath, preflightPath }
 }

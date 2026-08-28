@@ -76,6 +76,28 @@ export interface HozoProjectOptions {
    * substring test.
    */
   sources?: readonly string[]
+  /**
+   * Whether the Web integrations emit Tailwind's base layer.
+   *
+   * Hozo compiles Tailwind's utilities, and those utilities are authored
+   * against Preflight: `text-xl` assumes `h2` carries no size of its own,
+   * `w-full` on an `<img>` assumes `max-width: 100%` is already there.
+   * Shipping the utilities without the base is what makes images overflow
+   * and links come out browser blue, and nothing in the class names says
+   * so -- every class the project asked for is present.
+   *
+   * `'auto'`, the default, emits it when the project actually uses
+   * Tailwind classes. A StyleX-only project gets nothing, and correctly:
+   * StyleX styles are literal property values, so `{ fontSize: 16 }` is
+   * 16px whatever the user-agent thinks `h2` should be. Preflight is an
+   * opinionated reset, and a project with no stake in Tailwind's
+   * assumptions should not be handed one.
+   *
+   * `true` always emits it, `false` never. Native ignores this: React
+   * Native has no cascade and no user-agent stylesheet, so there is
+   * nothing to reset.
+   */
+  preflight?: boolean | 'auto'
   /** Report project-scan work and timing through the bundler's logger. */
   debug?: boolean
 }
@@ -191,6 +213,38 @@ export function scanSummary(stats: ScanStats): string {
     `skipped ${stats.skippedFiles}, removed ${stats.deletedFiles} in ` +
     `${stats.durationMs.toFixed(1)}ms`
   )
+}
+
+/** Absolute path of the base-layer stylesheet, beside the candidate one. */
+export function preflightCssPath(dir: string): string {
+  return path.join(dir, 'preflight.css')
+}
+
+/**
+ * What belongs in that file, given the option and what the project uses.
+ *
+ * Returns the empty string rather than declining to write, and the
+ * integrations import it either way. A conditional import would be a
+ * module that appears and disappears as the first Tailwind class is added
+ * to a project or the last one removed -- and in dev that means a graph
+ * edge the bundler has to be told about at exactly the moment the decision
+ * flips. An always-present file whose bytes change travels the path
+ * `candidates.css` already travels.
+ *
+ * `usesTailwind` is `CandidateCache.usesTailwind`, and had to be: the
+ * first version of this read the candidate stylesheet being non-empty,
+ * which is a different question. Candidates are the classes the compiler
+ * *couldn't* read, so a project whose Tailwind is all static
+ * `className="p-4"` -- which is most projects -- reported none and would
+ * have been refused the base layer it most needed.
+ */
+export function preflightCssFor(
+  preflight: boolean | 'auto' | undefined,
+  css: string,
+  usesTailwind: boolean,
+): string {
+  const wanted = preflight === undefined || preflight === 'auto' ? usesTailwind : preflight
+  return wanted ? css : ''
 }
 
 /** Writes a generated artifact only when its bytes actually changed. */

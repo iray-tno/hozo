@@ -4,6 +4,7 @@
 // belongs here is the part only a JavaScript package can do -- asking
 // Tailwind what the project's theme is.
 
+export { preflightCss } from './preflight.ts'
 export { loadTheme, toHex, type Theme, type ThemeColor } from './theme.ts'
 export {
   DEFAULT_CSS_FILES,

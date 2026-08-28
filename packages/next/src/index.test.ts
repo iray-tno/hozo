@@ -82,6 +82,18 @@ test('keeps whatever the project already configured', () => {
   assert.ok(called, "the project's own webpack() was not called")
 })
 
+test('writes the base layer before anything is compiled, too', () => {
+  // Same reason as the candidate stylesheet below: Turbopack resolves a
+  // module's imports against a view of the tree it took before the loader
+  // ran, so a file written later is a file that isn't there.
+  const root = project("export const accent = () => 'bg-emerald-500'\n")
+  const config = withHozo({}, { root }) as {
+    turbopack: { rules: Record<string, { loaders: { options: { preflightPath: string } }[] }> }
+  }
+  const css = config.turbopack.rules['*.tsx'].loaders[0].options.preflightPath
+  assert.match(readFileSync(css, 'utf8'), /max-width: 100%/)
+})
+
 test('writes the candidate stylesheet before anything is compiled', () => {
   // Turbopack has no build-start hook, so this happens while the config is
   // being evaluated. A module compiled before the file existed would be a

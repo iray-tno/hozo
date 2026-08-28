@@ -1,30 +1,26 @@
-/* Tailwind Preflight & Global Storybook Preview Styles */
+/* What is this demo's, and nothing that is Hozo's.
+ *
+ * Tailwind's Preflight used to be here -- first transcribed by hand, then
+ * imported from the `tailwindcss` package. Neither belongs in an
+ * application. Hozo compiles Tailwind's utilities and those utilities are
+ * authored against Preflight, so `@hozo/vite` now emits the base layer
+ * alongside the candidate stylesheet and this file has nothing to say
+ * about it. See `preflightCssFor` for when it does and does not.
+ *
+ * The rules below are the ones a base layer should *not* carry: a
+ * typeface, a page background, and two element defaults that exist
+ * because of what this demo puts on the page.
+ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-*,
-::before,
-::after {
-  box-sizing: border-box;
-  border-width: 0;
-  border-style: solid;
-  border-color: #e2e8f0;
-}
-
 html {
-  line-height: 1.5;
-  -webkit-text-size-adjust: 100%;
-  -moz-tab-size: 4;
-  tab-size: 4;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  font-feature-settings: normal;
-  font-variation-settings: normal;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Oxygen, Ubuntu, Cantarell, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  margin: 0;
   padding: 2rem 1.5rem;
-  line-height: inherit;
   background-color: #f8fafc;
   color: #0f172a;
   min-height: 100vh;
@@ -43,43 +39,8 @@ body {
   align-items: flex-start;
 }
 
-/* Reset headings and paragraphs margin */
-h1, h2, h3, h4, h5, h6, p {
-  margin: 0;
-  font-size: inherit;
-  font-weight: inherit;
-}
-
-/* Reset lists */
-ol, ul, menu {
-  margin: 0;
-  padding: 0;
-}
-
-/* Reset buttons and form controls */
-button, input, optgroup, select, textarea {
-  font-family: inherit;
-  font-size: 100%;
-  font-weight: inherit;
-  line-height: inherit;
-  color: inherit;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  border: none;
-}
-
-button, [role="button"] {
-  cursor: pointer;
-}
-
-/* Code element reset */
-code, kbd, samp, pre {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 1em;
-}
-
-/* Dialog element reset */
+/* Preflight leaves `dialog` alone; Hozo's Dialog lowers to one and wants a
+ * surface of its own rather than the browser's centred white box. */
 dialog {
   border: none;
   padding: 0;
@@ -93,7 +54,16 @@ dialog::backdrop {
   backdrop-filter: blur(4px);
 }
 
-/* Word wrapping */
-p, h1, h2, h3, h4, h5, h6, span {
+/* Long unbroken strings -- a URL in a paragraph, an identifier in a
+ * heading -- have nowhere to wrap without this, and the card they sit in
+ * has a max width. */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span {
   overflow-wrap: break-word;
 }

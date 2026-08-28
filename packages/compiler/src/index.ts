@@ -103,6 +103,13 @@ export interface CandidateCache {
   renderNativeModule(theme?: Theme): string
   persist(): void
   readonly size: number
+  /// Whether any scanned file names a Tailwind utility.
+  ///
+  /// Not `renderCss() !== ''`: the candidate set holds only what the
+  /// compiler could not read, and an ordinary project's Tailwind is all
+  /// static `className` that it reads exactly. The Web integrations pick
+  /// the base layer from this.
+  readonly usesTailwind: boolean
 }
 
 interface CandidateCacheConstructor {

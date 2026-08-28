@@ -77,6 +77,24 @@ pub fn resolve_class_name(class_name: &str) -> Option<ScannedUtility> {
 /// would go stale the moment that table changed.
 ///
 /// Deduplicated, in first-appearance order.
+/// Whether `source` names any Tailwind utility at all.
+///
+/// Deliberately *not* `!scan_class_candidates(source).is_empty()`. That
+/// function answers a narrower question -- which classes the compiler did
+/// not already read -- and a file whose Tailwind usage is entirely static
+/// `className="p-4"` answers it with nothing. Most files are that file.
+///
+/// The distinction matters because the Web integrations decide whether to
+/// emit Tailwind's base layer from this: Preflight is what the utilities
+/// were authored against, and inferring "no Tailwind here" from an empty
+/// candidate set would withhold it from exactly the ordinary project.
+///
+/// No parse, unlike the scan above: consumed spans are the thing being
+/// ignored, so there is nothing to ask the AST.
+pub fn source_uses_tailwind(source: &str) -> bool {
+    !scan_outside(source, &[]).is_empty()
+}
+
 pub fn scan_class_candidates(source: &str) -> Vec<String> {
     // A source that doesn't parse yields no consumed spans, so it degrades
     // to a plain scan -- more candidates than necessary, never fewer.
@@ -206,4 +224,22 @@ mod tests {
         "#;
         assert_eq!(scan_class_candidates(source), vec!["p-4"]);
     }
+
+    #[test]
+    fn a_file_can_use_tailwind_and_contribute_no_candidates() {
+        // The two questions the base layer forced apart. `p-4` here is a
+        // static attribute the compiler reads exactly, so it is not a
+        // candidate -- and a project made entirely of files like this one
+        // still needs Preflight, which is what the utilities assume.
+        let source = r#"export const App = () => <View className="p-4" />;"#;
+        assert!(scan_class_candidates(source).is_empty());
+        assert!(source_uses_tailwind(source));
+    }
+
+    #[test]
+    fn a_file_with_no_utility_anywhere_uses_no_tailwind() {
+        let source = r#"export const App = () => <View style={{ padding: 16 }} />;"#;
+        assert!(!source_uses_tailwind(source));
+    }
+
 }

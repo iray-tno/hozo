@@ -363,7 +363,8 @@ impl CandidateCache {
     #[napi]
     pub fn scan_file(&mut self, path: String, source: String, modified_ms: f64) -> bool {
         let class_names = hozo_parser::scan_class_candidates(&source);
-        self.inner.record(&path, modified_ms as u64, class_names)
+        let uses_tailwind = hozo_parser::source_uses_tailwind(&source);
+        self.inner.record(&path, modified_ms as u64, class_names, uses_tailwind)
     }
 
     /// Drops a deleted file's contribution. Returns whether it was tracked.
@@ -396,6 +397,17 @@ impl CandidateCache {
     #[napi]
     pub fn render_native_module(&self, theme: Option<JsTheme>) -> String {
         hozo_native::render_candidate_module(&self.inner.union(), &to_theme(theme))
+    }
+
+    /// Whether any scanned file names a Tailwind utility.
+    ///
+    /// Not the same as the candidate stylesheet being non-empty: that
+    /// holds only what the compiler *couldn't* read, and an ordinary
+    /// project's Tailwind is all static `className` the compiler reads
+    /// exactly. See `source_uses_tailwind`.
+    #[napi(getter)]
+    pub fn uses_tailwind(&self) -> bool {
+        self.inner.uses_tailwind()
     }
 
     /// Number of files tracked.

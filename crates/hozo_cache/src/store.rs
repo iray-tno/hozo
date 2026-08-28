@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// different version is discarded rather than migrated -- this is a cache,
 /// so rebuilding it is cheap and always correct, while a half-understood
 /// migration is neither.
-pub const SNAPSHOT_VERSION: u32 = 1;
+pub const SNAPSHOT_VERSION: u32 = 2;
 
 /// What one source file contributed.
 ///
@@ -29,6 +29,15 @@ pub struct FileEntry {
     /// decide whether a file needs rescanning.
     pub modified_ms: u64,
     pub class_names: Vec<String>,
+    /// Whether the file named any Tailwind utility, read or not.
+    ///
+    /// Stored rather than derived from `class_names`, which holds only the
+    /// classes the compiler could not read. A file with nothing but static
+    /// `className="p-4"` contributes no candidates and still uses
+    /// Tailwind, and `scanProject` never re-reads an unchanged file -- so
+    /// on a warm start this is the only place the answer exists.
+    #[serde(default)]
+    pub uses_tailwind: bool,
 }
 
 /// The whole cache, as handed to and from a store.

@@ -30,13 +30,15 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
 import { createCompiler, type CandidateCache, type Compiler, type Theme } from '@hozo/compiler'
-import { loadProjectTheme } from '@hozo/tailwind'
+import { loadProjectTheme, preflightCss } from '@hozo/tailwind'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   discoverSources,
   importSpecifier,
   scanProject,
+  preflightCssFor,
+  preflightCssPath,
   scanSummary,
   scannableFile,
   writeFileIfChanged,
@@ -46,7 +48,7 @@ import {
 /**
  * The same options every Hozo integration takes, under this one's name.
  *
- * Nothing is added, deliberately. The design tokens a project defines
+ * Nothing is added here beyond that shared set. The design tokens a project defines
  * reach the compiler through `css`, and without them Hozo resolves against
  * Tailwind's defaults -- right until a project defines its own, and then
  * `bg-brand` compiles to a CSS variable nothing defines and `p-4` to the
@@ -65,20 +67,41 @@ export function hozo(options: HozoOptions = {}): Plugin {
   let root = process.cwd()
   let cache: CandidateCache
   let candidateCssPath = ''
+  let preflightPath = ''
   let includedFiles = new Set<string>()
   let server: ViteDevServer | undefined
+  let preflight = ''
 
   /// Regenerates the project-wide candidate stylesheet and, in dev, makes
   /// the already-loaded module pick it up. The file lives under
   /// `node_modules`, which Vite's watcher ignores by default, so the
   /// invalidation has to be explicit rather than left to the watcher.
   function writeCandidateCss() {
+    // Before the invalidation below, not after: the two stylesheets are
+    // one update, and a reload that saw only half of it would be a page
+    // styled against the previous answer.
+    writePreflightCss()
     if (!writeFileIfChanged(candidateCssPath, cache.renderCss(theme))) return false
     const module = server?.moduleGraph.getModuleById(candidateCssPath)
     if (module) {
       void server?.reloadModule(module)
     }
     return true
+  }
+
+  /// The base layer Tailwind's utilities are authored against, which Hozo
+  /// does not otherwise ship. Written on the same terms as the candidate
+  /// stylesheet -- always present, contents decided by the option and by
+  /// whether the project uses Tailwind at all -- and invalidated the same
+  /// way, since it lives under `node_modules` where the watcher does not
+  /// look.
+  function writePreflightCss() {
+    const css = preflightCssFor(options.preflight, preflight, cache.usesTailwind)
+    if (!writeFileIfChanged(preflightPath, css)) return
+    const module = server?.moduleGraph.getModuleById(preflightPath)
+    if (module) {
+      void server?.reloadModule(module)
+    }
   }
 
   return {
@@ -107,6 +130,10 @@ export function hozo(options: HozoOptions = {}): Plugin {
       cache = project.cache
       includedFiles = new Set(project.files)
       candidateCssPath = path.join(project.dir, 'candidates.css')
+      preflightPath = preflightCssPath(project.dir)
+      // Read once for the process rather than per write: it is a file on
+      // disk that cannot change under a running build.
+      preflight = preflightCss()
       writeCandidateCss()
       if (options.debug) {
         this.info(scanSummary(project.stats))
@@ -166,6 +193,10 @@ export function hozo(options: HozoOptions = {}): Plugin {
       // extensionless-import checker inspects preset dependency source and
       // otherwise mistakes our code-generating string for a real import.
       next =
+        // First of the three: element selectors lose to every utility on
+        // specificity, so a base layer that landed after them would be a
+        // base layer with no effect on the cases it exists for.
+        sideEffectImport(importSpecifier(file, preflightPath)) +
         sideEffectImport(`./${lowered.cssFileName}`) +
         sideEffectImport(importSpecifier(file, candidateCssPath)) +
         next
