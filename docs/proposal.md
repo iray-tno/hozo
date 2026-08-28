@@ -965,10 +965,17 @@ Tailwind class まで合成してしまう。Hozo を先にすると元の `crea
 IR に取り込み spread を消せるため、後段 StyleX は未使用 definition を除去する。
 この二つの失敗/成功形は公式 Babel plugin を実行する回帰テストに固定した。
 
-残る境界は、defineVars/theme、nested selector/keyframes、cross-file sheet、
-新しい `sx`/`atoms` API、そして StyleX 独自の atomic priority である。特に
-shorthand と longhand の組合せは普通の CSS 詳細度では再現できないため、現状は
-明示的に拒否する。対応するなら priority を IR に持たせる設計が先になる。
+残る API 境界は、defineVars/theme、nested selector/keyframes、cross-file sheet、
+新しい `sx`/`atoms` API である。StyleX 0.19 の既定
+`property-specificity` にある4段階の atomic priority は frontend 内で解決済み。
+対応する shorthand を最終 property slot へ展開し、priority と引数順で整列してから
+共通 IR へ渡すため、Web/Native runtime と IR に priority 機構は増やしていない。
+条件付き shorthand に対して無条件の高 priority longhand が勝つ場合も、その slot
+だけを除去して他の条件付き slot は残す。
+
+ただし logical/physical edge の衝突は Native の実行時 direction が必要であり、
+Grid shorthand と個別 line の衝突は現在の Grid IR では分解できない。この二種類は
+近似せず、引き続き `STYLEX_NOT_LOWERED` として公式 StyleX に残す。
 
 §6.2 の「Tailwind はフロントエンド、Hozo IR は内部表現」がそのまま効く。
 `stylex.create({ button: { padding: 16 } })` を IR に落とせば、Web と

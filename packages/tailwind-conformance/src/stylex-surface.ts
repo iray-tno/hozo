@@ -55,11 +55,14 @@ export function officialStylexProperties(): Set<string> {
 export function mappedHozoStylexProperties(): Set<string> {
   const source = readFileSync(path.join(repoRoot(), 'crates/hozo_parser/src/stylex.rs'), 'utf8')
   const start = source.indexOf('fn token_for(')
-  const end = source.indexOf('\nfn priority_family(', start)
+  const end = source.indexOf('\nfn canonical_property(', start)
   if (start === -1 || end === -1) throw new Error('Hozo StyleX property mapper was not found')
 
   const properties = new Set<string>()
-  for (const match of source.slice(start, end).matchAll(/^\s+"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
+  // Both top-level property match tables use eight spaces. Ignore nested
+  // value matches (for example the accepted `flex` keywords), which are not
+  // StyleX property names and are indented further.
+  for (const match of source.slice(start, end).matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
     properties.add(match[1])
   }
   if (properties.size === 0) throw new Error('Hozo StyleX property mapper was empty')

@@ -87,6 +87,28 @@ function declarationMap(declarations: string[]): Map<string, string> {
               ? 'none'
               : value
     }
+    if (property === 'flex') {
+      const parts =
+        value === 'auto'
+          ? ['1', '1', 'auto']
+          : value === 'initial'
+            ? ['0', '1', 'auto']
+            : value === 'none'
+              ? ['0', '0', 'auto']
+              : value === '1'
+                ? ['1', '1', '0%']
+                : undefined
+      assert.ok(parts, `unrecognized flex oracle value: ${value}`)
+      result.set('flex-grow', parts[0])
+      result.set('flex-shrink', parts[1])
+      result.set('flex-basis', parts[2])
+      continue
+    }
+    if (property === 'gap') {
+      result.set('row-gap', value)
+      result.set('column-gap', value)
+      continue
+    }
     const expanded = (() => {
       if (property === 'padding') {
         return ['padding-top', 'padding-right', 'padding-bottom', 'padding-left']
@@ -197,6 +219,105 @@ export const Card = () => <View {...stylex.props(styles.root)} />
     Object.fromEntries(declarationMap(hozoDeclarations)),
     Object.fromEntries(declarationMap(officialDeclarations)),
   )
+})
+
+const atomicPrioritySource = (argumentsSource: string) => `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  all: { padding: 16, gap: 12, borderRadius: 8, flex: 'auto' },
+  specific: { paddingTop: 4, rowGap: 6, borderTopLeftRadius: 2, flexGrow: 2 },
+})
+export const Card = () => <View {...stylex.props(${argumentsSource})} />
+`
+
+test('StyleX atomic property priority is preserved on Web and Native', () => {
+  const official = transformSync(atomicPrioritySource('styles.specific, styles.all'), {
+    filename: '/app/AtomicPriority.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as {
+    stylex?: [string, { ltr: string }, number][]
+  }
+  assert.deepEqual(
+    [...new Set((metadata.stylex ?? []).map(([, , priority]) => priority))].sort(),
+    [1000, 2000, 3000, 4000],
+  )
+
+  for (const argumentsSource of [
+    'styles.specific, styles.all',
+    'styles.all, styles.specific',
+  ]) {
+    const input = atomicPrioritySource(argumentsSource)
+    const web = compile(input)[0]
+    assert.ok(web)
+    assert.equal(web.diagnostics.length, 0)
+    assert.match(web.css, /padding-top: 4px/)
+    assert.match(web.css, /padding-right: 16px/)
+    assert.match(web.css, /row-gap: 6px/)
+    assert.match(web.css, /column-gap: 12px/)
+    assert.match(web.css, /border-top-left-radius: 2px/)
+    assert.match(web.css, /border-top-right-radius: 8px/)
+    assert.match(web.css, /flex-grow: 2/)
+    assert.match(web.css, /flex-shrink: 1/)
+    assert.match(web.css, /flex-basis: auto/)
+    assert.doesNotMatch(web.css, /padding-top: 16px/)
+
+    const native = compileNative(input)[0]
+    assert.ok(native)
+    assert.equal(native.diagnostics.length, 0)
+    assert.match(native.styles, /paddingTop: 4/)
+    assert.match(native.styles, /paddingRight: 16/)
+    assert.match(native.styles, /rowGap: 6/)
+    assert.match(native.styles, /columnGap: 12/)
+    assert.match(native.styles, /borderTopLeftRadius: 2/)
+    assert.match(native.styles, /borderTopRightRadius: 8/)
+    assert.match(native.styles, /flexGrow: 2/)
+    assert.match(native.styles, /flexShrink: 1/)
+    assert.match(native.styles, /flexBasis: 'auto'/)
+    assert.doesNotMatch(native.styles, /paddingTop: 16/)
+  }
+})
+
+test('StyleX atomic priority remains correct across conditional arguments', () => {
+  const higherBase = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({ all: { padding: 16 }, top: { paddingTop: 4 } })
+export const Card = ({ active }) => (
+  <View {...stylex.props(styles.top, active && styles.all)} />
+)
+`
+  const higherBaseWeb = compile(higherBase)[0]
+  assert.ok(higherBaseWeb)
+  assert.equal(higherBaseWeb.diagnostics.length, 0)
+  assert.match(higherBaseWeb.css, /padding-top: 4px/)
+  assert.match(higherBaseWeb.css, /data-hozo-cond-[^{]+\{[^}]*padding-right: 16px/)
+  assert.doesNotMatch(higherBaseWeb.css, /data-hozo-cond-[^{]+\{[^}]*padding-top:/)
+
+  const higherBaseNative = compileNative(higherBase)[0]
+  assert.ok(higherBaseNative)
+  assert.equal(higherBaseNative.diagnostics.length, 0)
+  assert.match(higherBaseNative.styles, /hozo0: \{\s+paddingTop: 4/)
+  assert.match(higherBaseNative.styles, /hozo0_cond_[^{]+\{[^}]*paddingRight: 16/)
+  assert.doesNotMatch(higherBaseNative.styles, /hozo0_cond_[^{]+\{[^}]*paddingTop:/)
+
+  const higherConditional = higherBase.replace(
+    'styles.top, active && styles.all',
+    'styles.all, active && styles.top',
+  )
+  const higherConditionalWeb = compile(higherConditional)[0]
+  assert.ok(higherConditionalWeb)
+  assert.equal(higherConditionalWeb.diagnostics.length, 0)
+  assert.match(higherConditionalWeb.css, /\.hozo-0 \{[\s\S]*padding-top: 16px/)
+  assert.match(higherConditionalWeb.css, /data-hozo-cond-[^{]+\{[\s\S]*padding-top: 4px/)
+
+  const higherConditionalNative = compileNative(higherConditional)[0]
+  assert.ok(higherConditionalNative)
+  assert.equal(higherConditionalNative.diagnostics.length, 0)
+  assert.match(higherConditionalNative.styles, /hozo0: \{[\s\S]*paddingTop: 16/)
+  assert.match(higherConditionalNative.styles, /hozo0_cond_[^{]+\{[\s\S]*paddingTop: 4/)
 })
 
 test('StyleX grid reuses the contextual Web and Native grid lowerings', () => {

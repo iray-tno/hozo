@@ -208,9 +208,17 @@ The contextual slice is currently Grid: static `gridTemplateColumns`/
 `auto`/equal-span/full-span item placement. On Native these reuse `HozoGrid`
 and `HozoGridItem`; unsupported CSS Grid values remain with StyleX and produce
 `STYLEX_NOT_LOWERED` instead of being approximated.
-Themes/variables, nested selectors, keyframes, cross-file sheets, `sx`, and
-StyleX shorthand/longhand priority overlap are not guessed: the spread is
-preserved for StyleX and Hozo emits `STYLEX_NOT_LOWERED`.
+StyleX 0.19's default property-specificity mode is preserved for the supported
+static slice. Hozo resolves the same four atomic priority tiers before entering
+the shared IR, so physical longhands still beat later shorthands on both Web
+and Native; conditional arguments retain their fallback and override behavior.
+This is frontend-only work and adds no runtime priority machinery.
+
+Themes/variables, nested selectors, keyframes, cross-file sheets, and `sx`
+remain with StyleX. Direction-dependent logical/physical edge conflicts and
+Grid shorthand/line conflicts also remain explicit `STYLEX_NOT_LOWERED` gaps:
+their Native result needs runtime context or a more expressive Grid IR, so Hozo
+does not approximate them.
 
 ## Accessibility
 
