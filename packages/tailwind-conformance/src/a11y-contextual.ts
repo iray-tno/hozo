@@ -125,7 +125,99 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     native: ['<HozoDialog'],
     diagnostics: ['A11Y_MISSING_ACCESSIBLE_NAME', 'A11Y_DIALOG_WITHOUT_DISMISS'],
   },
+  {
+    name: 'generic container',
+    purpose: 'a plain container carries no role it did not ask for, on either platform',
+    // The primitive everything else sits inside, and the one with the most
+    // to lose from a helpful default: a `div` that arrived with a role
+    // would put that role around every subtree in the application. Its
+    // implicit role is `generic`, which is also why a bare one cannot be
+    // given a name -- see the scroll cases below for the same rule biting
+    // somewhere it matters more.
+    source: '<View><Text>a</Text></View>',
+    web: [`<div className="hozo-view"><span>a</span></div>`],
+    native: ['<View><Text>a</Text></View>'],
+  },
+  {
+    name: 'named scrollable region',
+    purpose: 'a named scroll container is announced on both platforms, not only on one',
+    // The role is load-bearing and the contract is here to say so. Without
+    // it the Web lowering is a bare `div`, whose implicit role is
+    // `generic`, and `generic` prohibits an accessible name -- so the same
+    // source would be announced as "Feed" on a device and as nothing at all
+    // in a browser. The compiler says so (`ARIA_NAME_PROHIBITED`), which is
+    // the next case; this one is the shape that works.
+    source: '<ScrollView role="region" accessibilityLabel="Feed"><Text>a</Text></ScrollView>',
+    web: ['<div className="hozo-scroll-view" role="region" aria-label={"Feed"}>'],
+    native: ['<ScrollView role="region" accessibilityLabel={"Feed"}>'],
+  },
+  {
+    name: 'unnamed scrollable region diagnostic',
+    purpose: 'a name the Web lowering cannot carry is reported rather than dropped',
+    source: '<ScrollView accessibilityLabel="Feed"><Text>a</Text></ScrollView>',
+    web: ['<div className="hozo-scroll-view"'],
+    native: ['<ScrollView accessibilityLabel={"Feed"}>'],
+    diagnostics: ['ARIA_NAME_PROHIBITED'],
+  },
+  {
+    name: 'virtualized list semantics',
+    purpose: 'a long list keeps its list role on Native and its runtime component on Web',
+    // Asymmetric on purpose, and worth pinning because it looks like a gap.
+    // Web carries `FlatList` verbatim -- it is `@hozo/core`'s own component
+    // there, and the semantics are that component's to provide -- while
+    // Native lowers to React Native's and adds the role its own list
+    // primitive would have carried.
+    source:
+      '<FlatList accessibilityLabel="Rows" data={rows} ' +
+      'renderItem={({ item }) => <Text>{item}</Text>} />',
+    web: ['<FlatList accessibilityLabel={"Rows"}'],
+    native: ['<FlatList accessibilityRole="list" accessibilityLabel={"Rows"}'],
+  },
+  {
+    name: 'named drawing',
+    purpose: 'a chart carries one name to both platforms, and a decorative one carries none',
+    source:
+      '<Svg accessibilityLabel="Chart" viewBox="0 0 10 10">' +
+      '<Svg.Rect width={10} height={10} /></Svg>',
+    web: ['<svg aria-label={"Chart"}', '<rect'],
+    native: ['<Svg accessibilityLabel={"Chart"}', '<Rect'],
+  },
+  {
+    name: 'decorative drawing',
+    purpose: 'a drawing hidden from assistive technology stays hidden on both platforms',
+    source: '<Svg aria-hidden viewBox="0 0 10 10"><Svg.Rect width={10} height={10} /></Svg>',
+    web: ['<svg aria-hidden'],
+    native: ['<Svg aria-hidden'],
+  },
 ]
+
+/**
+ * Primitives with no cross-platform contract, and why.
+ *
+ * Empty, and meant to stay that way. It exists because the check below
+ * needs somewhere for a deliberate exemption to go: a primitive left out
+ * on purpose should say so here rather than be quietly absent, which is
+ * the difference between a decision and an oversight.
+ */
+export const CONTRACT_EXEMPT: Record<string, string> = {}
+
+/**
+ * Every primitive named by at least one contract above.
+ *
+ * The expectations cannot be derived -- what `<Nav>` becomes on each
+ * platform is Hozo's decision and appears in no specification, which is
+ * why `aria-roles.ts` could read `aria-query` and this cannot. The
+ * *coverage* can be, and that is the half that goes stale: `FlatList`,
+ * `ScrollView` and `Svg` had no contract at all when this was written, and
+ * nothing said so.
+ */
+export function primitivesUnderContract(): Set<string> {
+  const named = new Set<string>()
+  for (const testCase of A11Y_CONTEXTUAL_CASES) {
+    for (const match of testCase.source.matchAll(/<([A-Z][A-Za-z]*)/g)) named.add(match[1])
+  }
+  return named
+}
 
 export function compareA11yContextual(testCase: A11yContextualCase): A11yContextualResult {
   const source =

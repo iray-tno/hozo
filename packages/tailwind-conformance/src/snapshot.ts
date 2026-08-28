@@ -73,6 +73,9 @@ const WORSE_WHEN_UP = new Set([
   // to try. Both mean the same thing from outside: a check whose absence
   // would look exactly like clean code.
   'noCase',
+  // A primitive the compiler knows and no contract describes. The two
+  // backends can then disagree about it with nothing saying so.
+  'uncontracted',
 ])
 
 /**
