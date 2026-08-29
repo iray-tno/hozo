@@ -97,7 +97,13 @@ export interface CandidateCache {
   retainFiles(paths: string[]): number
   /// The Web stylesheet: rules under the classes' real Tailwind names, for
   /// the browser's own CSS engine to match.
-  renderCss(theme?: Theme): string
+  /// `order` is these candidates in the order Tailwind would write
+  /// them (see `@hozo/tailwind`'s `loadProjectClassOrder`). Every rule
+  /// here is a single class, so order is the whole cascade; without it
+  /// the set is alphabetical and `sm:` lands after `md:`.
+  renderCss(theme?: Theme, order?: readonly string[]): string
+  /// Every candidate held, to be handed to Tailwind for an order.
+  candidates(): string[]
   /// The Native equivalent: a JS module exporting `hozoClasses`, a
   /// resolver bound to this project's class-name -> style-object map.
   renderNativeModule(theme?: Theme): string

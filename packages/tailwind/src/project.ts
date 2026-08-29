@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { loadTheme, type Theme } from './theme.ts'
+import { loadClassOrder, loadTheme, tailwindPackageDir, type Theme } from './theme.ts'
 
 export const DEFAULT_CSS_FILES = [
   'global.css',
@@ -35,6 +35,39 @@ export function loadProjectTheme(
     cache.set(key, pending)
   }
   return pending
+}
+
+/**
+ * One project's candidates, in the order Tailwind would write them.
+ *
+ * Found the same way the theme is, and for the same reason: a project's
+ * `@theme` can add breakpoints, so the order is a fact about the project
+ * and not about Tailwind alone. Falls back to Tailwind's own stylesheet
+ * when the project has none, which is what the utilities are resolved
+ * against in that case too.
+ */
+export async function loadProjectClassOrder(
+  projectRoot: string,
+  candidates: readonly string[],
+  options: ProjectThemeOptions = {},
+): Promise<string[]> {
+  if (candidates.length === 0) return []
+  const root = path.resolve(projectRoot)
+  const names = options.css ? [options.css] : DEFAULT_CSS_FILES
+  for (const relative of names) {
+    const file = path.resolve(root, relative)
+    if (!existsSync(file)) continue
+    try {
+      return await loadClassOrder(readFileSync(file, 'utf8'), path.dirname(file), candidates)
+    } catch {
+      // Reported already by `loadProjectTheme`, which reads the same file
+      // and runs first. Falling through to the defaults keeps one warning
+      // per broken stylesheet rather than two.
+      break
+    }
+  }
+  const dir = tailwindPackageDir()
+  return loadClassOrder('@import "tailwindcss";', dir, candidates)
 }
 
 async function load(

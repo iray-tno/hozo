@@ -30,7 +30,7 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
 import { createCompiler, type CandidateCache, type Compiler, type Theme } from '@hozo/compiler'
-import { loadProjectTheme, preflightCss } from '@hozo/tailwind'
+import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
@@ -71,6 +71,11 @@ export function hozo(options: HozoOptions = {}): Plugin {
   let includedFiles = new Set<string>()
   let server: ViteDevServer | undefined
   let preflight = ''
+  // The candidate order Tailwind would use, refreshed whenever the set
+  // changes. Held rather than recomputed per write because the write path
+  // is synchronous and this is not: `getClassOrder` needs the project's
+  // design system.
+  let classOrder: string[] = []
 
   /// Regenerates the project-wide candidate stylesheet and, in dev, makes
   /// the already-loaded module pick it up. The file lives under
@@ -81,7 +86,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
     // one update, and a reload that saw only half of it would be a page
     // styled against the previous answer.
     writePreflightCss()
-    if (!writeFileIfChanged(candidateCssPath, cache.renderCss(theme))) return false
+    if (!writeFileIfChanged(candidateCssPath, cache.renderCss(theme, classOrder))) return false
     const module = server?.moduleGraph.getModuleById(candidateCssPath)
     if (module) {
       void server?.reloadModule(module)
@@ -127,6 +132,9 @@ export function hozo(options: HozoOptions = {}): Plugin {
       // class can be produced by a module the graph never resolves
       // statically.
       const project = scanProject(root, options.content)
+      classOrder = await loadProjectClassOrder(root, project.cache.candidates(), {
+        css: options.css,
+      })
       cache = project.cache
       includedFiles = new Set(project.files)
       candidateCssPath = path.join(project.dir, 'candidates.css')
@@ -168,7 +176,18 @@ export function hozo(options: HozoOptions = {}): Plugin {
         // recorded twice under two spellings.
         const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0
         if (cache.scanFile(path.resolve(file), code, modifiedMs)) {
+          // Written once with the order as it stands, then again once
+          // Tailwind has placed the new candidates. Without the second
+          // pass a class added while the server is up is written last
+          // whatever its breakpoint, and `sm:block` would outrank a
+          // `md:hidden` that had been there all along.
           writeCandidateCss()
+          void loadProjectClassOrder(root, cache.candidates(), { css: options.css }).then(
+            (next) => {
+              classOrder = next
+              writeCandidateCss()
+            },
+          )
         }
       }
 

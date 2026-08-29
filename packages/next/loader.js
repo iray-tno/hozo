@@ -21,7 +21,7 @@ import {
   scannableFile,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
-import { loadProjectTheme, preflightCss } from '@hozo/tailwind'
+import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
 
 /** One cache and one theme per worker process, keyed by project root. */
 const projects = new Map()
@@ -36,6 +36,10 @@ function projectState(options) {
     })
     state = {
       cache,
+      // Filled in once the design system is available, which is the same
+      // await the theme needs. Empty until then means alphabetical, which
+      // is what `withHozo` writes synchronously anyway.
+      classOrder: [],
       // Rewritten once the theme resolves, unconditionally.
       //
       // `withHozo` writes this file synchronously while `next.config.ts`
@@ -47,8 +51,11 @@ function projectState(options) {
       // className compiled to `var(--hozo-color-brand)` with nothing
       // defining it: no error, no warning, just no colour. Found by
       // reading what `next dev` actually served.
-      theme: theme.then((resolved) => {
-        writeFileIfChanged(options.candidateCssPath, cache.renderCss(resolved))
+      theme: theme.then(async (resolved) => {
+        state.classOrder = await loadProjectClassOrder(options.root, cache.candidates(), {
+          css: options.css,
+        })
+        writeFileIfChanged(options.candidateCssPath, cache.renderCss(resolved, state.classOrder))
         writePreflight(options, cache)
         // The compiler is built here rather than per module, which is the
         // only place it can be: the theme is what it needs and the theme is
@@ -81,12 +88,27 @@ export default function hozoLoader(source) {
         // actually changed.
         const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0
         if (state.cache.scanFile(path.resolve(file), source, modifiedMs)) {
-          writeFileIfChanged(options.candidateCssPath, state.cache.renderCss(theme))
+          // With the order as it stands. A class discovered by this rescan
+          // has no position yet and is written last; the refresh below
+          // puts it where Tailwind would.
+          writeFileIfChanged(
+            options.candidateCssPath,
+            state.cache.renderCss(theme, state.classOrder),
+          )
           // A project's first Tailwind class can arrive in a file compiled
           // long after `withHozo` ran, and the base layer is decided by
           // whether there are any.
           writePreflight(options, state.cache)
           state.cache.persist()
+          void loadProjectClassOrder(options.root, state.cache.candidates(), {
+            css: options.css,
+          }).then((next) => {
+            state.classOrder = next
+            writeFileIfChanged(
+              options.candidateCssPath,
+              state.cache.renderCss(theme, next),
+            )
+          })
         }
 
         const lowered = lowerModule(source, this.resourcePath, file, state.compiler, options.root)
