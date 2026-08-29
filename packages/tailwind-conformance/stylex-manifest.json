@@ -1,0 +1,3141 @@
+{
+  "schemaVersion": 1,
+  "sources": {
+    "stylex": "0.19.0",
+    "reactNative": "0.87.0"
+  },
+  "properties": [
+    {
+      "name": "MozOsxFontSmoothing",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "MsOverflowStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitAppearance",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "WebkitBackgroundClip",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitBoxOrient",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitFontSmoothing",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitLineClamp",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitMaskImage",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitTapHighlightColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitTextFillColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitTextStrokeColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "WebkitTextStrokeWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "accentColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "alignContent",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "alignItems",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "alignSelf",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "alignTracks",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "alignmentBaseline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "anchorName",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animation",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationComposition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationDelay",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationDirection",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationDuration",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationFillMode",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationIterationCount",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationName",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationPlayState",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationRange",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationRangeEnd",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationRangeStart",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationTimeline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "animationTimingFunction",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "appearance",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "aspectRatio",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "azimuth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backdropFilter",
+      "lane": "adapter",
+      "status": "unmapped",
+      "basis": "adapter-candidate"
+    },
+    {
+      "name": "backfaceVisibility",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "background",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundAttachment",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundBlendMode",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundClip",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "backgroundImage",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "backgroundOrigin",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundPosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundPositionX",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundPositionY",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundRepeat",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "backgroundSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "baselineShift",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "behavior",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "blockSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "border",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlock",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlockColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderBlockEnd",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlockEndColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderBlockEndStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlockEndWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlockStart",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlockStartColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderBlockStartStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlockStartWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlockStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBlockWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBottom",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBottomColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderBottomLeftRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderBottomRightRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderBottomStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderBottomWidth",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderCollapse",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderEndEndRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderEndStartRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderImage",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderImageOutset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderImageRepeat",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderImageSlice",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderImageSource",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderImageWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineEnd",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineEndColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineEndStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineEndWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineStart",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineStartColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineStartStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineStartWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderInlineWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderLeft",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderLeftColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderLeftStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderLeftWidth",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderRight",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderRightColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderRightStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderRightWidth",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderSpacing",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderStartEndRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderStartStartRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderStyle",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderTop",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderTopColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderTopLeftRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderTopRightRadius",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderTopStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "borderTopWidth",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "borderWidth",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "bottom",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "boxAlign",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "boxDecorationBreak",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "boxDirection",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "boxFlex",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "boxFlexGroup",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "boxLines",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "boxOrdinalGroup",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "boxOrient",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "boxShadow",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "boxSizing",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "boxSuppress",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "breakAfter",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "breakBefore",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "breakInside",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "captionSide",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "caret",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "caretColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "caretShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "clear",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "clip",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "clipPath",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "clipRule",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "color",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "colorScheme",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "columnCount",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "columnFill",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "columnGap",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "columnRule",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "columnRuleColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "columnRuleStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "columnRuleWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "columnSpan",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "columnWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "columns",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "contain",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "containIntrinsicBlockSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "containIntrinsicHeight",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "containIntrinsicInlineSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "containIntrinsicSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "containIntrinsicWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "container",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "containerName",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "containerType",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "content",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "contentVisibility",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerBottomLeftShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerBottomRightShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerEndEndShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerEndStartShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerStartEndShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerStartStartShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerTopLeftShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cornerTopRightShape",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "counterIncrement",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "counterReset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "counterSet",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cue",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cueAfter",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cueBefore",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "cursor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "direction",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "display",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "displayInside",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "displayList",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "displayOutside",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "dominantBaseline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "emptyCells",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "end",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "fill",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fillOpacity",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fillRule",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "filter",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "flex",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "flexBasis",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "flexDirection",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "flexFlow",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "flexGrow",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "flexShrink",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "flexWrap",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "float",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "font",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontFamily",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "fontFeatureSettings",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontKerning",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontLanguageOverride",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontOpticalSizing",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontPalette",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontSize",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "fontSizeAdjust",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontStretch",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontStyle",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "fontSynthesis",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontSynthesisPosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontSynthesisSmallCaps",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontSynthesisStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontSynthesisWeight",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontVariant",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "fontVariantAlternates",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontVariantCaps",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontVariantEastAsian",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontVariantLigatures",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontVariantNumeric",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontVariantPosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontVariationSettings",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "fontWeight",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "forcedColorAdjust",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "gap",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "glyphOrientationHorizontal",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "glyphOrientationVertical",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "grid",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridArea",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridAutoColumns",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridAutoFlow",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridAutoRows",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridColumn",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "gridColumnEnd",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "gridColumnGap",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridColumnStart",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "gridGap",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridRow",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "gridRowEnd",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "gridRowGap",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridRowStart",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "gridTemplate",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridTemplateAreas",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "gridTemplateColumns",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "gridTemplateRows",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "hangingPunctuation",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "height",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "hyphenateCharacter",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "hyphenateLimitChars",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "hyphens",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "imageOrientation",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "imageRendering",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "imageResolution",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "imeMode",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "initialLetter",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "initialLetterAlign",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "inlineSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "inset",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "insetBlock",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "insetBlockEnd",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "insetBlockStart",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "insetInline",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "insetInlineEnd",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "insetInlineStart",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "interpolateSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "isolation",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "justifyContent",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "justifyItems",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "justifySelf",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "justifyTracks",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "kerning",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "left",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "letterSpacing",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "lineBreak",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "lineHeight",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "lineHeightStep",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "listStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "listStyleImage",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "listStylePosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "listStyleType",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "margin",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginBlock",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginBlockEnd",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginBlockStart",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginBottom",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginInline",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginInlineEnd",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginInlineStart",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginLeft",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginRight",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginTop",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "marginTrim",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "marker",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "markerEnd",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "markerMid",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "markerOffset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "markerStart",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "mask",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskBorder",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskBorderMode",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskBorderOutset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskBorderRepeat",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskBorderSlice",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskBorderSource",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskBorderWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskClip",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskComposite",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskImage",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskMode",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskOrigin",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskPosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskRepeat",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maskType",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "masonryAutoFlow",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "mathDepth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "mathShift",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "mathStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maxBlockSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maxHeight",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "maxInlineSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "maxWidth",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "minBlockSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "minHeight",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "minInlineSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "minWidth",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "mixBlendMode",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "motion",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "motionOffset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "motionPath",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "motionRotation",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "objectFit",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "objectPosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "offset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "offsetAnchor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "offsetDistance",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "offsetPath",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "offsetPosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "offsetRotate",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "opacity",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "order",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "orphans",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "outline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "outlineColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "outlineOffset",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "outlineStyle",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "outlineWidth",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "overflow",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "overflowAnchor",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "overflowBlock",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "overflowBlockX",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "overflowClipMargin",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "overflowWrap",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "overflowX",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "overflowY",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "overscrollBehavior",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "overscrollBehaviorBlock",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "overscrollBehaviorInline",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "overscrollBehaviorX",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "overscrollBehaviorY",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "padding",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingBlock",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingBlockEnd",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingBlockStart",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingBottom",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingInline",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingInlineEnd",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingInlineStart",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingLeft",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingRight",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "paddingTop",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "page",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "pageBreakAfter",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "pageBreakBefore",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "pageBreakInside",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "paintOrder",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "pause",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "pauseAfter",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "pauseBefore",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "perspective",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "perspectiveOrigin",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "placeContent",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "placeItems",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "placeSelf",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "pointerEvents",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "position",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "positionAnchor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "positionArea",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "positionTry",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "positionTryFallbacks",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "positionTryOptions",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "positionVisibility",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "printColorAdjust",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "quotes",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "resize",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "rest",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "restAfter",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "restBefore",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "right",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "rotate",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "rowGap",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "rubyAlign",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "rubyMerge",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "rubyPosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scale",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollBehavior",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollMargin",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollMarginBlock",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollMarginBlockEnd",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollMarginBlockStart",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollMarginBottom",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollMarginInline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollMarginInlineEnd",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollMarginInlineStart",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollMarginLeft",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollMarginRight",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollMarginTop",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollPadding",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollPaddingBlock",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollPaddingBlockEnd",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollPaddingBlockStart",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollPaddingBottom",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollPaddingInline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollPaddingInlineEnd",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollPaddingInlineStart",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollPaddingLeft",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollPaddingRight",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollPaddingTop",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollSnapAlign",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollSnapStop",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollSnapType",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollTimeline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollTimelineAxis",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollTimelineName",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollbarColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "scrollbarGutter",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "scrollbarWidth",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "shapeImageThreshold",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "shapeMargin",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "shapeOutside",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "shapeRendering",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "speak",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "speakAs",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "src",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "start",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "stroke",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "strokeDasharray",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "strokeDashoffset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "strokeLinecap",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "strokeLinejoin",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "strokeMiterlimit",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "strokeOpacity",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "strokeWidth",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "tabSize",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "tableLayout",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textAlign",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "textAlignLast",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textAnchor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textCombineUpright",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textDecoration",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textDecorationColor",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "textDecorationLine",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "textDecorationSkip",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textDecorationSkipInk",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textDecorationStyle",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "textDecorationThickness",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textEmphasis",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textEmphasisColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textEmphasisPosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textEmphasisStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textFillColor",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textIndent",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "textJustify",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textOrientation",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textOverflow",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textRendering",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "textShadow",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textSizeAdjust",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textTransform",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "textUnderlineOffset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textUnderlinePosition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "textWrap",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "theme",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "timelineScope",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "top",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "touchAction",
+      "lane": "web-only",
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
+    },
+    {
+      "name": "transform",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "transformBox",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "transformOrigin",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "transformStyle",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "transition",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "transitionDelay",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "transitionDuration",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "transitionProperty",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "transitionTimingFunction",
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
+    },
+    {
+      "name": "translate",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "unicodeBidi",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "unicodeRange",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "userSelect",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "verticalAlign",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "viewTimeline",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "viewTimelineAxis",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "viewTimelineInset",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "viewTimelineName",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "viewTransitionName",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "visibility",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "voiceBalance",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "voiceDuration",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "voiceFamily",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "voicePitch",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "voiceRange",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "voiceRate",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "voiceStress",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "voiceVolume",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "whiteSpace",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "widows",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "width",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "willChange",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "wordBreak",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "wordSpacing",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "wordWrap",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "writingMode",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    },
+    {
+      "name": "zIndex",
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
+    },
+    {
+      "name": "zoom",
+      "lane": "web-only",
+      "status": "unmapped",
+      "basis": "not-yet-lowered"
+    }
+  ]
+}

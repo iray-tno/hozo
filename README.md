@@ -203,6 +203,15 @@ property-name upper bounds: each
 property still accepts only the statically safe value subset the shared IR can
 represent.
 
+The 522-name denominator and every mapped/unmapped claim live in the generated
+`packages/tailwind-conformance/stylex-manifest.json`. Each entry records its
+Universal, Contextual, Adapter, or Web-only lane and the implementation basis
+for counting it. Conformance reports consume that manifest rather than parsing
+Rust source formatting; a drift test regenerates it from pinned StyleX and
+React Native types plus the frontend lowering table. After a deliberate
+frontend or dependency change, refresh it with
+`pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
+
 The first explicit Web-only slice covers closed-keyword appearance,
 color-scheme, image-rendering, overflow/overscroll, print-color adjustment,
 resize, scroll snap, scrollbar width/gutter, text rendering, and touch-action

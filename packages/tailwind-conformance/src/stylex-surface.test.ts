@@ -2,11 +2,18 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import {
+  manifestEntry,
   mappedHozoStylexProperties,
   officialStylexProperties,
+  stylexManifest,
   stylexSurface,
   stylexVersion,
 } from './stylex-surface.ts'
+import { generateStylexManifest } from './stylex-manifest-generate.ts'
+
+test('the checked-in StyleX manifest matches upstream types and Rust lowering arms', () => {
+  assert.deepEqual(stylexManifest(), generateStylexManifest())
+})
 
 test('StyleX publishes the property denominator used by the report', () => {
   assert.equal(stylexVersion(), '0.19.0')
@@ -17,7 +24,7 @@ test('StyleX publishes the property denominator used by the report', () => {
   }
 })
 
-test('the StyleX numerator is the Rust frontend mapping, not a curated copy', () => {
+test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
   assert.equal(mapped.size, 170)
   for (const name of [
@@ -34,6 +41,16 @@ test('the StyleX numerator is the Rust frontend mapping, not a curated copy', ()
   }
   assert.ok(!mapped.has('animationDuration'))
   assert.ok(mapped.has('scrollbarWidth'))
+})
+
+test('every mapped property records why it is counted', () => {
+  const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
+  assert.equal(mapped.length, 170)
+  assert.ok(mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'))
+  assert.equal(manifestEntry('padding')?.basis, 'shared-typed-ir')
+  assert.equal(manifestEntry('gridTemplateColumns')?.basis, 'contextual-runtime')
+  assert.equal(manifestEntry('scrollbarWidth')?.basis, 'exact-web-native-refusal')
+  assert.equal(manifestEntry('backdropFilter')?.basis, 'adapter-candidate')
 })
 
 test('the universal denominator is derived from StyleX and React Native', () => {
