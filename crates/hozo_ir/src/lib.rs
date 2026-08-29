@@ -3946,11 +3946,19 @@ pub enum Environment {
     Ltr,
     /// The same, right to left.
     Rtl,
-    /// `@media (prefers-contrast: more)`. Web only -- React Native's
-    /// nearest is Android's high-contrast *text* setting, which is a
-    /// different thing wearing a similar name.
+    /// `@media (prefers-contrast: more)`.
+    ///
+    /// Compiled on both backends. React Native reports it from two
+    /// settings, one per platform: iOS's Increase Contrast through
+    /// `isDarkerSystemColorsEnabled`, Android's high-contrast text through
+    /// `isHighTextContrastEnabled`. The iOS one is the same OS setting
+    /// Safari writes `prefers-contrast: more` from, so the two backends
+    /// agree there by construction; Android's is narrower -- text only --
+    /// and is read as the nearest thing that platform has.
     ContrastMore,
-    /// `@media (prefers-contrast: less)`. Web only, as above.
+    /// `@media (prefers-contrast: less)`. Web only, and not for want of
+    /// looking: neither iOS nor Android exposes a *reduce* contrast
+    /// setting, so there is nothing for React Native to report.
     ContrastLess,
     /// `@media (forced-colors: active)`. Web only.
     ForcedColors,

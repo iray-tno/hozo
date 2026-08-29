@@ -129,7 +129,16 @@ const PROVOCATIONS: Record<string, Provocation> = {
   TAILWIND_VARIANT_CANNOT_MATCH: { source: '<View className="required:p-4">x</View>' },
   VISITED_STYLE_IGNORED: { source: '<Link href="/a" className="visited:p-4">x</Link>' },
   NOT_WIRED_ON_WEB: { source: '<View className="bold-text:p-4">x</View>', backend: 'web' },
-  NOT_WIRED_ON_NATIVE: { source: '<View className="contrast-more:p-4">x</View>', backend: 'native' },
+  // `contrast-less:` rather than `contrast-more:`, which used to be here
+  // and stopped provoking anything the day React Native's own
+  // `AccessibilityInfo.d.ts` was read and the variant was wired. This
+  // section caught that: `fires` fell to 26 and `silent` rose to 1 in the
+  // same run that added 225 covered native variants.
+  //
+  // `contrast-less:` is the durable choice, not merely the next one that
+  // works: neither iOS nor Android exposes a reduce-contrast setting, so
+  // it is unwired for a reason that cannot be researched away.
+  NOT_WIRED_ON_NATIVE: { source: '<View className="contrast-less:p-4">x</View>', backend: 'native' },
   // A whole module, because StyleX arrives as a `stylex.create` call rather
   // than as an attribute. `translateX(calc(...))` is a value the Native
   // solver does not take.

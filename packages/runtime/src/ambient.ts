@@ -147,6 +147,11 @@ export type EnvironmentQuery =
   | 'bold-text'
   | 'grayscale'
   | 'screen-reader'
+  // The one Tailwind does name, and the only query behind which React
+  // Native has *two* settings: iOS's Increase Contrast and Android's
+  // high-contrast text. `contrast-less:` has no counterpart on either
+  // platform and stays Web-only.
+  | 'contrast-more'
 
 /** The fact behind a query, and whether the query is its negation. */
 export const ENVIRONMENT_FACTS: Record<
@@ -161,6 +166,7 @@ export const ENVIRONMENT_FACTS: Record<
       | 'boldText'
       | 'grayscale'
       | 'screenReader'
+      | 'contrastMore'
     negate: boolean
   }
 > = {
@@ -175,6 +181,7 @@ export const ENVIRONMENT_FACTS: Record<
   'bold-text': { fact: 'boldText', negate: false },
   grayscale: { fact: 'grayscale', negate: false },
   'screen-reader': { fact: 'screenReader', negate: false },
+  'contrast-more': { fact: 'contrastMore', negate: false },
 }
 
 /**

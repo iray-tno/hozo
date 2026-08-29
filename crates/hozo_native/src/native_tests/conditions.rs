@@ -1078,3 +1078,60 @@ fn a_conditional_viewport_size_is_guarded_like_the_entry_beside_it() {
         output.jsx
     );
 }
+
+#[test]
+fn contrast_more_compiles_because_react_native_reports_it() {
+    // Read out of React Native's own `AccessibilityInfo.d.ts` rather than
+    // guessed at, which is what left this variant out: the code said
+    // "React Native's nearest is Android's high-contrast *text* setting",
+    // and that was half the surface. iOS reports Increase Contrast through
+    // `isDarkerSystemColorsEnabled`, with a `darkerSystemColorsChanged`
+    // event, and that is the same OS setting Safari writes
+    // `prefers-contrast: more` from.
+    let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="p-2 contrast-more:border-2" />
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+    assert!(
+        output.prelude.iter().any(|line| line.contains("useHozoEnvironment('contrast-more')")),
+        "contrast-more: did not reach the runtime: {:?}",
+        output.prelude
+    );
+    assert!(
+        output.jsx.contains("__hozoEnv_contrast_more &&"),
+        "the guard did not reach the style array: {}",
+        output.jsx
+    );
+    assert!(
+        !output
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("no React Native equivalent")),
+        "contrast-more: was still reported as unwired"
+    );
+}
+
+#[test]
+fn contrast_less_stays_web_only_because_no_platform_has_it() {
+    // Not an omission and not pending evidence: neither iOS nor Android
+    // exposes a *reduce* contrast setting, so there is nothing for React
+    // Native to report. The diagnostic is the honest answer rather than a
+    // placeholder for one.
+    let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="p-2 contrast-less:border-2" />
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("no React Native equivalent")),
+        "contrast-less: should still say so"
+    );
+}

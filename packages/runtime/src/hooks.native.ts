@@ -243,6 +243,14 @@ const reduceTransparencyStore = createStore(false)
 const boldTextStore = createStore(false)
 const grayscaleStore = createStore(false)
 const screenReaderStore = createStore(false)
+// `contrast-more:` alone has two settings behind it, one per platform, and
+// they get a store each rather than sharing one. Sharing would mean two
+// asynchronous reads racing to write the same value: on a device where one
+// method is present and the other resolves `false`, whichever landed last
+// would win and the answer would depend on scheduling. Two stores combined
+// at read time cannot do that.
+const darkerSystemColorsStore = createStore(false)
+const highTextContrastStore = createStore(false)
 
 // Asynchronous, unlike `Appearance.getColorScheme()`: these cross to the
 // platform. The store starts at `false` and corrects itself, which is the
@@ -282,6 +290,14 @@ track('isGrayscaleEnabled', 'grayscaleChanged', grayscaleStore)
 // turning VoiceOver on to read a screen they are already looking at is the
 // ordinary case, not an edge one.
 track('isScreenReaderEnabled', 'screenReaderChanged', screenReaderStore)
+// iOS's Increase Contrast, which is the same OS setting Safari writes
+// `prefers-contrast: more` from -- so a component styled with
+// `contrast-more:` behaves the same in a WebView and in a native screen.
+track('isDarkerSystemColorsEnabled', 'darkerSystemColorsChanged', darkerSystemColorsStore)
+// Android's is narrower: high-contrast *text*, not a general contrast
+// increase. Read as the nearest thing that platform has rather than left
+// unanswered, which would make `contrast-more:` iOS-only in practice.
+track('isHighTextContrastEnabled', 'highTextContrastChanged', highTextContrastStore)
 Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
   orientationStore.set(isPortrait(window))
 })
@@ -331,6 +347,16 @@ export function useHozoEnvironment(query: EnvironmentQuery): boolean {
     screenReaderStore.get,
     screenReaderStore.get,
   )
+  const darkerSystemColors = useSyncExternalStore(
+    darkerSystemColorsStore.subscribe,
+    darkerSystemColorsStore.get,
+    darkerSystemColorsStore.get,
+  )
+  const highTextContrast = useSyncExternalStore(
+    highTextContrastStore.subscribe,
+    highTextContrastStore.get,
+    highTextContrastStore.get,
+  )
   const value = {
     reduceMotion,
     invertColors,
@@ -340,6 +366,10 @@ export function useHozoEnvironment(query: EnvironmentQuery): boolean {
     boldText,
     grayscale,
     screenReader,
+    // Either platform's setting answers the query. Only one of the two can
+    // be true on a given device -- each method exists on one platform --
+    // so the `||` is a union of platforms rather than of settings.
+    contrastMore: darkerSystemColors || highTextContrast,
   }[fact]
   return negate ? !value : value
 }

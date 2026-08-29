@@ -679,11 +679,17 @@ fn group_unwired_message(inner: &Condition, interaction_context: bool) -> String
 /// style-entry suffix.
 /// The queries React Native can answer, and only those.
 ///
-/// `contrast-more` and `contrast-less` are absent deliberately: React
-/// Native's nearest is Android's high-contrast *text* setting, which is a
-/// different thing wearing a similar name, and answering with it would be
-/// worse than saying nothing. A printer, a scripting-disabled page and
-/// Windows' forced-colours mode have no meaning on a device at all.
+/// `contrast-less` is absent because neither platform has the setting:
+/// iOS and Android both expose an *increase* contrast toggle and no
+/// counterpart, so there is nothing to report. A printer, a
+/// scripting-disabled page and Windows' forced-colours mode have no
+/// meaning on a device at all.
+///
+/// `contrast-more` used to be absent beside it, on the stated grounds
+/// that React Native's nearest was Android's high-contrast *text*
+/// setting. That was half the surface: iOS reports Increase Contrast
+/// through `isDarkerSystemColorsEnabled`, which is the same OS setting
+/// Safari writes `prefers-contrast: more` from.
 fn native_environment(query: Environment) -> Option<Environment> {
     matches!(
         query,
@@ -703,6 +709,11 @@ fn native_environment(query: Environment) -> Option<Environment> {
             | Environment::BoldText
             | Environment::Grayscale
             | Environment::ScreenReader
+            // Two settings behind one query, which none of the others
+            // needs: iOS's Increase Contrast and Android's high-contrast
+            // text. See `useHozoEnvironment` for why they are read as two
+            // facts and combined rather than written into one store.
+            | Environment::ContrastMore
     )
     .then_some(query)
 }
