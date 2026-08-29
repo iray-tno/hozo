@@ -395,6 +395,54 @@ export function Login() {
         let inner_brace = source.find("Inner() {").unwrap() + "Inner() {".len();
         assert_eq!(slot as usize, inner_brace);
     }
+
+    #[test]
+    fn jsx_text_entities_become_the_characters_they_name() {
+        // `&lt;` in a JSX child is the character `<`; that is why an
+        // author writes it. Re-emitting the text as a string literal skipped
+        // the step JSX would have taken, and the page rendered "a semantic
+        // &lt;article&gt; element" with the entities showing.
+        let root = &parse_tsx(
+            r#"export const A = () => <View>a semantic &lt;article&gt; element</View>;"#,
+        )
+        .roots[0]
+        .node;
+        assert_eq!(root.children, vec![Child::Text("a semantic <article> element".to_string())]);
+    }
+
+    #[test]
+    fn a_bare_ampersand_is_left_alone() {
+        // Which is why this went unnoticed: the one character an author is
+        // most likely to type raw was always correct.
+        let root =
+            &parse_tsx(r#"export const A = () => <View>Ordered & Unordered</View>;"#).roots[0].node;
+        assert_eq!(root.children, vec![Child::Text("Ordered & Unordered".to_string())]);
+    }
+
+    #[test]
+    fn numeric_and_unknown_references_follow_the_same_table() {
+        // Decimal, hex, a non-breaking space, and a name nothing defines --
+        // the last stays exactly as written, which is the rule that comes
+        // with the table rather than one chosen here.
+        let root =
+            &parse_tsx(r#"export const A = () => <View>&#60;&#x3E;&nbsp;&notarealentity;</View>;"#)
+                .roots[0]
+                .node;
+        assert_eq!(
+            root.children,
+            vec![Child::Text("<>\u{00A0}&notarealentity;".to_string())]
+        );
+    }
+
+    #[test]
+    fn references_resolve_after_whitespace_is_trimmed_not_before() {
+        // JSX trims literal whitespace and only then resolves references, so
+        // `&#32;` is a space that survives the trim. Decoding first would
+        // have eaten it.
+        let root = &parse_tsx("export const A = () => <View>\n  a&#32;\n</View>;").roots[0].node;
+        assert_eq!(root.children, vec![Child::Text("a ".to_string())]);
+    }
+
 }
 
 #[cfg(test)]
