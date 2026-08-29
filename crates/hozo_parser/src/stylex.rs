@@ -14,8 +14,9 @@ use hozo_ir::{
     StylexResidual, StylexResidualArgument, TextOverflow, TransformFunction, WhiteSpace,
 };
 use oxc_ast::ast::{
-    Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
-    LogicalOperator, ObjectExpression, ObjectPropertyKind, PropertyKey, VariableDeclarator,
+    Argument, ArrayExpressionElement, ArrowFunctionExpression, BindingPattern, CallExpression,
+    Expression, Function, LogicalOperator, ObjectExpression, ObjectPropertyKind, PropertyKey,
+    VariableDeclarator,
 };
 use oxc_ast_visit::{
     walk::{walk_arrow_function_expression, walk_function, walk_variable_declarator},
@@ -1873,6 +1874,131 @@ impl Frontend {
         Ok(())
     }
 
+    fn resolve_props_expression(
+        &self,
+        expression: &Expression,
+        condition: Option<ConditionExpr>,
+        declarations: &mut Vec<ResolvedEntry>,
+        residual_arguments: &mut Vec<StylexResidualArgument>,
+        residual_properties: &mut Vec<ResidualProperty>,
+        gaps: &mut Vec<Gap>,
+    ) -> Result<(), Gap> {
+        let member = match expression {
+            Expression::StaticMemberExpression(member) => member,
+            Expression::LogicalExpression(logical)
+                if logical.operator == LogicalOperator::And =>
+            {
+                let guard = ConditionExpr::Ref(ExprRef(source_span(logical.left.span())));
+                let condition = Some(match condition {
+                    Some(existing) => ConditionExpr::And(Box::new(existing), Box::new(guard)),
+                    None => guard,
+                });
+                return self.resolve_props_expression(
+                    &logical.right,
+                    condition,
+                    declarations,
+                    residual_arguments,
+                    residual_properties,
+                    gaps,
+                );
+            }
+            Expression::ConditionalExpression(conditional) => {
+                let guard = ConditionExpr::Ref(ExprRef(source_span(conditional.test.span())));
+                let when_true = Some(match condition.clone() {
+                    Some(existing) => {
+                        ConditionExpr::And(Box::new(existing), Box::new(guard.clone()))
+                    }
+                    None => guard.clone(),
+                });
+                self.resolve_props_expression(
+                    &conditional.consequent,
+                    when_true,
+                    declarations,
+                    residual_arguments,
+                    residual_properties,
+                    gaps,
+                )?;
+                let negated = ConditionExpr::Not(Box::new(guard));
+                let when_false = Some(match condition {
+                    Some(existing) => {
+                        ConditionExpr::And(Box::new(existing), Box::new(negated))
+                    }
+                    None => negated,
+                });
+                return self.resolve_props_expression(
+                    &conditional.alternate,
+                    when_false,
+                    declarations,
+                    residual_arguments,
+                    residual_properties,
+                    gaps,
+                );
+            }
+            Expression::ArrayExpression(array) => {
+                for element in &array.elements {
+                    match element {
+                        ArrayExpressionElement::Elision(_) => continue,
+                        ArrayExpressionElement::SpreadElement(spread) => {
+                            return Err(Gap {
+                                message: "Spread elements inside StyleX argument arrays are not statically lowerable."
+                                    .to_string(),
+                                span: source_span(spread.span),
+                            });
+                        }
+                        element => self.resolve_props_expression(
+                            element.as_expression().expect("non-spread array element is an expression"),
+                            condition.clone(),
+                            declarations,
+                            residual_arguments,
+                            residual_properties,
+                            gaps,
+                        )?,
+                    }
+                }
+                return Ok(());
+            }
+            Expression::BooleanLiteral(literal) if !literal.value => return Ok(()),
+            Expression::NullLiteral(_) => return Ok(()),
+            other => {
+                return Err(Gap {
+                    message: "Hozo accepts StyleX rule references, falsy values, recursive arrays, logical guards, and ternary branches in `stylex.props`."
+                        .to_string(),
+                    span: source_span(other.span()),
+                });
+            }
+        };
+
+        let rule = self.rule_from_member(member)?;
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps: rule_gaps,
+        } = rule
+        else {
+            let Rule::Gap(gap) = rule else { unreachable!() };
+            return Err(Gap {
+                message: gap.message.clone(),
+                span: source_span(member.span),
+            });
+        };
+        let declaration_condition = condition
+            .clone()
+            .map_or(Condition::Always, Condition::Expr);
+        self.append_entries(entries, declaration_condition, declarations)?;
+        if !residual.is_empty() {
+            residual_arguments.push(StylexResidualArgument {
+                properties: residual.iter().map(|property| property.span).collect(),
+                condition,
+            });
+            residual_properties.extend(residual.iter().cloned());
+            gaps.extend(rule_gaps.iter().cloned().map(|gap| Gap {
+                span: source_span(member.span),
+                ..gap
+            }));
+        }
+        Ok(())
+    }
+
     pub(crate) fn resolve_props(&self, expression: &Expression) -> Resolution {
         let Expression::CallExpression(call) = expression else {
             return Resolution::NotStylex;
@@ -1885,70 +2011,25 @@ impl Frontend {
         let mut residual_properties = Vec::new();
         let mut gaps = Vec::new();
         for argument in &call.arguments {
-            let (member, condition, condition_ref) = match argument {
-                Argument::StaticMemberExpression(member) => {
-                    (member, Condition::Always, None)
-                }
-                Argument::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
-                    let Expression::StaticMemberExpression(member) = &logical.right else {
-                        return Resolution::Gap {
-                            message: "The right side of a conditional StyleX argument must be `styles.rule`.".to_string(),
-                            span: source_span(logical.right.span()),
-                        };
-                    };
-                    let condition_ref = ExprRef(source_span(logical.left.span()));
-                    (
-                        member,
-                        Condition::Expr(ConditionExpr::Ref(condition_ref)),
-                        Some(condition_ref),
-                    )
-                }
-                Argument::BooleanLiteral(literal) if !literal.value => continue,
-                Argument::NullLiteral(_) => continue,
-                other => {
-                    return Resolution::Gap {
-                        message: "Hozo currently accepts `styles.rule`, falsy values, and `condition && styles.rule` in `stylex.props`.".to_string(),
-                        span: source_span(other.span()),
-                    };
-                }
-            };
-            let rule = match self.rule_from_member(member) {
-                Ok(rule) => rule,
-                Err(gap) => {
-                    return Resolution::Gap {
-                        message: gap.message,
-                        span: gap.span,
-                    };
-                }
-            };
-            let Rule::Ready {
-                entries,
-                residual,
-                gaps: rule_gaps,
-            } = rule
-            else {
-                let Rule::Gap(gap) = rule else { unreachable!() };
+            let Some(argument) = argument.as_expression() else {
                 return Resolution::Gap {
-                    message: gap.message.clone(),
-                    span: source_span(member.span),
+                    message: "Spread arguments in `stylex.props` are not statically lowerable."
+                        .to_string(),
+                    span: source_span(argument.span()),
                 };
             };
-            if let Err(gap) = self.append_entries(entries, condition, &mut declarations) {
+            if let Err(gap) = self.resolve_props_expression(
+                argument,
+                None,
+                &mut declarations,
+                &mut residual_arguments,
+                &mut residual_properties,
+                &mut gaps,
+            ) {
                 return Resolution::Gap {
                     message: gap.message,
-                    span: source_span(member.span),
+                    span: gap.span,
                 };
-            }
-            if !residual.is_empty() {
-                residual_arguments.push(StylexResidualArgument {
-                    properties: residual.iter().map(|property| property.span).collect(),
-                    condition: condition_ref,
-                });
-                residual_properties.extend(residual.iter().cloned());
-                gaps.extend(rule_gaps.iter().cloned().map(|gap| Gap {
-                    span: source_span(member.span),
-                    ..gap
-                }));
             }
         }
         if residual_arguments.is_empty() {
@@ -2420,6 +2501,66 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn recursive_arrays_and_ternaries_keep_their_guards() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              root: { padding: 16 },
+              active: { opacity: 0.5 },
+              inactive: { opacity: 1 }
+            })
+            const first = <View {...stylex.props([styles.root, [active && styles.active]])} />
+            const second = <View {...stylex.props(active ? styles.active : styles.inactive)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let array_style = &parsed.roots[0].node.style;
+        assert_eq!(array_style.len(), 5);
+        assert_eq!(
+            array_style
+                .iter()
+                .filter(|declaration| matches!(declaration.condition, Condition::Expr(_)))
+                .count(),
+            1
+        );
+        let ternary_style = &parsed.roots[1].node.style;
+        assert_eq!(ternary_style.len(), 2);
+        assert!(ternary_style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(ConditionExpr::Ref(_)))
+        }));
+        assert!(ternary_style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(ConditionExpr::Not(_)))
+        }));
+    }
+
+    #[test]
+    fn ternary_partial_residuals_rebuild_both_conditions() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              active: { opacity: 0.5, scrollbarColor: 'red blue' },
+              inactive: { padding: 8, tabSize: 4 }
+            })
+            const card = <View {...stylex.props(active ? styles.active : styles.inactive)} />
+        "#;
+        let parsed = crate::parse_tsx(source);
+        let node = &parsed.roots[0].node;
+        assert_eq!(node.style.len(), 5);
+        assert!(node.props.passthrough.is_empty());
+        assert_eq!(node.props.stylex_residuals.len(), 1);
+        let residual = node.props.stylex_residuals[0].render_expression(source);
+        assert!(residual.contains("(active)"), "{residual}");
+        assert!(residual.contains("!(active)"), "{residual}");
+        assert!(residual.contains("scrollbarColor: 'red blue'"), "{residual}");
+        assert!(residual.contains("tabSize: 4"), "{residual}");
+        assert!(!residual.contains("opacity: 0.5"), "{residual}");
+        assert!(!residual.contains("padding: 8"), "{residual}");
     }
 
     #[test]

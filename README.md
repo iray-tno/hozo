@@ -213,8 +213,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **49/49 (100%)** representative values, **5/14
-(35.7%)** common authoring constructs, and **49/49 (100%)** declarations after
+corpus currently measures **49/49 (100%)** representative values, **7/14
+(50.0%)** common authoring constructs, and **49/49 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, and
 Grid scenarios. Every case runs the Hozo Web and Native compilers; values
 count only when Web agrees with the official StyleX Babel output and Native

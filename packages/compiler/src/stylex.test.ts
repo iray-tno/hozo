@@ -353,6 +353,27 @@ export const Card = ({ active }) => (
   assert.match(higherConditionalNative.styles, /hozo0_cond_[^{]+\{[\s\S]*paddingTop: 4/)
 })
 
+test('StyleX props recursively lower arrays and ternary branches on both backends', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: { padding: 16 },
+  active: { opacity: 0.5 },
+  inactive: { opacity: 1 },
+})
+export const Card = ({ active }) => (
+  <View {...stylex.props([styles.root, [active ? styles.active : styles.inactive]])} />
+)
+`
+  for (const lower of [compile, compileNative]) {
+    const output = lower(source)[0]
+    assert.ok(output)
+    assert.equal(output.diagnostics.length, 0)
+    assert.doesNotMatch(output.jsx, /stylex\.props/)
+    assert.match(output.jsx, /active/)
+  }
+})
+
 test('StyleX grid reuses the contextual Web and Native grid lowerings', () => {
   const gridSource = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
