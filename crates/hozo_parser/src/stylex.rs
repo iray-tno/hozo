@@ -183,6 +183,51 @@ fn css_color(value: &StaticValue) -> Option<Color> {
         .then(|| Color::Css(value.clone()))
 }
 
+/// One container name the Native runtime can register under its context.
+///
+/// CSS accepts a whitespace-separated list of custom identifiers, but the
+/// existing Hozo container runtime deliberately has one lookup key. Keep a
+/// wider StyleX value with the official transform rather than registering a
+/// string no Native query could faithfully address.
+fn stylex_container_name(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let mut bytes = value.bytes();
+    match bytes.next()? {
+        first if first.is_ascii_alphabetic() || first == b'_' => {}
+        b'-' => {
+            let second = bytes.next()?;
+            if !second.is_ascii_alphabetic() && !matches!(second, b'_' | b'-') {
+                return None;
+            }
+        }
+        _ => return None,
+    }
+    let reserved = value.to_ascii_lowercase();
+    if !bytes.all(|character| character.is_ascii_alphanumeric() || matches!(character, b'_' | b'-'))
+        || matches!(
+            reserved.as_str(),
+            "none" | "default" | "initial" | "inherit" | "unset" | "revert" | "revert-layer"
+        )
+    {
+        return None;
+    }
+    Some(value.clone())
+}
+
+fn stylex_container_type(value: &StaticValue) -> Option<&'static str> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    match value.as_str() {
+        "normal" => Some("normal"),
+        "size" => Some("size"),
+        "inline-size" => Some("inline-size"),
+        _ => None,
+    }
+}
+
 fn stylex_grid_tracks(value: &StaticValue) -> Option<GridTracks> {
     let StaticValue::String(value) = value else {
         return None;
@@ -940,6 +985,11 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             stylex_transition_timing(value)?,
             Origin::Written,
         )],
+        "containerName" => vec![StyleProperty::ContainerName(stylex_container_name(value)?)],
+        "containerType" => vec![StyleProperty::Keyword(
+            "container-type",
+            stylex_container_type(value)?,
+        )],
         // StyleX emits these as CSS shorthands at a lower atomic priority
         // than their longhands. Split them into the typed final slots here
         // so the same priority resolution works on Web and Native.
@@ -1261,6 +1311,7 @@ fn property_priority(property: &str) -> u16 {
             | "gap"
             | "gridColumn"
             | "gridRow"
+            | "container"
             | "insetBlock"
             | "insetInline"
             | "marginBlock"
@@ -1385,6 +1436,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("scroll-margin")
     } else if property.starts_with("scrollPadding") {
         Some("scroll-padding")
+    } else if property == "container" || property.starts_with("container") {
+        Some("container")
     } else if property == "transition" || property.starts_with("transition") {
         Some("transition")
     } else {
@@ -2080,6 +2133,84 @@ mod tests {
         assert_eq!(node.props.passthrough.len(), 1);
         assert!(node.props.stylex_residuals.is_empty());
         assert!(parsed.diagnostics[0].message.contains("cascade is not approximated"));
+    }
+
+    #[test]
+    fn static_container_metadata_becomes_the_existing_contextual_ir() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              container: { containerName: 'card-shell', containerType: 'inline-size' },
+              normal: { containerType: 'normal' }
+            })
+        "#,
+        );
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["container"]
+        else {
+            panic!("container metadata was not lowerable")
+        };
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+        assert_eq!(
+            entries
+                .iter()
+                .flat_map(|entry| entry.properties.clone())
+                .collect::<Vec<_>>(),
+            vec![
+                StyleProperty::ContainerName("card-shell".to_string()),
+                StyleProperty::Keyword("container-type", "inline-size"),
+            ]
+        );
+        let Rule::Ready { entries, .. } = &frontend.sheets["styles"]["normal"] else {
+            panic!("normal container type was not lowerable")
+        };
+        assert_eq!(
+            entries[0].properties,
+            vec![StyleProperty::Keyword("container-type", "normal")]
+        );
+    }
+
+    #[test]
+    fn wider_container_values_and_shorthand_overlap_remain_official_stylex() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              names: { containerName: 'main secondary' },
+              digit: { containerName: '-9invalid' },
+              overlap: { container: 'card / inline-size', containerType: 'size' }
+            })
+        "#,
+        );
+        for name in ["names", "digit"] {
+            let Rule::Ready {
+                entries,
+                residual,
+                gaps,
+            } = &frontend.sheets["styles"][name]
+            else {
+                panic!("unsupported static value should remain residual")
+            };
+            assert!(entries.is_empty());
+            assert_eq!(residual.len(), 1);
+            assert_eq!(gaps.len(), 1);
+        }
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["overlap"]
+        else {
+            panic!("overlap should remain representable as residual")
+        };
+        assert_eq!(entries.len(), 1);
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
     }
 
     #[test]

@@ -193,12 +193,12 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **168/522 property names
-(32.2%)**, including **116/116 (100%)** when the denominator is restricted to
-names React Native also publishes and **11/13 (84.6%)** contextual-runtime
+Against StyleX 0.19.0's published types that is **170/522 property names
+(32.6%)**, including **116/116 (100%)** when the denominator is restricted to
+names React Native also publishes and **13/13 (100%)** contextual-runtime
 names. Web-only lowering is reported independently at **41/392 (10.5%)**. The
-remaining surface is reported separately as 2 contextual-runtime candidates,
-1 optional-adapter candidate, and the unmapped Web-only names. These are
+remaining surface is reported separately as 1 optional-adapter candidate and
+the unmapped Web-only names. These are
 property-name upper bounds: each
 property still accepts only the statically safe value subset the shared IR can
 represent.
@@ -227,6 +227,10 @@ Static transition property, duration, and timing configuration also reaches
 the existing Native interaction/ambient transition runtime. The accepted
 subset is deliberately limited to properties and easing curves that runtime
 can interpolate faithfully; other values remain with official StyleX.
+Static `containerName` and `containerType` also reuse `HozoContainer` on
+Native. The supported type subset is `normal`, `size`, and `inline-size`, and
+the runtime currently accepts one conservative CSS identifier as its lookup
+name. Multiple names and wider CSS syntax remain with official StyleX.
 StyleX 0.19's default property-specificity mode is preserved for the supported
 static slice. Hozo resolves the same four atomic priority tiers before entering
 the shared IR, so physical longhands still beat later shorthands on both Web

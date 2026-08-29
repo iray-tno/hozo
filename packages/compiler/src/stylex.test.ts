@@ -783,6 +783,77 @@ export const Card = () => <Pressable {...stylex.props(styles.motion)} />
   assert.match(web.jsx, /stylex\.props/)
 })
 
+test('StyleX container metadata reuses the existing contextual container runtime', () => {
+  const containerSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: {
+    containerName: 'card',
+    containerType: 'inline-size',
+  },
+  normal: {
+    containerName: 'ignored',
+    containerType: 'normal',
+  },
+})
+export const Card = () => (
+  <View {...stylex.props(styles.root)}>
+    <View {...stylex.props(styles.normal)} />
+  </View>
+)
+`
+  const official = transformSync(containerSource, {
+    filename: '/app/contextual-container.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as {
+    stylex?: [string, { ltr: string }, number][]
+  }
+  const officialCss = (metadata.stylex ?? []).map(([, css]) => css.ltr).join('\n')
+
+  const web = compile(containerSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.match(web.css, /container-name: card/)
+  assert.match(web.css, /container-type: inline-size/)
+  assert.match(web.css, /container-type: normal/)
+  assert.match(officialCss, /container-name:card/)
+  assert.match(officialCss, /container-type:inline-size/)
+  assert.match(officialCss, /container-type:normal/)
+
+  const native = compileNative(containerSource)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+  assert.match(native.jsx, /HozoContainer/)
+  assert.match(native.jsx, /hozoContainerName="card"/)
+  assert.doesNotMatch(native.jsx, /hozoContainerName="ignored"/)
+  assert.deepEqual(native.runtimeImports, ['HozoContainer'])
+})
+
+test('StyleX container names outside the single-name runtime stay official', () => {
+  const containerSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: {
+    padding: 8,
+    containerName: 'main secondary',
+  },
+})
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+  const web = compile(containerSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 1)
+  assert.equal(web.diagnostics[0]?.code, 'STYLEX_NOT_LOWERED')
+  assert.match(web.css, /padding-top: 8px/)
+  assert.match(web.css, /padding-right: 8px/)
+  assert.match(web.jsx, /stylex\.props/)
+})
+
 test('StyleX transform order is preserved on Web and Native', () => {
   const transformSource = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
