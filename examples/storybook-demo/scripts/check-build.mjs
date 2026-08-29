@@ -16,7 +16,7 @@ const artifacts = filesUnder('storybook-static')
 if (artifacts.includes('@hozo/core')) {
   throw new Error('Storybook output still imports @hozo/core')
 }
-if (!artifacts.includes('Hozo Storybook') || !artifacts.includes('hozo-r0-')) {
+if (!artifacts.includes('Hozo Storybook') || !/\bhozo-[a-z0-9]+-r\d+-\d+\b/.test(artifacts)) {
   throw new Error('Storybook output is missing the compiled Hozo story')
 }
 if (!artifacts.includes('background-color')) {

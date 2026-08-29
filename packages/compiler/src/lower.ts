@@ -78,15 +78,49 @@ export function referencesHozoPrimitive(code: string): boolean {
 
 /**
  * Renames this component's `hozo-N` class names to be unique across every
- * component in the file.
+ * component in the project.
  *
  * `compile()` starts counting from `hozo-0` independently per root, so two
- * components in the same source file would otherwise collide once their CSS
- * is merged into one companion file. `hozo-view` (no digits) is the
- * intentionally-shared base class and must NOT be touched by this.
+ * components in the same source file would collide once their CSS is merged
+ * into one companion file. `rootIndex` settles that half.
+ *
+ * `scope` settles the other half, and it was missing. Every *module* also
+ * started again at `hozo-r0-0`, and the companion stylesheets are all
+ * loaded into one document -- so a page holding two compiled modules had
+ * two unrelated rule sets answering to `.hozo-r0-8`, and the one that
+ * loaded last styled both. In the Storybook demo that made an `<article>`
+ * whose only class was `space-y-2` come out on a red background: the
+ * destructive button's rules, from another file entirely.
+ *
+ * `hozo-view` and the other wordless base classes are intentionally shared
+ * and must NOT be touched by this; the digits are what makes a name local.
+ *
+ * The lookahead rather than `\b` so a name that already carries a scope
+ * cannot be rewritten a second time -- an all-digit hash would otherwise
+ * read as the counter.
  */
-export function namespaceHozoClasses(text: string, rootIndex: number): string {
-  return text.replace(/\bhozo-(\d+)\b/g, `hozo-r${rootIndex}-$1`)
+export function namespaceHozoClasses(text: string, rootIndex: number, scope: string): string {
+  return text.replace(/\bhozo-(\d+)(?![\w-])/g, `hozo-${scope}-r${rootIndex}-$1`)
+}
+
+/**
+ * What makes one module's class names its own.
+ *
+ * Keyed on the module's path *relative to the project root*, so the same
+ * source compiles to the same class names on every machine: a developer's
+ * checkout, CI, and a colleague's clone all agree, and a diff between two
+ * builds' CSS means what it looks like it means. Hashing the absolute id
+ * would have cost nothing to write and quietly made the output
+ * machine-dependent.
+ *
+ * The query survives. Route-splitting frameworks transform several
+ * query-qualified modules from one file and each owns different JSX -- the
+ * same reason their stylesheets need separate paths, one layer down.
+ */
+export function moduleScope(root: string, file: string, id: string): string {
+  const query = id.includes('?') ? id.slice(id.indexOf('?')) : ''
+  const relative = (root ? path.relative(root, file) : file).replaceAll('\\', '/')
+  return moduleIdHash(relative + query)
 }
 
 /**
@@ -151,6 +185,7 @@ export function lowerModule(
   id: string,
   file: string,
   compiler: Compiler,
+  root: string,
 ): LoweredModule | undefined {
   if (!file.endsWith('.tsx')) return undefined
 
@@ -181,9 +216,10 @@ export function lowerModule(
   const bySpanDescending = components
     .map((component, index) => ({ component, index }))
     .sort((a, b) => b.component.spanStart - a.component.spanStart)
+  const scope = moduleScope(root, file, id)
   for (const { component, index } of bySpanDescending) {
-    const jsx = namespaceHozoClasses(component.jsx, index)
-    const componentCss = namespaceHozoClasses(component.css, index)
+    const jsx = namespaceHozoClasses(component.jsx, index, scope)
+    const componentCss = namespaceHozoClasses(component.css, index, scope)
     next = next.slice(0, component.spanStart) + jsx + next.slice(component.spanEnd)
     css = componentCss + css
   }

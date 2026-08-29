@@ -15,16 +15,29 @@ const artifacts = filesUnder('.next').filter((file) => /\.(?:js|mjs|css|html)$/.
 const output = artifacts.map((file) => readFileSync(file, 'utf8')).join('\n')
 const html = readFileSync(path.join('.next', 'server', 'app', 'index.html'), 'utf8')
 
+/**
+ * One of Hozo's generated class names.
+ *
+ * Matched by shape rather than spelled out: the name carries a hash of the
+ * module it came from, so that two modules on one page cannot both answer
+ * to `hozo-r0-8`. A check that names a class is a check that has to be
+ * edited whenever a file moves.
+ */
+const GENERATED_CLASS = /\bhozo-[a-z0-9]+-r\d+-\d+\b/
+
+const lowered = (html, tag) =>
+  new RegExp(`<${tag} class="[^"]*hozo-[a-z0-9]+-r\\d+-\\d+`).test(html)
+
 const checks = [
   // Lowering: canonical primitives became semantic HTML, and the class is
   // the compiled scoped one rather than the authored utility string.
-  [html.includes('<section class="hozo-r0-'), 'Section did not lower to <section>'],
-  [html.includes('<h1 class="hozo-r0-'), 'Heading level={1} did not lower to <h1>'],
-  [html.includes('<p class="hozo-r0-'), 'Paragraph did not lower to <p>'],
-  [html.includes('<button class="hozo-r0-'), 'Button did not lower to <button>'],
+  [lowered(html, 'section'), 'Section did not lower to <section>'],
+  [lowered(html, 'h1'), 'Heading level={1} did not lower to <h1>'],
+  [lowered(html, 'p'), 'Paragraph did not lower to <p>'],
+  [lowered(html, 'button'), 'Button did not lower to <button>'],
   [!/class="[^"]*\bp-8\b/.test(html), 'an authored utility class survived to the DOM'],
   // The compiler's own output reached the browser as CSS.
-  [output.includes('.hozo-r0-'), 'no Hozo-generated CSS in the build output'],
+  [GENERATED_CLASS.test(output), 'no Hozo-generated CSS in the build output'],
   // The project theme was read: `bg-brand` only resolves through
   // src/theme.css, which nothing imports.
   [/background-color:\s*(?:#3082f6|lab\(|oklch\(62%)/.test(output), 'project theme token bg-brand did not resolve'],

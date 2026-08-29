@@ -89,7 +89,7 @@ export default function hozoLoader(source) {
           state.cache.persist()
         }
 
-        const lowered = lowerModule(source, this.resourcePath, file, state.compiler)
+        const lowered = lowerModule(source, this.resourcePath, file, state.compiler, options.root)
         if (!lowered) {
           callback(null, source)
           return
