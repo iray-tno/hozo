@@ -379,6 +379,9 @@ importers:
       '@babel/core':
         specifier: 7.29.7
         version: 7.29.7(supports-color@8.1.1)
+      '@hozo/tailwind':
+        specifier: workspace:*
+        version: link:../tailwind
       '@stylexjs/babel-plugin':
         specifier: 0.19.0
         version: 0.19.0(supports-color@8.1.1)
@@ -388,6 +391,9 @@ importers:
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
+      lightningcss:
+        specifier: 1.33.0
+        version: 1.33.0
       react:
         specifier: ^19.2.8
         version: 19.2.8
