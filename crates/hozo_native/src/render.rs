@@ -605,8 +605,10 @@ pub(super) fn render_node(
     // `@container/main`. The unnamed form needs nothing: the component
     // registers under the empty key either way, which is what an unnamed
     // `@sm:` reads.
-    if let Some(name) = &container_name {
-        props_text.push_str(&format!(" hozoContainerName=\"{name}\""));
+    if declares_container {
+        if let Some(name) = &container_name {
+            props_text.push_str(&format!(" hozoContainerName=\"{name}\""));
+        }
     }
 
     if let Some(horizontal) = &node.props.scroll_horizontal {

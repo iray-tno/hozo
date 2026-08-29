@@ -947,10 +947,10 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-08-28 時点では
-全 CSS 名で 168/522 (32.2%)、両 platform に名前が存在する集合で 116/116
-(100%)、contextual runtime 集合で 11/13 (84.6%)、Web-only 集合で 41/392
-(10.5%)。残りは contextual runtime 候補 2、optional adapter 候補 1、未対応の
-Web-only 名と別集計する。これは value や API
+全 CSS 名で 170/522 (32.6%)、両 platform に名前が存在する集合で 116/116
+(100%)、contextual runtime 集合で 13/13 (100%)、Web-only 集合で 41/392
+(10.5%)。残りは optional adapter 候補 1、未対応の Web-only 名と別集計する。
+これは value や API
 を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
 
@@ -975,6 +975,10 @@ contextual の実装済み 8 名は Grid の template/placement である。静�
 加えて transition property/duration/timing の3名は既存のNative interaction・ambient
 transition runtimeへ接続する。Nativeで忠実に補間できるproperty、整数ms、4種のeasing
 だけをtyped IRへ入れ、それ以外は公式StyleXに残す。
+残る contextual 2名の `containerName` / `containerType` も既存の
+`HozoContainer` runtimeへ接続する。typeは `normal`、`size`、`inline-size`、nameは
+単一の保守的なCSS identifierに限定し、複数nameなどruntimeが忠実に扱えない値は
+公式StyleXのresidualに残す。これでcontextual property-name集合は13/13になった。
 
 共存実測の結論は **Hozo → StyleX の順だけが安全**。StyleX を先にすると
 spread が第二の `className` になり、Hozo は JSX の last-wins で本来消える

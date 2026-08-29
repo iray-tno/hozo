@@ -6,11 +6,11 @@
   },
   "stylex": {
     "properties": 522,
-    "mapped": 168,
+    "mapped": 170,
     "nativeProperties": 116,
     "mappedNative": 116,
     "contextualProperties": 13,
-    "mappedContextual": 11,
+    "mappedContextual": 13,
     "adapterProperties": 1,
     "mappedAdapter": 0,
     "webOnlyProperties": 392,

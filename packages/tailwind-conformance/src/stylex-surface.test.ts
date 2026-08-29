@@ -19,7 +19,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the StyleX numerator is the Rust frontend mapping, not a curated copy', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 168)
+  assert.equal(mapped.size, 170)
   for (const name of [
     'display',
     'padding',
@@ -27,6 +27,8 @@ test('the StyleX numerator is the Rust frontend mapping, not a curated copy', ()
     'textAlign',
     'transform',
     'transformOrigin',
+    'containerName',
+    'containerType',
   ]) {
     assert.ok(mapped.has(name), `${name} should have a lowering arm`)
   }
@@ -50,7 +52,7 @@ test('the universal denominator is derived from StyleX and React Native', () => 
 test('coverage tiers partition the published StyleX property surface', () => {
   const surface = stylexSurface()
   assert.equal(surface.contextual.size, 13)
-  assert.equal(surface.mappedContextual.size, 11)
+  assert.equal(surface.mappedContextual.size, 13)
   assert.ok(surface.contextual.has('gridTemplateColumns'))
   assert.ok(surface.mappedContextual.has('gridTemplateColumns'))
   assert.ok(surface.mappedContextual.has('gridRowEnd'))
@@ -58,6 +60,8 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedContextual.has('transitionProperty'))
   assert.ok(surface.mappedContextual.has('transitionTimingFunction'))
   assert.ok(surface.contextual.has('transitionProperty'))
+  assert.ok(surface.mappedContextual.has('containerName'))
+  assert.ok(surface.mappedContextual.has('containerType'))
   assert.equal(surface.adapter.size, 1)
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
