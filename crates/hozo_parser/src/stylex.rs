@@ -134,6 +134,24 @@ fn static_value(expression: &Expression) -> Option<StaticValue> {
     }
 }
 
+fn first_that_works_call<'a>(
+    expression: &'a Expression<'a>,
+    namespaces: &HashSet<String>,
+) -> Option<&'a CallExpression<'a>> {
+    let Expression::CallExpression(call) = expression else {
+        return None;
+    };
+    let Expression::StaticMemberExpression(member) = &call.callee else {
+        return None;
+    };
+    let Expression::Identifier(object) = &member.object else {
+        return None;
+    };
+    (member.property.name.as_str() == "firstThatWorks"
+        && namespaces.contains(object.name.as_str()))
+    .then_some(call)
+}
+
 fn raw_value(value: &StaticValue) -> String {
     match value {
         StaticValue::String(value) => value.clone(),
@@ -1583,6 +1601,7 @@ fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclar
 
 fn parse_rule_object(
     object: &ObjectExpression,
+    namespaces: &HashSet<String>,
     static_objects: &HashMap<String, &ObjectExpression>,
     visiting: &mut HashSet<String>,
     out: &mut Vec<Entry>,
@@ -1621,6 +1640,7 @@ fn parse_rule_object(
                         }
                         parse_rule_object(
                             object,
+                            namespaces,
                             static_objects,
                             visiting,
                             out,
@@ -1640,6 +1660,7 @@ fn parse_rule_object(
                 };
                 parse_rule_object(
                     spread_object,
+                    namespaces,
                     static_objects,
                     visiting,
                     out,
@@ -1662,23 +1683,73 @@ fn parse_rule_object(
                 span: source_span(property.key.span()),
             });
         };
-        let Some(value) = static_value(&property.value) else {
-            residual.push(ResidualProperty {
-                css_name: canonical_property(&name).to_string(),
-                span: ExprRef(source_span(property.span)),
-            });
-            gaps.push(Gap {
-                message: format!(
-                    "`{name}` has a dynamic or nested StyleX value; this frontend slice accepts static strings and numbers."
-                ),
-                span: source_span(property.value.span()),
-            });
-            continue;
+        let lower_value = |value: &StaticValue| {
+            direct_properties(&name, value).or_else(|| {
+                let token = token_for(&name, value)?;
+                let (condition, properties) = tailwind::expand_utility(&token);
+                (condition == Condition::Always && !properties.is_empty()).then_some(properties)
+            })
         };
-        let properties = match direct_properties(&name, &value) {
-            Some(properties) => properties,
-            None => {
-                let Some(token) = token_for(&name, &value) else {
+        let properties = if let Some(call) = first_that_works_call(&property.value, namespaces) {
+            let candidates = call
+                .arguments
+                .iter()
+                .map(|argument| argument.as_expression().and_then(static_value))
+                .collect::<Option<Vec<_>>>()
+                .and_then(|values| {
+                    (!values.is_empty()).then_some(values)
+                })
+                .and_then(|values| {
+                    values
+                        .iter()
+                        .map(&lower_value)
+                        .collect::<Option<Vec<_>>>()
+                })
+                .and_then(|groups| {
+                    groups
+                        .into_iter()
+                        .map(|mut group| (group.len() == 1).then(|| group.pop().unwrap()))
+                        .collect::<Option<Vec<_>>>()
+                })
+                .filter(|candidates| {
+                    candidates.first().is_some_and(|first| {
+                        candidates
+                            .iter()
+                            .skip(1)
+                            .all(|candidate| first.same_property_as(candidate))
+                    })
+                });
+            let Some(candidates) = candidates else {
+                residual.push(ResidualProperty {
+                    css_name: canonical_property(&name).to_string(),
+                    span: ExprRef(source_span(property.span)),
+                });
+                gaps.push(Gap {
+                    message: format!(
+                        "StyleX `firstThatWorks` for `{name}` needs one or more static candidates that lower to the same typed property."
+                    ),
+                    span: source_span(property.value.span()),
+                });
+                continue;
+            };
+            vec![StyleProperty::FirstThatWorks(candidates)]
+        } else {
+            let Some(value) = static_value(&property.value) else {
+                residual.push(ResidualProperty {
+                    css_name: canonical_property(&name).to_string(),
+                    span: ExprRef(source_span(property.span)),
+                });
+                gaps.push(Gap {
+                    message: format!(
+                        "`{name}` has a dynamic or nested StyleX value; this frontend slice accepts static strings and numbers."
+                    ),
+                    span: source_span(property.value.span()),
+                });
+                continue;
+            };
+            match lower_value(&value) {
+                Some(properties) => properties,
+                None => {
                     residual.push(ResidualProperty {
                         css_name: canonical_property(&name).to_string(),
                         span: ExprRef(source_span(property.span)),
@@ -1690,22 +1761,7 @@ fn parse_rule_object(
                         span: source_span(property.span),
                     });
                     continue;
-                };
-                let (condition, properties) = tailwind::expand_utility(&token);
-                if condition != Condition::Always || properties.is_empty() {
-                    residual.push(ResidualProperty {
-                        css_name: canonical_property(&name).to_string(),
-                        span: ExprRef(source_span(property.span)),
-                    });
-                    gaps.push(Gap {
-                        message: format!(
-                            "StyleX property `{name}` could not become a typed Hozo style without losing meaning."
-                        ),
-                        span: source_span(property.span),
-                    });
-                    continue;
                 }
-                properties
             }
         };
         out.push(Entry {
@@ -1720,6 +1776,7 @@ fn parse_rule_object(
 
 fn parse_rule(
     expression: &Expression,
+    namespaces: &HashSet<String>,
     static_objects: &HashMap<String, &ObjectExpression>,
 ) -> Result<(Vec<Entry>, Vec<ResidualProperty>, Vec<Gap>), Gap> {
     let Expression::ObjectExpression(object) = expression else {
@@ -1733,6 +1790,7 @@ fn parse_rule(
     let mut gaps = Vec::new();
     parse_rule_object(
         object,
+        namespaces,
         static_objects,
         &mut HashSet::new(),
         &mut out,
@@ -1869,7 +1927,7 @@ impl<'a> Visit<'a> for SheetCollector<'_, 'a> {
             let Some(name) = static_key(&property.key) else {
                 continue;
             };
-            let rule = match parse_rule(&property.value, self.static_objects) {
+            let rule = match parse_rule(&property.value, self.namespaces, self.static_objects) {
                 Ok((entries, residual, gaps)) => Rule::Ready {
                     entries,
                     residual,
@@ -2241,6 +2299,49 @@ mod tests {
                 .sum::<usize>(),
             6
         ); // four padding sides, colour, direction
+    }
+
+    #[test]
+    fn first_that_works_preserves_preference_order_in_typed_ir() {
+        let frontend = frontend(
+            r#"
+            import * as sx from '@stylexjs/stylex'
+            const styles = sx.create({
+              root: { display: sx.firstThatWorks('grid', 'flex') }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["root"] else {
+            panic!("rule was not lowerable")
+        };
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+        assert_eq!(
+            entries[0].properties,
+            vec![StyleProperty::FirstThatWorks(vec![
+                StyleProperty::Display(hozo_ir::Display::Grid),
+                StyleProperty::Display(hozo_ir::Display::Flex),
+            ])]
+        );
+    }
+
+    #[test]
+    fn dynamic_first_that_works_remains_with_official_stylex() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              root: { display: stylex.firstThatWorks(preferred, 'flex') }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["root"] else {
+            panic!("dynamic fallback should remain as a residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
+        assert!(gaps[0].message.contains("firstThatWorks"));
     }
 
     #[test]

@@ -236,6 +236,13 @@ pub fn child_property_and_value(
 pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'a str, String)> {
     let resolve_color = |color: &Color| resolve_theme_color(color, theme);
     match prop {
+        StyleProperty::FirstThatWorks(candidates) => candidates
+            .iter()
+            .find(|candidate| {
+                candidate.unsupported_on_native().is_none()
+                    && candidate.not_wired_on_native().is_none()
+            })
+            .map_or_else(Vec::new, |candidate| property_and_value(candidate, theme)),
         // Refused by `unsupported_on_native`, so this is only reached if
         // something bypassed it. Emitting nothing is the safe end of
         // that: a CSS property name means nothing to React Native, and

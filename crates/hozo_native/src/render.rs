@@ -6,6 +6,48 @@
 use super::*;
 use super::text::*;
 
+/// Resolve StyleX's browser feature fallback before any contextual Native
+/// lowering looks at the node. Keeping the wrapper until the backend is
+/// important for Web's duplicate declarations, but TextInput props, text
+/// truncation, SVG paint, transitions, and grid all classify concrete IR
+/// variants here and must see the selected candidate rather than a wrapper.
+fn resolve_first_that_works(node: &Node) -> Option<Node> {
+    node.style
+        .iter()
+        .any(|declaration| matches!(declaration.property, StyleProperty::FirstThatWorks(_)))
+        .then(|| {
+            let mut resolved = node.clone();
+            for declaration in &mut resolved.style {
+                let StyleProperty::FirstThatWorks(candidates) = &declaration.property else {
+                    continue;
+                };
+                if let Some(candidate) = candidates.iter().find(|candidate| {
+                    candidate.not_wired_on_native().is_none()
+                        && (candidate.unsupported_on_native().is_none()
+                            // These are implemented by element wrappers,
+                            // not by a React Native StyleSheet value.
+                            || matches!(
+                                candidate,
+                                StyleProperty::Display(Display::Grid | Display::InlineFlex)
+                            )
+                            // These two are props on TextInput. Resolving
+                            // before `caret_props`/`placeholder_props`
+                            // lets those contextual adapters see the
+                            // concrete colour they already know how to use.
+                            || (node.primitive == Primitive::TextInput
+                                && matches!(
+                                    candidate,
+                                    StyleProperty::CaretColor(_)
+                                        | StyleProperty::PlaceholderColor(_)
+                                )))
+                }) {
+                    declaration.property = candidate.clone();
+                }
+            }
+            resolved
+        })
+}
+
 pub(super) fn render_node(
     node: &Node,
     position: SiblingPosition,
@@ -27,6 +69,8 @@ pub(super) fn render_node(
     diagnostics: &mut Vec<Diagnostic>,
     runtime: &mut RuntimeNeeds,
 ) -> String {
+    let resolved_node = resolve_first_that_works(node);
+    let node = resolved_node.as_ref().unwrap_or(node);
     let base_name = allocator.alloc();
     let mut style_array_parts: Vec<String> = Vec::new();
     // Held separately from `style_array_parts` because they can only be
