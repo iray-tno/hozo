@@ -12,6 +12,7 @@ import { buildArbitraryCatalog } from './arbitrary-catalog.ts'
 import { buildComposedCatalog } from './composed.ts'
 import { buildCompositionCatalog } from './compositions.ts'
 import { buildVariantCatalog, compareVariant } from './variants.ts'
+import { compareCandidateSheet } from './candidate-sheet.ts'
 import { loadFullCatalog, namespaceOf } from './catalog.ts'
 import { reactNativeCssProperties, reactNativeVersion } from './native-surface.ts'
 import { compareCandidate, type Comparison, type SkipReason, type Verdict } from './compare.ts'
@@ -25,9 +26,10 @@ import { typeCheckStyles } from './typecheck.ts'
 import { classesDefinedIn, renderWeb } from './render.ts'
 import { measureRuntimeCost } from './runtime-cost.ts'
 import { compareCanvasCandidate, type CanvasVerdict } from './canvas.ts'
-import { compile as hozoCompile, compileNative } from '@hozo/compiler'
+import { compile as hozoCompile, compileNative, openCandidateCache } from '@hozo/compiler'
+import { loadClassOrder } from '@hozo/tailwind'
 import { buildOracle } from './oracle.ts'
-import { loadThemeVars, tailwindVersion } from './theme.ts'
+import { loadThemeVars, tailwindPackageDir, tailwindVersion } from './theme.ts'
 import {
   A11Y_CONTEXTUAL_CASES,
   compareA11yContextual,
@@ -532,6 +534,61 @@ console.log(
     `${nsRows.filter(([, r]) => r.match === r.total).length} fully matching, ` +
     `${untouched.length} with nothing matching.`,
 )
+
+
+// ---------------------------------------------------------------------------
+// The candidate stylesheet, whole
+// ---------------------------------------------------------------------------
+//
+// Every section above asks about one utility. Two defects shipped under a
+// green audit in the same week because neither is a question about one:
+// `.2xl\:block` is not a selector CSS accepts, and the rules came out in
+// alphabetical order, which for a sheet where every rule is a single class
+// *is* the cascade -- `sm:block` outranked `md:hidden` and
+// `hidden sm:block md:hidden` stayed visible past `md`.
+//
+// Only this stylesheet spells a Tailwind class name. A class the compiler
+// reads statically becomes `hozo-N`, so the variant section compiles
+// `<View className="2xl:block" />` and reads `.hozo-0` back: it could not
+// have seen the escaping however hard it looked.
+//
+// Neither check here carries an expectation of its own. One is a real CSS
+// parser -- lightningcss, the tool that first refused the bad selector --
+// and the other is Tailwind's own emission order.
+const sheetCandidates = [
+  ...catalog,
+  // The catalogue is base utilities and none of them starts with a digit,
+  // so without these the escaping is never exercised. That is exactly how
+  // the bug survived.
+  ...['block', 'hidden', 'flex', 'grid'].flatMap((utility) =>
+    ['sm', 'md', 'lg', 'xl', '2xl'].map((breakpoint) => `${breakpoint}:${utility}`),
+  ),
+]
+const sheetCache = openCandidateCache()
+sheetCache.scanFile('all.tsx', `const all = ${JSON.stringify(sheetCandidates.join(' '))}`, 1)
+const sheetHeld = sheetCache.candidates()
+const sheetOrder = await loadClassOrder('@import "tailwindcss";', tailwindPackageDir(), sheetHeld)
+const sheetOracle = await buildOracle([...sheetHeld])
+const sheet = compareCandidateSheet(
+  sheetCache.renderCss(undefined, sheetOrder),
+  sheetOracle.css,
+  sheetHeld,
+)
+
+console.log(
+  `\n\n== Candidate stylesheet (${sheet.rules} rules) ==\n` +
+    'The sheet the third tier ships, as one document rather than one rule\n' +
+    'at a time.\n\n' +
+    `Parses:      ${sheet.parseError ? `NO -- ${sheet.parseError}` : 'yes'}\n` +
+    `In order:    ${sheet.inOrder}/${sheet.comparable}   (against Tailwind's own sequence)`,
+)
+if (sheet.firstDivergence) console.log(`  first divergence: ${sheet.firstDivergence}`)
+record('candidateSheet', {
+  rules: sheet.rules,
+  parses: sheet.parseError === undefined,
+  comparable: sheet.comparable,
+  inOrder: sheet.inOrder,
+})
 
 // ---------------------------------------------------------------------------
 // Refusal audit

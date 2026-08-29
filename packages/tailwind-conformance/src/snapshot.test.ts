@@ -52,6 +52,13 @@ test('a count whose direction has no meaning is left unlabelled', () => {
   // this project says "React Native cannot do that". Calling it a
   // regression would train people to skim the column.
   assert.equal(verdict({ path: 'native.refused', before: 7, after: 9 }), '')
+
+  // A flag is a health flag: the candidate stylesheet still being CSS a
+  // browser can read. Losing one has to be named, or it lands in the same
+  // unlabelled column as a count that moved for a good reason.
+  assert.match(verdict({ path: 'candidateSheet.parses', before: true, after: false }), /REGRESSION/)
+  assert.equal(verdict({ path: 'candidateSheet.parses', before: false, after: true }), 'improvement')
+  assert.match(verdict({ path: 'candidateSheet.inOrder', before: 20303, after: 20300 }), /REGRESSION/)
   assert.equal(verdict({ path: 'versions.tailwind', before: '4.3.3', after: '4.4.0' }), '')
 })
 

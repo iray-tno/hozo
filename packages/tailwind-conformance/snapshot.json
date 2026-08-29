@@ -76,6 +76,12 @@
     "unsupported": 0,
     "skipped": 0
   },
+  "candidateSheet": {
+    "rules": 20308,
+    "parses": true,
+    "comparable": 20303,
+    "inOrder": 20303
+  },
   "refusalAudit": {
     "refusals": 10381,
     "checkable": 10047,

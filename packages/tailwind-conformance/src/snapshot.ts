@@ -90,6 +90,12 @@ const WORSE_WHEN_UP = new Set([
  */
 const WORSE_WHEN_DOWN = new Set([
   'match',
+  // The candidate stylesheet's own two. `rules` because a sheet that
+  // quietly got smaller stops carrying what nobody then misses, and
+  // `inOrder` because it is counted against Tailwind's sequence: every
+  // step down is a rule that now loses a cascade it used to win.
+  'rules',
+  'inOrder',
   'coverage',
   'fidelity',
   'covered',
@@ -258,6 +264,14 @@ export function diff(before: Record<string, Section>, after: Record<string, Sect
  */
 export function verdict({ path: key, before, after }: Change): string {
   const name = key.split('.').pop() ?? ''
+  // A flag here is a health flag -- `parses` is the candidate stylesheet
+  // still being CSS a browser can read -- so losing one is a regression
+  // whatever it is called. Without this the snapshot would report
+  // `parses: true -> false` in the same unlabelled column as a count that
+  // moved for a good reason.
+  if (typeof before === 'boolean' && typeof after === 'boolean') {
+    return before && !after ? '<-- REGRESSION' : 'improvement'
+  }
   if (typeof before !== 'number' || typeof after !== 'number') return ''
   const up = after > before
   if (WORSE_WHEN_UP.has(name)) return up ? '<-- REGRESSION' : 'improvement'
