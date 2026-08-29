@@ -170,3 +170,45 @@ test('a derived module gets class names of its own, not just a stylesheet', () =
   const derived = lowerModule(source, `${file}?ssr=true`, file, compiler, ROOT)!
   assert.notEqual(plain.css, derived.css)
 })
+
+test('a component survives text that is not ASCII', () => {
+  // The splice is `slice(0, spanStart) + jsx + slice(spanEnd)`, and the
+  // spans arrive from a Rust parser that counts UTF-8 bytes while a
+  // JavaScript string is indexed in UTF-16 code units. Every non-ASCII
+  // character before the end of a span pushed the cut further right, so
+  // the source *after* the component was deleted -- two characters per em
+  // dash, ten for a five-character Japanese word.
+  //
+  // Found by writing one em dash into a Storybook story. Every fixture in
+  // this repository was ASCII, so `pnpm test` was 25/25 green with it.
+  for (const text of ['a — b — c —', 'こんにちは', 'hi 🚀', 'café']) {
+    const source =
+      `import { View, Text } from '@hozo/core'\n` +
+      `export function Page() {\n` +
+      `  return (\n` +
+      `    <View className="p-4"><Text className="text-sm">${text}</Text></View>\n` +
+      `  )\n` +
+      `}\n` +
+      `export const after = 1\n`
+    const lowered = lowerModule(source, file, file, compiler, ROOT)!
+    assert.ok(lowered, text)
+    assert.match(lowered.code, /export const after = 1/, `${text}: the tail of the file was eaten`)
+    assert.match(lowered.code, /\)\n\}/, `${text}: the function was left unclosed`)
+    assert.ok(lowered.code.includes(text), `${text}: the text itself did not survive`)
+  }
+})
+
+test('text before a component does not shift where it is spliced', () => {
+  // `spanStart` is wrong in the same direction, which cuts into the
+  // opening tag rather than past the closing one.
+  const source =
+    `import { View } from '@hozo/core'\n` +
+    `export const note = '— — — — —'\n` +
+    `export function Page() {\n` +
+    `  return <View className="p-4" />\n` +
+    `}\n`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.ok(lowered)
+  assert.match(lowered.code, /export const note = '— — — — —'/, 'the string before it was cut')
+  assert.match(lowered.code, /return <div /, 'the component did not lower cleanly')
+})
