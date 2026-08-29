@@ -44,6 +44,7 @@ import {
 import { compareRnwFree, RNW_FREE_CASES } from './rnw-free.ts'
 import { finish, record } from './snapshot.ts'
 import { stylexSurface, stylexVersion } from './stylex-surface.ts'
+import { stylexPracticalScorecard } from './stylex-practical.ts'
 
 const oracle = await buildOracle(ALL_CANDIDATES)
 // Theme values plus the `@property` register defaults the utilities
@@ -101,6 +102,33 @@ record('stylex', {
   mappedAdapter: stylex.mappedAdapter.size,
   webOnlyProperties: stylex.webOnly.size,
   mappedWebOnly: stylex.mappedWebOnly.size,
+})
+const stylexPractical = stylexPracticalScorecard()
+console.log('== StyleX practical compatibility ==')
+console.log(
+  `Representative values: ${stylexPractical.values.covered}/${stylexPractical.values.total} = ${pct(stylexPractical.values.covered, stylexPractical.values.total)}`,
+)
+console.log(
+  `Authoring constructs:  ${stylexPractical.constructs.covered}/${stylexPractical.constructs.total} = ${pct(stylexPractical.constructs.covered, stylexPractical.constructs.total)}`,
+)
+console.log(
+  `Scenario declarations: ${stylexPractical.corpus.covered}/${stylexPractical.corpus.total} = ${pct(stylexPractical.corpus.covered, stylexPractical.corpus.total)}`,
+)
+console.log(`Silent failures:       ${stylexPractical.silent}\n`)
+record('stylexValues', {
+  cases: stylexPractical.values.total,
+  covered: stylexPractical.values.covered,
+})
+record('stylexConstructs', {
+  cases: stylexPractical.constructs.total,
+  covered: stylexPractical.constructs.covered,
+})
+record('stylexCorpus', {
+  cases: stylexPractical.corpus.total,
+  covered: stylexPractical.corpus.covered,
+})
+record('stylexSafety', {
+  silent: stylexPractical.silent,
 })
 console.log('== Web (hozo_web) ==')
 // Stated up front so the Web numbers can't be read as covering both

@@ -16,6 +16,21 @@
     "webOnlyProperties": 392,
     "mappedWebOnly": 41
   },
+  "stylexValues": {
+    "cases": 49,
+    "covered": 34
+  },
+  "stylexConstructs": {
+    "cases": 14,
+    "covered": 5
+  },
+  "stylexCorpus": {
+    "cases": 49,
+    "covered": 38
+  },
+  "stylexSafety": {
+    "silent": 0
+  },
   "web": {
     "candidates": 120,
     "comparable": 120,
