@@ -2200,10 +2200,28 @@ fn render_shape(
 /// Escapes a class name for use in a CSS selector. Tailwind class names
 /// contain characters that are selector syntax -- `hover:bg-blue-500`,
 /// `w-1/2`, `p-1.5` -- and must be backslash-escaped to be matched
-/// literally. Same escaping Tailwind's own output uses.
+/// literally.
+///
+/// A leading digit is the case a backslash cannot carry. CSS forbids an
+/// identifier that begins with one, and the escape is the code point in
+/// hex followed by a space that terminates it: `2xl:block` is
+/// `.\32 xl\:block`. Writing `.2xl\:block` produces a selector no
+/// browser matches and that a minifier rejects outright -- which is how
+/// this was found, as a build failure in the Storybook example the first
+/// time a `2xl:` class reached the candidate stylesheet.
+///
+/// Only the candidate stylesheet spells a Tailwind name; a class the
+/// compiler reads becomes `hozo-…` and never touches this. That is why
+/// the conformance audit's variant section, which compiles
+/// `<View className="2xl:block" />` and reads back `.hozo-0`, reported a
+/// match for every one of them.
 pub fn escape_class_selector(class_name: &str) -> String {
     let mut out = String::with_capacity(class_name.len());
-    for c in class_name.chars() {
+    for (index, c) in class_name.chars().enumerate() {
+        if index == 0 && c.is_ascii_digit() {
+            out.push_str(&format!("\\{:x} ", c as u32));
+            continue;
+        }
         if matches!(c, ':' | '/' | '.' | '[' | ']' | '%' | '!' | '#' | '(' | ')' | ',') {
             out.push('\\');
         }
@@ -2496,5 +2514,49 @@ mod platform_setting_tests {
         // Two different facts, and only one of them might change.
         assert!(Environment::ScreenReader.web_gap_message().contains("declines"));
         assert!(Environment::BoldText.web_gap_message().contains("no query"));
+    }
+}
+
+
+#[cfg(test)]
+mod escape_tests {
+    use super::escape_class_selector;
+
+    #[test]
+    fn selector_syntax_is_escaped_with_a_backslash() {
+        assert_eq!(escape_class_selector("hover:bg-blue-500"), "hover\\:bg-blue-500");
+        assert_eq!(escape_class_selector("w-1/2"), "w-1\\/2");
+        assert_eq!(escape_class_selector("p-1.5"), "p-1\\.5");
+        assert_eq!(escape_class_selector("flex"), "flex");
+    }
+
+    #[test]
+    fn a_leading_digit_becomes_a_code_point() {
+        // CSS forbids an identifier beginning with a digit, and a
+        // backslash does not fix it: the escape is the code point in hex
+        // with a space to end it. `.2xl\:block` is a selector no browser
+        // matches, and lightningcss refuses to minify it -- which is how
+        // this was found, as a build failure in the Storybook example the
+        // first time a `2xl:` class reached the candidate stylesheet.
+        assert_eq!(escape_class_selector("2xl:block"), "\\32 xl\\:block");
+        assert_eq!(escape_class_selector("2xl:grid-cols-4"), "\\32 xl\\:grid-cols-4");
+        // Only when it leads. Every other digit is an ordinary character,
+        // which is most of Tailwind's scale.
+        assert_eq!(escape_class_selector("gap-2"), "gap-2");
+        assert_eq!(escape_class_selector("hover:2xl:block"), "hover\\:2xl\\:block");
+    }
+
+    #[test]
+    fn every_breakpoint_produces_a_selector_css_accepts() {
+        // The rule rather than the one case: a name may start with a digit
+        // and nothing else may, so this is the whole condition.
+        for name in ["sm:flex", "md:flex", "lg:flex", "xl:flex", "2xl:flex"] {
+            let escaped = escape_class_selector(name);
+            let first = escaped.chars().next().unwrap();
+            assert!(
+                first.is_alphabetic() || first == '_' || first == '\\',
+                "{name} escaped to {escaped}, which cannot begin a CSS identifier"
+            );
+        }
     }
 }
