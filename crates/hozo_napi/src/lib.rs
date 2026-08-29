@@ -54,7 +54,57 @@ fn diagnostic_code_str(code: DiagnosticCode) -> &'static str {
     }
 }
 
-fn to_js_diagnostic(diagnostic: Diagnostic) -> CompileDiagnostic {
+/// Translates UTF-8 byte offsets into UTF-16 code unit offsets.
+///
+/// oxc reports byte offsets and every backend here uses them; JavaScript
+/// indexes a string by UTF-16 code unit. This binding is the one place the
+/// representation changes, so it is the one place the translation belongs:
+/// a consumer that splices with an untranslated offset cuts in the wrong
+/// place, and the error grows with every non-ASCII character before it.
+/// Two code units per em dash, ten for `こんにちは` -- enough to delete the
+/// rest of the file, which is how this was found.
+///
+/// Marks only where the two counts diverge. An all-ASCII source -- every
+/// fixture in this repository, which is why nothing caught this -- costs
+/// one scan and no memory, and `at` returns its argument. Between two
+/// marks every character is one byte and one code unit, and that is what
+/// makes the interpolation exact rather than approximate.
+struct Utf16Offsets {
+    /// `(byte, utf16)` immediately after each character where they differ.
+    marks: Vec<(u32, u32)>,
+}
+
+impl Utf16Offsets {
+    fn new(source: &str) -> Self {
+        let mut marks = Vec::new();
+        let mut utf16: u32 = 0;
+        for (byte, ch) in source.char_indices() {
+            let bytes = ch.len_utf8() as u32;
+            let units = ch.len_utf16() as u32;
+            utf16 += units;
+            if bytes != units {
+                marks.push((byte as u32 + bytes, utf16));
+            }
+        }
+        Utf16Offsets { marks }
+    }
+
+    fn at(&self, byte: u32) -> u32 {
+        if self.marks.is_empty() {
+            return byte;
+        }
+        match self.marks.binary_search_by_key(&byte, |&(mark, _)| mark) {
+            Ok(index) => self.marks[index].1,
+            Err(0) => byte,
+            Err(index) => {
+                let (mark, utf16) = self.marks[index - 1];
+                utf16 + (byte - mark)
+            }
+        }
+    }
+}
+
+fn to_js_diagnostic(diagnostic: Diagnostic, offsets: &Utf16Offsets) -> CompileDiagnostic {
     CompileDiagnostic {
         code: diagnostic_code_str(diagnostic.code).to_string(),
         severity: match diagnostic.severity {
@@ -65,8 +115,8 @@ fn to_js_diagnostic(diagnostic: Diagnostic) -> CompileDiagnostic {
             Severity::Info => "info".to_string(),
         },
         message: diagnostic.message,
-        span_start: diagnostic.span.start,
-        span_end: diagnostic.span.end,
+        span_start: offsets.at(diagnostic.span.start),
+        span_end: offsets.at(diagnostic.span.end),
     }
 }
 
@@ -75,6 +125,11 @@ pub struct CompiledComponent {
     /// Compiled JSX to splice into the original source in place of the
     /// text at `[span_start, span_end)` -- callers (the Vite plugin) own
     /// the actual splicing, since this binding doesn't touch source text.
+    ///
+    /// Those two are **UTF-16 code unit** offsets, which is what
+    /// `String.prototype.slice` takes. They are byte offsets everywhere
+    /// inside Rust and are translated on the way out; see
+    /// `Utf16Offsets` for what happens when they are not.
     pub jsx: String,
     pub css: String,
     /// Named imports `jsx` needs from `@hozo/runtime`, which the caller
@@ -131,6 +186,10 @@ fn lower_canvas_paints(
     theme: &hozo_ir::Theme,
     native: bool,
 ) -> Vec<CompiledCanvasPaint> {
+    // Built once for the file. The `source.get(..)` below keeps the byte
+    // offsets, because it indexes a Rust string; only what crosses into
+    // JavaScript is translated.
+    let offsets = Utf16Offsets::new(source);
     hozo_parser::parse_canvas_paints(source)
         .into_iter()
         .map(|paint| {
@@ -146,8 +205,8 @@ fn lower_canvas_paints(
                         severity: "warning".to_string(),
                         message: "A dynamic Canvas shape `className` cannot be converted to paint props. Use dynamic `fill`, `stroke`, `strokeWidth` or `opacity` props instead."
                             .to_string(),
-                        span_start: paint.span.start,
-                        span_end: paint.span.end,
+                        span_start: offsets.at(paint.span.start),
+                        span_end: offsets.at(paint.span.end),
                     });
                     original
                 }
@@ -160,8 +219,8 @@ fn lower_canvas_paints(
                                 "These Canvas shape classes do not map to paint props and have no pixel target: {}. Canvas shapes currently accept fill, stroke, stroke width and opacity utilities.",
                                 paint.remaining.join(", ")
                             ),
-                            span_start: paint.span.start,
-                            span_end: paint.span.end,
+                            span_start: offsets.at(paint.span.start),
+                            span_end: offsets.at(paint.span.end),
                         });
                     }
                     if paint.paint.is_empty() {
@@ -200,8 +259,8 @@ fn lower_canvas_paints(
             CompiledCanvasPaint {
                 replacement,
                 diagnostics,
-                span_start: paint.span.start,
-                span_end: paint.span.end,
+                span_start: offsets.at(paint.span.start),
+                span_end: offsets.at(paint.span.end),
             }
         })
         .collect()
@@ -213,13 +272,16 @@ fn lower_canvas_paints(
 fn parser_diagnostics_for(
     parsed: &hozo_parser::ParseOutput,
     root: &hozo_ir::Node,
+    offsets: &Utf16Offsets,
 ) -> Vec<CompileDiagnostic> {
+    // Filtered on the *byte* spans, which is what both sides of the
+    // comparison are, and translated only on the way out.
     parsed
         .diagnostics
         .iter()
         .filter(|d| d.span.start >= root.span.start && d.span.end <= root.span.end)
         .cloned()
-        .map(to_js_diagnostic)
+        .map(|d| to_js_diagnostic(d, offsets))
         .collect()
 }
 
@@ -237,13 +299,16 @@ fn lower_web(
     sources: Option<&[String]>,
 ) -> Vec<CompiledComponent> {
     let parsed = hozo_parser::parse_tsx_with(source, sources);
+    let offsets = Utf16Offsets::new(source);
     parsed
         .roots
         .iter()
         .map(|root| {
             let output = hozo_web::lower(&root.node, source, theme);
-            let mut diagnostics = parser_diagnostics_for(&parsed, &root.node);
-            diagnostics.extend(output.diagnostics.into_iter().map(to_js_diagnostic));
+            let mut diagnostics = parser_diagnostics_for(&parsed, &root.node, &offsets);
+            diagnostics.extend(
+                output.diagnostics.into_iter().map(|d| to_js_diagnostic(d, &offsets)),
+            );
             CompiledComponent {
                 jsx: output.jsx,
                 css: output.css,
@@ -253,8 +318,8 @@ fn lower_web(
                     .map(str::to_string)
                     .collect(),
                 diagnostics,
-                span_start: root.node.span.start,
-                span_end: root.node.span.end,
+                span_start: offsets.at(root.node.span.start),
+                span_end: offsets.at(root.node.span.end),
             }
         })
         .collect()
@@ -508,13 +573,16 @@ fn lower_native_components(
     theme: &hozo_ir::Theme,
     parsed: &hozo_parser::ParseOutput,
 ) -> Vec<CompiledNativeComponent> {
+    let offsets = Utf16Offsets::new(source);
     parsed
         .roots
         .iter()
         .map(|root| {
             let output = hozo_native::lower(&root.node, source, theme);
-            let mut diagnostics = parser_diagnostics_for(&parsed, &root.node);
-            diagnostics.extend(output.diagnostics.into_iter().map(to_js_diagnostic));
+            let mut diagnostics = parser_diagnostics_for(&parsed, &root.node, &offsets);
+            diagnostics.extend(
+                output.diagnostics.into_iter().map(|d| to_js_diagnostic(d, &offsets)),
+            );
             CompiledNativeComponent {
                 jsx: output.jsx,
                 styles: output.styles,
@@ -529,10 +597,12 @@ fn lower_native_components(
                     .into_iter()
                     .map(str::to_string)
                     .collect(),
-                hook_slot: root.hook_slot,
+                // A splice position like any other: `@hozo/metro` writes
+                // the hook statements at it.
+                hook_slot: root.hook_slot.map(|slot| offsets.at(slot)),
                 diagnostics,
-                span_start: root.node.span.start,
-                span_end: root.node.span.end,
+                span_start: offsets.at(root.node.span.start),
+                span_end: offsets.at(root.node.span.end),
             }
         })
         .collect()
@@ -602,4 +672,106 @@ pub fn foreign_primitives(source: String, sources: Vec<String>) -> Vec<String> {
     let mut names: Vec<String> = hozo_parser::foreign_primitives(&source, &sources).into_iter().collect();
     names.sort();
     names
+}
+
+
+#[cfg(test)]
+mod utf16_tests {
+    use super::*;
+
+    /// What JavaScript would say, so the expectation is not a second
+    /// implementation of the thing under test.
+    fn js_index_of(source: &str, byte: u32) -> u32 {
+        source[..byte as usize].encode_utf16().count() as u32
+    }
+
+    #[test]
+    fn an_ascii_source_translates_to_itself() {
+        let source = "const a = 1;\nconst b = 2;\n";
+        let offsets = Utf16Offsets::new(source);
+        for byte in 0..=source.len() as u32 {
+            assert_eq!(offsets.at(byte), byte);
+        }
+    }
+
+    #[test]
+    fn every_offset_matches_what_javascript_would_index() {
+        // One character from each width that differs: two bytes and one
+        // unit, three and one, four and two.
+        let source = "a é b 日 c 🚀 d";
+        let offsets = Utf16Offsets::new(source);
+        for (byte, _) in source.char_indices().chain(std::iter::once((source.len(), ' '))) {
+            let byte = byte as u32;
+            assert_eq!(offsets.at(byte), js_index_of(source, byte), "at byte {byte}");
+        }
+    }
+
+    #[test]
+    fn a_span_after_non_ascii_text_lands_where_javascript_cuts() {
+        // The failure this exists for: the component's span ended past the
+        // JSX and the splice deleted the `)` and `}` that closed the
+        // function. Three em dashes were worth six characters.
+        let source = "\
+import { View, Text } from '@hozo/core';
+function App() {
+  return (
+    <View className=\"p-4\"><Text className=\"text-sm\">a — b — c —</Text></View>
+  )
+}
+";
+        let components = compile(source.to_string());
+        assert_eq!(components.len(), 1);
+        let end = components[0].span_end as usize;
+        let utf16: Vec<u16> = source.encode_utf16().collect();
+        let remainder = String::from_utf16(&utf16[end..]).unwrap();
+        assert_eq!(remainder, "\n  )\n}\n", "the span ran past the JSX element");
+    }
+
+    #[test]
+    fn a_japanese_string_does_not_swallow_the_file() {
+        // Ten code units of difference in one word, which was enough to
+        // put the span at the end of the source. A compiler for React
+        // Native that cannot compile this is not portable.
+        let source = "\
+import { View, Text } from '@hozo/core';
+function App() {
+  return (
+    <View className=\"p-4\"><Text className=\"text-sm\">こんにちは</Text></View>
+  )
+}
+";
+        let components = compile(source.to_string());
+        let end = components[0].span_end as usize;
+        let utf16: Vec<u16> = source.encode_utf16().collect();
+        assert!(end < utf16.len(), "the span reached the end of the file");
+        assert_eq!(String::from_utf16(&utf16[end..]).unwrap(), "\n  )\n}\n");
+    }
+
+    #[test]
+    fn a_diagnostic_points_at_the_text_it_is_about() {
+        // Diagnostics carry spans too, and a bundler resolves them to a
+        // line and column. Off by the same amount, silently.
+        let source = "\
+import { View } from '@hozo/core';
+const label = '— — —';
+function App() {
+  return <View className={label} />;
+}
+";
+        let components = compile(source.to_string());
+        let diagnostics: Vec<_> =
+            components.iter().flat_map(|c| c.diagnostics.iter()).collect();
+        assert!(!diagnostics.is_empty(), "expected a dynamic-class diagnostic");
+        let utf16: Vec<u16> = source.encode_utf16().collect();
+        for diagnostic in diagnostics {
+            let start = diagnostic.span_start as usize;
+            let end = diagnostic.span_end as usize;
+            assert!(end <= utf16.len(), "diagnostic span past the end of the source");
+            let text = String::from_utf16(&utf16[start..end]).unwrap();
+            assert!(
+                source.contains(&text),
+                "diagnostic span {start}..{end} cut {text:?}, which is not in the source"
+            );
+        }
+    }
 }
