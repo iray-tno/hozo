@@ -8,7 +8,8 @@
   "scripts": {
     "test": "node --test --test-concurrency=1 src/*.test.ts",
     "report": "node src/run.ts",
-    "stylex:manifest": "node scripts/generate-stylex-manifest.ts"
+    "stylex:manifest": "node scripts/generate-stylex-manifest.ts",
+    "duplication": "node src/duplication-report.ts"
   },
   "dependencies": {
     "@hozo/a11y": "workspace:^",
