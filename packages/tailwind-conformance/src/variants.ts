@@ -441,7 +441,24 @@ function indexByClassName(css: string): Map<string, Rule[]> {
  * is in the stylesheet.
  */
 export function cssClassName(candidate: string): string {
-  return candidate.replace(/[^\w-]/g, (ch) => (ch.charCodeAt(0) > 127 ? ch : `\\${ch}`))
+  const escaped = candidate.replace(/[^\w-]/g, (ch) =>
+    ch.charCodeAt(0) > 127 ? ch : `\\${ch}`,
+  )
+  // A leading digit is the one case a backslash cannot fix: CSS spells it
+  // as the code point in hex followed by a space, so `2xl:flex` is
+  // `.\32 xl\:flex` and not `.2xl\:flex`. Without this, `2xl` -- a
+  // default Tailwind breakpoint -- found no rule as the *leading* variant
+  // and was dropped for producing none.
+  //
+  // The guard below did not catch it, and could not: it asks whether a
+  // variant got any case at all, and `hover:2xl:flex` starts with an
+  // `h`, spells correctly, and marks `2xl` covered. Every candidate
+  // where it came first was missing, and the count said the variant was
+  // fine. The third time this function has been wrong in the same
+  // direction -- see `classNamePattern` for the second.
+  return /^\d/.test(escaped)
+    ? `\\${escaped.charCodeAt(0).toString(16)} ${escaped.slice(1)}`
+    : escaped
 }
 
 /**
