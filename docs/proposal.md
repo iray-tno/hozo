@@ -963,12 +963,17 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 基盤とする。
 
 現在の実行可能scorecardでは、代表value 49/49 (100%)、一般的なauthoring
-construct 7/14 (50.0%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
+construct 8/14 (57.1%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
 持たせた宣言49/49 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
 隠さない。
+
+authoring constructでは、`stylex.props`の再帰arrayとternaryを条件式IRへ展開し、
+module-localな`const` object literalのspreadもsource順にflattenする。対象objectは
+spread以外へescapeせず、export・mutationされず、利用前に宣言されている場合に限る。
+`let`、late declaration、関数callのspreadなどは公式StyleXへ残す。
 
 Web-only の最初の 20 名は、appearance、color-scheme、image-rendering、
 overflow/overscroll、print-color-adjust、resize、scroll snap、scrollbar、

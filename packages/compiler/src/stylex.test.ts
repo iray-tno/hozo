@@ -374,6 +374,30 @@ export const Card = ({ active }) => (
   }
 })
 
+test('StyleX create flattens module const object spreads on both backends', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const shared = { padding: 16, opacity: 0.5 }
+const styles = stylex.create({ root: { ...shared, opacity: 0.75 } })
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+  const web = compile(source)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.match(web.css, /padding-top: 16px/)
+  assert.match(web.css, /opacity: 0.75/)
+  assert.doesNotMatch(web.css, /opacity: 0.5/)
+  assert.doesNotMatch(web.jsx, /stylex\.props/)
+
+  const native = compileNative(source)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.match(native.styles, /paddingTop: 16/)
+  assert.match(native.styles, /opacity: 0.75/)
+  assert.doesNotMatch(native.styles, /opacity: 0.5/)
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+})
+
 test('StyleX grid reuses the contextual Web and Native grid lowerings', () => {
   const gridSource = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'

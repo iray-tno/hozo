@@ -213,14 +213,19 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **49/49 (100%)** representative values, **7/14
-(50.0%)** common authoring constructs, and **49/49 (100%)** declarations after
+corpus currently measures **49/49 (100%)** representative values, **8/14
+(57.1%)** common authoring constructs, and **49/49 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, and
 Grid scenarios. Every case runs the Hozo Web and Native compilers; values
 count only when Web agrees with the official StyleX Babel output and Native
 either lowers faithfully or follows the entry's explicit Web-only policy.
 Unsupported cases may remain official residuals, but do not earn coverage.
 The current corpus has zero silent failures.
+
+The static construct slice now flattens recursive `stylex.props` arrays,
+preserves logical and ternary guards, and expands module-local `const` object
+literals used only through object spreads. A mutable, exported, late-declared,
+escaped, or dynamically produced spread stays with the official StyleX pass.
 
 The first explicit Web-only slice covers closed-keyword appearance,
 color-scheme, image-rendering, overflow/overscroll, print-color adjustment,
