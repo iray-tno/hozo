@@ -146,8 +146,8 @@
     {
       "name": "animationDuration",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "animationFillMode",
@@ -278,8 +278,8 @@
     {
       "name": "backgroundPosition",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "backgroundPositionX",
@@ -296,14 +296,14 @@
     {
       "name": "backgroundRepeat",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "backgroundSize",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "baselineShift",
@@ -793,9 +793,9 @@
     },
     {
       "name": "caretColor",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
     },
     {
       "name": "caretShape",
@@ -1604,8 +1604,8 @@
     {
       "name": "justifySelf",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "justifyTracks",
@@ -1988,8 +1988,8 @@
     {
       "name": "objectPosition",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "offset",
@@ -2108,8 +2108,8 @@
     {
       "name": "overflowWrap",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "overflowX",
@@ -2288,8 +2288,8 @@
     {
       "name": "placeItems",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "placeSelf",
@@ -2839,9 +2839,9 @@
     },
     {
       "name": "textOverflow",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
     },
     {
       "name": "textRendering",
@@ -2942,8 +2942,8 @@
     {
       "name": "transitionDelay",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "transitionDuration",
@@ -3026,8 +3026,8 @@
     {
       "name": "visibility",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "voiceBalance",
@@ -3079,9 +3079,9 @@
     },
     {
       "name": "whiteSpace",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
     },
     {
       "name": "widows",
@@ -3104,8 +3104,8 @@
     {
       "name": "wordBreak",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "wordSpacing",

@@ -9,9 +9,9 @@
 use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
-    Angle, Color, Condition, ConditionExpr, Dimension, Edge, ExprRef, GridLine, GridSpan,
+    Angle, Color, Condition, ConditionExpr, Dimension, Edge, ExprRef, FontWeight, GridLine, GridSpan,
     GridTracks, Length, Origin, Overflow, Radius, SourceSpan, StyleDeclaration, StyleProperty,
-    StylexResidual, StylexResidualArgument, TransformFunction,
+    StylexResidual, StylexResidualArgument, TextOverflow, TransformFunction, WhiteSpace,
 };
 use oxc_ast::ast::{
     Argument, ArrowFunctionExpression, BindingPattern, CallExpression, Expression, Function,
@@ -513,6 +513,35 @@ fn web_only_keyword(property: &str, value: &StaticValue) -> Option<StyleProperty
             &["auto", "optimizeSpeed", "optimizeLegibility", "geometricPrecision"],
         ),
         "touchAction" => ("touch-action", &["auto", "none", "manipulation"]),
+        "wordBreak" => ("word-break", &["normal", "break-all", "keep-all", "break-word"]),
+        "overflowWrap" => ("overflow-wrap", &["normal", "break-word", "anywhere"]),
+        "visibility" => ("visibility", &["visible", "hidden", "collapse"]),
+        "backgroundPosition" => (
+            "background-position",
+            &[
+                "top", "right", "bottom", "left", "center", "left top", "left center",
+                "left bottom", "right top", "right center", "right bottom", "center top",
+                "center center", "center bottom",
+            ],
+        ),
+        "backgroundRepeat" => ("background-repeat", &["repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round"]),
+        "backgroundSize" => ("background-size", &["auto", "cover", "contain"]),
+        "objectPosition" => (
+            "object-position",
+            &[
+                "top", "right", "bottom", "left", "center", "left top", "left center",
+                "left bottom", "right top", "right center", "right bottom", "center top",
+                "center center", "center bottom",
+            ],
+        ),
+        "justifySelf" => (
+            "justify-self",
+            &["auto", "normal", "stretch", "center", "start", "end", "self-start", "self-end", "flex-start", "flex-end"],
+        ),
+        "placeItems" => (
+            "place-items",
+            &["normal", "stretch", "center", "start", "end", "baseline", "normal normal", "stretch stretch", "center center", "start start", "end end"],
+        ),
         _ => return None,
     };
     choices
@@ -596,6 +625,49 @@ fn stylex_transition_duration(value: &StaticValue) -> Option<u32> {
         && milliseconds.fract() == 0.0
         && milliseconds <= u32::MAX as f64)
         .then_some(milliseconds as u32)
+}
+
+fn stylex_font_weight(value: &StaticValue) -> Option<FontWeight> {
+    let weight = match value {
+        StaticValue::Number(value) if value.is_finite() && value.fract() == 0.0 => *value,
+        StaticValue::String(value) => match value.as_str() {
+            "normal" => 400.0,
+            "bold" => 700.0,
+            value => value.parse::<f64>().ok().filter(|value| value.fract() == 0.0)?,
+        },
+        _ => return None,
+    };
+    (weight >= 100.0 && weight <= 900.0 && weight as u16 % 100 == 0).then_some(FontWeight(weight as u16))
+}
+
+fn stylex_white_space(value: &StaticValue) -> Option<WhiteSpace> {
+    let StaticValue::String(value) = value else { return None };
+    Some(match value.as_str() {
+        "normal" => WhiteSpace::Normal,
+        "nowrap" => WhiteSpace::NoWrap,
+        "pre" => WhiteSpace::Css("pre"),
+        "pre-line" => WhiteSpace::Css("pre-line"),
+        "pre-wrap" => WhiteSpace::Css("pre-wrap"),
+        "break-spaces" => WhiteSpace::Css("break-spaces"),
+        _ => return None,
+    })
+}
+
+fn stylex_text_overflow(value: &StaticValue) -> Option<TextOverflow> {
+    let StaticValue::String(value) = value else { return None };
+    Some(match value.as_str() {
+        "clip" => TextOverflow::Clip,
+        "ellipsis" => TextOverflow::Ellipsis,
+        _ => return None,
+    })
+}
+
+fn stylex_web_only_duration(property: &'static str, value: &StaticValue) -> Option<StyleProperty> {
+    let seconds = stylex_transition_duration(value)? as f64 / 1000.0;
+    Some(StyleProperty::WebOnly(
+        property.to_string(),
+        format!("{seconds}s"),
+    ))
 }
 
 fn stylex_transition_timing(value: &StaticValue) -> Option<String> {
@@ -869,7 +941,6 @@ fn token_for(property: &str, value: &StaticValue) -> Option<String> {
             ],
         ),
         "fontSize" => length("text"),
-        "fontWeight" => raw("font"),
         "lineHeight" => raw("leading"),
         "letterSpacing" => length("tracking"),
         "overflow" => named(
@@ -945,6 +1016,21 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "scrollbarWidth" => vec![web_only_keyword(property, value)?],
         "textRendering" => vec![web_only_keyword(property, value)?],
         "touchAction" => vec![web_only_keyword(property, value)?],
+        "wordBreak" => vec![web_only_keyword(property, value)?],
+        "overflowWrap" => vec![web_only_keyword(property, value)?],
+        "visibility" => vec![web_only_keyword(property, value)?],
+        "backgroundPosition" => vec![web_only_keyword(property, value)?],
+        "backgroundRepeat" => vec![web_only_keyword(property, value)?],
+        "backgroundSize" => vec![web_only_keyword(property, value)?],
+        "objectPosition" => vec![web_only_keyword(property, value)?],
+        "justifySelf" => vec![web_only_keyword(property, value)?],
+        "placeItems" => vec![web_only_keyword(property, value)?],
+        "transitionDelay" => vec![stylex_web_only_duration("transition-delay", value)?],
+        "animationDuration" => vec![stylex_web_only_duration("animation-duration", value)?],
+        "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
+        "whiteSpace" => vec![StyleProperty::WhiteSpace(stylex_white_space(value)?)],
+        "textOverflow" => vec![StyleProperty::TextOverflow(stylex_text_overflow(value)?)],
+        "caretColor" => vec![StyleProperty::CaretColor(color()?)],
         "order" => vec![StyleProperty::Order(stylex_order(value)?)],
         "overflowX" => vec![StyleProperty::OverflowX(stylex_overflow(value)?)],
         "overflowY" => vec![StyleProperty::OverflowY(stylex_overflow(value)?)],
@@ -1317,6 +1403,7 @@ fn property_priority(property: &str) -> u16 {
             | "marginBlock"
             | "marginInline"
             | "overflow"
+            | "placeItems"
             | "paddingBlock"
             | "paddingInline"
     ) {
@@ -1440,6 +1527,14 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("container")
     } else if property == "transition" || property.starts_with("transition") {
         Some("transition")
+    } else if property == "background" || property.starts_with("background") {
+        Some("background")
+    } else if property == "animation" || property.starts_with("animation") {
+        Some("animation")
+    } else if property == "caret" || property.starts_with("caret") {
+        Some("caret")
+    } else if matches!(property, "placeItems" | "alignItems" | "justifyItems") {
+        Some("place-items")
     } else {
         None
     }
@@ -2087,6 +2182,68 @@ mod tests {
                 ),
             ]
         );
+    }
+
+    #[test]
+    fn practical_text_values_become_typed_ir() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              text: { fontWeight: 700, whiteSpace: 'nowrap', textOverflow: 'ellipsis' },
+              input: { caretColor: '#123456' }
+            })
+        "#,
+        );
+        let Rule::Ready { entries: text, .. } = &frontend.sheets["styles"]["text"] else {
+            panic!("text values were not lowerable")
+        };
+        assert_eq!(
+            text.iter().flat_map(|entry| entry.properties.clone()).collect::<Vec<_>>(),
+            vec![
+                StyleProperty::FontWeight(FontWeight(700)),
+                StyleProperty::WhiteSpace(WhiteSpace::NoWrap),
+                StyleProperty::TextOverflow(TextOverflow::Ellipsis),
+            ]
+        );
+        let Rule::Ready { entries: input, .. } = &frontend.sheets["styles"]["input"] else {
+            panic!("input values were not lowerable")
+        };
+        assert_eq!(
+            input[0].properties,
+            vec![StyleProperty::CaretColor(Color::Css("#123456".to_string()))]
+        );
+    }
+
+    #[test]
+    fn practical_web_only_values_are_exact_and_wider_values_remain_residual() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                wordBreak: 'break-word', overflowWrap: 'anywhere', visibility: 'hidden',
+                backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundSize: 'cover',
+                objectPosition: 'center', justifySelf: 'center', placeItems: 'center',
+                transitionDelay: '100ms', animationDuration: '.2s'
+              },
+              wider: { backgroundSize: 'calc(100% - 1px)', transitionDelay: '0.5ms' }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("exact Web values were not lowerable")
+        };
+        assert_eq!(entries.len(), 11);
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 2);
+        assert_eq!(gaps.len(), 2);
     }
 
     #[test]
