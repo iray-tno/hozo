@@ -147,16 +147,16 @@
     "unreachable": 0
   },
   "variants": {
-    "total": 22446,
-    "match": 22446,
+    "total": 22707,
+    "match": 22707,
     "mismatch": 0,
     "unsupported": 0
   },
   "nativeVariants": {
-    "total": 22446,
-    "covered": 3786,
-    "restricted": 2088,
-    "refused": 18660,
+    "total": 22707,
+    "covered": 3897,
+    "restricted": 2127,
+    "refused": 18810,
     "silent": 0,
     "noOp": 0
   }

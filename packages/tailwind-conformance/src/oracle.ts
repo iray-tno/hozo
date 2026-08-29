@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { compile } from 'tailwindcss'
 import { classNamesIn, extractRules, type Rule } from './extract.ts'
+import { cssClassName } from './variants.ts'
 import { tailwindPackageDir } from './theme.ts'
 
 export type OracleRules = Map<string, string>
@@ -72,7 +73,7 @@ export async function buildOracle(candidates: string[]): Promise<Oracle> {
   const utilities = css.slice(css.indexOf('@layer utilities'))
 
   const rules: OracleRules = new Map()
-  const byName = new Map(candidates.map((c) => [escapeClassName(c), c]))
+  const byName = new Map(candidates.map((c) => [cssClassName(c), c]))
 
   for (const { selector, declarations } of leastConditional(extractRules(utilities))) {
     // Read the class names *out of* the selector and look each one up,
@@ -104,18 +105,8 @@ function extractRegisterDefaults(css: string): Map<string, string> {
   return defaults
 }
 
-/** How Tailwind escapes a candidate when writing it as a CSS selector. */
-function escapeClassName(candidate: string): string {
-  // Everything CSS doesn't allow bare in an identifier, which is the rule
-  // rather than a list -- the list kept being wrong. It started as `[:/.]`,
-  // which was complete for the named-utility catalogue and silently wrong
-  // for arbitrary values: every one of them looked up to nothing, so the
-  // oracle reported "Tailwind emits no rule for this" when what had
-  // happened was that this function couldn't spell the selector. Widening
-  // it to brackets fixed most of them and still hid `*`, `+` and quotes,
-  // which read as three more Tailwind limitations that weren't real.
-  //
-  // Non-ASCII is left alone: CSS allows it in an identifier unescaped, and
-  // Tailwind writes it through.
-  return candidate.replace(/[^\w-]/g, (ch) => (ch.charCodeAt(0) > 127 ? ch : `\\${ch}`))
-}
+// How Tailwind escapes a candidate when writing it as a CSS selector used
+// to live here as well, byte for byte, and the two copies were wrong
+// together: the same hole had to be found twice or it was only half
+// closed. `cssClassName` in `variants.ts` is the one, and its comment
+// carries what the three wrong versions taught.

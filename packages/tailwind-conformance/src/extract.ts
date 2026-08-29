@@ -239,6 +239,26 @@ export function classNamesIn(selector: string): string[] {
     while (j < selector.length) {
       const ch = selector[j]
       if (ch === '\\' && j + 1 < selector.length) {
+        // A backslash before a hex digit is not an escaped character but a
+        // code point: CSS cannot start an identifier with a digit, so
+        // Tailwind writes `2xl:flex` as `.\32 xl\:flex` -- up to six hex
+        // digits and one optional space that terminates them. Reading it as
+        // "backslash plus one character" stopped the name at `\32`, so
+        // every class beginning with a digit was indexed under a key
+        // nothing looks up. `2xl` is a default breakpoint.
+        //
+        // Unambiguous here because Tailwind only escapes what CSS forbids
+        // bare, and a letter that is also a hex digit is never among them.
+        if (/[0-9a-fA-F]/.test(selector[j + 1])) {
+          let end = j + 1
+          while (end < selector.length && end - j <= 6 && /[0-9a-fA-F]/.test(selector[end])) {
+            end += 1
+          }
+          if (selector[end] === ' ') end += 1
+          name += selector.slice(j, end)
+          j = end
+          continue
+        }
         name += ch + selector[j + 1]
         j += 2
         continue
