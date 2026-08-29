@@ -15,11 +15,14 @@ use hozo_ir::{
 };
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, ArrowFunctionExpression, BindingPattern, CallExpression,
-    Expression, Function, LogicalOperator, ObjectExpression, ObjectPropertyKind, PropertyKey,
-    VariableDeclarator,
+    Expression, Function, IdentifierReference, LogicalOperator, ObjectExpression,
+    ObjectPropertyKind, PropertyKey, Statement, VariableDeclarationKind, VariableDeclarator,
 };
 use oxc_ast_visit::{
-    walk::{walk_arrow_function_expression, walk_function, walk_variable_declarator},
+    walk::{
+        walk_arrow_function_expression, walk_function, walk_object_expression,
+        walk_variable_declarator,
+    },
     Visit,
 };
 use oxc_span::{GetSpan, Span};
@@ -1578,24 +1581,73 @@ fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclar
         .collect()
 }
 
-fn parse_rule(
-    expression: &Expression,
-) -> Result<(Vec<Entry>, Vec<ResidualProperty>, Vec<Gap>), Gap> {
-    let Expression::ObjectExpression(object) = expression else {
-        return Err(Gap {
-            message: "StyleX style entries must be static object literals.".to_string(),
-            span: source_span(expression.span()),
-        });
-    };
-    let mut out = Vec::new();
-    let mut residual = Vec::new();
-    let mut gaps = Vec::new();
+fn parse_rule_object(
+    object: &ObjectExpression,
+    static_objects: &HashMap<String, &ObjectExpression>,
+    visiting: &mut HashSet<String>,
+    out: &mut Vec<Entry>,
+    residual: &mut Vec<ResidualProperty>,
+    gaps: &mut Vec<Gap>,
+) -> Result<(), Gap> {
     for item in &object.properties {
-        let ObjectPropertyKind::ObjectProperty(property) = item else {
-            return Err(Gap {
-                message: "StyleX object spreads are not in Hozo's static subset yet.".to_string(),
-                span: source_span(item.span()),
-            });
+        let property = match item {
+            ObjectPropertyKind::ObjectProperty(property) => property,
+            ObjectPropertyKind::SpreadProperty(spread) => {
+                let spread_object = match &spread.argument {
+                    Expression::ObjectExpression(object) => object,
+                    Expression::Identifier(identifier) => {
+                        let name = identifier.name.to_string();
+                        let Some(object) = static_objects.get(&name) else {
+                            return Err(Gap {
+                                message: format!(
+                                    "StyleX object spread `{name}` must reference a module-scope const object literal."
+                                ),
+                                span: source_span(spread.span),
+                            });
+                        };
+                        if object.span.end > spread.span.start {
+                            return Err(Gap {
+                                message: format!(
+                                    "StyleX object spread `{name}` must be declared before it is used."
+                                ),
+                                span: source_span(spread.span),
+                            });
+                        }
+                        if !visiting.insert(name.clone()) {
+                            return Err(Gap {
+                                message: format!("StyleX object spread `{name}` is recursive."),
+                                span: source_span(spread.span),
+                            });
+                        }
+                        parse_rule_object(
+                            object,
+                            static_objects,
+                            visiting,
+                            out,
+                            residual,
+                            gaps,
+                        )?;
+                        visiting.remove(&name);
+                        continue;
+                    }
+                    other => {
+                        return Err(Gap {
+                            message: "StyleX object spreads must be inline object literals or module-scope const object literals."
+                                .to_string(),
+                            span: source_span(other.span()),
+                        });
+                    }
+                };
+                parse_rule_object(
+                    spread_object,
+                    static_objects,
+                    visiting,
+                    out,
+                    residual,
+                    gaps,
+                )?;
+                continue;
+            }
         };
         if property.computed {
             return Err(Gap {
@@ -1663,7 +1715,88 @@ fn parse_rule(
             span: source_span(property.span),
         });
     }
+    Ok(())
+}
+
+fn parse_rule(
+    expression: &Expression,
+    static_objects: &HashMap<String, &ObjectExpression>,
+) -> Result<(Vec<Entry>, Vec<ResidualProperty>, Vec<Gap>), Gap> {
+    let Expression::ObjectExpression(object) = expression else {
+        return Err(Gap {
+            message: "StyleX style entries must be static object literals.".to_string(),
+            span: source_span(expression.span()),
+        });
+    };
+    let mut out = Vec::new();
+    let mut residual = Vec::new();
+    let mut gaps = Vec::new();
+    parse_rule_object(
+        object,
+        static_objects,
+        &mut HashSet::new(),
+        &mut out,
+        &mut residual,
+        &mut gaps,
+    )?;
     Ok((out, residual, gaps))
+}
+
+#[derive(Default)]
+struct StaticObjectUses {
+    references: HashMap<String, usize>,
+    spreads: HashMap<String, usize>,
+}
+
+impl<'a> Visit<'a> for StaticObjectUses {
+    fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'a>) {
+        *self.references.entry(identifier.name.to_string()).or_default() += 1;
+    }
+
+    fn visit_object_expression(&mut self, object: &ObjectExpression<'a>) {
+        for property in &object.properties {
+            let ObjectPropertyKind::SpreadProperty(spread) = property else {
+                continue;
+            };
+            let Expression::Identifier(identifier) = &spread.argument else {
+                continue;
+            };
+            *self.spreads.entry(identifier.name.to_string()).or_default() += 1;
+        }
+        walk_object_expression(self, object);
+    }
+}
+
+fn module_static_objects<'a>(
+    program: &'a oxc_ast::ast::Program<'a>,
+    module: &ModuleRecord<'a>,
+) -> HashMap<String, &'a ObjectExpression<'a>> {
+    let mut objects = HashMap::new();
+    for statement in &program.body {
+        let Statement::VariableDeclaration(declaration) = statement else {
+            continue;
+        };
+        if declaration.kind != VariableDeclarationKind::Const {
+            continue;
+        }
+        for declarator in &declaration.declarations {
+            let BindingPattern::BindingIdentifier(identifier) = &declarator.id else {
+                continue;
+            };
+            let Some(Expression::ObjectExpression(object)) = &declarator.init else {
+                continue;
+            };
+            objects.insert(identifier.name.to_string(), object.as_ref());
+        }
+    }
+    let mut uses = StaticObjectUses::default();
+    uses.visit_program(program);
+    objects.retain(|name, _| {
+        uses.references.get(name).copied().unwrap_or_default()
+            == uses.spreads.get(name).copied().unwrap_or_default()
+            && !module.exported_bindings.contains_key(name.as_str())
+    });
+    objects
 }
 
 fn create_object<'a>(
@@ -1685,14 +1818,15 @@ fn create_object<'a>(
     }
 }
 
-struct SheetCollector<'n> {
+struct SheetCollector<'n, 'a> {
     namespaces: &'n HashSet<String>,
+    static_objects: &'n HashMap<String, &'a ObjectExpression<'a>>,
     sheets: HashMap<String, HashMap<String, Rule>>,
     scan_spans: Vec<SourceSpan>,
     function_depth: usize,
 }
 
-impl<'a> Visit<'a> for SheetCollector<'_> {
+impl<'a> Visit<'a> for SheetCollector<'_, 'a> {
     // Module-scope only. Without semantic reference resolution, accepting a
     // local `const styles` would make two functions using that common name
     // overwrite each other in this map and silently apply the last sheet to
@@ -1735,7 +1869,7 @@ impl<'a> Visit<'a> for SheetCollector<'_> {
             let Some(name) = static_key(&property.key) else {
                 continue;
             };
-            let rule = match parse_rule(&property.value) {
+            let rule = match parse_rule(&property.value, self.static_objects) {
                 Ok((entries, residual, gaps)) => Rule::Ready {
                     entries,
                     residual,
@@ -1764,9 +1898,11 @@ impl Frontend {
         if namespaces.is_empty() {
             return Self::default();
         }
+        let static_objects = module_static_objects(program, module);
         let (sheets, scan_spans) = {
             let mut collector = SheetCollector {
                 namespaces: &namespaces,
+                static_objects: &static_objects,
                 sheets: HashMap::new(),
                 scan_spans: Vec::new(),
                 function_depth: 0,
@@ -2561,6 +2697,65 @@ mod tests {
         assert!(residual.contains("tabSize: 4"), "{residual}");
         assert!(!residual.contains("opacity: 0.5"), "{residual}");
         assert!(!residual.contains("padding: 8"), "{residual}");
+    }
+
+    #[test]
+    fn module_const_object_spreads_flatten_in_source_order() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const inset = { padding: 8 }
+            const shared = { ...inset, opacity: 0.5, scrollbarColor: 'red blue' }
+            const styles = stylex.create({
+              root: { ...shared, ...{ marginTop: 4 }, opacity: 0.75 }
+            })
+            const card = <View {...stylex.props(styles.root)} />
+        "#;
+        let parsed = crate::parse_tsx(source);
+        let node = &parsed.roots[0].node;
+        assert_eq!(node.style.len(), 6);
+        assert!(node.style.iter().any(|declaration| {
+            matches!(declaration.property, StyleProperty::Opacity(0.75))
+        }));
+        assert!(!node.style.iter().any(|declaration| {
+            matches!(declaration.property, StyleProperty::Opacity(0.5))
+        }));
+        assert_eq!(node.props.stylex_residuals.len(), 1);
+        let residual = node.props.stylex_residuals[0].render_expression(source);
+        assert!(residual.contains("scrollbarColor: 'red blue'"), "{residual}");
+        assert!(!residual.contains("opacity"), "{residual}");
+        assert!(!residual.contains("padding"), "{residual}");
+    }
+
+    #[test]
+    fn mutable_escaped_late_and_dynamic_object_spreads_remain_official_stylex() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            let mutable = { opacity: 0.5 }
+            const escaped = { opacity: 0.5 }
+            escaped.opacity = 0.75
+            const mutableStyles = stylex.create({ root: { ...mutable, padding: 8 } })
+            const escapedStyles = stylex.create({ root: { ...escaped, padding: 8 } })
+            const lateStyles = stylex.create({ root: { ...late, padding: 8 } })
+            const late = { opacity: 0.5 }
+            const dynamicStyles = stylex.create({ root: { ...makeStyles(), padding: 8 } })
+            const one = <View {...stylex.props(mutableStyles.root)} />
+            const two = <View {...stylex.props(escapedStyles.root)} />
+            const three = <View {...stylex.props(lateStyles.root)} />
+            const four = <View {...stylex.props(dynamicStyles.root)} />
+        "#,
+        );
+        assert_eq!(parsed.roots.len(), 4);
+        for root in &parsed.roots {
+            assert!(root.node.style.is_empty());
+            assert_eq!(root.node.props.passthrough.len(), 1);
+        }
+        assert_eq!(parsed.diagnostics.len(), 4);
+        assert!(parsed.diagnostics.iter().all(|diagnostic| {
+            diagnostic.code == hozo_ir::DiagnosticCode::StylexNotLowered
+        }));
     }
 
     #[test]
