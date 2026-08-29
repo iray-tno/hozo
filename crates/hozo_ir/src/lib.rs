@@ -1169,6 +1169,13 @@ pub enum StyleProperty {
     /// the StyleX frontend. Keeping this lane explicit lets Web emit it
     /// directly while Native produces an intentional, actionable refusal.
     WebOnly(String, String),
+    /// StyleX `firstThatWorks(...)`: candidates in authored preference
+    /// order. Web emits them in reverse because CSS's last supported
+    /// declaration wins; Native selects the first value it can represent.
+    ///
+    /// The StyleX frontend only constructs this when every candidate maps
+    /// to one typed declaration for the same final property slot.
+    FirstThatWorks(Vec<StyleProperty>),
     /// Column count for `grid-cols-<n>`. Native's initial grid solver can
     /// consume counts and simple fixed/fr lists when paired with `grid`;
     /// richer track functions remain an explicit refusal.
@@ -1882,6 +1889,10 @@ impl StyleProperty {
     /// kind of completeness the compiler was checking.
     pub fn value(&self) -> PropertyValue<'_> {
         match self {
+            StyleProperty::FirstThatWorks(candidates) => candidates
+                .first()
+                .expect("firstThatWorks always has at least one candidate")
+                .value(),
             StyleProperty::MarginTop(v)
             | StyleProperty::MarginRight(v)
             | StyleProperty::MarginBottom(v)
@@ -2111,6 +2122,23 @@ impl StyleProperty {
     }
 
     pub fn unsupported_on_native(&self) -> Option<String> {
+        if let StyleProperty::FirstThatWorks(candidates) = self {
+            if candidates.iter().any(|candidate| {
+                candidate.not_wired_on_native().is_none()
+                    && candidate.unsupported_on_native().is_none()
+            }) {
+                return None;
+            }
+            return candidates
+                .first()
+                .and_then(StyleProperty::unsupported_on_native)
+                .or_else(|| {
+                    Some(
+                        "none of the `firstThatWorks` candidates can be represented on React Native"
+                            .to_string(),
+                    )
+                });
+        }
         // A length with nothing to resolve it against. Asked before the
         // property match because it is about the value rather than the
         // property: an `em` is unresolvable in a padding for the same
@@ -4370,6 +4398,11 @@ impl StyleProperty {
     /// the list, and they get there through a custom property, which is
     /// not on it either.
     pub fn survives_visited(&self) -> bool {
+        if let StyleProperty::FirstThatWorks(candidates) = self {
+            return candidates
+                .first()
+                .is_some_and(StyleProperty::survives_visited);
+        }
         matches!(
             self,
             StyleProperty::TextColor(_)
@@ -4397,6 +4430,9 @@ impl StyleProperty {
     /// answer. See `Origin`.
     pub fn origin(&self) -> Option<Origin> {
         match self {
+            StyleProperty::FirstThatWorks(candidates) => {
+                candidates.first().and_then(StyleProperty::origin)
+            }
             StyleProperty::TransitionDuration(_, origin)
             | StyleProperty::TransitionTimingFunction(_, origin) => Some(*origin),
             _ => None,
@@ -4404,6 +4440,12 @@ impl StyleProperty {
     }
 
     pub(crate) fn dedupe_key(&self) -> (std::mem::Discriminant<Self>, u32, String) {
+        if let StyleProperty::FirstThatWorks(candidates) = self {
+            return candidates
+                .first()
+                .expect("firstThatWorks always has at least one candidate")
+                .dedupe_key();
+        }
         if let StyleProperty::Keyword(property, _) = self {
             return (std::mem::discriminant(self), 0, (*property).to_string());
         }

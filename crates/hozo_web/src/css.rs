@@ -935,6 +935,14 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
     // would add a word to thirty lines and say nothing at any of them.
     let color_var = |color: &Color| resolve_theme_color(color, theme);
     match prop {
+        // Rule rendering expands every candidate. Helper callers use the
+        // preferred value rather than inventing a property for the wrapper.
+        StyleProperty::FirstThatWorks(candidates) => property_and_value(
+            candidates
+                .first()
+                .expect("firstThatWorks always has at least one candidate"),
+            theme,
+        ),
         // Straight through, both halves. Neither is checked against
         // anything -- see `StyleProperty::Arbitrary` for why that is the
         // deal an arbitrary property makes rather than an omission.
@@ -2074,6 +2082,16 @@ fn render_shape(
             body.push_str("  content: var(--hozo-content);\n");
         }
         for prop in own_props {
+            if let StyleProperty::FirstThatWorks(candidates) = prop {
+                // StyleX's first argument has the highest preference. CSS
+                // chooses the last declaration it understands, so the
+                // official transform writes the candidates in reverse.
+                for candidate in candidates.iter().rev() {
+                    let (name, value) = property_and_value(candidate, theme);
+                    body.push_str(&format!("  {name}: {value};\n"));
+                }
+                continue;
+            }
             if let StyleProperty::Content(value) = prop {
                 body.push_str(&format!("  --hozo-content: {value};\n"));
                 let resolved = if value == "none" { "none" } else { "var(--hozo-content)" };

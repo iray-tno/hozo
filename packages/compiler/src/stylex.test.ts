@@ -398,6 +398,41 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   assert.doesNotMatch(native.jsx, /stylex\.props/)
 })
 
+test('StyleX firstThatWorks keeps CSS fallback order and selects a Native value', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: { display: stylex.firstThatWorks('grid', 'flex') },
+})
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+  const official = transformSync(source, {
+    filename: '/app/FirstThatWorks.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as {
+    stylex?: [string, { ltr: string }, number][]
+  }
+  const expected = (metadata.stylex ?? []).map(([, css]) => css.ltr).join('\n')
+  assert.match(expected, /display:flex;display:grid/)
+
+  const web = compile(source)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.match(web.css, /display: flex;\s+display: grid;/)
+  assert.doesNotMatch(web.jsx, /stylex\.props/)
+
+  const native = compileNative(source)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.match(native.jsx, /<HozoGrid/)
+  assert.doesNotMatch(native.styles, /display: 'grid'/)
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+})
+
 test('StyleX grid reuses the contextual Web and Native grid lowerings', () => {
   const gridSource = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
@@ -685,7 +720,7 @@ import { Text, TextInput } from '@hozo/core'
 const styles = stylex.create({
   label: { fontWeight: 700, whiteSpace: 'nowrap' },
   clipped: { whiteSpace: 'nowrap', textOverflow: 'ellipsis' },
-  input: { caretColor: '#123456' },
+  input: { caretColor: stylex.firstThatWorks('#123456', '#654321') },
 })
 export const Card = () => <>
   <Text {...stylex.props(styles.label)}>Label</Text>
@@ -700,7 +735,7 @@ export const Card = () => <>
   assert.match(css, /font-weight: 700/)
   assert.match(css, /white-space: nowrap/)
   assert.match(css, /text-overflow: ellipsis/)
-  assert.match(css, /caret-color: #123456/)
+  assert.match(css, /caret-color: #654321;\s+caret-color: #123456/)
 
   const native = compileNative(source)
   assert.equal(native.length, 3)
