@@ -7,7 +7,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test --test-concurrency=1 src/*.test.ts",
-    "report": "node src/run.ts"
+    "report": "node src/run.ts",
+    "stylex:manifest": "node scripts/generate-stylex-manifest.ts"
   },
   "dependencies": {
     "@hozo/a11y": "workspace:^",

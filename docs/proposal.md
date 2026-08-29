@@ -954,6 +954,14 @@ StyleX 自身が公開する `CSSProperties` と React Native 自身が公開す
 を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
 
+property-name の分母・lane・mapped判定は生成済みの
+`packages/tailwind-conformance/stylex-manifest.json` に固定する。通常のreportは
+Rust sourceのmatch armをその場で数えずmanifestを読み、同期testだけがStyleX/RNの
+型定義とfrontend lowering tableから再生成してdriftを検出する。各522項目には
+Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える実装根拠を
+持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
+基盤とする。
+
 Web-only の最初の 20 名は、appearance、color-scheme、image-rendering、
 overflow/overscroll、print-color-adjust、resize、scroll snap、scrollbar、
 text-rendering、touch-action の closed-keyword longhand である。共通 IR 上でも
