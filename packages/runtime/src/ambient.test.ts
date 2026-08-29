@@ -102,9 +102,13 @@ test('viewport equality ignores nothing that matters and nothing that does not',
 })
 
 test('an environment query rides on the fact behind it', () => {
-  // Eleven queries, eight subscriptions. The pairs are one boolean read
-  // two ways, so `motion-safe:` costs nothing that `motion-reduce:` has
-  // not already paid for.
+  // Twelve queries, nine facts. The pairs are one boolean read two ways,
+  // so `motion-safe:` costs nothing that `motion-reduce:` has not already
+  // paid for.
+  //
+  // `contrast-more` is the ninth fact and the only one that is not a
+  // single subscription: React Native has two settings behind it, one per
+  // platform, and `useHozoEnvironment` reads both.
   //
   // The four added later have no negated spelling, and that is Tailwind's
   // shape rather than an omission: `inverted-colors` has no
@@ -112,8 +116,8 @@ test('an environment query rides on the fact behind it', () => {
   // condition and writing a second name for it would be two ways to say
   // the same thing.
   const facts = new Set(Object.values(ENVIRONMENT_FACTS).map(({ fact }) => fact))
-  assert.equal(Object.keys(ENVIRONMENT_FACTS).length, 11)
-  assert.equal(facts.size, 8)
+  assert.equal(Object.keys(ENVIRONMENT_FACTS).length, 12)
+  assert.equal(facts.size, 9)
 
   for (const [a, b] of [
     ['motion-reduce', 'motion-safe'],

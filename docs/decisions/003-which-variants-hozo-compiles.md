@@ -67,7 +67,7 @@ does: three of those four have no CSS query at all. Everywhere else it is
 the other way round, and Native compiles all of the above except `peer-…`,
 `has-…`, `not-…`, `data-…`, `supports-…`, `focus-within`, `target`, the
 `-of-type` family, the form states other than `read-only`, every
-pseudo-element, `contrast-more`, `contrast-less`, `forced-colors`, `print`
+pseudo-element, `contrast-less`, `forced-colors`, `print`
 and `noscript`, and reports each one it cannot. Container queries it does compile, through a component
 that measures itself.
 
@@ -380,17 +380,43 @@ filtered, so `group-visited:p-4` is filtered too — and so is
 `not-visited:p-4`, because if the negation were unrestricted the two halves
 could be compared and the history read back out of the difference.
 
-## Open
+## Settled since
 
-**`contrast-more:` and `contrast-less:` on Native.** Compiled for Web,
-reported on Native. React Native's nearest reads are Android's
-`isHighTextContrastEnabled` and iOS's `isDarkerSystemColorsEnabled`, and
-neither is `prefers-contrast`: the first is about text specifically, the
-second about system chrome, and both are one platform only. Answering with
-either would be worse than saying nothing — but "worse than nothing" is a
-judgement, not a measurement, and it is worth revisiting with a device in
-hand. The question to answer there is whether a user who turns on Android's
-high-contrast text expects a `contrast-more:` class to fire.
+**`contrast-more:` on Native.** Compiled, from both platforms' settings.
+
+This was recorded as open pending a device, and most of it did not need
+one. React Native's `AccessibilityInfo.d.ts` declares the whole surface,
+and reading it answered two of the three questions outright: iOS reports
+Increase Contrast through `isDarkerSystemColorsEnabled` with a
+`darkerSystemColorsChanged` event, Android reports high-contrast text
+through `isHighTextContrastEnabled` with `highTextContrastChanged`, and
+neither platform exposes a *reduce* contrast setting at all.
+
+The argument that settles it is about iOS. `isDarkerSystemColorsEnabled`
+is not "system chrome" as recorded here — it is
+`UIAccessibilityDarkerSystemColorsEnabled`, the Increase Contrast toggle,
+and it is the same OS setting Safari writes `prefers-contrast: more` from.
+So on iOS the two backends do not merely approximate each other: they read
+one switch. A component styled with `contrast-more:` behaves the same in a
+WebView and in a native screen, which is the contract this project exists
+to keep.
+
+Android's is narrower — text only — and is read as the nearest thing that
+platform has rather than left unanswered, which would have made the
+variant iOS-only in practice. The two are separate facts combined at read
+time, not one store written twice: sharing one would let two asynchronous
+reads race, and on a device where one method is missing the answer would
+depend on which landed last.
+
+**`contrast-less:` stays Web-only**, and that is an answer rather than a
+pending one. Neither iOS nor Android has a reduce-contrast setting, so
+there is nothing for React Native to report and the diagnostic is correct.
+
+What a device would still add: whether Chrome on Android maps
+high-contrast text to `prefers-contrast: more`. If it does not, an Android
+user gets the style on Native and not on Web — a divergence in the
+direction of doing more for the setting rather than less, which is the
+better way to be wrong about an accessibility preference.
 
 ## `data-hozo-*` is Hozo's, and the compiler says so
 
