@@ -10,20 +10,20 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 49, covered: 34 },
+    values: { total: 49, covered: 49 },
     constructs: { total: 14, covered: 5 },
-    corpus: { total: 49, covered: 38 },
+    corpus: { total: 49, covered: 49 },
     silent: 0,
   })
 })
 
-test('unsupported common values stay explicit instead of inflating coverage', () => {
+test('new common text values are covered without silent fallback', () => {
   const whiteSpace = STYLEX_VALUE_CASES.find(({ property }) => property === 'whiteSpace')
   assert.ok(whiteSpace)
   assert.deepEqual(compareStylexValue(whiteSpace), {
     property: 'whiteSpace',
     value: 'nowrap',
-    covered: false,
+    covered: true,
     silent: false,
   })
 
@@ -32,7 +32,7 @@ test('unsupported common values stay explicit instead of inflating coverage', ()
   assert.deepEqual(compareStylexValue(fontWeight), {
     property: 'fontWeight',
     value: 700,
-    covered: false,
+    covered: true,
     silent: false,
   })
 })

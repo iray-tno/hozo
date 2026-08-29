@@ -31,9 +31,10 @@ export interface StylexManifest {
 }
 
 const CONTEXTUAL_PROPERTIES = new Set([
-  'containerName', 'containerType', 'gridColumn', 'gridColumnEnd', 'gridColumnStart',
+  'caretColor', 'containerName', 'containerType', 'gridColumn', 'gridColumnEnd', 'gridColumnStart',
   'gridRow', 'gridRowEnd', 'gridRowStart', 'gridTemplateColumns', 'gridTemplateRows',
-  'transitionDuration', 'transitionProperty', 'transitionTimingFunction',
+  'textOverflow', 'transitionDuration', 'transitionProperty', 'transitionTimingFunction',
+  'whiteSpace',
 ])
 
 const ADAPTER_PROPERTIES = new Set(['backdropFilter'])

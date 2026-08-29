@@ -578,6 +578,17 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['scrollbarWidth', `'thin'`],
     ['textRendering', `'optimizeLegibility'`],
     ['touchAction', `'manipulation'`],
+    ['wordBreak', `'break-word'`],
+    ['overflowWrap', `'anywhere'`],
+    ['visibility', `'hidden'`],
+    ['backgroundPosition', `'center'`],
+    ['backgroundRepeat', `'no-repeat'`],
+    ['backgroundSize', `'cover'`],
+    ['objectPosition', `'center'`],
+    ['justifySelf', `'center'`],
+    ['placeItems', `'center'`],
+    ['transitionDelay', `'100ms'`],
+    ['animationDuration', `'200ms'`],
   ] as const
 
   for (const [property, value] of samples) {
@@ -621,6 +632,42 @@ export const Card = () => <View {...stylex.props(styles.root)} />
     assert.match(native.diagnostics[0]?.message ?? '', /StyleX's Web surface/, property)
     assert.doesNotMatch(native.jsx, /stylex\.props/, property)
   }
+})
+
+test('practical text StyleX values use typed and contextual Native lowering', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { Text, TextInput } from '@hozo/core'
+const styles = stylex.create({
+  label: { fontWeight: 700, whiteSpace: 'nowrap' },
+  clipped: { whiteSpace: 'nowrap', textOverflow: 'ellipsis' },
+  input: { caretColor: '#123456' },
+})
+export const Card = () => <>
+  <Text {...stylex.props(styles.label)}>Label</Text>
+  <Text {...stylex.props(styles.clipped)}>Long text</Text>
+  <TextInput accessibilityLabel="Name" {...stylex.props(styles.input)} />
+</>
+`
+  const web = compile(source)
+  assert.equal(web.length, 3)
+  assert.ok(web.every(({ diagnostics }) => diagnostics.length === 0))
+  const css = web.map(({ css }) => css).join('\n')
+  assert.match(css, /font-weight: 700/)
+  assert.match(css, /white-space: nowrap/)
+  assert.match(css, /text-overflow: ellipsis/)
+  assert.match(css, /caret-color: #123456/)
+
+  const native = compileNative(source)
+  assert.equal(native.length, 3)
+  assert.ok(native.every(({ diagnostics }) => diagnostics.length === 0))
+  const styles = native.map(({ styles }) => styles).join('\n')
+  const jsx = native.map(({ jsx }) => jsx).join('\n')
+  assert.match(styles, /fontWeight: '700'/)
+  assert.match(jsx, /cursorColor=\{'#123456'\}/)
+  assert.match(jsx, /numberOfLines=\{1\}/)
+  assert.match(jsx, /ellipsizeMode="clip"/)
+  assert.equal((jsx.match(/ellipsizeMode="clip"/g) ?? []).length, 1)
+  assert.doesNotMatch(jsx, /stylex\.props/)
 })
 
 test('unsupported values inside the Web-only lanes stay with official StyleX', () => {

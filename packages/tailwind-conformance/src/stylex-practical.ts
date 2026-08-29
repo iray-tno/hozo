@@ -73,7 +73,9 @@ function sourceFor({ property, value }: StylexValueCase): string {
     'textDecorationLine', 'textIndent', 'whiteSpace', 'textOverflow', 'wordBreak',
     'overflowWrap',
   ])
-  const component = textProperties.has(property)
+  const component = property === 'caretColor'
+    ? 'TextInput'
+    : textProperties.has(property)
     ? 'Text'
     : property.startsWith('transition')
       ? 'Pressable'
@@ -82,11 +84,15 @@ function sourceFor({ property, value }: StylexValueCase): string {
     ? "display: 'grid', "
     : property === 'transitionDuration'
       ? "transitionProperty: 'opacity', "
+      : property === 'textOverflow'
+        ? "whiteSpace: 'nowrap', "
       : property === 'lineHeight'
         ? 'fontSize: 16, '
         : ''
   const props = component === 'Pressable'
     ? ' accessibilityRole="button" className="opacity-100 hover:opacity-50"'
+    : component === 'TextInput'
+      ? ' accessibilityLabel="Field"'
     : ''
   return `import * as stylex from '@stylexjs/stylex'
 import { ${component} } from '@hozo/core'
