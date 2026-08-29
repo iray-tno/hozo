@@ -628,8 +628,31 @@ pub struct StylexResidual {
 pub struct StylexResidualArgument {
     /// Full object-property source spans, including each key and value.
     pub properties: Vec<ExprRef>,
-    /// The left side of `condition && styles.rule`, when present.
-    pub condition: Option<ExprRef>,
+    /// The condition selecting this argument, including nested array and
+    /// ternary guards. Leaves remain source spans so the official StyleX
+    /// transform receives the author's expression rather than a reparse.
+    pub condition: Option<ConditionExpr>,
+}
+
+fn render_stylex_condition(source: &str, condition: &ConditionExpr) -> String {
+    match condition {
+        ConditionExpr::Static(value) => value.to_string(),
+        ConditionExpr::Ref(reference) => source
+            .get(reference.0.start as usize..reference.0.end as usize)
+            .unwrap_or("false")
+            .to_string(),
+        ConditionExpr::Not(inner) => format!("!({})", render_stylex_condition(source, inner)),
+        ConditionExpr::And(left, right) => format!(
+            "({}) && ({})",
+            render_stylex_condition(source, left),
+            render_stylex_condition(source, right)
+        ),
+        ConditionExpr::Or(left, right) => format!(
+            "({}) || ({})",
+            render_stylex_condition(source, left),
+            render_stylex_condition(source, right)
+        ),
+    }
 }
 
 impl StylexResidual {
@@ -656,10 +679,8 @@ impl StylexResidual {
                     "{}.create({{ {key}: {{ {properties} }} }}).{key}",
                     self.namespace
                 );
-                argument.condition.map_or(style.clone(), |condition| {
-                    let condition = source
-                        .get(condition.0.start as usize..condition.0.end as usize)
-                        .unwrap_or("false");
+                argument.condition.as_ref().map_or(style.clone(), |condition| {
+                    let condition = render_stylex_condition(source, condition);
                     format!("({condition}) && {style}")
                 })
             })
