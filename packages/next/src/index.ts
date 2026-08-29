@@ -124,7 +124,12 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
   // runs synchronously. The loader rewrites the file with the real theme
   // before any module that imports it is compiled, and an empty file here
   // is what makes the import resolve at all.
-  writeFileIfChanged(candidateCssPath, project.cache.renderCss(undefined))
+  // No order, for the same reason there is no theme here: both need the
+  // project's design system, which cannot be built synchronously, and
+  // this runs while `next.config.ts` is being evaluated. The loader
+  // rewrites the file with both before any module that imports it is
+  // compiled.
+  writeFileIfChanged(candidateCssPath, project.cache.renderCss(undefined, undefined))
   // And the base layer beside it, on the same terms and for the same
   // reason: it has to be on disk before the first module imports it.
   // Empty when the project uses no Tailwind classes, so the import stays

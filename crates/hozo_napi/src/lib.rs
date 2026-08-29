@@ -448,9 +448,43 @@ impl CandidateCache {
     /// The stylesheet for every candidate in the project, written under the
     /// classes' real Tailwind names so a runtime-produced string matches by
     /// itself -- no runtime resolution code involved.
+    ///
+    /// `order` is the same candidates in the order Tailwind would write
+    /// them, from `@hozo/tailwind`'s `loadClassOrder`.
+    ///
+    /// Every utility here is a single class, so they all carry the same
+    /// specificity and the order they are written in *is* the cascade.
+    /// `union` is alphabetical -- for byte-identical output between builds,
+    /// which is still wanted -- and alphabetical puts `2xl:` first and
+    /// `sm:` after `md:`, so `hidden sm:block md:hidden` stayed visible
+    /// past `md`.
+    ///
+    /// Taken as a hint rather than as the list to render: what is rendered
+    /// is still this cache's own union, sorted by position in `order`, so
+    /// a caller that passes a stale or partial list gets a complete
+    /// stylesheet in a worse order rather than a missing rule. Omitted --
+    /// which `@hozo/next` does while the config is still being evaluated,
+    /// for the same reason it passes no theme there -- keeps the
+    /// alphabetical order.
     #[napi]
-    pub fn render_css(&self, theme: Option<JsTheme>) -> String {
-        hozo_web::render_candidate_stylesheet(&self.inner.union(), &to_theme(theme))
+    pub fn render_css(&self, theme: Option<JsTheme>, order: Option<Vec<String>>) -> String {
+        let mut names = self.inner.union();
+        if let Some(order) = order {
+            let rank: std::collections::HashMap<&str, usize> =
+                order.iter().enumerate().map(|(index, name)| (name.as_str(), index)).collect();
+            // Unranked names keep their alphabetical order among themselves
+            // and go last, which is where Tailwind puts what it does not
+            // recognise.
+            names.sort_by_key(|name| rank.get(name.as_str()).copied().unwrap_or(usize::MAX));
+        }
+        hozo_web::render_candidate_stylesheet(&names, &to_theme(theme))
+    }
+
+    /// Every candidate this cache holds, so a caller can ask Tailwind what
+    /// order to write them in and hand it back to `render_css`.
+    #[napi]
+    pub fn candidates(&self) -> Vec<String> {
+        self.inner.union()
     }
 
     /// The React Native counterpart of `renderCss`: a JS module holding a

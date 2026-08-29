@@ -5,9 +5,10 @@
 // Tailwind what the project's theme is.
 
 export { preflightCss } from './preflight.ts'
-export { loadTheme, toHex, type Theme, type ThemeColor } from './theme.ts'
+export { loadClassOrder, loadTheme, toHex, type Theme, type ThemeColor } from './theme.ts'
 export {
   DEFAULT_CSS_FILES,
+  loadProjectClassOrder,
   loadProjectTheme,
   type ProjectThemeOptions,
 } from './project.ts'

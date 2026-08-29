@@ -42,6 +42,77 @@ export interface Theme {
 const toRgb = converter('rgb')
 
 /**
+ * One design system per stylesheet, because two callers want it now.
+ *
+ * Building it reads and runs the project's Tailwind entry -- not free, and
+ * the same answer every time for the same input. The theme and the class
+ * order are two questions about one object.
+ */
+const designSystems = new Map<string, Promise<Awaited<ReturnType<typeof __unstable__loadDesignSystem>>>>()
+
+function designSystemFor(css: string, base: string) {
+  const key = `${base}\u0000${css}`
+  let pending = designSystems.get(key)
+  if (!pending) {
+    pending = __unstable__loadDesignSystem(css, {
+      base,
+      loadStylesheet: async (id: string, from: string) => {
+        // `tailwindcss` itself resolves to the installed package; everything
+        // else is a path relative to the importer.
+        const file =
+          id === 'tailwindcss'
+            ? path.join(tailwindPackageDir(), 'index.css')
+            : path.resolve(path.dirname(from), id)
+        return { path: file, base: path.dirname(file), content: readFileSync(file, 'utf8') }
+      },
+    })
+    designSystems.set(key, pending)
+  }
+  return pending
+}
+
+/**
+ * `candidates`, in the order Tailwind would emit them.
+ *
+ * Every utility in the candidate stylesheet is a single class, so they all
+ * carry the same specificity and the order they are written in *is* the
+ * cascade. A sorted candidate set is alphabetical, which puts `2xl:` first
+ * and `sm:` after `md:` -- so `className="hidden sm:block md:hidden"`
+ * stayed visible past `md`, which is the most ordinary responsive idiom
+ * there is.
+ *
+ * Asked rather than reproduced, for the same reason the theme is. The
+ * order is not only about breakpoints: `flex` precedes `p-4`, and
+ * `hover:` precedes `sm:`. Reproducing it in Rust would mean copying
+ * Tailwind's whole utility registration order and then keeping the copy
+ * honest.
+ *
+ * A candidate Tailwind gives no position -- the scan is expected to turn
+ * up tokens that only looked like classes -- keeps its place relative to
+ * the others and goes last.
+ */
+export async function loadClassOrder(
+  css: string,
+  base: string,
+  candidates: readonly string[],
+): Promise<string[]> {
+  const design = await designSystemFor(css, base)
+  const order = new Map(design.getClassOrder([...candidates]))
+  // `bigint`, which is Tailwind's own key and wider than a `number` can
+  // hold: the variant chain is packed into the high bits. Subtracting them
+  // would be a `bigint` where `sort` wants a `number`, and narrowing one
+  // would collapse exactly the bits that carry the variant.
+  const rank = (name: string) => order.get(name) ?? null
+  return [...candidates].sort((a, b) => {
+    const left = rank(a)
+    const right = rank(b)
+    if (left === null) return right === null ? 0 : 1
+    if (right === null) return -1
+    return left < right ? -1 : left > right ? 1 : 0
+  })
+}
+
+/**
  * Loads the theme a stylesheet defines.
  *
  * `css` is the project's entry stylesheet -- the file with
@@ -50,18 +121,7 @@ const toRgb = converter('rgb')
  * ordinary setup.
  */
 export async function loadTheme(css: string, base: string): Promise<Theme> {
-  const design = await __unstable__loadDesignSystem(css, {
-    base,
-    loadStylesheet: async (id: string, from: string) => {
-      // `tailwindcss` itself resolves to the installed package; everything
-      // else is a path relative to the importer.
-      const file =
-        id === 'tailwindcss'
-          ? path.join(tailwindPackageDir(), 'index.css')
-          : path.resolve(path.dirname(from), id)
-      return { path: file, base: path.dirname(file), content: readFileSync(file, 'utf8') }
-    },
-  })
+  const design = await designSystemFor(css, base)
 
   const colors: ThemeColor[] = []
   for (const [name, value] of design.theme.entries()) {
