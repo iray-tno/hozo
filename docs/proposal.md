@@ -962,6 +962,14 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
+最初の実行可能scorecardでは、代表value 34/49 (69.4%)、一般的なauthoring
+construct 5/14 (35.7%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
+持たせた宣言38/49 (77.6%)、silent failure 0となった。valueはHozo Webが公式
+StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
+refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
+coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
+隠さない。
+
 Web-only の最初の 20 名は、appearance、color-scheme、image-rendering、
 overflow/overscroll、print-color-adjust、resize、scroll snap、scrollbar、
 text-rendering、touch-action の closed-keyword longhand である。共通 IR 上でも
