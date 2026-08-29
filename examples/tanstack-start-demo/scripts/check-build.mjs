@@ -30,7 +30,7 @@ if (!output.includes('background-color')) {
 if (
   !compiledRoute?.includes('"h1"') ||
   !compiledRoute.includes('"button"') ||
-  !compiledRoute.includes('hozo-r0-')
+  !/\bhozo-[a-z0-9]+-r\d+-\d+\b/.test(compiledRoute)
 ) {
   throw new Error('TanStack Start server output is missing semantic Hozo lowering')
 }

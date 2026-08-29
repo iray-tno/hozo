@@ -7,6 +7,9 @@ import stylexPlugin from '@stylexjs/babel-plugin'
 import { createCompiler } from './index.ts'
 import { lowerModule } from './lower.ts'
 
+/** Every test names its files relative to this, as a project does. */
+const ROOT = ''
+
 const filename = '/app/Card.tsx'
 const compiler = createCompiler()
 const source = `import * as stylex from '@stylexjs/stylex'
@@ -40,7 +43,7 @@ test('StyleX before Hozo cannot preserve JSX last-wins styling semantics', () =>
   const stylexFirst = officialStylex(source)
   assert.match(stylexFirst, /className="p-4" className="[^" ]+"/)
 
-  const hozoSecond = lowerModule(stylexFirst, filename, filename, compiler)
+  const hozoSecond = lowerModule(stylexFirst, filename, filename, compiler, ROOT)
   assert.ok(hozoSecond)
 
   // The source JSX says the second className replaces the first. Once both
@@ -49,18 +52,18 @@ test('StyleX before Hozo cannot preserve JSX last-wins styling semantics', () =>
   // is therefore deterministic but not the program React would have rendered
   // without Hozo.
   assert.match(hozoSecond.css, /padding-top: 16px/)
-  assert.match(hozoSecond.code, /className="hozo-view hozo-r0-0 [^" ]+"/)
+  assert.match(hozoSecond.code, /className="hozo-view hozo-[a-z0-9]+-r0-0 [^" ]+"/)
 })
 
 test('Hozo before StyleX consumes the spread and is the safe ordering', () => {
-  const hozoFirst = lowerModule(source, filename, filename, compiler)
+  const hozoFirst = lowerModule(source, filename, filename, compiler, ROOT)
   assert.ok(hozoFirst)
   const stylexSecond = officialStylex(hozoFirst.code)
 
   // Hozo reads the same-file static StyleX value into IR and removes the
   // spread from its JSX. The official compiler then sees an unused create,
   // eliminates it, and has no second className left to overwrite Hozo.
-  assert.match(stylexSecond, /className="hozo-view hozo-r0-0"/)
+  assert.match(stylexSecond, /className="hozo-view hozo-[a-z0-9]+-r0-0"/)
   assert.doesNotMatch(stylexSecond, /stylex\.props|className="[^"]+" className=/)
   assert.match(hozoFirst.css, /padding-top: 16px/)
   assert.match(hozoFirst.css, /color: red/)
@@ -76,7 +79,7 @@ const styles = stylex.create({
 
 export const Card = () => <View {...stylex.props(styles.root)} />
 `
-  const hozoFirst = lowerModule(mixed, filename, filename, compiler)
+  const hozoFirst = lowerModule(mixed, filename, filename, compiler, ROOT)
   assert.ok(hozoFirst)
   assert.match(hozoFirst.css, /padding-top: 16px/)
   assert.match(hozoFirst.code, /__hozo0: \{ scrollbarColor: 'red blue' \}/)

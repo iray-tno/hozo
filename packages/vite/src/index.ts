@@ -173,7 +173,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
       }
 
       if (!file) return
-      const lowered = lowerModule(code, id, file, compiler)
+      const lowered = lowerModule(code, id, file, compiler, root)
       if (!lowered) return
 
       // Shared with Metro and Next, which is new: this warned on
