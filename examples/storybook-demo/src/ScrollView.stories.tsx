@@ -46,7 +46,14 @@ function ScrollViewGallery() {
         <Text className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Vertical, named
         </Text>
+        {/* `role` and not only `accessibilityLabel`. A bare `div` is
+            `generic`, and `generic` prohibits an accessible name -- so the
+            same source would announce as "Compiler stages" on a device and
+            as nothing at all in a browser. The compiler reports that as
+            `ARIA_NAME_PROHIBITED`, and it reported it about this story
+            until the role was added. */}
         <ScrollView
+          role="region"
           accessibilityLabel="Compiler stages"
           className="h-40 rounded-xl border border-slate-200 p-3"
         >
@@ -70,6 +77,7 @@ function ScrollViewGallery() {
             than one `showsScrollIndicator`. */}
         <ScrollView
           horizontal
+          role="region"
           accessibilityLabel="Backends"
           className="rounded-xl border border-slate-200 p-3"
         >
@@ -88,9 +96,9 @@ function ScrollViewGallery() {
           Unnamed — the compiler says so
         </Text>
         <Paragraph className="text-xs text-slate-500">
-          No <Text className="font-mono">accessibilityLabel</Text>. A screen
-          reader announces "scroll area" and nothing else, and the build
-          reports it.
+          No <Text className="font-mono">role</Text> and no{' '}
+          <Text className="font-mono">accessibilityLabel</Text>. A screen
+          reader announces "scroll area" and nothing else.
         </Paragraph>
         <ScrollView className="h-24 rounded-xl border border-dashed border-amber-300 p-3">
           <Paragraph className="text-xs text-slate-500">

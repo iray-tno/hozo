@@ -23,9 +23,9 @@ function BreakpointIndicator() {
     <View className="flex flex-row flex-wrap gap-2">
       <Text className={`${CHIP} bg-slate-900 text-white sm:hidden`}>base &lt; 40rem</Text>
       <Text className={`${CHIP} hidden bg-rose-600 text-white sm:block md:hidden`}>sm</Text>
-      <Text className={`${CHIP} hidden bg-amber-600 text-white md:block lg:hidden`}>md</Text>
-      <Text className={`${CHIP} hidden bg-emerald-600 text-white lg:block xl:hidden`}>lg</Text>
-      <Text className={`${CHIP} hidden bg-sky-600 text-white xl:block 2xl:hidden`}>xl</Text>
+      <Text className={`${CHIP} hidden bg-amber-700 text-white md:block lg:hidden`}>md</Text>
+      <Text className={`${CHIP} hidden bg-emerald-700 text-white lg:block xl:hidden`}>lg</Text>
+      <Text className={`${CHIP} hidden bg-sky-700 text-white xl:block 2xl:hidden`}>xl</Text>
       <Text className={`${CHIP} hidden bg-indigo-600 text-white 2xl:block`}>2xl &ge; 96rem</Text>
     </View>
   )

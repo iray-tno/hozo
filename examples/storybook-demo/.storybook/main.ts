@@ -7,7 +7,7 @@ const config: StorybookConfig = {
   // breakpoint is a fact about the window, and the only way to see one is
   // to change it. Storybook 10 ships it in core, so this costs no
   // dependency.
-  addons: ['storybook/viewport', '@hozo/storybook'],
+  addons: ['storybook/viewport', '@storybook/addon-a11y', '@hozo/storybook'],
   typescript: {
     reactDocgen: false,
   },
