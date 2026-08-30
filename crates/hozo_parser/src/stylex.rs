@@ -1,7 +1,7 @@
 //! Static StyleX frontend.
 //!
 //! This reads one useful vertical slice rather than impersonating the full
-//! StyleX compiler: same-file namespace imports, `stylex.create({ ... })`,
+//! StyleX compiler: project-registered and same-file `stylex.create({ ... })`,
 //! local unthemeable `stylex.defineVars`, statically called function styles,
 //! and `stylex.props(styles.base, condition && styles.active)`. Values become the
 //! typed `StyleProperty` variants the Tailwind frontend already produces, so
@@ -29,7 +29,7 @@ use oxc_ast_visit::{
     Visit,
 };
 use oxc_span::{GetSpan, Span};
-use oxc_syntax::module_record::{ExportExportName, ModuleRecord};
+use oxc_syntax::module_record::{ExportExportName, ImportImportName, ModuleRecord};
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::tailwind;
@@ -60,7 +60,7 @@ enum Rule {
 /// Deliberately owns names rather than AST nodes. A bundler can cache this
 /// after the parser allocator is gone, then key the next slice's parsed-rule
 /// cache by the defining source's content hash without retaining a source
-/// tree per module.
+/// tree per consumer.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ModuleExportSummary {
     pub exported: String,
@@ -96,6 +96,79 @@ pub enum ModuleMemberStatus {
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct ModuleSummary {
     pub exports: Vec<ModuleExportSummary>,
+}
+
+/// One imported StyleX binding resolved by the bundler's project graph.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ExternalBinding {
+    pub specifier: String,
+    pub module_id: String,
+}
+
+#[derive(Default)]
+struct RegisteredModule {
+    content_hash: String,
+    sheets: HashMap<String, HashMap<String, Rule>>,
+}
+
+/// Parsed exported sheets shared by every compilation in one project.
+///
+/// The bundler remains responsible for filesystem resolution. This layer
+/// owns the expensive source parse and the typed rules, keyed by the source
+/// hash already maintained by the project scan.
+#[derive(Default)]
+pub struct ModuleRegistry {
+    modules: HashMap<String, RegisteredModule>,
+}
+
+impl ModuleRegistry {
+    pub fn replace(&mut self, modules: &[(String, String, String)]) {
+        let retained = modules.iter().map(|(id, _, _)| id.clone()).collect::<HashSet<_>>();
+        self.modules.retain(|id, _| retained.contains(id));
+        for (id, content_hash, source) in modules {
+            if self.modules.get(id).is_some_and(|module| module.content_hash == *content_hash) {
+                continue;
+            }
+            let allocator = oxc_allocator::Allocator::default();
+            let source_type = oxc_span::SourceType::from_extension("tsx")
+                .expect("\"tsx\" is a known extension");
+            let parsed = oxc_parser::Parser::new(&allocator, source, source_type).parse();
+            let frontend = Frontend::collect(&parsed.program, &parsed.module_record);
+            self.modules.insert(
+                id.clone(),
+                RegisteredModule {
+                    content_hash: content_hash.clone(),
+                    sheets: frontend.exported_static_sheets(&parsed.module_record),
+                },
+            );
+        }
+    }
+
+    pub(crate) fn attach(
+        &self,
+        frontend: &mut Frontend,
+        module_record: &ModuleRecord,
+        bindings: &[ExternalBinding],
+    ) {
+        for binding in bindings {
+            let Some(module) = self.modules.get(&binding.module_id) else {
+                continue;
+            };
+            for entry in module_record.import_entries.iter().filter(|entry| {
+                !entry.is_type && entry.module_request.name.as_str() == binding.specifier
+            }) {
+                let imported = match &entry.import_name {
+                    ImportImportName::Name(name) => name.name.as_str(),
+                    ImportImportName::Default(_) => "default",
+                    ImportImportName::NamespaceObject => continue,
+                };
+                let Some(rules) = module.sheets.get(imported) else {
+                    continue;
+                };
+                frontend.sheets.insert(entry.local_name.name.to_string(), rules.clone());
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -2494,6 +2567,29 @@ impl<'a> Visit<'a> for SheetCollector<'_, 'a> {
     }
 }
 
+fn export_aliases(module: &ModuleRecord) -> HashMap<String, Vec<String>> {
+    let mut aliases: HashMap<String, Vec<String>> = HashMap::new();
+    for entry in &module.local_export_entries {
+        if entry.is_type {
+            continue;
+        }
+        let Some(local) = entry.local_name.name() else {
+            continue;
+        };
+        let exported = match &entry.export_name {
+            ExportExportName::Name(name) => name.name.to_string(),
+            ExportExportName::Default(_) => "default".to_string(),
+            ExportExportName::Null => continue,
+        };
+        aliases.entry(local.to_string()).or_default().push(exported);
+    }
+    for names in aliases.values_mut() {
+        names.sort();
+        names.dedup();
+    }
+    aliases
+}
+
 impl Frontend {
     pub(crate) fn collect<'a>(
         program: &oxc_ast::ast::Program<'a>,
@@ -2537,25 +2633,7 @@ impl Frontend {
         program: &oxc_ast::ast::Program,
         module: &ModuleRecord,
     ) -> ModuleSummary {
-        let mut aliases: HashMap<String, Vec<String>> = HashMap::new();
-        for entry in &module.local_export_entries {
-            if entry.is_type {
-                continue;
-            }
-            let Some(local) = entry.local_name.name() else {
-                continue;
-            };
-            let exported = match &entry.export_name {
-                ExportExportName::Name(name) => name.name.to_string(),
-                ExportExportName::Default(_) => "default".to_string(),
-                ExportExportName::Null => continue,
-            };
-            aliases.entry(local.to_string()).or_default().push(exported);
-        }
-        for names in aliases.values_mut() {
-            names.sort();
-            names.dedup();
-        }
+        let aliases = export_aliases(module);
 
         let mut exports = Vec::new();
         for (local, rules) in &self.sheets {
@@ -2611,6 +2689,37 @@ impl Frontend {
         ModuleSummary { exports }
     }
 
+    fn exported_static_sheets(
+        &self,
+        module: &ModuleRecord,
+    ) -> HashMap<String, HashMap<String, Rule>> {
+        let aliases = export_aliases(module);
+        let mut exports = HashMap::new();
+        for (local, rules) in &self.sheets {
+            let Some(exported_names) = aliases.get(local) else {
+                continue;
+            };
+            let static_rules = rules
+                .iter()
+                .filter_map(|(name, rule)| match rule {
+                    Rule::Ready { residual, gaps, .. }
+                        if residual.is_empty() && gaps.is_empty() =>
+                    {
+                        Some((name.clone(), rule.clone()))
+                    }
+                    _ => None,
+                })
+                .collect::<HashMap<_, _>>();
+            if static_rules.is_empty() {
+                continue;
+            }
+            for exported in exported_names {
+                exports.insert(exported.clone(), static_rules.clone());
+            }
+        }
+        exports
+    }
+
     fn props_namespace<'a>(&self, call: &'a CallExpression) -> Option<&'a str> {
         let Expression::StaticMemberExpression(member) = &call.callee else {
             return None;
@@ -2635,7 +2744,7 @@ impl Frontend {
         let Some(rules) = self.sheets.get(sheet.name.as_str()) else {
             return Err(Gap {
                 message: format!(
-                    "StyleX sheet `{}` is not a same-file module-scope static `stylex.create` binding.",
+                    "StyleX sheet `{}` is not a registered or same-file module-scope static `stylex.create` binding.",
                     sheet.name
                 ),
                 span: source_span(member.span),

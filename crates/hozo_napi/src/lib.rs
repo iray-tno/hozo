@@ -141,6 +141,32 @@ pub struct StylexModuleSummary {
     pub exports: Vec<StylexModuleExportSummary>,
 }
 
+#[napi(object)]
+pub struct StylexModuleSource {
+    pub id: String,
+    pub content_hash: String,
+    pub source: String,
+}
+
+#[napi(object)]
+pub struct StylexExternalBinding {
+    pub specifier: String,
+    pub module_id: String,
+}
+
+fn external_bindings(
+    bindings: Option<Vec<StylexExternalBinding>>,
+) -> Vec<hozo_parser::StylexExternalBinding> {
+    bindings
+        .unwrap_or_default()
+        .into_iter()
+        .map(|binding| hozo_parser::StylexExternalBinding {
+            specifier: binding.specifier,
+            module_id: binding.module_id,
+        })
+        .collect()
+}
+
 /// Cacheable exported StyleX facts from one source module.
 ///
 /// Analysis is separate from lowering so every bundler can build the same
@@ -350,15 +376,21 @@ fn parser_diagnostics_for(
 /// output. Returns one `CompiledComponent` per root found, in source order.
 #[napi]
 pub fn compile(source: String) -> Vec<CompiledComponent> {
-    lower_web(&source, &hozo_ir::Theme::default(), None)
+    lower_web(&source, &hozo_ir::Theme::default(), None, None)
 }
 
 fn lower_web(
     source: &str,
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
+    stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
 ) -> Vec<CompiledComponent> {
-    let parsed = hozo_parser::parse_tsx_with(source, sources);
+    let parsed = match stylex {
+        Some((registry, bindings)) => {
+            hozo_parser::parse_tsx_with_stylex(source, sources, Some(registry), bindings)
+        }
+        None => hozo_parser::parse_tsx_with(source, sources),
+    };
     let offsets = Utf16Offsets::new(source);
     parsed
         .roots
@@ -409,30 +441,65 @@ pub struct Compiler {
     /// wants; it is per-project, not per-file, which is the other reason it
     /// belongs here.
     sources: Option<Vec<String>>,
+    stylex: hozo_parser::StylexModuleRegistry,
 }
 
 #[napi]
 impl Compiler {
     #[napi(constructor)]
     pub fn new(theme: Option<JsTheme>, sources: Option<Vec<String>>) -> Self {
-        Compiler { theme: to_theme(theme), sources }
+        Compiler { theme: to_theme(theme), sources, stylex: Default::default() }
     }
 
     #[napi]
-    pub fn compile(&self, source: String) -> Vec<CompiledComponent> {
-        lower_web(&source, &self.theme, self.sources.as_deref())
+    pub fn compile(
+        &self,
+        source: String,
+        bindings: Option<Vec<StylexExternalBinding>>,
+    ) -> Vec<CompiledComponent> {
+        let bindings = external_bindings(bindings);
+        lower_web(
+            &source,
+            &self.theme,
+            self.sources.as_deref(),
+            Some((&self.stylex, &bindings)),
+        )
     }
 
     #[napi]
-    pub fn compile_native(&self, source: String) -> Vec<CompiledNativeComponent> {
-        lower_native(&source, &self.theme, self.sources.as_deref())
+    pub fn compile_native(
+        &self,
+        source: String,
+        bindings: Option<Vec<StylexExternalBinding>>,
+    ) -> Vec<CompiledNativeComponent> {
+        let bindings = external_bindings(bindings);
+        lower_native(&source, &self.theme, self.sources.as_deref(), Some((&self.stylex, &bindings)))
     }
 
     /// Native output plus module metadata collected by the same TSX parse.
     /// Metro needs both to rewrite imports without reparsing the file.
     #[napi]
-    pub fn compile_native_module(&self, source: String) -> CompiledNativeModule {
-        lower_native_module(&source, &self.theme, self.sources.as_deref())
+    pub fn compile_native_module(
+        &self,
+        source: String,
+        bindings: Option<Vec<StylexExternalBinding>>,
+    ) -> CompiledNativeModule {
+        let bindings = external_bindings(bindings);
+        lower_native_module(
+            &source,
+            &self.theme,
+            self.sources.as_deref(),
+            Some((&self.stylex, &bindings)),
+        )
+    }
+
+    #[napi]
+    pub fn set_stylex_modules(&mut self, modules: Vec<StylexModuleSource>) {
+        let modules = modules
+            .into_iter()
+            .map(|module| (module.id, module.content_hash, module.source))
+            .collect::<Vec<_>>();
+        self.stylex.replace(&modules);
     }
 
     #[napi]
@@ -628,15 +695,21 @@ pub struct CompiledNativeModule {
 /// aren't wired into the rendered `style` prop yet).
 #[napi]
 pub fn compile_native(source: String) -> Vec<CompiledNativeComponent> {
-    lower_native(&source, &hozo_ir::Theme::default(), None)
+    lower_native(&source, &hozo_ir::Theme::default(), None, None)
 }
 
 fn lower_native(
     source: &str,
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
+    stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
 ) -> Vec<CompiledNativeComponent> {
-    let parsed = hozo_parser::parse_tsx_with(source, sources);
+    let parsed = match stylex {
+        Some((registry, bindings)) => {
+            hozo_parser::parse_tsx_with_stylex(source, sources, Some(registry), bindings)
+        }
+        None => hozo_parser::parse_tsx_with(source, sources),
+    };
     lower_native_components(source, theme, &parsed)
 }
 
@@ -644,8 +717,14 @@ fn lower_native_module(
     source: &str,
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
+    stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
 ) -> CompiledNativeModule {
-    let parsed = hozo_parser::parse_tsx_with(source, sources);
+    let parsed = match stylex {
+        Some((registry, bindings)) => {
+            hozo_parser::parse_tsx_with_stylex(source, sources, Some(registry), bindings)
+        }
+        None => hozo_parser::parse_tsx_with(source, sources),
+    };
     let components = lower_native_components(source, theme, &parsed);
     let imports = parsed
         .imports

@@ -15,6 +15,8 @@ pub use jsx::is_primitive_name;
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
 pub use scan::{resolve_class_name, scan_class_candidates, source_uses_tailwind, ScannedUtility};
 pub use stylex::{
+    ExternalBinding as StylexExternalBinding,
+    ModuleRegistry as StylexModuleRegistry,
     ModuleExportKind as StylexModuleExportKind,
     ModuleExportSummary as StylexModuleExportSummary,
     ModuleMemberStatus as StylexModuleMemberStatus,
@@ -146,9 +148,8 @@ pub fn parse_tsx(source_text: &str) -> ParseOutput {
 
 /// Exported static StyleX facts from one module, detached from its AST.
 ///
-/// This is intentionally analysis-only. Cross-file lowering consumes these
-/// facts in the next slice; exposing them separately first gives every
-/// bundler one cacheable project-graph contract instead of four resolvers.
+/// This remains useful independently of lowering: bundlers persist it to
+/// decide which modules belong in the shared parsed-rule registry.
 pub fn summarize_stylex_module(source_text: &str) -> StylexModuleSummary {
     let allocator = Allocator::default();
     let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
@@ -173,6 +174,16 @@ pub fn summarize_stylex_module(source_text: &str) -> StylexModuleSummary {
 /// becomes `Child::Verbatim` -- carried, exactly like any other component
 /// the compiler does not model -- and the tree around it compiles.
 pub fn parse_tsx_with(source_text: &str, sources: Option<&[String]>) -> ParseOutput {
+    parse_tsx_with_stylex(source_text, sources, None, &[])
+}
+
+/// Parses TSX with bundler-resolved, project-cached StyleX imports.
+pub fn parse_tsx_with_stylex(
+    source_text: &str,
+    sources: Option<&[String]>,
+    registry: Option<&StylexModuleRegistry>,
+    bindings: &[StylexExternalBinding],
+) -> ParseOutput {
     let allocator = Allocator::default();
     let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
     let ret = Parser::new(&allocator, source_text, source_type).parse();
@@ -182,7 +193,10 @@ pub fn parse_tsx_with(source_text: &str, sources: Option<&[String]>) -> ParseOut
         None => std::collections::HashSet::new(),
         Some(sources) => foreign_primitives_from_imports(&imports, sources),
     };
-    let stylex = stylex::Frontend::collect(&ret.program, &ret.module_record);
+    let mut stylex = stylex::Frontend::collect(&ret.program, &ret.module_record);
+    if let Some(registry) = registry {
+        registry.attach(&mut stylex, &ret.module_record, bindings);
+    }
     let stylex_scan_spans = stylex.scan_spans.clone();
     let scope = jsx::Scope { module_record: &ret.module_record, foreign: &foreign, stylex };
 

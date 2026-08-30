@@ -65,9 +65,13 @@ export function withHozo<T extends Record<string, unknown>>(
   // that a bare name doesn't reach.
   const loader = createRequire(import.meta.url).resolve('../loader.js')
 
-  const rule = {
+  const tsxRule = {
     loaders: [{ loader, options: loaderOptions }],
     as: '*.tsx',
+  }
+  const tsRule = {
+    loaders: [{ loader, options: loaderOptions }],
+    as: '*.ts',
   }
 
   return {
@@ -76,7 +80,11 @@ export function withHozo<T extends Record<string, unknown>>(
       ...(nextConfig.turbopack as Record<string, unknown> | undefined),
       rules: {
         ...((nextConfig.turbopack as { rules?: Record<string, unknown> } | undefined)?.rules ?? {}),
-        '*.tsx': rule,
+        '*.tsx': tsxRule,
+        // Definition-only StyleX modules must reach the loader during dev
+        // so their registry entry changes before an importing component is
+        // recompiled. `lowerModule` itself still leaves non-TSX untouched.
+        '*.ts': tsRule,
       },
     },
     webpack(config: WebpackConfig, context: unknown) {
@@ -92,7 +100,7 @@ export function withHozo<T extends Record<string, unknown>>(
       // because that module calls `useState` in a server component.
       config.module.rules.unshift({
         enforce: 'pre',
-        test: /\.tsx$/,
+        test: /\.tsx?$/,
         exclude: /node_modules/,
         use: [{ loader, options: loaderOptions }],
       })

@@ -16,6 +16,7 @@ import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
+  StylexModuleCache,
   importSpecifier,
   preflightCssFor,
   scannableFile,
@@ -30,12 +31,16 @@ function projectState(options) {
   let state = projects.get(options.root)
   if (!state) {
     const cache = openCandidateCache(path.join(options.root, CACHE_DIR, 'candidates.json'))
+    const stylexModules = new StylexModuleCache(
+      path.join(options.root, CACHE_DIR, 'stylex-modules.json'),
+    )
     const theme = loadProjectTheme(options.root, {
       css: options.css,
       warn: (message) => console.warn(`[hozo] ${message}`),
     })
     state = {
       cache,
+      stylexModules,
       // Filled in once the design system is available, which is the same
       // await the theme needs. Empty until then means alphabetical, which
       // is what `withHozo` writes synchronously anyway.
@@ -61,6 +66,7 @@ function projectState(options) {
         // only place it can be: the theme is what it needs and the theme is
         // a promise. See `createCompiler`.
         state.compiler = createCompiler(resolved, options.sources)
+        state.compiler.setStylexModules(stylexModules.moduleSources())
         return resolved
       }),
     }
@@ -111,7 +117,19 @@ export default function hozoLoader(source) {
           })
         }
 
-        const lowered = lowerModule(source, this.resourcePath, file, state.compiler, options.root)
+        if (state.stylexModules.scanFile(path.resolve(file), source, modifiedMs)) {
+          state.compiler.setStylexModules(state.stylexModules.moduleSources())
+          state.stylexModules.persist()
+        }
+
+        const lowered = lowerModule(
+          source,
+          this.resourcePath,
+          file,
+          state.compiler,
+          options.root,
+          state.stylexModules,
+        )
         if (!lowered) {
           callback(null, source)
           return

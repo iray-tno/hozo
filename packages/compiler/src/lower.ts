@@ -16,6 +16,7 @@ import path from 'node:path'
 
 import type { Compiler, CompileDiagnostic } from './index.ts'
 import { lowerCanvasPaints } from './canvas.ts'
+import type { StylexModuleCache } from './stylex-project.ts'
 
 const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
 
@@ -186,6 +187,7 @@ export function lowerModule(
   file: string,
   compiler: Compiler,
   root: string,
+  stylexModules?: StylexModuleCache,
 ): LoweredModule | undefined {
   if (!file.endsWith('.tsx')) return undefined
 
@@ -206,7 +208,10 @@ export function lowerModule(
   // Canvas edits run first because a semantic root may carry a Canvas tree
   // verbatim. Compiling the semantic span from the original source would
   // otherwise paste the old className back over the nested Canvas edit.
-  const components = hasSemanticCandidate ? compiler.compile(canvas.code) : []
+  const stylexBindings = canvas.code.includes('@stylexjs/stylex')
+    ? stylexModules?.bindingsFor(path.resolve(file))
+    : undefined
+  const components = hasSemanticCandidate ? compiler.compile(canvas.code, stylexBindings) : []
   if (components.length === 0 && !canvas.touched) return undefined
 
   let next = canvas.code

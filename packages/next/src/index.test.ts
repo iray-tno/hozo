@@ -37,6 +37,7 @@ test('registers the loader with both of Next\'s bundlers', () => {
   const rule = config.turbopack.rules['*.tsx']
   assert.equal(rule.as, '*.tsx')
   assert.match(rule.loaders[0].loader, /loader\.js$/)
+  assert.equal(config.turbopack.rules['*.ts'].as, '*.ts')
 
   const webpack = config.webpack({}, {})
   assert.match(webpack.module.rules[0].use![0].loader, /loader\.js$/)
@@ -56,7 +57,7 @@ test("the webpack rule is `pre`, which is what makes it run before SWC", () => {
   const [rule] = config.webpack({}, {}).module.rules
   assert.equal(rule.enforce, 'pre')
   assert.ok(rule.test!.test('page.tsx'))
-  assert.ok(!rule.test!.test('page.ts'))
+  assert.ok(rule.test!.test('styles.ts'))
 })
 
 test('keeps whatever the project already configured', () => {
