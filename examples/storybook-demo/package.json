@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "tsc --noEmit -p . && node scripts/build.mjs && node scripts/check-build.mjs",
-    "typecheck": "tsc --noEmit -p ."
+    "test": "tsc --noEmit -p . && node scripts/build.mjs && node scripts/check-build.mjs && node scripts/check-a11y.mjs",
+    "typecheck": "tsc --noEmit -p .",
+    "check:a11y": "node scripts/check-a11y.mjs"
   },
   "dependencies": {
     "@hozo/a11y": "workspace:*",
@@ -17,9 +18,11 @@
   },
   "devDependencies": {
     "@hozo/storybook": "workspace:*",
+    "@storybook/addon-a11y": "10.5.9",
     "@storybook/react-vite": "^10.5.9",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "axe-core": "4.13.0",
     "storybook": "^10.5.9",
     "typescript": "7.0.2",
     "vite": "^8.2.1"

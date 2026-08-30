@@ -102,7 +102,7 @@ function DeviceStateGallery() {
           <Text className="text-sm text-slate-700 print:text-black">
             Body copy, forced to black on paper.
           </Text>
-          <Text className="text-sm text-slate-400 print:hidden">
+          <Text className="text-sm text-slate-500 print:hidden">
             This line is screen-only and is dropped from the printed page.
           </Text>
         </View>
