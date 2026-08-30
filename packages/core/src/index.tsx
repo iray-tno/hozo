@@ -5,7 +5,16 @@
 // job is to make invoking these at runtime unnecessary where it can, not
 // to make them required.
 
-import { useEffect, useRef, useState, type MouseEventHandler, type ReactNode, type UIEventHandler } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type AriaRole,
+  type CSSProperties,
+  type MouseEventHandler,
+  type ReactNode,
+  type UIEventHandler,
+} from 'react'
 import { hozoInteractive } from '@hozo/runtime'
 
 import { useResponderDomProps, type ResponderProps } from './responder.ts'
@@ -31,7 +40,22 @@ export interface HozoLayoutEvent {
   nativeEvent: { layout: HozoLayoutRectangle }
 }
 
+/**
+ * An inline style carried through Hozo rather than compiled.
+ *
+ * `CSSProperties` gives Web authors useful completion. The open object
+ * half is deliberate: this is also the escape hatch for React Native
+ * values whose shapes do not exist in CSS, such as transform arrays.
+ * The compiler preserves the original expression; only the Web fallback
+ * below interprets it as a React DOM style object.
+ */
+export type HozoStyle = CSSProperties | Readonly<Record<string, unknown>>
+
 export interface UniversalProps {
+  /** Explicit ARIA/React Native role; validated by the compiler when static. */
+  role?: AriaRole
+  /** Dynamic or otherwise deliberately uncompiled inline style. */
+  style?: HozoStyle
   testID?: string
   nativeID?: string
   pointerEvents?: 'auto' | 'none' | 'box-none' | 'box-only'
@@ -75,6 +99,12 @@ function universalDomProps(props: UniversalProps) {
   const state = props.accessibilityState
   const value = props.accessibilityValue
   return {
+    role: props.role,
+    // The fallback runs on the DOM, where React expects CSSProperties.
+    // Native-shaped values are carried by the compiler and never execute
+    // this path; keeping their wider public type is what lets that source
+    // type-check before compilation.
+    style: props.style as CSSProperties | undefined,
     'data-testid': props.testID,
     id: props.nativeID,
     'data-hozo-pointer-events': props.pointerEvents,
@@ -317,20 +347,25 @@ export function ScrollView({
   const containerRef = useLayoutRef<HTMLDivElement>(onLayout)
   const handleScroll = useScrollHandler<HTMLDivElement>(onScroll, scrollEventThrottle)
   const showIndicator = horizontal ? showsHorizontalScrollIndicator : showsVerticalScrollIndicator
+  const viewportStyle: CSSProperties = horizontal
+    ? { overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: showIndicator ? 'auto' : 'none' }
+    : { overflowX: 'hidden', overflowY: 'auto', scrollbarWidth: showIndicator ? 'auto' : 'none' }
   return (
     <div
       ref={containerRef}
       className={className}
       // Spread before the three below rather than after: see the note on
       // `universalDomProps`.
-      {...universalDomProps(universal)}
+      {...universalDomProps({
+        ...universal,
+        // React Native's last style wins. Keep the viewport defaults first
+        // so the author's explicit escape hatch has the same precedence.
+        style: { ...viewportStyle, ...universal.style },
+      })}
       aria-label={accessibilityLabel}
       aria-description={accessibilityHint}
       aria-busy={refreshing || undefined}
       onScroll={handleScroll}
-      style={horizontal
-        ? { overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: showIndicator ? 'auto' : 'none' }
-        : { overflowX: 'hidden', overflowY: 'auto', scrollbarWidth: showIndicator ? 'auto' : 'none' }}
     >
       {onRefresh ? (
         <button type="button" onClick={onRefresh} disabled={refreshing}>
@@ -399,6 +434,9 @@ export function FlatList<T>({
   const endRef = useRef<HTMLDivElement>(null)
   const handleScroll = useScrollHandler<HTMLDivElement>(onScroll, scrollEventThrottle)
   const showIndicator = horizontal ? showsHorizontalScrollIndicator : showsVerticalScrollIndicator
+  const viewportStyle: CSSProperties = horizontal
+    ? { overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: showIndicator ? 'auto' : 'none' }
+    : { overflowX: 'hidden', overflowY: 'auto', scrollbarWidth: showIndicator ? 'auto' : 'none' }
 
   useEffect(() => {
     const root = containerRef.current
@@ -425,14 +463,14 @@ export function FlatList<T>({
       className={className}
       // Spread before the three below rather than after: see the note on
       // `universalDomProps`.
-      {...universalDomProps(universal)}
+      {...universalDomProps({
+        ...universal,
+        style: { ...viewportStyle, ...universal.style },
+      })}
       aria-label={accessibilityLabel}
       aria-description={accessibilityHint}
       aria-busy={refreshing || undefined}
       onScroll={handleScroll}
-      style={horizontal
-        ? { overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: showIndicator ? 'auto' : 'none' }
-        : { overflowX: 'hidden', overflowY: 'auto', scrollbarWidth: showIndicator ? 'auto' : 'none' }}
     >
       {onRefresh ? (
         <button type="button" onClick={onRefresh} disabled={refreshing}>
@@ -502,7 +540,7 @@ export function Pressable({
       // `universalDomProps` -- it names every key unconditionally, so a
       // later spread of `undefined` erases what came before it.
       {...universalDomProps(universal)}
-      role={accessibilityRole}
+      role={accessibilityRole ?? universal.role}
       // The same call the compiled path makes, so the two cannot answer
       // differently. Everything `disabled` means is in there: see
       // `@hozo/runtime`'s `interactive.ts` and docs/decisions/001.
