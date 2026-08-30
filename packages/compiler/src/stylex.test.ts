@@ -53,6 +53,48 @@ test('the same StyleX IR lowers to React Native StyleSheet entries', () => {
   assert.match(component.styles, /opacity: 0.5/)
 })
 
+test('nested StyleX media keeps its base cascade on Web and uses the viewport hook on Native', () => {
+  const mediaSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: {
+    '@media (min-width: 600px)': { padding: 24 },
+    padding: 4,
+  },
+})
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+  const official = transformSync(mediaSource, {
+    filename: '/app/NestedMedia.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as {
+    stylex?: [string, { ltr: string }, number][]
+  }
+  assert.deepEqual((metadata.stylex ?? []).map(([, , priority]) => priority), [1200, 1000])
+
+  const web = compile(mediaSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.doesNotMatch(web.jsx, /stylex\.props/)
+  assert.match(web.css, /padding-top: 4px/)
+  assert.match(web.css, /@media \(width >= 600px\)/)
+  assert.match(web.css, /padding-top: 24px/)
+  assert.ok(web.css.indexOf('padding-top: 4px') < web.css.indexOf('padding-top: 24px'))
+
+  const native = compileNative(mediaSource)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+  assert.match(native.prelude.join('\n'), /useHozoWidthAtLeast\(600\)/)
+  assert.match(native.jsx, /__hozoWidth_600 && hozoStyles\./)
+  assert.match(native.styles, /paddingTop: 4/)
+  assert.match(native.styles, /paddingTop: 24/)
+})
+
 test('unsupported StyleX remains available to the official compiler and is named', () => {
   const unsupported = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
