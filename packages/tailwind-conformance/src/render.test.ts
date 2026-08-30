@@ -132,7 +132,10 @@ test('ScrollView owns only its viewport axis while its child owns content layout
     }
   `)
   assert.match(rendered.html, /^<div class="hozo-scroll-view hozo-0" data-hozo-horizontal="">/)
-  assert.match(compiled.css, /\.hozo-scroll-view \{[\s\S]*overflow-y: auto/)
+  // The plain base is zero-specificity so a component class beats it
+  // wherever the two land; the prop-driven rule is not, because it has to
+  // beat the default it replaces. See `VIEW_BASE_CSS`.
+  assert.match(compiled.css, /:where\(\.hozo-scroll-view\) \{[\s\S]*overflow-y: auto/)
   assert.match(compiled.css, /\.hozo-scroll-view\[data-hozo-horizontal\] \{[\s\S]*overflow-x: auto/)
 })
 

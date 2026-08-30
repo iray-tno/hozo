@@ -51,7 +51,25 @@ const ARIA_STATE_ATTRS: &[(&str, &str)] = &[
 
 /// The proposal §8.1 "hozo-view" shared base style: applied to every
 /// `View`, emitted once as a shared rule rather than duplicated per node.
-const VIEW_BASE_CSS: &str = ".hozo-view { \
+///
+/// Inside `:where()`, which makes it specificity zero. A base and a
+/// component's own rule are both single classes otherwise, so which one
+/// wins is decided by which was written last -- and `lower` runs per root,
+/// so a file with two components emits this twice and the second copy
+/// outranks the first component's rules. A `View` asking for `flex-row`
+/// laid out as a column, and only for the properties this rule also sets,
+/// which reads as "flex-row does nothing" rather than as a cascade
+/// problem.
+///
+/// Zero specificity is the right answer rather than a workaround: every
+/// property here is a default a component class exists to override. It is
+/// the same reasoning that puts Preflight's element selectors below every
+/// utility.
+///
+/// The `[data-hozo-*]` bases below are deliberately *not* wrapped. Those
+/// are behaviour rather than defaults -- a disabled control has to look
+/// disabled in forced colours even if a component class says otherwise.
+const VIEW_BASE_CSS: &str = ":where(.hozo-view) { \
     display: flex;\n  \
     flex-direction: column;\n  \
     flex-shrink: 0;\n  \
@@ -60,7 +78,11 @@ const VIEW_BASE_CSS: &str = ".hozo-view { \
     box-sizing: border-box;\n\
 }\n\n";
 
-const SCROLL_VIEW_BASE_CSS: &str = ".hozo-scroll-view { \
+/// The plain rule is zero-specificity for the same reason `.hozo-view`
+/// is. The two attribute-qualified rules below it are not: they answer a
+/// prop the author set, and `[data-hozo-horizontal]` has to beat the
+/// default it is written to replace.
+const SCROLL_VIEW_BASE_CSS: &str = ":where(.hozo-scroll-view) { \
     overflow-x: hidden;\n  \
     overflow-y: auto;\n  \
     -webkit-overflow-scrolling: touch;\n\
@@ -1050,7 +1072,9 @@ export function Login() {
         assert!(output.jsx.contains("<span className=\"hozo-1\">Welcome</span>"));
         assert!(output.jsx.contains("<button className=\"hozo-2\" type=\"button\">Continue</button>"));
 
-        assert!(output.css.contains(".hozo-view {"));
+        // Zero-specificity, so a component class beats it wherever the
+        // two land relative to each other. See VIEW_BASE_CSS.
+        assert!(output.css.contains(":where(.hozo-view) {"));
         assert!(output.css.contains(".hozo-0 {"));
         assert!(output.css.contains("flex: 1 1 0%;"));
         assert!(output.css.contains("padding-top: 24px;"));
@@ -2271,5 +2295,73 @@ mod role_tests {
         );
         assert!(output.jsx.contains("<HozoDialog"), "{}", output.jsx);
         assert!(output.runtime_imports.contains(&"HozoDialog"), "{:?}", output.runtime_imports);
+    }
+}
+
+#[cfg(test)]
+mod base_specificity_tests {
+    use super::*;
+
+    /// Both components in one file, which is the shape that broke.
+    fn two_roots() -> String {
+        let source = r#"
+            import { View } from '@hozo/core'
+            export const A = () => <View className="flex flex-row gap-2" />
+            export const B = () => <View className="p-4" />
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        parsed
+            .roots
+            .iter()
+            .map(|root| lower(&root.node, source, &Theme::default()).css)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn the_shared_base_cannot_outrank_a_component_rule() {
+        // `lower` runs per root, so a file with two components emits the
+        // base twice and the second copy lands after the first component's
+        // rules. Both are single classes, so order was the whole cascade:
+        // a `View` asking for `flex-row` was laid out as a column by a rule
+        // emitted for a component it has nothing to do with.
+        //
+        // `:where()` is specificity zero, so the position stops mattering.
+        let css = two_roots();
+        assert!(css.contains(":where(.hozo-view)"), "the base is not zero-specificity: {css}");
+        assert!(
+            !css.contains("\n.hozo-view {") && !css.starts_with(".hozo-view {"),
+            "a full-specificity copy of the base survived: {css}"
+        );
+    }
+
+    #[test]
+    fn the_base_still_arrives_before_the_rules_it_defaults() {
+        // Order no longer decides the winner, but it still decides what a
+        // person reads first, and a base written after the rules it
+        // defaults is confusing to no purpose.
+        let css = two_roots();
+        let base = css.find(":where(.hozo-view)").expect("no base");
+        let rule = css.find(".hozo-0 {").expect("no component rule");
+        assert!(base < rule, "the base was written after the rule it defaults");
+    }
+
+    #[test]
+    fn a_prop_driven_rule_keeps_the_specificity_it_needs() {
+        // The `[data-hozo-*]` bases are deliberately not wrapped. A
+        // horizontal ScrollView has to beat the vertical default, and a
+        // disabled control has to look disabled in forced colours even when
+        // a component class says otherwise.
+        let source = r#"
+            import { ScrollView } from '@hozo/core'
+            export const A = () => <ScrollView horizontal className="p-4" />
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let css = lower(&parsed.roots[0].node, source, &Theme::default()).css;
+        assert!(css.contains(":where(.hozo-scroll-view) {"), "{css}");
+        assert!(
+            css.contains(".hozo-scroll-view[data-hozo-horizontal] {"),
+            "the prop-driven rule lost its specificity: {css}"
+        );
     }
 }
