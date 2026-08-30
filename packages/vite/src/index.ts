@@ -139,6 +139,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
       })
       cache = project.cache
       stylexModules = project.stylexModules
+      compiler.setStylexModules(stylexModules.moduleSources())
       includedFiles = new Set(project.files)
       candidateCssPath = path.join(project.dir, 'candidates.css')
       preflightPath = preflightCssPath(project.dir)
@@ -159,7 +160,9 @@ export function hozo(options: HozoOptions = {}): Plugin {
         const absolute = path.resolve(id)
         includedFiles.delete(absolute)
         if (cache?.forget(absolute)) writeCandidateCss()
-        stylexModules?.forget(absolute)
+        if (stylexModules?.forget(absolute)) {
+          compiler.setStylexModules(stylexModules.moduleSources())
+        }
       }
       if (change.event === 'create') {
         const absolute = path.resolve(id)
@@ -193,11 +196,13 @@ export function hozo(options: HozoOptions = {}): Plugin {
             },
           )
         }
-        stylexModules.scanFile(path.resolve(file), code, modifiedMs)
+        if (stylexModules.scanFile(path.resolve(file), code, modifiedMs)) {
+          compiler.setStylexModules(stylexModules.moduleSources())
+        }
       }
 
       if (!file) return
-      const lowered = lowerModule(code, id, file, compiler, root)
+      const lowered = lowerModule(code, id, file, compiler, root, stylexModules)
       if (!lowered) return
 
       // Shared with Metro and Next, which is new: this warned on

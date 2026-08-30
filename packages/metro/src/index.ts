@@ -13,6 +13,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { loadProjectTheme } from '@hozo/tailwind'
 import { createCompiler, type Compiler, type Theme } from '@hozo/compiler'
+import { CACHE_DIR, StylexModuleCache } from '@hozo/compiler/project'
 import { readMetroState } from './config.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { transformHozoSource } from './transform.ts'
@@ -96,19 +97,29 @@ function loadUpstream(projectRoot?: string): UpstreamTransformer {
 /// again for each one, which costs more than compiling a small file does.
 ///
 /// Keyed by root, because a monorepo can transform files from more than one.
-const compilers = new Map<string, Compiler>()
+interface CompilerState {
+  compiler: Compiler
+  stylexModules?: StylexModuleCache
+}
+
+const compilers = new Map<string, CompilerState>()
 function compilerFor(
   projectRoot: string | undefined,
   theme: Theme | undefined,
   sources: readonly string[],
-): Compiler {
+): CompilerState {
   const key = `${projectRoot ?? ''}\u0000${sources.join(',')}`
-  let compiler = compilers.get(key)
-  if (!compiler) {
-    compiler = createCompiler(theme, sources)
-    compilers.set(key, compiler)
+  let state = compilers.get(key)
+  if (!state) {
+    const compiler = createCompiler(theme, sources)
+    const stylexModules = projectRoot
+      ? new StylexModuleCache(path.join(projectRoot, CACHE_DIR, 'stylex-modules.json'))
+      : undefined
+    if (stylexModules) compiler.setStylexModules(stylexModules.moduleSources())
+    state = { compiler, stylexModules }
+    compilers.set(key, state)
   }
-  return compiler
+  return state
 }
 
 // Async because the theme comes from Tailwind's own resolver, which is
@@ -124,11 +135,17 @@ export async function transform(params: TransformParams): Promise<unknown> {
         warn: (message) => console.warn(message),
       })
     : undefined
+  const compilerState = compilerFor(
+    projectRoot,
+    theme,
+    state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
+  )
   const rewritten = transformHozoSource(
     params.src,
     params.filename,
     projectRoot,
-    compilerFor(projectRoot, theme, state?.sources ?? DEFAULT_PRIMITIVE_SOURCES),
+    compilerState.compiler,
+    compilerState.stylexModules,
   )
   const nextParams = rewritten === null ? params : { ...params, src: rewritten }
   return loadUpstream(projectRoot).transform(nextParams)

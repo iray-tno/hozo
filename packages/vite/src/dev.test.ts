@@ -123,6 +123,25 @@ test('the dev server lowers a module on request', async () => {
   assert.match(companion, /padding-top: 16px/)
 })
 
+test('the dev server lowers a static StyleX sheet imported from another file', async () => {
+  const root = project({
+    'styles.ts': `import * as stylex from '@stylexjs/stylex'
+      export const styles = stylex.create({ root: { padding: 16, backgroundColor: 'red' } })`,
+    'App.tsx': `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import { styles as cardStyles } from './styles'
+      export const App = () => <View {...stylex.props(cardStyles.root)} />`,
+  })
+  const server = await serve(root)
+
+  const result = await server.transformRequest('/App.tsx')
+  assert.ok(result)
+  assert.doesNotMatch(result.code, /stylex\.props/)
+  const companion = readFileSync(path.join(root, 'App.tsx.hozo.css'), 'utf8')
+  assert.match(companion, /padding-top: 16px/)
+  assert.match(companion, /background-color: red/)
+})
+
 test('a class only a helper produces reaches the candidate stylesheet', async () => {
   const root = project({ 'App.tsx': APP, 'accent.ts': "export const accent = () => 'bg-emerald-500'\n" })
   await serve(root)

@@ -14,6 +14,8 @@
 //   `const hozoStyles = StyleSheet.create({...})` declaration in the same
 //   file, since that's the idiomatic RN pattern.
 
+import path from 'node:path'
+
 import {
   createCompiler,
   type CompiledNativeComponent,
@@ -22,6 +24,7 @@ import {
 import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { importSpecifier } from '@hozo/compiler/project'
+import type { StylexModuleCache } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
 const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
@@ -73,6 +76,7 @@ export function transformHozoSource(
   filename: string,
   projectRoot?: string,
   compiler: Compiler = defaultCompiler(),
+  stylexModules?: StylexModuleCache,
 ): string | null {
   if (!filename.endsWith('.tsx')) {
     return null
@@ -100,7 +104,12 @@ export function transformHozoSource(
   // `moduleImports` over the rewritten source -- three public operations
   // that each parsed the whole module, even though the compiler already
   // held the module record needed to answer all three.
-  const compiled = hasSemanticCandidate ? compiler.compileNativeModule(code) : undefined
+  const stylexBindings = code.includes('@stylexjs/stylex')
+    ? stylexModules?.bindingsFor(path.resolve(filename))
+    : undefined
+  const compiled = hasSemanticCandidate
+    ? compiler.compileNativeModule(code, stylexBindings)
+    : undefined
   if (!compiled || compiled.components.length === 0) {
     return canvas.touched ? code : null
   }

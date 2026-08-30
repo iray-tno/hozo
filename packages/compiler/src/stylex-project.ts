@@ -11,7 +11,12 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { summarizeStylexModule, type StylexModuleSummary } from './index.ts'
+import {
+  summarizeStylexModule,
+  type StylexExternalBinding,
+  type StylexModuleSource,
+  type StylexModuleSummary,
+} from './index.ts'
 
 const SNAPSHOT_VERSION = 1
 
@@ -28,7 +33,7 @@ interface Snapshot {
 
 export interface CachedStylexModule {
   path: string
-  /** SHA-256 of the defining source, used as the future lowering cache key. */
+  /** SHA-256 of the defining source, used as the Rust lowering cache key. */
   contentHash: string
   summary: StylexModuleSummary
 }
@@ -60,6 +65,7 @@ export class StylexModuleCache {
   readonly #file: string
   #snapshot: Snapshot
   #dirty = false
+  #sources = new Map<string, string>()
 
   constructor(file: string) {
     this.#file = file
@@ -96,6 +102,8 @@ export class StylexModuleCache {
       return false
     }
     this.#snapshot.files[file] = next
+    if (next.summary.exports.length > 0) this.#sources.set(file, source)
+    else this.#sources.delete(file)
     this.#dirty = true
     const hadExports = (previous?.summary.exports.length ?? 0) > 0
     const hasExports = next.summary.exports.length > 0
@@ -106,6 +114,7 @@ export class StylexModuleCache {
     if (!(file in this.#snapshot.files)) return false
     const changed = this.#snapshot.files[file]!.summary.exports.length > 0
     delete this.#snapshot.files[file]
+    this.#sources.delete(file)
     this.#dirty = true
     return changed
   }
@@ -137,6 +146,44 @@ export class StylexModuleCache {
 
   get size(): number {
     return this.modules().length
+  }
+
+  /** Sources registered once in Rust, where their typed rules are cached. */
+  moduleSources(): StylexModuleSource[] {
+    return this.modules().map((module) => ({
+      id: module.path,
+      contentHash: module.contentHash,
+      source: this.#sources.get(module.path) ?? readFileSync(module.path, 'utf8'),
+    }))
+  }
+
+  /**
+   * Relative ESM spellings that can name each indexed StyleX module.
+   *
+   * The Rust parser matches these against real import entries, so emitting
+   * an unused spelling is harmless. Package aliases remain deliberately out
+   * of this first slice because resolving them belongs to the bundler.
+   */
+  bindingsFor(importer: string): StylexExternalBinding[] {
+    const bindings: StylexExternalBinding[] = []
+    for (const module of this.modules()) {
+      if (module.path === importer) continue
+      let relative = path.relative(path.dirname(importer), module.path).replaceAll('\\', '/')
+      if (!relative.startsWith('.')) relative = `./${relative}`
+      const extension = path.posix.extname(relative)
+      const withoutExtension = extension ? relative.slice(0, -extension.length) : relative
+      const spellings = new Set([relative, withoutExtension])
+      if (/\/index$/.test(withoutExtension)) {
+        spellings.add(withoutExtension.slice(0, -'/index'.length) || '.')
+      }
+      if (['.ts', '.tsx', '.mts'].includes(extension)) {
+        spellings.add(`${withoutExtension}.js`)
+      }
+      for (const specifier of spellings) {
+        bindings.push({ specifier, moduleId: module.path })
+      }
+    }
+    return bindings
   }
 
   persist(): void {

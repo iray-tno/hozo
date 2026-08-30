@@ -100,6 +100,12 @@ test('the project scan persists exported StyleX module summaries', () => {
         ],
       },
     ])
+    assert.ok(
+      first.stylexModules
+        .bindingsFor(path.join(root, 'src', 'Card.tsx'))
+        .some((binding) => binding.specifier === './styles' && binding.moduleId === styles),
+    )
+    assert.equal(first.stylexModules.moduleSources()[0]?.source.includes('stylex.create'), true)
 
     const warm = scanProject(root)
     assert.equal(warm.stats.scannedFiles, 0)

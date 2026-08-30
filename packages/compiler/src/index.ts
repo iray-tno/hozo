@@ -86,6 +86,18 @@ export interface StylexModuleSummary {
   exports: StylexModuleExportSummary[]
 }
 
+export interface StylexModuleSource {
+  id: string
+  contentHash: string
+  source: string
+}
+
+/** One module specifier resolved to a source already registered in Rust. */
+export interface StylexExternalBinding {
+  specifier: string
+  moduleId: string
+}
+
 /** Native output and source metadata produced by one TSX parser pass. */
 export interface CompiledNativeModule {
   components: CompiledNativeComponent[]
@@ -170,9 +182,10 @@ interface NativeBinding {
 /// The napi class itself. It knows nothing about `sources` beyond having
 /// been handed them; `createCompiler` is what makes them readable back.
 interface NativeCompiler {
-  compile(source: string): CompiledComponent[]
-  compileNative(source: string): CompiledNativeComponent[]
-  compileNativeModule(source: string): CompiledNativeModule
+  compile(source: string, bindings?: StylexExternalBinding[]): CompiledComponent[]
+  compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
+  compileNativeModule(source: string, bindings?: StylexExternalBinding[]): CompiledNativeModule
+  setStylexModules(modules: StylexModuleSource[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
 }
 
@@ -218,14 +231,16 @@ export interface Theme {
  * against a project's own requires holding one of these.
  */
 export interface Compiler {
-  compile(source: string): CompiledComponent[]
-  compileNative(source: string): CompiledNativeComponent[]
+  compile(source: string, bindings?: StylexExternalBinding[]): CompiledComponent[]
+  compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
   /**
    * Native lowering plus source imports and foreign primitive bindings from
    * that same parse. Bundler integrations should prefer this over reparsing
    * the file around `compileNative`.
    */
-  compileNativeModule(source: string): CompiledNativeModule
+  compileNativeModule(source: string, bindings?: StylexExternalBinding[]): CompiledNativeModule
+  /** Replace the project's parsed cross-file StyleX registry. */
+  setStylexModules(modules: StylexModuleSource[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
   /**
    * The modules the compiler will lower a primitive-named tag from.
@@ -249,9 +264,10 @@ export function createCompiler(theme?: Theme, sources?: readonly string[]): Comp
   const allowed = sources ? [...sources] : [...DEFAULT_PRIMITIVE_SOURCES]
   const inner = new (loadNative().Compiler)(theme, allowed)
   return {
-    compile: (source) => inner.compile(source),
-    compileNative: (source) => inner.compileNative(source),
-    compileNativeModule: (source) => inner.compileNativeModule(source),
+    compile: (source, bindings) => inner.compile(source, bindings),
+    compileNative: (source, bindings) => inner.compileNative(source, bindings),
+    compileNativeModule: (source, bindings) => inner.compileNativeModule(source, bindings),
+    setStylexModules: (modules) => inner.setStylexModules(modules),
     compileCanvasPaints: (source, native) => inner.compileCanvasPaints(source, native),
     sources: allowed,
   }
