@@ -9,9 +9,10 @@
 use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
-    Angle, Color, Condition, ConditionExpr, Dimension, Edge, ExprRef, FontWeight, GridLine, GridSpan,
-    GridTracks, Length, Origin, Overflow, Radius, SourceSpan, StyleDeclaration, StyleProperty,
-    StylexResidual, StylexResidualArgument, TextOverflow, TransformFunction, WhiteSpace,
+    Angle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef, FontWeight,
+    GridLine, GridSpan, GridTracks, Length, Origin, Overflow, Radius, SourceSpan, StyleDeclaration,
+    StyleProperty, StylexResidual, StylexResidualArgument, TextOverflow, TransformFunction,
+    WhiteSpace,
 };
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, ArrowFunctionExpression, BindingPattern, CallExpression,
@@ -60,6 +61,7 @@ struct Entry {
     css_name: String,
     priority: u16,
     properties: Vec<StyleProperty>,
+    condition: Condition,
     span: SourceSpan,
 }
 
@@ -1570,6 +1572,68 @@ fn property_names_overlap(left: &str, right: &str) -> bool {
             .is_some_and(|family| property_name_family(right) == Some(family))
 }
 
+/// The static media-query slice shared by Web and React Native.
+///
+/// Legacy `min-width` is exactly the same inclusive predicate as range
+/// syntax. Legacy `max-width` is deliberately absent: CSS makes it
+/// inclusive while Hozo's existing `Width { at_least: false }` is `<`, and
+/// quietly changing the boundary would be worse than leaving that query to
+/// the official StyleX transform.
+fn stylex_media_condition(name: &str) -> Option<Condition> {
+    let query = name.strip_prefix("@media ")?.trim();
+    if query == "print" {
+        return Some(Condition::Environment(Environment::Print));
+    }
+    let width_value = |value: &str| {
+        let value = value.trim();
+        let number = value.strip_suffix("px").or_else(|| value.strip_suffix("rem"))?;
+        number.parse::<f64>().ok()
+            .filter(|number| number.is_finite() && *number >= 0.0)
+            .map(|_| value.to_string())
+    };
+    let inner = query.strip_prefix('(').and_then(|query| query.strip_suffix(')'))?;
+    let width = |operator: &str, at_least| {
+        let (subject, value) = inner.split_once(operator)?;
+        (subject.trim() == "width")
+            .then(|| width_value(value))
+            .flatten()
+            .map(|value| Condition::Width { at_least, value })
+    };
+    inner.strip_prefix("min-width:")
+        .and_then(width_value)
+        .map(|value| Condition::Width { at_least: true, value })
+        .or_else(|| width(">=", true))
+        .or_else(|| (!inner.contains("<=")).then(|| width("<", false)).flatten())
+        .or_else(|| match query {
+            "(prefers-color-scheme: dark)" => Some(Condition::Dark),
+            "(prefers-reduced-motion: reduce)" => Some(Condition::Environment(Environment::MotionReduce)),
+            "(prefers-reduced-motion: no-preference)" => Some(Condition::Environment(Environment::MotionSafe)),
+            "(orientation: portrait)" => Some(Condition::Environment(Environment::Portrait)),
+            "(orientation: landscape)" => Some(Condition::Environment(Environment::Landscape)),
+            "(inverted-colors: inverted)" => Some(Condition::Environment(Environment::InvertedColors)),
+            "(prefers-contrast: more)" => Some(Condition::Environment(Environment::ContrastMore)),
+            "(prefers-contrast: less)" => Some(Condition::Environment(Environment::ContrastLess)),
+            "(forced-colors: active)" => Some(Condition::Environment(Environment::ForcedColors)),
+            "(prefers-reduced-transparency: reduce)" => Some(Condition::Environment(Environment::ReduceTransparency)),
+            "(scripting: none)" => Some(Condition::Environment(Environment::Noscript)),
+            _ => None,
+        })
+}
+
+fn combine_conditions(outer: &Condition, inner: Condition) -> Condition {
+    let mut conditions = match outer {
+        Condition::Always => Vec::new(),
+        Condition::All(conditions) => conditions.clone(),
+        condition => vec![condition.clone()],
+    };
+    match inner {
+        Condition::Always => {}
+        Condition::All(inner) => conditions.extend(inner),
+        condition => conditions.push(condition),
+    }
+    Condition::all(conditions)
+}
+
 fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclaration> {
     // A higher-priority unconditional declaration makes a lower-priority
     // value for the same final slot unreachable, even when that lower value
@@ -1607,6 +1671,8 @@ fn parse_rule_object(
     out: &mut Vec<Entry>,
     residual: &mut Vec<ResidualProperty>,
     gaps: &mut Vec<Gap>,
+    condition: &Condition,
+    media_depth: u16,
 ) -> Result<(), Gap> {
     for item in &object.properties {
         let property = match item {
@@ -1646,6 +1712,8 @@ fn parse_rule_object(
                             out,
                             residual,
                             gaps,
+                            condition,
+                            media_depth,
                         )?;
                         visiting.remove(&name);
                         continue;
@@ -1666,6 +1734,8 @@ fn parse_rule_object(
                     out,
                     residual,
                     gaps,
+                    condition,
+                    media_depth,
                 )?;
                 continue;
             }
@@ -1683,6 +1753,66 @@ fn parse_rule_object(
                 span: source_span(property.key.span()),
             });
         };
+        if name.starts_with("@media ") {
+            let Some(media) = stylex_media_condition(&name) else {
+                residual.push(ResidualProperty {
+                    css_name: name.clone(),
+                    span: ExprRef(source_span(property.span)),
+                });
+                gaps.push(Gap {
+                    message: format!("StyleX media query `{name}` is outside Hozo's exact cross-platform query subset."),
+                    span: source_span(property.key.span()),
+                });
+                continue;
+            };
+            let Expression::ObjectExpression(nested) = &property.value else {
+                residual.push(ResidualProperty {
+                    css_name: name.clone(),
+                    span: ExprRef(source_span(property.span)),
+                });
+                gaps.push(Gap {
+                    message: "StyleX media-query values must be static object literals.".to_string(),
+                    span: source_span(property.value.span()),
+                });
+                continue;
+            };
+
+            // A residual child cannot be copied out of its media wrapper.
+            // Parse transactionally: either the whole nested object becomes
+            // typed IR, or the original outer property stays intact for the
+            // official transform. This prevents supported siblings from
+            // being emitted twice when one child is unsupported.
+            // StyleX reverses nested at-rule wrappers: an inner query is
+            // emitted around the outer one. Prepending here preserves that
+            // observable order when the Web backend renders `Condition::All`.
+            let nested_condition = combine_conditions(&media, condition.clone());
+            let mut nested_entries = Vec::new();
+            let mut nested_residual = Vec::new();
+            let mut nested_gaps = Vec::new();
+            parse_rule_object(
+                nested,
+                namespaces,
+                static_objects,
+                visiting,
+                &mut nested_entries,
+                &mut nested_residual,
+                &mut nested_gaps,
+                &nested_condition,
+                media_depth.saturating_add(1),
+            )?;
+            if nested_residual.is_empty() {
+                out.extend(nested_entries);
+            } else {
+                for child in nested_residual {
+                    residual.push(ResidualProperty {
+                        css_name: child.css_name,
+                        span: ExprRef(source_span(property.span)),
+                    });
+                }
+                gaps.extend(nested_gaps);
+            }
+            continue;
+        }
         let lower_value = |value: &StaticValue| {
             direct_properties(&name, value).or_else(|| {
                 let token = token_for(&name, value)?;
@@ -1766,8 +1896,12 @@ fn parse_rule_object(
         };
         out.push(Entry {
             css_name: canonical_property(&name).to_string(),
-            priority: property_priority(&name),
+            // StyleX adds 200 per nested condition. Besides matching its
+            // metadata, this makes a media declaration sort after its base
+            // even when the author wrote the media object first.
+            priority: property_priority(&name).saturating_add(media_depth.saturating_mul(200)),
             properties,
+            condition: condition.clone(),
             span: source_span(property.span),
         });
     }
@@ -1796,6 +1930,8 @@ fn parse_rule(
         &mut out,
         &mut residual,
         &mut gaps,
+        &Condition::Always,
+        0,
     )?;
     Ok((out, residual, gaps))
 }
@@ -2017,17 +2153,21 @@ impl Frontend {
     fn append_entries(
         &self,
         entries: &[Entry],
-        condition: Condition,
+        argument_condition: Condition,
         out: &mut Vec<ResolvedEntry>,
     ) -> Result<(), Gap> {
+        let mut previous_arguments = std::mem::take(out);
+        let mut current_argument: Vec<ResolvedEntry> = Vec::new();
         for entry in entries {
+            let condition = combine_conditions(&entry.condition, argument_condition.clone());
             // Logical/physical edge conflicts need the element's resolved
             // writing direction on Native, and grid shorthands cannot be
             // split into independent lines without changing placement.
             // Keep those two genuinely platform-dependent cases explicit;
             // ordinary shorthand/longhand priority is resolved below.
-            if out
+            if previous_arguments
                 .iter()
+                .chain(current_argument.iter())
                 .any(|existing| needs_platform_priority(entry, existing))
             {
                 return Err(Gap {
@@ -2042,15 +2182,25 @@ impl Frontend {
             // arguments remove an earlier conditional value exactly as
             // styleq does. A later conditional stays beside the base and
             // overrides only while its guard is true.
-            if condition == Condition::Always {
-                out.retain(|existing| {
+            if argument_condition == Condition::Always && entry.condition == Condition::Always {
+                previous_arguments.retain(|existing| {
                     existing.css_name != entry.css_name
                         || !entry.properties.iter().any(|property| {
                             property.same_property_as(&existing.declaration.property)
                         })
                 });
             }
-            out.extend(
+            // Duplicate keys within one object are last-wins only in the
+            // same condition. A base declaration and a media declaration
+            // in that object must coexist regardless of their source order.
+            current_argument.retain(|existing| {
+                existing.declaration.condition != condition
+                    || existing.css_name != entry.css_name
+                    || !entry.properties.iter().any(|property| {
+                        property.same_property_as(&existing.declaration.property)
+                    })
+            });
+            current_argument.extend(
                 entry
                     .properties
                     .iter()
@@ -2065,6 +2215,8 @@ impl Frontend {
                     }),
             );
         }
+        out.extend(previous_arguments);
+        out.extend(current_argument);
         Ok(())
     }
 
@@ -2180,8 +2332,14 @@ impl Frontend {
             .map_or(Condition::Always, Condition::Expr);
         self.append_entries(entries, declaration_condition, declarations)?;
         if !residual.is_empty() {
+            let mut properties = Vec::new();
+            for property in residual {
+                if !properties.contains(&property.span) {
+                    properties.push(property.span);
+                }
+            }
             residual_arguments.push(StylexResidualArgument {
-                properties: residual.iter().map(|property| property.span).collect(),
+                properties,
                 condition,
             });
             residual_properties.extend(residual.iter().cloned());
@@ -2738,6 +2896,89 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn nested_media_becomes_viewport_and_environment_conditions() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              root: {
+                padding: 4,
+                '@media (min-width: 600px)': { padding: 24 },
+                '@media (prefers-color-scheme: dark)': { opacity: 0.5 }
+              }
+            })
+            const card = <View {...stylex.props(styles.root)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert_eq!(style.len(), 9);
+        assert_eq!(style.iter().filter(|declaration| {
+            declaration.condition == Condition::Width { at_least: true, value: "600px".to_string() }
+        }).count(), 4);
+        assert_eq!(style.iter().filter(|declaration| declaration.condition == Condition::Dark).count(), 1);
+        assert!(matches!(style.first().map(|declaration| &declaration.condition), Some(Condition::Always)));
+        assert!(matches!(style.last().map(|declaration| &declaration.condition), Some(Condition::Dark)));
+    }
+
+    #[test]
+    fn nested_media_compose_in_official_wrapper_order_and_with_props_guards() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              root: {
+                '@media (min-width: 600px)': {
+                  '@media (orientation: landscape)': { opacity: 0.5 }
+                }
+              }
+            })
+            const card = <View {...stylex.props(active && styles.root)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let [declaration] = parsed.roots[0].node.style.as_slice() else {
+            panic!("expected one nested declaration")
+        };
+        let Condition::All(conditions) = &declaration.condition else {
+            panic!("nested conditions were not composed")
+        };
+        assert_eq!(conditions.len(), 3);
+        assert_eq!(conditions[0], Condition::Environment(Environment::Landscape));
+        assert_eq!(conditions[1], Condition::Width { at_least: true, value: "600px".to_string() });
+        assert!(matches!(conditions[2], Condition::Expr(_)));
+    }
+
+    #[test]
+    fn mixed_nested_media_stays_whole_in_the_stylex_residual() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              root: {
+                opacity: 1,
+                '@media (min-width: 600px)': {
+                  padding: 24,
+                  scrollbarColor: 'red blue'
+                }
+              }
+            })
+            const card = <View {...stylex.props(styles.root)} />
+        "#;
+        let parsed = crate::parse_tsx(source);
+        let node = &parsed.roots[0].node;
+        assert_eq!(node.style.len(), 1);
+        assert_eq!(node.props.stylex_residuals.len(), 1);
+        let residual = node.props.stylex_residuals[0].render_expression(source);
+        assert_eq!(residual.matches("@media (min-width: 600px)").count(), 1, "{residual}");
+        assert!(residual.contains("padding: 24"), "{residual}");
+        assert!(residual.contains("scrollbarColor: 'red blue'"), "{residual}");
+        assert!(!residual.contains("opacity: 1"), "{residual}");
     }
 
     #[test]
