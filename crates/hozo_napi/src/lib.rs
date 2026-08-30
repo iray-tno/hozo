@@ -121,6 +121,66 @@ fn to_js_diagnostic(diagnostic: Diagnostic, offsets: &Utf16Offsets) -> CompileDi
 }
 
 #[napi(object)]
+pub struct StylexModuleMemberSummary {
+    pub name: String,
+    /// `static`, `partial`, `function`, or `unsupported`.
+    pub status: String,
+}
+
+#[napi(object)]
+pub struct StylexModuleExportSummary {
+    pub exported: String,
+    pub local: String,
+    /// `sheet` or `variables`.
+    pub kind: String,
+    pub members: Vec<StylexModuleMemberSummary>,
+}
+
+#[napi(object)]
+pub struct StylexModuleSummary {
+    pub exports: Vec<StylexModuleExportSummary>,
+}
+
+/// Cacheable exported StyleX facts from one source module.
+///
+/// Analysis is separate from lowering so every bundler can build the same
+/// project graph once. The summary contains no AST-backed data and is safe
+/// to persist between processes.
+#[napi]
+pub fn summarize_stylex_module(source: String) -> StylexModuleSummary {
+    let summary = hozo_parser::summarize_stylex_module(&source);
+    StylexModuleSummary {
+        exports: summary
+            .exports
+            .into_iter()
+            .map(|export| StylexModuleExportSummary {
+                exported: export.exported,
+                local: export.local,
+                kind: match export.kind {
+                    hozo_parser::StylexModuleExportKind::Sheet => "sheet",
+                    hozo_parser::StylexModuleExportKind::Variables => "variables",
+                }
+                .to_string(),
+                members: export
+                    .members
+                    .into_iter()
+                    .map(|member| StylexModuleMemberSummary {
+                        name: member.name,
+                        status: match member.status {
+                            hozo_parser::StylexModuleMemberStatus::Static => "static",
+                            hozo_parser::StylexModuleMemberStatus::Partial => "partial",
+                            hozo_parser::StylexModuleMemberStatus::Function => "function",
+                            hozo_parser::StylexModuleMemberStatus::Unsupported => "unsupported",
+                        }
+                        .to_string(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+    }
+}
+
+#[napi(object)]
 pub struct CompiledComponent {
     /// Compiled JSX to splice into the original source in place of the
     /// text at `[span_start, span_end)` -- callers (the Vite plugin) own

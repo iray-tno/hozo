@@ -7,6 +7,9 @@ import { performance } from 'node:perf_hooks'
 import { globbySync } from 'globby'
 
 import { openCandidateCache, type CandidateCache } from './index.ts'
+import { StylexModuleCache } from './stylex-project.ts'
+
+export { StylexModuleCache, type CachedStylexModule } from './stylex-project.ts'
 
 const SCANNABLE = new Set(['.tsx', '.jsx', '.ts', '.js', '.mts', '.mjs'])
 const DEFAULT_INCLUDE = ['**/*.{tsx,jsx,ts,js,mts,mjs}']
@@ -113,9 +116,11 @@ export interface ScanStats {
 
 export interface ProjectCache {
   cache: CandidateCache
+  /** Exported StyleX facts for cross-file resolution, content-hash keyed. */
+  stylexModules: StylexModuleCache
   /** Absolute path of node_modules/.hozo, already created. */
   dir: string
-  /** Whether the project-wide candidate set changed. */
+  /** Whether the project-wide candidate set or StyleX module graph changed. */
   changed: boolean
   /** Absolute files admitted by this walk, for bundler watch filtering. */
   files: string[]
@@ -161,6 +166,7 @@ export function scanProject(root: string, options: ContentOptions = {}): Project
   const dir = path.join(root, CACHE_DIR)
   mkdirSync(dir, { recursive: true })
   const cache = openCandidateCache(path.join(dir, 'candidates.json'))
+  const stylexModules = new StylexModuleCache(path.join(dir, 'stylex-modules.json'))
   const files = discoverSources(root, options)
   let scannedFiles = 0
   let skippedFiles = 0
@@ -169,7 +175,7 @@ export function scanProject(root: string, options: ContentOptions = {}): Project
 
   for (const file of files) {
     const stat = statSync(file)
-    if (cache.isCurrent(file, stat.mtimeMs)) {
+    if (cache.isCurrent(file, stat.mtimeMs) && stylexModules.isCurrent(file, stat.mtimeMs)) {
       skippedFiles++
       continue
     }
@@ -177,14 +183,18 @@ export function scanProject(root: string, options: ContentOptions = {}): Project
     sourceBytes += Buffer.byteLength(source)
     scannedFiles++
     changed = cache.scanFile(file, source, stat.mtimeMs) || changed
+    changed = stylexModules.scanFile(file, source, stat.mtimeMs) || changed
   }
 
   const deletedFiles = cache.retainFiles(files)
-  changed = deletedFiles > 0 || changed
+  const deletedStylexFiles = stylexModules.retainFiles(files)
+  changed = deletedFiles > 0 || deletedStylexFiles > 0 || changed
   cache.persist()
+  stylexModules.persist()
 
   return {
     cache,
+    stylexModules,
     dir,
     changed,
     files,
