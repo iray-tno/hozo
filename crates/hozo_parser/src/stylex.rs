@@ -2,9 +2,10 @@
 //!
 //! This reads one useful vertical slice rather than impersonating the full
 //! StyleX compiler: same-file namespace imports, `stylex.create({ ... })`,
-//! and `stylex.props(styles.base, condition && styles.active)`. Values become
-//! the typed `StyleProperty` variants the Tailwind frontend already produces,
-//! so the Web and Native lowerings remain shared.
+//! local unthemeable `stylex.defineVars`, and
+//! `stylex.props(styles.base, condition && styles.active)`. Values become the
+//! typed `StyleProperty` variants the Tailwind frontend already produces, so
+//! the Web and Native lowerings remain shared.
 
 use std::collections::{HashMap, HashSet};
 
@@ -17,12 +18,13 @@ use hozo_ir::{
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, ArrowFunctionExpression, BindingPattern, CallExpression,
     Expression, Function, IdentifierReference, LogicalOperator, ObjectExpression,
-    ObjectPropertyKind, PropertyKey, Statement, VariableDeclarationKind, VariableDeclarator,
+    ObjectPropertyKind, PropertyKey, Statement, StaticMemberExpression, VariableDeclarationKind,
+    VariableDeclarator,
 };
 use oxc_ast_visit::{
     walk::{
         walk_arrow_function_expression, walk_function, walk_object_expression,
-        walk_variable_declarator,
+        walk_static_member_expression, walk_variable_declarator,
     },
     Visit,
 };
@@ -115,9 +117,31 @@ fn numeric_text(value: f64) -> String {
     }
 }
 
+#[derive(Debug, Clone)]
 enum StaticValue {
     String(String),
     Number(f64),
+}
+
+type StaticVariables = HashMap<String, HashMap<String, StaticValue>>;
+
+fn resolved_static_value(
+    expression: &Expression,
+    variables: &StaticVariables,
+) -> Option<StaticValue> {
+    if let Some(value) = static_value(expression) {
+        return Some(value);
+    }
+    let Expression::StaticMemberExpression(member) = expression else {
+        return None;
+    };
+    let Expression::Identifier(object) = &member.object else {
+        return None;
+    };
+    variables
+        .get(object.name.as_str())?
+        .get(member.property.name.as_str())
+        .cloned()
 }
 
 fn static_value(expression: &Expression) -> Option<StaticValue> {
@@ -1688,6 +1712,7 @@ fn parse_rule_object(
     object: &ObjectExpression,
     namespaces: &HashSet<String>,
     static_objects: &HashMap<String, &ObjectExpression>,
+    variables: &StaticVariables,
     visiting: &mut HashSet<String>,
     out: &mut Vec<Entry>,
     residual: &mut Vec<ResidualProperty>,
@@ -1729,6 +1754,7 @@ fn parse_rule_object(
                             object,
                             namespaces,
                             static_objects,
+                            variables,
                             visiting,
                             out,
                             residual,
@@ -1751,6 +1777,7 @@ fn parse_rule_object(
                     spread_object,
                     namespaces,
                     static_objects,
+                    variables,
                     visiting,
                     out,
                     residual,
@@ -1821,6 +1848,7 @@ fn parse_rule_object(
                 nested_object,
                 namespaces,
                 static_objects,
+                variables,
                 visiting,
                 &mut nested_entries,
                 &mut nested_residual,
@@ -1852,7 +1880,11 @@ fn parse_rule_object(
             let candidates = call
                 .arguments
                 .iter()
-                .map(|argument| argument.as_expression().and_then(static_value))
+                .map(|argument| {
+                    argument
+                        .as_expression()
+                        .and_then(|expression| resolved_static_value(expression, variables))
+                })
                 .collect::<Option<Vec<_>>>()
                 .and_then(|values| {
                     (!values.is_empty()).then_some(values)
@@ -1892,14 +1924,14 @@ fn parse_rule_object(
             };
             vec![StyleProperty::FirstThatWorks(candidates)]
         } else {
-            let Some(value) = static_value(&property.value) else {
+            let Some(value) = resolved_static_value(&property.value, variables) else {
                 residual.push(ResidualProperty {
                     css_name: canonical_property(&name).to_string(),
                     span: ExprRef(source_span(property.span)),
                 });
                 gaps.push(Gap {
                     message: format!(
-                        "`{name}` has a dynamic or nested StyleX value; this frontend slice accepts static strings and numbers."
+                        "`{name}` has a dynamic or nested StyleX value; this frontend slice accepts static strings, numbers, and safe local `defineVars` members."
                     ),
                     span: source_span(property.value.span()),
                 });
@@ -1940,6 +1972,7 @@ fn parse_rule(
     expression: &Expression,
     namespaces: &HashSet<String>,
     static_objects: &HashMap<String, &ObjectExpression>,
+    variables: &StaticVariables,
 ) -> Result<(Vec<Entry>, Vec<ResidualProperty>, Vec<Gap>), Gap> {
     let Expression::ObjectExpression(object) = expression else {
         return Err(Gap {
@@ -1954,6 +1987,7 @@ fn parse_rule(
         object,
         namespaces,
         static_objects,
+        variables,
         &mut HashSet::new(),
         &mut out,
         &mut residual,
@@ -1962,6 +1996,118 @@ fn parse_rule(
         0,
     )?;
     Ok((out, residual, gaps))
+}
+
+#[derive(Default)]
+struct StaticVariableUses {
+    references: HashMap<String, usize>,
+    member_reads: HashMap<String, usize>,
+}
+
+impl<'a> Visit<'a> for StaticVariableUses {
+    fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'a>) {
+        *self.references.entry(identifier.name.to_string()).or_default() += 1;
+    }
+
+    fn visit_static_member_expression(&mut self, member: &StaticMemberExpression<'a>) {
+        if let Expression::Identifier(identifier) = &member.object {
+            *self
+                .member_reads
+                .entry(identifier.name.to_string())
+                .or_default() += 1;
+        }
+        walk_static_member_expression(self, member);
+    }
+}
+
+fn define_vars_object<'a>(
+    call: &'a CallExpression<'a>,
+    namespaces: &HashSet<String>,
+) -> Option<&'a ObjectExpression<'a>> {
+    let Expression::StaticMemberExpression(member) = &call.callee else {
+        return None;
+    };
+    let Expression::Identifier(object) = &member.object else {
+        return None;
+    };
+    if member.property.name.as_str() != "defineVars"
+        || !namespaces.contains(object.name.as_str())
+    {
+        return None;
+    }
+    match call.arguments.first()? {
+        Argument::ObjectExpression(object) => Some(object),
+        _ => None,
+    }
+}
+
+/// Collect only local token tables that cannot participate in a theme.
+///
+/// An exported table may be passed to `createTheme` in another module, and a
+/// bare local reference may do the same in this one. In either case replacing
+/// its CSS variable with the default would be observably wrong, so those stay
+/// with the official StyleX transform. A non-exported table whose every use is
+/// a static member read is immutable compile-time data and can safely join the
+/// universal typed-property path without runtime variable resolution.
+fn module_static_variables(
+    program: &oxc_ast::ast::Program,
+    module: &ModuleRecord,
+    namespaces: &HashSet<String>,
+) -> (StaticVariables, Vec<SourceSpan>) {
+    let mut variables = StaticVariables::new();
+    let mut spans = HashMap::new();
+    for statement in &program.body {
+        let Statement::VariableDeclaration(declaration) = statement else {
+            continue;
+        };
+        if declaration.kind != VariableDeclarationKind::Const {
+            continue;
+        }
+        for declarator in &declaration.declarations {
+            let BindingPattern::BindingIdentifier(identifier) = &declarator.id else {
+                continue;
+            };
+            if module.exported_bindings.contains_key(identifier.name.as_str()) {
+                continue;
+            }
+            let Some(Expression::CallExpression(call)) = &declarator.init else {
+                continue;
+            };
+            let Some(object) = define_vars_object(call, namespaces) else {
+                continue;
+            };
+            let values = object
+                .properties
+                .iter()
+                .map(|item| {
+                    let ObjectPropertyKind::ObjectProperty(property) = item else {
+                        return None;
+                    };
+                    if property.computed {
+                        return None;
+                    }
+                    Some((static_key(&property.key)?, static_value(&property.value)?))
+                })
+                .collect::<Option<HashMap<_, _>>>();
+            let Some(values) = values else {
+                continue;
+            };
+            variables.insert(identifier.name.to_string(), values);
+            spans.insert(identifier.name.to_string(), source_span(object.span));
+        }
+    }
+
+    let mut uses = StaticVariableUses::default();
+    uses.visit_program(program);
+    variables.retain(|name, _| {
+        uses.references.get(name).copied().unwrap_or_default()
+            == uses.member_reads.get(name).copied().unwrap_or_default()
+    });
+    let scan_spans = variables
+        .keys()
+        .filter_map(|name| spans.get(name).copied())
+        .collect();
+    (variables, scan_spans)
 }
 
 #[derive(Default)]
@@ -2043,6 +2189,7 @@ fn create_object<'a>(
 struct SheetCollector<'n, 'a> {
     namespaces: &'n HashSet<String>,
     static_objects: &'n HashMap<String, &'a ObjectExpression<'a>>,
+    variables: &'n StaticVariables,
     sheets: HashMap<String, HashMap<String, Rule>>,
     scan_spans: Vec<SourceSpan>,
     function_depth: usize,
@@ -2091,7 +2238,12 @@ impl<'a> Visit<'a> for SheetCollector<'_, 'a> {
             let Some(name) = static_key(&property.key) else {
                 continue;
             };
-            let rule = match parse_rule(&property.value, self.namespaces, self.static_objects) {
+            let rule = match parse_rule(
+                &property.value,
+                self.namespaces,
+                self.static_objects,
+                self.variables,
+            ) {
                 Ok((entries, residual, gaps)) => Rule::Ready {
                     entries,
                     residual,
@@ -2121,10 +2273,12 @@ impl Frontend {
             return Self::default();
         }
         let static_objects = module_static_objects(program, module);
+        let (variables, variable_spans) = module_static_variables(program, module, &namespaces);
         let (sheets, scan_spans) = {
             let mut collector = SheetCollector {
                 namespaces: &namespaces,
                 static_objects: &static_objects,
+                variables: &variables,
                 sheets: HashMap::new(),
                 scan_spans: Vec::new(),
                 function_depth: 0,
@@ -2132,6 +2286,8 @@ impl Frontend {
             collector.visit_program(program);
             (collector.sheets, collector.scan_spans)
         };
+        let mut scan_spans = scan_spans;
+        scan_spans.extend(variable_spans);
         Self {
             namespaces,
             sheets,
@@ -2485,6 +2641,85 @@ mod tests {
                 .sum::<usize>(),
             6
         ); // four padding sides, colour, direction
+    }
+
+    #[test]
+    fn local_unthemeable_define_vars_defaults_become_static_values() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const tokens = stylex.defineVars({ accent: '#123456', space: 12 })
+            const styles = stylex.create({
+              root: { color: tokens.accent, padding: tokens.space }
+            })
+        "#,
+        );
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["root"]
+        else {
+            panic!("static local variables should be lowerable")
+        };
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+        assert!(entries.iter().any(|entry| {
+            entry
+                .properties
+                .contains(&StyleProperty::TextColor(Color::Css("#123456".into())))
+        }));
+        assert_eq!(
+            entries
+                .iter()
+                .flat_map(|entry| &entry.properties)
+                .filter(|property| matches!(property, StyleProperty::PaddingTop(Length::Px(12.0))))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn themeable_define_vars_stay_with_official_stylex() {
+        let themed = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const tokens = stylex.defineVars({ accent: '#123456' })
+            const dark = stylex.createTheme(tokens, { accent: '#abcdef' })
+            const styles = stylex.create({ root: { color: tokens.accent } })
+        "#,
+        );
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &themed.sheets["styles"]["root"]
+        else {
+            panic!("the themed value should remain a property residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
+
+        let exported = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const tokens = stylex.defineVars({ accent: '#123456' })
+            export { tokens }
+            const styles = stylex.create({ root: { color: tokens.accent } })
+        "#,
+        );
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &exported.sheets["styles"]["root"]
+        else {
+            panic!("an exported token should remain a property residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
     }
 
     #[test]

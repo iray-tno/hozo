@@ -139,6 +139,47 @@ export const Card = () => (
   assert.match(native.styles, /transform: \[\{ scale: 0.95 \}\]/)
 })
 
+test('local unthemeable StyleX variables lower to their static defaults', () => {
+  const variableSource = `import * as stylex from '@stylexjs/stylex'
+import { Text } from '@hozo/core'
+const tokens = stylex.defineVars({ accent: '#123456', space: 12 })
+const styles = stylex.create({
+  root: { color: tokens.accent, padding: tokens.space },
+})
+export const Card = () => <Text {...stylex.props(styles.root)}>Card</Text>
+`
+
+  const web = compile(variableSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.doesNotMatch(web.jsx, /stylex\.props/)
+  assert.match(web.css, /color: #123456/)
+  assert.match(web.css, /padding-top: 12px/)
+
+  const native = compileNative(variableSource)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+  assert.match(native.styles, /color: '#123456'/)
+  assert.match(native.styles, /paddingTop: 12/)
+})
+
+test('themeable StyleX variables remain with the official transform', () => {
+  const themedSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const tokens = stylex.defineVars({ accent: '#123456' })
+const dark = stylex.createTheme(tokens, { accent: '#abcdef' })
+const styles = stylex.create({ root: { color: tokens.accent } })
+export const Card = () => <View {...stylex.props(dark, styles.root)} />
+`
+
+  for (const component of [compile(themedSource)[0], compileNative(themedSource)[0]]) {
+    assert.ok(component)
+    assert.match(component.jsx, /stylex\.props/)
+    assert.equal(component.diagnostics[0]?.code, 'STYLEX_NOT_LOWERED')
+  }
+})
+
 test('unsupported StyleX remains available to the official compiler and is named', () => {
   const unsupported = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
