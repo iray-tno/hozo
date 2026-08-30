@@ -14,6 +14,13 @@ pub(crate) mod tailwind_variants;
 pub use jsx::is_primitive_name;
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
 pub use scan::{resolve_class_name, scan_class_candidates, source_uses_tailwind, ScannedUtility};
+pub use stylex::{
+    ModuleExportKind as StylexModuleExportKind,
+    ModuleExportSummary as StylexModuleExportSummary,
+    ModuleMemberStatus as StylexModuleMemberStatus,
+    ModuleMemberSummary as StylexModuleMemberSummary,
+    ModuleSummary as StylexModuleSummary,
+};
 
 use hozo_ir::Diagnostic;
 use jsx::JsxCollector;
@@ -137,6 +144,19 @@ pub fn parse_tsx(source_text: &str) -> ParseOutput {
     parse_tsx_with(source_text, None)
 }
 
+/// Exported static StyleX facts from one module, detached from its AST.
+///
+/// This is intentionally analysis-only. Cross-file lowering consumes these
+/// facts in the next slice; exposing them separately first gives every
+/// bundler one cacheable project-graph contract instead of four resolvers.
+pub fn summarize_stylex_module(source_text: &str) -> StylexModuleSummary {
+    let allocator = Allocator::default();
+    let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
+    let ret = Parser::new(&allocator, source_text, source_type).parse();
+    let frontend = stylex::Frontend::collect(&ret.program, &ret.module_record);
+    frontend.module_summary(&ret.program, &ret.module_record)
+}
+
 /// Parses TSX, lowering only primitives imported from `sources`.
 ///
 /// `None` trusts every module, which is what a caller with no project
@@ -187,6 +207,57 @@ pub fn parse_tsx_with(source_text: &str, sources: Option<&[String]>) -> ParseOut
 mod tests {
     use super::*;
     use hozo_ir::{Child, Primitive};
+
+    #[test]
+    fn stylex_module_summary_names_export_aliases_and_rule_kinds() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              base: { padding: 8 },
+              dynamic: (opacity) => ({ opacity }),
+              mixed: { color: 'red', touchAction: 'pan-x' },
+              unsupported: { transform: 'translateX(calc(100% - 2px))' },
+            })
+            export { styles as cardStyles }
+            "#;
+        let summary = summarize_stylex_module(source);
+        assert_eq!(summary.exports.len(), 1);
+        let sheet = &summary.exports[0];
+        assert_eq!(sheet.exported, "cardStyles");
+        assert_eq!(sheet.local, "styles");
+        assert_eq!(sheet.kind, StylexModuleExportKind::Sheet);
+        assert_eq!(
+            sheet
+                .members
+                .iter()
+                .map(|member| (member.name.as_str(), member.status))
+                .collect::<Vec<_>>(),
+            vec![
+                ("base", StylexModuleMemberStatus::Static),
+                ("dynamic", StylexModuleMemberStatus::Function),
+                ("mixed", StylexModuleMemberStatus::Partial),
+                ("unsupported", StylexModuleMemberStatus::Unsupported),
+            ]
+        );
+    }
+
+    #[test]
+    fn stylex_module_summary_keeps_exported_variables_themeable() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            export const tokens = stylex.defineVars({ accent: '#123456', space: 8 })
+            const local = stylex.create({ root: { padding: 8 } })
+            "#;
+        let summary = summarize_stylex_module(source);
+        assert_eq!(summary.exports.len(), 1, "a private sheet is not a graph export");
+        let variables = &summary.exports[0];
+        assert_eq!(variables.exported, "tokens");
+        assert_eq!(variables.kind, StylexModuleExportKind::Variables);
+        assert_eq!(
+            variables.members.iter().map(|member| member.name.as_str()).collect::<Vec<_>>(),
+            vec!["accent", "space"]
+        );
+    }
 
     /// Unwraps a child that should be a Hozo primitive.
     fn node(child: &Child) -> &hozo_ir::Node {

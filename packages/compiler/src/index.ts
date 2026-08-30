@@ -67,6 +67,25 @@ export interface SourceImport {
   local: string
 }
 
+export interface StylexModuleMemberSummary {
+  name: string
+  status: 'static' | 'partial' | 'function' | 'unsupported'
+}
+
+export interface StylexModuleExportSummary {
+  /** Name an importing module sees, after any `export { local as alias }`. */
+  exported: string
+  /** Binding name inside the defining module. */
+  local: string
+  kind: 'sheet' | 'variables'
+  members: StylexModuleMemberSummary[]
+}
+
+/** AST-independent facts the project graph caches for one source module. */
+export interface StylexModuleSummary {
+  exports: StylexModuleExportSummary[]
+}
+
 /** Native output and source metadata produced by one TSX parser pass. */
 export interface CompiledNativeModule {
   components: CompiledNativeComponent[]
@@ -143,6 +162,7 @@ interface NativeBinding {
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
   moduleImports(source: string, module: string): string[]
   foreignPrimitives(source: string, sources: string[]): string[]
+  summarizeStylexModule(source: string): StylexModuleSummary
   CandidateCache: CandidateCacheConstructor
   Compiler: CompilerConstructor
 }
@@ -235,6 +255,11 @@ export function createCompiler(theme?: Theme, sources?: readonly string[]): Comp
     compileCanvasPaints: (source, native) => inner.compileCanvasPaints(source, native),
     sources: allowed,
   }
+}
+
+/** Exported StyleX sheets and variable tables visible to another module. */
+export function summarizeStylexModule(source: string): StylexModuleSummary {
+  return loadNative().summarizeStylexModule(source)
 }
 
 /**

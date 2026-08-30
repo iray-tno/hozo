@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -67,6 +67,63 @@ test('a complete scan skips unchanged files and sweeps deleted ones', () => {
     assert.equal(afterDelete.stats.deletedFiles, 1)
     assert.equal(afterDelete.changed, true)
     assert.doesNotMatch(afterDelete.cache.renderCss(), /p-4/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('the project scan persists exported StyleX module summaries', () => {
+  const root = project()
+  try {
+    const styles = source(
+      root,
+      'src/styles.ts',
+      `import * as stylex from '@stylexjs/stylex'
+       const local = stylex.create({ root: { padding: 8 }, dynamic: (value) => ({ opacity: value }) })
+       export { local as cardStyles }`,
+    )
+    source(root, 'src/plain.ts', 'export const answer = 42')
+
+    const first = scanProject(root)
+    assert.equal(first.stylexModules.size, 1)
+    const module = first.stylexModules.get(styles)
+    assert.ok(module)
+    assert.equal(module.contentHash.length, 64)
+    assert.deepEqual(module.summary.exports, [
+      {
+        exported: 'cardStyles',
+        local: 'local',
+        kind: 'sheet',
+        members: [
+          { name: 'dynamic', status: 'function' },
+          { name: 'root', status: 'static' },
+        ],
+      },
+    ])
+
+    const warm = scanProject(root)
+    assert.equal(warm.stats.scannedFiles, 0)
+    assert.deepEqual(warm.stylexModules.modules(), first.stylexModules.modules())
+
+    writeFileSync(
+      styles,
+      `import * as stylex from '@stylexjs/stylex'
+       export const cardStyles = stylex.create({ root: { padding: 16 } })`,
+    )
+    const changedTime = (Date.now() + 2_000) / 1_000
+    utimesSync(styles, changedTime, changedTime)
+    const afterEdit = scanProject(root)
+    assert.equal(afterEdit.changed, true)
+    assert.notEqual(
+      afterEdit.stylexModules.get(styles)?.contentHash,
+      module.contentHash,
+      'a value-only sheet edit must invalidate future parsed-rule output',
+    )
+
+    rmSync(styles)
+    const afterDelete = scanProject(root)
+    assert.equal(afterDelete.stylexModules.size, 0)
+    assert.equal(afterDelete.changed, true)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

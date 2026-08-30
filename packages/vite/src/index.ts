@@ -43,6 +43,7 @@ import {
   scannableFile,
   writeFileIfChanged,
   type HozoProjectOptions,
+  type StylexModuleCache,
 } from '@hozo/compiler/project'
 
 /**
@@ -66,6 +67,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
   let compiler: Compiler
   let root = process.cwd()
   let cache: CandidateCache
+  let stylexModules: StylexModuleCache
   let candidateCssPath = ''
   let preflightPath = ''
   let includedFiles = new Set<string>()
@@ -136,6 +138,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
         css: options.css,
       })
       cache = project.cache
+      stylexModules = project.stylexModules
       includedFiles = new Set(project.files)
       candidateCssPath = path.join(project.dir, 'candidates.css')
       preflightPath = preflightCssPath(project.dir)
@@ -156,6 +159,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
         const absolute = path.resolve(id)
         includedFiles.delete(absolute)
         if (cache?.forget(absolute)) writeCandidateCss()
+        stylexModules?.forget(absolute)
       }
       if (change.event === 'create') {
         const absolute = path.resolve(id)
@@ -189,6 +193,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
             },
           )
         }
+        stylexModules.scanFile(path.resolve(file), code, modifiedMs)
       }
 
       if (!file) return
@@ -225,6 +230,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
 
     buildEnd() {
       cache?.persist()
+      stylexModules?.persist()
     },
   }
 }

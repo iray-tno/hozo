@@ -29,7 +29,7 @@ use oxc_ast_visit::{
     Visit,
 };
 use oxc_span::{GetSpan, Span};
-use oxc_syntax::module_record::ModuleRecord;
+use oxc_syntax::module_record::{ExportExportName, ModuleRecord};
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::tailwind;
@@ -53,6 +53,49 @@ enum Rule {
         entries: Vec<FunctionEntry>,
     },
     Gap(Gap),
+}
+
+/// The project-wide fact one exported StyleX binding contributes.
+///
+/// Deliberately owns names rather than AST nodes. A bundler can cache this
+/// after the parser allocator is gone, then key the next slice's parsed-rule
+/// cache by the defining source's content hash without retaining a source
+/// tree per module.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ModuleExportSummary {
+    pub exported: String,
+    pub local: String,
+    pub kind: ModuleExportKind,
+    pub members: Vec<ModuleMemberSummary>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ModuleExportKind {
+    Sheet,
+    Variables,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ModuleMemberSummary {
+    pub name: String,
+    pub status: ModuleMemberStatus,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ModuleMemberStatus {
+    /// Fully represented by Hozo's typed Style IR.
+    Static,
+    /// Has both typed declarations and declarations the official transform owns.
+    Partial,
+    /// A one-argument static function style.
+    Function,
+    /// The definition was recognised, but cannot be lowered safely.
+    Unsupported,
+}
+
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct ModuleSummary {
+    pub exports: Vec<ModuleExportSummary>,
 }
 
 #[derive(Debug, Clone)]
@@ -2307,6 +2350,79 @@ struct SheetCollector<'n, 'a> {
     function_depth: usize,
 }
 
+struct ExportedVariableCollector<'n> {
+    namespaces: &'n HashSet<String>,
+    aliases: &'n HashMap<String, Vec<String>>,
+    exports: Vec<ModuleExportSummary>,
+    function_depth: usize,
+}
+
+impl<'a> Visit<'a> for ExportedVariableCollector<'_> {
+    fn visit_function(&mut self, function: &Function<'a>, flags: ScopeFlags) {
+        self.function_depth += 1;
+        walk_function(self, function, flags);
+        self.function_depth -= 1;
+    }
+
+    fn visit_arrow_function_expression(&mut self, function: &ArrowFunctionExpression<'a>) {
+        self.function_depth += 1;
+        walk_arrow_function_expression(self, function);
+        self.function_depth -= 1;
+    }
+
+    fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
+        if self.function_depth > 0 {
+            walk_variable_declarator(self, declarator);
+            return;
+        }
+        let BindingPattern::BindingIdentifier(identifier) = &declarator.id else {
+            walk_variable_declarator(self, declarator);
+            return;
+        };
+        let local = identifier.name.as_str();
+        let Some(exported_names) = self.aliases.get(local) else {
+            walk_variable_declarator(self, declarator);
+            return;
+        };
+        let Some(Expression::CallExpression(call)) = &declarator.init else {
+            walk_variable_declarator(self, declarator);
+            return;
+        };
+        let Some(object) = define_vars_object(call, self.namespaces) else {
+            walk_variable_declarator(self, declarator);
+            return;
+        };
+        let mut members = object
+            .properties
+            .iter()
+            .filter_map(|item| {
+                let ObjectPropertyKind::ObjectProperty(property) = item else {
+                    return None;
+                };
+                let name = static_key(&property.key)?;
+                Some(ModuleMemberSummary {
+                    name,
+                    status: if static_value(&property.value).is_some() {
+                        ModuleMemberStatus::Static
+                    } else {
+                        ModuleMemberStatus::Unsupported
+                    },
+                })
+            })
+            .collect::<Vec<_>>();
+        members.sort_by(|left, right| left.name.cmp(&right.name));
+        for exported in exported_names {
+            self.exports.push(ModuleExportSummary {
+                exported: exported.clone(),
+                local: local.to_string(),
+                kind: ModuleExportKind::Variables,
+                members: members.clone(),
+            });
+        }
+        walk_variable_declarator(self, declarator);
+    }
+}
+
 impl<'a> Visit<'a> for SheetCollector<'_, 'a> {
     // Module-scope only. Without semantic reference resolution, accepting a
     // local `const styles` would make two functions using that common name
@@ -2414,6 +2530,85 @@ impl Frontend {
             variables,
             scan_spans,
         }
+    }
+
+    pub(crate) fn module_summary(
+        &self,
+        program: &oxc_ast::ast::Program,
+        module: &ModuleRecord,
+    ) -> ModuleSummary {
+        let mut aliases: HashMap<String, Vec<String>> = HashMap::new();
+        for entry in &module.local_export_entries {
+            if entry.is_type {
+                continue;
+            }
+            let Some(local) = entry.local_name.name() else {
+                continue;
+            };
+            let exported = match &entry.export_name {
+                ExportExportName::Name(name) => name.name.to_string(),
+                ExportExportName::Default(_) => "default".to_string(),
+                ExportExportName::Null => continue,
+            };
+            aliases.entry(local.to_string()).or_default().push(exported);
+        }
+        for names in aliases.values_mut() {
+            names.sort();
+            names.dedup();
+        }
+
+        let mut exports = Vec::new();
+        for (local, rules) in &self.sheets {
+            let Some(exported_names) = aliases.get(local) else {
+                continue;
+            };
+            let mut members = rules
+                .iter()
+                .map(|(name, rule)| ModuleMemberSummary {
+                    name: name.clone(),
+                    status: match rule {
+                        Rule::Ready { residual, .. } if residual.is_empty() => {
+                            ModuleMemberStatus::Static
+                        }
+                        Rule::Ready { entries, .. } if entries.is_empty() => {
+                            ModuleMemberStatus::Unsupported
+                        }
+                        Rule::Ready { .. } => ModuleMemberStatus::Partial,
+                        Rule::Function { .. } => ModuleMemberStatus::Function,
+                        Rule::Gap(_) => ModuleMemberStatus::Unsupported,
+                    },
+                })
+                .collect::<Vec<_>>();
+            members.sort_by(|left, right| left.name.cmp(&right.name));
+            for exported in exported_names {
+                exports.push(ModuleExportSummary {
+                    exported: exported.clone(),
+                    local: local.clone(),
+                    kind: ModuleExportKind::Sheet,
+                    members: members.clone(),
+                });
+            }
+        }
+
+        // Exported defineVars tables deliberately do not enter
+        // `self.variables`: another module may pass one to createTheme, so
+        // flattening its defaults would be wrong. They still belong in the
+        // graph summary, which is what lets the theme slice resolve them
+        // later without weakening that safety rule now.
+        let mut variable_collector = ExportedVariableCollector {
+            namespaces: &self.namespaces,
+            aliases: &aliases,
+            exports: Vec::new(),
+            function_depth: 0,
+        };
+        variable_collector.visit_program(program);
+        exports.extend(variable_collector.exports);
+        exports.sort_by(|left, right| {
+            left.exported
+                .cmp(&right.exported)
+                .then_with(|| left.local.cmp(&right.local))
+        });
+        ModuleSummary { exports }
     }
 
     fn props_namespace<'a>(&self, call: &'a CallExpression) -> Option<&'a str> {
