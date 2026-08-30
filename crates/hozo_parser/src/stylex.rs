@@ -2,8 +2,8 @@
 //!
 //! This reads one useful vertical slice rather than impersonating the full
 //! StyleX compiler: same-file namespace imports, `stylex.create({ ... })`,
-//! local unthemeable `stylex.defineVars`, and
-//! `stylex.props(styles.base, condition && styles.active)`. Values become the
+//! local unthemeable `stylex.defineVars`, statically called function styles,
+//! and `stylex.props(styles.base, condition && styles.active)`. Values become the
 //! typed `StyleProperty` variants the Tailwind frontend already produces, so
 //! the Web and Native lowerings remain shared.
 
@@ -49,7 +49,25 @@ enum Rule {
         residual: Vec<ResidualProperty>,
         gaps: Vec<Gap>,
     },
+    Function {
+        entries: Vec<FunctionEntry>,
+    },
     Gap(Gap),
+}
+
+#[derive(Debug, Clone)]
+struct FunctionEntry {
+    name: String,
+    css_name: String,
+    priority: u16,
+    value: FunctionValue,
+    span: SourceSpan,
+}
+
+#[derive(Debug, Clone)]
+enum FunctionValue {
+    Argument,
+    Static(StaticValue),
 }
 
 #[derive(Debug, Clone)]
@@ -77,6 +95,7 @@ struct ResolvedEntry {
 pub(crate) struct Frontend {
     namespaces: HashSet<String>,
     sheets: HashMap<String, HashMap<String, Rule>>,
+    variables: StaticVariables,
     /// StyleX definitions are not Tailwind candidate strings. The fallback
     /// scanner is intentionally broad, so it needs these exact ranges to
     /// avoid turning values such as `display: 'flex'` into duplicate CSS.
@@ -1708,6 +1727,14 @@ fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclar
         .collect()
 }
 
+fn lower_static_value(name: &str, value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    direct_properties(name, value).or_else(|| {
+        let token = token_for(name, value)?;
+        let (condition, properties) = tailwind::expand_utility(&token);
+        (condition == Condition::Always && !properties.is_empty()).then_some(properties)
+    })
+}
+
 fn parse_rule_object(
     object: &ObjectExpression,
     namespaces: &HashSet<String>,
@@ -1869,13 +1896,6 @@ fn parse_rule_object(
             }
             continue;
         }
-        let lower_value = |value: &StaticValue| {
-            direct_properties(&name, value).or_else(|| {
-                let token = token_for(&name, value)?;
-                let (condition, properties) = tailwind::expand_utility(&token);
-                (condition == Condition::Always && !properties.is_empty()).then_some(properties)
-            })
-        };
         let properties = if let Some(call) = first_that_works_call(&property.value, namespaces) {
             let candidates = call
                 .arguments
@@ -1892,7 +1912,7 @@ fn parse_rule_object(
                 .and_then(|values| {
                     values
                         .iter()
-                        .map(&lower_value)
+                        .map(|value| lower_static_value(&name, value))
                         .collect::<Option<Vec<_>>>()
                 })
                 .and_then(|groups| {
@@ -1937,7 +1957,7 @@ fn parse_rule_object(
                 });
                 continue;
             };
-            match lower_value(&value) {
+            match lower_static_value(&name, &value) {
                 Some(properties) => properties,
                 None => {
                     residual.push(ResidualProperty {
@@ -1996,6 +2016,98 @@ fn parse_rule(
         0,
     )?;
     Ok((out, residual, gaps))
+}
+
+fn parse_function_rule(
+    arrow: &ArrowFunctionExpression,
+    variables: &StaticVariables,
+) -> Result<Vec<FunctionEntry>, Gap> {
+    if arrow.r#async || arrow.params.items.len() != 1 || arrow.params.rest.is_some() {
+        return Err(Gap {
+            message: "Static StyleX function styles require one synchronous positional parameter."
+                .to_string(),
+            span: source_span(arrow.span),
+        });
+    }
+    let parameter = &arrow.params.items[0];
+    if parameter.initializer.is_some() {
+        return Err(Gap {
+            message: "Default parameters in StyleX function styles are not statically evaluated."
+                .to_string(),
+            span: source_span(parameter.span),
+        });
+    }
+    let BindingPattern::BindingIdentifier(parameter) = &parameter.pattern else {
+        return Err(Gap {
+            message: "Destructured StyleX function-style parameters are not statically evaluated."
+                .to_string(),
+            span: source_span(parameter.span),
+        });
+    };
+    let Some(Expression::ObjectExpression(object)) =
+        arrow.get_expression().map(Expression::without_parentheses)
+    else {
+        return Err(Gap {
+            message: "Static StyleX function styles require a concise object-expression body."
+                .to_string(),
+            span: source_span(arrow.body.span()),
+        });
+    };
+
+    object
+        .properties
+        .iter()
+        .map(|item| {
+            let ObjectPropertyKind::ObjectProperty(property) = item else {
+                return Err(Gap {
+                    message: "Object spreads in StyleX function styles are not statically evaluated."
+                        .to_string(),
+                    span: source_span(item.span()),
+                });
+            };
+            if property.computed {
+                return Err(Gap {
+                    message: "Computed properties in StyleX function styles are not statically evaluated."
+                        .to_string(),
+                    span: source_span(property.span),
+                });
+            }
+            let Some(name) = static_key(&property.key) else {
+                return Err(Gap {
+                    message: "StyleX function-style property names must be static.".to_string(),
+                    span: source_span(property.key.span()),
+                });
+            };
+            if name.starts_with(':') || name.starts_with('@') {
+                return Err(Gap {
+                    message: "Nested conditions in StyleX function styles remain with the official transform."
+                        .to_string(),
+                    span: source_span(property.span),
+                });
+            }
+            let value = match &property.value {
+                Expression::Identifier(identifier)
+                    if identifier.name.as_str() == parameter.name.as_str() =>
+                {
+                    FunctionValue::Argument
+                }
+                expression => resolved_static_value(expression, variables)
+                    .map(FunctionValue::Static)
+                    .ok_or_else(|| Gap {
+                        message: "A static StyleX function-style body may use its parameter or static values."
+                            .to_string(),
+                        span: source_span(expression.span()),
+                    })?,
+            };
+            Ok(FunctionEntry {
+                name: name.clone(),
+                css_name: canonical_property(&name).to_string(),
+                priority: property_priority(&name),
+                value,
+                span: source_span(property.span),
+            })
+        })
+        .collect()
 }
 
 #[derive(Default)]
@@ -2238,18 +2350,26 @@ impl<'a> Visit<'a> for SheetCollector<'_, 'a> {
             let Some(name) = static_key(&property.key) else {
                 continue;
             };
-            let rule = match parse_rule(
-                &property.value,
-                self.namespaces,
-                self.static_objects,
-                self.variables,
-            ) {
-                Ok((entries, residual, gaps)) => Rule::Ready {
-                    entries,
-                    residual,
-                    gaps,
+            let rule = match &property.value {
+                Expression::ArrowFunctionExpression(arrow) => {
+                    match parse_function_rule(arrow, self.variables) {
+                        Ok(entries) => Rule::Function { entries },
+                        Err(gap) => Rule::Gap(gap),
+                    }
+                }
+                expression => match parse_rule(
+                    expression,
+                    self.namespaces,
+                    self.static_objects,
+                    self.variables,
+                ) {
+                    Ok((entries, residual, gaps)) => Rule::Ready {
+                        entries,
+                        residual,
+                        gaps,
+                    },
+                    Err(gap) => Rule::Gap(gap),
                 },
-                Err(gap) => Rule::Gap(gap),
             };
             rules.insert(name, rule);
         }
@@ -2291,6 +2411,7 @@ impl Frontend {
         Self {
             namespaces,
             sheets,
+            variables,
             scan_spans,
         }
     }
@@ -2404,6 +2525,84 @@ impl Frontend {
         Ok(())
     }
 
+    fn resolve_function_call(
+        &self,
+        call: &CallExpression,
+        condition: Option<ConditionExpr>,
+        declarations: &mut Vec<ResolvedEntry>,
+    ) -> Result<(), Gap> {
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return Err(Gap {
+                message: "StyleX function styles must be called as `styles.rule(value)`."
+                    .to_string(),
+                span: source_span(call.span),
+            });
+        };
+        let entries = match self.rule_from_member(member)? {
+            Rule::Function { entries } => entries,
+            Rule::Gap(gap) => {
+                return Err(Gap {
+                    message: gap.message.clone(),
+                    span: source_span(call.span),
+                });
+            }
+            Rule::Ready { .. } => {
+                return Err(Gap {
+                    message: "Only a function-style StyleX rule can be called.".to_string(),
+                    span: source_span(call.span),
+                });
+            }
+        };
+        if call.arguments.len() != 1 {
+            return Err(Gap {
+                message: "Static StyleX function styles require exactly one call argument."
+                    .to_string(),
+                span: source_span(call.span),
+            });
+        }
+        let Some(argument) = call.arguments[0].as_expression() else {
+            return Err(Gap {
+                message: "Spread arguments in StyleX function styles are not statically evaluated."
+                    .to_string(),
+                span: source_span(call.arguments[0].span()),
+            });
+        };
+        let Some(argument) = resolved_static_value(argument, &self.variables) else {
+            return Err(Gap {
+                message: "This StyleX function style has a runtime argument; Hozo currently lowers only static calls and leaves runtime values with the official transform."
+                    .to_string(),
+                span: source_span(argument.span()),
+            });
+        };
+        let entries = entries
+            .iter()
+            .map(|entry| {
+                let value = match &entry.value {
+                    FunctionValue::Argument => &argument,
+                    FunctionValue::Static(value) => value,
+                };
+                let Some(properties) = lower_static_value(&entry.name, value) else {
+                    return Err(Gap {
+                        message: format!(
+                            "StyleX function-style property `{}` or its called value is not in Hozo's typed universal subset yet.",
+                            entry.name
+                        ),
+                        span: entry.span,
+                    });
+                };
+                Ok(Entry {
+                    css_name: entry.css_name.clone(),
+                    priority: entry.priority,
+                    properties,
+                    condition: Condition::Always,
+                    span: entry.span,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let declaration_condition = condition.map_or(Condition::Always, Condition::Expr);
+        self.append_entries(&entries, declaration_condition, declarations)
+    }
+
     fn resolve_props_expression(
         &self,
         expression: &Expression,
@@ -2413,6 +2612,9 @@ impl Frontend {
         residual_properties: &mut Vec<ResidualProperty>,
         gaps: &mut Vec<Gap>,
     ) -> Result<(), Gap> {
+        if let Expression::CallExpression(call) = expression {
+            return self.resolve_function_call(call, condition, declarations);
+        }
         let member = match expression {
             Expression::StaticMemberExpression(member) => member,
             Expression::LogicalExpression(logical)
@@ -2499,17 +2701,25 @@ impl Frontend {
         };
 
         let rule = self.rule_from_member(member)?;
-        let Rule::Ready {
-            entries,
-            residual,
-            gaps: rule_gaps,
-        } = rule
-        else {
-            let Rule::Gap(gap) = rule else { unreachable!() };
-            return Err(Gap {
-                message: gap.message.clone(),
-                span: source_span(member.span),
-            });
+        let (entries, residual, rule_gaps) = match rule {
+            Rule::Ready {
+                entries,
+                residual,
+                gaps,
+            } => (entries, residual, gaps),
+            Rule::Gap(gap) => {
+                return Err(Gap {
+                    message: gap.message.clone(),
+                    span: source_span(member.span),
+                });
+            }
+            Rule::Function { .. } => {
+                return Err(Gap {
+                    message: "A StyleX function-style rule must be called with one value."
+                        .to_string(),
+                    span: source_span(member.span),
+                });
+            }
         };
         let declaration_condition = condition
             .clone()
@@ -2720,6 +2930,78 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 1);
         assert_eq!(gaps.len(), 1);
+    }
+
+    #[test]
+    fn statically_called_function_styles_become_typed_ir() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              dynamic: (value) => ({ opacity: value, backgroundColor: '#123456' })
+            })
+            export const Card = () => <View {...stylex.props(styles.dynamic(0.5))} />
+        "#;
+        let parsed = crate::parse_tsx(source);
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert!(style
+            .iter()
+            .any(|declaration| declaration.property == StyleProperty::Opacity(0.5)));
+        assert!(style.iter().any(|declaration| {
+            declaration.property
+                == StyleProperty::BackgroundColor(Color::Css("#123456".into()))
+        }));
+        assert!(parsed.roots[0].node.props.stylex_residuals.is_empty());
+    }
+
+    #[test]
+    fn runtime_function_style_arguments_remain_with_official_stylex() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({ dynamic: (value) => ({ opacity: value }) })
+            export const Card = ({ value }) => (
+              <View {...stylex.props(styles.dynamic(value))} />
+            )
+        "#;
+        let parsed = crate::parse_tsx(source);
+        let node = &parsed.roots[0].node;
+        assert!(node.style.is_empty());
+        assert!(node.props.stylex_residuals.is_empty());
+        assert_eq!(node.props.passthrough.len(), 1);
+        assert_eq!(parsed.diagnostics.len(), 1);
+        assert!(parsed.diagnostics[0].message.contains("runtime argument"));
+    }
+
+    #[test]
+    fn static_function_styles_keep_stylex_argument_order() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              base: { opacity: 0.75 },
+              dynamic: (value) => ({ opacity: value })
+            })
+            export const A = () => (
+              <View {...stylex.props(styles.dynamic(0.5), styles.base)} />
+            )
+            export const B = () => (
+              <View {...stylex.props(styles.base, styles.dynamic(0.5))} />
+            )
+        "#;
+        let parsed = crate::parse_tsx(source);
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        assert!(parsed.roots[0]
+            .node
+            .style
+            .iter()
+            .any(|declaration| declaration.property == StyleProperty::Opacity(0.75)));
+        assert!(parsed.roots[1]
+            .node
+            .style
+            .iter()
+            .any(|declaration| declaration.property == StyleProperty::Opacity(0.5)));
     }
 
     #[test]
