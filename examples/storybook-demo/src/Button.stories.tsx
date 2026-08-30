@@ -59,7 +59,6 @@ function ButtonGallery() {
 
           <Link
             href="https://github.com/iray-tno/hozo"
-            accessibilityRole="link"
             className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-1.5"
           >
             External Link &rarr;

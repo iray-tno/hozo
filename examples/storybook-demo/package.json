@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node scripts/build.mjs && node scripts/check-build.mjs"
+    "test": "tsc --noEmit -p . && node scripts/build.mjs && node scripts/check-build.mjs",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@hozo/a11y": "workspace:*",
@@ -17,7 +18,10 @@
   "devDependencies": {
     "@hozo/storybook": "workspace:*",
     "@storybook/react-vite": "^10.5.9",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "storybook": "^10.5.9",
+    "typescript": "7.0.2",
     "vite": "^8.2.1"
   }
 }

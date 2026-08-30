@@ -13,7 +13,13 @@ const artifacts = filesUnder('storybook-static')
   .map((file) => readFileSync(file, 'utf8'))
   .join('\n')
 
-if (artifacts.includes('@hozo/core')) {
+// An unresolved *import* of `@hozo/core`, which is what a module the
+// compiler failed to lower would leave behind. Matched as an import rather
+// than as a substring: the bare name also occurs as content -- the Tree
+// story lists this repository's packages by name -- and a check that
+// cannot tell a label from an import fails on a story that says the word.
+const UNLOWERED_IMPORT = /(?:from|import)\s*\(?\s*["'`]@hozo\/core["'`]/
+if (UNLOWERED_IMPORT.test(artifacts)) {
   throw new Error('Storybook output still imports @hozo/core')
 }
 if (!artifacts.includes('Hozo Storybook') || !/\bhozo-[a-z0-9]+-r\d+-\d+\b/.test(artifacts)) {
