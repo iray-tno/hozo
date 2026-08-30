@@ -1620,6 +1620,27 @@ fn stylex_media_condition(name: &str) -> Option<Condition> {
         })
 }
 
+/// StyleX's six interaction pseudo-classes already represented by Hozo's
+/// condition IR, plus their published 0.19 atomic-priority offsets.
+/// Native answers the ones its target exposes and retains the existing
+/// explicit diagnostic for conditions such as `:focus-within`.
+///
+/// `:hover` deliberately reuses Hozo's touch-safe hover contract on Web,
+/// including its `(hover: hover)` capability query. That is a stricter
+/// condition than StyleX's bare selector, but prevents sticky hover on
+/// touch devices and is the same meaning Native's Pressable reports.
+fn stylex_pseudo_condition(name: &str) -> Option<(Condition, u16)> {
+    Some(match name {
+        ":hover" => (Condition::Hover, 130),
+        ":focus" => (Condition::Focus, 150),
+        ":active" => (Condition::Pressed, 170),
+        ":focus-visible" => (Condition::FocusVisible, 40),
+        ":focus-within" => (Condition::FocusWithin, 40),
+        ":disabled" => (Condition::Disabled, 92),
+        _ => return None,
+    })
+}
+
 fn combine_conditions(outer: &Condition, inner: Condition) -> Condition {
     let mut conditions = match outer {
         Condition::Always => Vec::new(),
@@ -1672,7 +1693,7 @@ fn parse_rule_object(
     residual: &mut Vec<ResidualProperty>,
     gaps: &mut Vec<Gap>,
     condition: &Condition,
-    media_depth: u16,
+    nesting_priority: u16,
 ) -> Result<(), Gap> {
     for item in &object.properties {
         let property = match item {
@@ -1713,7 +1734,7 @@ fn parse_rule_object(
                             residual,
                             gaps,
                             condition,
-                            media_depth,
+                            nesting_priority,
                         )?;
                         visiting.remove(&name);
                         continue;
@@ -1735,7 +1756,7 @@ fn parse_rule_object(
                     residual,
                     gaps,
                     condition,
-                    media_depth,
+                    nesting_priority,
                 )?;
                 continue;
             }
@@ -1753,25 +1774,32 @@ fn parse_rule_object(
                 span: source_span(property.key.span()),
             });
         };
-        if name.starts_with("@media ") {
-            let Some(media) = stylex_media_condition(&name) else {
+        let nested = if name.starts_with("@media ") {
+            Some(stylex_media_condition(&name).map(|condition| (condition, 200)))
+        } else if name.starts_with(':') {
+            Some(stylex_pseudo_condition(&name))
+        } else {
+            None
+        };
+        if let Some(nested) = nested {
+            let Some((nested_condition_atom, priority)) = nested else {
                 residual.push(ResidualProperty {
                     css_name: name.clone(),
                     span: ExprRef(source_span(property.span)),
                 });
                 gaps.push(Gap {
-                    message: format!("StyleX media query `{name}` is outside Hozo's exact cross-platform query subset."),
+                    message: format!("StyleX nested condition `{name}` is outside Hozo's cross-platform condition subset."),
                     span: source_span(property.key.span()),
                 });
                 continue;
             };
-            let Expression::ObjectExpression(nested) = &property.value else {
+            let Expression::ObjectExpression(nested_object) = &property.value else {
                 residual.push(ResidualProperty {
                     css_name: name.clone(),
                     span: ExprRef(source_span(property.span)),
                 });
                 gaps.push(Gap {
-                    message: "StyleX media-query values must be static object literals.".to_string(),
+                    message: "StyleX nested-condition values must be static object literals.".to_string(),
                     span: source_span(property.value.span()),
                 });
                 continue;
@@ -1785,12 +1813,12 @@ fn parse_rule_object(
             // StyleX reverses nested at-rule wrappers: an inner query is
             // emitted around the outer one. Prepending here preserves that
             // observable order when the Web backend renders `Condition::All`.
-            let nested_condition = combine_conditions(&media, condition.clone());
+            let nested_condition = combine_conditions(&nested_condition_atom, condition.clone());
             let mut nested_entries = Vec::new();
             let mut nested_residual = Vec::new();
             let mut nested_gaps = Vec::new();
             parse_rule_object(
-                nested,
+                nested_object,
                 namespaces,
                 static_objects,
                 visiting,
@@ -1798,7 +1826,7 @@ fn parse_rule_object(
                 &mut nested_residual,
                 &mut nested_gaps,
                 &nested_condition,
-                media_depth.saturating_add(1),
+                nesting_priority.saturating_add(priority),
             )?;
             if nested_residual.is_empty() {
                 out.extend(nested_entries);
@@ -1896,10 +1924,10 @@ fn parse_rule_object(
         };
         out.push(Entry {
             css_name: canonical_property(&name).to_string(),
-            // StyleX adds 200 per nested condition. Besides matching its
-            // metadata, this makes a media declaration sort after its base
-            // even when the author wrote the media object first.
-            priority: property_priority(&name).saturating_add(media_depth.saturating_mul(200)),
+            // StyleX assigns each nested condition a published offset.
+            // Carrying their sum makes a conditional declaration sort after
+            // its base even when the author wrote the nested object first.
+            priority: property_priority(&name).saturating_add(nesting_priority),
             properties,
             condition: condition.clone(),
             span: source_span(property.span),
@@ -2923,6 +2951,78 @@ mod tests {
         assert_eq!(style.iter().filter(|declaration| declaration.condition == Condition::Dark).count(), 1);
         assert!(matches!(style.first().map(|declaration| &declaration.condition), Some(Condition::Always)));
         assert!(matches!(style.last().map(|declaration| &declaration.condition), Some(Condition::Dark)));
+    }
+
+    #[test]
+    fn nested_interaction_pseudos_become_existing_cross_platform_conditions() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { Pressable } from '@hozo/core'
+            const styles = stylex.create({
+              root: {
+                opacity: 1,
+                ':hover': { opacity: 0.75 },
+                ':focus-visible': { opacity: 0.5 },
+                ':active': { transform: 'scale(0.95)' }
+              }
+            })
+            const card = <Pressable accessibilityRole="button" {...stylex.props(styles.root)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert_eq!(style.len(), 4);
+        assert_eq!(style[0].condition, Condition::Always);
+        assert_eq!(style[1].condition, Condition::FocusVisible);
+        assert_eq!(style[2].condition, Condition::Hover);
+        assert_eq!(style[3].condition, Condition::Pressed);
+    }
+
+    #[test]
+    fn nested_pseudos_compose_in_the_selector_order_stylex_emits() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { Pressable } from '@hozo/core'
+            const styles = stylex.create({
+              root: { ':hover': { ':focus': { opacity: 0.5 } } }
+            })
+            const card = <Pressable accessibilityRole="button" {...stylex.props(styles.root)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let [declaration] = parsed.roots[0].node.style.as_slice() else {
+            panic!("expected one nested declaration")
+        };
+        assert_eq!(
+            declaration.condition,
+            Condition::All(vec![Condition::Focus, Condition::Hover])
+        );
+    }
+
+    #[test]
+    fn unsupported_pseudo_blocks_stay_whole_for_official_stylex() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              root: {
+                opacity: 1,
+                ':checked': { opacity: 0.5, padding: 8 }
+              }
+            })
+            const card = <View {...stylex.props(styles.root)} />
+        "#;
+        let parsed = crate::parse_tsx(source);
+        let node = &parsed.roots[0].node;
+        assert_eq!(node.style.len(), 1);
+        assert_eq!(node.props.stylex_residuals.len(), 1);
+        let residual = node.props.stylex_residuals[0].render_expression(source);
+        assert_eq!(residual.matches(":checked").count(), 1, "{residual}");
+        assert!(residual.contains("opacity: 0.5"), "{residual}");
+        assert!(residual.contains("padding: 8"), "{residual}");
+        assert!(!residual.contains("opacity: 1"), "{residual}");
     }
 
     #[test]

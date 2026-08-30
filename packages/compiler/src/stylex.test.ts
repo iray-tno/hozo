@@ -95,6 +95,50 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   assert.match(native.styles, /paddingTop: 24/)
 })
 
+test('nested StyleX interaction pseudos preserve priority and reuse Pressable state', () => {
+  const pseudoSource = `import * as stylex from '@stylexjs/stylex'
+import { Pressable } from '@hozo/core'
+const styles = stylex.create({
+  root: {
+    opacity: 1,
+    ':hover': { opacity: 0.5 },
+    ':active': { transform: 'scale(0.95)' },
+  },
+})
+export const Card = () => (
+  <Pressable accessibilityRole="button" {...stylex.props(styles.root)} />
+)
+`
+  const official = transformSync(pseudoSource, {
+    filename: '/app/NestedPseudos.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as {
+    stylex?: [string, { ltr: string }, number][]
+  }
+  assert.deepEqual((metadata.stylex ?? []).map(([, , priority]) => priority), [3000, 3130, 3170])
+
+  const web = compile(pseudoSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.doesNotMatch(web.jsx, /stylex\.props/)
+  assert.match(web.css, /@media \(hover: hover\)/)
+  assert.match(web.css, /\.hozo-0:hover/)
+  assert.match(web.css, /\.hozo-0:active/)
+
+  const native = compileNative(pseudoSource)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+  assert.match(native.jsx, /hovered && hozoStyles\.hozo0_hover/)
+  assert.match(native.jsx, /pressed && hozoStyles\.hozo0_pressed/)
+  assert.match(native.styles, /opacity: 0.5/)
+  assert.match(native.styles, /transform: \[\{ scale: 0.95 \}\]/)
+})
+
 test('unsupported StyleX remains available to the official compiler and is named', () => {
   const unsupported = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'

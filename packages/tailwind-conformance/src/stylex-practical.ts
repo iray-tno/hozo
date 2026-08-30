@@ -193,6 +193,10 @@ const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
 
 function constructSource(testCase: StylexConstructCase): string {
   const alias = testCase.name === 'aliased namespace import' ? 'sx' : 'stylex'
+  const component = testCase.name === 'nested pseudo-class' ? 'Pressable' : 'View'
+  const componentProps = testCase.name === 'nested pseudo-class'
+    ? ' accessibilityRole="button"'
+    : ''
   const prefix = testCase.name === 'cross-file sheet'
     ? "import { styles as external } from './external.stylex'\n"
     : ''
@@ -201,13 +205,13 @@ function constructSource(testCase: StylexConstructCase): string {
     ? "const tokens = stylex.defineVars({ accent: '#123456' })\n"
     : ''
   return `import * as ${alias} from '@stylexjs/stylex'
-import { View } from '@hozo/core'
+import { Pressable, View } from '@hozo/core'
 ${prefix}${shared}${tokens}const styles = ${alias}.create({
   root: { padding: 16 },
   active: { opacity: 0.5 },
   ${testCase.definitions ?? ''}
 })
-export const Probe = ({ active }) => <View {...${alias}.props(${testCase.expression})} />
+export const Probe = ({ active }) => <${component}${componentProps} {...${alias}.props(${testCase.expression})} />
 `
 }
 
