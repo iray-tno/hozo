@@ -35,7 +35,19 @@ import {
   Section,
   Text,
   View,
+  type ViewProps,
 } from './index.tsx'
+
+// This assignment is intentionally part of the test build. The compiler
+// carries both props and the fallback renders them, so the public contract
+// has to let an author write the compiler's own suggested remedy without a
+// TS2322 first. The Native-only transform shape checks the escape hatch is
+// not accidentally narrowed to browser CSS.
+const roleAndStyleContract: ViewProps = {
+  role: 'region',
+  style: { transform: [{ scale: 0.95 }] },
+}
+void roleAndStyleContract
 
 // Each primitive is handed the same bag of props, which is not a shape
 // any one of their props types describes -- FlatList alone requires
@@ -131,6 +143,28 @@ test('testID and nativeID survive alongside the explicit attributes', () => {
     assert.match(html, /data-testid="inbox"/, `${name} dropped testID`)
     assert.match(html, /id="inbox-root"/, `${name} dropped nativeID`)
     assert.match(html, /aria-label="Inbox"/, `${name} dropped accessibilityLabel`)
+  }
+})
+
+test('every universal primitive renders an explicit role and inline style', () => {
+  for (const [name, component] of PRIMITIVES) {
+    const html = render(component, {
+      role: 'region',
+      style: { paddingInlineStart: 8 },
+    })
+    assert.match(html, /role="region"/, `${name} dropped its role`)
+    assert.match(html, /padding-inline-start:8px/, `${name} dropped its style`)
+  }
+})
+
+test('scrolling fallbacks retain their viewport defaults beside an author style', () => {
+  for (const [name, component] of [
+    ['ScrollView', ScrollView],
+    ['FlatList', FlatList],
+  ] as [string, Primitive][]) {
+    const html = render(component, { horizontal: true, style: { paddingInlineStart: 8 } })
+    assert.match(html, /overflow-x:auto/, `${name} lost its horizontal viewport style`)
+    assert.match(html, /padding-inline-start:8px/, `${name} dropped the author style`)
   }
 })
 
