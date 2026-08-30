@@ -187,7 +187,7 @@ const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
   { name: 'rule object spread', expression: 'styles.spread', definitions: 'spread: { ...shared, padding: 16 },' },
   { name: 'firstThatWorks', expression: 'styles.fallback', definitions: "fallback: { display: stylex.firstThatWorks('grid', 'flex') }," },
   { name: 'defineVars value', expression: 'styles.variable', definitions: 'variable: { color: tokens.accent },' },
-  { name: 'function style', expression: 'styles.dynamic(0.5)', definitions: 'dynamic: (value) => ({ opacity: value }),' },
+  { name: 'static function style', expression: 'styles.dynamic(0.5)', definitions: 'dynamic: (value) => ({ opacity: value }),' },
   { name: 'cross-file sheet', expression: 'external.root' },
 ] as const
 

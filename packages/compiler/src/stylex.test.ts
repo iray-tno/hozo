@@ -180,6 +180,45 @@ export const Card = () => <View {...stylex.props(dark, styles.root)} />
   }
 })
 
+test('statically called StyleX function styles lower without runtime parsing', () => {
+  const functionSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  dynamic: (value) => ({ opacity: value, padding: 8 }),
+})
+export const Card = () => <View {...stylex.props(styles.dynamic(0.5))} />
+`
+
+  const web = compile(functionSource)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.doesNotMatch(web.jsx, /stylex\.props/)
+  assert.match(web.css, /opacity: 0.5/)
+  assert.match(web.css, /padding-top: 8px/)
+
+  const native = compileNative(functionSource)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+  assert.match(native.styles, /opacity: 0.5/)
+  assert.match(native.styles, /paddingTop: 8/)
+})
+
+test('runtime StyleX function arguments remain with the official transform', () => {
+  const functionSource = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({ dynamic: (value) => ({ opacity: value }) })
+export const Card = ({ value }) => <View {...stylex.props(styles.dynamic(value))} />
+`
+
+  for (const component of [compile(functionSource)[0], compileNative(functionSource)[0]]) {
+    assert.ok(component)
+    assert.match(component.jsx, /stylex\.props\(styles\.dynamic\(value\)\)/)
+    assert.equal(component.diagnostics[0]?.code, 'STYLEX_NOT_LOWERED')
+    assert.match(component.diagnostics[0]?.message ?? '', /runtime argument/)
+  }
+})
+
 test('unsupported StyleX remains available to the official compiler and is named', () => {
   const unsupported = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
