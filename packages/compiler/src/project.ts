@@ -42,11 +42,22 @@ const DEFAULT_EXCLUDE = [
 export const CACHE_DIR = path.join('node_modules', '.hozo')
 
 export interface ContentOptions {
-  /** Globs relative to the project root. */
+  /**
+   * Globs relative to the project root.
+   *
+   * Supplying this turns gitignore off for the walk: naming a path is the
+   * project saying which files these are, and gitignore answers a
+   * different question -- what to commit. A generated token module is
+   * often both untracked and worth scanning. `exclude` and the built-in
+   * ignores still apply.
+   */
   include?: string[]
   /** Additional ignore globs relative to the project root. */
   exclude?: string[]
-  /** Read nested .gitignore files while walking. Defaults to true. */
+  /**
+   * Read `.gitignore` while walking, including the ones above the project.
+   * Defaults to true, and has no effect alongside `include`.
+   */
   respectGitignore?: boolean
 }
 
@@ -186,9 +197,29 @@ function notIgnoredAbove(root: string): (file: string) => boolean {
  * Returns authored source files in stable order. Globby supplies gitignore
  * semantics and avoids following directory symlinks, preventing pnpm links
  * and temporary checkouts from expanding one project walk into another.
+ *
+ * An `include` the project supplied wins over gitignore, which the default
+ * walk still respects. Not every file worth scanning is a file worth
+ * committing: a design-token pipeline writes real `stylex.create` calls
+ * and real class names into a directory the repository deliberately does
+ * not track, and until now nothing could reach them -- `include` named
+ * them and gitignore dropped them again, leaving the option with no
+ * effect and no error.
+ *
+ * Tailwind draws the same line and it is worth matching rather than
+ * inventing: its auto-detected walk skips gitignored paths, and a path
+ * named by `@source` is scanned anyway. Checked against
+ * `@tailwindcss/oxide` on a tree with `generated/` ignored -- the default
+ * walk found `p-4`, adding `@source "generated/**"` found `gap-7` too.
+ *
+ * `exclude` and `DEFAULT_EXCLUDE` still apply, so `node_modules`, `dist`
+ * and the rest stay out however broad the `include`.
  */
 export function discoverSources(root: string, options: ContentOptions = {}): string[] {
-  const respectGitignore = options.respectGitignore ?? true
+  // `include` is the project saying which files these are, so gitignore --
+  // which answers a different question, about what to commit -- does not
+  // get to overrule it.
+  const respectGitignore = (options.respectGitignore ?? true) && options.include === undefined
   const files = globbySync(options.include ?? DEFAULT_INCLUDE, {
     cwd: root,
     absolute: true,
