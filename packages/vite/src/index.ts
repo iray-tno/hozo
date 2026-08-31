@@ -33,7 +33,6 @@ import {
   createCompiler,
   type CandidateCache,
   type Compiler,
-  type StylexExternalBinding,
   type Theme,
 } from '@hozo/compiler'
 import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
@@ -45,12 +44,12 @@ import {
   scanProject,
   preflightCssFor,
   preflightCssPath,
+  resolveStylexRequests,
   scanSummary,
   scannableFile,
   writeFileIfChanged,
   type HozoProjectOptions,
   type StylexModuleCache,
-  type StylexResolutionRequest,
 } from '@hozo/compiler/project'
 
 /**
@@ -85,33 +84,6 @@ export function hozo(options: HozoOptions = {}): Plugin {
   // is synchronous and this is not: `getClassOrder` needs the project's
   // design system.
   let classOrder: string[] = []
-
-  async function resolveStylexRequests(
-    requests: readonly StylexResolutionRequest[],
-    resolve: (specifier: string, importer: string) => Promise<string | undefined>,
-  ): Promise<boolean> {
-    const grouped = new Map<string, Set<string>>()
-    for (const { importer, specifier } of requests) {
-      const specifiers = grouped.get(importer) ?? new Set<string>()
-      specifiers.add(specifier)
-      grouped.set(importer, specifiers)
-    }
-    let changed = false
-    for (const [importer, specifiers] of grouped) {
-      const bindings: StylexExternalBinding[] = []
-      await Promise.all(
-        [...specifiers].map(async (specifier) => {
-          const resolved = await resolve(specifier, importer)
-          const file = resolved ? scannableFile(resolved) : undefined
-          if (!file) return
-          const moduleId = path.resolve(file)
-          if (stylexModules.get(moduleId)) bindings.push({ specifier, moduleId })
-        }),
-      )
-      changed = stylexModules.setResolvedBindings(importer, bindings) || changed
-    }
-    return changed
-  }
 
   /// Regenerates the project-wide candidate stylesheet and, in dev, makes
   /// the already-loaded module pick it up. The file lives under
@@ -173,10 +145,14 @@ export function hozo(options: HozoOptions = {}): Plugin {
       })
       cache = project.cache
       stylexModules = project.stylexModules
-      await resolveStylexRequests(stylexModules.resolutionRequests(), async (specifier, importer) => {
-        const resolved = await this.resolve(specifier, importer, { skipSelf: true })
-        return resolved?.id
-      })
+      await resolveStylexRequests(
+        stylexModules,
+        stylexModules.resolutionRequests(),
+        async (specifier, importer) => {
+          const resolved = await this.resolve(specifier, importer, { skipSelf: true })
+          return resolved?.id
+        },
+      )
       compiler.setStylexModules(stylexModules.moduleSources())
       includedFiles = new Set(project.files)
       candidateCssPath = path.join(project.dir, 'candidates.css')
@@ -243,6 +219,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
       const reexportSpecifiers = stylexModules.reexportSpecifiers(absoluteFile)
       if (stylexGraphChanged) {
         await resolveStylexRequests(
+          stylexModules,
           stylexModules.resolutionRequests(),
           async (specifier, importer) => {
             const resolved = await this.resolve(specifier, importer, { skipSelf: true })
@@ -260,6 +237,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
             .map((specifier) => ({ importer: absoluteFile, specifier }))
         : []
       const resolvedCurrent = await resolveStylexRequests(
+        stylexModules,
         [
           ...importRequests,
           ...reexportSpecifiers.map((specifier) => ({ importer: absoluteFile, specifier })),

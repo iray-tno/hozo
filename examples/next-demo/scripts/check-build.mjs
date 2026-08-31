@@ -41,6 +41,7 @@ const checks = [
   // The project theme was read: `bg-brand` only resolves through
   // src/theme.css, which nothing imports.
   [/background-color:\s*(?:#3082f6|lab\(|oklch\(62%)/.test(output), 'project theme token bg-brand did not resolve'],
+  [/margin-top:\s*37px/.test(output), 'aliased StyleX sheet did not lower'],
   // Variants: `md:hover:` needs both the width query and the capability one.
   [/@media\s*\(min-width:\s*768px\)/.test(output), 'responsive variant produced no media query'],
   [/@media\s*\(hover:\s*hover\)/.test(output), 'hover variant produced no capability query'],

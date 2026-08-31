@@ -1,5 +1,7 @@
 import { Button, Heading, Paragraph, Section, View } from '@hozo/core'
+import * as stylex from '@stylexjs/stylex'
 
+import { cardStyles } from '@theme/stylex-index'
 import { accentFor } from '../variants'
 
 export default function Home() {
@@ -17,6 +19,7 @@ export default function Home() {
             compiler can't read it and the project scan covers it instead. */}
         <View className={accentFor(true)}>Runtime class</View>
       </View>
+      <View {...stylex.props(cardStyles.root)}>Aliased StyleX sheet</View>
     </Section>
   )
 }

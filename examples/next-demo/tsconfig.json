@@ -21,7 +21,12 @@
       }
     ],
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "paths": {
+      "@theme/*": [
+        "./src/*"
+      ]
+    }
   },
   "include": [
     "**/*.ts",
