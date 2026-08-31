@@ -120,6 +120,9 @@ importers:
       '@hozo/next':
         specifier: workspace:*
         version: link:../../packages/next
+      '@stylexjs/stylex':
+        specifier: 0.19.0
+        version: 0.19.0
       '@types/node':
         specifier: 26.2.0
         version: 26.2.0

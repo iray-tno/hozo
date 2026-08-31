@@ -19,6 +19,7 @@ import {
   StylexModuleCache,
   importSpecifier,
   preflightCssFor,
+  resolveStylexRequests,
   scannableFile,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
@@ -45,6 +46,7 @@ function projectState(options) {
       // await the theme needs. Empty until then means alphabetical, which
       // is what `withHozo` writes synchronously anyway.
       classOrder: [],
+      stylexGraphResolved: false,
       // Rewritten once the theme resolves, unconditionally.
       //
       // `withHozo` writes this file synchronously while `next.config.ts`
@@ -86,7 +88,7 @@ export default function hozoLoader(source) {
   const state = projectState(options)
 
   state.theme.then(
-    (theme) => {
+    async (theme) => {
       try {
         // Every module that reaches this loader is rescanned, which is how
         // a class only a runtime expression produces stays covered while
@@ -117,9 +119,47 @@ export default function hozoLoader(source) {
           })
         }
 
-        if (state.stylexModules.scanFile(path.resolve(file), source, modifiedMs)) {
-          state.compiler.setStylexModules(state.stylexModules.moduleSources())
+        const absoluteFile = path.resolve(file)
+        const stylexGraphChanged = state.stylexModules.scanFile(
+          absoluteFile,
+          source,
+          modifiedMs,
+        )
+        if (stylexGraphChanged) {
           state.stylexModules.persist()
+        }
+
+        let registryChanged = stylexGraphChanged
+        if (!state.stylexGraphResolved || stylexGraphChanged) {
+          registryChanged =
+            (await resolveStylexRequests(
+              state.stylexModules,
+              state.stylexModules.resolutionRequests(),
+              (specifier, importer) => resolveFromLoader(this, specifier, importer),
+            )) || registryChanged
+          state.stylexGraphResolved = true
+        }
+        const reexportSpecifiers = state.stylexModules.reexportSpecifiers(absoluteFile)
+        const importRequests = source.includes('@stylexjs/stylex')
+          ? state.stylexModules
+              .importSpecifiers(absoluteFile)
+              .filter(
+                (specifier) =>
+                  specifier !== '@stylexjs/stylex' &&
+                  !state.compiler.sources.includes(specifier),
+              )
+              .map((specifier) => ({ importer: absoluteFile, specifier }))
+          : []
+        const resolvedCurrent = await resolveStylexRequests(
+          state.stylexModules,
+          [
+            ...importRequests,
+            ...reexportSpecifiers.map((specifier) => ({ importer: absoluteFile, specifier })),
+          ],
+          (specifier, importer) => resolveFromLoader(this, specifier, importer),
+        )
+        if (registryChanged || (resolvedCurrent && reexportSpecifiers.length > 0)) {
+          state.compiler.setStylexModules(state.stylexModules.moduleSources())
         }
 
         const lowered = lowerModule(
@@ -158,6 +198,22 @@ export default function hozoLoader(source) {
     },
     (error) => callback(error),
   )
+}
+
+function resolveFromLoader(loader, specifier, importer) {
+  if (typeof loader.getResolve === 'function') {
+    const resolve = loader.getResolve({})
+    return Promise.resolve(resolve(path.dirname(importer), specifier)).then(
+      (result) => (typeof result === 'string' ? result : undefined),
+      () => undefined,
+    )
+  }
+  if (typeof loader.resolve !== 'function') return Promise.resolve(undefined)
+  return new Promise((complete) => {
+    loader.resolve(path.dirname(importer), specifier, (error, result) => {
+      complete(error || typeof result !== 'string' ? undefined : result)
+    })
+  })
 }
 
 /** Tailwind's base layer, on the terms `preflightCssFor` describes. */

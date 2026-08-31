@@ -6,8 +6,11 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { globbySync } from 'globby'
 
-import { openCandidateCache, type CandidateCache } from './index.ts'
-import { StylexModuleCache } from './stylex-project.ts'
+import { openCandidateCache, type CandidateCache, type StylexExternalBinding } from './index.ts'
+import {
+  StylexModuleCache,
+  type StylexResolutionRequest,
+} from './stylex-project.ts'
 
 export {
   StylexModuleCache,
@@ -158,6 +161,35 @@ export function scannableFile(id: string): string | undefined {
   // `split` always yields a first element; the fallback is for the type.
   const file = id.split('?')[0] ?? id ?? id
   return SCANNABLE.has(path.extname(file)) ? file : undefined
+}
+
+/** Feed one bundler's authoritative resolver answers into the shared graph. */
+export async function resolveStylexRequests(
+  modules: StylexModuleCache,
+  requests: readonly StylexResolutionRequest[],
+  resolve: (specifier: string, importer: string) => Promise<string | undefined>,
+): Promise<boolean> {
+  const grouped = new Map<string, Set<string>>()
+  for (const { importer, specifier } of requests) {
+    const specifiers = grouped.get(importer) ?? new Set<string>()
+    specifiers.add(specifier)
+    grouped.set(importer, specifiers)
+  }
+  let changed = false
+  for (const [importer, specifiers] of grouped) {
+    const bindings: StylexExternalBinding[] = []
+    await Promise.all(
+      [...specifiers].map(async (specifier) => {
+        const resolved = await resolve(specifier, importer)
+        const file = resolved ? scannableFile(resolved) : undefined
+        if (!file) return
+        const moduleId = path.resolve(file)
+        if (modules.get(moduleId)) bindings.push({ specifier, moduleId })
+      }),
+    )
+    changed = modules.setResolvedBindings(importer, bindings) || changed
+  }
+  return changed
 }
 
 /**
