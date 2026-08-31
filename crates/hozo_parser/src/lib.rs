@@ -17,10 +17,12 @@ pub use scan::{resolve_class_name, scan_class_candidates, source_uses_tailwind, 
 pub use stylex::{
     ExternalBinding as StylexExternalBinding,
     ModuleRegistry as StylexModuleRegistry,
+    ModuleSource as StylexModuleSource,
     ModuleExportKind as StylexModuleExportKind,
     ModuleExportSummary as StylexModuleExportSummary,
     ModuleMemberStatus as StylexModuleMemberStatus,
     ModuleMemberSummary as StylexModuleMemberSummary,
+    ModuleReexportSummary as StylexModuleReexportSummary,
     ModuleSummary as StylexModuleSummary,
 };
 
@@ -270,6 +272,32 @@ mod tests {
         assert_eq!(
             variables.members.iter().map(|member| member.name.as_str()).collect::<Vec<_>>(),
             vec!["accent", "space"]
+        );
+    }
+
+    #[test]
+    fn stylex_module_summary_records_named_and_star_reexports() {
+        let summary = summarize_stylex_module(
+            r#"
+            export { styles as cardStyles } from './styles'
+            export * from './more-styles'
+            "#,
+        );
+        assert!(summary.exports.is_empty());
+        assert_eq!(
+            summary.reexports,
+            vec![
+                StylexModuleReexportSummary {
+                    specifier: "./more-styles".to_string(),
+                    imported: "*".to_string(),
+                    exported: "*".to_string(),
+                },
+                StylexModuleReexportSummary {
+                    specifier: "./styles".to_string(),
+                    imported: "styles".to_string(),
+                    exported: "cardStyles".to_string(),
+                },
+            ]
         );
     }
 

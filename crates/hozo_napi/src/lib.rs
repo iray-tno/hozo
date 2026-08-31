@@ -139,6 +139,14 @@ pub struct StylexModuleExportSummary {
 #[napi(object)]
 pub struct StylexModuleSummary {
     pub exports: Vec<StylexModuleExportSummary>,
+    pub reexports: Vec<StylexModuleReexportSummary>,
+}
+
+#[napi(object)]
+pub struct StylexModuleReexportSummary {
+    pub specifier: String,
+    pub imported: String,
+    pub exported: String,
 }
 
 #[napi(object)]
@@ -146,6 +154,7 @@ pub struct StylexModuleSource {
     pub id: String,
     pub content_hash: String,
     pub source: String,
+    pub links: Vec<StylexExternalBinding>,
 }
 
 #[napi(object)]
@@ -201,6 +210,15 @@ pub fn summarize_stylex_module(source: String) -> StylexModuleSummary {
                         .to_string(),
                     })
                     .collect(),
+            })
+            .collect(),
+        reexports: summary
+            .reexports
+            .into_iter()
+            .map(|reexport| StylexModuleReexportSummary {
+                specifier: reexport.specifier,
+                imported: reexport.imported,
+                exported: reexport.exported,
             })
             .collect(),
     }
@@ -497,7 +515,19 @@ impl Compiler {
     pub fn set_stylex_modules(&mut self, modules: Vec<StylexModuleSource>) {
         let modules = modules
             .into_iter()
-            .map(|module| (module.id, module.content_hash, module.source))
+            .map(|module| hozo_parser::StylexModuleSource {
+                id: module.id,
+                content_hash: module.content_hash,
+                source: module.source,
+                links: module
+                    .links
+                    .into_iter()
+                    .map(|link| hozo_parser::StylexExternalBinding {
+                        specifier: link.specifier,
+                        module_id: link.module_id,
+                    })
+                    .collect(),
+            })
             .collect::<Vec<_>>();
         self.stylex.replace(&modules);
     }

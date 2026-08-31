@@ -113,6 +113,89 @@ test('namespace imports can select an exported static sheet', () => {
   }
 })
 
+test('named and star re-export chains reach the defining sheet', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-stylex-reexport-'))
+  try {
+    const definition = path.join(root, 'styles.ts')
+    const namedBarrel = path.join(root, 'named.ts')
+    const starBarrel = path.join(root, 'index.ts')
+    const component = path.join(root, 'Card.tsx')
+    const definitionSource = `import * as stylex from '@stylexjs/stylex'
+      export const styles = stylex.create({ root: { padding: 20 } })`
+    const namedSource = `export { styles as cardStyles } from './styles'`
+    const starSource = `export * from './named'`
+    const componentSource = `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import { cardStyles } from './index'
+      export const Card = () => <View {...stylex.props(cardStyles.root)} />`
+    for (const [file, source] of [
+      [definition, definitionSource],
+      [namedBarrel, namedSource],
+      [starBarrel, starSource],
+      [component, componentSource],
+    ] as const) {
+      writeFileSync(file, source)
+    }
+
+    const modules = new StylexModuleCache(path.join(root, 'stylex-modules.json'))
+    modules.scanFile(definition, definitionSource, 1)
+    modules.scanFile(namedBarrel, namedSource, 1)
+    modules.scanFile(starBarrel, starSource, 1)
+    assert.equal(modules.size, 3)
+    const compiler = createCompiler()
+    compiler.setStylexModules(modules.moduleSources())
+
+    const web = lowerModule(componentSource, component, component, compiler, root, modules)
+    assert.ok(web)
+    assert.doesNotMatch(web.code, /stylex\.props/)
+    assert.match(web.css, /padding-top: 20px/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('ambiguous star re-exports stay with official StyleX', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-stylex-ambiguous-star-'))
+  try {
+    const left = path.join(root, 'left.ts')
+    const right = path.join(root, 'right.ts')
+    const barrel = path.join(root, 'index.ts')
+    const component = path.join(root, 'Card.tsx')
+    const leftSource = `import * as stylex from '@stylexjs/stylex'
+      export const styles = stylex.create({ root: { color: 'red' } })`
+    const rightSource = `import * as stylex from '@stylexjs/stylex'
+      export const styles = stylex.create({ root: { color: 'blue' } })`
+    const barrelSource = `export * from './left'
+      export * from './right'`
+    const componentSource = `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import { styles } from './index'
+      export const Card = () => <View {...stylex.props(styles.root)} />`
+    for (const [file, source] of [
+      [left, leftSource],
+      [right, rightSource],
+      [barrel, barrelSource],
+      [component, componentSource],
+    ] as const) {
+      writeFileSync(file, source)
+    }
+
+    const modules = new StylexModuleCache(path.join(root, 'stylex-modules.json'))
+    modules.scanFile(left, leftSource, 1)
+    modules.scanFile(right, rightSource, 1)
+    modules.scanFile(barrel, barrelSource, 1)
+    const compiler = createCompiler()
+    compiler.setStylexModules(modules.moduleSources())
+
+    const web = lowerModule(componentSource, component, component, compiler, root, modules)
+    assert.ok(web)
+    assert.match(web.code, /stylex\.props\(styles\.root\)/)
+    assert.doesNotMatch(web.css, /color:/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('unsupported imported members remain with official StyleX', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-stylex-gap-'))
   try {
