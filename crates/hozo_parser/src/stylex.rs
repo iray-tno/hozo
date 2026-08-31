@@ -104,9 +104,9 @@ pub struct ModuleSummary {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ModuleReexportSummary {
     pub specifier: String,
-    /// Export name in the target module, or `*` for `export *`.
+    /// Export name in the target module, or `*` for star/namespace exports.
     pub imported: String,
-    /// Name exposed by this module, or `*` for `export *`.
+    /// Name exposed by this module, or `*` only for a plain `export *`.
     pub exported: String,
 }
 
@@ -217,7 +217,11 @@ impl ModuleRegistry {
                 let mut star_sheets: HashMap<String, (String, HashMap<String, Rule>)> =
                     HashMap::new();
                 let mut ambiguous = HashSet::new();
-                for reexport in module.reexports.iter().filter(|edge| edge.imported == "*") {
+                for reexport in module
+                    .reexports
+                    .iter()
+                    .filter(|edge| edge.imported == "*" && edge.exported == "*")
+                {
                     let Some(target) = previous.get(&reexport.module_id) else {
                         continue;
                     };
@@ -242,14 +246,36 @@ impl ModuleRegistry {
                         sheets.insert(name, rules);
                     }
                 }
-                for reexport in module.reexports.iter().filter(|edge| edge.imported != "*") {
-                    let Some(rules) = previous
-                        .get(&reexport.module_id)
-                        .and_then(|target| target.get(&reexport.imported))
-                    else {
+                for reexport in module
+                    .reexports
+                    .iter()
+                    .filter(|edge| edge.imported == "*" && edge.exported != "*")
+                {
+                    let Some(target) = previous.get(&reexport.module_id) else {
                         continue;
                     };
-                    sheets.insert(reexport.exported.clone(), rules.clone());
+                    for (name, rules) in target {
+                        sheets.insert(format!("{}.{}", reexport.exported, name), rules.clone());
+                    }
+                }
+                for reexport in module.reexports.iter().filter(|edge| edge.imported != "*") {
+                    let Some(target) = previous.get(&reexport.module_id) else {
+                        continue;
+                    };
+                    if let Some(rules) = target.get(&reexport.imported) {
+                        sheets.insert(reexport.exported.clone(), rules.clone());
+                        continue;
+                    }
+                    let prefix = format!("{}.", reexport.imported);
+                    for (name, rules) in target
+                        .iter()
+                        .filter(|(name, _)| name.starts_with(&prefix))
+                    {
+                        sheets.insert(
+                            format!("{}.{}", reexport.exported, &name[prefix.len()..]),
+                            rules.clone(),
+                        );
+                    }
                 }
                 module.sheets = sheets;
             }
@@ -284,6 +310,17 @@ impl ModuleRegistry {
                     ImportImportName::NamespaceObject => unreachable!(),
                 };
                 let Some(rules) = module.sheets.get(imported) else {
+                    let prefix = format!("{imported}.");
+                    for (exported, rules) in module
+                        .sheets
+                        .iter()
+                        .filter(|(exported, _)| exported.starts_with(&prefix))
+                    {
+                        frontend.sheets.insert(
+                            format!("{}.{}", entry.local_name.name, &exported[prefix.len()..]),
+                            rules.clone(),
+                        );
+                    }
                     continue;
                 };
                 frontend.sheets.insert(entry.local_name.name.to_string(), rules.clone());
@@ -361,6 +398,19 @@ fn static_key(key: &PropertyKey) -> Option<String> {
     match key {
         PropertyKey::StaticIdentifier(identifier) => Some(identifier.name.to_string()),
         PropertyKey::StringLiteral(literal) => Some(literal.value.to_string()),
+        _ => None,
+    }
+}
+
+fn static_member_path(expression: &Expression) -> Option<String> {
+    match expression {
+        Expression::Identifier(identifier) => Some(identifier.name.to_string()),
+        Expression::StaticMemberExpression(member) => {
+            let mut path = static_member_path(&member.object)?;
+            path.push('.');
+            path.push_str(member.property.name.as_str());
+            Some(path)
+        }
         _ => None,
     }
 }
@@ -2817,10 +2867,7 @@ impl Frontend {
                 let imported = match &entry.import_name {
                     ExportImportName::Name(name) => name.name.to_string(),
                     ExportImportName::AllButDefault => "*".to_string(),
-                    // `export * as namespace` introduces another member
-                    // layer. Keep it visible in the summary but do not
-                    // flatten it into a sheet export.
-                    ExportImportName::All => return None,
+                    ExportImportName::All => "*".to_string(),
                     ExportImportName::Null => return None,
                 };
                 let exported = match &entry.export_name {
@@ -2888,23 +2935,11 @@ impl Frontend {
         &self,
         member: &oxc_ast::ast::StaticMemberExpression,
     ) -> Result<&Rule, Gap> {
-        let sheet = match &member.object {
-            Expression::Identifier(sheet) => sheet.name.to_string(),
-            Expression::StaticMemberExpression(export) => {
-                let Expression::Identifier(namespace) = &export.object else {
-                    return Err(Gap {
-                        message: "StyleX styles must be referenced as `styles.rule` or `namespace.styles.rule`.".to_string(),
-                        span: source_span(member.span),
-                    });
-                };
-                format!("{}.{}", namespace.name, export.property.name)
-            }
-            _ => {
-                return Err(Gap {
-                    message: "StyleX styles must be referenced as `styles.rule` or `namespace.styles.rule`.".to_string(),
-                    span: source_span(member.span),
-                });
-            }
+        let Some(sheet) = static_member_path(&member.object) else {
+            return Err(Gap {
+                message: "StyleX styles must be referenced through a static member chain such as `styles.rule` or `namespace.styles.rule`.".to_string(),
+                span: source_span(member.span),
+            });
         };
         let Some(rules) = self.sheets.get(&sheet) else {
             return Err(Gap {

@@ -276,11 +276,12 @@ mod tests {
     }
 
     #[test]
-    fn stylex_module_summary_records_named_and_star_reexports() {
+    fn stylex_module_summary_records_named_star_and_namespace_reexports() {
         let summary = summarize_stylex_module(
             r#"
             export { styles as cardStyles } from './styles'
             export * from './more-styles'
+            export * as theme from './theme'
             "#,
         );
         assert!(summary.exports.is_empty());
@@ -296,6 +297,11 @@ mod tests {
                     specifier: "./styles".to_string(),
                     imported: "styles".to_string(),
                     exported: "cardStyles".to_string(),
+                },
+                StylexModuleReexportSummary {
+                    specifier: "./theme".to_string(),
+                    imported: "*".to_string(),
+                    exported: "theme".to_string(),
                 },
             ]
         );

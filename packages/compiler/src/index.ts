@@ -89,9 +89,9 @@ export interface StylexModuleSummary {
 
 export interface StylexModuleReexportSummary {
   specifier: string
-  /** Export in the target module, or `*` for an export-all edge. */
+  /** Export in the target module, or `*` for star/namespace exports. */
   imported: string
-  /** Export exposed by this module, or `*` for an export-all edge. */
+  /** Export exposed by this module, or `*` only for a plain export-all edge. */
   exported: string
 }
 

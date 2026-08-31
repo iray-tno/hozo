@@ -154,6 +154,72 @@ test('named and star re-export chains reach the defining sheet', () => {
   }
 })
 
+test('namespace re-exports preserve their member path through aliases and import forms', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-stylex-namespace-reexport-'))
+  try {
+    const definition = path.join(root, 'styles.ts')
+    const namespaceBarrel = path.join(root, 'namespace.ts')
+    const barrel = path.join(root, 'index.ts')
+    const namedComponent = path.join(root, 'NamedCard.tsx')
+    const namespaceComponent = path.join(root, 'NamespaceCard.tsx')
+    const definitionSource = `import * as stylex from '@stylexjs/stylex'
+      export const styles = stylex.create({ root: { marginTop: 24 } })`
+    const namespaceBarrelSource = `export * as theme from './styles'`
+    const barrelSource = `export { theme as palette } from './namespace'`
+    const namedSource = `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import { palette } from './index'
+      export const Card = () => <View {...stylex.props(palette.styles.root)} />`
+    const namespaceSource = `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import * as barrel from './index'
+      export const Card = () => <View {...stylex.props(barrel.palette.styles.root)} />`
+    for (const [file, source] of [
+      [definition, definitionSource],
+      [namespaceBarrel, namespaceBarrelSource],
+      [barrel, barrelSource],
+      [namedComponent, namedSource],
+      [namespaceComponent, namespaceSource],
+    ] as const) {
+      writeFileSync(file, source)
+    }
+
+    const modules = new StylexModuleCache(path.join(root, 'stylex-modules.json'))
+    modules.scanFile(definition, definitionSource, 1)
+    modules.scanFile(namespaceBarrel, namespaceBarrelSource, 1)
+    modules.scanFile(barrel, barrelSource, 1)
+    const compiler = createCompiler()
+    compiler.setStylexModules(modules.moduleSources())
+
+    const named = lowerModule(namedSource, namedComponent, namedComponent, compiler, root, modules)
+    assert.ok(named)
+    assert.doesNotMatch(named.code, /stylex\.props/)
+    assert.match(named.css, /margin-top: 24px/)
+
+    const namespace = lowerModule(
+      namespaceSource,
+      namespaceComponent,
+      namespaceComponent,
+      compiler,
+      root,
+      modules,
+    )
+    assert.ok(namespace)
+    assert.doesNotMatch(namespace.code, /stylex\.props/)
+    assert.match(namespace.css, /margin-top: 24px/)
+
+    const native = compiler.compileNative(
+      namespaceSource,
+      modules.bindingsFor(namespaceComponent),
+    )
+    assert.equal(native.length, 1)
+    assert.doesNotMatch(native[0]!.jsx, /stylex\.props/)
+    assert.match(native[0]!.styles, /marginTop: 24/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('ambiguous star re-exports stay with official StyleX', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-stylex-ambiguous-star-'))
   try {
