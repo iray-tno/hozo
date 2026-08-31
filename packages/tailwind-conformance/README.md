@@ -20,7 +20,9 @@ new mapping cannot be added without moving the snapshot.
 
 This is intentionally called a **property-name upper bound**. One mapped name
 does not imply every value is accepted, and it says nothing about StyleX APIs
-such as themes, variables, keyframes, nested conditions, or cross-file sheets.
+such as themes, keyframes, or unsupported nested conditions. A separate
+executable construct scorecard covers the supported syntax, including
+resolver-bound cross-file sheets.
 
 Read the full percentage with its shape in mind: value expansion dominates it. `mask-*` alone is over a quarter of the catalogue, and covering `bg-blue-500` and `bg-blue-600` is one code path counted twice. The per-namespace table is the actionable view — which families Hozo handles, which it doesn't, and where it emits something *wrong*.
 

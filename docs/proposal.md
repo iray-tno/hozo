@@ -963,7 +963,7 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 基盤とする。
 
 現在の実行可能scorecardでは、代表value 49/49 (100%)、一般的なauthoring
-construct 9/14 (64.3%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
+construct 14/14 (100%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
 持たせた宣言49/49 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
@@ -1016,7 +1016,10 @@ Tailwind class まで合成してしまう。Hozo を先にすると元の `crea
 IR に取り込み spread を消せるため、後段 StyleX は未使用 definition を除去する。
 この二つの失敗/成功形は公式 Babel plugin を実行する回帰テストに固定した。
 
-残る API 境界は、defineVars/theme、nested selector/keyframes、cross-file sheet、
+cross-file static sheet はproject-wide registryへ一度登録し、named/star/namespace
+re-export chainを解決する。Vite、Next、Metroは各bundler自身のalias resolver結果を
+bindingとして渡し、Metroはplatform別に分離する。未対応memberは公式StyleXへ残す。
+残る API 境界は、`createTheme`、keyframes、未対応nested selector/at-rule、
 新しい `sx`/`atoms` API である。StyleX 0.19 の既定
 `property-specificity` にある4段階の atomic priority は frontend 内で解決済み。
 対応する shorthand を最終 property slot へ展開し、priority と引数順で整列してから

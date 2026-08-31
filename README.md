@@ -213,12 +213,12 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **49/49 (100%)** representative values, **9/14
-(64.3%)** common authoring constructs, and **49/49 (100%)** declarations after
+corpus currently measures **49/49 (100%)** representative values, **14/14
+(100%)** common authoring constructs, and **49/49 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, and
-Grid scenarios. Every case runs the Hozo Web and Native compilers; values
-count only when Web agrees with the official StyleX Babel output and Native
-either lowers faithfully or follows the entry's explicit Web-only policy.
+Grid scenarios. Every representative value runs the Hozo Web and Native
+compilers and counts only when Web agrees with the official StyleX Babel output
+and Native either lowers faithfully or follows the entry's explicit Web-only policy.
 Unsupported cases may remain official residuals, but do not earn coverage.
 The current corpus has zero silent failures.
 
@@ -274,7 +274,12 @@ keep the same guards. If the residual overlaps a lowered property family, or
 the rule contains an opaque object spread/computed key, Hozo keeps the original
 call intact rather than approximating the cascade.
 
-Themes/variables, nested selectors, keyframes, cross-file sheets, and `sx`
+Static sheets may live in another file and pass through named, star, or
+namespace re-export chains. Vite, Next, and Metro feed their authoritative
+alias resolution into the shared module registry; Metro keeps those answers
+separate per platform. Unsupported members remain with official StyleX.
+
+`createTheme`, keyframes, unsupported nested selectors/at-rules, and `sx`
 remain with StyleX. Direction-dependent logical/physical edge conflicts and
 Grid shorthand/line conflicts also remain explicit `STYLEX_NOT_LOWERED` gaps:
 their Native result needs runtime context or a more expressive Grid IR, so Hozo

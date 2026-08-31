@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import {
+  compareStylexConstruct,
   compareStylexValue,
   STYLEX_VALUE_CASES,
   stylexPracticalScorecard,
@@ -11,10 +12,17 @@ test('the practical StyleX scorecard is measured from executable fixtures', () =
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
     values: { total: 49, covered: 49 },
-    constructs: { total: 14, covered: 13 },
+    constructs: { total: 14, covered: 14 },
     corpus: { total: 49, covered: 49 },
     silent: 0,
   })
+})
+
+test('the cross-file construct is measured through a resolved module binding', () => {
+  assert.deepEqual(
+    compareStylexConstruct({ name: 'cross-file sheet', expression: 'external.root' }),
+    { name: 'cross-file sheet', covered: true, silent: false },
+  )
 })
 
 test('new common text values are covered without silent fallback', () => {
