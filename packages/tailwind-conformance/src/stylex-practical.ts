@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto'
+
 import { transformSync } from '@babel/core'
 import stylexPlugin from '@stylexjs/babel-plugin'
-import { compile, compileNative } from '@hozo/compiler'
+import { compile, compileNative, createCompiler } from '@hozo/compiler'
 
 import { manifestEntry } from './stylex-surface.ts'
 
@@ -225,8 +227,35 @@ export interface StylexConstructResult {
   silent: boolean
 }
 
+const EXTERNAL_STYLEX_ID = '/app/external.stylex.ts'
+const EXTERNAL_STYLEX_SOURCE = `import * as stylex from '@stylexjs/stylex'
+export const styles = stylex.create({ root: { padding: 16 } })
+`
+
+function compileStylexConstruct(testCase: StylexConstructCase) {
+  const source = constructSource(testCase)
+  if (testCase.name !== 'cross-file sheet') return compileNative(source)[0]
+
+  // A cross-file sheet does not exist to the parser in isolation. This is
+  // the same hand-off the bundler integrations perform after their own
+  // resolver has selected the module: register its source once, then bind
+  // the import spelling in this consumer to that registry id.
+  const compiler = createCompiler()
+  compiler.setStylexModules([
+    {
+      id: EXTERNAL_STYLEX_ID,
+      contentHash: createHash('sha256').update(EXTERNAL_STYLEX_SOURCE).digest('hex'),
+      source: EXTERNAL_STYLEX_SOURCE,
+      links: [],
+    },
+  ])
+  return compiler.compileNative(source, [
+    { specifier: './external.stylex', moduleId: EXTERNAL_STYLEX_ID },
+  ])[0]
+}
+
 export function compareStylexConstruct(testCase: StylexConstructCase): StylexConstructResult {
-  const native = compileNative(constructSource(testCase))[0]
+  const native = compileStylexConstruct(testCase)
   if (!native) return { name: testCase.name, covered: false, silent: true }
   const consumed = !native.jsx.includes('.props(')
   const diagnosed = native.diagnostics.some(({ code }) => code === 'STYLEX_NOT_LOWERED')
