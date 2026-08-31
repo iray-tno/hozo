@@ -237,6 +237,22 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
 /// Unrecognized names are skipped rather than reported. The candidate list
 /// comes from scanning, so it's expected to contain tokens that only
 /// looked like classes.
+/// So is a name whose colour resolves to nothing. `resolve_class_name`
+/// asks only whether a token has the *shape* of a utility, and by that
+/// test `accent-height` is one -- it compiled to
+/// `accent-color: var(--hozo-color-height)`, a reference to a variable no
+/// theme defines and nothing else declares. React's DOM attribute table is
+/// full of such names, and so is any minified bundle; Tailwind rejects
+/// them because it validates the value against the theme rather than the
+/// name against a grammar.
+///
+/// The looser rule stays where it belongs. For a class the author wrote,
+/// `var(--hozo-color-brand)` is correct-but-unresolved: the token may well
+/// be defined in a stylesheet Hozo was not given, and a dangling reference
+/// beats dropping a style someone asked for. A scanned token asked for
+/// nothing, so the same output is instead the evidence that it was never a
+/// class -- which is why this test lives here and not in
+/// `resolve_theme_color`.
 pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> String {
     let mut out = String::new();
     for name in class_names {
@@ -246,10 +262,17 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
         let selector = css::escape_class_selector(&utility.class_name);
         // One rule per group: a `container` is a width plus a max-width at
         // each breakpoint, which cannot be one rule.
+        let mut rules = String::new();
         for (condition, properties) in &utility.groups {
-            out.push_str(&css::render_rule(&selector, condition, properties, theme));
-            out.push_str("\n\n");
+            rules.push_str(&css::render_rule(&selector, condition, properties, theme));
+            rules.push_str("\n\n");
         }
+        // The whole candidate, not the one rule: a name is a utility or it
+        // is not, and half of `accent-height` is not a style anyone wants.
+        if rules.contains(css::UNRESOLVED_COLOR_PREFIX) {
+            continue;
+        }
+        out.push_str(&rules);
     }
     out
 }
@@ -1186,6 +1209,53 @@ export function Login() {
         assert!(css.contains(".p-8 {"));
         assert!(css.contains(".p-2 {"));
         assert!(css.contains("padding-top: 32px;"));
+    }
+
+    #[test]
+    fn a_candidate_whose_colour_names_nothing_is_not_a_utility() {
+        // These are SVG presentation attributes and CSS property names,
+        // and they reached a real stylesheet: React's DOM attribute table
+        // carries `["accentHeight", "accent-height"]`, so any scan that
+        // sees a bundle sees them. By shape they are utilities --
+        // `accent-<colour>`, `fill-<colour>` -- and they compiled to a
+        // reference to `--hozo-color-height`, which nothing defines.
+        let names: Vec<String> =
+            ["accent-height", "fill-opacity", "border-radius"].iter().map(|s| s.to_string()).collect();
+        let css = render_candidate_stylesheet(&names, &Theme::default());
+        assert_eq!(css, "", "{css}");
+    }
+
+    #[test]
+    fn a_candidate_whose_colour_the_theme_defines_survives() {
+        // The other half of the rule, and the reason it is not simply "drop
+        // unknown colours": a project token is unknown to the default
+        // palette and is still a class the author uses.
+        let theme = Theme::new(
+            std::collections::HashMap::from([(
+                "brand".to_string(),
+                hozo_ir::ThemeColor { oklch: "oklch(0.7 0.2 30)".into(), hex: "#e05a2b".into() },
+            )]),
+            None,
+        );
+        let names = vec!["bg-brand".to_string(), "accent-height".to_string()];
+        let css = render_candidate_stylesheet(&names, &theme);
+        assert!(css.contains(".bg-brand {"), "{css}");
+        assert!(!css.contains("accent-height"), "{css}");
+    }
+
+    #[test]
+    fn an_authored_class_keeps_its_unresolved_colour_reference() {
+        // The looseness is deliberate where the author wrote the class:
+        // the token may be defined in a stylesheet Hozo was never given,
+        // and a dangling reference beats dropping a style someone asked
+        // for. Only the *scanned* path treats it as evidence of a non-class.
+        let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="bg-unknowable" />
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.css.contains("var(--hozo-color-unknowable)"), "{}", output.css);
     }
 
     #[test]

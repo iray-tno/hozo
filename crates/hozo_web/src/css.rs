@@ -904,6 +904,13 @@ fn side_keyword(slot: MaskSlot) -> &'static str {
     }
 }
 
+/// What `resolve_theme_color` writes for a token nothing defines.
+///
+/// Spelled once rather than twice because it is load-bearing in two
+/// places now: written below, and read by `render_candidate_stylesheet` as
+/// its evidence that a *scanned* token was never a utility at all.
+pub const UNRESOLVED_COLOR_PREFIX: &str = "var(--hozo-color-";
+
 fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
     let token = match color {
         Color::Token(token) => token,
@@ -921,7 +928,7 @@ fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
         // Not in the project's theme either. Still a reference rather than
         // a guess: correct-but-unresolved, which is what this has always
         // done for a token nothing defines.
-        None => format!("var(--hozo-color-{token})"),
+        None => format!("{UNRESOLVED_COLOR_PREFIX}{token})"),
     }
 }
 
