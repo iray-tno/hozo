@@ -52,6 +52,23 @@ pub struct ParseOutput {
     /// rules. The candidate scan subtracts these, so a class that already
     /// compiled away doesn't also ship under its Tailwind name.
     pub consumed_class_spans: Vec<hozo_ir::SourceSpan>,
+    /// Source ranges that cannot contain a class name at all.
+    ///
+    /// A different subtraction from `consumed_class_spans`, and a stronger
+    /// one: that list is what the compiler *did* read, this is what no
+    /// program could ever read. A comment is not code, and JSX text is the
+    /// string a person sees on the page -- neither has a path to
+    /// `className` under any evaluation.
+    ///
+    /// The byte scan cannot tell prose from utilities, because it is a
+    /// byte scan: Tailwind's own `oxide` has the same property, and a
+    /// sentence about a table that will be visible behind a border yields
+    /// `table`, `visible` and `border`. Hozo parses the file anyway, so it
+    /// can afford to know better -- but only where the answer is certain.
+    /// String literals stay in: an app's copy lives there, and so does
+    /// every dynamically composed class name, which is the whole reason
+    /// the scan exists.
+    pub non_class_spans: Vec<hozo_ir::SourceSpan>,
     /// Runtime imports collected from the same module record as `roots`.
     /// Backends use these instead of parsing the source again to rediscover
     /// bindings the parser has already resolved.
@@ -208,12 +225,39 @@ pub fn parse_tsx_with_stylex(
         aria_check::check(&root.node, &mut collector.diagnostics);
     }
 
+    let mut non_class_spans: Vec<hozo_ir::SourceSpan> = ret
+        .program
+        .comments
+        .iter()
+        .map(|comment| hozo_ir::SourceSpan { start: comment.span.start, end: comment.span.end })
+        .collect();
+    let mut text = JsxTextSpans { spans: Vec::new() };
+    text.visit_program(&ret.program);
+    non_class_spans.extend(text.spans);
+
     ParseOutput {
         roots: collector.roots,
         diagnostics: collector.diagnostics,
         consumed_class_spans: collector.consumed,
+        non_class_spans,
         imports,
         foreign_primitives: foreign,
+    }
+}
+
+/// The spans of every JSX text child, wherever it appears.
+///
+/// A separate walk from `JsxCollector` because that one is about Hozo's
+/// primitives and this is about the whole file: `<div>a visible table</div>`
+/// is prose the scan should not read, and the collector never descends
+/// into an element it does not lower.
+struct JsxTextSpans {
+    spans: Vec<hozo_ir::SourceSpan>,
+}
+
+impl<'a> Visit<'a> for JsxTextSpans {
+    fn visit_jsx_text(&mut self, text: &oxc_ast::ast::JSXText<'a>) {
+        self.spans.push(hozo_ir::SourceSpan { start: text.span.start, end: text.span.end });
     }
 }
 

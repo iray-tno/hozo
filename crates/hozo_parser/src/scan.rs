@@ -96,10 +96,13 @@ pub fn source_uses_tailwind(source: &str) -> bool {
 }
 
 pub fn scan_class_candidates(source: &str) -> Vec<String> {
-    // A source that doesn't parse yields no consumed spans, so it degrades
-    // to a plain scan -- more candidates than necessary, never fewer.
-    let consumed = crate::parse_tsx(source).consumed_class_spans;
-    scan_outside(source, &consumed)
+    // A source that doesn't parse yields no spans of either kind, so it
+    // degrades to a plain scan -- more candidates than necessary, never
+    // fewer.
+    let parsed = crate::parse_tsx(source);
+    let mut skip = parsed.consumed_class_spans;
+    skip.extend(parsed.non_class_spans);
+    scan_outside(source, &skip)
 }
 
 fn is_consumed(consumed: &[SourceSpan], start: usize, end: usize) -> bool {
@@ -147,6 +150,55 @@ mod tests {
         let names = scan_class_candidates(source);
         assert!(names.contains(&"p-4".to_string()));
         assert!(names.contains(&"p-8".to_string()));
+    }
+
+    #[test]
+    fn prose_in_a_comment_is_not_a_candidate() {
+        // A byte scan cannot tell a sentence from a class list, and this
+        // sentence is six utilities: `block`, `table`, `visible`,
+        // `border`, `grid`, `hidden`. Tailwind's own scanner extracts all
+        // six from exactly this text -- it scans `.rs` and `.erb` too, so
+        // it cannot afford to parse. Hozo already parses the file.
+        let source = r#"
+            // The block layout puts the table behind a visible border, and
+            // the grid stays hidden until it scrolls.
+            const c = 'p-4'
+        "#;
+        assert_eq!(scan_class_candidates(source), vec!["p-4"]);
+    }
+
+    #[test]
+    fn a_string_literal_is_still_read() {
+        // The line this draws. An app's copy lives in string literals, and
+        // so does every dynamically composed class name -- which is what
+        // the scan is for. `visible` here is prose and survives, and that
+        // is the correct trade: a missed candidate is a silently unstyled
+        // element, an extra one is a rule nobody matches.
+        let found = scan_class_candidates("const label = 'the table is visible'");
+        assert!(found.contains(&"table".to_string()), "{found:?}");
+    }
+
+    #[test]
+    fn jsx_text_is_the_page_not_a_class_list() {
+        // `<div>` rather than a Hozo primitive on purpose: the prose the
+        // scan must not read is mostly in elements Hozo never lowers, and
+        // in MDX it is nearly all of them.
+        //
+        // `p-4` stays, and has to: Hozo does not lower a `div`, so that
+        // class never compiled into a scoped rule and the candidate sheet
+        // is the only thing that can style it. Only the sentence goes.
+        let source = r#"
+            const el = <div className="p-4">A visible table, block by block.</div>
+        "#;
+        assert_eq!(scan_class_candidates(source), vec!["p-4"]);
+    }
+
+    #[test]
+    fn a_file_that_does_not_parse_still_scans() {
+        // No spans of either kind, so it degrades to a plain byte scan.
+        // More candidates than necessary, never fewer.
+        let found = scan_class_candidates("function ( { { 'p-4'");
+        assert!(found.contains(&"p-4".to_string()), "{found:?}");
     }
 
     #[test]
