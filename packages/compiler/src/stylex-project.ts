@@ -18,7 +18,7 @@ import {
   type StylexModuleSummary,
 } from './index.ts'
 
-const SNAPSHOT_VERSION = 1
+const SNAPSHOT_VERSION = 2
 
 interface FileEntry {
   modifiedMs: number
@@ -60,6 +60,25 @@ function sourceHash(source: string): string {
   return createHash('sha256').update(source).digest('hex')
 }
 
+function hasGraphFacts(summary: StylexModuleSummary): boolean {
+  return summary.exports.length > 0 || summary.reexports.length > 0
+}
+
+function moduleSpellings(importer: string, target: string): Set<string> {
+  let relative = path.relative(path.dirname(importer), target).replaceAll('\\', '/')
+  if (!relative.startsWith('.')) relative = `./${relative}`
+  const extension = path.posix.extname(relative)
+  const withoutExtension = extension ? relative.slice(0, -extension.length) : relative
+  const spellings = new Set([relative, withoutExtension])
+  if (/\/index$/.test(withoutExtension)) {
+    spellings.add(withoutExtension.slice(0, -'/index'.length) || '.')
+  }
+  if (['.ts', '.tsx', '.mts'].includes(extension)) {
+    spellings.add(`${withoutExtension}.js`)
+  }
+  return spellings
+}
+
 /** Export summaries keyed by the absolute path the project walk discovered. */
 export class StylexModuleCache {
   readonly #file: string
@@ -90,9 +109,9 @@ export class StylexModuleCache {
       // Almost every project file is not StyleX. Avoid paying for a second
       // full TS parse beside the candidate byte scan when the package name
       // is not present at all; false positives merely take the safe path.
-      summary: source.includes('@stylexjs/stylex')
+      summary: source.includes('@stylexjs/stylex') || /\bexport\s*(?:\*|\{)[\s\S]*?\bfrom\s*['"]/.test(source)
         ? summarizeStylexModule(source)
-        : { exports: [] },
+        : { exports: [], reexports: [] },
     }
     const previous = this.#snapshot.files[file]
     if (
@@ -102,17 +121,17 @@ export class StylexModuleCache {
       return false
     }
     this.#snapshot.files[file] = next
-    if (next.summary.exports.length > 0) this.#sources.set(file, source)
+    if (hasGraphFacts(next.summary)) this.#sources.set(file, source)
     else this.#sources.delete(file)
     this.#dirty = true
-    const hadExports = (previous?.summary.exports.length ?? 0) > 0
-    const hasExports = next.summary.exports.length > 0
-    return (hadExports || hasExports) && previous?.contentHash !== next.contentHash
+    const hadFacts = previous ? hasGraphFacts(previous.summary) : false
+    const hasFacts = hasGraphFacts(next.summary)
+    return (hadFacts || hasFacts) && previous?.contentHash !== next.contentHash
   }
 
   forget(file: string): boolean {
     if (!(file in this.#snapshot.files)) return false
-    const changed = this.#snapshot.files[file]!.summary.exports.length > 0
+    const changed = hasGraphFacts(this.#snapshot.files[file]!.summary)
     delete this.#snapshot.files[file]
     this.#sources.delete(file)
     this.#dirty = true
@@ -134,14 +153,38 @@ export class StylexModuleCache {
   }
 
   modules(): CachedStylexModule[] {
-    return Object.keys(this.#snapshot.files)
+    const candidates = Object.keys(this.#snapshot.files)
       .sort()
       .flatMap((file) => {
         const entry = this.#snapshot.files[file]!
-        return entry.summary.exports.length > 0
+        return hasGraphFacts(entry.summary)
           ? [{ path: file, contentHash: entry.contentHash, summary: entry.summary }]
           : []
       })
+    const included = new Set(
+      candidates.filter((module) => module.summary.exports.length > 0).map((module) => module.path),
+    )
+    const edges = new Map<string, string[]>()
+    for (const module of candidates) {
+      const targets = module.summary.reexports.flatMap((reexport) => {
+        const target = candidates.find((candidate) =>
+          moduleSpellings(module.path, candidate.path).has(reexport.specifier),
+        )
+        return target ? [target.path] : []
+      })
+      edges.set(module.path, targets)
+    }
+    // Grow backwards from real StyleX definitions. Unrelated application
+    // barrels may also contain `export ... from`; they stay out of the
+    // parsed registry unless their chain actually reaches one.
+    for (let pass = 0; pass < candidates.length; pass++) {
+      for (const module of candidates) {
+        if (included.has(module.path)) continue
+        const reachesStylex = edges.get(module.path)?.some((target) => included.has(target))
+        if (reachesStylex) included.add(module.path)
+      }
+    }
+    return candidates.filter((module) => included.has(module.path))
   }
 
   get size(): number {
@@ -150,10 +193,12 @@ export class StylexModuleCache {
 
   /** Sources registered once in Rust, where their typed rules are cached. */
   moduleSources(): StylexModuleSource[] {
-    return this.modules().map((module) => ({
+    const modules = this.modules()
+    return modules.map((module) => ({
       id: module.path,
       contentHash: module.contentHash,
       source: this.#sources.get(module.path) ?? readFileSync(module.path, 'utf8'),
+      links: this.#bindingsFor(module.path, modules),
     }))
   }
 
@@ -165,21 +210,17 @@ export class StylexModuleCache {
    * of this first slice because resolving them belongs to the bundler.
    */
   bindingsFor(importer: string): StylexExternalBinding[] {
+    return this.#bindingsFor(importer, this.modules())
+  }
+
+  #bindingsFor(
+    importer: string,
+    modules: readonly CachedStylexModule[],
+  ): StylexExternalBinding[] {
     const bindings: StylexExternalBinding[] = []
-    for (const module of this.modules()) {
+    for (const module of modules) {
       if (module.path === importer) continue
-      let relative = path.relative(path.dirname(importer), module.path).replaceAll('\\', '/')
-      if (!relative.startsWith('.')) relative = `./${relative}`
-      const extension = path.posix.extname(relative)
-      const withoutExtension = extension ? relative.slice(0, -extension.length) : relative
-      const spellings = new Set([relative, withoutExtension])
-      if (/\/index$/.test(withoutExtension)) {
-        spellings.add(withoutExtension.slice(0, -'/index'.length) || '.')
-      }
-      if (['.ts', '.tsx', '.mts'].includes(extension)) {
-        spellings.add(`${withoutExtension}.js`)
-      }
-      for (const specifier of spellings) {
+      for (const specifier of moduleSpellings(importer, module.path)) {
         bindings.push({ specifier, moduleId: module.path })
       }
     }

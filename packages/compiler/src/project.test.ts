@@ -83,9 +83,10 @@ test('the project scan persists exported StyleX module summaries', () => {
        export { local as cardStyles }`,
     )
     source(root, 'src/plain.ts', 'export const answer = 42')
+    source(root, 'src/unrelated.ts', "export { answer } from './plain'")
 
     const first = scanProject(root)
-    assert.equal(first.stylexModules.size, 1)
+    assert.equal(first.stylexModules.size, 1, 'an unrelated barrel must not enter the registry')
     const module = first.stylexModules.get(styles)
     assert.ok(module)
     assert.equal(module.contentHash.length, 64)

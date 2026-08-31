@@ -84,12 +84,22 @@ export interface StylexModuleExportSummary {
 /** AST-independent facts the project graph caches for one source module. */
 export interface StylexModuleSummary {
   exports: StylexModuleExportSummary[]
+  reexports: StylexModuleReexportSummary[]
+}
+
+export interface StylexModuleReexportSummary {
+  specifier: string
+  /** Export in the target module, or `*` for an export-all edge. */
+  imported: string
+  /** Export exposed by this module, or `*` for an export-all edge. */
+  exported: string
 }
 
 export interface StylexModuleSource {
   id: string
   contentHash: string
   source: string
+  links: StylexExternalBinding[]
 }
 
 /** One module specifier resolved to a source already registered in Rust. */

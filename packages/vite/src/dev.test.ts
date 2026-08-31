@@ -127,9 +127,10 @@ test('the dev server lowers a static StyleX sheet imported from another file', a
   const root = project({
     'styles.ts': `import * as stylex from '@stylexjs/stylex'
       export const styles = stylex.create({ root: { padding: 16, backgroundColor: 'red' } })`,
+    'index.ts': `export { styles as cardStyles } from './styles'`,
     'App.tsx': `import * as stylex from '@stylexjs/stylex'
       import { View } from '@hozo/core'
-      import { styles as cardStyles } from './styles'
+      import { cardStyles } from './index'
       export const App = () => <View {...stylex.props(cardStyles.root)} />`,
   })
   const server = await serve(root)

@@ -29,7 +29,9 @@ use oxc_ast_visit::{
     Visit,
 };
 use oxc_span::{GetSpan, Span};
-use oxc_syntax::module_record::{ExportExportName, ImportImportName, ModuleRecord};
+use oxc_syntax::module_record::{
+    ExportExportName, ExportImportName, ImportImportName, ModuleRecord,
+};
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::tailwind;
@@ -96,6 +98,16 @@ pub enum ModuleMemberStatus {
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct ModuleSummary {
     pub exports: Vec<ModuleExportSummary>,
+    pub reexports: Vec<ModuleReexportSummary>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ModuleReexportSummary {
+    pub specifier: String,
+    /// Export name in the target module, or `*` for `export *`.
+    pub imported: String,
+    /// Name exposed by this module, or `*` for `export *`.
+    pub exported: String,
 }
 
 /// One imported StyleX binding resolved by the bundler's project graph.
@@ -105,10 +117,26 @@ pub struct ExternalBinding {
     pub module_id: String,
 }
 
-#[derive(Default)]
+pub struct ModuleSource {
+    pub id: String,
+    pub content_hash: String,
+    pub source: String,
+    pub links: Vec<ExternalBinding>,
+}
+
+#[derive(Clone)]
+struct RegisteredReexport {
+    module_id: String,
+    imported: String,
+    exported: String,
+}
+
 struct RegisteredModule {
     content_hash: String,
+    links: Vec<ExternalBinding>,
+    own_sheets: HashMap<String, HashMap<String, Rule>>,
     sheets: HashMap<String, HashMap<String, Rule>>,
+    reexports: Vec<RegisteredReexport>,
 }
 
 /// Parsed exported sheets shared by every compilation in one project.
@@ -122,25 +150,109 @@ pub struct ModuleRegistry {
 }
 
 impl ModuleRegistry {
-    pub fn replace(&mut self, modules: &[(String, String, String)]) {
-        let retained = modules.iter().map(|(id, _, _)| id.clone()).collect::<HashSet<_>>();
+    pub fn replace(&mut self, modules: &[ModuleSource]) {
+        let retained = modules.iter().map(|module| module.id.clone()).collect::<HashSet<_>>();
         self.modules.retain(|id, _| retained.contains(id));
-        for (id, content_hash, source) in modules {
-            if self.modules.get(id).is_some_and(|module| module.content_hash == *content_hash) {
+        for module in modules {
+            if self.modules.get(&module.id).is_some_and(|registered| {
+                registered.content_hash == module.content_hash && registered.links == module.links
+            }) {
                 continue;
             }
             let allocator = oxc_allocator::Allocator::default();
             let source_type = oxc_span::SourceType::from_extension("tsx")
                 .expect("\"tsx\" is a known extension");
-            let parsed = oxc_parser::Parser::new(&allocator, source, source_type).parse();
+            let parsed = oxc_parser::Parser::new(&allocator, &module.source, source_type).parse();
             let frontend = Frontend::collect(&parsed.program, &parsed.module_record);
+            let own_sheets = frontend.exported_static_sheets(&parsed.module_record);
+            let reexports = frontend
+                .module_summary(&parsed.program, &parsed.module_record)
+                .reexports
+                .into_iter()
+                .filter_map(|reexport| {
+                    let module_id = module
+                        .links
+                        .iter()
+                        .find(|link| link.specifier == reexport.specifier)?
+                        .module_id
+                        .clone();
+                    Some(RegisteredReexport {
+                        module_id,
+                        imported: reexport.imported,
+                        exported: reexport.exported,
+                    })
+                })
+                .collect();
             self.modules.insert(
-                id.clone(),
+                module.id.clone(),
                 RegisteredModule {
-                    content_hash: content_hash.clone(),
-                    sheets: frontend.exported_static_sheets(&parsed.module_record),
+                    content_hash: module.content_hash.clone(),
+                    links: module.links.clone(),
+                    sheets: own_sheets.clone(),
+                    own_sheets,
+                    reexports,
                 },
             );
+        }
+        self.resolve_reexports();
+    }
+
+    fn resolve_reexports(&mut self) {
+        // One pass can move a sheet across one edge. Repeating once per
+        // module settles every acyclic chain; cycles remain bounded and
+        // contribute only facts that enter them from a real definition.
+        for _ in 0..self.modules.len() {
+            let previous = self
+                .modules
+                .iter()
+                .map(|(id, module)| (id.clone(), module.sheets.clone()))
+                .collect::<HashMap<_, _>>();
+            for module in self.modules.values_mut() {
+                let mut sheets = module.own_sheets.clone();
+                // Stars are the weakest edge: a local or explicit export
+                // with the same name wins regardless of traversal order.
+                // Two stars supplying the same name are ambiguous in ESM;
+                // decline them instead of picking whichever HashMap entry
+                // happened to be visited first.
+                let mut star_sheets: HashMap<String, (String, HashMap<String, Rule>)> =
+                    HashMap::new();
+                let mut ambiguous = HashSet::new();
+                for reexport in module.reexports.iter().filter(|edge| edge.imported == "*") {
+                    let Some(target) = previous.get(&reexport.module_id) else {
+                        continue;
+                    };
+                    for (name, rules) in target {
+                        if name == "default" || sheets.contains_key(name) {
+                            continue;
+                        }
+                        if let Some((first_module, _)) = star_sheets.get(name) {
+                            if first_module != &reexport.module_id {
+                                ambiguous.insert(name.clone());
+                            }
+                        } else {
+                            star_sheets.insert(
+                                name.clone(),
+                                (reexport.module_id.clone(), rules.clone()),
+                            );
+                        }
+                    }
+                }
+                for (name, (_, rules)) in star_sheets {
+                    if !ambiguous.contains(&name) {
+                        sheets.insert(name, rules);
+                    }
+                }
+                for reexport in module.reexports.iter().filter(|edge| edge.imported != "*") {
+                    let Some(rules) = previous
+                        .get(&reexport.module_id)
+                        .and_then(|target| target.get(&reexport.imported))
+                    else {
+                        continue;
+                    };
+                    sheets.insert(reexport.exported.clone(), rules.clone());
+                }
+                module.sheets = sheets;
+            }
         }
     }
 
@@ -2695,7 +2807,38 @@ impl Frontend {
                 .cmp(&right.exported)
                 .then_with(|| left.local.cmp(&right.local))
         });
-        ModuleSummary { exports }
+        let mut reexports = module
+            .indirect_export_entries
+            .iter()
+            .chain(module.star_export_entries.iter())
+            .filter(|entry| !entry.is_type)
+            .filter_map(|entry| {
+                let specifier = entry.module_request.as_ref()?.name.to_string();
+                let imported = match &entry.import_name {
+                    ExportImportName::Name(name) => name.name.to_string(),
+                    ExportImportName::AllButDefault => "*".to_string(),
+                    // `export * as namespace` introduces another member
+                    // layer. Keep it visible in the summary but do not
+                    // flatten it into a sheet export.
+                    ExportImportName::All => return None,
+                    ExportImportName::Null => return None,
+                };
+                let exported = match &entry.export_name {
+                    ExportExportName::Name(name) => name.name.to_string(),
+                    ExportExportName::Default(_) => "default".to_string(),
+                    ExportExportName::Null if imported == "*" => "*".to_string(),
+                    ExportExportName::Null => return None,
+                };
+                Some(ModuleReexportSummary { specifier, imported, exported })
+            })
+            .collect::<Vec<_>>();
+        reexports.sort_by(|left, right| {
+            left.specifier
+                .cmp(&right.specifier)
+                .then_with(|| left.exported.cmp(&right.exported))
+                .then_with(|| left.imported.cmp(&right.imported))
+        });
+        ModuleSummary { exports, reexports }
     }
 
     fn exported_static_sheets(
