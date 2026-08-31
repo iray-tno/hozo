@@ -184,6 +184,22 @@ test('bundler-resolved aliases connect StyleX imports and re-export barrels', ()
       false,
       'replaying the same resolver answer is not a graph change',
     )
+    assert.equal(
+      stylexModules.replaceResolvedBindings([
+        {
+          importer: barrel,
+          bindings: [{ specifier: '@theme/styles', moduleId: styles }],
+        },
+        {
+          importer: component,
+          bindings: [{ specifier: '@theme', moduleId: barrel }],
+        },
+      ]),
+      false,
+      'replaying a complete platform snapshot is not a graph change',
+    )
+    assert.equal(stylexModules.replaceResolvedBindings([]), true)
+    assert.equal(stylexModules.size, 1, 'switching platforms clears stale resolver-owned edges')
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

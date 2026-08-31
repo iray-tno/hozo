@@ -15,6 +15,7 @@ import {
 export {
   StylexModuleCache,
   type CachedStylexModule,
+  type StylexResolvedBindings,
   type StylexResolutionRequest,
 } from './stylex-project.ts'
 

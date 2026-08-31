@@ -26,7 +26,7 @@ interface TransformParams {
   /// Metro's transform options. `projectRoot` is what locates the
   /// generated candidate module -- this transformer runs in a `jest-worker`
   /// subprocess, so it shares nothing else with the config that wrote it.
-  options: { projectRoot?: string } & Record<string, unknown>
+  options: { projectRoot?: string; platform?: string } & Record<string, unknown>
   [key: string]: unknown
 }
 
@@ -140,6 +140,14 @@ export async function transform(params: TransformParams): Promise<unknown> {
     theme,
     state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
   )
+  const platform = params.options?.platform ?? 'default'
+  if (
+    compilerState.stylexModules?.replaceResolvedBindings(
+      state?.stylexBindings?.[platform] ?? [],
+    )
+  ) {
+    compilerState.compiler.setStylexModules(compilerState.stylexModules.moduleSources())
+  }
   const rewritten = transformHozoSource(
     params.src,
     params.filename,
