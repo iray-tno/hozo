@@ -227,7 +227,9 @@ mod tests {
     #[test]
     fn stylex_module_summary_names_export_aliases_and_rule_kinds() {
         let source = r#"
+            import type { Token } from '@types'
             import * as stylex from '@stylexjs/stylex'
+            import { firstThatWorks } from '@stylexjs/stylex'
             const styles = stylex.create({
               base: { padding: 8 },
               dynamic: (opacity) => ({ opacity }),
@@ -237,6 +239,7 @@ mod tests {
             export { styles as cardStyles }
             "#;
         let summary = summarize_stylex_module(source);
+        assert_eq!(summary.imports, vec!["@stylexjs/stylex".to_string()]);
         assert_eq!(summary.exports.len(), 1);
         let sheet = &summary.exports[0];
         assert_eq!(sheet.exported, "cardStyles");

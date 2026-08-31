@@ -29,7 +29,13 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import type { Plugin, ViteDevServer } from 'vite'
-import { createCompiler, type CandidateCache, type Compiler, type Theme } from '@hozo/compiler'
+import {
+  createCompiler,
+  type CandidateCache,
+  type Compiler,
+  type StylexExternalBinding,
+  type Theme,
+} from '@hozo/compiler'
 import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
@@ -44,6 +50,7 @@ import {
   writeFileIfChanged,
   type HozoProjectOptions,
   type StylexModuleCache,
+  type StylexResolutionRequest,
 } from '@hozo/compiler/project'
 
 /**
@@ -78,6 +85,33 @@ export function hozo(options: HozoOptions = {}): Plugin {
   // is synchronous and this is not: `getClassOrder` needs the project's
   // design system.
   let classOrder: string[] = []
+
+  async function resolveStylexRequests(
+    requests: readonly StylexResolutionRequest[],
+    resolve: (specifier: string, importer: string) => Promise<string | undefined>,
+  ): Promise<boolean> {
+    const grouped = new Map<string, Set<string>>()
+    for (const { importer, specifier } of requests) {
+      const specifiers = grouped.get(importer) ?? new Set<string>()
+      specifiers.add(specifier)
+      grouped.set(importer, specifiers)
+    }
+    let changed = false
+    for (const [importer, specifiers] of grouped) {
+      const bindings: StylexExternalBinding[] = []
+      await Promise.all(
+        [...specifiers].map(async (specifier) => {
+          const resolved = await resolve(specifier, importer)
+          const file = resolved ? scannableFile(resolved) : undefined
+          if (!file) return
+          const moduleId = path.resolve(file)
+          if (stylexModules.get(moduleId)) bindings.push({ specifier, moduleId })
+        }),
+      )
+      changed = stylexModules.setResolvedBindings(importer, bindings) || changed
+    }
+    return changed
+  }
 
   /// Regenerates the project-wide candidate stylesheet and, in dev, makes
   /// the already-loaded module pick it up. The file lives under
@@ -139,6 +173,10 @@ export function hozo(options: HozoOptions = {}): Plugin {
       })
       cache = project.cache
       stylexModules = project.stylexModules
+      await resolveStylexRequests(stylexModules.resolutionRequests(), async (specifier, importer) => {
+        const resolved = await this.resolve(specifier, importer, { skipSelf: true })
+        return resolved?.id
+      })
       compiler.setStylexModules(stylexModules.moduleSources())
       includedFiles = new Set(project.files)
       candidateCssPath = path.join(project.dir, 'candidates.css')
@@ -173,9 +211,10 @@ export function hozo(options: HozoOptions = {}): Plugin {
       }
     },
 
-    transform(code, id) {
+    async transform(code, id) {
       const file = scannableFile(id)
       const isDerivedModule = id.includes('?')
+      let stylexGraphChanged = false
       if (file && !isDerivedModule && includedFiles.has(path.resolve(file))) {
         // `enforce: 'pre'` means `code` is still the source as written,
         // which is what the scanner expects. Keyed by the same absolute
@@ -196,12 +235,43 @@ export function hozo(options: HozoOptions = {}): Plugin {
             },
           )
         }
-        if (stylexModules.scanFile(path.resolve(file), code, modifiedMs)) {
-          compiler.setStylexModules(stylexModules.moduleSources())
-        }
+        stylexGraphChanged = stylexModules.scanFile(path.resolve(file), code, modifiedMs)
       }
 
       if (!file) return
+      const absoluteFile = path.resolve(file)
+      const reexportSpecifiers = stylexModules.reexportSpecifiers(absoluteFile)
+      if (stylexGraphChanged) {
+        await resolveStylexRequests(
+          stylexModules.resolutionRequests(),
+          async (specifier, importer) => {
+            const resolved = await this.resolve(specifier, importer, { skipSelf: true })
+            return resolved?.id
+          },
+        )
+      }
+      const importRequests = code.includes('@stylexjs/stylex')
+        ? stylexModules
+            .importSpecifiers(absoluteFile)
+            .filter(
+              (specifier) =>
+                specifier !== '@stylexjs/stylex' && !compiler.sources.includes(specifier),
+            )
+            .map((specifier) => ({ importer: absoluteFile, specifier }))
+        : []
+      const resolvedCurrent = await resolveStylexRequests(
+        [
+          ...importRequests,
+          ...reexportSpecifiers.map((specifier) => ({ importer: absoluteFile, specifier })),
+        ],
+        async (specifier, importer) => {
+          const resolved = await this.resolve(specifier, importer, { skipSelf: true })
+          return resolved?.id
+        },
+      )
+      if (stylexGraphChanged || (resolvedCurrent && reexportSpecifiers.length > 0)) {
+        compiler.setStylexModules(stylexModules.moduleSources())
+      }
       const lowered = lowerModule(code, id, file, compiler, root, stylexModules)
       if (!lowered) return
 

@@ -140,6 +140,7 @@ pub struct StylexModuleExportSummary {
 pub struct StylexModuleSummary {
     pub exports: Vec<StylexModuleExportSummary>,
     pub reexports: Vec<StylexModuleReexportSummary>,
+    pub imports: Vec<String>,
 }
 
 #[napi(object)]
@@ -221,6 +222,7 @@ pub fn summarize_stylex_module(source: String) -> StylexModuleSummary {
                 exported: reexport.exported,
             })
             .collect(),
+        imports: summary.imports,
     }
 }
 

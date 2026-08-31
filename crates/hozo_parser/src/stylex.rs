@@ -99,6 +99,7 @@ pub enum ModuleMemberStatus {
 pub struct ModuleSummary {
     pub exports: Vec<ModuleExportSummary>,
     pub reexports: Vec<ModuleReexportSummary>,
+    pub imports: Vec<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -2885,7 +2886,15 @@ impl Frontend {
                 .then_with(|| left.exported.cmp(&right.exported))
                 .then_with(|| left.imported.cmp(&right.imported))
         });
-        ModuleSummary { exports, reexports }
+        let mut imports = module
+            .import_entries
+            .iter()
+            .filter(|entry| !entry.is_type)
+            .map(|entry| entry.module_request.name.to_string())
+            .collect::<Vec<_>>();
+        imports.sort();
+        imports.dedup();
+        ModuleSummary { exports, reexports, imports }
     }
 
     fn exported_static_sheets(

@@ -136,6 +136,59 @@ test('the project scan persists exported StyleX module summaries', () => {
   }
 })
 
+test('bundler-resolved aliases connect StyleX imports and re-export barrels', () => {
+  const root = project()
+  try {
+    const styles = source(
+      root,
+      'src/styles.ts',
+      `import * as stylex from '@stylexjs/stylex'
+       export const styles = stylex.create({ root: { padding: 8 } })`,
+    )
+    const barrel = source(root, 'src/index.ts', `export { styles } from '@theme/styles'`)
+    const component = path.join(root, 'src', 'Card.tsx')
+    const { stylexModules } = scanProject(root)
+
+    assert.equal(stylexModules.size, 1, 'an unresolved alias barrel stays out of the registry')
+    assert.deepEqual(stylexModules.resolutionRequests(), [
+      { importer: barrel, specifier: '@theme/styles' },
+    ])
+    assert.equal(
+      stylexModules.setResolvedBindings(barrel, [
+        { specifier: '@theme/styles', moduleId: styles },
+      ]),
+      true,
+    )
+    assert.equal(stylexModules.size, 2)
+    assert.ok(
+      stylexModules
+        .moduleSources()
+        .find((module) => module.id === barrel)
+        ?.links.some(
+          (binding) => binding.specifier === '@theme/styles' && binding.moduleId === styles,
+        ),
+    )
+
+    stylexModules.setResolvedBindings(component, [
+      { specifier: '@theme', moduleId: barrel },
+    ])
+    assert.ok(
+      stylexModules
+        .bindingsFor(component)
+        .some((binding) => binding.specifier === '@theme' && binding.moduleId === barrel),
+    )
+    assert.equal(
+      stylexModules.setResolvedBindings(component, [
+        { specifier: '@theme', moduleId: barrel },
+      ]),
+      false,
+      'replaying the same resolver answer is not a graph change',
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('generated files are not rewritten when their bytes are unchanged', () => {
   const root = project()
   try {

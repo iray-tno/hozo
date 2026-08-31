@@ -85,6 +85,8 @@ export interface StylexModuleExportSummary {
 export interface StylexModuleSummary {
   exports: StylexModuleExportSummary[]
   reexports: StylexModuleReexportSummary[]
+  /** Unique runtime import specifiers for the active bundler to resolve. */
+  imports: string[]
 }
 
 export interface StylexModuleReexportSummary {
