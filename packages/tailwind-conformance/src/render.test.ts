@@ -131,6 +131,9 @@ test('ScrollView owns only its viewport axis while its child owns content layout
       )
     }
   `)
+  // `tabindex` is absent here and correctly so: `renderToStaticMarkup`
+  // has no layout, so nothing overflows and `hozoScrollable` adds no stop.
+  // That it is decided by measurement rather than by markup is the point.
   assert.match(rendered.html, /^<div class="hozo-scroll-view hozo-0" data-hozo-horizontal="">/)
   // The plain base is zero-specificity so a component class beats it
   // wherever the two land; the prop-driven rule is not, because it has to

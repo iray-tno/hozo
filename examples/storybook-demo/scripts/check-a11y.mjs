@@ -80,12 +80,7 @@ const TYPES = {
  * edited, and a suppression that needs updating whenever the catalogue
  * changes is one nobody will keep honest.
  */
-const KNOWN = {
-  // Hozo's Web `ScrollView` emits no `tabIndex`, so a scroll container
-  // whose content has nothing focusable cannot be reached by keyboard.
-  // React Native scrolls it by touch, so the gap opens only on Web.
-  'scrollable-region-focusable': 99,
-}
+const KNOWN = {}
 
 const index = JSON.parse(readFileSync(path.join(STATIC, 'index.json'), 'utf8'))
 const ids = Object.values(index.entries)

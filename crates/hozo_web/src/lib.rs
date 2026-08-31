@@ -211,6 +211,14 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::Dialog) {
         runtime_imports.push("HozoDialog");
     }
+    // Exactly when the spread was written, rather than a second guess at
+    // the same question. A ScrollView carried through as a foreign tag
+    // keeps `@hozo/core`'s own component, and an author who wrote
+    // `tabIndex` gets no spread -- either would otherwise import a
+    // helper nothing calls.
+    if jsx.contains("hozoScrollable()") {
+        runtime_imports.push("hozoScrollable");
+    }
     LowerOutput { jsx, css, runtime_imports, diagnostics }
 }
 
@@ -305,6 +313,28 @@ fn uses_generated_content(node: &Node) -> bool {
                     .pseudo_element()
                     .is_some_and(|pseudo| pseudo.needs_content())
         })
+    })
+}
+
+/// Whether this element's own styles make it scroll.
+///
+/// The trigger for keyboard access is what the element *does*, not which
+/// primitive produced it: a `View` with `overflow-x-auto` is as
+/// unreachable as a `ScrollView`, and axe judges both by computed style.
+/// A story here used the first form and stayed in violation after the
+/// second was fixed.
+///
+/// `hidden` and `visible` do not scroll and `clip` cannot be scrolled by
+/// any means, so only `scroll` and `auto` count.
+fn scrolls_by_style(node: &Node) -> bool {
+    node.style.iter().any(|declaration| {
+        let overflow = match declaration.property {
+            hozo_ir::StyleProperty::Overflow(value)
+            | hozo_ir::StyleProperty::OverflowX(value)
+            | hozo_ir::StyleProperty::OverflowY(value) => value,
+            _ => return false,
+        };
+        matches!(overflow, hozo_ir::Overflow::Scroll | hozo_ir::Overflow::Css("auto"))
     })
 }
 
@@ -696,6 +726,31 @@ fn render_node(
             attrs.push_str(&format!(" horizontal={{{horizontal}}}"));
         } else {
             attrs.push_str(&format!(" data-hozo-horizontal={{{horizontal} ? '' : undefined}}"));
+        }
+    }
+    // A tag that lowered to a DOM element, rather than one carried
+    // verbatim: a foreign component supplies its own behaviour and a spread
+    // aimed at a `div` would be props it never asked for. Lowercase is the
+    // whole test -- JSX reserves it for host elements.
+    let lowered_to_dom = tag.chars().next().is_some_and(char::is_lowercase);
+    if lowered_to_dom && (node.primitive == Primitive::ScrollView || scrolls_by_style(node)) {
+        // Keyboard access for the scroll container, decided at runtime
+        // because nothing that decides it is a compile-time fact:
+        // whether it overflows depends on CSS, content and viewport,
+        // and whether it holds anything focusable depends on what a
+        // runtime expression rendered. See `hozoScrollable` and #99.
+        //
+        // Skipped entirely when the author wrote `tabIndex`. That is the
+        // whole of the precedence rule, and settling it here rather than
+        // in the runtime means there is no branch to get wrong: an
+        // author saying `tabIndex={-1}` means it, and a spread that is
+        // never emitted cannot argue.
+        let authored_tab_index = node.props.passthrough.iter().any(|prop| {
+            !prop.is_spread
+                && source_text(source, prop.span).trim_start().starts_with("tabIndex")
+        });
+        if !authored_tab_index {
+            attrs.push_str(" {...hozoScrollable()}");
         }
     }
     if node.primitive == Primitive::ScrollView {
@@ -2363,5 +2418,87 @@ mod base_specificity_tests {
             css.contains(".hozo-scroll-view[data-hozo-horizontal] {"),
             "the prop-driven rule lost its specificity: {css}"
         );
+    }
+}
+
+#[cfg(test)]
+mod scrollable_keyboard_tests {
+    use super::*;
+
+    fn lower_source(source: &str) -> LowerOutput {
+        let parsed = hozo_parser::parse_tsx(source);
+        lower(&parsed.roots[0].node, source, &Theme::default())
+    }
+
+    #[test]
+    fn a_lowered_scroll_view_asks_the_runtime_for_its_tab_stop() {
+        // A `div` with `overflow: auto` scrolls under a pointer and is
+        // unreachable from a keyboard unless something in it is focusable.
+        // Whether it overflows at all is a runtime fact, so the compiler
+        // hands the question over rather than guessing at it. See #99.
+        let output = lower_source(
+            r#"
+            import { ScrollView, Text } from '@hozo/core'
+            export const A = () => <ScrollView role="region"><Text>a</Text></ScrollView>
+            "#,
+        );
+        assert!(
+            output.jsx.contains("{...hozoScrollable()}"),
+            "no runtime spread: {}",
+            output.jsx
+        );
+        assert!(
+            output.runtime_imports.contains(&"hozoScrollable"),
+            "the spread was written without its import: {:?}",
+            output.runtime_imports
+        );
+    }
+
+    #[test]
+    fn an_authored_tab_index_wins_and_nothing_is_emitted_beside_it() {
+        // The whole of the precedence rule, and it is settled here rather
+        // than in the runtime: a spread that is never emitted cannot argue
+        // with the author. `-1` especially -- "focusable, but not a tab
+        // stop" is a deliberate thing to say.
+        for attribute in ["tabIndex={0}", "tabIndex={-1}"] {
+            let source = format!(
+                r#"
+            import {{ ScrollView, Text }} from '@hozo/core'
+            export const A = () => <ScrollView role="region" {attribute}><Text>a</Text></ScrollView>
+            "#
+            );
+            let output = lower_source(&source);
+            assert!(
+                !output.jsx.contains("hozoScrollable"),
+                "{attribute} was overruled: {}",
+                output.jsx
+            );
+            assert!(
+                !output.runtime_imports.contains(&"hozoScrollable"),
+                "{attribute} left an import nothing calls: {:?}",
+                output.runtime_imports
+            );
+            assert!(output.jsx.contains(attribute), "the author's value was dropped");
+        }
+    }
+
+    #[test]
+    fn a_scroll_view_carried_verbatim_keeps_its_own_component() {
+        // A tag Hozo does not claim keeps `@hozo/core`'s real component,
+        // which supplies its own behaviour. Importing the helper for it
+        // would be an import nothing calls.
+        // Parsed with an explicit trust list, because that is where the
+        // decision lives: `lower` sees a node that has already been marked
+        // foreign or not.
+        let source = r#"
+            import { ScrollView } from '@some/ui'
+            import { View } from '@hozo/core'
+            export const A = () => <View className="p-4"><ScrollView>a</ScrollView></View>
+            "#;
+        let sources = vec!["@hozo/core".to_string()];
+        let parsed = hozo_parser::parse_tsx_with(source, Some(&sources));
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(!output.jsx.contains("hozoScrollable"), "{}", output.jsx);
+        assert!(!output.runtime_imports.contains(&"hozoScrollable"));
     }
 }
