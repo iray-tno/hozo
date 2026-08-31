@@ -43,6 +43,11 @@ export interface StylexResolutionRequest {
   specifier: string
 }
 
+export interface StylexResolvedBindings {
+  importer: string
+  bindings: StylexExternalBinding[]
+}
+
 function emptySnapshot(): Snapshot {
   return { version: SNAPSHOT_VERSION, files: {} }
 }
@@ -170,6 +175,18 @@ export class StylexModuleCache {
     )
   }
 
+  /** Imports in StyleX-using sources that may name a registered sheet. */
+  importResolutionRequests(): StylexResolutionRequest[] {
+    return Object.keys(this.#snapshot.files)
+      .sort()
+      .flatMap((importer) =>
+        this.#snapshot.files[importer]!.summary.imports.map((specifier) => ({
+          importer,
+          specifier,
+        })),
+      )
+  }
+
   reexportSpecifiers(file: string): string[] {
     return this.get(file)?.summary.reexports.map((reexport) => reexport.specifier) ?? []
   }
@@ -192,6 +209,30 @@ export class StylexModuleCache {
       [...normalized].some(([specifier, moduleId]) => previous.get(specifier) !== moduleId)
     if (normalized.size > 0) this.#resolved.set(absoluteImporter, normalized)
     else this.#resolved.delete(absoluteImporter)
+    return changed
+  }
+
+  /** Atomically replace resolver-owned edges, for platform-scoped workers. */
+  replaceResolvedBindings(entries: readonly StylexResolvedBindings[]): boolean {
+    const next = new Map<string, Map<string, string>>()
+    for (const { importer, bindings } of entries) {
+      const normalized = new Map(
+        bindings
+          .map((binding) => [binding.specifier, path.resolve(binding.moduleId)] as const)
+          .sort(([left], [right]) => left.localeCompare(right)),
+      )
+      if (normalized.size > 0) next.set(path.resolve(importer), normalized)
+    }
+    const changed =
+      this.#resolved.size !== next.size ||
+      [...next].some(([importer, bindings]) => {
+        const previous = this.#resolved.get(importer)
+        return (
+          previous?.size !== bindings.size ||
+          [...bindings].some(([specifier, moduleId]) => previous?.get(specifier) !== moduleId)
+        )
+      })
+    this.#resolved = next
     return changed
   }
 
