@@ -56,6 +56,19 @@ pnpm --filter @hozo/tailwind-conformance report
 pnpm --filter @hozo/tailwind-conformance test   # the normalizer's own tests
 ```
 
+## StyleX compile benchmark
+
+Property-family changes can be compared on the same machine and runtime. The
+benchmark reuses one compiler, warms it up, then reports the median cost of one
+Web plus Native compile pair. Record `main`, then compare the branch; a slowdown
+greater than 5% exits non-zero. The corpus hash prevents unlike runs from being
+compared.
+
+```
+pnpm --filter @hozo/tailwind-conformance benchmark:stylex --output stylex-main.json
+pnpm --filter @hozo/tailwind-conformance benchmark:stylex --compare stylex-main.json
+```
+
 ## The two numbers
 
 - **Coverage** — of the candidates Tailwind produces a rule for, how many Hozo emits *something* for. A gap here is unimplemented surface, not a bug.

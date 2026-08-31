@@ -819,13 +819,17 @@ fn named(value: &StaticValue, choices: &[(&str, &str)]) -> Option<String> {
         .map(|(_, token)| (*token).to_string())
 }
 
-/// Closed-keyword declarations from StyleX's published CSSProperties that
-/// have no React Native style key. Values outside this deliberately small
-/// grammar remain with the official StyleX transform.
-fn web_only_keyword(property: &str, value: &StaticValue) -> Option<StyleProperty> {
-    let StaticValue::String(value) = value else {
-        return None;
-    };
+/// Web-only declarations are accepted through a named value grammar rather
+/// than a generic static-string escape hatch. Each newly supported property
+/// therefore has an explicit validation boundary that can be tested against
+/// the official StyleX transform.
+#[derive(Clone, Copy)]
+enum WebValueGrammar {
+    Keywords(&'static [&'static str]),
+    Time,
+}
+
+fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'static str])> {
     let (css_property, choices): (&str, &[&str]) = match property {
         "appearance" => ("appearance", &["auto", "none", "textfield"]),
         "WebkitAppearance" => ("-webkit-appearance", &["auto", "none", "textfield"]),
@@ -899,9 +903,31 @@ fn web_only_keyword(property: &str, value: &StaticValue) -> Option<StyleProperty
         ),
         _ => return None,
     };
-    choices
-        .contains(&value.as_str())
-        .then(|| StyleProperty::WebOnly(css_property.to_string(), value.clone()))
+    Some((css_property, choices))
+}
+
+fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
+    match property {
+        "transitionDelay" => Some(("transition-delay", WebValueGrammar::Time)),
+        "animationDuration" => Some(("animation-duration", WebValueGrammar::Time)),
+        _ => web_only_keyword_spec(property)
+            .map(|(css_property, choices)| (css_property, WebValueGrammar::Keywords(choices))),
+    }
+}
+
+fn web_only_property(property: &str, value: &StaticValue) -> Option<StyleProperty> {
+    let (css_property, grammar) = web_only_spec(property)?;
+    let value = match grammar {
+        WebValueGrammar::Keywords(choices) => {
+            let StaticValue::String(value) = value else { return None };
+            choices.contains(&value.as_str()).then(|| value.clone())?
+        }
+        WebValueGrammar::Time => {
+            let seconds = stylex_transition_duration(value)? as f64 / 1000.0;
+            format!("{seconds}s")
+        }
+    };
+    Some(StyleProperty::WebOnly(css_property.to_string(), value))
 }
 
 fn stylex_order(value: &StaticValue) -> Option<i32> {
@@ -1015,14 +1041,6 @@ fn stylex_text_overflow(value: &StaticValue) -> Option<TextOverflow> {
         "ellipsis" => TextOverflow::Ellipsis,
         _ => return None,
     })
-}
-
-fn stylex_web_only_duration(property: &'static str, value: &StaticValue) -> Option<StyleProperty> {
-    let seconds = stylex_transition_duration(value)? as f64 / 1000.0;
-    Some(StyleProperty::WebOnly(
-        property.to_string(),
-        format!("{seconds}s"),
-    ))
 }
 
 fn stylex_transition_timing(value: &StaticValue) -> Option<String> {
@@ -1351,37 +1369,16 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
-        "appearance" => vec![web_only_keyword(property, value)?],
-        "WebkitAppearance" => vec![web_only_keyword(property, value)?],
-        "colorScheme" => vec![web_only_keyword(property, value)?],
-        "forcedColorAdjust" => vec![web_only_keyword(property, value)?],
-        "imageRendering" => vec![web_only_keyword(property, value)?],
-        "overflowAnchor" => vec![web_only_keyword(property, value)?],
-        "overscrollBehavior" => vec![web_only_keyword(property, value)?],
-        "overscrollBehaviorBlock" => vec![web_only_keyword(property, value)?],
-        "overscrollBehaviorInline" => vec![web_only_keyword(property, value)?],
-        "overscrollBehaviorX" => vec![web_only_keyword(property, value)?],
-        "overscrollBehaviorY" => vec![web_only_keyword(property, value)?],
-        "printColorAdjust" => vec![web_only_keyword(property, value)?],
-        "resize" => vec![web_only_keyword(property, value)?],
-        "scrollSnapAlign" => vec![web_only_keyword(property, value)?],
-        "scrollSnapStop" => vec![web_only_keyword(property, value)?],
-        "scrollSnapType" => vec![web_only_keyword(property, value)?],
-        "scrollbarGutter" => vec![web_only_keyword(property, value)?],
-        "scrollbarWidth" => vec![web_only_keyword(property, value)?],
-        "textRendering" => vec![web_only_keyword(property, value)?],
-        "touchAction" => vec![web_only_keyword(property, value)?],
-        "wordBreak" => vec![web_only_keyword(property, value)?],
-        "overflowWrap" => vec![web_only_keyword(property, value)?],
-        "visibility" => vec![web_only_keyword(property, value)?],
-        "backgroundPosition" => vec![web_only_keyword(property, value)?],
-        "backgroundRepeat" => vec![web_only_keyword(property, value)?],
-        "backgroundSize" => vec![web_only_keyword(property, value)?],
-        "objectPosition" => vec![web_only_keyword(property, value)?],
-        "justifySelf" => vec![web_only_keyword(property, value)?],
-        "placeItems" => vec![web_only_keyword(property, value)?],
-        "transitionDelay" => vec![stylex_web_only_duration("transition-delay", value)?],
-        "animationDuration" => vec![stylex_web_only_duration("animation-duration", value)?],
+        "appearance" | "WebkitAppearance" | "colorScheme" | "forcedColorAdjust"
+        | "imageRendering" | "overflowAnchor" | "overscrollBehavior"
+        | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
+        | "overscrollBehaviorY" | "printColorAdjust" | "resize" | "scrollSnapAlign"
+        | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
+        | "textRendering" | "touchAction" | "wordBreak" | "overflowWrap" | "visibility"
+        | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
+        | "justifySelf" | "placeItems" | "transitionDelay" | "animationDuration" => {
+            vec![web_only_property(property, value)?]
+        }
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
         "whiteSpace" => vec![StyleProperty::WhiteSpace(stylex_white_space(value)?)],
         "textOverflow" => vec![StyleProperty::TextOverflow(stylex_text_overflow(value)?)],
