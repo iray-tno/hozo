@@ -61,7 +61,11 @@ function project(files: Record<string, string>): string {
   return root
 }
 
-async function serve(root: string, options: HozoOptions = {}) {
+async function serve(
+  root: string,
+  options: HozoOptions = {},
+  aliases: Record<string, string> = {},
+) {
   const server = await createServer({
     root,
     configFile: false,
@@ -76,6 +80,7 @@ async function serve(root: string, options: HozoOptions = {}) {
         'react/jsx-dev-runtime': createRequire(import.meta.url).resolve('react/jsx-dev-runtime'),
         'react/jsx-runtime': createRequire(import.meta.url).resolve('react/jsx-runtime'),
         react: createRequire(import.meta.url).resolve('react'),
+        ...aliases,
       },
     },
     plugins: [hozo(options)],
@@ -141,6 +146,29 @@ test('the dev server lowers a static StyleX sheet imported from another file', a
   const companion = readFileSync(path.join(root, 'App.tsx.hozo.css'), 'utf8')
   assert.match(companion, /padding-top: 16px/)
   assert.match(companion, /background-color: red/)
+})
+
+test('the dev server uses Vite aliases for StyleX imports and re-exports', async () => {
+  const root = project({
+    'styles.ts': `import * as stylex from '@stylexjs/stylex'
+      export const styles = stylex.create({ root: { padding: 20, color: 'purple' } })`,
+    'index.ts': `export { styles as cardStyles } from '@theme/styles'`,
+    'App.tsx': `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import { cardStyles } from '@theme'
+      export const App = () => <View {...stylex.props(cardStyles.root)} />`,
+  })
+  const server = await serve(root, {}, {
+    '@theme/styles': path.join(root, 'styles.ts'),
+    '@theme': path.join(root, 'index.ts'),
+  })
+
+  const result = await server.transformRequest('/App.tsx')
+  assert.ok(result)
+  assert.doesNotMatch(result.code, /stylex\.props/)
+  const companion = readFileSync(path.join(root, 'App.tsx.hozo.css'), 'utf8')
+  assert.match(companion, /padding-top: 20px/)
+  assert.match(companion, /color: purple/)
 })
 
 test('a class only a helper produces reaches the candidate stylesheet', async () => {

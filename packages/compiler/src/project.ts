@@ -9,7 +9,11 @@ import { globbySync } from 'globby'
 import { openCandidateCache, type CandidateCache } from './index.ts'
 import { StylexModuleCache } from './stylex-project.ts'
 
-export { StylexModuleCache, type CachedStylexModule } from './stylex-project.ts'
+export {
+  StylexModuleCache,
+  type CachedStylexModule,
+  type StylexResolutionRequest,
+} from './stylex-project.ts'
 
 const SCANNABLE = new Set(['.tsx', '.jsx', '.ts', '.js', '.mts', '.mjs'])
 const DEFAULT_INCLUDE = ['**/*.{tsx,jsx,ts,js,mts,mjs}']

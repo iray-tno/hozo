@@ -18,7 +18,7 @@ import {
   type StylexModuleSummary,
 } from './index.ts'
 
-const SNAPSHOT_VERSION = 2
+const SNAPSHOT_VERSION = 3
 
 interface FileEntry {
   modifiedMs: number
@@ -36,6 +36,11 @@ export interface CachedStylexModule {
   /** SHA-256 of the defining source, used as the Rust lowering cache key. */
   contentHash: string
   summary: StylexModuleSummary
+}
+
+export interface StylexResolutionRequest {
+  importer: string
+  specifier: string
 }
 
 function emptySnapshot(): Snapshot {
@@ -85,6 +90,7 @@ export class StylexModuleCache {
   #snapshot: Snapshot
   #dirty = false
   #sources = new Map<string, string>()
+  #resolved = new Map<string, Map<string, string>>()
 
   constructor(file: string) {
     this.#file = file
@@ -111,7 +117,7 @@ export class StylexModuleCache {
       // is not present at all; false positives merely take the safe path.
       summary: source.includes('@stylexjs/stylex') || /\bexport\s*(?:\*|\{)[\s\S]*?\bfrom\s*['"]/.test(source)
         ? summarizeStylexModule(source)
-        : { exports: [], reexports: [] },
+        : { exports: [], reexports: [], imports: [] },
     }
     const previous = this.#snapshot.files[file]
     if (
@@ -121,6 +127,7 @@ export class StylexModuleCache {
       return false
     }
     this.#snapshot.files[file] = next
+    if (previous?.contentHash !== next.contentHash) this.#resolved.delete(file)
     if (hasGraphFacts(next.summary)) this.#sources.set(file, source)
     else this.#sources.delete(file)
     this.#dirty = true
@@ -134,6 +141,7 @@ export class StylexModuleCache {
     const changed = hasGraphFacts(this.#snapshot.files[file]!.summary)
     delete this.#snapshot.files[file]
     this.#sources.delete(file)
+    this.#resolved.delete(file)
     this.#dirty = true
     return changed
   }
@@ -152,8 +160,43 @@ export class StylexModuleCache {
       : undefined
   }
 
-  modules(): CachedStylexModule[] {
-    const candidates = Object.keys(this.#snapshot.files)
+  /** Re-export edges that need the active bundler's alias/package resolver. */
+  resolutionRequests(): StylexResolutionRequest[] {
+    return this.#candidates().flatMap((module) =>
+      module.summary.reexports.map((reexport) => ({
+        importer: module.path,
+        specifier: reexport.specifier,
+      })),
+    )
+  }
+
+  reexportSpecifiers(file: string): string[] {
+    return this.get(file)?.summary.reexports.map((reexport) => reexport.specifier) ?? []
+  }
+
+  importSpecifiers(file: string): string[] {
+    return this.get(file)?.summary.imports ?? []
+  }
+
+  /** Replace the resolver-owned links for one importer. */
+  setResolvedBindings(importer: string, bindings: readonly StylexExternalBinding[]): boolean {
+    const absoluteImporter = path.resolve(importer)
+    const normalized = new Map(
+      bindings
+        .map((binding) => [binding.specifier, path.resolve(binding.moduleId)] as const)
+        .sort(([left], [right]) => left.localeCompare(right)),
+    )
+    const previous = this.#resolved.get(absoluteImporter) ?? new Map<string, string>()
+    const changed =
+      previous.size !== normalized.size ||
+      [...normalized].some(([specifier, moduleId]) => previous.get(specifier) !== moduleId)
+    if (normalized.size > 0) this.#resolved.set(absoluteImporter, normalized)
+    else this.#resolved.delete(absoluteImporter)
+    return changed
+  }
+
+  #candidates(): CachedStylexModule[] {
+    return Object.keys(this.#snapshot.files)
       .sort()
       .flatMap((file) => {
         const entry = this.#snapshot.files[file]!
@@ -161,15 +204,23 @@ export class StylexModuleCache {
           ? [{ path: file, contentHash: entry.contentHash, summary: entry.summary }]
           : []
       })
+  }
+
+  modules(): CachedStylexModule[] {
+    const candidates = this.#candidates()
+    const byPath = new Map(candidates.map((module) => [module.path, module]))
     const included = new Set(
       candidates.filter((module) => module.summary.exports.length > 0).map((module) => module.path),
     )
     const edges = new Map<string, string[]>()
     for (const module of candidates) {
       const targets = module.summary.reexports.flatMap((reexport) => {
-        const target = candidates.find((candidate) =>
-          moduleSpellings(module.path, candidate.path).has(reexport.specifier),
-        )
+        const resolved = this.#resolved.get(module.path)?.get(reexport.specifier)
+        const target = resolved
+          ? byPath.get(resolved)
+          : candidates.find((candidate) =>
+              moduleSpellings(module.path, candidate.path).has(reexport.specifier),
+            )
         return target ? [target.path] : []
       })
       edges.set(module.path, targets)
@@ -203,11 +254,11 @@ export class StylexModuleCache {
   }
 
   /**
-   * Relative ESM spellings that can name each indexed StyleX module.
+   * ESM spellings that can name each indexed StyleX module.
    *
    * The Rust parser matches these against real import entries, so emitting
-   * an unused spelling is harmless. Package aliases remain deliberately out
-   * of this first slice because resolving them belongs to the bundler.
+   * an unused spelling is harmless. Relative spellings are derived here;
+   * aliases are accepted only after the active bundler resolves them.
    */
   bindingsFor(importer: string): StylexExternalBinding[] {
     return this.#bindingsFor(importer, this.modules())
@@ -217,14 +268,18 @@ export class StylexModuleCache {
     importer: string,
     modules: readonly CachedStylexModule[],
   ): StylexExternalBinding[] {
-    const bindings: StylexExternalBinding[] = []
+    const bindings = new Map<string, string>()
+    const included = new Set(modules.map((module) => module.path))
     for (const module of modules) {
       if (module.path === importer) continue
       for (const specifier of moduleSpellings(importer, module.path)) {
-        bindings.push({ specifier, moduleId: module.path })
+        bindings.set(specifier, module.path)
       }
     }
-    return bindings
+    for (const [specifier, moduleId] of this.#resolved.get(importer) ?? []) {
+      if (included.has(moduleId)) bindings.set(specifier, moduleId)
+    }
+    return [...bindings].map(([specifier, moduleId]) => ({ specifier, moduleId }))
   }
 
   persist(): void {
