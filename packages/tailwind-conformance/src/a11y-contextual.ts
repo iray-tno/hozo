@@ -147,8 +147,20 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // source would be announced as "Feed" on a device and as nothing at all
     // in a browser. The compiler says so (`ARIA_NAME_PROHIBITED`), which is
     // the next case; this one is the shape that works.
+    //
+    // The name is half of it. A scroll container also has to be *reachable*
+    // -- a `div` with `overflow: auto` scrolls under a pointer and is
+    // unreachable from a keyboard unless something in it is focusable, and
+    // React Native's own ScrollView is scrolled by touch with the platform
+    // handling the reaching. So the Web lowering carries
+    // `{...hozoScrollable()}`, which decides at runtime: none of what
+    // decides it -- overflow, viewport, whether a child rendered something
+    // focusable -- is a compile-time fact. Native needs nothing.
     source: '<ScrollView role="region" accessibilityLabel="Feed"><Text>a</Text></ScrollView>',
-    web: ['<div className="hozo-scroll-view" role="region" aria-label={"Feed"}>'],
+    web: [
+      '<div className="hozo-scroll-view" role="region" aria-label={"Feed"}',
+      '{...hozoScrollable()}',
+    ],
     native: ['<ScrollView role="region" accessibilityLabel={"Feed"}>'],
   },
   {

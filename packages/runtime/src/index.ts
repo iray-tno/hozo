@@ -95,4 +95,5 @@ export function createClassResolver(
 
 export { hozoActivateKeyDown, hozoActivateKeyUp } from './activate.ts'
 export { hozoInteractive } from './interactive.ts'
+export { hozoScrollable } from './scrollable.ts'
 export { HozoDialog, type HozoDialogProps } from '@hozo/a11y'
