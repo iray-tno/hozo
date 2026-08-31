@@ -216,3 +216,26 @@ test('generated files are not rewritten when their bytes are unchanged', () => {
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('a package inherits the ignores declared at the repository root', () => {
+  // The default walk read only the `.gitignore` files at or below the
+  // directory it was given, and a monorepo declares its build directories
+  // once at the top. Scanning the Storybook example this way admitted 32
+  // files of its own `storybook-static/` build -- 6.8 MB of minified React
+  // and axe-core -- whose tokens then became Tailwind candidates.
+  const repo = project()
+  try {
+    mkdirSync(path.join(repo, '.git'), { recursive: true })
+    writeFileSync(path.join(repo, '.gitignore'), 'storybook-static/\n')
+    const pkg = path.join(repo, 'packages', 'demo')
+    const kept = source(pkg, 'src/Button.stories.tsx')
+    source(pkg, 'storybook-static/assets/react-18-abc.js')
+
+    assert.deepEqual(discoverSources(pkg), [kept])
+    // Asked not to, it still does not: the option is about gitignore, and
+    // reading one chain but not the other is the bug this test is for.
+    assert.equal(discoverSources(pkg, { respectGitignore: false }).length, 2)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})

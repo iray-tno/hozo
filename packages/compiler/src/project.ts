@@ -1,10 +1,10 @@
 // Project-wide source discovery and candidate-cache reconciliation, shared
 // by the Vite and Metro integrations.
 
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { globbySync } from 'globby'
+import { globbySync, isGitIgnoredSync } from 'globby'
 
 import { openCandidateCache, type CandidateCache, type StylexExternalBinding } from './index.ts'
 import {
@@ -136,23 +136,72 @@ export interface ProjectCache {
 }
 
 /**
+ * The repository root at or above `from`, if the project sits in one.
+ *
+ * `.git` is a directory in an ordinary clone and a file in a worktree or a
+ * submodule, so this asks whether the entry exists rather than what it is.
+ */
+function gitRootAbove(from: string): string | undefined {
+  let dir = path.resolve(from)
+  for (;;) {
+    if (existsSync(path.join(dir, '.git'))) return dir
+    const parent = path.dirname(dir)
+    if (parent === dir) return undefined
+    dir = parent
+  }
+}
+
+/**
+ * A test for the ignores declared *above* the project.
+ *
+ * Globby's `gitignore` reads only the `.gitignore` files at or below the
+ * directory it is handed, which in a monorepo is the one place they are
+ * not: `storybook-static/`, `dist/`, `.next/` are declared once at the
+ * repository root and inherited by every package. So `respectGitignore`
+ * was on by default and, for a project scanned at its own directory,
+ * silently did nothing about build output.
+ *
+ * Walking `examples/storybook-demo` that way discovered 52 files, of
+ * which 32 -- 6.8 MB -- were its own Storybook build. The candidate set
+ * therefore contained whatever tokens minified React and axe-core happen
+ * to contain, and changed depending on whether the project had been built,
+ * which is how `.accent-height` and `.fill-opacity` reached a stylesheet
+ * whose sources never mention them.
+ *
+ * Anchoring at the repository root reads the whole inherited chain, which
+ * is what `git check-ignore` answers with and what the project already
+ * believes about its own files. Adding the missing names to
+ * `DEFAULT_EXCLUDE` would have fixed this one project and left the next
+ * build directory to be found the same way.
+ */
+function notIgnoredAbove(root: string): (file: string) => boolean {
+  const gitRoot = gitRootAbove(root)
+  // Nothing above to inherit from, or globby already read it in place.
+  if (gitRoot === undefined || gitRoot === path.resolve(root)) return () => true
+  const ignored = isGitIgnoredSync({ cwd: gitRoot })
+  return (file) => !ignored(file)
+}
+
+/**
  * Returns authored source files in stable order. Globby supplies gitignore
  * semantics and avoids following directory symlinks, preventing pnpm links
  * and temporary checkouts from expanding one project walk into another.
  */
 export function discoverSources(root: string, options: ContentOptions = {}): string[] {
-  return globbySync(options.include ?? DEFAULT_INCLUDE, {
+  const respectGitignore = options.respectGitignore ?? true
+  const files = globbySync(options.include ?? DEFAULT_INCLUDE, {
     cwd: root,
     absolute: true,
     onlyFiles: true,
     unique: true,
     followSymbolicLinks: false,
-    gitignore: options.respectGitignore ?? true,
+    gitignore: respectGitignore,
     ignore: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
   })
     .filter((file) => SCANNABLE.has(path.extname(file)))
     .map((file) => path.resolve(file))
-    .sort()
+
+  return (respectGitignore ? files.filter(notIgnoredAbove(root)) : files).sort()
 }
 
 /** The real file behind a bundler module id, if Hozo should inspect it. */
