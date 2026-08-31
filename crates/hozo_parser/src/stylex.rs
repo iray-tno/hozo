@@ -157,10 +157,19 @@ impl ModuleRegistry {
             for entry in module_record.import_entries.iter().filter(|entry| {
                 !entry.is_type && entry.module_request.name.as_str() == binding.specifier
             }) {
+                if matches!(entry.import_name, ImportImportName::NamespaceObject) {
+                    for (exported, rules) in &module.sheets {
+                        frontend.sheets.insert(
+                            format!("{}.{}", entry.local_name.name, exported),
+                            rules.clone(),
+                        );
+                    }
+                    continue;
+                }
                 let imported = match &entry.import_name {
                     ImportImportName::Name(name) => name.name.as_str(),
                     ImportImportName::Default(_) => "default",
-                    ImportImportName::NamespaceObject => continue,
+                    ImportImportName::NamespaceObject => unreachable!(),
                 };
                 let Some(rules) = module.sheets.get(imported) else {
                     continue;
@@ -2707,6 +2716,7 @@ impl Frontend {
                     {
                         Some((name.clone(), rule.clone()))
                     }
+                    Rule::Function { .. } => Some((name.clone(), rule.clone())),
                     _ => None,
                 })
                 .collect::<HashMap<_, _>>();
@@ -2735,17 +2745,29 @@ impl Frontend {
         &self,
         member: &oxc_ast::ast::StaticMemberExpression,
     ) -> Result<&Rule, Gap> {
-        let Expression::Identifier(sheet) = &member.object else {
-            return Err(Gap {
-                message: "StyleX styles must be referenced as `styles.rule`.".to_string(),
-                span: source_span(member.span),
-            });
+        let sheet = match &member.object {
+            Expression::Identifier(sheet) => sheet.name.to_string(),
+            Expression::StaticMemberExpression(export) => {
+                let Expression::Identifier(namespace) = &export.object else {
+                    return Err(Gap {
+                        message: "StyleX styles must be referenced as `styles.rule` or `namespace.styles.rule`.".to_string(),
+                        span: source_span(member.span),
+                    });
+                };
+                format!("{}.{}", namespace.name, export.property.name)
+            }
+            _ => {
+                return Err(Gap {
+                    message: "StyleX styles must be referenced as `styles.rule` or `namespace.styles.rule`.".to_string(),
+                    span: source_span(member.span),
+                });
+            }
         };
-        let Some(rules) = self.sheets.get(sheet.name.as_str()) else {
+        let Some(rules) = self.sheets.get(&sheet) else {
             return Err(Gap {
                 message: format!(
                     "StyleX sheet `{}` is not a registered or same-file module-scope static `stylex.create` binding.",
-                    sheet.name
+                    sheet
                 ),
                 span: source_span(member.span),
             });
@@ -2753,7 +2775,7 @@ impl Frontend {
         rules.get(member.property.name.as_str()).ok_or_else(|| Gap {
             message: format!(
                 "StyleX rule `{}.{}` was not found in its static definition.",
-                sheet.name, member.property.name
+                sheet, member.property.name
             ),
             span: source_span(member.span),
         })
@@ -2891,7 +2913,7 @@ impl Frontend {
                             "StyleX function-style property `{}` or its called value is not in Hozo's typed universal subset yet.",
                             entry.name
                         ),
-                        span: entry.span,
+                        span: source_span(call.span),
                     });
                 };
                 Ok(Entry {

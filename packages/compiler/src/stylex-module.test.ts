@@ -41,13 +41,14 @@ test('static rules imported from another module lower through the shared registr
     const definitionSource = `import * as stylex from '@stylexjs/stylex'
       const local = stylex.create({
         root: { padding: 16, color: 'red' },
+        dynamic: (opacity) => ({ opacity }),
         unsupported: { transform: 'translateX(calc(100% - 2px))' },
       })
       export { local as cardStyles }`
     const componentSource = `import * as stylex from '@stylexjs/stylex'
       import { View } from '@hozo/core'
       import { cardStyles as styles } from './styles'
-      export const Card = () => <View {...stylex.props(styles.root)} />`
+      export const Card = () => <View {...stylex.props(styles.root, styles.dynamic(0.5))} />`
     writeFileSync(definition, definitionSource)
     writeFileSync(component, componentSource)
 
@@ -61,6 +62,7 @@ test('static rules imported from another module lower through the shared registr
     assert.doesNotMatch(web.code, /stylex\.props/)
     assert.match(web.css, /padding-top: 16px/)
     assert.match(web.css, /color: red/)
+    assert.match(web.css, /opacity: 0.5/)
 
     const native = compiler.compileNative(
       componentSource,
@@ -69,6 +71,43 @@ test('static rules imported from another module lower through the shared registr
     assert.equal(native.length, 1)
     assert.doesNotMatch(native[0]!.jsx, /stylex\.props/)
     assert.match(native[0]!.styles, /paddingTop: 16/)
+    assert.match(native[0]!.styles, /opacity: 0.5/)
+
+    const runtimeSource = `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import { cardStyles as styles } from './styles'
+      export const Card = ({ opacity }) => <View {...stylex.props(styles.dynamic(opacity))} />`
+    const runtime = lowerModule(runtimeSource, component, component, compiler, root, modules)
+    assert.ok(runtime)
+    assert.match(runtime.code, /stylex\.props\(styles\.dynamic\(opacity\)\)/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('namespace imports can select an exported static sheet', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-stylex-namespace-'))
+  try {
+    const definition = path.join(root, 'styles.ts')
+    const component = path.join(root, 'Card.tsx')
+    const definitionSource = `import * as stylex from '@stylexjs/stylex'
+      const local = stylex.create({ root: { marginTop: 12 } })
+      export { local as cardStyles }`
+    const componentSource = `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import * as sheets from './styles'
+      export const Card = () => <View {...stylex.props(sheets.cardStyles.root)} />`
+    writeFileSync(definition, definitionSource)
+    writeFileSync(component, componentSource)
+    const modules = new StylexModuleCache(path.join(root, 'stylex-modules.json'))
+    modules.scanFile(definition, definitionSource, 1)
+    const compiler = createCompiler()
+    compiler.setStylexModules(modules.moduleSources())
+
+    const web = lowerModule(componentSource, component, component, compiler, root, modules)
+    assert.ok(web)
+    assert.doesNotMatch(web.code, /stylex\.props/)
+    assert.match(web.css, /margin-top: 12px/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
