@@ -20,6 +20,7 @@ import path from 'node:path'
 
 import { cssFileNameFor } from '@hozo/compiler/lower'
 import {
+  discoverTransformedSources,
   type HozoProjectOptions,
   preflightCssFor,
   preflightCssPath,
@@ -90,6 +91,7 @@ export function withHozo<T extends Record<string, unknown>>(
     webpack(config: WebpackConfig, context: unknown) {
       config.module ??= { rules: [] }
       config.module.rules ??= []
+      insertIntoMdxRule(config, { loader, options: loaderOptions }, root, options)
       // `enforce: 'pre'`, the same declaration the Vite plugin makes and
       // for the same reason: Hozo has to see the source as written. Array
       // position is not enough, and it reads backwards -- webpack runs a
@@ -114,6 +116,69 @@ export function withHozo<T extends Record<string, unknown>>(
 interface WebpackConfig {
   module?: { rules?: unknown[] }
 }
+
+interface UseEntry {
+  loader?: string
+  options?: unknown
+}
+
+interface MaybeMdxRule {
+  use?: UseEntry[]
+}
+
+/**
+ * Puts Hozo's loader between the MDX loader and the one that compiles its
+ * JSX.
+ *
+ * Webpack runs a module's loaders right-to-left, and `@next/mdx` registers
+ * `use: [defaultLoaders.babel, mdxLoader]` -- so MDX runs, then Next's own
+ * transform. Hozo has to be in the middle of exactly that array. A rule of
+ * its own cannot get there: two rules matching one module concatenate their
+ * `use` lists, so whichever order they are in, Hozo lands either before the
+ * MDX loader (and is handed Markdown) or after Next's (and is handed
+ * JavaScript with no JSX left). Neither fails loudly -- the second leaves
+ * the `@hozo/core` import in place, and the App Router then rejects the
+ * page for calling `useState` in a server component, which names nothing
+ * that is actually wrong.
+ *
+ * This works because `@next/mdx` pushes its rule and *then* calls the inner
+ * config's `webpack()`, so by the time this runs the rule is there. It
+ * follows that `withMDX(withHozo(config))` is the required nesting; the
+ * other way round Hozo runs first and finds nothing, which is what the
+ * warning is for. Turbopack needs none of this: its MDX rule declares
+ * `as: '*.tsx'`, so the output re-enters the pipeline under a name Hozo's
+ * own `*.tsx` rule already matches.
+ */
+function insertIntoMdxRule(
+  config: WebpackConfig,
+  entry: UseEntry,
+  root: string,
+  options: HozoNextOptions,
+): void {
+  const rules = (config.module?.rules ?? []) as MaybeMdxRule[]
+  // `use` is a string, an object, an array, or a function depending on how
+  // the rule was written, and Next's own rules are all four. Only an array
+  // has a middle to insert into.
+  const mdxRules = rules.filter(
+    (rule) =>
+      Array.isArray(rule?.use) &&
+      rule.use.some((used) => typeof used?.loader === 'string' && MDX_LOADER.test(used.loader)),
+  )
+  for (const rule of mdxRules) {
+    // Before the last entry, which is the MDX loader itself: right-to-left
+    // makes that the first to run and this the second.
+    rule.use?.splice(rule.use.length - 1, 0, entry)
+  }
+  if (mdxRules.length > 0 || discoverTransformedSources(root, options.content).length === 0) return
+  console.warn(
+    '[hozo] found .mdx files but no MDX loader to run after. Nest the plugins as ' +
+      'withMDX(withHozo(config)) and pass options: { jsx: true } to @next/mdx, or those ' +
+      'pages will ship uncompiled.',
+  )
+}
+
+/** `@next/mdx` resolves both of its loaders from its own package directory. */
+const MDX_LOADER = /[\\/]@next[\\/]mdx[\\/]|[\\/]@mdx-js[\\/]loader/
 
 /**
  * Walks the project and writes the candidate stylesheet, returning what the
@@ -166,6 +231,23 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
     if (!file.endsWith('.tsx')) continue
     const sidecar = path.join(path.dirname(file), cssFileNameFor(file))
     if (!existsSync(sidecar)) writeFileSync(sidecar, '')
+  }
+  // And for `.mdx`, which the project walk deliberately never lists --
+  // see `TRANSFORMABLE`, and `discoverTransformedSources` for why they
+  // still have to be found here.
+  //
+  // Two names each, because the loader is handed a different path by each
+  // bundler. `@next/mdx`'s Turbopack rule declares `as: '*.tsx'`, so
+  // Turbopack renames the module to `page.mdx.tsx` before Hozo's own
+  // `*.tsx` rule picks it up -- which is also why MDX needs no rule of its
+  // own here. Webpack renames nothing and the loader sees `page.mdx`.
+  // An unused empty file is what every module that lowers to no CSS
+  // already leaves behind.
+  for (const file of discoverTransformedSources(root, options.content)) {
+    for (const name of [cssFileNameFor(file), cssFileNameFor(`${file}.tsx`)]) {
+      const sidecar = path.join(path.dirname(file), name)
+      if (!existsSync(sidecar)) writeFileSync(sidecar, '')
+    }
   }
   project.cache.persist()
   if (options.debug) {

@@ -14,6 +14,37 @@ function filesUnder(directory) {
 const artifacts = filesUnder('.next').filter((file) => /\.(?:js|mjs|css|html)$/.test(file))
 const output = artifacts.map((file) => readFileSync(file, 'utf8')).join('\n')
 const html = readFileSync(path.join('.next', 'server', 'app', 'index.html'), 'utf8')
+const notes = readFileSync(path.join('.next', 'server', 'app', 'notes.html'), 'utf8')
+
+/**
+ * The words of the MDX page that are prose rather than classes.
+ *
+ * Read from the page instead of listed here, and that is not tidiness.
+ * The first version of this check spelled the words out -- `block`,
+ * `table`, `visible` -- and `scripts/` is inside the project walk, so
+ * naming them put all seven into the candidate stylesheet and the check
+ * failed on its own fixture. String literals are scanned deliberately:
+ * that is where a dynamically composed class name lives.
+ *
+ * Everything inside a `className` is removed first, since those words are
+ * classes and belong in the stylesheet.
+ */
+const proseWords = [
+  ...new Set(
+    readFileSync(path.join('src', 'app', 'notes', 'page.mdx'), 'utf8')
+      .replace(/className="[^"]*"/g, ' ')
+      .split(/[^a-zA-Z0-9_-]+/)
+      .filter((word) => word.length > 2),
+  ),
+]
+
+/** Every plain single-class selector the candidate stylesheet defines. */
+const candidateRules = new Set(
+  readFileSync(path.join('node_modules', '.hozo', 'candidates.css'), 'utf8')
+    .split('\n')
+    .map((line) => /^\.([a-zA-Z0-9_-]+)\s*\{/.exec(line)?.[1])
+    .filter((name) => name !== undefined),
+)
 
 /**
  * One of Hozo's generated class names.
@@ -63,6 +94,37 @@ const checks = [
   ],
   // Nothing of the authoring layer is left in the bundle.
   [!output.includes('@hozo/core'), 'Next.js output still imports @hozo/core'],
+
+  // MDX. The two bundlers reach the loader by different routes and only
+  // one of them is arranged here: Turbopack's MDX rule declares
+  // `as: '*.tsx'` so the output meets Hozo's own rule on its way past,
+  // while under webpack Hozo has to be spliced into the middle of
+  // `[swc, mdxLoader]`. A Turbopack-only check would pass with every
+  // webpack build shipping the page uncompiled -- the same asymmetry that
+  // made this script run both in the first place.
+  [lowered(notes, 'section'), 'Section written in MDX did not lower'],
+  [lowered(notes, 'span'), 'Text written in MDX did not lower'],
+  [notes.includes('<h1>Notes written in MDX'), 'the Markdown around it stopped rendering'],
+  // Prose is not a class list, however much of it happens to be a
+  // Tailwind utility. `.mdx` is deliberately absent from the project walk
+  // for this reason -- on disk the file is Markdown, which does not parse,
+  // and the scan would fall back to reading English.
+  //
+  // Read from the candidate stylesheet rather than from every artifact:
+  // that file is what the claim is about, and `.table` as a substring of
+  // a minified bundle means nothing.
+  //
+  // With the positive case first, because assertions that something is
+  // absent all pass against an empty set, and an empty set is exactly what
+  // a broken parse or a moved file would produce.
+  [
+    candidateRules.has('bg-emerald-500'),
+    'the candidate stylesheet parsed to nothing, so the checks below prove nothing',
+  ],
+  ...proseWords.map((word) => [
+    !candidateRules.has(word),
+    `prose from the MDX page reached the stylesheet: .${word}`,
+  ]),
 ]
 
 for (const [ok, message] of checks) {

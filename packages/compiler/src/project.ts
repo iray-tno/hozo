@@ -263,6 +263,34 @@ export function isTransformedSource(file: string): boolean {
   return path.extname(file) === '.mdx'
 }
 
+/**
+ * The transformed sources on disk, which `discoverSources` deliberately
+ * omits.
+ *
+ * Not for scanning -- that is the whole reason they are omitted, since on
+ * disk they are Markdown. This exists because Turbopack resolves a
+ * module's imports against a view of the directory it took before the
+ * loader ran, so `@hozo/next` has to create each companion stylesheet
+ * empty up front, and it cannot create one for a file it never listed.
+ */
+export function discoverTransformedSources(
+  root: string,
+  options: ContentOptions = {},
+): string[] {
+  return globbySync(['**/*.mdx'], {
+    cwd: root,
+    absolute: true,
+    onlyFiles: true,
+    unique: true,
+    followSymbolicLinks: false,
+    gitignore: false,
+    ignore: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
+  })
+    .map((file) => path.resolve(file))
+    .filter(notIgnoredAbove(root))
+    .sort()
+}
+
 /** Feed one bundler's authoritative resolver answers into the shared graph. */
 export async function resolveStylexRequests(
   modules: StylexModuleCache,
