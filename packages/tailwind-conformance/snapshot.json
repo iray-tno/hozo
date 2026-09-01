@@ -6,7 +6,7 @@
   },
   "stylex": {
     "properties": 522,
-    "mapped": 225,
+    "mapped": 247,
     "nativeProperties": 116,
     "mappedNative": 116,
     "contextualProperties": 16,
@@ -14,11 +14,11 @@
     "adapterProperties": 1,
     "mappedAdapter": 0,
     "webOnlyProperties": 389,
-    "mappedWebOnly": 93
+    "mappedWebOnly": 115
   },
   "stylexValues": {
-    "cases": 90,
-    "covered": 90
+    "cases": 112,
+    "covered": 112
   },
   "stylexConstructs": {
     "cases": 14,

@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-08-29 時点では
-全 CSS 名で 225/522 (43.1%)、両 platform に名前が存在する集合で 116/116
-(100%)、contextual runtime 集合で 16/16 (100%)、Web-only 集合で 93/389
-(23.9%)。残りは optional adapter 候補 1、未対応の Web-only 名と別集計する。
+全 CSS 名で 247/522 (47.3%)、両 platform に名前が存在する集合で 116/116
+(100%)、contextual runtime 集合で 16/16 (100%)、Web-only 集合で 115/389
+(29.6%)。残りは optional adapter 候補 1、未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
@@ -962,7 +962,7 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 90/90 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 112/112 (100%)、一般的なauthoring
 construct 14/14 (100%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
 持たせた宣言90/90 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only

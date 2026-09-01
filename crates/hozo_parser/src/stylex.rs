@@ -827,13 +827,26 @@ fn named(value: &StaticValue, choices: &[(&str, &str)]) -> Option<String> {
 enum WebValueGrammar {
     Keywords(&'static [&'static str]),
     LengthPercentage(&'static [&'static str]),
+    SvgLength(&'static [&'static str]),
     Color,
+    Number { minimum: f64, maximum: f64 },
+    NumberPercentage { minimum: f64, maximum: f64 },
+    SvgDasharray,
+    UrlOrNone,
     Time,
 }
 
 fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'static str])> {
     let (css_property, choices): (&str, &[&str]) = match property {
         "appearance" => ("appearance", &["auto", "none", "textfield"]),
+        "alignmentBaseline" => (
+            "alignment-baseline",
+            &[
+                "auto", "baseline", "before-edge", "text-before-edge", "middle", "central",
+                "after-edge", "text-after-edge", "ideographic", "alphabetic", "hanging",
+                "mathematical",
+            ],
+        ),
         "backgroundAttachment" => ("background-attachment", &["scroll", "fixed", "local"]),
         "backgroundBlendMode" => (
             "background-blend-mode",
@@ -858,12 +871,22 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "backgroundPositionX" => ("background-position-x", &["left", "center", "right"]),
         "backgroundPositionY" => ("background-position-y", &["top", "center", "bottom"]),
         "caretShape" => ("caret-shape", &["auto", "bar", "block", "underscore"]),
+        "clipRule" => ("clip-rule", &["nonzero", "evenodd"]),
         "WebkitAppearance" => ("-webkit-appearance", &["auto", "none", "textfield"]),
         "colorScheme" => (
             "color-scheme",
             &["normal", "light", "dark", "light dark", "only light", "only dark"],
         ),
         "forcedColorAdjust" => ("forced-color-adjust", &["auto", "none"]),
+        "dominantBaseline" => (
+            "dominant-baseline",
+            &[
+                "auto", "use-script", "no-change", "reset-size", "ideographic",
+                "alphabetic", "hanging", "mathematical", "central", "middle",
+                "text-after-edge", "text-before-edge",
+            ],
+        ),
+        "fillRule" => ("fill-rule", &["nonzero", "evenodd"]),
         "fontKerning" => ("font-kerning", &["auto", "normal", "none"]),
         "fontOpticalSizing" => ("font-optical-sizing", &["auto", "none"]),
         "fontStretch" => (
@@ -921,6 +944,13 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "overscrollBehaviorX" => ("overscroll-behavior-x", &["auto", "contain", "none"]),
         "overscrollBehaviorY" => ("overscroll-behavior-y", &["auto", "contain", "none"]),
         "printColorAdjust" => ("print-color-adjust", &["economy", "exact"]),
+        "paintOrder" => (
+            "paint-order",
+            &[
+                "normal", "stroke", "fill", "markers", "stroke fill", "stroke markers",
+                "fill markers", "stroke fill markers",
+            ],
+        ),
         "resize" => ("resize", &["none", "both", "horizontal", "vertical"]),
         "scrollSnapAlign" => ("scroll-snap-align", &["none", "start", "end", "center"]),
         "scrollSnapStop" => ("scroll-snap-stop", &["normal", "always"]),
@@ -935,6 +965,13 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "scrollbarGutter" => ("scrollbar-gutter", &["auto", "stable", "stable both-edges"]),
         "scrollbarWidth" => ("scrollbar-width", &["auto", "thin", "none"]),
+        "shapeRendering" => (
+            "shape-rendering",
+            &["auto", "optimizeSpeed", "crispEdges", "geometricPrecision"],
+        ),
+        "strokeLinecap" => ("stroke-linecap", &["butt", "round", "square"]),
+        "strokeLinejoin" => ("stroke-linejoin", &["miter", "round", "bevel"]),
+        "textAnchor" => ("text-anchor", &["start", "middle", "end"]),
         "textRendering" => (
             "text-rendering",
             &["auto", "optimizeSpeed", "optimizeLegibility", "geometricPrecision"],
@@ -1005,6 +1042,40 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
 fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
     match property {
         "accentColor" => Some(("accent-color", WebValueGrammar::Color)),
+        "baselineShift" => Some((
+            "baseline-shift",
+            WebValueGrammar::SvgLength(&["baseline", "sub", "super"]),
+        )),
+        "fill" => Some(("fill", WebValueGrammar::Color)),
+        "fillOpacity" => Some((
+            "fill-opacity",
+            WebValueGrammar::NumberPercentage {
+                minimum: 0.0,
+                maximum: 1.0,
+            },
+        )),
+        "marker" => Some(("marker", WebValueGrammar::UrlOrNone)),
+        "markerEnd" => Some(("marker-end", WebValueGrammar::UrlOrNone)),
+        "markerMid" => Some(("marker-mid", WebValueGrammar::UrlOrNone)),
+        "markerStart" => Some(("marker-start", WebValueGrammar::UrlOrNone)),
+        "stroke" => Some(("stroke", WebValueGrammar::Color)),
+        "strokeDasharray" => Some(("stroke-dasharray", WebValueGrammar::SvgDasharray)),
+        "strokeDashoffset" => Some(("stroke-dashoffset", WebValueGrammar::SvgLength(&[]))),
+        "strokeMiterlimit" => Some((
+            "stroke-miterlimit",
+            WebValueGrammar::Number {
+                minimum: 1.0,
+                maximum: f64::INFINITY,
+            },
+        )),
+        "strokeOpacity" => Some((
+            "stroke-opacity",
+            WebValueGrammar::NumberPercentage {
+                minimum: 0.0,
+                maximum: 1.0,
+            },
+        )),
+        "strokeWidth" => Some(("stroke-width", WebValueGrammar::SvgLength(&[]))),
         "WebkitTapHighlightColor" => {
             Some(("-webkit-tap-highlight-color", WebValueGrammar::Color))
         }
@@ -1058,20 +1129,92 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
 fn web_length_percentage(value: &StaticValue) -> bool {
     match value {
         StaticValue::Number(value) => value.is_finite(),
-        StaticValue::String(value) if value == "0" => true,
-        StaticValue::String(value) => [
-            "%", "px", "rem", "em", "ch", "ex", "cap", "ic", "lh", "rlh", "vw", "vh",
-            "vi", "vb", "vmin", "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh",
-            "cm", "mm", "q", "in", "pc", "pt",
-        ]
-        .iter()
-        .any(|unit| {
-            value
-                .strip_suffix(unit)
-                .and_then(|number| number.parse::<f64>().ok())
-                .is_some_and(f64::is_finite)
-        }),
+        StaticValue::String(value) => web_length_percentage_string(value),
     }
+}
+
+fn web_length_percentage_string(value: &str) -> bool {
+    if value == "0" {
+        return true;
+    }
+    [
+        "%", "px", "rem", "em", "ch", "ex", "cap", "ic", "lh", "rlh", "vw", "vh",
+        "vi", "vb", "vmin", "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh",
+        "cm", "mm", "q", "in", "pc", "pt",
+    ]
+    .iter()
+    .any(|unit| {
+        value
+            .strip_suffix(unit)
+            .and_then(|number| number.parse::<f64>().ok())
+            .is_some_and(f64::is_finite)
+    })
+}
+
+fn web_svg_length(value: &StaticValue) -> bool {
+    match value {
+        StaticValue::Number(value) => value.is_finite(),
+        StaticValue::String(value) => {
+            value.parse::<f64>().is_ok_and(f64::is_finite)
+                || web_length_percentage_string(value)
+        }
+    }
+}
+
+fn web_number(value: &StaticValue, minimum: f64, maximum: f64) -> Option<String> {
+    let number = match value {
+        StaticValue::Number(value) => *value,
+        StaticValue::String(value) => value.parse::<f64>().ok()?,
+    };
+    (number.is_finite() && number >= minimum && number <= maximum)
+        .then(|| numeric_text(number))
+}
+
+fn web_number_percentage(value: &StaticValue, minimum: f64, maximum: f64) -> Option<String> {
+    match value {
+        StaticValue::String(value) if value.ends_with('%') => {
+            let percentage = value.strip_suffix('%')?.parse::<f64>().ok()?;
+            (percentage.is_finite()
+                && percentage >= minimum * 100.0
+                && percentage <= maximum * 100.0)
+                .then(|| value.clone())
+        }
+        value => web_number(value, minimum, maximum),
+    }
+}
+
+fn web_svg_dasharray(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    if value == "none" {
+        return Some(value.clone());
+    }
+    let mut saw_length = false;
+    for part in value.split([',', ' ', '\t', '\n', '\r']).filter(|part| !part.is_empty()) {
+        if !(part.parse::<f64>().is_ok_and(f64::is_finite)
+            || web_length_percentage_string(part))
+            || part
+                .trim_end_matches(|character: char| character.is_ascii_alphabetic() || character == '%')
+                .parse::<f64>()
+                .is_ok_and(|number| number < 0.0)
+        {
+            return None;
+        }
+        saw_length = true;
+    }
+    saw_length.then(|| value.clone())
+}
+
+fn web_url_or_none(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    (value == "none"
+        || (value.starts_with("url(")
+            && value.ends_with(')')
+            && !value.contains(['\n', '\r', ';', '{', '}'])))
+    .then(|| value.clone())
 }
 
 fn web_only_property(property: &str, value: &StaticValue) -> Option<StyleProperty> {
@@ -1086,10 +1229,21 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
             value if web_length_percentage(value) => length_value(value),
             _ => return None,
         },
+        WebValueGrammar::SvgLength(keywords) => match value {
+            StaticValue::String(value) if keywords.contains(&value.as_str()) => value.clone(),
+            value if web_svg_length(value) => raw_value(value),
+            _ => return None,
+        },
         WebValueGrammar::Color => {
             css_color(value)?;
             raw_value(value)
         }
+        WebValueGrammar::Number { minimum, maximum } => web_number(value, minimum, maximum)?,
+        WebValueGrammar::NumberPercentage { minimum, maximum } => {
+            web_number_percentage(value, minimum, maximum)?
+        }
+        WebValueGrammar::SvgDasharray => web_svg_dasharray(value)?,
+        WebValueGrammar::UrlOrNone => web_url_or_none(value)?,
         WebValueGrammar::Time => {
             let seconds = stylex_transition_duration(value)? as f64 / 1000.0;
             format!("{seconds}s")
@@ -1537,21 +1691,28 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
-        "accentColor" | "appearance" | "WebkitAppearance" | "backgroundAttachment"
+        "accentColor" | "alignmentBaseline" | "appearance" | "WebkitAppearance"
+        | "backgroundAttachment"
         | "backgroundBlendMode" | "backgroundClip" | "WebkitBackgroundClip"
-        | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY" | "blockSize"
-        | "caretShape" | "colorScheme" | "forcedColorAdjust"
+        | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY"
+        | "baselineShift" | "blockSize" | "caretShape" | "clipRule" | "colorScheme"
+        | "dominantBaseline" | "fill" | "fillOpacity" | "fillRule" | "forcedColorAdjust"
         | "fontKerning" | "fontOpticalSizing" | "fontStretch" | "fontSynthesisPosition"
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
         | "fontVariantCaps" | "fontVariantLigatures" | "fontVariantNumeric"
         | "fontVariantPosition" | "hyphens" | "imageRendering" | "inlineSize"
         | "justifyItems" | "lineBreak" | "maxBlockSize" | "maxInlineSize"
-        | "minBlockSize" | "minInlineSize" | "MozOsxFontSmoothing"
+        | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
+        | "minInlineSize" | "MozOsxFontSmoothing"
         | "overflowAnchor" | "overscrollBehavior"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
-        | "overscrollBehaviorY" | "printColorAdjust" | "resize" | "scrollSnapAlign"
+        | "overscrollBehaviorY" | "paintOrder" | "printColorAdjust" | "resize"
+        | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
-        | "textRendering" | "touchAction" | "wordBreak" | "overflowWrap" | "visibility"
+        | "shapeRendering" | "stroke" | "strokeDasharray" | "strokeDashoffset"
+        | "strokeLinecap" | "strokeLinejoin" | "strokeMiterlimit" | "strokeOpacity"
+        | "strokeWidth" | "textAnchor" | "textRendering" | "touchAction" | "wordBreak"
+        | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
         | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
         | "textDecorationSkipInk"
@@ -4051,6 +4212,47 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 3);
         assert_eq!(gaps.len(), 3);
+    }
+
+    #[test]
+    fn svg_paint_web_values_keep_exact_boundaries() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                alignmentBaseline: 'middle', baselineShift: '2px', clipRule: 'evenodd',
+                dominantBaseline: 'central', fill: '#123456', fillOpacity: 0.5,
+                fillRule: 'nonzero', marker: 'url(#dot)', markerEnd: 'none',
+                markerMid: 'url(#dot)', markerStart: 'url(#dot)',
+                paintOrder: 'stroke fill markers', shapeRendering: 'crispEdges',
+                stroke: 'currentColor', strokeDasharray: '5 3', strokeDashoffset: 2,
+                strokeLinecap: 'round', strokeLinejoin: 'bevel', strokeMiterlimit: 4,
+                strokeOpacity: '50%', strokeWidth: '2px', textAnchor: 'middle'
+              },
+              wider: {
+                baselineShift: 'calc(1em + 2px)', fillOpacity: 1.5,
+                marker: 'paint-server', strokeDasharray: '-1 2', strokeMiterlimit: 0
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("exact SVG paint values were not lowerable")
+        };
+        assert_eq!(entries.len(), 22);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider SVG paint values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 5);
+        assert_eq!(gaps.len(), 5);
     }
 
     #[test]

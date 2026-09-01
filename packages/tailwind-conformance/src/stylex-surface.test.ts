@@ -26,7 +26,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 225)
+  assert.equal(mapped.size, 247)
   for (const name of [
     'display',
     'padding',
@@ -45,16 +45,19 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('textWrap'))
   assert.ok(mapped.has('blockSize'))
   assert.ok(mapped.has('accentColor'))
+  assert.ok(mapped.has('fill'))
+  assert.ok(mapped.has('strokeDasharray'))
 })
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 225)
+  assert.equal(mapped.length, 247)
   assert.ok(mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'))
   assert.equal(manifestEntry('padding')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('gridTemplateColumns')?.basis, 'contextual-runtime')
   assert.equal(manifestEntry('scrollbarWidth')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('fontKerning')?.basis, 'exact-web-native-refusal')
+  assert.equal(manifestEntry('paintOrder')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('backdropFilter')?.basis, 'adapter-candidate')
 })
 
@@ -91,7 +94,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 389)
-  assert.equal(surface.mappedWebOnly.size, 93)
+  assert.equal(surface.mappedWebOnly.size, 115)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
@@ -107,6 +110,8 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('inlineSize'))
   assert.ok(surface.mappedWebOnly.has('backgroundBlendMode'))
   assert.ok(surface.mappedWebOnly.has('WebkitTapHighlightColor'))
+  assert.ok(surface.mappedWebOnly.has('fill'))
+  assert.ok(surface.mappedWebOnly.has('strokeWidth'))
   assert.equal(
     surface.native.size + surface.contextual.size + surface.adapter.size + surface.webOnly.size,
     surface.official.size,
