@@ -13,7 +13,10 @@
     "typecheck": "turbo run typecheck",
     "changeset": "changeset",
     "version": "changeset version && node scripts/package-metadata.mjs && pnpm install --lockfile-only",
-    "check:packages": "node scripts/check-packages.mjs"
+    "check:packages": "node scripts/check-packages.mjs",
+    "audit": "cargo audit && pnpm audit --audit-level critical",
+    "audit:cargo": "cargo audit",
+    "audit:pnpm": "pnpm audit --audit-level critical"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.0",
