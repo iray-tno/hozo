@@ -1785,10 +1785,9 @@ fn stylex_transition_duration(value: &StaticValue) -> Option<u32> {
     let StaticValue::String(value) = value else { return None };
     let milliseconds = if let Some(value) = value.strip_suffix("ms") {
         value.parse::<f64>().ok()?
-    } else if let Some(value) = value.strip_suffix('s') {
-        value.parse::<f64>().ok()? * 1000.0
     } else {
-        return None;
+        let value = value.strip_suffix('s')?;
+        value.parse::<f64>().ok()? * 1000.0
     };
     (milliseconds.is_finite()
         && milliseconds >= 0.0

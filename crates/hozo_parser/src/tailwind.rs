@@ -775,10 +775,9 @@ fn gradient_stop(token: &str) -> Option<Vec<StyleProperty>> {
         (GradientStop::From, rest)
     } else if let Some(rest) = token.strip_prefix("via-") {
         (GradientStop::Via, rest)
-    } else if let Some(rest) = token.strip_prefix("to-") {
-        (GradientStop::To, rest)
     } else {
-        return None;
+        let rest = token.strip_prefix("to-")?;
+        (GradientStop::To, rest)
     };
     // A percentage is a position and everything else is a colour, which is
     // the same polarity the mask stops use -- `from-nonsense` is a
