@@ -80,6 +80,16 @@ export function mappedHozoStylexPropertiesFromRust(): Set<string> {
   for (const match of source.slice(start, end).matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
     properties.add(match[1])
   }
+
+  // Web-only properties live outside direct_properties so their explicit
+  // grammar table can be shared by future property families. They are still
+  // implementation-backed mappings, not hand-maintained coverage claims.
+  const webStart = source.indexOf('fn web_only_keyword_spec(')
+  const webEnd = source.indexOf('\nfn web_only_property(', webStart)
+  if (webStart === -1 || webEnd === -1) throw new Error('Hozo Web value grammar table was not found')
+  for (const match of source.slice(webStart, webEnd).matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
+    properties.add(match[1])
+  }
   if (properties.size === 0) throw new Error('Hozo StyleX property mapper was empty')
   return properties
 }
