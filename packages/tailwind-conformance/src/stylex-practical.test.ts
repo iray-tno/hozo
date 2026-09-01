@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 49, covered: 49 },
+    values: { total: 67, covered: 67 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 49, covered: 49 },
+    corpus: { total: 67, covered: 67 },
     silent: 0,
   })
 })
@@ -43,4 +43,49 @@ test('new common text values are covered without silent fallback', () => {
     covered: true,
     silent: false,
   })
+})
+
+test('every accepted browser typography keyword agrees with official StyleX', () => {
+  const keywords: Record<string, readonly string[]> = {
+    fontKerning: ['auto', 'normal', 'none'],
+    fontOpticalSizing: ['auto', 'none'],
+    fontStretch: [
+      'normal', 'ultra-condensed', 'extra-condensed', 'condensed',
+      'semi-condensed', 'semi-expanded', 'expanded', 'extra-expanded',
+      'ultra-expanded',
+    ],
+    fontSynthesisPosition: ['auto', 'none'],
+    fontSynthesisSmallCaps: ['auto', 'none'],
+    fontSynthesisStyle: ['auto', 'none'],
+    fontSynthesisWeight: ['auto', 'none'],
+    fontVariantCaps: [
+      'normal', 'small-caps', 'all-small-caps', 'petite-caps',
+      'all-petite-caps', 'unicase', 'titling-caps',
+    ],
+    fontVariantLigatures: ['normal', 'none'],
+    fontVariantNumeric: [
+      'normal', 'lining-nums', 'oldstyle-nums', 'proportional-nums',
+      'tabular-nums', 'diagonal-fractions', 'stacked-fractions', 'ordinal',
+      'slashed-zero',
+    ],
+    fontVariantPosition: ['normal', 'sub', 'super'],
+    hyphens: ['none', 'manual', 'auto'],
+    lineBreak: ['auto', 'loose', 'normal', 'strict'],
+    textAlignLast: ['auto', 'start', 'end', 'left', 'right', 'center', 'justify', 'inherit'],
+    textDecorationSkipInk: ['auto', 'none', 'all'],
+    textJustify: ['none', 'auto', 'inter-word', 'inter-character', 'distribute'],
+    textOrientation: ['mixed', 'upright', 'sideways'],
+    textWrap: ['wrap', 'nowrap', 'balance', 'pretty', 'stable'],
+  }
+
+  for (const [property, values] of Object.entries(keywords)) {
+    for (const value of values) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
 })
