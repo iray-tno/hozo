@@ -6,16 +6,16 @@
 
 export { preflightCss } from './preflight.ts'
 export {
-  loadClassOrder,
-  loadTheme,
-  tailwindPackageDir,
-  toHex,
-  type Theme,
-  type ThemeColor,
-} from './theme.ts'
-export {
   DEFAULT_CSS_FILES,
   loadProjectClassOrder,
   loadProjectTheme,
   type ProjectThemeOptions,
 } from './project.ts'
+export {
+  loadClassOrder,
+  loadTheme,
+  type Theme,
+  type ThemeColor,
+  tailwindPackageDir,
+  toHex,
+} from './theme.ts'

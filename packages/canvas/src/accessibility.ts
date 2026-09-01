@@ -5,8 +5,16 @@ export type CanvasAccessibleFallback = Exclude<ReactNode, boolean | null | undef
 
 export type CanvasAccessibilityProps =
   | { decorative: true; accessibilityLabel?: never; accessibleFallback?: never }
-  | { decorative?: false; accessibilityLabel: string; accessibleFallback?: CanvasAccessibleFallback }
-  | { decorative?: false; accessibilityLabel?: string; accessibleFallback: CanvasAccessibleFallback }
+  | {
+      decorative?: false
+      accessibilityLabel: string
+      accessibleFallback?: CanvasAccessibleFallback
+    }
+  | {
+      decorative?: false
+      accessibilityLabel?: string
+      accessibleFallback: CanvasAccessibleFallback
+    }
 
 export type CanvasAccessibilityMode = 'decorative' | 'label' | 'fallback'
 

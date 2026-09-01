@@ -26,10 +26,13 @@ interface WebpackRule {
   use?: { loader: string; options: { root: string; candidateCssPath: string } }[]
 }
 
-test('registers the loader with both of Next\'s bundlers', () => {
+test("registers the loader with both of Next's bundlers", () => {
   const config = withHozo({}, { root: project('export const x = 1\n') }) as {
     turbopack: { rules: Record<string, { loaders: { loader: string }[]; as: string }> }
-    webpack: (config: { module?: { rules?: WebpackRule[] } }, context: unknown) => {
+    webpack: (
+      config: { module?: { rules?: WebpackRule[] } },
+      context: unknown,
+    ) => {
       module: { rules: WebpackRule[] }
     }
   }
@@ -43,14 +46,17 @@ test('registers the loader with both of Next\'s bundlers', () => {
   assert.match(webpack.module.rules[0].use![0].loader, /loader\.js$/)
 })
 
-test("the webpack rule is `pre`, which is what makes it run before SWC", () => {
+test('the webpack rule is `pre`, which is what makes it run before SWC', () => {
   // Regression: array position looks like it decides order and does not.
   // webpack runs a module's loaders right-to-left, so the rule this
   // prepends runs *last* without `enforce: 'pre'` -- and Hozo was handed
   // already-compiled JavaScript, found no JSX, and left the `@hozo/core`
   // import in a server component.
   const config = withHozo({}, { root: project('export const x = 1\n') }) as {
-    webpack: (config: { module?: { rules?: WebpackRule[] } }, context: unknown) => {
+    webpack: (
+      config: { module?: { rules?: WebpackRule[] } },
+      context: unknown,
+    ) => {
       module: { rules: WebpackRule[] }
     }
   }

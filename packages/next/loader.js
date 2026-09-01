@@ -16,10 +16,10 @@ import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
-  StylexModuleCache,
   importSpecifier,
   preflightCssFor,
   resolveStylexRequests,
+  StylexModuleCache,
   scannableFile,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
@@ -112,19 +112,12 @@ export default function hozoLoader(source) {
             css: options.css,
           }).then((next) => {
             state.classOrder = next
-            writeFileIfChanged(
-              options.candidateCssPath,
-              state.cache.renderCss(theme, next),
-            )
+            writeFileIfChanged(options.candidateCssPath, state.cache.renderCss(theme, next))
           })
         }
 
         const absoluteFile = path.resolve(file)
-        const stylexGraphChanged = state.stylexModules.scanFile(
-          absoluteFile,
-          source,
-          modifiedMs,
-        )
+        const stylexGraphChanged = state.stylexModules.scanFile(absoluteFile, source, modifiedMs)
         if (stylexGraphChanged) {
           state.stylexModules.persist()
         }
@@ -145,8 +138,7 @@ export default function hozoLoader(source) {
               .importSpecifiers(absoluteFile)
               .filter(
                 (specifier) =>
-                  specifier !== '@stylexjs/stylex' &&
-                  !state.compiler.sources.includes(specifier),
+                  specifier !== '@stylexjs/stylex' && !state.compiler.sources.includes(specifier),
               )
               .map((specifier) => ({ importer: absoluteFile, specifier }))
           : []

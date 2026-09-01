@@ -11,8 +11,8 @@
 // than most preview panes -- use the responsive viewport and widen the
 // window, or read the indicator, which says which range is live.
 
-import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Heading, Paragraph, Section, Text, View } from '@hozo/core'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 const CARD = 'rounded-xl border border-slate-200 p-5 space-y-3'
 const CHIP = 'rounded-md px-2 py-1 text-xs font-semibold'
@@ -39,8 +39,8 @@ function ResponsiveGallery() {
           Responsive
         </Heading>
         <Paragraph className="text-sm leading-relaxed text-slate-600">
-          Resize the viewport. Every card below changes at a boundary, and
-          the boundary is the part no string comparison can check.
+          Resize the viewport. Every card below changes at a boundary, and the boundary is the part
+          no string comparison can check.
         </Paragraph>
       </View>
 
@@ -92,8 +92,8 @@ function ResponsiveGallery() {
           Container queries
         </Heading>
         <Paragraph className="text-xs text-slate-500">
-          The same component in two slots. It reads its container, not the
-          viewport, so these differ from each other at any window width.
+          The same component in two slots. It reads its container, not the viewport, so these differ
+          from each other at any window width.
         </Paragraph>
         <View className="flex flex-row gap-4">
           <View className="@container w-1/3 rounded-lg border border-dashed border-slate-300 p-3">
@@ -116,8 +116,8 @@ function ResponsiveGallery() {
           Content that does not want to fit
         </Heading>
         <Paragraph className="text-xs text-slate-500">
-          The complaint that started this: text leaving its card. An
-          unbreakable string is the case a fixed-width story never produces.
+          The complaint that started this: text leaving its card. An unbreakable string is the case
+          a fixed-width story never produces.
         </Paragraph>
         <View className="space-y-3">
           <View className="rounded-lg bg-slate-50 p-3">

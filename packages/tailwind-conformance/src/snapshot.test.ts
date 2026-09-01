@@ -57,8 +57,14 @@ test('a count whose direction has no meaning is left unlabelled', () => {
   // browser can read. Losing one has to be named, or it lands in the same
   // unlabelled column as a count that moved for a good reason.
   assert.match(verdict({ path: 'candidateSheet.parses', before: true, after: false }), /REGRESSION/)
-  assert.equal(verdict({ path: 'candidateSheet.parses', before: false, after: true }), 'improvement')
-  assert.match(verdict({ path: 'candidateSheet.inOrder', before: 20303, after: 20300 }), /REGRESSION/)
+  assert.equal(
+    verdict({ path: 'candidateSheet.parses', before: false, after: true }),
+    'improvement',
+  )
+  assert.match(
+    verdict({ path: 'candidateSheet.inOrder', before: 20303, after: 20300 }),
+    /REGRESSION/,
+  )
   assert.equal(verdict({ path: 'versions.tailwind', before: '4.3.3', after: '4.4.0' }), '')
 })
 
@@ -66,12 +72,16 @@ test('the counts that have to stay at zero are the ones named as regressions', (
   // Named individually rather than by asserting the set, because the
   // point is which words appear in `run.ts`'s output -- a typo in either
   // list means a real regression prints without a label.
-  for (const name of ['mismatch', 'unsupported', 'silent', 'dangling', 'skipped', 'suspect', 'rejected']) {
-    assert.match(
-      verdict({ path: `section.${name}`, before: 0, after: 1 }),
-      /REGRESSION/,
-      name,
-    )
+  for (const name of [
+    'mismatch',
+    'unsupported',
+    'silent',
+    'dangling',
+    'skipped',
+    'suspect',
+    'rejected',
+  ]) {
+    assert.match(verdict({ path: `section.${name}`, before: 0, after: 1 }), /REGRESSION/, name)
   }
 })
 

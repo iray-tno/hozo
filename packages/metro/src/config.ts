@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url'
 
 import {
   CACHE_DIR,
-  StylexModuleCache,
   type HozoProjectOptions,
-  type StylexResolvedBindings,
+  StylexModuleCache,
   type StylexResolutionRequest,
+  type StylexResolvedBindings,
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 

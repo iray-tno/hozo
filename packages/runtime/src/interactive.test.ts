@@ -64,7 +64,11 @@ test('any truthy value disables, since the guard is the author expression', () =
   // not required to be a boolean, and `disabled={items.length}` is
   // something people write.
   for (const value of [true, 1, 'yes', {}, []]) {
-    assert.equal(hozoInteractive(press, value).onClick, undefined, `${String(value)} did not disable`)
+    assert.equal(
+      hozoInteractive(press, value).onClick,
+      undefined,
+      `${String(value)} did not disable`,
+    )
   }
   for (const value of [false, 0, '', null, undefined, Number.NaN]) {
     assert.equal(hozoInteractive(press, value).onClick, press, `${String(value)} disabled`)

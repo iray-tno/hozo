@@ -20,8 +20,8 @@
 
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { cdylibFileName } from '../src/native-targets.ts'
 

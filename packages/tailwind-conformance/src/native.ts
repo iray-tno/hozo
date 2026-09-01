@@ -27,7 +27,8 @@ export type NativeVerdict = 'COVERED' | 'REFUSED' | 'SILENT' | 'NO_OP'
  * does: an unexplained allowlist is where a real drop goes to hide.
  */
 const DELIBERATE_NO_OPS: Record<string, string> = {
-  'whitespace-normal': "React Native's Text wraps by default, so this asks for what it already does",
+  'whitespace-normal':
+    "React Native's Text wraps by default, so this asks for what it already does",
   'line-clamp-none':
     'not clamping is the absence of `numberOfLines`, not a value for it -- there is no prop to emit',
 }

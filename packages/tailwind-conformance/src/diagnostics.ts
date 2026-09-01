@@ -37,10 +37,7 @@ function repoRoot(): string {
  * halves look reasonable.
  */
 export function declaredDiagnosticCodes(): string[] {
-  const source = readFileSync(
-    path.join(repoRoot(), 'crates', 'hozo_napi', 'src', 'lib.rs'),
-    'utf8',
-  )
+  const source = readFileSync(path.join(repoRoot(), 'crates', 'hozo_napi', 'src', 'lib.rs'), 'utf8')
   const codes = [...source.matchAll(/DiagnosticCode::\w+\s*=>\s*"([A-Z0-9_]+)"/g)].map(
     (match) => match[1],
   )
@@ -81,7 +78,8 @@ const PROVOCATIONS: Record<string, Provocation> = {
   },
   ARIA_NAME_PROHIBITED: { source: '<View role="generic" aria-label="No">x</View>' },
   FOCUSABLE_DISABLED_UNSUPPORTED: {
-    source: '<Pressable role="button" aria-label="Go" disabled focusable onPress={go}>x</Pressable>',
+    source:
+      '<Pressable role="button" aria-label="Go" disabled focusable onPress={go}>x</Pressable>',
   },
   A11Y_DIALOG_WITHOUT_DISMISS: { source: '<Dialog open aria-label="Confirm">x</Dialog>' },
   // An Image, not a Pressable: this one names the alternative text an
@@ -90,7 +88,8 @@ const PROVOCATIONS: Record<string, Provocation> = {
   A11Y_MISSING_ACCESSIBLE_NAME: { source: '<Image src="a.png" />', backend: 'native' },
   INVALID_SEMANTIC_NESTING: { source: '<Paragraph><Section>x</Section></Paragraph>' },
   A11Y_HIDDEN_BUT_FOCUSABLE: {
-    source: '<Pressable role="button" aria-label="Go" aria-hidden tabIndex={0} onPress={go}>x</Pressable>',
+    source:
+      '<Pressable role="button" aria-label="Go" aria-hidden tabIndex={0} onPress={go}>x</Pressable>',
   },
   A11Y_HEADING_LEVEL_SKIPPED: {
     source: '<View><Heading level={1}>a</Heading><Heading level={3}>b</Heading></View>',
@@ -106,13 +105,18 @@ const PROVOCATIONS: Record<string, Provocation> = {
       '<Pressable role="button" aria-label="Outer" onPress={go}>' +
       '<Pressable role="button" aria-label="Inner" onPress={go}>x</Pressable></Pressable>',
   },
-  A11Y_PRESS_WITHOUT_KEYBOARD: { source: '<View role="button" aria-label="Go" onPress={go}>x</View>' },
+  A11Y_PRESS_WITHOUT_KEYBOARD: {
+    source: '<View role="button" aria-label="Go" onPress={go}>x</View>',
+  },
   A11Y_POSITIVE_TAB_INDEX: {
     source: '<Pressable role="button" aria-label="Go" tabIndex={3} onPress={go}>x</Pressable>',
   },
   UNREADABLE_ARBITRARY_VALUE: { source: '<View className="ring-offset-[2rem]">x</View>' },
   UNSAFE_PROP_SPREAD_AFTER_STYLE: { source: '<View className="p-4" {...rest}>x</View>' },
-  WEB_ONLY_PROPERTY_ON_NATIVE: { source: '<View className="inline-block">x</View>', backend: 'native' },
+  WEB_ONLY_PROPERTY_ON_NATIVE: {
+    source: '<View className="inline-block">x</View>',
+    backend: 'native',
+  },
   DYNAMIC_CLASS_NAME_NOT_RESOLVED: { source: '<View className={cls}>x</View>', backend: 'native' },
   // `multiline` decides which element a TextInput becomes on Web, so an
   // expression there is a question the compiler cannot answer.
@@ -138,7 +142,10 @@ const PROVOCATIONS: Record<string, Provocation> = {
   // `contrast-less:` is the durable choice, not merely the next one that
   // works: neither iOS nor Android exposes a reduce-contrast setting, so
   // it is unwired for a reason that cannot be researched away.
-  NOT_WIRED_ON_NATIVE: { source: '<View className="contrast-less:p-4">x</View>', backend: 'native' },
+  NOT_WIRED_ON_NATIVE: {
+    source: '<View className="contrast-less:p-4">x</View>',
+    backend: 'native',
+  },
   // A whole module, because StyleX arrives as a `stylex.create` call rather
   // than as an attribute. `translateX(calc(...))` is a value the Native
   // solver does not take.
@@ -187,8 +194,7 @@ export function compareDiagnostic(code: string): DiagnosticResult {
   if (!provocation) return { code, verdict: 'NO_CASE', raised: [] }
 
   const source =
-    provocation.module ??
-    `${IMPORTS}export function C() { return (${provocation.source}) }\n`
+    provocation.module ?? `${IMPORTS}export function C() { return (${provocation.source}) }\n`
   const backend = provocation.backend ?? 'both'
   const raised = new Set<string>()
   const collect = (results: { diagnostics: { code: string }[] }[]) => {

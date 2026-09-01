@@ -17,8 +17,8 @@
 // combobox and whether the list is open, so a screen reader user is told
 // there is something to open before they find it.
 
-import { useCallback, useState, type ReactNode } from 'react'
-import { Pressable, TextInput, View, type StyleProp, type ViewStyle } from 'react-native'
+import { type ReactNode, useCallback, useState } from 'react'
+import { Pressable, type StyleProp, TextInput, View, type ViewStyle } from 'react-native'
 
 import { filterOptions } from './combobox.ts'
 

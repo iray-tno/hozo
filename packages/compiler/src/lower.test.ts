@@ -93,7 +93,10 @@ export function Chart() {
   const lowered = lowerModule(source, file, file, compiler, ROOT)!
   assert.ok(lowered)
   assert.match(lowered.code, /<Canvas decorative/)
-  assert.match(lowered.code, /<Canvas\.Rect fill="oklch\(62\.3% 0\.214 259\.815\)" stroke="oklch\(63\.7% 0\.237 25\.331\)" strokeWidth=\{2\} opacity=\{0\.5\}/)
+  assert.match(
+    lowered.code,
+    /<Canvas\.Rect fill="oklch\(62\.3% 0\.214 259\.815\)" stroke="oklch\(63\.7% 0\.237 25\.331\)" strokeWidth=\{2\} opacity=\{0\.5\}/,
+  )
   assert.equal(lowered.css, '')
 })
 

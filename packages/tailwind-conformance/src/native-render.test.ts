@@ -137,14 +137,20 @@ test('HozoGrid auto-places unequal tracks without a measurement pass', () => {
   assert.equal(rows.length, 2)
   assert.deepEqual(rows[0].props.style, { flexDirection: 'row', columnGap: 16 })
   const firstRow = children(rows[0])
-  assert.deepEqual(firstRow.map((cell) => cell.props.style), [
-    { flexBasis: 120, flexGrow: 0, flexShrink: 0 },
-    { flexBasis: 16, flexGrow: 3, flexShrink: 1 },
-  ])
+  assert.deepEqual(
+    firstRow.map((cell) => cell.props.style),
+    [
+      { flexBasis: 120, flexGrow: 0, flexShrink: 0 },
+      { flexBasis: 16, flexGrow: 3, flexShrink: 1 },
+    ],
+  )
   assert.equal(children(firstRow[0]).length, 0)
   assert.equal(children(rows[1]).length, 3)
   assert.equal(children(children(rows[1])[2]).length, 0)
-  assert.equal(rows.some((row) => typeof row.props.onLayout === 'function'), false)
+  assert.equal(
+    rows.some((row) => typeof row.props.onLayout === 'function'),
+    false,
+  )
 })
 
 test('HozoGrid measured rows settle after layout and respond to width changes', () => {
@@ -188,11 +194,14 @@ test('HozoGrid measured rows settle after layout and respond to width changes', 
   const [grid] = children(tree)
   assert.deepEqual(grid.props.style, { position: 'relative', alignSelf: 'stretch', height: 70 })
   const cells = children(grid)
-  assert.deepEqual(cells.map((cell) => cell.props.style), [
-    { position: 'absolute', left: 0, top: 0, width: 196, height: 70 },
-    { position: 'absolute', left: 204, top: 0, width: 196, height: 26 },
-    { position: 'absolute', left: 204, top: 34, width: 196, height: 36 },
-  ])
+  assert.deepEqual(
+    cells.map((cell) => cell.props.style),
+    [
+      { position: 'absolute', left: 0, top: 0, width: 196, height: 70 },
+      { position: 'absolute', left: 204, top: 0, width: 196, height: 26 },
+      { position: 'absolute', left: 204, top: 34, width: 196, height: 36 },
+    ],
+  )
 })
 
 test('a text style set on a View reaches the Text underneath it', () => {
@@ -345,11 +354,18 @@ test('FlatList stays virtualized and its renderItem body is compiled', () => {
   assert.equal(tree?.type, 'FlatList')
   assert.equal(tree?.props.accessibilityRole, 'list')
   assert.deepEqual(tree?.props.data, ['One', 'Two'])
-  const renderItem = tree?.props.renderItem as ((info: { item: string }) => { type: string; props: Record<string, unknown> }) | undefined
+  const renderItem = tree?.props.renderItem as
+    | ((info: { item: string }) => { type: string; props: Record<string, unknown> })
+    | undefined
   assert.equal(typeof renderItem, 'function')
   const item = renderItem!({ item: 'One' })
   assert.equal(item.type, 'Text')
-  assert.deepEqual(item.props.style, { paddingTop: 8, paddingRight: 8, paddingBottom: 8, paddingLeft: 8 })
+  assert.deepEqual(item.props.style, {
+    paddingTop: 8,
+    paddingRight: 8,
+    paddingBottom: 8,
+    paddingLeft: 8,
+  })
 })
 
 test('focus-visible installs modality events only on an interaction that asks for them', () => {

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 
 import { transformSync } from '@babel/core'
-import stylexPlugin from '@stylexjs/babel-plugin'
 import { compile, compileNative, createCompiler } from '@hozo/compiler'
+import stylexPlugin from '@stylexjs/babel-plugin'
 
 import { manifestEntry } from './stylex-surface.ts'
 
@@ -160,36 +160,61 @@ function jsValue(value: string | number): string {
 
 function sourceFor({ property, value }: StylexValueCase): string {
   const textProperties = new Set([
-    'color', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'textAlign',
-    'textDecorationLine', 'textIndent', 'whiteSpace', 'textOverflow', 'wordBreak',
-    'overflowWrap', 'fontKerning', 'fontOpticalSizing', 'fontStretch',
-    'fontSynthesisPosition', 'fontSynthesisSmallCaps', 'fontSynthesisStyle',
-    'fontSynthesisWeight', 'fontVariantCaps', 'fontVariantLigatures',
-    'fontVariantNumeric', 'fontVariantPosition', 'hyphens', 'lineBreak',
-    'textAlignLast', 'textDecorationSkipInk', 'textJustify', 'textOrientation',
+    'color',
+    'fontSize',
+    'fontWeight',
+    'lineHeight',
+    'letterSpacing',
+    'textAlign',
+    'textDecorationLine',
+    'textIndent',
+    'whiteSpace',
+    'textOverflow',
+    'wordBreak',
+    'overflowWrap',
+    'fontKerning',
+    'fontOpticalSizing',
+    'fontStretch',
+    'fontSynthesisPosition',
+    'fontSynthesisSmallCaps',
+    'fontSynthesisStyle',
+    'fontSynthesisWeight',
+    'fontVariantCaps',
+    'fontVariantLigatures',
+    'fontVariantNumeric',
+    'fontVariantPosition',
+    'hyphens',
+    'lineBreak',
+    'textAlignLast',
+    'textDecorationSkipInk',
+    'textJustify',
+    'textOrientation',
     'textWrap',
   ])
-  const component = property === 'caretColor'
-    ? 'TextInput'
-    : textProperties.has(property)
-    ? 'Text'
-    : property.startsWith('transition')
-      ? 'Pressable'
-      : 'View'
-  const companions = property === 'gridTemplateColumns'
-    ? "display: 'grid', "
-    : property === 'transitionDuration'
-      ? "transitionProperty: 'opacity', "
-      : property === 'textOverflow'
-        ? "whiteSpace: 'nowrap', "
-      : property === 'lineHeight'
-        ? 'fontSize: 16, '
+  const component =
+    property === 'caretColor'
+      ? 'TextInput'
+      : textProperties.has(property)
+        ? 'Text'
+        : property.startsWith('transition')
+          ? 'Pressable'
+          : 'View'
+  const companions =
+    property === 'gridTemplateColumns'
+      ? "display: 'grid', "
+      : property === 'transitionDuration'
+        ? "transitionProperty: 'opacity', "
+        : property === 'textOverflow'
+          ? "whiteSpace: 'nowrap', "
+          : property === 'lineHeight'
+            ? 'fontSize: 16, '
+            : ''
+  const props =
+    component === 'Pressable'
+      ? ' accessibilityRole="button" className="opacity-100 hover:opacity-50"'
+      : component === 'TextInput'
+        ? ' accessibilityLabel="Field"'
         : ''
-  const props = component === 'Pressable'
-    ? ' accessibilityRole="button" className="opacity-100 hover:opacity-50"'
-    : component === 'TextInput'
-      ? ' accessibilityLabel="Field"'
-    : ''
   return `import * as stylex from '@stylexjs/stylex'
 import { ${component} } from '@hozo/core'
 const styles = stylex.create({ root: { ${companions}${property}: ${jsValue(value)} } })
@@ -251,13 +276,26 @@ function expandStylexShorthand(property: string, value: string): Array<[string, 
   if (property === 'columns') {
     const count = parts.find((part) => /^\d+$/.test(part)) ?? 'auto'
     const width = parts.find((part) => part !== count && part !== 'auto') ?? 'auto'
-    return [['column-width', width], ['column-count', count]]
+    return [
+      ['column-width', width],
+      ['column-count', count],
+    ]
   }
   if (property === 'column-rule') {
     const styles = new Set([
-      'none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge', 'inset', 'outset',
+      'none',
+      'hidden',
+      'dotted',
+      'dashed',
+      'solid',
+      'double',
+      'groove',
+      'ridge',
+      'inset',
+      'outset',
     ])
-    const widths = /^(?:0|[+-]?(?:\d+\.?\d*|\.\d+)(?:px|rem|em|ch|ex|cap|ic|lh|rlh|v[whib]|vmin|vmax|s[cv][wh]|l[cv][wh]|d[cv][wh]|cm|mm|q|in|pc|pt)|thin|medium|thick)$/
+    const widths =
+      /^(?:0|[+-]?(?:\d+\.?\d*|\.\d+)(?:px|rem|em|ch|ex|cap|ic|lh|rlh|v[whib]|vmin|vmax|s[cv][wh]|l[cv][wh]|d[cv][wh]|cm|mm|q|in|pc|pt)|thin|medium|thick)$/
     const width = parts.find((part) => widths.test(part)) ?? 'medium'
     const style = parts.find((part) => styles.has(part)) ?? 'none'
     const color = parts.find((part) => part !== width && part !== style) ?? 'currentcolor'
@@ -270,9 +308,21 @@ function expandStylexShorthand(property: string, value: string): Array<[string, 
   if (property === 'list-style') {
     const positions = new Set(['inside', 'outside'])
     const types = new Set([
-      'none', 'disc', 'circle', 'square', 'decimal', 'decimal-leading-zero',
-      'lower-roman', 'upper-roman', 'lower-greek', 'lower-latin', 'upper-latin',
-      'armenian', 'georgian', 'lower-alpha', 'upper-alpha',
+      'none',
+      'disc',
+      'circle',
+      'square',
+      'decimal',
+      'decimal-leading-zero',
+      'lower-roman',
+      'upper-roman',
+      'lower-greek',
+      'lower-latin',
+      'upper-latin',
+      'armenian',
+      'georgian',
+      'lower-alpha',
+      'upper-alpha',
     ])
     if (parts.length === 1 && ['inherit', 'initial', 'revert', 'unset'].includes(parts[0])) {
       return [
@@ -307,10 +357,15 @@ function declarationMap(css: string): Map<string, string> {
         .replace(/,\s+/g, ',')
         .replace(/^(-?0)(?:px|rem|em|%)$/, '$1')
         .replace(/^(-?\d*\.?\d+)s$/, (_match, seconds: string) => `${Number(seconds) * 1000}ms`)
-      const expanded = property === 'border-style'
-        ? ['border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style']
-            .map((name) => [name, value] as [string, string])
-        : expandStylexShorthand(property, value)
+      const expanded =
+        property === 'border-style'
+          ? [
+              'border-top-style',
+              'border-right-style',
+              'border-bottom-style',
+              'border-left-style',
+            ].map((name) => [name, value] as [string, string])
+          : expandStylexShorthand(property, value)
       for (const [name, expandedValue] of expanded) declarations.set(name, expandedValue)
     }
   }
@@ -342,18 +397,18 @@ export function compareStylexValue(testCase: StylexValueCase): StylexValueResult
   if (!web || !native) return { ...testCase, covered: false, silent: true }
 
   const actual = declarationMap(web.css)
-  const cssMatches = expected.size > 0
-    && [...expected].every(([property, value]) => actual.get(property) === value)
+  const cssMatches =
+    expected.size > 0 && [...expected].every(([property, value]) => actual.get(property) === value)
   const webConsumed = !web.jsx.includes('stylex.props')
   const entry = manifestEntry(testCase.property)
-  const nativePolicyMatches = entry?.lane === 'web-only'
-    ? native.diagnostics.some(({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE')
-      && !native.jsx.includes('stylex.props')
-    : native.diagnostics.length === 0 && !native.jsx.includes('stylex.props')
+  const nativePolicyMatches =
+    entry?.lane === 'web-only'
+      ? native.diagnostics.some(({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE') &&
+        !native.jsx.includes('stylex.props')
+      : native.diagnostics.length === 0 && !native.jsx.includes('stylex.props')
   const covered = cssMatches && web.diagnostics.length === 0 && webConsumed && nativePolicyMatches
-  const explicitlyPreserved = web.diagnostics.length > 0
-    || native.diagnostics.length > 0
-    || web.jsx.includes('stylex.props')
+  const explicitlyPreserved =
+    web.diagnostics.length > 0 || native.diagnostics.length > 0 || web.jsx.includes('stylex.props')
   return {
     ...testCase,
     covered,
@@ -375,32 +430,58 @@ const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
   { name: 'aliased namespace import', expression: 'styles.root' },
   { name: 'recursive array', expression: '[styles.root, active && styles.active]' },
   { name: 'ternary argument', expression: 'active ? styles.active : styles.root' },
-  { name: 'nested pseudo-class', expression: 'styles.pseudo', definitions: "pseudo: { ':hover': { opacity: 0.5 } }," },
-  { name: 'nested media query', expression: 'styles.media', definitions: "media: { '@media (min-width: 600px)': { padding: 24 } }," },
-  { name: 'rule object spread', expression: 'styles.spread', definitions: 'spread: { ...shared, padding: 16 },' },
-  { name: 'firstThatWorks', expression: 'styles.fallback', definitions: "fallback: { display: stylex.firstThatWorks('grid', 'flex') }," },
-  { name: 'defineVars value', expression: 'styles.variable', definitions: 'variable: { color: tokens.accent },' },
-  { name: 'static function style', expression: 'styles.dynamic(0.5)', definitions: 'dynamic: (value) => ({ opacity: value }),' },
+  {
+    name: 'nested pseudo-class',
+    expression: 'styles.pseudo',
+    definitions: "pseudo: { ':hover': { opacity: 0.5 } },",
+  },
+  {
+    name: 'nested media query',
+    expression: 'styles.media',
+    definitions: "media: { '@media (min-width: 600px)': { padding: 24 } },",
+  },
+  {
+    name: 'rule object spread',
+    expression: 'styles.spread',
+    definitions: 'spread: { ...shared, padding: 16 },',
+  },
+  {
+    name: 'firstThatWorks',
+    expression: 'styles.fallback',
+    definitions: "fallback: { display: stylex.firstThatWorks('grid', 'flex') },",
+  },
+  {
+    name: 'defineVars value',
+    expression: 'styles.variable',
+    definitions: 'variable: { color: tokens.accent },',
+  },
+  {
+    name: 'static function style',
+    expression: 'styles.dynamic(0.5)',
+    definitions: 'dynamic: (value) => ({ opacity: value }),',
+  },
   { name: 'cross-file sheet', expression: 'external.root' },
 ] as const
 
 function constructSource(testCase: StylexConstructCase): string {
   const alias = testCase.name === 'aliased namespace import' ? 'sx' : 'stylex'
-  const component = testCase.name === 'nested pseudo-class'
-    ? 'Pressable'
-    : testCase.name === 'defineVars value'
-      ? 'Text'
-      : 'View'
-  const componentProps = testCase.name === 'nested pseudo-class'
-    ? ' accessibilityRole="button"'
-    : ''
-  const prefix = testCase.name === 'cross-file sheet'
-    ? "import { styles as external } from './external.stylex'\n"
-    : ''
+  const component =
+    testCase.name === 'nested pseudo-class'
+      ? 'Pressable'
+      : testCase.name === 'defineVars value'
+        ? 'Text'
+        : 'View'
+  const componentProps =
+    testCase.name === 'nested pseudo-class' ? ' accessibilityRole="button"' : ''
+  const prefix =
+    testCase.name === 'cross-file sheet'
+      ? "import { styles as external } from './external.stylex'\n"
+      : ''
   const shared = testCase.name === 'rule object spread' ? 'const shared = { opacity: 0.5 }\n' : ''
-  const tokens = testCase.name === 'defineVars value'
-    ? "const tokens = stylex.defineVars({ accent: '#123456' })\n"
-    : ''
+  const tokens =
+    testCase.name === 'defineVars value'
+      ? "const tokens = stylex.defineVars({ accent: '#123456' })\n"
+      : ''
   return `import * as ${alias} from '@stylexjs/stylex'
 import { Pressable, Text, View } from '@hozo/core'
 ${prefix}${shared}${tokens}const styles = ${alias}.create({
@@ -459,38 +540,96 @@ export function compareStylexConstruct(testCase: StylexConstructCase): StylexCon
 
 export const STYLEX_REAL_SOURCE_FIXTURES = {
   card: STYLEX_VALUE_CASES.slice(0, 14),
-  typography: STYLEX_VALUE_CASES.filter(({ property }) => [
-    'color', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'textAlign',
-    'textDecorationLine', 'whiteSpace', 'textOverflow', 'wordBreak', 'overflowWrap',
-    'fontKerning', 'fontOpticalSizing', 'fontStretch', 'fontSynthesisPosition',
-    'fontSynthesisSmallCaps', 'fontSynthesisStyle', 'fontSynthesisWeight',
-    'fontVariantCaps', 'fontVariantLigatures', 'fontVariantNumeric',
-    'fontVariantPosition', 'hyphens', 'lineBreak', 'textAlignLast',
-    'textDecorationSkipInk', 'textJustify', 'textOrientation', 'textWrap',
-  ].includes(property)),
-  input: STYLEX_VALUE_CASES.filter(({ property }) => [
-    'paddingTop', 'backgroundColor', 'color', 'borderTopWidth', 'borderStyle',
-    'caretColor', 'appearance', 'opacity',
-  ].includes(property)),
-  scroll: STYLEX_VALUE_CASES.filter(({ property }) => [
-    'overflow', 'overflowX', 'scrollSnapType', 'textIndent', 'visibility',
-  ].includes(property)),
-  motion: STYLEX_VALUE_CASES.filter(({ property }) => [
-    'transform', 'transformOrigin', 'transitionDuration', 'transitionDelay',
-    'animationDuration', 'opacity',
-  ].includes(property)),
-  grid: STYLEX_VALUE_CASES.filter(({ property }) => [
-    'gridTemplateColumns', 'containerType', 'rowGap', 'justifySelf', 'placeItems',
-  ].includes(property)),
-  browser: STYLEX_VALUE_CASES.filter(({ property }) => [
-    'blockSize', 'inlineSize', 'minBlockSize', 'minInlineSize', 'maxBlockSize',
-    'maxInlineSize', 'justifyItems', 'placeSelf', 'backgroundAttachment',
-    'backgroundBlendMode', 'backgroundClip', 'WebkitBackgroundClip',
-    'backgroundOrigin', 'backgroundPositionX', 'backgroundPositionY', 'accentColor',
-    'caretShape', 'WebkitTextFillColor', 'WebkitTextStrokeColor',
-    'WebkitTapHighlightColor', 'MozOsxFontSmoothing', 'WebkitFontSmoothing',
-    'writingMode',
-  ].includes(property)),
+  typography: STYLEX_VALUE_CASES.filter(({ property }) =>
+    [
+      'color',
+      'fontSize',
+      'fontWeight',
+      'lineHeight',
+      'letterSpacing',
+      'textAlign',
+      'textDecorationLine',
+      'whiteSpace',
+      'textOverflow',
+      'wordBreak',
+      'overflowWrap',
+      'fontKerning',
+      'fontOpticalSizing',
+      'fontStretch',
+      'fontSynthesisPosition',
+      'fontSynthesisSmallCaps',
+      'fontSynthesisStyle',
+      'fontSynthesisWeight',
+      'fontVariantCaps',
+      'fontVariantLigatures',
+      'fontVariantNumeric',
+      'fontVariantPosition',
+      'hyphens',
+      'lineBreak',
+      'textAlignLast',
+      'textDecorationSkipInk',
+      'textJustify',
+      'textOrientation',
+      'textWrap',
+    ].includes(property),
+  ),
+  input: STYLEX_VALUE_CASES.filter(({ property }) =>
+    [
+      'paddingTop',
+      'backgroundColor',
+      'color',
+      'borderTopWidth',
+      'borderStyle',
+      'caretColor',
+      'appearance',
+      'opacity',
+    ].includes(property),
+  ),
+  scroll: STYLEX_VALUE_CASES.filter(({ property }) =>
+    ['overflow', 'overflowX', 'scrollSnapType', 'textIndent', 'visibility'].includes(property),
+  ),
+  motion: STYLEX_VALUE_CASES.filter(({ property }) =>
+    [
+      'transform',
+      'transformOrigin',
+      'transitionDuration',
+      'transitionDelay',
+      'animationDuration',
+      'opacity',
+    ].includes(property),
+  ),
+  grid: STYLEX_VALUE_CASES.filter(({ property }) =>
+    ['gridTemplateColumns', 'containerType', 'rowGap', 'justifySelf', 'placeItems'].includes(
+      property,
+    ),
+  ),
+  browser: STYLEX_VALUE_CASES.filter(({ property }) =>
+    [
+      'blockSize',
+      'inlineSize',
+      'minBlockSize',
+      'minInlineSize',
+      'maxBlockSize',
+      'maxInlineSize',
+      'justifyItems',
+      'placeSelf',
+      'backgroundAttachment',
+      'backgroundBlendMode',
+      'backgroundClip',
+      'WebkitBackgroundClip',
+      'backgroundOrigin',
+      'backgroundPositionX',
+      'backgroundPositionY',
+      'accentColor',
+      'caretShape',
+      'WebkitTextFillColor',
+      'WebkitTextStrokeColor',
+      'WebkitTapHighlightColor',
+      'MozOsxFontSmoothing',
+      'WebkitFontSmoothing',
+      'writingMode',
+    ].includes(property),
+  ),
 } as const
 
 export interface StylexPracticalScorecard {
@@ -526,7 +665,7 @@ export function stylexPracticalScorecard(): StylexPracticalScorecard {
       total: corpusResults.length,
       covered: corpusResults.filter(({ covered }) => covered).length,
     },
-    silent: [...valueResults, ...constructResults, ...corpusResults]
-      .filter(({ silent }) => silent).length,
+    silent: [...valueResults, ...constructResults, ...corpusResults].filter(({ silent }) => silent)
+      .length,
   }
 }

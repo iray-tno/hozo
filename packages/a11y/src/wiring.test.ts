@@ -17,8 +17,8 @@
 // test needs a build step that nothing else in this package has.
 
 import assert from 'node:assert/strict'
-import { createElement } from 'react'
 import { test } from 'node:test'
+import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 // From `dist`, not from source: these components are `.tsx` and Node
@@ -31,9 +31,9 @@ import {
   HozoMenu,
   HozoRadioGroup,
   HozoTabs,
+  type HozoTabsProps,
   HozoToolbar,
   HozoTree,
-  type HozoTabsProps,
 } from '../dist/index.js'
 
 const tabs = [
@@ -57,8 +57,16 @@ test('a tab points at its panel and the panel back at the tab', () => {
   const panelIds = ids.filter((id) => id.includes('-panel-'))
 
   assert.equal(tabIds.length, 3)
-  assert.deepEqual(attributes(html, 'aria-controls'), panelIds, 'each tab names a panel that exists')
-  assert.deepEqual(attributes(html, 'aria-labelledby'), tabIds, 'each panel names a tab that exists')
+  assert.deepEqual(
+    attributes(html, 'aria-controls'),
+    panelIds,
+    'each tab names a panel that exists',
+  )
+  assert.deepEqual(
+    attributes(html, 'aria-labelledby'),
+    tabIds,
+    'each panel names a tab that exists',
+  )
 })
 
 test('the strip is one tab stop, not three', () => {

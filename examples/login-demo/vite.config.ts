@@ -1,6 +1,6 @@
+import { hozo } from '@hozo/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-import { hozo } from '@hozo/vite'
 
 // `hozo()` before `react()`: it needs to run against the original
 // View/Text/Pressable/Button JSX before @vitejs/plugin-react's own

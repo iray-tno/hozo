@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { horizontalMove, visibleRows, type TreeNode } from './tree.ts'
+import { horizontalMove, type TreeNode, visibleRows } from './tree.ts'
 
 const tree: TreeNode[] = [
   {
@@ -15,8 +15,7 @@ const tree: TreeNode[] = [
   { id: 'readme', label: 'README.md' },
 ]
 
-const ids = (expanded: string[]) =>
-  visibleRows(tree, new Set(expanded)).map((row) => row.id)
+const ids = (expanded: string[]) => visibleRows(tree, new Set(expanded)).map((row) => row.id)
 
 test('a collapsed branch shows itself and nothing under it', () => {
   assert.deepEqual(ids([]), ['src', 'readme'])
@@ -47,7 +46,10 @@ test('each row carries its depth and its place among its siblings', () => {
   // The sibling set, not the visible set. Omitting these makes a screen
   // reader say "3 of 3" for every row -- a wrong count, not a missing one.
   const readme = rows.find((row) => row.id === 'readme')
-  assert.deepEqual({ position: readme?.position, setSize: readme?.setSize }, { position: 2, setSize: 2 })
+  assert.deepEqual(
+    { position: readme?.position, setSize: readme?.setSize },
+    { position: 2, setSize: 2 },
+  )
 })
 
 test('only a branch says whether it is open', () => {

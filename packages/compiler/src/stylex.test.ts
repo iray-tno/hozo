@@ -74,7 +74,10 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   const metadata = official?.metadata as {
     stylex?: [string, { ltr: string }, number][]
   }
-  assert.deepEqual((metadata.stylex ?? []).map(([, , priority]) => priority), [1200, 1000])
+  assert.deepEqual(
+    (metadata.stylex ?? []).map(([, , priority]) => priority),
+    [1200, 1000],
+  )
 
   const web = compile(mediaSource)[0]
   assert.ok(web)
@@ -119,7 +122,10 @@ export const Card = () => (
   const metadata = official?.metadata as {
     stylex?: [string, { ltr: string }, number][]
   }
-  assert.deepEqual((metadata.stylex ?? []).map(([, , priority]) => priority), [3000, 3130, 3170])
+  assert.deepEqual(
+    (metadata.stylex ?? []).map(([, , priority]) => priority),
+    [3000, 3130, 3170],
+  )
 
   const web = compile(pseudoSource)[0]
   assert.ok(web)
@@ -275,7 +281,10 @@ function declarationMap(declarations: string[]): Map<string, string> {
     // meaning rather than treating the compatibility copy as a mismatch.
     if (property === '-webkit-user-select') continue
     let value = declaration.slice(split + 1).trim()
-    value = value.replace(/^(-?)\.(\d)/, (_match, sign: string, digit: string) => `${sign}0.${digit}`)
+    value = value.replace(
+      /^(-?)\.(\d)/,
+      (_match, sign: string, digit: string) => `${sign}0.${digit}`,
+    )
     if (property === 'flex') {
       value =
         value === '1 1 auto'
@@ -321,13 +330,28 @@ function declarationMap(declarations: string[]): Map<string, string> {
         ]
       }
       if (property === 'border-color') {
-        return ['border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color']
+        return [
+          'border-top-color',
+          'border-right-color',
+          'border-bottom-color',
+          'border-left-color',
+        ]
       }
       if (property === 'border-width') {
-        return ['border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width']
+        return [
+          'border-top-width',
+          'border-right-width',
+          'border-bottom-width',
+          'border-left-width',
+        ]
       }
       if (property === 'border-style') {
-        return ['border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style']
+        return [
+          'border-top-style',
+          'border-right-style',
+          'border-bottom-style',
+          'border-left-style',
+        ]
       }
       if (property === 'border-block-color') {
         return ['border-top-color', 'border-bottom-color']
@@ -420,7 +444,9 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   )
 })
 
-const atomicPrioritySource = (argumentsSource: string) => `import * as stylex from '@stylexjs/stylex'
+const atomicPrioritySource = (
+  argumentsSource: string,
+) => `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
 const styles = stylex.create({
   all: { padding: 16, gap: 12, borderRadius: 8, flex: 'auto' },
@@ -445,10 +471,7 @@ test('StyleX atomic property priority is preserved on Web and Native', () => {
     [1000, 2000, 3000, 4000],
   )
 
-  for (const argumentsSource of [
-    'styles.specific, styles.all',
-    'styles.all, styles.specific',
-  ]) {
+  for (const argumentsSource of ['styles.specific, styles.all', 'styles.all, styles.specific']) {
     const input = atomicPrioritySource(argumentsSource)
     const web = compile(input)[0]
     assert.ok(web)
@@ -651,10 +674,7 @@ export const Grid = () => (
   const actual = new Map(
     [...declarationMap(hozoDeclarations)].filter(([property]) => expected.has(property)),
   )
-  assert.deepEqual(
-    Object.fromEntries(actual),
-    Object.fromEntries(expected),
-  )
+  assert.deepEqual(Object.fromEntries(actual), Object.fromEntries(expected))
 
   const native = compileNative(gridSource)[0]
   assert.ok(native)
@@ -664,7 +684,10 @@ export const Grid = () => (
     native.jsx,
     /tracks=\{\[\{ kind: 'fr', value: 1 \}, \{ kind: 'fr', value: 1 \}, \{ kind: 'fr', value: 1 \}\]\}/,
   )
-  assert.match(native.jsx, /rowTracks=\{\[\{ kind: 'points', value: 80 \}, \{ kind: 'fr', value: 1 \}\]\}/)
+  assert.match(
+    native.jsx,
+    /rowTracks=\{\[\{ kind: 'points', value: 80 \}, \{ kind: 'fr', value: 1 \}\]\}/,
+  )
   assert.match(native.jsx, /columnGap=\{12\}/)
   assert.match(native.jsx, /rowGap=\{12\}/)
   assert.match(native.jsx, /HozoGridItem columnSpan=\{2\} rowSpan=\{2\}/)
@@ -785,7 +808,11 @@ export const Card = () => <View {...stylex.props(styles.root)} />
       )
     }
     if (property === 'backgroundImage') {
-      assert.match(native.styles, /backgroundImage: 'linear-gradient\(90deg,#123456,#abcdef\)'/, property)
+      assert.match(
+        native.styles,
+        /backgroundImage: 'linear-gradient\(90deg,#123456,#abcdef\)'/,
+        property,
+      )
     }
     if (property === 'filter') {
       assert.match(native.styles, /filter: 'sepia\(60%\) hue-rotate\(20deg\)'/, property)
@@ -1194,18 +1221,12 @@ export const Card = () => <View ${attributes} />
   assert.match(tailwindWeb.css, /transform: skewX\(3deg\)/)
   assert.doesNotMatch(tailwindWeb.css, /transform: rotate\(10deg\)/)
 
-  const stylexNative = component(
-    `className="skew-x-3" {...stylex.props(styles.root)}`,
-    true,
-  )
+  const stylexNative = component(`className="skew-x-3" {...stylex.props(styles.root)}`, true)
   assert.ok(stylexNative)
   assert.match(stylexNative.styles, /transform: \[\{ rotate: '10deg' \}\]/)
   assert.doesNotMatch(stylexNative.styles, /skewX/)
 
-  const tailwindNative = component(
-    `{...stylex.props(styles.root)} className="skew-x-3"`,
-    true,
-  )
+  const tailwindNative = component(`{...stylex.props(styles.root)} className="skew-x-3"`, true)
   assert.ok(tailwindNative)
   assert.match(tailwindNative.styles, /transform: \[\{ skewX: '3deg' \}\]/)
   assert.doesNotMatch(tailwindNative.styles, /rotate:/)

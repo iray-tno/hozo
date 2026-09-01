@@ -64,10 +64,7 @@ test('static rules imported from another module lower through the shared registr
     assert.match(web.css, /color: red/)
     assert.match(web.css, /opacity: 0.5/)
 
-    const native = compiler.compileNative(
-      componentSource,
-      modules.bindingsFor(component),
-    )
+    const native = compiler.compileNative(componentSource, modules.bindingsFor(component))
     assert.equal(native.length, 1)
     assert.doesNotMatch(native[0]!.jsx, /stylex\.props/)
     assert.match(native[0]!.styles, /paddingTop: 16/)
@@ -208,10 +205,7 @@ test('namespace re-exports preserve their member path through aliases and import
     assert.doesNotMatch(namespace.code, /stylex\.props/)
     assert.match(namespace.css, /margin-top: 24px/)
 
-    const native = compiler.compileNative(
-      namespaceSource,
-      modules.bindingsFor(namespaceComponent),
-    )
+    const native = compiler.compileNative(namespaceSource, modules.bindingsFor(namespaceComponent))
     assert.equal(native.length, 1)
     assert.doesNotMatch(native[0]!.jsx, /stylex\.props/)
     assert.match(native[0]!.styles, /marginTop: 24/)

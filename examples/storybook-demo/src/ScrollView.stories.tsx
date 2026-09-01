@@ -13,8 +13,8 @@
 // something a person can look at rather than something recorded in an
 // issue nobody opens.
 
-import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Heading, Paragraph, ScrollView, Section, Text, View } from '@hozo/core'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 const ROWS = [
   ['oxc', 'parses the TSX'],
@@ -35,10 +35,9 @@ function ScrollViewGallery() {
           ScrollView
         </Heading>
         <Paragraph className="text-sm leading-relaxed text-slate-600">
-          A scrollable region, named so a screen reader can announce it and
-          focusable so a keyboard can reach it. Tab to the box below and use
-          the arrow keys — that is the part a plain overflow container does
-          not give you.
+          A scrollable region, named so a screen reader can announce it and focusable so a keyboard
+          can reach it. Tab to the box below and use the arrow keys — that is the part a plain
+          overflow container does not give you.
         </Paragraph>
       </View>
 
@@ -97,8 +96,8 @@ function ScrollViewGallery() {
         </Text>
         <Paragraph className="text-xs text-slate-500">
           No <Text className="font-mono">role</Text> and no{' '}
-          <Text className="font-mono">accessibilityLabel</Text>. A screen
-          reader announces "scroll area" and nothing else.
+          <Text className="font-mono">accessibilityLabel</Text>. A screen reader announces "scroll
+          area" and nothing else.
         </Paragraph>
         <ScrollView className="h-24 rounded-xl border border-dashed border-amber-300 p-3">
           <Paragraph className="text-xs text-slate-500">

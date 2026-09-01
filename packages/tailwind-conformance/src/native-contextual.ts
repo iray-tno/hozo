@@ -43,13 +43,17 @@ export function compareNativeContextual(testCase: NativeContextualCase): NativeC
     `}\n`
   const [result] = compileNative(source)
   if (!result) return { ...testCase, verdict: 'SILENT', detail: 'no component compiled' }
-  const refusal = result.diagnostics.find((diagnostic) =>
-    diagnostic.code === 'WEB_ONLY_PROPERTY_ON_NATIVE' || diagnostic.code === 'NOT_WIRED_ON_NATIVE')
+  const refusal = result.diagnostics.find(
+    (diagnostic) =>
+      diagnostic.code === 'WEB_ONLY_PROPERTY_ON_NATIVE' ||
+      diagnostic.code === 'NOT_WIRED_ON_NATIVE',
+  )
   if (refusal) {
     return { ...testCase, verdict: 'REFUSED', detail: refusal.message }
   }
-  const missing = testCase.expected.filter((fragment) =>
-    !result.jsx.includes(fragment) && !result.runtimeImports.includes(fragment))
+  const missing = testCase.expected.filter(
+    (fragment) => !result.jsx.includes(fragment) && !result.runtimeImports.includes(fragment),
+  )
   if (missing.length > 0) {
     return {
       ...testCase,

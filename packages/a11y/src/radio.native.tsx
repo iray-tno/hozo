@@ -12,8 +12,8 @@
 // `radiogroup` wrapper buys, and it is the part a row of `Pressable`s with
 // a tick next to one of them does not have.
 
-import { useCallback, useState, type ReactNode } from 'react'
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { type ReactNode, useCallback, useState } from 'react'
+import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
 
 export interface HozoRadioOption<T> {
   value: T

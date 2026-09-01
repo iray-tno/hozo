@@ -69,7 +69,10 @@ export function atomise(css: string): Atoms {
     const { name, suffix, context } = ruleParts(rule.selector, rule.atRules)
     if (name === undefined) continue
     const list = atomsFor.get(name) ?? []
-    for (const text of rule.declarations.split(';').map((d) => d.trim()).filter(Boolean)) {
+    for (const text of rule.declarations
+      .split(';')
+      .map((d) => d.trim())
+      .filter(Boolean)) {
       declarations += 1
       const atom = `${context}|${text}`
       let atomName = names.get(atom)

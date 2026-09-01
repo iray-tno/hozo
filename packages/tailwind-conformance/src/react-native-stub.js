@@ -30,7 +30,8 @@ export const StyleSheet = {
   // React Native would accept it is the type check's question, asked
   // against its declarations rather than its runtime.
   create: (styles) => styles,
-  flatten: (style) => Object.assign({}, ...(Array.isArray(style) ? style.filter(Boolean) : [style || {}])),
+  flatten: (style) =>
+    Object.assign({}, ...(Array.isArray(style) ? style.filter(Boolean) : [style || {}])),
 }
 
 // Drivable, unlike the rest of this file.

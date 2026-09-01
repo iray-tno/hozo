@@ -19,7 +19,7 @@
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createElement, type ComponentType } from 'react'
+import { type ComponentType, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import {
@@ -86,7 +86,9 @@ function render(component: Primitive, props: Record<string, unknown>) {
   const renderable = component as ComponentType<Record<string, unknown>>
   // `data`/`renderItem` keep FlatList renderable; an empty list never
   // calls the latter, and every assertion here is about the container.
-  return renderToStaticMarkup(createElement(renderable, { data: [], renderItem: () => null, ...props }))
+  return renderToStaticMarkup(
+    createElement(renderable, { data: [], renderItem: () => null, ...props }),
+  )
 }
 
 test('every primitive renders the accessibilityLabel it was given', () => {

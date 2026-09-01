@@ -3,7 +3,7 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist",
-    "types": ["node","culori"]
+    "types": ["node", "culori"]
   },
   // Tests stay out of the published output: they are the only thing here
   // that needs `node:test`, and nobody installing this wants them.

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { loadClassOrder, loadTheme, tailwindPackageDir, type Theme } from './theme.ts'
+import { loadClassOrder, loadTheme, type Theme, tailwindPackageDir } from './theme.ts'
 
 export const DEFAULT_CSS_FILES = [
   'global.css',

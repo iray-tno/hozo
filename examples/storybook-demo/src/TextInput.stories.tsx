@@ -1,6 +1,6 @@
+import { Button, Heading, Paragraph, TextInput, View } from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Button, Heading, Paragraph, TextInput, View } from '@hozo/core'
 
 function TextInputGallery() {
   const [email, setEmail] = useState('')
@@ -12,7 +12,8 @@ function TextInputGallery() {
         Form Controls
       </Heading>
       <Paragraph className="text-sm text-slate-600">
-        Universal TextInput primitives compiling to accessible Web input tags or Fabric TextInput components.
+        Universal TextInput primitives compiling to accessible Web input tags or Fabric TextInput
+        components.
       </Paragraph>
 
       <View className="space-y-4">

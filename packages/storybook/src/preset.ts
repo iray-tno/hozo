@@ -1,6 +1,5 @@
+import { type HozoOptions, hozo } from '@hozo/vite'
 import type { UserConfig } from 'vite'
-
-import { hozo, type HozoOptions } from '@hozo/vite'
 
 export type HozoStorybookOptions = HozoOptions
 
@@ -11,10 +10,7 @@ export type HozoStorybookOptions = HozoOptions
  * meant every option added to `@hozo/vite` afterwards was accepted here,
  * type-checked here, and then dropped on the floor.
  */
-export function viteFinal(
-  config: UserConfig,
-  options: HozoStorybookOptions = {},
-): UserConfig {
+export function viteFinal(config: UserConfig, options: HozoStorybookOptions = {}): UserConfig {
   return {
     ...config,
     plugins: [hozo(options), ...(config.plugins ?? [])],

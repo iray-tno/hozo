@@ -4,8 +4,8 @@
 // `theme.css` shipped in the installed tailwindcss package rather than
 // hardcoding a copy, so the numbers can't drift from the version under test.
 
-import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 
 const require = createRequire(import.meta.url)

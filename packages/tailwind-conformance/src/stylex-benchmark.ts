@@ -53,9 +53,7 @@ export interface StylexBenchmarkComparison {
 function median(values: number[]): number {
   const sorted = [...values].sort((left, right) => left - right)
   const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 0
-    ? (sorted[middle - 1]! + sorted[middle]!) / 2
-    : sorted[middle]!
+  return sorted.length % 2 === 0 ? (sorted[middle - 1]! + sorted[middle]!) / 2 : sorted[middle]!
 }
 
 export function compareStylexBenchmark(
@@ -63,7 +61,10 @@ export function compareStylexBenchmark(
   baseline: StylexBenchmarkResult,
   tolerance = 0.05,
 ): StylexBenchmarkComparison {
-  if (current.schemaVersion !== baseline.schemaVersion || current.corpusHash !== baseline.corpusHash) {
+  if (
+    current.schemaVersion !== baseline.schemaVersion ||
+    current.corpusHash !== baseline.corpusHash
+  ) {
     throw new Error('StyleX benchmark baseline uses a different schema or corpus')
   }
   const regression = current.medianMsPerPair / baseline.medianMsPerPair - 1
@@ -78,7 +79,9 @@ export function validateStylexBenchmarkCorpus(): void {
   const compiler = createCompiler()
   for (const component of compiler.compile(STYLEX_BENCHMARK_SOURCE)) {
     if (component.diagnostics.length > 0) {
-      throw new Error(`StyleX benchmark Web corpus produced diagnostics: ${JSON.stringify(component.diagnostics)}`)
+      throw new Error(
+        `StyleX benchmark Web corpus produced diagnostics: ${JSON.stringify(component.diagnostics)}`,
+      )
     }
     if (component.jsx.includes('stylex.props')) {
       throw new Error('StyleX benchmark corpus left a residual stylex.props call')
@@ -86,7 +89,9 @@ export function validateStylexBenchmarkCorpus(): void {
   }
   for (const component of compiler.compileNative(STYLEX_BENCHMARK_SOURCE)) {
     if (component.diagnostics.some(({ code }) => code !== 'WEB_ONLY_PROPERTY_ON_NATIVE')) {
-      throw new Error(`StyleX benchmark Native corpus produced unexpected diagnostics: ${JSON.stringify(component.diagnostics)}`)
+      throw new Error(
+        `StyleX benchmark Native corpus produced unexpected diagnostics: ${JSON.stringify(component.diagnostics)}`,
+      )
     }
     if (component.jsx.includes('stylex.props')) {
       throw new Error('StyleX benchmark corpus left a residual stylex.props call')

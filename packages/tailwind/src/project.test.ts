@@ -32,7 +32,7 @@ test('an explicitly missing CSS entry produces one actionable warning', async ()
 
     assert.equal(theme, undefined)
     assert.deepEqual(warnings, [
-      '[hozo] no stylesheet at styles/tailwind.css, so utilities resolve against Tailwind\'s defaults',
+      "[hozo] no stylesheet at styles/tailwind.css, so utilities resolve against Tailwind's defaults",
     ])
   } finally {
     rmSync(root, { recursive: true, force: true })

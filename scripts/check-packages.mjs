@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { PACKAGE_NAMES, VERSION, applyMetadata } from './package-metadata.mjs'
+import { applyMetadata, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const problems = []

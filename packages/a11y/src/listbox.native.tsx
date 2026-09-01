@@ -13,8 +13,8 @@
 // the Web's and the only one available, stated here rather than left as a
 // silent difference.
 
-import { useCallback, useState, type ReactNode } from 'react'
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { type ReactNode, useCallback, useState } from 'react'
+import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
 
 export interface HozoListboxOption<T> {
   value: T

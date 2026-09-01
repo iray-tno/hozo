@@ -5,20 +5,26 @@
 // job is to make invoking these at runtime unnecessary where it can, not
 // to make them required.
 
+import { hozoInteractive } from '@hozo/runtime'
 import {
-  useEffect,
-  useRef,
-  useState,
   type AriaRole,
   type CSSProperties,
   type MouseEventHandler,
   type ReactNode,
   type UIEventHandler,
+  useEffect,
+  useRef,
+  useState,
 } from 'react'
-import { hozoInteractive } from '@hozo/runtime'
 
-import { useResponderDomProps, type ResponderProps } from './responder.ts'
+import { type ResponderProps, useResponderDomProps } from './responder.ts'
 
+export type {
+  PanResponderCallbacks,
+  PanResponderGestureState,
+  PanResponderInstance,
+} from './pan-responder.ts'
+export { PanResponder } from './pan-responder.ts'
 export type {
   HozoResponderEvent,
   HozoResponderTouch,
@@ -26,8 +32,6 @@ export type {
   HozoTouchTrack,
   ResponderProps,
 } from './responder.ts'
-export { PanResponder } from './pan-responder.ts'
-export type { PanResponderCallbacks, PanResponderGestureState, PanResponderInstance } from './pan-responder.ts'
 
 export interface HozoLayoutRectangle {
   x: number
@@ -120,7 +124,8 @@ function universalDomProps(props: UniversalProps) {
     'aria-valuemax': value?.max,
     'aria-valuenow': value?.now,
     'aria-valuetext': value?.text,
-    'aria-live': props.accessibilityLiveRegion === 'none' ? undefined : props.accessibilityLiveRegion,
+    'aria-live':
+      props.accessibilityLiveRegion === 'none' ? undefined : props.accessibilityLiveRegion,
     'aria-label': props.accessibilityLabel,
     'aria-description': props.accessibilityHint,
   } as const
@@ -138,7 +143,12 @@ function useLayoutRef<T extends HTMLElement>(onLayout?: (event: HozoLayoutEvent)
     let previous = ''
     const emit = () => {
       const rect = element.getBoundingClientRect()
-      const layout = { x: element.offsetLeft, y: element.offsetTop, width: rect.width, height: rect.height }
+      const layout = {
+        x: element.offsetLeft,
+        y: element.offsetTop,
+        width: rect.width,
+        height: rect.height,
+      }
       const key = `${layout.x}:${layout.y}:${layout.width}:${layout.height}`
       if (key === previous) return
       previous = key
@@ -184,7 +194,11 @@ export interface ViewProps extends UniversalProps, ResponderProps {
 export function View({ className, children, onLayout, ...universal }: ViewProps) {
   const ref = useLayoutRef<HTMLDivElement>(onLayout)
   const responder = useResponderDomProps(ref, universal)
-  return <div ref={ref} className={className} {...universalDomProps(universal)} {...responder}>{children}</div>
+  return (
+    <div ref={ref} className={className} {...universalDomProps(universal)} {...responder}>
+      {children}
+    </div>
+  )
 }
 
 export interface TextProps extends UniversalProps {
@@ -194,14 +208,22 @@ export interface TextProps extends UniversalProps {
 
 export function Text({ className, children, onLayout, ...universal }: TextProps) {
   const ref = useLayoutRef<HTMLSpanElement>(onLayout)
-  return <span ref={ref} className={className} {...universalDomProps(universal)}>{children}</span>
+  return (
+    <span ref={ref} className={className} {...universalDomProps(universal)}>
+      {children}
+    </span>
+  )
 }
 
 export type SemanticTextProps = TextProps
 
 export function Paragraph({ className, children, onLayout, ...universal }: SemanticTextProps) {
   const ref = useLayoutRef<HTMLParagraphElement>(onLayout)
-  return <p ref={ref} className={className} {...universalDomProps(universal)}>{children}</p>
+  return (
+    <p ref={ref} className={className} {...universalDomProps(universal)}>
+      {children}
+    </p>
+  )
 }
 
 export interface HeadingProps extends SemanticTextProps {
@@ -211,22 +233,38 @@ export interface HeadingProps extends SemanticTextProps {
 export function Heading({ level = 1, className, children, onLayout, ...universal }: HeadingProps) {
   const ref = useLayoutRef<HTMLHeadingElement>(onLayout)
   const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
-  return <Tag ref={ref} className={className} {...universalDomProps(universal)}>{children}</Tag>
+  return (
+    <Tag ref={ref} className={className} {...universalDomProps(universal)}>
+      {children}
+    </Tag>
+  )
 }
 
 export function Section({ className, children, onLayout, ...universal }: ViewProps) {
   const ref = useLayoutRef<HTMLElement>(onLayout)
-  return <section ref={ref} className={className} {...universalDomProps(universal)}>{children}</section>
+  return (
+    <section ref={ref} className={className} {...universalDomProps(universal)}>
+      {children}
+    </section>
+  )
 }
 
 export function Article({ className, children, onLayout, ...universal }: ViewProps) {
   const ref = useLayoutRef<HTMLElement>(onLayout)
-  return <article ref={ref} className={className} {...universalDomProps(universal)}>{children}</article>
+  return (
+    <article ref={ref} className={className} {...universalDomProps(universal)}>
+      {children}
+    </article>
+  )
 }
 
 export function Nav({ className, children, onLayout, ...universal }: ViewProps) {
   const ref = useLayoutRef<HTMLElement>(onLayout)
-  return <nav ref={ref} className={className} {...universalDomProps(universal)}>{children}</nav>
+  return (
+    <nav ref={ref} className={className} {...universalDomProps(universal)}>
+      {children}
+    </nav>
+  )
 }
 
 export interface ListProps extends ViewProps {
@@ -239,14 +277,24 @@ export function List({ ordered, className, children, onLayout, ...universal }: L
   // fallback just to satisfy a polymorphic ref union.
   const orderedRef = useLayoutRef<HTMLOListElement>(onLayout)
   const unorderedRef = useLayoutRef<HTMLUListElement>(onLayout)
-  return ordered
-    ? <ol ref={orderedRef} className={className} {...universalDomProps(universal)}>{children}</ol>
-    : <ul ref={unorderedRef} className={className} {...universalDomProps(universal)}>{children}</ul>
+  return ordered ? (
+    <ol ref={orderedRef} className={className} {...universalDomProps(universal)}>
+      {children}
+    </ol>
+  ) : (
+    <ul ref={unorderedRef} className={className} {...universalDomProps(universal)}>
+      {children}
+    </ul>
+  )
 }
 
 export function ListItem({ className, children, onLayout, ...universal }: ViewProps) {
   const ref = useLayoutRef<HTMLLIElement>(onLayout)
-  return <li ref={ref} className={className} {...universalDomProps(universal)}>{children}</li>
+  return (
+    <li ref={ref} className={className} {...universalDomProps(universal)}>
+      {children}
+    </li>
+  )
 }
 
 export interface ImageProps extends UniversalProps {
@@ -268,7 +316,11 @@ export interface HozoImageSourceObject {
   default?: string
 }
 
-export type HozoImageSource = string | number | HozoImageSourceObject | readonly HozoImageSourceObject[]
+export type HozoImageSource =
+  | string
+  | number
+  | HozoImageSourceObject
+  | readonly HozoImageSourceObject[]
 
 function webImageSource(source?: HozoImageSource): string | undefined {
   if (typeof source === 'string') return source
@@ -281,10 +333,24 @@ function webImageSource(source?: HozoImageSource): string | undefined {
     return undefined
   }
   const object = source as HozoImageSourceObject
-  return typeof object.uri === 'string' ? object.uri : typeof object.default === 'string' ? object.default : undefined
+  return typeof object.uri === 'string'
+    ? object.uri
+    : typeof object.default === 'string'
+      ? object.default
+      : undefined
 }
 
-export function Image({ className, src, defaultSource, alt, accessibilityLabel, onLoad, onError, onLayout, ...universal }: ImageProps) {
+export function Image({
+  className,
+  src,
+  defaultSource,
+  alt,
+  accessibilityLabel,
+  onLoad,
+  onError,
+  onLayout,
+  ...universal
+}: ImageProps) {
   const ref = useLayoutRef<HTMLImageElement>(onLayout)
   const [failed, setFailed] = useState(false)
   useEffect(() => setFailed(false), [src])
@@ -441,18 +507,27 @@ export function FlatList<T>({
   useEffect(() => {
     const root = containerRef.current
     const target = endRef.current
-    if (!onEndReached || data.length === 0 || !root || !target || typeof IntersectionObserver === 'undefined') {
+    if (
+      !onEndReached ||
+      data.length === 0 ||
+      !root ||
+      !target ||
+      typeof IntersectionObserver === 'undefined'
+    ) {
       return
     }
     let fired = false
     const margin = `${Math.max(0, onEndReachedThreshold) * 100}%`
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting && !fired) {
-        fired = true
-        observer.disconnect()
-        onEndReached({ distanceFromEnd: 0 })
-      }
-    }, { root, rootMargin: horizontal ? `0px ${margin} 0px 0px` : `0px 0px ${margin} 0px` })
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting && !fired) {
+          fired = true
+          observer.disconnect()
+          onEndReached({ distanceFromEnd: 0 })
+        }
+      },
+      { root, rootMargin: horizontal ? `0px ${margin} 0px 0px` : `0px 0px ${margin} 0px` },
+    )
     observer.observe(target)
     return () => observer.disconnect()
   }, [data.length, horizontal, onEndReached, onEndReachedThreshold])
@@ -482,9 +557,13 @@ export function FlatList<T>({
       {data.length > 0 ? (
         <div
           role="list"
-          style={numColumns > 1
-            ? { display: 'grid', gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))` }
-            : horizontal ? { display: 'flex', flexDirection: 'row' } : undefined}
+          style={
+            numColumns > 1
+              ? { display: 'grid', gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))` }
+              : horizontal
+                ? { display: 'flex', flexDirection: 'row' }
+                : undefined
+          }
         >
           {data.map((item, index) => (
             <div key={keyExtractor?.(item, index) ?? index} role="listitem">
@@ -627,45 +706,41 @@ export function Link({
   )
 }
 
-export { TextInput, type TextInputProps } from './text-input.tsx'
-
 // Dialog is not implemented here: its behaviour is the whole point of it
 // (proposal §10.3), and that lives in `@hozo/a11y` so there is exactly one
 // implementation for the compiler to lower to and for tests to cover.
-export { HozoDialog as Dialog, type HozoDialogProps as DialogProps } from '@hozo/a11y'
 // Tabs for the same reason. Unlike Dialog it is not a compiler primitive
 // -- there is no `Primitive::Tabs` and nothing lowers to it -- because
 // what a tab strip needs is keyboard behaviour rather than a different
 // element, and a compiler has nothing to contribute to that. It is a
 // component an app imports, and it is here so it is imported from the same
 // place as everything else.
-export { HozoTabs as Tabs, type HozoTabsProps as TabsProps, type HozoTab as Tab } from '@hozo/a11y'
 export {
+  HozoCombobox as Combobox,
+  type HozoComboboxOption as ComboboxOption,
+  type HozoComboboxProps as ComboboxProps,
+  HozoDialog as Dialog,
+  type HozoDialogProps as DialogProps,
+  HozoListbox as Listbox,
+  type HozoListboxOption as ListboxOption,
+  type HozoListboxProps as ListboxProps,
   HozoMenu as Menu,
-  type HozoMenuProps as MenuProps,
   type HozoMenuItem as MenuItem,
-} from '@hozo/a11y'
-export {
-  HozoToolbar as Toolbar,
-  type HozoToolbarProps as ToolbarProps,
-  type HozoToolbarItem as ToolbarItem,
-} from '@hozo/a11y'
-export {
+  type HozoMenuProps as MenuProps,
   HozoRadioGroup as RadioGroup,
   type HozoRadioGroupProps as RadioGroupProps,
   type HozoRadioOption as RadioOption,
-} from '@hozo/a11y'
-export {
-  HozoListbox as Listbox,
-  type HozoListboxProps as ListboxProps,
-  type HozoListboxOption as ListboxOption,
-} from '@hozo/a11y'
-export { HozoTree as Tree, type HozoTreeProps as TreeProps, type TreeNode } from '@hozo/a11y'
-export {
-  HozoCombobox as Combobox,
-  type HozoComboboxProps as ComboboxProps,
-  type HozoComboboxOption as ComboboxOption,
+  type HozoTab as Tab,
+  HozoTabs as Tabs,
+  type HozoTabsProps as TabsProps,
+  HozoToolbar as Toolbar,
+  type HozoToolbarItem as ToolbarItem,
+  type HozoToolbarProps as ToolbarProps,
+  HozoTree as Tree,
+  type HozoTreeProps as TreeProps,
+  type TreeNode,
 } from '@hozo/a11y'
 // SVG, as a namespace: `<Svg>` is the root and `<Svg.Rect>` its elements.
 // See `./svg.tsx` for why a namespace rather than an `Svg` prefix.
 export { Svg } from './svg.tsx'
+export { TextInput, type TextInputProps } from './text-input.tsx'

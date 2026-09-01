@@ -11,9 +11,9 @@
 // and a `ref` it can focus. One object to spread is the whole of what an
 // author writes.
 
+import { Heading, Paragraph, Section, Text, Toolbar, View } from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { Ref } from 'react'
-import { Heading, Paragraph, Section, Text, Toolbar, View } from '@hozo/core'
 
 const CONTROL =
   'rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 ' +
@@ -23,7 +23,9 @@ const CONTROL =
 function control(label: string, hint: string, disabled = false) {
   return {
     disabled,
-    render: (props: Parameters<NonNullable<Parameters<typeof Toolbar>[0]['items'][number]['render']>>[0]) => (
+    render: (
+      props: Parameters<NonNullable<Parameters<typeof Toolbar>[0]['items'][number]['render']>>[0],
+    ) => (
       // `HozoToolbarItemProps.ref` is a `Ref<HTMLElement>` because the
       // toolbar does not know what its items render. A `<button>` wants a
       // `Ref<HTMLButtonElement>`, and React's ref types are invariant, so
@@ -68,9 +70,8 @@ function ToolbarGallery() {
           Toolbar
         </Heading>
         <Paragraph className="text-sm leading-relaxed text-slate-600">
-          One tab stop for the whole bar, arrow keys inside it. Press Tab to
-          reach it, then Left and Right — and note that Strikethrough is
-          skipped, because a disabled control is not a stop.
+          One tab stop for the whole bar, arrow keys inside it. Press Tab to reach it, then Left and
+          Right — and note that Strikethrough is skipped, because a disabled control is not a stop.
         </Paragraph>
       </View>
 

@@ -7,7 +7,10 @@ import { Canvas, type CanvasPressEvent } from './index.tsx'
 const require = createRequire(import.meta.url)
 const testRenderer = require('react-test-renderer') as {
   act(callback: () => void | Promise<void>): Promise<void>
-  create(node: React.ReactNode, options: { createNodeMock(element: { type: unknown }): unknown }): {
+  create(
+    node: React.ReactNode,
+    options: { createNodeMock(element: { type: unknown }): unknown },
+  ): {
     root: {
       findByType(type: string): { props: Record<string, unknown> }
     }
@@ -21,21 +24,24 @@ const testRenderer = require('react-test-renderer') as {
 
 test('shapes composed through user components reach the shared scene renderer', async () => {
   const calls: string[] = []
-  const context = new Proxy({
-    globalAlpha: 1,
-    fillStyle: '',
-    strokeStyle: '',
-    lineWidth: 1,
-  } as Record<string, unknown>, {
-    get(target, property) {
-      if (property in target) return target[property as string]
-      return () => calls.push(String(property))
+  const context = new Proxy(
+    {
+      globalAlpha: 1,
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+    } as Record<string, unknown>,
+    {
+      get(target, property) {
+        if (property in target) return target[property as string]
+        return () => calls.push(String(property))
+      },
+      set(target, property, value) {
+        target[property as string] = value
+        return true
+      },
     },
-    set(target, property, value) {
-      target[property as string] = value
-      return true
-    },
-  }) as unknown as CanvasRenderingContext2D
+  ) as unknown as CanvasRenderingContext2D
   const canvasNode = {
     getContext: () => context,
     getBoundingClientRect: () => ({ width: 80, height: 40 }),
@@ -53,8 +59,10 @@ test('shapes composed through user components reach the shared scene renderer', 
   let renderer: ReturnType<typeof testRenderer.create> | undefined
   await testRenderer.act(async () => {
     renderer = testRenderer.create(
-      <Canvas decorative width={80} height={40}><Bars /></Canvas>,
-      { createNodeMock: (element) => element.type === 'canvas' ? canvasNode : null },
+      <Canvas decorative width={80} height={40}>
+        <Bars />
+      </Canvas>,
+      { createNodeMock: (element) => (element.type === 'canvas' ? canvasNode : null) },
     )
   })
 
@@ -65,21 +73,24 @@ test('shapes composed through user components reach the shared scene renderer', 
 
 test('Web pointer presses dispatch to the same target without redrawing for handler changes', async () => {
   const drawCalls: string[] = []
-  const context = new Proxy({
-    globalAlpha: 1,
-    fillStyle: '',
-    strokeStyle: '',
-    lineWidth: 1,
-  } as Record<string, unknown>, {
-    get(target, property) {
-      if (property in target) return target[property as string]
-      return () => drawCalls.push(String(property))
+  const context = new Proxy(
+    {
+      globalAlpha: 1,
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+    } as Record<string, unknown>,
+    {
+      get(target, property) {
+        if (property in target) return target[property as string]
+        return () => drawCalls.push(String(property))
+      },
+      set(target, property, value) {
+        target[property as string] = value
+        return true
+      },
     },
-    set(target, property, value) {
-      target[property as string] = value
-      return true
-    },
-  }) as unknown as CanvasRenderingContext2D
+  ) as unknown as CanvasRenderingContext2D
   const canvasNode = {
     getContext: () => context,
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 200, height: 100 }),
@@ -103,7 +114,7 @@ test('Web pointer presses dispatch to the same target without redrawing for hand
   let renderer: ReturnType<typeof testRenderer.create> | undefined
   await testRenderer.act(async () => {
     renderer = testRenderer.create(scene(firstHandler), {
-      createNodeMock: (element) => element.type === 'canvas' ? canvasNode : null,
+      createNodeMock: (element) => (element.type === 'canvas' ? canvasNode : null),
     })
   })
   const drawsAfterMount = drawCalls.filter((call) => call === 'clearRect').length
@@ -131,10 +142,12 @@ test('Web pointer presses dispatch to the same target without redrawing for hand
   pointerDown(pointer(100, 50, 1))
   pointerUp(pointer(100, 50, 1))
   assert.equal(firstHandlerCalls, 0)
-  assert.deepEqual(secondEvents, [{
-    point: { x: 50, y: 50 },
-    surfacePoint: { x: 100, y: 50 },
-  }])
+  assert.deepEqual(secondEvents, [
+    {
+      point: { x: 50, y: 50 },
+      surfacePoint: { x: 100, y: 50 },
+    },
+  ])
 
   pointerDown(pointer(100, 50, 2))
   pointerUp(pointer(20, 50, 2))

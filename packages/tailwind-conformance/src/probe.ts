@@ -5,8 +5,9 @@
 // what a *combination* produces. Not part of the report -- this is the
 // tool for the "what does the reference engine actually do here?" step
 // that every fix in this package starts with.
-import { buildOracle } from './oracle.ts'
+
 import { normalize } from './normalize.ts'
+import { buildOracle } from './oracle.ts'
 import { loadThemeVars } from './theme.ts'
 
 const groups = process.argv.slice(2).map((arg) => arg.split(/\s+/))

@@ -1,4 +1,4 @@
-import type { Compiler, CompileDiagnostic } from './index.ts'
+import type { CompileDiagnostic, Compiler } from './index.ts'
 
 export interface LoweredCanvasPaints {
   code: string

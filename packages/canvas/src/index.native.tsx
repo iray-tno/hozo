@@ -1,13 +1,3 @@
-import { Fragment, useMemo, useRef, useState, type ReactNode } from 'react'
-import {
-  StyleSheet,
-  Text,
-  View,
-  type GestureResponderEvent,
-  type LayoutChangeEvent,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native'
 import {
   Canvas as SkiaCanvas,
   Circle as SkiaCircle,
@@ -18,15 +8,27 @@ import {
   Rect as SkiaRect,
   RoundedRect as SkiaRoundedRect,
 } from '@shopify/react-native-skia'
+import { Fragment, type ReactNode, useMemo, useRef, useState } from 'react'
+import {
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from 'react-native'
 
+import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './accessibility.ts'
+import { type CanvasPoint, hitTestCanvas } from './hit-test.ts'
 import {
-  canvasAccessibilityMode,
-  type CanvasAccessibilityProps,
-} from './accessibility.ts'
-import { hitTestCanvas, type CanvasPoint } from './hit-test.ts'
-import {
+  type CanvasPaintProps,
+  type CanvasScene,
+  type CanvasSceneNode,
+  type CanvasTransform,
   Circle,
   Clip,
+  type ClipProps,
   Ellipse,
   Group,
   Line,
@@ -34,13 +36,15 @@ import {
   Rect,
   RoundedRect,
   useCanvasScene,
-  type CanvasPaintProps,
-  type CanvasScene,
-  type CanvasSceneNode,
-  type CanvasTransform,
-  type ClipProps,
 } from './scene.tsx'
 
+export type { CanvasAccessibilityProps, CanvasAccessibleFallback } from './accessibility.ts'
+export {
+  type CanvasHitTestResult,
+  type CanvasHitTestViewport,
+  type CanvasPoint,
+  hitTestCanvas,
+} from './hit-test.ts'
 export type {
   CanvasInteractionProps,
   CanvasPaintProps,
@@ -58,13 +62,6 @@ export type {
   RoundedRectProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
-export {
-  hitTestCanvas,
-  type CanvasHitTestResult,
-  type CanvasHitTestViewport,
-  type CanvasPoint,
-} from './hit-test.ts'
-export type { CanvasAccessibleFallback, CanvasAccessibilityProps } from './accessibility.ts'
 
 export type CanvasProps = CanvasAccessibilityProps & {
   children?: ReactNode
@@ -82,7 +79,7 @@ function transformFor(transform?: CanvasTransform) {
   const result: Record<string, number>[] = []
   if (transform.translateX) result.push({ translateX: transform.translateX })
   if (transform.translateY) result.push({ translateY: transform.translateY })
-  if (transform.rotate) result.push({ rotate: transform.rotate * Math.PI / 180 })
+  if (transform.rotate) result.push({ rotate: (transform.rotate * Math.PI) / 180 })
   if (transform.scaleX !== undefined) result.push({ scaleX: transform.scaleX })
   if (transform.scaleY !== undefined) result.push({ scaleY: transform.scaleY })
   return result
@@ -96,7 +93,8 @@ function paintLayers(
 ) {
   const layers: ReactNode[] = []
   const hasFill = paint.fill !== 'none' && (paint.fill !== undefined || paint.stroke === undefined)
-  const hasStroke = paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
+  const hasStroke =
+    paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
   if (hasFill) {
     layers.push(
       <Shape
@@ -133,18 +131,21 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
           key={key}
           opacity={node.props.opacity}
           transform={transformFor(node.props.transform)}
-          origin={node.props.transform
-            ? { x: node.props.transform.originX ?? 0, y: node.props.transform.originY ?? 0 }
-            : undefined}
+          origin={
+            node.props.transform
+              ? { x: node.props.transform.originX ?? 0, y: node.props.transform.originY ?? 0 }
+              : undefined
+          }
         >
           {node.children.map((child, index) => renderNode(child, `${key}.${index}`))}
         </SkiaGroup>
       )
     case 'clip': {
       const props = node.props as Omit<ClipProps, 'children'>
-      const clip = props.path !== undefined
-        ? props.path
-        : { x: props.x ?? 0, y: props.y ?? 0, width: props.width, height: props.height }
+      const clip =
+        props.path !== undefined
+          ? props.path
+          : { x: props.x ?? 0, y: props.y ?? 0, width: props.width, height: props.height }
       return (
         <SkiaGroup key={key} clip={clip}>
           {node.children.map((child, index) => renderNode(child, `${key}.${index}`))}
@@ -152,45 +153,75 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
       )
     }
     case 'rect':
-      return paintLayers(key, SkiaRect, {
-        x: node.props.x ?? 0,
-        y: node.props.y ?? 0,
-        width: node.props.width,
-        height: node.props.height,
-      }, node.props)
-    case 'rounded-rect':
-      return paintLayers(key, SkiaRoundedRect, {
-        x: node.props.x ?? 0,
-        y: node.props.y ?? 0,
-        width: node.props.width,
-        height: node.props.height,
-        r: node.props.radius,
-      }, node.props)
-    case 'circle':
-      return paintLayers(key, SkiaCircle, {
-        cx: node.props.cx,
-        cy: node.props.cy,
-        r: node.props.radius,
-      }, node.props)
-    case 'ellipse':
-      return paintLayers(key, SkiaOval, {
-        rect: {
-          x: node.props.cx - node.props.radiusX,
-          y: node.props.cy - node.props.radiusY,
-          width: node.props.radiusX * 2,
-          height: node.props.radiusY * 2,
+      return paintLayers(
+        key,
+        SkiaRect,
+        {
+          x: node.props.x ?? 0,
+          y: node.props.y ?? 0,
+          width: node.props.width,
+          height: node.props.height,
         },
-      }, node.props)
+        node.props,
+      )
+    case 'rounded-rect':
+      return paintLayers(
+        key,
+        SkiaRoundedRect,
+        {
+          x: node.props.x ?? 0,
+          y: node.props.y ?? 0,
+          width: node.props.width,
+          height: node.props.height,
+          r: node.props.radius,
+        },
+        node.props,
+      )
+    case 'circle':
+      return paintLayers(
+        key,
+        SkiaCircle,
+        {
+          cx: node.props.cx,
+          cy: node.props.cy,
+          r: node.props.radius,
+        },
+        node.props,
+      )
+    case 'ellipse':
+      return paintLayers(
+        key,
+        SkiaOval,
+        {
+          rect: {
+            x: node.props.cx - node.props.radiusX,
+            y: node.props.cy - node.props.radiusY,
+            width: node.props.radiusX * 2,
+            height: node.props.radiusY * 2,
+          },
+        },
+        node.props,
+      )
     case 'line':
-      return paintLayers(key, SkiaLine, {
-        p1: { x: node.props.x1, y: node.props.y1 },
-        p2: { x: node.props.x2, y: node.props.y2 },
-      }, { ...node.props, fill: 'none', stroke: node.props.stroke ?? 'black' })
+      return paintLayers(
+        key,
+        SkiaLine,
+        {
+          p1: { x: node.props.x1, y: node.props.y1 },
+          p2: { x: node.props.x2, y: node.props.y2 },
+        },
+        { ...node.props, fill: 'none', stroke: node.props.stroke ?? 'black' },
+      )
     case 'path':
-      return paintLayers(key, SkiaPath, {
-        path: node.props.path,
-        fillType: node.props.fillRule === 'evenodd' ? 'evenOdd' : 'winding',
-      }, node.props)
+      return paintLayers(
+        key,
+        SkiaPath,
+        {
+          path: node.props.path,
+          fillType: node.props.fillRule === 'evenodd' ? 'evenOdd' : 'winding',
+        },
+        node.props,
+      )
   }
 }
 
@@ -247,38 +278,39 @@ function Root({
   })
   const onLayout = (event: LayoutChangeEvent) => {
     const next = event.nativeEvent.layout
-    setLayout((current) => current.width === next.width && current.height === next.height
-      ? current
-      : { width: next.width, height: next.height })
+    setLayout((current) =>
+      current.width === next.width && current.height === next.height
+        ? current
+        : { width: next.width, height: next.height },
+    )
   }
   const transform = useMemo(
     () => viewportTransform(viewBox, layout.width, layout.height, fit),
     [viewBox, layout, fit],
   )
-  const hasValidViewport = !viewBox || (
-    layout.width > 0
-    && layout.height > 0
-    && viewBox[2] > 0
-    && viewBox[3] > 0
-  )
+  const hasValidViewport =
+    !viewBox || (layout.width > 0 && layout.height > 0 && viewBox[2] > 0 && viewBox[3] > 0)
   const nativeClass = { className } as Record<string, unknown>
   const accessibilityMode = canvasAccessibilityMode({ decorative, accessibleFallback })
   const fallbackContent =
     typeof accessibleFallback === 'string' ||
     typeof accessibleFallback === 'number' ||
-    typeof accessibleFallback === 'bigint'
-      ? <Text>{String(accessibleFallback)}</Text>
-      : accessibleFallback
+    typeof accessibleFallback === 'bigint' ? (
+      <Text>{String(accessibleFallback)}</Text>
+    ) : (
+      accessibleFallback
+    )
   const surfacePoint = (event: GestureResponderEvent): CanvasPoint => ({
     x: event.nativeEvent.locationX,
     y: event.nativeEvent.locationY,
   })
-  const hitAt = (point: CanvasPoint) => hitTestCanvas(
-    scene,
-    point,
-    { width: layout.width, height: layout.height, viewBox, fit },
-    isInteractive,
-  )
+  const hitAt = (point: CanvasPoint) =>
+    hitTestCanvas(
+      scene,
+      point,
+      { width: layout.width, height: layout.height, viewBox, fit },
+      isInteractive,
+    )
   const onStartShouldSetResponder = (event: GestureResponderEvent) => {
     pressedTarget.current = undefined
     if (event.nativeEvent.touches.length !== 1) return false
@@ -292,10 +324,11 @@ function Root({
     const startedTarget = pressedTarget.current
     pressedTarget.current = undefined
     if (
-      !startedTarget
-      || event.nativeEvent.touches.length > 0
-      || event.nativeEvent.identifier !== startedTarget.touchId
-    ) return
+      !startedTarget ||
+      event.nativeEvent.touches.length > 0 ||
+      event.nativeEvent.identifier !== startedTarget.touchId
+    )
+      return
     const point = surfacePoint(event)
     const hit = hitAt(point)
     if (!hit || hit.id !== startedTarget.id) return
@@ -308,7 +341,12 @@ function Root({
   return (
     <View
       {...nativeClass}
-      style={[styles.root, width === undefined ? null : { width }, height === undefined ? null : { height }, style]}
+      style={[
+        styles.root,
+        width === undefined ? null : { width },
+        height === undefined ? null : { height },
+        style,
+      ]}
       onLayout={onLayout}
       accessible={accessibilityMode === 'label'}
       accessibilityRole={accessibilityMode === 'label' ? 'image' : undefined}
@@ -330,14 +368,12 @@ function Root({
           {hasValidViewport ? <Scene scene={scene} transform={transform} /> : null}
         </SkiaCanvas>
       </View>
-      {accessibilityMode === 'fallback'
-        ? (
-            <View style={styles.accessibleFallback} accessible={false} pointerEvents="none">
-              {accessibilityLabel ? <Text>{accessibilityLabel}</Text> : null}
-              {fallbackContent}
-            </View>
-          )
-        : null}
+      {accessibilityMode === 'fallback' ? (
+        <View style={styles.accessibleFallback} accessible={false} pointerEvents="none">
+          {accessibilityLabel ? <Text>{accessibilityLabel}</Text> : null}
+          {fallbackContent}
+        </View>
+      ) : null}
     </View>
   )
 }

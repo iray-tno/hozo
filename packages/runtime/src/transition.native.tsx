@@ -20,8 +20,8 @@
 // one `Animated.timing` would drag the fast ones onto the slow driver.
 // They are separate animations for that reason and not for tidiness.
 
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
-import { Animated, Easing, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { type ReactNode, useEffect, useMemo, useRef } from 'react'
+import { Animated, Easing, type StyleProp, StyleSheet, type ViewStyle } from 'react-native'
 
 export interface HozoTransitionSpec {
   duration: number
@@ -132,7 +132,9 @@ export function HozoAnimated({ style, hozoTransition, children, ...props }: Hozo
     const before = transformMap(from.current)
     const after = transformMap(flat)
     const keys = [...new Set([...before.keys(), ...after.keys()])]
-    const moved = keys.filter((key) => (before.get(key) ?? identity(key)) !== (after.get(key) ?? identity(key)))
+    const moved = keys.filter(
+      (key) => (before.get(key) ?? identity(key)) !== (after.get(key) ?? identity(key)),
+    )
     if (moved.length > 0) {
       // Every key, not only the moved ones: `transform` is replaced
       // wholesale, so leaving one out would reset it to identity halfway

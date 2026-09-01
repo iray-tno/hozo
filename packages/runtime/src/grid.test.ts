@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { gridCellStyle, gridLayout, gridRows, gridRowSizes, gridTrackSizes, type GridTrack } from './grid.ts'
+import {
+  type GridTrack,
+  gridCellStyle,
+  gridLayout,
+  gridRowSizes,
+  gridRows,
+  gridTrackSizes,
+} from './grid.ts'
 
 const tracks: GridTrack[] = [
   { kind: 'points', value: 120 },
@@ -11,10 +18,13 @@ const tracks: GridTrack[] = [
 
 test('auto-placement fills rows and preserves empty final tracks', () => {
   const items = [1, 1, 1, 1].map((span) => ({ span }))
-  assert.deepEqual(gridRows(items, tracks).map((row) => row.map((cell) => cell.child)), [
-    [0, 1, 2],
-    [3, null, null],
-  ])
+  assert.deepEqual(
+    gridRows(items, tracks).map((row) => row.map((cell) => cell.child)),
+    [
+      [0, 1, 2],
+      [3, null, null],
+    ],
+  )
 })
 
 test('cell styles distinguish fixed space from proportional remainder', () => {
@@ -42,18 +52,27 @@ test('minmax tracks reserve their floor before distributing fractions', () => {
 
 test('a span moves to the next row when it cannot fit', () => {
   const items = [2, 2, 1].map((span) => ({ span }))
-  assert.deepEqual(gridRows(items, tracks).map((row) => row.map((cell) => cell.child)), [
-    [0, null],
-    [1, 2],
-  ])
+  assert.deepEqual(
+    gridRows(items, tracks).map((row) => row.map((cell) => cell.child)),
+    [
+      [0, null],
+      [1, 2],
+    ],
+  )
 })
 
 test('an explicit column leaves empty tracks and never backfills an earlier row', () => {
-  const items = [{ span: 1, columnStart: 1 }, { span: 2, columnStart: 0 }]
-  assert.deepEqual(gridRows(items, tracks).map((row) => row.map((cell) => cell.child)), [
-    [null, 0, null],
-    [1, null],
-  ])
+  const items = [
+    { span: 1, columnStart: 1 },
+    { span: 2, columnStart: 0 },
+  ]
+  assert.deepEqual(
+    gridRows(items, tracks).map((row) => row.map((cell) => cell.child)),
+    [
+      [null, 0, null],
+      [1, null],
+    ],
+  )
 })
 
 test('row spans reserve a two-dimensional rectangle from later items', () => {
@@ -67,7 +86,17 @@ test('row spans reserve a two-dimensional rectangle from later items', () => {
 })
 
 test('explicit fr rows share one flex fraction under intrinsic height', () => {
-  const layout = gridLayout([{ span: 1, rowStart: 0 }, { span: 1, rowStart: 1 }], 2)
-  const rows: GridTrack[] = [{ kind: 'fr', value: 1 }, { kind: 'fr', value: 1 }, { kind: 'fr', value: 1 }]
+  const layout = gridLayout(
+    [
+      { span: 1, rowStart: 0 },
+      { span: 1, rowStart: 1 },
+    ],
+    2,
+  )
+  const rows: GridTrack[] = [
+    { kind: 'fr', value: 1 },
+    { kind: 'fr', value: 1 },
+    { kind: 'fr', value: 1 },
+  ]
   assert.deepEqual(gridRowSizes(layout, [10, 30], 0, rows), [30, 30, 30])
 })

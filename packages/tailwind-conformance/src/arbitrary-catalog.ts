@@ -95,7 +95,14 @@ export async function buildArbitraryCatalog(): Promise<{
   }
   // Arbitrary variants, whose lowering is a different mechanism again --
   // one rewrites a selector, one wraps the rule in an at-rule.
-  for (const variant of ['[&>*]', '[&_a]', '[&:nth-child(3)]', '[.dark_&]', '[@media(print)]', '[@supports(display:grid)]']) {
+  for (const variant of [
+    '[&>*]',
+    '[&_a]',
+    '[&:nth-child(3)]',
+    '[.dark_&]',
+    '[@media(print)]',
+    '[@supports(display:grid)]',
+  ]) {
     probes.push(`${variant}:p-4`, `${variant}:text-red-500`)
   }
 

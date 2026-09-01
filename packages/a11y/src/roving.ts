@@ -16,13 +16,7 @@
 export type Orientation = 'horizontal' | 'vertical' | 'both'
 
 /** The keys this understands, spelled as `KeyboardEvent.key`. */
-export type RovingKey =
-  | 'ArrowLeft'
-  | 'ArrowRight'
-  | 'ArrowUp'
-  | 'ArrowDown'
-  | 'Home'
-  | 'End'
+export type RovingKey = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'
 
 export interface RovingOptions {
   /** How many items the group has. */
@@ -67,7 +61,14 @@ export interface RovingOptions {
  * on every key is how a widget stops being a widget and becomes a trap.
  */
 export function nextIndex(key: RovingKey, options: RovingOptions): number | null {
-  const { count, active, orientation = 'horizontal', wrap = true, disabled = [], rtl = false } = options
+  const {
+    count,
+    active,
+    orientation = 'horizontal',
+    wrap = true,
+    disabled = [],
+    rtl = false,
+  } = options
   if (count <= 0) return null
 
   const horizontal = orientation === 'horizontal' || orientation === 'both'
@@ -148,8 +149,6 @@ function seek(
  */
 export function tabStops(options: Pick<RovingOptions, 'count' | 'active' | 'disabled'>): number[] {
   const { count, active, disabled = [] } = options
-  const stop = disabled.includes(active)
-    ? seek(0, 1, count, disabled, false, active)
-    : active
+  const stop = disabled.includes(active) ? seek(0, 1, count, disabled, false, active) : active
   return Array.from({ length: count }, (_, index) => (index === stop ? 0 : -1))
 }

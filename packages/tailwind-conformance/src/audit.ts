@@ -20,8 +20,8 @@
 // can no longer support from the types alone", which is exactly the set
 // worth reading.
 
-import { normalize } from './normalize.ts'
 import { camelCase, reactNativeCssProperties, reactNativeStyleKeys } from './native-surface.ts'
+import { normalize } from './normalize.ts'
 
 export type RefusalVerdict = 'CONFIRMED' | 'SUSPECT' | 'PARTIAL' | 'UNCHECKABLE'
 

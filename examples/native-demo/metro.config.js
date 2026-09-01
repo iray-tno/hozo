@@ -14,8 +14,6 @@ const { withHozo } = require('@hozo/metro/config')
 const projectRoot = __dirname
 const workspaceRoot = path.resolve(projectRoot, '..', '..')
 
-
-
 const config = getDefaultConfig(projectRoot)
 
 // A pnpm workspace keeps dependencies outside the project directory, so

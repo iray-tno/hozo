@@ -18,7 +18,7 @@
 // arriving at the third option because that is where you were last time
 // tells you nothing about what is selected now.
 
-import { useCallback, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { type KeyboardEvent, type ReactNode, useCallback, useId, useRef, useState } from 'react'
 
 import { nextIndex, type Orientation, type RovingKey } from './roving.ts'
 

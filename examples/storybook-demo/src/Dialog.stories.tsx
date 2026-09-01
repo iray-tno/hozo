@@ -1,6 +1,6 @@
+import { Button, Dialog, Heading, Paragraph, View } from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Button, Dialog, Heading, Paragraph, View } from '@hozo/core'
 
 function DialogDemo() {
   const [open, setOpen] = useState(false)
@@ -11,7 +11,8 @@ function DialogDemo() {
         Accessible Modal Dialog (@hozo/a11y)
       </Heading>
       <Paragraph className="text-sm text-slate-600">
-        Native HTML &lt;dialog&gt; modal with focus trapping, keyboard Escape handling, and focus restoration to opener button.
+        Native HTML &lt;dialog&gt; modal with focus trapping, keyboard Escape handling, and focus
+        restoration to opener button.
       </Paragraph>
       <Button
         className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors inline-flex justify-center items-center cursor-pointer"

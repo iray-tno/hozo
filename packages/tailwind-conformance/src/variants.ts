@@ -231,9 +231,9 @@ export async function buildVariantCatalog(
     for (const one of variants) {
       for (const [candidate, names] of [
         [`${one}:${utility}`, [one]] as const,
-        ...variants.filter((two) => two !== one).map(
-          (two) => [`${one}:${two}:${utility}`, [one, two]] as const,
-        ),
+        ...variants
+          .filter((two) => two !== one)
+          .map((two) => [`${one}:${two}:${utility}`, [one, two]] as const),
       ]) {
         const bucket = rulesByClass.get(cssClassName(candidate)) ?? []
         const shapes = toShapes(bucket, new RegExp(`\\.${classNamePattern(candidate)}(?![\\w-])`))
@@ -306,8 +306,7 @@ function canonicalSuffix(suffix: string): string {
 
 export function compareVariant(entry: VariantCase, vars: Map<string, string>): VariantVerdict {
   const source =
-    `import { View } from '@hozo/core'\n` +
-    `const el = <View className="${entry.candidate}" />\n`
+    `import { View } from '@hozo/core'\n` + `const el = <View className="${entry.candidate}" />\n`
   const [compiled] = hozoCompile(source)
   const actual = compiled ? shapesFor(compiled.css, /\.hozo-\d+/.source, true) : []
   if (actual.length === 0) {
@@ -441,9 +440,7 @@ function indexByClassName(css: string): Map<string, Rule[]> {
  * is in the stylesheet.
  */
 export function cssClassName(candidate: string): string {
-  const escaped = candidate.replace(/[^\w-]/g, (ch) =>
-    ch.charCodeAt(0) > 127 ? ch : `\\${ch}`,
-  )
+  const escaped = candidate.replace(/[^\w-]/g, (ch) => (ch.charCodeAt(0) > 127 ? ch : `\\${ch}`))
   // A leading digit is the one case a backslash cannot fix: CSS spells it
   // as the code point in hex followed by a space, so `2xl:flex` is
   // `.\32 xl\:flex` and not `.2xl\:flex`. Without this, `2xl` -- a

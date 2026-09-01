@@ -30,8 +30,16 @@ test('resolves var() and calc() into pixels', () => {
 
 test('expands the flex shorthand so 1 and 1 1 0% agree', () => {
   assert.deepEqual(decls('flex: 1;'), decls('flex: 1 1 0%;'))
-  assert.deepEqual(decls('flex: auto;'), { 'flex-grow': '1', 'flex-shrink': '1', 'flex-basis': 'auto' })
-  assert.deepEqual(decls('flex: none;'), { 'flex-grow': '0', 'flex-shrink': '0', 'flex-basis': 'auto' })
+  assert.deepEqual(decls('flex: auto;'), {
+    'flex-grow': '1',
+    'flex-shrink': '1',
+    'flex-basis': 'auto',
+  })
+  assert.deepEqual(decls('flex: none;'), {
+    'flex-grow': '0',
+    'flex-shrink': '0',
+    'flex-basis': 'auto',
+  })
 })
 
 test('expands box shorthands to longhands, including 2-value form', () => {
@@ -60,7 +68,9 @@ test('resolves color custom properties', () => {
 test('folds a unitless line-height ratio against the font size in the same rule', () => {
   // Tailwind's text-xl: font-size 1.25rem, line-height calc(1.75/1.25).
   assert.deepEqual(
-    decls('font-size: var(--text-xl); line-height: var(--tw-leading, var(--text-xl--line-height));'),
+    decls(
+      'font-size: var(--text-xl); line-height: var(--tw-leading, var(--text-xl--line-height));',
+    ),
     { 'font-size': '20px', 'line-height': '28px' },
   )
 })
@@ -125,23 +135,29 @@ test('an irreducible value is still compared, in the shorthand it expands to', (
   // `margin: var(--x)` and four `margin-*: var(--x)` are one declaration
   // written two ways, and Tailwind writes the first where Hozo writes the
   // second. Neither reduces to a number and both reduce to the same four.
-  assert.deepEqual(normalize('margin: var(--x);', vars).declarations, new Map([
-    ['margin-top', 'var(--x)'],
-    ['margin-right', 'var(--x)'],
-    ['margin-bottom', 'var(--x)'],
-    ['margin-left', 'var(--x)'],
-  ]))
+  assert.deepEqual(
+    normalize('margin: var(--x);', vars).declarations,
+    new Map([
+      ['margin-top', 'var(--x)'],
+      ['margin-right', 'var(--x)'],
+      ['margin-bottom', 'var(--x)'],
+      ['margin-left', 'var(--x)'],
+    ]),
+  )
 })
 
 test('a box shorthand splits where CSS splits it, not on every space', () => {
   // `calc(100% - 32px)` is one value carrying two spaces. Splitting there
   // gave a top of `calc(100%`, a right of `-` and a bottom of `32px)`.
-  assert.deepEqual(normalize('padding: calc(100% - 32px);', vars).declarations, new Map([
-    ['padding-top', 'calc(100% - 32px)'],
-    ['padding-right', 'calc(100% - 32px)'],
-    ['padding-bottom', 'calc(100% - 32px)'],
-    ['padding-left', 'calc(100% - 32px)'],
-  ]))
+  assert.deepEqual(
+    normalize('padding: calc(100% - 32px);', vars).declarations,
+    new Map([
+      ['padding-top', 'calc(100% - 32px)'],
+      ['padding-right', 'calc(100% - 32px)'],
+      ['padding-bottom', 'calc(100% - 32px)'],
+      ['padding-left', 'calc(100% - 32px)'],
+    ]),
+  )
 })
 
 test('folds the factors and terms that need no arithmetic', () => {
@@ -179,10 +195,9 @@ test('resolves registers assigned in the same rule that references them', () => 
   // Tailwind sets `--tw-blur` and reads it back in the very next
   // declaration; the assignment isn't output to compare, but it has to be
   // in scope first.
-  assert.deepEqual(
-    decls('--tw-blur: blur(8px); filter: var(--tw-blur,) var(--tw-brightness,);'),
-    { filter: 'blur(8px)' },
-  )
+  assert.deepEqual(decls('--tw-blur: blur(8px); filter: var(--tw-blur,) var(--tw-brightness,);'), {
+    filter: 'blur(8px)',
+  })
 })
 
 test('resolves a long var() chain without truncating the tail', () => {

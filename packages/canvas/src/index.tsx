@@ -1,18 +1,15 @@
 import {
+  type CSSProperties,
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
 } from 'react'
 
-import {
-  canvasAccessibilityMode,
-  type CanvasAccessibilityProps,
-} from './accessibility.ts'
-import { hitTestCanvas, type CanvasPoint } from './hit-test.ts'
+import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './accessibility.ts'
+import { type CanvasPoint, hitTestCanvas } from './hit-test.ts'
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
   Circle,
@@ -26,9 +23,17 @@ import {
   useCanvasScene,
 } from './scene.tsx'
 
+export type { CanvasAccessibilityProps, CanvasAccessibleFallback } from './accessibility.ts'
+export {
+  type CanvasHitTestResult,
+  type CanvasHitTestViewport,
+  type CanvasPoint,
+  hitTestCanvas,
+} from './hit-test.ts'
+export { type CanvasViewport, renderCanvas2D } from './render-canvas-2d.ts'
 export type {
-  CanvasPaintProps,
   CanvasInteractionProps,
+  CanvasPaintProps,
   CanvasPressEvent,
   CanvasScene,
   CanvasSceneNode,
@@ -43,14 +48,6 @@ export type {
   RoundedRectProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
-export { renderCanvas2D, type CanvasViewport } from './render-canvas-2d.ts'
-export {
-  hitTestCanvas,
-  type CanvasHitTestResult,
-  type CanvasHitTestViewport,
-  type CanvasPoint,
-} from './hit-test.ts'
-export type { CanvasAccessibleFallback, CanvasAccessibilityProps } from './accessibility.ts'
 
 export type CanvasProps = CanvasAccessibilityProps & {
   children?: ReactNode
@@ -103,11 +100,13 @@ function Root({
         height: height ?? (bounds.height || viewBox?.[3] || 150),
         pixelRatio: globalThis.devicePixelRatio || 1,
       }
-      setSize((current) => current.width === next.width
-        && current.height === next.height
-        && current.pixelRatio === next.pixelRatio
-        ? current
-        : next)
+      setSize((current) =>
+        current.width === next.width &&
+        current.height === next.height &&
+        current.pixelRatio === next.pixelRatio
+          ? current
+          : next,
+      )
     }
     measure()
     if (typeof ResizeObserver === 'undefined') return
@@ -131,16 +130,17 @@ function Root({
   const surfacePoint = (event: ReactPointerEvent<HTMLCanvasElement>): CanvasPoint => {
     const bounds = event.currentTarget.getBoundingClientRect()
     return {
-      x: (event.clientX - bounds.left) * size.width / (bounds.width || size.width || 1),
-      y: (event.clientY - bounds.top) * size.height / (bounds.height || size.height || 1),
+      x: ((event.clientX - bounds.left) * size.width) / (bounds.width || size.width || 1),
+      y: ((event.clientY - bounds.top) * size.height) / (bounds.height || size.height || 1),
     }
   }
-  const hitAt = (point: CanvasPoint) => hitTestCanvas(
-    scene,
-    point,
-    { width: size.width, height: size.height, viewBox, fit },
-    isInteractive,
-  )
+  const hitAt = (point: CanvasPoint) =>
+    hitTestCanvas(
+      scene,
+      point,
+      { width: size.width, height: size.height, viewBox, fit },
+      isInteractive,
+    )
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     pressedTargets.current.delete(event.pointerId)
     if (!event.isPrimary || event.button !== 0) return
@@ -181,18 +181,16 @@ function Root({
       >
         {collector}
       </canvas>
-      {accessibilityMode === 'fallback'
-        ? (
-            <div
-              style={accessibleOnlyStyle}
-              role={accessibilityLabel ? 'group' : undefined}
-              aria-label={accessibilityLabel}
-              data-hozo-canvas-fallback=""
-            >
-              {accessibleFallback}
-            </div>
-          )
-        : null}
+      {accessibilityMode === 'fallback' ? (
+        <div
+          style={accessibleOnlyStyle}
+          role={accessibilityLabel ? 'group' : undefined}
+          aria-label={accessibilityLabel}
+          data-hozo-canvas-fallback=""
+        >
+          {accessibleFallback}
+        </div>
+      ) : null}
     </>
   )
 }

@@ -8,7 +8,8 @@ export function Welcome() {
           Hozo Storybook
         </Heading>
         <Paragraph className="text-slate-600 leading-relaxed text-sm">
-          A live component catalog showcasing Hozo's cross-platform primitives and WAI-ARIA accessible patterns compiled to semantic Web elements and Fabric Native components.
+          A live component catalog showcasing Hozo's cross-platform primitives and WAI-ARIA
+          accessible patterns compiled to semantic Web elements and Fabric Native components.
         </Paragraph>
       </View>
       <View className="pt-2">

@@ -20,7 +20,7 @@ function applyTransform(context: CanvasRenderingContext2D, transform?: CanvasTra
   const originY = transform.originY ?? 0
   context.translate(transform.translateX ?? 0, transform.translateY ?? 0)
   if (originX !== 0 || originY !== 0) context.translate(originX, originY)
-  if (transform.rotate) context.rotate(transform.rotate * Math.PI / 180)
+  if (transform.rotate) context.rotate((transform.rotate * Math.PI) / 180)
   context.scale(transform.scaleX ?? 1, transform.scaleY ?? 1)
   if (originX !== 0 || originY !== 0) context.translate(-originX, -originY)
 }
@@ -34,9 +34,14 @@ function applyPaint(context: CanvasRenderingContext2D, paint: CanvasPaintProps) 
   if (paint.lineJoin) context.lineJoin = paint.lineJoin
 }
 
-function paints(paint: CanvasPaintProps, context: CanvasRenderingContext2D, fillRule?: CanvasFillRule) {
+function paints(
+  paint: CanvasPaintProps,
+  context: CanvasRenderingContext2D,
+  fillRule?: CanvasFillRule,
+) {
   const hasFill = paint.fill !== 'none' && (paint.fill !== undefined || paint.stroke === undefined)
-  const hasStroke = paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
+  const hasStroke =
+    paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
   if (hasFill) context.fill(fillRule)
   if (hasStroke) context.stroke()
 }
@@ -44,7 +49,9 @@ function paints(paint: CanvasPaintProps, context: CanvasRenderingContext2D, fill
 function pathForClip(context: CanvasRenderingContext2D, props: Omit<ClipProps, 'children'>) {
   if (props.path !== undefined) {
     if (typeof Path2D === 'undefined') {
-      throw new Error('This browser does not support Path2D, which Canvas.Path and path clips require.')
+      throw new Error(
+        'This browser does not support Path2D, which Canvas.Path and path clips require.',
+      )
     }
     context.clip(new Path2D(props.path))
     return
@@ -93,8 +100,20 @@ function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
           const y = node.props.y ?? 0
           const radius = Math.min(node.props.radius, node.props.width / 2, node.props.height / 2)
           context.moveTo(x + radius, y)
-          context.arcTo(x + node.props.width, y, x + node.props.width, y + node.props.height, radius)
-          context.arcTo(x + node.props.width, y + node.props.height, x, y + node.props.height, radius)
+          context.arcTo(
+            x + node.props.width,
+            y,
+            x + node.props.width,
+            y + node.props.height,
+            radius,
+          )
+          context.arcTo(
+            x + node.props.width,
+            y + node.props.height,
+            x,
+            y + node.props.height,
+            radius,
+          )
           context.arcTo(x, y + node.props.height, x, y, radius)
           context.arcTo(x, y, x + node.props.width, y, radius)
           context.closePath()
@@ -137,7 +156,9 @@ function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
         }
         applyPaint(context, node.props)
         const path = new Path2D(node.props.path)
-        const hasFill = node.props.fill !== 'none' && (node.props.fill !== undefined || node.props.stroke === undefined)
+        const hasFill =
+          node.props.fill !== 'none' &&
+          (node.props.fill !== undefined || node.props.stroke === undefined)
         const hasStroke = node.props.stroke !== undefined && node.props.stroke !== 'none'
         if (hasFill) context.fill(path, node.props.fillRule)
         if (hasStroke) context.stroke(path)

@@ -16,15 +16,11 @@
 
 import path from 'node:path'
 
-import {
-  createCompiler,
-  type CompiledNativeComponent,
-  type Compiler,
-} from '@hozo/compiler'
+import { type CompiledNativeComponent, type Compiler, createCompiler } from '@hozo/compiler'
 import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
-import { importSpecifier } from '@hozo/compiler/project'
 import type { StylexModuleCache } from '@hozo/compiler/project'
+import { importSpecifier } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
 const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
@@ -53,7 +49,9 @@ function mergeStyleObjects(blocks: string[]): string {
   if (blocks.length === 1) {
     return blocks[0]!
   }
-  const inner = blocks.map((block) => block.trim().replace(/^\{/, '').replace(/\}$/, '').trim()).join('\n')
+  const inner = blocks
+    .map((block) => block.trim().replace(/^\{/, '').replace(/\}$/, '').trim())
+    .join('\n')
   return `{\n${inner}\n}`
 }
 
@@ -179,7 +177,8 @@ export function transformHozoSource(
     )
     .map((entry) => ({
       local: entry.local,
-      specifier: entry.imported === entry.local ? entry.imported : `${entry.imported} as ${entry.local}`,
+      specifier:
+        entry.imported === entry.local ? entry.imported : `${entry.imported} as ${entry.local}`,
     }))
 
   // Every rewrite as an offset-keyed edit, applied back-to-front so
@@ -253,9 +252,7 @@ export function transformHozoSource(
   // above changes an existing `react-native` import, so parsing `next` again
   // used to rediscover information that was already stable.
   const alreadyImported = new Set(
-    compiled.imports
-      .filter((entry) => entry.source === 'react-native')
-      .map((entry) => entry.local),
+    compiled.imports.filter((entry) => entry.source === 'react-native').map((entry) => entry.local),
   )
   const mergedStyles = mergeStyleObjects(styleBlocks)
   // No styles means no declaration, and no `StyleSheet` import to go with

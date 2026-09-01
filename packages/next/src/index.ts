@@ -20,12 +20,12 @@ import path from 'node:path'
 
 import { cssFileNameFor } from '@hozo/compiler/lower'
 import {
+  type HozoProjectOptions,
   preflightCssFor,
   preflightCssPath,
   scanProject,
   scanSummary,
   writeFileIfChanged,
-  type HozoProjectOptions,
 } from '@hozo/compiler/project'
 import { preflightCss } from '@hozo/tailwind'
 

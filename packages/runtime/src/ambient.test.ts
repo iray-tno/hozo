@@ -4,10 +4,10 @@ import { test } from 'node:test'
 import {
   bucketFor,
   createStore,
+  ENVIRONMENT_FACTS,
   isAtLeast,
   isPortrait,
   sameViewport,
-  ENVIRONMENT_FACTS,
 } from './ambient.ts'
 
 test('a store notifies only when the value actually changes', () => {

@@ -48,7 +48,11 @@ test('a mixed Expo file lowers one half and carries the other', () => {
   assert.ok(lowered)
   const lowered0 = /<div className="hozo-view hozo-[a-z0-9]+-r0-0">/
   assert.match(lowered.code, lowered0, 'the View should have lowered')
-  assert.match(lowered.code, /<Host><Button label="Save" \/><\/Host>/, 'the @expo/ui half must survive untouched')
+  assert.match(
+    lowered.code,
+    /<Host><Button label="Save" \/><\/Host>/,
+    'the @expo/ui half must survive untouched',
+  )
   assert.match(lowered.css, /padding-top: 16px/)
 })
 

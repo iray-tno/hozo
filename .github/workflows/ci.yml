@@ -57,6 +57,7 @@ jobs:
       # before the install's own scripts would want it, because nothing
       # else puts it there on a fresh checkout.
       - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm lint
       - run: pnpm test
 
   # The conformance audit: Hozo's whole output surface against Tailwind's

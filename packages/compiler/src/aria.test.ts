@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const generated = path.join(repoRoot, 'crates', 'hozo_parser', 'src', 'aria.rs')
@@ -59,12 +59,21 @@ test('every requirement the table carries is one the checker reads', () => {
   // requirement is checked, and a role gains checks the moment the
   // specification gives it one and the table is regenerated.
   const table = readFileSync(generated, 'utf8')
-  const rows = [...table.matchAll(/AriaRole \{ name: "([^"]+)", is_abstract: (\w+), required_props: &\[([^\]]*)\], required_context: &\[([^\]]*)\], required_owned: &\[([^\]]*)\]/g)]
+  const rows = [
+    ...table.matchAll(
+      /AriaRole \{ name: "([^"]+)", is_abstract: (\w+), required_props: &\[([^\]]*)\], required_context: &\[([^\]]*)\], required_owned: &\[([^\]]*)\]/g,
+    ),
+  ]
   const usable = rows.filter(([, , isAbstract]) => isAbstract === 'false')
-  const withRequirement = usable.filter(([, , , props, context, owned]) => props || context || owned)
+  const withRequirement = usable.filter(
+    ([, , , props, context, owned]) => props || context || owned,
+  )
 
   assert.ok(usable.length > 70, `expected the ARIA role list, got ${usable.length}`)
-  assert.ok(withRequirement.length > 10, `expected roles with requirements, got ${withRequirement.length}`)
+  assert.ok(
+    withRequirement.length > 10,
+    `expected roles with requirements, got ${withRequirement.length}`,
+  )
 
   // What the checker reads is exactly the three fields the generator
   // writes. Anything ARIA says that is not in those fields -- name from
@@ -75,12 +84,15 @@ test('every requirement the table carries is one the checker reads', () => {
     'utf8',
   )
   for (const field of ['required_props', 'required_context', 'required_owned']) {
-    assert.match(checker, new RegExp(`spec\.${field}`), `${field} is in the table and unread`)
+    assert.match(checker, new RegExp(`spec.${field}`), `${field} is in the table and unread`)
   }
   // `supported_props` and `prohibited_props` are read through
   // `aria::allows_prop`, which is where they combine with the globals.
   assert.match(checker, /aria::allows_prop/)
-  const helper = readFileSync(path.join(repoRoot, 'crates', 'hozo_parser', 'src', 'aria.rs'), 'utf8')
+  const helper = readFileSync(
+    path.join(repoRoot, 'crates', 'hozo_parser', 'src', 'aria.rs'),
+    'utf8',
+  )
   const allowsProp = helper.slice(helper.indexOf('pub fn allows_prop'))
   for (const field of ['prohibited_props', 'GLOBAL_PROPS', 'supported_props']) {
     assert.ok(allowsProp.includes(field), `${field} is in the table and unread`)

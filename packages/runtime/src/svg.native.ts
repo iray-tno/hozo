@@ -19,20 +19,20 @@
 // two bindings of one name in a file neither of them wrote is not a
 // collision anyone could be expected to debug.
 export {
-  Svg,
-  G,
-  Rect,
   Circle,
+  ClipPath,
+  Defs,
   Ellipse,
+  G,
   Line,
+  LinearGradient,
   Path,
   Polygon,
   Polyline,
-  Text as SvgText,
-  Defs,
-  LinearGradient,
   RadialGradient,
+  Rect,
   Stop,
-  ClipPath,
+  Svg,
+  Text as SvgText,
   Use,
 } from 'react-native-svg'

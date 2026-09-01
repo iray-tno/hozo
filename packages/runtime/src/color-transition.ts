@@ -5,7 +5,12 @@ function rgba(color: string): [number, number, number, number] | null {
   let hex = match[1]!
   if (hex.length === 3) hex = [...hex].map((digit) => digit + digit).join('')
   const alpha = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1
-  return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16), alpha]
+  return [
+    parseInt(hex.slice(0, 2), 16),
+    parseInt(hex.slice(2, 4), 16),
+    parseInt(hex.slice(4, 6), 16),
+    alpha,
+  ]
 }
 
 /** The visible colour at `progress`, used when an interrupted transition restarts. */

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { gzipSync } from 'node:zlib'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 
 import Metro from 'metro'
 
@@ -38,7 +38,10 @@ const result = {
     gzip: sizes.hozo.gzip - sizes.native.gzip,
   },
 }
-writeFileSync(path.join(outputDirectory, 'bundle-sizes.json'), `${JSON.stringify(result, null, 2)}\n`)
+writeFileSync(
+  path.join(outputDirectory, 'bundle-sizes.json'),
+  `${JSON.stringify(result, null, 2)}\n`,
+)
 
 console.log(JSON.stringify(result, null, 2))
 
@@ -46,5 +49,7 @@ console.log(JSON.stringify(result, null, 2))
 // large positive delta means build-time Hozo code or an accidental runtime
 // dependency leaked into the application bundle.
 if (result.hozoIncrement.raw > 5_000 || result.hozoIncrement.gzip > 1_500) {
-  throw new Error(`Hozo production increment is unexpectedly large: ${JSON.stringify(result.hozoIncrement)}`)
+  throw new Error(
+    `Hozo production increment is unexpectedly large: ${JSON.stringify(result.hozoIncrement)}`,
+  )
 }

@@ -1,4 +1,4 @@
-import { View, Text } from '@hozo/core'
+import { Text, View } from '@hozo/core'
 import { accentFor } from './variants'
 
 export function Panel({ show, items }: { show?: boolean; items?: string[] }) {
@@ -7,7 +7,9 @@ export function Panel({ show, items }: { show?: boolean; items?: string[] }) {
       <Text className="text-xl font-bold">Panel</Text>
       {show && <Text className="text-sm">extra</Text>}
       {(items ?? []).map((i) => (
-        <Text key={i} className={accentFor(true)}>{i}</Text>
+        <Text key={i} className={accentFor(true)}>
+          {i}
+        </Text>
       ))}
     </View>
   )

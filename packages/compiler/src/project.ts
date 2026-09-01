@@ -6,17 +6,14 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { globbySync, isGitIgnoredSync } from 'globby'
 
-import { openCandidateCache, type CandidateCache, type StylexExternalBinding } from './index.ts'
-import {
-  StylexModuleCache,
-  type StylexResolutionRequest,
-} from './stylex-project.ts'
+import { type CandidateCache, openCandidateCache, type StylexExternalBinding } from './index.ts'
+import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
 
 export {
-  StylexModuleCache,
   type CachedStylexModule,
-  type StylexResolvedBindings,
+  StylexModuleCache,
   type StylexResolutionRequest,
+  type StylexResolvedBindings,
 } from './stylex-project.ts'
 
 /** Extensions the project walk reads from disk. */

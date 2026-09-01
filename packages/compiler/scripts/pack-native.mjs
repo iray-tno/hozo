@@ -20,7 +20,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { NATIVE_TARGETS, cdylibFileName, hostTarget } from '../src/native-targets.ts'
+import { cdylibFileName, hostTarget, NATIVE_TARGETS } from '../src/native-targets.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.resolve(here, '..')
@@ -67,7 +67,13 @@ execFileSync('cargo', ['build', '--release', '-p', 'hozo_napi', '--target', targ
 
 // `--target` puts the output under `target/<triple>/release`, which is
 // true even when the triple is the host's own.
-const built = path.join(repoRoot, 'target', target.triple, 'release', cdylibFileName(target.platform, 'hozo_napi'))
+const built = path.join(
+  repoRoot,
+  'target',
+  target.triple,
+  'release',
+  cdylibFileName(target.platform, 'hozo_napi'),
+)
 if (!existsSync(built)) {
   throw new Error(`cargo reported success but ${built} does not exist`)
 }

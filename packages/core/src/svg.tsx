@@ -27,7 +27,11 @@ function element<T>(tag: string) {
     // `createElement` with a string tag, so the intrinsic element does the
     // work. Typing it here rather than writing fourteen components is what
     // keeps this file from being fourteen copies of one line.
-    return <Tag tag={tag} rest={rest}>{children}</Tag>
+    return (
+      <Tag tag={tag} rest={rest}>
+        {children}
+      </Tag>
+    )
   }
   Component.displayName = tag
   return Component

@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Heading, Paragraph, Text, View } from '@hozo/core'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function TypographyDemo() {
   return (
@@ -25,10 +25,20 @@ function TypographyDemo() {
         </Heading>
         <Paragraph className="text-base leading-relaxed text-slate-700">
           Hozo lowers <Text className="font-semibold text-indigo-600">Paragraph</Text> and{' '}
-          <Text className="font-semibold text-indigo-600">Heading</Text> to true semantic HTML tags (
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800 border border-slate-200 inline-block align-baseline">&lt;p&gt;</code>,{' '}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800 border border-slate-200 inline-block align-baseline">&lt;h1&gt;-&lt;h6&gt;</code>
-          ) on Web, and to React Native <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800 border border-slate-200 inline-block align-baseline">Text</code> with header roles on Native.
+          <Text className="font-semibold text-indigo-600">Heading</Text> to true semantic HTML tags
+          (
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800 border border-slate-200 inline-block align-baseline">
+            &lt;p&gt;
+          </code>
+          ,{' '}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800 border border-slate-200 inline-block align-baseline">
+            &lt;h1&gt;-&lt;h6&gt;
+          </code>
+          ) on Web, and to React Native{' '}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800 border border-slate-200 inline-block align-baseline">
+            Text
+          </code>{' '}
+          with header roles on Native.
         </Paragraph>
         <Paragraph className="text-sm leading-relaxed text-slate-500">
           Muted secondary description text rendered with native semantic document structure.

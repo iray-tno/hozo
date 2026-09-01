@@ -11,40 +11,40 @@
 // emit as a runtime import has to be reachable from here. See
 // `hozo_native::LowerOutput::runtime_imports` for that list.
 
-export * from './index.ts'
-export {
-  useHozoDark,
-  useHozoBreakpoint,
-  useHozoWidthAtLeast,
-  useHozoViewport,
-  useHozoAnimation,
-  type HozoAnimation,
-  useHozoEnvironment,
-} from './hooks.native.ts'
-export { HozoSpaced } from './spacing.native.tsx'
-export { HozoGrid, HozoGridItem } from './grid.native.tsx'
-export {
-  HozoContainer,
-  HozoContainerQuery,
-  type HozoContainerProps,
-  type HozoContainerWidths,
-} from './container.native.tsx'
-export { HozoLink, type HozoLinkProps } from './link.native.tsx'
-export { hozoImageSource } from './image-source.native.ts'
-export type { GridTrack } from './grid.ts'
-export {
-  HozoPressable,
-  HozoText,
-  type HozoPressableProps,
-  type HozoPressableState,
-  type HozoTextProps,
-  type HozoTransition,
-} from './pressable.native.tsx'
 // Re-exported rather than left in `@hozo/a11y`: generated code should
 // depend on one package, not on how the compiler divides its own. The
 // implementation stays there, where its tests and its reasoning are.
 export { HozoDialog, type HozoDialogProps } from '@hozo/a11y'
 export type { BreakpointName, Viewport } from './ambient.ts'
+export {
+  HozoContainer,
+  type HozoContainerProps,
+  HozoContainerQuery,
+  type HozoContainerWidths,
+} from './container.native.tsx'
+export { HozoGrid, HozoGridItem } from './grid.native.tsx'
+export type { GridTrack } from './grid.ts'
+export {
+  type HozoAnimation,
+  useHozoAnimation,
+  useHozoBreakpoint,
+  useHozoDark,
+  useHozoEnvironment,
+  useHozoViewport,
+  useHozoWidthAtLeast,
+} from './hooks.native.ts'
+export { hozoImageSource } from './image-source.native.ts'
+export * from './index.ts'
+export { HozoLink, type HozoLinkProps } from './link.native.tsx'
+export {
+  HozoPressable,
+  type HozoPressableProps,
+  type HozoPressableState,
+  HozoText,
+  type HozoTextProps,
+  type HozoTransition,
+} from './pressable.native.tsx'
+export { HozoSpaced } from './spacing.native.tsx'
 
 export {
   HozoAnimated,

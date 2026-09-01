@@ -1,6 +1,6 @@
+import { Combobox, Heading, Listbox, Paragraph, View } from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Combobox, Heading, Listbox, Paragraph, View } from '@hozo/core'
 
 function ComboboxDemo() {
   const [selectedBundler, setSelectedBundler] = useState('vite')
@@ -19,7 +19,12 @@ function ComboboxDemo() {
           Combobox (@hozo/a11y)
         </Heading>
         <Paragraph className="text-sm text-slate-600">
-          Accessible autocomplete dropdown where focus stays in the text field and active options are announced via <code className="text-xs bg-slate-100 px-1 py-0.5 rounded font-mono border border-slate-200">aria-activedescendant</code>.
+          Accessible autocomplete dropdown where focus stays in the text field and active options
+          are announced via{' '}
+          <code className="text-xs bg-slate-100 px-1 py-0.5 rounded font-mono border border-slate-200">
+            aria-activedescendant
+          </code>
+          .
         </Paragraph>
         <Combobox
           options={options}

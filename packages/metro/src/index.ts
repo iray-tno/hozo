@@ -11,11 +11,11 @@
 
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { loadProjectTheme } from '@hozo/tailwind'
-import { createCompiler, type Compiler, type Theme } from '@hozo/compiler'
+import { type Compiler, createCompiler, type Theme } from '@hozo/compiler'
 import { CACHE_DIR, StylexModuleCache } from '@hozo/compiler/project'
-import { readMetroState } from './config.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
+import { loadProjectTheme } from '@hozo/tailwind'
+import { readMetroState } from './config.ts'
 import { transformHozoSource } from './transform.ts'
 
 const require = createRequire(import.meta.url)
@@ -66,9 +66,7 @@ function loadUpstream(projectRoot?: string): UpstreamTransformer {
   // transformer is the consuming app's dependency, and under pnpm's strict
   // layout a package cannot see its consumer's -- so resolving relative to
   // this file finds nothing in exactly the setup a monorepo has.
-  const fromProject = projectRoot
-    ? createRequire(path.join(projectRoot, 'noop.js'))
-    : require
+  const fromProject = projectRoot ? createRequire(path.join(projectRoot, 'noop.js')) : require
   const tried: string[] = []
   for (const name of candidates) {
     for (const resolve of [fromProject, require]) {
@@ -135,16 +133,10 @@ export async function transform(params: TransformParams): Promise<unknown> {
         warn: (message) => console.warn(message),
       })
     : undefined
-  const compilerState = compilerFor(
-    projectRoot,
-    theme,
-    state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
-  )
+  const compilerState = compilerFor(projectRoot, theme, state?.sources ?? DEFAULT_PRIMITIVE_SOURCES)
   const platform = params.options?.platform ?? 'default'
   if (
-    compilerState.stylexModules?.replaceResolvedBindings(
-      state?.stylexBindings?.[platform] ?? [],
-    )
+    compilerState.stylexModules?.replaceResolvedBindings(state?.stylexBindings?.[platform] ?? [])
   ) {
     compilerState.compiler.setStylexModules(compilerState.stylexModules.moduleSources())
   }
@@ -159,6 +151,6 @@ export async function transform(params: TransformParams): Promise<unknown> {
   return loadUpstream(projectRoot).transform(nextParams)
 }
 
+export { type HozoMetroOptions, withHozo } from './config.ts'
+export { candidateModulePath, generateCandidateModule } from './project.ts'
 export { transformHozoSource } from './transform.ts'
-export { generateCandidateModule, candidateModulePath } from './project.ts'
-export { withHozo, type HozoMetroOptions } from './config.ts'

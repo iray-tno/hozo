@@ -16,21 +16,16 @@
 // focus moves into the list, and typing stops working entirely.
 
 import {
+  type ChangeEvent,
+  type KeyboardEvent,
+  type ReactNode,
   useCallback,
   useId,
   useRef,
   useState,
-  type ChangeEvent,
-  type KeyboardEvent,
-  type ReactNode,
 } from 'react'
 
-import {
-  activeAfter,
-  filterOptions,
-  inlineCompletion,
-  type Autocomplete,
-} from './combobox.ts'
+import { type Autocomplete, activeAfter, filterOptions, inlineCompletion } from './combobox.ts'
 
 export interface HozoComboboxOption<T> {
   value: T
@@ -185,7 +180,12 @@ export function HozoCombobox<T>({
         onBlur={close}
       />
       {open ? (
-        <div role="listbox" id={`${base}-list`} aria-label={accessibilityLabel} className={listClassName}>
+        <div
+          role="listbox"
+          id={`${base}-list`}
+          aria-label={accessibilityLabel}
+          className={listClassName}
+        >
           {visible.length === 0
             ? emptyMessage
             : visible.map((index, at) => {

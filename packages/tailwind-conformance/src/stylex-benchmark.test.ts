@@ -21,8 +21,14 @@ test('the StyleX benchmark corpus settles without residual StyleX work', () => {
 })
 
 test('the StyleX benchmark comparison permits at most five percent regression', () => {
-  assert.equal(compareStylexBenchmark({ ...baseline, medianMsPerPair: 1.05 }, baseline).passed, true)
-  assert.equal(compareStylexBenchmark({ ...baseline, medianMsPerPair: 1.051 }, baseline).passed, false)
+  assert.equal(
+    compareStylexBenchmark({ ...baseline, medianMsPerPair: 1.05 }, baseline).passed,
+    true,
+  )
+  assert.equal(
+    compareStylexBenchmark({ ...baseline, medianMsPerPair: 1.051 }, baseline).passed,
+    false,
+  )
 })
 
 test('the StyleX benchmark rejects a baseline for another corpus', () => {
