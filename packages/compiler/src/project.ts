@@ -19,7 +19,24 @@ export {
   type StylexResolutionRequest,
 } from './stylex-project.ts'
 
+/** Extensions the project walk reads from disk. */
 const SCANNABLE = new Set(['.tsx', '.jsx', '.ts', '.js', '.mts', '.mjs'])
+
+/**
+ * Extensions a bundler may hand to a transform, which is a wider set.
+ *
+ * `.mdx` is here and deliberately *not* in `SCANNABLE`. On disk an `.mdx`
+ * file is Markdown, which does not parse as TypeScript, so the candidate
+ * scan would fall back to a plain byte scan over prose -- the exact thing
+ * subtracting comments, JSX text and string-literal children removed. By
+ * the time a bundler hands the file over, the MDX transform has produced
+ * JSX, which parses, and the subtraction works again.
+ *
+ * The cost is that an `.mdx` file no bundler reaches contributes no
+ * candidates. That file is also not in the output, so there is nothing it
+ * could have left unstyled.
+ */
+const TRANSFORMABLE = new Set([...SCANNABLE, '.mdx'])
 const DEFAULT_INCLUDE = ['**/*.{tsx,jsx,ts,js,mts,mjs}']
 const DEFAULT_EXCLUDE = [
   '**/node_modules/**',
@@ -241,7 +258,12 @@ export function scannableFile(id: string): string | undefined {
   //  always yields a first element; the fallback is for the type.
   // `split` always yields a first element; the fallback is for the type.
   const file = id.split('?')[0] ?? id ?? id
-  return SCANNABLE.has(path.extname(file)) ? file : undefined
+  return TRANSFORMABLE.has(path.extname(file)) ? file : undefined
+}
+
+/** Whether this file only becomes readable after another plugin transforms it. */
+export function isTransformedSource(file: string): boolean {
+  return path.extname(file) === '.mdx'
 }
 
 /** Feed one bundler's authoritative resolver answers into the shared graph. */

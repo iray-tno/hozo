@@ -24,7 +24,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
-import { createServer, type ViteDevServer } from 'vite'
+import { createServer, type PluginOption, type ViteDevServer } from 'vite'
 
 import { hozo, type HozoOptions } from './index.ts'
 
@@ -65,6 +65,8 @@ async function serve(
   root: string,
   options: HozoOptions = {},
   aliases: Record<string, string> = {},
+  extraPlugins: PluginOption[] = [],
+  beforePlugins: PluginOption[] = [],
 ) {
   const server = await createServer({
     root,
@@ -83,7 +85,7 @@ async function serve(
         ...aliases,
       },
     },
-    plugins: [hozo(options)],
+    plugins: [...beforePlugins, hozo(options), ...extraPlugins],
   })
   servers.push(server)
   return server
@@ -354,4 +356,69 @@ test('a project whose Tailwind is all static still gets the base layer', async (
 
   assert.equal(candidates(root), '', 'a static class is not supposed to be a candidate')
   assert.match(preflight(root), /max-width: 100%/, 'the base layer went missing')
+})
+
+test('MDX authored against Hozo compiles, and its prose is not scanned', async () => {
+  // The whole MDX path, through a real bundler with the real plugin.
+  //
+  // Two things have to hold at once and they pull in opposite
+  // directions. The primitives written in the `.mdx` have to lower, which
+  // needs Hozo to see JSX -- so this pass runs *after* the MDX plugin,
+  // unlike every other file. And the prose must not reach the candidate
+  // sheet, which is why `.mdx` is kept out of the project walk: on disk
+  // the file is Markdown, and a byte scan of Markdown is a byte scan of
+  // English.
+  //
+  // `jsx: true` is what makes the first half possible at all. Without it
+  // `@mdx-js/mdx` folds to `_jsx()` calls, which Hozo's parser cannot
+  // read. `@mdx-js/rollup` and `@next/mdx` both expose it; `@astrojs/mdx`
+  // does not, which is why Astro still wants a `.tsx` island.
+  const { default: mdx } = await import('@mdx-js/rollup')
+  const { default: react } = await import('@vitejs/plugin-react')
+  const root = project({
+    'page.mdx': [
+      "import { View, Text } from '@hozo/core'",
+      '',
+      '# A catalogue page',
+      '',
+      'The block layout puts the table behind a visible border, and the',
+      'grid stays hidden until the isolate scrolls into view.',
+      '',
+      '<View className="p-4">',
+      '  <Text className="text-xl">inline in MDX</Text>',
+      '</View>',
+      '',
+    ].join('\n'),
+  })
+  // `jsx: true` means the MDX plugin stops before folding to `_jsx()`, so
+  // something downstream has to compile the JSX it leaves behind, and
+  // Vite does not do that for `.mdx` on its own. A project wiring this up
+  // needs the same line -- worth knowing, because without it the failure
+  // is `vite:import-analysis` complaining about invalid JS syntax, which
+  // says nothing about MDX.
+  //
+  // Hozo before React, exactly as `examples/login-demo` has it: both are
+  // ordinary plugins, order within that bucket is registration order, and
+  // Hozo has to see the JSX first.
+  const server = await serve(root, {}, {}, [react({ include: /\.(mdx|jsx|tsx)$/ })], [
+    // `enforce: 'pre'` and registered before `hozo()`: the MDX plugin
+    // ships without one, so Vite's own transform would otherwise be handed
+    // the raw Markdown and fail on the `#` of a heading.
+    { ...mdx({ jsx: true }), enforce: 'pre' },
+  ])
+
+  const result = await server.transformRequest('/page.mdx')
+  assert.ok(result, 'the module was not transformed')
+  assert.match(result.code, /hozo-view/, 'the View written in MDX did not lower')
+  assert.doesNotMatch(result.code, /@hozo\/core/, 'the primitive import survived')
+
+  const companion = readFileSync(path.join(root, 'page.mdx.hozo.css'), 'utf8')
+  assert.match(companion, /padding-top: 16px/)
+  assert.match(companion, /font-size: 20px/)
+
+  // Every one of these is an English word and a real Tailwind utility,
+  // and none of them is a class anybody wrote.
+  for (const prose of ['block', 'table', 'visible', 'border', 'grid', 'hidden', 'isolate']) {
+    assert.doesNotMatch(candidates(root), new RegExp(`\.${prose} \{`), `prose leaked: ${prose}`)
+  }
 })

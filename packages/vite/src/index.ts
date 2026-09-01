@@ -28,7 +28,7 @@
 
 import { statSync } from 'node:fs'
 import path from 'node:path'
-import type { Plugin, ViteDevServer } from 'vite'
+import { transformWithOxc, type Plugin, type ResolvedConfig, type ViteDevServer } from 'vite'
 import {
   createCompiler,
   type CandidateCache,
@@ -46,6 +46,7 @@ import {
   preflightCssPath,
   resolveStylexRequests,
   scanSummary,
+  isTransformedSource,
   scannableFile,
   writeFileIfChanged,
   type HozoProjectOptions,
@@ -65,7 +66,7 @@ import {
  */
 export type HozoOptions = HozoProjectOptions
 
-export function hozo(options: HozoOptions = {}): Plugin {
+export function hozo(options: HozoOptions = {}): Plugin[] {
   let theme: Theme | undefined
   // Built once the theme is known and reused for every file after, so the
   // palette crosses the addon boundary at `buildStart` rather than on every
@@ -78,6 +79,7 @@ export function hozo(options: HozoOptions = {}): Plugin {
   let preflightPath = ''
   let includedFiles = new Set<string>()
   let server: ViteDevServer | undefined
+  let resolvedConfig: ResolvedConfig | undefined
   let preflight = ''
   // The candidate order Tailwind would use, refreshed whenever the set
   // changes. Held rather than recomputed per write because the write path
@@ -117,84 +119,32 @@ export function hozo(options: HozoOptions = {}): Plugin {
     }
   }
 
-  return {
-    name: 'hozo',
-    enforce: 'pre',
-
-    configResolved(config) {
-      root = options.root ?? config.root
-    },
-
-    configureServer(devServer) {
-      server = devServer
-    },
-
-    async buildStart() {
-      theme = await loadProjectTheme(root, {
-        css: options.css,
-        warn: (message) => this.warn(message),
-      })
-      compiler = createCompiler(theme, options.sources)
-
-      // The whole project, not just what the bundler happens to reach: a
-      // class can be produced by a module the graph never resolves
-      // statically.
-      const project = scanProject(root, options.content)
-      classOrder = await loadProjectClassOrder(root, project.cache.candidates(), {
-        css: options.css,
-      })
-      cache = project.cache
-      stylexModules = project.stylexModules
-      await resolveStylexRequests(
-        stylexModules,
-        stylexModules.resolutionRequests(),
-        async (specifier, importer) => {
-          const resolved = await this.resolve(specifier, importer, { skipSelf: true })
-          return resolved?.id
-        },
-      )
-      compiler.setStylexModules(stylexModules.moduleSources())
-      includedFiles = new Set(project.files)
-      candidateCssPath = path.join(project.dir, 'candidates.css')
-      preflightPath = preflightCssPath(project.dir)
-      // Read once for the process rather than per write: it is a file on
-      // disk that cannot change under a running build.
-      preflight = preflightCss()
-      writeCandidateCss()
-      if (options.debug) {
-        this.info(scanSummary(project.stats))
-      }
-    },
-
-    watchChange(id, change) {
-      // Without this a deleted file's classes would stay in the stylesheet
-      // for as long as the cache file survives, since nothing else ever
-      // revisits an entry that stopped being scanned.
-      if (change.event === 'delete') {
-        const absolute = path.resolve(id)
-        includedFiles.delete(absolute)
-        if (cache?.forget(absolute)) writeCandidateCss()
-        if (stylexModules?.forget(absolute)) {
-          compiler.setStylexModules(stylexModules.moduleSources())
-        }
-      }
-      if (change.event === 'create') {
-        const absolute = path.resolve(id)
-        const relative = path.relative(root, absolute).replaceAll('\\', '/')
-        if (discoverSources(root, { ...options.content, include: [relative] }).includes(absolute)) {
-          includedFiles.add(absolute)
-        }
-      }
-    },
-
+  /**
+   * The work itself, shared by both passes below.
+   *
+   * One body rather than two copies: the passes differ only in when they
+   * run and which files reach them, and a second copy of ninety lines
+   * would be two things to keep in step. `accepts` is what differs --
+   * each pass claims its own files, so no module is transformed twice and
+   * neither pass has to recognise the other's leftovers.
+   */
+  const pass = (accepts: (file: string) => boolean): Pick<Plugin, 'transform'> => ({
     async transform(code, id) {
       const file = scannableFile(id)
+      if (file && !accepts(file)) return
       const isDerivedModule = id.includes('?')
       let stylexGraphChanged = false
-      if (file && !isDerivedModule && includedFiles.has(path.resolve(file))) {
-        // `enforce: 'pre'` means `code` is still the source as written,
-        // which is what the scanner expects. Keyed by the same absolute
-        // path `scanProject`'s walk used, so a file scanned there isn't
+      // A transformed source is not in the project walk -- see
+      // `TRANSFORMABLE` -- so it has to be admitted here or its classes
+      // would never reach the candidate set at all.
+      const scannable =
+        file && !isDerivedModule && (includedFiles.has(path.resolve(file)) || isTransformedSource(file))
+      if (file && scannable) {
+        // For the `pre` pass `code` is still the source as written, which
+        // is what the scanner expects. For the second pass it is the JSX
+        // another plugin produced, which is the first form of that file
+        // the scanner *can* read. Keyed by the same absolute path
+        // `scanProject`'s walk used, so a file scanned there isn't
         // recorded twice under two spellings.
         const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0
         if (cache.scanFile(path.resolve(file), code, modifiedMs)) {
@@ -278,12 +228,156 @@ export function hozo(options: HozoOptions = {}): Plugin {
         sideEffectImport(importSpecifier(file, candidateCssPath)) +
         next
 
+      // A transformed source is JSX in a file whose extension says
+      // otherwise, and Vite decides whether to parse JSX from exactly that
+      // extension -- `OxcOptions` omits `lang`, so no project setting can
+      // say "treat `.mdx` as JSX". Left alone, the run fails at
+      // `vite:oxc` with "JSX syntax is disabled", which names neither MDX
+      // nor Hozo.
+      //
+      // So Hozo finishes what it started, under the project's own oxc
+      // settings rather than a second opinion about them. Only for these
+      // files: everything else arrives with an extension Vite already
+      // understands.
+      //
+      // `.tsx` and not `.jsx`, which is not cosmetic. `referencesHozoPrimitive`
+      // deliberately leaves the `@hozo/core` import in place and relies on the
+      // bundler eliding it once nothing refers to it -- and that elision is a
+      // *TypeScript* rule. Named `.jsx` the import survived to import
+      // analysis, which then failed to resolve `@hozo/core` from a temporary
+      // project that has no node_modules. MDX output is plain JS with JSX,
+      // which is a subset of TSX, so reading it as TSX costs nothing.
+      if (isTransformedSource(file) && resolvedConfig) {
+        const compiled = await transformWithOxc(
+          next,
+          `${file}.tsx`,
+          undefined,
+          undefined,
+          resolvedConfig,
+        )
+        return { code: compiled.code, map: compiled.map ?? null }
+      }
+
       return { code: next, map: null }
     },
+  })
 
-    buildEnd() {
-      cache?.persist()
-      stylexModules?.persist()
-    },
+  /**
+   * The second pass, for sources another plugin has to produce first.
+   *
+   * `.mdx` on disk is Markdown, and the pass above would be handed
+   * exactly that -- nothing Hozo can parse, and prose the scanner should
+   * not read. This one wants the JSX the MDX plugin produced instead.
+   *
+   * Three transforms have to happen in one order, and it is worth writing
+   * down because two of them are invisible:
+   *
+   *   1. the MDX plugin turns Markdown into JSX  (`jsx: true`)
+   *   2. this pass reads that JSX and lowers it
+   *   3. something compiles the JSX this leaves behind
+   *
+   * Vite runs the `pre` bucket, then its own core transforms, then plain
+   * plugins. Step 3 is `vite:oxc`, a core transform, so steps 1 and 2 both
+   * have to be `pre` -- hence the `enforce` here, and hence the MDX plugin
+   * being registered *before* `hozo()`, since order inside one bucket is
+   * registration order. A plain plugin here would have been handed
+   * `_jsx()` calls, which the parser cannot read.
+   *
+   * `jsx: true` is what makes any of it possible. `@mdx-js/rollup` and
+   * `@next/mdx` both expose it; `@astrojs/mdx` does not, so on Astro a
+   * `.tsx` island is still the way.
+   *
+   * A separate plugin rather than a second hook because a plugin has one
+   * `transform`, and these two claim different files. It shares every
+   * piece of state with the first, being closed over by the same call.
+   */
+  const transformed: Plugin = {
+    name: 'hozo:transformed',
+    enforce: 'pre',
+    ...pass(isTransformedSource),
   }
+
+  return [
+    {
+      name: 'hozo',
+      enforce: 'pre',
+
+    configResolved(config) {
+      root = options.root ?? config.root
+      resolvedConfig = config
+    },
+
+    configureServer(devServer) {
+      server = devServer
+    },
+
+    async buildStart() {
+      theme = await loadProjectTheme(root, {
+        css: options.css,
+        warn: (message) => this.warn(message),
+      })
+      compiler = createCompiler(theme, options.sources)
+
+      // The whole project, not just what the bundler happens to reach: a
+      // class can be produced by a module the graph never resolves
+      // statically.
+      const project = scanProject(root, options.content)
+      classOrder = await loadProjectClassOrder(root, project.cache.candidates(), {
+        css: options.css,
+      })
+      cache = project.cache
+      stylexModules = project.stylexModules
+      await resolveStylexRequests(
+        stylexModules,
+        stylexModules.resolutionRequests(),
+        async (specifier, importer) => {
+          const resolved = await this.resolve(specifier, importer, { skipSelf: true })
+          return resolved?.id
+        },
+      )
+      compiler.setStylexModules(stylexModules.moduleSources())
+      includedFiles = new Set(project.files)
+      candidateCssPath = path.join(project.dir, 'candidates.css')
+      preflightPath = preflightCssPath(project.dir)
+      // Read once for the process rather than per write: it is a file on
+      // disk that cannot change under a running build.
+      preflight = preflightCss()
+      writeCandidateCss()
+      if (options.debug) {
+        this.info(scanSummary(project.stats))
+      }
+    },
+
+    watchChange(id, change) {
+      // Without this a deleted file's classes would stay in the stylesheet
+      // for as long as the cache file survives, since nothing else ever
+      // revisits an entry that stopped being scanned.
+      if (change.event === 'delete') {
+        const absolute = path.resolve(id)
+        includedFiles.delete(absolute)
+        if (cache?.forget(absolute)) writeCandidateCss()
+        if (stylexModules?.forget(absolute)) {
+          compiler.setStylexModules(stylexModules.moduleSources())
+        }
+      }
+      if (change.event === 'create') {
+        const absolute = path.resolve(id)
+        const relative = path.relative(root, absolute).replaceAll('\\', '/')
+        if (discoverSources(root, { ...options.content, include: [relative] }).includes(absolute)) {
+          includedFiles.add(absolute)
+        }
+      }
+    },
+
+    // Everything a project wrote itself, before any other plugin has had
+    // it. `enforce: 'pre'` is what makes `code` the source as written.
+    ...pass((file) => !isTransformedSource(file)),
+
+      buildEnd() {
+        cache?.persist()
+        stylexModules?.persist()
+      },
+    },
+    transformed,
+  ]
 }

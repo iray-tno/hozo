@@ -189,7 +189,10 @@ export function lowerModule(
   root: string,
   stylexModules?: StylexModuleCache,
 ): LoweredModule | undefined {
-  if (!file.endsWith('.tsx')) return undefined
+  // `.mdx` alongside `.tsx` because by the time this runs the MDX
+  // transform has already turned the file into JSX; the extension is all
+  // that still says where it came from. See `TRANSFORMABLE`.
+  if (!file.endsWith('.tsx') && !file.endsWith('.mdx')) return undefined
 
   const allowed = compiler.sources
   const canvas = lowerCanvasPaints(code, compiler, false)
