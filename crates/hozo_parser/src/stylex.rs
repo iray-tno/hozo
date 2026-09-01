@@ -1409,6 +1409,215 @@ fn web_url_or_none(value: &StaticValue) -> Option<String> {
     .then(|| value.clone())
 }
 
+/// Split one CSS component list without cutting whitespace inside functions
+/// or quoted strings. The supported shorthands do not need a complete CSS
+/// parser, but ordinary values such as `rgb(0 0 0)` must remain one token.
+fn web_components(value: &str) -> Option<Vec<String>> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for character in value.chars() {
+        if escaped {
+            current.push(character);
+            escaped = false;
+            continue;
+        }
+        if character == '\\' && quote.is_some() {
+            current.push(character);
+            escaped = true;
+            continue;
+        }
+        if let Some(active_quote) = quote {
+            current.push(character);
+            if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => {
+                quote = Some(character);
+                current.push(character);
+            }
+            '(' => {
+                depth += 1;
+                current.push(character);
+            }
+            ')' => {
+                depth = depth.checked_sub(1)?;
+                current.push(character);
+            }
+            character if character.is_whitespace() && depth == 0 => {
+                if !current.is_empty() {
+                    parts.push(std::mem::take(&mut current));
+                }
+            }
+            _ => current.push(character),
+        }
+    }
+    if depth != 0 || quote.is_some() {
+        return None;
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+    (!parts.is_empty()).then_some(parts)
+}
+
+fn web_longhand(property: &str, value: impl Into<String>) -> StyleProperty {
+    StyleProperty::WebOnly(property.to_string(), value.into())
+}
+
+fn web_shorthand_color(value: &str) -> bool {
+    if value.contains([';', '{', '}']) {
+        return false;
+    }
+    let lower = value.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "transparent" | "currentcolor" | "black" | "silver" | "gray" | "white"
+            | "maroon" | "red" | "purple" | "fuchsia" | "green" | "lime" | "olive"
+            | "yellow" | "navy" | "blue" | "teal" | "aqua" | "orange"
+    ) || (lower.starts_with('#')
+        && matches!(lower.len(), 4 | 5 | 7 | 9)
+        && lower[1..].bytes().all(|byte| byte.is_ascii_hexdigit()))
+        || [
+            "rgb(", "rgba(", "hsl(", "hsla(", "hwb(", "lab(", "lch(", "oklab(",
+            "oklch(", "color(",
+        ]
+        .iter()
+        .any(|prefix| lower.starts_with(prefix) && lower.ends_with(')'))
+}
+
+fn stylex_columns(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let mut width = "auto".to_string();
+    let mut count = "auto".to_string();
+    match value {
+        // StyleX treats a numeric shorthand value as a length and appends px.
+        StaticValue::Number(number) if number.is_finite() && *number > 0.0 => {
+            width = format!("{}px", numeric_text(*number));
+        }
+        StaticValue::String(value) if value == "auto" => {}
+        StaticValue::String(value) => {
+            let parts = web_components(value)?;
+            if parts.len() > 2 {
+                return None;
+            }
+            for part in parts {
+                let part_value = StaticValue::String(part.clone());
+                if count == "auto" && web_integer(&part_value, 1, i64::MAX).is_some() {
+                    count = part;
+                } else if width == "auto"
+                    && web_length(&part_value, &[], f64::MIN_POSITIVE).is_some()
+                {
+                    width = part;
+                } else {
+                    return None;
+                }
+            }
+        }
+        _ => return None,
+    }
+    Some(vec![
+        web_longhand("column-width", width),
+        web_longhand("column-count", count),
+    ])
+}
+
+fn stylex_column_rule(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    const STYLES: &[&str] = &[
+        "none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge",
+        "inset", "outset",
+    ];
+    let mut width = "medium".to_string();
+    let mut style = "none".to_string();
+    let mut color = "currentcolor".to_string();
+    let mut saw_width = false;
+    let mut saw_style = false;
+    let mut saw_color = false;
+    let parts = match value {
+        StaticValue::Number(number) if number.is_finite() && *number >= 0.0 => {
+            vec![format!("{}px", numeric_text(*number))]
+        }
+        StaticValue::String(value) => web_components(value)?,
+        _ => return None,
+    };
+    if parts.len() > 3 {
+        return None;
+    }
+    for part in parts {
+        let part_value = StaticValue::String(part.clone());
+        if !saw_style && STYLES.contains(&part.as_str()) {
+            style = part;
+            saw_style = true;
+        } else if !saw_width
+            && web_length(&part_value, &["thin", "medium", "thick"], 0.0).is_some()
+        {
+            width = part;
+            saw_width = true;
+        } else if !saw_color
+            && web_shorthand_color(&part)
+        {
+            color = part;
+            saw_color = true;
+        } else {
+            return None;
+        }
+    }
+    Some(vec![
+        web_longhand("column-rule-width", width),
+        web_longhand("column-rule-style", style),
+        web_longhand("column-rule-color", color),
+    ])
+}
+
+fn stylex_list_style(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    const TYPES: &[&str] = &[
+        "none", "disc", "circle", "square", "decimal", "decimal-leading-zero",
+        "lower-roman", "upper-roman", "lower-greek", "lower-latin", "upper-latin",
+        "armenian", "georgian", "lower-alpha", "upper-alpha",
+    ];
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    if matches!(value.as_str(), "inherit" | "initial" | "revert" | "unset") {
+        return Some(vec![
+            web_longhand("list-style-type", value.clone()),
+            web_longhand("list-style-position", value.clone()),
+            web_longhand("list-style-image", value.clone()),
+        ]);
+    }
+    let mut kind = "disc".to_string();
+    let mut position = "outside".to_string();
+    let mut image = "none".to_string();
+    let mut saw_kind = false;
+    let mut saw_position = false;
+    let mut saw_image = false;
+    for part in web_components(value)? {
+        if !saw_position && matches!(part.as_str(), "inside" | "outside") {
+            position = part;
+            saw_position = true;
+        } else if !saw_kind && TYPES.contains(&part.as_str()) {
+            kind = part;
+            saw_kind = true;
+        } else if !saw_image
+            && web_url_or_none(&StaticValue::String(part.clone())).is_some()
+        {
+            image = part;
+            saw_image = true;
+        } else {
+            return None;
+        }
+    }
+    Some(vec![
+        web_longhand("list-style-type", kind),
+        web_longhand("list-style-position", position),
+        web_longhand("list-style-image", image),
+    ])
+}
+
 fn web_only_property(property: &str, value: &StaticValue) -> Option<StyleProperty> {
     let (css_property, grammar) = web_only_spec(property)?;
     let value = match grammar {
@@ -1985,6 +2194,12 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             "container-type",
             stylex_container_type(value)?,
         )],
+        // These Web-only shorthands are expanded into their final CSS slots.
+        // This lets atomic priority suppress only the slot a higher-priority
+        // conditional longhand makes unreachable.
+        "columns" => stylex_columns(value)?,
+        "columnRule" => stylex_column_rule(value)?,
+        "listStyle" => stylex_list_style(value)?,
         // StyleX emits these as CSS shorthands at a lower atomic priority
         // than their longhands. Split them into the typed final slots here
         // so the same priority resolution works on Web and Native.
@@ -2301,6 +2516,8 @@ fn property_priority(property: &str) -> u16 {
             | "borderStyle"
             | "borderWidth"
             | "borderRadius"
+            | "columnRule"
+            | "columns"
             | "flex"
             | "fontVariant"
             | "gap"
@@ -2311,6 +2528,7 @@ fn property_priority(property: &str) -> u16 {
             | "insetInline"
             | "marginBlock"
             | "marginInline"
+            | "listStyle"
             | "overflow"
             | "placeItems"
             | "paddingBlock"
@@ -2434,6 +2652,12 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("scroll-padding")
     } else if property == "container" || property.starts_with("container") {
         Some("container")
+    } else if property == "columns" || matches!(property, "columnCount" | "columnWidth") {
+        Some("columns")
+    } else if property == "columnRule" || property.starts_with("columnRule") {
+        Some("column-rule")
+    } else if property == "listStyle" || property.starts_with("listStyle") {
+        Some("list-style")
     } else if property == "transition" || property.starts_with("transition") {
         Some("transition")
     } else if property == "background" || property.starts_with("background") {
@@ -4471,6 +4695,77 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 8);
         assert_eq!(gaps.len(), 8);
+    }
+
+    #[test]
+    fn list_and_column_shorthands_expand_to_atomic_web_slots() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                columns: '16rem 3',
+                columnRule: '2px dashed rgb(0 0 0)',
+                listStyle: 'url(#marker) outside square'
+              },
+              wider: {
+                columns: '3 4',
+                columnRule: 'solid dashed red',
+                listStyle: 'inside outside disc'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("exact shorthand values were not lowerable")
+        };
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries.iter().map(|entry| entry.properties.len()).sum::<usize>(), 8);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("ambiguous shorthand values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 3);
+        assert_eq!(gaps.len(), 3);
+    }
+
+    #[test]
+    fn a_column_longhand_suppresses_only_its_conditional_shorthand_slot() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              all: { columns: '16rem 3' },
+              count: { columnCount: 5 }
+            })
+            const card = <View {...stylex.props(styles.count, active && styles.all)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert_eq!(style.len(), 2);
+        assert!(style.iter().any(|declaration| {
+            declaration.condition == Condition::Always
+                && declaration.property
+                    == web_longhand("column-count", "5")
+        }));
+        assert!(style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && declaration.property
+                    == web_longhand("column-width", "16rem")
+        }));
+        assert!(!style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && declaration.property
+                    == web_longhand("column-count", "3")
+        }));
     }
 
     #[test]

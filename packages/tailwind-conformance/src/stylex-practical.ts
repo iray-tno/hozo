@@ -147,6 +147,9 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'listStylePosition', value: 'inside' },
   { property: 'listStyleType', value: 'decimal-leading-zero' },
   { property: 'tableLayout', value: 'fixed' },
+  { property: 'columns', value: '16rem 3' },
+  { property: 'columnRule', value: '2px dashed #123456' },
+  { property: 'listStyle', value: 'url(#marker) outside square' },
 ] as const
 
 function jsValue(value: string | number): string {
@@ -192,6 +195,89 @@ export const Probe = () => <${component}${props} {...stylex.props(styles.root)} 
 `
 }
 
+function cssComponents(value: string): string[] {
+  const parts: string[] = []
+  let current = ''
+  let depth = 0
+  let quote = ''
+  let escaped = false
+  for (const character of value) {
+    if (escaped) {
+      current += character
+      escaped = false
+      continue
+    }
+    if (character === '\\' && quote) {
+      current += character
+      escaped = true
+      continue
+    }
+    if (quote) {
+      current += character
+      if (character === quote) quote = ''
+      continue
+    }
+    if (character === '"' || character === "'") quote = character
+    if (character === '(') depth += 1
+    if (character === ')') depth -= 1
+    if (/\s/.test(character) && depth === 0) {
+      if (current) parts.push(current)
+      current = ''
+    } else {
+      current += character
+    }
+  }
+  if (current) parts.push(current)
+  return parts
+}
+
+function expandStylexShorthand(property: string, value: string): Array<[string, string]> {
+  const parts = cssComponents(value)
+  if (property === 'columns') {
+    const count = parts.find((part) => /^\d+$/.test(part)) ?? 'auto'
+    const width = parts.find((part) => part !== count && part !== 'auto') ?? 'auto'
+    return [['column-width', width], ['column-count', count]]
+  }
+  if (property === 'column-rule') {
+    const styles = new Set([
+      'none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge', 'inset', 'outset',
+    ])
+    const widths = /^(?:0|[+-]?(?:\d+\.?\d*|\.\d+)(?:px|rem|em|ch|ex|cap|ic|lh|rlh|v[whib]|vmin|vmax|s[cv][wh]|l[cv][wh]|d[cv][wh]|cm|mm|q|in|pc|pt)|thin|medium|thick)$/
+    const width = parts.find((part) => widths.test(part)) ?? 'medium'
+    const style = parts.find((part) => styles.has(part)) ?? 'none'
+    const color = parts.find((part) => part !== width && part !== style) ?? 'currentcolor'
+    return [
+      ['column-rule-width', width],
+      ['column-rule-style', style],
+      ['column-rule-color', color],
+    ]
+  }
+  if (property === 'list-style') {
+    const positions = new Set(['inside', 'outside'])
+    const types = new Set([
+      'none', 'disc', 'circle', 'square', 'decimal', 'decimal-leading-zero',
+      'lower-roman', 'upper-roman', 'lower-greek', 'lower-latin', 'upper-latin',
+      'armenian', 'georgian', 'lower-alpha', 'upper-alpha',
+    ])
+    if (parts.length === 1 && ['inherit', 'initial', 'revert', 'unset'].includes(parts[0])) {
+      return [
+        ['list-style-type', parts[0]],
+        ['list-style-position', parts[0]],
+        ['list-style-image', parts[0]],
+      ]
+    }
+    const position = parts.find((part) => positions.has(part)) ?? 'outside'
+    const type = parts.find((part) => types.has(part)) ?? 'disc'
+    const image = parts.find((part) => part !== position && part !== type) ?? 'none'
+    return [
+      ['list-style-type', type],
+      ['list-style-position', position],
+      ['list-style-image', image],
+    ]
+  }
+  return [[property, value]]
+}
+
 function declarationMap(css: string): Map<string, string> {
   const declarations = new Map<string, string>()
   for (const block of css.matchAll(/\{([^{}]*)\}/g)) {
@@ -208,8 +294,9 @@ function declarationMap(css: string): Map<string, string> {
         .replace(/^(-?\d*\.?\d+)s$/, (_match, seconds: string) => `${Number(seconds) * 1000}ms`)
       const expanded = property === 'border-style'
         ? ['border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style']
-        : [property]
-      for (const name of expanded) declarations.set(name, value)
+            .map((name) => [name, value] as [string, string])
+        : expandStylexShorthand(property, value)
+      for (const [name, expandedValue] of expanded) declarations.set(name, expandedValue)
     }
   }
   return declarations
