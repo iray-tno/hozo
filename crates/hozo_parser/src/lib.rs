@@ -257,9 +257,51 @@ struct JsxTextSpans {
     spans: Vec<hozo_ir::SourceSpan>,
 }
 
+impl JsxTextSpans {
+    /// Text children written as `{"..."}` rather than as bare JSX text.
+    ///
+    /// The same prose in the other spelling, and the spelling every MDX
+    /// compiler emits: `@mdx-js/mdx` with `jsx: true` writes a paragraph
+    /// as `<p>{"The block layout puts the table..."}</p>`, so subtracting
+    /// `JSXText` alone left a documentation page contributing every
+    /// English word that happens to be a utility.
+    ///
+    /// Child position is what makes this safe, and it is a different node
+    /// from the attribute one: `className={"p-4"}` is a
+    /// `JSXAttributeValue`, never a `JSXChild`, so it is untouched. A
+    /// string literal standing alone as a child is rendered text and has
+    /// no path to `className` under any evaluation -- the same claim
+    /// `JSXText` makes, in the syntax a compiler produces rather than the
+    /// one a person types.
+    fn note_children(&mut self, children: &[oxc_ast::ast::JSXChild<'_>]) {
+        for child in children {
+            let oxc_ast::ast::JSXChild::ExpressionContainer(container) = child else {
+                continue;
+            };
+            // Only a literal, and only when it is the whole expression.
+            // `{cx('p-4')}` is a call this has no business reading.
+            let oxc_ast::ast::JSXExpression::StringLiteral(literal) = &container.expression else {
+                continue;
+            };
+            self.spans
+                .push(hozo_ir::SourceSpan { start: literal.span.start, end: literal.span.end });
+        }
+    }
+}
+
 impl<'a> Visit<'a> for JsxTextSpans {
     fn visit_jsx_text(&mut self, text: &oxc_ast::ast::JSXText<'a>) {
         self.spans.push(hozo_ir::SourceSpan { start: text.span.start, end: text.span.end });
+    }
+
+    fn visit_jsx_element(&mut self, element: &oxc_ast::ast::JSXElement<'a>) {
+        self.note_children(&element.children);
+        oxc_ast_visit::walk::walk_jsx_element(self, element);
+    }
+
+    fn visit_jsx_fragment(&mut self, fragment: &oxc_ast::ast::JSXFragment<'a>) {
+        self.note_children(&fragment.children);
+        oxc_ast_visit::walk::walk_jsx_fragment(self, fragment);
     }
 }
 
