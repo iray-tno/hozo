@@ -193,10 +193,10 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **273/522 property names
-(52.3%)**, including **116/116 (100%)** when the denominator is restricted to
+Against StyleX 0.19.0's published types that is **277/522 property names
+(53.1%)**, including **116/116 (100%)** when the denominator is restricted to
 names React Native also publishes and **16/16 (100%)** contextual-runtime
-names. Web-only lowering is reported independently at **141/389 (36.2%)**. The
+names. Web-only lowering is reported independently at **145/389 (37.3%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -213,8 +213,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **138/138 (100%)** representative values, **14/14
-(100%)** common authoring constructs, and **90/90 (100%)** declarations after
+corpus currently measures **142/142 (100%)** representative values, **14/14
+(100%)** common authoring constructs, and **94/94 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, and
 Grid scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -244,8 +244,10 @@ padding longhands, and text indentation. This keeps their established
 Tailwind lowering and Native refusal policy rather than introducing another
 CSS-string path. The common `columns`, `columnRule`, and `listStyle`
 shorthands expand to their final Web-only slots before atomic priority is
-resolved. Physical `scrollMargin` and `scrollPadding` also expand their exact
-one-to-four-value box syntax. Ambiguous or wider values remain residual.
+resolved. Physical `scrollMargin` and `scrollPadding` expand their exact
+one-to-four-value box syntax; their `Block` and `Inline` counterparts expand
+one or two values along the logical axis. Ambiguous or wider values remain
+residual.
 
 The contextual slice is currently Grid: static `gridTemplateColumns`/
 `gridTemplateRows` tracks made from positive `fr`, non-negative `px`, or
