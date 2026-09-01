@@ -179,6 +179,39 @@ mod tests {
     }
 
     #[test]
+    fn a_string_literal_child_is_text_in_the_other_spelling() {
+        // What every MDX compiler emits. `@mdx-js/mdx` with `jsx: true`
+        // writes a paragraph as `<p>{"..."}</p>` rather than as bare JSX
+        // text, so subtracting `JSXText` alone left a documentation page
+        // contributing eight candidates -- `block border grid hidden
+        // inline isolate table visible` -- from two sentences.
+        let source = r#"
+            const el = <p>{"The block layout puts the table behind a visible border."}</p>
+        "#;
+        let found = scan_class_candidates(source);
+        assert!(found.is_empty(), "unexpected: {found:?}");
+    }
+
+    #[test]
+    fn a_string_literal_attribute_is_not_text() {
+        // The line that makes the rule above safe. An attribute value is a
+        // different node from a child -- `JSXAttributeValue`, never
+        // `JSXChild` -- and `div` is not lowered, so nothing else covers
+        // this class either.
+        let found = scan_class_candidates(r#"const el = <div className={"p-4"} />"#);
+        assert_eq!(found, vec!["p-4"]);
+    }
+
+    #[test]
+    fn an_expression_child_is_still_read() {
+        // Only a literal standing alone as a child is text. A call is a
+        // call, and its arguments are exactly the dynamically composed
+        // class names the scan exists to catch.
+        let found = scan_class_candidates(r#"const el = <div>{cx('p-4')}</div>"#);
+        assert_eq!(found, vec!["p-4"]);
+    }
+
+    #[test]
     fn jsx_text_is_the_page_not_a_class_list() {
         // `<div>` rather than a Hozo primitive on purpose: the prose the
         // scan must not read is mostly in elements Hozo never lowers, and
