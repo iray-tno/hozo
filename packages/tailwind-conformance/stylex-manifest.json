@@ -110,8 +110,8 @@
     {
       "name": "alignmentBaseline",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "anchorName",
@@ -308,8 +308,8 @@
     {
       "name": "baselineShift",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "behavior",
@@ -824,8 +824,8 @@
     {
       "name": "clipRule",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "color",
@@ -1094,8 +1094,8 @@
     {
       "name": "dominantBaseline",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "emptyCells",
@@ -1112,20 +1112,20 @@
     {
       "name": "fill",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fillOpacity",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fillRule",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "filter",
@@ -1748,20 +1748,20 @@
     {
       "name": "marker",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "markerEnd",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "markerMid",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "markerOffset",
@@ -1772,8 +1772,8 @@
     {
       "name": "markerStart",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "mask",
@@ -2246,8 +2246,8 @@
     {
       "name": "paintOrder",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "pause",
@@ -2636,8 +2636,8 @@
     {
       "name": "shapeRendering",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "speak",
@@ -2666,50 +2666,50 @@
     {
       "name": "stroke",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "strokeDasharray",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "strokeDashoffset",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "strokeLinecap",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "strokeLinejoin",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "strokeMiterlimit",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "strokeOpacity",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "strokeWidth",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "tabSize",
@@ -2738,8 +2738,8 @@
     {
       "name": "textAnchor",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "textCombineUpright",

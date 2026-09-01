@@ -11,7 +11,7 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 90, covered: 90 },
+    values: { total: 112, covered: 112 },
     constructs: { total: 14, covered: 14 },
     corpus: { total: 90, covered: 90 },
     silent: 0,
@@ -146,4 +146,34 @@ test('logical, background, form, and vendor values agree with official StyleX', 
   for (const [property, values] of Object.entries(dimensions)) {
     for (const value of values) assert.equal(compareStylexValue({ property, value }).covered, true)
   }
+})
+
+test('SVG paint values agree with official StyleX', () => {
+  const cases = [
+    { property: 'alignmentBaseline', value: 'middle' },
+    { property: 'baselineShift', value: '2px' },
+    { property: 'clipRule', value: 'evenodd' },
+    { property: 'dominantBaseline', value: 'central' },
+    { property: 'fill', value: '#123456' },
+    { property: 'fillOpacity', value: 0.5 },
+    { property: 'fillOpacity', value: '50%' },
+    { property: 'fillRule', value: 'nonzero' },
+    { property: 'marker', value: 'url(#dot)' },
+    { property: 'markerEnd', value: 'none' },
+    { property: 'markerMid', value: 'url(#dot)' },
+    { property: 'markerStart', value: 'url(#dot)' },
+    { property: 'paintOrder', value: 'stroke fill markers' },
+    { property: 'shapeRendering', value: 'crispEdges' },
+    { property: 'stroke', value: 'currentColor' },
+    { property: 'strokeDasharray', value: '5 3' },
+    { property: 'strokeDasharray', value: '5px, 3px' },
+    { property: 'strokeDashoffset', value: 2 },
+    { property: 'strokeLinecap', value: 'round' },
+    { property: 'strokeLinejoin', value: 'bevel' },
+    { property: 'strokeMiterlimit', value: 4 },
+    { property: 'strokeOpacity', value: 0.5 },
+    { property: 'strokeWidth', value: '2px' },
+    { property: 'textAnchor', value: 'middle' },
+  ] as const
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })
