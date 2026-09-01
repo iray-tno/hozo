@@ -63,6 +63,24 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'placeItems', value: 'center' },
   { property: 'transitionDelay', value: '100ms' },
   { property: 'animationDuration', value: '200ms' },
+  { property: 'fontKerning', value: 'normal' },
+  { property: 'fontOpticalSizing', value: 'auto' },
+  { property: 'fontStretch', value: 'condensed' },
+  { property: 'fontSynthesisPosition', value: 'none' },
+  { property: 'fontSynthesisSmallCaps', value: 'none' },
+  { property: 'fontSynthesisStyle', value: 'none' },
+  { property: 'fontSynthesisWeight', value: 'none' },
+  { property: 'fontVariantCaps', value: 'small-caps' },
+  { property: 'fontVariantLigatures', value: 'none' },
+  { property: 'fontVariantNumeric', value: 'tabular-nums' },
+  { property: 'fontVariantPosition', value: 'super' },
+  { property: 'hyphens', value: 'auto' },
+  { property: 'lineBreak', value: 'strict' },
+  { property: 'textAlignLast', value: 'center' },
+  { property: 'textDecorationSkipInk', value: 'all' },
+  { property: 'textJustify', value: 'inter-word' },
+  { property: 'textOrientation', value: 'upright' },
+  { property: 'textWrap', value: 'balance' },
 ] as const
 
 function jsValue(value: string | number): string {
@@ -73,7 +91,12 @@ function sourceFor({ property, value }: StylexValueCase): string {
   const textProperties = new Set([
     'color', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'textAlign',
     'textDecorationLine', 'textIndent', 'whiteSpace', 'textOverflow', 'wordBreak',
-    'overflowWrap',
+    'overflowWrap', 'fontKerning', 'fontOpticalSizing', 'fontStretch',
+    'fontSynthesisPosition', 'fontSynthesisSmallCaps', 'fontSynthesisStyle',
+    'fontSynthesisWeight', 'fontVariantCaps', 'fontVariantLigatures',
+    'fontVariantNumeric', 'fontVariantPosition', 'hyphens', 'lineBreak',
+    'textAlignLast', 'textDecorationSkipInk', 'textJustify', 'textOrientation',
+    'textWrap',
   ])
   const component = property === 'caretColor'
     ? 'TextInput'
@@ -271,6 +294,11 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
   typography: STYLEX_VALUE_CASES.filter(({ property }) => [
     'color', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'textAlign',
     'textDecorationLine', 'whiteSpace', 'textOverflow', 'wordBreak', 'overflowWrap',
+    'fontKerning', 'fontOpticalSizing', 'fontStretch', 'fontSynthesisPosition',
+    'fontSynthesisSmallCaps', 'fontSynthesisStyle', 'fontSynthesisWeight',
+    'fontVariantCaps', 'fontVariantLigatures', 'fontVariantNumeric',
+    'fontVariantPosition', 'hyphens', 'lineBreak', 'textAlignLast',
+    'textDecorationSkipInk', 'textJustify', 'textOrientation', 'textWrap',
   ].includes(property)),
   input: STYLEX_VALUE_CASES.filter(({ property }) => [
     'paddingTop', 'backgroundColor', 'color', 'borderTopWidth', 'borderStyle',

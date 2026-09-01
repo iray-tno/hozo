@@ -838,6 +838,38 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             &["normal", "light", "dark", "light dark", "only light", "only dark"],
         ),
         "forcedColorAdjust" => ("forced-color-adjust", &["auto", "none"]),
+        "fontKerning" => ("font-kerning", &["auto", "normal", "none"]),
+        "fontOpticalSizing" => ("font-optical-sizing", &["auto", "none"]),
+        "fontStretch" => (
+            "font-stretch",
+            &[
+                "normal", "ultra-condensed", "extra-condensed", "condensed",
+                "semi-condensed", "semi-expanded", "expanded", "extra-expanded",
+                "ultra-expanded",
+            ],
+        ),
+        "fontSynthesisPosition" => ("font-synthesis-position", &["auto", "none"]),
+        "fontSynthesisSmallCaps" => ("font-synthesis-small-caps", &["auto", "none"]),
+        "fontSynthesisStyle" => ("font-synthesis-style", &["auto", "none"]),
+        "fontSynthesisWeight" => ("font-synthesis-weight", &["auto", "none"]),
+        "fontVariantCaps" => (
+            "font-variant-caps",
+            &[
+                "normal", "small-caps", "all-small-caps", "petite-caps",
+                "all-petite-caps", "unicase", "titling-caps",
+            ],
+        ),
+        "fontVariantLigatures" => ("font-variant-ligatures", &["normal", "none"]),
+        "fontVariantNumeric" => (
+            "font-variant-numeric",
+            &[
+                "normal", "lining-nums", "oldstyle-nums", "proportional-nums",
+                "tabular-nums", "diagonal-fractions", "stacked-fractions", "ordinal",
+                "slashed-zero",
+            ],
+        ),
+        "fontVariantPosition" => ("font-variant-position", &["normal", "sub", "super"]),
+        "hyphens" => ("hyphens", &["none", "manual", "auto"]),
         "imageRendering" => (
             "image-rendering",
             &["auto", "crisp-edges", "pixelated", "optimizeSpeed", "optimizeQuality"],
@@ -901,6 +933,18 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             "place-items",
             &["normal", "stretch", "center", "start", "end", "baseline", "normal normal", "stretch stretch", "center center", "start start", "end end"],
         ),
+        "lineBreak" => ("line-break", &["auto", "loose", "normal", "strict"]),
+        "textAlignLast" => (
+            "text-align-last",
+            &["auto", "start", "end", "left", "right", "center", "justify", "inherit"],
+        ),
+        "textDecorationSkipInk" => ("text-decoration-skip-ink", &["auto", "none", "all"]),
+        "textJustify" => (
+            "text-justify",
+            &["none", "auto", "inter-word", "inter-character", "distribute"],
+        ),
+        "textOrientation" => ("text-orientation", &["mixed", "upright", "sideways"]),
+        "textWrap" => ("text-wrap", &["wrap", "nowrap", "balance", "pretty", "stable"]),
         _ => return None,
     };
     Some((css_property, choices))
@@ -1370,13 +1414,19 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let color = || css_color(value);
     Some(match property {
         "appearance" | "WebkitAppearance" | "colorScheme" | "forcedColorAdjust"
-        | "imageRendering" | "overflowAnchor" | "overscrollBehavior"
+        | "fontKerning" | "fontOpticalSizing" | "fontStretch" | "fontSynthesisPosition"
+        | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
+        | "fontVariantCaps" | "fontVariantLigatures" | "fontVariantNumeric"
+        | "fontVariantPosition" | "hyphens" | "imageRendering" | "lineBreak"
+        | "overflowAnchor" | "overscrollBehavior"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
         | "overscrollBehaviorY" | "printColorAdjust" | "resize" | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
         | "textRendering" | "touchAction" | "wordBreak" | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
-        | "justifySelf" | "placeItems" | "transitionDelay" | "animationDuration" => {
+        | "justifySelf" | "placeItems" | "textAlignLast" | "textDecorationSkipInk"
+        | "textJustify" | "textOrientation" | "textWrap" | "transitionDelay"
+        | "animationDuration" => {
             vec![web_only_property(property, value)?]
         }
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
@@ -3771,6 +3821,47 @@ mod tests {
 
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
             panic!("wider values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 2);
+        assert_eq!(gaps.len(), 2);
+    }
+
+    #[test]
+    fn browser_typography_keywords_are_exact_and_composed_values_remain_residual() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                fontKerning: 'normal', fontOpticalSizing: 'auto', fontStretch: 'condensed',
+                fontSynthesisPosition: 'none', fontSynthesisSmallCaps: 'none',
+                fontSynthesisStyle: 'none', fontSynthesisWeight: 'none',
+                fontVariantCaps: 'small-caps', fontVariantLigatures: 'none',
+                fontVariantNumeric: 'tabular-nums', fontVariantPosition: 'super',
+                hyphens: 'auto', lineBreak: 'strict', textAlignLast: 'center',
+                textDecorationSkipInk: 'all', textJustify: 'inter-word',
+                textOrientation: 'upright', textWrap: 'balance'
+              },
+              wider: {
+                fontStretch: '75%',
+                fontVariantLigatures: 'common-ligatures no-discretionary-ligatures'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("exact browser typography values were not lowerable")
+        };
+        assert_eq!(entries.len(), 18);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("composed browser typography values should remain residual")
         };
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 2);
