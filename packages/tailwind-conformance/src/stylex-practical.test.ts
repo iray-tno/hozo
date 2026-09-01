@@ -11,7 +11,7 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 133, covered: 133 },
+    values: { total: 136, covered: 136 },
     constructs: { total: 14, covered: 14 },
     corpus: { total: 90, covered: 90 },
     silent: 0,
@@ -227,6 +227,27 @@ test('list, table, columns, and containment values agree with official StyleX', 
     { property: 'contain', value: 'inline-size layout style paint' },
     { property: 'listStyleImage', value: 'none' },
     { property: 'listStyleImage', value: 'url(#marker)' },
+  ] as const
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
+})
+
+test('list and column shorthands agree with official StyleX', () => {
+  const cases = [
+    { property: 'columns', value: 'auto' },
+    { property: 'columns', value: 16 },
+    { property: 'columns', value: '3' },
+    { property: 'columns', value: '16rem 3' },
+    { property: 'columns', value: '3 16rem' },
+    { property: 'columnRule', value: 'solid' },
+    { property: 'columnRule', value: 2 },
+    { property: 'columnRule', value: '#123456' },
+    { property: 'columnRule', value: '2px dashed #123456' },
+    { property: 'listStyle', value: 'disc' },
+    { property: 'listStyle', value: 'inside' },
+    { property: 'listStyle', value: 'none' },
+    { property: 'listStyle', value: 'disc inside' },
+    { property: 'listStyle', value: 'url(#marker) outside square' },
+    { property: 'listStyle', value: 'inherit' },
   ] as const
   for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })

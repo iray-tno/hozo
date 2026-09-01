@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-01 時点では
-全 CSS 名で 268/522 (51.3%)、両 platform に名前が存在する集合で 116/116
-(100%)、contextual runtime 集合で 16/16 (100%)、Web-only 集合で 136/389
-(35.0%)。残りは optional adapter 候補 1、未対応の Web-only 名と別集計する。
+全 CSS 名で 271/522 (51.9%)、両 platform に名前が存在する集合で 116/116
+(100%)、contextual runtime 集合で 16/16 (100%)、Web-only 集合で 139/389
+(35.7%)。残りは optional adapter 候補 1、未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
@@ -962,7 +962,7 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 133/133 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 136/136 (100%)、一般的なauthoring
 construct 14/14 (100%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
 持たせた宣言90/90 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
@@ -1026,6 +1026,9 @@ bindingとして渡し、Metroはplatform別に分離する。未対応memberは
 共通 IR へ渡すため、Web/Native runtime と IR に priority 機構は増やしていない。
 条件付き shorthand に対して無条件の高 priority longhand が勝つ場合も、その slot
 だけを除去して他の条件付き slot は残す。
+Web-only の `columns`、`columnRule`、`listStyle` も同じ仕組みで最終longhandへ
+展開する。省略された値はCSS shorthandのinitial値で埋めるため、部分的な
+shorthand/longhand競合でもブラウザのcascadeを保てる。
 
 ただし logical/physical edge の衝突は Native の実行時 direction が必要であり、
 Grid shorthand と個別 line の衝突は現在の Grid IR では分解できない。この二種類は
