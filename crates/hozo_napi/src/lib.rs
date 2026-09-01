@@ -343,11 +343,11 @@ fn lower_canvas_paints(
                             match property {
                                 StyleProperty::Fill(color) => attributes.push(format!(
                                     "fill={}",
-                                    js_string(&canvas_color(&color, &theme, native))
+                                    js_string(&canvas_color(&color, theme, native))
                                 )),
                                 StyleProperty::Stroke(color) => attributes.push(format!(
                                     "stroke={}",
-                                    js_string(&canvas_color(&color, &theme, native))
+                                    js_string(&canvas_color(&color, theme, native))
                                 )),
                                 StyleProperty::StrokeWidth(width) => {
                                     attributes.push(format!("strokeWidth={{{width}}}"))
@@ -784,7 +784,7 @@ fn lower_native_components(
         .iter()
         .map(|root| {
             let output = hozo_native::lower(&root.node, source, theme);
-            let mut diagnostics = parser_diagnostics_for(&parsed, &root.node, &offsets);
+            let mut diagnostics = parser_diagnostics_for(parsed, &root.node, &offsets);
             diagnostics.extend(
                 output.diagnostics.into_iter().map(|d| to_js_diagnostic(d, &offsets)),
             );

@@ -77,17 +77,14 @@ fn substitute_underscores(raw: &str) -> String {
             continue;
         }
         if raw[index..].starts_with("url(") {
-            match raw[index..].find(')') {
-                Some(offset) => {
-                    out.push_str(&raw[index..index + offset + 1]);
-                    index += offset + 1;
-                    continue;
-                }
-                // Unbalanced, so there's no region to protect. Falling
-                // through treats it as ordinary text rather than
-                // swallowing the rest of the value.
-                None => {}
+            if let Some(offset) = raw[index..].find(')') {
+                out.push_str(&raw[index..index + offset + 1]);
+                index += offset + 1;
+                continue;
             }
+            // Unbalanced, so there's no region to protect. Falling
+            // through treats it as ordinary text rather than
+            // swallowing the rest of the value.
         }
         let ch = raw[index..].chars().next().unwrap_or('\0');
         out.push(if ch == '_' { ' ' } else { ch });

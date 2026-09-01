@@ -218,10 +218,9 @@ pub(crate) fn background_image_entry(
         props
             .iter()
             .find_map(|p| match p {
-                StyleProperty::GradientStopPosition(s, d) if *s == stop => match d {
-                    Dimension::Percent(pct) => Some(format!("{pct}%")),
-                    _ => None,
-                },
+                StyleProperty::GradientStopPosition(s, Dimension::Percent(pct)) if *s == stop => {
+                    Some(format!("{pct}%"))
+                }
                 _ => None,
             })
             .unwrap_or_else(|| stop.default_position().to_string())

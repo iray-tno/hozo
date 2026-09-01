@@ -7,6 +7,7 @@ use super::*;
 
 /// Builds the inserted `<Text>` that carries a non-Text node's string
 /// content, with the text-styling declarations moved onto it.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn wrap_in_text(
     content: &str,
     text_declarations: &[StyleDeclaration],

@@ -1466,6 +1466,7 @@ fn one(at_rules: Vec<String>, selector: impl Into<String>) -> Vec<Shape> {
 /// For everything except `marker:`, `selection:` and `not-…:` that is the
 /// only one. Kept for callers that genuinely want a single answer -- the
 /// emitter uses `condition_shapes`.
+#[allow(dead_code)]
 pub fn condition_shape(condition: &Condition) -> Shape {
     condition_shapes(condition).into_iter().next().unwrap_or_default()
 }
@@ -2362,7 +2363,7 @@ mod tests {
         // invert-then-grayscale render differently. Tailwind fixes the
         // order by where each register sits in the value, so writing
         // `invert grayscale` must still come out grayscale-first.
-        let props = vec![
+        let props = [
             StyleProperty::Filter(FilterFunction::Invert, "invert(100%)".to_string()),
             StyleProperty::Filter(FilterFunction::Grayscale, "grayscale(100%)".to_string()),
             StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".to_string()),
@@ -2378,14 +2379,14 @@ mod tests {
 
     #[test]
     fn a_cleared_filter_slot_drops_out_but_filter_none_clears_everything() {
-        let cleared = vec![
+        let cleared = [
             StyleProperty::Filter(FilterFunction::Blur, String::new()),
             StyleProperty::Filter(FilterFunction::Invert, "invert(100%)".to_string()),
         ];
         let refs: Vec<&StyleProperty> = cleared.iter().collect();
         assert_eq!(filter_value(&refs, false, &Theme::default()), Some("invert(100%)".to_string()));
 
-        let off = vec![
+        let off = [
             StyleProperty::Filter(FilterFunction::Invert, "invert(100%)".to_string()),
             StyleProperty::Filter(FilterFunction::None, String::new()),
         ];
@@ -2395,7 +2396,7 @@ mod tests {
 
     #[test]
     fn a_raw_filter_keeps_authored_order_and_replaces_the_earlier_chain() {
-        let props = vec![
+        let props = [
             StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".to_string()),
             StyleProperty::FilterRaw("sepia(60%) hue-rotate(20deg)".to_string()),
         ];

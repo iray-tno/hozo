@@ -331,7 +331,7 @@ pub(super) fn native_grid_item(
     } else if let (None, Some(end)) = (start, end) {
         start = end.checked_sub(span);
     }
-    let start_fits = start.map_or(true, |start| start + span <= columns);
+    let start_fits = start.is_none_or(|start| start + span <= columns);
     let mut row_start = row_start_line.and_then(|line| resolve_row_line(line, grid_rows));
     let row_end = row_end_line.and_then(|line| resolve_row_line(line, grid_rows));
     let mut row_span = match row_shorthand {

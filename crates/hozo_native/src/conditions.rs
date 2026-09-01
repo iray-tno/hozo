@@ -303,15 +303,12 @@ pub(super) fn build_style_entries(
                                     applies = false;
                                 }
                             },
-                            Condition::Enabled => match &node.props.disabled {
+                            Condition::Enabled => {
                                 // The negation of the guard `disabled:`
                                 // uses, from the same prop.
-                                Some(disabled) => guards
-                                    .push(format!("!({})", render_condition_expr(source, disabled))),
-                                // Nothing can disable it, so it is always
-                                // enabled and the variant is unconditional
-                                // rather than unwired.
-                                None => {}
+                                if let Some(disabled) = &node.props.disabled {
+                                    guards.push(format!("!({})", render_condition_expr(source, disabled)));
+                                }
                             },
                             Condition::Aria(state) => {
                                 match aria_state_guard(node, source, state) {
