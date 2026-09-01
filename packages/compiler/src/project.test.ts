@@ -239,3 +239,36 @@ test('a package inherits the ignores declared at the repository root', () => {
     rmSync(repo, { recursive: true, force: true })
   }
 })
+
+test('an include the project supplied wins over gitignore', () => {
+  // Not every file worth scanning is a file worth committing. A
+  // design-token pipeline writes real class names into a directory the
+  // repository deliberately does not track, and before this the option
+  // named them and gitignore dropped them again -- no files, no error.
+  //
+  // Tailwind draws the same line: its auto-detected walk skips gitignored
+  // paths and a path named by `@source` is scanned anyway.
+  const repo = project()
+  try {
+    mkdirSync(path.join(repo, '.git'), { recursive: true })
+    writeFileSync(path.join(repo, '.gitignore'), 'generated/\nstorybook-static/\n')
+    const pkg = path.join(repo, 'packages', 'demo')
+    const authored = source(pkg, 'src/App.tsx')
+    const generated = source(pkg, 'generated/tokens.ts')
+    source(pkg, 'storybook-static/assets/react-18-abc.js')
+
+    // The default walk still declines all of it.
+    assert.deepEqual(discoverSources(pkg), [authored])
+
+    // Named, it is scanned -- and `exclude` still holds the build output
+    // out, so winning over gitignore is not winning over everything.
+    assert.deepEqual(
+      discoverSources(pkg, {
+        include: ['src/**/*.tsx', 'generated/**/*.ts'],
+      }),
+      [generated, authored].sort(),
+    )
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
