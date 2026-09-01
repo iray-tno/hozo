@@ -11,7 +11,7 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 112, covered: 112 },
+    values: { total: 133, covered: 133 },
     constructs: { total: 14, covered: 14 },
     corpus: { total: 90, covered: 90 },
     silent: 0,
@@ -174,6 +174,59 @@ test('SVG paint values agree with official StyleX', () => {
     { property: 'strokeOpacity', value: 0.5 },
     { property: 'strokeWidth', value: '2px' },
     { property: 'textAnchor', value: 'middle' },
+  ] as const
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
+})
+
+test('list, table, columns, and containment values agree with official StyleX', () => {
+  const keywords: Record<string, readonly string[]> = {
+    borderCollapse: ['collapse', 'separate'],
+    captionSide: ['top', 'bottom', 'block-start', 'block-end', 'inline-start', 'inline-end'],
+    columnFill: ['auto', 'balance'],
+    columnRuleStyle: [
+      'none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge',
+      'inset', 'outset',
+    ],
+    columnSpan: ['none', 'all'],
+    contentVisibility: ['visible', 'hidden', 'auto'],
+    displayInside: ['auto', 'block', 'table', 'flex', 'grid', 'ruby'],
+    displayList: ['none', 'list-item'],
+    displayOutside: [
+      'block-level', 'inline-level', 'run-in', 'contents', 'none', 'table-row-group',
+      'table-header-group', 'table-footer-group', 'table-row', 'table-cell',
+      'table-column-group', 'table-column', 'table-caption', 'ruby-base', 'ruby-text',
+      'ruby-base-container', 'ruby-text-container',
+    ],
+    emptyCells: ['show', 'hide'],
+    listStylePosition: ['inside', 'outside'],
+    listStyleType: [
+      'none', 'disc', 'circle', 'square', 'decimal', 'decimal-leading-zero',
+      'lower-roman', 'upper-roman', 'lower-greek', 'lower-latin', 'upper-latin',
+      'armenian', 'georgian', 'lower-alpha', 'upper-alpha',
+    ],
+    tableLayout: ['auto', 'fixed'],
+  }
+  for (const [property, values] of Object.entries(keywords)) {
+    for (const value of values) assert.equal(compareStylexValue({ property, value }).covered, true)
+  }
+
+  const cases = [
+    { property: 'borderSpacing', value: 8 },
+    { property: 'borderSpacing', value: '8px 12px' },
+    { property: 'clip', value: 'auto' },
+    { property: 'clip', value: 'rect(0 10px 10px 0)' },
+    { property: 'columnCount', value: 3 },
+    { property: 'columnCount', value: 'auto' },
+    { property: 'columnRuleColor', value: '#123456' },
+    { property: 'columnRuleWidth', value: 'thin' },
+    { property: 'columnRuleWidth', value: 2 },
+    { property: 'columnWidth', value: 'auto' },
+    { property: 'columnWidth', value: '16rem' },
+    { property: 'contain', value: 'strict' },
+    { property: 'contain', value: 'layout paint' },
+    { property: 'contain', value: 'inline-size layout style paint' },
+    { property: 'listStyleImage', value: 'none' },
+    { property: 'listStyleImage', value: 'url(#marker)' },
   ] as const
   for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })
