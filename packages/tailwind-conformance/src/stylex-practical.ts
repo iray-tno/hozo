@@ -150,6 +150,8 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'columns', value: '16rem 3' },
   { property: 'columnRule', value: '2px dashed #123456' },
   { property: 'listStyle', value: 'url(#marker) outside square' },
+  { property: 'scrollMargin', value: '8px 12px 16px 20px' },
+  { property: 'scrollPadding', value: 8 },
 ] as const
 
 function jsValue(value: string | number): string {
@@ -233,6 +235,19 @@ function cssComponents(value: string): string[] {
 
 function expandStylexShorthand(property: string, value: string): Array<[string, string]> {
   const parts = cssComponents(value)
+  if (property === 'scroll-margin' || property === 'scroll-padding') {
+    const top = parts[0]
+    if (!top) return [[property, value]]
+    const right = parts[1] ?? top
+    const bottom = parts[2] ?? top
+    const left = parts[3] ?? right
+    return [
+      [`${property}-top`, top],
+      [`${property}-right`, right],
+      [`${property}-bottom`, bottom],
+      [`${property}-left`, left],
+    ]
+  }
   if (property === 'columns') {
     const count = parts.find((part) => /^\d+$/.test(part)) ?? 'auto'
     const width = parts.find((part) => part !== count && part !== 'auto') ?? 'auto'
