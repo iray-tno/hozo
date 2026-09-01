@@ -48,6 +48,7 @@ fn resolve_first_that_works(node: &Node) -> Option<Node> {
         })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_node(
     node: &Node,
     position: SiblingPosition,
@@ -910,9 +911,11 @@ pub(super) fn render_node(
             .column_start
             .map(|start| format!(" columnStart={{{start}}}"))
             .unwrap_or_default();
-        let row_span = (item.row_span > 1)
-            .then(|| format!(" rowSpan={{{}}}", item.row_span))
-            .unwrap_or_default();
+        let row_span = if item.row_span > 1 {
+            format!(" rowSpan={{{}}}", item.row_span)
+        } else {
+            String::new()
+        };
         let row_start = item
             .row_start
             .map(|start| format!(" rowStart={{{start}}}"))

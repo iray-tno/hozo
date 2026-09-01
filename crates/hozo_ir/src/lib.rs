@@ -525,6 +525,7 @@ pub struct Node {
 
 /// One thing between an element's tags.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum Child {
     /// A Hozo primitive, lowered like any other element.
     Node(Node),
@@ -1774,14 +1775,12 @@ impl StyleProperty {
     /// no font size beside it -- is decided in `hozo_native`, which can see
     /// the node.
     pub fn not_wired_on_native(&self) -> Option<String> {
-        match self {
-            // `placeholder-*` used to live here. It lowers now: React Native
-            // carries that colour as `placeholderTextColor` on `TextInput`,
-            // and `TextInput` exists. What remains is the case where it is
-            // written on something that isn't one, which `hozo_native`
-            // decides because it can see the node.
-            _ => None,
-        }
+        // `placeholder-*` used to live here. It lowers now: React Native
+        // carries that colour as `placeholderTextColor` on `TextInput`,
+        // and `TextInput` exists. What remains is the case where it is
+        // written on something that isn't one, which `hozo_native`
+        // decides because it can see the node.
+        None
     }
 
     /// The `Dimension` this property carries, if it carries one.

@@ -1785,10 +1785,9 @@ fn stylex_transition_duration(value: &StaticValue) -> Option<u32> {
     let StaticValue::String(value) = value else { return None };
     let milliseconds = if let Some(value) = value.strip_suffix("ms") {
         value.parse::<f64>().ok()?
-    } else if let Some(value) = value.strip_suffix('s') {
-        value.parse::<f64>().ok()? * 1000.0
     } else {
-        return None;
+        let value = value.strip_suffix('s')?;
+        value.parse::<f64>().ok()? * 1000.0
     };
     (milliseconds.is_finite()
         && milliseconds >= 0.0
@@ -1807,7 +1806,8 @@ fn stylex_font_weight(value: &StaticValue) -> Option<FontWeight> {
         },
         _ => return None,
     };
-    (weight >= 100.0 && weight <= 900.0 && weight as u16 % 100 == 0).then_some(FontWeight(weight as u16))
+    ((100.0..=900.0).contains(&weight) && (weight as u16).is_multiple_of(100))
+        .then_some(FontWeight(weight as u16))
 }
 
 fn stylex_white_space(value: &StaticValue) -> Option<WhiteSpace> {
@@ -2788,7 +2788,7 @@ fn stylex_media_condition(name: &str) -> Option<Condition> {
         .map(|value| Condition::Width { at_least: true, value })
         .or_else(|| width(">=", true))
         .or_else(|| (!inner.contains("<=")).then(|| width("<", false)).flatten())
-        .or_else(|| match query {
+        .or(match query {
             "(prefers-color-scheme: dark)" => Some(Condition::Dark),
             "(prefers-reduced-motion: reduce)" => Some(Condition::Environment(Environment::MotionReduce)),
             "(prefers-reduced-motion: no-preference)" => Some(Condition::Environment(Environment::MotionSafe)),
@@ -2876,6 +2876,7 @@ fn lower_static_value(name: &str, value: &StaticValue) -> Option<Vec<StyleProper
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_rule_object(
     object: &ObjectExpression,
     namespaces: &HashSet<String>,
@@ -3129,6 +3130,7 @@ fn parse_rule_object(
     Ok(())
 }
 
+#[allow(clippy::type_complexity)]
 fn parse_rule(
     expression: &Expression,
     namespaces: &HashSet<String>,

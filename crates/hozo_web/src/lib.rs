@@ -431,6 +431,7 @@ fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String 
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_node(
     node: &Node,
     source: &str,
@@ -1060,6 +1061,7 @@ fn render_node(
 /// enough. `{show && <Text className="p-4">hi</Text>}` comes out as
 /// `{show && <span className="hozo-1">hi</span>}` -- the guard untouched,
 /// the element fully compiled.
+#[allow(clippy::too_many_arguments)]
 fn render_verbatim(
     expr_ref: hozo_ir::ExprRef,
     nested: &[hozo_ir::NestedNode],

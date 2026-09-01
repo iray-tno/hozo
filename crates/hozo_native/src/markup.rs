@@ -150,6 +150,35 @@ fn missing_label(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'stati
     Vec::new()
 }
 
+/// Applies an author-written role over the primitive's own.
+///
+/// `role` and `accessibilityRole` are two spellings of one concept, so a
+/// primitive that supplies its own must not also emit it when the author
+/// has said otherwise -- `<List role="menu">` is a menu built on a list,
+/// and announcing both is announcing neither.
+///
+/// The author's role is never dropped for being redundant. `<ul role="list">`
+/// looks redundant and is a deliberate, documented workaround: Safari
+/// removes list semantics from a `<ul>` styled `list-style: none`, and the
+/// explicit role is what puts them back.
+fn apply_authored_role(
+    node: &Node,
+    mut attrs: Vec<(&'static str, String)>,
+) -> Vec<(&'static str, String)> {
+    let Some(role) = &node.props.accessibility_role else { return attrs };
+    attrs.retain(|(key, _)| *key != "role" && *key != "accessibilityRole");
+    match role {
+        AccessibilityRole::Button => attrs.push(("role", "button".to_string())),
+        AccessibilityRole::Link => attrs.push(("role", "link".to_string())),
+        AccessibilityRole::Aria(name) => attrs.push(("role", name.clone())),
+        // Its own vocabulary, which only this platform has.
+        AccessibilityRole::NativeOnly(name) => {
+            attrs.push(("accessibilityRole", name.clone()))
+        }
+    }
+    attrs
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -224,33 +253,4 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].code, DiagnosticCode::A11yInteractiveWithoutRole);
     }
-}
-
-/// Applies an author-written role over the primitive's own.
-///
-/// `role` and `accessibilityRole` are two spellings of one concept, so a
-/// primitive that supplies its own must not also emit it when the author
-/// has said otherwise -- `<List role="menu">` is a menu built on a list,
-/// and announcing both is announcing neither.
-///
-/// The author's role is never dropped for being redundant. `<ul role="list">`
-/// looks redundant and is a deliberate, documented workaround: Safari
-/// removes list semantics from a `<ul>` styled `list-style: none`, and the
-/// explicit role is what puts them back.
-fn apply_authored_role(
-    node: &Node,
-    mut attrs: Vec<(&'static str, String)>,
-) -> Vec<(&'static str, String)> {
-    let Some(role) = &node.props.accessibility_role else { return attrs };
-    attrs.retain(|(key, _)| *key != "role" && *key != "accessibilityRole");
-    match role {
-        AccessibilityRole::Button => attrs.push(("role", "button".to_string())),
-        AccessibilityRole::Link => attrs.push(("role", "link".to_string())),
-        AccessibilityRole::Aria(name) => attrs.push(("role", name.clone())),
-        // Its own vocabulary, which only this platform has.
-        AccessibilityRole::NativeOnly(name) => {
-            attrs.push(("accessibilityRole", name.clone()))
-        }
-    }
-    attrs
 }

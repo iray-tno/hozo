@@ -417,6 +417,7 @@ fn expand_dimension_family(token: &str) -> Option<Vec<StyleProperty>> {
     /// named container scale (`basis-md`). See `parse_inline_size_suffix`.
     const INLINE: bool = true;
     const BLOCK: bool = false;
+    #[allow(clippy::type_complexity)]
     const FAMILIES: &[(&str, fn(Dimension) -> StyleProperty, bool)] = &[
         ("basis-", StyleProperty::FlexBasis, INLINE),
         ("block-", StyleProperty::BlockSize, BLOCK),
@@ -430,7 +431,7 @@ fn expand_dimension_family(token: &str) -> Option<Vec<StyleProperty>> {
         ("mbe-", StyleProperty::MarginBlockEnd, BLOCK),
     ];
     // Longest prefix first: `max-block-` must beat `block-`.
-    for (prefix, make, inline_axis) in
+    if let Some(&(prefix, make, inline_axis)) =
         FAMILIES.iter().filter(|(p, _, _)| token.starts_with(*p)).max_by_key(|(p, _, _)| p.len())
     {
         let suffix = &token[prefix.len()..];
@@ -439,7 +440,7 @@ fn expand_dimension_family(token: &str) -> Option<Vec<StyleProperty>> {
                 return Some(vec![make(value)]);
             }
         }
-        let value = if *inline_axis {
+        let value = if inline_axis {
             parse_inline_size_suffix(suffix)
         } else {
             parse_dimension_suffix(suffix)
@@ -774,10 +775,9 @@ fn gradient_stop(token: &str) -> Option<Vec<StyleProperty>> {
         (GradientStop::From, rest)
     } else if let Some(rest) = token.strip_prefix("via-") {
         (GradientStop::Via, rest)
-    } else if let Some(rest) = token.strip_prefix("to-") {
-        (GradientStop::To, rest)
     } else {
-        return None;
+        let rest = token.strip_prefix("to-")?;
+        (GradientStop::To, rest)
     };
     // A percentage is a position and everything else is a colour, which is
     // the same polarity the mask stops use -- `from-nonsense` is a

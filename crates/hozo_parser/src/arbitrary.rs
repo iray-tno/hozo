@@ -77,17 +77,14 @@ fn substitute_underscores(raw: &str) -> String {
             continue;
         }
         if raw[index..].starts_with("url(") {
-            match raw[index..].find(')') {
-                Some(offset) => {
-                    out.push_str(&raw[index..index + offset + 1]);
-                    index += offset + 1;
-                    continue;
-                }
-                // Unbalanced, so there's no region to protect. Falling
-                // through treats it as ordinary text rather than
-                // swallowing the rest of the value.
-                None => {}
+            if let Some(offset) = raw[index..].find(')') {
+                out.push_str(&raw[index..index + offset + 1]);
+                index += offset + 1;
+                continue;
             }
+            // Unbalanced, so there's no region to protect. Falling
+            // through treats it as ordinary text rather than
+            // swallowing the rest of the value.
         }
         let ch = raw[index..].chars().next().unwrap_or('\0');
         out.push(if ch == '_' { ' ' } else { ch });
@@ -341,11 +338,10 @@ pub fn split(token: &str) -> Option<Arbitrary<'_>> {
     let (prefix, inner, is_var) = if let Some(body) = token.strip_suffix(']') {
         let cut = body.find("-[")?;
         (&body[..cut], &body[cut + 2..], false)
-    } else if let Some(body) = token.strip_suffix(')') {
+    } else {
+        let body = token.strip_suffix(')')?;
         let cut = body.find("-(")?;
         (&body[..cut], &body[cut + 2..], true)
-    } else {
-        return None;
     };
 
     let (hint, rest) = match inner.split_once(':') {
@@ -1101,10 +1097,9 @@ fn logical_side(edge: Edge) -> &'static str {
 fn scroll_offset(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
     let (family, rest) = if let Some(rest) = prefix.strip_prefix("scroll-m") {
         ("scroll-margin", rest)
-    } else if let Some(rest) = prefix.strip_prefix("scroll-p") {
-        ("scroll-padding", rest)
     } else {
-        return None;
+        let rest = prefix.strip_prefix("scroll-p")?;
+        ("scroll-padding", rest)
     };
     let edge = match rest {
         "" => Edge::All,
