@@ -1618,6 +1618,56 @@ fn stylex_list_style(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     ])
 }
 
+fn stylex_box_lengths(value: &StaticValue) -> Option<[Length; 4]> {
+    let parts = match value {
+        StaticValue::Number(_) => vec![value.clone()],
+        StaticValue::String(value) => web_components(value)?
+            .into_iter()
+            .map(StaticValue::String)
+            .collect(),
+    };
+    if !(1..=4).contains(&parts.len()) {
+        return None;
+    }
+    let lengths = parts
+        .iter()
+        .map(px_length)
+        .collect::<Option<Vec<_>>>()?;
+    if !lengths.iter().all(|length| matches!(length, Length::Px(value) if value.is_finite())) {
+        return None;
+    }
+    let top = lengths[0].clone();
+    let right = lengths.get(1).unwrap_or(&top).clone();
+    let bottom = lengths.get(2).unwrap_or(&top).clone();
+    let left = lengths.get(3).unwrap_or(&right).clone();
+    Some([top, right, bottom, left])
+}
+
+fn stylex_scroll_box(value: &StaticValue, padding: bool) -> Option<Vec<StyleProperty>> {
+    let lengths = stylex_box_lengths(value)?;
+    if padding
+        && lengths
+            .iter()
+            .any(|length| matches!(length, Length::Px(value) if *value < 0.0))
+    {
+        return None;
+    }
+    let [top, right, bottom, left] = lengths;
+    let property = |edge, value| {
+        if padding {
+            StyleProperty::ScrollPadding(edge, value)
+        } else {
+            StyleProperty::ScrollMargin(edge, value)
+        }
+    };
+    Some(vec![
+        property(Edge::Top, top),
+        property(Edge::Right, right),
+        property(Edge::Bottom, bottom),
+        property(Edge::Left, left),
+    ])
+}
+
 fn web_only_property(property: &str, value: &StaticValue) -> Option<StyleProperty> {
     let (css_property, grammar) = web_only_spec(property)?;
     let value = match grammar {
@@ -2200,6 +2250,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "columns" => stylex_columns(value)?,
         "columnRule" => stylex_column_rule(value)?,
         "listStyle" => stylex_list_style(value)?,
+        "scrollMargin" => stylex_scroll_box(value, false)?,
+        "scrollPadding" => stylex_scroll_box(value, true)?,
         // StyleX emits these as CSS shorthands at a lower atomic priority
         // than their longhands. Split them into the typed final slots here
         // so the same priority resolution works on Web and Native.
@@ -2507,7 +2559,10 @@ fn canonical_property(property: &str) -> &str {
 /// order on both backends.
 fn property_priority(property: &str) -> u16 {
     let property = canonical_property(property);
-    if matches!(property, "padding" | "margin" | "inset") {
+    if matches!(
+        property,
+        "padding" | "margin" | "inset" | "scrollMargin" | "scrollPadding"
+    ) {
         return 1000;
     }
     if matches!(
@@ -2565,6 +2620,14 @@ fn property_priority(property: &str) -> u16 {
             | "paddingRight"
             | "paddingBottom"
             | "paddingLeft"
+            | "scrollMarginTop"
+            | "scrollMarginRight"
+            | "scrollMarginBottom"
+            | "scrollMarginLeft"
+            | "scrollPaddingTop"
+            | "scrollPaddingRight"
+            | "scrollPaddingBottom"
+            | "scrollPaddingLeft"
             | "right"
             | "top"
             | "width"
@@ -2589,6 +2652,18 @@ fn directional_overlap_one_way(left: &StyleProperty, right: &StyleProperty) -> b
             | (StyleProperty::InsetInlineStart(_), StyleProperty::InsetRight(_))
             | (StyleProperty::InsetInlineEnd(_), StyleProperty::InsetLeft(_))
             | (StyleProperty::InsetInlineEnd(_), StyleProperty::InsetRight(_))
+            | (
+                StyleProperty::ScrollMargin(Edge::InlineStart | Edge::InlineEnd, _),
+                StyleProperty::ScrollMargin(Edge::Left | Edge::Right, _),
+            )
+            | (
+                StyleProperty::ScrollPadding(Edge::InlineStart | Edge::InlineEnd, _),
+                StyleProperty::ScrollPadding(Edge::Left | Edge::Right, _),
+            )
+            | (
+                StyleProperty::ScrollPadding(Edge::BlockStart | Edge::BlockEnd, _),
+                StyleProperty::ScrollPadding(Edge::Top | Edge::Bottom, _),
+            )
             | (StyleProperty::BorderStartStartRadius(_), StyleProperty::BorderTopLeftRadius(_))
             | (StyleProperty::BorderStartStartRadius(_), StyleProperty::BorderTopRightRadius(_))
             | (StyleProperty::BorderStartEndRadius(_), StyleProperty::BorderTopLeftRadius(_))
@@ -4766,6 +4841,99 @@ mod tests {
                 && declaration.property
                     == web_longhand("column-count", "3")
         }));
+    }
+
+    #[test]
+    fn scroll_box_shorthands_expand_one_to_four_physical_values() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                scrollMargin: '8px 12px 16px 20px',
+                scrollPadding: 4
+              },
+              wider: {
+                scrollMargin: '8px 12px 16px 20px 24px',
+                scrollPadding: 'calc(1rem + 2px)'
+              },
+              invalidPadding: { scrollPadding: '-1px 8px' }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("exact scroll shorthands were not lowerable")
+        };
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries.iter().map(|entry| entry.properties.len()).sum::<usize>(), 8);
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider scroll shorthands should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 2);
+        assert_eq!(gaps.len(), 2);
+
+        let Rule::Ready { entries, residual, gaps } =
+            &frontend.sheets["styles"]["invalidPadding"]
+        else {
+            panic!("partly invalid scroll padding should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
+    }
+
+    #[test]
+    fn a_scroll_longhand_suppresses_only_its_conditional_shorthand_edge() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              all: { scrollMargin: '8px 12px' },
+              top: { scrollMarginTop: 4 }
+            })
+            const card = <View {...stylex.props(styles.top, active && styles.all)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert_eq!(style.len(), 4);
+        assert!(style.iter().any(|declaration| {
+            declaration.condition == Condition::Always
+                && declaration.property == StyleProperty::ScrollMargin(Edge::Top, Length::Px(4.0))
+        }));
+        assert_eq!(
+            style
+                .iter()
+                .filter(|declaration| matches!(declaration.condition, Condition::Expr(_)))
+                .count(),
+            3
+        );
+    }
+
+    #[test]
+    fn scroll_physical_and_logical_conflicts_remain_direction_aware() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              all: { scrollPadding: 8 },
+              start: { scrollPaddingInlineStart: 4 }
+            })
+            const card = <View {...stylex.props(styles.start, styles.all)} />
+        "#,
+        );
+        assert!(parsed.roots[0].node.style.is_empty());
+        assert_eq!(
+            parsed.diagnostics[0].code,
+            hozo_ir::DiagnosticCode::StylexNotLowered
+        );
+        assert!(parsed.diagnostics[0].message.contains("runtime context"));
     }
 
     #[test]

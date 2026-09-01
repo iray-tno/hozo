@@ -26,7 +26,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 271)
+  assert.equal(mapped.size, 273)
   for (const name of [
     'display',
     'padding',
@@ -52,11 +52,13 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('columns'))
   assert.ok(mapped.has('columnRule'))
   assert.ok(mapped.has('listStyle'))
+  assert.ok(mapped.has('scrollMargin'))
+  assert.ok(mapped.has('scrollPadding'))
 })
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 271)
+  assert.equal(mapped.length, 273)
   assert.ok(mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'))
   assert.equal(manifestEntry('padding')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('gridTemplateColumns')?.basis, 'contextual-runtime')
@@ -65,6 +67,7 @@ test('every mapped property records why it is counted', () => {
   assert.equal(manifestEntry('paintOrder')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('listStyleType')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('listStyle')?.basis, 'exact-web-native-refusal')
+  assert.equal(manifestEntry('scrollMargin')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('backdropFilter')?.basis, 'adapter-candidate')
 })
 
@@ -101,7 +104,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 389)
-  assert.equal(surface.mappedWebOnly.size, 139)
+  assert.equal(surface.mappedWebOnly.size, 141)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
