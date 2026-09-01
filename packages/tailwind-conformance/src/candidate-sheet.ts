@@ -112,8 +112,7 @@ export function compareCandidateSheet(
       inOrder += 1
       continue
     }
-    firstDivergence ??=
-      `position ${index}: Tailwind writes \`${name}\`, Hozo writes \`${mine[index] ?? '(nothing)'}\``
+    firstDivergence ??= `position ${index}: Tailwind writes \`${name}\`, Hozo writes \`${mine[index] ?? '(nothing)'}\``
   }
 
   return {

@@ -17,8 +17,8 @@
 // the platform's spelling of what the Web side writes as `role="tab"` and
 // `aria-selected`.
 
-import { useCallback, useState, type ReactNode } from 'react'
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { type ReactNode, useCallback, useState } from 'react'
+import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
 
 export interface HozoTab {
   label: ReactNode

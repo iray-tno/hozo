@@ -34,7 +34,10 @@ test('left and right are about the screen, not the sequence', () => {
   assert.equal(nextIndex('ArrowRight', { count: 3, active: 1, rtl: true }), 0)
   assert.equal(nextIndex('ArrowLeft', { count: 3, active: 1, rtl: true }), 2)
   // Up and down are not: vertical order does not flip with direction.
-  assert.equal(nextIndex('ArrowDown', { count: 3, active: 1, orientation: 'vertical', rtl: true }), 2)
+  assert.equal(
+    nextIndex('ArrowDown', { count: 3, active: 1, orientation: 'vertical', rtl: true }),
+    2,
+  )
 })
 
 test('a disabled item is passed over rather than landed on', () => {

@@ -28,11 +28,10 @@ const STACK_BUFFER_OVERRUN = new Set([-1073740791, 3221226505])
 // would let a build that produced nothing look like one that worked.
 rmSync('storybook-static', { recursive: true, force: true })
 
-const result = spawnSync(
-  'storybook',
-  ['build', '--output-dir', 'storybook-static', '--quiet'],
-  { stdio: 'inherit', shell: true },
-)
+const result = spawnSync('storybook', ['build', '--output-dir', 'storybook-static', '--quiet'], {
+  stdio: 'inherit',
+  shell: true,
+})
 
 if (result.status === 0) process.exit(0)
 

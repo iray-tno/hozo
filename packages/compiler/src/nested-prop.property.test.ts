@@ -3,14 +3,24 @@ import test from 'node:test'
 
 import { compile, compileNative } from './index.ts'
 
-const propNames = ['renderItem', 'ListHeaderComponent', 'ListEmptyComponent', 'renderAccessory'] as const
+const propNames = [
+  'renderItem',
+  'ListHeaderComponent',
+  'ListEmptyComponent',
+  'renderAccessory',
+] as const
 const shapes = [
   (marker: string) => `<View className="p-1"><Text className="text-sm">${marker}</Text></View>`,
-  (marker: string) => `flag ? <View className="m-2"><Text className="font-bold">${marker}</Text></View> : <Text className="p-2">alt-${marker}</Text>`,
-  (marker: string) => `<><Text className="text-red-500">${marker}</Text><View className="gap-1"><Text>tail-${marker}</Text></View></>`,
-  (marker: string) => `[<Text key="a" className="p-1">${marker}</Text>, <View key="b" className="mt-2"><Text>tail</Text></View>]`,
-  (marker: string) => `items.map((item) => <View key={item} className="px-2"><Text className="text-xs">${marker}-{item}</Text></View>)`,
-  (marker: string) => `<Pressable accessibilityRole="button" className="pressed:opacity-50 hover:bg-blue-500"><Text className="md:text-lg">${marker}</Text></Pressable>`,
+  (marker: string) =>
+    `flag ? <View className="m-2"><Text className="font-bold">${marker}</Text></View> : <Text className="p-2">alt-${marker}</Text>`,
+  (marker: string) =>
+    `<><Text className="text-red-500">${marker}</Text><View className="gap-1"><Text>tail-${marker}</Text></View></>`,
+  (marker: string) =>
+    `[<Text key="a" className="p-1">${marker}</Text>, <View key="b" className="mt-2"><Text>tail</Text></View>]`,
+  (marker: string) =>
+    `items.map((item) => <View key={item} className="px-2"><Text className="text-xs">${marker}-{item}</Text></View>)`,
+  (marker: string) =>
+    `<Pressable accessibilityRole="button" className="pressed:opacity-50 hover:bg-blue-500"><Text className="md:text-lg">${marker}</Text></Pressable>`,
 ] as const
 
 /** Deterministic fuzzing: a failing seed can be reproduced directly. */
@@ -23,9 +33,10 @@ test('nested prop lowering preserves structure and removes every nested classNam
     const shape = shapes[state % shapes.length]
     const marker = `marker-${seed}`
     const value = `() => (${shape(marker)})`
-    const requiredRenderer = propName === 'renderItem'
-      ? ''
-      : ` renderItem={() => <Text className="p-1">row-${seed}</Text>}`
+    const requiredRenderer =
+      propName === 'renderItem'
+        ? ''
+        : ` renderItem={() => <Text className="p-1">row-${seed}</Text>}`
     const source = `import { FlatList, View, Text, Pressable } from '@hozo/core'
 export function Fixture({ rows, flag, items }) {
   return <FlatList data={rows} ${propName}={${value}}${requiredRenderer} />

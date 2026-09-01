@@ -9,8 +9,9 @@
 // this file against the installed package.
 //
 //   node scripts/generate-aria.mjs
-import { createRequire } from 'node:module'
+
 import { writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const { roles } = require('aria-query')
@@ -33,7 +34,9 @@ const rows = entries.map(([name, role]) => {
     ...new Set((role.requiredOwnedElements ?? []).map((path) => path[0]).filter(Boolean)),
   ].sort()
   // What this role adds to the globals, and what it refuses outright.
-  const supported = Object.keys(role.props ?? {}).filter((prop) => !globals.includes(prop)).sort()
+  const supported = Object.keys(role.props ?? {})
+    .filter((prop) => !globals.includes(prop))
+    .sort()
   const prohibited = (role.prohibitedProps ?? []).slice().sort()
   const list = (xs) => `&[${xs.map((x) => JSON.stringify(x)).join(', ')}]`
   return `    AriaRole { name: ${JSON.stringify(name)}, is_abstract: ${role.abstract === true}, required_props: ${list(required)}, required_context: ${list(context)}, required_owned: ${list(owned)}, supported_props: ${list(supported)}, prohibited_props: ${list(prohibited)} },`

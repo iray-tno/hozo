@@ -36,7 +36,9 @@ export function reportDiagnostics(
 ): void {
   const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error')
   if (errors.length > 0) {
-    const detail = errors.map((diagnostic) => `  ${diagnostic.code}: ${diagnostic.message}`).join('\n')
+    const detail = errors
+      .map((diagnostic) => `  ${diagnostic.code}: ${diagnostic.message}`)
+      .join('\n')
     throw new Error(`[hozo] ${filename} cannot be compiled:\n${detail}`)
   }
   for (const diagnostic of diagnostics) {

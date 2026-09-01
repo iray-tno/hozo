@@ -1,6 +1,6 @@
-import { readFileSync, readdirSync, existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { gzipSync, brotliCompressSync } from 'node:zlib'
+import { brotliCompressSync, gzipSync } from 'node:zlib'
 
 import { atomise, substituteClasses } from './duplication.ts'
 

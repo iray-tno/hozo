@@ -1,6 +1,6 @@
+import { Heading, Menu, Paragraph, RadioGroup, Text, View } from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Heading, Menu, Paragraph, RadioGroup, Text, View } from '@hozo/core'
 
 function MenuDemo() {
   const [theme, setTheme] = useState('dark')
@@ -23,7 +23,8 @@ function MenuDemo() {
           Menu (@hozo/a11y)
         </Heading>
         <Paragraph className="text-sm text-slate-600">
-          Accessible action menu popover with keyboard arrow navigation, Escape handling, and focus restoration.
+          Accessible action menu popover with keyboard arrow navigation, Escape handling, and focus
+          restoration.
         </Paragraph>
         <Menu
           trigger={<Text className="font-semibold">Options Menu &darr;</Text>}

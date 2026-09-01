@@ -31,9 +31,21 @@ export interface StylexManifest {
 }
 
 const CONTEXTUAL_PROPERTIES = new Set([
-  'caretColor', 'containerName', 'containerType', 'gridColumn', 'gridColumnEnd', 'gridColumnStart',
-  'gridRow', 'gridRowEnd', 'gridRowStart', 'gridTemplateColumns', 'gridTemplateRows',
-  'textOverflow', 'transitionDuration', 'transitionProperty', 'transitionTimingFunction',
+  'caretColor',
+  'containerName',
+  'containerType',
+  'gridColumn',
+  'gridColumnEnd',
+  'gridColumnStart',
+  'gridRow',
+  'gridRowEnd',
+  'gridRowStart',
+  'gridTemplateColumns',
+  'gridTemplateRows',
+  'textOverflow',
+  'transitionDuration',
+  'transitionProperty',
+  'transitionTimingFunction',
   'whiteSpace',
 ])
 
@@ -52,17 +64,14 @@ function packageVersion(packagePath: string): string {
 }
 
 export function officialStylexPropertiesFromTypes(): Set<string> {
-  const source = readFileSync(
-    path.join(stylexDir(), 'lib/es/types/StyleXCSSTypes.d.ts'),
-    'utf8',
-  )
+  const source = readFileSync(path.join(stylexDir(), 'lib/es/types/StyleXCSSTypes.d.ts'), 'utf8')
   const start = source.indexOf('export type CSSProperties = Readonly<{')
   if (start === -1) throw new Error('StyleX CSSProperties declaration was not found')
   const end = source.indexOf('\n}>;', start)
   if (end === -1) throw new Error('StyleX CSSProperties declaration was not closed')
 
   const properties = new Set<string>()
-  for (const match of source.slice(start, end).matchAll(/^  ([A-Za-z][A-Za-z0-9]*)\?:/gm)) {
+  for (const match of source.slice(start, end).matchAll(/^ {2}([A-Za-z][A-Za-z0-9]*)\?:/gm)) {
     properties.add(match[1])
   }
   if (properties.size === 0) throw new Error('StyleX CSSProperties declaration was empty')
@@ -86,8 +95,11 @@ export function mappedHozoStylexPropertiesFromRust(): Set<string> {
   // implementation-backed mappings, not hand-maintained coverage claims.
   const webStart = source.indexOf('fn web_only_keyword_spec(')
   const webEnd = source.indexOf('\nfn web_only_property(', webStart)
-  if (webStart === -1 || webEnd === -1) throw new Error('Hozo Web value grammar table was not found')
-  for (const match of source.slice(webStart, webEnd).matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
+  if (webStart === -1 || webEnd === -1)
+    throw new Error('Hozo Web value grammar table was not found')
+  for (const match of source
+    .slice(webStart, webEnd)
+    .matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
     properties.add(match[1])
   }
   if (properties.size === 0) throw new Error('Hozo StyleX property mapper was empty')

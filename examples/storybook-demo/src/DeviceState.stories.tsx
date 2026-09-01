@@ -14,13 +14,17 @@
 // the same through Chrome's emulation, which is what makes them evidence
 // rather than decoration.
 
-import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Heading, Paragraph, Pressable, Section, Text, View } from '@hozo/core'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 const CARD = 'rounded-xl border border-slate-200 p-5 space-y-3'
 const LABEL = 'text-xs font-semibold uppercase tracking-wide text-slate-500'
 
-function Card({ title, driver, children }: {
+function Card({
+  title,
+  driver,
+  children,
+}: {
   title: string
   driver: string
   children: React.ReactNode
@@ -46,8 +50,8 @@ function DeviceStateGallery() {
           Device State
         </Heading>
         <Paragraph className="text-sm leading-relaxed text-slate-600">
-          Five variants whose condition lives outside the page. Nothing here
-          responds to a click — change the setting named under each heading.
+          Five variants whose condition lives outside the page. Nothing here responds to a click —
+          change the setting named under each heading.
         </Paragraph>
       </View>
 

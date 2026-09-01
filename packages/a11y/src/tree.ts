@@ -55,10 +55,7 @@ export interface TreeRow {
  * screen reader say "3 of 3" for every row it can see, which is worse than
  * silence: it is a wrong count rather than a missing one.
  */
-export function visibleRows(
-  nodes: readonly TreeNode[],
-  expanded: ReadonlySet<string>,
-): TreeRow[] {
+export function visibleRows(nodes: readonly TreeNode[], expanded: ReadonlySet<string>): TreeRow[] {
   const rows: TreeRow[] = []
   const walk = (siblings: readonly TreeNode[], level: number, parent: string | null) => {
     siblings.forEach((node, at) => {

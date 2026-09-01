@@ -10,7 +10,7 @@
 // Run in the release workflow between downloading the build artifacts and
 // publishing them.
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 

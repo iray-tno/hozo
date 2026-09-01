@@ -49,7 +49,11 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     purpose: 'one alternative text input reaches native semantics on both platforms',
     source: '<Image src="https://example.com/cover.jpg" alt="Cover art" />',
     web: ['<img', 'src={"https://example.com/cover.jpg"}', 'alt={"Cover art"}'],
-    native: ['<Image', 'source={{ uri: "https://example.com/cover.jpg" }}', 'accessibilityLabel={"Cover art"}'],
+    native: [
+      '<Image',
+      'source={{ uri: "https://example.com/cover.jpg" }}',
+      'accessibilityLabel={"Cover art"}',
+    ],
   },
   {
     name: 'semantic Link',
@@ -61,10 +65,16 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
   {
     name: 'semantic Button',
     purpose: 'name, hint and disabled state retain native semantics on both platforms',
-    source: '<Button disabled={busy} accessibilityLabel="Save" accessibilityHint="Saves the draft">Save</Button>',
+    source:
+      '<Button disabled={busy} accessibilityLabel="Save" accessibilityHint="Saves the draft">Save</Button>',
     // `type="button"`: React Native has no forms, so a Button that
     // happened to render inside one must not also submit it.
-    web: ['<button type="button"', 'disabled={busy}', 'aria-label={"Save"}', 'aria-description={"Saves the draft"}'],
+    web: [
+      '<button type="button"',
+      'disabled={busy}',
+      'aria-label={"Save"}',
+      'aria-description={"Saves the draft"}',
+    ],
     native: [
       '<Pressable',
       'accessibilityRole="button"',
@@ -76,7 +86,8 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
   {
     name: 'role-bearing Pressable',
     purpose: 'a generic interaction stays focusable and explicitly named',
-    source: '<Pressable onPress={go} accessibilityRole="link" accessibilityLabel="Account">Account</Pressable>',
+    source:
+      '<Pressable onPress={go} accessibilityRole="link" accessibilityLabel="Account">Account</Pressable>',
     // The tab stop, the click, the keyboard activation and the disabled
     // state all come from one call. They are five things that have to
     // agree, and spelling them out separately is how they stopped:
@@ -90,16 +101,40 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
   {
     name: 'named TextInput',
     purpose: 'a field name and supplemental guidance use each platform spelling',
-    source: '<TextInput accessibilityLabel="Email" accessibilityHint="Work address" placeholder="you@example.com" />',
-    web: ['<input', 'aria-label={"Email"}', 'aria-description={"Work address"}', 'placeholder="you@example.com"'],
-    native: ['<TextInput', 'accessibilityLabel={"Email"}', 'accessibilityHint={"Work address"}', 'placeholder="you@example.com"'],
+    source:
+      '<TextInput accessibilityLabel="Email" accessibilityHint="Work address" placeholder="you@example.com" />',
+    web: [
+      '<input',
+      'aria-label={"Email"}',
+      'aria-description={"Work address"}',
+      'placeholder="you@example.com"',
+    ],
+    native: [
+      '<TextInput',
+      'accessibilityLabel={"Email"}',
+      'accessibilityHint={"Work address"}',
+      'placeholder="you@example.com"',
+    ],
   },
   {
     name: 'modal Dialog',
     purpose: 'the accessible name, hint and dismissal callback reach the modal runtime',
-    source: '<Dialog open={showing} onClose={dismiss} accessibilityLabel="Confirm" accessibilityHint="Review before continuing" />',
-    web: ['<HozoDialog', 'open={showing}', 'onClose={dismiss}', 'accessibilityLabel={"Confirm"}', 'accessibilityHint={"Review before continuing"}'],
-    native: ['<HozoDialog', 'open={showing}', 'onClose={dismiss}', 'accessibilityLabel={"Confirm"}', 'accessibilityHint={"Review before continuing"}'],
+    source:
+      '<Dialog open={showing} onClose={dismiss} accessibilityLabel="Confirm" accessibilityHint="Review before continuing" />',
+    web: [
+      '<HozoDialog',
+      'open={showing}',
+      'onClose={dismiss}',
+      'accessibilityLabel={"Confirm"}',
+      'accessibilityHint={"Review before continuing"}',
+    ],
+    native: [
+      '<HozoDialog',
+      'open={showing}',
+      'onClose={dismiss}',
+      'accessibilityLabel={"Confirm"}',
+      'accessibilityHint={"Review before continuing"}',
+    ],
   },
   {
     name: 'missing interaction role diagnostic',
@@ -237,19 +272,25 @@ export function compareA11yContextual(testCase: A11yContextualCase): A11yContext
     `export function C() { return ${testCase.source} }\n`
   const [web] = compile(source)
   const [native] = compileNative(source)
-  if (!web || !native) return { ...testCase, covered: false, detail: 'one backend emitted no component' }
+  if (!web || !native)
+    return { ...testCase, covered: false, detail: 'one backend emitted no component' }
 
   const failures: string[] = []
   for (const marker of testCase.web) if (!web.jsx.includes(marker)) failures.push(`Web: ${marker}`)
-  for (const marker of testCase.native) if (!native.jsx.includes(marker)) failures.push(`Native: ${marker}`)
+  for (const marker of testCase.native)
+    if (!native.jsx.includes(marker)) failures.push(`Native: ${marker}`)
   const expectedDiagnostics = testCase.diagnostics ?? []
   for (const code of expectedDiagnostics) {
-    if (!web.diagnostics.some((diagnostic) => diagnostic.code === code)) failures.push(`Web diagnostic: ${code}`)
-    if (!native.diagnostics.some((diagnostic) => diagnostic.code === code)) failures.push(`Native diagnostic: ${code}`)
+    if (!web.diagnostics.some((diagnostic) => diagnostic.code === code))
+      failures.push(`Web diagnostic: ${code}`)
+    if (!native.diagnostics.some((diagnostic) => diagnostic.code === code))
+      failures.push(`Native diagnostic: ${code}`)
   }
   if (expectedDiagnostics.length === 0) {
-    if (web.diagnostics.length > 0) failures.push(`unexpected Web diagnostic: ${web.diagnostics[0].code}`)
-    if (native.diagnostics.length > 0) failures.push(`unexpected Native diagnostic: ${native.diagnostics[0].code}`)
+    if (web.diagnostics.length > 0)
+      failures.push(`unexpected Web diagnostic: ${web.diagnostics[0].code}`)
+    if (native.diagnostics.length > 0)
+      failures.push(`unexpected Native diagnostic: ${native.diagnostics[0].code}`)
   }
   return failures.length === 0
     ? { ...testCase, covered: true }

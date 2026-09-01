@@ -4,7 +4,9 @@ import test from 'node:test'
 import { hozoImageSource } from './image-source.native.ts'
 
 test('a URI becomes React Native source metadata', () => {
-  assert.deepEqual(hozoImageSource('https://example.com/image.png'), { uri: 'https://example.com/image.png' })
+  assert.deepEqual(hozoImageSource('https://example.com/image.png'), {
+    uri: 'https://example.com/image.png',
+  })
 })
 
 test('a Metro local asset id is retained', () => {

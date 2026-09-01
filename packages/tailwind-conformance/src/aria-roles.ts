@@ -132,11 +132,7 @@ function children(
 }
 
 /** A complete element of `name`, without re-adding the ancestors it is already inside. */
-function bare(
-  name: string,
-  definitions: Map<string, AriaRoleDefinition>,
-  depth: number,
-): string {
+function bare(name: string, definitions: Map<string, AriaRoleDefinition>, depth: number): string {
   const definition = definitions.get(name)
   if (!definition) return `<View role="${name}">x</View>`
   return `<View ${attributesFor(name, definition)}>${children(definition, definitions, depth)}</View>`
@@ -150,11 +146,7 @@ function bare(
  * an incomplete one would raise a diagnostic of its own and the count would
  * blame the wrong element.
  */
-function nested(
-  name: string,
-  definitions: Map<string, AriaRoleDefinition>,
-  depth = 0,
-): string {
+function nested(name: string, definitions: Map<string, AriaRoleDefinition>, depth = 0): string {
   const definition = definitions.get(name)
   if (!definition) return `<View role="${name}">x</View>`
   const element = `<View ${attributesFor(name, definition)}>${children(definition, definitions, depth)}</View>`
@@ -284,8 +276,7 @@ function interactive(
 
 export function compareAriaRole(testCase: AriaRoleCase): AriaRoleResult {
   const source =
-    `import { View } from '@hozo/core'\n` +
-    `export function C() { return (${testCase.source}) }\n`
+    `import { View } from '@hozo/core'\n` + `export function C() { return (${testCase.source}) }\n`
   const codes = [
     ...(compile(source)[0]?.diagnostics ?? []),
     ...(compileNative(source)[0]?.diagnostics ?? []),

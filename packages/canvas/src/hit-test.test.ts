@@ -33,21 +33,23 @@ test('hit testing follows contained viewBox coordinates and reverse paint order'
 })
 
 test('group translation, rotation, scale, and origin are inverted before geometry tests', () => {
-  const scene: CanvasScene = [{
-    kind: 'group',
-    props: {
-      transform: {
-        translateX: 30,
-        translateY: 10,
-        rotate: 90,
-        scaleX: 2,
-        scaleY: 2,
-        originX: 5,
-        originY: 5,
+  const scene: CanvasScene = [
+    {
+      kind: 'group',
+      props: {
+        transform: {
+          translateX: 30,
+          translateY: 10,
+          rotate: 90,
+          scaleX: 2,
+          scaleY: 2,
+          originX: 5,
+          originY: 5,
+        },
       },
+      children: [{ id: 'target', kind: 'rect', props: { width: 10, height: 10 } }],
     },
-    children: [{ id: 'target', kind: 'rect', props: { width: 10, height: 10 } }],
-  }]
+  ]
 
   const hit = hitTestCanvas(scene, { x: 43, y: 19 }, { width: 100, height: 100 }, interactive)
   assert.equal(hit?.id, 'target')
@@ -56,15 +58,19 @@ test('group translation, rotation, scale, and origin are inverted before geometr
 })
 
 test('rectangle clips constrain descendants and path clips safely refuse portable hits', () => {
-  const rectangleClip: CanvasScene = [{
-    kind: 'group',
-    props: { transform: { translateX: 10 } },
-    children: [{
-      kind: 'clip',
-      props: { x: 0, y: 0, width: 10, height: 10 },
-      children: [{ id: 'wide', kind: 'rect', props: { width: 20, height: 20 } }],
-    }],
-  }]
+  const rectangleClip: CanvasScene = [
+    {
+      kind: 'group',
+      props: { transform: { translateX: 10 } },
+      children: [
+        {
+          kind: 'clip',
+          props: { x: 0, y: 0, width: 10, height: 10 },
+          children: [{ id: 'wide', kind: 'rect', props: { width: 20, height: 20 } }],
+        },
+      ],
+    },
+  ]
   assert.equal(
     hitTestCanvas(rectangleClip, { x: 15, y: 5 }, { width: 30, height: 20 }, interactive)?.id,
     'wide',
@@ -74,11 +80,13 @@ test('rectangle clips constrain descendants and path clips safely refuse portabl
     undefined,
   )
 
-  const pathClip: CanvasScene = [{
-    kind: 'clip',
-    props: { path: 'M0 0H10V10Z' },
-    children: [{ id: 'inside', kind: 'rect', props: { width: 10, height: 10 } }],
-  }]
+  const pathClip: CanvasScene = [
+    {
+      kind: 'clip',
+      props: { path: 'M0 0H10V10Z' },
+      children: [{ id: 'inside', kind: 'rect', props: { width: 10, height: 10 } }],
+    },
+  ]
   assert.equal(
     hitTestCanvas(pathClip, { x: 5, y: 5 }, { width: 10, height: 10 }, interactive),
     undefined,
@@ -86,23 +94,33 @@ test('rectangle clips constrain descendants and path clips safely refuse portabl
 })
 
 test('closed primitive hit areas reject bounding-box-only false positives', () => {
-  const rounded: CanvasScene = [{
-    id: 'rounded',
-    kind: 'rounded-rect',
-    props: { width: 20, height: 20, radius: 8 },
-  }]
-  assert.equal(hitTestCanvas(rounded, { x: 0, y: 0 }, { width: 20, height: 20 }, interactive), undefined)
+  const rounded: CanvasScene = [
+    {
+      id: 'rounded',
+      kind: 'rounded-rect',
+      props: { width: 20, height: 20, radius: 8 },
+    },
+  ]
+  assert.equal(
+    hitTestCanvas(rounded, { x: 0, y: 0 }, { width: 20, height: 20 }, interactive),
+    undefined,
+  )
   assert.equal(
     hitTestCanvas(rounded, { x: 5, y: 5 }, { width: 20, height: 20 }, interactive)?.id,
     'rounded',
   )
 
-  const ellipse: CanvasScene = [{
-    id: 'ellipse',
-    kind: 'ellipse',
-    props: { cx: 10, cy: 10, radiusX: 10, radiusY: 4 },
-  }]
-  assert.equal(hitTestCanvas(ellipse, { x: 1, y: 6 }, { width: 20, height: 20 }, interactive), undefined)
+  const ellipse: CanvasScene = [
+    {
+      id: 'ellipse',
+      kind: 'ellipse',
+      props: { cx: 10, cy: 10, radiusX: 10, radiusY: 4 },
+    },
+  ]
+  assert.equal(
+    hitTestCanvas(ellipse, { x: 1, y: 6 }, { width: 20, height: 20 }, interactive),
+    undefined,
+  )
   assert.equal(
     hitTestCanvas(ellipse, { x: 10, y: 7 }, { width: 20, height: 20 }, interactive)?.id,
     'ellipse',
@@ -110,12 +128,17 @@ test('closed primitive hit areas reject bounding-box-only false positives', () =
 })
 
 test('singular transforms and invalid viewBoxes cannot produce phantom hits', () => {
-  const scene: CanvasScene = [{
-    kind: 'group',
-    props: { transform: { scaleX: 0 } },
-    children: [{ id: 'target', kind: 'rect', props: { width: 10, height: 10 } }],
-  }]
-  assert.equal(hitTestCanvas(scene, { x: 0, y: 0 }, { width: 10, height: 10 }, interactive), undefined)
+  const scene: CanvasScene = [
+    {
+      kind: 'group',
+      props: { transform: { scaleX: 0 } },
+      children: [{ id: 'target', kind: 'rect', props: { width: 10, height: 10 } }],
+    },
+  ]
+  assert.equal(
+    hitTestCanvas(scene, { x: 0, y: 0 }, { width: 10, height: 10 }, interactive),
+    undefined,
+  )
   assert.equal(
     hitTestCanvas(
       [{ id: 'target', kind: 'rect', props: { width: 10, height: 10 } }],

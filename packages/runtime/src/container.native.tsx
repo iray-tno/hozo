@@ -16,8 +16,8 @@
 // component boundary between the provider and the read, and adding a View
 // to do that would change the layout the query is measuring.
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import { View, type LayoutChangeEvent, type ViewProps } from 'react-native'
+import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
+import { type LayoutChangeEvent, View, type ViewProps } from 'react-native'
 
 /**
  * Container widths in scope, by name.

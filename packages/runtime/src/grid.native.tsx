@@ -1,13 +1,13 @@
-import { Children, isValidElement, useState, type ReactNode } from 'react'
-import { View, type LayoutChangeEvent } from 'react-native'
+import { Children, isValidElement, type ReactNode, useState } from 'react'
+import { type LayoutChangeEvent, View } from 'react-native'
 
 import {
+  type GridTrack,
   gridCellStyle,
   gridLayout,
-  gridRows,
   gridRowSizes,
+  gridRows,
   gridTrackSizes,
-  type GridTrack,
 } from './grid.ts'
 
 interface Props {
@@ -23,7 +23,13 @@ interface Props {
  * measurement: fixed tracks and fr tracks are solved by one Yoga flex row.
  * Empty cells preserve track widths on the final row.
  */
-export function HozoGrid({ tracks, rowTracks = [], columnGap = 0, rowGap = 0, children }: Props): ReactNode {
+export function HozoGrid({
+  tracks,
+  rowTracks = [],
+  columnGap = 0,
+  rowGap = 0,
+  children,
+}: Props): ReactNode {
   const [width, setWidth] = useState(0)
   const [heights, setHeights] = useState<number[]>([])
   const list = Children.toArray(children)
@@ -38,8 +44,9 @@ export function HozoGrid({ tracks, rowTracks = [], columnGap = 0, rowGap = 0, ch
       : { span: 1 },
   )
   const layout = gridLayout(placements, tracks.length)
-  const measured = rowTracks.length > 0
-    || placements.some((item) => (item.rowSpan ?? 1) > 1 || item.rowStart !== undefined)
+  const measured =
+    rowTracks.length > 0 ||
+    placements.some((item) => (item.rowSpan ?? 1) > 1 || item.rowStart !== undefined)
   if (measured) {
     const columns = gridTrackSizes(tracks, width, columnGap)
     const rows = gridRowSizes(layout, heights, rowGap, rowTracks)
@@ -50,9 +57,9 @@ export function HozoGrid({ tracks, rowTracks = [], columnGap = 0, rowGap = 0, ch
     const totalHeight = rows.reduce((a, b) => a + b, 0) + Math.max(0, rows.length - 1) * rowGap
     const rememberHeight = (child: number) => (event: LayoutChangeEvent) => {
       const height = event.nativeEvent.layout.height
-      setHeights((current) => current[child] === height
-        ? current
-        : Object.assign([...current], { [child]: height }))
+      setHeights((current) =>
+        current[child] === height ? current : Object.assign([...current], { [child]: height }),
+      )
     }
     return (
       <View
@@ -60,10 +67,12 @@ export function HozoGrid({ tracks, rowTracks = [], columnGap = 0, rowGap = 0, ch
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       >
         {layout.map((item) => {
-          const cellWidth = columns.slice(item.column, item.column + item.columnSpan)
-            .reduce((a, b) => a + b, 0) + (item.columnSpan - 1) * columnGap
-          const cellHeight = rows.slice(item.row, item.row + item.rowSpan)
-            .reduce((a, b) => a + b, 0) + (item.rowSpan - 1) * rowGap
+          const cellWidth =
+            columns.slice(item.column, item.column + item.columnSpan).reduce((a, b) => a + b, 0) +
+            (item.columnSpan - 1) * columnGap
+          const cellHeight =
+            rows.slice(item.row, item.row + item.rowSpan).reduce((a, b) => a + b, 0) +
+            (item.rowSpan - 1) * rowGap
           return (
             <View
               key={item.child}

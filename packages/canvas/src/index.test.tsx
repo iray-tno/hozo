@@ -3,7 +3,7 @@ import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { canvasAccessibilityMode } from './accessibility.ts'
-import { Canvas, CanvasSceneStore, renderCanvas2D, type CanvasScene } from './index.tsx'
+import { Canvas, type CanvasScene, CanvasSceneStore, renderCanvas2D } from './index.tsx'
 
 const checkAccessibilityTypes = () => {
   // @ts-expect-error A meaningful Canvas must choose one accessibility mode.
@@ -46,28 +46,33 @@ test('the retained store builds a nested scene without coupling it to semantic n
 
 test('Canvas 2D rendering applies DPR and a contained viewBox before drawing', () => {
   const calls: Array<readonly unknown[]> = []
-  const context = new Proxy({
-    globalAlpha: 1,
-    fillStyle: '',
-    strokeStyle: '',
-    lineWidth: 1,
-    lineCap: 'butt',
-    lineJoin: 'miter',
-  } as Record<string, unknown>, {
-    get(target, property) {
-      if (property in target) return target[property as string]
-      return (...args: unknown[]) => calls.push([property, ...args])
+  const context = new Proxy(
+    {
+      globalAlpha: 1,
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      lineCap: 'butt',
+      lineJoin: 'miter',
+    } as Record<string, unknown>,
+    {
+      get(target, property) {
+        if (property in target) return target[property as string]
+        return (...args: unknown[]) => calls.push([property, ...args])
+      },
+      set(target, property, value) {
+        target[property as string] = value
+        calls.push([`set:${String(property)}`, value])
+        return true
+      },
     },
-    set(target, property, value) {
-      target[property as string] = value
-      calls.push([`set:${String(property)}`, value])
-      return true
+  ) as unknown as CanvasRenderingContext2D
+  const scene: CanvasScene = [
+    {
+      kind: 'rect',
+      props: { x: 1, y: 2, width: 10, height: 5, fill: '#2563eb' },
     },
-  }) as unknown as CanvasRenderingContext2D
-  const scene: CanvasScene = [{
-    kind: 'rect',
-    props: { x: 1, y: 2, width: 10, height: 5, fill: '#2563eb' },
-  }]
+  ]
 
   renderCanvas2D(context, scene, {
     width: 200,
@@ -109,7 +114,16 @@ test('the Web fallback is a semantic sibling rather than a child of role=img', (
       width={100}
       height={50}
       accessibilityLabel="Quarterly revenue"
-      accessibleFallback={<table><tbody><tr><td>Q1</td><td>42</td></tr></tbody></table>}
+      accessibleFallback={
+        <table>
+          <tbody>
+            <tr>
+              <td>Q1</td>
+              <td>42</td>
+            </tr>
+          </tbody>
+        </table>
+      }
     >
       <Canvas.Rect width={42} height={10} fill="#2563eb" />
     </Canvas>,
@@ -121,7 +135,10 @@ test('the Web fallback is a semantic sibling rather than a child of role=img', (
   assert.ok(canvasEnd >= 0 && fallbackStart > canvasEnd && tableStart > fallbackStart)
   assert.match(html, /<canvas[^>]+aria-hidden="true"/)
   assert.doesNotMatch(html.slice(0, canvasEnd), /role="img"|aria-label/)
-  assert.match(html, /<div[^>]+role="group"[^>]+aria-label="Quarterly revenue"[^>]+data-hozo-canvas-fallback=""/)
+  assert.match(
+    html,
+    /<div[^>]+role="group"[^>]+aria-label="Quarterly revenue"[^>]+data-hozo-canvas-fallback=""/,
+  )
   assert.match(html, /<table><tbody><tr><td>Q1<\/td><td>42<\/td><\/tr><\/tbody><\/table>/)
 })
 
@@ -137,13 +154,14 @@ test('decorative canvases are explicitly hidden from accessibility APIs', () => 
 
 test('interactions inside path clips fail explicitly instead of becoming inert', () => {
   assert.throws(
-    () => renderToStaticMarkup(
-      <Canvas accessibilityLabel="Clipped chart">
-        <Canvas.Clip path="M0 0H10V10Z">
-          <Canvas.Rect width={10} height={10} onPress={() => undefined} />
-        </Canvas.Clip>
-      </Canvas>,
-    ),
+    () =>
+      renderToStaticMarkup(
+        <Canvas accessibilityLabel="Clipped chart">
+          <Canvas.Clip path="M0 0H10V10Z">
+            <Canvas.Rect width={10} height={10} onPress={() => undefined} />
+          </Canvas.Clip>
+        </Canvas>,
+      ),
     /interactions inside path clips are unsupported/,
   )
 })

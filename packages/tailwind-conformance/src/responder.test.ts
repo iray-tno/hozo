@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-
+import { PanResponder, type PanResponderGestureState } from '../../core/src/pan-responder.ts'
 import {
   createResponderDomProps,
   type HozoResponderEvent,
   type ResponderProps,
 } from '../../core/src/responder.ts'
-import { PanResponder, type PanResponderGestureState } from '../../core/src/pan-responder.ts'
 
 interface FakeElement {
   captured: Set<number>
@@ -67,7 +66,13 @@ test('the Web responder bridge grants, moves, releases, and normalizes coordinat
   )
 
   let propagationStopped = false
-  handlers.onPointerDown?.(pointer(target, 7, { stopPropagation: () => { propagationStopped = true } }))
+  handlers.onPointerDown?.(
+    pointer(target, 7, {
+      stopPropagation: () => {
+        propagationStopped = true
+      },
+    }),
+  )
   assert.equal(propagationStopped, true)
   assert.deepEqual([...target.captured], [7])
   handlers.onPointerMove?.(pointer(target, 7))
@@ -87,20 +92,24 @@ test('an incumbent responder can reject a competing responder', () => {
   const lifecycle: string[] = []
   const firstHandlers = createResponderDomProps(
     { current: first as unknown as HTMLElement },
-    { current: {
-      onStartShouldSetResponder: () => true,
-      onResponderGrant: () => lifecycle.push('first grant'),
-      onResponderTerminationRequest: () => false,
-      onResponderRelease: () => lifecycle.push('first release'),
-    } },
+    {
+      current: {
+        onStartShouldSetResponder: () => true,
+        onResponderGrant: () => lifecycle.push('first grant'),
+        onResponderTerminationRequest: () => false,
+        onResponderRelease: () => lifecycle.push('first release'),
+      },
+    },
   )
   const secondHandlers = createResponderDomProps(
     { current: second as unknown as HTMLElement },
-    { current: {
-      onStartShouldSetResponder: () => true,
-      onResponderGrant: () => lifecycle.push('second grant'),
-      onResponderReject: () => lifecycle.push('second reject'),
-    } },
+    {
+      current: {
+        onStartShouldSetResponder: () => true,
+        onResponderGrant: () => lifecycle.push('second grant'),
+        onResponderReject: () => lifecycle.push('second reject'),
+      },
+    },
   )
 
   firstHandlers.onPointerDown?.(pointer(first, 1))
@@ -117,19 +126,23 @@ test('an accepted transfer terminates the incumbent and pointer cancellation ter
   const lifecycle: string[] = []
   const firstHandlers = createResponderDomProps(
     { current: first as unknown as HTMLElement },
-    { current: {
-      onStartShouldSetResponder: () => true,
-      onResponderGrant: () => lifecycle.push('first grant'),
-      onResponderTerminate: () => lifecycle.push('first terminate'),
-    } },
+    {
+      current: {
+        onStartShouldSetResponder: () => true,
+        onResponderGrant: () => lifecycle.push('first grant'),
+        onResponderTerminate: () => lifecycle.push('first terminate'),
+      },
+    },
   )
   const secondHandlers = createResponderDomProps(
     { current: second as unknown as HTMLElement },
-    { current: {
-      onStartShouldSetResponder: () => true,
-      onResponderGrant: () => lifecycle.push('second grant'),
-      onResponderTerminate: () => lifecycle.push('second terminate'),
-    } },
+    {
+      current: {
+        onStartShouldSetResponder: () => true,
+        onResponderGrant: () => lifecycle.push('second grant'),
+        onResponderTerminate: () => lifecycle.push('second terminate'),
+      },
+    },
   )
 
   firstHandlers.onPointerDown?.(pointer(first, 1))
@@ -151,16 +164,21 @@ test('multiple pointers stay in one responder until the last pointer ends', () =
   const touchCounts: number[] = []
   const handlers = createResponderDomProps(
     { current: target as unknown as HTMLElement },
-    { current: {
-      onStartShouldSetResponder: () => true,
-      onResponderStart: (event) => touchCounts.push(event.nativeEvent.touches.length),
-      onResponderEnd: (event) => touchCounts.push(event.nativeEvent.touches.length),
-      onResponderMove: (event) => {
-        assert.deepEqual(event.nativeEvent.touches.map((touch) => touch.identifier), [11, 12])
-        lifecycle.push('move')
+    {
+      current: {
+        onStartShouldSetResponder: () => true,
+        onResponderStart: (event) => touchCounts.push(event.nativeEvent.touches.length),
+        onResponderEnd: (event) => touchCounts.push(event.nativeEvent.touches.length),
+        onResponderMove: (event) => {
+          assert.deepEqual(
+            event.nativeEvent.touches.map((touch) => touch.identifier),
+            [11, 12],
+          )
+          lifecycle.push('move')
+        },
+        onResponderRelease: () => lifecycle.push('release'),
       },
-      onResponderRelease: () => lifecycle.push('release'),
-    } },
+    },
   )
 
   handlers.onPointerDown?.(pointer(target, 11))
@@ -189,13 +207,15 @@ test('PanResponder.create derives displacement, velocity, and active touch count
   )
 
   handlers.onPointerDown?.(pointer(target, 21, { timeStamp: 10 }))
-  handlers.onPointerMove?.(pointer(target, 21, {
-    clientX: 27,
-    clientY: 49,
-    pageX: 127,
-    pageY: 149,
-    timeStamp: 20,
-  }))
+  handlers.onPointerMove?.(
+    pointer(target, 21, {
+      clientX: 27,
+      clientY: 49,
+      pageX: 127,
+      pageY: 149,
+      timeStamp: 20,
+    }),
+  )
   handlers.onPointerUp?.(pointer(target, 21, { timeStamp: 30 }))
 
   assert.equal(moves.length, 1)
@@ -226,23 +246,29 @@ test('PanResponder accumulates the RN touch-history cluster when pointers move a
   )
 
   handlers.onPointerDown?.(pointer(target, 31, { pageX: 100, timeStamp: 10 }))
-  handlers.onPointerDown?.(pointer(target, 32, {
-    isPrimary: false,
-    pageX: 200,
-    timeStamp: 11,
-  }))
+  handlers.onPointerDown?.(
+    pointer(target, 32, {
+      isPrimary: false,
+      pageX: 200,
+      timeStamp: 11,
+    }),
+  )
   // Account for both newly active pointers before measuring alternating moves.
-  handlers.onPointerMove?.(pointer(target, 32, {
-    isPrimary: false,
-    pageX: 200,
-    timeStamp: 12,
-  }))
+  handlers.onPointerMove?.(
+    pointer(target, 32, {
+      isPrimary: false,
+      pageX: 200,
+      timeStamp: 12,
+    }),
+  )
   handlers.onPointerMove?.(pointer(target, 31, { pageX: 110, timeStamp: 22 }))
-  handlers.onPointerMove?.(pointer(target, 32, {
-    isPrimary: false,
-    pageX: 210,
-    timeStamp: 32,
-  }))
+  handlers.onPointerMove?.(
+    pointer(target, 32, {
+      isPrimary: false,
+      pageX: 210,
+      timeStamp: 32,
+    }),
+  )
 
   assert.equal(moves.at(-1)?.moveX, 160)
   // RN includes tracks exactly on the previous accounting boundary (`>=`),

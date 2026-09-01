@@ -26,7 +26,7 @@ import path from 'node:path'
 import { after, test } from 'node:test'
 import { createServer, type PluginOption, type ViteDevServer } from 'vite'
 
-import { hozo, type HozoOptions } from './index.ts'
+import { type HozoOptions, hozo } from './index.ts'
 
 const roots: string[] = []
 const servers: ViteDevServer[] = []
@@ -118,7 +118,10 @@ export const App = () => <View className={accent()}><View className="p-4" /></Vi
 `
 
 test('the dev server lowers a module on request', async () => {
-  const root = project({ 'App.tsx': APP, 'accent.ts': "export const accent = () => 'bg-emerald-500'\n" })
+  const root = project({
+    'App.tsx': APP,
+    'accent.ts': "export const accent = () => 'bg-emerald-500'\n",
+  })
   const server = await serve(root)
 
   const result = await server.transformRequest('/App.tsx')
@@ -160,10 +163,14 @@ test('the dev server uses Vite aliases for StyleX imports and re-exports', async
       import { cardStyles } from '@theme'
       export const App = () => <View {...stylex.props(cardStyles.root)} />`,
   })
-  const server = await serve(root, {}, {
-    '@theme/styles': path.join(root, 'styles.ts'),
-    '@theme': path.join(root, 'index.ts'),
-  })
+  const server = await serve(
+    root,
+    {},
+    {
+      '@theme/styles': path.join(root, 'styles.ts'),
+      '@theme': path.join(root, 'index.ts'),
+    },
+  )
 
   const result = await server.transformRequest('/App.tsx')
   assert.ok(result)
@@ -174,7 +181,10 @@ test('the dev server uses Vite aliases for StyleX imports and re-exports', async
 })
 
 test('a class only a helper produces reaches the candidate stylesheet', async () => {
-  const root = project({ 'App.tsx': APP, 'accent.ts': "export const accent = () => 'bg-emerald-500'\n" })
+  const root = project({
+    'App.tsx': APP,
+    'accent.ts': "export const accent = () => 'bg-emerald-500'\n",
+  })
   await serve(root)
   assert.match(candidates(root), /\.bg-emerald-500/)
 })
@@ -184,7 +194,10 @@ test('editing a helper updates the candidate stylesheet', async () => {
   // during `next dev`/`vite dev` appear without a restart. Driven through
   // the server, so the file has to be on disk with a newer mtime -- the
   // cache skips a file it believes it has already seen.
-  const root = project({ 'App.tsx': APP, 'accent.ts': "export const accent = () => 'bg-emerald-500'\n" })
+  const root = project({
+    'App.tsx': APP,
+    'accent.ts': "export const accent = () => 'bg-emerald-500'\n",
+  })
   const server = await serve(root)
   assert.match(candidates(root), /\.bg-emerald-500/)
 
@@ -200,7 +213,10 @@ test('deleting a file takes its classes with it', async () => {
   // Nothing else revisits an entry that stopped being scanned, so without
   // `watchChange` a deleted file's classes would stay in the stylesheet
   // for as long as the cache file survives.
-  const root = project({ 'App.tsx': APP, 'accent.ts': "export const accent = () => 'bg-emerald-500'\n" })
+  const root = project({
+    'App.tsx': APP,
+    'accent.ts': "export const accent = () => 'bg-emerald-500'\n",
+  })
   const server = await serve(root)
   assert.match(candidates(root), /\.bg-emerald-500/)
 
@@ -218,7 +234,10 @@ test('deleting a file takes its classes with it', async () => {
 })
 
 test('a file created while the server is up is scanned', async () => {
-  const root = project({ 'App.tsx': APP, 'accent.ts': "export const accent = () => 'bg-emerald-500'\n" })
+  const root = project({
+    'App.tsx': APP,
+    'accent.ts': "export const accent = () => 'bg-emerald-500'\n",
+  })
   const server = await serve(root)
 
   const added = path.join(root, 'later.ts')
@@ -240,7 +259,8 @@ test('editing a component rewrites its stylesheet, and only when it changed', as
   // can trigger another transform, and the thing standing between that and
   // a loop is `writeFileIfChanged` refusing to rewrite identical bytes.
   const root = project({
-    'App.tsx': "import { View } from '@hozo/core'\nexport const App = () => <View className=\"p-4\" />\n",
+    'App.tsx':
+      'import { View } from \'@hozo/core\'\nexport const App = () => <View className="p-4" />\n',
   })
   const server = await serve(root)
   const companion = path.join(root, 'App.tsx.hozo.css')
@@ -265,11 +285,15 @@ test('editing a component rewrites its stylesheet, and only when it changed', as
   // A real edit does reach it.
   writeFileSync(
     path.join(root, 'App.tsx'),
-    "import { View } from '@hozo/core'\nexport const App = () => <View className=\"p-8\" />\n",
+    'import { View } from \'@hozo/core\'\nexport const App = () => <View className="p-8" />\n',
   )
   server.moduleGraph.invalidateAll()
   await server.transformRequest('/App.tsx')
-  assert.match(readFileSync(companion, 'utf8'), /padding-top: 32px/, 'the edit never reached the CSS')
+  assert.match(
+    readFileSync(companion, 'utf8'),
+    /padding-top: 32px/,
+    'the edit never reached the CSS',
+  )
 })
 
 test("Tailwind's utilities arrive with the base layer they were written against", async () => {
@@ -349,8 +373,7 @@ test('a project whose Tailwind is all static still gets the base layer', async (
   // exactly, reported none and was refused the reset it most needed.
   const root = project({
     'App.tsx':
-      `import { View } from '@hozo/core'\n` +
-      `export const App = () => <View className="p-4" />\n`,
+      `import { View } from '@hozo/core'\n` + `export const App = () => <View className="p-4" />\n`,
   })
   await serve(root)
 
@@ -400,12 +423,18 @@ test('MDX authored against Hozo compiles, and its prose is not scanned', async (
   // Hozo before React, exactly as `examples/login-demo` has it: both are
   // ordinary plugins, order within that bucket is registration order, and
   // Hozo has to see the JSX first.
-  const server = await serve(root, {}, {}, [react({ include: /\.(mdx|jsx|tsx)$/ })], [
-    // `enforce: 'pre'` and registered before `hozo()`: the MDX plugin
-    // ships without one, so Vite's own transform would otherwise be handed
-    // the raw Markdown and fail on the `#` of a heading.
-    { ...mdx({ jsx: true }), enforce: 'pre' },
-  ])
+  const server = await serve(
+    root,
+    {},
+    {},
+    [react({ include: /\.(mdx|jsx|tsx)$/ })],
+    [
+      // `enforce: 'pre'` and registered before `hozo()`: the MDX plugin
+      // ships without one, so Vite's own transform would otherwise be handed
+      // the raw Markdown and fail on the `#` of a heading.
+      { ...mdx({ jsx: true }), enforce: 'pre' },
+    ],
+  )
 
   const result = await server.transformRequest('/page.mdx')
   assert.ok(result, 'the module was not transformed')
@@ -419,6 +448,6 @@ test('MDX authored against Hozo compiles, and its prose is not scanned', async (
   // Every one of these is an English word and a real Tailwind utility,
   // and none of them is a class anybody wrote.
   for (const prose of ['block', 'table', 'visible', 'border', 'grid', 'hidden', 'isolate']) {
-    assert.doesNotMatch(candidates(root), new RegExp(`\.${prose} \{`), `prose leaked: ${prose}`)
+    assert.doesNotMatch(candidates(root), new RegExp(`.${prose} {`), `prose leaked: ${prose}`)
   }
 })

@@ -18,8 +18,8 @@
 //   so `./focus.ts`'s restore rule has no work here -- the screen reader
 //   returns to where it was when the modal is dismissed.
 
-import { Modal, View, type StyleProp, type ViewStyle } from 'react-native'
 import type { ReactNode } from 'react'
+import { Modal, type StyleProp, View, type ViewStyle } from 'react-native'
 
 export interface HozoDialogProps {
   open?: boolean

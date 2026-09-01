@@ -18,9 +18,8 @@
 // are valid; this says the tree is assembled correctly.
 
 import { execFileSync } from 'node:child_process'
-import { registerHooks } from 'node:module'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import { createRequire, registerHooks } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -77,8 +76,21 @@ function transpileTsx(file: string): string {
     writeFileSync(copy, readFileSync(file, 'utf8'))
     execFileSync(
       process.execPath,
-      [tscBinary(), copy, '--jsx', 'react-jsx', '--module', 'esnext', '--target', 'es2022',
-       '--outDir', dir, '--types', '', '--noCheck'],
+      [
+        tscBinary(),
+        copy,
+        '--jsx',
+        'react-jsx',
+        '--module',
+        'esnext',
+        '--target',
+        'es2022',
+        '--outDir',
+        dir,
+        '--types',
+        '',
+        '--noCheck',
+      ],
       { encoding: 'utf8', stdio: 'pipe' },
     )
     return readFileSync(path.join(dir, 'module.js'), 'utf8')
@@ -162,8 +174,21 @@ export function loadNativeModule(source: string): Record<string, unknown> {
       // Same reasoning as the Web renderer: transpile only, automatic JSX
       // runtime, because the generated code carries identifiers from the
       // original module and has no `React` in scope.
-      [tscBinary(), path.join(dir, 'input.tsx'), '--jsx', 'react-jsx', '--module', 'commonjs',
-       '--target', 'es2022', '--outDir', dir, '--types', '', '--noCheck'],
+      [
+        tscBinary(),
+        path.join(dir, 'input.tsx'),
+        '--jsx',
+        'react-jsx',
+        '--module',
+        'commonjs',
+        '--target',
+        'es2022',
+        '--outDir',
+        dir,
+        '--types',
+        '',
+        '--noCheck',
+      ],
       { encoding: 'utf8', stdio: 'pipe' },
     )
 
@@ -215,7 +240,9 @@ function renderNativeFixture(
       for (const pass of layoutPasses) {
         const targets = mounted.root.findAll((node) => typeof node.props.onLayout === 'function')
         if (targets.length !== pass.length) {
-          throw new Error(`layout fixture supplied ${pass.length} boxes for ${targets.length} targets`)
+          throw new Error(
+            `layout fixture supplied ${pass.length} boxes for ${targets.length} targets`,
+          )
         }
         renderer.act(() => {
           targets.forEach((target, index) => {

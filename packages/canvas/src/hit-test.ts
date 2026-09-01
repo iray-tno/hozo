@@ -1,9 +1,4 @@
-import type {
-  CanvasScene,
-  CanvasSceneNode,
-  CanvasTransform,
-  ClipProps,
-} from './scene.tsx'
+import type { CanvasScene, CanvasSceneNode, CanvasTransform, ClipProps } from './scene.tsx'
 
 export interface CanvasPoint {
   x: number
@@ -27,14 +22,7 @@ export interface CanvasHitTestResult {
   localPoint: CanvasPoint
 }
 
-type Matrix = readonly [
-  a: number,
-  b: number,
-  c: number,
-  d: number,
-  e: number,
-  f: number,
-]
+type Matrix = readonly [a: number, b: number, c: number, d: number, e: number, f: number]
 
 const identity: Matrix = [1, 0, 0, 1, 0, 0]
 
@@ -58,7 +46,7 @@ function scale(x: number, y: number): Matrix {
 }
 
 function rotate(degrees: number): Matrix {
-  const radians = degrees * Math.PI / 180
+  const radians = (degrees * Math.PI) / 180
   const cosine = Math.cos(radians)
   const sine = Math.sin(radians)
   return [cosine, sine, -sine, cosine, 0, 0]
@@ -126,12 +114,14 @@ function normalRect(x: number, y: number, width: number, height: number) {
 
 function pointInRect(point: CanvasPoint, x: number, y: number, width: number, height: number) {
   const rect = normalRect(x, y, width, height)
-  return rect.width > 0
-    && rect.height > 0
-    && point.x >= rect.x
-    && point.x <= rect.x + rect.width
-    && point.y >= rect.y
-    && point.y <= rect.y + rect.height
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    point.x >= rect.x &&
+    point.x <= rect.x + rect.width &&
+    point.y >= rect.y &&
+    point.y <= rect.y + rect.height
+  )
 }
 
 function pointInRoundedRect(
@@ -146,8 +136,14 @@ function pointInRoundedRect(
   if (!pointInRect(point, rect.x, rect.y, rect.width, rect.height)) return false
   const cornerRadius = Math.max(0, Math.min(Math.abs(radius), rect.width / 2, rect.height / 2))
   if (cornerRadius === 0) return true
-  const centerX = Math.max(rect.x + cornerRadius, Math.min(point.x, rect.x + rect.width - cornerRadius))
-  const centerY = Math.max(rect.y + cornerRadius, Math.min(point.y, rect.y + rect.height - cornerRadius))
+  const centerX = Math.max(
+    rect.x + cornerRadius,
+    Math.min(point.x, rect.x + rect.width - cornerRadius),
+  )
+  const centerY = Math.max(
+    rect.y + cornerRadius,
+    Math.min(point.y, rect.y + rect.height - cornerRadius),
+  )
   const dx = point.x - centerX
   const dy = point.y - centerY
   return dx * dx + dy * dy <= cornerRadius * cornerRadius

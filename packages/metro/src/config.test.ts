@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -31,7 +31,10 @@ test('withHozo preserves Metro settings and records the existing transformer', a
     assert.deepEqual(result.resolver.sourceExts, config.resolver.sourceExts)
     assert.equal(typeof result.resolver.resolveRequest, 'function')
     assert.equal(result.transformer.minifierPath, 'keep-me')
-    assert.match(result.transformer.babelTransformerPath, /packages[\\/]metro[\\/]src[\\/]index\.ts$/)
+    assert.match(
+      result.transformer.babelTransformerPath,
+      /packages[\\/]metro[\\/]src[\\/]index\.ts$/,
+    )
     assert.deepEqual(JSON.parse(readFileSync(metroStatePath(root), 'utf8')), {
       upstreamTransformer: upstream,
     })
@@ -123,9 +126,7 @@ test('withHozo carries platform-scoped Metro aliases into StyleX lowering', asyn
       ),
     )
 
-    const modules = new StylexModuleCache(
-      path.join(root, CACHE_DIR, 'stylex-modules.json'),
-    )
+    const modules = new StylexModuleCache(path.join(root, CACHE_DIR, 'stylex-modules.json'))
     modules.replaceResolvedBindings(androidBindings)
     const compiler = createCompiler()
     compiler.setStylexModules(modules.moduleSources())

@@ -10,16 +10,9 @@
 // controls are the author's; what it supplies is the tab stop, the arrow
 // keys, and the props that connect them.
 
-import {
-  useCallback,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-  type Ref,
-} from 'react'
+import { type KeyboardEvent, type ReactNode, type Ref, useCallback, useRef, useState } from 'react'
 
-import { nextIndex, tabStops, type Orientation, type RovingKey } from './roving.ts'
+import { nextIndex, type Orientation, type RovingKey, tabStops } from './roving.ts'
 
 /**
  * What an item has to put on its control.

@@ -137,7 +137,9 @@ export function reactNativeStyleKeys(): Map<string, StyleKey> {
 /** The body text of each reachable public style interface. */
 function styleInterfaceBodies(source: string): string[] {
   const declarations = new Map<string, { parents: string[]; body: string }>()
-  for (const match of source.matchAll(/^(?:export )?interface ([A-Za-z][A-Za-z0-9]*)([^\n{]*)\{$/gm)) {
+  for (const match of source.matchAll(
+    /^(?:export )?interface ([A-Za-z][A-Za-z0-9]*)([^\n{]*)\{$/gm,
+  )) {
     const [, name, tail] = match
     const open = source.indexOf('{', match.index)
     // These interfaces contain no nested braces at declaration level, so
@@ -181,7 +183,11 @@ function typeAliases(source: string): Map<string, string> {
  * `undefined` and `null` are dropped: every key is optional, and neither
  * says anything about which CSS values are reachable.
  */
-function literalUnion(type: string, aliases: Map<string, string>, depth = 0): Set<string> | undefined {
+function literalUnion(
+  type: string,
+  aliases: Map<string, string>,
+  depth = 0,
+): Set<string> | undefined {
   if (depth > 4) return undefined
   const values = new Set<string>()
   for (const part of type.split('|')) {
@@ -293,9 +299,7 @@ function dimensionValue(
     }
     return undefined
   }
-  return sawNumber && sawPercent
-    ? { values: keywords, numeric: true, percent: true }
-    : undefined
+  return sawNumber && sawPercent ? { values: keywords, numeric: true, percent: true } : undefined
 }
 
 /**

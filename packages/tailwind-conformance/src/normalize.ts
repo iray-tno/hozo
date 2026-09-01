@@ -563,7 +563,7 @@ function expandShorthand(prop: string, value: string): Array<[string, string]> {
     case 'inset':
       return FOUR_SIDES.map((side, i) => {
         const parts = splitBoxValues(value)
-        const v = parts.length === 1 ? parts[0] : parts[i] ?? parts[0]
+        const v = parts.length === 1 ? parts[0] : (parts[i] ?? parts[0])
         return [side, v] as [string, string]
       })
     case 'gap':

@@ -16,7 +16,7 @@
 // reader which of the two models it is looking at before the user finds
 // out by pressing something.
 
-import { useCallback, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { type KeyboardEvent, type ReactNode, useCallback, useRef, useState } from 'react'
 
 import { nextIndex, type Orientation, type RovingKey } from './roving.ts'
 import { isTypeaheadKey, nextSearch, searchIndex } from './typeahead.ts'

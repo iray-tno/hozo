@@ -13,9 +13,8 @@
 // the dependency honest: a Next.js project has no Vite in it.
 
 import path from 'node:path'
-
-import type { Compiler, CompileDiagnostic } from './index.ts'
 import { lowerCanvasPaints } from './canvas.ts'
+import type { CompileDiagnostic, Compiler } from './index.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
 const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
@@ -245,7 +244,8 @@ export function lowerModule(
   // the Native backend's hooks; this is the Web half of that contract.
   const runtimeImports = [...new Set(components.flatMap((component) => component.runtimeImports))]
   if (runtimeImports.length > 0) {
-    next = `import { ${runtimeImports.sort().join(', ')} } from '@hozo/runtime'
+    next =
+      `import { ${runtimeImports.sort().join(', ')} } from '@hozo/runtime'
 ` + next
   }
 

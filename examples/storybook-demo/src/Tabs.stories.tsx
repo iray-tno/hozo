@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Heading, Paragraph, Tabs, View } from '@hozo/core'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function TabsDemo() {
   const tabs = [
@@ -7,7 +7,8 @@ function TabsDemo() {
       label: 'Overview',
       content: (
         <Paragraph className="text-sm leading-relaxed text-slate-700">
-          Hozo is a universal UI compiler compiling React Native towards semantic HTML/CSS and Fabric.
+          Hozo is a universal UI compiler compiling React Native towards semantic HTML/CSS and
+          Fabric.
         </Paragraph>
       ),
     },
@@ -35,7 +36,8 @@ function TabsDemo() {
         Tabs Pattern (@hozo/a11y)
       </Heading>
       <Paragraph className="text-sm text-slate-600">
-        WAI-ARIA compliant tab list with single tab stop and left/right arrow key roving tabindex navigation.
+        WAI-ARIA compliant tab list with single tab stop and left/right arrow key roving tabindex
+        navigation.
       </Paragraph>
       <Tabs
         tabs={tabs}

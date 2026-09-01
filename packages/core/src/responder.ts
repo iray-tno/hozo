@@ -1,4 +1,10 @@
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type PointerEventHandler, type RefObject } from 'react'
+import {
+  type PointerEventHandler,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+  useEffect,
+  useRef,
+} from 'react'
 
 export interface HozoResponderTouch {
   identifier: number
@@ -75,12 +81,7 @@ const pointerHistory = new Map<number, HozoTouchTrack>()
 const trackedEvents = new WeakSet<object>()
 let globalCleanupInstalled = false
 
-function endPointer(
-  pointerId: number,
-  pageX?: number,
-  pageY?: number,
-  timestamp?: number,
-) {
+function endPointer(pointerId: number, pageX?: number, pageY?: number, timestamp?: number) {
   activePointers.delete(pointerId)
   const track = pointerHistory.get(pointerId)
   if (track) {
@@ -141,9 +142,7 @@ function trackPointer(
       currentTimeStamp: event.timeStamp,
       previousPageX: phase === 'move' && previous ? previous.currentPageX : event.pageX,
       previousPageY: phase === 'move' && previous ? previous.currentPageY : event.pageY,
-      previousTimeStamp: phase === 'move' && previous
-        ? previous.currentTimeStamp
-        : event.timeStamp,
+      previousTimeStamp: phase === 'move' && previous ? previous.currentTimeStamp : event.timeStamp,
     })
   }
   return true
@@ -183,7 +182,7 @@ function responderEvent(event: ReactPointerEvent<HTMLElement>, ended = false): H
   const touches = [...activePointers.values()].map(toTouch)
   const touchBank = [...pointerHistory.values()]
   const activeIndices = touchBank
-    .map((track, index) => track.touchActive ? index : -1)
+    .map((track, index) => (track.touchActive ? index : -1))
     .filter((index) => index >= 0)
   return {
     nativeEvent: {
@@ -238,7 +237,8 @@ function claim(
 
 function finish(element: HTMLElement, event: ReactPointerEvent<HTMLElement>, terminated: boolean) {
   const incumbent = activeResponder
-  if (!incumbent || incumbent.element !== element || !incumbent.pointerIds.has(event.pointerId)) return
+  if (!incumbent || incumbent.element !== element || !incumbent.pointerIds.has(event.pointerId))
+    return
   incumbent.pointerIds.delete(event.pointerId)
   const value = responderEvent(event, true)
   incumbent.props.current.onResponderEnd?.(value)
@@ -272,7 +272,8 @@ export function createResponderDomProps<T extends HTMLElement>(
     event: ReactPointerEvent<T>,
   ) => {
     const element = elementRef.current
-    if (!element || activeResponder?.element === element || !shouldSet?.(responderEvent(event))) return false
+    if (!element || activeResponder?.element === element || !shouldSet?.(responderEvent(event)))
+      return false
     return claim(element, propsRef, event)
   }
 
@@ -307,7 +308,12 @@ export function createResponderDomProps<T extends HTMLElement>(
     trackPointer(event, 'move')
     const element = elementRef.current
     const incumbent = activeResponder
-    if (element && incumbent && incumbent.element === element && incumbent.pointerIds.has(event.pointerId)) {
+    if (
+      element &&
+      incumbent &&
+      incumbent.element === element &&
+      incumbent.pointerIds.has(event.pointerId)
+    ) {
       propsRef.current.onResponderMove?.(responderEvent(event))
     } else {
       if (negotiate(propsRef.current.onMoveShouldSetResponder, event)) event.stopPropagation()

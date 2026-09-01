@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { nativePackageName } from './native-loader.ts'
-import { NATIVE_TARGETS, cdylibFileName, hostTarget, publishManifest } from './native-targets.ts'
+import { cdylibFileName, hostTarget, NATIVE_TARGETS, publishManifest } from './native-targets.ts'
 
 test('the packer and the loader name the same packages', () => {
   // The whole reason the table exists. These are two independent

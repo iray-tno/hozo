@@ -1,5 +1,16 @@
+import {
+  Article,
+  FlatList,
+  Heading,
+  List,
+  ListItem,
+  Nav,
+  Paragraph,
+  Section,
+  Text,
+  View,
+} from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { Article, FlatList, Heading, List, ListItem, Nav, Paragraph, Section, Text, View } from '@hozo/core'
 
 function LayoutGallery() {
   const sampleItems = [
@@ -25,7 +36,8 @@ function LayoutGallery() {
             Semantic Article Landmark
           </Heading>
           <Paragraph className="text-sm leading-relaxed text-slate-600">
-            Rendered inside a semantic &lt;article&gt; element with accessible landmark navigation roles automatically mapped on Native.
+            Rendered inside a semantic &lt;article&gt; element with accessible landmark navigation
+            roles automatically mapped on Native.
           </Paragraph>
         </Article>
       </Section>

@@ -10,9 +10,9 @@
 // or steps into it, Left closes it or steps out to the parent, and typing
 // a letter jumps to the next row starting with it.
 
+import { Heading, Paragraph, Text, Tree, type TreeNode, View } from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Heading, Paragraph, Text, Tree, View, type TreeNode } from '@hozo/core'
 
 // One class per depth rather than a computed `padding-inline-start`.
 // Written out because the compiler reads class *names*: a template literal
@@ -63,10 +63,9 @@ function TreeDemo() {
           Tree
         </Heading>
         <Paragraph className="text-sm leading-relaxed text-slate-600">
-          Arrow keys move and open; typing a letter jumps. The indentation
-          you can see is CSS — the depth a screen reader hears is
-          <Text className="font-mono text-xs"> aria-level</Text>, which this
-          sets on every row.
+          Arrow keys move and open; typing a letter jumps. The indentation you can see is CSS — the
+          depth a screen reader hears is
+          <Text className="font-mono text-xs"> aria-level</Text>, which this sets on every row.
         </Paragraph>
       </View>
 

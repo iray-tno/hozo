@@ -6,47 +6,47 @@
 // check rather than a thing someone remembers to read -- see
 // `./snapshot.ts` for why a snapshot and not a set of thresholds.
 
-import { auditRefusal, type RefusalAudit, type RefusalVerdict } from './audit.ts'
-import { CANDIDATE_GROUPS, ALL_CANDIDATES, stripVariant } from './candidates.ts'
+import { compileNative, compile as hozoCompile, openCandidateCache } from '@hozo/compiler'
+import { loadClassOrder } from '@hozo/tailwind'
+import {
+  A11Y_CONTEXTUAL_CASES,
+  CONTRACT_EXEMPT,
+  compareA11yContextual,
+  primitivesUnderContract,
+} from './a11y-contextual.ts'
 import { buildArbitraryCatalog } from './arbitrary-catalog.ts'
+import { ariaRoleCases, compareAriaRole } from './aria-roles.ts'
+import { auditRefusal, type RefusalAudit, type RefusalVerdict } from './audit.ts'
+import { compareCandidateSheet } from './candidate-sheet.ts'
+import { ALL_CANDIDATES, CANDIDATE_GROUPS, stripVariant } from './candidates.ts'
+import { type CanvasVerdict, compareCanvasCandidate } from './canvas.ts'
+import { loadFullCatalog, namespaceOf } from './catalog.ts'
+import { type Comparison, compareCandidate, type SkipReason, type Verdict } from './compare.ts'
 import { buildComposedCatalog } from './composed.ts'
 import { buildCompositionCatalog } from './compositions.ts'
-import { buildVariantCatalog, compareVariant } from './variants.ts'
-import { compareCandidateSheet } from './candidate-sheet.ts'
-import { loadFullCatalog, namespaceOf } from './catalog.ts'
-import { reactNativeCssProperties, reactNativeVersion } from './native-surface.ts'
-import { compareCandidate, type Comparison, type SkipReason, type Verdict } from './compare.ts'
+import {
+  compareDiagnostic,
+  type DiagnosticVerdict,
+  declaredDiagnosticCodes,
+} from './diagnostics.ts'
 import { compareNativeCandidate, type NativeComparison, type NativeVerdict } from './native.ts'
 import { compareNativeContextual, NATIVE_CONTEXTUAL_CASES } from './native-contextual.ts'
 import {
   compareNativeGridContextual,
   NATIVE_GRID_CONTEXTUAL_CASES,
 } from './native-grid-contextual.ts'
-import { typeCheckStyles } from './typecheck.ts'
-import { classesDefinedIn, renderWeb } from './render.ts'
-import { measureRuntimeCost } from './runtime-cost.ts'
-import { compareCanvasCandidate, type CanvasVerdict } from './canvas.ts'
-import { compile as hozoCompile, compileNative, openCandidateCache } from '@hozo/compiler'
-import { loadClassOrder } from '@hozo/tailwind'
+import { reactNativeCssProperties, reactNativeVersion } from './native-surface.ts'
 import { buildOracle } from './oracle.ts'
-import { loadThemeVars, tailwindPackageDir, tailwindVersion } from './theme.ts'
-import {
-  A11Y_CONTEXTUAL_CASES,
-  compareA11yContextual,
-  CONTRACT_EXEMPT,
-  primitivesUnderContract,
-} from './a11y-contextual.ts'
 import { declaredPrimitives } from './primitives.ts'
-import { ariaRoleCases, compareAriaRole } from './aria-roles.ts'
-import {
-  compareDiagnostic,
-  declaredDiagnosticCodes,
-  type DiagnosticVerdict,
-} from './diagnostics.ts'
+import { classesDefinedIn, renderWeb } from './render.ts'
 import { compareRnwFree, RNW_FREE_CASES } from './rnw-free.ts'
+import { measureRuntimeCost } from './runtime-cost.ts'
 import { finish, record } from './snapshot.ts'
-import { stylexSurface, stylexVersion } from './stylex-surface.ts'
 import { stylexPracticalScorecard } from './stylex-practical.ts'
+import { stylexSurface, stylexVersion } from './stylex-surface.ts'
+import { loadThemeVars, tailwindPackageDir, tailwindVersion } from './theme.ts'
+import { typeCheckStyles } from './typecheck.ts'
+import { buildVariantCatalog, compareVariant } from './variants.ts'
 
 const oracle = await buildOracle(ALL_CANDIDATES)
 // Theme values plus the `@property` register defaults the utilities
@@ -62,7 +62,8 @@ for (const [group, candidates] of Object.entries(CANDIDATE_GROUPS)) {
 }
 
 const all = [...results.values()].flat()
-const count = (verdict: string, list: Comparison[] = all) => list.filter((r) => r.verdict === verdict).length
+const count = (verdict: string, list: Comparison[] = all) =>
+  list.filter((r) => r.verdict === verdict).length
 const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFixed(1)}%`)
 
 console.log(`Tailwind conformance vs tailwindcss v${tailwindVersion()}\n`)
@@ -153,9 +154,15 @@ console.table(rows)
 
 const comparable = all.length - count('SKIPPED')
 const supported = count('MATCH') + count('MISMATCH')
-console.log(`Candidates:  ${all.length}   (comparable: ${comparable}, skipped: ${count('SKIPPED')})`)
-console.log(`Coverage:    ${supported}/${comparable} = ${pct(supported, comparable)}  (Hozo emits something)`)
-console.log(`Fidelity:    ${count('MATCH')}/${supported} = ${pct(count('MATCH'), supported)}  (of those, matches Tailwind exactly)`)
+console.log(
+  `Candidates:  ${all.length}   (comparable: ${comparable}, skipped: ${count('SKIPPED')})`,
+)
+console.log(
+  `Coverage:    ${supported}/${comparable} = ${pct(supported, comparable)}  (Hozo emits something)`,
+)
+console.log(
+  `Fidelity:    ${count('MATCH')}/${supported} = ${pct(count('MATCH'), supported)}  (of those, matches Tailwind exactly)`,
+)
 record('web', {
   candidates: all.length,
   comparable,
@@ -478,8 +485,7 @@ for (const candidate of catalog) {
   const result = compareCandidate(candidate, expected, fullVars)
   catalogCounts[result.verdict] += 1
   const ns = namespaceOf(candidate)
-  const row =
-    byNamespace.get(ns) ?? { total: 0, match: 0, mismatch: 0, unsupported: 0, skipped: 0 }
+  const row = byNamespace.get(ns) ?? { total: 0, match: 0, mismatch: 0, unsupported: 0, skipped: 0 }
   row.total += 1
   if (result.verdict === 'MATCH') row.match += 1
   if (result.verdict === 'MISMATCH') row.mismatch += 1
@@ -488,8 +494,7 @@ for (const candidate of catalog) {
   byNamespace.set(ns, row)
 }
 
-const catalogComparable =
-  catalog.length - notEmittedByTailwind - catalogCounts.COMPOSITION_ONLY
+const catalogComparable = catalog.length - notEmittedByTailwind - catalogCounts.COMPOSITION_ONLY
 console.log(
   `Catalogue:   ${catalog.length} entries. ${notEmittedByTailwind} produce no rule at all from ` +
     `Tailwind and\n             ${catalogCounts.COMPOSITION_ONLY} produce one that paints nothing ` +
@@ -534,7 +539,6 @@ console.log(
     `${nsRows.filter(([, r]) => r.match === r.total).length} fully matching, ` +
     `${untouched.length} with nothing matching.`,
 )
-
 
 // ---------------------------------------------------------------------------
 // The candidate stylesheet, whole
@@ -663,7 +667,9 @@ const partials = audits.get('PARTIAL') ?? []
 if (partials.length > 0) {
   console.log('\nPartial -- refusing the whole utility is defensible, but note what is reachable:')
   for (const audit of partials) {
-    console.log(`  ${audit.candidate}: can hold ${audit.expressible.join(', ')}; cannot hold ${audit.inexpressible.join(', ')}`)
+    console.log(
+      `  ${audit.candidate}: can hold ${audit.expressible.join(', ')}; cannot hold ${audit.inexpressible.join(', ')}`,
+    )
   }
 }
 
@@ -786,7 +792,6 @@ record('runtime', {
   breakpointCross: runtime.breakpointCross,
 })
 
-
 // == Arbitrary syntax =====================================================
 //
 // A separate denominator because it has to be built differently: the named
@@ -867,13 +872,15 @@ for (const mismatch of arbitraryMismatches) {
 const compositionOnly = new Set(
   arbitraryResults.filter((r) => r.verdict === 'COMPOSITION_ONLY').map((r) => r.candidate),
 )
-const arbitraryNative = arbitrary.candidates
-  .map(compareNativeCandidate)
-  .map((result) =>
-    result.verdict === 'SILENT' && compositionOnly.has(result.candidate)
-      ? { ...result, verdict: 'NO_OP' as const, detail: 'paints nothing standalone on either platform' }
-      : result,
-  )
+const arbitraryNative = arbitrary.candidates.map(compareNativeCandidate).map((result) =>
+  result.verdict === 'SILENT' && compositionOnly.has(result.candidate)
+    ? {
+        ...result,
+        verdict: 'NO_OP' as const,
+        detail: 'paints nothing standalone on either platform',
+      }
+    : result,
+)
 const arbitraryNativeCount = (verdict: NativeVerdict) =>
   arbitraryNative.filter((result) => result.verdict === verdict).length
 console.log(
@@ -904,7 +911,10 @@ for (const result of arbitraryNative) {
 // are refused without saying so. See `canvas.ts`; the section exists
 // because Canvas had no denominator at all.
 const canvasCatalogue = await loadFullCatalog()
-for (const [platform, native] of [['web', false], ['native', true]] as const) {
+for (const [platform, native] of [
+  ['web', false],
+  ['native', true],
+] as const) {
   for (const [name, list] of [
     ['canvas', canvasCatalogue],
     ['canvasArbitrary', arbitrary.candidates],

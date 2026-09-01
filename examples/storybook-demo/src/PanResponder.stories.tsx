@@ -11,9 +11,9 @@
 // gesture, `vx`/`vy` as velocity, `numberActiveTouches` for a pinch. Drag
 // the card below and watch them.
 
+import { Heading, PanResponder, Paragraph, Text, View } from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useMemo, useRef, useState } from 'react'
-import { Heading, PanResponder, Paragraph, Text, View } from '@hozo/core'
 
 function Draggable() {
   const [offset, setOffset] = useState({ x: 0, y: 0 })
@@ -95,16 +95,15 @@ function PanResponderGallery() {
           PanResponder
         </Heading>
         <Paragraph className="text-sm leading-relaxed text-slate-600">
-          React Native's gesture responder, in a browser, with React
-          Native's own callback names and gesture state. A component written
-          against it on mobile runs here unedited.
+          React Native's gesture responder, in a browser, with React Native's own callback names and
+          gesture state. A component written against it on mobile runs here unedited.
         </Paragraph>
       </View>
       <Draggable />
       <Paragraph className="text-xs text-slate-500">
-        A gesture is a pointer interaction and has no keyboard equivalent, so
-        anything reachable only by dragging needs a second route. This card
-        is a demonstration rather than a control, and has none.
+        A gesture is a pointer interaction and has no keyboard equivalent, so anything reachable
+        only by dragging needs a second route. This card is a demonstration rather than a control,
+        and has none.
       </Paragraph>
     </View>
   )

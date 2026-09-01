@@ -19,14 +19,14 @@ import {
 } from 'react-native'
 
 import {
+  type BreakpointName,
   bucketFor,
   createStore,
-  isAtLeast,
-  sameViewport,
-  isPortrait,
   ENVIRONMENT_FACTS,
-  type BreakpointName,
   type EnvironmentQuery,
+  isAtLeast,
+  isPortrait,
+  sameViewport,
   type Viewport,
 } from './ambient.ts'
 
@@ -188,7 +188,9 @@ export function useHozoAnimation(name: HozoAnimation) {
       case 'spin':
         return {
           transform: [
-            { rotate: progress.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+            {
+              rotate: progress.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }),
+            },
           ],
         }
       case 'pulse':
@@ -219,9 +221,7 @@ export function useHozoAnimation(name: HozoAnimation) {
       case 'ping':
         return {
           opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-          transform: [
-            { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) },
-          ],
+          transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }],
         }
     }
   }, [progress, name])

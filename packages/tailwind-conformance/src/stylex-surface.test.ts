@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-
+import { generateStylexManifest } from './stylex-manifest-generate.ts'
 import {
   manifestEntry,
   mappedHozoStylexProperties,
@@ -9,7 +9,6 @@ import {
   stylexSurface,
   stylexVersion,
 } from './stylex-surface.ts'
-import { generateStylexManifest } from './stylex-manifest-generate.ts'
 
 test('the checked-in StyleX manifest matches upstream types and Rust lowering arms', () => {
   assert.deepEqual(stylexManifest(), generateStylexManifest())
@@ -59,7 +58,9 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
   assert.equal(mapped.length, 273)
-  assert.ok(mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'))
+  assert.ok(
+    mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
+  )
   assert.equal(manifestEntry('padding')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('gridTemplateColumns')?.basis, 'contextual-runtime')
   assert.equal(manifestEntry('scrollbarWidth')?.basis, 'exact-web-native-refusal')

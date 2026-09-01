@@ -154,9 +154,7 @@ test('bundler-resolved aliases connect StyleX imports and re-export barrels', ()
       { importer: barrel, specifier: '@theme/styles' },
     ])
     assert.equal(
-      stylexModules.setResolvedBindings(barrel, [
-        { specifier: '@theme/styles', moduleId: styles },
-      ]),
+      stylexModules.setResolvedBindings(barrel, [{ specifier: '@theme/styles', moduleId: styles }]),
       true,
     )
     assert.equal(stylexModules.size, 2)
@@ -169,18 +167,14 @@ test('bundler-resolved aliases connect StyleX imports and re-export barrels', ()
         ),
     )
 
-    stylexModules.setResolvedBindings(component, [
-      { specifier: '@theme', moduleId: barrel },
-    ])
+    stylexModules.setResolvedBindings(component, [{ specifier: '@theme', moduleId: barrel }])
     assert.ok(
       stylexModules
         .bindingsFor(component)
         .some((binding) => binding.specifier === '@theme' && binding.moduleId === barrel),
     )
     assert.equal(
-      stylexModules.setResolvedBindings(component, [
-        { specifier: '@theme', moduleId: barrel },
-      ]),
+      stylexModules.setResolvedBindings(component, [{ specifier: '@theme', moduleId: barrel }]),
       false,
       'replaying the same resolver answer is not a graph change',
     )

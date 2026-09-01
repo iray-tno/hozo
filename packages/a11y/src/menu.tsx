@@ -19,16 +19,16 @@
 // at the top of the document, and nothing announces that it happened.
 
 import {
+  type KeyboardEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useId,
   useRef,
   useState,
-  type KeyboardEvent,
-  type ReactNode,
 } from 'react'
 
-import { nextIndex, tabStops, type RovingKey } from './roving.ts'
+import { nextIndex, type RovingKey, tabStops } from './roving.ts'
 import { isTypeaheadKey, nextSearch, searchIndex } from './typeahead.ts'
 
 export interface HozoMenuItem {

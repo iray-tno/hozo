@@ -3,8 +3,20 @@ import { test } from 'node:test'
 
 import { formatDiagnostic, reportDiagnostics } from './diagnostics.ts'
 
-const warning = { code: 'DYNAMIC_CLASS_NAME_NOT_RESOLVED', message: 'unreadable', severity: 'warning' as const, line: 1, column: 1 }
-const error = { code: 'WEB_ONLY_PROPERTY_ON_NATIVE', message: 'no such style', severity: 'error' as const, line: 2, column: 3 }
+const warning = {
+  code: 'DYNAMIC_CLASS_NAME_NOT_RESOLVED',
+  message: 'unreadable',
+  severity: 'warning' as const,
+  line: 1,
+  column: 1,
+}
+const error = {
+  code: 'WEB_ONLY_PROPERTY_ON_NATIVE',
+  message: 'no such style',
+  severity: 'error' as const,
+  line: 2,
+  column: 3,
+}
 
 test('warnings go to the caller, one line each', () => {
   const seen: string[] = []

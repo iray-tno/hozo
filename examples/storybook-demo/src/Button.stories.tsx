@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Button, Heading, Link, Paragraph, Pressable, Text, View } from '@hozo/core'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function ButtonGallery() {
   return (
@@ -9,7 +9,8 @@ function ButtonGallery() {
           Semantic Button Variants
         </Heading>
         <Paragraph className="text-sm text-slate-600">
-          Hozo lowers &lt;Button&gt; into native &lt;button type="button"&gt; on Web and accessible Pressables on Native.
+          Hozo lowers &lt;Button&gt; into native &lt;button type="button"&gt; on Web and accessible
+          Pressables on Native.
         </Paragraph>
         <View className="flex flex-row flex-wrap items-center gap-3 pt-2">
           <Button
@@ -54,7 +55,9 @@ function ButtonGallery() {
             onPress={() => alert('Pressable Card Clicked')}
           >
             <Text className="font-semibold text-indigo-600">Interactive Card &rarr;</Text>
-            <Paragraph className="mt-1 text-xs text-slate-500">Supports responder gestures and focus rings</Paragraph>
+            <Paragraph className="mt-1 text-xs text-slate-500">
+              Supports responder gestures and focus rings
+            </Paragraph>
           </Pressable>
 
           <Link

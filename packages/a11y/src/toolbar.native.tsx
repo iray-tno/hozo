@@ -11,7 +11,7 @@
 // hand out and no arrow key to bind.
 
 import type { ReactNode } from 'react'
-import { View, type StyleProp, type ViewStyle } from 'react-native'
+import { type StyleProp, View, type ViewStyle } from 'react-native'
 
 export interface HozoToolbarItem {
   /**

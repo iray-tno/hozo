@@ -11,11 +11,11 @@
 // identically and announces as a flat list -- the depth is in the CSS, and
 // CSS is exactly what a screen reader does not read.
 
-import { useCallback, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { type KeyboardEvent, type ReactNode, useCallback, useRef, useState } from 'react'
 
 import { nextIndex, type RovingKey } from './roving.ts'
+import { horizontalMove, type TreeNode, visibleRows } from './tree.ts'
 import { isTypeaheadKey, nextSearch, searchIndex } from './typeahead.ts'
-import { horizontalMove, visibleRows, type TreeNode } from './tree.ts'
 
 export type { TreeNode }
 

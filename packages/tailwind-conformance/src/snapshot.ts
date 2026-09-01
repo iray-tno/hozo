@@ -168,7 +168,9 @@ function reportTimings(): void {
   console.log(`\n\n== Where the time went (${total.toFixed(0)}s) ==`)
   for (const [section, seconds] of rows) {
     const share = Math.round((seconds / total) * 100)
-    console.log(`  ${section.padEnd(22)} ${seconds.toFixed(1).padStart(7)}s  ${String(share).padStart(3)}%`)
+    console.log(
+      `  ${section.padEnd(22)} ${seconds.toFixed(1).padStart(7)}s  ${String(share).padStart(3)}%`,
+    )
   }
 }
 
@@ -222,7 +224,9 @@ export function finish(check: boolean): void {
 
   console.error(`\n\n${changes.length} number(s) moved since the snapshot:\n`)
   for (const change of changes) {
-    console.error(`  ${change.path.padEnd(38)} ${change.before} -> ${change.after}  ${verdict(change)}`)
+    console.error(
+      `  ${change.path.padEnd(38)} ${change.before} -> ${change.after}  ${verdict(change)}`,
+    )
   }
   console.error(
     '\nIf these are the numbers you meant to produce, rerun the report without\n' +

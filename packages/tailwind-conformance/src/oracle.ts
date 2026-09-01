@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { compile } from 'tailwindcss'
 import { classNamesIn, extractRules, type Rule } from './extract.ts'
-import { cssClassName } from './variants.ts'
 import { tailwindPackageDir } from './theme.ts'
+import { cssClassName } from './variants.ts'
 
 export type OracleRules = Map<string, string>
 
@@ -92,7 +92,6 @@ export async function buildOracle(candidates: string[]): Promise<Oracle> {
   }
   return { css: utilities, rules, registerDefaults: extractRegisterDefaults(css) }
 }
-
 
 function extractRegisterDefaults(css: string): Map<string, string> {
   const defaults = new Map<string, string>()

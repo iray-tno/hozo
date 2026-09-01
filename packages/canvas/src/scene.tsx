@@ -1,5 +1,6 @@
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -8,7 +9,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from 'react'
 
 import type { CanvasPoint } from './hit-test.ts'
@@ -105,9 +105,20 @@ export type CanvasLeafNode =
   | { id?: string; kind: 'line'; props: LineProps }
   | { id?: string; kind: 'path'; props: PathProps }
 
-export type CanvasSceneNode = CanvasLeafNode
-  | { id?: string; kind: 'group'; props: Omit<GroupProps, 'children'>; children: readonly CanvasSceneNode[] }
-  | { id?: string; kind: 'clip'; props: Omit<ClipProps, 'children'>; children: readonly CanvasSceneNode[] }
+export type CanvasSceneNode =
+  | CanvasLeafNode
+  | {
+      id?: string
+      kind: 'group'
+      props: Omit<GroupProps, 'children'>
+      children: readonly CanvasSceneNode[]
+    }
+  | {
+      id?: string
+      kind: 'clip'
+      props: Omit<ClipProps, 'children'>
+      children: readonly CanvasSceneNode[]
+    }
 
 export type CanvasScene = readonly CanvasSceneNode[]
 
@@ -147,17 +158,23 @@ function sceneValueEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
   if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false
   if (Array.isArray(left) || Array.isArray(right)) {
-    return Array.isArray(left)
-      && Array.isArray(right)
-      && left.length === right.length
-      && left.every((value, index) => sceneValueEqual(value, right[index]))
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((value, index) => sceneValueEqual(value, right[index]))
+    )
   }
   const leftRecord = left as Record<string, unknown>
   const rightRecord = right as Record<string, unknown>
   const leftKeys = Object.keys(leftRecord)
   const rightKeys = Object.keys(rightRecord)
-  return leftKeys.length === rightKeys.length
-    && leftKeys.every((key) => key in rightRecord && sceneValueEqual(leftRecord[key], rightRecord[key]))
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key) => key in rightRecord && sceneValueEqual(leftRecord[key], rightRecord[key]),
+    )
+  )
 }
 
 function flatNodeEqual(left: FlatNode, right: FlatNode) {
@@ -294,8 +311,8 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
     }, [context.interactions, context.id, onPress, disabled])
     if (onPress && !disabled && context.interactionBlockReason === 'path-clip') {
       throw new Error(
-        'Canvas interactions inside path clips are unsupported. '
-        + 'Use a rectangle clip or move the interactive shape outside the path clip.',
+        'Canvas interactions inside path clips are unsupported. ' +
+          'Use a rectangle clip or move the interactive shape outside the path clip.',
       )
     }
     return null
@@ -337,9 +354,8 @@ export function Clip({ children, ...props }: ClipProps) {
         store: context.store,
         interactions: context.interactions,
         parentId: context.id,
-        interactionBlockReason: props.path !== undefined
-          ? 'path-clip'
-          : context.interactionBlockReason,
+        interactionBlockReason:
+          props.path !== undefined ? 'path-clip' : context.interactionBlockReason,
       }}
     >
       {children}

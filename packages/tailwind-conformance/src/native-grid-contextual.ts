@@ -47,12 +47,7 @@ export const NATIVE_GRID_CONTEXTUAL_CASES: NativeGridContextualCase[] = [
     purpose: 'ordinary equal-column grid selects the measurement-free renderer',
     className: 'grid grid-cols-3 gap-4',
     children: '<View /><View /><View /><View />',
-    expected: [
-      'HozoGrid',
-      "{ kind: 'fr', value: 1 }",
-      'columnGap={16}',
-      'rowGap={16}',
-    ],
+    expected: ['HozoGrid', "{ kind: 'fr', value: 1 }", 'columnGap={16}', 'rowGap={16}'],
   },
   {
     name: 'mixed fixed and fractional columns',
@@ -84,11 +79,7 @@ export const NATIVE_GRID_CONTEXTUAL_CASES: NativeGridContextualCase[] = [
     purpose: 'explicit row tracks resolve full and negative-line placement',
     className: 'grid grid-cols-2 grid-rows-3',
     children: '<View className="row-span-full" /><View className="row-start-2 row-end--1" />',
-    expected: [
-      "rowTracks={[{ kind: 'fr', value: 1 }",
-      'rowSpan={3}',
-      'rowStart={1}',
-    ],
+    expected: ["rowTracks={[{ kind: 'fr', value: 1 }", 'rowSpan={3}', 'rowStart={1}'],
   },
 ]
 
@@ -102,11 +93,15 @@ export function compareNativeGridContextual(
     `}\n`
   const [result] = compileNative(source)
   if (!result) return { ...testCase, verdict: 'SILENT', detail: 'no component compiled' }
-  const refusal = result.diagnostics.find((diagnostic) =>
-    diagnostic.code === 'WEB_ONLY_PROPERTY_ON_NATIVE' || diagnostic.code === 'NOT_WIRED_ON_NATIVE')
+  const refusal = result.diagnostics.find(
+    (diagnostic) =>
+      diagnostic.code === 'WEB_ONLY_PROPERTY_ON_NATIVE' ||
+      diagnostic.code === 'NOT_WIRED_ON_NATIVE',
+  )
   if (refusal) return { ...testCase, verdict: 'REFUSED', detail: refusal.message }
-  const missing = testCase.expected.filter((fragment) =>
-    !result.jsx.includes(fragment) && !result.runtimeImports.includes(fragment))
+  const missing = testCase.expected.filter(
+    (fragment) => !result.jsx.includes(fragment) && !result.runtimeImports.includes(fragment),
+  )
   if (missing.length > 0) {
     return {
       ...testCase,

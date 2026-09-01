@@ -75,7 +75,7 @@ const ACCEPTED_DIFFERENCES: Record<string, { property: string; reason: string }>
       'Two utilities setting the same thing, resolved by different orders. Hozo compiles a ' +
       'class attribute into one rule, so the later class wins -- blue. Tailwind emits a rule ' +
       'per class and lets the cascade decide, so whichever it happens to write later wins -- ' +
-      'red, on nothing the author can see. Matching it would mean reproducing Tailwind\'s ' +
+      "red, on nothing the author can see. Matching it would mean reproducing Tailwind's " +
       'internal utility sort, and the answer it gives is the one people file bugs about.',
   },
   'shadow-none': {

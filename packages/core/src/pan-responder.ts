@@ -51,9 +51,10 @@ function centroidDimension(
   axis: 'x' | 'y',
   current: boolean,
 ) {
-  const single = history.numberActiveTouches === 1
-    ? history.touchBank[history.indexOfSingleActiveTouch]
-    : undefined
+  const single =
+    history.numberActiveTouches === 1
+      ? history.touchBank[history.indexOfSingleActiveTouch]
+      : undefined
   const tracks = single ? [single] : history.touchBank
   let total = 0
   let count = 0

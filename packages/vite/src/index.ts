@@ -28,30 +28,25 @@
 
 import { statSync } from 'node:fs'
 import path from 'node:path'
-import { transformWithOxc, type Plugin, type ResolvedConfig, type ViteDevServer } from 'vite'
-import {
-  createCompiler,
-  type CandidateCache,
-  type Compiler,
-  type Theme,
-} from '@hozo/compiler'
-import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
+import { type CandidateCache, type Compiler, createCompiler, type Theme } from '@hozo/compiler'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   discoverSources,
+  type HozoProjectOptions,
   importSpecifier,
-  scanProject,
+  isTransformedSource,
   preflightCssFor,
   preflightCssPath,
   resolveStylexRequests,
-  scanSummary,
-  isTransformedSource,
-  scannableFile,
-  writeFileIfChanged,
-  type HozoProjectOptions,
   type StylexModuleCache,
+  scannableFile,
+  scanProject,
+  scanSummary,
+  writeFileIfChanged,
 } from '@hozo/compiler/project'
+import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
+import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer } from 'vite'
 
 /**
  * The same options every Hozo integration takes, under this one's name.
@@ -138,7 +133,9 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       // `TRANSFORMABLE` -- so it has to be admitted here or its classes
       // would never reach the candidate set at all.
       const scannable =
-        file && !isDerivedModule && (includedFiles.has(path.resolve(file)) || isTransformedSource(file))
+        file &&
+        !isDerivedModule &&
+        (includedFiles.has(path.resolve(file)) || isTransformedSource(file))
       if (file && scannable) {
         // For the `pre` pass `code` is still the source as written, which
         // is what the scanner expects. For the second pass it is the JSX
@@ -302,76 +299,78 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       name: 'hozo',
       enforce: 'pre',
 
-    configResolved(config) {
-      root = options.root ?? config.root
-      resolvedConfig = config
-    },
+      configResolved(config) {
+        root = options.root ?? config.root
+        resolvedConfig = config
+      },
 
-    configureServer(devServer) {
-      server = devServer
-    },
+      configureServer(devServer) {
+        server = devServer
+      },
 
-    async buildStart() {
-      theme = await loadProjectTheme(root, {
-        css: options.css,
-        warn: (message) => this.warn(message),
-      })
-      compiler = createCompiler(theme, options.sources)
+      async buildStart() {
+        theme = await loadProjectTheme(root, {
+          css: options.css,
+          warn: (message) => this.warn(message),
+        })
+        compiler = createCompiler(theme, options.sources)
 
-      // The whole project, not just what the bundler happens to reach: a
-      // class can be produced by a module the graph never resolves
-      // statically.
-      const project = scanProject(root, options.content)
-      classOrder = await loadProjectClassOrder(root, project.cache.candidates(), {
-        css: options.css,
-      })
-      cache = project.cache
-      stylexModules = project.stylexModules
-      await resolveStylexRequests(
-        stylexModules,
-        stylexModules.resolutionRequests(),
-        async (specifier, importer) => {
-          const resolved = await this.resolve(specifier, importer, { skipSelf: true })
-          return resolved?.id
-        },
-      )
-      compiler.setStylexModules(stylexModules.moduleSources())
-      includedFiles = new Set(project.files)
-      candidateCssPath = path.join(project.dir, 'candidates.css')
-      preflightPath = preflightCssPath(project.dir)
-      // Read once for the process rather than per write: it is a file on
-      // disk that cannot change under a running build.
-      preflight = preflightCss()
-      writeCandidateCss()
-      if (options.debug) {
-        this.info(scanSummary(project.stats))
-      }
-    },
-
-    watchChange(id, change) {
-      // Without this a deleted file's classes would stay in the stylesheet
-      // for as long as the cache file survives, since nothing else ever
-      // revisits an entry that stopped being scanned.
-      if (change.event === 'delete') {
-        const absolute = path.resolve(id)
-        includedFiles.delete(absolute)
-        if (cache?.forget(absolute)) writeCandidateCss()
-        if (stylexModules?.forget(absolute)) {
-          compiler.setStylexModules(stylexModules.moduleSources())
+        // The whole project, not just what the bundler happens to reach: a
+        // class can be produced by a module the graph never resolves
+        // statically.
+        const project = scanProject(root, options.content)
+        classOrder = await loadProjectClassOrder(root, project.cache.candidates(), {
+          css: options.css,
+        })
+        cache = project.cache
+        stylexModules = project.stylexModules
+        await resolveStylexRequests(
+          stylexModules,
+          stylexModules.resolutionRequests(),
+          async (specifier, importer) => {
+            const resolved = await this.resolve(specifier, importer, { skipSelf: true })
+            return resolved?.id
+          },
+        )
+        compiler.setStylexModules(stylexModules.moduleSources())
+        includedFiles = new Set(project.files)
+        candidateCssPath = path.join(project.dir, 'candidates.css')
+        preflightPath = preflightCssPath(project.dir)
+        // Read once for the process rather than per write: it is a file on
+        // disk that cannot change under a running build.
+        preflight = preflightCss()
+        writeCandidateCss()
+        if (options.debug) {
+          this.info(scanSummary(project.stats))
         }
-      }
-      if (change.event === 'create') {
-        const absolute = path.resolve(id)
-        const relative = path.relative(root, absolute).replaceAll('\\', '/')
-        if (discoverSources(root, { ...options.content, include: [relative] }).includes(absolute)) {
-          includedFiles.add(absolute)
-        }
-      }
-    },
+      },
 
-    // Everything a project wrote itself, before any other plugin has had
-    // it. `enforce: 'pre'` is what makes `code` the source as written.
-    ...pass((file) => !isTransformedSource(file)),
+      watchChange(id, change) {
+        // Without this a deleted file's classes would stay in the stylesheet
+        // for as long as the cache file survives, since nothing else ever
+        // revisits an entry that stopped being scanned.
+        if (change.event === 'delete') {
+          const absolute = path.resolve(id)
+          includedFiles.delete(absolute)
+          if (cache?.forget(absolute)) writeCandidateCss()
+          if (stylexModules?.forget(absolute)) {
+            compiler.setStylexModules(stylexModules.moduleSources())
+          }
+        }
+        if (change.event === 'create') {
+          const absolute = path.resolve(id)
+          const relative = path.relative(root, absolute).replaceAll('\\', '/')
+          if (
+            discoverSources(root, { ...options.content, include: [relative] }).includes(absolute)
+          ) {
+            includedFiles.add(absolute)
+          }
+        }
+      },
+
+      // Everything a project wrote itself, before any other plugin has had
+      // it. `enforce: 'pre'` is what makes `code` the source as written.
+      ...pass((file) => !isTransformedSource(file)),
 
       buildEnd() {
         cache?.persist()

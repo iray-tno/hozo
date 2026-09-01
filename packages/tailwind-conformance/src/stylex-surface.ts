@@ -30,16 +30,18 @@ export function officialStylexProperties(): Set<string> {
 
 export function mappedHozoStylexProperties(): Set<string> {
   return new Set(
-    stylexManifest().properties
-      .filter(({ status }) => status === 'mapped')
+    stylexManifest()
+      .properties.filter(({ status }) => status === 'mapped')
       .map(({ name }) => name),
   )
 }
 
 function propertiesIn(lane: StylexLane, mappedOnly = false): Set<string> {
   return new Set(
-    stylexManifest().properties
-      .filter((property) => property.lane === lane && (!mappedOnly || property.status === 'mapped'))
+    stylexManifest()
+      .properties.filter(
+        (property) => property.lane === lane && (!mappedOnly || property.status === 'mapped'),
+      )
       .map(({ name }) => name),
   )
 }

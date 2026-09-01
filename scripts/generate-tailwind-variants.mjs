@@ -33,7 +33,9 @@ const names = variants.map((variant) => variant.name).sort()
 // spells `aria-checked:` and `aria-[sort=ascending]:` from the same one.
 // The shortlist is what Hozo compiles, so it comes from Tailwind too
 // rather than from a set of names that looked complete.
-const ariaValues = (variants.find((variant) => variant.name === 'aria')?.values ?? []).slice().sort()
+const ariaValues = (variants.find((variant) => variant.name === 'aria')?.values ?? [])
+  .slice()
+  .sort()
 
 writeFileSync(
   'crates/hozo_parser/src/tailwind_variants.rs',

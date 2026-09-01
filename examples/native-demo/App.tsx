@@ -1,7 +1,17 @@
 // A bundle fixture and a device acceptance screen. Stable testIDs make
 // manual VoiceOver/TalkBack and layout results reproducible.
 
-import { Dialog, FlatList, Image, PanResponder, Pressable, ScrollView, Text, TextInput, View } from '@hozo/core'
+import {
+  Dialog,
+  FlatList,
+  Image,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from '@hozo/core'
 import { useRef, useState } from 'react'
 
 const rows = [
@@ -15,12 +25,18 @@ export default function App() {
   const [confirming, setConfirming] = useState(false)
   const [gridWidth, setGridWidth] = useState(0)
   const [gesture, setGesture] = useState({ dx: 0, dy: 0, touches: 0 })
-  const pan = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, state) => Math.abs(state.dx) + Math.abs(state.dy) > 4,
-    onPanResponderMove: (_event, state) => {
-      setGesture({ dx: Math.round(state.dx), dy: Math.round(state.dy), touches: state.numberActiveTouches })
-    },
-  })).current
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_event, state) => Math.abs(state.dx) + Math.abs(state.dy) > 4,
+      onPanResponderMove: (_event, state) => {
+        setGesture({
+          dx: Math.round(state.dx),
+          dy: Math.round(state.dy),
+          touches: state.numberActiveTouches,
+        })
+      },
+    }),
+  ).current
 
   return (
     <View className="flex-1 bg-slate-50 text-slate-900">
@@ -52,10 +68,18 @@ export default function App() {
 
             <ScrollView horizontal className="h-20" testID="smoke-horizontal-scroll">
               <View className="flex-row gap-2">
-                <View className="w-32 rounded-lg bg-white p-3"><Text>Card one</Text></View>
-                <View className="w-32 rounded-lg bg-white p-3"><Text>Card two</Text></View>
-                <View className="w-32 rounded-lg bg-white p-3"><Text>Card three</Text></View>
-                <View className="w-32 rounded-lg bg-white p-3"><Text>Card four</Text></View>
+                <View className="w-32 rounded-lg bg-white p-3">
+                  <Text>Card one</Text>
+                </View>
+                <View className="w-32 rounded-lg bg-white p-3">
+                  <Text>Card two</Text>
+                </View>
+                <View className="w-32 rounded-lg bg-white p-3">
+                  <Text>Card three</Text>
+                </View>
+                <View className="w-32 rounded-lg bg-white p-3">
+                  <Text>Card four</Text>
+                </View>
               </View>
             </ScrollView>
 
@@ -64,18 +88,28 @@ export default function App() {
               onLayout={({ nativeEvent }) => setGridWidth(Math.round(nativeEvent.layout.width))}
               testID="smoke-grid"
             >
-              <View className="row-span-2 rounded-lg bg-white p-3"><Text>Tall</Text></View>
-              <View className="rounded-lg bg-white p-3"><Text>Top</Text></View>
-              <View className="rounded-lg bg-white p-3"><Text>Bottom</Text></View>
+              <View className="row-span-2 rounded-lg bg-white p-3">
+                <Text>Tall</Text>
+              </View>
+              <View className="rounded-lg bg-white p-3">
+                <Text>Top</Text>
+              </View>
+              <View className="rounded-lg bg-white p-3">
+                <Text>Bottom</Text>
+              </View>
             </View>
-            <Text accessibilityLabel={`Measured grid width ${gridWidth}`}>Grid width: {gridWidth}px</Text>
+            <Text accessibilityLabel={`Measured grid width ${gridWidth}`}>
+              Grid width: {gridWidth}px
+            </Text>
 
             <View
               {...pan.panHandlers}
               className="rounded-lg border border-slate-300 bg-white p-3"
               testID="smoke-pan-responder"
             >
-              <Text>Gesture: {gesture.dx}, {gesture.dy} ({gesture.touches} touches)</Text>
+              <Text>
+                Gesture: {gesture.dx}, {gesture.dy} ({gesture.touches} touches)
+              </Text>
             </View>
 
             <Pressable

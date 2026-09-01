@@ -54,7 +54,10 @@ expect(!/hozo-unresolved/.test(bundle), 'no colour was left unresolved')
 // bundle, so the margin is intentionally broad; crossing it means a feature
 // likely pulled a second platform layer or another large dependency into
 // every Native app and deserves inspection.
-expect(bundle.length < 4_500_000, `Native dev bundle stays below 4.5 MB (was ${bundle.length} bytes)`)
+expect(
+  bundle.length < 4_500_000,
+  `Native dev bundle stays below 4.5 MB (was ${bundle.length} bytes)`,
+)
 
 if (failures.length > 0) {
   console.error('bundle check failed:')

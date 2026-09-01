@@ -17,10 +17,10 @@
 import path from 'node:path'
 
 import {
+  type HozoProjectOptions,
   scanProject,
   scanSummary,
   writeFileIfChanged,
-  type HozoProjectOptions,
 } from '@hozo/compiler/project'
 import { loadProjectTheme } from '@hozo/tailwind'
 

@@ -48,7 +48,10 @@ const toRgb = converter('rgb')
  * the same answer every time for the same input. The theme and the class
  * order are two questions about one object.
  */
-const designSystems = new Map<string, Promise<Awaited<ReturnType<typeof __unstable__loadDesignSystem>>>>()
+const designSystems = new Map<
+  string,
+  Promise<Awaited<ReturnType<typeof __unstable__loadDesignSystem>>>
+>()
 
 function designSystemFor(css: string, base: string) {
   const key = `${base}\u0000${css}`

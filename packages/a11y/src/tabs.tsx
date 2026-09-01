@@ -11,9 +11,9 @@
 // move within it. A tab strip whose tabs are each a tab stop is not a tab
 // strip -- it is six controls in a row, and Tab past it takes six presses.
 
-import { useCallback, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { type KeyboardEvent, type ReactNode, useCallback, useId, useRef, useState } from 'react'
 
-import { nextIndex, tabStops, type Orientation, type RovingKey } from './roving.ts'
+import { nextIndex, type Orientation, type RovingKey, tabStops } from './roving.ts'
 
 export interface HozoTab {
   /** The tab's label. */

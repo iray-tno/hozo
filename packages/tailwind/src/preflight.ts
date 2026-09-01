@@ -14,8 +14,8 @@
 // within days: 26 selectors against the real file's 32, and the six
 // missing ones were exactly the ones that showed. Hence reading the file.
 
-import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 

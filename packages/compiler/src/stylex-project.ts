@@ -12,10 +12,10 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 import {
-  summarizeStylexModule,
   type StylexExternalBinding,
   type StylexModuleSource,
   type StylexModuleSummary,
+  summarizeStylexModule,
 } from './index.ts'
 
 const SNAPSHOT_VERSION = 3
@@ -120,15 +120,14 @@ export class StylexModuleCache {
       // Almost every project file is not StyleX. Avoid paying for a second
       // full TS parse beside the candidate byte scan when the package name
       // is not present at all; false positives merely take the safe path.
-      summary: source.includes('@stylexjs/stylex') || /\bexport\s*(?:\*|\{)[\s\S]*?\bfrom\s*['"]/.test(source)
-        ? summarizeStylexModule(source)
-        : { exports: [], reexports: [], imports: [] },
+      summary:
+        source.includes('@stylexjs/stylex') ||
+        /\bexport\s*(?:\*|\{)[\s\S]*?\bfrom\s*['"]/.test(source)
+          ? summarizeStylexModule(source)
+          : { exports: [], reexports: [], imports: [] },
     }
     const previous = this.#snapshot.files[file]
-    if (
-      previous?.modifiedMs === next.modifiedMs &&
-      previous.contentHash === next.contentHash
-    ) {
+    if (previous?.modifiedMs === next.modifiedMs && previous.contentHash === next.contentHash) {
       return false
     }
     this.#snapshot.files[file] = next
@@ -305,10 +304,7 @@ export class StylexModuleCache {
     return this.#bindingsFor(importer, this.modules())
   }
 
-  #bindingsFor(
-    importer: string,
-    modules: readonly CachedStylexModule[],
-  ): StylexExternalBinding[] {
+  #bindingsFor(importer: string, modules: readonly CachedStylexModule[]): StylexExternalBinding[] {
     const bindings = new Map<string, string>()
     const included = new Set(modules.map((module) => module.path))
     for (const module of modules) {

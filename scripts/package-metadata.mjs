@@ -147,11 +147,11 @@ export function metadataFor(name) {
     // `types` first: the resolver takes the first matching condition, and
     // a `default` ahead of it wins for a TypeScript consumer too.
     exportsField[subpath] = target.startsWith('./dist')
-      // Every subpath, not only the root. `@hozo/runtime/svg` has a
-      // `.native.js` of its own and was getting the plain map, so Metro
-      // resolved the Web file -- which re-exports nothing -- and the
-      // components the compiler imported from it did not exist.
-      ? spec.native
+      ? // Every subpath, not only the root. `@hozo/runtime/svg` has a
+        // `.native.js` of its own and was getting the plain map, so Metro
+        // resolved the Web file -- which re-exports nothing -- and the
+        // components the compiler imported from it did not exist.
+        spec.native
         ? {
             types,
             'react-native': target.replace(/\.js$/, '.native.js'),
@@ -188,10 +188,25 @@ export const PACKAGE_NAMES = Object.keys(PACKAGES)
 
 /** The order `package.json` keys are written in, for a readable diff. */
 const KEY_ORDER = [
-  'name', 'version', 'description', 'keywords', 'license', 'repository',
-  'homepage', 'bugs', 'type', 'main', 'types', 'exports', 'files',
-  'publishConfig', 'scripts', 'dependencies', 'peerDependencies',
-  'peerDependenciesMeta', 'devDependencies',
+  'name',
+  'version',
+  'description',
+  'keywords',
+  'license',
+  'repository',
+  'homepage',
+  'bugs',
+  'type',
+  'main',
+  'types',
+  'exports',
+  'files',
+  'publishConfig',
+  'scripts',
+  'dependencies',
+  'peerDependencies',
+  'peerDependenciesMeta',
+  'devDependencies',
 ]
 
 function ordered(json) {

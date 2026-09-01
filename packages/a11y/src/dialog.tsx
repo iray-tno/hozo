@@ -12,7 +12,7 @@
 // for Hozo to decide is where focus starts and where it goes back to,
 // which is `./focus.ts`.
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 
 import { shouldRestoreFocus } from './focus.ts'
 
@@ -63,7 +63,9 @@ export function HozoDialog({
       const previous = opener.current
       if (
         previous instanceof HTMLElement &&
-        shouldRestoreFocus({ focusable: previous.isConnected && !hasAttribute(previous, 'disabled') })
+        shouldRestoreFocus({
+          focusable: previous.isConnected && !hasAttribute(previous, 'disabled'),
+        })
       ) {
         previous.focus()
       }

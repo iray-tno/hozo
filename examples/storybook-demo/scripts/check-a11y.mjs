@@ -18,7 +18,7 @@
 // is a check nobody can run locally on a machine without Chrome.
 
 import { execFile } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -145,10 +145,15 @@ writeFileSync(path.join(STATIC, '__axe.js'), readFileSync(axe))
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://localhost')
-  const file = path.join(STATIC, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname))
+  const file = path.join(
+    STATIC,
+    url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname),
+  )
   try {
     const body = readFileSync(file)
-    response.writeHead(200, { 'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream' })
+    response.writeHead(200, {
+      'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream',
+    })
     response.end(body)
   } catch {
     response.writeHead(404)
@@ -237,7 +242,11 @@ server.listen(0, () => {
         const held = found.length
         console.log(
           `[a11y] ${stories} stories, no new violations` +
-            (held > 0 ? ` (${held} held against ${Object.values(KNOWN).map((n) => '#' + n).join(', ')})` : ''),
+            (held > 0
+              ? ` (${held} held against ${Object.values(KNOWN)
+                  .map((n) => '#' + n)
+                  .join(', ')})`
+              : ''),
         )
         return
       }

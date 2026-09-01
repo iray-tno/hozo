@@ -13,8 +13,8 @@
 // `Modal` with `accessibilityViewIsModal`, the same delegation
 // `./dialog.native.tsx` makes and for the same reason.
 
-import { useState, type ReactNode } from 'react'
-import { Modal, Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { type ReactNode, useState } from 'react'
+import { Modal, Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
 
 export interface HozoMenuItem {
   label: string
