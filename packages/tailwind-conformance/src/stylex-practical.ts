@@ -81,6 +81,29 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'textJustify', value: 'inter-word' },
   { property: 'textOrientation', value: 'upright' },
   { property: 'textWrap', value: 'balance' },
+  { property: 'blockSize', value: 320 },
+  { property: 'inlineSize', value: '50%' },
+  { property: 'minBlockSize', value: 'auto' },
+  { property: 'minInlineSize', value: '12rem' },
+  { property: 'maxBlockSize', value: 'none' },
+  { property: 'maxInlineSize', value: 'fit-content' },
+  { property: 'justifyItems', value: 'center' },
+  { property: 'placeSelf', value: 'center center' },
+  { property: 'backgroundAttachment', value: 'fixed' },
+  { property: 'backgroundBlendMode', value: 'multiply' },
+  { property: 'backgroundClip', value: 'text' },
+  { property: 'WebkitBackgroundClip', value: 'text' },
+  { property: 'backgroundOrigin', value: 'padding-box' },
+  { property: 'backgroundPositionX', value: 'left' },
+  { property: 'backgroundPositionY', value: 'bottom' },
+  { property: 'accentColor', value: '#123456' },
+  { property: 'caretShape', value: 'bar' },
+  { property: 'WebkitTextFillColor', value: 'currentColor' },
+  { property: 'WebkitTextStrokeColor', value: '#abcdef' },
+  { property: 'WebkitTapHighlightColor', value: 'transparent' },
+  { property: 'MozOsxFontSmoothing', value: 'grayscale' },
+  { property: 'WebkitFontSmoothing', value: 'antialiased' },
+  { property: 'writingMode', value: 'vertical-rl' },
 ] as const
 
 function jsValue(value: string | number): string {
@@ -313,6 +336,15 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
   ].includes(property)),
   grid: STYLEX_VALUE_CASES.filter(({ property }) => [
     'gridTemplateColumns', 'containerType', 'rowGap', 'justifySelf', 'placeItems',
+  ].includes(property)),
+  browser: STYLEX_VALUE_CASES.filter(({ property }) => [
+    'blockSize', 'inlineSize', 'minBlockSize', 'minInlineSize', 'maxBlockSize',
+    'maxInlineSize', 'justifyItems', 'placeSelf', 'backgroundAttachment',
+    'backgroundBlendMode', 'backgroundClip', 'WebkitBackgroundClip',
+    'backgroundOrigin', 'backgroundPositionX', 'backgroundPositionY', 'accentColor',
+    'caretShape', 'WebkitTextFillColor', 'WebkitTextStrokeColor',
+    'WebkitTapHighlightColor', 'MozOsxFontSmoothing', 'WebkitFontSmoothing',
+    'writingMode',
   ].includes(property)),
 } as const
 

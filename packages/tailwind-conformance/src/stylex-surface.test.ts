@@ -26,7 +26,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 202)
+  assert.equal(mapped.size, 225)
   for (const name of [
     'display',
     'padding',
@@ -43,11 +43,13 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('scrollbarWidth'))
   assert.ok(mapped.has('fontVariantNumeric'))
   assert.ok(mapped.has('textWrap'))
+  assert.ok(mapped.has('blockSize'))
+  assert.ok(mapped.has('accentColor'))
 })
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 202)
+  assert.equal(mapped.length, 225)
   assert.ok(mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'))
   assert.equal(manifestEntry('padding')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('gridTemplateColumns')?.basis, 'contextual-runtime')
@@ -89,7 +91,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 389)
-  assert.equal(surface.mappedWebOnly.size, 70)
+  assert.equal(surface.mappedWebOnly.size, 93)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
@@ -102,6 +104,9 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('wordBreak'))
   assert.ok(surface.mappedWebOnly.has('fontVariantCaps'))
   assert.ok(surface.mappedWebOnly.has('textDecorationSkipInk'))
+  assert.ok(surface.mappedWebOnly.has('inlineSize'))
+  assert.ok(surface.mappedWebOnly.has('backgroundBlendMode'))
+  assert.ok(surface.mappedWebOnly.has('WebkitTapHighlightColor'))
   assert.equal(
     surface.native.size + surface.contextual.size + surface.adapter.size + surface.webOnly.size,
     surface.official.size,

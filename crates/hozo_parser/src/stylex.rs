@@ -826,12 +826,38 @@ fn named(value: &StaticValue, choices: &[(&str, &str)]) -> Option<String> {
 #[derive(Clone, Copy)]
 enum WebValueGrammar {
     Keywords(&'static [&'static str]),
+    LengthPercentage(&'static [&'static str]),
+    Color,
     Time,
 }
 
 fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'static str])> {
     let (css_property, choices): (&str, &[&str]) = match property {
         "appearance" => ("appearance", &["auto", "none", "textfield"]),
+        "backgroundAttachment" => ("background-attachment", &["scroll", "fixed", "local"]),
+        "backgroundBlendMode" => (
+            "background-blend-mode",
+            &[
+                "normal", "multiply", "screen", "overlay", "darken", "lighten",
+                "color-dodge", "color-burn", "hard-light", "soft-light", "difference",
+                "exclusion", "hue", "saturation", "color", "luminosity",
+            ],
+        ),
+        "backgroundClip" => (
+            "background-clip",
+            &["border-box", "padding-box", "content-box", "text"],
+        ),
+        "WebkitBackgroundClip" => (
+            "-webkit-background-clip",
+            &["border-box", "padding-box", "content-box", "text"],
+        ),
+        "backgroundOrigin" => (
+            "background-origin",
+            &["border-box", "padding-box", "content-box"],
+        ),
+        "backgroundPositionX" => ("background-position-x", &["left", "center", "right"]),
+        "backgroundPositionY" => ("background-position-y", &["top", "center", "bottom"]),
+        "caretShape" => ("caret-shape", &["auto", "bar", "block", "underscore"]),
         "WebkitAppearance" => ("-webkit-appearance", &["auto", "none", "textfield"]),
         "colorScheme" => (
             "color-scheme",
@@ -874,6 +900,16 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             "image-rendering",
             &["auto", "crisp-edges", "pixelated", "optimizeSpeed", "optimizeQuality"],
         ),
+        "justifyItems" => (
+            "justify-items",
+            &[
+                "normal", "stretch", "center", "start", "end", "flex-start", "flex-end",
+                "self-start", "self-end", "left", "right", "baseline", "first baseline",
+                "last baseline", "safe center", "unsafe center", "legacy right", "legacy left",
+                "legacy center", "initial", "inherit", "unset",
+            ],
+        ),
+        "MozOsxFontSmoothing" => ("-moz-osx-font-smoothing", &["grayscale"]),
         "overflowAnchor" => ("overflow-anchor", &["auto", "none"]),
         "overscrollBehavior" => ("overscroll-behavior", &["auto", "contain", "none"]),
         "overscrollBehaviorBlock" => {
@@ -933,6 +969,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             "place-items",
             &["normal", "stretch", "center", "start", "end", "baseline", "normal normal", "stretch stretch", "center center", "start start", "end end"],
         ),
+        "placeSelf" => (
+            "place-self",
+            &[
+                "auto", "normal", "stretch", "center", "start", "end", "self-start",
+                "self-end", "flex-start", "flex-end", "baseline", "auto auto",
+                "normal normal", "stretch stretch", "center center", "start start", "end end",
+            ],
+        ),
         "lineBreak" => ("line-break", &["auto", "loose", "normal", "strict"]),
         "textAlignLast" => (
             "text-align-last",
@@ -945,6 +989,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "textOrientation" => ("text-orientation", &["mixed", "upright", "sideways"]),
         "textWrap" => ("text-wrap", &["wrap", "nowrap", "balance", "pretty", "stable"]),
+        "WebkitFontSmoothing" => ("-webkit-font-smoothing", &["antialiased"]),
+        "writingMode" => (
+            "writing-mode",
+            &[
+                "horizontal-tb", "vertical-rl", "vertical-lr", "sideways-rl", "sideways-lr",
+                "lr-tb", "rl-tb", "tb-rl", "lr", "rl", "tb",
+            ],
+        ),
         _ => return None,
     };
     Some((css_property, choices))
@@ -952,10 +1004,73 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
 
 fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
     match property {
+        "accentColor" => Some(("accent-color", WebValueGrammar::Color)),
+        "WebkitTapHighlightColor" => {
+            Some(("-webkit-tap-highlight-color", WebValueGrammar::Color))
+        }
+        "WebkitTextFillColor" => Some(("-webkit-text-fill-color", WebValueGrammar::Color)),
+        "WebkitTextStrokeColor" => {
+            Some(("-webkit-text-stroke-color", WebValueGrammar::Color))
+        }
+        "blockSize" => Some((
+            "height",
+            WebValueGrammar::LengthPercentage(&[
+                "auto", "available", "min-content", "max-content", "fit-content",
+            ]),
+        )),
+        "inlineSize" => Some((
+            "width",
+            WebValueGrammar::LengthPercentage(&[
+                "auto", "available", "min-content", "max-content", "fit-content",
+            ]),
+        )),
+        "minBlockSize" => Some((
+            "min-height",
+            WebValueGrammar::LengthPercentage(&[
+                "auto", "min-content", "max-content", "fit-content", "fill-available",
+            ]),
+        )),
+        "minInlineSize" => Some((
+            "min-width",
+            WebValueGrammar::LengthPercentage(&[
+                "auto", "min-content", "max-content", "fit-content", "fill-available",
+            ]),
+        )),
+        "maxBlockSize" => Some((
+            "max-height",
+            WebValueGrammar::LengthPercentage(&[
+                "none", "min-content", "max-content", "fit-content", "fill-available",
+            ]),
+        )),
+        "maxInlineSize" => Some((
+            "max-width",
+            WebValueGrammar::LengthPercentage(&[
+                "none", "min-content", "max-content", "fit-content", "fill-available",
+            ]),
+        )),
         "transitionDelay" => Some(("transition-delay", WebValueGrammar::Time)),
         "animationDuration" => Some(("animation-duration", WebValueGrammar::Time)),
         _ => web_only_keyword_spec(property)
             .map(|(css_property, choices)| (css_property, WebValueGrammar::Keywords(choices))),
+    }
+}
+
+fn web_length_percentage(value: &StaticValue) -> bool {
+    match value {
+        StaticValue::Number(value) => value.is_finite(),
+        StaticValue::String(value) if value == "0" => true,
+        StaticValue::String(value) => [
+            "%", "px", "rem", "em", "ch", "ex", "cap", "ic", "lh", "rlh", "vw", "vh",
+            "vi", "vb", "vmin", "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh",
+            "cm", "mm", "q", "in", "pc", "pt",
+        ]
+        .iter()
+        .any(|unit| {
+            value
+                .strip_suffix(unit)
+                .and_then(|number| number.parse::<f64>().ok())
+                .is_some_and(f64::is_finite)
+        }),
     }
 }
 
@@ -965,6 +1080,15 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::Keywords(choices) => {
             let StaticValue::String(value) = value else { return None };
             choices.contains(&value.as_str()).then(|| value.clone())?
+        }
+        WebValueGrammar::LengthPercentage(keywords) => match value {
+            StaticValue::String(value) if keywords.contains(&value.as_str()) => value.clone(),
+            value if web_length_percentage(value) => length_value(value),
+            _ => return None,
+        },
+        WebValueGrammar::Color => {
+            css_color(value)?;
+            raw_value(value)
         }
         WebValueGrammar::Time => {
             let seconds = stylex_transition_duration(value)? as f64 / 1000.0;
@@ -1413,20 +1537,27 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
-        "appearance" | "WebkitAppearance" | "colorScheme" | "forcedColorAdjust"
+        "accentColor" | "appearance" | "WebkitAppearance" | "backgroundAttachment"
+        | "backgroundBlendMode" | "backgroundClip" | "WebkitBackgroundClip"
+        | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY" | "blockSize"
+        | "caretShape" | "colorScheme" | "forcedColorAdjust"
         | "fontKerning" | "fontOpticalSizing" | "fontStretch" | "fontSynthesisPosition"
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
         | "fontVariantCaps" | "fontVariantLigatures" | "fontVariantNumeric"
-        | "fontVariantPosition" | "hyphens" | "imageRendering" | "lineBreak"
+        | "fontVariantPosition" | "hyphens" | "imageRendering" | "inlineSize"
+        | "justifyItems" | "lineBreak" | "maxBlockSize" | "maxInlineSize"
+        | "minBlockSize" | "minInlineSize" | "MozOsxFontSmoothing"
         | "overflowAnchor" | "overscrollBehavior"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
         | "overscrollBehaviorY" | "printColorAdjust" | "resize" | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
         | "textRendering" | "touchAction" | "wordBreak" | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
-        | "justifySelf" | "placeItems" | "textAlignLast" | "textDecorationSkipInk"
+        | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
+        | "textDecorationSkipInk"
         | "textJustify" | "textOrientation" | "textWrap" | "transitionDelay"
-        | "animationDuration" => {
+        | "animationDuration" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
+        | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" => {
             vec![web_only_property(property, value)?]
         }
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
@@ -3866,6 +3997,60 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 2);
         assert_eq!(gaps.len(), 2);
+    }
+
+    #[test]
+    fn logical_background_and_form_web_values_keep_exact_boundaries() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                blockSize: 320, inlineSize: '50%', minBlockSize: 'auto',
+                minInlineSize: '12rem', maxBlockSize: 'none', maxInlineSize: 'fit-content',
+                justifyItems: 'center', placeSelf: 'center center',
+                backgroundAttachment: 'fixed', backgroundBlendMode: 'multiply',
+                backgroundClip: 'text', WebkitBackgroundClip: 'text',
+                backgroundOrigin: 'padding-box', backgroundPositionX: 'left',
+                backgroundPositionY: 'bottom', accentColor: '#123456', caretShape: 'bar',
+                WebkitTextFillColor: 'currentColor', WebkitTextStrokeColor: '#abcdef',
+                WebkitTapHighlightColor: 'transparent', MozOsxFontSmoothing: 'grayscale',
+                WebkitFontSmoothing: 'antialiased', writingMode: 'vertical-rl'
+              },
+              wider: {
+                blockSize: 'calc(100% - 1rem)', accentColor: 'var(--accent)',
+                backgroundBlendMode: 'multiply,screen'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("exact logical and background values were not lowerable")
+        };
+        assert_eq!(entries.len(), 23);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        let css_names = entries
+            .iter()
+            .flat_map(|entry| entry.properties.iter())
+            .filter_map(|property| match property {
+                StyleProperty::WebOnly(name, _) => Some(name.as_str()),
+                _ => None,
+            })
+            .collect::<HashSet<_>>();
+        for name in ["height", "width", "min-height", "min-width", "max-height", "max-width"] {
+            assert!(css_names.contains(name), "StyleX logical size should emit {name}");
+        }
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("dynamic and composed Web values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 3);
+        assert_eq!(gaps.len(), 3);
     }
 
     #[test]

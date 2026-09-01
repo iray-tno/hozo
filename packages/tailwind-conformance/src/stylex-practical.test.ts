@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 67, covered: 67 },
+    values: { total: 90, covered: 90 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 67, covered: 67 },
+    corpus: { total: 90, covered: 90 },
     silent: 0,
   })
 })
@@ -87,5 +87,63 @@ test('every accepted browser typography keyword agrees with official StyleX', ()
         silent: false,
       })
     }
+  }
+})
+
+test('logical, background, form, and vendor values agree with official StyleX', () => {
+  const keywords: Record<string, readonly string[]> = {
+    backgroundAttachment: ['scroll', 'fixed', 'local'],
+    backgroundBlendMode: [
+      'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge',
+      'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue',
+      'saturation', 'color', 'luminosity',
+    ],
+    backgroundClip: ['border-box', 'padding-box', 'content-box', 'text'],
+    WebkitBackgroundClip: ['border-box', 'padding-box', 'content-box', 'text'],
+    backgroundOrigin: ['border-box', 'padding-box', 'content-box'],
+    backgroundPositionX: ['left', 'center', 'right'],
+    backgroundPositionY: ['top', 'center', 'bottom'],
+    caretShape: ['auto', 'bar', 'block', 'underscore'],
+    justifyItems: [
+      'normal', 'stretch', 'center', 'start', 'end', 'flex-start', 'flex-end',
+      'self-start', 'self-end', 'left', 'right', 'baseline', 'first baseline',
+      'last baseline', 'safe center', 'unsafe center', 'legacy right', 'legacy left',
+      'legacy center', 'initial', 'inherit', 'unset',
+    ],
+    MozOsxFontSmoothing: ['grayscale'],
+    placeSelf: [
+      'auto', 'normal', 'stretch', 'center', 'start', 'end', 'self-start', 'self-end',
+      'flex-start', 'flex-end', 'baseline', 'auto auto', 'normal normal',
+      'stretch stretch', 'center center', 'start start', 'end end',
+    ],
+    WebkitFontSmoothing: ['antialiased'],
+    writingMode: [
+      'horizontal-tb', 'vertical-rl', 'vertical-lr', 'sideways-rl', 'sideways-lr',
+      'lr-tb', 'rl-tb', 'tb-rl', 'lr', 'rl', 'tb',
+    ],
+  }
+  for (const [property, values] of Object.entries(keywords)) {
+    for (const value of values) assert.equal(compareStylexValue({ property, value }).covered, true)
+  }
+
+  for (const property of [
+    'accentColor', 'WebkitTapHighlightColor', 'WebkitTextFillColor',
+    'WebkitTextStrokeColor',
+  ]) {
+    for (const value of ['transparent', '#123456', 'rgb(1 2 3)']) {
+      assert.equal(compareStylexValue({ property, value }).covered, true)
+    }
+  }
+
+  const dimensions: Record<string, readonly (string | number)[]> = {
+    blockSize: [0, 320, '50%', '12rem', 'auto', 'fit-content'],
+    inlineSize: [0, 320, '50%', '12rem', 'auto', 'max-content'],
+    minBlockSize: [0, '50%', '12rem', 'auto', 'min-content'],
+    minInlineSize: [0, '50%', '12rem', 'auto', 'fill-available'],
+    maxBlockSize: [0, '50%', '12rem', 'none', 'max-content'],
+    maxInlineSize: [0, '50%', '12rem', 'none', 'fit-content'],
+  }
+  for (const [property, values] of Object.entries(dimensions)) {
+    for (const value of values) assert.equal(compareStylexValue({ property, value }).covered, true)
   }
 })
