@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 175, covered: 175 },
+    values: { total: 190, covered: 190 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 132, covered: 132 },
+    corpus: { total: 147, covered: 147 },
     silent: 0,
   })
 })
@@ -123,6 +123,37 @@ test('advanced font controls agree with official StyleX for practical values', (
     fontVariantEastAsian: ['normal', 'jis78', 'traditional proportional-width ruby'],
     fontVariationSettings: ['normal', '"wght" 650', '"wght" 650, "wdth" 90'],
     textDecorationThickness: ['auto', 'from-font', 2, '25%'],
+  }
+
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('browser text controls agree with official StyleX for practical values', () => {
+  const values: Record<string, readonly (string | number)[]> = {
+    WebkitLineClamp: ['none', 3],
+    WebkitTextStrokeWidth: [0, 2, 'thin'],
+    hangingPunctuation: ['none', 'first', 'first allow-end last'],
+    hyphenateCharacter: ['auto', '"-"'],
+    tabSize: [0, 4, '2rem'],
+    textCombineUpright: ['none', 'all', 'digits 2', 'digits 4'],
+    textEmphasisColor: ['currentColor', '#123456'],
+    textEmphasisPosition: ['over', 'over right', 'under left'],
+    textEmphasisStyle: ['none', 'filled', 'open circle', '"※"'],
+    textFillColor: ['currentColor', '#abcdef'],
+    textSizeAdjust: ['none', 'auto', '100%'],
+    textUnderlineOffset: ['auto', -2, '0.2em'],
+    textUnderlinePosition: ['auto', 'from-font', 'under', 'under left'],
+    wordSpacing: ['normal', -2, '0.25em', '10%'],
+    wordWrap: ['normal', 'break-word'],
   }
 
   for (const [property, propertyValues] of Object.entries(values)) {
