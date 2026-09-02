@@ -169,6 +169,8 @@ export default function hozoLoader(source) {
         for (const diagnostic of lowered.diagnostics) {
           this.emitWarning(hozoWarning(diagnostic))
         }
+        const serverOnly = serverComponentNeedingScript(this.resourcePath, source, lowered)
+        if (serverOnly) this.emitWarning(hozoWarning(serverOnly))
         writeFileIfChanged(lowered.cssPath, lowered.css)
         // Both stylesheets are imported from the module itself rather than
         // from one designated entry: the candidate sheet has to be present
@@ -228,6 +230,51 @@ function writePreflight(options, cache) {
  * and never where it is *about*. Both bundlers already attribute the
  * warning to the right source module on their own.
  */
+/** The two positions where "server component" is decidable from the path. */
+const APP_ROUTER_ENTRY = /\/app\/(?:.*\/)?(?:page|layout)\.(?:tsx|mdx)$/
+
+const USE_CLIENT = /['"]use client['"]/
+
+/**
+ * An App Router entry that cannot run what Hozo compiled for it.
+ *
+ * Whether a module is a server component is not readable from the module
+ * -- `'use client'` marks a boundary, and a client component reached from
+ * another carries no directive. There are two positions where it *is*
+ * readable, and this is the only place in Hozo that knows them: a
+ * `page` or `layout` under `app/` with no directive is always a server
+ * component, whatever imports it.
+ *
+ * So the convention lives here, in the integration that already registers
+ * Next's loader rules, and `needsClientBoundary` stays a plain fact about
+ * the output in the compiler.
+ *
+ * A warning and not an error, because that fact is deliberately biased
+ * toward saying yes -- it answers on a word match, so a page whose prose
+ * contains "List" reaches this. Next will refuse the build a moment later
+ * anyway, with `Event handlers cannot be passed to Client Component
+ * props` naming `onClick`, a prop nobody wrote. The value here is a line
+ * above that one which names the file and the fix.
+ */
+export function serverComponentNeedingScript(resourcePath, source, lowered) {
+  if (!lowered.needsClientBoundary) return undefined
+  const normalized = resourcePath.split(path.sep).join('/')
+  if (!APP_ROUTER_ENTRY.test(normalized)) return undefined
+  // The directive has to be the first statement to count, so it is near
+  // the top or it is not a directive. Searching a prefix rather than
+  // parsing for one: a comment mentioning it inside that prefix costs a
+  // warning nobody sees, which is the harmless direction.
+  if (USE_CLIENT.test(source.slice(0, 400))) return undefined
+  return {
+    code: 'SERVER_COMPONENT_NEEDS_CLIENT',
+    message:
+      'this is a server component -- a page or layout under app/ with no `use client` -- ' +
+      'and Hozo compiled something into it that needs script: an event handler, a runtime ' +
+      'helper, or a primitive it could not lower. Add `use client` at the top, or move the ' +
+      'interactive part into its own component.',
+  }
+}
+
 function hozoWarning(diagnostic) {
   const warning = new Error(`[hozo] ${diagnostic.code}: ${diagnostic.message}`)
   warning.name = 'HozoDiagnostic'
