@@ -95,20 +95,6 @@ pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
             | Primitive::Heading
             | Primitive::Figcaption
             | Primitive::Time
-    )
-}
-
-/// Where a text style handed down from `node` could land.
-///
-/// Stops at a `Text`, because that is where React Native's own inheritance
-/// takes over -- anything below it is the platform's problem, not the
-/// compiler's.
-pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
-    matches!(
-        primitive,
-        Primitive::Text
-            | Primitive::Paragraph
-            | Primitive::Heading
             | Primitive::Strong
             | Primitive::Emphasis
             | Primitive::Underline
@@ -123,6 +109,12 @@ pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
             | Primitive::Rt
     )
 }
+
+/// Where a text style handed down from `node` could land.
+///
+/// Stops at a `Text`, because that is where React Native's own inheritance
+/// takes over -- anything below it is the platform's problem, not the
+/// compiler's.
 
 pub(super) fn text_reach(node: &Node) -> TextReach {
     let mut reach = TextReach::None;
