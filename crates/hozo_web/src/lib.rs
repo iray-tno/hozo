@@ -1966,6 +1966,32 @@ export function Login() {
     }
 
     #[test]
+    fn structural_form_and_disclosure_primitives_lower_to_semantic_html_elements() {
+        let source = r#"
+            import { Fieldset, Legend, Details, Summary, Dl, Dt, Dd } from '@hozo/semantics'
+            const el = (
+                <Fieldset>
+                    <Legend>Options</Legend>
+                    <Details>
+                        <Summary>More</Summary>
+                        <Dl>
+                            <Dt>Term</Dt>
+                            <Dd>Detail</Dd>
+                        </Dl>
+                    </Details>
+                </Fieldset>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert_eq!(
+            output.jsx,
+            "<fieldset><legend>Options</legend><details><summary>More</summary><dl><dt>Term</dt><dd>Detail</dd></dl></details></fieldset>"
+        );
+    }
+
+    #[test]
     fn dynamic_heading_level_uses_the_typed_fallback_component() {
         let source = r#"
             import { Heading } from '@hozo/core'

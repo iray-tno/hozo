@@ -64,3 +64,70 @@ export function Time(props: TimeNativeProps) {
 export function Address(props: SemanticsNativeProps) {
   return React.createElement('View', props)
 }
+
+export function Fieldset({ role = 'group', ...props }: SemanticsNativeProps) {
+  return React.createElement('View', { role, ...props })
+}
+
+export function Legend({ style, ...props }: SemanticsNativeProps) {
+  return React.createElement('Text', { style: [{ fontWeight: 'bold' }, style], ...props })
+}
+
+export interface DetailsNativeProps extends SemanticsNativeProps {
+  open?: boolean
+  defaultOpen?: boolean
+  onToggle?: (open: boolean) => void
+}
+
+const DetailsContext = React.createContext<{
+  open: boolean
+  toggle: () => void
+}>({ open: false, toggle: () => {} })
+
+export function Details({
+  open: controlledOpen,
+  defaultOpen = false,
+  onToggle,
+  children,
+  ...props
+}: DetailsNativeProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
+  const isOpen = controlledOpen ?? uncontrolledOpen
+  const toggle = React.useCallback(() => {
+    const next = !isOpen
+    setUncontrolledOpen(next)
+    onToggle?.(next)
+  }, [isOpen, onToggle])
+
+  return React.createElement(
+    DetailsContext.Provider,
+    { value: { open: isOpen, toggle } },
+    React.createElement('View', props, children),
+  )
+}
+
+export function Summary({ children, ...props }: SemanticsNativeProps) {
+  const { open, toggle } = React.useContext(DetailsContext)
+  return React.createElement(
+    'Pressable',
+    {
+      accessibilityRole: 'button',
+      accessibilityState: { expanded: open },
+      onPress: toggle,
+      ...props,
+    },
+    children,
+  )
+}
+
+export function Dl({ role = 'list', ...props }: SemanticsNativeProps) {
+  return React.createElement('View', { role, ...props })
+}
+
+export function Dt({ style, ...props }: SemanticsNativeProps) {
+  return React.createElement('Text', { style: [{ fontWeight: 'bold' }, style], ...props })
+}
+
+export function Dd(props: SemanticsNativeProps) {
+  return React.createElement('View', props)
+}

@@ -490,3 +490,30 @@ fn portable_display_values_lower_normally() {
     assert!(output.diagnostics.is_empty());
     assert!(output.styles.contains("display: 'none',"));
 }
+
+#[test]
+fn structural_form_and_disclosure_primitives_lower_to_native_components() {
+    let source = r#"
+        import { Fieldset, Legend, Details, Summary, Dl, Dt, Dd } from '@hozo/semantics'
+        const el = (
+            <Fieldset>
+                <Legend>Options</Legend>
+                <Details>
+                    <Summary>More</Summary>
+                    <Dl>
+                        <Dt>Term</Dt>
+                        <Dd>Detail</Dd>
+                    </Dl>
+                </Details>
+            </Fieldset>
+        )
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains(r#"<View role="group">"#), "{}", output.jsx);
+    assert!(output.jsx.contains(r#"<Pressable accessibilityRole="button">"#), "{}", output.jsx);
+    assert!(output.jsx.contains(r#"<View role="list">"#), "{}", output.jsx);
+    // Legend and Dt receive bold font weight semantic defaults
+    assert!(output.styles.contains("fontWeight: '700',"), "{}", output.styles);
+}

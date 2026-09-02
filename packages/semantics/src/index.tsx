@@ -124,3 +124,63 @@ export function Address({ className, children, style, ...props }: SemanticsUnive
     </address>
   )
 }
+
+export function Fieldset({ className, children, style, ...props }: SemanticsUniversalProps) {
+  return (
+    <fieldset className={className} style={style} {...domProps(props)}>
+      {children}
+    </fieldset>
+  )
+}
+
+export function Legend({ className, children, style, ...props }: SemanticsUniversalProps) {
+  return (
+    <legend className={className} style={style} {...domProps(props)}>
+      {children}
+    </legend>
+  )
+}
+
+export interface DetailsProps extends SemanticsUniversalProps {
+  open?: boolean
+}
+
+export function Details({ className, children, style, open, ...props }: DetailsProps) {
+  return (
+    <details className={className} style={style} open={open} {...domProps(props)}>
+      {children}
+    </details>
+  )
+}
+
+export function Summary({ className, children, style, ...props }: SemanticsUniversalProps) {
+  return (
+    <summary className={className} style={style} {...domProps(props)}>
+      {children}
+    </summary>
+  )
+}
+
+export function Dl({ className, children, style, ...props }: SemanticsUniversalProps) {
+  return (
+    <dl className={className} style={style} {...domProps(props)}>
+      {children}
+    </dl>
+  )
+}
+
+export function Dt({ className, children, style, ...props }: SemanticsUniversalProps) {
+  return (
+    <dt className={className} style={style} {...domProps(props)}>
+      {children}
+    </dt>
+  )
+}
+
+export function Dd({ className, children, style, ...props }: SemanticsUniversalProps) {
+  return (
+    <dd className={className} style={style} {...domProps(props)}>
+      {children}
+    </dd>
+  )
+}
