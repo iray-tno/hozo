@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 142, covered: 142 },
+    values: { total: 147, covered: 147 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 94, covered: 94 },
+    corpus: { total: 99, covered: 99 },
     silent: 0,
   })
 })
@@ -382,6 +382,23 @@ test('logical scroll shorthands agree with official StyleX', () => {
     { property: 'scrollPaddingBlock', value: '8px 12px' },
     { property: 'scrollPaddingInline', value: 8 },
     { property: 'scrollPaddingInline', value: '8px 12px' },
+  ] as const
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
+})
+
+test('flex, container, and grid gap shorthands agree with official StyleX', () => {
+  const cases = [
+    { property: 'flexFlow', value: 'row' },
+    { property: 'flexFlow', value: 'wrap' },
+    { property: 'flexFlow', value: 'column wrap' },
+    { property: 'flexFlow', value: 'wrap-reverse row-reverse' },
+    { property: 'container', value: 'card-shell' },
+    { property: 'container', value: 'card-shell / normal' },
+    { property: 'container', value: 'card-shell / inline-size' },
+    { property: 'gridGap', value: 8 },
+    { property: 'gridGap', value: '8px 12px' },
+    { property: 'gridRowGap', value: 8 },
+    { property: 'gridColumnGap', value: 12 },
   ] as const
   for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })

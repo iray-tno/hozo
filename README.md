@@ -193,10 +193,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **277/522 property names
-(53.1%)**, including **116/116 (100%)** when the denominator is restricted to
-names React Native also publishes and **16/16 (100%)** contextual-runtime
-names. Web-only lowering is reported independently at **145/389 (37.3%)**. The
+Against StyleX 0.19.0's published types that is **282/522 property names
+(54.0%)**, including **120/120 (100%)** when the denominator includes both
+React Native's published keys and exact compile-time Native equivalents, and
+**17/17 (100%)** contextual-runtime names. Web-only lowering is reported
+independently at **145/384 (37.8%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -213,8 +214,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **142/142 (100%)** representative values, **14/14
-(100%)** common authoring constructs, and **94/94 (100%)** declarations after
+corpus currently measures **147/147 (100%)** representative values, **14/14
+(100%)** common authoring constructs, and **99/99 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, and
 Grid scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -249,6 +250,12 @@ one-to-four-value box syntax; their `Block` and `Inline` counterparts expand
 one or two values along the logical axis. Ambiguous or wider values remain
 residual.
 
+The layout shorthand slice expands `flexFlow`, `gridGap`, `gridRowGap`, and
+`gridColumnGap` into the same typed properties React Native already carries,
+so the aliases work on both platforms without runtime code. `container`
+expands into the existing contextual name/type IR. Their shorthand/longhand
+priority is resolved per final property slot, including conditional rules.
+
 The contextual slice is currently Grid: static `gridTemplateColumns`/
 `gridTemplateRows` tracks made from positive `fr`, non-negative `px`, or
 `minmax(px, fr)` values (plus equal-track `repeat`), and integer line or
@@ -259,7 +266,7 @@ Static transition property, duration, and timing configuration also reaches
 the existing Native interaction/ambient transition runtime. The accepted
 subset is deliberately limited to properties and easing curves that runtime
 can interpolate faithfully; other values remain with official StyleX.
-Static `containerName` and `containerType` also reuse `HozoContainer` on
+Static `container`, `containerName`, and `containerType` also reuse `HozoContainer` on
 Native. The supported type subset is `normal`, `size`, and `inline-size`, and
 the runtime currently accepts one conservative CSS identifier as its lookup
 name. Multiple names and wider CSS syntax remain with official StyleX.

@@ -10,10 +10,10 @@
 use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
-    Angle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef, FontWeight,
-    GridLine, GridSpan, GridTracks, Length, Origin, Overflow, Radius, SourceSpan, StyleDeclaration,
-    StyleProperty, StylexResidual, StylexResidualArgument, TextOverflow, TransformFunction,
-    WhiteSpace,
+    Angle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef, FlexDirection,
+    FontWeight, GridLine, GridSpan, GridTracks, Length, Origin, Overflow, Radius, SourceSpan,
+    StyleDeclaration, StyleProperty, StylexResidual, StylexResidualArgument, TextOverflow,
+    TransformFunction, WhiteSpace,
 };
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, ArrowFunctionExpression, BindingPattern, CallExpression,
@@ -581,6 +581,92 @@ fn stylex_container_type(value: &StaticValue) -> Option<&'static str> {
         "inline-size" => Some("inline-size"),
         _ => None,
     }
+}
+
+fn stylex_container(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let mut parts = value.split('/');
+    let name = parts.next()?.trim();
+    let kind = parts.next().map(str::trim).unwrap_or("normal");
+    if parts.next().is_some() || name.is_empty() || kind.is_empty() {
+        return None;
+    }
+    let name = stylex_container_name(&StaticValue::String(name.to_string()))?;
+    let kind = stylex_container_type(&StaticValue::String(kind.to_string()))?;
+    Some(vec![
+        StyleProperty::ContainerName(name),
+        StyleProperty::Keyword("container-type", kind),
+    ])
+}
+
+fn stylex_flex_flow(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let parts = web_components(value)?;
+    if !(1..=2).contains(&parts.len()) {
+        return None;
+    }
+    let mut direction = None;
+    let mut wrap = None;
+    for part in parts {
+        match part.as_str() {
+            "row" if direction.is_none() => direction = Some(FlexDirection::Row),
+            "row-reverse" => {
+                if direction.is_some() {
+                    return None;
+                }
+                direction = Some(FlexDirection::RowReverse);
+            }
+            "column" if direction.is_none() => direction = Some(FlexDirection::Column),
+            "column-reverse" => {
+                if direction.is_some() {
+                    return None;
+                }
+                direction = Some(FlexDirection::ColumnReverse);
+            }
+            "nowrap" | "wrap" | "wrap-reverse" if wrap.is_none() => {
+                wrap = Some(match part.as_str() {
+                    "nowrap" => "nowrap",
+                    "wrap" => "wrap",
+                    _ => "wrap-reverse",
+                });
+            }
+            _ => return None,
+        }
+    }
+    Some(vec![
+        StyleProperty::FlexDirection(direction.unwrap_or(FlexDirection::Row)),
+        StyleProperty::Keyword("flex-wrap", wrap.unwrap_or("nowrap")),
+    ])
+}
+
+fn stylex_gap(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let parts = match value {
+        StaticValue::Number(_) => vec![value.clone()],
+        StaticValue::String(value) => web_components(value)?
+            .into_iter()
+            .map(StaticValue::String)
+            .collect(),
+    };
+    if !(1..=2).contains(&parts.len()) {
+        return None;
+    }
+    let values = parts.iter().map(px_length).collect::<Option<Vec<_>>>()?;
+    if values
+        .iter()
+        .any(|value| !matches!(value, Length::Px(number) if number.is_finite() && *number >= 0.0))
+    {
+        return None;
+    }
+    let row = values[0].clone();
+    let column = values.get(1).unwrap_or(&row).clone();
+    Some(vec![
+        StyleProperty::RowGap(row),
+        StyleProperty::ColumnGap(column),
+    ])
 }
 
 fn stylex_grid_tracks(value: &StaticValue) -> Option<GridTracks> {
@@ -2290,6 +2376,23 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         // conditional longhand makes unreachable.
         "columns" => stylex_columns(value)?,
         "columnRule" => stylex_column_rule(value)?,
+        "container" => stylex_container(value)?,
+        "flexFlow" => stylex_flex_flow(value)?,
+        "gridGap" => stylex_gap(value)?,
+        "gridRowGap" => {
+            let value = width()?;
+            if matches!(&value, Length::Px(number) if *number < 0.0) {
+                return None;
+            }
+            vec![StyleProperty::RowGap(value)]
+        }
+        "gridColumnGap" => {
+            let value = width()?;
+            if matches!(&value, Length::Px(number) if *number < 0.0) {
+                return None;
+            }
+            vec![StyleProperty::ColumnGap(value)]
+        }
         "listStyle" => stylex_list_style(value)?,
         "scrollMargin" => stylex_scroll_box(value, false)?,
         "scrollPadding" => stylex_scroll_box(value, true)?,
@@ -2308,13 +2411,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         // StyleX emits these as CSS shorthands at a lower atomic priority
         // than their longhands. Split them into the typed final slots here
         // so the same priority resolution works on Web and Native.
-        "gap" => {
-            let value = width()?;
-            vec![
-                StyleProperty::RowGap(value.clone()),
-                StyleProperty::ColumnGap(value),
-            ]
-        }
+        "gap" => stylex_gap(value)?,
         "borderRadius" => {
             let value = Radius::Length(width()?);
             vec![
@@ -2600,6 +2697,9 @@ fn canonical_property(property: &str) -> &str {
         "paddingBlockEnd" => "paddingBottom",
         "scrollMarginBlockStart" => "scrollMarginTop",
         "scrollMarginBlockEnd" => "scrollMarginBottom",
+        "gridGap" => "gap",
+        "gridRowGap" => "rowGap",
+        "gridColumnGap" => "columnGap",
         "start" => "insetInlineStart",
         "end" => "insetInlineEnd",
         _ => property,
@@ -2627,6 +2727,7 @@ fn property_priority(property: &str) -> u16 {
             | "columnRule"
             | "columns"
             | "flex"
+            | "flexFlow"
             | "fontVariant"
             | "gap"
             | "gridColumn"
@@ -5177,6 +5278,111 @@ mod tests {
     }
 
     #[test]
+    fn layout_shorthands_expand_into_existing_typed_slots() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                flexFlow: 'wrap column-reverse',
+                container: 'card-shell / inline-size',
+                gridGap: '8px 12px',
+                gridRowGap: 4,
+                gridColumnGap: 6
+              },
+              defaults: { flexFlow: 'wrap', container: 'card-shell', gridGap: 8 },
+              invalid: { flexFlow: 'row column', container: 'card / size / extra', gridGap: '-1px 8px' }
+            })
+        "#,
+        );
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
+            panic!("exact layout shorthands were not lowerable")
+        };
+        assert_eq!(entries.len(), 5);
+        assert_eq!(
+            entries
+                .iter()
+                .flat_map(|entry| &entry.properties)
+                .count(),
+            8
+        );
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            *property == StyleProperty::FlexDirection(FlexDirection::ColumnReverse)
+        }));
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            *property == StyleProperty::ColumnGap(Length::Px(12.0))
+        }));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, .. } = &frontend.sheets["styles"]["defaults"] else {
+            panic!("one-token shorthands were not lowerable")
+        };
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            *property == StyleProperty::FlexDirection(FlexDirection::Row)
+        }));
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            *property == StyleProperty::Keyword("container-type", "normal")
+        }));
+
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["invalid"]
+        else {
+            panic!("invalid shorthands should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 3);
+        assert_eq!(gaps.len(), 3);
+    }
+
+    #[test]
+    fn layout_longhands_suppress_only_their_conditional_shorthand_slots() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              flow: { flexFlow: 'column wrap' },
+              direction: { flexDirection: 'row' },
+              gaps: { gridGap: '8px 12px' },
+              row: { rowGap: 4 }
+            })
+            const card = <View {...stylex.props(styles.direction, active && styles.flow, styles.row, enabled && styles.gaps)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert!(style.iter().any(|declaration| {
+            declaration.condition == Condition::Always
+                && declaration.property == StyleProperty::FlexDirection(FlexDirection::Row)
+        }));
+        assert!(!style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && matches!(declaration.property, StyleProperty::FlexDirection(_))
+        }));
+        assert!(style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && declaration.property == StyleProperty::Keyword("flex-wrap", "wrap")
+        }));
+        assert!(!style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && matches!(declaration.property, StyleProperty::RowGap(_))
+        }));
+        assert!(style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && declaration.property == StyleProperty::ColumnGap(Length::Px(12.0))
+        }));
+    }
+
+    #[test]
     fn static_container_metadata_becomes_the_existing_contextual_ir() {
         let frontend = frontend(
             r#"
@@ -5217,7 +5423,7 @@ mod tests {
     }
 
     #[test]
-    fn wider_container_values_and_shorthand_overlap_remain_official_stylex() {
+    fn wider_container_values_remain_official_stylex_and_shorthand_overlap_lowers() {
         let frontend = frontend(
             r#"
             import * as stylex from '@stylexjs/stylex'
@@ -5249,9 +5455,9 @@ mod tests {
         else {
             panic!("overlap should remain representable as residual")
         };
-        assert_eq!(entries.len(), 1);
-        assert_eq!(residual.len(), 1);
-        assert_eq!(gaps.len(), 1);
+        assert_eq!(entries.len(), 2);
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
     }
 
     #[test]
