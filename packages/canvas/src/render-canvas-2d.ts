@@ -1,9 +1,11 @@
-import type {
-  CanvasPaintProps,
-  CanvasScene,
-  CanvasSceneNode,
-  CanvasTransform,
-  ClipProps,
+import {
+  type CanvasPaintProps,
+  type CanvasScene,
+  type CanvasSceneNode,
+  type CanvasTransform,
+  type ClipProps,
+  paintFills,
+  paintStrokes,
 } from './scene.tsx'
 
 export interface CanvasViewport {
@@ -39,11 +41,8 @@ function paints(
   context: CanvasRenderingContext2D,
   fillRule?: CanvasFillRule,
 ) {
-  const hasFill = paint.fill !== 'none' && (paint.fill !== undefined || paint.stroke === undefined)
-  const hasStroke =
-    paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
-  if (hasFill) context.fill(fillRule)
-  if (hasStroke) context.stroke()
+  if (paintFills(paint)) context.fill(fillRule)
+  if (paintStrokes(paint)) context.stroke()
 }
 
 function pathForClip(context: CanvasRenderingContext2D, props: Omit<ClipProps, 'children'>) {

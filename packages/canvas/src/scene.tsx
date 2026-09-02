@@ -37,6 +37,27 @@ export interface CanvasPaintProps {
   lineJoin?: 'bevel' | 'round' | 'miter'
 }
 
+/**
+ * Whether this paint puts anything on the surface, per channel.
+ *
+ * Both renderers had these two conditions written out, identically and
+ * separately -- Canvas2D in `applyPaint`, Skia in `paintLayers`. Hit
+ * testing needs the same answer for a third time, and a hit test that
+ * disagrees with the paint is worse than one that refuses: it reports a
+ * press on something nobody can see. So the condition is written once and
+ * all three read it.
+ *
+ * The defaults are the platforms' own and agree: an unset `strokeWidth`
+ * is 1 in Canvas2D and in Skia, so `?? 1` is not a Hozo policy.
+ */
+export function paintStrokes(paint: CanvasPaintProps): boolean {
+  return paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
+}
+
+export function paintFills(paint: CanvasPaintProps): boolean {
+  return paint.fill !== 'none' && (paint.fill !== undefined || paint.stroke === undefined)
+}
+
 export interface CanvasTransform {
   translateX?: number
   translateY?: number
@@ -78,7 +99,7 @@ export interface EllipseProps extends CanvasPaintProps, CanvasInteractionProps {
   radiusY: number
 }
 
-export interface LineProps extends CanvasPaintProps {
+export interface LineProps extends CanvasPaintProps, CanvasInteractionProps {
   x1: number
   y1: number
   x2: number
@@ -102,7 +123,7 @@ export type CanvasLeafNode =
   | { id?: string; kind: 'rounded-rect'; props: SceneProps<RoundedRectProps> }
   | { id?: string; kind: 'circle'; props: SceneProps<CircleProps> }
   | { id?: string; kind: 'ellipse'; props: SceneProps<EllipseProps> }
-  | { id?: string; kind: 'line'; props: LineProps }
+  | { id?: string; kind: 'line'; props: SceneProps<LineProps> }
   | { id?: string; kind: 'path'; props: PathProps }
 
 export type CanvasSceneNode =
@@ -296,7 +317,10 @@ function leaf<P>(kind: CanvasLeafNode['kind']) {
 }
 
 function interactiveLeaf<P extends CanvasInteractionProps>(
-  kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse',
+  // `line` joins the four closed shapes now that `pointInLine` can answer
+  // for it. Named rather than widened to every kind: `path` still refuses
+  // hits, and the list is what says which geometry the hit test covers.
+  kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse' | 'line',
 ) {
   const Component = ({ onPress, disabled, ...props }: P) => {
     const node = useMemo(() => ({ kind, props }) as unknown as FlatNode, [props])
@@ -325,7 +349,7 @@ export const Rect = interactiveLeaf<RectProps>('rect')
 export const RoundedRect = interactiveLeaf<RoundedRectProps>('rounded-rect')
 export const Circle = interactiveLeaf<CircleProps>('circle')
 export const Ellipse = interactiveLeaf<EllipseProps>('ellipse')
-export const Line = leaf<LineProps>('line')
+export const Line = interactiveLeaf<LineProps>('line')
 export const Path = leaf<PathProps>('path')
 
 export function Group({ children, ...props }: GroupProps) {

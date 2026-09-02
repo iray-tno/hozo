@@ -1,4 +1,11 @@
-import type { CanvasScene, CanvasSceneNode, CanvasTransform, ClipProps } from './scene.tsx'
+import {
+  type CanvasScene,
+  type CanvasSceneNode,
+  type CanvasTransform,
+  type ClipProps,
+  type LineProps,
+  paintStrokes,
+} from './scene.tsx'
 
 export interface CanvasPoint {
   x: number
@@ -149,6 +156,62 @@ function pointInRoundedRect(
   return dx * dx + dy * dy <= cornerRadius * cornerRadius
 }
 
+/**
+ * Whether a point lands on a line's stroke, as the stroke is painted.
+ *
+ * A line has no area, so the only honest region is the one the renderer
+ * draws: the band of `strokeWidth` around the segment, ended the way
+ * `lineCap` ends it. Anything wider would be a control nobody can see,
+ * which is the failure this issue's own wording warns about -- so a chart
+ * that wants a finger-sized target draws a wider transparent line, and
+ * says so in the scene rather than relying on a tolerance it cannot
+ * inspect.
+ *
+ * The three caps are three different shapes and are treated as such:
+ *
+ *   - `butt` (the default in Canvas2D and Skia both) stops flat at the
+ *     endpoints, so the region is exactly the rectangle;
+ *   - `round` adds a half-disc at each end, which is what makes plain
+ *     distance-to-segment the right test;
+ *   - `square` extends the rectangle by half the width at each end.
+ */
+function pointInLine(point: CanvasPoint, props: LineProps): boolean {
+  if (!paintStrokes(props)) return false
+  const half = (props.strokeWidth ?? 1) / 2
+  const dx = props.x2 - props.x1
+  const dy = props.y2 - props.y1
+  const lengthSquared = dx * dx + dy * dy
+
+  // A zero-length line, which the platforms disagree about the least when
+  // stated explicitly: `butt` paints nothing at all, and the other two
+  // paint the cap on its own -- a disc or a square of the stroke width.
+  if (lengthSquared === 0) {
+    const px = point.x - props.x1
+    const py = point.y - props.y1
+    if (props.lineCap === 'round') return px * px + py * py <= half * half
+    if (props.lineCap === 'square') return Math.abs(px) <= half && Math.abs(py) <= half
+    return false
+  }
+
+  // Where the point falls along the segment, 0 at one end and 1 at the
+  // other. The caps decide how far outside that range still counts.
+  const t = ((point.x - props.x1) * dx + (point.y - props.y1) * dy) / lengthSquared
+  if (props.lineCap === 'round') {
+    const clamped = Math.max(0, Math.min(1, t))
+    const nearestX = props.x1 + clamped * dx
+    const nearestY = props.y1 + clamped * dy
+    const offX = point.x - nearestX
+    const offY = point.y - nearestY
+    return offX * offX + offY * offY <= half * half
+  }
+  const overhang = props.lineCap === 'square' ? half / Math.sqrt(lengthSquared) : 0
+  if (t < -overhang || t > 1 + overhang) return false
+  // Distance to the infinite line, which inside that range is the
+  // distance to the stroke's centre.
+  const perpendicular = Math.abs((point.x - props.x1) * dy - (point.y - props.y1) * dx)
+  return perpendicular <= half * Math.sqrt(lengthSquared)
+}
+
 function pointInNode(node: CanvasSceneNode, point: CanvasPoint) {
   switch (node.kind) {
     case 'rect':
@@ -181,6 +244,7 @@ function pointInNode(node: CanvasSceneNode, point: CanvasPoint) {
       return dx * dx + dy * dy <= 1
     }
     case 'line':
+      return pointInLine(point, node.props)
     case 'path':
     case 'group':
     case 'clip':
@@ -196,9 +260,9 @@ function pointInClip(point: CanvasPoint, props: Omit<ClipProps, 'children'>) {
 /**
  * Finds the topmost interactive geometry at a logical surface point.
  *
- * Rectangle clips and the four closed primitive shapes are portable today.
- * Path clips, paths, and lines deliberately refuse hits until both renderers
- * can implement the same contract.
+ * Rectangle clips, the four closed primitive shapes, and lines are
+ * portable today. Paths and path clips deliberately refuse hits until both
+ * renderers can implement the same contract.
  */
 export function hitTestCanvas(
   scene: CanvasScene,
