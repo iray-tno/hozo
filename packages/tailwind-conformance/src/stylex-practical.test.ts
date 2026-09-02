@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 193, covered: 193 },
+    values: { total: 200, covered: 200 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 150, covered: 150 },
+    corpus: { total: 157, covered: 157 },
     silent: 0,
   })
 })
@@ -25,6 +25,37 @@ test('standalone transforms agree with official StyleX and lower on Native', () 
     { property: 'scale', value: '0.9 110%' },
   ]) {
     assert.equal(compareStylexValue(testCase).covered, true, testCase.property)
+  }
+})
+
+test('animation control longhands agree with official StyleX for their common grammar', () => {
+  const values: Record<string, readonly (string | number)[]> = {
+    animationComposition: ['replace', 'add', 'accumulate'],
+    animationDelay: ['0ms', '100ms', '1s'],
+    animationDirection: ['normal', 'reverse', 'alternate', 'alternate-reverse'],
+    animationFillMode: ['none', 'forwards', 'backwards', 'both'],
+    animationIterationCount: [0, 1, 2.5, 'infinite'],
+    animationPlayState: ['running', 'paused'],
+    animationTimingFunction: [
+      'linear',
+      'ease',
+      'ease-in',
+      'ease-out',
+      'ease-in-out',
+      'step-start',
+      'step-end',
+    ],
+  }
+
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
   }
 })
 

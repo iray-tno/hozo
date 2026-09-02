@@ -991,6 +991,11 @@ enum WebValueGrammar {
         maximum: i64,
     },
     Number { minimum: f64, maximum: f64 },
+    NumberWithKeywords {
+        keywords: &'static [&'static str],
+        minimum: f64,
+        maximum: f64,
+    },
     NumberPercentage { minimum: f64, maximum: f64 },
     ClipRect,
     Contain,
@@ -1018,6 +1023,26 @@ enum WebValueGrammar {
 
 fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'static str])> {
     let (css_property, choices): (&str, &[&str]) = match property {
+        "animationComposition" => (
+            "animation-composition",
+            &["replace", "add", "accumulate"],
+        ),
+        "animationDirection" => (
+            "animation-direction",
+            &["normal", "reverse", "alternate", "alternate-reverse"],
+        ),
+        "animationFillMode" => (
+            "animation-fill-mode",
+            &["none", "forwards", "backwards", "both"],
+        ),
+        "animationPlayState" => ("animation-play-state", &["running", "paused"]),
+        "animationTimingFunction" => (
+            "animation-timing-function",
+            &[
+                "linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start",
+                "step-end",
+            ],
+        ),
         "appearance" => ("appearance", &["auto", "none", "textfield"]),
         "alignmentBaseline" => (
             "alignment-baseline",
@@ -1423,7 +1448,16 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             ]),
         )),
         "transitionDelay" => Some(("transition-delay", WebValueGrammar::Time)),
+        "animationDelay" => Some(("animation-delay", WebValueGrammar::Time)),
         "animationDuration" => Some(("animation-duration", WebValueGrammar::Time)),
+        "animationIterationCount" => Some((
+            "animation-iteration-count",
+            WebValueGrammar::NumberWithKeywords {
+                keywords: &["infinite"],
+                minimum: 0.0,
+                maximum: f64::INFINITY,
+            },
+        )),
         "tabSize" => Some(("tab-size", WebValueGrammar::TabSize)),
         "textCombineUpright" => {
             Some(("text-combine-upright", WebValueGrammar::TextCombineUpright))
@@ -2273,6 +2307,14 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
             value => web_integer(value, minimum, maximum)?,
         },
         WebValueGrammar::Number { minimum, maximum } => web_number(value, minimum, maximum)?,
+        WebValueGrammar::NumberWithKeywords {
+            keywords,
+            minimum,
+            maximum,
+        } => match value {
+            StaticValue::String(value) if keywords.contains(&value.as_str()) => value.clone(),
+            value => web_number(value, minimum, maximum)?,
+        },
         WebValueGrammar::NumberPercentage { minimum, maximum } => {
             web_number_percentage(value, minimum, maximum)?
         }
@@ -2770,7 +2812,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
-        "accentColor" | "alignmentBaseline" | "appearance" | "WebkitAppearance"
+        "accentColor" | "alignmentBaseline" | "animationComposition" | "animationDelay"
+        | "animationDirection" | "animationFillMode" | "animationIterationCount"
+        | "animationPlayState" | "animationTimingFunction" | "appearance" | "WebkitAppearance"
         | "WebkitLineClamp" | "WebkitTextStrokeWidth"
         | "backgroundAttachment"
         | "backgroundBlendMode" | "backgroundClip" | "WebkitBackgroundClip"
@@ -5461,6 +5505,40 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 2);
         assert_eq!(gaps.len(), 2);
+    }
+
+    #[test]
+    fn animation_controls_lower_exact_common_values_and_preserve_wider_syntax() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                animationComposition: 'add', animationDelay: '100ms',
+                animationDirection: 'alternate-reverse', animationFillMode: 'both',
+                animationIterationCount: 2.5, animationPlayState: 'paused',
+                animationTimingFunction: 'ease-in-out'
+              },
+              wider: {
+                animationDelay: '-100ms', animationIterationCount: -1,
+                animationTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("exact animation controls were not lowerable")
+        };
+        assert_eq!(entries.len(), 7);
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider animation controls should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 3);
+        assert_eq!(gaps.len(), 3);
     }
 
     #[test]

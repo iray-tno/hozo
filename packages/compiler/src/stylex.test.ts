@@ -862,6 +862,13 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['placeItems', `'center'`],
     ['transitionDelay', `'100ms'`],
     ['animationDuration', `'200ms'`],
+    ['animationComposition', `'add'`],
+    ['animationDelay', `'100ms'`],
+    ['animationDirection', `'alternate-reverse'`],
+    ['animationFillMode', `'both'`],
+    ['animationIterationCount', '2.5'],
+    ['animationPlayState', `'paused'`],
+    ['animationTimingFunction', `'ease-in-out'`],
   ] as const
 
   for (const [property, value] of samples) {
