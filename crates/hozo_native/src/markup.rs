@@ -40,6 +40,18 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Image => ("Image", image_attrs(node, diagnostics)),
         Primitive::ScrollView => ("ScrollView", Vec::new()),
         Primitive::FlatList => ("FlatList", vec![("accessibilityRole", "list".to_string())]),
+        Primitive::Strong => ("Text", Vec::new()),
+        Primitive::Emphasis => ("Text", Vec::new()),
+        Primitive::Underline => ("Text", Vec::new()),
+        Primitive::Strikethrough => ("Text", Vec::new()),
+        Primitive::Sub => ("Text", Vec::new()),
+        Primitive::Sup => ("Text", Vec::new()),
+        Primitive::Code => ("Text", Vec::new()),
+        Primitive::Small => ("Text", Vec::new()),
+        Primitive::Mark => ("Text", Vec::new()),
+        Primitive::NoBreak => ("Text", Vec::new()),
+        Primitive::Ruby => ("Text", Vec::new()),
+        Primitive::Rt => ("Text", Vec::new()),
         Primitive::Pressable => {
             let mut props = Vec::new();
             match &node.props.accessibility_role {

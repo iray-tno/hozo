@@ -522,7 +522,34 @@ fn render_node(
     };
 
     let is_hozo_component = tag.starts_with("Hozo")
-        || matches!(tag, "View" | "Text" | "Paragraph" | "Heading" | "Section" | "Article" | "Nav" | "List" | "ListItem" | "Image" | "ScrollView" | "FlatList" | "Pressable");
+        || matches!(
+            tag,
+            "View"
+                | "Text"
+                | "Paragraph"
+                | "Heading"
+                | "Section"
+                | "Article"
+                | "Nav"
+                | "List"
+                | "ListItem"
+                | "Image"
+                | "ScrollView"
+                | "FlatList"
+                | "Pressable"
+                | "Strong"
+                | "Emphasis"
+                | "Underline"
+                | "Strikethrough"
+                | "Sub"
+                | "Sup"
+                | "Code"
+                | "Small"
+                | "Mark"
+                | "NoBreak"
+                | "Ruby"
+                | "Rt"
+        );
 
     // The generated class is dropped when no rule was written for it. It
     // matched nothing, so it was a class attribute on every unstyled
@@ -1880,6 +1907,35 @@ export function Login() {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(output.jsx, "<section><h2>Title</h2><p>Body</p></section>");
+    }
+
+    #[test]
+    fn typography_primitives_lower_to_semantic_html_elements() {
+        let source = r#"
+            import { Paragraph, Strong, Emphasis, Underline, Strikethrough, Sub, Sup, Code, Small, Mark, NoBreak, Ruby, Rt } from '@hozo/core'
+            const el = (
+                <Paragraph>
+                    <Strong>bold</Strong>
+                    <Emphasis>italic</Emphasis>
+                    <Underline>underlined</Underline>
+                    <Strikethrough>deleted</Strikethrough>
+                    <Sub>sub</Sub>
+                    <Sup>sup</Sup>
+                    <Code>const x = 1</Code>
+                    <Small>fine print</Small>
+                    <Mark>highlight</Mark>
+                    <NoBreak>100 km/h</NoBreak>
+                    <Ruby>漢字<Rt>かんじ</Rt></Ruby>
+                </Paragraph>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert_eq!(
+            output.jsx,
+            "<p><strong>bold</strong><em>italic</em><u>underlined</u><s>deleted</s><sub>sub</sub><sup>sup</sup><code>const x = 1</code><small>fine print</small><mark>highlight</mark><span style={{ whiteSpace: 'nowrap' }}>100 km/h</span><ruby>漢字<rt>かんじ</rt></ruby></p>"
+        );
     }
 
     #[test]

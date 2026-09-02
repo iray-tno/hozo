@@ -366,6 +366,30 @@ pub enum Primitive {
     /// element and a Hozo primitive and `SvgText` would be a name neither
     /// the specification nor `react-native-svg` uses.
     Svg(SvgElement),
+    /// Bold/strong importance: `<strong>` on Web and `Text` with bold font weight on React Native.
+    Strong,
+    /// Stress emphasis: `<em>` on Web and `Text` with italic font style on React Native.
+    Emphasis,
+    /// Underlined text: `<u>` on Web and `Text` with underline text decoration on React Native.
+    Underline,
+    /// Strikethrough/deleted text: `<s>` on Web and `Text` with line-through on React Native.
+    Strikethrough,
+    /// Subscript: `<sub>` on Web and subscripted `Text` on React Native.
+    Sub,
+    /// Superscript: `<sup>` on Web and superscripted `Text` on React Native.
+    Sup,
+    /// Inline code literal: `<code>` on Web and monospace `Text` on React Native.
+    Code,
+    /// Side comments and small print: `<small>` on Web and small `Text` on React Native.
+    Small,
+    /// Highlighted/marked text: `<mark>` on Web and highlighted `Text` on React Native.
+    Mark,
+    /// Non-breaking inline container: `<span style="white-space: nowrap">` on Web and non-breaking space replacement on React Native.
+    NoBreak,
+    /// CJK ruby annotation container: `<ruby>` on Web and ruby layout with duplicate-speech suppression on React Native.
+    Ruby,
+    /// CJK ruby text annotation: `<rt>` on Web and furigana text on React Native.
+    Rt,
 }
 
 /// The SVG elements Hozo lowers.

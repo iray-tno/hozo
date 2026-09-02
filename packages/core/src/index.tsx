@@ -740,6 +740,21 @@ export {
   type HozoTreeProps as TreeProps,
   type TreeNode,
 } from '@hozo/a11y'
+export {
+  Code,
+  Del,
+  Emphasis,
+  Mark,
+  NoBreak,
+  Rt,
+  Ruby,
+  Small,
+  Strikethrough,
+  Strong,
+  Sub,
+  Sup,
+  Underline,
+} from '@hozo/typography'
 // SVG, as a namespace: `<Svg>` is the root and `<Svg.Rect>` its elements.
 // See `./svg.tsx` for why a namespace rather than an `Svg` prefix.
 export { Svg } from './svg.tsx'

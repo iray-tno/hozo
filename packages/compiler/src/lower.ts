@@ -17,10 +17,11 @@ import { lowerCanvasPaints } from './canvas.ts'
 import type { CompileDiagnostic, Compiler } from './index.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
-const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
+const HOZO_CORE_IMPORT_RE =
+  /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/typography)['"]\s*\n?/g
 
 /**
- * The names `@hozo/core` exports. A lowered element never mentions these
+ * The names `@hozo/core` and `@hozo/typography` export. A lowered element never mentions these
  * (it becomes `div`/`span`/`button`), so one surviving in the output came
  * through `Child::Verbatim` -- something the compiler carried rather than
  * understood.
@@ -44,6 +45,18 @@ const HOZO_PRIMITIVES = [
   'ScrollView',
   'FlatList',
   'PanResponder',
+  'Strong',
+  'Emphasis',
+  'Underline',
+  'Strikethrough',
+  'Sub',
+  'Sup',
+  'Code',
+  'Small',
+  'Mark',
+  'NoBreak',
+  'Ruby',
+  'Rt',
 ] as const
 
 /**

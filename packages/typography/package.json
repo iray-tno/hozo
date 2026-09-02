@@ -1,21 +1,22 @@
 {
-  "name": "@hozo/core",
+  "name": "@hozo/typography",
   "version": "0.1.0",
-  "description": "Canonical primitives and semantic components for new Hozo projects.",
+  "description": "Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.",
   "keywords": [
     "react-native",
     "react",
-    "components",
-    "accessibility",
-    "universal"
+    "typography",
+    "cjk",
+    "ruby",
+    "accessibility"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iray-tno/hozo.git",
-    "directory": "packages/core"
+    "directory": "packages/typography"
   },
-  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/core#readme",
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/typography#readme",
   "bugs": {
     "url": "https://github.com/iray-tno/hozo/issues"
   },
@@ -25,6 +26,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "react-native": "./dist/index.native.js",
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
@@ -45,9 +47,7 @@
     "test": "tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
   "dependencies": {
-    "@hozo/a11y": "workspace:^",
-    "@hozo/runtime": "workspace:^",
-    "@hozo/typography": "workspace:^"
+    "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0"
