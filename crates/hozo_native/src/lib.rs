@@ -182,6 +182,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
         None,
         theme,
         &[],
+        None,
         FromAncestor::default(),
         source,
         &mut allocator,
@@ -540,6 +541,14 @@ fn render_verbatim(
     let mut cursor = expr_ref.0.start as usize;
     for entry in nested {
         out.push_str(&source[cursor..entry.span.start as usize]);
+        let ambient_size = inherited.iter().rev().find_map(|d| match &d.property {
+            hozo_ir::StyleProperty::FontSize(hozo_ir::Length::Px(px))
+                if d.condition == hozo_ir::Condition::Always =>
+            {
+                Some(*px)
+            }
+            _ => None,
+        });
         out.push_str(&render_node(
             &entry.node,
             SiblingPosition::UNKNOWN,
@@ -548,6 +557,7 @@ fn render_verbatim(
             None,
             theme,
             inherited,
+            ambient_size,
             // Nothing: this element is inside an expression the compiler
             // only carries, so the `*:` above it could not have been
             // resolved to reach it either -- which is what the warning at
