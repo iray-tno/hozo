@@ -1,5 +1,15 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"]
+  "exclude": ["dist"],
+  "compilerOptions": {
+    // Astro's own preset leaves JSX to Astro, which is right for `.astro`
+    // and wrong for the `.tsx` components `@astrojs/react` renders: the
+    // build transform reads these, and without them it emits
+    // `React.createElement` into a module with no React import. The
+    // failure is `React is not defined` at render time, which says nothing
+    // about JSX configuration.
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  }
 }
