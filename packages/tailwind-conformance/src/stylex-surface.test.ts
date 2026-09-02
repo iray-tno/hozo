@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 301)
+  assert.equal(mapped.size, 310)
   for (const name of [
     'display',
     'padding',
@@ -52,6 +52,9 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('animationDuration'))
   assert.ok(mapped.has('scrollbarWidth'))
   assert.ok(mapped.has('fontVariantNumeric'))
+  assert.ok(mapped.has('fontFeatureSettings'))
+  assert.ok(mapped.has('fontVariationSettings'))
+  assert.ok(mapped.has('textDecorationThickness'))
   assert.ok(mapped.has('textWrap'))
   assert.ok(mapped.has('blockSize'))
   assert.ok(mapped.has('accentColor'))
@@ -72,7 +75,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 301)
+  assert.equal(mapped.length, 310)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -85,6 +88,7 @@ test('every mapped property records why it is counted', () => {
   assert.equal(manifestEntry('borderBlockStyle')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('scrollbarWidth')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('fontKerning')?.basis, 'exact-web-native-refusal')
+  assert.equal(manifestEntry('fontVariationSettings')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('paintOrder')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('listStyleType')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('listStyle')?.basis, 'exact-web-native-refusal')
@@ -130,7 +134,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 375)
-  assert.equal(surface.mappedWebOnly.size, 155)
+  assert.equal(surface.mappedWebOnly.size, 164)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
@@ -143,6 +147,9 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('wordBreak'))
   assert.ok(surface.mappedWebOnly.has('fontVariantCaps'))
   assert.ok(surface.mappedWebOnly.has('textDecorationSkipInk'))
+  assert.ok(surface.mappedWebOnly.has('fontFeatureSettings'))
+  assert.ok(surface.mappedWebOnly.has('fontVariationSettings'))
+  assert.ok(surface.mappedWebOnly.has('textDecorationThickness'))
   assert.ok(surface.mappedWebOnly.has('inlineSize'))
   assert.ok(surface.mappedWebOnly.has('backgroundBlendMode'))
   assert.ok(surface.mappedWebOnly.has('WebkitTapHighlightColor'))
