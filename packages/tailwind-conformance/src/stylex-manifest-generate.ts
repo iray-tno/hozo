@@ -55,7 +55,21 @@ const ADAPTER_PROPERTIES = new Set(['backdropFilter'])
 // StyleX also publishes CSS shorthand/legacy spellings that React Native does
 // not expose as style keys. Hozo can still preserve their Native semantics by
 // expanding them into the corresponding typed RN properties at compile time.
-const NATIVE_EQUIVALENT_PROPERTIES = new Set(['flexFlow', 'gridColumnGap', 'gridGap', 'gridRowGap'])
+const NATIVE_EQUIVALENT_PROPERTIES = new Set([
+  'borderBlockEndWidth',
+  'borderBlockStartWidth',
+  'borderBlockWidth',
+  'borderInlineColor',
+  'borderInlineEndColor',
+  'borderInlineEndWidth',
+  'borderInlineStartColor',
+  'borderInlineStartWidth',
+  'borderInlineWidth',
+  'flexFlow',
+  'gridColumnGap',
+  'gridGap',
+  'gridRowGap',
+])
 
 function repoRoot(): string {
   return path.resolve(import.meta.dirname, '../../..')

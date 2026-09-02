@@ -193,11 +193,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **282/522 property names
-(54.0%)**, including **120/120 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **301/522 property names
+(57.7%)**, including **129/129 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **17/17 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **145/384 (37.8%)**. The
+independently at **155/375 (41.3%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -214,10 +214,10 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **147/147 (100%)** representative values, **14/14
-(100%)** common authoring constructs, and **99/99 (100%)** declarations after
-weighting the same values across Card, Typography, Input, Scroll, Motion, and
-Grid scenarios. Every representative value runs the Hozo Web and Native
+corpus currently measures **166/166 (100%)** representative values, **14/14
+(100%)** common authoring constructs, and **123/123 (100%)** declarations after
+weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
+and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
 and Native either lowers faithfully or follows the entry's explicit Web-only policy.
 Unsupported cases may remain official residuals, but do not earn coverage.
@@ -255,6 +255,14 @@ The layout shorthand slice expands `flexFlow`, `gridGap`, `gridRowGap`, and
 so the aliases work on both platforms without runtime code. `container`
 expands into the existing contextual name/type IR. Their shorthand/longhand
 priority is resolved per final property slot, including conditional rules.
+
+The border-axis slice covers the width, style, and color longhands that the
+official StyleX compiler actually emits. Logical width and color aliases lower
+to existing Native edge properties. Side-specific styles remain exact on Web
+and fail explicitly on Native, whose single `borderStyle` cannot preserve
+different styles per edge. The compound `border`/`borderTop` family remains
+unmapped because StyleX 0.19 itself rejects those shorthands in its default
+property-specificity mode.
 
 The contextual slice is currently Grid: static `gridTemplateColumns`/
 `gridTemplateRows` tracks made from positive `fr`, non-negative `px`, or

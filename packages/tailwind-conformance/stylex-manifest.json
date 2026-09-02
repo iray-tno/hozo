@@ -356,14 +356,14 @@
     {
       "name": "borderBlockEndStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderBlockEndWidth",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderBlockStart",
@@ -380,26 +380,26 @@
     {
       "name": "borderBlockStartStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderBlockStartWidth",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderBlockStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderBlockWidth",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderBottom",
@@ -428,8 +428,8 @@
     {
       "name": "borderBottomStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderBottomWidth",
@@ -505,9 +505,9 @@
     },
     {
       "name": "borderInlineColor",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderInlineEnd",
@@ -517,21 +517,21 @@
     },
     {
       "name": "borderInlineEndColor",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderInlineEndStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderInlineEndWidth",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderInlineStart",
@@ -541,33 +541,33 @@
     },
     {
       "name": "borderInlineStartColor",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderInlineStartStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderInlineStartWidth",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderInlineStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderInlineWidth",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "borderLeft",
@@ -584,8 +584,8 @@
     {
       "name": "borderLeftStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderLeftWidth",
@@ -614,8 +614,8 @@
     {
       "name": "borderRightStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderRightWidth",
@@ -674,8 +674,8 @@
     {
       "name": "borderTopStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "borderTopWidth",

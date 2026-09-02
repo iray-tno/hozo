@@ -2339,6 +2339,10 @@ impl StyleProperty {
                 "`overflow-x-*`/`overflow-y-*`: React Native has one `overflow` for both axes"
                     .to_string(),
             ),
+            StyleProperty::BorderLogicalStyle(_, _) => Some(
+                "logical or side-specific border styles: React Native has one `borderStyle` for all four edges"
+                    .to_string(),
+            ),
             StyleProperty::TextDecorationLine("overline") => Some(
                 "`overline`: React Native's textDecorationLine has underline and line-through, \
                  not overline"
