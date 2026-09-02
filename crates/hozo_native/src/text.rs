@@ -96,7 +96,7 @@ pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
             | Primitive::Figcaption
             | Primitive::Time
             | Primitive::Legend
-            | Primitive::Dt
+            | Primitive::Term
             | Primitive::Strong
             | Primitive::Emphasis
             | Primitive::Underline

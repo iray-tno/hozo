@@ -347,12 +347,12 @@ pub enum Primitive {
     Details,
     /// A disclosure summary/trigger: `<summary>` on Web and `Pressable` on React Native.
     Summary,
-    /// A description list container: `<dl>` on Web and `role="list"` `View` on React Native.
-    Dl,
-    /// A description term/name: `<dt>` on Web and bold `Text` on React Native.
-    Dt,
-    /// A description details/value: `<dd>` on Web and `View` on React Native.
-    Dd,
+    /// A term-and-description list container: `<dl>` on Web and `role="list"` `View` on React Native.
+    TermList,
+    /// A term/name within a term list: `<dt>` on Web and bold `Text` on React Native.
+    Term,
+    /// A description/value within a term list: `<dd>` on Web and `View` on React Native.
+    Description,
     /// A static semantic list: `<ul>`/`<ol>` on Web and a list-role
     /// `View` on React Native. Data-heavy lists remain `FlatList`.
     List,

@@ -743,11 +743,9 @@ export {
 export {
   Address,
   Aside,
-  Dd,
+  Description,
   Details,
   type DetailsProps,
-  Dl,
-  Dt,
   Fieldset,
   Figcaption,
   Figure,
@@ -757,6 +755,8 @@ export {
   Main,
   Search,
   Summary,
+  Term,
+  TermList,
   Time,
   type TimeProps,
 } from '@hozo/semantics'

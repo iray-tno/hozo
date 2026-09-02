@@ -6,10 +6,8 @@ import {
   Address,
   Article,
   Aside,
-  Dd,
+  Description,
   Details,
-  Dl,
-  Dt,
   Fieldset,
   Figcaption,
   Figure,
@@ -21,6 +19,8 @@ import {
   Search,
   Section,
   Summary,
+  Term,
+  TermList,
   Time,
 } from './index.tsx'
 
@@ -72,7 +72,7 @@ test('semantic landmark and document structure primitives render HTML5 elements'
   assert.ok(html.includes('<address>support@hozo.dev</address>'), 'Address rendered as address')
 })
 
-test('structural form, disclosure, and definition list primitives render HTML5 elements', () => {
+test('structural form, disclosure, and term list primitives render HTML5 elements', () => {
   const html = renderToStaticMarkup(
     <div>
       <Fieldset accessibilityLabel="Contact Options">
@@ -82,10 +82,12 @@ test('structural form, disclosure, and definition list primitives render HTML5 e
         <Summary>More Information</Summary>
         <div>Detailed content</div>
       </Details>
-      <Dl>
-        <Dt>Hozo</Dt>
-        <Dd>A universal UI compiler</Dd>
-      </Dl>
+      <TermList>
+        <Term>Hozo</Term>
+        <Description>A universal UI compiler</Description>
+        <TermList.Term>License</TermList.Term>
+        <TermList.Description>MIT</TermList.Description>
+      </TermList>
     </div>,
   )
 
@@ -96,7 +98,9 @@ test('structural form, disclosure, and definition list primitives render HTML5 e
   assert.ok(html.includes('<legend>Contact Options</legend>'), 'Legend rendered as legend')
   assert.ok(html.includes('<details open="">'), 'Details rendered as details with open')
   assert.ok(html.includes('<summary>More Information</summary>'), 'Summary rendered as summary')
-  assert.ok(html.includes('<dl>'), 'Dl rendered as dl')
-  assert.ok(html.includes('<dt>Hozo</dt>'), 'Dt rendered as dt')
-  assert.ok(html.includes('<dd>A universal UI compiler</dd>'), 'Dd rendered as dd')
+  assert.ok(html.includes('<dl>'), 'TermList rendered as dl')
+  assert.ok(html.includes('<dt>Hozo</dt>'), 'Term rendered as dt')
+  assert.ok(html.includes('<dd>A universal UI compiler</dd>'), 'Description rendered as dd')
+  assert.ok(html.includes('<dt>License</dt>'), 'TermList.Term rendered as dt')
+  assert.ok(html.includes('<dd>MIT</dd>'), 'TermList.Description rendered as dd')
 })

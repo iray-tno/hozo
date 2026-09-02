@@ -1968,16 +1968,18 @@ export function Login() {
     #[test]
     fn structural_form_and_disclosure_primitives_lower_to_semantic_html_elements() {
         let source = r#"
-            import { Fieldset, Legend, Details, Summary, Dl, Dt, Dd } from '@hozo/semantics'
+            import { Fieldset, Legend, Details, Summary, TermList, Term, Description } from '@hozo/semantics'
             const el = (
                 <Fieldset>
                     <Legend>Options</Legend>
                     <Details>
                         <Summary>More</Summary>
-                        <Dl>
-                            <Dt>Term</Dt>
-                            <Dd>Detail</Dd>
-                        </Dl>
+                        <TermList>
+                            <Term>Term</Term>
+                            <Description>Detail</Description>
+                            <TermList.Term>CompoundTerm</TermList.Term>
+                            <TermList.Description>CompoundDetail</TermList.Description>
+                        </TermList>
                     </Details>
                 </Fieldset>
             )
@@ -1987,7 +1989,7 @@ export function Login() {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(
             output.jsx,
-            "<fieldset><legend>Options</legend><details><summary>More</summary><dl><dt>Term</dt><dd>Detail</dd></dl></details></fieldset>"
+            "<fieldset><legend>Options</legend><details><summary>More</summary><dl><dt>Term</dt><dd>Detail</dd><dt>CompoundTerm</dt><dd>CompoundDetail</dd></dl></details></fieldset>"
         );
     }
 

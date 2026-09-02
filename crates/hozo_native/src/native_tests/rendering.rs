@@ -494,16 +494,18 @@ fn portable_display_values_lower_normally() {
 #[test]
 fn structural_form_and_disclosure_primitives_lower_to_native_components() {
     let source = r#"
-        import { Fieldset, Legend, Details, Summary, Dl, Dt, Dd } from '@hozo/semantics'
+        import { Fieldset, Legend, Details, Summary, TermList, Term, Description } from '@hozo/semantics'
         const el = (
             <Fieldset>
                 <Legend>Options</Legend>
                 <Details>
                     <Summary>More</Summary>
-                    <Dl>
-                        <Dt>Term</Dt>
-                        <Dd>Detail</Dd>
-                    </Dl>
+                    <TermList>
+                        <Term>Term</Term>
+                        <Description>Detail</Description>
+                        <TermList.Term>CompoundTerm</TermList.Term>
+                        <TermList.Description>CompoundDetail</TermList.Description>
+                    </TermList>
                 </Details>
             </Fieldset>
         )
@@ -514,6 +516,6 @@ fn structural_form_and_disclosure_primitives_lower_to_native_components() {
     assert!(output.jsx.contains(r#"<View role="group">"#), "{}", output.jsx);
     assert!(output.jsx.contains(r#"<Pressable accessibilityRole="button">"#), "{}", output.jsx);
     assert!(output.jsx.contains(r#"<View role="list">"#), "{}", output.jsx);
-    // Legend and Dt receive bold font weight semantic defaults
+    // Legend and Term receive bold font weight semantic defaults
     assert!(output.styles.contains("fontWeight: '700',"), "{}", output.styles);
 }

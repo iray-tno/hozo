@@ -161,15 +161,7 @@ export function Summary({ className, children, style, ...props }: SemanticsUnive
   )
 }
 
-export function Dl({ className, children, style, ...props }: SemanticsUniversalProps) {
-  return (
-    <dl className={className} style={style} {...domProps(props)}>
-      {children}
-    </dl>
-  )
-}
-
-export function Dt({ className, children, style, ...props }: SemanticsUniversalProps) {
+export function Term({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
     <dt className={className} style={style} {...domProps(props)}>
       {children}
@@ -177,10 +169,21 @@ export function Dt({ className, children, style, ...props }: SemanticsUniversalP
   )
 }
 
-export function Dd({ className, children, style, ...props }: SemanticsUniversalProps) {
+export function Description({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
     <dd className={className} style={style} {...domProps(props)}>
       {children}
     </dd>
   )
 }
+
+export function TermList({ className, children, style, ...props }: SemanticsUniversalProps) {
+  return (
+    <dl className={className} style={style} {...domProps(props)}>
+      {children}
+    </dl>
+  )
+}
+
+TermList.Term = Term
+TermList.Description = Description

@@ -120,14 +120,17 @@ export function Summary({ children, ...props }: SemanticsNativeProps) {
   )
 }
 
-export function Dl({ role = 'list', ...props }: SemanticsNativeProps) {
-  return React.createElement('View', { role, ...props })
-}
-
-export function Dt({ style, ...props }: SemanticsNativeProps) {
+export function Term({ style, ...props }: SemanticsNativeProps) {
   return React.createElement('Text', { style: [{ fontWeight: 'bold' }, style], ...props })
 }
 
-export function Dd(props: SemanticsNativeProps) {
+export function Description(props: SemanticsNativeProps) {
   return React.createElement('View', props)
 }
+
+export function TermList({ role = 'list', ...props }: SemanticsNativeProps) {
+  return React.createElement('View', { role, ...props })
+}
+
+TermList.Term = Term
+TermList.Description = Description
