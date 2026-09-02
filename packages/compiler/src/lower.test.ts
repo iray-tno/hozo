@@ -215,3 +215,64 @@ test('text before a component does not shift where it is spliced', () => {
   assert.match(lowered.code, /export const note = '— — — — —'/, 'the string before it was cut')
   assert.match(lowered.code, /return <div /, 'the component did not lower cleanly')
 })
+
+/** Compiles one usage and answers the only question these tests ask. */
+function needsClient(usage: string): boolean {
+  const imports =
+    'View, Text, Paragraph, Heading, Section, Article, Nav, List, ListItem, ' +
+    'Image, Link, Pressable, Button, TextInput, ScrollView, Dialog, FlatList'
+  const source = `import { ${imports} } from '@hozo/core'\nexport function C() { return ${usage} }\n`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)
+  assert.ok(lowered, `nothing lowered for: ${usage}`)
+  return lowered.needsClientBoundary
+}
+
+test('the static subset is reported as needing no client boundary', () => {
+  // The eleven primitives that lower to markup which runs on a server
+  // alone. `apps/landing` renders them from Astro with no `client:`
+  // directive and ships no JavaScript; this is the same claim, asked of
+  // the compiler rather than of a built page.
+  for (const usage of [
+    '<View className="p-4" />',
+    '<Text className="text-xl">hi</Text>',
+    '<Paragraph>hi</Paragraph>',
+    '<Heading level={2}>hi</Heading>',
+    '<Section><Text>hi</Text></Section>',
+    '<Article><Text>hi</Text></Article>',
+    '<Nav accessibilityLabel="Primary" />',
+    '<List ordered><ListItem>a</ListItem></List>',
+    '<Image src="/a.png" alt="A" />',
+    '<Link href="/next">go</Link>',
+  ]) {
+    assert.equal(needsClient(usage), false, usage)
+  }
+})
+
+test('everything that needs script is reported as needing it', () => {
+  // Each for a different reason, which is why they are listed rather than
+  // summarised: a runtime import for the first, third and fifth, an event
+  // handler on a lowered element for the second and fourth, and for
+  // `FlatList` a primitive the Web backend carries rather than lowers --
+  // so `@hozo/core`'s own component runs.
+  for (const usage of [
+    '<Pressable onPress={save}><Text>x</Text></Pressable>',
+    '<Button onPress={save}>Save</Button>',
+    '<ScrollView><Text>a</Text></ScrollView>',
+    '<TextInput value={v} onChangeText={setV} />',
+    '<Dialog visible={open}><Text>a</Text></Dialog>',
+    '<FlatList data={rows} renderItem={render} />',
+  ]) {
+    assert.equal(needsClient(usage), true, usage)
+  }
+})
+
+test('one interactive primitive is enough to need a boundary', () => {
+  // The regression the fact exists for. Ten static primitives and a
+  // button: in Astro that renders `<button type="button">` with the
+  // handler dropped, no error at build or at run time, and a control that
+  // looks right and does nothing.
+  assert.equal(
+    needsClient('<Section><Text>a</Text><Button onPress={save}>Save</Button></Section>'),
+    true,
+  )
+})

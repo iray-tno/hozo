@@ -63,6 +63,9 @@ importers:
       '@astrojs/check':
         specifier: ^0.9.4
         version: 0.9.10(prettier@3.9.6)(typescript@5.9.3)
+      '@hozo/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
       '@hozo/vite':
         specifier: workspace:*
         version: link:../../packages/vite

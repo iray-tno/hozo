@@ -89,6 +89,52 @@ export function referencesHozoPrimitive(code: string): boolean {
   return HOZO_PRIMITIVES.some((name) => new RegExp(`\\b${name}\\b`).test(code))
 }
 
+/** An event handler on a lowered element, which React will not send across a boundary. */
+const HANDLER_PROP = /\son[A-Z]\w*=\{/
+
+/**
+ * Whether this module's output needs client-side JavaScript to be itself.
+ *
+ * A fact about what was emitted, not a diagnostic about where it will be
+ * used -- and the difference is the whole design. Whether a module *is* a
+ * server component cannot be read from the module: `'use client'` marks a
+ * boundary, and a client component reached from another client component
+ * carries no directive, which is the common case. So this says what the
+ * output needs and leaves who needs to hear about it to the caller.
+ *
+ * Three things make an answer of `true`, each read from what was actually
+ * emitted:
+ *
+ *   - a `@hozo/runtime` import. `hozoInteractive`, `hozoScrollable` and
+ *     `HozoDialog` are script by definition.
+ *   - an event handler on a lowered element. `<Button onPress>` becomes
+ *     `<button onClick={...}>`, and React refuses to pass a function from
+ *     a server component to a DOM element.
+ *   - a primitive the backend carried rather than lowered, `FlatList`
+ *     being the one the Web backend always carries. That runs
+ *     `@hozo/core`'s own component, and importing that module at all is
+ *     what Next's App Router rejects.
+ *
+ * Biased toward `true`, deliberately and asymmetrically. A false `true`
+ * costs a warning about a component that would have been fine. A false
+ * `false` is a button rendered into a static Astro page with its handler
+ * dropped -- no error at build, none at run time, and a UI that looks
+ * correct and does nothing. That is why the third test is
+ * `referencesHozoPrimitive`, a word match rather than a tag match: it says
+ * yes to `const Label = Text`, and to a paragraph that happens to contain
+ * the word.
+ */
+export function outputNeedsClientBoundary(
+  components: readonly { jsx: string; runtimeImports: string[] }[],
+): boolean {
+  return components.some(
+    (component) =>
+      component.runtimeImports.length > 0 ||
+      HANDLER_PROP.test(component.jsx) ||
+      referencesHozoPrimitive(component.jsx),
+  )
+}
+
 /**
  * Renames this component's `hozo-N` class names to be unique across every
  * component in the project.
@@ -183,6 +229,13 @@ export interface LoweredModule {
   cssFileName: string
   /** Its absolute path, next to the source file. */
   cssPath: string
+  /**
+   * Whether the emitted output needs client-side JavaScript.
+   *
+   * See `outputNeedsClientBoundary`. A fact about the output, not a
+   * claim about where the module will be used.
+   */
+  needsClientBoundary: boolean
   diagnostics: CompileDiagnostic[]
 }
 
@@ -285,6 +338,7 @@ export function lowerModule(
     css,
     cssFileName,
     cssPath: path.join(path.dirname(file), cssFileName),
+    needsClientBoundary: outputNeedsClientBoundary(components),
     diagnostics: [
       ...canvas.diagnostics,
       ...components.flatMap((component) => component.diagnostics),
