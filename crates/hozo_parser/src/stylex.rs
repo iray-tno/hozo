@@ -965,6 +965,16 @@ enum WebValueGrammar {
     FontVariantAlternates,
     FontVariantEastAsian,
     FontVariationSettings,
+    HangingPunctuation,
+    HyphenateCharacter,
+    TabSize,
+    TextCombineUpright,
+    TextEmphasisStyle,
+    Percentage {
+        keywords: &'static [&'static str],
+        minimum: f64,
+        maximum: f64,
+    },
 }
 
 fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'static str])> {
@@ -1136,6 +1146,7 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "touchAction" => ("touch-action", &["auto", "none", "manipulation"]),
         "wordBreak" => ("word-break", &["normal", "break-all", "keep-all", "break-word"]),
+        "wordWrap" => ("word-wrap", &["normal", "break-word"]),
         "overflowWrap" => ("overflow-wrap", &["normal", "break-word", "anywhere"]),
         "visibility" => ("visibility", &["visible", "hidden", "collapse"]),
         "backgroundPosition" => (
@@ -1210,6 +1221,21 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
 fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
     match property {
         "accentColor" => Some(("accent-color", WebValueGrammar::Color)),
+        "WebkitLineClamp" => Some((
+            "-webkit-line-clamp",
+            WebValueGrammar::Integer {
+                keywords: &["none"],
+                minimum: 1,
+                maximum: i64::MAX,
+            },
+        )),
+        "WebkitTextStrokeWidth" => Some((
+            "-webkit-text-stroke-width",
+            WebValueGrammar::Length {
+                keywords: &["thin", "medium", "thick"],
+                minimum: 0.0,
+            },
+        )),
         "borderSpacing" => Some((
             "border-spacing",
             WebValueGrammar::LengthList {
@@ -1257,6 +1283,14 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "fontVariationSettings" => Some((
             "font-variation-settings",
             WebValueGrammar::FontVariationSettings,
+        )),
+        "hangingPunctuation" => Some((
+            "hanging-punctuation",
+            WebValueGrammar::HangingPunctuation,
+        )),
+        "hyphenateCharacter" => Some((
+            "hyphenate-character",
+            WebValueGrammar::HyphenateCharacter,
         )),
         "marker" => Some(("marker", WebValueGrammar::UrlOrNone)),
         "markerEnd" => Some(("marker-end", WebValueGrammar::UrlOrNone)),
@@ -1351,9 +1385,50 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         )),
         "transitionDelay" => Some(("transition-delay", WebValueGrammar::Time)),
         "animationDuration" => Some(("animation-duration", WebValueGrammar::Time)),
+        "tabSize" => Some(("tab-size", WebValueGrammar::TabSize)),
+        "textCombineUpright" => {
+            Some(("text-combine-upright", WebValueGrammar::TextCombineUpright))
+        }
+        "textEmphasisColor" => Some(("text-emphasis-color", WebValueGrammar::Color)),
+        "textEmphasisPosition" => Some((
+            "text-emphasis-position",
+            WebValueGrammar::Keywords(&[
+                "over", "under", "over right", "over left", "under right", "under left",
+            ]),
+        )),
+        "textEmphasisStyle" => {
+            Some(("text-emphasis-style", WebValueGrammar::TextEmphasisStyle))
+        }
+        "textFillColor" => Some(("text-fill-color", WebValueGrammar::Color)),
+        "textSizeAdjust" => Some((
+            "text-size-adjust",
+            WebValueGrammar::Percentage {
+                keywords: &["none", "auto"],
+                minimum: 0.0,
+                maximum: f64::INFINITY,
+            },
+        )),
         "textDecorationThickness" => Some((
             "text-decoration-thickness",
             WebValueGrammar::NonNegativeLengthPercentage(&["auto", "from-font"]),
+        )),
+        "textUnderlineOffset" => Some((
+            "text-underline-offset",
+            WebValueGrammar::Length {
+                keywords: &["auto"],
+                minimum: f64::NEG_INFINITY,
+            },
+        )),
+        "textUnderlinePosition" => Some((
+            "text-underline-position",
+            WebValueGrammar::Keywords(&[
+                "auto", "from-font", "under", "left", "right", "under left", "under right",
+                "left under", "right under",
+            ]),
+        )),
+        "wordSpacing" => Some((
+            "word-spacing",
+            WebValueGrammar::LengthPercentage(&["normal"]),
         )),
         _ => web_only_keyword_spec(property)
             .map(|(css_property, choices)| (css_property, WebValueGrammar::Keywords(choices))),
@@ -1748,6 +1823,68 @@ fn web_font_variant_east_asian(value: &StaticValue) -> Option<String> {
     .then(|| value.clone())
 }
 
+fn web_hanging_punctuation(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "none" {
+        return Some(value.clone());
+    }
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    let allowed = ["first", "force-end", "allow-end", "last"];
+    (!parts.is_empty()
+        && parts.iter().all(|part| allowed.contains(part))
+        && parts.iter().enumerate().all(|(index, part)| !parts[..index].contains(part))
+        && !(parts.contains(&"force-end") && parts.contains(&"allow-end")))
+    .then(|| value.clone())
+}
+
+fn web_tab_size(value: &StaticValue) -> Option<String> {
+    match value {
+        StaticValue::Number(value) if value.is_finite() && *value >= 0.0 => {
+            Some(numeric_text(*value))
+        }
+        StaticValue::String(value)
+            if value
+                .parse::<f64>()
+                .is_ok_and(|number| number.is_finite() && number >= 0.0) =>
+        {
+            Some(value.clone())
+        }
+        StaticValue::String(value)
+            if web_length_string(value)
+                && web_length_number(value).is_some_and(|number| number >= 0.0) =>
+        {
+            Some(value.clone())
+        }
+        _ => None,
+    }
+}
+
+fn web_text_combine_upright(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if matches!(value.as_str(), "none" | "all") {
+        return Some(value.clone());
+    }
+    value
+        .strip_prefix("digits ")
+        .is_some_and(|count| matches!(count, "2" | "3" | "4"))
+        .then(|| value.clone())
+}
+
+fn web_text_emphasis_style(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "none" || web_css_string(value) {
+        return Some(value.clone());
+    }
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    let fills = ["filled", "open"];
+    let shapes = ["dot", "circle", "double-circle", "triangle", "sesame"];
+    (!parts.is_empty()
+        && parts.iter().all(|part| fills.contains(part) || shapes.contains(part))
+        && parts.iter().filter(|part| fills.contains(part)).count() <= 1
+        && parts.iter().filter(|part| shapes.contains(part)).count() <= 1)
+    .then(|| value.clone())
+}
+
 /// Split one CSS component list without cutting whitespace inside functions
 /// or quoted strings. The supported shorthands do not need a complete CSS
 /// parser, but ordinary values such as `rgb(0 0 0)` must remain one token.
@@ -2123,6 +2260,34 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::FontVariantAlternates => web_font_variant_alternates(value)?,
         WebValueGrammar::FontVariantEastAsian => web_font_variant_east_asian(value)?,
         WebValueGrammar::FontVariationSettings => web_font_setting(value, true)?,
+        WebValueGrammar::HangingPunctuation => web_hanging_punctuation(value)?,
+        WebValueGrammar::HyphenateCharacter => {
+            let StaticValue::String(value) = value else { return None };
+            if value == "auto" {
+                // Because the published type is open `string`, StyleX 0.19
+                // serializes this CSS keyword as a quoted custom character.
+                // Keep the official transform's observable output exact.
+                "\"auto\"".to_string()
+            } else {
+                web_css_string(value).then(|| value.clone())?
+            }
+        }
+        WebValueGrammar::TabSize => web_tab_size(value)?,
+        WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
+        WebValueGrammar::TextEmphasisStyle => web_text_emphasis_style(value)?,
+        WebValueGrammar::Percentage {
+            keywords,
+            minimum,
+            maximum,
+        } => match value {
+            StaticValue::String(value) if keywords.contains(&value.as_str()) => value.clone(),
+            StaticValue::String(value) if value.ends_with('%') => {
+                let number = value.strip_suffix('%')?.parse::<f64>().ok()?;
+                (number.is_finite() && number >= minimum && number <= maximum)
+                    .then(|| value.clone())?
+            }
+            _ => return None,
+        },
     };
     Some(StyleProperty::WebOnly(css_property.to_string(), value))
 }
@@ -2567,6 +2732,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let color = || css_color(value);
     Some(match property {
         "accentColor" | "alignmentBaseline" | "appearance" | "WebkitAppearance"
+        | "WebkitLineClamp" | "WebkitTextStrokeWidth"
         | "backgroundAttachment"
         | "backgroundBlendMode" | "backgroundClip" | "WebkitBackgroundClip"
         | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY"
@@ -2583,7 +2749,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
         | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
         | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
-        | "fontVariationSettings" | "hyphens" | "imageRendering" | "inlineSize"
+        | "fontVariationSettings" | "hangingPunctuation" | "hyphenateCharacter" | "hyphens"
+        | "imageRendering" | "inlineSize"
         | "justifyItems" | "lineBreak" | "listStyleImage" | "listStylePosition"
         | "listStyleType" | "maxBlockSize" | "maxInlineSize"
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
@@ -2595,8 +2762,10 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
         | "shapeRendering" | "stroke" | "strokeDasharray" | "strokeDashoffset"
         | "strokeLinecap" | "strokeLinejoin" | "strokeMiterlimit" | "strokeOpacity"
-        | "strokeWidth" | "tableLayout" | "textAnchor" | "textRendering" | "touchAction"
-        | "wordBreak"
+        | "strokeWidth" | "tabSize" | "tableLayout" | "textAnchor" | "textCombineUpright"
+        | "textEmphasisColor" | "textEmphasisPosition" | "textEmphasisStyle" | "textFillColor"
+        | "textRendering" | "textSizeAdjust" | "textUnderlineOffset" | "textUnderlinePosition"
+        | "touchAction" | "wordBreak" | "wordSpacing" | "wordWrap"
         | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
         | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
@@ -5248,6 +5417,53 @@ mod tests {
     }
 
     #[test]
+    fn browser_text_controls_validate_exact_css_grammars() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                WebkitLineClamp: 3, WebkitTextStrokeWidth: 2,
+                hangingPunctuation: 'first allow-end', hyphenateCharacter: '"-"',
+                tabSize: 4, textCombineUpright: 'digits 2',
+                textEmphasisColor: '#123456', textEmphasisPosition: 'over right',
+                textEmphasisStyle: 'filled sesame', textFillColor: '#abcdef',
+                textSizeAdjust: '100%', textUnderlineOffset: 2,
+                textUnderlinePosition: 'under left', wordSpacing: 4,
+                wordWrap: 'break-word'
+              },
+              wider: {
+                WebkitLineClamp: 0, WebkitTextStrokeWidth: -1,
+                hangingPunctuation: 'first force-end allow-end', hyphenateCharacter: '-',
+                tabSize: -1, textCombineUpright: 'digits 5',
+                textEmphasisColor: 'var(--accent)', textEmphasisPosition: 'over under',
+                textEmphasisStyle: 'filled open', textFillColor: 'var(--ink)',
+                textSizeAdjust: '-10%', textUnderlineOffset: '20%',
+                textUnderlinePosition: 'under over', wordSpacing: 'calc(1px + 1em)',
+                wordWrap: 'anywhere'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("exact browser text controls were not lowerable")
+        };
+        assert_eq!(entries.len(), 15);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("invalid browser text controls should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 15);
+        assert_eq!(gaps.len(), 15);
+    }
+
+    #[test]
     fn logical_background_and_form_web_values_keep_exact_boundaries() {
         let frontend = frontend(
             r#"
@@ -6213,7 +6429,7 @@ mod tests {
             import { View } from '@hozo/core'
             const styles = stylex.create({
               active: { opacity: 0.5, scrollbarColor: 'red blue' },
-              inactive: { padding: 8, tabSize: 4 }
+              inactive: { padding: 8, quotes: '"“" "”"' }
             })
             const card = <View {...stylex.props(active ? styles.active : styles.inactive)} />
         "#;
@@ -6226,7 +6442,7 @@ mod tests {
         assert!(residual.contains("(active)"), "{residual}");
         assert!(residual.contains("!(active)"), "{residual}");
         assert!(residual.contains("scrollbarColor: 'red blue'"), "{residual}");
-        assert!(residual.contains("tabSize: 4"), "{residual}");
+        assert!(residual.contains("quotes: '\"“\" \"”\"'"), "{residual}");
         assert!(!residual.contains("opacity: 0.5"), "{residual}");
         assert!(!residual.contains("padding: 8"), "{residual}");
     }
