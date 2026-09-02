@@ -58,16 +58,16 @@ jobs:
         run: |
           mkdir -p junit-reports
           cp target/nextest/ci/nextest.xml junit-reports/nextest.xml || true
-          node scripts/normalize-junit.mjs rust junit-reports/nextest.xml || true
+          node packages/test-reporter/src/normalize-junit.mjs rust junit-reports/nextest.xml || true
 
       - name: Report (Clippy)
-        run: cargo clippy --message-format=json 2>/dev/null | node scripts/clippy-to-junit.mjs > junit-reports/clippy.xml || true
+        run: cargo clippy --message-format=json 2>/dev/null | node packages/test-reporter/src/clippy-to-junit.mjs > junit-reports/clippy.xml || true
 
       - name: Report (Biome)
-        run: pnpm exec biome check --reporter=json . 2>/dev/null | node scripts/biome-to-junit.mjs > junit-reports/biome.xml || true
+        run: pnpm exec biome check --reporter=json . 2>/dev/null | node packages/test-reporter/src/biome-to-junit.mjs > junit-reports/biome.xml || true
 
       - name: Report (TypeScript & Unit tests)
-        run: node scripts/run-tests-junit.mjs || true
+        run: node packages/test-reporter/src/run-tests-junit.mjs || true
 
       - name: Fetch previous Allure history
         run: |
@@ -75,7 +75,7 @@ jobs:
           curl -fsSL https://iray-tno.github.io/hozo/reports/history/allure-history.jsonl -o allure-history/allure-history.jsonl || rm -f allure-history/allure-history.jsonl
 
       - name: Build Allure HTML reports
-        run: pnpm exec allure generate -o apps/landing/dist/reports junit-reports
+        run: pnpm --filter @hozo/test-reporter exec allure generate -o apps/landing/dist/reports junit-reports
 
       - name: Persist Allure history
         run: |
