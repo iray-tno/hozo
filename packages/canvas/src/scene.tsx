@@ -23,6 +23,27 @@ export interface CanvasPressEvent {
 export interface CanvasInteractionProps {
   /** Portable discrete activation for closed Canvas geometry. */
   onPress?: (event: CanvasPressEvent) => void
+  /**
+   * The shape a person is currently indicating, by whatever means the
+   * device has. `undefined` when they stop indicating it.
+   *
+   * One notion rather than one per input, because a tooltip is one
+   * feature and a chart should not carry three implementations of it. A
+   * mouse or a pen indicates by hovering; a finger indicates by holding.
+   * Both arrive here, and the handler cannot tell which -- deliberately,
+   * since the answer never changes what a tooltip does.
+   *
+   * Hover is not a Web-only idea, which is worth stating because it is
+   * easy to assume: React Native's `View` declares the whole W3C pointer
+   * set and its payload carries `pointerType` and `offsetX`/`offsetY`,
+   * the same as the browser's. A tablet with a trackpad hovers.
+   *
+   * Keyboard is *not* a source yet, and that is the honest gap. Making
+   * one would mean deciding how a shape inside a canvas takes focus
+   * without inventing a control nobody can see, which is its own
+   * question -- see #26.
+   */
+  onActiveChange?: (event: CanvasPressEvent | undefined) => void
   disabled?: boolean
 }
 
@@ -175,6 +196,55 @@ class CanvasInteractionStore {
   }
 }
 
+/**
+ * Which shape is currently indicated, and who to tell when that changes.
+ *
+ * The active id lives here rather than in each surface because it is one
+ * fact about the scene: two pointers cannot indicate two different shapes
+ * and both be right, and a tooltip that believed otherwise would show
+ * two.
+ */
+class CanvasActiveStore {
+  readonly #handlers = new Map<string, (event: CanvasPressEvent | undefined) => void>()
+  #activeId: string | undefined
+
+  set(id: string, handler: (event: CanvasPressEvent | undefined) => void) {
+    this.#handlers.set(id, handler)
+  }
+
+  remove(id: string) {
+    this.#handlers.delete(id)
+    // A shape that unmounts while indicated leaves nothing to be
+    // indicated, and the handler it would have been told through is the
+    // one that just went away.
+    if (this.#activeId === id) this.#activeId = undefined
+  }
+
+  has(id: string) {
+    return this.#handlers.has(id)
+  }
+
+  get activeId() {
+    return this.#activeId
+  }
+
+  /**
+   * Moves the indication, telling the shape that lost it and the one that
+   * gained it, in that order.
+   *
+   * Nothing happens when the target has not changed, so a pointer moving
+   * across one shape reports once rather than once per pixel -- which is
+   * what makes this usable from `onPointerMove` at all.
+   */
+  activate(id: string | undefined, event: CanvasPressEvent | undefined) {
+    if (this.#activeId === id) return
+    const previous = this.#activeId
+    this.#activeId = id
+    if (previous !== undefined) this.#handlers.get(previous)?.(undefined)
+    if (id !== undefined && event !== undefined) this.#handlers.get(id)?.(event)
+  }
+}
+
 function sceneValueEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
   if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false
@@ -280,6 +350,7 @@ export class CanvasSceneStore {
 interface SceneContextValue {
   store: CanvasSceneStore
   interactions: CanvasInteractionStore
+  active: CanvasActiveStore
   parentId?: string
   interactionBlockReason?: 'path-clip'
 }
@@ -301,6 +372,7 @@ function useSceneNode(node: FlatNode) {
   return {
     store: context.store,
     interactions: context.interactions,
+    active: context.active,
     interactionBlockReason: context.interactionBlockReason,
     id,
   }
@@ -322,7 +394,7 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
   // hits, and the list is what says which geometry the hit test covers.
   kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse' | 'line',
 ) {
-  const Component = ({ onPress, disabled, ...props }: P) => {
+  const Component = ({ onPress, onActiveChange, disabled, ...props }: P) => {
     const node = useMemo(() => ({ kind, props }) as unknown as FlatNode, [props])
     const context = useSceneNode(node)
     useIsoLayoutEffect(() => {
@@ -333,6 +405,14 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
       context.interactions.set(context.id, onPress)
       return () => context.interactions.remove(context.id)
     }, [context.interactions, context.id, onPress, disabled])
+    useIsoLayoutEffect(() => {
+      if (!onActiveChange || disabled) {
+        context.active.remove(context.id)
+        return
+      }
+      context.active.set(context.id, onActiveChange)
+      return () => context.active.remove(context.id)
+    }, [context.active, context.id, onActiveChange, disabled])
     if (onPress && !disabled && context.interactionBlockReason === 'path-clip') {
       throw new Error(
         'Canvas interactions inside path clips are unsupported. ' +
@@ -360,6 +440,7 @@ export function Group({ children, ...props }: GroupProps) {
       value={{
         store: context.store,
         interactions: context.interactions,
+        active: context.active,
         parentId: context.id,
         interactionBlockReason: context.interactionBlockReason,
       }}
@@ -377,6 +458,7 @@ export function Clip({ children, ...props }: ClipProps) {
       value={{
         store: context.store,
         interactions: context.interactions,
+        active: context.active,
         parentId: context.id,
         interactionBlockReason:
           props.path !== undefined ? 'path-clip' : context.interactionBlockReason,
@@ -395,6 +477,9 @@ export function useCanvasScene(children: ReactNode) {
   const interactionStoreRef = useRef<CanvasInteractionStore | null>(null)
   if (!interactionStoreRef.current) interactionStoreRef.current = new CanvasInteractionStore()
   const interactions = interactionStoreRef.current
+  const activeStoreRef = useRef<CanvasActiveStore | null>(null)
+  if (!activeStoreRef.current) activeStoreRef.current = new CanvasActiveStore()
+  const active = activeStoreRef.current
   const [revision, setRevision] = useState(store.version)
 
   useIsoLayoutEffect(() => {
@@ -402,16 +487,29 @@ export function useCanvasScene(children: ReactNode) {
     return store.subscribe(() => setRevision(store.version))
   }, [store])
 
-  const rootContext = useMemo(() => ({ store, interactions }), [store, interactions])
+  const rootContext = useMemo(
+    () => ({ store, interactions, active }),
+    [store, interactions, active],
+  )
   const collector = useMemo(
     () => <SceneContext.Provider value={rootContext}>{children}</SceneContext.Provider>,
     [rootContext, children],
   )
 
-  const isInteractive = useCallback((id: string) => interactions.has(id), [interactions])
+  // A shape is worth hit testing if either handler is on it. Without the
+  // second half a hover-only shape would never be found, and `onActiveChange`
+  // would be a prop that type-checks and never fires.
+  const isInteractive = useCallback(
+    (id: string) => interactions.has(id) || active.has(id),
+    [interactions, active],
+  )
   const press = useCallback(
     (id: string, event: CanvasPressEvent) => interactions.press(id, event),
     [interactions],
+  )
+  const activate = useCallback(
+    (id: string | undefined, event: CanvasPressEvent | undefined) => active.activate(id, event),
+    [active],
   )
 
   return {
@@ -422,5 +520,6 @@ export function useCanvasScene(children: ReactNode) {
     collector,
     isInteractive,
     press,
+    activate,
   }
 }

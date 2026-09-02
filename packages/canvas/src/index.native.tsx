@@ -12,6 +12,7 @@ import { Fragment, type ReactNode, useMemo, useRef, useState } from 'react'
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
+  type PointerEvent,
   type StyleProp,
   StyleSheet,
   Text,
@@ -272,7 +273,7 @@ function Root({
   testID,
 }: CanvasProps) {
   const pressedTarget = useRef<{ id: string; touchId: number } | undefined>(undefined)
-  const { scene, collector, isInteractive, press } = useCanvasScene(children)
+  const { scene, collector, isInteractive, press, activate } = useCanvasScene(children)
   const [layout, setLayout] = useState({
     width: width ?? viewBox?.[2] ?? 0,
     height: height ?? viewBox?.[3] ?? 0,
@@ -318,6 +319,7 @@ function Root({
     const hit = hitAt(surfacePoint(event))
     if (hit) {
       pressedTarget.current = { id: hit.id, touchId: event.nativeEvent.identifier }
+      activate(hit.id, { point: hit.point, surfacePoint: surfacePoint(event) })
     }
     return hit !== undefined
   }
@@ -332,12 +334,39 @@ function Root({
       return
     const point = surfacePoint(event)
     const hit = hitAt(point)
+    activate(undefined, undefined)
     if (!hit || hit.id !== startedTarget.id) return
     press(hit.id, { point: hit.point, surfacePoint: point })
   }
   const onResponderTerminate = () => {
     pressedTarget.current = undefined
+    activate(undefined, undefined)
   }
+
+  /**
+   * The same hover as the Web surface, from the same event.
+   *
+   * React Native's `View` declares the whole W3C pointer set and its
+   * payload carries `pointerType` and `offsetX`/`offsetY`, so this is the
+   * browser's handler with a different import. A tablet with a trackpad
+   * and a phone with a mouse both reach it; a finger does not, and is
+   * excluded by `pointerType` for the reason the Web side gives.
+   *
+   * Not verified on a device. The types and the prop declarations are as
+   * far as this repository can check from here, and #26 asks for device
+   * validation as an item of its own.
+   */
+  const pointerPoint = (event: PointerEvent): CanvasPoint => ({
+    x: event.nativeEvent.offsetX,
+    y: event.nativeEvent.offsetY,
+  })
+  const onPointerMove = (event: PointerEvent) => {
+    if (event.nativeEvent.pointerType === 'touch') return
+    const point = pointerPoint(event)
+    const hit = hitAt(point)
+    activate(hit?.id, hit ? { point: hit.point, surfacePoint: point } : undefined)
+  }
+  const onPointerLeave = () => activate(undefined, undefined)
 
   return (
     <View
@@ -356,6 +385,8 @@ function Root({
       onStartShouldSetResponder={onStartShouldSetResponder}
       onResponderRelease={onResponderRelease}
       onResponderTerminate={onResponderTerminate}
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
     >
       {collector}
       <View

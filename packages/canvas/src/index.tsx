@@ -83,7 +83,7 @@ function Root({
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pressedTargets = useRef(new Map<number, string>())
-  const { scene, collector, isInteractive, press } = useCanvasScene(children)
+  const { scene, collector, isInteractive, press, activate } = useCanvasScene(children)
   const [size, setSize] = useState<Size>(() => ({
     width: width ?? viewBox?.[2] ?? 300,
     height: height ?? viewBox?.[3] ?? 150,
@@ -147,6 +147,9 @@ function Root({
     const hit = hitAt(surfacePoint(event))
     if (!hit) return
     pressedTargets.current.set(event.pointerId, hit.id)
+    if (event.pointerType === 'touch') {
+      activate(hit.id, { point: hit.point, surfacePoint: surfacePoint(event) })
+    }
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
   const onPointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -155,12 +158,32 @@ function Root({
     if (!startedTarget) return
     const point = surfacePoint(event)
     const hit = hitAt(point)
+    // The finger has gone, so it indicates nothing -- whether or not the
+    // release also counted as a press.
+    if (event.pointerType === 'touch') activate(undefined, undefined)
     if (!hit || hit.id !== startedTarget) return
     press(hit.id, { point: hit.point, surfacePoint: point })
   }
   const onPointerCancel = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     pressedTargets.current.delete(event.pointerId)
+    activate(undefined, undefined)
   }
+  /**
+   * What a mouse or a pen indicates by being over it.
+   *
+   * `pointerType` decides whether this counts, and it has to: a finger
+   * emits `pointermove` too, but only while it is touching, so treating
+   * that as hover would make a tap indicate the shape it landed on and
+   * keep indicating it after the finger left. Touch indicates by holding
+   * instead, which is what the press handlers below do.
+   */
+  const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (event.pointerType === 'touch') return
+    const point = surfacePoint(event)
+    const hit = hitAt(point)
+    activate(hit?.id, hit ? { point: hit.point, surfacePoint: point } : undefined)
+  }
+  const onPointerLeave = () => activate(undefined, undefined)
 
   return (
     <>
@@ -177,6 +200,8 @@ function Root({
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
         onLostPointerCapture={onPointerCancel}
       >
         {collector}
