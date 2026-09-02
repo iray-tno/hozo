@@ -74,6 +74,11 @@ const PACKAGES = {
     exports: { '.': './dist/index.js' },
     keywords: ['react-native', 'react', 'semantics', 'landmarks', 'accessibility', 'universal'],
   },
+  typography: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'react', 'typography', 'cjk', 'ruby', 'accessibility'],
+  },
   runtime: {
     // `./svg` is a separate entry because `react-native-svg` is an
     // optional peer dependency, and a re-export from the main entry would

@@ -103,6 +103,27 @@ pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
 /// Stops at a `Text`, because that is where React Native's own inheritance
 /// takes over -- anything below it is the platform's problem, not the
 /// compiler's.
+pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
+    matches!(
+        primitive,
+        Primitive::Text
+            | Primitive::Paragraph
+            | Primitive::Heading
+            | Primitive::Strong
+            | Primitive::Emphasis
+            | Primitive::Underline
+            | Primitive::Strikethrough
+            | Primitive::Sub
+            | Primitive::Sup
+            | Primitive::Code
+            | Primitive::Small
+            | Primitive::Mark
+            | Primitive::NoBreak
+            | Primitive::Ruby
+            | Primitive::Rt
+    )
+}
+
 pub(super) fn text_reach(node: &Node) -> TextReach {
     let mut reach = TextReach::None;
     for child in &node.children {

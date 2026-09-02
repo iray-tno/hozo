@@ -33,6 +33,8 @@ import {
   Group,
   Line,
   Path,
+  paintFills,
+  paintStrokes,
   Rect,
   RoundedRect,
   useCanvasScene,
@@ -92,9 +94,8 @@ function paintLayers(
   paint: CanvasPaintProps,
 ) {
   const layers: ReactNode[] = []
-  const hasFill = paint.fill !== 'none' && (paint.fill !== undefined || paint.stroke === undefined)
-  const hasStroke =
-    paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
+  const hasFill = paintFills(paint)
+  const hasStroke = paintStrokes(paint)
   if (hasFill) {
     layers.push(
       <Shape

@@ -193,6 +193,27 @@ fn semantic_primitives_lower_to_native_text_and_view() {
 }
 
 #[test]
+fn typography_primitives_lower_to_native_text_with_styles() {
+    let source = r#"
+            import { Paragraph, Strong, Emphasis, Underline, Strikethrough, Code, NoBreak } from '@hozo/core'
+            const el = (
+                <Paragraph>
+                    <Strong>bold</Strong>
+                    <Emphasis>italic</Emphasis>
+                    <Underline>underlined</Underline>
+                    <Strikethrough>deleted</Strikethrough>
+                    <Code>code</Code>
+                    <NoBreak>100 km/h</NoBreak>
+                </Paragraph>
+            )
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("100\u{00A0}km/h"), "NoBreak must replace spaces with NBSP on Native");
+}
+
+#[test]
 fn article_and_navigation_keep_roles_on_native() {
     let source = r#"
             import { Article, Nav, Heading } from '@hozo/core'

@@ -281,6 +281,18 @@ fn primitive_name(name: &str) -> Option<&'static str> {
         "Figcaption" => Some("Figcaption"),
         "Time" => Some("Time"),
         "Address" => Some("Address"),
+        "Strong" => Some("Strong"),
+        "Emphasis" => Some("Emphasis"),
+        "Underline" => Some("Underline"),
+        "Strikethrough" => Some("Strikethrough"),
+        "Sub" => Some("Sub"),
+        "Sup" => Some("Sup"),
+        "Code" => Some("Code"),
+        "Small" => Some("Small"),
+        "Mark" => Some("Mark"),
+        "NoBreak" => Some("NoBreak"),
+        "Ruby" => Some("Ruby"),
+        "Rt" => Some("Rt"),
         _ => None,
     }
 }
@@ -580,6 +592,18 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Figcaption" => Some(Primitive::Figcaption),
         "Time" => Some(Primitive::Time),
         "Address" => Some(Primitive::Address),
+        "Strong" => Some(Primitive::Strong),
+        "Emphasis" => Some(Primitive::Emphasis),
+        "Underline" => Some(Primitive::Underline),
+        "Strikethrough" => Some(Primitive::Strikethrough),
+        "Sub" => Some(Primitive::Sub),
+        "Sup" => Some(Primitive::Sup),
+        "Code" => Some(Primitive::Code),
+        "Small" => Some(Primitive::Small),
+        "Mark" => Some(Primitive::Mark),
+        "NoBreak" => Some(Primitive::NoBreak),
+        "Ruby" => Some(Primitive::Ruby),
+        "Rt" => Some(Primitive::Rt),
         _ => None,
     }
 }
@@ -1262,7 +1286,34 @@ fn validate_semantic_children(
         let allowed = match parent {
             Primitive::Paragraph | Primitive::Heading => matches!(
                 child.primitive,
-                Primitive::Text | Primitive::Link | Primitive::Button | Primitive::TextInput | Primitive::Image | Primitive::Time
+                Primitive::Text
+                    | Primitive::Link
+                    | Primitive::Button
+                    | Primitive::TextInput
+                    | Primitive::Image
+                    | Primitive::Time
+                    | Primitive::Strong
+                    | Primitive::Emphasis
+                    | Primitive::Underline
+                    | Primitive::Strikethrough
+                    | Primitive::Sub
+                    | Primitive::Sup
+                    | Primitive::Code
+                    | Primitive::Small
+                    | Primitive::Mark
+                    | Primitive::NoBreak
+                    | Primitive::Ruby
+                    | Primitive::Rt
+            ),
+            Primitive::Ruby => matches!(
+                child.primitive,
+                Primitive::Text
+                    | Primitive::Rt
+                    | Primitive::Strong
+                    | Primitive::Emphasis
+                    | Primitive::Underline
+                    | Primitive::Code
+                    | Primitive::NoBreak
             ),
             Primitive::List => child.primitive == Primitive::ListItem,
             _ => true,
