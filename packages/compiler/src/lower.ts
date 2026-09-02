@@ -191,7 +191,8 @@ export function lowerModule(
   // `.mdx` alongside `.tsx` because by the time this runs the MDX
   // transform has already turned the file into JSX; the extension is all
   // that still says where it came from. See `TRANSFORMABLE`.
-  if (!file.endsWith('.tsx') && !file.endsWith('.mdx')) return undefined
+  const isTransformed = file.endsWith('.mdx')
+  if (!file.endsWith('.tsx') && !isTransformed) return undefined
 
   const allowed = compiler.sources
   const canvas = lowerCanvasPaints(code, compiler, false)
@@ -235,8 +236,20 @@ export function lowerModule(
   // through `Child::Verbatim`) still has to resolve, and `@hozo/core`
   // exports real working React components for exactly this -- proposal
   // §2.3's "fall back gracefully".
-  if (!referencesHozoPrimitive(next)) {
-    next = next.replace(HOZO_CORE_IMPORT_RE, '')
+  //
+  // For a transformed source the question is asked of the text with the
+  // import statement itself removed, because for those files nobody else
+  // will ask it. `referencesHozoPrimitive` searches text that includes the
+  // import, so it always finds a name and the import always survives --
+  // deliberately, since every bundler elides an unused specifier
+  // afterwards. Every bundler elides it *for a file whose extension says
+  // TypeScript*: SWC and oxc both decide that from the name, and `.mdx`
+  // is not one. The import then reaches the graph, `@hozo/core` is pulled
+  // in, and Next's App Router rejects the page for calling `useState` in a
+  // server component -- naming neither MDX nor the import.
+  const withoutImport = next.replace(HOZO_CORE_IMPORT_RE, '')
+  if (!referencesHozoPrimitive(isTransformed ? withoutImport : next)) {
+    next = withoutImport
   }
 
   // One import for the whole module, after the splicing so it lands at
