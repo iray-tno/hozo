@@ -13,9 +13,20 @@ const checkAccessibilityTypes = () => {
   // @ts-expect-error A null React node is not an accessible equivalent.
   const emptyFallback = <Canvas accessibleFallback={null} />
   const interactiveRect = <Canvas.Rect width={10} height={10} onPress={(event) => event.point.x} />
-  // @ts-expect-error Line hit testing is not part of the portable interaction contract.
+  // A line is pressable now that its stroke geometry is hit tested, cap
+  // and all. The type is the contract: what accepts `onPress` is exactly
+  // what `pointInNode` can answer for.
   const interactiveLine = <Canvas.Line x1={0} y1={0} x2={10} y2={10} onPress={() => undefined} />
-  return [missingMode, decorativeFallback, emptyFallback, interactiveRect, interactiveLine]
+  // @ts-expect-error Path hit testing is not part of the portable interaction contract.
+  const interactivePath = <Canvas.Path path="M0 0 L10 10" onPress={() => undefined} />
+  return [
+    missingMode,
+    decorativeFallback,
+    emptyFallback,
+    interactiveRect,
+    interactiveLine,
+    interactivePath,
+  ]
 }
 void checkAccessibilityTypes
 
