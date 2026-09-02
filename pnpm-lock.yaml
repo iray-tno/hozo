@@ -312,6 +312,9 @@ importers:
       '@hozo/runtime':
         specifier: workspace:^
         version: link:../runtime
+      '@hozo/typography':
+        specifier: workspace:^
+        version: link:../typography
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -475,6 +478,25 @@ importers:
       allure:
         specifier: ^3.16.0
         version: 3.16.0(debug@4.4.3(supports-color@8.1.1))(preact@10.29.8)(supports-color@8.1.1)(typescript@7.0.2)
+
+  packages/typography:
+    dependencies:
+      '@hozo/runtime':
+        specifier: workspace:^
+        version: link:../runtime
+      react:
+        specifier: ^19.0.0
+        version: 19.2.8
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.5(@types/react@19.2.18)
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
 
   packages/vite:
     dependencies:

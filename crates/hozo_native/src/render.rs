@@ -287,11 +287,33 @@ pub(super) fn render_node(
     // default size instead.
     // A `Text` is where inheritance stops: React Native takes over from
     // here, so its descendants need nothing from the compiler. What it
-    // inherited goes *before* its own declarations, so its own win --
-    // `dedupe_last_wins` keeps the last of a property, which is the same
-    // order CSS specificity would settle on.
+    // Semantic typography default styles on Native:
+    let semantic_defaults: Vec<StyleDeclaration> = match node.primitive {
+        Primitive::Strong => vec![StyleDeclaration {
+            property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
+            condition: Condition::Always,
+        }],
+        Primitive::Emphasis => vec![StyleDeclaration {
+            property: StyleProperty::Keyword("font-style", "italic"),
+            condition: Condition::Always,
+        }],
+        Primitive::Underline => vec![StyleDeclaration {
+            property: StyleProperty::TextDecorationLine("underline"),
+            condition: Condition::Always,
+        }],
+        Primitive::Strikethrough => vec![StyleDeclaration {
+            property: StyleProperty::TextDecorationLine("line-through"),
+            condition: Condition::Always,
+        }],
+        Primitive::Code => vec![StyleDeclaration {
+            property: StyleProperty::FontFamily("monospace".to_string()),
+            condition: Condition::Always,
+        }],
+        _ => Vec::new(),
+    };
+
     let style: Vec<StyleDeclaration> = if component == "Text" {
-        inherited.iter().cloned().chain(style).collect()
+        inherited.iter().cloned().chain(semantic_defaults).chain(style).collect()
     } else {
         style
     };
@@ -817,7 +839,12 @@ pub(super) fn render_node(
                 ));
             }
             hozo_ir::Child::Text(text) => {
-                let escaped = escape_jsx_text(text);
+                let text = if node.primitive == Primitive::NoBreak {
+                    text.replace(' ', "\u{00A0}")
+                } else {
+                    text.clone()
+                };
+                let escaped = escape_jsx_text(&text);
                 // `SvgText` holds a string itself, so wrapping one in React
                 // Native's `Text` puts a text node where an SVG element
                 // belongs -- the string vanishes rather than rendering.

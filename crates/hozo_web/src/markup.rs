@@ -95,6 +95,18 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
             ("ScrollView", Vec::new()),
         Primitive::ScrollView => ("div", Vec::new()),
         Primitive::FlatList => ("FlatList", Vec::new()),
+        Primitive::Strong => ("strong", Vec::new()),
+        Primitive::Emphasis => ("em", Vec::new()),
+        Primitive::Underline => ("u", Vec::new()),
+        Primitive::Strikethrough => ("s", Vec::new()),
+        Primitive::Sub => ("sub", Vec::new()),
+        Primitive::Sup => ("sup", Vec::new()),
+        Primitive::Code => ("code", Vec::new()),
+        Primitive::Small => ("small", Vec::new()),
+        Primitive::Mark => ("mark", Vec::new()),
+        Primitive::NoBreak => ("span", vec![("style", AttrValue::Expression("{ whiteSpace: 'nowrap' }".to_string()))]),
+        Primitive::Ruby => ("ruby", Vec::new()),
+        Primitive::Rt => ("rt", Vec::new()),
         Primitive::Pressable => {
             let mut attrs = Vec::new();
             match &node.props.accessibility_role {
