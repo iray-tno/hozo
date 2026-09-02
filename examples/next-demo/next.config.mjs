@@ -1,7 +1,6 @@
 import path from 'node:path'
-
-import createMDX from '@next/mdx'
 import { withHozo } from '@hozo/next'
+import createMDX from '@next/mdx'
 
 // `jsx: true` is the whole reason MDX works here. Without it `@mdx-js/mdx`
 // folds the page to `_jsx()` calls, which Hozo's parser cannot read --

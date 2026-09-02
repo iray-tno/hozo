@@ -273,10 +273,7 @@ export function isTransformedSource(file: string): boolean {
  * loader ran, so `@hozo/next` has to create each companion stylesheet
  * empty up front, and it cannot create one for a file it never listed.
  */
-export function discoverTransformedSources(
-  root: string,
-  options: ContentOptions = {},
-): string[] {
+export function discoverTransformedSources(root: string, options: ContentOptions = {}): string[] {
   return globbySync(['**/*.mdx'], {
     cwd: root,
     absolute: true,
