@@ -41,6 +41,9 @@ importers:
 
   apps/landing:
     dependencies:
+      '@astrojs/mdx':
+        specifier: ^4.3.14
+        version: 4.3.14(astro@5.18.2(@types/node@26.2.0)(db0@0.3.4)(jiti@2.7.0)(lightningcss@1.33.0)(rollup@4.62.5)(supports-color@8.1.1)(terser@5.50.0)(typescript@5.9.3)(yaml@2.9.0))(supports-color@8.1.1)
       '@astrojs/react':
         specifier: ^6.0.5
         version: 6.0.5(@types/node@26.2.0)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(jiti@2.7.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@8.1.1)(terser@5.50.0)(yaml@2.9.0)
@@ -629,6 +632,12 @@ packages:
 
   '@astrojs/markdown-remark@6.3.11':
     resolution: {integrity: sha512-hcaxX/5aC6lQgHeGh1i+aauvSwIT6cfyFjKWvExYSxUhZZBBdvCliOtu06gbQyhbe0pGJNoNmqNlQZ5zYUuIyQ==}
+
+  '@astrojs/mdx@4.3.14':
+    resolution: {integrity: sha512-FBrqJQORVm+rkRa2TS5CjU9PBA6hkhrwLVBSS9A77gN2+iehvjq1w6yya/d0YKC7osiVorKkr3Qd9wNbl0ZkGA==}
+    engines: {node: 18.20.8 || ^20.3.0 || >=22.0.0}
+    peerDependencies:
+      astro: ^5.0.0
 
   '@astrojs/prism@3.3.0':
     resolution: {integrity: sha512-q8VwfU/fDZNoDOf+r7jUnMC2//H2l0TuQ6FkGJL8vD8nw/q5KiL3DS1KKBI3QhI9UQhpJ5dc7AtqfbXWuOgLCQ==}
@@ -7379,6 +7388,25 @@ snapshots:
       unist-util-remove-position: 5.0.0
       unist-util-visit: 5.1.0
       unist-util-visit-parents: 6.0.2
+      vfile: 6.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@astrojs/mdx@4.3.14(astro@5.18.2(@types/node@26.2.0)(db0@0.3.4)(jiti@2.7.0)(lightningcss@1.33.0)(rollup@4.62.5)(supports-color@8.1.1)(terser@5.50.0)(typescript@5.9.3)(yaml@2.9.0))(supports-color@8.1.1)':
+    dependencies:
+      '@astrojs/markdown-remark': 6.3.11(supports-color@8.1.1)
+      '@mdx-js/mdx': 3.1.1(supports-color@8.1.1)
+      acorn: 8.18.0
+      astro: 5.18.2(@types/node@26.2.0)(db0@0.3.4)(jiti@2.7.0)(lightningcss@1.33.0)(rollup@4.62.5)(supports-color@8.1.1)(terser@5.50.0)(typescript@5.9.3)(yaml@2.9.0)
+      es-module-lexer: 1.7.0
+      estree-util-visit: 2.0.0
+      hast-util-to-html: 9.0.5
+      piccolore: 0.1.3
+      rehype-raw: 7.0.0
+      remark-gfm: 4.0.1(supports-color@8.1.1)
+      remark-smartypants: 3.0.3
+      source-map: 0.7.6
+      unist-util-visit: 5.1.0
       vfile: 6.0.3
     transitivePeerDependencies:
       - supports-color

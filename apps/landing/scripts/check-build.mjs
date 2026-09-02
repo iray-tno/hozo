@@ -15,14 +15,27 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 const html = readFileSync(path.join('dist', 'index.html'), 'utf8')
+const mdx = readFileSync(path.join('dist', 'mdx-example', 'index.html'), 'utf8')
 
 /** Hozo's compiled class names, matched by shape rather than spelled. */
 const GENERATED_CLASS = /\bhozo-[a-z0-9]+-r\d+-\d+\b/
 
-const stylesheets = readdirSync(path.join('dist', '_astro'))
-  .filter((name) => name.endsWith('.css'))
-  .map((name) => readFileSync(path.join('dist', '_astro', name), 'utf8'))
-  .join('\n')
+/**
+ * Every rule the page carries, from a file or from the document.
+ *
+ * The `<style>` half is not belt and braces. Astro inlines a stylesheet
+ * under its size threshold, so whether this page's CSS is a file at all
+ * depends on how much CSS the rest of the site happens to have -- adding
+ * one page moved it from `dist/_astro/index.*.css` into the HTML, and a
+ * check that only read the directory then reported that Hozo had emitted
+ * no CSS.
+ */
+const stylesheets = [
+  ...readdirSync(path.join('dist', '_astro'))
+    .filter((name) => name.endsWith('.css'))
+    .map((name) => readFileSync(path.join('dist', '_astro', name), 'utf8')),
+  ...[...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((match) => match[1]),
+].join('\n')
 
 const checks = [
   // The primitives became plain HTML with compiled class names.
@@ -51,6 +64,22 @@ const checks = [
     'the page shipped JavaScript for a component that needs none',
   ],
 ]
+
+// The same component reached from MDX rather than from `.astro`, which
+// is a different path through Astro and worth its own assertions. An
+// imported component is compiled as `.tsx` before MDX sees it, so this
+// works where writing a primitive inline in the `.mdx` does not --
+// `@astrojs/mdx` exposes no `jsx: true`, and Hozo cannot read `_jsx()`
+// calls.
+checks.push(
+  [GENERATED_CLASS.test(mdx), 'the imported component did not lower on the MDX page'],
+  [/<section class="[^"]*hozo-/.test(mdx), 'Section did not lower on the MDX page'],
+  [!/<astro-island/.test(mdx), 'the MDX page hydrated something'],
+  [
+    !/<script(?![^>]*type="application\/ld\+json")/.test(mdx),
+    'the MDX page shipped JavaScript for a component that needs none',
+  ],
+)
 
 for (const [ok, message] of checks) {
   if (!ok) throw new Error(message)
