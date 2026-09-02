@@ -1,46 +1,24 @@
-# Everything that has to pass on every push, in two jobs that answer at
-# very different speeds.
-#
-# `test` is the gate: the Rust tests and the JS suite, on the one platform
-# this repository is developed on plus the two it claims to support. Both
-# are platform-independent in principle and have only ever been run on
-# Windows, which is exactly the kind of claim that is true until it isn't
-# -- path separators and line endings are where this codebase would break
-# first. The first run on Linux and macOS should be expected to fail.
-#
-# `audit` is the evidence: the whole compiler surface against Tailwind's
-# own output. It takes ten times as long and runs in parallel, so it costs
-# nothing in feedback latency.
+# Everything that has to pass on every push, split by feedback speed and responsibility:
+# - `lint`: Fast static checks (Biome & Clippy) on Ubuntu in ~25s.
+# - `test`: Full suite (Rust & 25 JS packages including StyleX conformance) on Ubuntu.
+# - `platform-compat`: Native addon build & OS verification on macOS and Windows.
+# - `conformance`: Full Tailwind & StyleX differential conformance audit.
 name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
-  # The audit only. Every denominator in this repository is *derived* from
-  # somebody else's package -- Tailwind's own engine enumerates the
-  # utilities and variants, React Native's types decide which refusals are
-  # supportable, `aria-query` supplies the roles. So the numbers can move
-  # without anyone here touching anything, and a release of Tailwind is
-  # the one kind of change no commit will ever announce. This is the only
-  # thing watching for it.
   schedule:
     - cron: '0 3 * * 1'
 
-# A second push supersedes the first, and the audit is long enough that
-# two of them overlapping is worth avoiding. Keyed on the ref, so a push
-# to a branch never cancels main's run.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  lint:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -52,50 +30,49 @@ jobs:
         with:
           node-version: 25
           cache: pnpm
-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
       - run: cargo test --workspace
       - run: pnpm install --frozen-lockfile
-      # The JS side needs the addon that `pnpm test` will load. Built
-      # before the install's own scripts would want it, because nothing
-      # else puts it there on a fresh checkout.
       - run: pnpm --filter @hozo/compiler build:native
-      - run: pnpm lint
       - run: pnpm test
 
-  # The conformance audit: Hozo's whole output surface against Tailwind's
-  # own, plus the counts that have to stay at zero -- a class that
-  # compiles to nothing without saying so, a class that reaches the DOM
-  # with no rule behind it, a style React Native's own types reject, a
-  # refusal its types no longer support.
-  #
-  # Nothing checked this before. `pnpm test` covers rendering, type
-  # checking and the diagnostics, and covers none of the comparisons
-  # above -- those lived only in a script a human had to remember to run
-  # and read.
-  #
-  # A separate job rather than another step, because it is nine minutes
-  # locally against the fast gate's one and jobs run in parallel: the
-  # matrix above still answers within a couple of minutes.
-  #
-  # One runner, not three. This compares CSS text against Tailwind's, and
-  # that comparison cannot come out differently on macOS. The matrix is
-  # what covers platform differences.
-  audit:
-    # Not on pull requests. It takes thirty minutes where `test` takes
-    # five, and at this stage the cost of waiting for it on every PR is
-    # worse than the cost of noticing a moved number after a merge -- the
-    # same run fires on the push to main, so nothing goes unmeasured, only
-    # unblocked.
+  platform-compat:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: cargo test --workspace
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm test
+
+  conformance:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # Generous, because the number that matters is measured on a laptop
-    # and CI hardware is slower. Present at all so a hang is a failure
-    # rather than an hour.
-    #
-    # Raised from 45 when the composed section landed: the run before it
-    # took 30 minutes here, and a denominator that grows is the normal
-    # direction of travel for this suite.
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
@@ -107,30 +84,5 @@ jobs:
           node-version: 25
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Release, unlike the gate above. This job is almost entirely the
-      # addon -- 312 seconds against 48 for the whole report.
-      #
-      # It was worth only 1.20x when it landed, because a quadratic lookup
-      # in the variants section dwarfed everything. With that gone the
-      # addon is what is left, and the two changes multiply: `refusalAudit`
-      # and `nativeVariants` are 39% each now, and both are this binary.
-      #
-      # The gate stays on debug deliberately. It was measured too, and
-      # `pnpm test` takes the same 120 seconds under both -- the JS suite is
-      # bound by TypeScript and process startup -- so paying eleven extra
-      # seconds of `cargo build` there would buy nothing.
       - run: pnpm --filter @hozo/compiler build:native:release
-
-      # `--check` compares every headline number against
-      # `packages/tailwind-conformance/snapshot.json` and fails on any
-      # change, in either direction. An improvement fails too: 14490
-      # combinations passing where 13668 did is a fact that belongs in the
-      # diff of the commit that earned it.
-      #
-      # Through Turborepo for the `^build` dependency -- the report loads
-      # `@hozo/compiler` from `dist`, which does not exist on a fresh
-      # checkout. The task is declared `"cache": false`: its real input is
-      # the native addon, which Cargo builds outside Turborepo's
-      # knowledge, so a cache hit would serve a stale pass after a Rust
-      # change.
       - run: pnpm turbo run report -- --check
