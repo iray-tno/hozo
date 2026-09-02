@@ -30,7 +30,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -47,6 +50,42 @@ jobs:
         run: |
           mkdir -p apps/landing/dist/storybook
           cp -r examples/storybook-demo/storybook-static/* apps/landing/dist/storybook/
+
+      - name: Report (Rust nextest)
+        run: cargo nextest run --profile ci || true
+
+      - name: Copy & normalize nextest JUnit
+        run: |
+          mkdir -p junit-reports
+          cp target/nextest/ci/nextest.xml junit-reports/nextest.xml || true
+          node scripts/normalize-junit.mjs rust junit-reports/nextest.xml || true
+
+      - name: Report (Clippy)
+        run: cargo clippy --message-format=json 2>/dev/null | node scripts/clippy-to-junit.mjs > junit-reports/clippy.xml || true
+
+      - name: Report (Biome)
+        run: pnpm exec biome check --reporter=json . 2>/dev/null | node scripts/biome-to-junit.mjs > junit-reports/biome.xml || true
+
+      - name: Report (TypeScript & Unit tests)
+        run: node scripts/run-tests-junit.mjs || true
+
+      - name: Fetch previous Allure history
+        run: |
+          mkdir -p allure-history
+          curl -fsSL https://iray-tno.github.io/hozo/reports/history/allure-history.jsonl -o allure-history/allure-history.jsonl || rm -f allure-history/allure-history.jsonl
+
+      - name: Build Allure HTML reports
+        run: pnpm exec allure generate -o apps/landing/dist/reports junit-reports
+
+      - name: Persist Allure history
+        run: |
+          mkdir -p apps/landing/dist/reports/history
+          cp -f allure-history/allure-history.jsonl apps/landing/dist/reports/history/allure-history.jsonl || true
+
+      - name: Brand Allure report head
+        run: |
+          sed -i 's#<title> Hozo — Test Reports </title>#<title>Hozo — Test Reports</title>#' apps/landing/dist/reports/index.html || true
+          sed -i 's#</head>#    <meta property="og:site_name" content="Hozo" />\n    <meta property="og:title" content="Hozo — Test Reports" />\n    <meta name="description" content="CI test reports for Hozo, universal UI compiler for React Native." />\n</head>#' apps/landing/dist/reports/index.html || true
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
