@@ -9,7 +9,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "test": "astro build && node scripts/check-build.mjs"
+    "test": "astro build && node scripts/check-build.mjs && node scripts/check-static.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.0",
@@ -26,6 +26,7 @@
     "@hozo/vite": "workspace:*",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "@hozo/compiler": "workspace:*"
   }
 }
