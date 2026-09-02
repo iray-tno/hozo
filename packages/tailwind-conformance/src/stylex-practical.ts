@@ -156,6 +156,11 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'scrollMarginInline', value: -4 },
   { property: 'scrollPaddingBlock', value: 8 },
   { property: 'scrollPaddingInline', value: '8px 12px' },
+  { property: 'flexFlow', value: 'column wrap' },
+  { property: 'container', value: 'card-shell / inline-size' },
+  { property: 'gridGap', value: '8px 12px' },
+  { property: 'gridRowGap', value: 8 },
+  { property: 'gridColumnGap', value: 12 },
 ] as const
 
 function jsValue(value: string | number): string {
@@ -264,6 +269,31 @@ function cssComponents(value: string): string[] {
 
 function expandStylexShorthand(property: string, value: string): Array<[string, string]> {
   const parts = cssComponents(value)
+  if (property === 'flex-flow') {
+    const directions = new Set(['row', 'row-reverse', 'column', 'column-reverse'])
+    const wraps = new Set(['nowrap', 'wrap', 'wrap-reverse'])
+    return [
+      ['flex-direction', parts.find((part) => directions.has(part)) ?? 'row'],
+      ['flex-wrap', parts.find((part) => wraps.has(part)) ?? 'nowrap'],
+    ]
+  }
+  if (property === 'container') {
+    const slash = parts.indexOf('/')
+    return [
+      ['container-name', slash < 0 ? parts[0] : parts.slice(0, slash).join(' ')],
+      ['container-type', slash < 0 ? 'normal' : parts.slice(slash + 1).join(' ')],
+    ]
+  }
+  if (property === 'gap' || property === 'grid-gap') {
+    const row = parts[0]
+    if (!row) return [[property, value]]
+    return [
+      ['row-gap', row],
+      ['column-gap', parts[1] ?? row],
+    ]
+  }
+  if (property === 'grid-row-gap') return [['row-gap', value]]
+  if (property === 'grid-column-gap') return [['column-gap', value]]
   if (
     property === 'scroll-margin-block' ||
     property === 'scroll-margin-inline' ||
@@ -627,9 +657,18 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
     ].includes(property),
   ),
   grid: STYLEX_VALUE_CASES.filter(({ property }) =>
-    ['gridTemplateColumns', 'containerType', 'rowGap', 'justifySelf', 'placeItems'].includes(
-      property,
-    ),
+    [
+      'gridTemplateColumns',
+      'containerType',
+      'rowGap',
+      'justifySelf',
+      'placeItems',
+      'flexFlow',
+      'container',
+      'gridGap',
+      'gridRowGap',
+      'gridColumnGap',
+    ].includes(property),
   ),
   browser: STYLEX_VALUE_CASES.filter(({ property }) =>
     [

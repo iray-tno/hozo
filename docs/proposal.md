@@ -946,10 +946,11 @@ same-file・module-scope の `stylex.create` と、
 `STYLEX_NOT_LOWERED` として公式コンパイラへ残す。
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
-を機械的に交差させる分母も conformance report に追加した。2026-09-01 時点では
-全 CSS 名で 277/522 (53.1%)、両 platform に名前が存在する集合で 116/116
-(100%)、contextual runtime 集合で 16/16 (100%)、Web-only 集合で 145/389
-(37.3%)。残りは optional adapter 候補 1、未対応の Web-only 名と別集計する。
+を機械的に交差させる分母も conformance report に追加した。2026-09-02 時点では
+全 CSS 名で 282/522 (54.0%)、両 platform に名前が存在するか、同じ typed IR へ
+正確に展開できる集合で 120/120 (100%)、contextual runtime 集合で 17/17
+(100%)、Web-only 集合で 145/384 (37.8%)。残りは optional adapter 候補 1、
+未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
@@ -962,9 +963,9 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 142/142 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 147/147 (100%)、一般的なauthoring
 construct 14/14 (100%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
-持たせた宣言94/94 (100%)、silent failure 0となった。valueはHozo Webが公式
+持たせた宣言99/99 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
@@ -1003,12 +1004,12 @@ contextual の実装済み 8 名は Grid の template/placement である。静�
 加えて transition property/duration/timing の3名は既存のNative interaction・ambient
 transition runtimeへ接続する。Nativeで忠実に補間できるproperty、整数ms、4種のeasing
 だけをtyped IRへ入れ、それ以外は公式StyleXに残す。
-contextual 2名の `containerName` / `containerType` も既存の
+contextual 3名の `container` / `containerName` / `containerType` も既存の
 `HozoContainer` runtimeへ接続する。typeは `normal`、`size`、`inline-size`、nameは
 単一の保守的なCSS identifierに限定し、複数nameなどruntimeが忠実に扱えない値は
 公式StyleXのresidualに残す。加えて `whiteSpace` / `textOverflow` はTextの
 `numberOfLines` / `ellipsizeMode`、`caretColor` はTextInputの`cursorColor`へlowerする。
-これでcontextual property-name集合は16/16になった。
+これでcontextual property-name集合は17/17になった。
 
 共存実測の結論は **Hozo → StyleX の順だけが安全**。StyleX を先にすると
 spread が第二の `className` になり、Hozo は JSX の last-wins で本来消える
@@ -1033,6 +1034,9 @@ shorthand/longhand競合でもブラウザのcascadeを保てる。
 展開する。`scrollMarginBlock/Inline` と `scrollPaddingBlock/Inline` はCSSの1〜2値を
 logical start/end slotへ展開する。論理axisと物理longhandの競合はdirection /
 writing-mode依存なので近似せず残す。
+`flexFlow` は direction/wrap、`gridGap` は row/column gap の最終slotへ展開し、
+legacy alias の `gridRowGap` / `gridColumnGap` も同じ typed IR を使う。これらは
+React Native に同名keyがなくても既存keyへ正確に変換できるため universal lane とする。
 
 ただし logical/physical edge の衝突は Native の実行時 direction が必要であり、
 Grid shorthand と個別 line の衝突は現在の Grid IR では分解できない。この二種類は

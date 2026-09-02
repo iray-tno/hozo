@@ -32,6 +32,7 @@ export interface StylexManifest {
 
 const CONTEXTUAL_PROPERTIES = new Set([
   'caretColor',
+  'container',
   'containerName',
   'containerType',
   'gridColumn',
@@ -50,6 +51,11 @@ const CONTEXTUAL_PROPERTIES = new Set([
 ])
 
 const ADAPTER_PROPERTIES = new Set(['backdropFilter'])
+
+// StyleX also publishes CSS shorthand/legacy spellings that React Native does
+// not expose as style keys. Hozo can still preserve their Native semantics by
+// expanding them into the corresponding typed RN properties at compile time.
+const NATIVE_EQUIVALENT_PROPERTIES = new Set(['flexFlow', 'gridColumnGap', 'gridGap', 'gridRowGap'])
 
 function repoRoot(): string {
   return path.resolve(import.meta.dirname, '../../..')
@@ -107,9 +113,9 @@ export function mappedHozoStylexPropertiesFromRust(): Set<string> {
 }
 
 function laneFor(name: string, native: Set<string>): StylexLane {
-  if (native.has(name)) return 'universal'
   if (CONTEXTUAL_PROPERTIES.has(name)) return 'contextual'
   if (ADAPTER_PROPERTIES.has(name)) return 'adapter'
+  if (native.has(name) || NATIVE_EQUIVALENT_PROPERTIES.has(name)) return 'universal'
   return 'web-only'
 }
 

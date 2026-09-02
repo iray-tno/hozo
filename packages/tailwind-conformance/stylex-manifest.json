@@ -937,9 +937,9 @@
     },
     {
       "name": "container",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
     },
     {
       "name": "containerName",
@@ -1153,9 +1153,9 @@
     },
     {
       "name": "flexFlow",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "flexGrow",
@@ -1399,9 +1399,9 @@
     },
     {
       "name": "gridColumnGap",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "gridColumnStart",
@@ -1411,9 +1411,9 @@
     },
     {
       "name": "gridGap",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "gridRow",
@@ -1429,9 +1429,9 @@
     },
     {
       "name": "gridRowGap",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "gridRowStart",
