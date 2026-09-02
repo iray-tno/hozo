@@ -7,6 +7,7 @@ import Hero from '../components/Hero.astro'
 import Integrations from '../components/Integrations.astro'
 import Navbar from '../components/Navbar.astro'
 import Philosophy from '../components/Philosophy.astro'
+import { StaticCard } from '../components/StaticCard.tsx'
 import TieredStyles from '../components/TieredStyles.astro'
 import '../styles/global.css'
 ---
@@ -37,6 +38,11 @@ import '../styles/global.css'
       <Hero />
       <Philosophy />
       <TieredStyles />
+      <!-- No `client:` directive, deliberately. Astro renders this at
+           build time and ships no JavaScript for it; see StaticCard.tsx. -->
+      <div class="mx-auto max-w-3xl px-6 py-12">
+        <StaticCard />
+      </div>
       <CodeShowcase />
       <Accessibility />
       <Integrations />

@@ -1,0 +1,22 @@
+---
+layout: ../layouts/Probe.astro
+title: Hozo components in Astro MDX
+---
+
+import { StaticCard } from '../components/StaticCard.tsx'
+
+# Hozo components in Astro MDX
+
+The card below is a `.tsx` component built from Hozo's static primitives,
+imported into this MDX page and used with no `client:` directive.
+
+Astro renders it at build time, so this page ships no JavaScript for it —
+no island, no hydration, no React in the bundle. Hozo compiled the
+primitives to plain HTML and a stylesheet before Astro ever saw them.
+
+<StaticCard />
+
+Writing a primitive inline in this file rather than importing one does not
+compile: `@astrojs/mdx` does not expose `jsx: true`, so Hozo is handed
+`_jsx()` calls instead of the JSX it reads. The primitive still renders
+through `@hozo/core`, but its class names pass through uncompiled.
