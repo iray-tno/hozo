@@ -1321,6 +1321,17 @@ pub enum StyleProperty {
     /// defined application order (translate, then rotate, then scale).
     Rotate(Angle),
 
+    /// An authored standalone `scale` property. Unlike Tailwind's axis
+    /// utilities, StyleX may write one, two, or three components and that
+    /// arity is observable in the generated CSS. React Native receives the
+    /// equivalent scale entries (and a matrix for the optional Z axis).
+    Scale(Vec<Scale>),
+
+    /// An authored standalone `translate` property. Keeping the components
+    /// together preserves whether StyleX wrote one or two values on Web;
+    /// Native lowers them to translateX/translateY in CSS application order.
+    Translate(Vec<Dimension>),
+
     /// Per-axis scale, as a *percentage* the way Tailwind writes it
     /// (`scale-110` -> 110).
     ///
@@ -2104,6 +2115,8 @@ impl StyleProperty {
             | StyleProperty::BorderBottomStyle(..)
             | StyleProperty::BorderLeftStyle(..)
             | StyleProperty::Rotate(..)
+            | StyleProperty::Scale(..)
+            | StyleProperty::Translate(..)
             | StyleProperty::ScaleX(..)
             | StyleProperty::ScaleY(..)
             | StyleProperty::ScaleZ(..)
@@ -3049,6 +3062,7 @@ impl Angle {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Scale {
     Percent(f64),
+    Ratio(f64),
     Css(String),
 }
 
@@ -3073,6 +3087,7 @@ impl Scale {
     pub fn css(&self) -> String {
         match self {
             Scale::Percent(value) => format!("{value}%"),
+            Scale::Ratio(value) => value.to_string(),
             Scale::Css(text) => text.clone(),
         }
     }
@@ -3081,6 +3096,7 @@ impl Scale {
     pub fn ratio(&self) -> Option<f64> {
         match self {
             Scale::Percent(value) => Some(value / 100.0),
+            Scale::Ratio(value) => Some(*value),
             Scale::Css(_) => None,
         }
     }

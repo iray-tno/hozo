@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
     Angle, BorderStyle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef,
-    FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Length, Origin, Overflow, Radius,
+    FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Length, Origin, Overflow, Radius, Scale,
     SourceSpan, StyleDeclaration, StyleProperty, StylexResidual, StylexResidualArgument,
     TextOverflow, TransformFunction, WhiteSpace,
 };
@@ -830,6 +830,45 @@ fn transform_dimension(value: &str) -> Option<Dimension> {
     match dimension(&StaticValue::String(value.to_string()))? {
         value @ (Dimension::Length(_) | Dimension::Percent(_)) => Some(value),
         _ => None,
+    }
+}
+
+fn stylex_rotate(value: &StaticValue) -> Option<Angle> {
+    let StaticValue::String(value) = value else { return None };
+    value.ends_with("deg").then(|| transform_angle(value)).flatten()
+}
+
+fn stylex_scale_component(value: &str) -> Option<Scale> {
+    if let Some(value) = value.strip_suffix('%') {
+        let value = value.parse::<f64>().ok()?;
+        return value.is_finite().then_some(Scale::Percent(value));
+    }
+    let value = value.parse::<f64>().ok()?;
+    value.is_finite().then_some(Scale::Ratio(value))
+}
+
+fn stylex_scale(value: &StaticValue) -> Option<Vec<Scale>> {
+    match value {
+        StaticValue::Number(value) if value.is_finite() => {
+            Some(vec![Scale::Ratio(*value)])
+        }
+        StaticValue::String(value) => {
+            let values: Vec<_> = value.split_whitespace().map(stylex_scale_component).collect();
+            ((1..=3).contains(&values.len()) && values.iter().all(Option::is_some))
+                .then(|| values.into_iter().flatten().collect())
+        }
+        _ => None,
+    }
+}
+
+fn stylex_translate(value: &StaticValue) -> Option<Vec<Dimension>> {
+    match value {
+        StaticValue::Number(_) => Some(vec![dimension(value)?]),
+        StaticValue::String(value) => {
+            let values: Vec<_> = value.split_whitespace().map(transform_dimension).collect();
+            ((1..=2).contains(&values.len()) && values.iter().all(Option::is_some))
+                .then(|| values.into_iter().flatten().collect())
+        }
     }
 }
 
@@ -2973,6 +3012,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "gridRowEnd" => vec![StyleProperty::GridRowEnd(stylex_grid_line(value)?)],
         "gridColumn" => vec![StyleProperty::GridColumn(stylex_grid_span(value)?)],
         "gridRow" => vec![StyleProperty::GridRow(stylex_grid_span(value)?)],
+        "rotate" => vec![StyleProperty::Rotate(stylex_rotate(value)?)],
+        "scale" => vec![StyleProperty::Scale(stylex_scale(value)?)],
+        "translate" => vec![StyleProperty::Translate(stylex_translate(value)?)],
         "transform" => vec![StyleProperty::Transform(transform_functions(value)?)],
         "transformOrigin" => vec![StyleProperty::TransformOrigin(transform_origin(value)?)],
         // The shared IR deliberately keeps the complete shadow list as CSS
@@ -5192,6 +5234,64 @@ mod tests {
             entries[1].properties,
             vec![StyleProperty::TransformOrigin("left top".to_string())]
         );
+    }
+
+    #[test]
+    fn standalone_transform_properties_preserve_components_in_typed_ir() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              root: {
+                translate: '12px 25%',
+                rotate: '10deg',
+                scale: '0.9 110%'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["root"] else {
+            panic!("rule was not lowerable")
+        };
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+        assert_eq!(
+            entries[0].properties,
+            vec![StyleProperty::Translate(vec![
+                Dimension::Length(Length::Px(12.0)),
+                Dimension::Percent(25.0),
+            ])]
+        );
+        assert_eq!(entries[1].properties, vec![StyleProperty::Rotate(Angle::Deg(10.0))]);
+        assert_eq!(
+            entries[2].properties,
+            vec![StyleProperty::Scale(vec![
+                Scale::Ratio(0.9),
+                Scale::Percent(110.0),
+            ])]
+        );
+    }
+
+    #[test]
+    fn wider_standalone_transform_values_remain_official_residuals() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              root: {
+                translate: 'calc(100% - 2px)',
+                rotate: '0.25turn',
+                scale: 'none'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["root"] else {
+            panic!("rule should retain unsupported values as residuals")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 3);
+        assert_eq!(gaps.len(), 3);
     }
 
     #[test]

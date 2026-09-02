@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 325)
+  assert.equal(mapped.size, 328)
   for (const name of [
     'display',
     'padding',
@@ -74,11 +74,14 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('scrollMarginInline'))
   assert.ok(mapped.has('scrollPaddingBlock'))
   assert.ok(mapped.has('scrollPaddingInline'))
+  assert.ok(mapped.has('translate'))
+  assert.ok(mapped.has('rotate'))
+  assert.ok(mapped.has('scale'))
 })
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 325)
+  assert.equal(mapped.length, 328)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -87,6 +90,9 @@ test('every mapped property records why it is counted', () => {
   assert.equal(manifestEntry('container')?.basis, 'contextual-runtime')
   assert.equal(manifestEntry('flexFlow')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('gridGap')?.basis, 'shared-typed-ir')
+  assert.equal(manifestEntry('translate')?.basis, 'shared-typed-ir')
+  assert.equal(manifestEntry('rotate')?.basis, 'shared-typed-ir')
+  assert.equal(manifestEntry('scale')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('borderInlineWidth')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('borderBlockStyle')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('scrollbarWidth')?.basis, 'exact-web-native-refusal')
@@ -101,8 +107,8 @@ test('every mapped property records why it is counted', () => {
 
 test('the universal denominator is derived from StyleX and React Native', () => {
   const surface = stylexSurface()
-  assert.equal(surface.native.size, 129)
-  assert.equal(surface.mappedNative.size, 129)
+  assert.equal(surface.native.size, 132)
+  assert.equal(surface.mappedNative.size, 132)
   assert.equal(surface.missingNative.size, 0)
   assert.ok(!surface.missingNative.has('borderWidth'))
   assert.ok(!surface.missingNative.has('pointerEvents'))
@@ -114,6 +120,9 @@ test('the universal denominator is derived from StyleX and React Native', () => 
   assert.ok(surface.mappedNative.has('gridGap'))
   assert.ok(surface.mappedNative.has('borderInlineColor'))
   assert.ok(surface.mappedNative.has('borderBlockWidth'))
+  assert.ok(surface.mappedNative.has('translate'))
+  assert.ok(surface.mappedNative.has('rotate'))
+  assert.ok(surface.mappedNative.has('scale'))
 })
 
 test('coverage tiers partition the published StyleX property surface', () => {
@@ -136,7 +145,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.adapter.size, 1)
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
-  assert.equal(surface.webOnly.size, 375)
+  assert.equal(surface.webOnly.size, 372)
   assert.equal(surface.mappedWebOnly.size, 179)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))

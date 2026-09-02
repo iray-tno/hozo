@@ -20,7 +20,8 @@ pub(super) fn native_driver_transition(
     let interactive_opacity = interactive(|property| matches!(property, StyleProperty::Opacity(_)));
     let interactive_transform = interactive(|property| matches!(
         property,
-        StyleProperty::TranslateX(_)
+        StyleProperty::Translate(_)
+            | StyleProperty::TranslateX(_)
             | StyleProperty::TranslateY(_)
             | StyleProperty::Rotate(_)
             | StyleProperty::RotateX(_)
@@ -28,7 +29,7 @@ pub(super) fn native_driver_transition(
             | StyleProperty::RotateZ(_)
             | StyleProperty::ScaleX(_)
             | StyleProperty::ScaleY(_)
-    ));
+    ) || matches!(property, StyleProperty::Scale(values) if values.len() <= 2));
     let has_base_text_color = declarations.iter().any(|declaration| {
         matches!(declaration.property, StyleProperty::TextColor(_))
             && matches!(declaration.condition, Condition::Always)
@@ -109,12 +110,13 @@ pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration])
                 | StyleProperty::BackgroundColor(_)
                 | StyleProperty::TextColor(_)
                 | StyleProperty::BorderColor(_)
+                | StyleProperty::Translate(_)
                 | StyleProperty::TranslateX(_)
                 | StyleProperty::TranslateY(_)
                 | StyleProperty::Rotate(_)
                 | StyleProperty::ScaleX(_)
                 | StyleProperty::ScaleY(_)
-        );
+        ) || matches!(&declaration.property, StyleProperty::Scale(values) if values.len() <= 2);
         interpolatable && condition_contains(&declaration.condition, runtime_variable)
     });
     if !animatable {

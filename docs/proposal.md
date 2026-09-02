@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-02 時点では
-全 CSS 名で 325/522 (62.3%)、両 platform に名前が存在するか、同じ typed IR へ
-正確に展開できる集合で 129/129 (100%)、contextual runtime 集合で 17/17
-(100%)、Web-only 集合で 179/375 (47.7%)。残りは optional adapter 候補 1、
+全 CSS 名で 328/522 (62.8%)、両 platform に名前が存在するか、同じ typed IR へ
+正確に展開できる集合で 132/132 (100%)、contextual runtime 集合で 17/17
+(100%)、Web-only 集合で 179/372 (48.1%)。残りは optional adapter 候補 1、
 未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
@@ -963,13 +963,19 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 190/190 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 193/193 (100%)、一般的なauthoring
 construct 14/14 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
-持たせた宣言147/147 (100%)、silent failure 0となった。valueはHozo Webが公式
+持たせた宣言150/150 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
 隠さない。
+
+standalone `translate` / `rotate` / `scale` は Web-only 文字列にはせず typed IR とする。
+Web は StyleX が書いた component 数を保ち、Native は CSS 規定の
+translate→rotate→scale 順で transform array に合成する。px/% の1〜2軸 translate、
+degree rotate、数値/% の1〜3軸 scale を portable subset とし、それより広い構文は
+公式 StyleX の residual に残す。
 
 authoring constructでは、`stylex.props`の再帰arrayとternaryを条件式IRへ展開し、
 module-localな`const` object literalのspreadもsource順にflattenする。対象objectは

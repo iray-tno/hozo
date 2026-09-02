@@ -719,6 +719,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // Composed into a single `transform` by the caller, since RN has no
         // standalone rotate/scale/translate -- see `transform_entry`.
         StyleProperty::Rotate(_)
+        | StyleProperty::Scale(_)
+        | StyleProperty::Translate(_)
         | StyleProperty::ScaleX(_)
         | StyleProperty::ScaleY(_)
         | StyleProperty::ScaleZ(_)

@@ -423,7 +423,10 @@ fn is_border_spacing(prop: &StyleProperty) -> bool {
 fn is_translate(prop: &StyleProperty) -> bool {
     matches!(
         prop,
-        StyleProperty::TranslateX(_) | StyleProperty::TranslateY(_) | StyleProperty::TranslateZ(_)
+        StyleProperty::Translate(_)
+            | StyleProperty::TranslateX(_)
+            | StyleProperty::TranslateY(_)
+            | StyleProperty::TranslateZ(_)
     )
 }
 
@@ -670,7 +673,8 @@ fn is_filter(prop: &StyleProperty) -> bool {
 fn is_scale_axis(prop: &StyleProperty) -> bool {
     matches!(
         prop,
-        StyleProperty::ScaleX(_)
+        StyleProperty::Scale(_)
+            | StyleProperty::ScaleX(_)
             | StyleProperty::ScaleY(_)
             | StyleProperty::ScaleZ(_)
             | StyleProperty::Scale3d
@@ -703,6 +707,16 @@ fn is_transform_function(prop: &StyleProperty) -> bool {
 fn scale_value(props: &[&StyleProperty]) -> Option<String> {
     if props.is_empty() {
         return None;
+    }
+    let last_authored = props.iter().rposition(|property| matches!(property, StyleProperty::Scale(_)));
+    let last_axes = props.iter().rposition(|property| !matches!(property, StyleProperty::Scale(_)));
+    if last_authored > last_axes {
+        return props.iter().rev().find_map(|property| match property {
+            StyleProperty::Scale(values) => {
+                Some(values.iter().map(Scale::css).collect::<Vec<_>>().join(" "))
+            }
+            _ => None,
+        });
     }
     let axis = |f: fn(&StyleProperty) -> Option<&Scale>| {
         props.iter().find_map(|p| f(p)).map_or_else(|| "1".to_string(), Scale::css)
@@ -808,6 +822,24 @@ fn compact_number(value: f64) -> String {
 fn translate_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     if props.is_empty() {
         return None;
+    }
+    let last_authored = props
+        .iter()
+        .rposition(|property| matches!(property, StyleProperty::Translate(_)));
+    let last_axes = props
+        .iter()
+        .rposition(|property| !matches!(property, StyleProperty::Translate(_)));
+    if last_authored > last_axes {
+        return props.iter().rev().find_map(|property| match property {
+            StyleProperty::Translate(values) => Some(
+                values
+                    .iter()
+                    .map(|value| dimension_value(value, theme))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            ),
+            _ => None,
+        });
     }
     // A trait object rather than a fn pointer: the closures below capture
     // `theme` now, so they aren't plain functions any more.
@@ -1273,7 +1305,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         // these do the same rather than relying on one-value expansion.
         StyleProperty::Rotate(a) => ("rotate", a.css()),
         // Composed, not emitted here -- see `scale_value` / `transform_value`.
-        StyleProperty::ScaleX(_)
+        StyleProperty::Scale(_)
+        | StyleProperty::ScaleX(_)
         | StyleProperty::ScaleY(_)
         | StyleProperty::ScaleZ(_)
         | StyleProperty::Scale3d => ("scale", String::new()),
@@ -1283,7 +1316,10 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         | StyleProperty::SkewX(_)
         | StyleProperty::SkewY(_) => ("transform", String::new()),
         // Composed by `translate_value`; partitioned out above.
-        StyleProperty::TranslateX(_) | StyleProperty::TranslateY(_) | StyleProperty::TranslateZ(_) => {
+        StyleProperty::Translate(_)
+        | StyleProperty::TranslateX(_)
+        | StyleProperty::TranslateY(_)
+        | StyleProperty::TranslateZ(_) => {
             ("translate", String::new())
         }
         StyleProperty::FlexBasis(d) => ("flex-basis", dimension_value(d, theme)),

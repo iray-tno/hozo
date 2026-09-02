@@ -2389,9 +2389,9 @@
     },
     {
       "name": "rotate",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "rowGap",
@@ -2419,9 +2419,9 @@
     },
     {
       "name": "scale",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "scrollBehavior",
@@ -2965,9 +2965,9 @@
     },
     {
       "name": "translate",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "unicodeBidi",

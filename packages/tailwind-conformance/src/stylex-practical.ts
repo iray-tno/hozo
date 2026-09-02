@@ -39,6 +39,9 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'textAlign', value: 'center' },
   { property: 'textDecorationLine', value: 'underline' },
   { property: 'transform', value: 'rotate(10deg)' },
+  { property: 'translate', value: '12px 25%' },
+  { property: 'rotate', value: '10deg' },
+  { property: 'scale', value: '0.9 110%' },
   { property: 'transformOrigin', value: 'center' },
   { property: 'pointerEvents', value: 'none' },
   { property: 'userSelect', value: 'none' },
@@ -762,6 +765,9 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
   motion: STYLEX_VALUE_CASES.filter(({ property }) =>
     [
       'transform',
+      'translate',
+      'rotate',
+      'scale',
       'transformOrigin',
       'transitionDuration',
       'transitionDelay',

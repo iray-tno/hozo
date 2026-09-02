@@ -11,11 +11,21 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 190, covered: 190 },
+    values: { total: 193, covered: 193 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 147, covered: 147 },
+    corpus: { total: 150, covered: 150 },
     silent: 0,
   })
+})
+
+test('standalone transforms agree with official StyleX and lower on Native', () => {
+  for (const testCase of [
+    { property: 'translate', value: '12px 25%' },
+    { property: 'rotate', value: '10deg' },
+    { property: 'scale', value: '0.9 110%' },
+  ]) {
+    assert.equal(compareStylexValue(testCase).covered, true, testCase.property)
+  }
 })
 
 test('the cross-file construct is measured through a resolved module binding', () => {

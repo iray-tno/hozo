@@ -6,27 +6,27 @@
   },
   "stylex": {
     "properties": 522,
-    "mapped": 325,
-    "nativeProperties": 129,
-    "mappedNative": 129,
+    "mapped": 328,
+    "nativeProperties": 132,
+    "mappedNative": 132,
     "contextualProperties": 17,
     "mappedContextual": 17,
     "adapterProperties": 1,
     "mappedAdapter": 0,
-    "webOnlyProperties": 375,
+    "webOnlyProperties": 372,
     "mappedWebOnly": 179
   },
   "stylexValues": {
-    "cases": 190,
-    "covered": 190
+    "cases": 193,
+    "covered": 193
   },
   "stylexConstructs": {
     "cases": 14,
     "covered": 14
   },
   "stylexCorpus": {
-    "cases": 147,
-    "covered": 147
+    "cases": 150,
+    "covered": 150
   },
   "stylexSafety": {
     "silent": 0
