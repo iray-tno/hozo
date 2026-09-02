@@ -2438,8 +2438,8 @@
     {
       "name": "scrollMarginBlock",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "scrollMarginBlockEnd",
@@ -2462,8 +2462,8 @@
     {
       "name": "scrollMarginInline",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "scrollMarginInlineEnd",
@@ -2504,8 +2504,8 @@
     {
       "name": "scrollPaddingBlock",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "scrollPaddingBlockEnd",
@@ -2528,8 +2528,8 @@
     {
       "name": "scrollPaddingInline",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "scrollPaddingInlineEnd",

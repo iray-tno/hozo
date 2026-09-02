@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-01 時点では
-全 CSS 名で 273/522 (52.3%)、両 platform に名前が存在する集合で 116/116
-(100%)、contextual runtime 集合で 16/16 (100%)、Web-only 集合で 141/389
-(36.2%)。残りは optional adapter 候補 1、未対応の Web-only 名と別集計する。
+全 CSS 名で 277/522 (53.1%)、両 platform に名前が存在する集合で 116/116
+(100%)、contextual runtime 集合で 16/16 (100%)、Web-only 集合で 145/389
+(37.3%)。残りは optional adapter 候補 1、未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
@@ -962,9 +962,9 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 138/138 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 142/142 (100%)、一般的なauthoring
 construct 14/14 (100%)、Card/Typography/Input/Scroll/Motion/Gridへ利用頻度を
-持たせた宣言90/90 (100%)、silent failure 0となった。valueはHozo Webが公式
+持たせた宣言94/94 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
@@ -993,7 +993,7 @@ Nativeでは近似せず明示的にrefuseする。
 第2 slice の21名は、新しい任意CSS経路を増やさず既存 typed IR を再利用する。
 整数 `order`、軸別 overflow、scroll behavior、物理/論理 scroll margin/padding
 longhand、text indent が対象で、Web出力とNative refusalはTailwind frontendと共有する。
-scroll shorthand はlonghandとのatomic priorityを明示できるまで residual に残す。
+scroll shorthand は物理4辺と論理2軸の静的な長さを最終slotへ展開する。
 
 contextual の実装済み 8 名は Grid の template/placement である。静的な正の
 `fr`、非負の `px`、`minmax(px, fr)`、等幅 `repeat` track と、整数 line、
@@ -1030,7 +1030,9 @@ Web-only の `columns`、`columnRule`、`listStyle` も同じ仕組みで最終l
 展開する。省略された値はCSS shorthandのinitial値で埋めるため、部分的な
 shorthand/longhand競合でもブラウザのcascadeを保てる。
 物理4辺の `scrollMargin` / `scrollPadding` はCSSの1〜4値を各longhand slotへ
-展開する。論理axisとの競合はdirection / writing-mode依存なので近似せず残す。
+展開する。`scrollMarginBlock/Inline` と `scrollPaddingBlock/Inline` はCSSの1〜2値を
+logical start/end slotへ展開する。論理axisと物理longhandの競合はdirection /
+writing-mode依存なので近似せず残す。
 
 ただし logical/physical edge の衝突は Native の実行時 direction が必要であり、
 Grid shorthand と個別 line の衝突は現在の Grid IR では分解できない。この二種類は

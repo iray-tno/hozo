@@ -152,6 +152,10 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'listStyle', value: 'url(#marker) outside square' },
   { property: 'scrollMargin', value: '8px 12px 16px 20px' },
   { property: 'scrollPadding', value: 8 },
+  { property: 'scrollMarginBlock', value: '8px 12px' },
+  { property: 'scrollMarginInline', value: -4 },
+  { property: 'scrollPaddingBlock', value: 8 },
+  { property: 'scrollPaddingInline', value: '8px 12px' },
 ] as const
 
 function jsValue(value: string | number): string {
@@ -260,6 +264,20 @@ function cssComponents(value: string): string[] {
 
 function expandStylexShorthand(property: string, value: string): Array<[string, string]> {
   const parts = cssComponents(value)
+  if (
+    property === 'scroll-margin-block' ||
+    property === 'scroll-margin-inline' ||
+    property === 'scroll-padding-block' ||
+    property === 'scroll-padding-inline'
+  ) {
+    const start = parts[0]
+    if (!start) return [[property, value]]
+    const end = parts[1] ?? start
+    return [
+      [`${property}-start`, start],
+      [`${property}-end`, end],
+    ]
+  }
   if (property === 'scroll-margin' || property === 'scroll-padding') {
     const top = parts[0]
     if (!top) return [[property, value]]
@@ -586,7 +604,17 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
     ].includes(property),
   ),
   scroll: STYLEX_VALUE_CASES.filter(({ property }) =>
-    ['overflow', 'overflowX', 'scrollSnapType', 'textIndent', 'visibility'].includes(property),
+    [
+      'overflow',
+      'overflowX',
+      'scrollSnapType',
+      'textIndent',
+      'visibility',
+      'scrollMarginBlock',
+      'scrollMarginInline',
+      'scrollPaddingBlock',
+      'scrollPaddingInline',
+    ].includes(property),
   ),
   motion: STYLEX_VALUE_CASES.filter(({ property }) =>
     [

@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 138, covered: 138 },
+    values: { total: 142, covered: 142 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 90, covered: 90 },
+    corpus: { total: 94, covered: 94 },
     silent: 0,
   })
 })
@@ -368,6 +368,20 @@ test('physical scroll shorthands agree with official StyleX', () => {
     { property: 'scrollPadding', value: '8px 12px' },
     { property: 'scrollPadding', value: '8px 12px 16px' },
     { property: 'scrollPadding', value: '8px 12px 16px 20px' },
+  ] as const
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
+})
+
+test('logical scroll shorthands agree with official StyleX', () => {
+  const cases = [
+    { property: 'scrollMarginBlock', value: 8 },
+    { property: 'scrollMarginBlock', value: '8px 12px' },
+    { property: 'scrollMarginInline', value: -4 },
+    { property: 'scrollMarginInline', value: '8px 12px' },
+    { property: 'scrollPaddingBlock', value: 8 },
+    { property: 'scrollPaddingBlock', value: '8px 12px' },
+    { property: 'scrollPaddingInline', value: 8 },
+    { property: 'scrollPaddingInline', value: '8px 12px' },
   ] as const
   for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })
