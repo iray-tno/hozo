@@ -10,10 +10,10 @@
 use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
-    Angle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef, FlexDirection,
-    FontWeight, GridLine, GridSpan, GridTracks, Length, Origin, Overflow, Radius, SourceSpan,
-    StyleDeclaration, StyleProperty, StylexResidual, StylexResidualArgument, TextOverflow,
-    TransformFunction, WhiteSpace,
+    Angle, BorderStyle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef,
+    FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Length, Origin, Overflow, Radius,
+    SourceSpan, StyleDeclaration, StyleProperty, StylexResidual, StylexResidualArgument,
+    TextOverflow, TransformFunction, WhiteSpace,
 };
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, ArrowFunctionExpression, BindingPattern, CallExpression,
@@ -667,6 +667,31 @@ fn stylex_gap(value: &StaticValue) -> Option<Vec<StyleProperty>> {
         StyleProperty::RowGap(row),
         StyleProperty::ColumnGap(column),
     ])
+}
+
+fn stylex_border_style(value: &StaticValue) -> Option<BorderStyle> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    match value.as_str() {
+        "solid" => Some(BorderStyle::Solid),
+        "dashed" => Some(BorderStyle::Dashed),
+        "dotted" => Some(BorderStyle::Dotted),
+        "double" => Some(BorderStyle::Double),
+        "hidden" => Some(BorderStyle::Hidden),
+        "none" => Some(BorderStyle::None),
+        _ => None,
+    }
+}
+
+fn stylex_web_border_style(property: &str, value: &StaticValue) -> Option<StyleProperty> {
+    stylex_border_style(value)?;
+    Some(web_longhand(property, raw_value(value)))
+}
+
+fn stylex_border_width(value: &StaticValue) -> Option<Length> {
+    let value = px_length(value)?;
+    matches!(&value, Length::Px(number) if number.is_finite() && *number >= 0.0).then_some(value)
 }
 
 fn stylex_grid_tracks(value: &StaticValue) -> Option<GridTracks> {
@@ -2393,6 +2418,76 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             }
             vec![StyleProperty::ColumnGap(value)]
         }
+        "borderBlockWidth" => {
+            let value = stylex_border_width(value)?;
+            vec![
+                StyleProperty::BorderLogicalWidth(Edge::BlockStart, value.clone()),
+                StyleProperty::BorderLogicalWidth(Edge::BlockEnd, value),
+            ]
+        }
+        "borderBlockStartWidth" => vec![StyleProperty::BorderTopWidth(stylex_border_width(value)?)],
+        "borderBlockEndWidth" => vec![StyleProperty::BorderBottomWidth(stylex_border_width(value)?)],
+        "borderInlineWidth" => {
+            let value = stylex_border_width(value)?;
+            vec![
+                StyleProperty::BorderLogicalWidth(Edge::InlineStart, value.clone()),
+                StyleProperty::BorderLogicalWidth(Edge::InlineEnd, value),
+            ]
+        }
+        "borderInlineStartWidth" => vec![StyleProperty::BorderLogicalWidth(
+            Edge::InlineStart,
+            stylex_border_width(value)?,
+        )],
+        "borderInlineEndWidth" => vec![StyleProperty::BorderLogicalWidth(
+            Edge::InlineEnd,
+            stylex_border_width(value)?,
+        )],
+        "borderInlineColor" => {
+            let value = color()?;
+            vec![
+                StyleProperty::BorderInlineStartColor(value.clone()),
+                StyleProperty::BorderInlineEndColor(value),
+            ]
+        }
+        "borderInlineStartColor" => vec![StyleProperty::BorderInlineStartColor(color()?)],
+        "borderInlineEndColor" => vec![StyleProperty::BorderInlineEndColor(color()?)],
+        "borderBlockStyle" => {
+            let value = stylex_border_style(value)?;
+            vec![
+                StyleProperty::BorderLogicalStyle(Edge::BlockStart, value),
+                StyleProperty::BorderLogicalStyle(Edge::BlockEnd, value),
+            ]
+        }
+        "borderInlineStyle" => {
+            let value = stylex_border_style(value)?;
+            vec![
+                StyleProperty::BorderLogicalStyle(Edge::InlineStart, value),
+                StyleProperty::BorderLogicalStyle(Edge::InlineEnd, value),
+            ]
+        }
+        "borderInlineStartStyle" => vec![StyleProperty::BorderLogicalStyle(
+            Edge::InlineStart,
+            stylex_border_style(value)?,
+        )],
+        "borderInlineEndStyle" => vec![StyleProperty::BorderLogicalStyle(
+            Edge::InlineEnd,
+            stylex_border_style(value)?,
+        )],
+        // StyleX normalizes the block-start/end aliases to physical top/bottom.
+        // Keep the StyleX lane Web-only: React Native has only one global
+        // borderStyle and cannot preserve a side-specific authored style.
+        "borderBlockStartStyle" => vec![stylex_web_border_style(
+            "border-top-style",
+            value,
+        )?],
+        "borderBlockEndStyle" => vec![stylex_web_border_style(
+            "border-bottom-style",
+            value,
+        )?],
+        "borderTopStyle" => vec![stylex_web_border_style("border-top-style", value)?],
+        "borderBottomStyle" => vec![stylex_web_border_style("border-bottom-style", value)?],
+        "borderRightStyle" => vec![stylex_web_border_style("border-right-style", value)?],
+        "borderLeftStyle" => vec![stylex_web_border_style("border-left-style", value)?],
         "listStyle" => stylex_list_style(value)?,
         "scrollMargin" => stylex_scroll_box(value, false)?,
         "scrollPadding" => stylex_scroll_box(value, true)?,
@@ -2689,6 +2784,10 @@ fn canonical_property(property: &str) -> &str {
     match property {
         "borderBlockStartColor" => "borderTopColor",
         "borderBlockEndColor" => "borderBottomColor",
+        "borderBlockStartStyle" => "borderTopStyle",
+        "borderBlockEndStyle" => "borderBottomStyle",
+        "borderBlockStartWidth" => "borderTopWidth",
+        "borderBlockEndWidth" => "borderBottomWidth",
         "insetBlockStart" => "top",
         "insetBlockEnd" => "bottom",
         "marginBlockStart" => "marginTop",
@@ -2724,6 +2823,11 @@ fn property_priority(property: &str) -> u16 {
             | "borderStyle"
             | "borderWidth"
             | "borderRadius"
+            | "borderBlockStyle"
+            | "borderBlockWidth"
+            | "borderInlineColor"
+            | "borderInlineStyle"
+            | "borderInlineWidth"
             | "columnRule"
             | "columns"
             | "flex"
@@ -2759,6 +2863,16 @@ fn property_priority(property: &str) -> u16 {
             | "borderRightWidth"
             | "borderBottomWidth"
             | "borderLeftWidth"
+            | "borderTopStyle"
+            | "borderRightStyle"
+            | "borderBottomStyle"
+            | "borderLeftStyle"
+            | "borderInlineStartColor"
+            | "borderInlineEndColor"
+            | "borderInlineStartStyle"
+            | "borderInlineEndStyle"
+            | "borderInlineStartWidth"
+            | "borderInlineEndWidth"
             | "borderTopLeftRadius"
             | "borderTopRightRadius"
             | "borderBottomRightRadius"
@@ -2796,7 +2910,7 @@ fn property_priority(property: &str) -> u16 {
 }
 
 fn directional_overlap_one_way(left: &StyleProperty, right: &StyleProperty) -> bool {
-    matches!(
+    let typed_overlap = matches!(
         (left, right),
         (StyleProperty::PaddingInlineStart(_), StyleProperty::PaddingLeft(_))
             | (StyleProperty::PaddingInlineStart(_), StyleProperty::PaddingRight(_))
@@ -2826,6 +2940,18 @@ fn directional_overlap_one_way(left: &StyleProperty, right: &StyleProperty) -> b
                 StyleProperty::ScrollPadding(Edge::BlockStart | Edge::BlockEnd, _),
                 StyleProperty::ScrollPadding(Edge::Top | Edge::Bottom, _),
             )
+            | (
+                StyleProperty::BorderLogicalWidth(Edge::InlineStart | Edge::InlineEnd, _),
+                StyleProperty::BorderLeftWidth(_) | StyleProperty::BorderRightWidth(_),
+            )
+            | (
+                StyleProperty::BorderLogicalWidth(Edge::BlockStart | Edge::BlockEnd, _),
+                StyleProperty::BorderTopWidth(_) | StyleProperty::BorderBottomWidth(_),
+            )
+            | (
+                StyleProperty::BorderInlineStartColor(_) | StyleProperty::BorderInlineEndColor(_),
+                StyleProperty::BorderLeftColor(_) | StyleProperty::BorderRightColor(_),
+            )
             | (StyleProperty::BorderStartStartRadius(_), StyleProperty::BorderTopLeftRadius(_))
             | (StyleProperty::BorderStartStartRadius(_), StyleProperty::BorderTopRightRadius(_))
             | (StyleProperty::BorderStartEndRadius(_), StyleProperty::BorderTopLeftRadius(_))
@@ -2834,7 +2960,19 @@ fn directional_overlap_one_way(left: &StyleProperty, right: &StyleProperty) -> b
             | (StyleProperty::BorderEndStartRadius(_), StyleProperty::BorderBottomRightRadius(_))
             | (StyleProperty::BorderEndEndRadius(_), StyleProperty::BorderBottomLeftRadius(_))
             | (StyleProperty::BorderEndEndRadius(_), StyleProperty::BorderBottomRightRadius(_))
-    )
+    );
+    let style_overlap = match (left, right) {
+        (
+            StyleProperty::BorderLogicalStyle(Edge::InlineStart | Edge::InlineEnd, _),
+            StyleProperty::WebOnly(property, _),
+        ) => matches!(property.as_str(), "border-left-style" | "border-right-style"),
+        (
+            StyleProperty::BorderLogicalStyle(Edge::BlockStart | Edge::BlockEnd, _),
+            StyleProperty::WebOnly(property, _),
+        ) => matches!(property.as_str(), "border-top-style" | "border-bottom-style"),
+        _ => false,
+    };
+    typed_overlap || style_overlap
 }
 
 fn needs_platform_priority(left: &Entry, right: &ResolvedEntry) -> bool {
@@ -5344,6 +5482,101 @@ mod tests {
     }
 
     #[test]
+    fn border_axis_longhands_expand_into_independent_final_slots() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                borderBlockWidth: 8,
+                borderInlineWidth: 12,
+                borderInlineColor: '#123456',
+                borderBlockStyle: 'dashed',
+                borderInlineStartStyle: 'dotted',
+                borderBlockStartStyle: 'solid'
+              },
+              invalid: {
+                borderBlockWidth: -1,
+                borderInlineColor: 'var(--border)',
+                borderInlineStyle: 'groove',
+                borderTopStyle: 2
+              }
+            })
+        "#,
+        );
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
+            panic!("exact border longhands were not lowerable")
+        };
+        assert_eq!(entries.len(), 6);
+        assert_eq!(entries.iter().flat_map(|entry| &entry.properties).count(), 10);
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            *property
+                == StyleProperty::BorderLogicalWidth(Edge::InlineEnd, Length::Px(12.0))
+        }));
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            *property == StyleProperty::BorderInlineStartColor(Color::Css("#123456".to_string()))
+        }));
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            *property
+                == StyleProperty::WebOnly(
+                    "border-top-style".to_string(),
+                    "solid".to_string(),
+                )
+        }));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["invalid"]
+        else {
+            panic!("invalid border longhands should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 4);
+        assert_eq!(gaps.len(), 4);
+    }
+
+    #[test]
+    fn border_axis_longhand_suppresses_only_its_shorthand_slot() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              axis: { borderInlineWidth: 12 },
+              start: { borderInlineStartWidth: 4 }
+            })
+            const card = <View {...stylex.props(styles.start, active && styles.axis)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert!(style.iter().any(|declaration| {
+            declaration.condition == Condition::Always
+                && declaration.property
+                    == StyleProperty::BorderLogicalWidth(Edge::InlineStart, Length::Px(4.0))
+        }));
+        assert!(!style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && declaration.property
+                    == StyleProperty::BorderLogicalWidth(Edge::InlineStart, Length::Px(12.0))
+        }));
+        assert!(style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && declaration.property
+                    == StyleProperty::BorderLogicalWidth(Edge::InlineEnd, Length::Px(12.0))
+        }));
+    }
+
+    #[test]
     fn layout_longhands_suppress_only_their_conditional_shorthand_slots() {
         let parsed = crate::parse_tsx(
             r#"
@@ -5960,6 +6193,35 @@ mod tests {
             hozo_ir::DiagnosticCode::StylexNotLowered
         );
         assert!(parsed.diagnostics[0].message.contains("runtime context"));
+    }
+
+    #[test]
+    fn direction_dependent_border_edges_remain_explicit() {
+        for (logical, physical) in [
+            ("borderInlineStartWidth: 16", "borderLeftWidth: 8"),
+            ("borderInlineStartColor: 'red'", "borderRightColor: 'blue'"),
+            ("borderInlineStartStyle: 'dashed'", "borderLeftStyle: 'solid'"),
+            ("borderBlockWidth: 16", "borderTopWidth: 8"),
+        ] {
+            let source = format!(
+                r#"
+                import * as stylex from '@stylexjs/stylex'
+                import {{ View }} from '@hozo/core'
+                const styles = stylex.create({{
+                  logical: {{ {logical} }},
+                  physical: {{ {physical} }}
+                }})
+                const card = <View {{...stylex.props(styles.logical, styles.physical)}} />
+            "#,
+            );
+            let parsed = crate::parse_tsx(&source);
+            assert!(parsed.roots[0].node.style.is_empty(), "{logical} / {physical}");
+            assert_eq!(
+                parsed.diagnostics[0].code,
+                hozo_ir::DiagnosticCode::StylexNotLowered
+            );
+            assert!(parsed.diagnostics[0].message.contains("runtime context"));
+        }
     }
 
     #[test]

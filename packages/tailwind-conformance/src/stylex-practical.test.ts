@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 147, covered: 147 },
+    values: { total: 166, covered: 166 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 99, covered: 99 },
+    corpus: { total: 123, covered: 123 },
     silent: 0,
   })
 })
@@ -400,5 +400,32 @@ test('flex, container, and grid gap shorthands agree with official StyleX', () =
     { property: 'gridRowGap', value: 8 },
     { property: 'gridColumnGap', value: 12 },
   ] as const
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
+})
+
+test('border axis longhands agree with official StyleX', () => {
+  const properties = new Set([
+    'borderBlockWidth',
+    'borderBlockStartWidth',
+    'borderBlockEndWidth',
+    'borderInlineWidth',
+    'borderInlineStartWidth',
+    'borderInlineEndWidth',
+    'borderInlineColor',
+    'borderInlineStartColor',
+    'borderInlineEndColor',
+    'borderBlockStyle',
+    'borderBlockStartStyle',
+    'borderBlockEndStyle',
+    'borderInlineStyle',
+    'borderInlineStartStyle',
+    'borderInlineEndStyle',
+    'borderTopStyle',
+    'borderRightStyle',
+    'borderBottomStyle',
+    'borderLeftStyle',
+  ])
+  const cases = STYLEX_VALUE_CASES.filter(({ property }) => properties.has(property))
+  assert.equal(cases.length, properties.size)
   for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })

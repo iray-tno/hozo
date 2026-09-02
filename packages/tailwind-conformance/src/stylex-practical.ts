@@ -161,6 +161,25 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'gridGap', value: '8px 12px' },
   { property: 'gridRowGap', value: 8 },
   { property: 'gridColumnGap', value: 12 },
+  { property: 'borderBlockWidth', value: 2 },
+  { property: 'borderBlockStartWidth', value: 2 },
+  { property: 'borderBlockEndWidth', value: 2 },
+  { property: 'borderInlineWidth', value: 2 },
+  { property: 'borderInlineStartWidth', value: 2 },
+  { property: 'borderInlineEndWidth', value: 2 },
+  { property: 'borderInlineColor', value: '#123456' },
+  { property: 'borderInlineStartColor', value: '#123456' },
+  { property: 'borderInlineEndColor', value: '#123456' },
+  { property: 'borderBlockStyle', value: 'dashed' },
+  { property: 'borderBlockStartStyle', value: 'dashed' },
+  { property: 'borderBlockEndStyle', value: 'dashed' },
+  { property: 'borderInlineStyle', value: 'dashed' },
+  { property: 'borderInlineStartStyle', value: 'dashed' },
+  { property: 'borderInlineEndStyle', value: 'dashed' },
+  { property: 'borderTopStyle', value: 'dashed' },
+  { property: 'borderRightStyle', value: 'dashed' },
+  { property: 'borderBottomStyle', value: 'dashed' },
+  { property: 'borderLeftStyle', value: 'dashed' },
 ] as const
 
 function jsValue(value: string | number): string {
@@ -294,6 +313,28 @@ function expandStylexShorthand(property: string, value: string): Array<[string, 
   }
   if (property === 'grid-row-gap') return [['row-gap', value]]
   if (property === 'grid-column-gap') return [['column-gap', value]]
+  if (
+    property === 'border-block-width' ||
+    property === 'border-block-style' ||
+    property === 'border-block-color'
+  ) {
+    const suffix = property.slice('border-block-'.length)
+    return [
+      [`border-block-start-${suffix}`, value],
+      [`border-block-end-${suffix}`, value],
+    ]
+  }
+  if (
+    property === 'border-inline-width' ||
+    property === 'border-inline-style' ||
+    property === 'border-inline-color'
+  ) {
+    const suffix = property.slice('border-inline-'.length)
+    return [
+      [`border-inline-start-${suffix}`, value],
+      [`border-inline-end-${suffix}`, value],
+    ]
+  }
   if (
     property === 'scroll-margin-block' ||
     property === 'scroll-margin-inline' ||
@@ -670,6 +711,7 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
       'gridColumnGap',
     ].includes(property),
   ),
+  borders: STYLEX_VALUE_CASES.filter(({ property }) => property.startsWith('border')),
   browser: STYLEX_VALUE_CASES.filter(({ property }) =>
     [
       'blockSize',
