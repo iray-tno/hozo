@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 166, covered: 166 },
+    values: { total: 175, covered: 175 },
     constructs: { total: 14, covered: 14 },
-    corpus: { total: 123, covered: 123 },
+    corpus: { total: 132, covered: 132 },
     silent: 0,
   })
 })
@@ -97,6 +97,36 @@ test('every accepted browser typography keyword agrees with official StyleX', ()
 
   for (const [property, values] of Object.entries(keywords)) {
     for (const value of values) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('advanced font controls agree with official StyleX for practical values', () => {
+  const values: Record<string, readonly (string | number)[]> = {
+    fontFeatureSettings: ['normal', '"kern"', '"kern" 1, "liga" off'],
+    fontLanguageOverride: ['normal', '"TRK"'],
+    fontPalette: ['normal', 'light', 'dark', 'brandPalette'],
+    fontSizeAdjust: ['none', 0.5],
+    fontSynthesis: ['none', 'weight', 'weight style small-caps position'],
+    fontVariantAlternates: [
+      'normal',
+      'historical-forms',
+      'stylistic(display)',
+      'styleset(display, compact)',
+    ],
+    fontVariantEastAsian: ['normal', 'jis78', 'traditional proportional-width ruby'],
+    fontVariationSettings: ['normal', '"wght" 650', '"wght" 650, "wdth" 90'],
+    textDecorationThickness: ['auto', 'from-font', 2, '25%'],
+  }
+
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
       assert.deepEqual(compareStylexValue({ property, value }), {
         property,
         value,

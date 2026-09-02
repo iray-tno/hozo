@@ -1196,8 +1196,8 @@
     {
       "name": "fontFeatureSettings",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fontKerning",
@@ -1208,8 +1208,8 @@
     {
       "name": "fontLanguageOverride",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fontOpticalSizing",
@@ -1220,8 +1220,8 @@
     {
       "name": "fontPalette",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fontSize",
@@ -1232,8 +1232,8 @@
     {
       "name": "fontSizeAdjust",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fontStretch",
@@ -1250,8 +1250,8 @@
     {
       "name": "fontSynthesis",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fontSynthesisPosition",
@@ -1286,8 +1286,8 @@
     {
       "name": "fontVariantAlternates",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fontVariantCaps",
@@ -1298,8 +1298,8 @@
     {
       "name": "fontVariantEastAsian",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fontVariantLigatures",
@@ -1322,8 +1322,8 @@
     {
       "name": "fontVariationSettings",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "fontWeight",
@@ -2786,8 +2786,8 @@
     {
       "name": "textDecorationThickness",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "textEmphasis",

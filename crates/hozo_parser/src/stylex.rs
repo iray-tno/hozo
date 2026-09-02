@@ -942,6 +942,7 @@ enum WebValueGrammar {
         minimum: f64,
     },
     LengthPercentage(&'static [&'static str]),
+    NonNegativeLengthPercentage(&'static [&'static str]),
     LengthList { minimum: usize, maximum: usize },
     SvgLength(&'static [&'static str]),
     Color,
@@ -957,6 +958,13 @@ enum WebValueGrammar {
     SvgDasharray,
     UrlOrNone,
     Time,
+    FontFeatureSettings,
+    FontLanguageOverride,
+    FontPalette,
+    FontSynthesis,
+    FontVariantAlternates,
+    FontVariantEastAsian,
+    FontVariationSettings,
 }
 
 fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'static str])> {
@@ -1221,6 +1229,35 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
                 maximum: 1.0,
             },
         )),
+        "fontFeatureSettings" => {
+            Some(("font-feature-settings", WebValueGrammar::FontFeatureSettings))
+        }
+        "fontLanguageOverride" => {
+            Some(("font-language-override", WebValueGrammar::FontLanguageOverride))
+        }
+        "fontPalette" => Some(("font-palette", WebValueGrammar::FontPalette)),
+        // StyleX 0.19 turns numeric length-like values into px even though the
+        // CSS property itself is unitless. Preserve that observable output.
+        "fontSizeAdjust" => Some((
+            "font-size-adjust",
+            WebValueGrammar::Length {
+                keywords: &["none"],
+                minimum: 0.0,
+            },
+        )),
+        "fontSynthesis" => Some(("font-synthesis", WebValueGrammar::FontSynthesis)),
+        "fontVariantAlternates" => Some((
+            "font-variant-alternates",
+            WebValueGrammar::FontVariantAlternates,
+        )),
+        "fontVariantEastAsian" => Some((
+            "font-variant-east-asian",
+            WebValueGrammar::FontVariantEastAsian,
+        )),
+        "fontVariationSettings" => Some((
+            "font-variation-settings",
+            WebValueGrammar::FontVariationSettings,
+        )),
         "marker" => Some(("marker", WebValueGrammar::UrlOrNone)),
         "markerEnd" => Some(("marker-end", WebValueGrammar::UrlOrNone)),
         "markerMid" => Some(("marker-mid", WebValueGrammar::UrlOrNone)),
@@ -1314,6 +1351,10 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         )),
         "transitionDelay" => Some(("transition-delay", WebValueGrammar::Time)),
         "animationDuration" => Some(("animation-duration", WebValueGrammar::Time)),
+        "textDecorationThickness" => Some((
+            "text-decoration-thickness",
+            WebValueGrammar::NonNegativeLengthPercentage(&["auto", "from-font"]),
+        )),
         _ => web_only_keyword_spec(property)
             .map(|(css_property, choices)| (css_property, WebValueGrammar::Keywords(choices))),
     }
@@ -1367,7 +1408,7 @@ fn web_length_number(value: &str) -> Option<f64> {
         return Some(0.0);
     }
     value
-        .trim_end_matches(|character: char| character.is_ascii_alphabetic())
+        .trim_end_matches(|character: char| character.is_ascii_alphabetic() || character == '%')
         .parse::<f64>()
         .ok()
         .filter(|number| number.is_finite())
@@ -1517,6 +1558,193 @@ fn web_url_or_none(value: &StaticValue) -> Option<String> {
         || (value.starts_with("url(")
             && value.ends_with(')')
             && !value.contains(['\n', '\r', ';', '{', '}'])))
+    .then(|| value.clone())
+}
+
+fn web_css_string(value: &str) -> bool {
+    let mut characters = value.chars();
+    let Some(quote @ ('\'' | '"')) = characters.next() else {
+        return false;
+    };
+    if value.len() < 2 || !value.ends_with(quote) {
+        return false;
+    }
+    let mut escaped = false;
+    for character in value[quote.len_utf8()..value.len() - quote.len_utf8()].chars() {
+        if matches!(character, '\n' | '\r' | '\0') {
+            return false;
+        }
+        if escaped {
+            escaped = false;
+        } else if character == '\\' {
+            escaped = true;
+        } else if character == quote {
+            return false;
+        }
+    }
+    !escaped
+}
+
+fn web_css_identifier(value: &str) -> bool {
+    let mut characters = value.chars();
+    let Some(first) = characters.next() else { return false };
+    let valid_start = first.is_ascii_alphabetic()
+        || first == '_'
+        || (first == '-'
+            && characters
+                .clone()
+                .next()
+                .is_some_and(|next| next.is_ascii_alphabetic() || matches!(next, '_' | '-')));
+    valid_start
+        && characters.all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
+        })
+}
+
+fn web_comma_groups(value: &str) -> Option<Vec<&str>> {
+    if value.contains([';', '{', '}', '\n', '\r']) {
+        return None;
+    }
+    let mut groups = Vec::new();
+    let mut start = 0;
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for (index, character) in value.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if character == '\\' && quote.is_some() {
+            escaped = true;
+            continue;
+        }
+        if let Some(active_quote) = quote {
+            if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '(' => depth += 1,
+            ')' => depth = depth.checked_sub(1)?,
+            ',' if depth == 0 => {
+                let group = value[start..index].trim();
+                if group.is_empty() {
+                    return None;
+                }
+                groups.push(group);
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    if depth != 0 || quote.is_some() || escaped {
+        return None;
+    }
+    let group = value[start..].trim();
+    if group.is_empty() {
+        return None;
+    }
+    groups.push(group);
+    Some(groups)
+}
+
+fn web_font_setting(value: &StaticValue, variation: bool) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "normal" {
+        return Some(value.clone());
+    }
+    for group in web_comma_groups(value)? {
+        let parts = web_components(group)?;
+        if parts.is_empty() || parts.len() > 2 || !web_css_string(&parts[0]) {
+            return None;
+        }
+        let tag = &parts[0][1..parts[0].len() - 1];
+        if tag.len() != 4 || !tag.bytes().all(|byte| (0x20..=0x7e).contains(&byte)) {
+            return None;
+        }
+        let Some(setting) = parts.get(1) else {
+            if variation {
+                return None;
+            }
+            continue;
+        };
+        if variation {
+            if !setting.parse::<f64>().is_ok_and(f64::is_finite) {
+                return None;
+            }
+        } else if !matches!(setting.as_str(), "on" | "off")
+            && setting.parse::<u64>().is_err()
+        {
+            return None;
+        }
+    }
+    Some(value.clone())
+}
+
+fn web_font_synthesis(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "none" {
+        return Some(value.clone());
+    }
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    let allowed = ["weight", "style", "small-caps", "position"];
+    (!parts.is_empty()
+        && parts.iter().all(|part| allowed.contains(part))
+        && parts.iter().enumerate().all(|(index, part)| !parts[..index].contains(part)))
+    .then(|| value.clone())
+}
+
+fn web_font_variant_alternates(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if matches!(value.as_str(), "normal" | "historical-forms") {
+        return Some(value.clone());
+    }
+    let parts = web_components(value)?;
+    let mut kinds = Vec::new();
+    for part in &parts {
+        let open = part.find('(')?;
+        let kind = &part[..open];
+        let inner = part[open + 1..].strip_suffix(')')?;
+        if !matches!(
+            kind,
+            "stylistic" | "styleset" | "character-variant" | "swash" | "ornaments"
+                | "annotation"
+        ) || kinds.contains(&kind)
+        {
+            return None;
+        }
+        let names = inner.split(',').map(str::trim).collect::<Vec<_>>();
+        if names.is_empty()
+            || names.iter().any(|name| !web_css_identifier(name))
+            || (!matches!(kind, "styleset" | "character-variant") && names.len() != 1)
+        {
+            return None;
+        }
+        kinds.push(kind);
+    }
+    Some(value.clone())
+}
+
+fn web_font_variant_east_asian(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "normal" {
+        return Some(value.clone());
+    }
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    let variants = ["jis78", "jis83", "jis90", "jis04", "simplified", "traditional"];
+    let widths = ["full-width", "proportional-width"];
+    let variant_count = parts.iter().filter(|part| variants.contains(part)).count();
+    let width_count = parts.iter().filter(|part| widths.contains(part)).count();
+    (!parts.is_empty()
+        && parts
+            .iter()
+            .all(|part| variants.contains(part) || widths.contains(part) || *part == "ruby")
+        && variant_count <= 1
+        && width_count <= 1
+        && parts.iter().filter(|part| **part == "ruby").count() <= 1)
     .then(|| value.clone())
 }
 
@@ -1835,6 +2063,19 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
             value if web_length_percentage(value) => length_value(value),
             _ => return None,
         },
+        WebValueGrammar::NonNegativeLengthPercentage(keywords) => match value {
+            StaticValue::String(value) if keywords.contains(&value.as_str()) => value.clone(),
+            StaticValue::Number(value) if value.is_finite() && *value >= 0.0 => {
+                format!("{}px", numeric_text(*value))
+            }
+            StaticValue::String(value)
+                if web_length_percentage_string(value)
+                    && web_length_number(value).is_some_and(|number| number >= 0.0) =>
+            {
+                value.clone()
+            }
+            _ => return None,
+        },
         WebValueGrammar::LengthList { minimum, maximum } => {
             web_length_list(value, minimum, maximum)?
         }
@@ -1867,6 +2108,21 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
             let seconds = stylex_transition_duration(value)? as f64 / 1000.0;
             format!("{seconds}s")
         }
+        WebValueGrammar::FontFeatureSettings => web_font_setting(value, false)?,
+        WebValueGrammar::FontLanguageOverride => {
+            let StaticValue::String(value) = value else { return None };
+            (value == "normal" || web_css_string(value)).then(|| value.clone())?
+        }
+        WebValueGrammar::FontPalette => {
+            let StaticValue::String(value) = value else { return None };
+            (matches!(value.as_str(), "normal" | "light" | "dark")
+                || web_css_identifier(value))
+            .then(|| value.clone())?
+        }
+        WebValueGrammar::FontSynthesis => web_font_synthesis(value)?,
+        WebValueGrammar::FontVariantAlternates => web_font_variant_alternates(value)?,
+        WebValueGrammar::FontVariantEastAsian => web_font_variant_east_asian(value)?,
+        WebValueGrammar::FontVariationSettings => web_font_setting(value, true)?,
     };
     Some(StyleProperty::WebOnly(css_property.to_string(), value))
 }
@@ -2321,10 +2577,13 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "contentVisibility" | "displayInside" | "displayList" | "displayOutside"
         | "dominantBaseline" | "emptyCells" | "fill" | "fillOpacity" | "fillRule"
         | "forcedColorAdjust"
-        | "fontKerning" | "fontOpticalSizing" | "fontStretch" | "fontSynthesisPosition"
+        | "fontFeatureSettings" | "fontKerning" | "fontLanguageOverride" | "fontOpticalSizing"
+        | "fontPalette" | "fontSizeAdjust" | "fontStretch" | "fontSynthesis"
+        | "fontSynthesisPosition"
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
-        | "fontVariantCaps" | "fontVariantLigatures" | "fontVariantNumeric"
-        | "fontVariantPosition" | "hyphens" | "imageRendering" | "inlineSize"
+        | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
+        | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
+        | "fontVariationSettings" | "hyphens" | "imageRendering" | "inlineSize"
         | "justifyItems" | "lineBreak" | "listStyleImage" | "listStylePosition"
         | "listStyleType" | "maxBlockSize" | "maxInlineSize"
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
@@ -2341,7 +2600,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
         | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
-        | "textDecorationSkipInk"
+        | "textDecorationSkipInk" | "textDecorationThickness"
         | "textJustify" | "textOrientation" | "textWrap" | "transitionDelay"
         | "animationDuration" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
         | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" => {
@@ -4943,17 +5202,29 @@ mod tests {
             const styles = stylex.create({
               exact: {
                 fontKerning: 'normal', fontOpticalSizing: 'auto', fontStretch: 'condensed',
+                fontFeatureSettings: '\"kern\" 1', fontLanguageOverride: '\"TRK\"',
+                fontPalette: 'dark', fontSizeAdjust: 0.5, fontSynthesis: 'weight style',
                 fontSynthesisPosition: 'none', fontSynthesisSmallCaps: 'none',
                 fontSynthesisStyle: 'none', fontSynthesisWeight: 'none',
-                fontVariantCaps: 'small-caps', fontVariantLigatures: 'none',
+                fontVariantAlternates: 'historical-forms', fontVariantCaps: 'small-caps',
+                fontVariantEastAsian: 'jis78 full-width', fontVariantLigatures: 'none',
                 fontVariantNumeric: 'tabular-nums', fontVariantPosition: 'super',
+                fontVariationSettings: '\"wght\" 650',
                 hyphens: 'auto', lineBreak: 'strict', textAlignLast: 'center',
-                textDecorationSkipInk: 'all', textJustify: 'inter-word',
+                textDecorationSkipInk: 'all', textDecorationThickness: '2px',
+                textJustify: 'inter-word',
                 textOrientation: 'upright', textWrap: 'balance'
               },
               wider: {
                 fontStretch: '75%',
-                fontVariantLigatures: 'common-ligatures no-discretionary-ligatures'
+                fontVariantLigatures: 'common-ligatures no-discretionary-ligatures',
+                fontFeatureSettings: '\"bad\" 1', fontLanguageOverride: 'TRK',
+                fontPalette: 'var(--palette)', fontSizeAdjust: -0.5,
+                fontSynthesis: 'weight weight',
+                fontVariantAlternates: 'styleset()',
+                fontVariantEastAsian: 'jis78 jis90',
+                fontVariationSettings: '\"wght\" bold',
+                textDecorationThickness: '-2px'
               }
             })
         "#,
@@ -4961,7 +5232,7 @@ mod tests {
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
             panic!("exact browser typography values were not lowerable")
         };
-        assert_eq!(entries.len(), 18);
+        assert_eq!(entries.len(), 27);
         assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
             matches!(property, StyleProperty::WebOnly(_, _))
         })));
@@ -4972,8 +5243,8 @@ mod tests {
             panic!("composed browser typography values should remain residual")
         };
         assert!(entries.is_empty());
-        assert_eq!(residual.len(), 2);
-        assert_eq!(gaps.len(), 2);
+        assert_eq!(residual.len(), 11);
+        assert_eq!(gaps.len(), 11);
     }
 
     #[test]
