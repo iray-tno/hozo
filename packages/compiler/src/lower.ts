@@ -18,10 +18,10 @@ import type { CompileDiagnostic, Compiler } from './index.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
 const HOZO_CORE_IMPORT_RE =
-  /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/typography)['"]\s*\n?/g
+  /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/semantics|@hozo\/typography)['"]\s*\n?/g
 
 /**
- * The names `@hozo/core` and `@hozo/typography` export. A lowered element never mentions these
+ * The names `@hozo/core`, `@hozo/semantics`, and `@hozo/typography` export. A lowered element never mentions these
  * (it becomes `div`/`span`/`button`), so one surviving in the output came
  * through `Child::Verbatim` -- something the compiler carried rather than
  * understood.
@@ -34,6 +34,15 @@ const HOZO_PRIMITIVES = [
   'Section',
   'Article',
   'Nav',
+  'Main',
+  'Header',
+  'Footer',
+  'Aside',
+  'Search',
+  'Figure',
+  'Figcaption',
+  'Time',
+  'Address',
   'List',
   'ListItem',
   'Pressable',

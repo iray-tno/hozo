@@ -272,6 +272,15 @@ fn primitive_name(name: &str) -> Option<&'static str> {
         "ScrollView" => Some("ScrollView"),
         "FlatList" => Some("FlatList"),
         "Svg" => Some("Svg"),
+        "Main" => Some("Main"),
+        "Header" => Some("Header"),
+        "Footer" => Some("Footer"),
+        "Aside" => Some("Aside"),
+        "Search" => Some("Search"),
+        "Figure" => Some("Figure"),
+        "Figcaption" => Some("Figcaption"),
+        "Time" => Some("Time"),
+        "Address" => Some("Address"),
         "Strong" => Some("Strong"),
         "Emphasis" => Some("Emphasis"),
         "Underline" => Some("Underline"),
@@ -574,6 +583,15 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "FlatList" => Some(Primitive::FlatList),
         // The root, which is both the element and the namespace object.
         "Svg" => Some(Primitive::Svg(SvgElement::Root)),
+        "Main" => Some(Primitive::Main),
+        "Header" => Some(Primitive::Header),
+        "Footer" => Some(Primitive::Footer),
+        "Aside" => Some(Primitive::Aside),
+        "Search" => Some(Primitive::Search),
+        "Figure" => Some(Primitive::Figure),
+        "Figcaption" => Some(Primitive::Figcaption),
+        "Time" => Some(Primitive::Time),
+        "Address" => Some(Primitive::Address),
         "Strong" => Some(Primitive::Strong),
         "Emphasis" => Some(Primitive::Emphasis),
         "Underline" => Some(Primitive::Underline),
@@ -1273,6 +1291,7 @@ fn validate_semantic_children(
                     | Primitive::Button
                     | Primitive::TextInput
                     | Primitive::Image
+                    | Primitive::Time
                     | Primitive::Strong
                     | Primitive::Emphasis
                     | Primitive::Underline

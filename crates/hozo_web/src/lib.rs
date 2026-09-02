@@ -1939,6 +1939,33 @@ export function Login() {
     }
 
     #[test]
+    fn landmark_primitives_lower_to_semantic_html_elements() {
+        let source = r#"
+            import { Main, Header, Footer, Aside, Search, Figure, Figcaption, Time, Address } from '@hozo/core'
+            const el = (
+                <Main>
+                    <Header>Banner</Header>
+                    <Aside>Sidebar</Aside>
+                    <Search>Searchbox</Search>
+                    <Figure>
+                        <Figcaption>Caption</Figcaption>
+                    </Figure>
+                    <Time>2026-09-02</Time>
+                    <Address>Contact</Address>
+                    <Footer>Footer</Footer>
+                </Main>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert_eq!(
+            output.jsx,
+            "<main><header>Banner</header><aside>Sidebar</aside><search>Searchbox</search><figure><figcaption>Caption</figcaption></figure><time>2026-09-02</time><address>Contact</address><footer>Footer</footer></main>"
+        );
+    }
+
+    #[test]
     fn dynamic_heading_level_uses_the_typed_fallback_component() {
         let source = r#"
             import { Heading } from '@hozo/core'

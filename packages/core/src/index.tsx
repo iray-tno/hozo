@@ -741,6 +741,18 @@ export {
   type TreeNode,
 } from '@hozo/a11y'
 export {
+  Address,
+  Aside,
+  Figcaption,
+  Figure,
+  Footer,
+  Header,
+  Main,
+  Search,
+  Time,
+  type TimeProps,
+} from '@hozo/semantics'
+export {
   Code,
   Del,
   Emphasis,

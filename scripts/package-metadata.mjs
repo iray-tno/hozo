@@ -70,6 +70,10 @@ const PACKAGES = {
     exports: { '.': './dist/index.js' },
     keywords: ['react-native', 'react', 'components', 'accessibility', 'universal'],
   },
+  semantics: {
+    exports: { '.': './dist/index.js' },
+    keywords: ['react-native', 'react', 'semantics', 'landmarks', 'accessibility', 'universal'],
+  },
   typography: {
     exports: { '.': './dist/index.js' },
     native: true,

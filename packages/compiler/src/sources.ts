@@ -41,7 +41,12 @@ import { foreignPrimitiveNames } from './index.ts'
  * from. Nothing had to change in the compiler to support Expo -- only the
  * gate in front of it.
  */
-export const DEFAULT_PRIMITIVE_SOURCES = ['@hozo/core', '@hozo/typography', 'react-native'] as const
+export const DEFAULT_PRIMITIVE_SOURCES = [
+  '@hozo/core',
+  '@hozo/semantics',
+  '@hozo/typography',
+  'react-native',
+] as const
 
 /**
  * Primitive-named bindings this file imports from a module not on the list.

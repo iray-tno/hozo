@@ -321,6 +321,24 @@ pub enum Primitive {
     /// A navigation landmark: `<nav>` on Web and a role-bearing `View` on
     /// React Native.
     Nav,
+    /// The primary content landmark: `<main>` on Web and `role="main"` `View` on React Native.
+    Main,
+    /// A landmark header/banner: `<header>` on Web and `role="banner"` `View` on React Native.
+    Header,
+    /// A landmark footer/contentinfo: `<footer>` on Web and `role="contentinfo"` `View` on React Native.
+    Footer,
+    /// A complementary region/sidebar: `<aside>` on Web and `role="complementary"` `View` on React Native.
+    Aside,
+    /// A search landmark container: `<search>` on Web and `role="search"` `View` on React Native.
+    Search,
+    /// A figure container: `<figure>` on Web and `role="figure"` `View` on React Native.
+    Figure,
+    /// A figure caption: `<figcaption>` on Web and `Text` on React Native.
+    Figcaption,
+    /// A machine-readable date/time representation: `<time>` on Web and `Text` on React Native.
+    Time,
+    /// Contact/address semantics: `<address>` on Web and `View` on React Native.
+    Address,
     /// A static semantic list: `<ul>`/`<ol>` on Web and a list-role
     /// `View` on React Native. Data-heavy lists remain `FlatList`.
     List,
