@@ -59,26 +59,25 @@ for (const pkg of packages) {
     pkg.testPattern,
   ]
 
-  const testRes = spawnSync('node', nodeArgs, {
+  const result = spawnSync('node', nodeArgs, {
     cwd: pkg.dir,
     stdio: 'inherit',
     shell: process.platform === 'win32',
   })
 
-  if (testRes.status !== 0) {
-    process.stderr.write(`Tests failed in ${pkg.name}\n`)
-    totalFailed += 1
-  } else {
-    try {
-      const xml = readFileSync(destFile, 'utf8')
-      writeFileSync(destFile, normalizeJUnit(xml, 'typescript'), 'utf8')
-    } catch {}
+  if (result.status !== 0) {
+    totalFailed++
+  }
+
+  try {
+    const raw = readFileSync(destFile, 'utf8')
+    writeFileSync(destFile, normalizeJUnit(raw, 'typescript'), 'utf8')
+  } catch (err) {
+    process.stderr.write(`Failed to normalize ${destFile}: ${err.message}\n`)
   }
 }
 
+process.stdout.write(`\nAll tests completed. Total packages failed: ${totalFailed}\n`)
 if (totalFailed > 0) {
-  process.stdout.write(`${totalFailed} package(s) had test failures.\n`)
   process.exitCode = 1
-} else {
-  process.stdout.write(`All package tests passed and JUnit reports generated.\n`)
 }

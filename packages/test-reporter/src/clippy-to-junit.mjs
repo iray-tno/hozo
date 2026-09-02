@@ -39,8 +39,8 @@ if (failures === 0) {
 }
 
 process.stdout.write(`<?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="Clippy" tests="${tests}" failures="${failures}">
-  <testsuite name="Clippy" tests="${tests}" failures="${failures}">
+<testsuites name="Cargo Clippy" tests="${tests}" failures="${failures}" errors="0">
+  <testsuite name="Cargo Clippy" tests="${tests}" failures="${failures}" errors="0">
 ${cases}  </testsuite>
 </testsuites>
 `)

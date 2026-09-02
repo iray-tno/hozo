@@ -39,21 +39,18 @@ if (failures === 0) {
   for (const d of diags) {
     const file = pathOf(d.location)
     const line = d.location?.start?.line ?? 1
-    const msg = d.message ?? d.description ?? 'lint violation'
-    const sev = d.severity ?? 'warning'
-    // d.category is biome's rule id (e.g. "lint/suspicious/noDebugger", or
-    // "format" for formatting drift) — a much stabler grouping key than a
-    // slice of the free-text message.
-    const classname = d.category ?? msg.slice(0, 80)
-    cases += `    <testcase name="${esc(file)}:${line}" classname="${esc(classname)}">\n`
-    cases += `      <failure message="${esc(msg)}" type="${esc(sev)}">${esc(msg)}\n  at ${esc(file)}:${line}</failure>\n`
+    const col = d.location?.start?.column ?? 1
+    const code = d.category ?? 'lint'
+    const msg = d.message?.[0]?.content ?? 'Biome diagnostic'
+    cases += `    <testcase name="${esc(file)}:${line}" classname="${esc(code)}">\n`
+    cases += `      <failure message="${esc(msg)}" type="${esc(d.severity ?? 'error')}">${esc(msg)}\n  at ${esc(file)}:${line}:${col}</failure>\n`
     cases += `    </testcase>\n`
   }
 }
 
 process.stdout.write(`<?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="Biome" tests="${tests}" failures="${failures}">
-  <testsuite name="Biome" tests="${tests}" failures="${failures}">
+<testsuites name="Biome" tests="${tests}" failures="${failures}" errors="0">
+  <testsuite name="Biome" tests="${tests}" failures="${failures}" errors="0">
 ${cases}  </testsuite>
 </testsuites>
 `)

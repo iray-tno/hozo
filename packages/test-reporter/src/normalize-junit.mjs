@@ -63,23 +63,22 @@ export function normalizeJUnit(xml, reportType) {
   for (const testsuite of document.getElementsByTagName('testsuite')) {
     testsuite.setAttribute('name', suiteName)
   }
-  for (const testsuites of document.getElementsByTagName('testsuites')) {
-    testsuites.setAttribute('name', suiteName)
+
+  const root = document.documentElement
+  if (root.tagName.toLowerCase() === 'testsuites') {
+    root.setAttribute('name', suiteName)
   }
 
-  return `${new XMLSerializer().serializeToString(document)}\n`
+  return new XMLSerializer().serializeToString(document)
 }
 
-function run() {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [reportType, filePath] = process.argv.slice(2)
   if (!reportType || !filePath) {
-    process.stderr.write('Usage: node scripts/normalize-junit.mjs <typescript|rust> <junit.xml>\n')
-    process.exitCode = 1
-    return
+    console.error('Usage: normalize-junit <rust|typescript> <path-to-junit.xml>')
+    process.exit(1)
   }
 
   const xml = readFileSync(filePath, 'utf8')
   writeFileSync(filePath, normalizeJUnit(xml, reportType), 'utf8')
 }
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) run()

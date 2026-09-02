@@ -19,16 +19,14 @@
     "audit": "cargo audit && pnpm audit --audit-level critical",
     "audit:cargo": "cargo audit",
     "audit:pnpm": "pnpm audit --audit-level critical",
-    "test:junit": "node scripts/run-tests-junit.mjs",
-    "report:allure": "allure generate -o apps/landing/dist/reports junit-reports"
+    "test:junit": "node packages/test-reporter/src/run-tests-junit.mjs",
+    "report:allure": "pnpm --filter @hozo/test-reporter exec allure generate -o apps/landing/dist/reports junit-reports"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",
     "@changesets/changelog-github": "^1.0.0",
     "@changesets/cli": "^3.0.0",
     "@types/node": "26.2.0",
-    "@xmldom/xmldom": "^0.9.12",
-    "allure": "^3.16.0",
     "aria-query": "^5.3.2",
     "tailwindcss": "^4.3.3",
     "turbo": "^2.3.0",
