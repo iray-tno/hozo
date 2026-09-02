@@ -69,6 +69,9 @@ const NATIVE_EQUIVALENT_PROPERTIES = new Set([
   'gridColumnGap',
   'gridGap',
   'gridRowGap',
+  'rotate',
+  'scale',
+  'translate',
 ])
 
 function repoRoot(): string {

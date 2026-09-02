@@ -1201,6 +1201,103 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   assert.match(native.styles, /transformOrigin: 'left top'/)
 })
 
+test('StyleX standalone transforms match official CSS and compose on Native', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  root: {
+    scale: '0.9 110%',
+    rotate: '10deg',
+    translate: '12px 25%',
+  },
+})
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+  const official = transformSync(source, {
+    filename: '/app/StandaloneTransforms.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as { stylex?: [string, { ltr: string }, number][] }
+  const officialCss = (metadata.stylex ?? []).map(([, css]) => css.ltr).join('\n')
+  assert.match(officialCss, /scale:\.9 110%/)
+  assert.match(officialCss, /rotate:10deg/)
+  assert.match(officialCss, /translate:12px 25%/)
+
+  const web = compile(source)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.match(web.css, /scale: 0\.9 110%/)
+  assert.match(web.css, /rotate: 10deg/)
+  assert.match(web.css, /translate: 12px 25%/)
+
+  const native = compileNative(source)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.match(
+    native.styles,
+    /transform: \[\{ translateX: 12 \}, \{ translateY: '25%' \}, \{ rotate: '10deg' \}, \{ scaleX: 0\.9 \}, \{ scaleY: 1\.1 \}\]/,
+  )
+})
+
+test('conditional StyleX standalone transforms reuse the Native transition runtime', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { Pressable } from '@hozo/core'
+const styles = stylex.create({
+  root: {
+    transitionProperty: 'transform',
+    ':hover': { scale: 0.95, translate: '4px 0px' },
+  },
+})
+export const Card = () => (
+  <Pressable accessibilityRole="button" {...stylex.props(styles.root)} />
+)
+`
+  const native = compileNative(source)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.match(native.jsx, /HozoPressable/)
+  assert.match(native.jsx, /transform: true/)
+  assert.match(native.jsx, /hovered && hozoStyles\.hozo0_hover/)
+  assert.match(
+    native.styles,
+    /transform: \[\{ translateX: 4 \}, \{ translateY: 0 \}, \{ scale: 0\.95 \}\]/,
+  )
+})
+
+test('StyleX and Tailwind standalone scale retain JSX last-wins order', () => {
+  const component = (attributes: string, native = false) => {
+    const input = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({ root: { scale: 0.9 } })
+export const Card = () => <View ${attributes} />
+`
+    return (native ? compileNative(input) : compile(input))[0]
+  }
+
+  const stylexWeb = component(`className="scale-50" {...stylex.props(styles.root)}`)
+  assert.ok(stylexWeb)
+  assert.match(stylexWeb.css, /scale: 0\.9/)
+  assert.doesNotMatch(stylexWeb.css, /scale: 50% 50%/)
+
+  const tailwindWeb = component(`{...stylex.props(styles.root)} className="scale-50"`)
+  assert.ok(tailwindWeb)
+  assert.match(tailwindWeb.css, /scale: 50% 50%/)
+  assert.doesNotMatch(tailwindWeb.css, /scale: 0\.9/)
+
+  const stylexNative = component(`className="scale-50" {...stylex.props(styles.root)}`, true)
+  assert.ok(stylexNative)
+  assert.match(stylexNative.styles, /transform: \[\{ scale: 0\.9 \}\]/)
+  assert.doesNotMatch(stylexNative.styles, /scale: 0\.5/)
+
+  const tailwindNative = component(`{...stylex.props(styles.root)} className="scale-50"`, true)
+  assert.ok(tailwindNative)
+  assert.match(tailwindNative.styles, /transform: \[\{ scale: 0\.5 \}\]/)
+  assert.doesNotMatch(tailwindNative.styles, /scale: 0\.9/)
+})
+
 test('StyleX and Tailwind transform declarations retain JSX last-wins order', () => {
   const component = (attributes: string, native = false) => {
     const input = `import * as stylex from '@stylexjs/stylex'

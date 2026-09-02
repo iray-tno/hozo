@@ -193,11 +193,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **325/522 property names
-(62.3%)**, including **129/129 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **328/522 property names
+(62.8%)**, including **132/132 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **17/17 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **179/375 (47.7%)**. The
+independently at **179/372 (48.1%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -214,14 +214,21 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **190/190 (100%)** representative values, **14/14
-(100%)** common authoring constructs, and **147/147 (100%)** declarations after
+corpus currently measures **193/193 (100%)** representative values, **14/14
+(100%)** common authoring constructs, and **150/150 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
 and Native either lowers faithfully or follows the entry's explicit Web-only policy.
 Unsupported cases may remain official residuals, but do not earn coverage.
 The current corpus has zero silent failures.
+
+StyleX's standalone `translate`, `rotate`, and `scale` properties use typed IR
+instead of becoming Web-only CSS strings. Web preserves their authored
+component count and agrees with the official atomic CSS; Native composes them
+into its transform array in CSS's fixed translate-rotate-scale order. The
+portable subset covers one- or two-axis px/% translation, degree rotation, and
+one- to three-axis numeric/percentage scale. Wider syntax remains residual.
 
 The static construct slice now flattens recursive `stylex.props` arrays,
 preserves logical and ternary guards, and expands module-local `const` object

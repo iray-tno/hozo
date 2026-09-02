@@ -3018,6 +3018,7 @@ fn negated_angle(angle: Angle) -> Option<Angle> {
 fn negated_scale(scale: Scale) -> Option<Scale> {
     match scale {
         Scale::Percent(value) => Some(Scale::Percent(signed(value, true))),
+        Scale::Ratio(value) => Some(Scale::Ratio(signed(value, true))),
         Scale::Css(_) => None,
     }
 }

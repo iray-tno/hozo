@@ -17,14 +17,37 @@ pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<
         StyleProperty::RotateX(_) | StyleProperty::RotateY(_) | StyleProperty::RotateZ(_)
             | StyleProperty::SkewX(_) | StyleProperty::SkewY(_)
     ));
-    for prop in props {
-        if let StyleProperty::TranslateX(d) = prop {
-            parts.push(format!("{{ translateX: {} }}", dimension_value(d, theme)));
+    let last_authored_translate = props
+        .iter()
+        .rposition(|property| matches!(property, StyleProperty::Translate(_)));
+    let last_translate_axes = props.iter().rposition(|property| {
+        matches!(
+            property,
+            StyleProperty::TranslateX(_) | StyleProperty::TranslateY(_) | StyleProperty::TranslateZ(_)
+        )
+    });
+    if last_authored_translate > last_translate_axes {
+        if let Some(values) = props.iter().rev().find_map(|property| match property {
+            StyleProperty::Translate(values) => Some(values),
+            _ => None,
+        }) {
+            if let Some(value) = values.first() {
+                parts.push(format!("{{ translateX: {} }}", dimension_value(value, theme)));
+            }
+            if let Some(value) = values.get(1) {
+                parts.push(format!("{{ translateY: {} }}", dimension_value(value, theme)));
+            }
         }
-    }
-    for prop in props {
-        if let StyleProperty::TranslateY(d) = prop {
-            parts.push(format!("{{ translateY: {} }}", dimension_value(d, theme)));
+    } else {
+        for prop in props {
+            if let StyleProperty::TranslateX(d) = prop {
+                parts.push(format!("{{ translateX: {} }}", dimension_value(d, theme)));
+            }
+        }
+        for prop in props {
+            if let StyleProperty::TranslateY(d) = prop {
+                parts.push(format!("{{ translateY: {} }}", dimension_value(d, theme)));
+            }
         }
     }
     for prop in props {
@@ -58,27 +81,63 @@ pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<
     // Z-axis utility carries Scale3d, so split all axes in that case and
     // put Z on the matrix diagonal. Keeping ordinary uniform scale as one
     // `scale` entry avoids applying its Z component twice.
-    let axis = |f: fn(&StyleProperty) -> Option<f64>| props.iter().find_map(f);
-    let x = axis(scale_x);
-    let y = axis(scale_y);
-    let z = axis(scale_z);
-    let explicit_z = props.iter().any(|p| matches!(p, StyleProperty::Scale3d));
-    match (x, y, explicit_z) {
-        (Some(x), Some(y), false) if x == y => parts.push(format!("{{ scale: {x} }}")),
-        _ => {
-            if let Some(x) = x {
-                parts.push(format!("{{ scaleX: {x} }}"));
-            }
-            if let Some(y) = y {
-                parts.push(format!("{{ scaleY: {y} }}"));
+    let last_authored_scale = props
+        .iter()
+        .rposition(|property| matches!(property, StyleProperty::Scale(_)));
+    let last_scale_axes = props.iter().rposition(|property| {
+        matches!(
+            property,
+            StyleProperty::ScaleX(_)
+                | StyleProperty::ScaleY(_)
+                | StyleProperty::ScaleZ(_)
+                | StyleProperty::Scale3d
+        )
+    });
+    if last_authored_scale > last_scale_axes {
+        if let Some(values) = props.iter().rev().find_map(|property| match property {
+            StyleProperty::Scale(values) => Some(values),
+            _ => None,
+        }) {
+            let ratios: Vec<_> = values.iter().filter_map(|value| value.ratio()).collect();
+            match ratios.as_slice() {
+                [scale] => parts.push(format!("{{ scale: {scale} }}")),
+                [x, y] => {
+                    parts.push(format!("{{ scaleX: {x} }}"));
+                    parts.push(format!("{{ scaleY: {y} }}"));
+                }
+                [x, y, z] => {
+                    parts.push(format!("{{ scaleX: {x} }}"));
+                    parts.push(format!("{{ scaleY: {y} }}"));
+                    parts.push(format!(
+                        "{{ matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, {z}, 0, 0, 0, 0, 1] }}"
+                    ));
+                }
+                _ => {}
             }
         }
-    }
-    if explicit_z {
-        if let Some(z) = z {
-            parts.push(format!(
-                "{{ matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, {z}, 0, 0, 0, 0, 1] }}"
-            ));
+    } else {
+        let axis = |f: fn(&StyleProperty) -> Option<f64>| props.iter().find_map(f);
+        let x = axis(scale_x);
+        let y = axis(scale_y);
+        let z = axis(scale_z);
+        let explicit_z = props.iter().any(|p| matches!(p, StyleProperty::Scale3d));
+        match (x, y, explicit_z) {
+            (Some(x), Some(y), false) if x == y => parts.push(format!("{{ scale: {x} }}")),
+            _ => {
+                if let Some(x) = x {
+                    parts.push(format!("{{ scaleX: {x} }}"));
+                }
+                if let Some(y) = y {
+                    parts.push(format!("{{ scaleY: {y} }}"));
+                }
+            }
+        }
+        if explicit_z {
+            if let Some(z) = z {
+                parts.push(format!(
+                    "{{ matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, {z}, 0, 0, 0, 0, 1] }}"
+                ));
+            }
         }
     }
     // CSS applies the authored transform list after its standalone
