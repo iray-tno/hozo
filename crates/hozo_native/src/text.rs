@@ -651,4 +651,47 @@ mod tests {
         // what must not appear is the ratio folded against it.
         assert!(!output.styles.contains("lineHeight: 22.5"), "{}", output.styles);
     }
+
+    #[test]
+    fn relative_typography_lowers_font_size_from_parent_text() {
+        let source = r#"
+            import { Text } from '@hozo/core'
+            import { Sub, Sup, Small } from '@hozo/typography'
+            const el = (
+              <Text className="text-base">
+                H<Sub>2</Sub>O
+                x<Sup>2</Sup>
+                <Small>fine print</Small>
+              </Text>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        // text-base is 16px:
+        // Sub/Sup = 16 * 0.75 = 12px
+        // Small = 16 * 0.85 = 13.6 -> round = 14px
+        assert!(output.styles.contains("fontSize: 12,"), "{}", output.styles);
+        assert!(output.styles.contains("fontSize: 14,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn relative_typography_does_not_guess_font_size_when_parent_is_unresolved() {
+        let source = r#"
+            import { Text } from '@hozo/core'
+            import { Sub } from '@hozo/typography'
+            const el = (
+              <Text>
+                H<Sub>2</Sub>O
+              </Text>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        // Without static parent font size, compiler does not invent arbitrary approximations
+        assert!(!output.styles.contains("fontSize:"), "{}", output.styles);
+    }
 }

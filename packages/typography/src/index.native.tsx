@@ -52,11 +52,11 @@ export function Strikethrough({ style, ...props }: TypographyNativeProps) {
 export const Del = Strikethrough
 
 export function Sub({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ fontSize: '0.75em' }, style]} {...props} />
+  return <Text style={[{ fontSize: 11 }, style]} {...props} />
 }
 
 export function Sup({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ fontSize: '0.75em' }, style]} {...props} />
+  return <Text style={[{ fontSize: 11 }, style]} {...props} />
 }
 
 export function Code({ style, ...props }: TypographyNativeProps) {
@@ -64,7 +64,7 @@ export function Code({ style, ...props }: TypographyNativeProps) {
 }
 
 export function Small({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ fontSize: '0.85em', opacity: 0.8 }, style]} {...props} />
+  return <Text style={[{ fontSize: 12, opacity: 0.8 }, style]} {...props} />
 }
 
 export function Mark({ style, ...props }: TypographyNativeProps) {

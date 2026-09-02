@@ -62,6 +62,7 @@ pub(super) fn render_node(
     // renders at the default size on device while looking right on Web --
     // the silent divergence this backend exists to avoid.
     inherited: &[StyleDeclaration],
+    parent_font_size: Option<f64>,
     // Styles an ancestor wrote for this element with `*:` or `**:`.
     from_ancestor: FromAncestor,
     source: &str,
@@ -288,6 +289,18 @@ pub(super) fn render_node(
     // A `Text` is where inheritance stops: React Native takes over from
     // here, so its descendants need nothing from the compiler. What it
     // Semantic typography default styles on Native:
+    let find_base_font_size = || -> Option<f64> {
+        let find = |list: &[StyleDeclaration]| {
+            list.iter().rev().find_map(|d| match &d.property {
+                StyleProperty::FontSize(Length::Px(px)) if d.condition == Condition::Always => {
+                    Some(*px)
+                }
+                _ => None,
+            })
+        };
+        find(&style).or_else(|| find(inherited)).or(parent_font_size)
+    };
+
     let semantic_defaults: Vec<StyleDeclaration> = match node.primitive {
         Primitive::Strong => vec![StyleDeclaration {
             property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
@@ -309,6 +322,36 @@ pub(super) fn render_node(
             property: StyleProperty::FontFamily("monospace".to_string()),
             condition: Condition::Always,
         }],
+        Primitive::Sub => {
+            let mut defs = Vec::new();
+            if let Some(base) = find_base_font_size() {
+                defs.push(StyleDeclaration {
+                    property: StyleProperty::FontSize(Length::Px((base * 0.75).round())),
+                    condition: Condition::Always,
+                });
+            }
+            defs
+        }
+        Primitive::Sup => {
+            let mut defs = Vec::new();
+            if let Some(base) = find_base_font_size() {
+                defs.push(StyleDeclaration {
+                    property: StyleProperty::FontSize(Length::Px((base * 0.75).round())),
+                    condition: Condition::Always,
+                });
+            }
+            defs
+        }
+        Primitive::Small => {
+            let mut defs = Vec::new();
+            if let Some(base) = find_base_font_size() {
+                defs.push(StyleDeclaration {
+                    property: StyleProperty::FontSize(Length::Px((base * 0.85).round())),
+                    condition: Condition::Always,
+                });
+            }
+            defs
+        }
         _ => Vec::new(),
     };
 
@@ -357,6 +400,17 @@ pub(super) fn render_node(
     } else {
         style.iter().cloned().partition(|d| is_text_property(&d.property))
     };
+    // Ambient font size for child relative typography:
+    let current_font_size = style
+        .iter()
+        .rev()
+        .find_map(|d| match &d.property {
+            StyleProperty::FontSize(Length::Px(px)) if d.condition == Condition::Always => {
+                Some(*px)
+            }
+            _ => None,
+        })
+        .or(parent_font_size);
     // Passed to every child, and to the `Text` wrapper a raw string gets.
     // The element's own come after what it inherited, for the same
     // last-wins reason.
@@ -830,6 +884,7 @@ pub(super) fn render_node(
                     grid.as_ref().and_then(|grid| grid.row_track_count),
                     theme,
                     &descend,
+                    current_font_size,
                     FromAncestor { direct: &to_children, all: &descendants },
                     source,
                     allocator,
