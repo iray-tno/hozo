@@ -207,6 +207,37 @@ fn article_and_navigation_keep_roles_on_native() {
 }
 
 #[test]
+fn landmark_primitives_lower_to_native_views_with_roles() {
+    let source = r#"
+            import { Main, Header, Footer, Aside, Search, Figure, Figcaption, Time, Address } from '@hozo/core'
+            const el = (
+                <Main>
+                    <Header>Banner</Header>
+                    <Aside>Sidebar</Aside>
+                    <Search>Search</Search>
+                    <Figure>
+                        <Figcaption>Caption</Figcaption>
+                    </Figure>
+                    <Time>2026-09-02</Time>
+                    <Address>Location</Address>
+                    <Footer>Footer</Footer>
+                </Main>
+            )
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("<View role=\"main\">"));
+    assert!(output.jsx.contains("<View role=\"banner\"><Text>Banner</Text></View>"));
+    assert!(output.jsx.contains("<View role=\"complementary\"><Text>Sidebar</Text></View>"));
+    assert!(output.jsx.contains("<View role=\"search\"><Text>Search</Text></View>"));
+    assert!(output.jsx.contains("<View role=\"figure\"><Text>Caption</Text></View>"));
+    assert!(output.jsx.contains("<Text>2026-09-02</Text>"));
+    assert!(output.jsx.contains("<View><Text>Location</Text></View>"));
+    assert!(output.jsx.contains("<View role=\"contentinfo\"><Text>Footer</Text></View>"));
+}
+
+#[test]
 fn static_list_and_items_keep_native_roles() {
     let source = r#"
             import { List, ListItem } from '@hozo/core'

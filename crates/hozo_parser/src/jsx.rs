@@ -272,6 +272,15 @@ fn primitive_name(name: &str) -> Option<&'static str> {
         "ScrollView" => Some("ScrollView"),
         "FlatList" => Some("FlatList"),
         "Svg" => Some("Svg"),
+        "Main" => Some("Main"),
+        "Header" => Some("Header"),
+        "Footer" => Some("Footer"),
+        "Aside" => Some("Aside"),
+        "Search" => Some("Search"),
+        "Figure" => Some("Figure"),
+        "Figcaption" => Some("Figcaption"),
+        "Time" => Some("Time"),
+        "Address" => Some("Address"),
         _ => None,
     }
 }
@@ -562,6 +571,15 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "FlatList" => Some(Primitive::FlatList),
         // The root, which is both the element and the namespace object.
         "Svg" => Some(Primitive::Svg(SvgElement::Root)),
+        "Main" => Some(Primitive::Main),
+        "Header" => Some(Primitive::Header),
+        "Footer" => Some(Primitive::Footer),
+        "Aside" => Some(Primitive::Aside),
+        "Search" => Some(Primitive::Search),
+        "Figure" => Some(Primitive::Figure),
+        "Figcaption" => Some(Primitive::Figcaption),
+        "Time" => Some(Primitive::Time),
+        "Address" => Some(Primitive::Address),
         _ => None,
     }
 }
@@ -1244,7 +1262,7 @@ fn validate_semantic_children(
         let allowed = match parent {
             Primitive::Paragraph | Primitive::Heading => matches!(
                 child.primitive,
-                Primitive::Text | Primitive::Link | Primitive::Button | Primitive::TextInput | Primitive::Image
+                Primitive::Text | Primitive::Link | Primitive::Button | Primitive::TextInput | Primitive::Image | Primitive::Time
             ),
             Primitive::List => child.primitive == Primitive::ListItem,
             _ => true,

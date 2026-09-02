@@ -87,6 +87,17 @@ pub(super) enum TextReach {
     None,
 }
 
+pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
+    matches!(
+        primitive,
+        Primitive::Text
+            | Primitive::Paragraph
+            | Primitive::Heading
+            | Primitive::Figcaption
+            | Primitive::Time
+    )
+}
+
 /// Where a text style handed down from `node` could land.
 ///
 /// Stops at a `Text`, because that is where React Native's own inheritance
@@ -98,7 +109,7 @@ pub(super) fn text_reach(node: &Node) -> TextReach {
         match child {
             hozo_ir::Child::Text(_) => return TextReach::Certain,
             hozo_ir::Child::Node(child_node) => {
-                if matches!(child_node.primitive, Primitive::Text | Primitive::Paragraph | Primitive::Heading) {
+                if is_text_primitive(child_node.primitive) {
                     return TextReach::Certain;
                 }
                 match text_reach(child_node) {
@@ -109,7 +120,7 @@ pub(super) fn text_reach(node: &Node) -> TextReach {
             }
             hozo_ir::Child::Verbatim { nested, .. } => {
                 if nested.iter().any(|n| {
-                    matches!(n.node.primitive, Primitive::Text | Primitive::Paragraph | Primitive::Heading)
+                    is_text_primitive(n.node.primitive)
                         || text_reach(&n.node) == TextReach::Certain
                 }) {
                     return TextReach::Certain;
@@ -267,7 +278,7 @@ pub(super) fn caret_only_reason() -> String {
 pub(super) fn truncation_props(node: &Node) -> Option<Vec<(&'static str, String)>> {
     // `numberOfLines` exists on Text alone; on a View there's nothing to
     // put it on, so truncation there really is unsupported.
-    if !matches!(node.primitive, Primitive::Text | Primitive::Paragraph | Primitive::Heading) {
+    if !is_text_primitive(node.primitive) {
         return None;
     }
     let has = |want: &StyleProperty| node.style.iter().any(|d| d.property == *want);
