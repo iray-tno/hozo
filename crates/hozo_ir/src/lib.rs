@@ -154,6 +154,14 @@ pub enum DiagnosticCode {
     /// that cannot be depended on. See
     /// `Condition::hozo_private_attribute`.
     HozoAttributeIsPrivate,
+    /// Two props on one element that compile to the same one.
+    ///
+    /// `onPress` is React Native's spelling and becomes `onClick` on Web,
+    /// so an element carrying both asks for one thing twice. The author's
+    /// own prop wins, because they wrote the platform's name and meant it
+    /// -- but the other one was written too, and dropping it in silence is
+    /// the shape this compiler exists to avoid.
+    PropCollidesWithPlatformName,
     /// A Tailwind variant this platform cannot express, on Web.
     ///
     /// The mirror of `NotWiredOnNative`, and the first diagnostic to point
