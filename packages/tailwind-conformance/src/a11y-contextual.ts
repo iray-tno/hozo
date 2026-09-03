@@ -226,8 +226,14 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     source:
       '<Svg accessibilityLabel="Chart" viewBox="0 0 10 10">' +
       '<Svg.Rect width={10} height={10} /></Svg>',
-    web: ['<svg aria-label={"Chart"}', '<rect'],
-    native: ['<Svg accessibilityLabel={"Chart"}', '<Rect'],
+    // The role, not only the name. An accessible name on an `<svg>` is
+    // not reliably a name: the implicit role varies by browser and screen
+    // reader, and several combinations compute none at all without an
+    // explicit one. `@hozo/canvas` already said `role="img"` for its own
+    // surface, so a named drawing was announced by one of Hozo's two
+    // drawing primitives and not the other.
+    web: ['<svg role="img" aria-label={"Chart"}', '<rect'],
+    native: ['<Svg accessible accessibilityRole="image" accessibilityLabel={"Chart"}', '<Rect'],
   },
   {
     name: 'decorative drawing',

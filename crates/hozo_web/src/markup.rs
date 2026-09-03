@@ -1,7 +1,7 @@
 //! `Node` -> HTML element tag/attributes, plus the accessibility
 //! diagnostics that fall out of that mapping (proposal §10.1/§10.2).
 
-use hozo_ir::{AccessibilityRole, Diagnostic, DiagnosticCode, HeadingLevel, Node, Primitive, Severity};
+use hozo_ir::{AccessibilityRole, Diagnostic, DiagnosticCode, HeadingLevel, Node, Primitive, Severity, SvgElement};
 
 /// How an attribute's value is written into the generated JSX.
 ///
@@ -44,6 +44,23 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         // The DOM tag, which is the lowercase name except for the three
         // SVG spells in camelCase -- `linearGradient` lowercased is an
         // element that parses and never renders.
+        // `role="img"` on a *named* root, and only there.
+        //
+        // An accessible name on an `<svg>` is not reliably a name: the
+        // element's implicit role varies by browser and screen reader, and
+        // several combinations compute no name at all without an explicit
+        // one. `role="img"` is the settled fix, and it is the same one
+        // `@hozo/canvas` already makes for its own surface -- so a named
+        // drawing was announced by one of Hozo's two drawing primitives
+        // and not the other.
+        //
+        // Only when named. `role="img"` on an unnamed root is worse than
+        // nothing: it promises a graphic with a name and delivers a
+        // nameless one, where the bare element at least degrades to
+        // whatever the author did with `<title>`.
+        Primitive::Svg(SvgElement::Root) if node.props.has_accessible_name() == Some(true) => {
+            ("svg", vec![("role", AttrValue::text("img"))])
+        }
         Primitive::Svg(element) => (element.tag(), Vec::new()),
         Primitive::View if node.props.on_layout.is_some() || node.props.has_responder_handlers() => ("View", Vec::new()),
         Primitive::View => ("div", Vec::new()),
@@ -407,6 +424,57 @@ mod tests {
         // about a name that might be there is one people learn to ignore.
         assert!(!text_input_named_by(&["spread"])
             .contains(&DiagnosticCode::A11yMissingAccessibleName));
+    }
+
+    fn svg_root(label: Option<&str>) -> Node {
+        let mut props = PropSet::default();
+        if label.is_some() {
+            props.accessibility_label = Some(ExprRef(empty_span()));
+        }
+        Node {
+            primitive: Primitive::Svg(SvgElement::Root),
+            style: Vec::new(),
+            props,
+            children: Vec::new(),
+            class_name_fallback: Vec::new(),
+            carried_classes: Vec::new(),
+            span: empty_span(),
+        }
+    }
+
+    #[test]
+    fn a_named_drawing_says_it_is_an_image() {
+        // An accessible name on an `<svg>` is not reliably a name: the
+        // implicit role varies by browser and screen reader, and several
+        // combinations compute none at all without an explicit one.
+        let mut diagnostics = Vec::new();
+        let (tag, attrs) = element_shape(&svg_root(Some("Chart")), &mut diagnostics);
+        assert_eq!(tag, "svg");
+        assert_eq!(attrs, vec![("role", AttrValue::text("img"))]);
+    }
+
+    #[test]
+    fn an_unnamed_drawing_is_left_alone() {
+        // `role="img"` without a name is worse than nothing: it promises a
+        // graphic with a name and delivers a nameless one, where the bare
+        // element at least degrades to whatever the author did with
+        // `<title>`.
+        let mut diagnostics = Vec::new();
+        let (tag, attrs) = element_shape(&svg_root(None), &mut diagnostics);
+        assert_eq!(tag, "svg");
+        assert!(attrs.is_empty());
+    }
+
+    #[test]
+    fn a_named_child_element_is_not_a_root() {
+        // Only the root. A named `<rect>` inside one is part of a picture,
+        // not a picture.
+        let mut node = svg_root(Some("Chart"));
+        node.primitive = Primitive::Svg(SvgElement::Rect);
+        let mut diagnostics = Vec::new();
+        let (tag, attrs) = element_shape(&node, &mut diagnostics);
+        assert_eq!(tag, "rect");
+        assert!(attrs.is_empty());
     }
 
     #[test]

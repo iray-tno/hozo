@@ -4,7 +4,7 @@
 //! actual props differ (RN has no `role`/`tabIndex`, it has
 //! `accessibilityRole`/`accessible`).
 
-use hozo_ir::{AccessibilityRole, Diagnostic, DiagnosticCode, Node, Primitive, Severity};
+use hozo_ir::{AccessibilityRole, Diagnostic, DiagnosticCode, Node, Primitive, Severity, SvgElement};
 
 /// `(RN component name, extra props beyond `style`)`.
 ///
@@ -25,6 +25,18 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // gives them, which is why the JSX spelling is a namespace rather
         // than a prefix: the name that reaches the output here is the same
         // name the author wrote after `Svg.`.
+        // The Native half of the same contract the Web backend states for
+        // `role="img"`: a named drawing announces itself as an image with
+        // that name. `accessible` is what makes the subtree one element
+        // rather than a pile of unlabelled shapes, which is also what
+        // `@hozo/canvas` does for its own surface.
+        Primitive::Svg(SvgElement::Root) if node.props.has_accessible_name() == Some(true) => (
+            "Svg",
+            vec![
+                ("accessible", String::new()),
+                ("accessibilityRole", "image".to_string()),
+            ],
+        ),
         Primitive::Svg(element) => (element.runtime_name(), Vec::new()),
         Primitive::View => ("View", Vec::new()),
         Primitive::Text => ("Text", Vec::new()),
