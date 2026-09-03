@@ -43,7 +43,7 @@ function ButtonGallery() {
 
       <View className="space-y-3 border-t border-slate-200 pt-6">
         <Heading level={3} className="text-lg font-bold text-slate-900">
-          Interactive Pressables & Links
+          Interactive Pressables &amp; Links
         </Heading>
         <Paragraph className="text-sm text-slate-600">
           Cross-platform touch interactions with active pseudo-classes and universal navigation.
@@ -73,6 +73,82 @@ function ButtonGallery() {
             className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-colors"
           >
             Button as Link &rarr;
+          </Button>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+function SemanticVariantsDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Button Variants &amp; States
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Buttons automatically compile to native semantic &lt;button type="button"&gt; preventing
+        accidental form submissions.
+      </Paragraph>
+
+      <View className="space-y-4 pt-2">
+        <View className="flex flex-row items-center justify-between border-b border-slate-100 pb-3">
+          <View>
+            <Text className="text-sm font-bold text-slate-900">Primary Button</Text>
+            <Text className="text-xs text-slate-500">
+              Main call-to-action for the page or modal
+            </Text>
+          </View>
+          <Button
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            onPress={() => alert('Primary action')}
+          >
+            Submit
+          </Button>
+        </View>
+
+        <View className="flex flex-row items-center justify-between border-b border-slate-100 pb-3">
+          <View>
+            <Text className="text-sm font-bold text-slate-900">Secondary Button</Text>
+            <Text className="text-xs text-slate-500">Alternative or cancel action</Text>
+          </View>
+          <Button
+            className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+            onPress={() => alert('Cancelled')}
+          >
+            Cancel
+          </Button>
+        </View>
+
+        <View className="flex flex-row items-center justify-between border-b border-slate-100 pb-3">
+          <View>
+            <Text className="text-sm font-bold text-slate-900">Destructive Button</Text>
+            <Text className="text-xs text-slate-500">Irreversible action like deleting data</Text>
+          </View>
+          <Button
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+            onPress={() => alert('Delete confirmed')}
+          >
+            Delete Item
+          </Button>
+        </View>
+
+        <View className="flex flex-row items-center justify-between pt-1">
+          <View>
+            <Text className="text-sm font-bold text-slate-900">Disabled Button</Text>
+            <Text className="text-xs text-slate-500">
+              Inoperable and announced as disabled to screen readers
+            </Text>
+          </View>
+          <Button
+            disabled
+            className="cursor-not-allowed rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400 opacity-60"
+            onPress={() => {}}
+          >
+            Unavailable
           </Button>
         </View>
       </View>
@@ -131,13 +207,60 @@ function LinkButtonsDemo() {
   )
 }
 
+function InteractivePressablesDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Interactive Pressables (&lt;Pressable&gt;)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Universal touch feedback primitive compiling to active pseudo-classes on Web and native
+        gesture handlers on React Native.
+      </Paragraph>
+
+      <View className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        <Pressable
+          accessibilityRole="button"
+          className="cursor-pointer rounded-xl border border-slate-200 p-5 transition-all hover:bg-indigo-50 hover:border-indigo-300 active:scale-95"
+          onPress={() => alert('Quick Action 1')}
+        >
+          <Text className="font-bold text-slate-900">Card Action 1 &rarr;</Text>
+          <Paragraph className="mt-1 text-xs text-slate-500">
+            Responds to hover and active states with scaling animation
+          </Paragraph>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          className="cursor-pointer rounded-xl border border-slate-200 p-5 transition-all hover:bg-emerald-50 hover:border-emerald-300 active:scale-95"
+          onPress={() => alert('Quick Action 2')}
+        >
+          <Text className="font-bold text-slate-900">Card Action 2 &rarr;</Text>
+          <Paragraph className="mt-1 text-xs text-slate-500">
+            Accessible role="button" with full keyboard navigation
+          </Paragraph>
+        </Pressable>
+      </View>
+    </View>
+  )
+}
+
 const meta = {
   title: 'Core/Button & Interactions',
   component: ButtonGallery,
 } satisfies Meta<typeof ButtonGallery>
 
 export default meta
-export const Default: StoryObj<typeof meta> = {}
+export const Showcase: StoryObj<typeof meta> = {}
+export const SemanticVariants: StoryObj<typeof meta> = {
+  render: () => <SemanticVariantsDemo />,
+}
 export const LinkButtons: StoryObj<typeof meta> = {
   render: () => <LinkButtonsDemo />,
+}
+export const InteractivePressables: StoryObj<typeof meta> = {
+  render: () => <InteractivePressablesDemo />,
 }

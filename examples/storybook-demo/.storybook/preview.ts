@@ -3,6 +3,11 @@ import '../src/preview.css'
 
 const preview: Preview = {
   parameters: {
+    options: {
+      storySort: {
+        order: ['Overview', ['Welcome'], 'Typography', 'Semantics', 'Core', 'A11y'],
+      },
+    },
     layout: 'padded',
     backgrounds: {
       default: 'slate',

@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Welcome } from './Welcome.tsx'
 
 const meta = {
-  title: 'Hozo/Welcome',
+  title: 'Overview/Welcome',
   component: Welcome,
 } satisfies Meta<typeof Welcome>
 
