@@ -11,4 +11,4 @@ Universal runtime behaviors and floating positioning primitives for Hozo.
 - **Typeahead**: Predictive keyboard navigation matching query prefixes with loop prevention.
 - **Portal**: Universal React Portal rendering across Web DOM and React Native root hierarchies.
 - **LiveRegion**: Universal polite and assertive screen reader live announcements.
-- **HozoDialog**: Native `<dialog>` modal with focus restore on Web and `<Modal>` on React Native.
+- **Dialog**: Native `<dialog>` modal with focus restore on Web and `<Modal>` on React Native.

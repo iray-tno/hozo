@@ -14,7 +14,12 @@
 // Re-exported rather than left in `@hozo/behaviors`: generated code should
 // depend on one package, not on how the compiler divides its own. The
 // implementation stays there, where its tests and its reasoning are.
-export { HozoDialog, type HozoDialogProps } from '@hozo/behaviors'
+export {
+  Dialog,
+  type DialogProps,
+  HozoDialog,
+  type HozoDialogProps,
+} from '@hozo/behaviors'
 export type { BreakpointName, Viewport } from './ambient.ts'
 export {
   HozoContainer,

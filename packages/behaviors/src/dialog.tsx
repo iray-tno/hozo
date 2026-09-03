@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 import { shouldRestoreFocus } from './focus-scope.tsx'
 
-export interface HozoDialogProps {
+export interface DialogProps {
   /** Whether the dialog is showing. Render is driven by this, not by mounting. */
   open?: boolean
   /**
@@ -16,14 +16,14 @@ export interface HozoDialogProps {
   children?: ReactNode
 }
 
-export function HozoDialog({
+export function Dialog({
   open = false,
   onClose,
   accessibilityLabel,
   accessibilityHint,
   className,
   children,
-}: HozoDialogProps) {
+}: DialogProps) {
   const ref = useRef<HTMLDialogElement | null>(null)
   const opener = useRef<Element | null>(null)
 
@@ -73,3 +73,5 @@ export function HozoDialog({
     </dialog>
   )
 }
+
+export { Dialog as HozoDialog, type DialogProps as HozoDialogProps }

@@ -11,10 +11,8 @@ export {
   type HozoComboboxProps,
 } from './combobox.native.tsx'
 export {
-  HozoDialog as Dialog,
-  HozoDialog,
-  type HozoDialogProps as DialogProps,
-  type HozoDialogProps,
+  Dialog,
+  type DialogProps,
 } from './dialog.native.tsx'
 export type {
   HozoLayoutEvent,

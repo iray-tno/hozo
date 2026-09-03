@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Modal, type StyleProp, View, type ViewStyle } from 'react-native'
 
-export interface HozoDialogProps {
+export interface DialogProps {
   open?: boolean
   onClose?: () => void
   accessibilityLabel?: string
@@ -10,14 +10,14 @@ export interface HozoDialogProps {
   children?: ReactNode
 }
 
-export function HozoDialog({
+export function Dialog({
   open = false,
   onClose,
   accessibilityLabel,
   accessibilityHint,
   style,
   children,
-}: HozoDialogProps) {
+}: DialogProps) {
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
       <View
@@ -33,5 +33,3 @@ export function HozoDialog({
     </Modal>
   )
 }
-
-export { HozoDialog as Dialog }

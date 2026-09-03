@@ -201,7 +201,7 @@ export function transformHozoSource(
 
     // Collected before the prelude check, not inside it. Runtime imports
     // used to come only from hooks, which always have a prelude, so the two
-    // were folded together -- and then `HozoSpaced` and `HozoDialog`
+    // were folded together -- and then `HozoSpaced` and `Dialog`
     // arrived, which need an import and no hook. Every component using
     // `space-*`, `divide-*` or a `Dialog` was emitting a module that
     // referenced an undefined identifier, which nothing caught because

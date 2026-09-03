@@ -1,4 +1,6 @@
 export {
+  Dialog,
+  type DialogProps,
   HozoDialog,
   type HozoDialogProps,
 } from './dialog.native.tsx'

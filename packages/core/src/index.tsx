@@ -765,10 +765,8 @@ export {
   type HozoComboboxProps,
 } from './combobox.ts'
 export {
-  HozoDialog as Dialog,
-  HozoDialog,
-  type HozoDialogProps as DialogProps,
-  type HozoDialogProps,
+  Dialog,
+  type DialogProps,
 } from './dialog.ts'
 export {
   HozoListbox as Listbox,
