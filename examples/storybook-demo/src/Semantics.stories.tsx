@@ -169,10 +169,215 @@ function SemanticsDemo() {
   )
 }
 
+function DocumentLandmarksDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        HTML5 Document Structure & Landmarks
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Landmarks provide screen reader navigation points and semantic structure for layout regions.
+      </Paragraph>
+
+      <View className="space-y-4 font-mono text-xs">
+        <Header className="rounded-lg border-2 border-dashed border-indigo-300 bg-indigo-50 p-4 space-y-1">
+          <Text className="font-bold text-indigo-900">&lt;Header&gt; (Banner Landmark)</Text>
+          <Nav className="rounded border border-indigo-200 bg-white p-2 text-indigo-800">
+            &lt;Nav&gt; Navigation Landmark
+          </Nav>
+        </Header>
+
+        <Main className="rounded-lg border-2 border-dashed border-emerald-300 bg-emerald-50 p-4 space-y-3">
+          <Text className="font-bold text-emerald-900">&lt;Main&gt; (Main Content Landmark)</Text>
+          <Section className="rounded border border-emerald-200 bg-white p-3 space-y-2">
+            <Text className="font-semibold text-emerald-800">
+              &lt;Section&gt; Thematic Document Section
+            </Text>
+            <Article className="rounded border border-emerald-100 bg-slate-50 p-2 text-slate-800 font-sans text-xs">
+              &lt;Article&gt; Self-contained syndicatable article block
+            </Article>
+          </Section>
+        </Main>
+
+        <Aside className="rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <Text className="font-bold">&lt;Aside&gt; (Complementary Landmark / Sidebar)</Text>
+        </Aside>
+
+        <Footer className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-4 text-slate-700 flex flex-row justify-between items-center">
+          <Text className="font-bold text-slate-800">&lt;Footer&gt; (Contentinfo Landmark)</Text>
+          <Address className="not-italic text-slate-600 font-sans">
+            &lt;Address&gt; contact@hozo.dev
+          </Address>
+        </Footer>
+      </View>
+    </View>
+  )
+}
+
+function DisclosuresDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Native Disclosures (&lt;Details&gt; & &lt;Summary&gt;)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Zero-runtime HTML5 disclosures on Web, interactive accessible pressable widgets on React
+        Native.
+      </Paragraph>
+
+      <View className="space-y-4">
+        {/* Closed by default */}
+        <Details className="rounded-xl border border-slate-200 overflow-hidden">
+          <Summary className="bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 cursor-pointer select-none">
+            What is zero-runtime lowering?
+          </Summary>
+          <View className="p-4 bg-white text-sm text-slate-700 space-y-2 border-t border-slate-100">
+            <Paragraph>
+              Hozo analyzes components at build time and emits raw semantic HTML without bundling
+              heavy disclosure component libraries.
+            </Paragraph>
+          </View>
+        </Details>
+
+        {/* Open by default */}
+        <Details className="rounded-xl border border-slate-200 overflow-hidden" open>
+          <Summary className="bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 cursor-pointer select-none">
+            Expanded by default (open=true)
+          </Summary>
+          <View className="p-4 bg-white text-sm text-slate-700 space-y-2 border-t border-slate-100">
+            <Paragraph>
+              This disclosure starts open to immediately reveal secondary settings or onboarding
+              guides.
+            </Paragraph>
+            <Paragraph className="text-xs text-slate-600">
+              On React Native, defaultOpen={true} initializes the component in the expanded state.
+            </Paragraph>
+          </View>
+        </Details>
+      </View>
+    </View>
+  )
+}
+
+function FormGroupingDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Form Grouping (&lt;Fieldset&gt; & &lt;Legend&gt;)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Fieldset associates a caption (Legend) with grouped input controls for assistive
+        technologies.
+      </Paragraph>
+
+      <View className="space-y-6">
+        <Fieldset className="rounded-xl border border-slate-200 p-5 space-y-3">
+          <Legend className="px-2 text-sm font-bold text-slate-800">Notification Delivery</Legend>
+          <View className="space-y-2 text-sm text-slate-800">
+            <Text className="block">&bull; In-app push notifications</Text>
+            <Text className="block">&bull; Real-time webhook events</Text>
+          </View>
+        </Fieldset>
+
+        <Fieldset className="rounded-xl border border-slate-200 p-5 space-y-3">
+          <Legend className="px-2 text-sm font-bold text-slate-800">Security Authentication</Legend>
+          <View className="space-y-2 text-sm text-slate-800">
+            <Text className="block">&bull; Passkeys (FIDO2 WebAuthn)</Text>
+            <Text className="block">&bull; Hardware security key required</Text>
+          </View>
+        </Fieldset>
+      </View>
+    </View>
+  )
+}
+
+function TermListsDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Term Lists (&lt;TermList&gt;, &lt;Term&gt;, &lt;Description&gt;)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Description lists for key-value pairs, specifications, and metadata (1-to-1 and 1-to-many).
+      </Paragraph>
+
+      <View className="space-y-6">
+        {/* 1-to-1 Pairs */}
+        <View className="space-y-2">
+          <Heading level={3} className="text-sm font-bold text-slate-800">
+            1-to-1 Metadata Pairs (Horizontal Flexbox)
+          </Heading>
+          <TermList className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+            <View className="py-2 flex flex-row justify-between items-center">
+              <Term className="font-semibold text-slate-800">Compiler Core</Term>
+              <Description className="text-slate-900">Rust (hozo_web / hozo_native)</Description>
+            </View>
+            <View className="py-2 flex flex-row justify-between items-center">
+              <TermList.Term className="font-semibold text-slate-800">Module Target</TermList.Term>
+              <TermList.Description className="text-slate-900 font-mono text-xs">
+                ESNext / CommonJS
+              </TermList.Description>
+            </View>
+          </TermList>
+        </View>
+
+        {/* 1-to-Many Multi-Value */}
+        <View className="space-y-2">
+          <Heading level={3} className="text-sm font-bold text-slate-800">
+            1-to-Many Multi-Value List
+          </Heading>
+          <TermList className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm space-y-2">
+            <Term className="font-bold text-slate-900 text-sm">Core Architecture Contributors</Term>
+            <Description className="text-slate-700 pl-4 border-l-2 border-indigo-400">
+              Component System Specification
+            </Description>
+            <Description className="text-slate-700 pl-4 border-l-2 border-indigo-400">
+              Style IR & Zero-Runtime Lowering Engine
+            </Description>
+            <Description className="text-slate-700 pl-4 border-l-2 border-indigo-400">
+              Universal React Native Accessibility Bridge
+            </Description>
+          </TermList>
+        </View>
+      </View>
+    </View>
+  )
+}
+
 const meta = {
-  title: 'Semantics/Showcase',
+  title: 'Semantics',
   component: SemanticsDemo,
 } satisfies Meta<typeof SemanticsDemo>
 
 export default meta
-export const Default: StoryObj<typeof meta> = {}
+export const Showcase: StoryObj<typeof meta> = {
+  render: () => <SemanticsDemo />,
+}
+
+export const DocumentLandmarks: StoryObj<typeof meta> = {
+  render: () => <DocumentLandmarksDemo />,
+}
+
+export const Disclosures: StoryObj<typeof meta> = {
+  render: () => <DisclosuresDemo />,
+}
+
+export const FormGrouping: StoryObj<typeof meta> = {
+  render: () => <FormGroupingDemo />,
+}
+
+export const TermLists: StoryObj<typeof meta> = {
+  render: () => <TermListsDemo />,
+}
