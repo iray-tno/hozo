@@ -1370,20 +1370,20 @@
     {
       "name": "gridAutoColumns",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "gridAutoFlow",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "gridAutoRows",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "gridColumn",
@@ -1448,8 +1448,8 @@
     {
       "name": "gridTemplateAreas",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "gridTemplateColumns",
