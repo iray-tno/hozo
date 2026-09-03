@@ -79,6 +79,29 @@ export function paintFills(paint: CanvasPaintProps): boolean {
   return paint.fill !== 'none' && (paint.fill !== undefined || paint.stroke === undefined)
 }
 
+/**
+ * The four fields both platforms take, defaulted once.
+ *
+ * Shared so a face cannot differ between the surfaces for a reason Hozo
+ * chose. What it cannot make equal is the face a *system* resolves these
+ * to, which is why `fontFamily` is passed through untouched rather than
+ * mapped to something clever.
+ */
+export function textFontSpec(props: TextProps) {
+  return {
+    fontFamily: props.fontFamily ?? 'sans-serif',
+    fontSize: props.fontSize,
+    fontStyle: props.fontStyle ?? 'normal',
+    fontWeight: props.fontWeight ?? 'normal',
+  } as const
+}
+
+/** The same four as the CSS shorthand `CanvasRenderingContext2D.font` takes. */
+export function cssFontShorthand(props: TextProps): string {
+  const font = textFontSpec(props)
+  return `${font.fontStyle} ${font.fontWeight} ${font.fontSize}px ${font.fontFamily}`
+}
+
 export interface CanvasTransform {
   translateX?: number
   translateY?: number
@@ -127,6 +150,53 @@ export interface LineProps extends CanvasPaintProps, CanvasInteractionProps {
   y2: number
 }
 
+/**
+ * A single line of text, drawn at a baseline.
+ *
+ * One line, and no wrapping. Neither renderer breaks lines -- Canvas2D's
+ * `fillText` and Skia's `Text` both draw a run and stop -- so wrapping
+ * would be Hozo's own layout engine rather than a shared contract, and
+ * the labels a chart needs are one line each.
+ *
+ * `x` is the left edge and `y` the alphabetic baseline, which is not a
+ * choice so much as the one place the platforms already agreed: it is
+ * Skia's only model and Canvas2D's default.
+ *
+ * The font is named rather than supplied. Skia's `matchFont` resolves a
+ * system face from these four fields synchronously, and Canvas2D takes
+ * the same four as a CSS shorthand, so nothing has to ship a font file.
+ * The cost is that the two may not resolve to the same face: system fonts
+ * differ, and a chart that needs identical glyphs on both has to load
+ * one, which is outside this contract.
+ */
+export interface TextProps extends CanvasPaintProps {
+  text: string
+  x: number
+  y: number
+  /**
+   * Required, because the platforms disagree on a default and neither
+   * default is a good one -- Canvas2D starts at 10px, which is smaller
+   * than any label anybody wants.
+   */
+  fontSize: number
+  fontFamily?: string
+  fontStyle?: 'normal' | 'italic'
+  fontWeight?:
+    | 'normal'
+    | 'bold'
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+  /** Which part of the run sits at `x`. */
+  textAlign?: 'left' | 'center' | 'right'
+}
+
 export interface PathProps extends CanvasPaintProps {
   path: string
   fillRule?: 'nonzero' | 'evenodd'
@@ -145,6 +215,7 @@ export type CanvasLeafNode =
   | { id?: string; kind: 'circle'; props: SceneProps<CircleProps> }
   | { id?: string; kind: 'ellipse'; props: SceneProps<EllipseProps> }
   | { id?: string; kind: 'line'; props: SceneProps<LineProps> }
+  | { id?: string; kind: 'text'; props: TextProps }
   | { id?: string; kind: 'path'; props: PathProps }
 
 export type CanvasSceneNode =
@@ -430,6 +501,10 @@ export const RoundedRect = interactiveLeaf<RoundedRectProps>('rounded-rect')
 export const Circle = interactiveLeaf<CircleProps>('circle')
 export const Ellipse = interactiveLeaf<EllipseProps>('ellipse')
 export const Line = interactiveLeaf<LineProps>('line')
+// Not an `interactiveLeaf`: the hit test refuses text for the same
+// reason it refuses paths -- the region is whatever the rasteriser drew,
+// and only the renderers know that. See `pointInNode`.
+export const Text = leaf<TextProps>('text')
 export const Path = leaf<PathProps>('path')
 
 export function Group({ children, ...props }: GroupProps) {

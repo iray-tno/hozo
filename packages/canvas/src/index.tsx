@@ -20,6 +20,7 @@ import {
   Path,
   Rect,
   RoundedRect,
+  Text,
   useCanvasScene,
 } from './scene.tsx'
 
@@ -237,6 +238,7 @@ const accessibleOnlyStyle: CSSProperties = {
 export const Canvas = Object.assign(Root, {
   Group,
   Clip,
+  Text,
   Rect,
   RoundedRect,
   Circle,

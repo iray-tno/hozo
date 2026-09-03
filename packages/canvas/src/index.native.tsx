@@ -1,5 +1,6 @@
 import {
   type DrawingNodeProps,
+  matchFont,
   Canvas as SkiaCanvas,
   Circle as SkiaCircle,
   Group as SkiaGroup,
@@ -8,6 +9,7 @@ import {
   Path as SkiaPath,
   Rect as SkiaRect,
   RoundedRect as SkiaRoundedRect,
+  Text as SkiaText,
   type Transforms3d,
 } from '@shopify/react-native-skia'
 import { type ComponentType, Fragment, type ReactNode, useMemo, useRef, useState } from 'react'
@@ -28,6 +30,7 @@ import {
   type CanvasPaintProps,
   type CanvasScene,
   type CanvasSceneNode,
+  Text as CanvasText,
   type CanvasTransform,
   Circle,
   Clip,
@@ -40,6 +43,8 @@ import {
   paintStrokes,
   Rect,
   RoundedRect,
+  type TextProps,
+  textFontSpec,
   useCanvasScene,
 } from './scene.tsx'
 
@@ -105,6 +110,42 @@ function transformFor(transform?: CanvasTransform): Transforms3d | undefined {
  * props either. Against Skia's own types, with the geometry kept, both are
  * checked.
  */
+/**
+ * The system face for a font spec, resolved once per spec.
+ *
+ * `matchFont` walks the platform's font manager, so calling it per text
+ * node per frame would put that walk on every redraw. Keyed by the four
+ * fields rather than by object identity, since the spec is rebuilt each
+ * render.
+ */
+const fonts = new Map<string, ReturnType<typeof matchFont>>()
+function fontFor(props: TextProps) {
+  const spec = textFontSpec(props)
+  const key = `${spec.fontStyle} ${spec.fontWeight} ${spec.fontSize} ${spec.fontFamily}`
+  let font = fonts.get(key)
+  if (!font) {
+    font = matchFont(spec)
+    fonts.set(key, font)
+  }
+  return font
+}
+
+/**
+ * Where the run starts, given which part of it sits at `x`.
+ *
+ * Skia's `Text` draws from the left and has no alignment of its own, so
+ * this measures. Canvas2D does not measure here -- it is told
+ * `textAlign` and aligns against its own metrics, which is the only
+ * measurement that can agree with what it rasterises. Two mechanisms for
+ * one contract, because each renderer's metrics are its own.
+ */
+function alignedX(props: TextProps, font: ReturnType<typeof matchFont>) {
+  const align = props.textAlign ?? 'left'
+  if (align === 'left') return props.x
+  const width = font.measureText(props.text).width
+  return align === 'center' ? props.x - width / 2 : props.x - width
+}
+
 function paintLayers<Geometry extends object>(
   key: string,
   Shape: ComponentType<Geometry & DrawingNodeProps>,
@@ -240,6 +281,15 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
         },
         { ...node.props, fill: 'none', stroke: node.props.stroke ?? 'black' },
       )
+    case 'text': {
+      const font = fontFor(node.props)
+      return paintLayers(
+        key,
+        SkiaText,
+        { font, text: node.props.text, x: alignedX(node.props, font), y: node.props.y },
+        node.props,
+      )
+    }
     case 'path':
       return paintLayers(
         key,
@@ -455,6 +505,9 @@ const styles = StyleSheet.create({
 export const Canvas = Object.assign(Root, {
   Group,
   Clip,
+  // Under a local alias only because React Native's own `Text` is in
+  // scope in this module; the public name is the same on both surfaces.
+  Text: CanvasText,
   Rect,
   RoundedRect,
   Circle,

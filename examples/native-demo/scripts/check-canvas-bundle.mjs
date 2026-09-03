@@ -33,6 +33,11 @@ expect(/paintStrokes/.test(bundle), 'the shared paint predicate reached the Nati
 // The fixture references every shape the Native adapter branches on, so
 // each branch is one Metro actually had to resolve.
 expect(/canvas-indicated/.test(bundle), 'the active-target fixture is bundled')
+// Text is the one shape whose Native branch does work of its own: Skia
+// resolves the face through `matchFont` and has no alignment, so the
+// adapter measures. Neither call appears on the Web side.
+expect(/matchFont/.test(bundle), 'the Native font lookup reached the bundle')
+expect(/measureText/.test(bundle), 'the Native text alignment measurement reached the bundle')
 
 if (failures.length > 0) {
   console.error('Canvas bundle check failed:')

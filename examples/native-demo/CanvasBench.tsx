@@ -74,6 +74,10 @@ export function CanvasBench() {
           />
         </Canvas.Clip>
         <Canvas.Path path="M4 4 L96 4" stroke="black" strokeWidth={1} />
+        {/* An axis label, which is what text exists for. Skia resolves the
+            face through `matchFont` and has no alignment of its own, so
+            this is also the only shape whose Native branch measures. */}
+        <Canvas.Text text="Jan" x={50} y={52} fontSize={6} textAlign="center" fill="black" />
       </Canvas>
       <Text testID="canvas-indicated">{`indicated: ${indicated}`}</Text>
       <Text testID="canvas-pressed">{`pressed: ${pressed}`}</Text>
