@@ -638,10 +638,15 @@ export function Pressable({
 export interface ButtonProps {
   className?: string
   children?: ReactNode
-  onPress?: MouseEventHandler<HTMLButtonElement>
+  onPress?: MouseEventHandler<HTMLElement>
   disabled?: boolean
   accessibilityLabel?: string
   accessibilityHint?: string
+  href?: string
+  external?: boolean
+  target?: '_blank' | '_self' | '_parent' | '_top' | string
+  rel?: string
+  download?: boolean | string
 }
 
 export function Button({
@@ -651,7 +656,39 @@ export function Button({
   disabled,
   accessibilityLabel,
   accessibilityHint,
+  href,
+  external,
+  target,
+  rel,
+  download,
 }: ButtonProps) {
+  if (href != null) {
+    const finalTarget = external ? '_blank' : target
+    const finalRel = external || target === '_blank' ? (rel ?? 'noreferrer noopener') : rel
+    return (
+      <a
+        role="button"
+        href={href}
+        target={finalTarget}
+        rel={finalRel}
+        download={download}
+        className={className}
+        aria-label={accessibilityLabel}
+        aria-description={accessibilityHint}
+        aria-disabled={disabled ? true : undefined}
+        data-hozo-disabled={disabled ? '' : undefined}
+        onClick={
+          disabled
+            ? (e) => {
+                e.preventDefault()
+              }
+            : (onPress as MouseEventHandler<HTMLAnchorElement>)
+        }
+      >
+        {children}
+      </a>
+    )
+  }
   return (
     <button
       // A `<button>` in a `<form>` defaults to `type="submit"`, and React
@@ -669,7 +706,7 @@ export function Button({
       data-hozo-disabled={disabled ? '' : undefined}
       aria-label={accessibilityLabel}
       aria-description={accessibilityHint}
-      onClick={onPress}
+      onClick={onPress as MouseEventHandler<HTMLButtonElement>}
     >
       {children}
     </button>
@@ -723,6 +760,8 @@ export {
   Header,
   Legend,
   Main,
+  Progress,
+  type ProgressProps,
   Search,
   Separator,
   type SeparatorProps,

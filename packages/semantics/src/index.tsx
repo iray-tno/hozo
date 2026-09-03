@@ -213,3 +213,17 @@ export function Separator({
     />
   )
 }
+
+export interface ProgressProps extends SemanticsUniversalProps {
+  value?: number
+  max?: number
+  children?: ReactNode
+}
+
+export function Progress({ value, max, className, children, style, ...props }: ProgressProps) {
+  return (
+    <progress value={value} max={max} className={className} style={style} {...domProps(props)}>
+      {children ?? (value != null ? `${value}%` : undefined)}
+    </progress>
+  )
+}

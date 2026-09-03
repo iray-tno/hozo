@@ -13,6 +13,7 @@ import {
   Legend,
   Main,
   Nav,
+  Progress,
   Search,
   Section,
   Separator,
@@ -156,6 +157,25 @@ function SemanticsDemo() {
               </TermList.Description>
             </View>
           </TermList>
+        </Section>
+
+        {/* Progress Indicators */}
+        <Section className="space-y-4 border-t border-slate-200 pt-6">
+          <Heading level={2} className="text-xl font-bold text-slate-900">
+            Progress & Indicators
+          </Heading>
+          <View className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <View className="flex flex-row justify-between text-xs font-semibold text-slate-700">
+              <Text>Compilation Status</Text>
+              <Text>75%</Text>
+            </View>
+            <Progress
+              value={75}
+              max={100}
+              aria-label="Compilation status"
+              className="w-full h-3 accent-indigo-600 rounded-full"
+            />
+          </View>
         </Section>
       </Main>
 
@@ -416,6 +436,62 @@ function SeparatorsDemo() {
   )
 }
 
+function ProgressIndicatorsDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Progress Indicators (&lt;Progress&gt;)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Lowers directly to native semantic &lt;progress&gt; on Web and accessible progressbar View
+        on React Native.
+      </Paragraph>
+
+      <View className="space-y-6">
+        {/* In Progress */}
+        <View className="space-y-2">
+          <View className="flex flex-row justify-between text-xs font-semibold text-slate-700">
+            <Text>Download Progress</Text>
+            <Text>45%</Text>
+          </View>
+          <Progress
+            value={45}
+            max={100}
+            aria-label="Download progress"
+            className="w-full h-3 accent-indigo-600 rounded-full"
+          />
+        </View>
+
+        {/* Completed */}
+        <View className="space-y-2">
+          <View className="flex flex-row justify-between text-xs font-semibold text-slate-700">
+            <Text>Task Completed</Text>
+            <Text>100%</Text>
+          </View>
+          <Progress
+            value={100}
+            max={100}
+            aria-label="Task completion progress"
+            className="w-full h-3 accent-emerald-600 rounded-full"
+          />
+        </View>
+
+        {/* Indeterminate */}
+        <View className="space-y-2">
+          <Text className="text-xs font-semibold text-slate-700">Indeterminate (Loading...)</Text>
+          <Progress
+            aria-label="Loading task status"
+            className="w-full h-3 accent-indigo-600 rounded-full"
+          />
+        </View>
+      </View>
+    </View>
+  )
+}
+
 const meta = {
   title: 'Semantics',
   component: SemanticsDemo,
@@ -436,6 +512,10 @@ export const Disclosures: StoryObj<typeof meta> = {
 
 export const FormGrouping: StoryObj<typeof meta> = {
   render: () => <FormGroupingDemo />,
+}
+
+export const ProgressIndicators: StoryObj<typeof meta> = {
+  render: () => <ProgressIndicatorsDemo />,
 }
 
 export const Separators: StoryObj<typeof meta> = {

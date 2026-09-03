@@ -785,7 +785,10 @@ pub(super) fn render_node(
     if let Primitive::Svg(element) = node.primitive {
         runtime.need_component(element.runtime_name());
     }
-    if node.primitive == Primitive::Link {
+    if node.primitive == Primitive::Link
+        || (node.primitive == Primitive::Button
+            && node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href")))
+    {
         runtime.need_component("HozoLink");
     }
     if let Some(on_press) = node.props.on_press {

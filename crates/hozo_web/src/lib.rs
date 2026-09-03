@@ -2076,6 +2076,27 @@ export function Login() {
     }
 
     #[test]
+    fn progress_and_button_with_href_lower_to_html_primitives() {
+        let source = r#"
+            import { Button, View } from '@hozo/core'
+            import { Progress } from '@hozo/semantics'
+            const el = (
+                <View>
+                    <Progress value={50} max={100}>50%</Progress>
+                    <Button href="https://example.com">Go</Button>
+                </View>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert_eq!(
+            output.jsx,
+            "<div className=\"hozo-view\"><progress value={50} max={100}>50%</progress><a role=\"button\" href=\"https://example.com\">Go</a></div>"
+        );
+    }
+
+    #[test]
     fn dynamic_heading_level_uses_the_typed_fallback_component() {
         let source = r#"
             import { Heading } from '@hozo/core'

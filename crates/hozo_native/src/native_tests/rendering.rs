@@ -531,3 +531,22 @@ fn separator_lowers_to_native_view_with_separator_role() {
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.contains(r#"role="separator""#), "{}", output.jsx);
 }
+
+#[test]
+fn progress_and_button_with_href_lower_to_native_components() {
+    let source = r#"
+        import { Button } from '@hozo/core'
+        import { Progress } from '@hozo/semantics'
+        const el = (
+            <View>
+                <Progress />
+                <Button href="https://example.com">Go</Button>
+            </View>
+        )
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains(r#"role="progressbar""#), "{}", output.jsx);
+    assert!(output.jsx.contains(r#"<HozoLink accessibilityRole="button" href="https://example.com">"#), "{}", output.jsx);
+}

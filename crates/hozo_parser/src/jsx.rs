@@ -507,6 +507,7 @@ fn web_tag_hint(primitive: Primitive) -> &'static str {
         Primitive::Image => "img",
         Primitive::TextInput => "input",
         Primitive::Separator => "hr",
+        Primitive::Progress => "progress",
         _ => "div",
     }
 }
@@ -601,6 +602,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Term" => Some(Primitive::Term),
         "Description" => Some(Primitive::Description),
         "Separator" => Some(Primitive::Separator),
+        "Progress" => Some(Primitive::Progress),
         "Strong" => Some(Primitive::Strong),
         "Emphasis" => Some(Primitive::Emphasis),
         "Underline" => Some(Primitive::Underline),
