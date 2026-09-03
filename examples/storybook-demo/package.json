@@ -13,6 +13,8 @@
     "@hozo/a11y": "workspace:*",
     "@hozo/core": "workspace:*",
     "@hozo/runtime": "workspace:*",
+    "@hozo/semantics": "workspace:*",
+    "@hozo/typography": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

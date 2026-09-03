@@ -189,6 +189,12 @@ importers:
       '@hozo/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@hozo/semantics':
+        specifier: workspace:*
+        version: link:../../packages/semantics
+      '@hozo/typography':
+        specifier: workspace:*
+        version: link:../../packages/typography
       react:
         specifier: ^19.2.8
         version: 19.2.8
