@@ -68,11 +68,14 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'animationDuration', value: '200ms' },
   { property: 'animationComposition', value: 'add' },
   { property: 'animationDelay', value: '100ms' },
+  { property: 'animationDelay', value: '-100ms' },
   { property: 'animationDirection', value: 'alternate-reverse' },
   { property: 'animationFillMode', value: 'both' },
   { property: 'animationIterationCount', value: 2.5 },
   { property: 'animationPlayState', value: 'paused' },
   { property: 'animationTimingFunction', value: 'ease-in-out' },
+  { property: 'animationTimingFunction', value: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+  { property: 'animationTimingFunction', value: 'steps(2, jump-none)' },
   { property: 'fontKerning', value: 'normal' },
   { property: 'fontFeatureSettings', value: '"kern" 1' },
   { property: 'fontLanguageOverride', value: '"TRK"' },
@@ -614,6 +617,12 @@ const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
     definitions: "motion: { animationName: fade, animationDuration: '200ms' },",
     webOnly: true,
   },
+  {
+    name: 'keyframe fallback',
+    expression: 'styles.motionFallback',
+    definitions: 'motionFallback: { animationName: stylex.firstThatWorks(fade, fadeOut) },',
+    webOnly: true,
+  },
   { name: 'cross-file sheet', expression: 'external.root' },
 ] as const
 
@@ -637,8 +646,10 @@ function constructSource(testCase: StylexConstructCase): string {
       ? "const tokens = stylex.defineVars({ accent: '#123456' })\n"
       : ''
   const keyframes =
-    testCase.name === 'static keyframes'
-      ? 'const fade = stylex.keyframes({ from: { opacity: 0 }, to: { opacity: 1 } })\n'
+    testCase.name === 'static keyframes' || testCase.name === 'keyframe fallback'
+      ? `const fade = stylex.keyframes({ from: { opacity: 0 }, to: { opacity: 1 } })
+const fadeOut = stylex.keyframes({ from: { opacity: 1 }, to: { opacity: 0 } })
+`
       : ''
   return `import * as ${alias} from '@stylexjs/stylex'
 import { Pressable, Text, View } from '@hozo/core'

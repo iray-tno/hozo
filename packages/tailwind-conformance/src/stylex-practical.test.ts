@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 200, covered: 200 },
-    constructs: { total: 15, covered: 15 },
-    corpus: { total: 157, covered: 157 },
+    values: { total: 203, covered: 203 },
+    constructs: { total: 16, covered: 16 },
+    corpus: { total: 160, covered: 160 },
     silent: 0,
   })
 })
@@ -31,7 +31,7 @@ test('standalone transforms agree with official StyleX and lower on Native', () 
 test('animation control longhands agree with official StyleX for their common grammar', () => {
   const values: Record<string, readonly (string | number)[]> = {
     animationComposition: ['replace', 'add', 'accumulate'],
-    animationDelay: ['0ms', '100ms', '1s'],
+    animationDelay: ['0ms', '100ms', '-100ms', '0.5ms', '1s'],
     animationDirection: ['normal', 'reverse', 'alternate', 'alternate-reverse'],
     animationFillMode: ['none', 'forwards', 'backwards', 'both'],
     animationIterationCount: [0, 1, 2.5, 'infinite'],
@@ -44,6 +44,8 @@ test('animation control longhands agree with official StyleX for their common gr
       'ease-in-out',
       'step-start',
       'step-end',
+      'cubic-bezier(0.4, 0, 0.2, 1)',
+      'steps(2, jump-none)',
     ],
   }
 

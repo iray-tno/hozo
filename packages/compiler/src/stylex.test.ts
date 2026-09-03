@@ -864,11 +864,14 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['animationDuration', `'200ms'`],
     ['animationComposition', `'add'`],
     ['animationDelay', `'100ms'`],
+    ['animationDelay', `'-100ms'`],
     ['animationDirection', `'alternate-reverse'`],
     ['animationFillMode', `'both'`],
     ['animationIterationCount', '2.5'],
     ['animationPlayState', `'paused'`],
     ['animationTimingFunction', `'ease-in-out'`],
+    ['animationTimingFunction', `'cubic-bezier(0.4, 0, 0.2, 1)'`],
+    ['animationTimingFunction', `'steps(2, jump-none)'`],
   ] as const
 
   for (const [property, value] of samples) {
@@ -951,6 +954,37 @@ export const Card = () => <View {...stylex.props(styles.root)}>
     native.diagnostics.filter(({ message }) => /animationName.*keyframes/.test(message)).length,
     2,
   )
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+})
+
+test('static StyleX keyframe fallbacks preserve official declaration order', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const fadeIn = stylex.keyframes({ from: { opacity: 0 }, to: { opacity: 1 } })
+const fadeOut = stylex.keyframes({ from: { opacity: 1 }, to: { opacity: 0 } })
+const styles = stylex.create({
+  preferredFirst: { animationName: stylex.firstThatWorks(fadeIn, fadeOut) },
+  preferredLast: { animationName: [fadeIn, fadeOut] },
+})
+export const Card = () => <View {...stylex.props(styles.preferredFirst)}>
+  <View {...stylex.props(styles.preferredLast)} />
+</View>
+`
+  const web = compile(source)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0, JSON.stringify(web.diagnostics))
+  assert.doesNotMatch(web.jsx, /stylex\.props/)
+  const names = [...web.css.matchAll(/@keyframes (hozo-kf-[a-f0-9]+)/g)].map(([, name]) => name)
+  assert.equal(names.length, 2, web.css)
+  const declarations = [...web.css.matchAll(/animation-name: (hozo-kf-[a-f0-9]+);/g)].map(
+    ([, name]) => name,
+  )
+  assert.deepEqual(declarations, [names[1], names[0], names[0], names[1]])
+
+  const native = compileNative(source)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 2, JSON.stringify(native.diagnostics))
+  assert.ok(native.diagnostics.every(({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE'))
   assert.doesNotMatch(native.jsx, /stylex\.props/)
 })
 

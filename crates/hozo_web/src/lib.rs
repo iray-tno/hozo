@@ -393,8 +393,11 @@ fn scrolls_by_style(node: &Node) -> bool {
 }
 
 fn collect_keyframes_into<'a>(node: &'a Node, found: &mut Vec<RequiredKeyframes<'a>>) {
-    for declaration in &node.style {
-        match &declaration.property {
+    fn collect_property<'a>(
+        property: &'a hozo_ir::StyleProperty,
+        found: &mut Vec<RequiredKeyframes<'a>>,
+    ) {
+        match property {
             hozo_ir::StyleProperty::Animation(animation) => {
                 if let Some(keyframes) = animation.keyframes() {
                     if !found.iter().any(|found| {
@@ -404,15 +407,23 @@ fn collect_keyframes_into<'a>(node: &'a Node, found: &mut Vec<RequiredKeyframes<
                     }
                 }
             }
-            hozo_ir::StyleProperty::AnimationName(keyframes)
+            hozo_ir::StyleProperty::AnimationName(keyframes) => {
                 if !found.iter().any(|found| {
                     matches!(found, RequiredKeyframes::Stylex(existing) if existing.name == keyframes.name)
-                }) =>
-            {
-                found.push(RequiredKeyframes::Stylex(keyframes));
+                }) {
+                    found.push(RequiredKeyframes::Stylex(keyframes));
+                }
+            }
+            hozo_ir::StyleProperty::FirstThatWorks(candidates) => {
+                for candidate in candidates {
+                    collect_property(candidate, found);
+                }
             }
             _ => {}
         }
+    }
+    for declaration in &node.style {
+        collect_property(&declaration.property, found);
     }
     for child in &node.children {
         match child {
