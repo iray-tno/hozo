@@ -214,8 +214,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **200/200 (100%)** representative values, **15/15
-(100%)** common authoring constructs, and **157/157 (100%)** declarations after
+corpus currently measures **203/203 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **160/160 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -231,15 +231,17 @@ portable subset covers one- or two-axis px/% translation, degree rotation, and
 one- to three-axis numeric/percentage scale. Wider syntax remains residual.
 
 Common animation control longhands are exact Web-only declarations:
-composition, non-negative delay, direction, fill mode, non-negative iteration
-count, play state, and keyword timing functions. Native consumes them with an
-explicit Web-only diagnostic rather than implying that arbitrary CSS keyframes
-run on React Native. A module-scope static `stylex.keyframes` referenced by
+composition, signed delay, direction, fill mode, non-negative iteration count,
+play state, and keyword, `cubic-bezier()`, or `steps()` timing functions. Native
+consumes them with an explicit Web-only diagnostic rather than implying that
+arbitrary CSS keyframes run on React Native. A module-scope static
+`stylex.keyframes` referenced by
 `animationName` is carried in typed IR, content-hashed, hoisted once on Web,
 and follows the same explicit Native refusal policy; exported sheets carry it
-through the project module registry. Dynamic keyframes, arrays of animation
-names, negative delays, functional easing, and timelines remain with the
-official StyleX compiler.
+through the project module registry. Static keyframe references also preserve
+the official fallback order in `firstThatWorks(...)` and value arrays. Dynamic
+keyframes, simultaneous animation-name lists, wider easing syntax, and timelines
+remain with the official StyleX compiler.
 
 The static construct slice now flattens recursive `stylex.props` arrays,
 preserves logical and ternary guards, and expands module-local `const` object

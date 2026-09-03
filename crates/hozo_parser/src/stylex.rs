@@ -1003,6 +1003,8 @@ enum WebValueGrammar {
     SvgDasharray,
     UrlOrNone,
     Time,
+    SignedTime,
+    AnimationTimingFunction,
     FontFeatureSettings,
     FontLanguageOverride,
     FontPalette,
@@ -1037,13 +1039,6 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             &["none", "forwards", "backwards", "both"],
         ),
         "animationPlayState" => ("animation-play-state", &["running", "paused"]),
-        "animationTimingFunction" => (
-            "animation-timing-function",
-            &[
-                "linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start",
-                "step-end",
-            ],
-        ),
         "appearance" => ("appearance", &["auto", "none", "textfield"]),
         "alignmentBaseline" => (
             "alignment-baseline",
@@ -1448,9 +1443,13 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
                 "none", "min-content", "max-content", "fit-content", "fill-available",
             ]),
         )),
-        "transitionDelay" => Some(("transition-delay", WebValueGrammar::Time)),
-        "animationDelay" => Some(("animation-delay", WebValueGrammar::Time)),
+        "transitionDelay" => Some(("transition-delay", WebValueGrammar::SignedTime)),
+        "animationDelay" => Some(("animation-delay", WebValueGrammar::SignedTime)),
         "animationDuration" => Some(("animation-duration", WebValueGrammar::Time)),
+        "animationTimingFunction" => Some((
+            "animation-timing-function",
+            WebValueGrammar::AnimationTimingFunction,
+        )),
         "animationIterationCount" => Some((
             "animation-iteration-count",
             WebValueGrammar::NumberWithKeywords {
@@ -1708,6 +1707,99 @@ fn web_url_or_none(value: &StaticValue) -> Option<String> {
             && value.ends_with(')')
             && !value.contains(['\n', '\r', ';', '{', '}'])))
     .then(|| value.clone())
+}
+
+fn web_signed_time(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let (number, milliseconds) = if let Some(number) = value.strip_suffix("ms") {
+        (number.parse::<f64>().ok()?, true)
+    } else {
+        (value.strip_suffix('s')?.parse::<f64>().ok()?, false)
+    };
+    if !number.is_finite() {
+        return None;
+    }
+    // StyleX's CSS minifier currently leaves negative times in their input
+    // unit, while non-negative times use the shorter exact spelling.
+    if number < 0.0 {
+        return Some(value.clone());
+    }
+    let milliseconds_value = if milliseconds { number } else { number * 1000.0 };
+    let in_ms = format!("{}ms", minified_css_number(milliseconds_value));
+    let in_seconds = format!("{}s", minified_css_number(milliseconds_value / 1000.0));
+    if in_ms.len() < in_seconds.len() {
+        Some(in_ms)
+    } else if in_seconds.len() < in_ms.len() {
+        Some(in_seconds)
+    } else if milliseconds {
+        Some(in_ms)
+    } else {
+        Some(in_seconds)
+    }
+}
+
+fn minified_css_number(value: f64) -> String {
+    let value = numeric_text(value);
+    value
+        .strip_prefix("0.")
+        .map(|fraction| format!(".{fraction}"))
+        .or_else(|| value.strip_prefix("-0.").map(|fraction| format!("-.{fraction}")))
+        .unwrap_or(value)
+}
+
+fn web_animation_timing_function(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    if matches!(
+        value.as_str(),
+        "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" | "step-start" | "step-end"
+    ) {
+        return Some(value.clone());
+    }
+    if let Some(arguments) = value
+        .strip_prefix("cubic-bezier(")
+        .and_then(|value| value.strip_suffix(')'))
+    {
+        let numbers = arguments
+            .split(',')
+            .map(|part| part.trim().parse::<f64>().ok().filter(|value| value.is_finite()))
+            .collect::<Option<Vec<_>>>()?;
+        if numbers.len() != 4 || !(0.0..=1.0).contains(&numbers[0]) || !(0.0..=1.0).contains(&numbers[2]) {
+            return None;
+        }
+        return Some(format!(
+            "cubic-bezier({},{},{},{})",
+            minified_css_number(numbers[0]),
+            minified_css_number(numbers[1]),
+            minified_css_number(numbers[2]),
+            minified_css_number(numbers[3])
+        ));
+    }
+    let arguments = value
+        .strip_prefix("steps(")
+        .and_then(|value| value.strip_suffix(')'))?;
+    let parts = arguments.split(',').map(str::trim).collect::<Vec<_>>();
+    if !(1..=2).contains(&parts.len()) {
+        return None;
+    }
+    let count = parts[0].parse::<u32>().ok().filter(|count| *count > 0)?;
+    let position = parts.get(1).copied();
+    if position.is_some_and(|position| {
+        !matches!(
+            position,
+            "jump-start" | "jump-end" | "jump-none" | "jump-both" | "start" | "end"
+        )
+    }) || position == Some("jump-none") && count == 1
+    {
+        return None;
+    }
+    Some(match position {
+        Some(position) => format!("steps({count},{position})"),
+        None => format!("steps({count})"),
+    })
 }
 
 fn web_css_string(value: &str) -> bool {
@@ -2327,6 +2419,8 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
             let seconds = stylex_transition_duration(value)? as f64 / 1000.0;
             format!("{seconds}s")
         }
+        WebValueGrammar::SignedTime => web_signed_time(value)?,
+        WebValueGrammar::AnimationTimingFunction => web_animation_timing_function(value)?,
         WebValueGrammar::FontFeatureSettings => web_font_setting(value, false)?,
         WebValueGrammar::FontLanguageOverride => {
             let StaticValue::String(value) = value else { return None };
@@ -3502,6 +3596,58 @@ fn needs_platform_priority(left: &Entry, right: &ResolvedEntry) -> bool {
         })
 }
 
+fn animation_name_candidate(
+    expression: &Expression<'_>,
+    keyframes: &HashMap<String, Keyframes>,
+) -> Option<StyleProperty> {
+    let Expression::Identifier(identifier) = expression else {
+        return None;
+    };
+    keyframes
+        .get(identifier.name.as_str())
+        .cloned()
+        .map(StyleProperty::AnimationName)
+}
+
+fn stylex_animation_name(
+    expression: &Expression<'_>,
+    namespaces: &HashSet<String>,
+    keyframes: &HashMap<String, Keyframes>,
+) -> Option<Vec<StyleProperty>> {
+    if let Some(candidate) = animation_name_candidate(expression, keyframes) {
+        return Some(vec![candidate]);
+    }
+    if let Some(call) = first_that_works_call(expression, namespaces) {
+        let candidates = call
+            .arguments
+            .iter()
+            .map(|argument| animation_name_candidate(argument.as_expression()?, keyframes))
+            .collect::<Option<Vec<_>>>()?;
+        return (!candidates.is_empty())
+            .then(|| vec![StyleProperty::FirstThatWorks(candidates)]);
+    }
+    let Expression::ArrayExpression(array) = expression else {
+        return None;
+    };
+    let mut candidates = array
+        .elements
+        .iter()
+        .map(|element| match element {
+            ArrayExpressionElement::Elision(_) | ArrayExpressionElement::SpreadElement(_) => None,
+            element => animation_name_candidate(element.as_expression()?, keyframes),
+        })
+        .collect::<Option<Vec<_>>>()?;
+    if candidates.is_empty() {
+        return None;
+    }
+    // A plain StyleX value array is emitted in source order, so its last
+    // supported declaration wins. `FirstThatWorks` stores preferred-first
+    // and the Web renderer reverses it; reversing here preserves StyleX's
+    // distinct array fallback order without adding another IR wrapper.
+    candidates.reverse();
+    Some(vec![StyleProperty::FirstThatWorks(candidates)])
+}
+
 fn property_name_family(property: &str) -> Option<&'static str> {
     let property = canonical_property(property);
     if property.starts_with("padding") {
@@ -3858,33 +4004,21 @@ fn parse_rule_object(
             continue;
         }
         let properties = if name == "animationName" {
-            let Expression::Identifier(identifier) = &property.value else {
+            let Some(properties) =
+                stylex_animation_name(&property.value, namespaces, keyframes)
+            else {
                 residual.push(ResidualProperty {
                     css_name: canonical_property(&name).to_string(),
                     span: ExprRef(source_span(property.span)),
                 });
                 gaps.push(Gap {
-                    message: "StyleX `animationName` currently lowers a module-scope static `stylex.keyframes` binding."
+                    message: "StyleX `animationName` lowers local static `stylex.keyframes` bindings, including static `firstThatWorks` and array fallbacks."
                         .to_string(),
                     span: source_span(property.value.span()),
                 });
                 continue;
             };
-            let Some(keyframes) = keyframes.get(identifier.name.as_str()) else {
-                residual.push(ResidualProperty {
-                    css_name: canonical_property(&name).to_string(),
-                    span: ExprRef(source_span(property.span)),
-                });
-                gaps.push(Gap {
-                    message: format!(
-                        "StyleX `animationName` binding `{}` is not a supported static local `stylex.keyframes` definition.",
-                        identifier.name
-                    ),
-                    span: source_span(property.value.span()),
-                });
-                continue;
-            };
-            vec![StyleProperty::AnimationName(keyframes.clone())]
+            properties
         } else if let Some(call) = first_that_works_call(&property.value, namespaces) {
             let candidates = call
                 .arguments
@@ -5648,7 +5782,7 @@ mod tests {
                 objectPosition: 'center', justifySelf: 'center', placeItems: 'center',
                 transitionDelay: '100ms', animationDuration: '.2s'
               },
-              wider: { backgroundSize: 'calc(100% - 1px)', transitionDelay: '0.5ms' }
+              wider: { backgroundSize: 'calc(100% - 1px)', transitionDelay: 'calc(1s - 2ms)' }
             })
         "#,
         );
@@ -5674,14 +5808,14 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             const styles = stylex.create({
               exact: {
-                animationComposition: 'add', animationDelay: '100ms',
+                animationComposition: 'add', animationDelay: '-100ms',
                 animationDirection: 'alternate-reverse', animationFillMode: 'both',
                 animationIterationCount: 2.5, animationPlayState: 'paused',
-                animationTimingFunction: 'ease-in-out'
+                animationTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
               },
               wider: {
-                animationDelay: '-100ms', animationIterationCount: -1,
-                animationTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
+                animationDelay: 'calc(1s - 2ms)', animationIterationCount: -1,
+                animationTimingFunction: 'linear(0, 1)'
               }
             })
         "#,
