@@ -355,6 +355,8 @@ pub enum Primitive {
     Description,
     /// A thematic break or divider: `<hr>` on Web and `role="separator"` `View` on React Native.
     Separator,
+    /// A progress indicator bar: `<progress>` on Web and `role="progressbar"` `View` on React Native.
+    Progress,
     /// A static semantic list: `<ul>`/`<ol>` on Web and a list-role
     /// `View` on React Native. Data-heavy lists remain `FlatList`.
     List,

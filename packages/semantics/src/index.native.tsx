@@ -158,3 +158,40 @@ export function Separator({
     ...props,
   })
 }
+
+export interface ProgressProps extends SemanticsNativeProps {
+  value?: number
+  max?: number
+  accessibilityValue?: {
+    min?: number
+    max?: number
+    now?: number
+    text?: string
+  }
+}
+
+export function Progress({
+  value,
+  max,
+  role = 'progressbar',
+  accessibilityValue,
+  style,
+  children,
+  ...props
+}: ProgressProps) {
+  return React.createElement(
+    'View',
+    {
+      role,
+      accessibilityRole: 'progressbar',
+      accessibilityValue: accessibilityValue ?? {
+        min: 0,
+        max: max ?? 100,
+        now: value,
+      },
+      style,
+      ...props,
+    },
+    children,
+  )
+}

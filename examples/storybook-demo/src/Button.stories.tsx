@@ -66,6 +66,65 @@ function ButtonGallery() {
           >
             External Link &rarr;
           </Link>
+
+          <Button
+            href="https://github.com/iray-tno/hozo"
+            external
+            className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-colors"
+          >
+            Button as Link &rarr;
+          </Button>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+function LinkButtonsDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Button as Link (&lt;Button href=&quot;...&quot;&gt;)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        When a &lt;Button&gt; receives an `href` prop, Hozo lowers it to semantic &lt;a
+        role=&quot;button&quot;&gt; on Web and an accessible HozoLink on React Native.
+      </Paragraph>
+
+      <View className="space-y-4 pt-2">
+        <View className="rounded-xl border border-slate-200 p-4 space-y-3">
+          <Text className="text-xs font-bold uppercase tracking-wider text-slate-600">
+            Internal Route Navigation
+          </Text>
+          <Paragraph className="text-sm text-slate-800">
+            Navigates within the application while keeping full button styling:
+          </Paragraph>
+          <Button
+            href="/dashboard"
+            className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+          >
+            Go to Dashboard &rarr;
+          </Button>
+        </View>
+
+        <View className="rounded-xl border border-slate-200 p-4 space-y-3">
+          <Text className="text-xs font-bold uppercase tracking-wider text-slate-600">
+            External Link with Security Defaults
+          </Text>
+          <Paragraph className="text-sm text-slate-800">
+            Adding external automatically sets target=&quot;_blank&quot; and rel=&quot;noreferrer
+            noopener&quot;:
+          </Paragraph>
+          <Button
+            href="https://github.com/iray-tno/hozo"
+            external
+            className="inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+          >
+            View on GitHub &rarr;
+          </Button>
         </View>
       </View>
     </View>
@@ -79,3 +138,6 @@ const meta = {
 
 export default meta
 export const Default: StoryObj<typeof meta> = {}
+export const LinkButtons: StoryObj<typeof meta> = {
+  render: () => <LinkButtonsDemo />,
+}

@@ -50,8 +50,12 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Term => ("Text", Vec::new()),
         Primitive::Description => ("View", Vec::new()),
         Primitive::Separator => ("View", vec![("role", "separator".to_string())]),
+        Primitive::Progress => ("View", vec![("role", "progressbar".to_string())]),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),
+        Primitive::Button if node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href")) => {
+            ("HozoLink", vec![("accessibilityRole", "button".to_string())])
+        }
         Primitive::Button => ("Pressable", vec![("accessibilityRole", "button".to_string())]),
         Primitive::Link => ("HozoLink", Vec::new()),
         Primitive::Image => ("Image", image_attrs(node, diagnostics)),
