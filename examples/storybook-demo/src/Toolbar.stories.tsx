@@ -105,7 +105,7 @@ function ToolbarGallery() {
 }
 
 const meta = {
-  title: 'A11y/Toolbar',
+  title: 'Core/Toolbar',
   component: ToolbarGallery,
 } satisfies Meta<typeof ToolbarGallery>
 

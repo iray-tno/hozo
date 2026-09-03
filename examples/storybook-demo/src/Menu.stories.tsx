@@ -56,6 +56,6 @@ function MenuDemo() {
   )
 }
 
-const meta = { title: 'A11y/Menu & Radio', component: MenuDemo } satisfies Meta<typeof MenuDemo>
+const meta = { title: 'Core/Menu & Radio', component: MenuDemo } satisfies Meta<typeof MenuDemo>
 export default meta
 export const Default: StoryObj<typeof meta> = {}

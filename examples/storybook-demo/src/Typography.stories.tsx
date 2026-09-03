@@ -370,7 +370,7 @@ function LinksDemo() {
 }
 
 const meta = {
-  title: 'Typography',
+  title: 'Typography/Showcase',
   component: TypographyDemo,
 } satisfies Meta<typeof TypographyDemo>
 

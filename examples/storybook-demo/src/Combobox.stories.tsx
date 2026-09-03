@@ -59,6 +59,6 @@ function ComboboxDemo() {
   )
 }
 
-const meta = { title: 'A11y/Combobox', component: ComboboxDemo } satisfies Meta<typeof ComboboxDemo>
+const meta = { title: 'Core/Combobox', component: ComboboxDemo } satisfies Meta<typeof ComboboxDemo>
 export default meta
 export const Default: StoryObj<typeof meta> = {}

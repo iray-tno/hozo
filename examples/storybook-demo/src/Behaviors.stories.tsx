@@ -578,7 +578,7 @@ function FloatingPopoverDemo() {
 }
 
 const meta = {
-  title: 'Behaviors',
+  title: 'Behaviors/Showcase',
   component: BehaviorsShowcase,
 } satisfies Meta<typeof BehaviorsShowcase>
 
