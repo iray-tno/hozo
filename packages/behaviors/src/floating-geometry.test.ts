@@ -246,3 +246,54 @@ test('computePosition: anchor larger than floating element', () => {
   // Arrow centered to giant anchor: anchor center 450 - floating.x 410 = 40 (center of 80px floating)
   assert.equal(res.arrow?.x, 40)
 })
+
+test('computePosition: calculates availableDimensions for dropdown scroll containment', () => {
+  // Anchor at (400, 300), height 40. Viewport height 800.
+  // Bottom: availableHeight = 800 - (300 + 40) - 8 (offset) - 8 (padding) = 444
+  const bottomRes = computePosition(defaultAnchor, defaultFloating, viewport, {
+    placement: 'bottom',
+    offset: 8,
+    viewportPadding: 8,
+  })
+  assert.equal(bottomRes.availableDimensions.height, 444)
+  // Cross axis width: 1000 - 2 * 8 = 984
+  assert.equal(bottomRes.availableDimensions.width, 984)
+
+  // Top: availableHeight = 300 - 8 (offset) - 8 (padding) = 284
+  const topRes = computePosition(defaultAnchor, defaultFloating, viewport, {
+    placement: 'top',
+    offset: 8,
+    viewportPadding: 8,
+  })
+  assert.equal(topRes.availableDimensions.height, 284)
+})
+
+test('computePosition: matchAnchorWidth forces floating width to match anchor', () => {
+  const customAnchor: Rect = { x: 100, y: 100, width: 320, height: 48 }
+  const smallFloating: Rect = { x: 0, y: 0, width: 150, height: 200 }
+
+  const res = computePosition(customAnchor, smallFloating, viewport, {
+    placement: 'bottom-start',
+    matchAnchorWidth: true,
+  })
+  assert.equal(res.anchorWidth, 320)
+  assert.equal(res.x, 100)
+  // When matchAnchorWidth is true, right side is also aligned with anchor
+  assert.equal(res.x + res.anchorWidth, 420)
+})
+
+test('computePosition: referenceHidden detects when anchor scrolled outside viewport', () => {
+  // Inside viewport
+  const visibleRes = computePosition(defaultAnchor, defaultFloating, viewport)
+  assert.equal(visibleRes.referenceHidden, false)
+
+  // Scrolled above top edge: y + height < 0
+  const scrolledAbove: Rect = { x: 400, y: -50, width: 100, height: 40 }
+  const hiddenTop = computePosition(scrolledAbove, defaultFloating, viewport)
+  assert.equal(hiddenTop.referenceHidden, true)
+
+  // Scrolled below bottom edge: y > 800
+  const scrolledBelow: Rect = { x: 400, y: 850, width: 100, height: 40 }
+  const hiddenBottom = computePosition(scrolledBelow, defaultFloating, viewport)
+  assert.equal(hiddenBottom.referenceHidden, true)
+})

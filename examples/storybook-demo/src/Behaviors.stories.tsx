@@ -469,6 +469,7 @@ function TypeaheadDemo() {
 function FloatingPopoverDemo() {
   const [open, setOpen] = useState(false)
   const [placement, setPlacement] = useState<Placement>('bottom')
+  const [matchWidth, setMatchWidth] = useState(false)
   const anchorRef = useRef<HTMLButtonElement>(null)
 
   const placements: Placement[] = ['top', 'bottom', 'left', 'right']
@@ -486,21 +487,34 @@ function FloatingPopoverDemo() {
         detection (flip &amp; shift) and arrow tracking.
       </Paragraph>
 
-      <View className="flex flex-row items-center gap-2">
-        <Text className="text-xs font-semibold text-slate-600">Placement:</Text>
-        {placements.map((p) => (
-          <Button
-            key={p}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-              placement === p
-                ? 'bg-indigo-600 text-white'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-            onPress={() => setPlacement(p)}
-          >
-            {p}
-          </Button>
-        ))}
+      <View className="flex flex-row flex-wrap items-center gap-4">
+        <View className="flex flex-row items-center gap-2">
+          <Text className="text-xs font-semibold text-slate-600">Placement:</Text>
+          {placements.map((p) => (
+            <Button
+              key={p}
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                placement === p
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+              onPress={() => setPlacement(p)}
+            >
+              {p}
+            </Button>
+          ))}
+        </View>
+
+        <Button
+          className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+            matchWidth
+              ? 'bg-emerald-600 text-white'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          }`}
+          onPress={() => setMatchWidth((prev) => !prev)}
+        >
+          {matchWidth ? '✓ Match Anchor Width' : 'Match Anchor Width'}
+        </Button>
       </View>
 
       <View className="py-12 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -508,7 +522,7 @@ function FloatingPopoverDemo() {
           ref={anchorRef}
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 transition-colors"
+          className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 transition-colors"
         >
           {open ? 'Close Popover' : 'Click to Anchor Popover'}
         </button>
@@ -521,12 +535,15 @@ function FloatingPopoverDemo() {
               offset={10}
               flip
               shift
+              matchAnchorWidth={matchWidth}
               className="z-50"
             >
               {(pos) => (
                 <DismissableLayer
                   onDismiss={() => setOpen(false)}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-xl space-y-2 w-64"
+                  className={`rounded-xl border border-slate-200 bg-white p-4 shadow-xl space-y-2 ${
+                    matchWidth ? 'w-full' : 'w-64'
+                  }`}
                 >
                   <View className="flex flex-row items-center justify-between">
                     <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
@@ -540,6 +557,9 @@ function FloatingPopoverDemo() {
                   </View>
                   <Paragraph className="text-xs text-slate-600">
                     Calculated position: ({pos?.x}, {pos?.y})
+                  </Paragraph>
+                  <Paragraph className="text-xs text-slate-500">
+                    Available Height: {pos?.availableDimensions.height}px
                   </Paragraph>
                   <Button
                     className="w-full rounded bg-slate-100 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"

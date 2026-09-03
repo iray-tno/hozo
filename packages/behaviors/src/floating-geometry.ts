@@ -29,6 +29,8 @@ export interface ComputePositionOptions {
   viewportPadding?: number
   /** Minimum padding from the floating edge to arrow center in pixels. Default: 4 */
   arrowPadding?: number
+  /** Whether the floating element width should match the anchor width. Default: false */
+  matchAnchorWidth?: boolean
 }
 
 export interface PositionResult {
@@ -39,6 +41,15 @@ export interface PositionResult {
   alignment: Alignment
   flipped: boolean
   shifted: boolean
+  /** Whether the anchor element is currently completely outside the viewport (hidden by scroll) */
+  referenceHidden: boolean
+  /** The anchor element's measured width in pixels */
+  anchorWidth: number
+  /** Maximum dimensions available for the floating element before overflowing viewport */
+  availableDimensions: {
+    width: number
+    height: number
+  }
   arrow?: {
     x?: number
     y?: number
@@ -113,7 +124,7 @@ function calculateRawCoords(
 
 /**
  * Pure geometric calculation for positioning floating elements relative to an anchor.
- * Supports Popper/Floating-UI equivalent placement, flip, shift, and arrow calculation.
+ * Supports Popper/Floating-UI equivalent placement, flip, shift, size limits, and arrow calculation.
  */
 export function computePosition(
   anchor: Rect,
@@ -129,7 +140,10 @@ export function computePosition(
     shift = true,
     viewportPadding = 8,
     arrowPadding = 4,
+    matchAnchorWidth = false,
   } = options
+
+  const effectiveFloating = matchAnchorWidth ? { ...floating, width: anchor.width } : floating
 
   const parsed = parsePlacement(placement)
   let currentBase = parsed.basePlacement
@@ -138,7 +152,7 @@ export function computePosition(
 
   let coords = calculateRawCoords(
     anchor,
-    floating,
+    effectiveFloating,
     currentBase,
     currentAlign,
     offset,
@@ -151,18 +165,18 @@ export function computePosition(
     if (currentBase === 'top') {
       overflows = coords.y < viewportPadding
     } else if (currentBase === 'bottom') {
-      overflows = coords.y + floating.height > viewport.height - viewportPadding
+      overflows = coords.y + effectiveFloating.height > viewport.height - viewportPadding
     } else if (currentBase === 'left') {
       overflows = coords.x < viewportPadding
     } else if (currentBase === 'right') {
-      overflows = coords.x + floating.width > viewport.width - viewportPadding
+      overflows = coords.x + effectiveFloating.width > viewport.width - viewportPadding
     }
 
     if (overflows) {
       const oppositeBase = getOppositeBase(currentBase)
       const oppositeCoords = calculateRawCoords(
         anchor,
-        floating,
+        effectiveFloating,
         oppositeBase,
         currentAlign,
         offset,
@@ -203,9 +217,15 @@ export function computePosition(
   // Shift along cross-axis to stay within viewport
   if (shift) {
     const minX = viewportPadding
-    const maxX = Math.max(viewportPadding, viewport.width - floating.width - viewportPadding)
+    const maxX = Math.max(
+      viewportPadding,
+      viewport.width - effectiveFloating.width - viewportPadding,
+    )
     const minY = viewportPadding
-    const maxY = Math.max(viewportPadding, viewport.height - floating.height - viewportPadding)
+    const maxY = Math.max(
+      viewportPadding,
+      viewport.height - effectiveFloating.height - viewportPadding,
+    )
 
     const clampedX = Math.min(Math.max(finalX, minX), maxX)
     const clampedY = Math.min(Math.max(finalY, minY), maxY)
@@ -223,7 +243,7 @@ export function computePosition(
     const anchorCenter = anchor.x + anchor.width / 2
     const rawArrowX = anchorCenter - finalX
     const minArrowX = arrowPadding
-    const maxArrowX = Math.max(arrowPadding, floating.width - arrowPadding)
+    const maxArrowX = Math.max(arrowPadding, effectiveFloating.width - arrowPadding)
     arrow = {
       x: Math.min(Math.max(rawArrowX, minArrowX), maxArrowX),
     }
@@ -231,11 +251,38 @@ export function computePosition(
     const anchorCenter = anchor.y + anchor.height / 2
     const rawArrowY = anchorCenter - finalY
     const minArrowY = arrowPadding
-    const maxArrowY = Math.max(arrowPadding, floating.height - arrowPadding)
+    const maxArrowY = Math.max(arrowPadding, effectiveFloating.height - arrowPadding)
     arrow = {
       y: Math.min(Math.max(rawArrowY, minArrowY), maxArrowY),
     }
   }
+
+  // Calculate available dimensions for the floating content
+  let availableWidth = Math.max(0, viewport.width - 2 * viewportPadding)
+  let availableHeight = Math.max(0, viewport.height - 2 * viewportPadding)
+
+  if (currentBase === 'top') {
+    availableHeight = Math.max(0, anchor.y - offset - viewportPadding)
+  } else if (currentBase === 'bottom') {
+    availableHeight = Math.max(
+      0,
+      viewport.height - (anchor.y + anchor.height) - offset - viewportPadding,
+    )
+  } else if (currentBase === 'left') {
+    availableWidth = Math.max(0, anchor.x - offset - viewportPadding)
+  } else if (currentBase === 'right') {
+    availableWidth = Math.max(
+      0,
+      viewport.width - (anchor.x + anchor.width) - offset - viewportPadding,
+    )
+  }
+
+  // Detect whether the anchor reference is hidden (scrolled completely off-screen)
+  const referenceHidden =
+    anchor.y + anchor.height < 0 ||
+    anchor.y > viewport.height ||
+    anchor.x + anchor.width < 0 ||
+    anchor.x > viewport.width
 
   const finalPlacement =
     currentAlign === 'center' ? currentBase : (`${currentBase}-${currentAlign}` as Placement)
@@ -248,6 +295,12 @@ export function computePosition(
     alignment: currentAlign,
     flipped,
     shifted,
+    referenceHidden,
+    anchorWidth: Math.round(anchor.width),
+    availableDimensions: {
+      width: Math.round(availableWidth),
+      height: Math.round(availableHeight),
+    },
     arrow,
   }
 }

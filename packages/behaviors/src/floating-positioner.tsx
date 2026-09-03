@@ -34,6 +34,7 @@ export function useFloatingPosition({
   shift = true,
   viewportPadding = 8,
   arrowPadding = 4,
+  matchAnchorWidth = false,
 }: UseFloatingPositionOptions): PositionResult | null {
   const [position, setPosition] = useState<PositionResult | null>(null)
 
@@ -71,6 +72,7 @@ export function useFloatingPosition({
       shift,
       viewportPadding,
       arrowPadding,
+      matchAnchorWidth,
     })
 
     setPosition(result)
@@ -85,6 +87,7 @@ export function useFloatingPosition({
     shift,
     viewportPadding,
     arrowPadding,
+    matchAnchorWidth,
   ])
 
   useEffect(() => {
@@ -143,7 +146,9 @@ export function FloatingPositioner({
         position: 'fixed',
         left: `${position.x}px`,
         top: `${position.y}px`,
+        width: options.matchAnchorWidth ? `${position.anchorWidth}px` : undefined,
         willChange: 'transform',
+        display: position.referenceHidden ? 'none' : undefined,
       }
     : {
         position: 'fixed',
@@ -160,6 +165,7 @@ export function FloatingPositioner({
       data-placement={position?.placement}
       data-flipped={position?.flipped ? '' : undefined}
       data-shifted={position?.shifted ? '' : undefined}
+      data-reference-hidden={position?.referenceHidden ? '' : undefined}
     >
       {typeof children === 'function' ? children(position) : children}
     </div>
