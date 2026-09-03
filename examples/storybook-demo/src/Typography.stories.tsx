@@ -1,3 +1,4 @@
+import { View } from '@hozo/core'
 import {
   Code,
   Emphasis,
@@ -14,8 +15,7 @@ import {
   Sup,
   Text,
   Underline,
-  View,
-} from '@hozo/core'
+} from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function TypographyDemo() {
@@ -109,7 +109,7 @@ function TypographyDemo() {
 }
 
 const meta = {
-  title: 'Core/Typography',
+  title: 'Typography/Showcase',
   component: TypographyDemo,
 } satisfies Meta<typeof TypographyDemo>
 

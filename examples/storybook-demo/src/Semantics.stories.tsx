@@ -1,3 +1,4 @@
+import { Text, View } from '@hozo/core'
 import {
   Address,
   Article,
@@ -9,20 +10,17 @@ import {
   Figure,
   Footer,
   Header,
-  Heading,
   Legend,
   Main,
   Nav,
-  Paragraph,
   Search,
   Section,
   Summary,
   Term,
   TermList,
-  Text,
   Time,
-  View,
-} from '@hozo/core'
+} from '@hozo/semantics'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function SemanticsDemo() {
@@ -172,7 +170,7 @@ function SemanticsDemo() {
 }
 
 const meta = {
-  title: 'Core/Semantics',
+  title: 'Semantics/Showcase',
   component: SemanticsDemo,
 } satisfies Meta<typeof SemanticsDemo>
 
