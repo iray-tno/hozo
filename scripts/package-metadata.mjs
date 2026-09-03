@@ -44,7 +44,7 @@ const REPOSITORY = 'https://github.com/iray-tno/hozo'
  * well as in the tarball. The alternative -- source in the workspace,
  * `dist` swapped in by `publishConfig` at publish time -- keeps the dev
  * loop a step shorter, and was rejected twice over. `@hozo/core` and
- * `@hozo/a11y` are `.tsx`, and Node's type stripping does not transform
+ * `@hozo/behaviors` are `.tsx`, and Node's type stripping does not transform
  * JSX, so those two cannot be loaded from source at all. And the two bugs
  * this build's first type-check turned up had both survived by the
  * published shape never being the shape under test.
@@ -68,6 +68,7 @@ const PACKAGES = {
   },
   core: {
     exports: { '.': './dist/index.js' },
+    native: true,
     keywords: ['react-native', 'react', 'components', 'accessibility', 'universal'],
   },
   semantics: {
@@ -93,10 +94,20 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'runtime', 'styles', 'animation'],
   },
-  a11y: {
+  behaviors: {
     exports: { '.': './dist/index.js' },
     native: true,
-    keywords: ['react-native', 'accessibility', 'a11y', 'aria', 'dialog'],
+    keywords: [
+      'react-native',
+      'behaviors',
+      'focus',
+      'roving-focus',
+      'typeahead',
+      'popper',
+      'floating-ui',
+      'portal',
+      'live-region',
+    ],
   },
   tailwind: {
     exports: { '.': './dist/index.js' },

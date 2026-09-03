@@ -180,9 +180,6 @@ importers:
 
   examples/storybook-demo:
     dependencies:
-      '@hozo/a11y':
-        specifier: workspace:*
-        version: link:../../packages/a11y
       '@hozo/behaviors':
         specifier: workspace:*
         version: link:../../packages/behaviors
@@ -264,29 +261,8 @@ importers:
         specifier: ^8.2.1
         version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0)
 
-  packages/a11y:
-    devDependencies:
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      react-native:
-        specifier: ^0.87.0
-        version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
-
   packages/behaviors:
     dependencies:
-      '@hozo/runtime':
-        specifier: workspace:^
-        version: link:../runtime
       react-native:
         specifier: '>=0.76'
         version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
@@ -346,9 +322,9 @@ importers:
 
   packages/core:
     dependencies:
-      '@hozo/a11y':
+      '@hozo/behaviors':
         specifier: workspace:^
-        version: link:../a11y
+        version: link:../behaviors
       '@hozo/runtime':
         specifier: workspace:^
         version: link:../runtime
@@ -358,9 +334,6 @@ importers:
       '@hozo/typography':
         specifier: workspace:^
         version: link:../typography
-      react:
-        specifier: ^19.0.0
-        version: 19.2.8
     devDependencies:
       '@types/react':
         specifier: ^19.2.18
@@ -368,9 +341,15 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      react-native:
+        specifier: ^0.87.0
+        version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
 
   packages/metro:
     dependencies:
@@ -409,9 +388,9 @@ importers:
 
   packages/runtime:
     dependencies:
-      '@hozo/a11y':
+      '@hozo/behaviors':
         specifier: workspace:^
-        version: link:../a11y
+        version: link:../behaviors
     devDependencies:
       '@types/react':
         specifier: ^19.2.18
@@ -482,9 +461,9 @@ importers:
 
   packages/tailwind-conformance:
     dependencies:
-      '@hozo/a11y':
+      '@hozo/behaviors':
         specifier: workspace:^
-        version: link:../a11y
+        version: link:../behaviors
       '@hozo/compiler':
         specifier: workspace:*
         version: link:../compiler

@@ -7,7 +7,6 @@ mkdirSync('junit-reports', { recursive: true })
 
 const packages = [
   { name: 'compiler', dir: 'packages/compiler', testPattern: 'src/*.test.ts' },
-  { name: 'a11y', dir: 'packages/a11y', testPattern: 'src/*.test.ts' },
   {
     name: 'behaviors',
     dir: 'packages/behaviors',

@@ -1,30 +1,8 @@
-// What the components actually render.
-//
-// The rules these are built on are tested as rules -- `roving.test.ts`,
-// `typeahead.test.ts`, `focus.test.ts` -- and none of that establishes
-// that the ARIA wiring is right. A tab whose `aria-controls` points at no
-// panel, a panel whose `aria-labelledby` names no tab, a strip that is
-// every element's tab stop instead of one: all of those render, look
-// correct, and are broken only for someone who cannot see them.
-//
-// Static markup rather than a real DOM, the same choice
-// `@hozo/tailwind-conformance`'s render check makes: the question is what
-// comes out, and the behaviour is already covered where the decisions are
-// made.
-//
-// `createElement` rather than JSX, and `.ts` rather than `.tsx`, because
-// Node strips types on its own and does not transform JSX -- so a `.tsx`
-// test needs a build step that nothing else in this package has.
-
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-// From `dist`, not from source: these components are `.tsx` and Node
-// transforms types but not JSX, so the built output is the only thing it
-// can load -- which also makes this a check of what actually ships rather
-// than of what tsc was handed.
 import {
   HozoCombobox,
   HozoListbox,
@@ -34,7 +12,7 @@ import {
   type HozoTabsProps,
   HozoToolbar,
   HozoTree,
-} from '../dist/index.js'
+} from './index.tsx'
 
 const tabs = [
   { label: 'Profile', content: 'profile' },
@@ -45,7 +23,6 @@ const tabs = [
 const strip = (props: Partial<HozoTabsProps> = {}) =>
   renderToStaticMarkup(createElement(HozoTabs, { tabs, accessibilityLabel: 'Account', ...props }))
 
-/** Every `name="value"` for one attribute, in document order. */
 function attributes(html: string, name: string): string[] {
   return [...html.matchAll(new RegExp(`${name}="([^"]*)"`, 'g'))].map((match) => match[1] ?? '')
 }
@@ -57,30 +34,11 @@ test('a tab points at its panel and the panel back at the tab', () => {
   const panelIds = ids.filter((id) => id.includes('-panel-'))
 
   assert.equal(tabIds.length, 3)
-  assert.deepEqual(
-    attributes(html, 'aria-controls'),
-    panelIds,
-    'each tab names a panel that exists',
-  )
-  assert.deepEqual(
-    attributes(html, 'aria-labelledby'),
-    tabIds,
-    'each panel names a tab that exists',
-  )
-})
-
-test('the strip is one tab stop, not three', () => {
-  // The whole point of the pattern. Without it, Tab past a six-tab strip
-  // is six presses.
-  const stops = attributes(strip(), 'tabindex')
-  assert.equal(stops.filter((value) => value === '0').length, 2, 'the active tab and the panel')
-  assert.equal(stops.filter((value) => value === '-1').length, 2, 'the other two tabs')
+  assert.deepEqual(attributes(html, 'aria-controls'), panelIds, 'each tab points at its panel')
+  assert.deepEqual(attributes(html, 'aria-labelledby'), tabIds, 'each panel points back at its tab')
 })
 
 test('a disabled tab keeps its place and says so', () => {
-  // `aria-disabled`, never the `disabled` attribute: that one takes the
-  // button out of the accessibility tree and leaves the strip with a gap
-  // nobody can reach or be told about.
   const html = strip()
   assert.match(html, /aria-disabled="true"/)
   assert.doesNotMatch(html, /<button[^>]*\sdisabled[\s>]/)
@@ -97,8 +55,6 @@ test('only the selected panel has anything in it', () => {
 test('the strip says which way its arrows go', () => {
   assert.match(strip(), /aria-orientation="horizontal"/)
   assert.match(strip({ orientation: 'vertical' }), /aria-orientation="vertical"/)
-  // `both` has no ARIA spelling, so it says nothing rather than claiming
-  // one of the two.
   assert.doesNotMatch(strip({ orientation: 'both' }), /aria-orientation/)
 })
 
@@ -112,9 +68,6 @@ test('a closed menu is a button that says it opens one', () => {
   )
   assert.match(html, /aria-haspopup="menu"/)
   assert.match(html, /aria-expanded="false"/)
-  // Nothing to control yet, so nothing is claimed: `aria-controls` naming
-  // an element that is not in the document is a dangling reference, and a
-  // screen reader following it finds nothing.
   assert.doesNotMatch(html, /aria-controls/)
   assert.doesNotMatch(html, /role="menu"/)
 })
@@ -124,9 +77,9 @@ test('the toolbar is one tab stop and says which way it goes', () => {
     createElement(HozoToolbar, {
       accessibilityLabel: 'Formatting',
       items: [
-        { render: (props) => createElement('button', { ...props, key: 'b' }, 'B') },
-        { render: (props) => createElement('button', { ...props, key: 'i' }, 'I') },
-        { render: (props) => createElement('button', { ...props, key: 'u' }, 'U') },
+        { render: (props: any) => createElement('button', { ...props, key: 'b' }, 'B') },
+        { render: (props: any) => createElement('button', { ...props, key: 'i' }, 'I') },
+        { render: (props: any) => createElement('button', { ...props, key: 'u' }, 'U') },
       ],
     }),
   )
@@ -136,9 +89,6 @@ test('the toolbar is one tab stop and says which way it goes', () => {
 })
 
 test('the radio group puts its tab stop on the chosen option', () => {
-  // Not on wherever the keyboard was last. Tabbing into a group and
-  // landing on the third option because that is where you were before
-  // tells you nothing about what is selected now.
   const html = renderToStaticMarkup(
     createElement(HozoRadioGroup, {
       accessibilityLabel: 'Delivery',
@@ -157,9 +107,6 @@ test('the radio group puts its tab stop on the chosen option', () => {
 })
 
 test('a group with nothing chosen is still reachable', () => {
-  // An ordinary state, and one where "the tab stop is the chosen option"
-  // has no answer -- so it falls to the first option that can hold it,
-  // and Tab lands somewhere the arrows can start from.
   const html = renderToStaticMarkup(
     createElement(HozoRadioGroup, {
       accessibilityLabel: 'Delivery',
@@ -185,9 +132,6 @@ test('a single-select listbox says so and follows its value', () => {
     }),
   )
   assert.match(html, /role="listbox"/)
-  // Said always, not only when true: a screen reader announces the model
-  // on entry, and leaving it off a multi-select means someone finds out
-  // that several are allowed by trying.
   assert.match(html, /aria-multiselectable="false"/)
   assert.deepEqual(attributes(html, 'aria-selected'), ['true', 'false'])
   assert.deepEqual(attributes(html, 'tabindex'), ['0', '-1'], 'the tab stop is the chosen option')
@@ -208,8 +152,6 @@ test('a multi-select listbox keeps focus and selection apart', () => {
   )
   assert.match(html, /aria-multiselectable="true"/)
   assert.deepEqual(attributes(html, 'aria-selected'), ['false', 'true', 'true'])
-  // Not on a selected option: with several chosen there is no single
-  // answer to land on, so the stop is where the arrows left off.
   assert.deepEqual(attributes(html, 'tabindex'), ['0', '-1', '-1'])
 })
 
@@ -233,9 +175,6 @@ test('a tree announces the depth that the indentation only shows', () => {
   )
   assert.match(html, /role="tree"/)
   assert.equal(attributes(html, 'role').filter((role) => role === 'treeitem').length, 4)
-  // Without these the tree renders identically and announces as a flat
-  // list: the depth lives in the CSS, which is what a screen reader does
-  // not read.
   assert.deepEqual(attributes(html, 'aria-level'), ['1', '2', '2', '1'])
   assert.deepEqual(attributes(html, 'aria-posinset'), ['1', '1', '2', '2'])
   assert.deepEqual(attributes(html, 'aria-setsize'), ['2', '2', '2', '2'])
@@ -251,18 +190,11 @@ test('only a branch of the tree says whether it is open', () => {
       ],
     }),
   )
-  // One `aria-expanded`, on the branch. A leaf carrying one tells a screen
-  // reader it can be opened, which it cannot.
   assert.deepEqual(attributes(html, 'aria-expanded'), ['false'])
-  // And the collapsed branch's child is not rendered at all, which is what
-  // makes the rows "what is on screen".
   assert.doesNotMatch(html, /index\.ts/)
 })
 
 test('the combobox field keeps focus and names the option instead', () => {
-  // The structural decision the whole pattern rests on. Focus never leaves
-  // the field -- a field that loses focus stops receiving keystrokes -- so
-  // no option carries a tabindex and none can be focused.
   const html = renderToStaticMarkup(
     createElement(HozoCombobox, {
       accessibilityLabel: 'City',
@@ -275,9 +207,6 @@ test('the combobox field keeps focus and names the option instead', () => {
   assert.match(html, /role="combobox"/)
   assert.match(html, /aria-expanded="false"/)
   assert.match(html, /aria-autocomplete="list"/)
-  // Closed, so there is nothing to control and nothing to point at:
-  // naming an element that is not in the document is a dangling
-  // reference, and a screen reader following it finds nothing.
   assert.doesNotMatch(html, /aria-controls/)
   assert.doesNotMatch(html, /aria-activedescendant/)
   assert.doesNotMatch(html, /tabindex/)

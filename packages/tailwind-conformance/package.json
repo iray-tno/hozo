@@ -13,7 +13,7 @@
     "duplication": "node src/duplication-report.ts"
   },
   "dependencies": {
-    "@hozo/a11y": "workspace:^",
+    "@hozo/behaviors": "workspace:^",
     "@hozo/compiler": "workspace:*",
     "@hozo/metro": "workspace:^",
     "@hozo/runtime": "workspace:^",

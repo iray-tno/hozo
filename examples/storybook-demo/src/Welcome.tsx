@@ -99,18 +99,18 @@ export function Welcome() {
             </Paragraph>
           </View>
 
-          {/* A11y */}
+          {/* Behaviors */}
           <View className="rounded-xl border border-slate-200 bg-slate-50 p-5 space-y-2">
             <View className="flex flex-row items-center justify-between">
-              <Text className="font-mono text-xs font-bold text-indigo-700">@hozo/a11y</Text>
+              <Text className="font-mono text-xs font-bold text-indigo-700">@hozo/behaviors</Text>
               <Text className="text-xs font-semibold text-slate-500">Layer 2</Text>
             </View>
             <Heading level={3} className="text-sm font-bold text-slate-900">
-              WAI-ARIA Composite Patterns
+              Headless Behaviors &amp; Positioning
             </Heading>
             <Paragraph className="text-xs text-slate-600 leading-relaxed">
-              Full keyboard and screen reader accessibility for compound UI widgets: Dialog modals,
-              Tabs, Combobox, Menus, Toolbars, and Tree views.
+              Universal primitives for FocusScope, RovingFocus, Typeahead, DismissableLayer, Portal,
+              LiveRegion, and FloatingPositioner (Popper / Floating UI equivalent).
             </Paragraph>
           </View>
         </View>

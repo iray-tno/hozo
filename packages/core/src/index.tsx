@@ -713,40 +713,6 @@ export function Button({
   )
 }
 
-// Dialog is not implemented here: its behaviour is the whole point of it
-// (proposal §10.3), and that lives in `@hozo/a11y` so there is exactly one
-// implementation for the compiler to lower to and for tests to cover.
-// Tabs for the same reason. Unlike Dialog it is not a compiler primitive
-// -- there is no `Primitive::Tabs` and nothing lowers to it -- because
-// what a tab strip needs is keyboard behaviour rather than a different
-// element, and a compiler has nothing to contribute to that. It is a
-// component an app imports, and it is here so it is imported from the same
-// place as everything else.
-export {
-  HozoCombobox as Combobox,
-  type HozoComboboxOption as ComboboxOption,
-  type HozoComboboxProps as ComboboxProps,
-  HozoDialog as Dialog,
-  type HozoDialogProps as DialogProps,
-  HozoListbox as Listbox,
-  type HozoListboxOption as ListboxOption,
-  type HozoListboxProps as ListboxProps,
-  HozoMenu as Menu,
-  type HozoMenuItem as MenuItem,
-  type HozoMenuProps as MenuProps,
-  HozoRadioGroup as RadioGroup,
-  type HozoRadioGroupProps as RadioGroupProps,
-  type HozoRadioOption as RadioOption,
-  type HozoTab as Tab,
-  HozoTabs as Tabs,
-  type HozoTabsProps as TabsProps,
-  HozoToolbar as Toolbar,
-  type HozoToolbarItem as ToolbarItem,
-  type HozoToolbarProps as ToolbarProps,
-  HozoTree as Tree,
-  type HozoTreeProps as TreeProps,
-  type TreeNode,
-} from '@hozo/a11y'
 export {
   Address,
   Aside,
@@ -788,7 +754,70 @@ export {
   Sup,
   Underline,
 } from '@hozo/typography'
+// Composite accessible components powered by @hozo/behaviors.
+export {
+  type Autocomplete,
+  HozoCombobox as Combobox,
+  HozoCombobox,
+  type HozoComboboxOption as ComboboxOption,
+  type HozoComboboxOption,
+  type HozoComboboxProps as ComboboxProps,
+  type HozoComboboxProps,
+} from './combobox.ts'
+export {
+  HozoDialog as Dialog,
+  HozoDialog,
+  type HozoDialogProps as DialogProps,
+  type HozoDialogProps,
+} from './dialog.ts'
+export {
+  HozoListbox as Listbox,
+  HozoListbox,
+  type HozoListboxOption as ListboxOption,
+  type HozoListboxOption,
+  type HozoListboxProps as ListboxProps,
+  type HozoListboxProps,
+} from './listbox.ts'
+export {
+  HozoMenu as Menu,
+  HozoMenu,
+  type HozoMenuItem as MenuItem,
+  type HozoMenuItem,
+  type HozoMenuProps as MenuProps,
+  type HozoMenuProps,
+} from './menu.ts'
+export {
+  HozoRadioGroup as RadioGroup,
+  HozoRadioGroup,
+  type HozoRadioGroupProps as RadioGroupProps,
+  type HozoRadioGroupProps,
+  type HozoRadioOption as RadioOption,
+  type HozoRadioOption,
+} from './radio.ts'
 // SVG, as a namespace: `<Svg>` is the root and `<Svg.Rect>` its elements.
 // See `./svg.tsx` for why a namespace rather than an `Svg` prefix.
 export { Svg } from './svg.tsx'
+export {
+  type HozoTab as Tab,
+  type HozoTab,
+  HozoTabs as Tabs,
+  HozoTabs,
+  type HozoTabsProps as TabsProps,
+  type HozoTabsProps,
+} from './tabs.ts'
 export { TextInput, type TextInputProps } from './text-input.tsx'
+export {
+  HozoToolbar as Toolbar,
+  HozoToolbar,
+  type HozoToolbarItem as ToolbarItem,
+  type HozoToolbarItem,
+  type HozoToolbarProps as ToolbarProps,
+  type HozoToolbarProps,
+} from './toolbar.ts'
+export {
+  HozoTree as Tree,
+  HozoTree,
+  type HozoTreeProps as TreeProps,
+  type HozoTreeProps,
+  type TreeNode,
+} from './tree.ts'

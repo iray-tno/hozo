@@ -4,12 +4,13 @@
   "description": "Universal runtime behaviors substrate (LiveRegion, Portal, DismissableLayer, FocusScope, RovingFocus, FloatingPositioner) for Hozo.",
   "keywords": [
     "react-native",
-    "react",
-    "accessibility",
-    "a11y",
     "behaviors",
+    "focus",
+    "roving-focus",
+    "typeahead",
+    "popper",
+    "floating-ui",
     "portal",
-    "dismissable",
     "live-region"
   ],
   "license": "MIT",
@@ -48,9 +49,7 @@
     "typecheck": "tsc -p . --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
-  "dependencies": {
-    "@hozo/runtime": "workspace:^"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

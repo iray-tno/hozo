@@ -16,7 +16,7 @@ function ComboboxDemo() {
     <View className="max-w-xl w-full space-y-8 rounded-2xl bg-white p-8 shadow-sm">
       <View className="space-y-3">
         <Heading level={2} className="text-xl font-bold text-slate-900">
-          Combobox (@hozo/a11y)
+          Combobox (@hozo/core)
         </Heading>
         <Paragraph className="text-sm text-slate-600">
           Accessible autocomplete dropdown where focus stays in the text field and active options

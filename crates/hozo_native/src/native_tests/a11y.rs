@@ -52,7 +52,7 @@ export const C = (p) => <List {...p}>x</List>
 fn a_dialog_is_lowered_with_its_styles_and_its_two_diagnostics() {
     // A primitive rather than a component the compiler walks past:
     // otherwise its className never compiles and neither of these
-    // checks ever runs. The behaviour itself is `@hozo/a11y`'s.
+    // checks ever runs. The behaviour itself is `@hozo/behaviors`'s.
     let source = r#"
             import { Dialog, Text } from '@hozo/core'
             const el = (

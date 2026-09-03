@@ -1,4 +1,8 @@
 export {
+  HozoDialog,
+  type HozoDialogProps,
+} from './dialog.tsx'
+export {
   DismissableLayer,
   type DismissableLayerProps,
 } from './dismissable-layer.tsx'
