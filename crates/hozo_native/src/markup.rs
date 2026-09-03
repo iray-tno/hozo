@@ -49,6 +49,7 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::TermList => ("View", vec![("role", "list".to_string())]),
         Primitive::Term => ("Text", Vec::new()),
         Primitive::Description => ("View", Vec::new()),
+        Primitive::Separator => ("View", vec![("role", "separator".to_string())]),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),
         Primitive::Button => ("Pressable", vec![("accessibilityRole", "button".to_string())]),

@@ -150,3 +150,42 @@ export function Rt({ className, children, style, ...props }: TypographyUniversal
     </rt>
   )
 }
+
+export interface LinkProps extends TypographyUniversalProps {
+  href: string
+  target?: '_blank' | '_self' | '_parent' | '_top' | string
+  rel?: string
+  download?: boolean | string
+  external?: boolean
+  onPress?: (event: React.MouseEvent<HTMLAnchorElement>) => void
+}
+
+export function Link({
+  href,
+  target,
+  rel,
+  download,
+  external,
+  className,
+  children,
+  style,
+  onPress,
+  ...props
+}: LinkProps) {
+  const finalTarget = external ? '_blank' : target
+  const finalRel = external || target === '_blank' ? (rel ?? 'noreferrer noopener') : rel
+  return (
+    <a
+      href={href}
+      target={finalTarget}
+      rel={finalRel}
+      download={download}
+      onClick={onPress}
+      className={className}
+      style={style}
+      {...domProps(props)}
+    >
+      {children}
+    </a>
+  )
+}

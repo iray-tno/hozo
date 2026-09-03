@@ -187,3 +187,29 @@ export function TermList({ className, children, style, ...props }: SemanticsUniv
 
 TermList.Term = Term
 TermList.Description = Description
+
+export interface SeparatorProps extends SemanticsUniversalProps {
+  orientation?: 'horizontal' | 'vertical'
+  decorative?: boolean
+}
+
+export function Separator({
+  className,
+  style,
+  orientation = 'horizontal',
+  decorative = false,
+  role,
+  ...props
+}: SeparatorProps) {
+  const dom = domProps(props)
+  return (
+    <hr
+      className={className}
+      style={style}
+      aria-orientation={orientation === 'vertical' ? 'vertical' : undefined}
+      {...dom}
+      role={role ?? (decorative ? 'none' : 'separator')}
+      aria-hidden={decorative ? true : dom['aria-hidden']}
+    />
+  )
+}

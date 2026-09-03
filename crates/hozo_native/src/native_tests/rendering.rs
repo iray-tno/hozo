@@ -519,3 +519,15 @@ fn structural_form_and_disclosure_primitives_lower_to_native_components() {
     // Legend and Term receive bold font weight semantic defaults
     assert!(output.styles.contains("fontWeight: '700',"), "{}", output.styles);
 }
+
+#[test]
+fn separator_lowers_to_native_view_with_separator_role() {
+    let source = r#"
+        import { Separator } from '@hozo/semantics'
+        const el = <Separator />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains(r#"role="separator""#), "{}", output.jsx);
+}

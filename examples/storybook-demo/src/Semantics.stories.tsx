@@ -15,6 +15,7 @@ import {
   Nav,
   Search,
   Section,
+  Separator,
   Summary,
   Term,
   TermList,
@@ -356,6 +357,65 @@ function TermListsDemo() {
   )
 }
 
+function SeparatorsDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Separators & Dividers (&lt;Separator&gt;)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Lowers directly to native semantic &lt;hr&gt; on Web and accessible separator View on React
+        Native.
+      </Paragraph>
+
+      <View className="space-y-6">
+        {/* Horizontal Separator */}
+        <View className="space-y-3">
+          <Heading level={3} className="text-sm font-bold text-slate-800">
+            Standard Horizontal Separator
+          </Heading>
+          <Paragraph className="text-xs text-slate-600">Upper thematic content block.</Paragraph>
+          <Separator className="border-slate-200" />
+          <Paragraph className="text-xs text-slate-600">
+            Lower thematic content block divided by semantic &lt;hr&gt;.
+          </Paragraph>
+        </View>
+
+        {/* Vertical Separator in Toolbar / Inline List */}
+        <View className="space-y-3 pt-2">
+          <Heading level={3} className="text-sm font-bold text-slate-800">
+            Vertical Inline Separator
+          </Heading>
+          <View className="flex flex-row items-center rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700">
+            <Text className="hover:text-slate-900 cursor-pointer">File</Text>
+            <Separator orientation="vertical" className="h-4 border-slate-300 mx-4" />
+            <Text className="hover:text-slate-900 cursor-pointer">Edit</Text>
+            <Separator orientation="vertical" className="h-4 border-slate-300 mx-4" />
+            <Text className="hover:text-slate-900 cursor-pointer">View</Text>
+            <Separator orientation="vertical" className="h-4 border-slate-300 mx-4" />
+            <Text className="hover:text-slate-900 cursor-pointer">Help</Text>
+          </View>
+        </View>
+
+        {/* Decorative Separator */}
+        <View className="space-y-3 pt-2">
+          <Heading level={3} className="text-sm font-bold text-slate-800">
+            Decorative Break (Hidden from Screen Readers)
+          </Heading>
+          <Paragraph className="text-xs text-slate-600">
+            Sets aria-hidden=&quot;true&quot; and role=&quot;none&quot; so assistive tech ignores
+            purely visual lines.
+          </Paragraph>
+          <Separator decorative className="border-indigo-200" />
+        </View>
+      </View>
+    </View>
+  )
+}
+
 const meta = {
   title: 'Semantics',
   component: SemanticsDemo,
@@ -376,6 +436,10 @@ export const Disclosures: StoryObj<typeof meta> = {
 
 export const FormGrouping: StoryObj<typeof meta> = {
   render: () => <FormGroupingDemo />,
+}
+
+export const Separators: StoryObj<typeof meta> = {
+  render: () => <SeparatorsDemo />,
 }
 
 export const TermLists: StoryObj<typeof meta> = {

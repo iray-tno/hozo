@@ -106,6 +106,8 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         Primitive::Term => ("dt", Vec::new()),
         Primitive::Description if node.props.on_layout.is_some() => ("Description", Vec::new()),
         Primitive::Description => ("dd", Vec::new()),
+        Primitive::Separator if node.props.on_layout.is_some() => ("Separator", Vec::new()),
+        Primitive::Separator => ("hr", Vec::new()),
         // `type="button"`, always. A `<button>` inside a `<form>` defaults
         // to `type="submit"`, and React Native has no forms -- so a
         // `<Button onPress={save} />` that happened to be rendered inside

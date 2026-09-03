@@ -116,3 +116,34 @@ export function Rt({ style, ...props }: TypographyNativeProps) {
     />
   )
 }
+
+export interface LinkProps extends TypographyNativeProps {
+  href: string
+  external?: boolean
+  target?: string
+  rel?: string
+  download?: boolean | string
+  onPress?: (event: { defaultPrevented?: boolean }) => void
+}
+
+export function Link({ href, onPress, children, ...props }: LinkProps) {
+  return React.createElement(
+    'Pressable',
+    {
+      accessibilityRole: 'link',
+      onPress: (event: { defaultPrevented?: boolean }) => {
+        onPress?.(event)
+        const globalLinking = (globalThis as Record<string, unknown>).Linking as
+          | { openURL: (url: string) => Promise<unknown> }
+          | undefined
+        if (!event?.defaultPrevented && globalLinking) {
+          void globalLinking.openURL(href)
+        }
+      },
+      ...props,
+    },
+    typeof children === 'string'
+      ? React.createElement('Text', { accessibilityRole: 'link' }, children)
+      : children,
+  )
+}
