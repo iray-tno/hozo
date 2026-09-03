@@ -621,7 +621,14 @@ pub(super) fn render_node(
         if authored.contains(key) {
             continue;
         }
-        props_text.push_str(&format!(r#" {key}="{value}""#));
+        // An empty value is a bare attribute, which in JSX is `true`.
+        // The alternative was `accessible="{true}"`, a string that is
+        // truthy by accident rather than a boolean.
+        if value.is_empty() {
+            props_text.push_str(&format!(" {key}"));
+        } else {
+            props_text.push_str(&format!(r#" {key}="{value}""#));
+        }
     }
     // The paint from `fill-*`/`stroke-*`, which is a prop here and a CSS
     // declaration on Web. A `fill` the author wrote themselves wins: they
