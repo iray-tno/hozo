@@ -212,7 +212,7 @@ function pointInLine(point: CanvasPoint, props: LineProps): boolean {
   return perpendicular <= half * Math.sqrt(lengthSquared)
 }
 
-function pointInNode(node: CanvasSceneNode, point: CanvasPoint) {
+function pointInNode(node: CanvasSceneNode, point: CanvasPoint, pathHitTest?: CanvasPathHitTest) {
   switch (node.kind) {
     case 'rect':
       return pointInRect(
@@ -245,19 +245,55 @@ function pointInNode(node: CanvasSceneNode, point: CanvasPoint) {
     }
     case 'line':
       return pointInLine(point, node.props)
-    // Text refuses for the reason paths do: the region is whatever the
-    // rasteriser drew, and only the renderers know that. Measuring it
-    // here would be a third set of metrics agreeing with neither.
-    case 'text':
     case 'path':
+      // Asked of the renderer, for the reason `CanvasPathHitTest` gives.
+      return pathHitTest?.(node.props.path, node.props.fillRule ?? 'nonzero', point) ?? false
+    // Text still refuses. Its region is a run of glyphs rather than a
+    // path, and neither renderer offers a containment test for one --
+    // Canvas2D can only measure a box and Skia a bounds, and a box is not
+    // where the ink is.
+    case 'text':
     case 'group':
     case 'clip':
       return false
   }
 }
 
-function pointInClip(point: CanvasPoint, props: Omit<ClipProps, 'children'>) {
-  if (props.path !== undefined) return false
+/**
+ * Whether a point is inside an SVG path, answered by the renderer.
+ *
+ * Supplied by each surface rather than implemented here, which is the
+ * opposite of how every other shape works and is deliberate. A rectangle
+ * or a circle is the same geometry under Canvas2D and under Skia, so one
+ * shared predicate agrees with both. An arbitrary path is not: béziers,
+ * arcs and fill rules are where rasterisers differ, and a third
+ * implementation in TypeScript would agree with neither of the two that
+ * actually draw. Canvas2D's `isPointInPath` and Skia's `Path.contains`
+ * each agree with their own.
+ *
+ * The same reasoning `TextProps` gives for alignment: each renderer's
+ * measurement is its own, and only its own can match what it draws.
+ *
+ * Optional, and paths refuse without it. A caller that has no renderer to
+ * ask -- a test, a server -- gets the behaviour paths had before this
+ * existed rather than a guess.
+ */
+export type CanvasPathHitTest = (
+  path: string,
+  fillRule: 'nonzero' | 'evenodd',
+  point: CanvasPoint,
+) => boolean
+
+function pointInClip(
+  point: CanvasPoint,
+  props: Omit<ClipProps, 'children'>,
+  pathHitTest?: CanvasPathHitTest,
+) {
+  if (props.path !== undefined) {
+    // A clip has no fill rule of its own; both renderers clip a path by
+    // its default, which is nonzero on each.
+    return pathHitTest?.(props.path, 'nonzero', point) ?? false
+  }
   return pointInRect(point, props.x ?? 0, props.y ?? 0, props.width ?? 0, props.height ?? 0)
 }
 
@@ -346,6 +382,7 @@ export function hitTestCanvas(
   surfacePoint: CanvasPoint,
   viewport: CanvasHitTestViewport,
   isInteractive: (id: string) => boolean,
+  pathHitTest?: CanvasPathHitTest,
 ): CanvasHitTestResult | undefined {
   const rootMatrix = viewportMatrix(viewport)
   if (!rootMatrix) return undefined
@@ -364,7 +401,8 @@ export function hitTestCanvas(
       }
       if (node.kind === 'clip') {
         const inverse = invert(matrix)
-        if (!inverse || !pointInClip(apply(inverse, surfacePoint), node.props)) continue
+        if (!inverse || !pointInClip(apply(inverse, surfacePoint), node.props, pathHitTest))
+          continue
         const hit = visit(node.children, matrix)
         if (hit) return hit
         continue
@@ -373,7 +411,7 @@ export function hitTestCanvas(
       const inverse = invert(matrix)
       if (!inverse) continue
       const localPoint = apply(inverse, surfacePoint)
-      if (pointInNode(node, localPoint)) {
+      if (pointInNode(node, localPoint, pathHitTest)) {
         return { id: node.id, point: scenePoint, localPoint }
       }
     }

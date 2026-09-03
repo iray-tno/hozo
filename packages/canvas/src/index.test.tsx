@@ -17,8 +17,11 @@ const checkAccessibilityTypes = () => {
   // and all. The type is the contract: what accepts `onPress` is exactly
   // what `pointInNode` can answer for.
   const interactiveLine = <Canvas.Line x1={0} y1={0} x2={10} y2={10} onPress={() => undefined} />
-  // @ts-expect-error Path hit testing is not part of the portable interaction contract.
+  // A path is pressable now that each surface answers containment with
+  // its own renderer rather than a shared reimplementation.
   const interactivePath = <Canvas.Path path="M0 0 L10 10" onPress={() => undefined} />
+  // @ts-expect-error Text has no containment test on either renderer.
+  const interactiveText = <Canvas.Text text="Jan" x={0} y={0} fontSize={12} onPress={() => {}} />
   return [
     missingMode,
     decorativeFallback,
@@ -26,6 +29,7 @@ const checkAccessibilityTypes = () => {
     interactiveRect,
     interactiveLine,
     interactivePath,
+    interactiveText,
   ]
 }
 void checkAccessibilityTypes
@@ -163,16 +167,18 @@ test('decorative canvases are explicitly hidden from accessibility APIs', () => 
   assert.doesNotMatch(html, /role="img"/)
 })
 
-test('interactions inside path clips fail explicitly instead of becoming inert', () => {
-  assert.throws(
-    () =>
-      renderToStaticMarkup(
-        <Canvas accessibilityLabel="Clipped chart">
-          <Canvas.Clip path="M0 0H10V10Z">
-            <Canvas.Rect width={10} height={10} onPress={() => undefined} />
-          </Canvas.Clip>
-        </Canvas>,
-      ),
-    /interactions inside path clips are unsupported/,
+test('a shape inside a path clip is no longer refused', () => {
+  // It used to throw: nothing could answer whether a point was inside a
+  // path, so a press there would have been silently inert and an explicit
+  // refusal was the better of two bad answers. Each surface answers now,
+  // so the refusal has gone with the reason for it.
+  assert.doesNotThrow(() =>
+    renderToStaticMarkup(
+      <Canvas accessibilityLabel="Clipped chart">
+        <Canvas.Clip path="M0 0H10V10Z">
+          <Canvas.Rect width={10} height={10} onPress={() => undefined} />
+        </Canvas.Clip>
+      </Canvas>,
+    ),
   )
 })

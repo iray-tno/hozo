@@ -77,7 +77,12 @@ export function CanvasBench() {
             onActiveChange={(event) => setIndicated(event ? 'line' : 'none')}
           />
         </Canvas.Clip>
-        <Canvas.Path path="M4 4 L96 4" stroke="black" strokeWidth={1} />
+        <Canvas.Path
+          path="M4 4 L96 4 L96 8 L4 8 Z"
+          className="fill-slate-400"
+          accessibilityLabel="Baseline"
+          onPress={() => setPressed('path')}
+        />
         {/* An axis label, which is what text exists for. Skia resolves the
             face through `matchFont` and has no alignment of its own, so
             this is also the only shape whose Native branch measures. */}

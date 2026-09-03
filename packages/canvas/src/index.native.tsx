@@ -1,6 +1,8 @@
 import {
   type DrawingNodeProps,
+  FillType,
   matchFont,
+  Skia,
   Canvas as SkiaCanvas,
   Circle as SkiaCircle,
   Group as SkiaGroup,
@@ -12,7 +14,7 @@ import {
   Text as SkiaText,
   type Transforms3d,
 } from '@shopify/react-native-skia'
-import { type ComponentType, Fragment, type ReactNode, useMemo, useRef, useState } from 'react'
+import { type ComponentType, type ReactNode, useMemo, useRef, useState } from 'react'
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
@@ -111,6 +113,32 @@ function transformFor(transform?: CanvasTransform): Transforms3d | undefined {
  * props either. Against Skia's own types, with the geometry kept, both are
  * checked.
  */
+/**
+ * Containment answered by the same engine that draws the path.
+ *
+ * Skia parses an SVG path string into an `SkPath`, so the result is
+ * cached by that string and by the fill rule -- a pointer moving across a
+ * chart would otherwise reparse every path on every frame, and
+ * `setFillType` mutates the path rather than returning a new one, so the
+ * two rules cannot share an entry.
+ *
+ * Module level rather than per surface, like `fonts`: a path string means
+ * the same shape wherever it is drawn.
+ */
+const parsedPaths = new Map<string, ReturnType<typeof Skia.Path.MakeFromSVGString>>()
+const pathHitTest = (path: string, fillRule: 'nonzero' | 'evenodd', point: CanvasPoint) => {
+  const key = `${fillRule}:${path}`
+  let parsed = parsedPaths.get(key)
+  if (parsed === undefined) {
+    parsed = Skia.Path.MakeFromSVGString(path)
+    parsed?.setFillType(fillRule === 'evenodd' ? FillType.EvenOdd : FillType.Winding)
+    parsedPaths.set(key, parsed)
+  }
+  // A path Skia could not parse contains nothing, which is the same
+  // answer the Web surface gives for one `Path2D` rejects.
+  return parsed?.contains(point.x, point.y) ?? false
+}
+
 /**
  * The system face for a font spec, resolved once per spec.
  *
@@ -393,6 +421,7 @@ function Root({
       point,
       { width: layout.width, height: layout.height, viewBox, fit },
       isInteractive,
+      pathHitTest,
     )
   const onStartShouldSetResponder = (event: GestureResponderEvent) => {
     pressedTarget.current = undefined
