@@ -3,6 +3,23 @@ export {
   type DismissableLayerProps,
 } from './dismissable-layer.native.tsx'
 export {
+  type Alignment,
+  type BasePlacement,
+  type ComputePositionOptions,
+  computePosition,
+  type Placement,
+  type PositionResult,
+  parsePlacement,
+  type Rect,
+  type Viewport,
+} from './floating-geometry.ts'
+export {
+  FloatingPositioner,
+  type FloatingPositionerProps,
+  type UseFloatingPositionOptions,
+  useFloatingPosition,
+} from './floating-positioner.native.tsx'
+export {
   type FocusCandidate,
   FocusScope,
   type FocusScopeProps,
