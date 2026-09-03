@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { DismissableLayer, LiveRegion, Portal } from './index.ts'
+import { DismissableLayer, FloatingPositioner, LiveRegion, Portal } from './index.ts'
 
 test('LiveRegion renders polite status region with visually hidden styles', () => {
   const html = renderToStaticMarkup(
@@ -30,4 +30,17 @@ test('Portal renders children inline when disabled=true', () => {
 test('DismissableLayer renders children in a container', () => {
   const html = renderToStaticMarkup(createElement(DismissableLayer, null, 'Modal dialog'))
   assert(html.includes('Modal dialog'), `Expected layer content, got: ${html}`)
+})
+
+test('FloatingPositioner renders children and accepts anchorRef', () => {
+  const mockAnchorRef = { current: null }
+  const html = renderToStaticMarkup(
+    createElement(
+      FloatingPositioner,
+      { anchorRef: mockAnchorRef, className: 'popover-content' },
+      'Floating content',
+    ),
+  )
+  assert(html.includes('Floating content'), `Expected floating content, got: ${html}`)
+  assert(html.includes('popover-content'), `Expected className, got: ${html}`)
 })

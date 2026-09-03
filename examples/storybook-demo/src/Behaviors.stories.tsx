@@ -1,7 +1,9 @@
 import {
   DismissableLayer,
+  FloatingPositioner,
   FocusScope,
   LiveRegion,
+  type Placement,
   Portal,
   RovingFocusGroup,
   useAnnounce,
@@ -11,7 +13,7 @@ import {
 import { Button, Heading, Paragraph, Text, View } from '@hozo/core'
 import { Separator } from '@hozo/semantics'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 function BehaviorsShowcase() {
   const announce = useAnnounce()
@@ -464,6 +466,97 @@ function TypeaheadDemo() {
   )
 }
 
+function FloatingPopoverDemo() {
+  const [open, setOpen] = useState(false)
+  const [placement, setPlacement] = useState<Placement>('bottom')
+  const anchorRef = useRef<HTMLButtonElement>(null)
+
+  const placements: Placement[] = ['top', 'bottom', 'left', 'right']
+
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        FloatingPositioner (Popper / Floating UI Equivalent)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Positions floating overlays relative to an anchor element with automatic viewport collision
+        detection (flip &amp; shift) and arrow tracking.
+      </Paragraph>
+
+      <View className="flex flex-row items-center gap-2">
+        <Text className="text-xs font-semibold text-slate-600">Placement:</Text>
+        {placements.map((p) => (
+          <Button
+            key={p}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+              placement === p
+                ? 'bg-indigo-600 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+            onPress={() => setPlacement(p)}
+          >
+            {p}
+          </Button>
+        ))}
+      </View>
+
+      <View className="py-12 flex items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+        <button
+          ref={anchorRef}
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 transition-colors"
+        >
+          {open ? 'Close Popover' : 'Click to Anchor Popover'}
+        </button>
+
+        {open && (
+          <Portal>
+            <FloatingPositioner
+              anchorRef={anchorRef}
+              placement={placement}
+              offset={10}
+              flip
+              shift
+              className="z-50"
+            >
+              {(pos) => (
+                <DismissableLayer
+                  onDismiss={() => setOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-xl space-y-2 w-64"
+                >
+                  <View className="flex flex-row items-center justify-between">
+                    <Text className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      {pos?.placement}
+                    </Text>
+                    {pos?.flipped && (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                        Flipped
+                      </span>
+                    )}
+                  </View>
+                  <Paragraph className="text-xs text-slate-600">
+                    Calculated position: ({pos?.x}, {pos?.y})
+                  </Paragraph>
+                  <Button
+                    className="w-full rounded bg-slate-100 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                    onPress={() => setOpen(false)}
+                  >
+                    Dismiss
+                  </Button>
+                </DismissableLayer>
+              )}
+            </FloatingPositioner>
+          </Portal>
+        )}
+      </View>
+    </View>
+  )
+}
+
 const meta = {
   title: 'Behaviors',
   component: BehaviorsShowcase,
@@ -487,4 +580,7 @@ export const RovingFocusToolbar: StoryObj<typeof meta> = {
 }
 export const TypeaheadList: StoryObj<typeof meta> = {
   render: () => <TypeaheadDemo />,
+}
+export const FloatingPopover: StoryObj<typeof meta> = {
+  render: () => <FloatingPopoverDemo />,
 }
