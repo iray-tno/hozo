@@ -8,12 +8,14 @@
     "bundle": "node ./scripts/bundle.mjs",
     "bundle:production": "node ./scripts/bundle.mjs --production --platform android",
     "measure:production": "node ./scripts/measure-production.mjs",
-    "test": "node ./scripts/bundle.mjs && node ./scripts/check-bundle.mjs && node ./scripts/measure-production.mjs"
+    "test": "node ./scripts/bundle.mjs && node ./scripts/check-bundle.mjs && node ./scripts/bundle.mjs --entry canvas.js --out canvas.bundle && node ./scripts/check-canvas-bundle.mjs && node ./scripts/measure-production.mjs"
   },
   "dependencies": {
     "@babel/runtime": "^8.0.0",
+    "@hozo/canvas": "workspace:*",
     "@hozo/core": "workspace:*",
     "@hozo/runtime": "workspace:*",
+    "@shopify/react-native-skia": "^2.11.1",
     "react": "^19.2.0",
     "react-native": "^0.87.0"
   },
