@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 342)
+  assert.equal(mapped.size, 352)
   for (const name of [
     'display',
     'padding',
@@ -90,11 +90,25 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('transformBox'))
   assert.ok(mapped.has('transformStyle'))
   assert.ok(mapped.has('willChange'))
+  for (const property of [
+    'WebkitMaskImage',
+    'maskImage',
+    'maskMode',
+    'maskRepeat',
+    'maskPosition',
+    'maskSize',
+    'maskOrigin',
+    'maskClip',
+    'maskComposite',
+    'maskType',
+  ]) {
+    assert.ok(mapped.has(property), `${property} should have a lowering arm`)
+  }
 })
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 342)
+  assert.equal(mapped.length, 352)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -159,7 +173,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 372)
-  assert.equal(surface.mappedWebOnly.size, 193)
+  assert.equal(surface.mappedWebOnly.size, 203)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
@@ -197,6 +211,10 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('transformBox'))
   assert.ok(surface.mappedWebOnly.has('transformStyle'))
   assert.ok(surface.mappedWebOnly.has('willChange'))
+  assert.ok(surface.mappedWebOnly.has('WebkitMaskImage'))
+  assert.ok(surface.mappedWebOnly.has('maskImage'))
+  assert.ok(surface.mappedWebOnly.has('maskComposite'))
+  assert.ok(surface.mappedWebOnly.has('maskType'))
   assert.equal(
     surface.native.size + surface.contextual.size + surface.adapter.size + surface.webOnly.size,
     surface.official.size,

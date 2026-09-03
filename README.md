@@ -193,11 +193,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **342/522 property names
-(65.5%)**, including **132/132 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **352/522 property names
+(67.4%)**, including **132/132 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **17/17 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **193/372 (51.9%)**. The
+independently at **203/372 (54.6%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -214,8 +214,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **209/209 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **166/166 (100%)** declarations after
+corpus currently measures **219/219 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **176/176 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -249,6 +249,13 @@ Common Web compositing and 3D controls lower without runtime CSS parsing:
 and Native refusal remains explicit. `backdropFilter` deliberately remains the
 scorecard's adapter candidate until it has a real BlurView/Expo adapter; Web-only
 output is not counted as a Native adapter implementation.
+
+The common mask longhands are exact Web-only declarations: prefixed and
+standard mask images, mode, repeat, position, size, origin, clip, composite,
+and type. The accepted subset includes ordinary URLs and gradients, layered
+keyword values, and static length/percentage positions and sizes. Wider image
+functions, variables, the `mask` shorthand, and mask-border remain with the
+official StyleX compiler instead of being approximated.
 
 The static construct slice now flattens recursive `stylex.props` arrays,
 preserves logical and ternary guards, and expands module-local `const` object

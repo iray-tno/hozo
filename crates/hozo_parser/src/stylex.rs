@@ -1006,6 +1006,14 @@ enum WebValueGrammar {
     Time,
     SignedTime,
     AnimationTimingFunction,
+    CommaKeywordGroups {
+        keywords: &'static [&'static str],
+        minimum: usize,
+        maximum: usize,
+    },
+    MaskImage,
+    MaskPosition,
+    MaskSize,
     PerspectiveOrigin,
     WillChange,
     FontFeatureSettings,
@@ -1364,6 +1372,54 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "markerEnd" => Some(("marker-end", WebValueGrammar::UrlOrNone)),
         "markerMid" => Some(("marker-mid", WebValueGrammar::UrlOrNone)),
         "markerStart" => Some(("marker-start", WebValueGrammar::UrlOrNone)),
+        "WebkitMaskImage" => Some(("-webkit-mask-image", WebValueGrammar::MaskImage)),
+        "maskImage" => Some(("mask-image", WebValueGrammar::MaskImage)),
+        "maskMode" => Some((
+            "mask-mode",
+            WebValueGrammar::CommaKeywordGroups {
+                keywords: &["match-source", "luminance", "alpha"],
+                minimum: 1,
+                maximum: 1,
+            },
+        )),
+        "maskRepeat" => Some((
+            "mask-repeat",
+            WebValueGrammar::CommaKeywordGroups {
+                keywords: &["repeat-x", "repeat-y", "repeat", "space", "round", "no-repeat"],
+                minimum: 1,
+                maximum: 2,
+            },
+        )),
+        "maskPosition" => Some(("mask-position", WebValueGrammar::MaskPosition)),
+        "maskSize" => Some(("mask-size", WebValueGrammar::MaskSize)),
+        "maskOrigin" => Some((
+            "mask-origin",
+            WebValueGrammar::CommaKeywordGroups {
+                keywords: &["content-box", "padding-box", "border-box", "fill-box", "stroke-box", "view-box"],
+                minimum: 1,
+                maximum: 1,
+            },
+        )),
+        "maskClip" => Some((
+            "mask-clip",
+            WebValueGrammar::CommaKeywordGroups {
+                keywords: &["content-box", "padding-box", "border-box", "fill-box", "stroke-box", "view-box", "no-clip"],
+                minimum: 1,
+                maximum: 1,
+            },
+        )),
+        "maskComposite" => Some((
+            "mask-composite",
+            WebValueGrammar::CommaKeywordGroups {
+                keywords: &["add", "subtract", "intersect", "exclude"],
+                minimum: 1,
+                maximum: 1,
+            },
+        )),
+        "maskType" => Some((
+            "mask-type",
+            WebValueGrammar::Keywords(&["luminance", "alpha"]),
+        )),
         "clip" => Some(("clip", WebValueGrammar::ClipRect)),
         "columnCount" => Some((
             "column-count",
@@ -1824,7 +1880,44 @@ fn web_animation_timing_function(value: &StaticValue) -> Option<String> {
 }
 
 fn minify_css_commas(value: &str) -> String {
-    value.split(',').map(str::trim).collect::<Vec<_>>().join(",")
+    let mut output = String::with_capacity(value.len());
+    let mut characters = value.chars().peekable();
+    let mut quote = None;
+    let mut escaped = false;
+    while let Some(character) = characters.next() {
+        if escaped {
+            output.push(character);
+            escaped = false;
+            continue;
+        }
+        if character == '\\' && quote.is_some() {
+            output.push(character);
+            escaped = true;
+            continue;
+        }
+        if let Some(active_quote) = quote {
+            output.push(character);
+            if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        if matches!(character, '\'' | '"') {
+            quote = Some(character);
+            output.push(character);
+        } else if character == ',' {
+            while output.ends_with(char::is_whitespace) {
+                output.pop();
+            }
+            output.push(',');
+            while characters.peek().is_some_and(|next| next.is_whitespace()) {
+                characters.next();
+            }
+        } else {
+            output.push(character);
+        }
+    }
+    output
 }
 
 fn web_single_function(value: &str, names: &[&str]) -> bool {
@@ -1886,6 +1979,83 @@ fn web_will_change(value: &StaticValue) -> Option<String> {
                 && !matches!(*name, "auto" | "initial" | "inherit" | "revert" | "unset")
         })
         .then(|| names.join(","))
+}
+
+fn web_comma_keyword_groups(
+    value: &StaticValue,
+    keywords: &[&str],
+    minimum: usize,
+    maximum: usize,
+) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let groups = web_comma_groups(value)?;
+    groups
+        .iter()
+        .all(|group| {
+            let words = group.split_ascii_whitespace().collect::<Vec<_>>();
+            (minimum..=maximum).contains(&words.len())
+                && words.iter().all(|word| keywords.contains(word))
+        })
+        .then(|| groups.join(","))
+}
+
+fn web_mask_image(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let groups = web_comma_groups(value)?;
+    groups
+        .iter()
+        .all(|image| {
+            *image == "none"
+                || web_url_or_none(&StaticValue::String((*image).to_string())).is_some()
+                || web_single_function(
+                    image,
+                    &[
+                        "linear-gradient",
+                        "radial-gradient",
+                        "conic-gradient",
+                        "repeating-linear-gradient",
+                        "repeating-radial-gradient",
+                        "repeating-conic-gradient",
+                    ],
+                )
+        })
+        .then(|| minify_css_commas(value))
+}
+
+fn web_mask_position(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let groups = web_comma_groups(value)?;
+    groups
+        .iter()
+        .all(|position| {
+            let parts = position.split_ascii_whitespace().collect::<Vec<_>>();
+            (1..=4).contains(&parts.len())
+                && parts.iter().all(|part| {
+                    matches!(*part, "left" | "center" | "right" | "top" | "bottom")
+                        || transform_dimension(part).is_some()
+                })
+        })
+        .then(|| groups.join(","))
+}
+
+fn web_mask_size(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let groups = web_comma_groups(value)?;
+    groups
+        .iter()
+        .all(|size| {
+            if matches!(*size, "cover" | "contain") {
+                return true;
+            }
+            let parts = size.split_ascii_whitespace().collect::<Vec<_>>();
+            (1..=2).contains(&parts.len())
+                && parts.iter().all(|part| {
+                    *part == "auto"
+                        || (web_length_percentage_string(part)
+                            && web_length_number(part).is_some_and(|number| number >= 0.0))
+                })
+        })
+        .then(|| groups.join(","))
 }
 
 fn web_css_string(value: &str) -> bool {
@@ -2508,6 +2678,14 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         }
         WebValueGrammar::SignedTime => web_signed_time(value)?,
         WebValueGrammar::AnimationTimingFunction => web_animation_timing_function(value)?,
+        WebValueGrammar::CommaKeywordGroups {
+            keywords,
+            minimum,
+            maximum,
+        } => web_comma_keyword_groups(value, keywords, minimum, maximum)?,
+        WebValueGrammar::MaskImage => web_mask_image(value)?,
+        WebValueGrammar::MaskPosition => web_mask_position(value)?,
+        WebValueGrammar::MaskSize => web_mask_size(value)?,
         WebValueGrammar::PerspectiveOrigin => web_perspective_origin(value)?,
         WebValueGrammar::WillChange => web_will_change(value)?,
         WebValueGrammar::FontFeatureSettings => web_font_setting(value, false)?,
@@ -3021,6 +3199,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "justifyItems" | "lineBreak" | "listStyleImage" | "listStylePosition"
         | "listStyleType" | "maxBlockSize" | "maxInlineSize"
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
+        | "maskClip" | "maskComposite" | "maskImage" | "maskMode" | "maskOrigin"
+        | "maskPosition" | "maskRepeat" | "maskSize" | "maskType" | "WebkitMaskImage"
         | "minInlineSize" | "MozOsxFontSmoothing"
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
@@ -5959,6 +6139,54 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 6);
         assert_eq!(gaps.len(), 6);
+    }
+
+    #[test]
+    fn mask_longhands_lower_common_layers_and_preserve_wider_image_syntax() {
+        assert_eq!(
+            minify_css_commas("linear-gradient(\"literal, text\", black, white)"),
+            "linear-gradient(\"literal, text\",black,white)"
+        );
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                WebkitMaskImage: 'url(mask.svg)',
+                maskImage: 'linear-gradient(black, transparent)',
+                maskMode: 'luminance', maskRepeat: 'no-repeat',
+                maskPosition: 'center top', maskSize: 'cover',
+                maskOrigin: 'border-box', maskClip: 'no-clip',
+                maskComposite: 'exclude', maskType: 'alpha'
+              },
+              wider: {
+                WebkitMaskImage: 'image-set(url(a.png) 1x, url(b.png) 2x)',
+                maskImage: 'cross-fade(url(a.png), url(b.png), 50%)',
+                maskMode: 'match-source, var(--mask-mode)',
+                maskRepeat: 'repeat var(--repeat)',
+                maskPosition: 'calc(50% + 1px) top', maskSize: 'calc(100% - 1px)',
+                maskOrigin: 'var(--origin)', maskClip: 'text',
+                maskComposite: 'source-over', maskType: 'var(--mask-type)'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("common mask longhands were not lowerable")
+        };
+        assert_eq!(entries.len(), 10);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider mask syntax should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 10);
+        assert_eq!(gaps.len(), 10);
     }
 
     #[test]
