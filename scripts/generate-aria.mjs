@@ -39,7 +39,7 @@ const rows = entries.map(([name, role]) => {
     .sort()
   const prohibited = (role.prohibitedProps ?? []).slice().sort()
   const list = (xs) => `&[${xs.map((x) => JSON.stringify(x)).join(', ')}]`
-  return `    AriaRole { name: ${JSON.stringify(name)}, is_abstract: ${role.abstract === true}, required_props: ${list(required)}, required_context: ${list(context)}, required_owned: ${list(owned)}, supported_props: ${list(supported)}, prohibited_props: ${list(prohibited)} },`
+  return `    AriaRole { name: ${JSON.stringify(name)}, is_abstract: ${role.abstract === true}, required_props: ${list(required)}, required_context: ${list(context)}, required_owned: ${list(owned)}, supported_props: ${list(supported)}, prohibited_props: ${list(prohibited)}, children_presentational: ${role.childrenPresentational === true} },`
 })
 
 writeFileSync(
@@ -80,6 +80,13 @@ pub struct AriaRole {
     /// them, as is \`paragraph\`. So an \`accessibilityLabel\` on a \`View\` or
     /// a \`Paragraph\` is a name assistive technology may ignore outright.
     pub prohibited_props: &'static [&'static str],
+    /// Whether this role makes everything inside it presentational.
+    ///
+    /// \`img\` does, and that is the whole of it: an element carrying it
+    /// is one graphic, and its descendants are not exposed. So a role that
+    /// looks like an improvement -- a name where there was none -- takes
+    /// away every control and every word inside the thing it named.
+    pub children_presentational: bool,
 }
 
 /// The states and properties every role carries, from ARIA's base

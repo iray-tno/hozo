@@ -59,7 +59,18 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         // nameless one, where the bare element at least degrades to
         // whatever the author did with `<title>`.
         Primitive::Svg(SvgElement::Root) if node.props.has_accessible_name() == Some(true) => {
-            ("svg", vec![("role", AttrValue::text("img"))])
+            // `img` for a picture, `group` for a drawing with content.
+            //
+            // `aria-query` records that `img` makes its children
+            // presentational, and Hozo's generated table carries that fact
+            // -- so putting it on a drawing with a pressable shape or a
+            // word in it would take away every control and every line of
+            // text inside, in exchange for a name. `group` names the thing
+            // and leaves its children exposed; the same table says its
+            // children are not presentational and that it prohibits no
+            // properties, the name included.
+            let role = if node.has_exposable_content() { "group" } else { "img" };
+            ("svg", vec![("role", AttrValue::text(role))])
         }
         Primitive::Svg(element) => (element.tag(), Vec::new()),
         Primitive::View if node.props.on_layout.is_some() || node.props.has_responder_handlers() => ("View", Vec::new()),
@@ -366,7 +377,7 @@ fn apply_authored_role(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hozo_ir::{ExprRef, PassthroughProp, PropSet, SourceSpan};
+    use hozo_ir::{Child, ExprRef, PassthroughProp, PropSet, SourceSpan};
 
     fn empty_span() -> SourceSpan {
         SourceSpan { start: 0, end: 0 }
@@ -463,6 +474,53 @@ mod tests {
         let (tag, attrs) = element_shape(&svg_root(None), &mut diagnostics);
         assert_eq!(tag, "svg");
         assert!(attrs.is_empty());
+    }
+
+    #[test]
+    fn a_drawing_with_a_control_in_it_is_not_an_image() {
+        // `img` makes its children presentational -- `aria-query` says so
+        // and the generated table carries it -- so it would take the
+        // control away in exchange for the name.
+        let mut node = svg_root(Some("Revenue"));
+        let mut rect = svg_root(None);
+        rect.primitive = Primitive::Svg(SvgElement::Rect);
+        rect.props.passthrough.push(PassthroughProp {
+            span: ExprRef(empty_span()),
+            is_spread: false,
+            name: Some("onClick".to_string()),
+            literal: None,
+            nested: Vec::new(),
+        });
+        node.children.push(Child::Node(rect));
+        let mut diagnostics = Vec::new();
+        let (_, attrs) = element_shape(&node, &mut diagnostics);
+        assert_eq!(attrs, vec![("role", AttrValue::text("group"))]);
+    }
+
+    #[test]
+    fn a_drawing_with_words_in_it_is_not_an_image() {
+        // Same reason, other content. A label that repeated the words
+        // would not need them drawn.
+        let mut node = svg_root(Some("Revenue"));
+        let mut text = svg_root(None);
+        text.primitive = Primitive::Svg(SvgElement::Text);
+        node.children.push(Child::Node(text));
+        let mut diagnostics = Vec::new();
+        let (_, attrs) = element_shape(&node, &mut diagnostics);
+        assert_eq!(attrs, vec![("role", AttrValue::text("group"))]);
+    }
+
+    #[test]
+    fn a_picture_is_still_an_image() {
+        // Shapes are what a picture is made of, and hiding them is the
+        // point. Only a control or a word changes the answer.
+        let mut node = svg_root(Some("Search"));
+        let mut path = svg_root(None);
+        path.primitive = Primitive::Svg(SvgElement::Path);
+        node.children.push(Child::Node(path));
+        let mut diagnostics = Vec::new();
+        let (_, attrs) = element_shape(&node, &mut diagnostics);
+        assert_eq!(attrs, vec![("role", AttrValue::text("img"))]);
     }
 
     #[test]

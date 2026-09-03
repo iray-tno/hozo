@@ -30,13 +30,23 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // that name. `accessible` is what makes the subtree one element
         // rather than a pile of unlabelled shapes, which is also what
         // `@hozo/canvas` does for its own surface.
-        Primitive::Svg(SvgElement::Root) if node.props.has_accessible_name() == Some(true) => (
-            "Svg",
-            vec![
-                ("accessible", String::new()),
-                ("accessibilityRole", "image".to_string()),
-            ],
-        ),
+        Primitive::Svg(SvgElement::Root) if node.props.has_accessible_name() == Some(true) => {
+            // The Native half of the same distinction the Web backend
+            // draws. `accessible` is what collapses a subtree into one
+            // element, so it belongs with `image` and not with the case
+            // where the point is that the subtree stays reachable.
+            if node.has_exposable_content() {
+                ("Svg", vec![("role", "group".to_string())])
+            } else {
+                (
+                    "Svg",
+                    vec![
+                        ("accessible", String::new()),
+                        ("accessibilityRole", "image".to_string()),
+                    ],
+                )
+            }
+        }
         Primitive::Svg(element) => (element.runtime_name(), Vec::new()),
         Primitive::View => ("View", Vec::new()),
         Primitive::Text => ("Text", Vec::new()),
