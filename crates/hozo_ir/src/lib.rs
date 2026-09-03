@@ -609,6 +609,40 @@ pub enum Child {
     Verbatim { source: ExprRef, nested: Vec<NestedNode> },
 }
 
+impl Node {
+    /// Whether anything inside this element would be lost to a role that
+    /// makes its children presentational.
+    ///
+    /// `aria-query` records that fact per role -- see
+    /// `AriaRole::children_presentational`, generated from it -- and
+    /// `img` is one of the fourteen that do. So naming a drawing
+    /// `role="img"` is right for a picture and wrong for anything with
+    /// content of its own: every control inside stops being reachable and
+    /// every word inside stops being read, in exchange for a name.
+    ///
+    /// Two things count, and both are structural rather than guessed. A
+    /// handler means a control, and a control nobody can reach is the
+    /// failure this compiler exists to avoid. Text means words the label
+    /// does not contain, since a label that repeated them would not need
+    /// them drawn.
+    ///
+    /// Deliberately not "does it have children": a path and a rectangle
+    /// are what a picture is made of, and hiding them is the point.
+    pub fn has_exposable_content(&self) -> bool {
+        self.children.iter().any(|child| match child {
+            Child::Node(node) => {
+                node.primitive == Primitive::Svg(SvgElement::Text)
+                    || node.props.has_handler()
+                    || node.has_exposable_content()
+            }
+            // A carried child is something the compiler did not model, so
+            // what is inside it is unknown. Unknown is not "nothing".
+            Child::Verbatim { .. } => true,
+            Child::Text(text) => !text.trim().is_empty(),
+        })
+    }
+}
+
 /// A Hozo primitive found inside a `Child::Verbatim`, with the source
 /// range its lowered output replaces.
 #[derive(Debug, Clone, PartialEq)]
@@ -964,6 +998,24 @@ impl PropSet {
             return None;
         }
         Some(false)
+    }
+
+    /// Whether anything on this element makes it a control.
+    ///
+    /// The modelled interaction props plus any passthrough one spelled
+    /// like a handler. The second half is what catches an SVG child: SVG
+    /// elements are passthrough on both platforms, so an `onClick` or an
+    /// `onPress` on a `<Svg.Rect>` is a prop the compiler carries rather
+    /// than one it models, and it is still a control.
+    pub fn has_handler(&self) -> bool {
+        if self.on_press.is_some() || self.has_responder_handlers() {
+            return true;
+        }
+        self.passthrough.iter().filter_map(|prop| prop.name.as_deref()).any(|name| {
+            name.starts_with("on")
+                && name.len() > 2
+                && name.as_bytes()[2].is_ascii_uppercase()
+        })
     }
 
     pub fn has_responder_handlers(&self) -> bool {
