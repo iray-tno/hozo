@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 229, covered: 229 },
+    values: { total: 234, covered: 234 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 186, covered: 186 },
+    corpus: { total: 196, covered: 196 },
     silent: 0,
   })
 })
@@ -122,6 +122,26 @@ test('motion paths and float shapes agree with official StyleX', () => {
     { property: 'shapeMargin', value: '1rem' },
     { property: 'shapeOutside', value: 'circle(50%)' },
     { property: 'shapeOutside', value: 'polygon(0 0, 100% 0, 50% 100%)' },
+  ]) {
+    assert.deepEqual(compareStylexValue(testCase), {
+      ...testCase,
+      covered: true,
+      silent: false,
+    })
+  }
+})
+
+test('border image longhands agree with official StyleX', () => {
+  for (const testCase of [
+    { property: 'borderImageSource', value: 'linear-gradient(red, blue)' },
+    { property: 'borderImageSource', value: 'url(border.svg)' },
+    { property: 'borderImageSlice', value: '30% fill' },
+    { property: 'borderImageSlice', value: 30 },
+    { property: 'borderImageWidth', value: '1 2 3 4' },
+    { property: 'borderImageWidth', value: 2 },
+    { property: 'borderImageOutset', value: '4px 8px' },
+    { property: 'borderImageOutset', value: 2 },
+    { property: 'borderImageRepeat', value: 'round stretch' },
   ]) {
     assert.deepEqual(compareStylexValue(testCase), {
       ...testCase,
