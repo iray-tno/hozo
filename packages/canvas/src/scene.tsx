@@ -556,6 +556,30 @@ export function Clip({ children, ...props }: ClipProps) {
   )
 }
 
+/**
+ * The compiler's proof that every shape was handled.
+ *
+ * Three places switch on `kind` -- the two renderers and the hit test --
+ * and none of them was checked. Adding a kind to `CanvasLeafNode`
+ * produced no error in any of them, verified by adding one: zero
+ * diagnostics, because `drawNode` returns `void` so a missing case falls
+ * through, `renderNode` returns `ReactNode` and `undefined` is a valid
+ * one, and `pointInNode`'s caller takes its result as a condition. A
+ * shape whose renderer was forgotten drew nothing, refused every press,
+ * and said nothing about either.
+ *
+ * The parameter typed `never` is what fixes that: reaching it with a kind
+ * still in the union is a compile error naming the kind. At run time it
+ * warns rather than throws -- the type has already made this unreachable
+ * from TypeScript, and a hand-built scene from JavaScript should lose one
+ * shape rather than the whole chart.
+ */
+export function unhandledShape(node: never, where: string): undefined {
+  const kind = (node as { kind?: unknown }).kind
+  console.warn(`[hozo] ${where} has no case for a Canvas ${String(kind)}, so it does nothing.`)
+  return undefined
+}
+
 export interface CanvasControl {
   id: string
   label: string

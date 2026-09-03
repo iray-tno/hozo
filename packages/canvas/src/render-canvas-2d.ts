@@ -7,6 +7,7 @@ import {
   cssFontShorthand,
   paintFills,
   paintStrokes,
+  unhandledShape,
 } from './scene.tsx'
 
 export interface CanvasViewport {
@@ -177,7 +178,10 @@ function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
         const hasStroke = node.props.stroke !== undefined && node.props.stroke !== 'none'
         if (hasFill) context.fill(path, node.props.fillRule)
         if (hasStroke) context.stroke(path)
+        return
       }
+      default:
+        unhandledShape(node, 'the Canvas2D renderer')
     }
   } finally {
     context.restore()

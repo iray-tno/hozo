@@ -5,6 +5,7 @@ import {
   type ClipProps,
   type LineProps,
   paintStrokes,
+  unhandledShape,
 } from './scene.tsx'
 
 export interface CanvasPoint {
@@ -256,6 +257,8 @@ function pointInNode(node: CanvasSceneNode, point: CanvasPoint, pathHitTest?: Ca
     case 'group':
     case 'clip':
       return false
+    default:
+      return unhandledShape(node, 'the hit test') ?? false
   }
 }
 

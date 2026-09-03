@@ -149,3 +149,28 @@ test('singular transforms and invalid viewBoxes cannot produce phantom hits', ()
     undefined,
   )
 })
+
+test('a shape nobody handled says so instead of doing nothing', () => {
+  // The runtime half of the guard. The compile-time half is what matters
+  // and cannot be tested from here -- adding a kind to `CanvasLeafNode`
+  // now fails in all three switches, naming the kind, where before it
+  // produced no diagnostic anywhere.
+  //
+  // A cast, because the type this defends is unreachable from
+  // TypeScript. Reached from JavaScript it loses one shape and reports
+  // it, rather than losing it in silence or taking the chart down.
+  const warnings: string[] = []
+  const original = console.warn
+  console.warn = (message: string) => warnings.push(message)
+  try {
+    const scene = [{ id: 'x', kind: 'nonsense', props: {} }] as unknown as CanvasScene
+    assert.equal(
+      hitTestCanvas(scene, { x: 1, y: 1 }, { width: 10, height: 10 }, interactive),
+      undefined,
+    )
+    assert.equal(warnings.length, 1)
+    assert.match(warnings[0] ?? '', /nonsense/)
+  } finally {
+    console.warn = original
+  }
+})

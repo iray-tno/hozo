@@ -48,6 +48,7 @@ import {
   RoundedRect,
   type TextProps,
   textFontSpec,
+  unhandledShape,
   useCanvasScene,
 } from './scene.tsx'
 
@@ -332,6 +333,8 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
         },
         node.props,
       )
+    default:
+      return unhandledShape(node, 'the Skia renderer')
   }
 }
 
