@@ -87,7 +87,9 @@ test('activating it presses the shape', async () => {
       onPress={(event) => presses.push(event)}
     />,
   )
-  ;(buttons[0]?.props.onClick as () => void)()
+  const button = buttons[0]
+  assert.ok(button, 'the named shape produced no control to activate')
+  ;(button.props.onClick as () => void)()
   // The shape's middle, because a keyboard has no cursor and the event
   // still has to say where.
   assert.deepEqual(presses, [{ point: { x: 40, y: 40 }, surfacePoint: { x: 40, y: 40 } }])
@@ -106,9 +108,11 @@ test('focus indicates the shape, and blur stops', async () => {
       onActiveChange={(event) => changes.push(event)}
     />,
   )
-  ;(buttons[0]?.props.onFocus as () => void)()
+  const button = buttons[0]
+  assert.ok(button, 'the named shape produced no control to focus')
+  ;(button.props.onFocus as () => void)()
   assert.deepEqual(changes, [{ point: { x: 40, y: 40 }, surfacePoint: { x: 40, y: 40 } }])
-  ;(buttons[0]?.props.onBlur as () => void)()
+  ;(button.props.onBlur as () => void)()
   assert.equal(changes.at(-1), undefined)
 })
 
