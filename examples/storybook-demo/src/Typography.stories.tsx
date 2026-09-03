@@ -1,4 +1,21 @@
-import { Heading, Paragraph, Text, View } from '@hozo/core'
+import {
+  Code,
+  Emphasis,
+  Heading,
+  Mark,
+  NoBreak,
+  Paragraph,
+  Rt,
+  Ruby,
+  Small,
+  Strikethrough,
+  Strong,
+  Sub,
+  Sup,
+  Text,
+  Underline,
+  View,
+} from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function TypographyDemo() {
@@ -42,6 +59,49 @@ function TypographyDemo() {
         </Paragraph>
         <Paragraph className="text-sm leading-relaxed text-slate-500">
           Muted secondary description text rendered with native semantic document structure.
+        </Paragraph>
+      </View>
+
+      <View className="space-y-4 border-t border-slate-200 pt-6">
+        <Heading level={3} className="text-lg font-semibold text-slate-900">
+          Inline Formatting & Semantics
+        </Heading>
+        <Paragraph className="text-base leading-relaxed text-slate-700 space-y-2">
+          Universal text styling supports <Strong>strong importance</Strong>,{' '}
+          <Emphasis>emphasis</Emphasis>, <Underline>underlined</Underline>, and{' '}
+          <Strikethrough>deleted text</Strikethrough>.
+        </Paragraph>
+        <Paragraph className="text-base leading-relaxed text-slate-700">
+          Inline code is rendered using{' '}
+          <Code className="text-indigo-600 bg-slate-50 px-1 py-0.5 rounded">
+            npm install @hozo/core
+          </Code>
+          .
+        </Paragraph>
+        <Paragraph className="text-base leading-relaxed text-slate-700">
+          Important terms can be highlighted with{' '}
+          <Mark className="bg-yellow-200 text-slate-900 px-1 rounded">Mark</Mark>, and numbers with
+          units avoid wrapping via <NoBreak>100 km/h</NoBreak>.
+        </Paragraph>
+      </View>
+
+      <View className="space-y-4 border-t border-slate-200 pt-6">
+        <Heading level={3} className="text-lg font-semibold text-slate-900">
+          Scripts, Annotations & Fine Print
+        </Heading>
+        <Paragraph className="text-base leading-relaxed text-slate-700">
+          Formulas and subscripts: H<Sub>2</Sub>O, E = mc<Sup>2</Sup>, or reference notes
+          <Sup>[1]</Sup>.
+        </Paragraph>
+        <Paragraph className="text-base leading-relaxed text-slate-700">
+          Pronunciation guide with Ruby:{' '}
+          <Ruby>
+            漢字<Rt>かんじ</Rt>
+          </Ruby>{' '}
+          (Kanji).
+        </Paragraph>
+        <Paragraph className="text-slate-500">
+          <Small>Copyright &copy; 2026 Hozo Universal UI. All rights reserved.</Small>
         </Paragraph>
       </View>
     </View>
