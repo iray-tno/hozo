@@ -23,8 +23,14 @@ export interface TypeaheadOptions {
 /**
  * Searches for the next matching index based on query string.
  * Supports consecutive single-letter cycling (e.g. pressing 's' repeatedly walks every 's' item).
+ * If a multi-character query yields no match, safely falls back to the last typed character
+ * with an explicit recursion guard to prevent any possibility of infinite loops.
  */
-export function searchIndex(search: string, options: TypeaheadOptions): number | null {
+export function searchIndex(
+  search: string,
+  options: TypeaheadOptions,
+  allowFallback = true,
+): number | null {
   const { labels, active, disabled = [] } = options
   if (search === '' || labels.length === 0) return null
 
@@ -39,6 +45,15 @@ export function searchIndex(search: string, options: TypeaheadOptions): number |
     const label = labels[index]
     if (label?.trim().toLowerCase().startsWith(needle)) return index
   }
+
+  // Smart fallback: If multi-character search (e.g. "tts") has no match,
+  // try matching just the newly typed last character ("s").
+  // Hard guard: only recurse once if search.length > 1 and allowFallback is true.
+  if (allowFallback && search.length > 1) {
+    const lastChar = search.slice(-1)
+    return searchIndex(lastChar, options, false)
+  }
+
   return null
 }
 
@@ -72,10 +87,25 @@ export function useTypeahead(
     if (!isTypeaheadKey(event.key, isSearching)) return
 
     const query = nextSearch(bufferRef.current, event.key, elapsed)
-    bufferRef.current = query
     lastKeyTimeRef.current = now
 
-    const next = searchIndex(query, { labels, active, disabled })
+    // First try matching full query without fallback
+    let next = searchIndex(query, { labels, active, disabled }, false)
+    if (next !== null) {
+      bufferRef.current = query
+    } else if (query.length > 1) {
+      // Fallback: full query yielded no match, try newly pressed key as fresh start
+      const fallbackKey = event.key.toLowerCase()
+      next = searchIndex(fallbackKey, { labels, active, disabled }, false)
+      if (next !== null) {
+        bufferRef.current = fallbackKey
+      } else {
+        bufferRef.current = query
+      }
+    } else {
+      bufferRef.current = query
+    }
+
     if (next !== null && next !== active) {
       onSelect(next)
     }

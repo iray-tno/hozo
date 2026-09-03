@@ -90,3 +90,12 @@ test('Typeahead: nextSearch resets buffer after timeout', () => {
   assert.equal(nextSearch('app', 'l', 200), 'appl')
   assert.equal(nextSearch('app', 'b', 1500), 'b') // reset after 1000ms
 })
+
+test('Typeahead: safely falls back to last character when multi-character query has no match', () => {
+  const labels = ['Table', 'Task', 'Settings']
+  // "tts" matches neither "Table" nor "Task", so falls back to "s" (Settings)
+  assert.equal(searchIndex('tts', { labels, active: 1 }), 2)
+
+  // When neither the full query nor the last character matches, returns null without infinite loop
+  assert.equal(searchIndex('ttz', { labels, active: 1 }), null)
+})
