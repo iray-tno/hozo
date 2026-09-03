@@ -932,6 +932,26 @@ fn render_node(
     }
     if let Some(on_press) = node.props.on_press {
         let name = if tag == "Pressable" { "onPress" } else { "onClick" };
+        // Not when the author already wrote the name this maps onto.
+        //
+        // `onPress` is React Native's spelling and becomes `onClick` here,
+        // so an element carrying both got `onClick` twice. JSX resolves a
+        // duplicate last-wins and the passthrough is emitted last, so the
+        // author's `onClick` won and their `onPress` was dropped in
+        // silence -- the prop the compiler models losing to the one it
+        // carries, which is backwards.
+        //
+        // The Native backend already guards its semantic props this way,
+        // for the same reason and with the same treatment of a spread: its
+        // contents are unknowable here, so the mapping stays, and if the
+        // spread does carry the prop it lands last and still wins.
+        let authored_target = node
+            .props
+            .passthrough
+            .iter()
+            .filter(|prop| !prop.is_spread)
+            .filter_map(|prop| prop.name.as_deref())
+            .any(|prop| prop == name);
         // Keyed off `tabIndex` being in the emitted attributes rather than
         // off the primitive: that attribute *is* the statement that Hozo
         // made this element focusable itself, so "Hozo put it in the tab
@@ -955,6 +975,15 @@ fn render_node(
                     .unwrap_or_default(),
             ));
             *uses_key_activation = true;
+        } else if authored_target {
+            diagnostics.push(hozo_ir::Diagnostic {
+                code: hozo_ir::DiagnosticCode::PropCollidesWithPlatformName,
+                severity: hozo_ir::Severity::Warning,
+                message: format!(
+                    "`onPress` compiles to `{name}` on Web and this element already has one,                      so the `onPress` handler is not used. Keep whichever you meant."
+                ),
+                span: node.span,
+            });
         } else {
             attrs.push_str(&format!(" {name}={{{}}}", source_text(source, on_press)));
         }
@@ -1286,6 +1315,48 @@ export function Login() {
             output.diagnostics[0].code,
             hozo_ir::DiagnosticCode::DynamicClassNameNotResolved
         );
+    }
+
+    #[test]
+    fn a_prop_that_compiles_to_one_the_author_wrote_is_reported() {
+        // `onPress` becomes `onClick` on Web, so an element carrying both
+        // asked for one thing twice: JSX resolves a duplicate last-wins
+        // and the passthrough is emitted last, so the author's `onClick`
+        // won and their `onPress` was dropped in silence -- the prop the
+        // compiler models losing to the one it carries.
+        let source = r#"
+            import { Svg } from '@hozo/core'
+            const el = <Svg><Svg.Rect onClick={f} onPress={g} /></Svg>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert_eq!(output.jsx.matches("onClick").count(), 1, "{}", output.jsx);
+        assert!(output.jsx.contains("onClick={f}"), "the author's own prop lost: {}", output.jsx);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::PropCollidesWithPlatformName),
+            "the dropped handler was not reported",
+        );
+    }
+
+    #[test]
+    fn a_spread_keeps_the_mapping() {
+        // What a spread carries is not knowable here, so the mapping
+        // stays -- and if the spread does carry `onClick` it lands last
+        // and still wins. The Native backend guards its own props the
+        // same way for the same reason.
+        let source = r#"
+            import { Svg } from '@hozo/core'
+            const el = <Svg><Svg.Rect {...rest} onPress={g} /></Svg>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(output.jsx.contains("onClick={g}"), "{}", output.jsx);
+        assert!(output.diagnostics.is_empty());
     }
 
     #[test]
