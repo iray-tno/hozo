@@ -17,12 +17,14 @@ import {
   Circle,
   Clip,
   canvasControls,
+  canvasUnreadableText,
   Ellipse,
   Group,
   Line,
   Path,
   Rect,
   RoundedRect,
+  reportUnreadableText,
   Text,
   useCanvasScene,
 } from './scene.tsx'
@@ -237,6 +239,17 @@ function Root({
   // dependency: a handler arriving or leaving mutates it without a new
   // scene. That is why the list is rebuilt whenever the scene is, which
   // is also when a shape's presence could have changed.
+  // Only in `label` mode, and that is the whole condition. A
+  // `decorative` surface has said it carries no information and a
+  // surface with an `accessibleFallback` has supplied it; second-guessing
+  // either would be arguing with an author who already answered. What is
+  // left is the one where a single name stands for a drawing, and the
+  // drawing has words the name does not.
+  if (accessibilityMode === 'label') {
+    reportUnreadableText(canvasUnreadableText(scene, accessibilityLabel), (message) =>
+      console.warn(`[hozo] ${message}`),
+    )
+  }
   const controls = useMemo(
     () => canvasControls(scene, interactions, (message) => console.warn(`[hozo] ${message}`)),
     [scene, interactions],

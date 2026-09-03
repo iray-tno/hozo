@@ -210,6 +210,34 @@ export interface TextProps extends CanvasPaintProps {
     | '900'
   /** Which part of the run sits at `x`. */
   textAlign?: 'left' | 'center' | 'right'
+  /**
+   * That these words are decoration rather than information.
+   *
+   * Text drawn on a canvas is pixels: no screen reader will ever read it,
+   * whatever the surface calls itself. So a surface that draws words and
+   * offers only a name has lost them, and `canvasUnreadableText` says so.
+   *
+   * This is the answer for the case where nothing was lost, and there are
+   * two of those. The words may carry no information -- a watermark, a
+   * repeated glyph. Or their information may already be exposed
+   * elsewhere, which is the commoner one: a label reading "Revenue rose
+   * from 3,200 in January to 4,800 in March" covers the drawn "Jan" and
+   * "4800" without containing either string, and no test of the text
+   * could tell.
+   *
+   * Both are what "presentational" means in ARIA. The word is not "this
+   * is pretty" but "this needs no accessible representation of its own",
+   * and a thing already said elsewhere needs none. So marking a covered
+   * label `decorative` is the word used correctly rather than a warning
+   * suppressed, which is why it is spelled the way the surface's own
+   * `decorative` is: the two say the same thing at different scales.
+   *
+   * The containment check that runs alongside this only catches the
+   * literal case -- `accessibilityLabel="Unread: 42"` over a drawn `42`.
+   * It is a convenience, not the boundary; semantics are the author's to
+   * assert because nothing here can read them.
+   */
+  decorative?: boolean
 }
 
 export interface PathProps extends CanvasPaintProps, CanvasInteractionProps {
@@ -678,6 +706,67 @@ export function canvasControls(
   }
   walk(scene)
   return found
+}
+
+const reportedLosses = new Set<string>()
+
+/**
+ * The drawn words a person using a screen reader will never get.
+ *
+ * Canvas text is pixels. Unlike SVG, where the fix was a role that stops
+ * hiding the children, there is nothing here to expose -- so `role="img"`
+ * on a Canvas is right, and the defect is not the role but the silence.
+ *
+ * Four things mean nothing was lost, and each is the author saying
+ * something different rather than the same suppression spelled four ways:
+ *
+ *   - an `accessibleFallback`: "the content is here". The fix, and the
+ *     only one that supplies the data. Whether it really contains it is
+ *     not checkable from here, and presence is the honest signal.
+ *   - `decorative` on the surface: "this drawing carries no information".
+ *   - `decorative` on the text: "these words are decoration".
+ *   - the words being in the name already.
+ *
+ * Returns what is lost rather than a boolean, so a caller can say which
+ * words rather than that some exist.
+ */
+export function canvasUnreadableText(scene: CanvasScene, accessibleName?: string): string[] {
+  const name = (accessibleName ?? '').toLowerCase()
+  const lost: string[] = []
+  const walk = (nodes: CanvasScene) => {
+    for (const node of nodes) {
+      if (node.kind === 'group' || node.kind === 'clip') {
+        walk(node.children)
+        continue
+      }
+      if (node.kind !== 'text' || node.props.decorative) continue
+      const text = node.props.text.trim()
+      if (text !== '' && !name.includes(text.toLowerCase())) lost.push(text)
+    }
+  }
+  walk(scene)
+  return lost
+}
+
+/**
+ * Says it once per surface per distinct loss.
+ *
+ * Not once ever: a chart whose labels change has lost different words and
+ * that is news. Not once per render either -- a redraw is not.
+ */
+export function reportUnreadableText(lost: string[], warn: (message: string) => void) {
+  if (lost.length === 0) return
+  const key = lost.join(' ')
+  if (reportedLosses.has(key)) return
+  reportedLosses.add(key)
+  const shown = lost.slice(0, 3).join('", "')
+  const rest = lost.length > 3 ? ` and ${lost.length - 3} more` : ''
+  warn(
+    `this Canvas draws words no screen reader can read -- "${shown}"${rest}. Canvas text is ` +
+      'pixels, and the accessibilityLabel on the surface does not contain them. Pass an ' +
+      'accessibleFallback with the same information -- a table, a list, a paragraph -- or mark ' +
+      'the text decorative if it carries none.',
+  )
 }
 
 /** Shared by the Web and Native roots; `collector` executes arbitrary React composition. */
