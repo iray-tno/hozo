@@ -193,11 +193,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **362/522 property names
-(69.3%)**, including **132/132 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **367/522 property names
+(70.3%)**, including **132/132 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **17/17 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **213/372 (57.3%)**. The
+independently at **218/372 (58.6%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -214,8 +214,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **229/229 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **186/186 (100%)** declarations after
+corpus currently measures **234/234 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **196/196 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -263,6 +263,13 @@ plus physical `float`/`clear`, `shapeOutside`, `shapeMargin`, and
 `shapeImageThreshold`. Safe paths, rays, basic shapes, positions, angles, and
 lengths lower exactly on Web. Direction-relative float values, calculations,
 newer shape syntax, and the `offset` shorthand remain official residuals.
+
+Common border-image longhands cover `borderImageSource`, `borderImageSlice`,
+`borderImageWidth`, `borderImageOutset`, and `borderImageRepeat`. Ordinary URLs
+and gradients, `fill`, static number/length/percentage lists, and repeat
+keywords lower exactly on Web. The `borderImage` shorthand, wider image
+functions, calculations, and variables remain with the official StyleX
+compiler; Native refusal remains explicit.
 
 The static construct slice now flattens recursive `stylex.props` arrays,
 preserves logical and ternary guards, and expands module-local `const` object

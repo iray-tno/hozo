@@ -1006,6 +1006,10 @@ enum WebValueGrammar {
     Time,
     SignedTime,
     AnimationTimingFunction,
+    BorderImageOutset,
+    BorderImageRepeat,
+    BorderImageSlice,
+    BorderImageWidth,
     CommaKeywordGroups {
         keywords: &'static [&'static str],
         minimum: usize,
@@ -1325,6 +1329,11 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
                 maximum: 2,
             },
         )),
+        "borderImageSource" => Some(("border-image-source", WebValueGrammar::MaskImage)),
+        "borderImageSlice" => Some(("border-image-slice", WebValueGrammar::BorderImageSlice)),
+        "borderImageWidth" => Some(("border-image-width", WebValueGrammar::BorderImageWidth)),
+        "borderImageOutset" => Some(("border-image-outset", WebValueGrammar::BorderImageOutset)),
+        "borderImageRepeat" => Some(("border-image-repeat", WebValueGrammar::BorderImageRepeat)),
         "baselineShift" => Some((
             "baseline-shift",
             WebValueGrammar::SvgLength(&["baseline", "sub", "super"]),
@@ -1782,6 +1791,68 @@ fn web_number_percentage(value: &StaticValue, minimum: f64, maximum: f64) -> Opt
         }
         value => web_number(value, minimum, maximum),
     }
+}
+
+fn web_non_negative_number_token(value: &str) -> bool {
+    value
+        .parse::<f64>()
+        .is_ok_and(|number| number.is_finite() && number >= 0.0)
+}
+
+fn web_border_image_slice(value: &StaticValue) -> Option<String> {
+    if let StaticValue::Number(number) = value {
+        return (number.is_finite() && *number >= 0.0).then(|| numeric_text(*number));
+    }
+    let StaticValue::String(value) = value else { return None };
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    let fill_count = parts.iter().filter(|part| **part == "fill").count();
+    let slices = parts.iter().filter(|part| **part != "fill").copied().collect::<Vec<_>>();
+    (fill_count <= 1
+        && (1..=4).contains(&slices.len())
+        && slices.iter().all(|part| {
+            web_non_negative_number_token(part)
+                || part.strip_suffix('%').is_some_and(web_non_negative_number_token)
+        }))
+    .then(|| parts.join(" "))
+}
+
+fn web_border_image_width(value: &StaticValue) -> Option<String> {
+    if let StaticValue::Number(number) = value {
+        return (number.is_finite() && *number >= 0.0).then(|| numeric_text(*number));
+    }
+    let StaticValue::String(value) = value else { return None };
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    ((1..=4).contains(&parts.len())
+        && parts.iter().all(|part| {
+            *part == "auto"
+                || web_non_negative_number_token(part)
+                || (web_length_percentage_string(part)
+                    && web_length_number(part).is_some_and(|number| number >= 0.0))
+        }))
+    .then(|| parts.join(" "))
+}
+
+fn web_border_image_outset(value: &StaticValue) -> Option<String> {
+    if let StaticValue::Number(number) = value {
+        return (number.is_finite() && *number >= 0.0).then(|| numeric_text(*number));
+    }
+    let StaticValue::String(value) = value else { return None };
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    ((1..=4).contains(&parts.len())
+        && parts.iter().all(|part| {
+            web_non_negative_number_token(part)
+                || (web_length_string(part)
+                    && web_length_number(part).is_some_and(|number| number >= 0.0))
+        }))
+    .then(|| parts.join(" "))
+}
+
+fn web_border_image_repeat(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    ((1..=2).contains(&parts.len())
+        && parts.iter().all(|part| matches!(*part, "stretch" | "repeat" | "round" | "space")))
+    .then(|| parts.join(" "))
 }
 
 fn web_svg_dasharray(value: &StaticValue) -> Option<String> {
@@ -2771,6 +2842,10 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         }
         WebValueGrammar::SignedTime => web_signed_time(value)?,
         WebValueGrammar::AnimationTimingFunction => web_animation_timing_function(value)?,
+        WebValueGrammar::BorderImageOutset => web_border_image_outset(value)?,
+        WebValueGrammar::BorderImageRepeat => web_border_image_repeat(value)?,
+        WebValueGrammar::BorderImageSlice => web_border_image_slice(value)?,
+        WebValueGrammar::BorderImageWidth => web_border_image_width(value)?,
         WebValueGrammar::CommaKeywordGroups {
             keywords,
             minimum,
@@ -3278,7 +3353,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "backgroundAttachment"
         | "backgroundBlendMode" | "backgroundClip" | "WebkitBackgroundClip"
         | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY"
-        | "baselineShift" | "blockSize" | "borderCollapse" | "borderSpacing"
+        | "baselineShift" | "blockSize" | "borderCollapse" | "borderImageOutset"
+        | "borderImageRepeat" | "borderImageSlice" | "borderImageSource" | "borderImageWidth"
+        | "borderSpacing"
         | "captionSide" | "caretShape" | "clear" | "clip" | "clipPath" | "clipRule" | "colorScheme"
         | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
         | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
@@ -6329,6 +6406,45 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 10);
         assert_eq!(gaps.len(), 10);
+    }
+
+    #[test]
+    fn border_image_longhands_lower_common_values_and_preserve_wider_syntax() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                borderImageSource: 'linear-gradient(red, blue)',
+                borderImageSlice: '30% fill', borderImageWidth: '1 2 3 4',
+                borderImageOutset: '4px 8px', borderImageRepeat: 'round stretch'
+              },
+              wider: {
+                borderImageSource: 'image-set(url(a.png) 1x, url(b.png) 2x)',
+                borderImageSlice: 'calc(30% + 5%) fill',
+                borderImageWidth: 'calc(1rem + 2px)',
+                borderImageOutset: 'calc(1rem + 2px)',
+                borderImageRepeat: 'var(--border-repeat)'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("common border-image longhands were not lowerable")
+        };
+        assert_eq!(entries.len(), 5);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider border-image syntax should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 5);
+        assert_eq!(gaps.len(), 5);
     }
 
     #[test]

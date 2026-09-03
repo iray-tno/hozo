@@ -898,6 +898,11 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['shapeImageThreshold', '0.5'],
     ['shapeMargin', `'1rem'`],
     ['shapeOutside', `'circle(50%)'`],
+    ['borderImageSource', `'linear-gradient(red, blue)'`],
+    ['borderImageSlice', `'30% fill'`],
+    ['borderImageWidth', `'1 2 3 4'`],
+    ['borderImageOutset', `'4px 8px'`],
+    ['borderImageRepeat', `'round stretch'`],
   ] as const
 
   for (const [property, value] of samples) {
