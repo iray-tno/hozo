@@ -245,6 +245,10 @@ function pointInNode(node: CanvasSceneNode, point: CanvasPoint) {
     }
     case 'line':
       return pointInLine(point, node.props)
+    // Text refuses for the reason paths do: the region is whatever the
+    // rasteriser drew, and only the renderers know that. Measuring it
+    // here would be a third set of metrics agreeing with neither.
+    case 'text':
     case 'path':
     case 'group':
     case 'clip':

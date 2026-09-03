@@ -4,6 +4,7 @@ import {
   type CanvasSceneNode,
   type CanvasTransform,
   type ClipProps,
+  cssFontShorthand,
   paintFills,
   paintStrokes,
 } from './scene.tsx'
@@ -149,6 +150,21 @@ function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
         // paint contract but intentionally has no geometrical meaning here.
         if (node.props.stroke !== 'none' && (node.props.strokeWidth ?? 1) > 0) context.stroke()
         return
+      case 'text': {
+        // `textAlign` is set on the context rather than measured here:
+        // that is the renderer aligning against its own metrics, which is
+        // the only measurement that can agree with what it rasterises.
+        // `textBaseline` is left alone -- alphabetic is its default and
+        // is the anchor `TextProps` documents.
+        context.font = cssFontShorthand(node.props)
+        context.textAlign = node.props.textAlign ?? 'left'
+        applyPaint(context, node.props)
+        if (paintFills(node.props)) context.fillText(node.props.text, node.props.x, node.props.y)
+        if (paintStrokes(node.props)) {
+          context.strokeText(node.props.text, node.props.x, node.props.y)
+        }
+        return
+      }
       case 'path': {
         if (typeof Path2D === 'undefined') {
           throw new Error('This browser does not support Path2D, which Canvas.Path requires.')
