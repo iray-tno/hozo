@@ -302,7 +302,7 @@ pub(super) fn render_node(
     };
 
     let semantic_defaults: Vec<StyleDeclaration> = match node.primitive {
-        Primitive::Strong => vec![StyleDeclaration {
+        Primitive::Strong | Primitive::Legend | Primitive::Term => vec![StyleDeclaration {
             property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
             condition: Condition::Always,
         }],

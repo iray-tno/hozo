@@ -592,6 +592,13 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Figcaption" => Some(Primitive::Figcaption),
         "Time" => Some(Primitive::Time),
         "Address" => Some(Primitive::Address),
+        "Fieldset" => Some(Primitive::Fieldset),
+        "Legend" => Some(Primitive::Legend),
+        "Details" => Some(Primitive::Details),
+        "Summary" => Some(Primitive::Summary),
+        "TermList" => Some(Primitive::TermList),
+        "Term" => Some(Primitive::Term),
+        "Description" => Some(Primitive::Description),
         "Strong" => Some(Primitive::Strong),
         "Emphasis" => Some(Primitive::Emphasis),
         "Underline" => Some(Primitive::Underline),
@@ -621,20 +628,22 @@ fn build_node(
         JSXElementName::IdentifierReference(ident) => {
             (ident.name.as_str(), primitive_for_name(ident.name.as_str())?)
         }
-        // `<Svg.Rect>`. The only member expression Hozo reads, and it is
-        // read for a name collision: `Text` is both an SVG element and a
-        // Hozo primitive, so the SVG elements live under a namespace
-        // rather than being renamed into something neither the
-        // specification nor `react-native-svg` calls them.
+        // `<Svg.Rect>` and `<TermList.Term>`. Member expressions Hozo reads.
         JSXElementName::MemberExpression(member) => {
             let object = member.object.get_identifier()?;
-            let element = SvgElement::from_name(member.property.name.as_str())?;
-            // Only when the object is the `Svg` this file imported. A
-            // project's own `Chart.Rect` is its own.
-            if object.name.as_str() != "Svg" {
+            if object.name.as_str() == "Svg" {
+                let element = SvgElement::from_name(member.property.name.as_str())?;
+                (object.name.as_str(), Primitive::Svg(element))
+            } else if object.name.as_str() == "TermList" {
+                let prim = match member.property.name.as_str() {
+                    "Term" => Primitive::Term,
+                    "Description" => Primitive::Description,
+                    _ => return None,
+                };
+                (object.name.as_str(), prim)
+            } else {
                 return None;
             }
-            (object.name.as_str(), Primitive::Svg(element))
         }
         _ => return None,
     };

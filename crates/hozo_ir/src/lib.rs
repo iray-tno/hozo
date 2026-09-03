@@ -339,6 +339,20 @@ pub enum Primitive {
     Time,
     /// Contact/address semantics: `<address>` on Web and `View` on React Native.
     Address,
+    /// A form control grouping container: `<fieldset>` on Web and `role="group"` `View` on React Native.
+    Fieldset,
+    /// A caption/label for a fieldset: `<legend>` on Web and bold `Text` on React Native.
+    Legend,
+    /// A disclosure widget container: `<details>` on Web and collapsible `View` on React Native.
+    Details,
+    /// A disclosure summary/trigger: `<summary>` on Web and `Pressable` on React Native.
+    Summary,
+    /// A term-and-description list container: `<dl>` on Web and `role="list"` `View` on React Native.
+    TermList,
+    /// A term/name within a term list: `<dt>` on Web and bold `Text` on React Native.
+    Term,
+    /// A description/value within a term list: `<dd>` on Web and `View` on React Native.
+    Description,
     /// A static semantic list: `<ul>`/`<ol>` on Web and a list-role
     /// `View` on React Native. Data-heavy lists remain `FlatList`.
     List,
