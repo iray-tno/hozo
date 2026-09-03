@@ -1,4 +1,13 @@
-import { DismissableLayer, LiveRegion, Portal, useAnnounce } from '@hozo/behaviors'
+import {
+  DismissableLayer,
+  FocusScope,
+  LiveRegion,
+  Portal,
+  RovingFocusGroup,
+  useAnnounce,
+  useRovingItem,
+  useTypeahead,
+} from '@hozo/behaviors'
 import { Button, Heading, Paragraph, Text, View } from '@hozo/core'
 import { Separator } from '@hozo/semantics'
 import type { Meta, StoryObj } from '@storybook/react-vite'
@@ -276,6 +285,185 @@ function DismissableStackDemo() {
   )
 }
 
+function FocusScopeDemo() {
+  const [open, setOpen] = useState(false)
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        FocusScope (Focus Trapping &amp; Restoration)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Traps Tab key navigation inside the modal container. Upon unmount, safely restores focus to
+        the trigger element.
+      </Paragraph>
+
+      <View className="pt-2">
+        <Button
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+          onPress={() => setOpen(true)}
+        >
+          Open Trapped Modal
+        </Button>
+      </View>
+
+      {open && (
+        <Portal>
+          <View className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-50 p-4">
+            <FocusScope
+              trapped
+              autoFocus
+              restoreFocus
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4"
+            >
+              <Heading level={3} className="text-lg font-bold text-slate-900">
+                Modal Dialog with Focus Trap
+              </Heading>
+              <Paragraph className="text-xs text-slate-600">
+                Try pressing <Text className="font-mono font-bold">Tab</Text> or{' '}
+                <Text className="font-mono font-bold">Shift+Tab</Text>. Focus will never escape this
+                dialog!
+              </Paragraph>
+
+              <View className="space-y-3 pt-2">
+                <Button
+                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+                  onPress={() => alert('Action confirmed')}
+                >
+                  Action 1 (First Control)
+                </Button>
+                <Button
+                  className="w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                  onPress={() => setOpen(false)}
+                >
+                  Close Modal (Restores Focus)
+                </Button>
+              </View>
+            </FocusScope>
+          </View>
+        </Portal>
+      )}
+    </View>
+  )
+}
+
+function RovingToolbarItem({ index, label }: { index: number; label: string }) {
+  const { tabIndex, isActive, onFocus, onKeyDown } = useRovingItem(index)
+  return (
+    <button
+      type="button"
+      tabIndex={tabIndex}
+      onFocus={onFocus}
+      onKeyDown={onKeyDown}
+      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+        isActive
+          ? 'bg-indigo-600 text-white shadow-sm'
+          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function RovingFocusDemo() {
+  const [active, setActive] = useState(0)
+  const tools = ['Bold', 'Italic', 'Underline', 'Strike', 'Code']
+
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        RovingFocusGroup (Single Tab Stop &amp; Arrow Navigation)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        The entire toolbar is a single tab stop. Use Arrow Left/Right to navigate, and Home/End to
+        jump to ends.
+      </Paragraph>
+
+      <View className="pt-2">
+        <RovingFocusGroup
+          count={tools.length}
+          active={active}
+          onActiveChange={setActive}
+          orientation="horizontal"
+          wrap
+          className="flex flex-row items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2"
+        >
+          {tools.map((tool, i) => (
+            <RovingToolbarItem key={tool} index={i} label={tool} />
+          ))}
+        </RovingFocusGroup>
+      </View>
+      <Text className="text-xs text-slate-500 font-mono">
+        Current Active Index: {active} ({tools[active]})
+      </Text>
+    </View>
+  )
+}
+
+function TypeaheadDemo() {
+  const fruits = [
+    'Apple',
+    'Apricot',
+    'Avocado',
+    'Banana',
+    'Blueberry',
+    'Cherry',
+    'Cranberry',
+    'Date',
+  ]
+  const [active, setActive] = useState(0)
+  const { handleKeyDown } = useTypeahead(fruits, active, setActive)
+
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Typeahead (Incremental Search &amp; Single-Letter Cycle)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Click on the list to focus, then type letters (e.g. &quot;b&quot;, &quot;bl&quot;, or press
+        &quot;a&quot; repeatedly) to jump through matching items.
+      </Paragraph>
+
+      <div
+        role="listbox"
+        aria-label="Fruit selection"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+      >
+        {fruits.map((fruit, i) => (
+          <div
+            key={fruit}
+            role="option"
+            aria-selected={active === i}
+            tabIndex={-1}
+            onClick={() => setActive(i)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                setActive(i)
+              }
+            }}
+            className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+              active === i ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            {fruit}
+          </div>
+        ))}
+      </div>
+    </View>
+  )
+}
+
 const meta = {
   title: 'Behaviors',
   component: BehaviorsShowcase,
@@ -290,4 +478,13 @@ export const LiveRegionAnnouncements: StoryObj<typeof meta> = {
 }
 export const DismissableStack: StoryObj<typeof meta> = {
   render: () => <DismissableStackDemo />,
+}
+export const FocusScopeModal: StoryObj<typeof meta> = {
+  render: () => <FocusScopeDemo />,
+}
+export const RovingFocusToolbar: StoryObj<typeof meta> = {
+  render: () => <RovingFocusDemo />,
+}
+export const TypeaheadList: StoryObj<typeof meta> = {
+  render: () => <TypeaheadDemo />,
 }
