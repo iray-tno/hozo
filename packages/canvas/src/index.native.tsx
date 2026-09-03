@@ -29,6 +29,7 @@ import {
 import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './accessibility.ts'
 import { type CanvasPoint, canvasNodePoint, hitTestCanvas } from './hit-test.ts'
 import {
+  BoundedCache,
   type CanvasPaintProps,
   type CanvasScene,
   type CanvasSceneNode,
@@ -126,7 +127,7 @@ function transformFor(transform?: CanvasTransform): Transforms3d | undefined {
  * Module level rather than per surface, like `fonts`: a path string means
  * the same shape wherever it is drawn.
  */
-const parsedPaths = new Map<string, ReturnType<typeof Skia.Path.MakeFromSVGString>>()
+const parsedPaths = new BoundedCache<ReturnType<typeof Skia.Path.MakeFromSVGString>>(256)
 const pathHitTest = (path: string, fillRule: 'nonzero' | 'evenodd', point: CanvasPoint) => {
   const key = `${fillRule}:${path}`
   let parsed = parsedPaths.get(key)
@@ -481,8 +482,19 @@ function Root({
   }
   const onPointerLeave = () => activate(undefined, undefined)
 
-  const controls = canvasControls(scene, interactions, (message) =>
-    console.warn(`[hozo] ${message}`),
+  // Memoised on the scene, which is the only thing that can change the
+  // answer. Without this it walked every node on every render of the
+  // surface -- a second full traversal beside the snapshot and the
+  // redraw, for a list that changes only when a shape is added, removed
+  // or renamed.
+  //
+  // `interactions` is a stable store rather than a value, so it is not a
+  // dependency: a handler arriving or leaving mutates it without a new
+  // scene. That is why the list is rebuilt whenever the scene is, which
+  // is also when a shape's presence could have changed.
+  const controls = useMemo(
+    () => canvasControls(scene, interactions, (message) => console.warn(`[hozo] ${message}`)),
+    [scene, interactions],
   )
   const pointFor = (id: string) =>
     canvasNodePoint(scene, id, {
