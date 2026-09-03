@@ -125,6 +125,13 @@ export function mappedHozoStylexPropertiesFromRust(): Set<string> {
     .matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
     properties.add(match[1])
   }
+  // A few properties take StyleX API values rather than literals and are
+  // therefore lowered in parse_rule_object instead of the literal-value
+  // tables above. Keep the claim implementation-backed by reading those
+  // explicit branches from the same Rust source.
+  for (const match of source.matchAll(/if name == "([A-Za-z][A-Za-z0-9]*)" \{/g)) {
+    properties.add(match[1])
+  }
   if (properties.size === 0) throw new Error('Hozo StyleX property mapper was empty')
   return properties
 }

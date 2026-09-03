@@ -82,6 +82,41 @@ test('static rules imported from another module lower through the shared registr
   }
 })
 
+test('an exported sheet carries its local static keyframes across the module registry', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-stylex-keyframes-'))
+  try {
+    const definition = path.join(root, 'motion.ts')
+    const component = path.join(root, 'Card.tsx')
+    const definitionSource = `import * as stylex from '@stylexjs/stylex'
+      const fade = stylex.keyframes({ from: { opacity: 0 }, to: { opacity: 1 } })
+      export const styles = stylex.create({ root: { animationName: fade } })`
+    const componentSource = `import * as stylex from '@stylexjs/stylex'
+      import { View } from '@hozo/core'
+      import { styles } from './motion'
+      export const Card = () => <View {...stylex.props(styles.root)} />`
+    writeFileSync(definition, definitionSource)
+    writeFileSync(component, componentSource)
+
+    const modules = new StylexModuleCache(path.join(root, 'stylex-modules.json'))
+    modules.scanFile(definition, definitionSource, 1)
+    const compiler = createCompiler()
+    compiler.setStylexModules(modules.moduleSources())
+
+    const web = lowerModule(componentSource, component, component, compiler, root, modules)
+    assert.ok(web)
+    assert.doesNotMatch(web.code, /stylex\.props/)
+    assert.match(web.css, /@keyframes hozo-kf-[a-f0-9]+/)
+    assert.match(web.css, /animation-name: hozo-kf-[a-f0-9]+/)
+
+    const native = compiler.compileNative(componentSource, modules.bindingsFor(component))[0]
+    assert.ok(native)
+    assert.doesNotMatch(native.jsx, /stylex\.props/)
+    assert.equal(native.diagnostics[0]?.code, 'WEB_ONLY_PROPERTY_ON_NATIVE')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('namespace imports can select an exported static sheet', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-stylex-namespace-'))
   try {

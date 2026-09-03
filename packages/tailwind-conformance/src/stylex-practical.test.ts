@@ -12,7 +12,7 @@ test('the practical StyleX scorecard is measured from executable fixtures', () =
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
     values: { total: 200, covered: 200 },
-    constructs: { total: 14, covered: 14 },
+    constructs: { total: 15, covered: 15 },
     corpus: { total: 157, covered: 157 },
     silent: 0,
   })

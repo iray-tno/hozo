@@ -193,11 +193,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **335/522 property names
-(64.2%)**, including **132/132 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **336/522 property names
+(64.4%)**, including **132/132 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **17/17 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **186/372 (50.0%)**. The
+independently at **187/372 (50.3%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -214,7 +214,7 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **200/200 (100%)** representative values, **14/14
+corpus currently measures **200/200 (100%)** representative values, **15/15
 (100%)** common authoring constructs, and **157/157 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
@@ -234,9 +234,12 @@ Common animation control longhands are exact Web-only declarations:
 composition, non-negative delay, direction, fill mode, non-negative iteration
 count, play state, and keyword timing functions. Native consumes them with an
 explicit Web-only diagnostic rather than implying that arbitrary CSS keyframes
-run on React Native. Negative delays, functional easing, animation names,
-timelines, and keyframes remain with the official StyleX compiler until their
-wider grammar or runtime boundary is implemented.
+run on React Native. A module-scope static `stylex.keyframes` referenced by
+`animationName` is carried in typed IR, content-hashed, hoisted once on Web,
+and follows the same explicit Native refusal policy; exported sheets carry it
+through the project module registry. Dynamic keyframes, arrays of animation
+names, negative delays, functional easing, and timelines remain with the
+official StyleX compiler.
 
 The static construct slice now flattens recursive `stylex.props` arrays,
 preserves logical and ternary guards, and expands module-local `const` object

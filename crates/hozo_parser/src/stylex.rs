@@ -11,8 +11,9 @@ use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
     Angle, BorderStyle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef,
-    FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Length, Origin, Overflow, Radius, Scale,
-    SourceSpan, StyleDeclaration, StyleProperty, StylexResidual, StylexResidualArgument,
+    FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Keyframe, Keyframes, Length, Origin,
+    Overflow, Radius, Scale, SourceSpan, StyleDeclaration, StyleProperty, StylexResidual,
+    StylexResidualArgument,
     TextOverflow, TransformFunction, WhiteSpace,
 };
 use oxc_ast::ast::{
@@ -3696,6 +3697,7 @@ fn parse_rule_object(
     namespaces: &HashSet<String>,
     static_objects: &HashMap<String, &ObjectExpression>,
     variables: &StaticVariables,
+    keyframes: &HashMap<String, Keyframes>,
     visiting: &mut HashSet<String>,
     out: &mut Vec<Entry>,
     residual: &mut Vec<ResidualProperty>,
@@ -3738,6 +3740,7 @@ fn parse_rule_object(
                             namespaces,
                             static_objects,
                             variables,
+                            keyframes,
                             visiting,
                             out,
                             residual,
@@ -3761,6 +3764,7 @@ fn parse_rule_object(
                     namespaces,
                     static_objects,
                     variables,
+                    keyframes,
                     visiting,
                     out,
                     residual,
@@ -3832,6 +3836,7 @@ fn parse_rule_object(
                 namespaces,
                 static_objects,
                 variables,
+                keyframes,
                 visiting,
                 &mut nested_entries,
                 &mut nested_residual,
@@ -3852,7 +3857,35 @@ fn parse_rule_object(
             }
             continue;
         }
-        let properties = if let Some(call) = first_that_works_call(&property.value, namespaces) {
+        let properties = if name == "animationName" {
+            let Expression::Identifier(identifier) = &property.value else {
+                residual.push(ResidualProperty {
+                    css_name: canonical_property(&name).to_string(),
+                    span: ExprRef(source_span(property.span)),
+                });
+                gaps.push(Gap {
+                    message: "StyleX `animationName` currently lowers a module-scope static `stylex.keyframes` binding."
+                        .to_string(),
+                    span: source_span(property.value.span()),
+                });
+                continue;
+            };
+            let Some(keyframes) = keyframes.get(identifier.name.as_str()) else {
+                residual.push(ResidualProperty {
+                    css_name: canonical_property(&name).to_string(),
+                    span: ExprRef(source_span(property.span)),
+                });
+                gaps.push(Gap {
+                    message: format!(
+                        "StyleX `animationName` binding `{}` is not a supported static local `stylex.keyframes` definition.",
+                        identifier.name
+                    ),
+                    span: source_span(property.value.span()),
+                });
+                continue;
+            };
+            vec![StyleProperty::AnimationName(keyframes.clone())]
+        } else if let Some(call) = first_that_works_call(&property.value, namespaces) {
             let candidates = call
                 .arguments
                 .iter()
@@ -3950,6 +3983,7 @@ fn parse_rule(
     namespaces: &HashSet<String>,
     static_objects: &HashMap<String, &ObjectExpression>,
     variables: &StaticVariables,
+    keyframes: &HashMap<String, Keyframes>,
 ) -> Result<(Vec<Entry>, Vec<ResidualProperty>, Vec<Gap>), Gap> {
     let Expression::ObjectExpression(object) = expression else {
         return Err(Gap {
@@ -3965,6 +3999,7 @@ fn parse_rule(
         namespaces,
         static_objects,
         variables,
+        keyframes,
         &mut HashSet::new(),
         &mut out,
         &mut residual,
@@ -4255,10 +4290,131 @@ fn create_object<'a>(
     }
 }
 
+fn keyframes_object<'a>(
+    call: &'a CallExpression<'a>,
+    namespaces: &HashSet<String>,
+) -> Option<&'a ObjectExpression<'a>> {
+    let Expression::StaticMemberExpression(member) = &call.callee else {
+        return None;
+    };
+    let Expression::Identifier(object) = &member.object else {
+        return None;
+    };
+    if member.property.name.as_str() != "keyframes" || !namespaces.contains(object.name.as_str()) {
+        return None;
+    }
+    match call.arguments.first()? {
+        Argument::ObjectExpression(object) if call.arguments.len() == 1 => Some(object),
+        _ => None,
+    }
+}
+
+fn valid_keyframe_selector(selector: &str) -> bool {
+    selector.split(',').all(|part| {
+        let part = part.trim();
+        matches!(part, "from" | "to")
+            || part
+                .strip_suffix('%')
+                .and_then(|number| number.parse::<f64>().ok())
+                .is_some_and(|number| (0.0..=100.0).contains(&number))
+    })
+}
+
+fn keyframes_name(frames: &[Keyframe]) -> String {
+    // FNV-1a is deliberately tiny and stable. This is an identifier, not a
+    // security boundary; hashing the canonical typed representation makes
+    // formatting-only source edits retain the same animation name.
+    let mut hash = 0xcbf29ce484222325u64;
+    for byte in format!("{frames:?}").bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("hozo-kf-{hash:016x}")
+}
+
+fn module_keyframes(
+    program: &oxc_ast::ast::Program,
+    namespaces: &HashSet<String>,
+    variables: &StaticVariables,
+) -> (HashMap<String, Keyframes>, Vec<SourceSpan>) {
+    let mut keyframes = HashMap::new();
+    let mut spans = Vec::new();
+    for statement in &program.body {
+        let Statement::VariableDeclaration(declaration) = statement else {
+            continue;
+        };
+        if declaration.kind != VariableDeclarationKind::Const {
+            continue;
+        }
+        for declarator in &declaration.declarations {
+            let BindingPattern::BindingIdentifier(identifier) = &declarator.id else {
+                continue;
+            };
+            let Some(Expression::CallExpression(call)) = &declarator.init else {
+                continue;
+            };
+            let Some(object) = keyframes_object(call, namespaces) else {
+                continue;
+            };
+            let frames = object
+                .properties
+                .iter()
+                .map(|item| {
+                    let ObjectPropertyKind::ObjectProperty(frame) = item else {
+                        return None;
+                    };
+                    if frame.computed {
+                        return None;
+                    }
+                    let selector = static_key(&frame.key)?;
+                    if !valid_keyframe_selector(&selector) {
+                        return None;
+                    }
+                    let Expression::ObjectExpression(declarations) = &frame.value else {
+                        return None;
+                    };
+                    let properties = declarations
+                        .properties
+                        .iter()
+                        .map(|item| {
+                            let ObjectPropertyKind::ObjectProperty(property) = item else {
+                                return None;
+                            };
+                            if property.computed {
+                                return None;
+                            }
+                            let name = static_key(&property.key)?;
+                            if name.starts_with(':') || name.starts_with('@') {
+                                return None;
+                            }
+                            let value = resolved_static_value(&property.value, variables)?;
+                            lower_static_value(&name, &value)
+                        })
+                        .collect::<Option<Vec<_>>>()?
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>();
+                    (!properties.is_empty()).then_some(Keyframe { selector, properties })
+                })
+                .collect::<Option<Vec<_>>>();
+            let Some(frames) = frames.filter(|frames| !frames.is_empty()) else {
+                continue;
+            };
+            spans.push(source_span(object.span));
+            keyframes.insert(
+                identifier.name.to_string(),
+                Keyframes { name: keyframes_name(&frames), frames },
+            );
+        }
+    }
+    (keyframes, spans)
+}
+
 struct SheetCollector<'n, 'a> {
     namespaces: &'n HashSet<String>,
     static_objects: &'n HashMap<String, &'a ObjectExpression<'a>>,
     variables: &'n StaticVariables,
+    keyframes: &'n HashMap<String, Keyframes>,
     sheets: HashMap<String, HashMap<String, Rule>>,
     scan_spans: Vec<SourceSpan>,
     function_depth: usize,
@@ -4392,6 +4548,7 @@ impl<'a> Visit<'a> for SheetCollector<'_, 'a> {
                     self.namespaces,
                     self.static_objects,
                     self.variables,
+                    self.keyframes,
                 ) {
                     Ok((entries, residual, gaps)) => Rule::Ready {
                         entries,
@@ -4447,11 +4604,13 @@ impl Frontend {
         }
         let static_objects = module_static_objects(program, module);
         let (variables, variable_spans) = module_static_variables(program, module, &namespaces);
+        let (keyframes, keyframe_spans) = module_keyframes(program, &namespaces, &variables);
         let (sheets, scan_spans) = {
             let mut collector = SheetCollector {
                 namespaces: &namespaces,
                 static_objects: &static_objects,
                 variables: &variables,
+                keyframes: &keyframes,
                 sheets: HashMap::new(),
                 scan_spans: Vec::new(),
                 function_depth: 0,
@@ -4461,6 +4620,7 @@ impl Frontend {
         };
         let mut scan_spans = scan_spans;
         scan_spans.extend(variable_spans);
+        scan_spans.extend(keyframe_spans);
         Self {
             namespaces,
             sheets,
