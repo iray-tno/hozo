@@ -36,6 +36,12 @@ expect(/canvas-indicated/.test(bundle), 'the active-target fixture is bundled')
 // Text is the one shape whose Native branch does work of its own: Skia
 // resolves the face through `matchFont` and has no alignment, so the
 // adapter measures. Neither call appears on the Web side.
+// Every named pressable shape becomes a real accessibility element, so
+// a screen reader can reach geometry that is otherwise pixels. The
+// labels are the evidence that the derived-control layer is in the
+// bundle at all.
+expect(/January revenue/.test(bundle), 'the derived accessibility controls are bundled')
+expect(/onAccessibilityTap/.test(bundle), 'the Native activation path reached the bundle')
 expect(/matchFont/.test(bundle), 'the Native font lookup reached the bundle')
 expect(/measureText/.test(bundle), 'the Native text alignment measurement reached the bundle')
 

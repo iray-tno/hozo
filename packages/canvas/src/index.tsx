@@ -9,11 +9,12 @@ import {
 } from 'react'
 
 import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './accessibility.ts'
-import { type CanvasPoint, hitTestCanvas } from './hit-test.ts'
+import { type CanvasPoint, canvasNodePoint, hitTestCanvas } from './hit-test.ts'
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
   Circle,
   Clip,
+  canvasControls,
   Ellipse,
   Group,
   Line,
@@ -84,7 +85,8 @@ function Root({
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pressedTargets = useRef(new Map<number, string>())
-  const { scene, collector, isInteractive, press, activate } = useCanvasScene(children)
+  const { scene, collector, isInteractive, press, activate, interactions } =
+    useCanvasScene(children)
   const [size, setSize] = useState<Size>(() => ({
     width: width ?? viewBox?.[2] ?? 300,
     height: height ?? viewBox?.[3] ?? 150,
@@ -186,6 +188,28 @@ function Root({
   }
   const onPointerLeave = () => activate(undefined, undefined)
 
+  // Warned always rather than in development only: this package has no
+  // build-time channel to say it in, and a control nobody can reach is
+  // not a development-only problem. `canvasControls` says it once per
+  // shape.
+  const controls = canvasControls(scene, interactions, (message) =>
+    console.warn(`[hozo] ${message}`),
+  )
+  /**
+   * Where a keyboard "is" when it reaches a shape.
+   *
+   * Its centre in scene coordinates, and the same in surface coordinates
+   * only because there is nothing better: a keyboard has no cursor, and a
+   * tooltip still has to be told somewhere to appear. A chart that wants
+   * to place it from the datum rather than from the point already knows
+   * which shape it is.
+   */
+  const pointFor = (id: string) =>
+    canvasNodePoint(scene, id, { width: size.width, height: size.height, viewBox, fit }) ?? {
+      point: { x: 0, y: 0 },
+      surfacePoint: { x: 0, y: 0 },
+    }
+
   return (
     <>
       <canvas
@@ -207,6 +231,40 @@ function Root({
       >
         {collector}
       </canvas>
+      {/*
+        A real control per named pressable shape.
+
+        The canvas is one element and the shapes in it are pixels, so a
+        keyboard has nothing to reach and a screen reader has nothing to
+        announce. These are buttons -- real focus, real Enter and Space,
+        real accessible names -- placed in the same visually-hidden layer
+        the fallback already uses, in scene order so the tab order is the
+        reading order.
+
+        Focus moves the active target, which is what makes a tooltip
+        appear for a keyboard the same way hovering does for a mouse. The
+        surface point is the shape's own: a keyboard has no cursor, so
+        there is no other honest answer.
+
+        Rendered whenever there is a named control, not only in
+        `fallback` mode. A pressable shape is a control however the
+        surface chooses to describe itself.
+      */}
+      {controls.length > 0 ? (
+        <div style={accessibleOnlyStyle} data-hozo-canvas-controls="">
+          {controls.map((control) => (
+            <button
+              key={control.id}
+              type="button"
+              onClick={() => press(control.id, pointFor(control.id))}
+              onFocus={() => activate(control.id, pointFor(control.id))}
+              onBlur={() => activate(undefined, undefined)}
+            >
+              {control.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {accessibilityMode === 'fallback' ? (
         <div
           style={accessibleOnlyStyle}
@@ -244,5 +302,6 @@ export const Canvas = Object.assign(Root, {
   Circle,
   Ellipse,
   Line,
+
   Path,
 })

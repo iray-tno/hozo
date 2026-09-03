@@ -44,6 +44,21 @@ export interface CanvasInteractionProps {
    * question -- see #26.
    */
   onActiveChange?: (event: CanvasPressEvent | undefined) => void
+  /**
+   * What this shape is called, which is what makes it reachable at all.
+   *
+   * A pressable shape is a control, and a control on a canvas is
+   * unreachable by every route except a pointer: there is one element,
+   * and the shapes inside it are pixels. So a named one is given a real
+   * `<button>` in the surface's hidden layer -- real DOM, real focus,
+   * real Enter and Space -- and the canvas keeps the drawing.
+   *
+   * Required for that to happen, and deliberately: a button with no
+   * accessible name is announced as "button" and is exactly the invisible
+   * control this is meant to avoid. A shape with a handler and no name
+   * says so in development rather than being silently pointer-only.
+   */
+  accessibilityLabel?: string
   disabled?: boolean
 }
 
@@ -249,13 +264,21 @@ interface StoredNode {
 
 class CanvasInteractionStore {
   readonly #handlers = new Map<string, (event: CanvasPressEvent) => void>()
+  readonly #labels = new Map<string, string>()
 
-  set(id: string, handler: (event: CanvasPressEvent) => void) {
+  set(id: string, handler: (event: CanvasPressEvent) => void, label?: string) {
     this.#handlers.set(id, handler)
+    if (label === undefined) this.#labels.delete(id)
+    else this.#labels.set(id, label)
+  }
+
+  label(id: string) {
+    return this.#labels.get(id)
   }
 
   remove(id: string) {
     this.#handlers.delete(id)
+    this.#labels.delete(id)
   }
 
   has(id: string) {
@@ -465,7 +488,7 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
   // hits, and the list is what says which geometry the hit test covers.
   kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse' | 'line',
 ) {
-  const Component = ({ onPress, onActiveChange, disabled, ...props }: P) => {
+  const Component = ({ onPress, onActiveChange, accessibilityLabel, disabled, ...props }: P) => {
     const node = useMemo(() => ({ kind, props }) as unknown as FlatNode, [props])
     const context = useSceneNode(node)
     useIsoLayoutEffect(() => {
@@ -473,9 +496,9 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
         context.interactions.remove(context.id)
         return
       }
-      context.interactions.set(context.id, onPress)
+      context.interactions.set(context.id, onPress, accessibilityLabel)
       return () => context.interactions.remove(context.id)
-    }, [context.interactions, context.id, onPress, disabled])
+    }, [context.interactions, context.id, onPress, accessibilityLabel, disabled])
     useIsoLayoutEffect(() => {
       if (!onActiveChange || disabled) {
         context.active.remove(context.id)
@@ -544,6 +567,56 @@ export function Clip({ children, ...props }: ClipProps) {
   )
 }
 
+export interface CanvasControl {
+  id: string
+  label: string
+}
+
+/**
+ * The named pressable shapes, in the order they were drawn.
+ *
+ * Scene order and not registration order, so the tab order a keyboard
+ * walks is the order an eye reads. The registry knows the handlers; only
+ * the scene knows where they sit.
+ *
+ * Unnamed ones are left out and reported instead. A `<button>` with no
+ * accessible name is announced as "button" and is the invisible control
+ * this whole route exists to avoid, so the shape stays pointer-only and
+ * says so rather than becoming one.
+ */
+const warned = new Set<string>()
+
+export function canvasControls(
+  scene: CanvasScene,
+  interactions: CanvasInteractionStore,
+  warn?: (message: string) => void,
+): CanvasControl[] {
+  const found: CanvasControl[] = []
+  const walk = (nodes: CanvasScene) => {
+    for (const node of nodes) {
+      if (node.id !== undefined && interactions.has(node.id)) {
+        const label = interactions.label(node.id)
+        if (label === undefined) {
+          // Once per shape, not once per render: `useId` is stable for
+          // the life of the component, and a redraw is not new news.
+          if (!warned.has(node.id)) {
+            warned.add(node.id)
+            warn?.(
+              `a Canvas ${node.kind} has onPress but no accessibilityLabel, so it can only be ` +
+                'reached with a pointer. Name it to give it a keyboard control.',
+            )
+          }
+        } else {
+          found.push({ id: node.id, label })
+        }
+      }
+      if (node.kind === 'group' || node.kind === 'clip') walk(node.children)
+    }
+  }
+  walk(scene)
+  return found
+}
+
 /** Shared by the Web and Native roots; `collector` executes arbitrary React composition. */
 export function useCanvasScene(children: ReactNode) {
   const storeRef = useRef<CanvasSceneStore | null>(null)
@@ -596,5 +669,6 @@ export function useCanvasScene(children: ReactNode) {
     isInteractive,
     press,
     activate,
+    interactions,
   }
 }

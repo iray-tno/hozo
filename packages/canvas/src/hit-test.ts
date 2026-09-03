@@ -261,6 +261,79 @@ function pointInClip(point: CanvasPoint, props: Omit<ClipProps, 'children'>) {
   return pointInRect(point, props.x ?? 0, props.y ?? 0, props.width ?? 0, props.height ?? 0)
 }
 
+/** A shape's own middle, in its own coordinates. */
+function localCentre(node: CanvasSceneNode): CanvasPoint | undefined {
+  switch (node.kind) {
+    case 'rect':
+    case 'rounded-rect': {
+      const rect = normalRect(
+        node.props.x ?? 0,
+        node.props.y ?? 0,
+        node.props.width,
+        node.props.height,
+      )
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+    }
+    case 'circle':
+    case 'ellipse':
+      return { x: node.props.cx, y: node.props.cy }
+    case 'line':
+      return { x: (node.props.x1 + node.props.x2) / 2, y: (node.props.y1 + node.props.y2) / 2 }
+    case 'text':
+      return { x: node.props.x, y: node.props.y }
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Where a shape is, for something that arrives without a pointer.
+ *
+ * A keyboard reaching a shape has no cursor, and `CanvasPressEvent` still
+ * has to say where. Its middle is the honest answer, and it is computed
+ * through the same matrices the hit test walks so that focusing a shape
+ * and clicking it report the same place.
+ */
+export function canvasNodePoint(
+  scene: CanvasScene,
+  id: string,
+  viewport: CanvasHitTestViewport,
+): { point: CanvasPoint; surfacePoint: CanvasPoint } | undefined {
+  const rootMatrix = viewportMatrix(viewport)
+  if (!rootMatrix) return undefined
+
+  const visit = (
+    nodes: CanvasScene,
+    matrix: Matrix,
+  ): { point: CanvasPoint; surfacePoint: CanvasPoint } | undefined => {
+    for (const node of nodes) {
+      if (node.kind === 'group') {
+        const found = visit(node.children, multiply(matrix, groupMatrix(node.props.transform)))
+        if (found) return found
+        continue
+      }
+      if (node.kind === 'clip') {
+        const found = visit(node.children, matrix)
+        if (found) return found
+        continue
+      }
+      if (node.id !== id) continue
+      const centre = localCentre(node)
+      if (!centre) return undefined
+      // `matrix` already carries the viewport, so the ancestor transforms
+      // give the scene point and the whole thing gives the surface one.
+      const sceneMatrix = invert(rootMatrix)
+      const surfacePoint = apply(matrix, centre)
+      return {
+        point: sceneMatrix ? apply(sceneMatrix, surfacePoint) : centre,
+        surfacePoint,
+      }
+    }
+    return undefined
+  }
+  return visit(scene, rootMatrix)
+}
+
 /**
  * Finds the topmost interactive geometry at a logical surface point.
  *

@@ -39,6 +39,7 @@ export function CanvasBench() {
             width={18}
             height={44}
             className="fill-blue-500"
+            accessibilityLabel="January revenue"
             onPress={() => setPressed('rect')}
             onActiveChange={(event) => setIndicated(event ? 'rect' : 'none')}
           />
@@ -49,6 +50,7 @@ export function CanvasBench() {
             height={44}
             radius={4}
             className="fill-emerald-500"
+            accessibilityLabel="February revenue"
             onPress={() => setPressed('rounded-rect')}
           />
           <Canvas.Circle
@@ -56,6 +58,7 @@ export function CanvasBench() {
             cy={30}
             radius={12}
             className="fill-amber-500"
+            accessibilityLabel="March revenue"
             onPress={() => setPressed('circle')}
           />
           <Canvas.Ellipse cx={86} cy={30} radiusX={10} radiusY={20} className="fill-rose-500" />
@@ -69,6 +72,7 @@ export function CanvasBench() {
             stroke="black"
             strokeWidth={2}
             lineCap="round"
+            accessibilityLabel="Target line"
             onPress={() => setPressed('line')}
             onActiveChange={(event) => setIndicated(event ? 'line' : 'none')}
           />
