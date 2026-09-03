@@ -1,4 +1,5 @@
 import {
+  type DrawingNodeProps,
   Canvas as SkiaCanvas,
   Circle as SkiaCircle,
   Group as SkiaGroup,
@@ -7,8 +8,9 @@ import {
   Path as SkiaPath,
   Rect as SkiaRect,
   RoundedRect as SkiaRoundedRect,
+  type Transforms3d,
 } from '@shopify/react-native-skia'
-import { Fragment, type ReactNode, useMemo, useRef, useState } from 'react'
+import { type ComponentType, Fragment, type ReactNode, useMemo, useRef, useState } from 'react'
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
@@ -77,9 +79,12 @@ export type CanvasProps = CanvasAccessibilityProps & {
   testID?: string
 }
 
-function transformFor(transform?: CanvasTransform) {
+function transformFor(transform?: CanvasTransform): Transforms3d | undefined {
   if (!transform) return undefined
-  const result: Record<string, number>[] = []
+  // `Transforms3d` and not `Record<string, number>[]`: Skia's type is a
+  // union of one-key objects, and the loose annotation is what let this
+  // compile against a stub that checked nothing.
+  const result: Transforms3d = []
   if (transform.translateX) result.push({ translateX: transform.translateX })
   if (transform.translateY) result.push({ translateY: transform.translateY })
   if (transform.rotate) result.push({ rotate: (transform.rotate * Math.PI) / 180 })
@@ -88,10 +93,22 @@ function transformFor(transform?: CanvasTransform) {
   return result
 }
 
-function paintLayers(
+/**
+ * One Skia element per painted channel, since Skia paints one at a time.
+ *
+ * Generic over the shape rather than typed `typeof SkiaRect` with the
+ * geometry as `Record<string, unknown>`. That signature erased every
+ * geometry prop, so nothing checked that a `Circle` was handed `cx`/`cy`
+ * or a `Line` its two points -- and the hand-written module stub this
+ * package used to carry declared every component as
+ * `ComponentType<Record<string, unknown>>`, so nothing checked the paint
+ * props either. Against Skia's own types, with the geometry kept, both are
+ * checked.
+ */
+function paintLayers<Geometry extends object>(
   key: string,
-  Shape: typeof SkiaRect,
-  geometry: Record<string, unknown>,
+  Shape: ComponentType<Geometry & DrawingNodeProps>,
+  geometry: Geometry,
   paint: CanvasPaintProps,
 ) {
   const layers: ReactNode[] = []
@@ -147,7 +164,16 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
       const clip =
         props.path !== undefined
           ? props.path
-          : { x: props.x ?? 0, y: props.y ?? 0, width: props.width, height: props.height }
+          : // `?? 0` on all four, as `pointInClip` and the Canvas2D renderer
+            // already do. The union says a rectangle clip has a width, but
+            // the scene node is reached through a cast, so nothing enforces
+            // it -- and Skia given `undefined` clips to nothing in silence.
+            {
+              x: props.x ?? 0,
+              y: props.y ?? 0,
+              width: props.width ?? 0,
+              height: props.height ?? 0,
+            }
       return (
         <SkiaGroup key={key} clip={clip}>
           {node.children.map((child, index) => renderNode(child, `${key}.${index}`))}
@@ -220,7 +246,10 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
         SkiaPath,
         {
           path: node.props.path,
-          fillType: node.props.fillRule === 'evenodd' ? 'evenOdd' : 'winding',
+          // `as const` so this stays the enum Skia names rather than
+          // widening to `string`. The mapping itself was already right;
+          // nothing was checking it.
+          fillType: node.props.fillRule === 'evenodd' ? ('evenOdd' as const) : ('winding' as const),
         },
         node.props,
       )
@@ -232,12 +261,12 @@ function viewportTransform(
   width: number,
   height: number,
   fit: CanvasProps['fit'],
-): Record<string, number>[] | undefined {
+): Transforms3d | undefined {
   if (!viewBox || width <= 0 || height <= 0 || viewBox[2] <= 0 || viewBox[3] <= 0) return undefined
   const scaleX = width / viewBox[2]
   const scaleY = height / viewBox[3]
   if ((fit ?? 'contain') === 'stretch') {
-    const result: Record<string, number>[] = []
+    const result: Transforms3d = []
     result.push({ scaleX })
     result.push({ scaleY })
     result.push({ translateX: -viewBox[0] })
@@ -245,7 +274,7 @@ function viewportTransform(
     return result
   }
   const scale = Math.min(scaleX, scaleY)
-  const result: Record<string, number>[] = []
+  const result: Transforms3d = []
   result.push({ translateX: (width - viewBox[2] * scale) / 2 })
   result.push({ translateY: (height - viewBox[3] * scale) / 2 })
   result.push({ scale })
@@ -254,7 +283,7 @@ function viewportTransform(
   return result
 }
 
-function Scene({ scene, transform }: { scene: CanvasScene; transform?: Record<string, number>[] }) {
+function Scene({ scene, transform }: { scene: CanvasScene; transform?: Transforms3d }) {
   const nodes = scene.map((node, index) => renderNode(node, `root.${index}`))
   return transform ? <SkiaGroup transform={transform}>{nodes}</SkiaGroup> : nodes
 }
