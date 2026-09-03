@@ -34,6 +34,14 @@ expect(/smoke-grid/.test(bundle), 'the device acceptance grid is bundled')
 expect(/smoke-horizontal-scroll/.test(bundle), 'the horizontal ScrollView fixture is bundled')
 expect(/smoke-row-/.test(bundle), 'the virtualized renderItem fixture is bundled')
 
+// Canvas is deliberately not here. Skia is an optional peer and a
+// multi-megabyte one: folding it in took this bundle from 4.4 MB to
+// 5.7 MB, past the budget below, and that budget measures what Hozo costs
+// a typical app -- a number that stops meaning anything with an optional
+// renderer most apps never install inside it. It has its own entry and
+// its own check; see `check-canvas-bundle.mjs`.
+expect(!/react-native-skia/.test(bundle), 'Skia stayed out of the ordinary bundle')
+
 // The utilities became styles and props, and no className survived.
 expect(app.includes('placeholderTextColor'), 'placeholder-* became a TextInput prop')
 expect(app.includes('accessibilityLabel'), 'the accessible name reached the field')
