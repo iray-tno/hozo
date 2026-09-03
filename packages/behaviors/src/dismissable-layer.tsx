@@ -1,9 +1,4 @@
-import {
-  type CSSProperties,
-  type ReactNode,
-  useEffect,
-  useRef,
-} from 'react'
+import { type CSSProperties, type ReactNode, useEffect, useRef } from 'react'
 
 export interface DismissableLayerProps {
   children?: ReactNode
@@ -73,6 +68,9 @@ export function DismissableLayer({
       const isOutside = target && !instance.node.contains(target)
 
       if (isOutside) {
+        if (disableOutsidePointerEvents) {
+          event.preventDefault()
+        }
         instance.onPointerDownOutside?.(event)
         if (!event.defaultPrevented) {
           instance.onDismiss?.()
@@ -91,7 +89,7 @@ export function DismissableLayer({
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('pointerdown', handlePointerDown)
     }
-  }, [onDismiss, onEscapeKeyDown, onPointerDownOutside])
+  }, [onDismiss, onEscapeKeyDown, onPointerDownOutside, disableOutsidePointerEvents])
 
   return (
     <div

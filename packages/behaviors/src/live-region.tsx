@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 export type LiveRegionMode = 'polite' | 'assertive'
 

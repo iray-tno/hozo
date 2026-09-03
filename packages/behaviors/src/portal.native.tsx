@@ -6,11 +6,6 @@ export interface PortalProps {
   disabled?: boolean
 }
 
-type PortalItem = {
-  id: string
-  children: ReactNode
-}
-
 type PortalMethods = {
   mount: (id: string, children: ReactNode) => void
   update: (id: string, children: ReactNode) => void
