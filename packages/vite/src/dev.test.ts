@@ -427,7 +427,10 @@ test('MDX authored against Hozo compiles, and its prose is not scanned', async (
     root,
     {},
     {},
-    [react({ include: /\.(mdx|jsx|tsx)$/ })],
+    // React is told nothing about `.mdx`: this package's transformed pass
+    // compiles the JSX it leaves behind, and asking Vite's core transform to
+    // claim `.mdx` would take that step away before the pass ever runs.
+    [react()],
     [
       // `enforce: 'pre'` and registered before `hozo()`: the MDX plugin
       // ships without one, so Vite's own transform would otherwise be handed
