@@ -1,0 +1,23 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build:native": {
+      "inputs": [
+        "$TURBO_ROOT$/crates/**",
+        "$TURBO_ROOT$/Cargo.toml",
+        "$TURBO_ROOT$/Cargo.lock",
+        "scripts/build-native.mjs",
+        "src/native-targets.ts"
+      ],
+      "outputs": ["*.node"]
+    },
+    "build": {
+      "dependsOn": ["^build", "build:native"],
+      "outputs": ["dist/**"]
+    },
+    "test": {
+      "dependsOn": ["^build", "build:native"]
+    }
+  }
+}
