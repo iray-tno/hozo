@@ -42,6 +42,9 @@ expect(/canvas-indicated/.test(bundle), 'the active-target fixture is bundled')
 // bundle at all.
 expect(/January revenue/.test(bundle), 'the derived accessibility controls are bundled')
 expect(/onAccessibilityTap/.test(bundle), 'the Native activation path reached the bundle')
+// A path is answered by Skia rather than by the shared hit test, which
+// is the one place the two surfaces deliberately do not share geometry.
+expect(/MakeFromSVGString/.test(bundle), 'the Native path parser reached the bundle')
 expect(/matchFont/.test(bundle), 'the Native font lookup reached the bundle')
 expect(/measureText/.test(bundle), 'the Native text alignment measurement reached the bundle')
 

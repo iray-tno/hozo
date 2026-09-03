@@ -212,7 +212,7 @@ export interface TextProps extends CanvasPaintProps {
   textAlign?: 'left' | 'center' | 'right'
 }
 
-export interface PathProps extends CanvasPaintProps {
+export interface PathProps extends CanvasPaintProps, CanvasInteractionProps {
   path: string
   fillRule?: 'nonzero' | 'evenodd'
 }
@@ -231,7 +231,7 @@ export type CanvasLeafNode =
   | { id?: string; kind: 'ellipse'; props: SceneProps<EllipseProps> }
   | { id?: string; kind: 'line'; props: SceneProps<LineProps> }
   | { id?: string; kind: 'text'; props: TextProps }
-  | { id?: string; kind: 'path'; props: PathProps }
+  | { id?: string; kind: 'path'; props: SceneProps<PathProps> }
 
 export type CanvasSceneNode =
   | CanvasLeafNode
@@ -446,7 +446,6 @@ interface SceneContextValue {
   interactions: CanvasInteractionStore
   active: CanvasActiveStore
   parentId?: string
-  interactionBlockReason?: 'path-clip'
 }
 
 const SceneContext = createContext<SceneContextValue | undefined>(undefined)
@@ -467,7 +466,6 @@ function useSceneNode(node: FlatNode) {
     store: context.store,
     interactions: context.interactions,
     active: context.active,
-    interactionBlockReason: context.interactionBlockReason,
     id,
   }
 }
@@ -486,7 +484,7 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
   // `line` joins the four closed shapes now that `pointInLine` can answer
   // for it. Named rather than widened to every kind: `path` still refuses
   // hits, and the list is what says which geometry the hit test covers.
-  kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse' | 'line',
+  kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse' | 'line' | 'path',
 ) {
   const Component = ({ onPress, onActiveChange, accessibilityLabel, disabled, ...props }: P) => {
     const node = useMemo(() => ({ kind, props }) as unknown as FlatNode, [props])
@@ -507,12 +505,6 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
       context.active.set(context.id, onActiveChange)
       return () => context.active.remove(context.id)
     }, [context.active, context.id, onActiveChange, disabled])
-    if (onPress && !disabled && context.interactionBlockReason === 'path-clip') {
-      throw new Error(
-        'Canvas interactions inside path clips are unsupported. ' +
-          'Use a rectangle clip or move the interactive shape outside the path clip.',
-      )
-    }
     return null
   }
   Component.displayName = `Canvas.${kind}`
@@ -524,11 +516,11 @@ export const RoundedRect = interactiveLeaf<RoundedRectProps>('rounded-rect')
 export const Circle = interactiveLeaf<CircleProps>('circle')
 export const Ellipse = interactiveLeaf<EllipseProps>('ellipse')
 export const Line = interactiveLeaf<LineProps>('line')
-// Not an `interactiveLeaf`: the hit test refuses text for the same
-// reason it refuses paths -- the region is whatever the rasteriser drew,
-// and only the renderers know that. See `pointInNode`.
+// Text is not interactive: its region is a run of glyphs, and neither
+// renderer offers a containment test for one. `Path` is, now that each
+// surface answers for its own -- see `CanvasPathHitTest`.
 export const Text = leaf<TextProps>('text')
-export const Path = leaf<PathProps>('path')
+export const Path = interactiveLeaf<PathProps>('path')
 
 export function Group({ children, ...props }: GroupProps) {
   const node = useMemo(() => ({ kind: 'group' as const, props }), [props])
@@ -540,7 +532,6 @@ export function Group({ children, ...props }: GroupProps) {
         interactions: context.interactions,
         active: context.active,
         parentId: context.id,
-        interactionBlockReason: context.interactionBlockReason,
       }}
     >
       {children}
@@ -558,8 +549,6 @@ export function Clip({ children, ...props }: ClipProps) {
         interactions: context.interactions,
         active: context.active,
         parentId: context.id,
-        interactionBlockReason:
-          props.path !== undefined ? 'path-clip' : context.interactionBlockReason,
       }}
     >
       {children}

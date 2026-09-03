@@ -137,12 +137,45 @@ function Root({
       y: ((event.clientY - bounds.top) * size.height) / (bounds.height || size.height || 1),
     }
   }
+  /**
+   * Containment answered by the same engine that draws the path.
+   *
+   * `Path2D` objects are cached by their string: constructing one parses
+   * the path, and a pointer moving across a chart would otherwise reparse
+   * every path on every frame.
+   *
+   * The context is the offscreen one this surface already draws with, and
+   * `isPointInPath` reads no state from it beyond the path and the point.
+   */
+  const paths = useRef(new Map<string, Path2D>())
+  const pathHitTest = (path: string, fillRule: 'nonzero' | 'evenodd', point: CanvasPoint) => {
+    const context = canvasRef.current?.getContext('2d')
+    if (!context) return false
+    let path2d = paths.current.get(path)
+    if (!path2d) {
+      path2d = new Path2D(path)
+      paths.current.set(path, path2d)
+    }
+    // Reset first. `isPointInPath` reads the point in the context's
+    // *current* transform, and the point handed here is already in the
+    // path's own coordinates -- the hit test inverted the viewport and
+    // every ancestor to get it there. Relying on the render pass having
+    // left an identity transform behind would work today and break the
+    // first time something drew after it.
+    context.save()
+    context.setTransform(1, 0, 0, 1, 0, 0)
+    const inside = context.isPointInPath(path2d, point.x, point.y, fillRule)
+    context.restore()
+    return inside
+  }
+
   const hitAt = (point: CanvasPoint) =>
     hitTestCanvas(
       scene,
       point,
       { width: size.width, height: size.height, viewBox, fit },
       isInteractive,
+      pathHitTest,
     )
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     pressedTargets.current.delete(event.pointerId)
