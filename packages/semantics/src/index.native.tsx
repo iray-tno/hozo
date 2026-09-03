@@ -134,3 +134,27 @@ export function TermList({ role = 'list', ...props }: SemanticsNativeProps) {
 
 TermList.Term = Term
 TermList.Description = Description
+
+export interface SeparatorProps extends SemanticsNativeProps {
+  orientation?: 'horizontal' | 'vertical'
+  decorative?: boolean
+}
+
+export function Separator({
+  orientation = 'horizontal',
+  decorative = false,
+  role = decorative ? 'none' : 'separator',
+  style,
+  ...props
+}: SeparatorProps) {
+  const defaultStyle =
+    orientation === 'vertical'
+      ? { width: 1, alignSelf: 'stretch' as const }
+      : { height: 1, alignSelf: 'stretch' as const }
+  return React.createElement('View', {
+    role,
+    accessibilityRole: decorative ? 'none' : 'separator',
+    style: [defaultStyle, style],
+    ...props,
+  })
+}

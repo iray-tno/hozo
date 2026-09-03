@@ -676,36 +676,6 @@ export function Button({
   )
 }
 
-export interface LinkProps {
-  className?: string
-  children?: ReactNode
-  href: string
-  onPress?: MouseEventHandler<HTMLAnchorElement>
-  accessibilityLabel?: string
-  accessibilityHint?: string
-}
-
-export function Link({
-  className,
-  children,
-  href,
-  onPress,
-  accessibilityLabel,
-  accessibilityHint,
-}: LinkProps) {
-  return (
-    <a
-      className={className}
-      href={href}
-      onClick={onPress}
-      aria-label={accessibilityLabel}
-      aria-description={accessibilityHint}
-    >
-      {children}
-    </a>
-  )
-}
-
 // Dialog is not implemented here: its behaviour is the whole point of it
 // (proposal §10.3), and that lives in `@hozo/a11y` so there is exactly one
 // implementation for the compiler to lower to and for tests to cover.
@@ -754,6 +724,8 @@ export {
   Legend,
   Main,
   Search,
+  Separator,
+  type SeparatorProps,
   Summary,
   Term,
   TermList,
@@ -764,6 +736,8 @@ export {
   Code,
   Del,
   Emphasis,
+  Link,
+  type LinkProps,
   Mark,
   NoBreak,
   Rt,

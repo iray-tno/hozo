@@ -1131,10 +1131,10 @@ fn render_node(
         })
         .collect();
 
-    // `<input>` is a void element: HTML forbids a closing tag and React
-    // throws on children. Nothing can be inside one, so there is no inner
-    // to lose by self-closing.
-    if tag == "input" || tag == "img" {
+    // `<input>`, `<img>`, `<hr>` are void elements: HTML forbids a closing
+    // tag and React throws on children. Nothing can be inside one, so there
+    // is no inner to lose by self-closing.
+    if tag == "input" || tag == "img" || tag == "hr" {
         return format!("<{tag}{attrs} />");
     }
     format!("<{tag}{attrs}>{inner}</{tag}>")
@@ -2050,6 +2050,28 @@ export function Login() {
         assert_eq!(
             output.jsx,
             "<fieldset><legend>Options</legend><details><summary>More</summary><dl><dt>Term</dt><dd>Detail</dd><dt>CompoundTerm</dt><dd>CompoundDetail</dd></dl></details></fieldset>"
+        );
+    }
+
+    #[test]
+    fn separator_and_link_lower_to_html_primitives() {
+        let source = r#"
+            import { View } from '@hozo/core'
+            import { Separator } from '@hozo/semantics'
+            import { Link } from '@hozo/typography'
+            const el = (
+                <View>
+                    <Link href="https://example.com">Visit</Link>
+                    <Separator />
+                </View>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert_eq!(
+            output.jsx,
+            "<div className=\"hozo-view\"><a href=\"https://example.com\">Visit</a><hr /></div>"
         );
     }
 

@@ -353,6 +353,8 @@ pub enum Primitive {
     Term,
     /// A description/value within a term list: `<dd>` on Web and `View` on React Native.
     Description,
+    /// A thematic break or divider: `<hr>` on Web and `role="separator"` `View` on React Native.
+    Separator,
     /// A static semantic list: `<ul>`/`<ol>` on Web and a list-role
     /// `View` on React Native. Data-heavy lists remain `FlatList`.
     List,

@@ -3,6 +3,7 @@ import {
   Code,
   Emphasis,
   Heading,
+  Link,
   Mark,
   NoBreak,
   Paragraph,
@@ -96,11 +97,21 @@ function TypographyDemo() {
         <Paragraph className="text-base leading-relaxed text-slate-700">
           Pronunciation guide with Ruby:{' '}
           <Ruby>
-            漢字<Rt>かんじ</Rt>
+            枘<Rt>ほぞ</Rt>
           </Ruby>{' '}
-          (Kanji).
+          (Tenon / Hozo).
         </Paragraph>
-        <Paragraph className="text-slate-500">
+        <Paragraph className="text-sm text-slate-700">
+          Universal navigation:{' '}
+          <Link
+            href="https://github.com/iray-tno/hozo"
+            external
+            className="text-indigo-700 font-semibold underline hover:text-indigo-900"
+          >
+            Visit Hozo on GitHub &rarr;
+          </Link>
+        </Paragraph>
+        <Paragraph className="text-slate-600">
           <Small>Copyright &copy; 2026 Hozo Universal UI. All rights reserved.</Small>
         </Paragraph>
       </View>
@@ -279,9 +290,9 @@ function ScriptsAndAnnotationsDemo() {
           <Paragraph className="text-base leading-loose text-slate-900">
             Universal term:{' '}
             <Ruby className="text-lg">
-              保蔵<Rt className="text-xs text-indigo-700">ほぞ</Rt>
+              枘<Rt className="text-xs text-indigo-700 font-semibold">ほぞ</Rt>
             </Ruby>{' '}
-            (Hozo).
+            (Tenon / Hozo).
           </Paragraph>
         </View>
 
@@ -304,6 +315,60 @@ function ScriptsAndAnnotationsDemo() {
   )
 }
 
+function LinksDemo() {
+  return (
+    <View className="max-w-2xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
+      <Heading
+        level={2}
+        className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3"
+      >
+        Universal Links (&lt;Link&gt;)
+      </Heading>
+      <Paragraph className="text-sm text-slate-700">
+        Lowers directly to native semantic &lt;a&gt; on Web and accessible Linking.openURL on React
+        Native.
+      </Paragraph>
+
+      <View className="space-y-4">
+        {/* Standard Anchor */}
+        <View className="rounded-xl border border-slate-200 p-4 space-y-2">
+          <Text className="text-xs font-bold uppercase tracking-wider text-slate-600">
+            Standard Navigation Link
+          </Text>
+          <Paragraph className="text-sm text-slate-800">
+            Read more about{' '}
+            <Link
+              href="/docs/getting-started"
+              className="text-indigo-700 underline font-semibold hover:text-indigo-900"
+            >
+              getting started with Hozo
+            </Link>{' '}
+            in our developer guides.
+          </Paragraph>
+        </View>
+
+        {/* External Link */}
+        <View className="rounded-xl border border-slate-200 p-4 space-y-2">
+          <Text className="text-xs font-bold uppercase tracking-wider text-slate-600">
+            External Destination with Security Defaults
+          </Text>
+          <Paragraph className="text-sm text-slate-800">
+            The external prop automatically injects target=&quot;_blank&quot; and
+            rel=&quot;noreferrer noopener&quot; on Web:
+          </Paragraph>
+          <Link
+            href="https://github.com/iray-tno/hozo"
+            external
+            className="inline-block rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800"
+          >
+            GitHub Repository &rarr;
+          </Link>
+        </View>
+      </View>
+    </View>
+  )
+}
+
 const meta = {
   title: 'Typography',
   component: TypographyDemo,
@@ -320,6 +385,10 @@ export const HeadingsHierarchy: StoryObj<typeof meta> = {
 
 export const InlineFormatting: StoryObj<typeof meta> = {
   render: () => <InlineFormattingDemo />,
+}
+
+export const Links: StoryObj<typeof meta> = {
+  render: () => <LinksDemo />,
 }
 
 export const ScriptsAndAnnotations: StoryObj<typeof meta> = {
