@@ -273,12 +273,18 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
    *   2. this pass reads that JSX and lowers it
    *   3. something compiles the JSX this leaves behind
    *
-   * Vite runs the `pre` bucket, then its own core transforms, then plain
-   * plugins. Step 3 is `vite:oxc`, a core transform, so steps 1 and 2 both
-   * have to be `pre` -- hence the `enforce` here, and hence the MDX plugin
-   * being registered *before* `hozo()`, since order inside one bucket is
-   * registration order. A plain plugin here would have been handed
-   * `_jsx()` calls, which the parser cannot read.
+   * Step 3 is this pass too -- see `transformWithOxc` below -- which is
+   * what lets step 2 be an ordinary plugin rather than a `pre` one. That
+   * matters, because `pre` only worked when the MDX plugin was `pre` *and*
+   * registered first, and a host can register it second: Astro's
+   * integration adds its own `pre` MDX plugin after the user's
+   * `vite.plugins`, so a `pre` pass here was handed raw Markdown, found
+   * nothing to lower, and left JSX for `es-module-lexer` to choke on.
+   *
+   * An ordinary plugin runs after every `pre` whoever registered it, which
+   * is the only ordering that holds for both. Nothing else may be told to
+   * treat `.mdx` as JSX -- Vite's core transform runs before this one, and
+   * a project that asks it to claim `.mdx` takes step 3 away.
    *
    * `jsx: true` is what makes any of it possible. `@mdx-js/rollup` and
    * `@next/mdx` both expose it; `@astrojs/mdx` does not, so on Astro a
@@ -290,7 +296,6 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
    */
   const transformed: Plugin = {
     name: 'hozo:transformed',
-    enforce: 'pre',
     ...pass(isTransformedSource),
   }
 
