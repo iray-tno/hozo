@@ -1014,7 +1014,11 @@ enum WebValueGrammar {
     MaskImage,
     MaskPosition,
     MaskSize,
+    OffsetPath,
+    OffsetPosition(&'static [&'static str]),
+    OffsetRotate,
     PerspectiveOrigin,
+    ShapeOutside,
     WillChange,
     FontFeatureSettings,
     FontLanguageOverride,
@@ -1109,6 +1113,8 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             &["normal", "light", "dark", "light dark", "only light", "only dark"],
         ),
         "forcedColorAdjust" => ("forced-color-adjust", &["auto", "none"]),
+        "float" => ("float", &["none", "left", "right"]),
+        "clear" => ("clear", &["none", "left", "right", "both"]),
         "dominantBaseline" => (
             "dominant-baseline",
             &[
@@ -1420,6 +1426,32 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             "mask-type",
             WebValueGrammar::Keywords(&["luminance", "alpha"]),
         )),
+        "offsetAnchor" => Some((
+            "offset-anchor",
+            WebValueGrammar::OffsetPosition(&["auto"]),
+        )),
+        "offsetDistance" => Some((
+            "offset-distance",
+            WebValueGrammar::LengthPercentage(&[]),
+        )),
+        "offsetPath" => Some(("offset-path", WebValueGrammar::OffsetPath)),
+        "offsetPosition" => Some((
+            "offset-position",
+            WebValueGrammar::OffsetPosition(&["normal", "auto"]),
+        )),
+        "offsetRotate" => Some(("offset-rotate", WebValueGrammar::OffsetRotate)),
+        "shapeImageThreshold" => Some((
+            "shape-image-threshold",
+            WebValueGrammar::Number {
+                minimum: 0.0,
+                maximum: 1.0,
+            },
+        )),
+        "shapeMargin" => Some((
+            "shape-margin",
+            WebValueGrammar::NonNegativeLengthPercentage(&[]),
+        )),
+        "shapeOutside" => Some(("shape-outside", WebValueGrammar::ShapeOutside)),
         "clip" => Some(("clip", WebValueGrammar::ClipRect)),
         "columnCount" => Some((
             "column-count",
@@ -2058,6 +2090,67 @@ fn web_mask_size(value: &StaticValue) -> Option<String> {
         .then(|| groups.join(","))
 }
 
+fn web_offset_path(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    if value == "none" || web_url_or_none(&StaticValue::String(value.to_string())).is_some() {
+        return Some(value.to_string());
+    }
+    web_single_function(
+        value,
+        &["path", "ray", "circle", "ellipse", "inset", "polygon"],
+    )
+    .then(|| minify_css_commas(value))
+}
+
+fn web_offset_position(value: &StaticValue, keywords: &[&str]) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if keywords.contains(&value.as_str()) {
+        return Some(value.clone());
+    }
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    ((1..=4).contains(&parts.len())
+        && parts.iter().all(|part| {
+            matches!(*part, "left" | "center" | "right" | "top" | "bottom")
+                || transform_dimension(part).is_some()
+        }))
+    .then(|| parts.join(" "))
+}
+
+fn web_offset_rotate(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    if !(1..=2).contains(&parts.len()) {
+        return None;
+    }
+    let keyword_count = parts
+        .iter()
+        .filter(|part| matches!(**part, "auto" | "reverse"))
+        .count();
+    let angle_count = parts
+        .iter()
+        .filter(|part| transform_angle(part).is_some())
+        .count();
+    (keyword_count <= 1
+        && angle_count <= 1
+        && keyword_count + angle_count == parts.len())
+    .then(|| parts.join(" "))
+}
+
+fn web_shape_outside(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    if matches!(
+        value,
+        "none" | "margin-box" | "border-box" | "padding-box" | "content-box"
+    ) || web_url_or_none(&StaticValue::String(value.to_string())).is_some()
+    {
+        return Some(value.to_string());
+    }
+    web_single_function(value, &["circle", "ellipse", "inset", "polygon"])
+        .then(|| minify_css_commas(value))
+}
+
 fn web_css_string(value: &str) -> bool {
     let mut characters = value.chars();
     let Some(quote @ ('\'' | '"')) = characters.next() else {
@@ -2686,7 +2779,11 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::MaskImage => web_mask_image(value)?,
         WebValueGrammar::MaskPosition => web_mask_position(value)?,
         WebValueGrammar::MaskSize => web_mask_size(value)?,
+        WebValueGrammar::OffsetPath => web_offset_path(value)?,
+        WebValueGrammar::OffsetPosition(keywords) => web_offset_position(value, keywords)?,
+        WebValueGrammar::OffsetRotate => web_offset_rotate(value)?,
         WebValueGrammar::PerspectiveOrigin => web_perspective_origin(value)?,
+        WebValueGrammar::ShapeOutside => web_shape_outside(value)?,
         WebValueGrammar::WillChange => web_will_change(value)?,
         WebValueGrammar::FontFeatureSettings => web_font_setting(value, false)?,
         WebValueGrammar::FontLanguageOverride => {
@@ -3182,12 +3279,12 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "backgroundBlendMode" | "backgroundClip" | "WebkitBackgroundClip"
         | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY"
         | "baselineShift" | "blockSize" | "borderCollapse" | "borderSpacing"
-        | "captionSide" | "caretShape" | "clip" | "clipPath" | "clipRule" | "colorScheme"
+        | "captionSide" | "caretShape" | "clear" | "clip" | "clipPath" | "clipRule" | "colorScheme"
         | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
         | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
         | "contentVisibility" | "displayInside" | "displayList" | "displayOutside"
         | "dominantBaseline" | "emptyCells" | "fill" | "fillOpacity" | "fillRule"
-        | "forcedColorAdjust"
+        | "float" | "forcedColorAdjust"
         | "fontFeatureSettings" | "fontKerning" | "fontLanguageOverride" | "fontOpticalSizing"
         | "fontPalette" | "fontSizeAdjust" | "fontStretch" | "fontSynthesis"
         | "fontSynthesisPosition"
@@ -3203,11 +3300,13 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "maskPosition" | "maskRepeat" | "maskSize" | "maskType" | "WebkitMaskImage"
         | "minInlineSize" | "MozOsxFontSmoothing"
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
+        | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
         | "overscrollBehaviorY" | "paintOrder" | "printColorAdjust" | "resize"
         | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
-        | "shapeRendering" | "stroke" | "strokeDasharray" | "strokeDashoffset"
+        | "shapeImageThreshold" | "shapeMargin" | "shapeOutside" | "shapeRendering"
+        | "stroke" | "strokeDasharray" | "strokeDashoffset"
         | "strokeLinecap" | "strokeLinejoin" | "strokeMiterlimit" | "strokeOpacity"
         | "strokeWidth" | "tabSize" | "tableLayout" | "textAnchor" | "textCombineUpright"
         | "textEmphasisColor" | "textEmphasisPosition" | "textEmphasisStyle" | "textFillColor"
@@ -6183,6 +6282,49 @@ mod tests {
 
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
             panic!("wider mask syntax should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 10);
+        assert_eq!(gaps.len(), 10);
+    }
+
+    #[test]
+    fn motion_paths_and_float_shapes_lower_common_values_and_preserve_wider_syntax() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                float: 'left', clear: 'both',
+                offsetAnchor: 'left top', offsetDistance: '25%',
+                offsetPath: 'path("M 0 0 L 100 100")',
+                offsetPosition: 'center top', offsetRotate: 'auto 45deg',
+                shapeImageThreshold: 0.5, shapeMargin: '1rem',
+                shapeOutside: 'circle(50%)'
+              },
+              wider: {
+                float: 'inline-start', clear: 'inline-end',
+                offsetAnchor: 'calc(50% + 1px) top', offsetDistance: 'calc(25% + 1px)',
+                offsetPath: 'shape(from 0 0, line to 100% 100%)',
+                offsetPosition: 'calc(50% + 1px) top', offsetRotate: '0.25turn',
+                shapeImageThreshold: 1.5, shapeMargin: '-1rem',
+                shapeOutside: 'linear-gradient(black, transparent)'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("common motion-path and float-shape values were not lowerable")
+        };
+        assert_eq!(entries.len(), 10);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider motion-path and float-shape syntax should remain residual")
         };
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 10);

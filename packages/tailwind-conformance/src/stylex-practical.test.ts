@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 219, covered: 219 },
+    values: { total: 229, covered: 229 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 176, covered: 176 },
+    corpus: { total: 186, covered: 186 },
     silent: 0,
   })
 })
@@ -97,6 +97,31 @@ test('common mask longhands agree with official StyleX', () => {
     { property: 'maskOrigin', value: 'border-box, content-box' },
     { property: 'maskClip', value: 'border-box, no-clip' },
     { property: 'maskComposite', value: 'add, exclude' },
+  ]) {
+    assert.deepEqual(compareStylexValue(testCase), {
+      ...testCase,
+      covered: true,
+      silent: false,
+    })
+  }
+})
+
+test('motion paths and float shapes agree with official StyleX', () => {
+  for (const testCase of [
+    { property: 'float', value: 'left' },
+    { property: 'clear', value: 'both' },
+    { property: 'offsetAnchor', value: 'left top' },
+    { property: 'offsetDistance', value: '25%' },
+    { property: 'offsetDistance', value: '-10px' },
+    { property: 'offsetPath', value: 'path("M 0 0 L 100 100")' },
+    { property: 'offsetPath', value: 'ray(45deg closest-side)' },
+    { property: 'offsetPosition', value: 'center top' },
+    { property: 'offsetRotate', value: 'auto 45deg' },
+    { property: 'offsetRotate', value: 'reverse -15deg' },
+    { property: 'shapeImageThreshold', value: 0.5 },
+    { property: 'shapeMargin', value: '1rem' },
+    { property: 'shapeOutside', value: 'circle(50%)' },
+    { property: 'shapeOutside', value: 'polygon(0 0, 100% 0, 50% 100%)' },
   ]) {
     assert.deepEqual(compareStylexValue(testCase), {
       ...testCase,

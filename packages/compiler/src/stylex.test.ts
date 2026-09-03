@@ -888,6 +888,16 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['maskClip', `'no-clip'`],
     ['maskComposite', `'exclude'`],
     ['maskType', `'alpha'`],
+    ['float', `'left'`],
+    ['clear', `'both'`],
+    ['offsetAnchor', `'left top'`],
+    ['offsetDistance', `'25%'`],
+    ['offsetPath', `'path("M 0 0 L 100 100")'`],
+    ['offsetPosition', `'center top'`],
+    ['offsetRotate', `'auto 45deg'`],
+    ['shapeImageThreshold', '0.5'],
+    ['shapeMargin', `'1rem'`],
+    ['shapeOutside', `'circle(50%)'`],
   ] as const
 
   for (const [property, value] of samples) {
