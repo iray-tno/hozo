@@ -25,7 +25,7 @@ import {
 } from 'react-native'
 
 import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './accessibility.ts'
-import { type CanvasPoint, hitTestCanvas } from './hit-test.ts'
+import { type CanvasPoint, canvasNodePoint, hitTestCanvas } from './hit-test.ts'
 import {
   type CanvasPaintProps,
   type CanvasScene,
@@ -35,6 +35,7 @@ import {
   Circle,
   Clip,
   type ClipProps,
+  canvasControls,
   Ellipse,
   Group,
   Line,
@@ -352,7 +353,8 @@ function Root({
   testID,
 }: CanvasProps) {
   const pressedTarget = useRef<{ id: string; touchId: number } | undefined>(undefined)
-  const { scene, collector, isInteractive, press, activate } = useCanvasScene(children)
+  const { scene, collector, isInteractive, press, activate, interactions } =
+    useCanvasScene(children)
   const [layout, setLayout] = useState({
     width: width ?? viewBox?.[2] ?? 0,
     height: height ?? viewBox?.[3] ?? 0,
@@ -447,6 +449,17 @@ function Root({
   }
   const onPointerLeave = () => activate(undefined, undefined)
 
+  const controls = canvasControls(scene, interactions, (message) =>
+    console.warn(`[hozo] ${message}`),
+  )
+  const pointFor = (id: string) =>
+    canvasNodePoint(scene, id, {
+      width: layout.width,
+      height: layout.height,
+      viewBox,
+      fit,
+    }) ?? { point: { x: 0, y: 0 }, surfacePoint: { x: 0, y: 0 } }
+
   return (
     <View
       {...nativeClass}
@@ -479,6 +492,34 @@ function Root({
           {hasValidViewport ? <Scene scene={scene} transform={transform} /> : null}
         </SkiaCanvas>
       </View>
+      {/*
+        The same real controls the Web surface renders, in the shape this
+        platform reads: an accessibility element per named pressable
+        shape, with a button role and the shape's name.
+
+        A screen reader focusing one activates it the way keyboard focus
+        does on the Web, so a tooltip driven by `onActiveChange` appears
+        for VoiceOver and TalkBack too. `onAccessibilityTap` is the
+        double-tap that follows.
+
+        Zero-sized and clipped rather than `display: none`: an element
+        with no size is still an accessibility element, and one that is
+        hidden is not.
+      */}
+      {controls.length > 0 ? (
+        <View style={styles.accessibleFallback}>
+          {controls.map((control) => (
+            <View
+              key={control.id}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={control.label}
+              onAccessibilityTap={() => press(control.id, pointFor(control.id))}
+              onAccessibilityEscape={() => activate(undefined, undefined)}
+            />
+          ))}
+        </View>
+      ) : null}
       {accessibilityMode === 'fallback' ? (
         <View style={styles.accessibleFallback} accessible={false} pointerEvents="none">
           {accessibilityLabel ? <Text>{accessibilityLabel}</Text> : null}
