@@ -99,7 +99,7 @@ function hozoDeclarations(candidate: string): string {
     // proposal 8.1, not something this utility produced) and the steps
     // inside an `@keyframes` block, whose selectors are `to`/`50%` and
     // whose declarations would otherwise be counted as the utility's own.
-    .filter((rule) => rule.selector.includes('.hozo-') && rule.selector !== '.hozo-view')
+    .filter((rule) => rule.selector.includes('.hozo-') && !rule.selector.includes('.hozo-view'))
   if (rules.length === 0) return ''
 
   // Only the least-conditional rules, which is what the expected side
