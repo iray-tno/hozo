@@ -4,6 +4,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -12,6 +13,7 @@ import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './access
 import { type CanvasPoint, canvasNodePoint, hitTestCanvas } from './hit-test.ts'
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
+  BoundedCache,
   Circle,
   Clip,
   canvasControls,
@@ -147,7 +149,7 @@ function Root({
    * The context is the offscreen one this surface already draws with, and
    * `isPointInPath` reads no state from it beyond the path and the point.
    */
-  const paths = useRef(new Map<string, Path2D>())
+  const paths = useRef(new BoundedCache<Path2D>(256))
   const pathHitTest = (path: string, fillRule: 'nonzero' | 'evenodd', point: CanvasPoint) => {
     const context = canvasRef.current?.getContext('2d')
     if (!context) return false
@@ -225,8 +227,19 @@ function Root({
   // build-time channel to say it in, and a control nobody can reach is
   // not a development-only problem. `canvasControls` says it once per
   // shape.
-  const controls = canvasControls(scene, interactions, (message) =>
-    console.warn(`[hozo] ${message}`),
+  // Memoised on the scene, which is the only thing that can change the
+  // answer. Without this it walked every node on every render of the
+  // surface -- a second full traversal beside the snapshot and the
+  // redraw, for a list that changes only when a shape is added, removed
+  // or renamed.
+  //
+  // `interactions` is a stable store rather than a value, so it is not a
+  // dependency: a handler arriving or leaving mutates it without a new
+  // scene. That is why the list is rebuilt whenever the scene is, which
+  // is also when a shape's presence could have changed.
+  const controls = useMemo(
+    () => canvasControls(scene, interactions, (message) => console.warn(`[hozo] ${message}`)),
+    [scene, interactions],
   )
   /**
    * Where a keyboard "is" when it reaches a shape.

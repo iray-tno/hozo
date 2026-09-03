@@ -556,6 +556,80 @@ export function Clip({ children, ...props }: ClipProps) {
   )
 }
 
+/**
+ * A cache that forgets, because the things it holds are not a fixed set.
+ *
+ * Fonts are: a chart uses a handful of specs and reuses them, so an
+ * unbounded map is fine there. Paths are not. A line chart that animates
+ * builds a new `d` string every frame, and each one parsed by `Path2D`
+ * or by `MakeFromSVGString` was kept for the life of the process -- the
+ * exact workload #154 describes as Canvas mode's reason to exist.
+ *
+ * Least-recently-used, by the oldest insertion, which a `Map` gives for
+ * free: its iteration order is insertion order, so the first key is the
+ * oldest. Re-inserting on a hit is what makes "oldest insertion" mean
+ * "least recently used".
+ *
+ * The bound is generous rather than tuned. A frame draws every path it
+ * has, so anything smaller than one frame's worth of paths would evict
+ * entries it is about to need; anything larger only delays the same
+ * behaviour.
+ */
+export class BoundedCache<Value> {
+  readonly #entries = new Map<string, Value>()
+  readonly #limit: number
+
+  constructor(limit: number) {
+    this.#limit = limit
+  }
+
+  get size() {
+    return this.#entries.size
+  }
+
+  get(key: string): Value | undefined {
+    const value = this.#entries.get(key)
+    if (value === undefined) return undefined
+    this.#entries.delete(key)
+    this.#entries.set(key, value)
+    return value
+  }
+
+  set(key: string, value: Value) {
+    this.#entries.delete(key)
+    this.#entries.set(key, value)
+    while (this.#entries.size > this.#limit) {
+      const oldest = this.#entries.keys().next().value
+      if (oldest === undefined) break
+      this.#entries.delete(oldest)
+    }
+  }
+}
+
+/**
+ * The compiler's proof that every shape was handled.
+ *
+ * Three places switch on `kind` -- the two renderers and the hit test --
+ * and none of them was checked. Adding a kind to `CanvasLeafNode`
+ * produced no error in any of them, verified by adding one: zero
+ * diagnostics, because `drawNode` returns `void` so a missing case falls
+ * through, `renderNode` returns `ReactNode` and `undefined` is a valid
+ * one, and `pointInNode`'s caller takes its result as a condition. A
+ * shape whose renderer was forgotten drew nothing, refused every press,
+ * and said nothing about either.
+ *
+ * The parameter typed `never` is what fixes that: reaching it with a kind
+ * still in the union is a compile error naming the kind. At run time it
+ * warns rather than throws -- the type has already made this unreachable
+ * from TypeScript, and a hand-built scene from JavaScript should lose one
+ * shape rather than the whole chart.
+ */
+export function unhandledShape(node: never, where: string): undefined {
+  const kind = (node as { kind?: unknown }).kind
+  console.warn(`[hozo] ${where} has no case for a Canvas ${String(kind)}, so it does nothing.`)
+  return undefined
+}
+
 export interface CanvasControl {
   id: string
   label: string
