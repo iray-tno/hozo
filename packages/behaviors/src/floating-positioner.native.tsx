@@ -129,6 +129,8 @@ export function FloatingPositioner({
         position: 'absolute',
         left: position.x,
         top: position.y,
+        width: options.matchAnchorWidth ? position.anchorWidth : undefined,
+        opacity: position.referenceHidden ? 0 : 1,
       }
     : {
         position: 'absolute',
