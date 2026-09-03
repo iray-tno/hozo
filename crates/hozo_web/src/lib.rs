@@ -198,7 +198,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     // those are document-level rather than per-node -- so they're collected
     // across the whole tree and emitted once, deduplicated.
     for keyframes in collect_keyframes(root) {
-        css.push_str(keyframes);
+        css.push_str(&render_keyframes(keyframes, theme));
         css.push_str("\n\n");
     }
     css.push_str(&rules);
@@ -279,10 +279,41 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
 
 /// Every distinct `@keyframes` block the tree's animations need, in
 /// first-use order so output stays deterministic.
-fn collect_keyframes(node: &Node) -> Vec<&'static str> {
-    let mut found: Vec<&'static str> = Vec::new();
+enum RequiredKeyframes<'a> {
+    BuiltIn(&'static str),
+    Stylex(&'a hozo_ir::Keyframes),
+}
+
+fn collect_keyframes(node: &Node) -> Vec<RequiredKeyframes<'_>> {
+    let mut found = Vec::new();
     collect_keyframes_into(node, &mut found);
     found
+}
+
+fn render_keyframes(keyframes: RequiredKeyframes<'_>, theme: &Theme) -> String {
+    match keyframes {
+        RequiredKeyframes::BuiltIn(css) => css.to_string(),
+        RequiredKeyframes::Stylex(keyframes) => {
+            let frames = keyframes
+                .frames
+                .iter()
+                .map(|frame| {
+                    let rule = css::render_rule(
+                        &frame.selector,
+                        &hozo_ir::Condition::Always,
+                        &frame.properties,
+                        theme,
+                    );
+                    // `render_rule` normally receives a class name and adds
+                    // its dot. A keyframe selector is the one place the same
+                    // declaration composer receives raw `from`/`50%` text.
+                    rule.strip_prefix('.').unwrap_or(&rule).to_string()
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("@keyframes {} {{\n{}\n}}", keyframes.name, frames)
+        }
+    }
 }
 
 fn contains_primitive(node: &Node, primitive: Primitive) -> bool {
@@ -361,19 +392,37 @@ fn scrolls_by_style(node: &Node) -> bool {
     })
 }
 
-fn collect_keyframes_into(node: &Node, found: &mut Vec<&'static str>) {
+fn collect_keyframes_into<'a>(node: &'a Node, found: &mut Vec<RequiredKeyframes<'a>>) {
     for declaration in &node.style {
-        if let hozo_ir::StyleProperty::Animation(animation) = declaration.property {
-            if let Some(keyframes) = animation.keyframes() {
-                if !found.contains(&keyframes) {
-                    found.push(keyframes);
+        match &declaration.property {
+            hozo_ir::StyleProperty::Animation(animation) => {
+                if let Some(keyframes) = animation.keyframes() {
+                    if !found.iter().any(|found| {
+                        matches!(found, RequiredKeyframes::BuiltIn(existing) if *existing == keyframes)
+                    }) {
+                        found.push(RequiredKeyframes::BuiltIn(keyframes));
+                    }
                 }
             }
+            hozo_ir::StyleProperty::AnimationName(keyframes)
+                if !found.iter().any(|found| {
+                    matches!(found, RequiredKeyframes::Stylex(existing) if existing.name == keyframes.name)
+                }) =>
+            {
+                found.push(RequiredKeyframes::Stylex(keyframes));
+            }
+            _ => {}
         }
     }
     for child in &node.children {
-        if let hozo_ir::Child::Node(child_node) = child {
-            collect_keyframes_into(child_node, found);
+        match child {
+            hozo_ir::Child::Node(child_node) => collect_keyframes_into(child_node, found),
+            hozo_ir::Child::Verbatim { nested, .. } => {
+                for entry in nested {
+                    collect_keyframes_into(&entry.node, found);
+                }
+            }
+            hozo_ir::Child::Text(_) => {}
         }
     }
 }

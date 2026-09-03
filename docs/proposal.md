@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-03 時点では
-全 CSS 名で 335/522 (64.2%)、両 platform に名前が存在するか、同じ typed IR へ
+全 CSS 名で 336/522 (64.4%)、両 platform に名前が存在するか、同じ typed IR へ
 正確に展開できる集合で 132/132 (100%)、contextual runtime 集合で 17/17
-(100%)、Web-only 集合で 186/372 (50.0%)。残りは optional adapter 候補 1、
+(100%)、Web-only 集合で 187/372 (50.3%)。残りは optional adapter 候補 1、
 未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
@@ -964,7 +964,7 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 基盤とする。
 
 現在の実行可能scorecardでは、代表value 200/200 (100%)、一般的なauthoring
-construct 14/14 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
+construct 15/15 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
 持たせた宣言157/157 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
@@ -980,8 +980,10 @@ degree rotate、数値/% の1〜3軸 scale を portable subset とし、それ�
 animation control longhandのうちcomposition、非負delay、direction、fill mode、
 非負iteration count、play state、keyword timing functionはexact Web-onlyとして扱う。
 Nativeでは任意CSS keyframesが動くように見せず、明示的なWeb-only diagnosticを返す。
-負のdelay、関数easing、animation name/timeline/keyframesは、値grammarまたはruntime境界を
-別途実装するまで公式StyleX側のresidualに残す。
+module-scopeの静的な`stylex.keyframes`と、それを参照する`animationName`はtyped IRで
+frame本体ごと保持し、content hash名でWeb stylesheetへ一度だけhoistする。export済み
+sheet内の参照もproject module registryを越えて保持する。dynamic keyframes、複数animation
+name、負のdelay、関数easing、timelineは公式StyleX側のresidualに残す。
 
 authoring constructでは、`stylex.props`の再帰arrayとternaryを条件式IRへ展開し、
 module-localな`const` object literalのspreadもsource順にflattenする。対象objectは

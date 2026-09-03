@@ -253,7 +253,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // `Arbitrary` upstream, so this arm was the only thing that saw
         // one -- and it returns nothing, which is exactly the silence the
         // comment said could not happen.
-        StyleProperty::Arbitrary(..) | StyleProperty::WebOnly(..) => Vec::new(),
+        StyleProperty::Arbitrary(..)
+        | StyleProperty::WebOnly(..)
+        | StyleProperty::AnimationName(..) => Vec::new(),
         // Composed into one `backgroundImage` by `background_image_entry`,
         // the same way the transform axes are.
         StyleProperty::BackgroundImageNone

@@ -567,6 +567,7 @@ interface StylexConstructCase {
   name: string
   expression: string
   definitions?: string
+  webOnly?: boolean
 }
 
 const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
@@ -607,6 +608,12 @@ const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
     expression: 'styles.dynamic(0.5)',
     definitions: 'dynamic: (value) => ({ opacity: value }),',
   },
+  {
+    name: 'static keyframes',
+    expression: 'styles.motion',
+    definitions: "motion: { animationName: fade, animationDuration: '200ms' },",
+    webOnly: true,
+  },
   { name: 'cross-file sheet', expression: 'external.root' },
 ] as const
 
@@ -629,9 +636,13 @@ function constructSource(testCase: StylexConstructCase): string {
     testCase.name === 'defineVars value'
       ? "const tokens = stylex.defineVars({ accent: '#123456' })\n"
       : ''
+  const keyframes =
+    testCase.name === 'static keyframes'
+      ? 'const fade = stylex.keyframes({ from: { opacity: 0 }, to: { opacity: 1 } })\n'
+      : ''
   return `import * as ${alias} from '@stylexjs/stylex'
 import { Pressable, Text, View } from '@hozo/core'
-${prefix}${shared}${tokens}const styles = ${alias}.create({
+${prefix}${shared}${tokens}${keyframes}const styles = ${alias}.create({
   root: { padding: 16 },
   active: { opacity: 0.5 },
   ${testCase.definitions ?? ''}
@@ -678,6 +689,23 @@ export function compareStylexConstruct(testCase: StylexConstructCase): StylexCon
   if (!native) return { name: testCase.name, covered: false, silent: true }
   const consumed = !native.jsx.includes('.props(')
   const diagnosed = native.diagnostics.some(({ code }) => code === 'STYLEX_NOT_LOWERED')
+  if (testCase.webOnly) {
+    const web = compile(constructSource(testCase))[0]
+    const webCovered =
+      !!web &&
+      !web.jsx.includes('.props(') &&
+      web.diagnostics.length === 0 &&
+      web.css.includes('@keyframes hozo-kf-') &&
+      web.css.includes('animation-name: hozo-kf-')
+    const nativeRefused = native.diagnostics.some(
+      ({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE',
+    )
+    return {
+      name: testCase.name,
+      covered: webCovered && consumed && nativeRefused && !diagnosed,
+      silent: !webCovered && !nativeRefused && !diagnosed,
+    }
+  }
   return {
     name: testCase.name,
     covered: consumed && !diagnosed,

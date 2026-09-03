@@ -1535,6 +1535,10 @@ pub enum StyleProperty {
     /// written one.
     TransitionDuration(u32, Origin),
     TransitionTimingFunction(String, Origin),
+    /// A static `stylex.keyframes(...)` referenced by `animationName`.
+    /// The Web backend hoists and deduplicates the carried frames; Native
+    /// refuses them because arbitrary CSS keyframes have no StyleSheet form.
+    AnimationName(Keyframes),
     /// Carries the named animation rather than its shorthand text so Web
     /// can emit the matching `@keyframes` and Native can select a dedicated
     /// runtime lowering. Native currently wires Spin and refuses the other
@@ -2158,6 +2162,7 @@ impl StyleProperty {
             | StyleProperty::TransitionProperty(..)
             | StyleProperty::TransitionDuration(..)
             | StyleProperty::TransitionTimingFunction(..)
+            | StyleProperty::AnimationName(..)
             | StyleProperty::Animation(..)
             | StyleProperty::BackgroundImageNone
             | StyleProperty::BackgroundImage(..)
@@ -2522,6 +2527,10 @@ impl StyleProperty {
             | StyleProperty::TransitionDuration(..)
             | StyleProperty::TransitionTimingFunction(..) => Some(
                 "CSS transitions: React Native has no declarative transition in its StyleSheet"
+                    .to_string(),
+            ),
+            StyleProperty::AnimationName(_) => Some(
+                "StyleX `animationName` keyframes are CSS at-rules; React Native has no declarative keyframe style"
                     .to_string(),
             ),
             // All four of Tailwind's loops are wired now. They move only
@@ -3266,6 +3275,20 @@ pub enum Animation {
     Pulse,
     Bounce,
     None,
+}
+
+/// One static StyleX keyframe animation and its stable CSS identifier.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Keyframes {
+    pub name: String,
+    pub frames: Vec<Keyframe>,
+}
+
+/// One selector group inside a `@keyframes` rule.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Keyframe {
+    pub selector: String,
+    pub properties: Vec<StyleProperty>,
 }
 
 impl Animation {

@@ -914,6 +914,59 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   }
 })
 
+test('static StyleX keyframes are hoisted once and animationName fails explicitly on Native', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const fade = stylex.keyframes({
+  from: { opacity: 0, transform: 'translateY(8px)' },
+  '50%': { opacity: 0.5 },
+  to: { opacity: 1, transform: 'translateY(0px)' },
+})
+const styles = stylex.create({
+  root: { animationName: fade, animationDuration: '200ms' },
+  child: { animationName: fade },
+})
+export const Card = () => <View {...stylex.props(styles.root)}>
+  <View {...stylex.props(styles.child)} />
+</View>
+`
+
+  const web = compile(source)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0, JSON.stringify(web.diagnostics))
+  assert.doesNotMatch(web.jsx, /stylex\.props/)
+  const animationName = web.css.match(/animation-name: (hozo-kf-[a-f0-9]+);/)?.[1]
+  assert.ok(animationName, web.css)
+  assert.equal(web.css.match(new RegExp(`@keyframes ${animationName}`, 'g'))?.length, 1)
+  assert.match(web.css, /from \{[\s\S]*opacity: 0;[\s\S]*transform: translateY\(8px\)/)
+  assert.match(web.css, /50% \{[\s\S]*opacity: 0\.5/)
+  assert.match(web.css, /to \{[\s\S]*opacity: 1;[\s\S]*transform: translateY\(0px\)/)
+  assert.match(web.css, /animation-duration: 0\.2s/)
+
+  const native = compileNative(source)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 3, JSON.stringify(native.diagnostics))
+  assert.ok(native.diagnostics.every(({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE'))
+  assert.equal(
+    native.diagnostics.filter(({ message }) => /animationName.*keyframes/.test(message)).length,
+    2,
+  )
+  assert.doesNotMatch(native.jsx, /stylex\.props/)
+})
+
+test('unsupported StyleX keyframe bodies stay with the official transform', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const dynamic = stylex.keyframes({ from: { opacity: start }, to: { opacity: 1 } })
+const styles = stylex.create({ root: { animationName: dynamic } })
+export const Card = () => <View {...stylex.props(styles.root)} />
+`
+  const web = compile(source)[0]
+  assert.ok(web)
+  assert.match(web.jsx, /stylex\.props\(styles\.root\)/)
+  assert.doesNotMatch(web.css, /@keyframes/)
+})
+
 test('practical text StyleX values use typed and contextual Native lowering', () => {
   const source = `import * as stylex from '@stylexjs/stylex'
 import { Text, TextInput } from '@hozo/core'
