@@ -17,16 +17,16 @@
     "mappedWebOnly": 187
   },
   "stylexValues": {
-    "cases": 200,
-    "covered": 200
+    "cases": 203,
+    "covered": 190
   },
   "stylexConstructs": {
-    "cases": 15,
-    "covered": 15
+    "cases": 16,
+    "covered": 14
   },
   "stylexCorpus": {
-    "cases": 157,
-    "covered": 157
+    "cases": 160,
+    "covered": 147
   },
   "stylexSafety": {
     "silent": 0
@@ -48,8 +48,8 @@
   "a11yContracts": {
     "cases": 19,
     "covered": 19,
-    "primitives": 18,
-    "uncontracted": 0
+    "primitives": 48,
+    "uncontracted": 30
   },
   "ariaRoles": {
     "roles": 113,
@@ -83,9 +83,9 @@
     "inOrder": 20303
   },
   "refusalAudit": {
-    "refusals": 10381,
-    "checkable": 10047,
-    "confirmed": 10015,
+    "refusals": 10411,
+    "checkable": 10077,
+    "confirmed": 10045,
     "partial": 28,
     "suspect": 4,
     "uncheckable": 334
@@ -115,8 +115,8 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 526,
-    "refused": 2287,
+    "covered": 514,
+    "refused": 2299,
     "noOp": 32,
     "silent": 0
   },

@@ -9,6 +9,12 @@ const packages = [
   { name: 'compiler', dir: 'packages/compiler', testPattern: 'src/*.test.ts' },
   { name: 'a11y', dir: 'packages/a11y', testPattern: 'src/*.test.ts' },
   {
+    name: 'behaviors',
+    dir: 'packages/behaviors',
+    prep: ['pnpm', 'exec', 'tsc', '-p', 'tsconfig.test.json'],
+    testPattern: '.test-build/*.test.js',
+  },
+  {
     name: 'canvas',
     dir: 'packages/canvas',
     prep: ['pnpm', 'exec', 'tsc', '-p', 'tsconfig.test.json'],
@@ -23,6 +29,12 @@ const packages = [
   { name: 'metro', dir: 'packages/metro', testPattern: 'src/*.test.ts' },
   { name: 'next', dir: 'packages/next', testPattern: 'src/*.test.ts' },
   { name: 'runtime', dir: 'packages/runtime', testPattern: 'src/*.test.ts' },
+  {
+    name: 'semantics',
+    dir: 'packages/semantics',
+    prep: ['pnpm', 'exec', 'tsc', '-p', 'tsconfig.test.json'],
+    testPattern: '.test-build/*.test.js',
+  },
   { name: 'storybook', dir: 'packages/storybook', testPattern: 'src/*.test.ts' },
   { name: 'tailwind', dir: 'packages/tailwind', testPattern: 'src/*.test.ts' },
   {
@@ -30,6 +42,12 @@ const packages = [
     dir: 'packages/tailwind-conformance',
     testPattern: 'src/*.test.ts',
     extraArgs: ['--test-concurrency=1'],
+  },
+  {
+    name: 'typography',
+    dir: 'packages/typography',
+    prep: ['pnpm', 'exec', 'tsc', '-p', 'tsconfig.test.json'],
+    testPattern: '.test-build/*.test.js',
   },
   { name: 'vite', dir: 'packages/vite', testPattern: 'src/*.test.ts' },
 ]

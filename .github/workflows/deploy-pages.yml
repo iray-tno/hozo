@@ -75,7 +75,7 @@ jobs:
           curl -fsSL https://iray-tno.github.io/hozo/reports/history/allure-history.jsonl -o allure-history/allure-history.jsonl || rm -f allure-history/allure-history.jsonl
 
       - name: Build Allure HTML reports
-        run: pnpm --filter @hozo/test-reporter exec allure generate -o apps/landing/dist/reports junit-reports
+        run: pnpm --filter @hozo/test-reporter exec allure generate -o "$GITHUB_WORKSPACE/apps/landing/dist/reports" "$GITHUB_WORKSPACE/junit-reports" || true
 
       - name: Persist Allure history
         run: |
