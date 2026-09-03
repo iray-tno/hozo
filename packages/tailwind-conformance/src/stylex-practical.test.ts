@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 209, covered: 209 },
+    values: { total: 219, covered: 219 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 166, covered: 166 },
+    corpus: { total: 176, covered: 176 },
     silent: 0,
   })
 })
@@ -69,6 +69,34 @@ test('compositing and 3D rendering hints agree with official StyleX', () => {
     { property: 'transformBox', value: 'fill-box' },
     { property: 'transformStyle', value: 'preserve-3d' },
     { property: 'willChange', value: 'opacity, transform' },
+  ]) {
+    assert.deepEqual(compareStylexValue(testCase), {
+      ...testCase,
+      covered: true,
+      silent: false,
+    })
+  }
+})
+
+test('common mask longhands agree with official StyleX', () => {
+  for (const testCase of [
+    { property: 'WebkitMaskImage', value: 'url(mask.svg)' },
+    { property: 'maskImage', value: 'linear-gradient(black, transparent)' },
+    { property: 'maskMode', value: 'luminance' },
+    { property: 'maskRepeat', value: 'no-repeat' },
+    { property: 'maskPosition', value: 'center top' },
+    { property: 'maskSize', value: 'cover' },
+    { property: 'maskOrigin', value: 'border-box' },
+    { property: 'maskClip', value: 'no-clip' },
+    { property: 'maskComposite', value: 'exclude' },
+    { property: 'maskType', value: 'alpha' },
+    { property: 'maskImage', value: 'url(a.svg), linear-gradient(black, transparent)' },
+    { property: 'maskRepeat', value: 'repeat-x, space no-repeat' },
+    { property: 'maskPosition', value: 'left top, 25% 75%' },
+    { property: 'maskSize', value: 'cover, 50% auto' },
+    { property: 'maskOrigin', value: 'border-box, content-box' },
+    { property: 'maskClip', value: 'border-box, no-clip' },
+    { property: 'maskComposite', value: 'add, exclude' },
   ]) {
     assert.deepEqual(compareStylexValue(testCase), {
       ...testCase,

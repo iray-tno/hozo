@@ -878,6 +878,16 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['transformBox', `'fill-box'`],
     ['transformStyle', `'preserve-3d'`],
     ['willChange', `'opacity, transform'`],
+    ['WebkitMaskImage', `'url(mask.svg)'`],
+    ['maskImage', `'linear-gradient(black, transparent)'`],
+    ['maskMode', `'luminance'`],
+    ['maskRepeat', `'no-repeat'`],
+    ['maskPosition', `'center top'`],
+    ['maskSize', `'cover'`],
+    ['maskOrigin', `'border-box'`],
+    ['maskClip', `'no-clip'`],
+    ['maskComposite', `'exclude'`],
+    ['maskType', `'alpha'`],
   ] as const
 
   for (const [property, value] of samples) {
