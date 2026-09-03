@@ -11,10 +11,15 @@
 // emit as a runtime import has to be reachable from here. See
 // `hozo_native::LowerOutput::runtime_imports` for that list.
 
-// Re-exported rather than left in `@hozo/a11y`: generated code should
+// Re-exported rather than left in `@hozo/behaviors`: generated code should
 // depend on one package, not on how the compiler divides its own. The
 // implementation stays there, where its tests and its reasoning are.
-export { HozoDialog, type HozoDialogProps } from '@hozo/a11y'
+export {
+  Dialog,
+  type DialogProps,
+  HozoDialog,
+  type HozoDialogProps,
+} from '@hozo/behaviors'
 export type { BreakpointName, Viewport } from './ambient.ts'
 export {
   HozoContainer,

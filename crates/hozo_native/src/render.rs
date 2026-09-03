@@ -781,7 +781,7 @@ pub(super) fn render_node(
         props_text.push_str(&format!(" open={{{}}}", render_condition_expr(source, open)));
     }
     if node.primitive == Primitive::Dialog {
-        // The behaviour lives in `@hozo/a11y`; the compiler only lowers
+        // The behaviour lives in `@hozo/behaviors`; the compiler only lowers
         // the styles and checks the props.
         runtime.need_component("HozoDialog");
     }

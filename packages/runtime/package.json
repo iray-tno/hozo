@@ -50,7 +50,7 @@
     "test": "node --test src/*.test.ts"
   },
   "dependencies": {
-    "@hozo/a11y": "workspace:^"
+    "@hozo/behaviors": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",

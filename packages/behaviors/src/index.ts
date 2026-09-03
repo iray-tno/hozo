@@ -1,4 +1,10 @@
 export {
+  Dialog,
+  type DialogProps,
+  HozoDialog,
+  type HozoDialogProps,
+} from './dialog.tsx'
+export {
   DismissableLayer,
   type DismissableLayerProps,
 } from './dismissable-layer.tsx'

@@ -1,36 +1,18 @@
-// A tree.
-//
-// The rules are in `./tree.ts`: the tree flattens to the rows it is
-// showing, and from there Up and Down are `./roving.ts` and typing is
-// `./typeahead.ts`, both unchanged. Left and Right are the only keys a
-// list has no answer for, and `horizontalMove` is those four cases.
-//
-// What is left here is the wiring, and the three attributes that carry the
-// shape a sighted reader gets from the indentation: `aria-level`,
-// `aria-posinset` and `aria-setsize`. Without them the tree renders
-// identically and announces as a flat list -- the depth is in the CSS, and
-// CSS is exactly what a screen reader does not read.
-
+import { isTypeaheadKey, nextIndex, nextSearch, type RovingKey, searchIndex } from '@hozo/behaviors'
 import { type KeyboardEvent, type ReactNode, useCallback, useRef, useState } from 'react'
 
-import { nextIndex, type RovingKey } from './roving.ts'
-import { horizontalMove, type TreeNode, visibleRows } from './tree.ts'
-import { isTypeaheadKey, nextSearch, searchIndex } from './typeahead.ts'
+import { horizontalMove, type TreeNode, visibleRows } from './tree-rules.ts'
 
 export type { TreeNode }
 
 export interface HozoTreeProps {
   nodes: readonly TreeNode[]
-  /** Which branches start open. */
   defaultExpanded?: readonly string[]
-  /** The selected row's id, when the caller owns it. */
   selectedId?: string
   onSelect?: (id: string) => void
-  /** The tree's accessible name. */
   accessibilityLabel?: string
   className?: string
   rowClassName?: string
-  /** Renders one row's label. The indentation is the caller's to draw. */
   renderRow?: (row: { id: string; label: string; level: number; expanded: boolean }) => ReactNode
 }
 
@@ -71,9 +53,6 @@ export function HozoTree({
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       const rtl = readDirection(event.currentTarget) === 'rtl'
       const action = horizontalMove(event.key, rows, at, rtl)
-      // `null` means this row has nowhere to go -- a leaf, or the top of
-      // the tree -- and the key goes back to the page rather than being
-      // swallowed for nothing.
       if (action === null) return
       event.preventDefault()
       if (action.kind === 'focus') move(action.index)
@@ -112,9 +91,6 @@ export function HozoTree({
     }
   }
 
-  // One tab stop for the whole tree, on the selected row when there is one
-  // -- the same reasoning as the radio group and the single-select
-  // listbox: Tab in should land on the current answer.
   const selectedAt = rows.findIndex((row) => row.id === selectedId)
   const stop = selectedAt !== -1 ? selectedAt : Math.min(active, Math.max(rows.length - 1, 0))
 
@@ -127,13 +103,9 @@ export function HozoTree({
             refs.current[at] = node
           }}
           role="treeitem"
-          // The shape a sighted reader gets from the indentation. Leaving
-          // these off renders the same tree and announces a flat list.
           aria-level={row.level}
           aria-posinset={row.position}
           aria-setsize={row.setSize}
-          // Only a branch has a state to be in. `aria-expanded` on a leaf
-          // tells a screen reader it can be opened, which it cannot.
           aria-expanded={row.branch ? row.expanded : undefined}
           aria-selected={row.id === selectedId}
           aria-disabled={row.disabled || undefined}
@@ -152,8 +124,9 @@ export function HozoTree({
   )
 }
 
-/** The effective writing direction at `element`. */
 function readDirection(element: Element): string {
   if (typeof window === 'undefined') return 'ltr'
   return window.getComputedStyle(element).direction || 'ltr'
 }
+
+export { HozoTree as Tree, type HozoTreeProps as TreeProps }

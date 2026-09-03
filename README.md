@@ -357,8 +357,8 @@ say more than "that is not a role":
   reported as an incomplete pattern
 - a role with no Web equivalent is reported rather than silently dropped
 
-`@hozo/a11y` carries the patterns that need real runtime behaviour — focus
-management, keyboard handling — starting with `Dialog`.
+`@hozo/behaviors` carries the primitives that need real runtime behaviour — focus
+management, keyboard handling, and floating positioning — starting with `Dialog`.
 
 ## Architecture
 
@@ -398,8 +398,8 @@ management, keyboard handling — starting with `Dialog`.
 packages/
   core/            @hozo/core        — canonical primitives for new projects
   compiler/        @hozo/compiler    — JS entry point over the Rust compiler
-  runtime/         @hozo/runtime     — dynamic styles, interaction, a11y behaviour
-  a11y/            @hozo/a11y        — accessibility patterns needing a runtime
+  runtime/         @hozo/runtime     — dynamic styles, interaction, behavior
+  behaviors/       @hozo/behaviors   — headless behaviors and floating positioning
   tailwind/        @hozo/tailwind    — the project's theme, resolved
   vite/            @hozo/vite        — Vite integration (Web backend)
   next/            @hozo/next        — Next.js integration, Turbopack and webpack

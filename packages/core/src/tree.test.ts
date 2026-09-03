@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { horizontalMove, type TreeNode, visibleRows } from './tree.ts'
+import { horizontalMove, type TreeNode, visibleRows } from './tree-rules.ts'
 
 const tree: TreeNode[] = [
   {
@@ -24,14 +24,10 @@ test('a collapsed branch shows itself and nothing under it', () => {
 test('the rows are what is on screen, in the order they are drawn', () => {
   assert.deepEqual(ids(['src']), ['src', 'index', 'lib', 'readme'])
   assert.deepEqual(ids(['src', 'lib']), ['src', 'index', 'lib', 'util', 'readme'])
-  // Expanding something that is not showing changes nothing on screen.
   assert.deepEqual(ids(['lib']), ['src', 'readme'])
 })
 
 test('down from the last child goes to the next branch, not to a sibling', () => {
-  // The observation the whole file rests on: `util.ts` and `README.md` are
-  // at different depths under different parents, and they are adjacent
-  // lines. A tree that arrows through siblings skips half the rows.
   const rows = ids(['src', 'lib'])
   assert.equal(rows[rows.indexOf('util') + 1], 'readme')
 })
@@ -43,8 +39,6 @@ test('each row carries its depth and its place among its siblings', () => {
     { level: util?.level, position: util?.position, setSize: util?.setSize },
     { level: 3, position: 1, setSize: 1 },
   )
-  // The sibling set, not the visible set. Omitting these makes a screen
-  // reader say "3 of 3" for every row -- a wrong count, not a missing one.
   const readme = rows.find((row) => row.id === 'readme')
   assert.deepEqual(
     { position: readme?.position, setSize: readme?.setSize },
@@ -68,14 +62,10 @@ test('right opens a closed branch and steps into an open one', () => {
 test('left closes an open branch and steps out of anything else', () => {
   const open = visibleRows(tree, new Set(['src']))
   assert.deepEqual(horizontalMove('ArrowLeft', open, 0), { kind: 'collapse', id: 'src' })
-  // From a child, out to the parent -- which is the row above only when
-  // it is the first child, so the parent is found by identity.
   assert.deepEqual(horizontalMove('ArrowLeft', open, 2), { kind: 'focus', index: 0 })
 })
 
 test('a key with nowhere to go is given back to the page', () => {
-  // A leaf has nothing to open, and a top-level row has nothing to step
-  // out to. Swallowing either takes a key from the page for nothing.
   const open = visibleRows(tree, new Set(['src']))
   assert.equal(horizontalMove('ArrowRight', open, 1), null, 'a leaf')
   assert.equal(horizontalMove('ArrowLeft', open, 3), null, 'a top-level row')

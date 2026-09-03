@@ -1,34 +1,15 @@
-// A listbox: a set of options, one of which is chosen -- or several.
-//
-// `./roving.ts` for the movement and `./typeahead.ts` for the typing, and
-// what is left is the selection model, which is the whole reason this is
-// not the radio group with different roles.
-//
-// Single select follows focus, exactly as the radio group does and for the
-// same reason: the control holds one value and a focused-but-unchosen
-// option is a state it does not have.
-//
-// Multiple select must not, and that is the rule that gets broken. If
-// arrowing selected, there would be no way to *move* without changing the
-// answer -- someone walking down a list of twelve to find the fourth would
-// select all four on the way. So focus and selection come apart: the
-// arrows move, Space toggles, and `aria-multiselectable` tells a screen
-// reader which of the two models it is looking at before the user finds
-// out by pressing something.
-
+import {
+  isTypeaheadKey,
+  nextIndex,
+  nextSearch,
+  type Orientation,
+  type RovingKey,
+  searchIndex,
+} from '@hozo/behaviors'
 import { type KeyboardEvent, type ReactNode, useCallback, useRef, useState } from 'react'
-
-import { nextIndex, type Orientation, type RovingKey } from './roving.ts'
-import { isTypeaheadKey, nextSearch, searchIndex } from './typeahead.ts'
 
 export interface HozoListboxOption<T> {
   value: T
-  /**
-   * The option's text.
-   *
-   * A string because typeahead matches against it and a screen reader
-   * reads it. Use `render` when it has to look like more than that.
-   */
   label: string
   render?: ReactNode
   disabled?: boolean
@@ -37,7 +18,6 @@ export interface HozoListboxOption<T> {
 interface Shared<T> {
   options: readonly HozoListboxOption<T>[]
   orientation?: Orientation
-  /** The listbox's accessible name. */
   accessibilityLabel?: string
   className?: string
   optionClassName?: string
@@ -116,17 +96,11 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
   const move = (at: number) => {
     setActive(at)
     refs.current[at]?.focus()
-    // Single select is the one that follows focus. Multiple must not: with
-    // twelve options, walking to the fourth would select the first four.
     if (!multiple) toggle(at)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>, at: number) => {
     if (event.key === ' ' || event.key === 'Enter') {
-      // Space is the toggle in a multi-select and the confirm in a single
-      // one, where it changes nothing that arriving here has not already
-      // changed. Handled before typeahead, which is why `isTypeaheadKey`
-      // refuses a bare space.
       event.preventDefault()
       toggle(at)
       return
@@ -157,10 +131,6 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
     }
   }
 
-  // In a single-select listbox the tab stop is the chosen option, for the
-  // reason the radio group's is: Tab in should land on the current answer.
-  // In a multi-select there is no single answer to land on, so it is the
-  // last-focused option, which is where the arrows left off.
   const stop = multiple
     ? active
     : (() => {
@@ -173,15 +143,12 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
       role="listbox"
       aria-label={accessibilityLabel}
       aria-orientation={orientation === 'both' ? undefined : orientation}
-      // Said always, not only when true. A screen reader announces the
-      // model when entering the list, and leaving it off a multi-select
-      // means someone learns that several are allowed by trying.
       aria-multiselectable={multiple}
       className={className}
     >
       {options.map((option, at) => (
         <div
-          key={at}
+          key={`option-${at}`}
           ref={(node) => {
             refs.current[at] = node
           }}
@@ -201,8 +168,13 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
   )
 }
 
-/** The effective writing direction at `element`. */
 function readDirection(element: Element): string {
   if (typeof window === 'undefined') return 'ltr'
   return window.getComputedStyle(element).direction || 'ltr'
+}
+
+export {
+  HozoListbox as Listbox,
+  type HozoListboxOption as ListboxOption,
+  type HozoListboxProps as ListboxProps,
 }

@@ -217,7 +217,7 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         // `multiline` is a prop on React Native and an element on the
         // DOM, so it is decided here rather than added as an attribute.
         Primitive::TextInput => (text_input_tag(node, diagnostics), missing_label(node, diagnostics)),
-        // Lowered to `@hozo/a11y`'s component, not to a bare `<dialog>`:
+        // Lowered to `@hozo/behaviors`'s component, not to a bare `<dialog>`:
         // the element gives the trap and the inert background, but only
         // once something calls `showModal()`, and keeping `open` in step
         // with the DOM is exactly the runtime behaviour §10.3 assigns to a

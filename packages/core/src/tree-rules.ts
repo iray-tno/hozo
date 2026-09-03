@@ -1,22 +1,3 @@
-// The rules a tree needs that a flat list does not.
-//
-// Same terms as `./roving.ts` and `./typeahead.ts`: no `react`, no
-// `document`. And this is where those two become usable for a tree at all,
-// because of one observation that is easy to miss and decides the whole
-// design:
-//
-//   Up and Down move through the *visible rows*, not through siblings.
-//
-// A tree is drawn as a list. Pressing Down on the last child of an
-// expanded branch goes to the branch's next sibling -- a different parent,
-// a different depth -- because that is the next line on the screen. So the
-// tree is flattened to the rows it is currently showing, and from there it
-// is a list: roving moves within it and typeahead searches it, unchanged.
-//
-// What is left over is the horizontal axis, which has no equivalent in a
-// list: Right opens a branch or steps into it, Left closes one or steps
-// out. Those four cases are `horizontalMove`.
-
 export interface TreeNode {
   /** Stable across renders; the caller's own identity for the row. */
   id: string
@@ -45,15 +26,6 @@ export interface TreeRow {
 
 /**
  * The tree as the rows it is currently showing, top to bottom.
- *
- * Collapsed branches contribute themselves and nothing under them, which
- * is what makes the result "what is on screen" rather than "everything".
- *
- * `aria-posinset` and `aria-setsize` are computed here rather than left to
- * the caller because they are about the *sibling* set, and by the time the
- * rows are flat that information is gone. A tree that omits them makes a
- * screen reader say "3 of 3" for every row it can see, which is worse than
- * silence: it is a wrong count rather than a missing one.
  */
 export function visibleRows(nodes: readonly TreeNode[], expanded: ReadonlySet<string>): TreeRow[] {
   const rows: TreeRow[] = []
@@ -88,21 +60,6 @@ export type TreeMove =
 
 /**
  * Right and Left, which are the two keys a list has no answer for.
- *
- * Four cases, and the two that get left out are the ones that make a
- * keyboard user's model of the tree match what they see:
- *
- *   Right on a closed branch  opens it
- *   Right on an open branch   steps to its first child
- *   Left on an open branch    closes it
- *   Left on anything else     steps to its parent
- *
- * Right on a leaf does nothing, and returns `null` so the key goes back to
- * the page rather than being swallowed.
- *
- * `rtl` swaps them, for the same reason `roving.ts` swaps its arrows: the
- * keys are about the screen, and a tree drawn right-to-left indents the
- * other way.
  */
 export function horizontalMove(
   key: 'ArrowLeft' | 'ArrowRight',
@@ -117,8 +74,6 @@ export function horizontalMove(
   if (opening) {
     if (!row.branch) return null
     if (!row.expanded) return { kind: 'expand', id: row.id }
-    // The first child is the next row: everything under an open branch is
-    // drawn beneath it, so "step into" is "step down one".
     return active + 1 < rows.length ? { kind: 'focus', index: active + 1 } : null
   }
 

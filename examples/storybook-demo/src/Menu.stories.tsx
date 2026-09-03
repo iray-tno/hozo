@@ -20,7 +20,7 @@ function MenuDemo() {
     <View className="max-w-xl w-full space-y-8 rounded-2xl bg-white p-8 shadow-sm">
       <View className="space-y-3">
         <Heading level={2} className="text-xl font-bold text-slate-900">
-          Menu (@hozo/a11y)
+          Menu (@hozo/core)
         </Heading>
         <Paragraph className="text-sm text-slate-600">
           Accessible action menu popover with keyboard arrow navigation, Escape handling, and focus

@@ -1,18 +1,3 @@
-// The React Native half of the listbox.
-//
-// The selection model survives the crossing and the keyboard does not,
-// which is the same split the other patterns make -- but here the half
-// that survives is the interesting one. Single versus multiple is not a
-// keyboard fact: it is what the control *is*, and a screen reader has to
-// be told before someone finds out by pressing something.
-//
-// React Native has no `aria-multiselectable`. What it has is
-// `accessibilityState.selected` per option, which announces each one, and
-// nothing that announces the set. So the group carries an
-// `accessibilityHint` saying how many may be chosen -- a worse answer than
-// the Web's and the only one available, stated here rather than left as a
-// silent difference.
-
 import { type ReactNode, useCallback, useState } from 'react'
 import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
 
@@ -93,10 +78,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
     >
       {options.map((option, at) => (
         <Pressable
-          key={at}
-          // `menuitem` is the nearest React Native role that announces as a
-          // choosable thing in a set. There is no `option`, and claiming
-          // `radio` would say "one of these" for a multi-select.
+          key={`option-${at}`}
           accessibilityRole="menuitem"
           accessibilityState={{
             selected: chosen.includes(option.value),
@@ -110,4 +92,10 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
       ))}
     </View>
   )
+}
+
+export {
+  HozoListbox as Listbox,
+  type HozoListboxOption as ListboxOption,
+  type HozoListboxProps as ListboxProps,
 }

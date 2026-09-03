@@ -1,26 +1,7 @@
-// The React Native half of the combobox.
-//
-// The filtering is `./combobox.ts` unchanged, and the rest is a different
-// control wearing the same name, which is worth saying plainly rather than
-// papering over.
-//
-// `aria-activedescendant` does not exist here, and neither does the
-// problem it solves: there is no keyboard focus to keep in the field,
-// because a screen reader moves by swiping. So the list is a list, each
-// row is pressable, and choosing one fills the field. Inline completion is
-// left out for the same kind of reason -- text selection in a React Native
-// `TextInput` is a controlled `selection` prop with per-platform
-// behaviour, and a completion that half-works is worse than none, since
-// the field it half-works in is the one the user is typing into.
-//
-// What does carry across is the announcement: the field says it is a
-// combobox and whether the list is open, so a screen reader user is told
-// there is something to open before they find it.
-
 import { type ReactNode, useCallback, useState } from 'react'
 import { Pressable, type StyleProp, TextInput, View, type ViewStyle } from 'react-native'
 
-import { filterOptions } from './combobox.ts'
+import { filterOptions } from './combobox-rules.ts'
 
 export interface HozoComboboxOption<T> {
   value: T
@@ -76,13 +57,10 @@ export function HozoCombobox<T>({
       <TextInput
         accessibilityRole="combobox"
         accessibilityLabel={accessibilityLabel}
-        // The one piece of the Web version's semantics that survives, and
-        // the one that matters most on this platform: it says there is a
-        // list before anyone goes looking for one.
         accessibilityState={{ expanded: open }}
         placeholder={placeholder}
         value={query}
-        onChangeText={(text) => {
+        onChangeText={(text: string) => {
           setQuery(text)
           setOpen(true)
         }}
@@ -97,7 +75,7 @@ export function HozoCombobox<T>({
                 if (!option) return null
                 return (
                   <Pressable
-                    key={index}
+                    key={`option-${index}`}
                     accessibilityRole="menuitem"
                     accessibilityState={{
                       selected: option.value === value,
@@ -114,4 +92,10 @@ export function HozoCombobox<T>({
       ) : null}
     </View>
   )
+}
+
+export {
+  HozoCombobox as Combobox,
+  type HozoComboboxOption as ComboboxOption,
+  type HozoComboboxProps as ComboboxProps,
 }

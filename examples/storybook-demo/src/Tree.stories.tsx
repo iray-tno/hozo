@@ -45,7 +45,7 @@ const NODES: readonly TreeNode[] = [
     children: [
       { id: 'compiler', label: '@hozo/compiler' },
       { id: 'core', label: '@hozo/core' },
-      { id: 'a11y', label: '@hozo/a11y' },
+      { id: 'behaviors', label: '@hozo/behaviors' },
       // A row that is present, announced, and not a stop. The keyboard
       // skips it; a screen reader still counts it in `aria-setsize`,
       // because a list of four that announces as three is a lie.

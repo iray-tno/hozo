@@ -28,7 +28,7 @@ import { transformHozoSource } from '@hozo/metro'
 const require = createRequire(import.meta.url)
 
 // Redirects every `react-native` import in the graph -- the generated
-// module's, and `@hozo/runtime`'s and `@hozo/a11y`'s own -- to the stub.
+// module's, and `@hozo/runtime`'s and `@hozo/behaviors`'s own -- to the stub.
 // A `require` shim isn't enough: those packages are ESM and Node's loader
 // resolves their imports before any of this runs.
 // `act` warns without it, and the warning is noise rather than signal
@@ -43,10 +43,10 @@ registerHooks({
     // Metro picks a `.native` entry ahead of the plain one; Node does not.
     // This has to be a resolve hook rather than a `require` shim, because
     // these packages import each other -- `@hozo/runtime` re-exports
-    // `HozoDialog` from `@hozo/a11y` -- and those imports are resolved by
+    // `HozoDialog` from `@hozo/behaviors` -- and those imports are resolved by
     // Node's loader, out of reach of anything the generated module is
     // handed. Without it the Web dialog loads and renders a `<dialog>`.
-    if (specifier === '@hozo/runtime' || specifier === '@hozo/a11y') {
+    if (specifier === '@hozo/runtime' || specifier === '@hozo/behaviors') {
       const root = path.dirname(require.resolve(`${specifier}/package.json`))
       return {
         url: pathToFileURL(path.join(root, 'src', 'index.native.ts')).href,

@@ -373,7 +373,7 @@ pub enum Primitive {
     /// A primitive rather than a component the compiler walks past,
     /// because otherwise its `className` never compiles and its missing
     /// accessible name is never noticed -- both backends lower it to
-    /// `/a11y`'s `HozoDialog`, which owns the runtime behaviour.
+    /// `/behaviors`'s `Dialog`, which owns the runtime behaviour.
     Dialog,
     /// A single-line text field. `<input>` on Web, `TextInput` on React
     /// Native -- and the reason `placeholder-*` can lower at all, since

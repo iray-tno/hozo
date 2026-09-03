@@ -25,6 +25,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "react-native": "./dist/index.native.js",
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
@@ -45,17 +46,25 @@
     "test": "tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
   "dependencies": {
-    "@hozo/a11y": "workspace:^",
+    "@hozo/behaviors": "workspace:^",
     "@hozo/runtime": "workspace:^",
     "@hozo/semantics": "workspace:^",
     "@hozo/typography": "workspace:^"
   },
   "peerDependencies": {
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "react-native": ">=0.76"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "react-dom": "^19.2.8"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-native": "^0.87.0"
   }
 }

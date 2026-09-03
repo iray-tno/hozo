@@ -1,18 +1,3 @@
-// The React Native half of the menu button.
-//
-// The same asymmetry the tab strip has, and larger here. Half of what
-// makes the Web menu a menu -- one tab stop, arrow keys, typeahead,
-// returning focus to the button -- is about a linear keyboard sequence,
-// and React Native has none. A screen reader there swipes through
-// elements, so the menu is reachable the moment it is on screen and the
-// roving rules have nothing to decide.
-//
-// What does not change is that it is a modal thing: while the menu is open
-// the content behind it is not available, and the platform has to be told
-// so or VoiceOver will keep reading the screen underneath. That is
-// `Modal` with `accessibilityViewIsModal`, the same delegation
-// `./dialog.native.tsx` makes and for the same reason.
-
 import { type ReactNode, useState } from 'react'
 import { Modal, Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
 
@@ -53,26 +38,14 @@ export function HozoMenu({
     <View style={style}>
       <Pressable
         accessibilityRole="button"
-        // React Native has no `aria-haspopup`, and `expanded` is the part
-        // of it a screen reader actually announces here.
         accessibilityState={{ expanded: open }}
         style={triggerStyle}
         onPress={() => setOpen(true)}
       >
         {trigger}
       </Pressable>
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        // Android's hardware back button. Required by React Native on that
-        // platform, and the same reason the dialog treats it as required:
-        // something that cannot be dismissed reads as a trap.
-        onRequestClose={() => setOpen(false)}
-      >
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable
-          // The backdrop. A press anywhere outside closes, which is what
-          // every platform menu does and what people will try first.
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={{ flex: 1 }}
@@ -86,10 +59,8 @@ export function HozoMenu({
         >
           {items.map((item, at) => (
             <Pressable
-              key={at}
+              key={`item-${at}`}
               accessibilityRole="menuitem"
-              // Announced and skipped rather than removed, the same
-              // choice both Web components make.
               accessibilityState={{ disabled: item.disabled }}
               style={itemStyle}
               onPress={() => select(at)}
@@ -102,3 +73,5 @@ export function HozoMenu({
     </View>
   )
 }
+
+export { HozoMenu as Menu, type HozoMenuItem as MenuItem, type HozoMenuProps as MenuProps }

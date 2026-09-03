@@ -33,7 +33,7 @@ function TabsDemo() {
   return (
     <View className="max-w-xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
       <Heading level={2} className="text-xl font-bold text-slate-900">
-        Tabs Pattern (@hozo/a11y)
+        Tabs Pattern (@hozo/core)
       </Heading>
       <Paragraph className="text-sm text-slate-600">
         WAI-ARIA compliant tab list with single tab stop and left/right arrow key roving tabindex
