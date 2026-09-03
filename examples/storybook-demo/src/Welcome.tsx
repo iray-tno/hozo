@@ -1,6 +1,6 @@
 import { Button, Heading, Paragraph, Text, View } from '@hozo/core'
 import { Progress, Separator } from '@hozo/semantics'
-import { Code, Rt, Ruby, Strong } from '@hozo/typography'
+import { Code, Rt, Ruby } from '@hozo/typography'
 
 export function Welcome() {
   return (
