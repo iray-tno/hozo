@@ -52,6 +52,6 @@ function TabsDemo() {
   )
 }
 
-const meta = { title: 'A11y/Tabs', component: TabsDemo } satisfies Meta<typeof TabsDemo>
+const meta = { title: 'Core/Tabs', component: TabsDemo } satisfies Meta<typeof TabsDemo>
 export default meta
 export const Default: StoryObj<typeof meta> = {}

@@ -493,7 +493,7 @@ function ProgressIndicatorsDemo() {
 }
 
 const meta = {
-  title: 'Semantics',
+  title: 'Semantics/Showcase',
   component: SemanticsDemo,
 } satisfies Meta<typeof SemanticsDemo>
 

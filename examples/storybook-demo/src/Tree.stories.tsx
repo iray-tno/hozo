@@ -96,7 +96,7 @@ function TreeDemo() {
 }
 
 const meta = {
-  title: 'A11y/Tree',
+  title: 'Core/Tree',
   component: TreeDemo,
 } satisfies Meta<typeof TreeDemo>
 

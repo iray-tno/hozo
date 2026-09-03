@@ -56,6 +56,6 @@ function DialogDemo() {
   )
 }
 
-const meta = { title: 'A11y/Dialog', component: DialogDemo } satisfies Meta<typeof DialogDemo>
+const meta = { title: 'Core/Dialog', component: DialogDemo } satisfies Meta<typeof DialogDemo>
 export default meta
 export const Default: StoryObj<typeof meta> = {}
