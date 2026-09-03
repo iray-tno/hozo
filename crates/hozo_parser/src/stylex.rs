@@ -999,12 +999,15 @@ enum WebValueGrammar {
     },
     NumberPercentage { minimum: f64, maximum: f64 },
     ClipRect,
+    ClipPath,
     Contain,
     SvgDasharray,
     UrlOrNone,
     Time,
     SignedTime,
     AnimationTimingFunction,
+    PerspectiveOrigin,
+    WillChange,
     FontFeatureSettings,
     FontLanguageOverride,
     FontPalette,
@@ -1039,6 +1042,11 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             &["none", "forwards", "backwards", "both"],
         ),
         "animationPlayState" => ("animation-play-state", &["running", "paused"]),
+        "transformBox" => (
+            "transform-box",
+            &["content-box", "border-box", "fill-box", "stroke-box", "view-box"],
+        ),
+        "transformStyle" => ("transform-style", &["flat", "preserve-3d"]),
         "appearance" => ("appearance", &["auto", "none", "textfield"]),
         "alignmentBaseline" => (
             "alignment-baseline",
@@ -1450,6 +1458,19 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             "animation-timing-function",
             WebValueGrammar::AnimationTimingFunction,
         )),
+        "clipPath" => Some(("clip-path", WebValueGrammar::ClipPath)),
+        "perspective" => Some((
+            "perspective",
+            WebValueGrammar::Length {
+                keywords: &["none"],
+                minimum: 0.0,
+            },
+        )),
+        "perspectiveOrigin" => Some((
+            "perspective-origin",
+            WebValueGrammar::PerspectiveOrigin,
+        )),
+        "willChange" => Some(("will-change", WebValueGrammar::WillChange)),
         "animationIterationCount" => Some((
             "animation-iteration-count",
             WebValueGrammar::NumberWithKeywords {
@@ -1800,6 +1821,71 @@ fn web_animation_timing_function(value: &StaticValue) -> Option<String> {
         Some(position) => format!("steps({count},{position})"),
         None => format!("steps({count})"),
     })
+}
+
+fn minify_css_commas(value: &str) -> String {
+    value.split(',').map(str::trim).collect::<Vec<_>>().join(",")
+}
+
+fn web_single_function(value: &str, names: &[&str]) -> bool {
+    if value.contains([';', '{', '}', '\n', '\r']) || !value.ends_with(')') {
+        return false;
+    }
+    let Some(open) = value.find('(') else { return false };
+    if !names.contains(&value[..open].trim()) {
+        return false;
+    }
+    let mut depth = 0_u32;
+    for (index, character) in value.char_indices().skip(open) {
+        match character {
+            '(' => depth += 1,
+            ')' => {
+                let Some(next) = depth.checked_sub(1) else { return false };
+                depth = next;
+                if depth == 0 && index + character.len_utf8() != value.len() {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    depth == 0
+}
+
+fn web_clip_path(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    if value == "none" || web_url_or_none(&StaticValue::String(value.to_string())).is_some() {
+        return Some(value.to_string());
+    }
+    web_single_function(value, &["circle", "ellipse", "inset", "polygon", "path"])
+        .then(|| minify_css_commas(value))
+}
+
+fn web_perspective_origin(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    ((1..=2).contains(&parts.len())
+        && parts.iter().all(|part| {
+            matches!(*part, "left" | "center" | "right" | "top" | "bottom")
+                || transform_dimension(part).is_some()
+        }))
+    .then(|| parts.join(" "))
+}
+
+fn web_will_change(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "auto" {
+        return Some(value.clone());
+    }
+    let names = web_comma_groups(value)?;
+    names
+        .iter()
+        .all(|name| {
+            web_css_identifier(name)
+                && !matches!(*name, "auto" | "initial" | "inherit" | "revert" | "unset")
+        })
+        .then(|| names.join(","))
 }
 
 fn web_css_string(value: &str) -> bool {
@@ -2412,6 +2498,7 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
             web_number_percentage(value, minimum, maximum)?
         }
         WebValueGrammar::ClipRect => web_clip_rect(value)?,
+        WebValueGrammar::ClipPath => web_clip_path(value)?,
         WebValueGrammar::Contain => web_contain(value)?,
         WebValueGrammar::SvgDasharray => web_svg_dasharray(value)?,
         WebValueGrammar::UrlOrNone => web_url_or_none(value)?,
@@ -2421,6 +2508,8 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         }
         WebValueGrammar::SignedTime => web_signed_time(value)?,
         WebValueGrammar::AnimationTimingFunction => web_animation_timing_function(value)?,
+        WebValueGrammar::PerspectiveOrigin => web_perspective_origin(value)?,
+        WebValueGrammar::WillChange => web_will_change(value)?,
         WebValueGrammar::FontFeatureSettings => web_font_setting(value, false)?,
         WebValueGrammar::FontLanguageOverride => {
             let StaticValue::String(value) = value else { return None };
@@ -2915,7 +3004,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "backgroundBlendMode" | "backgroundClip" | "WebkitBackgroundClip"
         | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY"
         | "baselineShift" | "blockSize" | "borderCollapse" | "borderSpacing"
-        | "captionSide" | "caretShape" | "clip" | "clipRule" | "colorScheme"
+        | "captionSide" | "caretShape" | "clip" | "clipPath" | "clipRule" | "colorScheme"
         | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
         | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
         | "contentVisibility" | "displayInside" | "displayList" | "displayOutside"
@@ -2933,7 +3022,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "listStyleType" | "maxBlockSize" | "maxInlineSize"
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
         | "minInlineSize" | "MozOsxFontSmoothing"
-        | "overflowAnchor" | "overscrollBehavior"
+        | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
         | "overscrollBehaviorY" | "paintOrder" | "printColorAdjust" | "resize"
         | "scrollSnapAlign"
@@ -2943,7 +3032,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "strokeWidth" | "tabSize" | "tableLayout" | "textAnchor" | "textCombineUpright"
         | "textEmphasisColor" | "textEmphasisPosition" | "textEmphasisStyle" | "textFillColor"
         | "textRendering" | "textSizeAdjust" | "textUnderlineOffset" | "textUnderlinePosition"
-        | "touchAction" | "wordBreak" | "wordSpacing" | "wordWrap"
+        | "touchAction" | "transformBox" | "transformStyle" | "willChange"
+        | "wordBreak" | "wordSpacing" | "wordWrap"
         | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
         | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
@@ -5833,6 +5923,42 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 3);
         assert_eq!(gaps.len(), 3);
+    }
+
+    #[test]
+    fn compositing_effects_lower_safe_common_css_and_preserve_wider_syntax() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+                perspective: '800px', perspectiveOrigin: '25% 75%',
+                transformBox: 'fill-box', transformStyle: 'preserve-3d',
+                willChange: 'opacity, transform'
+              },
+              wider: {
+                clipPath: 'shape(from 0 0, line to 100% 100%)',
+                perspective: 'calc(100px + 2rem)', perspectiveOrigin: 'calc(50% + 1px) center',
+                transformBox: 'padding-box', transformStyle: 'preserve-4d',
+                willChange: 'var(--property)'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("common compositing values were not lowerable")
+        };
+        assert_eq!(entries.len(), 6);
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider compositing values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 6);
+        assert_eq!(gaps.len(), 6);
     }
 
     #[test]

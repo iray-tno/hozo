@@ -872,6 +872,12 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['animationTimingFunction', `'ease-in-out'`],
     ['animationTimingFunction', `'cubic-bezier(0.4, 0, 0.2, 1)'`],
     ['animationTimingFunction', `'steps(2, jump-none)'`],
+    ['clipPath', `'polygon(0 0, 100% 0, 50% 100%)'`],
+    ['perspective', `'800px'`],
+    ['perspectiveOrigin', `'25% 75%'`],
+    ['transformBox', `'fill-box'`],
+    ['transformStyle', `'preserve-3d'`],
+    ['willChange', `'opacity, transform'`],
   ] as const
 
   for (const [property, value] of samples) {

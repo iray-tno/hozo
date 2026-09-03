@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 203, covered: 203 },
+    values: { total: 209, covered: 209 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 160, covered: 160 },
+    corpus: { total: 166, covered: 166 },
     silent: 0,
   })
 })
@@ -58,6 +58,23 @@ test('animation control longhands agree with official StyleX for their common gr
         silent: false,
       })
     }
+  }
+})
+
+test('compositing and 3D rendering hints agree with official StyleX', () => {
+  for (const testCase of [
+    { property: 'clipPath', value: 'polygon(0 0, 100% 0, 50% 100%)' },
+    { property: 'perspective', value: '800px' },
+    { property: 'perspectiveOrigin', value: '25% 75%' },
+    { property: 'transformBox', value: 'fill-box' },
+    { property: 'transformStyle', value: 'preserve-3d' },
+    { property: 'willChange', value: 'opacity, transform' },
+  ]) {
+    assert.deepEqual(compareStylexValue(testCase), {
+      ...testCase,
+      covered: true,
+      silent: false,
+    })
   }
 })
 

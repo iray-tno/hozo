@@ -193,11 +193,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **336/522 property names
-(64.4%)**, including **132/132 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **342/522 property names
+(65.5%)**, including **132/132 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **17/17 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **187/372 (50.3%)**. The
+independently at **193/372 (51.9%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -214,8 +214,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **203/203 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **160/160 (100%)** declarations after
+corpus currently measures **209/209 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **166/166 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -242,6 +242,13 @@ through the project module registry. Static keyframe references also preserve
 the official fallback order in `firstThatWorks(...)` and value arrays. Dynamic
 keyframes, simultaneous animation-name lists, wider easing syntax, and timelines
 remain with the official StyleX compiler.
+
+Common Web compositing and 3D controls lower without runtime CSS parsing:
+`clipPath`, `perspective`, `perspectiveOrigin`, `transformBox`,
+`transformStyle`, and `willChange`. Their accepted static grammar is validated
+and Native refusal remains explicit. `backdropFilter` deliberately remains the
+scorecard's adapter candidate until it has a real BlurView/Expo adapter; Web-only
+output is not counted as a Native adapter implementation.
 
 The static construct slice now flattens recursive `stylex.props` arrays,
 preserves logical and ternary guards, and expands module-local `const` object
