@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 336)
+  assert.equal(mapped.size, 342)
   for (const name of [
     'display',
     'padding',
@@ -84,11 +84,17 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('translate'))
   assert.ok(mapped.has('rotate'))
   assert.ok(mapped.has('scale'))
+  assert.ok(mapped.has('clipPath'))
+  assert.ok(mapped.has('perspective'))
+  assert.ok(mapped.has('perspectiveOrigin'))
+  assert.ok(mapped.has('transformBox'))
+  assert.ok(mapped.has('transformStyle'))
+  assert.ok(mapped.has('willChange'))
 })
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 336)
+  assert.equal(mapped.length, 342)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -153,7 +159,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 372)
-  assert.equal(surface.mappedWebOnly.size, 187)
+  assert.equal(surface.mappedWebOnly.size, 193)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
@@ -185,6 +191,12 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('tableLayout'))
   assert.ok(surface.mappedWebOnly.has('borderTopStyle'))
   assert.ok(surface.mappedWebOnly.has('borderInlineStyle'))
+  assert.ok(surface.mappedWebOnly.has('clipPath'))
+  assert.ok(surface.mappedWebOnly.has('perspective'))
+  assert.ok(surface.mappedWebOnly.has('perspectiveOrigin'))
+  assert.ok(surface.mappedWebOnly.has('transformBox'))
+  assert.ok(surface.mappedWebOnly.has('transformStyle'))
+  assert.ok(surface.mappedWebOnly.has('willChange'))
   assert.equal(
     surface.native.size + surface.contextual.size + surface.adapter.size + surface.webOnly.size,
     surface.official.size,
