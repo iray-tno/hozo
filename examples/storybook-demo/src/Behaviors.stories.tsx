@@ -14,7 +14,6 @@ import {
   useTypeahead,
 } from '@hozo/behaviors'
 import { Button, Heading, Paragraph, Text, View } from '@hozo/core'
-import { Separator } from '@hozo/semantics'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useRef, useState } from 'react'
 

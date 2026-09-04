@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react'
+import { type StyleProp, View, type ViewStyle } from 'react-native'
 
 export interface FocusCandidate {
   autofocus?: boolean
@@ -21,7 +22,7 @@ export interface FocusScopeProps {
   trapped?: boolean
   autoFocus?: boolean
   restoreFocus?: boolean
-  style?: Record<string, unknown> | unknown[]
+  style?: StyleProp<ViewStyle>
 }
 
 /**
@@ -30,7 +31,7 @@ export interface FocusScopeProps {
  */
 export function FocusScope({ children, trapped = true, style, ...props }: FocusScopeProps) {
   return React.createElement(
-    'View',
+    View,
     {
       accessible: true,
       accessibilityViewIsModal: trapped,

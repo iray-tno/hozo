@@ -1,4 +1,5 @@
 import React, { createContext, type ReactNode, useContext, useEffect, useId, useState } from 'react'
+import { View } from 'react-native'
 
 export interface PortalProps {
   children?: ReactNode
@@ -62,7 +63,7 @@ export function PortalHost({ items: directItems }: { items?: Map<string, ReactNo
   }
 
   return React.createElement(
-    'View',
+    View,
     {
       pointerEvents: 'box-none',
       style: {

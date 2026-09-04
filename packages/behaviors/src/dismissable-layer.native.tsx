@@ -1,4 +1,5 @@
 import React, { type ReactNode, useEffect } from 'react'
+import { BackHandler, type StyleProp, View, type ViewStyle } from 'react-native'
 
 export interface DismissableLayerProps {
   children?: ReactNode
@@ -6,7 +7,7 @@ export interface DismissableLayerProps {
   onEscapeKeyDown?: () => void
   onPointerDownOutside?: () => void
   disableOutsidePointerEvents?: boolean
-  style?: Record<string, unknown> | unknown[]
+  style?: StyleProp<ViewStyle>
 }
 
 type NativeLayerInstance = {
@@ -34,13 +35,11 @@ export function DismissableLayer({
     }
     nativeLayers.push(instance)
 
-    const globalBackHandler = (globalThis as Record<string, unknown>).BackHandler as
-      | {
-          addEventListener?: (event: string, handler: () => boolean) => { remove: () => void }
-        }
-      | undefined
-
-    const subscription = globalBackHandler?.addEventListener?.('hardwareBackPress', () => {
+    // `BackHandler` imported rather than read off `globalThis`, where React Native
+    // has never put it. The lookup always returned `undefined` and the
+    // `if` around it always failed, so this did nothing at all -- silently,
+    // which is the worst way for an accessibility affordance to be absent.
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       const top = nativeLayers[nativeLayers.length - 1]
       if (top === instance) {
         instance.onEscapeKeyDown?.()
@@ -55,9 +54,9 @@ export function DismissableLayer({
       if (idx !== -1) {
         nativeLayers.splice(idx, 1)
       }
-      subscription?.remove?.()
+      subscription.remove()
     }
   }, [onDismiss, onEscapeKeyDown])
 
-  return React.createElement('View', { style, ...props }, children)
+  return React.createElement(View, { style, ...props }, children)
 }

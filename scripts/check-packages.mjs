@@ -14,7 +14,7 @@
 //   node scripts/check-packages.mjs
 
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { globSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -90,6 +90,24 @@ for (const name of PACKAGE_NAMES) {
     if (file.startsWith('tsconfig')) fail(name, `${file} should not ship`)
   }
 
+  // A package with .native sources that Metro can never reach.
+  //
+  // `@hozo/semantics` shipped exactly that: an `index.native.tsx` built
+  // into `dist` and an `exports` map with no `react-native` condition, so
+  // every native project resolved the DOM build and rendered <div>. The
+  // file was there, the build was there, and nothing pointed at it.
+  const native = globSync(path.join(dir, 'src', '**', '*.native.{ts,tsx}')).filter(
+    (file) => !file.includes('.test.'),
+  )
+  if (native.length > 0) {
+    const condition = json.exports?.['.']?.['react-native']
+    if (!condition) {
+      fail(name, `has ${native.length} .native source(s) and no "react-native" export condition`)
+    }
+    if (!json.peerDependencies?.['react-native']) {
+      fail(name, 'has .native sources and does not declare react-native as a peer')
+    }
+  }
   // `workspace:*` publishes as an exact pin, which gives a project holding
   // two Hozo packages one patch apart two copies of the compiler -- and so
   // two native addons and two candidate caches. `workspace:^` dedupes.

@@ -4,6 +4,7 @@ import {
   isValidElement,
   type ReactElement,
   type ReactNode,
+  type Ref,
   type RefObject,
   useRef,
 } from 'react'
@@ -91,7 +92,13 @@ export function Tooltip({
     })
   } else if (isValidElement(children)) {
     // Clone element to inject ref and event listeners seamlessly
+    // The props this is about to inject, named here so the injection can
+    // be checked. It used to end in , which turned the one call
+    // that has to agree with the child into the one call that could not
+    // disagree with anything.
     const child = children as ReactElement<{
+      ref?: Ref<HTMLElement>
+      'aria-describedby'?: string
       onPointerEnter?: (e: React.PointerEvent) => void
       onPointerLeave?: (e: React.PointerEvent) => void
       onFocus?: (e: React.FocusEvent) => void
@@ -121,7 +128,7 @@ export function Tooltip({
         triggerProps.onKeyDown(e)
       },
       'aria-describedby': triggerProps['aria-describedby'],
-    } as any)
+    })
   } else {
     triggerNode = (
       <span

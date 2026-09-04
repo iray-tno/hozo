@@ -1,4 +1,5 @@
 import React, {
+  type ComponentRef,
   type ReactNode,
   type RefObject,
   useCallback,
@@ -6,23 +7,25 @@ import React, {
   useRef,
   useState,
 } from 'react'
+import { type StyleProp, View, type ViewStyle } from 'react-native'
 import {
   type ComputePositionOptions,
   computePosition,
   type PositionResult,
 } from './floating-geometry.ts'
 
+/**
+ * What React Native hands back for a `<View>`, rather than a shape of our
+ * own that happens to have `measureInWindow` on it.
+ *
+ * The hand-rolled one could not be passed to a `<View ref>` -- this file
+ * did exactly that, and the erasure around it hid the mismatch.
+ */
+type MeasurableRef = RefObject<ComponentRef<typeof View> | null>
+
 export interface UseFloatingPositionOptions extends ComputePositionOptions {
-  anchorRef: RefObject<{
-    measureInWindow?: (
-      callback: (x: number, y: number, width: number, height: number) => void,
-    ) => void
-  } | null>
-  floatingRef: RefObject<{
-    measureInWindow?: (
-      callback: (x: number, y: number, width: number, height: number) => void,
-    ) => void
-  } | null>
+  anchorRef: MeasurableRef
+  floatingRef: MeasurableRef
   enabled?: boolean
 }
 
@@ -95,12 +98,8 @@ export function useFloatingPosition({
 
 export interface FloatingPositionerProps extends ComputePositionOptions {
   children?: ReactNode | ((position: PositionResult | null) => ReactNode)
-  anchorRef: RefObject<{
-    measureInWindow?: (
-      callback: (x: number, y: number, width: number, height: number) => void,
-    ) => void
-  } | null>
-  style?: Record<string, unknown> | unknown[]
+  anchorRef: MeasurableRef
+  style?: StyleProp<ViewStyle>
 }
 
 /**
@@ -112,11 +111,7 @@ export function FloatingPositioner({
   style,
   ...options
 }: FloatingPositionerProps) {
-  const floatingRef = useRef<{
-    measureInWindow?: (
-      callback: (x: number, y: number, width: number, height: number) => void,
-    ) => void
-  } | null>(null)
+  const floatingRef = useRef<ComponentRef<typeof View> | null>(null)
 
   const position = useFloatingPosition({
     anchorRef,
@@ -126,21 +121,21 @@ export function FloatingPositioner({
 
   const positionStyles = position
     ? {
-        position: 'absolute',
+        position: 'absolute' as const,
         left: position.x,
         top: position.y,
         width: options.matchAnchorWidth ? position.anchorWidth : undefined,
         opacity: position.referenceHidden ? 0 : 1,
       }
     : {
-        position: 'absolute',
+        position: 'absolute' as const,
         left: -9999,
         top: -9999,
         opacity: 0,
       }
 
   return React.createElement(
-    'View',
+    View,
     {
       ref: floatingRef,
       style: [positionStyles, style],
