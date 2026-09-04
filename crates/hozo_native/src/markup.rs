@@ -94,7 +94,7 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Mark => ("Text", Vec::new()),
         Primitive::NoBreak => ("Text", Vec::new()),
         Primitive::Ruby => ("Text", Vec::new()),
-        Primitive::Rt => ("Text", Vec::new()),
+        Primitive::RubyText => ("Text", Vec::new()),
         Primitive::Pressable => {
             let mut props = Vec::new();
             match &node.props.accessibility_role {

@@ -353,6 +353,70 @@ pub(super) fn render_node(
             }
             defs
         }
+        // The browser's UA stylesheet for h1...h6, which React Native has
+        // no equivalent of. `heading_level` reached the Web backend and was
+        // dropped here, so a level-1 and a level-6 heading rendered at the
+        // same size and the same weight -- identical on a phone, an outline
+        // on the Web.
+        Primitive::Heading => {
+            let mut defs = vec![StyleDeclaration {
+                property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
+                condition: Condition::Always,
+            }];
+            let level = match &node.props.heading_level {
+                Some(hozo_ir::HeadingLevel::Static(level)) => Some(*level),
+                // A level chosen at runtime has no size the compiler can
+                // know. The weight above still holds for every level.
+                Some(hozo_ir::HeadingLevel::Dynamic(_)) => None,
+                // What both `Heading` components default to.
+                None => Some(1),
+            };
+            if let (Some(level), Some(base)) = (level, find_base_font_size()) {
+                let ratio = match level.clamp(1, 6) {
+                    1 => 2.0,
+                    2 => 1.5,
+                    3 => 1.17,
+                    4 => 1.0,
+                    5 => 0.83,
+                    _ => 0.67,
+                };
+                defs.push(StyleDeclaration {
+                    property: StyleProperty::FontSize(Length::Px((base * ratio).round())),
+                    condition: Condition::Always,
+                });
+            }
+            defs
+        }
+        // Ruby annotation at half the size it annotates, which is what the
+        // UA stylesheet says (`rt { font-size: 50% }`) and what JIS X 4051
+        // says for 振り仮名. Missing entirely until now: the annotation
+        // drew at the base size, so ruby and its text were the same size.
+        Primitive::RubyText => {
+            let mut defs = Vec::new();
+            if let Some(base) = find_base_font_size() {
+                defs.push(StyleDeclaration {
+                    property: StyleProperty::FontSize(Length::Px((base * 0.5).round())),
+                    condition: Condition::Always,
+                });
+            }
+            defs
+        }
+        // `mark` has no highlight without one. The UA stylesheet sets the
+        // pair -- `background-color: Mark; color: MarkText` -- and both are
+        // needed: a yellow ground under inherited light text is less
+        // readable than no highlight at all.
+        Primitive::Mark => vec![
+            StyleDeclaration {
+                property: StyleProperty::BackgroundColor(hozo_ir::Color::Css(
+                    "#ffff00".to_string(),
+                )),
+                condition: Condition::Always,
+            },
+            StyleDeclaration {
+                property: StyleProperty::TextColor(hozo_ir::Color::Css("#000000".to_string())),
+                condition: Condition::Always,
+            },
+        ],
         _ => Vec::new(),
     };
 

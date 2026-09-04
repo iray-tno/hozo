@@ -108,7 +108,7 @@ pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
             | Primitive::Mark
             | Primitive::NoBreak
             | Primitive::Ruby
-            | Primitive::Rt
+            | Primitive::RubyText
     )
 }
 
@@ -572,6 +572,115 @@ mod tests {
         // text-lg is 18px; leading-tight is 1.25; tracking-wide is 0.025em.
         assert!(output.styles.contains("lineHeight: 22.5,"), "{}", output.styles);
         assert!(output.styles.contains("letterSpacing: 0.45,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn ruby_text_is_half_the_size_it_annotates() {
+        // The UA stylesheet says `rt { font-size: 50% }` and JIS X 4051
+        // says the same for 振り仮名. React Native has no relative font
+        // units, so the halving has to happen here or not at all -- and
+        // until now it was not at all: the annotation drew at the size of
+        // the text it annotates.
+        let source = r#"
+            import { Text, Ruby, RubyText } from '@hozo/core'
+            const el = (
+              <Text className="text-xl">
+                漢字<RubyText>かんじ</RubyText>
+              </Text>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        // text-xl is 20px.
+        assert!(output.styles.contains("fontSize: 10,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn ruby_text_is_read_under_both_spellings() {
+        // `<Ruby.RubyText>` and `<RubyText>` are the same primitive, the
+        // way `<TermList.Term>` and `<Term>` are.
+        let member = r#"
+            import { Text, Ruby } from '@hozo/core'
+            const el = <Text className="text-xl">漢字<Ruby.RubyText>かんじ</Ruby.RubyText></Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(member);
+        let output = lower(&parsed.roots[0].node, member, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.styles.contains("fontSize: 10,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_size_the_compiler_cannot_see_leaves_the_annotation_alone() {
+        // No font size anywhere is not 14: React Native's default is the
+        // platform's, and inventing one here would put a number on screen
+        // that nothing in the source asked for. So the ratio is skipped,
+        // which is the same choice `Sub`, `Sup` and `Small` make.
+        let source = r#"
+            import { Text, RubyText } from '@hozo/core'
+            const el = <Text>漢字<RubyText>かんじ</RubyText></Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(!output.styles.contains("fontSize"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_heading_level_reaches_the_size_it_reaches_on_web() {
+        // `heading_level` was read by the parser, used by the Web backend
+        // and dropped here, so every level rendered identically on a
+        // phone. The ratios are the UA stylesheet's: 2, 1.5, 1.17, 1,
+        // 0.83, 0.67.
+        let source = r#"
+            import { View, Heading } from '@hozo/core'
+            const el = (
+              <View className="text-base">
+                <Heading level={2}>Title</Heading>
+              </View>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        // text-base is 16px, and h2 is 1.5em of it.
+        assert!(output.styles.contains("fontSize: 24,"), "{}", output.styles);
+        assert!(output.styles.contains("fontWeight: '700'"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_heading_level_chosen_at_runtime_keeps_the_weight_and_skips_the_size() {
+        // The weight holds for every level, so it is not a guess. The size
+        // is one of six and the compiler cannot tell which.
+        let source = r#"
+            import { View, Heading } from '@hozo/core'
+            const el = (
+              <View className="text-base">
+                <Heading level={depth}>Title</Heading>
+              </View>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.styles.contains("fontWeight: '700'"), "{}", output.styles);
+        // The inherited 16 reaches it -- React Native's Text does not
+        // inherit from a View, so the compiler carries it -- and no ratio
+        // is applied on top.
+        assert!(output.styles.contains("fontSize: 16,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn mark_carries_the_pair_the_ua_stylesheet_sets() {
+        // Both halves. A yellow ground under inherited light text is less
+        // readable than no highlight, which is what this used to emit.
+        let source = r#"
+            import { Text, Mark } from '@hozo/core'
+            const el = <Text>see <Mark>this</Mark></Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.styles.contains("backgroundColor: '#ffff00'"), "{}", output.styles);
+        assert!(output.styles.contains("color: '#000000'"), "{}", output.styles);
     }
 
     #[test]

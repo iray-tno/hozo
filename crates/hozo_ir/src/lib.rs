@@ -433,7 +433,7 @@ pub enum Primitive {
     /// CJK ruby annotation container: `<ruby>` on Web and ruby layout with duplicate-speech suppression on React Native.
     Ruby,
     /// CJK ruby text annotation: `<rt>` on Web and furigana text on React Native.
-    Rt,
+    RubyText,
 }
 
 /// The SVG elements Hozo lowers.
