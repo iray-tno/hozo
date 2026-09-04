@@ -35,6 +35,7 @@ import {
   type TextProps,
   useCanvasScene,
 } from './scene.tsx'
+import { wrapText } from './wrap-text.ts'
 
 export type { CanvasAccessibilityProps, CanvasAccessibleFallback } from './accessibility.ts'
 export {
@@ -65,6 +66,83 @@ export type {
   RoundedRectProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
+// The rule on its own, for a caller with a measurement of its own --
+// one that already knows its metrics, or is laying out for a font it
+// will load later.
+export { textLines, wrapText } from './wrap-text.ts'
+
+/**
+ * A run of text, measured the way the renderer measures it.
+ *
+ * `actualBoundingBox*` rather than `fontBoundingBox*`: the ink, not the
+ * line box. A label sits where its glyphs are, and the font box of a
+ * run with no descenders reaches below anything on screen.
+ */
+function measureWith(context: CanvasRenderingContext2D, props: TextProps): CanvasTextMetrics {
+  context.save()
+  context.font = cssFontShorthand(props)
+  const metrics = context.measureText(props.text)
+  context.restore()
+  return {
+    width: metrics.width,
+    ascent: metrics.actualBoundingBoxAscent ?? 0,
+    descent: metrics.actualBoundingBoxDescent ?? 0,
+  }
+}
+
+/**
+ * A context to measure with for a caller that is not inside a surface.
+ *
+ * Text metrics read nothing from a canvas but its `font`, so a caller
+ * laying out before anything has mounted gets the numbers the drawing
+ * context would have given. Made once and kept: an element per
+ * measurement would be the expensive part of this.
+ */
+let measuringContext: CanvasRenderingContext2D | null | undefined
+function sharedContext() {
+  if (measuringContext === undefined) {
+    measuringContext = globalThis.document?.createElement('canvas').getContext('2d') ?? null
+  }
+  return measuringContext
+}
+
+/**
+ * What a label will occupy, for a caller placing something against it.
+ *
+ * The measurement this package took internally and kept. Sizing a
+ * tooltip against a label, or deciding where a line has to break, meant
+ * guessing at metrics only Hozo could see.
+ *
+ * `undefined` where there is no renderer to ask -- a server, a test --
+ * which is the refusal a path hit test makes there for the same reason.
+ * A guess would be a layout that moves on hydration.
+ */
+export function measureCanvasText(props: TextProps): CanvasTextMetrics | undefined {
+  const context = sharedContext()
+  return context ? measureWith(context, props) : undefined
+}
+
+/**
+ * The lines a label would be broken into at a given width.
+ *
+ * The same rule `maxWidth` follows, for a caller doing its own layout:
+ * sizing a card around a legend, deciding how tall a row has to be,
+ * placing something under the last line. Withholding it would leave
+ * those to a guess, which is what this package did with the
+ * measurement until it stopped.
+ *
+ * `undefined` where there is no renderer to measure with, as
+ * `measureCanvasText` is and for the same reason.
+ */
+export function wrapCanvasText(props: TextProps, maxWidth: number): string[] | undefined {
+  const context = sharedContext()
+  if (!context) return undefined
+  return wrapText(
+    props.text,
+    maxWidth,
+    (run) => measureWith(context, { ...props, text: run }).width,
+  )
+}
 
 export type CanvasProps = CanvasAccessibilityProps & {
   children?: ReactNode
@@ -187,22 +265,14 @@ function Root({
   /**
    * A run measured by the context that will draw it.
    *
-   * `actualBoundingBox*` rather than `fontBoundingBox*`: the ink, not the
-   * line box. A label sits where its glyphs are, and the font box of a
-   * run with no descenders reaches below anything on screen.
+   * Falls back to the shared one before this surface has mounted, which
+   * agrees with it: text metrics read nothing from a canvas but its
+   * `font`.
    */
   const measureText = (props: TextProps): CanvasTextMetrics => {
     const context = canvasRef.current?.getContext('2d')
-    if (!context) return { width: 0, ascent: 0, descent: 0 }
-    context.save()
-    context.font = cssFontShorthand(props)
-    const metrics = context.measureText(props.text)
-    context.restore()
-    return {
-      width: metrics.width,
-      ascent: metrics.actualBoundingBoxAscent ?? 0,
-      descent: metrics.actualBoundingBoxDescent ?? 0,
-    }
+    if (context) return measureWith(context, props)
+    return measureCanvasText(props) ?? { width: 0, ascent: 0, descent: 0 }
   }
 
   const hitAt = (point: CanvasPoint) =>

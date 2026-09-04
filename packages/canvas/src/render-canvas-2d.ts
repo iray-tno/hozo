@@ -11,6 +11,7 @@ import {
   paintStrokes,
   unhandledShape,
 } from './scene.tsx'
+import { textLines } from './wrap-text.ts'
 
 export interface CanvasViewport {
   width: number
@@ -193,9 +194,13 @@ function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
         context.font = cssFontShorthand(node.props)
         context.textAlign = node.props.textAlign ?? 'left'
         applyPaint(context, node.props)
-        if (paintFills(node.props)) context.fillText(node.props.text, node.props.x, node.props.y)
-        if (paintStrokes(node.props)) {
-          context.strokeText(node.props.text, node.props.x, node.props.y)
+        // Wrapped against this context, which is the one about to
+        // rasterise the glyphs. The font is set above, so the widths the
+        // breaker asks for are the widths it will draw with.
+        const lines = textLines(node.props, (run) => context.measureText(run).width)
+        for (const line of lines) {
+          if (paintFills(node.props)) context.fillText(line.text, node.props.x, line.y)
+          if (paintStrokes(node.props)) context.strokeText(line.text, node.props.x, line.y)
         }
         return
       }
