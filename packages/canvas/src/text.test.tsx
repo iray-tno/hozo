@@ -118,10 +118,9 @@ test('a stroked label is stroked, and a stroke-only one is not filled', async ()
   assert.equal(find(calls, 'fillText'), undefined)
 })
 
-test('text refuses presses', async () => {
-  // The region is whatever the rasteriser drew, and only the renderers
-  // know that. Measuring it in the shared hit test would be a third set
-  // of metrics agreeing with neither.
+test('text refuses presses with no one to measure it', async () => {
+  // Still a refusal without a renderer, and no longer a refusal with
+  // one -- see `text-hit-test.test.ts` for the answered half.
   const { hitTestCanvas } = await import('./hit-test.ts')
   const hit = hitTestCanvas(
     [{ id: 'label', kind: 'text', props: { text: 'Jan', x: 0, y: 0, fontSize: 40 } }],

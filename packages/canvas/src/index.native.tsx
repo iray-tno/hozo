@@ -29,7 +29,12 @@ import {
 } from 'react-native'
 
 import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './accessibility.ts'
-import { type CanvasPoint, canvasNodePoint, hitTestCanvas } from './hit-test.ts'
+import {
+  type CanvasPoint,
+  type CanvasTextMetrics,
+  canvasNodePoint,
+  hitTestCanvas,
+} from './hit-test.ts'
 import {
   BoundedCache,
   type CanvasPaint,
@@ -63,7 +68,11 @@ export type { CanvasAccessibilityProps, CanvasAccessibleFallback } from './acces
 export {
   type CanvasHitTestResult,
   type CanvasHitTestViewport,
+  type CanvasPathHitTest,
   type CanvasPoint,
+  type CanvasRendererQueries,
+  type CanvasTextMeasure,
+  type CanvasTextMetrics,
   hitTestCanvas,
 } from './hit-test.ts'
 export type {
@@ -209,6 +218,18 @@ function colorFor(paint: CanvasPaint | undefined, fallback?: string) {
   // would show if the shader ever failed to attach.
   if (isGradient(paint)) return 'black'
   return paint ?? fallback
+}
+/**
+ * A run measured by the font that will draw it.
+ *
+ * Skia's `measureText` returns a rect whose origin is the baseline, so
+ * its `y` is the ascent negated and `y + height` is the descent. Ink
+ * again, and the same font object the renderer draws with -- a second
+ * face resolved separately could measure a different width.
+ */
+function measureText(props: TextProps): CanvasTextMetrics {
+  const bounds = fontFor(props).measureText(props.text)
+  return { width: bounds.width, ascent: -bounds.y, descent: bounds.y + bounds.height }
 }
 function paintLayers<Geometry extends object>(
   key: string,
@@ -462,7 +483,7 @@ function Root({
       point,
       { width: layout.width, height: layout.height, viewBox, fit },
       isInteractive,
-      pathHitTest,
+      { pathContains: pathHitTest, measureText },
     )
   const onStartShouldSetResponder = (event: GestureResponderEvent) => {
     pressedTarget.current = undefined

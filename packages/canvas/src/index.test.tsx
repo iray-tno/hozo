@@ -20,7 +20,8 @@ const checkAccessibilityTypes = () => {
   // A path is pressable now that each surface answers containment with
   // its own renderer rather than a shared reimplementation.
   const interactivePath = <Canvas.Path path="M0 0 L10 10" onPress={() => undefined} />
-  // @ts-expect-error Text has no containment test on either renderer.
+  // A label is pressable now that each surface measures its own ink,
+  // which is the box both renderers have reported all along.
   const interactiveText = <Canvas.Text text="Jan" x={0} y={0} fontSize={12} onPress={() => {}} />
   return [
     missingMode,

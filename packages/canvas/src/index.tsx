@@ -10,7 +10,12 @@ import {
 } from 'react'
 
 import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './accessibility.ts'
-import { type CanvasPoint, canvasNodePoint, hitTestCanvas } from './hit-test.ts'
+import {
+  type CanvasPoint,
+  type CanvasTextMetrics,
+  canvasNodePoint,
+  hitTestCanvas,
+} from './hit-test.ts'
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
   BoundedCache,
@@ -18,6 +23,7 @@ import {
   Clip,
   canvasControls,
   canvasUnreadableText,
+  cssFontShorthand,
   Ellipse,
   Group,
   Line,
@@ -26,6 +32,7 @@ import {
   RoundedRect,
   reportUnreadableText,
   Text,
+  type TextProps,
   useCanvasScene,
 } from './scene.tsx'
 
@@ -33,7 +40,11 @@ export type { CanvasAccessibilityProps, CanvasAccessibleFallback } from './acces
 export {
   type CanvasHitTestResult,
   type CanvasHitTestViewport,
+  type CanvasPathHitTest,
   type CanvasPoint,
+  type CanvasRendererQueries,
+  type CanvasTextMeasure,
+  type CanvasTextMetrics,
   hitTestCanvas,
 } from './hit-test.ts'
 export { type CanvasViewport, renderCanvas2D } from './render-canvas-2d.ts'
@@ -173,13 +184,34 @@ function Root({
     return inside
   }
 
+  /**
+   * A run measured by the context that will draw it.
+   *
+   * `actualBoundingBox*` rather than `fontBoundingBox*`: the ink, not the
+   * line box. A label sits where its glyphs are, and the font box of a
+   * run with no descenders reaches below anything on screen.
+   */
+  const measureText = (props: TextProps): CanvasTextMetrics => {
+    const context = canvasRef.current?.getContext('2d')
+    if (!context) return { width: 0, ascent: 0, descent: 0 }
+    context.save()
+    context.font = cssFontShorthand(props)
+    const metrics = context.measureText(props.text)
+    context.restore()
+    return {
+      width: metrics.width,
+      ascent: metrics.actualBoundingBoxAscent ?? 0,
+      descent: metrics.actualBoundingBoxDescent ?? 0,
+    }
+  }
+
   const hitAt = (point: CanvasPoint) =>
     hitTestCanvas(
       scene,
       point,
       { width: size.width, height: size.height, viewBox, fit },
       isInteractive,
-      pathHitTest,
+      { pathContains: pathHitTest, measureText },
     )
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     pressedTargets.current.delete(event.pointerId)
