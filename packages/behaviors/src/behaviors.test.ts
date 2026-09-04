@@ -2,7 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { DismissableLayer, FloatingPositioner, LiveRegion, Portal } from './index.ts'
+import {
+  DismissableLayer,
+  FloatingPositioner,
+  LiveRegion,
+  Portal,
+  Tooltip,
+  TooltipGroupProvider,
+} from './index.ts'
 
 test('LiveRegion renders polite status region with visually hidden styles', () => {
   const html = renderToStaticMarkup(
@@ -43,4 +50,37 @@ test('FloatingPositioner renders children and accepts anchorRef', () => {
   )
   assert(html.includes('Floating content'), `Expected floating content, got: ${html}`)
   assert(html.includes('popover-content'), `Expected className, got: ${html}`)
+})
+
+test('Tooltip renders trigger element', () => {
+  const html = renderToStaticMarkup(
+    createElement(
+      Tooltip,
+      { content: 'Helpful info', defaultOpen: false },
+      createElement('button', { type: 'button' }, 'Hover me'),
+    ),
+  )
+  assert(html.includes('Hover me'), `Expected trigger content, got: ${html}`)
+  // When not open, content should not be rendered
+  assert(!html.includes('Helpful info'), `Expected tooltip to be hidden, got: ${html}`)
+})
+
+test('Tooltip renders content when open=true and applies aria-describedby', () => {
+  const html = renderToStaticMarkup(
+    createElement(
+      TooltipGroupProvider,
+      null,
+      createElement(
+        Tooltip,
+        { content: 'Helpful info', open: true, portal: false, contentId: 'test-tooltip' },
+        createElement('button', { type: 'button' }, 'Hover me'),
+      ),
+    ),
+  )
+  assert(html.includes('Hover me'), `Expected trigger content, got: ${html}`)
+  assert(html.includes('Helpful info'), `Expected tooltip content, got: ${html}`)
+  assert(
+    html.includes('aria-describedby="test-tooltip"'),
+    `Expected aria-describedby, got: ${html}`,
+  )
 })

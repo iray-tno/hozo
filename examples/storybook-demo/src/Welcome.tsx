@@ -135,7 +135,7 @@ export function Welcome() {
             className="w-full h-2.5 accent-emerald-600 rounded-full"
           />
           <Paragraph className="text-xs text-slate-600 pt-1">
-            All 37 stories are continuously tested against axe-core in CI, guaranteeing zero
+            All 39 stories are continuously tested against axe-core in CI, guaranteeing zero
             contrast failures, unambiguous ARIA attributes, and native keyboard navigation across
             every component.
           </Paragraph>
