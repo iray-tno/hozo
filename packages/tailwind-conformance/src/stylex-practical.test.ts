@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 241, covered: 241 },
+    values: { total: 243, covered: 243 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 203, covered: 203 },
+    corpus: { total: 205, covered: 205 },
     silent: 0,
   })
 })
@@ -577,6 +577,27 @@ test('list, table, columns, and containment values agree with official StyleX', 
     { property: 'listStyleImage', value: 'url(#marker)' },
   ] as const
   for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
+})
+
+test('modern and legacy fragmentation controls agree with official StyleX', () => {
+  const values: Record<string, readonly string[]> = {
+    breakAfter: ['auto', 'avoid-page', 'column', 'verso'],
+    breakBefore: ['avoid', 'page', 'avoid-column', 'recto'],
+    breakInside: ['auto', 'avoid', 'avoid-page', 'avoid-column'],
+    pageBreakAfter: ['auto', 'always', 'avoid', 'left', 'recto'],
+    pageBreakBefore: ['auto', 'always', 'avoid', 'right', 'verso'],
+    pageBreakInside: ['auto', 'avoid'],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
 })
 
 test('list and column shorthands agree with official StyleX', () => {
