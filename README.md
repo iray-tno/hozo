@@ -495,6 +495,7 @@ examples/
 docs/
   proposal.md      full design document
   decisions/       settled questions, with the evidence behind them
+  rfcs/            technical specifications and AT verification matrices
 ```
 
 ## Development
