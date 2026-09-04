@@ -2588,14 +2588,14 @@
     {
       "name": "scrollTimelineAxis",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "scrollTimelineName",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "scrollbarColor",
@@ -2894,8 +2894,8 @@
     {
       "name": "timelineScope",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "top",
@@ -3002,8 +3002,8 @@
     {
       "name": "viewTimelineAxis",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "viewTimelineInset",
@@ -3014,14 +3014,14 @@
     {
       "name": "viewTimelineName",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "viewTransitionName",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "visibility",

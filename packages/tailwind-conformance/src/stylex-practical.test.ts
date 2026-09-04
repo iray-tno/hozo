@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 256, covered: 256 },
+    values: { total: 259, covered: 259 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 218, covered: 218 },
+    corpus: { total: 221, covered: 221 },
     silent: 0,
   })
 })
@@ -697,6 +697,27 @@ test('image metadata and initial-letter controls agree with official StyleX', ()
       'inline-start',
       'inline-end',
     ],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('scroll and view timeline identifiers agree with official StyleX', () => {
+  const values: Record<string, readonly string[]> = {
+    scrollTimelineAxis: ['block', 'inline', 'x', 'y'],
+    scrollTimelineName: ['none', '--page-scroll', '--x, --y'],
+    timelineScope: ['none', 'all', '--page-scroll', '--x, --y'],
+    viewTimelineAxis: ['block', 'inline', 'x', 'y'],
+    viewTimelineName: ['none', '--card-view', '--x, --y'],
+    viewTransitionName: ['none', 'match-element', 'hero-card'],
   }
   for (const [property, propertyValues] of Object.entries(values)) {
     for (const value of propertyValues) {
