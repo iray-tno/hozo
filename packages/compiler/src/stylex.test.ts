@@ -241,8 +241,8 @@ test('mixed StyleX rules lower supported declarations and isolate the residual',
   const mixed = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
 const styles = stylex.create({
-  root: { padding: 16, scrollbarColor: 'red blue' },
-  active: { opacity: 0.5, quotes: '"“" "”"' },
+  root: { padding: 16, speak: 'normal' },
+  active: { opacity: 0.5, cueAfter: 'none' },
 })
 export const Card = ({ active }) => (
   <View {...stylex.props(styles.root, active && styles.active)} />
@@ -252,8 +252,8 @@ export const Card = ({ active }) => (
   assert.ok(web)
   assert.match(web.css, /padding-top: 16px/)
   assert.match(web.css, /opacity: 0.5/)
-  assert.match(web.jsx, /stylex\.create\(\{ __hozo0: \{ scrollbarColor: 'red blue' \} \}\)/)
-  assert.match(web.jsx, /active\) && stylex\.create\(\{ __hozo1: \{ quotes: '"“" "”"' \} \}\)/)
+  assert.match(web.jsx, /stylex\.create\(\{ __hozo0: \{ speak: 'normal' \} \}\)/)
+  assert.match(web.jsx, /active\) && stylex\.create\(\{ __hozo1: \{ cueAfter: 'none' \} \}\)/)
   assert.match(web.jsx, /\.className\]\.filter\(Boolean\)\.join\(' '\)/)
   assert.doesNotMatch(web.jsx, /styles\.root|styles\.active/)
   assert.equal(web.diagnostics.length, 2)

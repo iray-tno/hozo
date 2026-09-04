@@ -1073,6 +1073,9 @@ enum WebValueGrammar {
     Angle(&'static [&'static str]),
     TextDecorationSkip,
     CounterList { allow_reversed: bool },
+    ScrollbarColor,
+    Quotes,
+    Zoom,
     ViewTransitionName,
     MathDepth,
     TabSize,
@@ -1569,6 +1572,9 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
                 allow_reversed: false,
             },
         )),
+        "scrollbarColor" => Some(("scrollbar-color", WebValueGrammar::ScrollbarColor)),
+        "quotes" => Some(("quotes", WebValueGrammar::Quotes)),
+        "zoom" => Some(("zoom", WebValueGrammar::Zoom)),
         "baselineShift" => Some((
             "baseline-shift",
             WebValueGrammar::SvgLength(&["baseline", "sub", "super"]),
@@ -2249,6 +2255,48 @@ fn web_counter_list(value: &StaticValue, allow_reversed: bool) -> Option<String>
         }
     }
     (!tokens.is_empty()).then(|| value.clone())
+}
+
+fn web_scrollbar_color(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    if value == "auto" {
+        return Some(value.clone());
+    }
+    let colors = web_components(value)?;
+    (colors.len() == 2 && colors.iter().all(|color| web_shorthand_color(color)))
+        .then(|| value.clone())
+}
+
+fn web_quotes(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    if matches!(value.as_str(), "auto" | "none") {
+        return Some(value.clone());
+    }
+    let strings = web_components(value)?;
+    (strings.len() % 2 == 0 && strings.iter().all(|string| web_css_string(string)))
+        .then(|| value.clone())
+}
+
+fn web_zoom(value: &StaticValue) -> Option<String> {
+    match value {
+        StaticValue::Number(number) if number.is_finite() && *number >= 0.0 => {
+            Some(numeric_text(*number))
+        }
+        StaticValue::String(value) if matches!(value.as_str(), "normal" | "reset") => {
+            Some(value.clone())
+        }
+        StaticValue::String(value) => value
+            .strip_suffix('%')?
+            .parse::<f64>()
+            .ok()
+            .filter(|number| number.is_finite() && *number >= 0.0)
+            .map(|_| value.clone()),
+        StaticValue::Number(_) => None,
+    }
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3707,6 +3755,9 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::CounterList { allow_reversed } => {
             web_counter_list(value, allow_reversed)?
         }
+        WebValueGrammar::ScrollbarColor => web_scrollbar_color(value)?,
+        WebValueGrammar::Quotes => web_quotes(value)?,
+        WebValueGrammar::Zoom => web_zoom(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -4195,7 +4246,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
         | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
         | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
-        | "counterIncrement" | "counterReset" | "counterSet"
+        | "counterIncrement" | "counterReset" | "counterSet" | "quotes"
         | "fontVariationSettings" | "glyphOrientationHorizontal" | "glyphOrientationVertical"
         | "hangingPunctuation" | "hyphenateCharacter"
         | "hyphenateLimitChars" | "hyphens"
@@ -4221,7 +4272,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "paintOrder" | "positionAnchor" | "positionVisibility" | "printColorAdjust" | "resize"
         | "rubyAlign" | "rubyMerge" | "rubyPosition" | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollTimelineAxis" | "scrollTimelineName"
-        | "scrollbarGutter" | "scrollbarWidth"
+        | "scrollbarColor" | "scrollbarGutter" | "scrollbarWidth"
         | "shapeImageThreshold" | "shapeMargin" | "shapeOutside" | "shapeRendering"
         | "stroke" | "strokeDasharray" | "strokeDashoffset"
         | "strokeLinecap" | "strokeLinejoin" | "strokeMiterlimit" | "strokeOpacity"
@@ -4238,7 +4289,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "textDecorationSkip" | "textDecorationSkipInk" | "textDecorationThickness"
         | "textJustify" | "textOrientation" | "textWrap" | "transitionDelay"
         | "animationDuration" | "WebkitBoxOrient" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
-        | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" => {
+        | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" | "zoom" => {
             vec![web_only_property(property, value)?]
         }
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
@@ -8347,7 +8398,7 @@ mod tests {
                 opacity: 1,
                 '@media (min-width: 600px)': {
                   padding: 24,
-                  scrollbarColor: 'red blue'
+                  speak: 'normal'
                 }
               }
             })
@@ -8360,7 +8411,7 @@ mod tests {
         let residual = node.props.stylex_residuals[0].render_expression(source);
         assert_eq!(residual.matches("@media (min-width: 600px)").count(), 1, "{residual}");
         assert!(residual.contains("padding: 24"), "{residual}");
-        assert!(residual.contains("scrollbarColor: 'red blue'"), "{residual}");
+        assert!(residual.contains("speak: 'normal'"), "{residual}");
         assert!(!residual.contains("opacity: 1"), "{residual}");
     }
 
@@ -8405,8 +8456,8 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             import { View } from '@hozo/core'
             const styles = stylex.create({
-              active: { opacity: 0.5, scrollbarColor: 'red blue' },
-              inactive: { padding: 8, quotes: '"“" "”"' }
+              active: { opacity: 0.5, speak: 'normal' },
+              inactive: { padding: 8, cueAfter: 'none' }
             })
             const card = <View {...stylex.props(active ? styles.active : styles.inactive)} />
         "#;
@@ -8418,8 +8469,8 @@ mod tests {
         let residual = node.props.stylex_residuals[0].render_expression(source);
         assert!(residual.contains("(active)"), "{residual}");
         assert!(residual.contains("!(active)"), "{residual}");
-        assert!(residual.contains("scrollbarColor: 'red blue'"), "{residual}");
-        assert!(residual.contains("quotes: '\"“\" \"”\"'"), "{residual}");
+        assert!(residual.contains("speak: 'normal'"), "{residual}");
+        assert!(residual.contains("cueAfter: 'none'"), "{residual}");
         assert!(!residual.contains("opacity: 0.5"), "{residual}");
         assert!(!residual.contains("padding: 8"), "{residual}");
     }
@@ -8430,7 +8481,7 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             import { View } from '@hozo/core'
             const inset = { padding: 8 }
-            const shared = { ...inset, opacity: 0.5, scrollbarColor: 'red blue' }
+            const shared = { ...inset, opacity: 0.5, speak: 'normal' }
             const styles = stylex.create({
               root: { ...shared, ...{ marginTop: 4 }, opacity: 0.75 }
             })
@@ -8447,7 +8498,7 @@ mod tests {
         }));
         assert_eq!(node.props.stylex_residuals.len(), 1);
         let residual = node.props.stylex_residuals[0].render_expression(source);
-        assert!(residual.contains("scrollbarColor: 'red blue'"), "{residual}");
+        assert!(residual.contains("speak: 'normal'"), "{residual}");
         assert!(!residual.contains("opacity"), "{residual}");
         assert!(!residual.contains("padding"), "{residual}");
     }
@@ -8528,7 +8579,7 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             import { View } from '@hozo/core'
             const styles = stylex.create({
-              root: { padding: 16, scrollbarColor: 'red blue' }
+              root: { padding: 16, speak: 'normal' }
             })
             const card = <View {...stylex.props(styles.root)} />
         "#;
@@ -8538,7 +8589,7 @@ mod tests {
         assert!(node.props.passthrough.is_empty());
         assert_eq!(node.props.stylex_residuals.len(), 1);
         let residual = node.props.stylex_residuals[0].render_expression(source);
-        assert!(residual.contains("scrollbarColor: 'red blue'"));
+        assert!(residual.contains("speak: 'normal'"));
         assert!(!residual.contains("padding: 16"));
         assert_eq!(parsed.diagnostics.len(), 1);
         assert!(parsed.diagnostics[0].span.start >= node.span.start);
