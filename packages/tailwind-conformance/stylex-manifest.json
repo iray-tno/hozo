@@ -2750,8 +2750,8 @@
     {
       "name": "textDecoration",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "textDecorationColor",
@@ -2792,8 +2792,8 @@
     {
       "name": "textEmphasis",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "textEmphasisColor",

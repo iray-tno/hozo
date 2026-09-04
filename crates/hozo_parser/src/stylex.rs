@@ -1076,6 +1076,8 @@ enum WebValueGrammar {
     ScrollbarColor,
     Quotes,
     Zoom,
+    TextDecoration,
+    TextEmphasis,
     ViewTransitionName,
     MathDepth,
     TabSize,
@@ -1575,6 +1577,8 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "scrollbarColor" => Some(("scrollbar-color", WebValueGrammar::ScrollbarColor)),
         "quotes" => Some(("quotes", WebValueGrammar::Quotes)),
         "zoom" => Some(("zoom", WebValueGrammar::Zoom)),
+        "textDecoration" => Some(("text-decoration", WebValueGrammar::TextDecoration)),
+        "textEmphasis" => Some(("text-emphasis", WebValueGrammar::TextEmphasis)),
         "baselineShift" => Some((
             "baseline-shift",
             WebValueGrammar::SvgLength(&["baseline", "sub", "super"]),
@@ -2297,6 +2301,80 @@ fn web_zoom(value: &StaticValue) -> Option<String> {
             .map(|_| value.clone()),
         StaticValue::Number(_) => None,
     }
+}
+
+fn web_text_decoration(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let components = web_components(value)?;
+    let lines = ["underline", "overline", "line-through", "blink"];
+    let styles = ["solid", "double", "dotted", "dashed", "wavy"];
+    let mut found_lines = Vec::new();
+    let mut has_style = false;
+    let mut has_thickness = false;
+    let mut has_color = false;
+    for component in &components {
+        if lines.contains(&component.as_str()) {
+            if found_lines.contains(&component) {
+                return None;
+            }
+            found_lines.push(component);
+        } else if component == "none" {
+            if components.len() != 1 {
+                return None;
+            }
+            found_lines.push(component);
+        } else if styles.contains(&component.as_str()) && !has_style {
+            has_style = true;
+        } else if !has_thickness
+            && (matches!(component.as_str(), "auto" | "from-font")
+                || web_length_percentage_string(component)
+                    && web_length_number(component).is_some_and(|number| number >= 0.0))
+        {
+            has_thickness = true;
+        } else if !has_color && web_shorthand_color(component) {
+            has_color = true;
+        } else {
+            return None;
+        }
+    }
+    (found_lines.len() <= lines.len()).then(|| value.clone())
+}
+
+fn web_text_emphasis(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let components = web_components(value)?;
+    let fills = ["filled", "open"];
+    let shapes = ["dot", "circle", "double-circle", "triangle", "sesame"];
+    let mut fill_count = 0;
+    let mut shape_count = 0;
+    let mut has_string = false;
+    let mut has_none = false;
+    let mut has_color = false;
+    for component in &components {
+        if fills.contains(&component.as_str()) && !has_string && !has_none {
+            fill_count += 1;
+        } else if shapes.contains(&component.as_str()) && !has_string && !has_none {
+            shape_count += 1;
+        } else if component == "none" && fill_count == 0 && shape_count == 0 && !has_string {
+            has_none = true;
+        } else if web_css_string(component)
+            && fill_count == 0
+            && shape_count == 0
+            && !has_none
+            && !has_string
+        {
+            has_string = true;
+        } else if !has_color && web_shorthand_color(component) {
+            has_color = true;
+        } else {
+            return None;
+        }
+    }
+    (fill_count <= 1 && shape_count <= 1).then(|| value.clone())
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3758,6 +3836,8 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::ScrollbarColor => web_scrollbar_color(value)?,
         WebValueGrammar::Quotes => web_quotes(value)?,
         WebValueGrammar::Zoom => web_zoom(value)?,
+        WebValueGrammar::TextDecoration => web_text_decoration(value)?,
+        WebValueGrammar::TextEmphasis => web_text_emphasis(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -4286,7 +4366,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
         | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
-        | "textDecorationSkip" | "textDecorationSkipInk" | "textDecorationThickness"
+        | "textDecoration" | "textDecorationSkip" | "textDecorationSkipInk"
+        | "textDecorationThickness" | "textEmphasis"
         | "textJustify" | "textOrientation" | "textWrap" | "transitionDelay"
         | "animationDuration" | "WebkitBoxOrient" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
         | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" | "zoom" => {
@@ -4793,6 +4874,8 @@ fn property_priority(property: &str) -> u16 {
             | "marginBlock"
             | "marginInline"
             | "listStyle"
+            | "textDecoration"
+            | "textEmphasis"
             | "overflow"
             | "placeContent"
             | "placeItems"
@@ -5045,6 +5128,10 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("background")
     } else if property == "animation" || property.starts_with("animation") {
         Some("animation")
+    } else if property == "textDecoration" || property.starts_with("textDecoration") {
+        Some("text-decoration")
+    } else if property == "textEmphasis" || property.starts_with("textEmphasis") {
+        Some("text-emphasis")
     } else if property == "caret" || property.starts_with("caret") {
         Some("caret")
     } else if matches!(property, "placeContent" | "alignContent" | "justifyContent") {
@@ -8688,6 +8775,10 @@ mod tests {
         assert_eq!(property_priority("scrollMarginInlineStart"), 3000);
         assert_eq!(property_priority("scrollMarginLeft"), 4000);
         assert_eq!(property_priority("gridTemplateAreas"), 2000);
+        assert_eq!(property_priority("textDecoration"), 2000);
+        assert_eq!(property_priority("textDecorationLine"), 3000);
+        assert!(property_names_overlap("textDecoration", "textDecorationLine"));
+        assert!(property_names_overlap("textEmphasis", "textEmphasisColor"));
     }
 
     #[test]

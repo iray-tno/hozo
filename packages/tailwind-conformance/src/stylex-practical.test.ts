@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 278, covered: 278 },
+    values: { total: 280, covered: 280 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 240, covered: 240 },
+    corpus: { total: 242, covered: 242 },
     silent: 0,
   })
 })
@@ -531,6 +531,28 @@ test('browser presentation controls agree with official StyleX', () => {
     scrollbarColor: ['auto', 'red blue', 'rgb(20 30 40) transparent'],
     quotes: ['auto', 'none', '"“" "”"', '"“" "”" "‘" "’"'],
     zoom: ['normal', 'reset', '125%', 0, 1.25],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('text decoration shorthands agree with official StyleX', () => {
+  const values: Record<string, readonly string[]> = {
+    textDecoration: [
+      'none',
+      'underline',
+      'underline overline wavy 2px red',
+      'line-through from-font rgb(20 30 40)',
+    ],
+    textEmphasis: ['none', 'filled sesame', 'open dot red', '"※" currentColor'],
   }
   for (const [property, propertyValues] of Object.entries(values)) {
     for (const value of propertyValues) {
