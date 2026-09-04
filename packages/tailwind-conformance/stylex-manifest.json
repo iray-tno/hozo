@@ -2935,15 +2935,15 @@
     },
     {
       "name": "transition",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
     },
     {
       "name": "transitionDelay",
-      "lane": "web-only",
+      "lane": "contextual",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "contextual-runtime"
     },
     {
       "name": "transitionDuration",

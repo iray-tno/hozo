@@ -860,7 +860,6 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['objectPosition', `'center'`],
     ['justifySelf', `'center'`],
     ['placeItems', `'center'`],
-    ['transitionDelay', `'100ms'`],
     ['animationDuration', `'200ms'`],
     ['animationComposition', `'add'`],
     ['animationDelay', `'100ms'`],
@@ -1169,6 +1168,7 @@ const styles = stylex.create({
   motion: {
     transitionProperty: 'opacity, transform',
     transitionDuration: '200ms',
+    transitionDelay: '75ms',
     transitionTimingFunction: 'ease-in-out',
   },
 })
@@ -1197,9 +1197,11 @@ export const Card = () => (
   assert.equal(web.diagnostics.length, 0)
   assert.match(web.css, /transition-property: opacity,transform/)
   assert.match(web.css, /transition-duration: 200ms/)
+  assert.match(web.css, /transition-delay: 75ms/)
   assert.match(web.css, /transition-timing-function: ease-in-out/)
   assert.match(officialCss, /transition-property:opacity,transform/)
   assert.match(officialCss, /transition-duration:\.2s/)
+  assert.match(officialCss, /transition-delay:\.075s/)
   assert.match(officialCss, /transition-timing-function:ease-in-out/)
 
   const native = compileNative(transitionSource)[0]
@@ -1209,7 +1211,7 @@ export const Card = () => (
   assert.match(native.jsx, /HozoPressable/)
   assert.match(
     native.jsx,
-    /hozoTransition=\{\{ duration: 200, easing: 'ease-in-out', opacity: true, transform: false, colors: false \}\}/,
+    /hozoTransition=\{\{ duration: 200, delay: 75, easing: 'ease-in-out', opacity: true, transform: false, colors: false \}\}/,
   )
 })
 

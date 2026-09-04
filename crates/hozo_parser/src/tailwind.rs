@@ -215,6 +215,11 @@ pub fn parse_utility(token: &str) -> Option<StyleProperty> {
             return Some(StyleProperty::TransitionDuration(ms, Origin::Written));
         }
     }
+    if let Some(rest) = token.strip_prefix("delay-") {
+        if let Ok(ms) = rest.parse::<u32>() {
+            return Some(StyleProperty::TransitionDelay(ms, Origin::Written));
+        }
+    }
     if let Some(prop) = parse_grid_placement(token) {
         return Some(prop);
     }
@@ -2021,14 +2026,6 @@ const KEYWORD_UTILITIES: &[(&str, &str, &str)] = &[
         ("contain-size", "contain", "size"),
         ("contain-strict", "contain", "strict"),
         ("contain-style", "contain", "style"),
-        ("delay-75", "transition-delay", "75ms"),
-        ("delay-100", "transition-delay", "100ms"),
-        ("delay-150", "transition-delay", "150ms"),
-        ("delay-200", "transition-delay", "200ms"),
-        ("delay-300", "transition-delay", "300ms"),
-        ("delay-500", "transition-delay", "500ms"),
-        ("delay-700", "transition-delay", "700ms"),
-        ("delay-1000", "transition-delay", "1000ms"),
         ("diagonal-fractions", "font-variant-numeric", "diagonal-fractions"),
         ("field-sizing-content", "field-sizing", "content"),
         ("field-sizing-fixed", "field-sizing", "fixed"),

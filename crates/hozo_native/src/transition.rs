@@ -5,7 +5,7 @@ use super::condition_contains;
 pub(super) fn native_driver_transition(
     node: &Node,
     declarations: &[StyleDeclaration],
-) -> Option<(u32, &'static str, bool, bool, bool)> {
+) -> Option<(u32, u32, &'static str, bool, bool, bool)> {
     if !matches!(node.primitive, Primitive::Pressable | Primitive::Button) {
         return None;
     }
@@ -59,6 +59,10 @@ pub(super) fn native_driver_transition(
         StyleProperty::TransitionDuration(duration, _) => Some(duration),
         _ => None,
     }).unwrap_or(150);
+    let delay = declarations.iter().rev().find_map(|declaration| match declaration.property {
+        StyleProperty::TransitionDelay(delay, _) => Some(delay),
+        _ => None,
+    }).unwrap_or(0);
     let timing = declarations.iter().rev().find_map(|declaration| match &declaration.property {
         StyleProperty::TransitionTimingFunction(timing, _) => Some(timing.as_str()),
         _ => None,
@@ -70,7 +74,7 @@ pub(super) fn native_driver_transition(
         "ease-in-out" => "ease-in-out",
         _ => "ease-in-out",
     };
-    Some((duration, easing, opacity, transform, colors))
+    Some((duration, delay, easing, opacity, transform, colors))
 }
 
 /// A transition on an element whose condition is ambient rather than an
@@ -87,7 +91,7 @@ pub(super) fn native_driver_transition(
 /// evaluates the style for each interaction state and can compare them,
 /// and here the guard is a runtime value, so what the style *becomes* is
 /// only known once it has. `HozoAnimated` diffs it at render instead.
-pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration]) -> Option<(u32, &'static str)> {
+pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration]) -> Option<(u32, u32, &'static str)> {
     if matches!(node.primitive, Primitive::Pressable | Primitive::Button) {
         return None;
     }
@@ -130,6 +134,14 @@ pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration])
             _ => None,
         })
         .unwrap_or(150);
+    let delay = declarations
+        .iter()
+        .rev()
+        .find_map(|declaration| match declaration.property {
+            StyleProperty::TransitionDelay(delay, _) => Some(delay),
+            _ => None,
+        })
+        .unwrap_or(0);
     let timing = declarations
         .iter()
         .rev()
@@ -145,7 +157,7 @@ pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration])
         "ease-in-out" => "ease-in-out",
         _ => "ease-in-out",
     };
-    Some((duration, easing))
+    Some((duration, delay, easing))
 }
 
 #[cfg(test)]
@@ -179,7 +191,7 @@ mod ambient_transition_tests {
     fn the_duration_and_easing_come_from_the_classes() {
         let out = compile("transition duration-500 ease-linear opacity-100 md:opacity-50");
         assert!(
-            out.jsx.contains("hozoTransition={{ duration: 500, easing: 'linear' }}"),
+            out.jsx.contains("hozoTransition={{ duration: 500, delay: 0, easing: 'linear' }}"),
             "{}",
             out.jsx,
         );
@@ -263,11 +275,29 @@ mod interaction_transition_tests {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert!(output.jsx.starts_with("<HozoPressable"), "{}", output.jsx);
         assert!(
-            output.jsx.contains("hozoTransition={{ duration: 200, easing: 'ease-in-out', opacity: true, transform: false, colors: false }}"),
+            output.jsx.contains("hozoTransition={{ duration: 200, delay: 0, easing: 'ease-in-out', opacity: true, transform: false, colors: false }}"),
             "{}",
             output.jsx
         );
         assert!(output.jsx.contains("hovered && hozoStyles.hozo0_hover"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn stylex_transition_delay_reaches_the_native_animation_spec() {
+        let source = r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { Pressable } from '@hozo/core'
+            const styles = stylex.create({ motion: { transition: 'opacity 200ms linear 75ms' } })
+            const el = <Pressable className="opacity-100 hover:opacity-50" {...stylex.props(styles.motion)} accessibilityRole="button" />
+        "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(
+            output.jsx.contains("duration: 200, delay: 75, easing: 'linear'"),
+            "{}",
+            output.jsx
+        );
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     }
 
     #[test]

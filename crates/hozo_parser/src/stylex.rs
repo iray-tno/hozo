@@ -1795,7 +1795,6 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
                 "none", "min-content", "max-content", "fit-content", "fill-available",
             ]),
         )),
-        "transitionDelay" => Some(("transition-delay", WebValueGrammar::SignedTime)),
         "animationDelay" => Some(("animation-delay", WebValueGrammar::SignedTime)),
         "animationDuration" => Some(("animation-duration", WebValueGrammar::Time)),
         "animationTimingFunction" => Some((
@@ -4019,6 +4018,49 @@ fn stylex_transition_timing(value: &StaticValue) -> Option<String> {
         .then(|| value.clone())
 }
 
+/// Lower the practical single-transition shorthand into the same four slots
+/// the browser shorthand resets. Comma-separated transition lists and timing
+/// functions outside the Native runtime stay with the official StyleX pass.
+fn stylex_transition(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    if value.contains(',') {
+        return None;
+    }
+    let components = web_components(value)?;
+    let mut property = None;
+    let mut duration = None;
+    let mut delay = None;
+    let mut timing = None;
+    for component in components {
+        let static_value = StaticValue::String(component.clone());
+        if let Some(milliseconds) = stylex_transition_duration(&static_value) {
+            if duration.is_none() {
+                duration = Some(milliseconds);
+            } else if delay.is_none() {
+                delay = Some(milliseconds);
+            } else {
+                return None;
+            }
+        } else if timing.is_none() && stylex_transition_timing(&static_value).is_some() {
+            timing = Some(component);
+        } else if property.is_none() && stylex_transition_property(&static_value).is_some() {
+            property = Some(component);
+        } else {
+            return None;
+        }
+    }
+    // CSS defaults to `ease`, which the deliberately small Native easing
+    // contract does not approximate. Require an explicit supported easing.
+    Some(vec![
+        StyleProperty::TransitionProperty(property.unwrap_or_else(|| "all".to_string())),
+        StyleProperty::TransitionDuration(duration.unwrap_or(0), Origin::Written),
+        StyleProperty::TransitionTimingFunction(timing?, Origin::Written),
+        StyleProperty::TransitionDelay(delay.unwrap_or(0), Origin::Written),
+    ])
+}
+
 /// Maps CSS-in-JS property spelling onto the already-tested Tailwind parser.
 /// The tokens are internal only; no generated class string reaches output.
 fn token_for(property: &str, value: &StaticValue) -> Option<String> {
@@ -4409,7 +4451,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
         | "textDecoration" | "textDecorationSkip" | "textDecorationSkipInk"
         | "textDecorationThickness" | "textEmphasis"
-        | "textJustify" | "textOrientation" | "textWrap" | "transitionDelay"
+        | "textJustify" | "textOrientation" | "textWrap"
         | "animationDuration" | "WebkitBoxOrient" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
         | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" | "zoom" => {
             vec![web_only_property(property, value)?]
@@ -4454,10 +4496,15 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             stylex_transition_duration(value)?,
             Origin::Written,
         )],
+        "transitionDelay" => vec![StyleProperty::TransitionDelay(
+            stylex_transition_duration(value)?,
+            Origin::Written,
+        )],
         "transitionTimingFunction" => vec![StyleProperty::TransitionTimingFunction(
             stylex_transition_timing(value)?,
             Origin::Written,
         )],
+        "transition" => stylex_transition(value)?,
         "containerName" => vec![StyleProperty::ContainerName(stylex_container_name(value)?)],
         "containerType" => vec![StyleProperty::Keyword(
             "container-type",
@@ -4915,6 +4962,7 @@ fn property_priority(property: &str) -> u16 {
             | "marginBlock"
             | "marginInline"
             | "listStyle"
+            | "transition"
             | "outline"
             | "textDecoration"
             | "textEmphasis"
@@ -8043,22 +8091,37 @@ mod tests {
     }
 
     #[test]
-    fn transition_shorthand_overlap_keeps_the_original_stylex_rule() {
+    fn transition_shorthand_expands_and_longhand_duration_keeps_priority() {
         let parsed = crate::parse_tsx(
             r#"
             import * as stylex from '@stylexjs/stylex'
             import { Pressable } from '@hozo/core'
             const styles = stylex.create({
-              motion: { transition: 'opacity 100ms linear', transitionDuration: '200ms' }
+              motion: { transition: 'opacity 100ms linear 50ms', transitionDuration: '200ms' }
             })
             const card = <Pressable {...stylex.props(styles.motion)} />
         "#,
         );
         let node = &parsed.roots[0].node;
-        assert!(node.style.is_empty());
-        assert_eq!(node.props.passthrough.len(), 1);
+        assert!(node.style.iter().any(|declaration| matches!(
+            declaration.property,
+            StyleProperty::TransitionProperty(ref property) if property == "opacity"
+        )));
+        assert!(node.style.iter().any(|declaration| matches!(
+            declaration.property,
+            StyleProperty::TransitionDuration(200, Origin::Written)
+        )));
+        assert!(node.style.iter().any(|declaration| matches!(
+            declaration.property,
+            StyleProperty::TransitionTimingFunction(ref timing, Origin::Written) if timing == "linear"
+        )));
+        assert!(node.style.iter().any(|declaration| matches!(
+            declaration.property,
+            StyleProperty::TransitionDelay(50, Origin::Written)
+        )));
+        assert!(node.props.passthrough.is_empty());
         assert!(node.props.stylex_residuals.is_empty());
-        assert!(parsed.diagnostics[0].message.contains("cascade is not approximated"));
+        assert!(parsed.diagnostics.is_empty());
     }
 
     #[test]
