@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 266, covered: 266 },
+    values: { total: 269, covered: 269 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 228, covered: 228 },
+    corpus: { total: 231, covered: 231 },
     silent: 0,
   })
 })
@@ -119,6 +119,12 @@ test('common mask longhands agree with official StyleX', () => {
     { property: 'maskOrigin', value: 'border-box, content-box' },
     { property: 'maskClip', value: 'border-box, no-clip' },
     { property: 'maskComposite', value: 'add, exclude' },
+    { property: 'maskBorderMode', value: 'luminance' },
+    { property: 'maskBorderOutset', value: '4px 8px' },
+    { property: 'maskBorderRepeat', value: 'round stretch' },
+    { property: 'maskBorderSlice', value: '30% fill' },
+    { property: 'maskBorderSource', value: 'linear-gradient(black, transparent)' },
+    { property: 'maskBorderWidth', value: '1 2 3 4' },
   ]) {
     assert.deepEqual(compareStylexValue(testCase), {
       ...testCase,

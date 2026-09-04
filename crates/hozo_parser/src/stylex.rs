@@ -1521,6 +1521,15 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "borderImageWidth" => Some(("border-image-width", WebValueGrammar::BorderImageWidth)),
         "borderImageOutset" => Some(("border-image-outset", WebValueGrammar::BorderImageOutset)),
         "borderImageRepeat" => Some(("border-image-repeat", WebValueGrammar::BorderImageRepeat)),
+        "maskBorderMode" => Some((
+            "mask-border-mode",
+            WebValueGrammar::Keywords(&["alpha", "luminance"]),
+        )),
+        "maskBorderOutset" => Some(("mask-border-outset", WebValueGrammar::BorderImageOutset)),
+        "maskBorderRepeat" => Some(("mask-border-repeat", WebValueGrammar::BorderImageRepeat)),
+        "maskBorderSlice" => Some(("mask-border-slice", WebValueGrammar::BorderImageSlice)),
+        "maskBorderSource" => Some(("mask-border-source", WebValueGrammar::MaskImage)),
+        "maskBorderWidth" => Some(("mask-border-width", WebValueGrammar::BorderImageWidth)),
         "gridAutoColumns" => Some(("grid-auto-columns", WebValueGrammar::GridTrackList)),
         "gridAutoRows" => Some(("grid-auto-rows", WebValueGrammar::GridTrackList)),
         "gridAutoFlow" => Some(("grid-auto-flow", WebValueGrammar::GridAutoFlow)),
@@ -4090,7 +4099,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "listStyleType" | "maxBlockSize" | "maxInlineSize"
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
         | "maskClip" | "maskComposite" | "maskImage" | "maskMode" | "maskOrigin"
-        | "maskPosition" | "maskRepeat" | "maskSize" | "maskType" | "WebkitMaskImage"
+        | "maskBorderMode" | "maskBorderOutset" | "maskBorderRepeat" | "maskBorderSlice"
+        | "maskBorderSource" | "maskBorderWidth" | "maskPosition" | "maskRepeat"
+        | "maskSize" | "maskType" | "WebkitMaskImage"
         | "justifyTracks" | "marginTrim" | "masonryAutoFlow" | "mathDepth" | "mathShift"
         | "mathStyle" | "minInlineSize"
         | "MozOsxFontSmoothing" | "MsOverflowStyle"
