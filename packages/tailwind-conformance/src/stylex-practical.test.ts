@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 250, covered: 250 },
+    values: { total: 253, covered: 253 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 212, covered: 212 },
+    corpus: { total: 215, covered: 215 },
     silent: 0,
   })
 })
@@ -659,6 +659,26 @@ test('logical overflow aliases and clip margins agree with official StyleX', () 
       covered: true,
       silent: false,
     })
+  }
+})
+
+test('hyphenation and MathML layout controls agree with official StyleX', () => {
+  const values: Record<string, readonly (string | number)[]> = {
+    hyphenateLimitChars: ['auto', 10, '10 3', '10 3 4'],
+    lineHeightStep: [0, 4, '0.25rem'],
+    mathDepth: [-1, 0, 2, 'auto-add', 'add(-2)', 'add(3)'],
+    mathShift: ['normal', 'compact'],
+    mathStyle: ['normal', 'compact'],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
   }
 })
 
