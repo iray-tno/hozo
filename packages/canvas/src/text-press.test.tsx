@@ -33,7 +33,7 @@ function surface() {
     get(target, property) {
       if (property === 'measureText') {
         return (text: string) => {
-          const size = Number.parseFloat(String(target.font)) || 10
+          const size = Number.parseFloat(/([0-9.]+)px/.exec(String(target.font))?.[1] ?? '') || 10
           return {
             width: text.length * size * 0.5,
             actualBoundingBoxAscent: size * 0.7,
@@ -119,6 +119,11 @@ test('the measurement is taken with the font the label is drawn with', async () 
   // A measurement in the default font is a box of the wrong width, which
   // reads as a miss on the right label. The surface sets `font` before
   // asking, and puts back whatever was there.
+  // Behavioural first: 35 is inside the run at 20px (10 to 40) and
+  // outside it in the 10px default (10 to 25).
+  const near = await press(35, 45)
+  assert.equal(near.presses.length, 1)
+
   const { fonts } = await press(20, 45)
   assert.ok(
     fonts.some((font) => font.includes('bold') && font.includes('20px')),
