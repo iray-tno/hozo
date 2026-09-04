@@ -126,19 +126,20 @@ export function Welcome() {
         </Heading>
         <View className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <View className="flex flex-row items-center justify-between text-xs font-semibold text-slate-700">
-            <Text>WCAG 2.1 AA Accessibility Conformance</Text>
-            <Text className="font-bold text-emerald-700">100% Passing</Text>
+            <Text>Automated a11y Audit (axe-core)</Text>
+            <Text className="font-bold text-emerald-700">0 Violations (39/39 Stories)</Text>
           </View>
           <Progress
             value={100}
             max={100}
-            aria-label="Accessibility test pass rate"
+            aria-label="Automated accessibility audit pass rate"
             className="w-full h-2.5 accent-emerald-600 rounded-full"
           />
           <Paragraph className="text-xs text-slate-600 pt-1">
-            All 39 stories are continuously tested against axe-core in CI, guaranteeing zero
-            contrast failures, unambiguous ARIA attributes, and native keyboard navigation across
-            every component.
+            All 39 stories continuously pass axe-core in CI to prevent automated regressions in
+            color contrast, ARIA role syntax, and missing labels. Complete accessibility conformance
+            further requires ongoing empirical testing with screen readers (VoiceOver, TalkBack,
+            NVDA).
           </Paragraph>
         </View>
       </View>

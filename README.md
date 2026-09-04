@@ -388,8 +388,10 @@ say more than "that is not a role":
 `@hozo/behaviors` carries the headless primitives that need real runtime behaviour — focus
 management, keyboard handling, floating positioning, and hover delay groups.
 
-All 39 Storybook stories are continuously tested against `axe-core` in CI with
-**zero accessibility violations** (100% WCAG 2.1 AA conformance).
+All 39 Storybook stories are continuously checked against `axe-core` in CI,
+catching automated regressions in contrast, structural ARIA syntax, and roles
+with zero violations. Full accessibility conformance still requires manual
+screen reader testing (VoiceOver, TalkBack, NVDA).
 
 ## Three-Layer Component Hierarchy
 
@@ -485,7 +487,7 @@ examples/
   login-demo/            Vite, Web and SSR
   native-demo/           Metro bundle and Native runtime
   next-demo/             Next.js, both bundlers
-  storybook-demo/        Storybook (39 stories, 100% WCAG AA compliant)
+  storybook-demo/        Storybook (39 stories, CI axe-core automated audit)
   tanstack-start-demo/   TanStack Start
 
 docs/
