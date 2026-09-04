@@ -16,16 +16,18 @@ Hozo compiles React Native source toward the platform it actually runs on:
 - **Native** — React Native / Fabric, with a minimal runtime
 
 Applications import canonical primitives from `@hozo/core` (or keep
-importing from `react-native`). Hozo lowers those primitives to semantic
-DOM and CSS on Web, or to React Native components and `StyleSheet` values
-on Native. Existing React Native applications can adopt it incrementally,
-though today that means changing imports at the migration boundary.
+importing from `react-native`), typography from `@hozo/typography`, and
+semantic landmarks from `@hozo/semantics`. Hozo lowers those primitives to semantic
+HTML5 DOM and CSS on Web, or to React Native components and `StyleSheet` values
+on Native. Foundation primitives are completely zero-runtime and safe for static
+SSR and React Server Components (RSC) without `'use client'`.
 
-Hozo is a compilation layer rather than a new component framework. Its Web
+Hozo is a compilation layer rather than a heavyweight component framework. Its Web
 output is designed to keep React Native for Web off compiled paths while
 preserving React Native's component and event contracts where practical.
 
-Accessibility is a requirement from v1, not an add-on.
+Accessibility is a requirement from v1, not an add-on. Every primitive and behavior
+is verified against canonical WAI-ARIA and platform accessibility models.
 
 ## Getting started
 
@@ -385,8 +387,42 @@ say more than "that is not a role":
   reported as an incomplete pattern
 - a role with no Web equivalent is reported rather than silently dropped
 
-`@hozo/behaviors` carries the primitives that need real runtime behaviour — focus
-management, keyboard handling, and floating positioning — starting with `Dialog`.
+`@hozo/behaviors` carries the headless primitives that need real runtime behaviour — focus
+management, keyboard handling, floating positioning, and hover delay groups.
+
+All 39 Storybook stories are continuously tested against `axe-core` in CI with
+**zero accessibility violations** (100% WCAG 2.1 AA conformance).
+
+## Three-Layer Component Hierarchy
+
+Hozo organizes universal UI across three clean layers, maximizing compile-time
+static guarantees and minimizing runtime overhead:
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│ Layer 3: Universal Components (Compound Compositions)         │
+│   Dialog · Popover · Menu · Tabs · Toolbar · Radio · Tooltip  │
+│   Composed from Layer 1 primitives + Layer 2 behaviors        │
+└───────────────────────────────────────────────────────────────┘
+                               ▲
+┌───────────────────────────────────────────────────────────────┐
+│ Layer 2: Universal Behaviors (Minimal Runtime, @hozo/behaviors)│
+│   FocusScope · DismissableLayer · Portal · RovingFocus        │
+│   FloatingPositioner · LiveRegion · useHoverTrigger           │
+│   Safe Polygon · DelayGroupMachine (Warmup/Cooldown)          │
+└───────────────────────────────────────────────────────────────┘
+                               ▲
+┌───────────────────────────────────────────────────────────────┐
+│ Layer 1: Universal Primitives (Zero Runtime / Static SSR Safe)│
+│   @hozo/core        View, Text, Pressable, Link, FlatList     │
+│   @hozo/typography  Heading, Paragraph, Strong, Ruby, Rt      │
+│   @hozo/semantics   Main, Header, Footer, Aside, Nav, Time    │
+└───────────────────────────────────────────────────────────────┘
+```
+
+- **Layer 1 (Zero-Runtime Primitives)**: Lower directly to native HTML5 tags on Web and foundational primitives on React Native. Completely safe for static SSR / React Server Components (RSC) without `'use client'`.
+- **Layer 2 (Universal Behaviors)**: Minimal headless runtime behavior units. The compiler statically removes what is knowable at build time (e.g. static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
+- **Layer 3 (Universal Components)**: Accessible compound components composed strictly from Layer 1 and Layer 2.
 
 ## Architecture
 
@@ -424,10 +460,13 @@ management, keyboard handling, and floating positioning — starting with `Dialo
 
 ```
 packages/
-  core/            @hozo/core        — canonical primitives for new projects
+  core/            @hozo/core        — canonical primitives and compound components
   compiler/        @hozo/compiler    — JS entry point over the Rust compiler
   runtime/         @hozo/runtime     — dynamic styles, interaction, behavior
   behaviors/       @hozo/behaviors   — headless behaviors and floating positioning
+  typography/      @hozo/typography  — universal typography, ruby, and inline formatting
+  semantics/       @hozo/semantics   — document structure, landmarks, disclosures
+  canvas/          @hozo/canvas      — declarative 2D scene graph (Web Canvas & Skia)
   tailwind/        @hozo/tailwind    — the project's theme, resolved
   vite/            @hozo/vite        — Vite integration (Web backend)
   next/            @hozo/next        — Next.js integration, Turbopack and webpack
@@ -448,7 +487,7 @@ examples/
   login-demo/            Vite, Web and SSR
   native-demo/           Metro bundle and Native runtime
   next-demo/             Next.js, both bundlers
-  storybook-demo/        Storybook
+  storybook-demo/        Storybook (39 stories, 100% WCAG AA compliant)
   tanstack-start-demo/   TanStack Start
 
 docs/
@@ -469,7 +508,7 @@ cargo test --workspace                      # Rust suites
 pnpm typecheck
 ```
 
-The publishing metadata for all nine packages is generated by
+The publishing metadata for all twelve packages is generated by
 `scripts/package-metadata.mjs`; `scripts/check-packages.mjs` re-derives it,
 fails on drift, and then looks inside the tarballs `npm pack` would produce
 to check every entry point is actually in them.

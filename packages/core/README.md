@@ -30,3 +30,20 @@ The Native counterparts are chosen the same way: `Image` maps to React Native's 
 The universal props follow React Native's names — `accessibilityLabel`, `accessibilityHint`, `accessibilityState`, `accessibilityValue`, `accessibilityLiveRegion`, `testID`, `nativeID` — and map onto ARIA on Web. `role` is accepted directly as well; React Native has supported it since 0.71, so it means the same thing on both sides.
 
 `Pressable` takes them too. It did not until recently — its props extended only the responder set, so `testID` and `accessibilityState` were not part of its contract at all, which is a strange place for the gap to be: an interactive element is exactly where `aria-checked`, `aria-expanded` and `aria-selected` earn their keep.
+
+## Component Catalog
+
+### Layer 1: Universal Primitives (Zero Runtime / Static SSR Safe)
+- **Layout & Structure**: `View`, `ScrollView`, `FlatList`, `Section`, `Article`, `Nav`, `List`, `ListItem`
+- **Text & Semantics**: `Text`, `Heading` (levels 1-6), `Paragraph`
+- **Interaction & Forms**: `Pressable`, `Link`, `Button`, `TextInput`, `Image`
+
+### Layer 3: Universal Components (Composed from Behaviors)
+- **`Dialog`**: Accessible modal with focus trapping, Escape dismissal, and return-focus. Lowers to HTML5 `<dialog>` on Web and `<Modal>` on Native.
+- **`Popover`**: Floating contextual overlay anchored to triggers with automatic collision flipping and outside press dismissal.
+- **`Menu`**: Dropdown menu with WAI-ARIA roving tabindex, keyboard arrow navigation, and shortcuts.
+- **`Tabs`**: Tablist with roving keyboard navigation and linked tab panels.
+- **`Toolbar`**: Accessible action toolbar maintaining single tab stop and arrow navigation across items.
+- **`RadioGroup`**: Single-select options with arrow-key switching and `aria-checked` states.
+- **`Slider` & `Switch`**: Accessible range and toggle controls with ARIA states.
+

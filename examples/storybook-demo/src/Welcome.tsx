@@ -87,15 +87,15 @@ export function Welcome() {
           <View className="rounded-xl border border-slate-200 bg-slate-50 p-5 space-y-2">
             <View className="flex flex-row items-center justify-between">
               <Text className="font-mono text-xs font-bold text-indigo-700">@hozo/core</Text>
-              <Text className="text-xs font-semibold text-slate-500">Layer 1</Text>
+              <Text className="text-xs font-semibold text-slate-500">Layer 1 &amp; 3</Text>
             </View>
             <Heading level={3} className="text-sm font-bold text-slate-900">
-              Primitives &amp; Interaction
+              Primitives &amp; Universal Components
             </Heading>
             <Paragraph className="text-xs text-slate-600 leading-relaxed">
-              Box layout (<Code>View</Code>), lists (<Code>FlatList</Code>), touch responder{' '}
-              <Code>Pressable</Code>, <Code>PanResponder</Code>, media, and universal{' '}
-              <Code>Button</Code> with LinkButton support.
+              Zero-runtime foundation (<Code>View</Code>, <Code>Text</Code>, <Code>Pressable</Code>,{' '}
+              <Code>FlatList</Code>) plus accessible compound components (<Code>Dialog</Code>,{' '}
+              <Code>Tabs</Code>, <Code>Menu</Code>, <Code>Toolbar</Code>, <Code>Popover</Code>).
             </Paragraph>
           </View>
 
@@ -109,8 +109,9 @@ export function Welcome() {
               Headless Behaviors &amp; Positioning
             </Heading>
             <Paragraph className="text-xs text-slate-600 leading-relaxed">
-              Universal primitives for FocusScope, RovingFocus, Typeahead, DismissableLayer, Portal,
-              LiveRegion, and FloatingPositioner (Popper / Floating UI equivalent).
+              Universal headless mechanics: <Code>FocusScope</Code>, <Code>DismissableLayer</Code>,{' '}
+              <Code>FloatingPositioner</Code>, <Code>LiveRegion</Code>, <Code>useHoverTrigger</Code>{' '}
+              with safe polygon bridges, and delay warmup <Code>Tooltip</Code>.
             </Paragraph>
           </View>
         </View>
