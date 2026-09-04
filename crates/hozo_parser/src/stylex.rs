@@ -1078,6 +1078,7 @@ enum WebValueGrammar {
     Zoom,
     TextDecoration,
     TextEmphasis,
+    Outline,
     ViewTransitionName,
     MathDepth,
     TabSize,
@@ -1579,6 +1580,7 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "zoom" => Some(("zoom", WebValueGrammar::Zoom)),
         "textDecoration" => Some(("text-decoration", WebValueGrammar::TextDecoration)),
         "textEmphasis" => Some(("text-emphasis", WebValueGrammar::TextEmphasis)),
+        "outline" => Some(("outline", WebValueGrammar::Outline)),
         "baselineShift" => Some((
             "baseline-shift",
             WebValueGrammar::SvgLength(&["baseline", "sub", "super"]),
@@ -2375,6 +2377,44 @@ fn web_text_emphasis(value: &StaticValue) -> Option<String> {
         }
     }
     (fill_count <= 1 && shape_count <= 1).then(|| value.clone())
+}
+
+fn web_outline(value: &StaticValue) -> Option<String> {
+    const STYLES: &[&str] = &[
+        "auto", "none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge",
+        "inset", "outset",
+    ];
+    let parts = match value {
+        StaticValue::Number(number) if number.is_finite() && *number >= 0.0 => {
+            return Some(length_value(value));
+        }
+        StaticValue::String(value) => web_components(value)?,
+        _ => return None,
+    };
+    if parts.len() > 3 {
+        return None;
+    }
+    let mut has_style = false;
+    let mut has_width = false;
+    let mut has_color = false;
+    for part in parts {
+        let part_value = StaticValue::String(part.clone());
+        if !has_style && STYLES.contains(&part.as_str()) {
+            has_style = true;
+        } else if !has_width
+            && web_length(&part_value, &["thin", "medium", "thick"], 0.0).is_some()
+        {
+            has_width = true;
+        } else if !has_color && (part == "invert" || web_shorthand_color(&part)) {
+            has_color = true;
+        } else {
+            return None;
+        }
+    }
+    Some(match value {
+        StaticValue::String(value) => value.clone(),
+        _ => unreachable!("numeric outlines return above"),
+    })
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3838,6 +3878,7 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::Zoom => web_zoom(value)?,
         WebValueGrammar::TextDecoration => web_text_decoration(value)?,
         WebValueGrammar::TextEmphasis => web_text_emphasis(value)?,
+        WebValueGrammar::Outline => web_outline(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -4346,7 +4387,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
-        | "orphans" | "overflowBlock" | "overflowBlockX" | "overflowClipMargin"
+        | "orphans" | "outline" | "overflowBlock" | "overflowBlockX" | "overflowClipMargin"
         | "overscrollBehaviorY" | "pageBreakAfter"
         | "pageBreakBefore" | "pageBreakInside"
         | "paintOrder" | "positionAnchor" | "positionVisibility" | "printColorAdjust" | "resize"
@@ -4874,6 +4915,7 @@ fn property_priority(property: &str) -> u16 {
             | "marginBlock"
             | "marginInline"
             | "listStyle"
+            | "outline"
             | "textDecoration"
             | "textEmphasis"
             | "overflow"
@@ -5134,6 +5176,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("text-emphasis")
     } else if property == "caret" || property.starts_with("caret") {
         Some("caret")
+    } else if property == "outline" || property.starts_with("outline") {
+        Some("outline")
     } else if matches!(property, "placeContent" | "alignContent" | "justifyContent") {
         Some("place-content")
     } else if matches!(property, "placeItems" | "alignItems" | "justifyItems") {
@@ -8779,6 +8823,9 @@ mod tests {
         assert_eq!(property_priority("textDecorationLine"), 3000);
         assert!(property_names_overlap("textDecoration", "textDecorationLine"));
         assert!(property_names_overlap("textEmphasis", "textEmphasisColor"));
+        assert_eq!(property_priority("outline"), 2000);
+        assert_eq!(property_priority("outlineWidth"), 3000);
+        assert!(property_names_overlap("outline", "outlineWidth"));
     }
 
     #[test]
