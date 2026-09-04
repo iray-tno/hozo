@@ -220,17 +220,26 @@ function colorFor(paint: CanvasPaint | undefined, fallback?: string) {
   return paint ?? fallback
 }
 /**
- * A run measured by the font that will draw it.
+ * What a label will occupy, for a caller placing something against it.
  *
  * Skia's `measureText` returns a rect whose origin is the baseline, so
  * its `y` is the ascent negated and `y + height` is the descent. Ink
  * again, and the same font object the renderer draws with -- a second
  * face resolved separately could measure a different width.
+ *
+ * Optional to match the Web signature, where there may be no DOM to
+ * measure with. Native always has a font manager, so this side always
+ * answers; one shape for one API rather than two a caller has to know
+ * apart.
  */
-function measureText(props: TextProps): CanvasTextMetrics {
+export function measureCanvasText(props: TextProps): CanvasTextMetrics | undefined {
   const bounds = fontFor(props).measureText(props.text)
   return { width: bounds.width, ascent: -bounds.y, descent: bounds.y + bounds.height }
 }
+
+/** Always defined here, and the hit test wants a total function. */
+const measureText = (props: TextProps): CanvasTextMetrics =>
+  measureCanvasText(props) ?? { width: 0, ascent: 0, descent: 0 }
 function paintLayers<Geometry extends object>(
   key: string,
   Shape: ComponentType<Geometry & DrawingNodeProps>,
