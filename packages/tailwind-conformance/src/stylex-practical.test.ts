@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 285, covered: 285 },
+    values: { total: 286, covered: 286 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 246, covered: 246 },
+    corpus: { total: 247, covered: 247 },
     silent: 0,
   })
 })
@@ -191,6 +191,12 @@ test('implicit grid tracks, flow, and template areas agree with official StyleX'
       covered: true,
       silent: false,
     })
+  }
+})
+
+test('gridArea agrees with StyleX and lowers through the Native grid item runtime', () => {
+  for (const value of ['1 / 1 / 3 / 3', '1 / 2 / 3 / 3']) {
+    assert.equal(compareStylexValue({ property: 'gridArea', value }).covered, true)
   }
 })
 

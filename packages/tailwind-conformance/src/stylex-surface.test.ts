@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 448)
+  assert.equal(mapped.size, 449)
   for (const name of [
     'display',
     'padding',
@@ -40,6 +40,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
     'gridGap',
     'gridRowGap',
     'gridColumnGap',
+    'gridArea',
     'borderBlockWidth',
     'borderInlineWidth',
     'borderInlineColor',
@@ -165,12 +166,13 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 448)
+  assert.equal(mapped.length, 449)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
   assert.equal(manifestEntry('padding')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('gridTemplateColumns')?.basis, 'contextual-runtime')
+  assert.equal(manifestEntry('gridArea')?.basis, 'contextual-runtime')
   assert.equal(manifestEntry('container')?.basis, 'contextual-runtime')
   assert.equal(manifestEntry('flexFlow')?.basis, 'shared-typed-ir')
   assert.equal(manifestEntry('gridGap')?.basis, 'shared-typed-ir')
@@ -216,9 +218,10 @@ test('the universal denominator is derived from StyleX and React Native', () => 
 
 test('coverage tiers partition the published StyleX property surface', () => {
   const surface = stylexSurface()
-  assert.equal(surface.contextual.size, 19)
-  assert.equal(surface.mappedContextual.size, 19)
+  assert.equal(surface.contextual.size, 20)
+  assert.equal(surface.mappedContextual.size, 20)
   assert.ok(surface.contextual.has('gridTemplateColumns'))
+  assert.ok(surface.contextual.has('gridArea'))
   assert.ok(surface.mappedContextual.has('gridTemplateColumns'))
   assert.ok(surface.mappedContextual.has('gridRowEnd'))
   assert.ok(surface.mappedContextual.has('transitionDuration'))
@@ -236,7 +239,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.adapter.size, 1)
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
-  assert.equal(surface.webOnly.size, 368)
+  assert.equal(surface.webOnly.size, 367)
   assert.equal(surface.mappedWebOnly.size, 295)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))

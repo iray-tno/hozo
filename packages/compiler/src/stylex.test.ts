@@ -317,6 +317,15 @@ function declarationMap(declarations: string[]): Map<string, string> {
       result.set('column-gap', value)
       continue
     }
+    if (property === 'grid-area') {
+      const [rowStart, columnStart, rowEnd, columnEnd] = value.split('/').map((part) => part.trim())
+      assert.ok(rowStart && columnStart && rowEnd && columnEnd)
+      result.set('grid-row-start', rowStart)
+      result.set('grid-column-start', columnStart)
+      result.set('grid-row-end', rowEnd)
+      result.set('grid-column-end', columnEnd)
+      continue
+    }
     const expanded = (() => {
       if (property === 'padding') {
         return ['padding-top', 'padding-right', 'padding-bottom', 'padding-left']
@@ -642,11 +651,15 @@ const styles = stylex.create({
     gridRowStart: 2,
     gridRowEnd: -1,
   },
+  area: {
+    gridArea: '1 / 1 / 3 / 3',
+  },
 })
 export const Grid = () => (
   <View {...stylex.props(styles.grid)}>
     <View {...stylex.props(styles.span)} />
     <View {...stylex.props(styles.lines)} />
+    <View {...stylex.props(styles.area)} />
   </View>
 )
 `
@@ -692,6 +705,10 @@ export const Grid = () => (
   assert.match(native.jsx, /rowGap=\{12\}/)
   assert.match(native.jsx, /HozoGridItem columnSpan=\{2\} rowSpan=\{2\}/)
   assert.match(native.jsx, /HozoGridItem columnSpan=\{2\} columnStart=\{1\} rowStart=\{1\}/)
+  assert.match(
+    native.jsx,
+    /HozoGridItem columnSpan=\{2\} columnStart=\{0\} rowSpan=\{2\} rowStart=\{0\}/,
+  )
 })
 
 test('the expanded RN-portable StyleX property slice agrees with the official CSS oracle', () => {

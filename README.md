@@ -195,11 +195,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **448/522 property names
-(85.8%)**, including **134/134 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **449/522 property names
+(86.0%)**, including **134/134 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
-**19/19 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **295/368 (80.2%)**. The
+**20/20 (100%)** contextual-runtime names. Web-only lowering is reported
+independently at **295/367 (80.4%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -216,8 +216,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **285/285 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **246/246 (100%)** declarations after
+corpus currently measures **286/286 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **247/247 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -333,7 +333,8 @@ property-specificity mode.
 The contextual slice is currently Grid: static `gridTemplateColumns`/
 `gridTemplateRows` tracks made from positive `fr`, non-negative `px`, or
 `minmax(px, fr)` values (plus equal-track `repeat`), and integer line or
-`auto`/equal-span/full-span item placement. On Native these reuse `HozoGrid`
+`auto`/equal-span/full-span item placement. A four-line numeric `gridArea`
+shorthand expands to row/column start/end and shares the same Native path. On Native these reuse `HozoGrid`
 and `HozoGridItem`; unsupported CSS Grid values remain with StyleX and produce
 `STYLEX_NOT_LOWERED` instead of being approximated.
 Static transition property, duration, delay, and timing configuration also reaches
