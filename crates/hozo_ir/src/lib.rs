@@ -462,6 +462,28 @@ pub enum SvgElement {
     Stop,
     ClipPath,
     Use,
+    /// A run inside a `Text`, which is how a label gets a second line.
+    /// SVG has no wrapping of its own, so this is the wrapping.
+    TSpan,
+    /// Text along a path.
+    TextPath,
+    /// A shape drawn at the vertices of another, which is what a data
+    /// point and an arrowhead are.
+    Marker,
+    /// A mask, which is the alpha counterpart of `ClipPath`.
+    Mask,
+    /// A tile, which is how a series survives being printed in grey.
+    Pattern,
+    /// A definition instantiated by `Use`, unlike `Defs` which only holds.
+    Symbol,
+    /// A raster image. `Svg.Image` rather than `Image`: `@hozo/core` has a
+    /// primitive of that name, and the namespace is what keeps the two
+    /// from arguing.
+    Image,
+    /// A hole for host markup inside a drawing. Web renders anything;
+    /// `react-native-svg` documents its own limits, which is why this is
+    /// carried rather than described.
+    ForeignObject,
 }
 
 impl SvgElement {
@@ -485,6 +507,14 @@ impl SvgElement {
             SvgElement::Stop => "Stop",
             SvgElement::ClipPath => "ClipPath",
             SvgElement::Use => "Use",
+            SvgElement::TSpan => "TSpan",
+            SvgElement::TextPath => "TextPath",
+            SvgElement::Marker => "Marker",
+            SvgElement::Mask => "Mask",
+            SvgElement::Pattern => "Pattern",
+            SvgElement::Symbol => "Symbol",
+            SvgElement::Image => "Image",
+            SvgElement::ForeignObject => "ForeignObject",
         }
     }
 
@@ -498,7 +528,15 @@ impl SvgElement {
     /// `@hozo/runtime` re-exports it under this name for the same reason.
     pub fn runtime_name(self) -> &'static str {
         match self {
+            // Three collide with a name the generated file already has.
+            // `Text` is React Native's own; `Image` is Hozo's primitive,
+            // which the compiler emits around a bare `<Image>`; `Symbol`
+            // is a JavaScript global. Two bindings of one name in a file
+            // neither of them wrote is not a collision anyone could be
+            // expected to debug.
             SvgElement::Text => "SvgText",
+            SvgElement::Image => "SvgImage",
+            SvgElement::Symbol => "SvgSymbol",
             other => other.name(),
         }
     }
@@ -512,6 +550,8 @@ impl SvgElement {
             SvgElement::LinearGradient => "linearGradient",
             SvgElement::RadialGradient => "radialGradient",
             SvgElement::ClipPath => "clipPath",
+            SvgElement::TextPath => "textPath",
+            SvgElement::ForeignObject => "foreignObject",
             other => match other {
                 SvgElement::G => "g",
                 SvgElement::Rect => "rect",
@@ -525,6 +565,12 @@ impl SvgElement {
                 SvgElement::Defs => "defs",
                 SvgElement::Stop => "stop",
                 SvgElement::Use => "use",
+                SvgElement::TSpan => "tspan",
+                SvgElement::Marker => "marker",
+                SvgElement::Mask => "mask",
+                SvgElement::Pattern => "pattern",
+                SvgElement::Symbol => "symbol",
+                SvgElement::Image => "image",
                 _ => unreachable!("handled above"),
             },
         }
@@ -549,6 +595,14 @@ impl SvgElement {
             "Stop" => SvgElement::Stop,
             "ClipPath" => SvgElement::ClipPath,
             "Use" => SvgElement::Use,
+            "TSpan" => SvgElement::TSpan,
+            "TextPath" => SvgElement::TextPath,
+            "Marker" => SvgElement::Marker,
+            "Mask" => SvgElement::Mask,
+            "Pattern" => SvgElement::Pattern,
+            "Symbol" => SvgElement::Symbol,
+            "Image" => SvgElement::Image,
+            "ForeignObject" => SvgElement::ForeignObject,
             _ => return None,
         })
     }
@@ -4905,4 +4959,94 @@ impl TextInputProps {
     pub fn is_empty(&self) -> bool {
         *self == TextInputProps::default()
     }
+}
+
+
+#[cfg(test)]
+mod svg_element_tests {
+    use super::SvgElement;
+
+    #[test]
+    fn every_name_round_trips() {
+        // The three lists -- the enum, `from_name`, `name` -- are written
+        // by hand and can drift apart silently: a member missing from
+        // `from_name` is an element the parser never recognises, and
+        // `<Svg.Marker>` would be carried as a foreign component with no
+        // error anywhere.
+        for &element in ALL {
+            assert_eq!(SvgElement::from_name(element.name()), Some(element), "{:?}", element);
+        }
+    }
+
+    #[test]
+    fn the_camel_case_tags_keep_their_capitals() {
+        // Lowercasing these produces elements that parse and never render,
+        // which is the quietest way an SVG can be wrong. Five of them now.
+        assert_eq!(SvgElement::LinearGradient.tag(), "linearGradient");
+        assert_eq!(SvgElement::RadialGradient.tag(), "radialGradient");
+        assert_eq!(SvgElement::ClipPath.tag(), "clipPath");
+        assert_eq!(SvgElement::TextPath.tag(), "textPath");
+        assert_eq!(SvgElement::ForeignObject.tag(), "foreignObject");
+    }
+
+    #[test]
+    fn a_tag_is_lowercase_unless_svg_says_otherwise() {
+        for &element in ALL {
+            let tag = element.tag();
+            let camel = tag.chars().any(|c| c.is_ascii_uppercase());
+            assert_eq!(
+                camel,
+                matches!(
+                    element,
+                    SvgElement::LinearGradient
+                        | SvgElement::RadialGradient
+                        | SvgElement::ClipPath
+                        | SvgElement::TextPath
+                        | SvgElement::ForeignObject
+                ),
+                "{:?} has tag {tag}",
+                element,
+            );
+        }
+    }
+
+    #[test]
+    fn the_names_that_would_collide_are_renamed_for_native() {
+        // Each collides with something already in a generated file:
+        // `Text` is React Native's, `Image` is Hozo's own primitive, and
+        // `Symbol` is a JavaScript global.
+        assert_eq!(SvgElement::Text.runtime_name(), "SvgText");
+        assert_eq!(SvgElement::Image.runtime_name(), "SvgImage");
+        assert_eq!(SvgElement::Symbol.runtime_name(), "SvgSymbol");
+        assert_eq!(SvgElement::Rect.runtime_name(), "Rect");
+    }
+
+    // A slice rather than a sized array: a hand-written count is the same
+    // drift these tests exist to catch, one level down.
+    const ALL: &[SvgElement] = &[
+        SvgElement::Root,
+        SvgElement::G,
+        SvgElement::Rect,
+        SvgElement::Circle,
+        SvgElement::Ellipse,
+        SvgElement::Line,
+        SvgElement::Path,
+        SvgElement::Polygon,
+        SvgElement::Polyline,
+        SvgElement::Text,
+        SvgElement::Defs,
+        SvgElement::LinearGradient,
+        SvgElement::RadialGradient,
+        SvgElement::Stop,
+        SvgElement::ClipPath,
+        SvgElement::Use,
+        SvgElement::TSpan,
+        SvgElement::TextPath,
+        SvgElement::Marker,
+        SvgElement::Mask,
+        SvgElement::Pattern,
+        SvgElement::Symbol,
+        SvgElement::Image,
+        SvgElement::ForeignObject,
+    ];
 }

@@ -79,4 +79,19 @@ export const Svg = Object.assign(Root, {
   Stop: element<SVGStopElement>('stop'),
   ClipPath: element<SVGClipPathElement>('clipPath'),
   Use: element<SVGUseElement>('use'),
+  // A run inside a `Text`, which is how a label gets a second line:
+  // SVG has no wrapping of its own.
+  TSpan: element<SVGTSpanElement>('tspan'),
+  // camelCase for the same reason `linearGradient` is, and the reason
+  // is worth repeating because it is silent: lowercased, these parse
+  // and never render.
+  TextPath: element<SVGTextPathElement>('textPath'),
+  ForeignObject: element<SVGForeignObjectElement>('foreignObject'),
+  Marker: element<SVGMarkerElement>('marker'),
+  Mask: element<SVGMaskElement>('mask'),
+  Pattern: element<SVGPatternElement>('pattern'),
+  Symbol: element<SVGSymbolElement>('symbol'),
+  // `Svg.Image` and not `Image`: this package exports a primitive of
+  // that name, and the namespace is what keeps the two from arguing.
+  Image: element<SVGImageElement>('image'),
 })
