@@ -1,10 +1,12 @@
 import {
+  type CanvasPaint,
   type CanvasPaintProps,
   type CanvasScene,
   type CanvasSceneNode,
   type CanvasTransform,
   type ClipProps,
   cssFontShorthand,
+  isGradient,
   paintFills,
   paintStrokes,
   unhandledShape,
@@ -29,10 +31,41 @@ function applyTransform(context: CanvasRenderingContext2D, transform?: CanvasTra
   if (originX !== 0 || originY !== 0) context.translate(-originX, -originY)
 }
 
+/**
+ * A paint as Canvas2D wants it: a colour string, or a gradient object.
+ *
+ * Built per draw rather than cached. A gradient belongs to the context
+ * and to the transform in force when it was made, so one kept across
+ * frames would paint against a transform that has moved.
+ */
+function paintStyle(
+  context: CanvasRenderingContext2D,
+  paint: CanvasPaint,
+): string | CanvasGradient {
+  if (!isGradient(paint)) return paint
+  const gradient =
+    paint.kind === 'linear'
+      ? context.createLinearGradient(paint.from.x, paint.from.y, paint.to.x, paint.to.y)
+      : // The inner radius is zero and the two centres are the same,
+        // which is the single-circle form both platforms share.
+        context.createRadialGradient(
+          paint.center.x,
+          paint.center.y,
+          0,
+          paint.center.x,
+          paint.center.y,
+          paint.radius,
+        )
+  for (const stop of paint.stops) gradient.addColorStop(stop.offset, stop.color)
+  return gradient
+}
+
 function applyPaint(context: CanvasRenderingContext2D, paint: CanvasPaintProps) {
   context.globalAlpha *= paint.opacity ?? 1
-  if (paint.fill && paint.fill !== 'none') context.fillStyle = paint.fill
-  if (paint.stroke && paint.stroke !== 'none') context.strokeStyle = paint.stroke
+  if (paint.fill && paint.fill !== 'none') context.fillStyle = paintStyle(context, paint.fill)
+  if (paint.stroke && paint.stroke !== 'none') {
+    context.strokeStyle = paintStyle(context, paint.stroke)
+  }
   if (paint.strokeWidth !== undefined) context.lineWidth = paint.strokeWidth
   if (paint.lineCap) context.lineCap = paint.lineCap
   if (paint.lineJoin) context.lineJoin = paint.lineJoin

@@ -7,8 +7,10 @@ import {
   Circle as SkiaCircle,
   Group as SkiaGroup,
   Line as SkiaLine,
+  LinearGradient as SkiaLinearGradient,
   Oval as SkiaOval,
   Path as SkiaPath,
+  RadialGradient as SkiaRadialGradient,
   Rect as SkiaRect,
   RoundedRect as SkiaRoundedRect,
   Text as SkiaText,
@@ -30,6 +32,7 @@ import { type CanvasAccessibilityProps, canvasAccessibilityMode } from './access
 import { type CanvasPoint, canvasNodePoint, hitTestCanvas } from './hit-test.ts'
 import {
   BoundedCache,
+  type CanvasPaint,
   type CanvasPaintProps,
   type CanvasScene,
   type CanvasSceneNode,
@@ -42,6 +45,7 @@ import {
   canvasUnreadableText,
   Ellipse,
   Group,
+  isGradient,
   Line,
   Path,
   paintFills,
@@ -179,6 +183,33 @@ function alignedX(props: TextProps, font: ReturnType<typeof matchFont>) {
   return align === 'center' ? props.x - width / 2 : props.x - width
 }
 
+/**
+ * A gradient as Skia takes it: a shader element inside the shape.
+ *
+ * The other half of the same description Canvas2D builds with
+ * `createLinearGradient`. Skia wants two parallel arrays where the
+ * browser wants a call per stop, so the stops are unzipped here and
+ * nowhere else.
+ */
+function gradientShader(paint: CanvasPaint) {
+  if (!isGradient(paint)) return null
+  const colors = paint.stops.map((stop) => stop.color)
+  const positions = paint.stops.map((stop) => stop.offset)
+  return paint.kind === 'linear' ? (
+    <SkiaLinearGradient start={paint.from} end={paint.to} colors={colors} positions={positions} />
+  ) : (
+    <SkiaRadialGradient c={paint.center} r={paint.radius} colors={colors} positions={positions} />
+  )
+}
+
+/** The colour Skia is given when the paint is a gradient instead. */
+function colorFor(paint: CanvasPaint | undefined, fallback?: string) {
+  // A shape carrying a shader ignores its colour, but the prop is
+  // required, so it gets one that says nothing rather than one that
+  // would show if the shader ever failed to attach.
+  if (isGradient(paint)) return 'black'
+  return paint ?? fallback
+}
 function paintLayers<Geometry extends object>(
   key: string,
   Shape: ComponentType<Geometry & DrawingNodeProps>,
@@ -193,10 +224,12 @@ function paintLayers<Geometry extends object>(
       <Shape
         key={`${key}:fill`}
         {...geometry}
-        color={paint.fill ?? 'black'}
+        color={colorFor(paint.fill, 'black')}
         opacity={paint.opacity}
         style="fill"
-      />,
+      >
+        {gradientShader(paint.fill as CanvasPaint)}
+      </Shape>,
     )
   }
   if (hasStroke) {
@@ -204,13 +237,15 @@ function paintLayers<Geometry extends object>(
       <Shape
         key={`${key}:stroke`}
         {...geometry}
-        color={paint.stroke}
+        color={colorFor(paint.stroke)}
         opacity={paint.opacity}
         style="stroke"
         strokeWidth={paint.strokeWidth ?? 1}
         strokeCap={paint.lineCap}
         strokeJoin={paint.lineJoin}
-      />,
+      >
+        {gradientShader(paint.stroke as CanvasPaint)}
+      </Shape>,
     )
   }
   return layers
