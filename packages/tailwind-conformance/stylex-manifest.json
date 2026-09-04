@@ -2851,9 +2851,9 @@
     },
     {
       "name": "textShadow",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "universal",
+      "status": "mapped",
+      "basis": "shared-typed-ir"
     },
     {
       "name": "textSizeAdjust",

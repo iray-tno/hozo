@@ -14,7 +14,7 @@ use hozo_ir::{
     FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Keyframe, Keyframes, Length, Origin,
     Overflow, Radius, Scale, SourceSpan, StyleDeclaration, StyleProperty, StylexResidual,
     StylexResidualArgument,
-    TextOverflow, TransformFunction, WhiteSpace,
+    TextOverflow, TextShadowValue, TransformFunction, WhiteSpace,
 };
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, ArrowFunctionExpression, BindingPattern, CallExpression,
@@ -722,6 +722,24 @@ fn normalize_stylex_grid_value(value: &str) -> String {
         }
         normalized.push(character);
         index += 1;
+    }
+    normalized
+}
+
+fn normalize_stylex_number_zeros(value: &str) -> String {
+    let characters = value.chars().collect::<Vec<_>>();
+    let mut normalized = String::new();
+    for (index, character) in characters.iter().copied().enumerate() {
+        if character == '0'
+            && characters.get(index + 1) == Some(&'.')
+            && index
+                .checked_sub(1)
+                .and_then(|previous| characters.get(previous))
+                .is_none_or(|previous| !previous.is_ascii_digit() && *previous != '.')
+        {
+            continue;
+        }
+        normalized.push(character);
     }
     normalized
 }
@@ -2674,6 +2692,115 @@ fn web_shorthand_color(value: &str) -> bool {
         .any(|prefix| lower.starts_with(prefix) && lower.ends_with(')'))
 }
 
+fn portable_text_shadow_color(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    if matches!(
+        lower.as_str(),
+        "transparent" | "black" | "silver" | "gray" | "white" | "maroon" | "red"
+            | "purple" | "fuchsia" | "green" | "lime" | "olive" | "yellow" | "navy"
+            | "blue" | "teal" | "aqua" | "orange"
+    ) || (lower.starts_with('#')
+        && matches!(lower.len(), 4 | 5 | 7 | 9)
+        && lower[1..].bytes().all(|byte| byte.is_ascii_hexdigit()))
+    {
+        return true;
+    }
+
+    let inner = lower
+        .strip_prefix("rgb(")
+        .or_else(|| lower.strip_prefix("rgba("))
+        .and_then(|value| value.strip_suffix(')'));
+    let Some(inner) = inner else { return false };
+    let parts = inner.split(',').map(str::trim).collect::<Vec<_>>();
+    if !matches!(parts.len(), 3 | 4) {
+        return false;
+    }
+    parts.iter().all(|part| {
+        let number = part.strip_suffix('%').unwrap_or(part).parse::<f64>();
+        number.is_ok_and(f64::is_finite)
+    })
+}
+
+fn has_top_level_comma(value: &str) -> bool {
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for character in value.chars() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if character == '\\' && quote.is_some() {
+            escaped = true;
+            continue;
+        }
+        if let Some(active_quote) = quote {
+            if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
+/// The exact intersection of CSS `text-shadow` and React Native's three
+/// text-shadow fields. Multiple layers and relative/dynamic lengths stay in
+/// the official StyleX transform; a single px layer can be losslessly split.
+fn stylex_text_shadow(value: &StaticValue) -> Option<TextShadowValue> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    if value == "none" {
+        return Some(TextShadowValue::Portable {
+            css: value.to_string(),
+            color: Color::Css("transparent".to_string()),
+            offset_x: Length::Px(0.0),
+            offset_y: Length::Px(0.0),
+            radius: Length::Px(0.0),
+        });
+    }
+    if has_top_level_comma(value) {
+        return None;
+    }
+
+    let mut color = None;
+    let mut lengths = Vec::new();
+    for part in web_components(value)? {
+        if portable_text_shadow_color(&part) {
+            if color.replace(Color::Css(part)).is_some() {
+                return None;
+            }
+            continue;
+        }
+        let length = px_length(&StaticValue::String(part))?;
+        if !matches!(length, Length::Px(number) if number.is_finite()) {
+            return None;
+        }
+        lengths.push(length);
+    }
+    if !(2..=3).contains(&lengths.len()) {
+        return None;
+    }
+    let radius = lengths.get(2).cloned().unwrap_or(Length::Px(0.0));
+    if !matches!(radius, Length::Px(number) if number >= 0.0) {
+        return None;
+    }
+    Some(TextShadowValue::Portable {
+        css: normalize_stylex_number_zeros(&normalize_stylex_grid_value(value)),
+        color: color?,
+        offset_x: lengths[0].clone(),
+        offset_y: lengths[1].clone(),
+        radius,
+    })
+}
+
 fn stylex_columns(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     let mut width = "auto".to_string();
     let mut count = "auto".to_string();
@@ -3727,6 +3854,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "translate" => vec![StyleProperty::Translate(stylex_translate(value)?)],
         "transform" => vec![StyleProperty::Transform(transform_functions(value)?)],
         "transformOrigin" => vec![StyleProperty::TransformOrigin(transform_origin(value)?)],
+        "textShadow" => vec![StyleProperty::TextShadow(stylex_text_shadow(value)?)],
         // The shared IR deliberately keeps the complete shadow list as CSS
         // text. That preserves authored layer order and also maps directly
         // to React Native's string-valued `boxShadow` support.
@@ -7978,5 +8106,45 @@ mod tests {
             hozo_ir::DiagnosticCode::StylexNotLowered
         );
         assert!(parsed.diagnostics[0].message.contains("module-scope"));
+    }
+
+    #[test]
+    fn single_layer_text_shadow_is_typed_and_wider_values_stay_residual() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { Text } from '@hozo/core'
+            const styles = stylex.create({
+              portable: { textShadow: 'rgba(0, 0, 0, 0.5) 1px -2px 4px' },
+              multiple: { textShadow: '1px 2px #000, 3px 4px red' },
+              relative: { textShadow: '1rem 2px 3px red' }
+            })
+            const label = <Text {...stylex.props(styles.portable)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let property = &parsed.roots[0].node.style[0].property;
+        let StyleProperty::TextShadow(value) = property else {
+            panic!("expected typed text shadow, got {property:?}");
+        };
+        assert_eq!(value.css(), "rgba(0,0,0,.5) 1px -2px 4px");
+        assert!(value.portable_parts().is_some());
+
+        for rule in ["multiple", "relative"] {
+            let source = format!(
+                r#"
+                import * as stylex from '@stylexjs/stylex'
+                import {{ Text }} from '@hozo/core'
+                const styles = stylex.create({{
+                  multiple: {{ textShadow: '1px 2px #000, 3px 4px red' }},
+                  relative: {{ textShadow: '1rem 2px 3px red' }}
+                }})
+                const label = <Text {{...stylex.props(styles.{rule})}} />
+            "#,
+            );
+            let parsed = crate::parse_tsx(&source);
+            assert!(parsed.roots[0].node.style.is_empty());
+            assert_eq!(parsed.diagnostics[0].code, hozo_ir::DiagnosticCode::StylexNotLowered);
+        }
     }
 }

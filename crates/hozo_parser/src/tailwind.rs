@@ -14,6 +14,7 @@ use hozo_ir::{
     MaskSlot, MaskStop,
     FilterFunction, FlexDirection, FlexShorthand, FontWeight, Justify, Length, LineHeight, Overflow,
     FormState, Position, PseudoElement, Radius, Scale, Structural, StyleProperty, TextAlign,
+    TextShadowValue,
     TextOverflow,
     TextTransform,
     WhiteSpace,
@@ -3272,7 +3273,9 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
             _ => None,
         };
         if let Some(shadow) = shadow {
-            return vec![StyleProperty::TextShadow(shadow.to_string())];
+            return vec![StyleProperty::TextShadow(TextShadowValue::Web(
+                shadow.to_string(),
+            ))];
         }
         if !suffix.is_empty() {
             return vec![StyleProperty::TextShadowColor(register_color(suffix))];

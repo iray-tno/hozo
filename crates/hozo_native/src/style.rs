@@ -763,8 +763,25 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
                 values.iter().map(|value| js_string(value)).collect::<Vec<_>>().join(", ")
             ),
         )],
-        // Refused upstream, with the shadow it would have coloured.
-        StyleProperty::TextShadowColor(_) | StyleProperty::TextShadow(_) => vec![],
+        // Tailwind's multi-layer text shadows and its separately composed
+        // colour remain explicit refusals. A static single-layer StyleX
+        // shadow is already decomposed into RN's three text-shadow slots.
+        StyleProperty::TextShadow(value) => match value.portable_parts() {
+            Some((color, offset_x, offset_y, radius)) => vec![
+                ("textShadowColor", resolve_color(color)),
+                (
+                    "textShadowOffset",
+                    format!(
+                        "{{ width: {}, height: {} }}",
+                        number(offset_x, theme),
+                        number(offset_y, theme)
+                    ),
+                ),
+                ("textShadowRadius", number(radius, theme)),
+            ],
+            None => vec![],
+        },
+        StyleProperty::TextShadowColor(_) => vec![],
         // Refused upstream: scroll snapping is a ScrollView prop on React
         // Native, not a style.
         StyleProperty::ScrollSnapType(_) | StyleProperty::ScrollSnapStrictness(_) => vec![],
@@ -851,5 +868,25 @@ mod tests {
                 "'linear-gradient(90deg,#123456,#abcdef)'".to_string()
             ))
         );
+    }
+
+    #[test]
+    fn portable_text_shadow_expands_to_native_text_fields() {
+        let property = StyleProperty::TextShadow(hozo_ir::TextShadowValue::Portable {
+            css: "#123456 1px -2px 4px".to_string(),
+            color: Color::Css("#123456".to_string()),
+            offset_x: Length::Px(1.0),
+            offset_y: Length::Px(-2.0),
+            radius: Length::Px(4.0),
+        });
+        assert_eq!(
+            property_and_value(&property, &Theme::default()),
+            vec![
+                ("textShadowColor", "'#123456'".to_string()),
+                ("textShadowOffset", "{ width: 1, height: -2 }".to_string()),
+                ("textShadowRadius", "4".to_string()),
+            ]
+        );
+        assert!(property.unsupported_on_native().is_none());
     }
 }

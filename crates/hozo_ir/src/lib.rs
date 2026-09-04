@@ -1578,7 +1578,7 @@ pub enum StyleProperty {
     /// `hozo_web::css` write `text-shadow` from a composition. The test
     /// that guards it caught this within the same minute; the property
     /// moving out of the table is what it was asking for.
-    TextShadow(String),
+    TextShadow(TextShadowValue),
     /// `drop-shadow-<colour>` / `text-shadow-<colour>`: the same idea for
     /// the other two shadow families.
     ///
@@ -2570,7 +2570,8 @@ impl StyleProperty {
                  through a style"
                     .to_string(),
             ),
-            StyleProperty::TextShadow(_) | StyleProperty::TextShadowColor(_) => Some(
+            StyleProperty::TextShadow(TextShadowValue::Web(_))
+            | StyleProperty::TextShadowColor(_) => Some(
                 "`text-shadow-*`: React Native has textShadowColor, textShadowOffset and \
                  textShadowRadius on Text and no way to write more than one layer, which is \
                  what every size in this scale is"
@@ -2745,6 +2746,45 @@ impl StyleProperty {
                     .to_string(),
             ),
             _ => None,
+        }
+    }
+}
+
+/// One complete `text-shadow` declaration.
+///
+/// Tailwind's named sizes can contain several layers, which React Native
+/// cannot represent. Static StyleX declarations get a narrower portable
+/// form when they contain one px-based layer: Web retains the exact CSS
+/// spelling while Native consumes the decomposed colour, offset and blur.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TextShadowValue {
+    Web(String),
+    Portable {
+        css: String,
+        color: Color,
+        offset_x: Length,
+        offset_y: Length,
+        radius: Length,
+    },
+}
+
+impl TextShadowValue {
+    pub fn css(&self) -> &str {
+        match self {
+            Self::Web(css) | Self::Portable { css, .. } => css,
+        }
+    }
+
+    pub fn portable_parts(&self) -> Option<(&Color, &Length, &Length, &Length)> {
+        match self {
+            Self::Web(_) => None,
+            Self::Portable {
+                color,
+                offset_x,
+                offset_y,
+                radius,
+                ..
+            } => Some((color, offset_x, offset_y, radius)),
         }
     }
 }

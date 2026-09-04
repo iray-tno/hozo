@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 371)
+  assert.equal(mapped.size, 372)
   for (const name of [
     'display',
     'padding',
@@ -127,7 +127,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 371)
+  assert.equal(mapped.length, 372)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -153,8 +153,8 @@ test('every mapped property records why it is counted', () => {
 
 test('the universal denominator is derived from StyleX and React Native', () => {
   const surface = stylexSurface()
-  assert.equal(surface.native.size, 132)
-  assert.equal(surface.mappedNative.size, 132)
+  assert.equal(surface.native.size, 133)
+  assert.equal(surface.mappedNative.size, 133)
   assert.equal(surface.missingNative.size, 0)
   assert.ok(!surface.missingNative.has('borderWidth'))
   assert.ok(!surface.missingNative.has('pointerEvents'))
@@ -169,6 +169,7 @@ test('the universal denominator is derived from StyleX and React Native', () => 
   assert.ok(surface.mappedNative.has('translate'))
   assert.ok(surface.mappedNative.has('rotate'))
   assert.ok(surface.mappedNative.has('scale'))
+  assert.ok(surface.mappedNative.has('textShadow'))
 })
 
 test('coverage tiers partition the published StyleX property surface', () => {
@@ -191,7 +192,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.adapter.size, 1)
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
-  assert.equal(surface.webOnly.size, 372)
+  assert.equal(surface.webOnly.size, 371)
   assert.equal(surface.mappedWebOnly.size, 222)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))

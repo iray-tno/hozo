@@ -193,11 +193,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **371/522 property names
-(71.1%)**, including **132/132 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **372/522 property names
+(71.3%)**, including **133/133 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **17/17 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **222/372 (59.7%)**. The
+independently at **222/371 (59.8%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -214,14 +214,20 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **238/238 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **200/200 (100%)** declarations after
+corpus currently measures **239/239 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **201/201 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
 and Native either lowers faithfully or follows the entry's explicit Web-only policy.
 Unsupported cases may remain official residuals, but do not earn coverage.
 The current corpus has zero silent failures.
+
+Static StyleX `textShadow` values are portable when they are `none` or one
+explicitly coloured layer whose offsets and optional blur use px/zero. Web
+keeps the authored CSS semantics; Native expands the declaration to
+`textShadowColor`, `textShadowOffset`, and `textShadowRadius`. Multi-layer,
+relative-unit, and dynamic values remain with the official StyleX transform.
 
 StyleX's standalone `translate`, `rotate`, and `scale` properties use typed IR
 instead of becoming Web-only CSS strings. Web preserves their authored
