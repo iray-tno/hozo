@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 417)
+  assert.equal(mapped.size, 421)
   for (const name of [
     'display',
     'padding',
@@ -88,6 +88,8 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('scrollTimelineName'))
   assert.ok(mapped.has('anchorName'))
   assert.ok(mapped.has('positionAnchor'))
+  assert.ok(mapped.has('animationTimeline'))
+  assert.ok(mapped.has('animationRangeStart'))
   assert.ok(mapped.has('viewTransitionName'))
   assert.ok(mapped.has('columns'))
   assert.ok(mapped.has('columnRule'))
@@ -144,7 +146,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 417)
+  assert.equal(mapped.length, 421)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -211,7 +213,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 370)
-  assert.equal(surface.mappedWebOnly.size, 266)
+  assert.equal(surface.mappedWebOnly.size, 270)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
@@ -232,6 +234,8 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('scrollTimelineName'))
   assert.ok(surface.mappedWebOnly.has('anchorName'))
   assert.ok(surface.mappedWebOnly.has('positionAnchor'))
+  assert.ok(surface.mappedWebOnly.has('animationTimeline'))
+  assert.ok(surface.mappedWebOnly.has('animationRangeStart'))
   assert.ok(surface.mappedWebOnly.has('viewTransitionName'))
   assert.ok(surface.mappedWebOnly.has('touchAction'))
   assert.ok(surface.mappedWebOnly.has('overflowX'))
