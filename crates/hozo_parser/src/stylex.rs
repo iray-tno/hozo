@@ -1066,6 +1066,9 @@ enum WebValueGrammar {
     InitialLetter,
     TimelineNames { allow_all: bool },
     DashedIdent { keyword: &'static str },
+    AnimationTimeline,
+    AnimationRangeBoundary,
+    ViewTimelineInset,
     ViewTransitionName,
     MathDepth,
     TabSize,
@@ -1471,6 +1474,7 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             "view-transition-name",
             WebValueGrammar::ViewTransitionName,
         )),
+        "viewTimelineInset" => Some(("view-timeline-inset", WebValueGrammar::ViewTimelineInset)),
         "orphans" => Some((
             "orphans",
             WebValueGrammar::Integer {
@@ -1723,6 +1727,15 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "animationTimingFunction" => Some((
             "animation-timing-function",
             WebValueGrammar::AnimationTimingFunction,
+        )),
+        "animationTimeline" => Some(("animation-timeline", WebValueGrammar::AnimationTimeline)),
+        "animationRangeStart" => Some((
+            "animation-range-start",
+            WebValueGrammar::AnimationRangeBoundary,
+        )),
+        "animationRangeEnd" => Some((
+            "animation-range-end",
+            WebValueGrammar::AnimationRangeBoundary,
         )),
         "clipPath" => Some(("clip-path", WebValueGrammar::ClipPath)),
         "containIntrinsicBlockSize" => Some((
@@ -2041,6 +2054,57 @@ fn web_view_transition_name(value: &StaticValue) -> Option<String> {
         || web_css_identifier(value)
             && !matches!(value.as_str(), "auto" | "normal" | "inherit" | "initial" | "unset"))
     .then(|| value.clone())
+}
+
+fn web_animation_timeline(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    web_comma_groups(value)?
+        .iter()
+        .all(|item| {
+            let item = item.trim();
+            matches!(item, "auto" | "none")
+                || item.starts_with("--") && web_css_identifier(item)
+        })
+        .then(|| value.clone())
+}
+
+fn web_animation_range_boundary(value: &StaticValue) -> Option<String> {
+    match value {
+        StaticValue::Number(_) => Some(length_value(value)),
+        StaticValue::String(value) if value == "normal" => Some(value.clone()),
+        StaticValue::String(value) => {
+            let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+            let names = [
+                "cover",
+                "contain",
+                "entry",
+                "exit",
+                "entry-crossing",
+                "exit-crossing",
+            ];
+            let valid = match tokens.as_slice() {
+                [token] => names.contains(token) || web_length_percentage_string(token),
+                [name, offset] => names.contains(name) && web_length_percentage_string(offset),
+                _ => false,
+            };
+            valid.then(|| value.clone())
+        }
+    }
+}
+
+fn web_view_timeline_inset(value: &StaticValue) -> Option<String> {
+    match value {
+        StaticValue::Number(_) => Some(length_value(value)),
+        StaticValue::String(value) => {
+            let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+            (tokens.len() <= 2
+                && !tokens.is_empty()
+                && tokens
+                    .iter()
+                    .all(|token| *token == "auto" || web_length_percentage_string(token)))
+            .then(|| value.clone())
+        }
+    }
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3490,6 +3554,9 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::TimelineNames { allow_all } => web_timeline_names(value, allow_all)?,
         WebValueGrammar::DashedIdent { keyword } => web_dashed_ident(value, keyword)?,
         WebValueGrammar::ViewTransitionName => web_view_transition_name(value)?,
+        WebValueGrammar::AnimationTimeline => web_animation_timeline(value)?,
+        WebValueGrammar::AnimationRangeBoundary => web_animation_range_boundary(value)?,
+        WebValueGrammar::ViewTimelineInset => web_view_timeline_inset(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -3951,6 +4018,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let color = || css_color(value);
     Some(match property {
         "accentColor" | "alignmentBaseline" | "anchorName" | "animationComposition" | "animationDelay"
+        | "animationRangeEnd" | "animationRangeStart" | "animationTimeline"
         | "animationDirection" | "animationFillMode" | "animationIterationCount"
         | "animationPlayState" | "animationTimingFunction" | "appearance" | "WebkitAppearance"
         | "WebkitLineClamp" | "WebkitTextStrokeWidth"
@@ -4004,7 +4072,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "textEmphasisColor" | "textEmphasisPosition" | "textEmphasisStyle" | "textFillColor"
         | "textRendering" | "textSizeAdjust" | "textUnderlineOffset" | "textUnderlinePosition"
         | "timelineScope" | "touchAction" | "transformBox" | "transformStyle" | "unicodeBidi"
-        | "viewTimelineAxis" | "viewTimelineName" | "viewTransitionName" | "widows" | "willChange"
+        | "viewTimelineAxis" | "viewTimelineInset" | "viewTimelineName" | "viewTransitionName"
+        | "widows" | "willChange"
         | "wordBreak" | "wordSpacing" | "wordWrap"
         | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
