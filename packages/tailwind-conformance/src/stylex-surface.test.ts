@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 390)
+  assert.equal(mapped.size, 395)
   for (const name of [
     'display',
     'padding',
@@ -77,6 +77,8 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
   assert.ok(mapped.has('pageBreakAfter'))
   assert.ok(mapped.has('rubyPosition'))
   assert.ok(mapped.has('unicodeBidi'))
+  assert.ok(mapped.has('boxDecorationBreak'))
+  assert.ok(mapped.has('WebkitBoxOrient'))
   assert.ok(mapped.has('columns'))
   assert.ok(mapped.has('columnRule'))
   assert.ok(mapped.has('listStyle'))
@@ -132,7 +134,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 390)
+  assert.equal(mapped.length, 395)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -199,7 +201,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 370)
-  assert.equal(surface.mappedWebOnly.size, 239)
+  assert.equal(surface.mappedWebOnly.size, 244)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
@@ -208,6 +210,8 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('pageBreakAfter'))
   assert.ok(surface.mappedWebOnly.has('rubyPosition'))
   assert.ok(surface.mappedWebOnly.has('unicodeBidi'))
+  assert.ok(surface.mappedWebOnly.has('boxDecorationBreak'))
+  assert.ok(surface.mappedWebOnly.has('WebkitBoxOrient'))
   assert.ok(surface.mappedWebOnly.has('touchAction'))
   assert.ok(surface.mappedWebOnly.has('overflowX'))
   assert.ok(surface.mappedWebOnly.has('scrollMarginInlineEnd'))

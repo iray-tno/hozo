@@ -14,8 +14,8 @@
     {
       "name": "MsOverflowStyle",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "WebkitAppearance",
@@ -32,8 +32,8 @@
     {
       "name": "WebkitBoxOrient",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "WebkitFontSmoothing",
@@ -704,8 +704,8 @@
     {
       "name": "boxDecorationBreak",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "boxDirection",
@@ -1514,8 +1514,8 @@
     {
       "name": "imeMode",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "initialLetter",
@@ -1580,8 +1580,8 @@
     {
       "name": "interpolateSize",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "isolation",
