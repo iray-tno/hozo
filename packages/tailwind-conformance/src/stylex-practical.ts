@@ -251,6 +251,9 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'positionVisibility', value: 'anchors-visible' },
   { property: 'animationTimeline', value: '--page-scroll' },
   { property: 'animationRangeStart', value: 'entry 20%' },
+  { property: 'animationRange', value: 'entry 20% exit 80%' },
+  { property: 'scrollTimeline', value: '--page-scroll y' },
+  { property: 'viewTimeline', value: '--card-view inline auto 10%' },
   { property: 'viewTimelineInset', value: 'auto 10%' },
   { property: 'alignTracks', value: 'space-between' },
   { property: 'masonryAutoFlow', value: 'next ordered' },
@@ -435,6 +438,46 @@ function cssComponents(value: string): string[] {
 
 function expandStylexShorthand(property: string, value: string): Array<[string, string]> {
   const parts = cssComponents(value)
+  if (property === 'animation-range') {
+    const names = new Set(['cover', 'contain', 'entry', 'exit', 'entry-crossing', 'exit-crossing'])
+    const lengthPercentage = /^(?:0|[+-]?(?:\d+\.?\d*|\.\d+)(?:%|px|rem|em))$/
+    const boundary = (tokens: string[]) =>
+      tokens.length === 1
+        ? tokens[0] === 'normal' || names.has(tokens[0]!) || lengthPercentage.test(tokens[0]!)
+        : tokens.length === 2 && names.has(tokens[0]!) && lengthPercentage.test(tokens[1]!)
+    if (boundary(parts)) {
+      return [
+        ['animation-range-start', parts.join(' ')],
+        ['animation-range-end', 'normal'],
+      ]
+    }
+    for (let split = 1; split < parts.length; split += 1) {
+      if (boundary(parts.slice(0, split)) && boundary(parts.slice(split))) {
+        return [
+          ['animation-range-start', parts.slice(0, split).join(' ')],
+          ['animation-range-end', parts.slice(split).join(' ')],
+        ]
+      }
+    }
+  }
+  if (property === 'scroll-timeline') {
+    const axes = new Set(['block', 'inline', 'x', 'y'])
+    return [
+      ['scroll-timeline-name', parts.find((part) => !axes.has(part)) ?? 'none'],
+      ['scroll-timeline-axis', parts.find((part) => axes.has(part)) ?? 'block'],
+    ]
+  }
+  if (property === 'view-timeline') {
+    const axes = new Set(['block', 'inline', 'x', 'y'])
+    const name = parts.find((part) => part === 'none' || part.startsWith('--'))
+    const axis = parts.find((part) => axes.has(part))
+    const inset = parts.filter((part) => part !== name && part !== axis)
+    return [
+      ['view-timeline-name', name ?? 'none'],
+      ['view-timeline-axis', axis ?? 'block'],
+      ['view-timeline-inset', inset.join(' ') || 'auto'],
+    ]
+  }
   if (property === 'transition') {
     const timings = new Set(['linear', 'ease-in', 'ease-out', 'ease-in-out'])
     const times = parts.filter((part) => /^\d*\.?\d+(?:ms|s)$/.test(part))
@@ -989,6 +1032,9 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
       'positionVisibility',
       'animationTimeline',
       'animationRangeStart',
+      'animationRange',
+      'scrollTimeline',
+      'viewTimeline',
       'viewTimelineInset',
       'alignTracks',
       'masonryAutoFlow',

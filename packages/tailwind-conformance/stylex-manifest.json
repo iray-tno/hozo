@@ -176,8 +176,8 @@
     {
       "name": "animationRange",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "animationRangeEnd",
@@ -2582,8 +2582,8 @@
     {
       "name": "scrollTimeline",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "scrollTimelineAxis",
@@ -2996,8 +2996,8 @@
     {
       "name": "viewTimeline",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "viewTimelineAxis",
