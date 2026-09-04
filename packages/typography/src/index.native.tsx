@@ -1,13 +1,37 @@
 import React, { type ReactNode } from 'react'
+// The components rather than their names. These files used to render
+// `React.createElement('View')`, and React Native resolves a string tag
+// through its view config registry, where the registered names are
+// `RCTView` and `RCTText` -- never `View` or `Text`. Every one of these
+// would have thrown "View config getter callback for component `View`
+// must be a function" on the first render. Nothing caught it because
+// nothing imported these files: the tests next to them render the Web
+// half through `react-dom/server`.
+import {
+  type AccessibilityRole,
+  Linking,
+  Pressable,
+  Text as RNText,
+  type StyleProp,
+  type TextStyle,
+} from 'react-native'
 
 export interface TypographyNativeProps {
   children?: ReactNode
-  style?: any
+  /**
+   * React Native's own types rather than `any` and `string`.
+   *
+   * The Web half of this file says `CSSProperties`. This half agreed with
+   * anything, so a Web-only style reached a native `Text` in silence --
+   * the same erasure `@hozo/tailwind-conformance` exists to catch one
+   * layer down.
+   */
+  style?: StyleProp<TextStyle>
   testID?: string
   nativeID?: string
   accessibilityLabel?: string
   accessibilityHint?: string
-  accessibilityRole?: string
+  accessibilityRole?: AccessibilityRole
   accessible?: boolean
   numberOfLines?: number
   ellipsizeMode?: 'head' | 'middle' | 'tail' | 'clip'
@@ -22,7 +46,7 @@ export interface HeadingProps extends TypographyNativeProps {
 
 // Minimal fallback helper when running uncompiled on Native
 export function Text({ children, style, ...props }: TextProps) {
-  return React.createElement('Text', { style, ...props }, children)
+  return React.createElement(RNText, { style, ...props }, children)
 }
 
 export function Paragraph(props: SemanticTextProps) {
@@ -109,7 +133,11 @@ export function Ruby({ children, accessibilityLabel, ...props }: TypographyNativ
 export function Rt({ style, ...props }: TypographyNativeProps) {
   return (
     <Text
-      style={[{ fontSize: '0.65em', opacity: 0.85 }, style]}
+      // `0.65em` was here, and React Native has no relative font units:
+      // its `fontSize` is a number of points. The value was ignored, so
+      // ruby text has always drawn at the base size on this platform. The
+      // lie is gone; the sizing needs a base to scale from and is #226.
+      style={[{ opacity: 0.85 }, style]}
       accessible={false}
       aria-hidden={true}
       {...props}
@@ -128,22 +156,21 @@ export interface LinkProps extends TypographyNativeProps {
 
 export function Link({ href, onPress, children, ...props }: LinkProps) {
   return React.createElement(
-    'Pressable',
+    Pressable,
     {
       accessibilityRole: 'link',
       onPress: (event: { defaultPrevented?: boolean }) => {
         onPress?.(event)
-        const globalLinking = (globalThis as Record<string, unknown>).Linking as
-          | { openURL: (url: string) => Promise<unknown> }
-          | undefined
-        if (!event?.defaultPrevented && globalLinking) {
-          void globalLinking.openURL(href)
-        }
+        // `Linking` imported rather than read off `globalThis`, where React Native
+        // has never put it. The lookup always returned `undefined` and the
+        // `if` around it always failed, so this did nothing at all -- silently,
+        // which is the worst way for an accessibility affordance to be absent.
+        if (!event?.defaultPrevented) void Linking.openURL(href)
       },
       ...props,
     },
     typeof children === 'string'
-      ? React.createElement('Text', { accessibilityRole: 'link' }, children)
+      ? React.createElement(RNText, { accessibilityRole: 'link' }, children)
       : children,
   )
 }

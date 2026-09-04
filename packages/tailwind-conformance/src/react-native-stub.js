@@ -20,6 +20,15 @@ export const FlatList = 'FlatList'
 export const RefreshControl = 'RefreshControl'
 export const Modal = 'Modal'
 
+// Read off  by the packages that wanted it until now, where
+// Read off `globalThis` by the packages that wanted it until now, where
+// React Native has never put it. Now imported, so the stub has to carry
+// it -- which is the point: a missing import fails loudly here, and a
+// global lookup returned `undefined` in silence.
+export const BackHandler = {
+  addEventListener: () => ({ remove: () => {} }),
+}
+
 export const Linking = {
   openURL: async () => {},
 }
@@ -79,6 +88,7 @@ export const Appearance = {
 // runtime starts at `false` and corrects itself; these return the same
 // first answer without the crossing.
 export const AccessibilityInfo = {
+  announceForAccessibility: () => {},
   isReduceMotionEnabled: async () => false,
   isInvertColorsEnabled: async () => false,
   addEventListener: () => ({ remove: () => {} }),

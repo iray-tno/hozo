@@ -141,11 +141,6 @@ export function paintStrokes(paint: CanvasPaintProps): boolean {
   return paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
 }
 
-/** A gradient paints; a colour paints unless it is `none`. */
-function paints(paint: CanvasPaint | undefined): boolean {
-  return isGradient(paint) || (paint !== undefined && paint !== 'none')
-}
-
 export function paintFills(paint: CanvasPaintProps): boolean {
   return paint.fill !== 'none' && (paint.fill !== undefined || paint.stroke === undefined)
 }
@@ -573,21 +568,13 @@ function useSceneNode(node: FlatNode) {
   }
 }
 
-function leaf<P>(kind: CanvasLeafNode['kind']) {
-  const Component = (props: P) => {
-    const node = useMemo(() => ({ kind, props }) as CanvasLeafNode, [props])
-    useSceneNode(node)
-    return null
-  }
-  Component.displayName = `Canvas.${kind}`
-  return Component
-}
-
 function interactiveLeaf<P extends CanvasInteractionProps>(
-  // `line` joins the four closed shapes now that `pointInLine` can answer
-  // for it. Named rather than widened to every kind: `path` still refuses
-  // hits, and the list is what says which geometry the hit test covers.
-  kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse' | 'line' | 'path' | 'text',
+  // Every leaf kind, which it did not used to be. The list was spelled out
+  // while it meant something -- first the four closed shapes, then lines,
+  // then paths -- and the plain leaf beside it was for the shapes the hit
+  // test could not answer for. Text was the last of those, so the
+  // distinction and the plain `leaf` went with it.
+  kind: CanvasLeafNode['kind'],
 ) {
   const Component = ({ onPress, onActiveChange, accessibilityLabel, disabled, ...props }: P) => {
     const node = useMemo(() => ({ kind, props }) as unknown as FlatNode, [props])

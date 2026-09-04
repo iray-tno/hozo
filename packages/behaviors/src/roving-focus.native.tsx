@@ -1,4 +1,5 @@
 import React, { createContext, type ReactNode, useContext, useMemo } from 'react'
+import { type StyleProp, View, type ViewStyle } from 'react-native'
 
 export type Orientation = 'horizontal' | 'vertical' | 'both'
 export type RovingKey = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'
@@ -33,7 +34,7 @@ export interface RovingFocusGroupProps {
   wrap?: boolean
   disabled?: readonly number[]
   rtl?: boolean
-  style?: Record<string, unknown> | unknown[]
+  style?: StyleProp<ViewStyle>
 }
 
 /**
@@ -55,7 +56,7 @@ export function RovingFocusGroup({
   )
 
   return React.createElement(
-    'View',
+    View,
     { style, ...props },
     React.createElement(RovingFocusContext.Provider, { value: contextValue }, children),
   )

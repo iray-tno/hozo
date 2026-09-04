@@ -1,11 +1,12 @@
 import React, { type ReactNode } from 'react'
+import { AccessibilityInfo, type StyleProp, Text, View, type ViewStyle } from 'react-native'
 
 export type LiveRegionMode = 'polite' | 'assertive'
 
 export interface LiveRegionProps {
   children?: ReactNode
   mode?: LiveRegionMode
-  style?: Record<string, unknown> | unknown[]
+  style?: StyleProp<ViewStyle>
 }
 
 /**
@@ -14,7 +15,7 @@ export interface LiveRegionProps {
  */
 export function LiveRegion({ children, mode = 'polite', style, ...props }: LiveRegionProps) {
   return React.createElement(
-    'View',
+    View,
     {
       accessibilityLiveRegion: mode,
       style: [
@@ -30,7 +31,7 @@ export function LiveRegion({ children, mode = 'polite', style, ...props }: LiveR
       ...props,
     },
     typeof children === 'string'
-      ? React.createElement('Text', { accessibilityLiveRegion: mode }, children)
+      ? React.createElement(Text, { accessibilityLiveRegion: mode }, children)
       : children,
   )
 }
@@ -41,11 +42,10 @@ export function LiveRegion({ children, mode = 'polite', style, ...props }: LiveR
  */
 export function useAnnounce() {
   return (message: string, _mode: LiveRegionMode = 'polite') => {
-    const globalRN = (globalThis as Record<string, unknown>).AccessibilityInfo as
-      | { announceForAccessibility?: (msg: string) => void }
-      | undefined
-    if (globalRN?.announceForAccessibility) {
-      globalRN.announceForAccessibility(message)
-    }
+    // `AccessibilityInfo` imported rather than read off `globalThis`, where React Native
+    // has never put it. The lookup always returned `undefined` and the
+    // `if` around it always failed, so this did nothing at all -- silently,
+    // which is the worst way for an accessibility affordance to be absent.
+    AccessibilityInfo.announceForAccessibility(message)
   }
 }

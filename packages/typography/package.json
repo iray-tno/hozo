@@ -50,11 +50,18 @@
     "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "react-native": ">=0.76"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-native": "^0.87.0"
   }
 }

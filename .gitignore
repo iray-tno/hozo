@@ -36,3 +36,8 @@ target/
 .test-build/
 junit-reports/
 allure-history/
+
+# Per-user tool settings. Ignored here rather than only in a contributor's
+# global excludes: Biome reads this file and not that one, so a machine
+# with one of these would fail `pnpm lint` while CI, which has none, passed.
+.claude/settings.local.json

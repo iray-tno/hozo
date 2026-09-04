@@ -1,11 +1,14 @@
 import {
+  type ComponentRef,
   cloneElement,
   isValidElement,
   type ReactElement,
   type ReactNode,
+  type Ref,
   type RefObject,
   useRef,
 } from 'react'
+import type { StyleProp, View, ViewStyle } from 'react-native'
 import type { Placement } from './floating-geometry.ts'
 import { FloatingPositioner } from './floating-positioner.native.tsx'
 import {
@@ -15,11 +18,16 @@ import {
 } from './hover-trigger.native.tsx'
 import { Portal } from './portal.native.tsx'
 
-export type NativeMeasurable = {
-  measureInWindow?: (
-    callback: (x: number, y: number, width: number, height: number) => void,
-  ) => void
-}
+/**
+ * What React Native hands back for a `<View>`.
+ *
+ * Was a shape of our own with `measureInWindow` on it, which is the one
+ * method this file calls -- and which could not be given to a `<View ref>`,
+ * so the ref a caller received here was not the ref `FloatingPositioner`
+ * wanted. React Native names this type; naming it again differently is how
+ * the two drifted.
+ */
+export type NativeMeasurable = ComponentRef<typeof View>
 
 export interface TooltipProps extends Omit<UseHoverTriggerOptions, 'anchorRef' | 'floatingRef'> {
   content: ReactNode
@@ -36,7 +44,7 @@ export interface TooltipProps extends Omit<UseHoverTriggerOptions, 'anchorRef' |
   flip?: boolean
   shift?: boolean
   portal?: boolean
-  style?: Record<string, unknown> | unknown[]
+  style?: StyleProp<ViewStyle>
 }
 
 /**
@@ -81,7 +89,9 @@ export function Tooltip({
       isOpen,
     })
   } else if (isValidElement(children)) {
+    // Named so the injection is checked; see the Web half.
     const child = children as ReactElement<{
+      ref?: Ref<NativeMeasurable>
       onHoverIn?: () => void
       onHoverOut?: () => void
       onLongPress?: () => void
@@ -100,7 +110,7 @@ export function Tooltip({
         child.props.onLongPress?.()
         triggerProps.onLongPress()
       },
-    } as any)
+    })
   } else {
     triggerNode = children
   }

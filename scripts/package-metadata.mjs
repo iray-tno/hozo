@@ -73,6 +73,9 @@ const PACKAGES = {
   },
   semantics: {
     exports: { '.': './dist/index.js' },
+    // Absent until now, and `index.native.tsx` was unreachable because of
+    // it: Metro resolved the DOM build and rendered <div> on a phone.
+    native: true,
     keywords: ['react-native', 'react', 'semantics', 'landmarks', 'accessibility', 'universal'],
   },
   typography: {
