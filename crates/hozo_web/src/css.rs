@@ -639,7 +639,7 @@ fn is_text_shadow(prop: &StyleProperty) -> bool {
 /// The `text-shadow` a size and a colour make between them.
 fn text_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     let shadow = props.iter().find_map(|p| match p {
-        StyleProperty::TextShadow(value) => Some(value.as_str()),
+        StyleProperty::TextShadow(value) => Some(value.css()),
         _ => None,
     })?;
     // `text-shadow-none` is the property off, and there is nothing in it

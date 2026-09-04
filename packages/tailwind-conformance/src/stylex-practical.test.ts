@@ -11,11 +11,22 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 238, covered: 238 },
+    values: { total: 239, covered: 239 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 200, covered: 200 },
+    corpus: { total: 201, covered: 201 },
     silent: 0,
   })
+})
+
+test('single-layer text shadow agrees with StyleX and lowers on Native', () => {
+  for (const value of ['rgba(0, 0, 0, 0.5) 1px 2px 4px', '#123456 -1px 2px', 'none']) {
+    assert.deepEqual(compareStylexValue({ property: 'textShadow', value }), {
+      property: 'textShadow',
+      value,
+      covered: true,
+      silent: false,
+    })
+  }
 })
 
 test('standalone transforms agree with official StyleX and lower on Native', () => {

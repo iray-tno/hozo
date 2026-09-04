@@ -71,6 +71,7 @@ const NATIVE_EQUIVALENT_PROPERTIES = new Set([
   'gridRowGap',
   'rotate',
   'scale',
+  'textShadow',
   'translate',
 ])
 
