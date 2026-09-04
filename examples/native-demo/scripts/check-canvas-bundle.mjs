@@ -44,6 +44,10 @@ expect(/January revenue/.test(bundle), 'the derived accessibility controls are b
 expect(/onAccessibilityTap/.test(bundle), 'the Native activation path reached the bundle')
 // A path is answered by Skia rather than by the shared hit test, which
 // is the one place the two surfaces deliberately do not share geometry.
+// Skia takes a gradient as a shader element inside the shape, which is
+// a different shape of answer from Canvas2D's gradient object -- so the
+// Native branch is its own code and worth asserting reached the bundle.
+expect(/LinearGradient/.test(bundle), 'the Native gradient shader reached the bundle')
 expect(/MakeFromSVGString/.test(bundle), 'the Native path parser reached the bundle')
 expect(/matchFont/.test(bundle), 'the Native font lookup reached the bundle')
 expect(/measureText/.test(bundle), 'the Native text alignment measurement reached the bundle')

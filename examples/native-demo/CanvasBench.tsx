@@ -61,7 +61,25 @@ export function CanvasBench() {
             accessibilityLabel="March revenue"
             onPress={() => setPressed('circle')}
           />
-          <Canvas.Ellipse cx={86} cy={30} radiusX={10} radiusY={20} className="fill-rose-500" />
+          {/* A gradient, which this package had no way to express until
+              now and `Svg.LinearGradient` always did. Skia takes it as a
+              shader element inside the shape; Canvas2D builds one from
+              the same numbers. */}
+          <Canvas.Ellipse
+            cx={86}
+            cy={30}
+            radiusX={10}
+            radiusY={20}
+            fill={{
+              kind: 'linear',
+              from: { x: 76, y: 10 },
+              to: { x: 96, y: 50 },
+              stops: [
+                { offset: 0, color: '#f43f5e' },
+                { offset: 1, color: '#a21caf' },
+              ],
+            }}
+          />
         </Canvas.Group>
         <Canvas.Clip x={0} y={0} width={100} height={60}>
           <Canvas.Line

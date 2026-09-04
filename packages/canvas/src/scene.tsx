@@ -62,11 +62,62 @@ export interface CanvasInteractionProps {
   disabled?: boolean
 }
 
+/** One colour at one position along a gradient, `0` to `1`. */
+export interface CanvasGradientStop {
+  offset: number
+  color: string
+}
+
+/**
+ * A gradient, in the shape both platforms take.
+ *
+ * Canvas2D builds one from coordinates and `addColorStop`; Skia takes a
+ * `start`/`end` pair with parallel `colors` and `positions` arrays. The two
+ * are the same description written differently, so this is the
+ * description and each renderer writes it its own way.
+ *
+ * The coordinates are the shape's own, on both. That is not a choice
+ * either: Canvas2D reads them in the current transform, which is the
+ * one Hozo set for this node, and Skia reads them in the shape's space.
+ *
+ * A radial gradient here is one circle, not Canvas2D's two. `r0` and a
+ * second centre have no counterpart in Skia, and a portable contract
+ * cannot promise what one side cannot draw.
+ */
+export interface CanvasLinearGradient {
+  kind: 'linear'
+  from: CanvasPoint
+  to: CanvasPoint
+  stops: readonly CanvasGradientStop[]
+}
+
+export interface CanvasRadialGradient {
+  kind: 'radial'
+  center: CanvasPoint
+  radius: number
+  stops: readonly CanvasGradientStop[]
+}
+
+/**
+ * What a shape can be painted with.
+ *
+ * A string is a colour, and `'none'` is the absence of paint -- the two
+ * meanings the paint props had before gradients existed, unchanged.
+ */
+export type CanvasPaint = string | CanvasLinearGradient | CanvasRadialGradient
+
+/** Whether a paint is a gradient rather than a colour. */
+export function isGradient(
+  paint: CanvasPaint | undefined,
+): paint is CanvasLinearGradient | CanvasRadialGradient {
+  return typeof paint === 'object' && paint !== null
+}
+
 export interface CanvasPaintProps {
   /** Compiler input. Runtime drawing uses the explicit paint props below. */
   className?: string
-  fill?: string
-  stroke?: string
+  fill?: CanvasPaint
+  stroke?: CanvasPaint
   strokeWidth?: number
   opacity?: number
   lineCap?: 'butt' | 'round' | 'square'
@@ -88,6 +139,11 @@ export interface CanvasPaintProps {
  */
 export function paintStrokes(paint: CanvasPaintProps): boolean {
   return paint.stroke !== undefined && paint.stroke !== 'none' && (paint.strokeWidth ?? 1) > 0
+}
+
+/** A gradient paints; a colour paints unless it is `none`. */
+function paints(paint: CanvasPaint | undefined): boolean {
+  return isGradient(paint) || (paint !== undefined && paint !== 'none')
 }
 
 export function paintFills(paint: CanvasPaintProps): boolean {
