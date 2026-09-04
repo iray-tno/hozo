@@ -87,6 +87,9 @@ jobs:
           sed -i 's#<title> Hozo — Test Reports </title>#<title>Hozo — Test Reports</title>#' apps/landing/dist/reports/index.html || true
           sed -i 's#</head>#    <meta property="og:site_name" content="Hozo" />\n    <meta property="og:title" content="Hozo — Test Reports" />\n    <meta name="description" content="CI test reports for Hozo, universal UI compiler for React Native." />\n</head>#' apps/landing/dist/reports/index.html || true
 
+      - name: Ensure .nojekyll exists
+        run: touch apps/landing/dist/.nojekyll
+
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
