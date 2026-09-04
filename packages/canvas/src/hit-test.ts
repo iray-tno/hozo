@@ -5,6 +5,7 @@ import {
   type ClipProps,
   type LineProps,
   paintStrokes,
+  type TextProps,
   unhandledShape,
 } from './scene.tsx'
 
@@ -213,7 +214,7 @@ function pointInLine(point: CanvasPoint, props: LineProps): boolean {
   return perpendicular <= half * Math.sqrt(lengthSquared)
 }
 
-function pointInNode(node: CanvasSceneNode, point: CanvasPoint, pathHitTest?: CanvasPathHitTest) {
+function pointInNode(node: CanvasSceneNode, point: CanvasPoint, queries?: CanvasRendererQueries) {
   switch (node.kind) {
     case 'rect':
       return pointInRect(
@@ -248,12 +249,15 @@ function pointInNode(node: CanvasSceneNode, point: CanvasPoint, pathHitTest?: Ca
       return pointInLine(point, node.props)
     case 'path':
       // Asked of the renderer, for the reason `CanvasPathHitTest` gives.
-      return pathHitTest?.(node.props.path, node.props.fillRule ?? 'nonzero', point) ?? false
-    // Text still refuses. Its region is a run of glyphs rather than a
-    // path, and neither renderer offers a containment test for one --
-    // Canvas2D can only measure a box and Skia a bounds, and a box is not
-    // where the ink is.
-    case 'text':
+      return (
+        queries?.pathContains?.(node.props.path, node.props.fillRule ?? 'nonzero', point) ?? false
+      )
+    case 'text': {
+      const metrics = queries?.measureText?.(node.props)
+      if (!metrics) return false
+      const box = textBox(node.props, metrics)
+      return pointInRect(point, box.x, box.y, box.width, box.height)
+    }
     case 'group':
     case 'clip':
       return false
@@ -287,15 +291,76 @@ export type CanvasPathHitTest = (
   point: CanvasPoint,
 ) => boolean
 
+/**
+ * A run of text as the renderer that drew it measures it.
+ *
+ * Supplied per surface for the reason `CanvasPathHitTest` is: the only
+ * measurement that can agree with what is on screen is the one taken by
+ * the thing that put it there. Canvas2D answers with
+ * `actualBoundingBoxAscent` and `Descent`; Skia answers with a rect whose
+ * origin is the baseline. Both report the *ink*, not the font box.
+ *
+ * That last part is why this exists at all. Refusing to hit test text
+ * was argued from "a box is not where the ink is" -- true of a font box
+ * and false of this one, which both platforms have had all along. The
+ * refusal left a label a person can see and cannot press, with nothing
+ * said, which is the failure this package spends its time avoiding.
+ */
+export interface CanvasTextMetrics {
+  width: number
+  /** Ink above the baseline, positive. */
+  ascent: number
+  /** Ink below the baseline, positive. */
+  descent: number
+}
+
+export type CanvasTextMeasure = (props: TextProps) => CanvasTextMetrics
+
+/**
+ * What a surface can answer that the shared hit test cannot.
+ *
+ * One object rather than a growing tail of optional callbacks. Each is
+ * a question only a renderer can answer, and each is absent for a caller
+ * that has no renderer to ask -- a test, a server -- which refuses the
+ * shapes that need it rather than guessing at them.
+ */
+export interface CanvasRendererQueries {
+  pathContains?: CanvasPathHitTest
+  measureText?: CanvasTextMeasure
+}
+
+/**
+ * The box a run of text occupies, in the text's own coordinates.
+ *
+ * `x` is the left edge and `y` the baseline, as `TextProps` says, so the
+ * box runs from the baseline up by the ascent and down by the descent.
+ * `textAlign` moves the run rather than the anchor, which is what it
+ * does on the screen.
+ */
+function textBox(props: TextProps, metrics: CanvasTextMetrics) {
+  const align = props.textAlign ?? 'left'
+  const left =
+    align === 'left'
+      ? props.x
+      : align === 'center'
+        ? props.x - metrics.width / 2
+        : props.x - metrics.width
+  return {
+    x: left,
+    y: props.y - metrics.ascent,
+    width: metrics.width,
+    height: metrics.ascent + metrics.descent,
+  }
+}
 function pointInClip(
   point: CanvasPoint,
   props: Omit<ClipProps, 'children'>,
-  pathHitTest?: CanvasPathHitTest,
+  queries?: CanvasRendererQueries,
 ) {
   if (props.path !== undefined) {
     // A clip has no fill rule of its own; both renderers clip a path by
     // its default, which is nonzero on each.
-    return pathHitTest?.(props.path, 'nonzero', point) ?? false
+    return queries?.pathContains?.(props.path, 'nonzero', point) ?? false
   }
   return pointInRect(point, props.x ?? 0, props.y ?? 0, props.width ?? 0, props.height ?? 0)
 }
@@ -385,7 +450,7 @@ export function hitTestCanvas(
   surfacePoint: CanvasPoint,
   viewport: CanvasHitTestViewport,
   isInteractive: (id: string) => boolean,
-  pathHitTest?: CanvasPathHitTest,
+  queries?: CanvasRendererQueries,
 ): CanvasHitTestResult | undefined {
   const rootMatrix = viewportMatrix(viewport)
   if (!rootMatrix) return undefined
@@ -404,8 +469,7 @@ export function hitTestCanvas(
       }
       if (node.kind === 'clip') {
         const inverse = invert(matrix)
-        if (!inverse || !pointInClip(apply(inverse, surfacePoint), node.props, pathHitTest))
-          continue
+        if (!inverse || !pointInClip(apply(inverse, surfacePoint), node.props, queries)) continue
         const hit = visit(node.children, matrix)
         if (hit) return hit
         continue
@@ -414,7 +478,7 @@ export function hitTestCanvas(
       const inverse = invert(matrix)
       if (!inverse) continue
       const localPoint = apply(inverse, surfacePoint)
-      if (pointInNode(node, localPoint, pathHitTest)) {
+      if (pointInNode(node, localPoint, queries)) {
         return { id: node.id, point: scenePoint, localPoint }
       }
     }

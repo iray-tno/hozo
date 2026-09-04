@@ -52,7 +52,9 @@ test('a path refuses without a renderer to ask', () => {
 
 test('a path is answered by the renderer, in the path’s own coordinates', () => {
   const { asked, hitTest } = tester(true)
-  const hit = hitTestCanvas(scene, { x: 20, y: 20 }, viewport, interactive, hitTest)
+  const hit = hitTestCanvas(scene, { x: 20, y: 20 }, viewport, interactive, {
+    pathContains: hitTest,
+  })
   assert.equal(hit?.id, 'path')
   assert.deepEqual(asked, [[SQUARE, 'nonzero', { x: 20, y: 20 }]])
 })
@@ -71,7 +73,7 @@ test('the point is the one inside the ancestors’ transforms', () => {
     },
   ]
   const { asked, hitTest } = tester(true)
-  hitTestCanvas(grouped, { x: 50, y: 30 }, viewport, interactive, hitTest)
+  hitTestCanvas(grouped, { x: 50, y: 30 }, viewport, interactive, { pathContains: hitTest })
   assert.deepEqual(asked[0]?.[2], { x: 20, y: 20 })
 })
 
@@ -80,13 +82,16 @@ test('the fill rule reaches the renderer as written', () => {
     { id: 'path', kind: 'path', props: { path: SQUARE, fillRule: 'evenodd' } },
   ]
   const { asked, hitTest } = tester(true)
-  hitTestCanvas(evenOdd, { x: 20, y: 20 }, viewport, interactive, hitTest)
+  hitTestCanvas(evenOdd, { x: 20, y: 20 }, viewport, interactive, { pathContains: hitTest })
   assert.equal(asked[0]?.[1], 'evenodd')
 })
 
 test('a renderer that says no is a miss, not an error', () => {
   const { hitTest } = tester(false)
-  assert.equal(hitTestCanvas(scene, { x: 20, y: 20 }, viewport, interactive, hitTest), undefined)
+  assert.equal(
+    hitTestCanvas(scene, { x: 20, y: 20 }, viewport, interactive, { pathContains: hitTest }),
+    undefined,
+  )
 })
 
 test('a path clip goes through the same route', () => {
@@ -102,12 +107,17 @@ test('a path clip goes through the same route', () => {
     },
   ]
   const { asked, hitTest } = tester(true)
-  assert.equal(hitTestCanvas(clipped, { x: 20, y: 20 }, viewport, interactive, hitTest)?.id, 'rect')
+  assert.equal(
+    hitTestCanvas(clipped, { x: 20, y: 20 }, viewport, interactive, { pathContains: hitTest })?.id,
+    'rect',
+  )
   assert.deepEqual(asked, [[SQUARE, 'nonzero', { x: 20, y: 20 }]])
 
   const refused = tester(false)
   assert.equal(
-    hitTestCanvas(clipped, { x: 20, y: 20 }, viewport, interactive, refused.hitTest),
+    hitTestCanvas(clipped, { x: 20, y: 20 }, viewport, interactive, {
+      pathContains: refused.hitTest,
+    }),
     undefined,
     'a shape outside the clip was reachable',
   )

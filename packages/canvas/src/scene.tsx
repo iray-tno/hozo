@@ -240,7 +240,7 @@ export interface LineProps extends CanvasPaintProps, CanvasInteractionProps {
  * differ, and a chart that needs identical glyphs on both has to load
  * one, which is outside this contract.
  */
-export interface TextProps extends CanvasPaintProps {
+export interface TextProps extends CanvasPaintProps, CanvasInteractionProps {
   text: string
   x: number
   y: number
@@ -314,7 +314,7 @@ export type CanvasLeafNode =
   | { id?: string; kind: 'circle'; props: SceneProps<CircleProps> }
   | { id?: string; kind: 'ellipse'; props: SceneProps<EllipseProps> }
   | { id?: string; kind: 'line'; props: SceneProps<LineProps> }
-  | { id?: string; kind: 'text'; props: TextProps }
+  | { id?: string; kind: 'text'; props: SceneProps<TextProps> }
   | { id?: string; kind: 'path'; props: SceneProps<PathProps> }
 
 export type CanvasSceneNode =
@@ -568,7 +568,7 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
   // `line` joins the four closed shapes now that `pointInLine` can answer
   // for it. Named rather than widened to every kind: `path` still refuses
   // hits, and the list is what says which geometry the hit test covers.
-  kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse' | 'line' | 'path',
+  kind: 'rect' | 'rounded-rect' | 'circle' | 'ellipse' | 'line' | 'path' | 'text',
 ) {
   const Component = ({ onPress, onActiveChange, accessibilityLabel, disabled, ...props }: P) => {
     const node = useMemo(() => ({ kind, props }) as unknown as FlatNode, [props])
@@ -603,7 +603,7 @@ export const Line = interactiveLeaf<LineProps>('line')
 // Text is not interactive: its region is a run of glyphs, and neither
 // renderer offers a containment test for one. `Path` is, now that each
 // surface answers for its own -- see `CanvasPathHitTest`.
-export const Text = leaf<TextProps>('text')
+export const Text = interactiveLeaf<TextProps>('text')
 export const Path = interactiveLeaf<PathProps>('path')
 
 export function Group({ children, ...props }: GroupProps) {
@@ -812,7 +812,7 @@ export function canvasUnreadableText(scene: CanvasScene, accessibleName?: string
  */
 export function reportUnreadableText(lost: string[], warn: (message: string) => void) {
   if (lost.length === 0) return
-  const key = lost.join(' ')
+  const key = lost.join('\u0000')
   if (reportedLosses.has(key)) return
   reportedLosses.add(key)
   const shown = lost.slice(0, 3).join('", "')
