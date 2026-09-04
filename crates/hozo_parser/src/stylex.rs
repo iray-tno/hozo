@@ -1061,6 +1061,8 @@ enum WebValueGrammar {
     FontVariationSettings,
     HangingPunctuation,
     HyphenateCharacter,
+    HyphenateLimitChars,
+    MathDepth,
     TabSize,
     TextCombineUpright,
     TextEmphasisStyle,
@@ -1224,6 +1226,8 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "fontVariantPosition" => ("font-variant-position", &["normal", "sub", "super"]),
         "hyphens" => ("hyphens", &["none", "manual", "auto"]),
+        "mathShift" => ("math-shift", &["normal", "compact"]),
+        "mathStyle" => ("math-style", &["normal", "compact"]),
         "imageRendering" => (
             "image-rendering",
             &["auto", "crisp-edges", "pixelated", "optimizeSpeed", "optimizeQuality"],
@@ -1409,6 +1413,18 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
                 minimum: 0.0,
             },
         )),
+        "hyphenateLimitChars" => Some((
+            "hyphenate-limit-chars",
+            WebValueGrammar::HyphenateLimitChars,
+        )),
+        "lineHeightStep" => Some((
+            "line-height-step",
+            WebValueGrammar::Length {
+                keywords: &[],
+                minimum: 0.0,
+            },
+        )),
+        "mathDepth" => Some(("math-depth", WebValueGrammar::MathDepth)),
         "orphans" => Some((
             "orphans",
             WebValueGrammar::Integer {
@@ -1877,6 +1893,33 @@ fn web_overflow_clip_margin(value: &StaticValue) -> Option<String> {
                 .then(|| value.clone())
         }
         _ => None,
+    }
+}
+
+fn web_hyphenate_limit_chars(value: &StaticValue) -> Option<String> {
+    match value {
+        StaticValue::Number(_) => web_integer(value, 1, i64::MAX),
+        StaticValue::String(value) if value == "auto" => Some(value.clone()),
+        StaticValue::String(value) => {
+            let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+            (tokens.len() <= 3
+                && !tokens.is_empty()
+                && tokens.iter().all(|token| {
+                    token.parse::<u64>().is_ok_and(|number| number > 0)
+                }))
+            .then(|| value.clone())
+        }
+    }
+}
+
+fn web_math_depth(value: &StaticValue) -> Option<String> {
+    match value {
+        StaticValue::Number(_) => web_integer(value, i64::MIN, i64::MAX),
+        StaticValue::String(value) if value == "auto-add" => Some(value.clone()),
+        StaticValue::String(value) => {
+            let inner = value.strip_prefix("add(")?.strip_suffix(')')?;
+            inner.parse::<i64>().ok().map(|_| value.clone())
+        }
     }
 }
 
@@ -3321,6 +3364,8 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
                 web_css_string(value).then(|| value.clone())?
             }
         }
+        WebValueGrammar::HyphenateLimitChars => web_hyphenate_limit_chars(value)?,
+        WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
         WebValueGrammar::TextEmphasisStyle => web_text_emphasis_style(value)?,
@@ -3806,14 +3851,16 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
         | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
         | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
-        | "fontVariationSettings" | "hangingPunctuation" | "hyphenateCharacter" | "hyphens"
+        | "fontVariationSettings" | "hangingPunctuation" | "hyphenateCharacter"
+        | "hyphenateLimitChars" | "hyphens"
         | "imageRendering" | "imeMode" | "inlineSize" | "interpolateSize"
-        | "justifyItems" | "lineBreak" | "listStyleImage" | "listStylePosition"
+        | "justifyItems" | "lineBreak" | "lineHeightStep" | "listStyleImage" | "listStylePosition"
         | "listStyleType" | "maxBlockSize" | "maxInlineSize"
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
         | "maskClip" | "maskComposite" | "maskImage" | "maskMode" | "maskOrigin"
         | "maskPosition" | "maskRepeat" | "maskSize" | "maskType" | "WebkitMaskImage"
-        | "minInlineSize" | "MozOsxFontSmoothing" | "MsOverflowStyle"
+        | "mathDepth" | "mathShift" | "mathStyle" | "minInlineSize"
+        | "MozOsxFontSmoothing" | "MsOverflowStyle"
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
