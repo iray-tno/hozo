@@ -66,7 +66,7 @@ function installDocument() {
 }
 
 const fake = installDocument()
-const { measureCanvasText } = await import('./index.tsx')
+const { measureCanvasText, wrapCanvasText } = await import('./index.tsx')
 
 test('a label is measured by its ink, in the font it will be drawn with', () => {
   // The four fields go through the same `cssFontShorthand` the renderer
@@ -92,4 +92,16 @@ test('the font is put back, so one caller cannot disturb the next', () => {
   // a box twice the size it should be.
   measureCanvasText({ text: 'Jan', x: 0, y: 0, fontSize: 40 })
   assert.equal(fake.font(), fake.initial)
+})
+
+test('a label can be broken into lines at a width, with the same measurement', () => {
+  // The rule is shared and tested in `wrap-text.test.ts`; what this pins
+  // is that the caller-facing wrapper measures with the same context the
+  // rest of this file does, so `wrapCanvasText` and `measureCanvasText`
+  // cannot disagree about what fits.
+  const props = { text: 'Sales are up', x: 0, y: 0, fontSize: 20 }
+  assert.deepEqual(wrapCanvasText(props, 60), ['Sales', 'are up'])
+  for (const line of wrapCanvasText(props, 60) ?? []) {
+    assert.ok((measureCanvasText({ ...props, text: line })?.width ?? 0) <= 60)
+  }
 })

@@ -35,6 +35,7 @@ import {
   type TextProps,
   useCanvasScene,
 } from './scene.tsx'
+import { wrapText } from './wrap-text.ts'
 
 export type { CanvasAccessibilityProps, CanvasAccessibleFallback } from './accessibility.ts'
 export {
@@ -65,6 +66,10 @@ export type {
   RoundedRectProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
+// The rule on its own, for a caller with a measurement of its own --
+// one that already knows its metrics, or is laying out for a font it
+// will load later.
+export { textLines, wrapText } from './wrap-text.ts'
 
 /**
  * A run of text, measured the way the renderer measures it.
@@ -115,6 +120,28 @@ function sharedContext() {
 export function measureCanvasText(props: TextProps): CanvasTextMetrics | undefined {
   const context = sharedContext()
   return context ? measureWith(context, props) : undefined
+}
+
+/**
+ * The lines a label would be broken into at a given width.
+ *
+ * The same rule `maxWidth` follows, for a caller doing its own layout:
+ * sizing a card around a legend, deciding how tall a row has to be,
+ * placing something under the last line. Withholding it would leave
+ * those to a guess, which is what this package did with the
+ * measurement until it stopped.
+ *
+ * `undefined` where there is no renderer to measure with, as
+ * `measureCanvasText` is and for the same reason.
+ */
+export function wrapCanvasText(props: TextProps, maxWidth: number): string[] | undefined {
+  const context = sharedContext()
+  if (!context) return undefined
+  return wrapText(
+    props.text,
+    maxWidth,
+    (run) => measureWith(context, { ...props, text: run }).width,
+  )
 }
 
 export type CanvasProps = CanvasAccessibilityProps & {

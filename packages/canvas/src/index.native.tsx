@@ -63,6 +63,7 @@ import {
   unhandledShape,
   useCanvasScene,
 } from './scene.tsx'
+import { textLines, wrapText } from './wrap-text.ts'
 
 export type { CanvasAccessibilityProps, CanvasAccessibleFallback } from './accessibility.ts'
 export {
@@ -92,6 +93,10 @@ export type {
   RoundedRectProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
+// The rule on its own, for a caller with a measurement of its own --
+// one that already knows its metrics, or is laying out for a font it
+// will load later.
+export { textLines, wrapText } from './wrap-text.ts'
 
 export type CanvasProps = CanvasAccessibilityProps & {
   children?: ReactNode
@@ -219,6 +224,23 @@ function colorFor(paint: CanvasPaint | undefined, fallback?: string) {
   if (isGradient(paint)) return 'black'
   return paint ?? fallback
 }
+/**
+ * The lines a label would be broken into at a given width.
+ *
+ * The same rule `maxWidth` follows, for a caller doing its own layout:
+ * sizing a card around a legend, deciding how tall a row has to be,
+ * placing something under the last line. Withholding it would leave
+ * those to a guess, which is what this package did with the
+ * measurement until it stopped.
+ *
+ * `undefined` where there is no renderer to measure with, as
+ * `measureCanvasText` is and for the same reason.
+ */
+export function wrapCanvasText(props: TextProps, maxWidth: number): string[] | undefined {
+  const font = fontFor(props)
+  return wrapText(props.text, maxWidth, (run) => font.measureText(run).width)
+}
+
 /**
  * What a label will occupy, for a caller placing something against it.
  *
@@ -381,11 +403,23 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
       )
     case 'text': {
       const font = fontFor(node.props)
-      return paintLayers(
-        key,
-        SkiaText,
-        { font, text: node.props.text, x: alignedX(node.props, font), y: node.props.y },
-        node.props,
+      // One Skia element per line. Skia draws a run rather than a
+      // paragraph, so the breaking is the shared rule the Web renderer
+      // follows and the widths are this font's -- the one about to draw
+      // them.
+      const lines = textLines(node.props, (run) => font.measureText(run).width)
+      return lines.map((line, index) =>
+        paintLayers(
+          `${key}:${index}`,
+          SkiaText,
+          {
+            font,
+            text: line.text,
+            x: alignedX({ ...node.props, text: line.text }, font),
+            y: line.y,
+          },
+          node.props,
+        ),
       )
     }
     case 'path':

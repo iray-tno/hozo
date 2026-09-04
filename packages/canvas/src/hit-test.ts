@@ -8,6 +8,7 @@ import {
   type TextProps,
   unhandledShape,
 } from './scene.tsx'
+import { textLines } from './wrap-text.ts'
 
 export interface CanvasPoint {
   x: number
@@ -253,10 +254,18 @@ function pointInNode(node: CanvasSceneNode, point: CanvasPoint, queries?: Canvas
         queries?.pathContains?.(node.props.path, node.props.fillRule ?? 'nonzero', point) ?? false
       )
     case 'text': {
-      const metrics = queries?.measureText?.(node.props)
-      if (!metrics) return false
-      const box = textBox(node.props, metrics)
-      return pointInRect(point, box.x, box.y, box.width, box.height)
+      const measure = queries?.measureText
+      if (!measure) return false
+      // Each line boxed on its own rather than one box around all of
+      // them: a short last line leaves a corner that looks pressable and
+      // is not, and a person who presses there gets nothing for a reason
+      // they cannot see.
+      const width = (run: string) => measure({ ...node.props, text: run }).width
+      return textLines(node.props, width).some((line) => {
+        const props = { ...node.props, text: line.text, y: line.y }
+        const box = textBox(props, measure(props))
+        return pointInRect(point, box.x, box.y, box.width, box.height)
+      })
     }
     case 'group':
     case 'clip':
@@ -352,6 +361,7 @@ function textBox(props: TextProps, metrics: CanvasTextMetrics) {
     height: metrics.ascent + metrics.descent,
   }
 }
+
 function pointInClip(
   point: CanvasPoint,
   props: Omit<ClipProps, 'children'>,

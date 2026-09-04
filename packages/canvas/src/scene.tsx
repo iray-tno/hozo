@@ -267,6 +267,25 @@ export interface TextProps extends CanvasPaintProps, CanvasInteractionProps {
   /** Which part of the run sits at `x`. */
   textAlign?: 'left' | 'center' | 'right'
   /**
+   * The width to wrap within, in the scene’s own coordinates.
+   *
+   * Without it a label is one line however long it is, which is what
+   * every drawing API does and what nobody wants for a legend. The
+   * break opportunities are the shared ones -- spaces, the boundaries
+   * around CJK, and the two kinsoku classes -- and the widths are the
+   * renderer’s own, so where a line ends can differ between platforms
+   * while what is allowed to end it cannot.
+   */
+  maxWidth?: number
+  /**
+   * The distance between baselines, as a multiple of `fontSize`.
+   *
+   * A multiple rather than a length, so a label that changes size
+   * keeps its spacing. `y` stays the first baseline, which is where it
+   * is with no wrapping at all.
+   */
+  lineHeight?: number
+  /**
    * That these words are decoration rather than information.
    *
    * Text drawn on a canvas is pixels: no screen reader will ever read it,
