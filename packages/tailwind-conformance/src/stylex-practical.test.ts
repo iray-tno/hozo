@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 259, covered: 259 },
+    values: { total: 261, covered: 261 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 221, covered: 221 },
+    corpus: { total: 223, covered: 223 },
     silent: 0,
   })
 })
@@ -718,6 +718,24 @@ test('scroll and view timeline identifiers agree with official StyleX', () => {
     viewTimelineAxis: ['block', 'inline', 'x', 'y'],
     viewTimelineName: ['none', '--card-view', '--x, --y'],
     viewTransitionName: ['none', 'match-element', 'hero-card'],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('anchor positioning identifiers agree with official StyleX', () => {
+  const values: Record<string, readonly string[]> = {
+    anchorName: ['none', '--tooltip-anchor', '--tooltip-anchor, --fallback-anchor'],
+    positionAnchor: ['auto', '--tooltip-anchor'],
+    positionVisibility: ['always', 'anchors-visible', 'no-overflow'],
   }
   for (const [property, propertyValues] of Object.entries(values)) {
     for (const value of propertyValues) {
