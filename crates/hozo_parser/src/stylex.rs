@@ -1123,6 +1123,24 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "backgroundPositionX" => ("background-position-x", &["left", "center", "right"]),
         "backgroundPositionY" => ("background-position-y", &["top", "center", "bottom"]),
         "borderCollapse" => ("border-collapse", &["collapse", "separate"]),
+        "breakAfter" => (
+            "break-after",
+            &[
+                "auto", "avoid", "always", "all", "avoid-page", "page", "left", "right",
+                "recto", "verso", "avoid-column", "column", "avoid-region", "region",
+            ],
+        ),
+        "breakBefore" => (
+            "break-before",
+            &[
+                "auto", "avoid", "always", "all", "avoid-page", "page", "left", "right",
+                "recto", "verso", "avoid-column", "column", "avoid-region", "region",
+            ],
+        ),
+        "breakInside" => (
+            "break-inside",
+            &["auto", "avoid", "avoid-page", "avoid-column", "avoid-region"],
+        ),
         "captionSide" => (
             "caption-side",
             &["top", "bottom", "block-start", "block-end", "inline-start", "inline-end"],
@@ -1232,6 +1250,15 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
                 "fill markers", "stroke fill markers",
             ],
         ),
+        "pageBreakAfter" => (
+            "page-break-after",
+            &["auto", "always", "avoid", "left", "right", "recto", "verso"],
+        ),
+        "pageBreakBefore" => (
+            "page-break-before",
+            &["auto", "always", "avoid", "left", "right", "recto", "verso"],
+        ),
+        "pageBreakInside" => ("page-break-inside", &["auto", "avoid"]),
         "resize" => ("resize", &["none", "both", "horizontal", "vertical"]),
         "scrollSnapAlign" => ("scroll-snap-align", &["none", "start", "end", "center"]),
         "scrollSnapStop" => ("scroll-snap-stop", &["normal", "always"]),
@@ -3685,6 +3712,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "borderImageRepeat" | "borderImageSlice" | "borderImageSource" | "borderImageWidth"
         | "borderSpacing" | "gridAutoColumns" | "gridAutoFlow" | "gridAutoRows"
         | "gridTemplateAreas"
+        | "breakAfter" | "breakBefore" | "breakInside"
         | "captionSide" | "caretShape" | "clear" | "clip" | "clipPath" | "clipRule" | "colorScheme"
         | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
         | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
@@ -3710,7 +3738,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
-        | "overscrollBehaviorY" | "paintOrder" | "printColorAdjust" | "resize"
+        | "overscrollBehaviorY" | "pageBreakAfter" | "pageBreakBefore" | "pageBreakInside"
+        | "paintOrder" | "printColorAdjust" | "resize"
         | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
         | "shapeImageThreshold" | "shapeMargin" | "shapeOutside" | "shapeRendering"
