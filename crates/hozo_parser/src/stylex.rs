@@ -1064,6 +1064,8 @@ enum WebValueGrammar {
     HyphenateLimitChars,
     ImageResolution,
     InitialLetter,
+    TimelineNames { allow_all: bool },
+    ViewTransitionName,
     MathDepth,
     TabSize,
     TextCombineUpright,
@@ -1315,6 +1317,7 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
                 "y mandatory", "y proximity",
             ],
         ),
+        "scrollTimelineAxis" => ("scroll-timeline-axis", &["block", "inline", "x", "y"]),
         "scrollbarGutter" => ("scrollbar-gutter", &["auto", "stable", "stable both-edges"]),
         "scrollbarWidth" => ("scrollbar-width", &["auto", "thin", "none"]),
         "shapeRendering" => (
@@ -1337,6 +1340,7 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "wordWrap" => ("word-wrap", &["normal", "break-word"]),
         "overflowWrap" => ("overflow-wrap", &["normal", "break-word", "anywhere"]),
         "visibility" => ("visibility", &["visible", "hidden", "collapse"]),
+        "viewTimelineAxis" => ("view-timeline-axis", &["block", "inline", "x", "y"]),
         "backgroundPosition" => (
             "background-position",
             &[
@@ -1438,6 +1442,22 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "mathDepth" => Some(("math-depth", WebValueGrammar::MathDepth)),
         "imageResolution" => Some(("image-resolution", WebValueGrammar::ImageResolution)),
         "initialLetter" => Some(("initial-letter", WebValueGrammar::InitialLetter)),
+        "scrollTimelineName" => Some((
+            "scroll-timeline-name",
+            WebValueGrammar::TimelineNames { allow_all: false },
+        )),
+        "timelineScope" => Some((
+            "timeline-scope",
+            WebValueGrammar::TimelineNames { allow_all: true },
+        )),
+        "viewTimelineName" => Some((
+            "view-timeline-name",
+            WebValueGrammar::TimelineNames { allow_all: false },
+        )),
+        "viewTransitionName" => Some((
+            "view-transition-name",
+            WebValueGrammar::ViewTransitionName,
+        )),
         "orphans" => Some((
             "orphans",
             WebValueGrammar::Integer {
@@ -1983,6 +2003,25 @@ fn web_initial_letter(value: &StaticValue) -> Option<String> {
         sink.parse::<u64>().ok().filter(|sink| *sink > 0)?;
     }
     Some(value.clone())
+}
+
+fn web_timeline_names(value: &StaticValue, allow_all: bool) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "none" || allow_all && value == "all" {
+        return Some(value.clone());
+    }
+    web_comma_groups(value)?
+        .iter()
+        .all(|name| name.trim().starts_with("--") && web_css_identifier(name.trim()))
+        .then(|| value.clone())
+}
+
+fn web_view_transition_name(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    (matches!(value.as_str(), "none" | "match-element")
+        || web_css_identifier(value)
+            && !matches!(value.as_str(), "auto" | "normal" | "inherit" | "initial" | "unset"))
+    .then(|| value.clone())
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3429,6 +3468,8 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::HyphenateLimitChars => web_hyphenate_limit_chars(value)?,
         WebValueGrammar::ImageResolution => web_image_resolution(value)?,
         WebValueGrammar::InitialLetter => web_initial_letter(value)?,
+        WebValueGrammar::TimelineNames { allow_all } => web_timeline_names(value, allow_all)?,
+        WebValueGrammar::ViewTransitionName => web_view_transition_name(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -3934,14 +3975,16 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "pageBreakBefore" | "pageBreakInside"
         | "paintOrder" | "printColorAdjust" | "resize"
         | "rubyAlign" | "rubyMerge" | "rubyPosition" | "scrollSnapAlign"
-        | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
+        | "scrollSnapStop" | "scrollSnapType" | "scrollTimelineAxis" | "scrollTimelineName"
+        | "scrollbarGutter" | "scrollbarWidth"
         | "shapeImageThreshold" | "shapeMargin" | "shapeOutside" | "shapeRendering"
         | "stroke" | "strokeDasharray" | "strokeDashoffset"
         | "strokeLinecap" | "strokeLinejoin" | "strokeMiterlimit" | "strokeOpacity"
         | "strokeWidth" | "tabSize" | "tableLayout" | "textAnchor" | "textCombineUpright"
         | "textEmphasisColor" | "textEmphasisPosition" | "textEmphasisStyle" | "textFillColor"
         | "textRendering" | "textSizeAdjust" | "textUnderlineOffset" | "textUnderlinePosition"
-        | "touchAction" | "transformBox" | "transformStyle" | "unicodeBidi" | "widows" | "willChange"
+        | "timelineScope" | "touchAction" | "transformBox" | "transformStyle" | "unicodeBidi"
+        | "viewTimelineAxis" | "viewTimelineName" | "viewTransitionName" | "widows" | "willChange"
         | "wordBreak" | "wordSpacing" | "wordWrap"
         | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
