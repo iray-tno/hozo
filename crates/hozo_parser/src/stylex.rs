@@ -1024,6 +1024,7 @@ enum WebValueGrammar {
     ClipRect,
     ClipPath,
     Contain,
+    ContainIntrinsicSize { axes: usize },
     SvgDasharray,
     UrlOrNone,
     Time,
@@ -1586,6 +1587,26 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             WebValueGrammar::AnimationTimingFunction,
         )),
         "clipPath" => Some(("clip-path", WebValueGrammar::ClipPath)),
+        "containIntrinsicBlockSize" => Some((
+            "contain-intrinsic-height",
+            WebValueGrammar::ContainIntrinsicSize { axes: 1 },
+        )),
+        "containIntrinsicHeight" => Some((
+            "contain-intrinsic-height",
+            WebValueGrammar::ContainIntrinsicSize { axes: 1 },
+        )),
+        "containIntrinsicInlineSize" => Some((
+            "contain-intrinsic-width",
+            WebValueGrammar::ContainIntrinsicSize { axes: 1 },
+        )),
+        "containIntrinsicSize" => Some((
+            "contain-intrinsic-size",
+            WebValueGrammar::ContainIntrinsicSize { axes: 2 },
+        )),
+        "containIntrinsicWidth" => Some((
+            "contain-intrinsic-width",
+            WebValueGrammar::ContainIntrinsicSize { axes: 1 },
+        )),
         "perspective" => Some((
             "perspective",
             WebValueGrammar::Length {
@@ -1721,6 +1742,34 @@ fn web_length(value: &StaticValue, keywords: &[&str], minimum: f64) -> Option<St
                 && web_length_number(value).is_some_and(|number| number >= minimum) =>
         {
             Some(value.clone())
+        }
+        _ => None,
+    }
+}
+
+fn web_contain_intrinsic_size(value: &StaticValue, axes: usize) -> Option<String> {
+    match value {
+        StaticValue::Number(value) if value.is_finite() && *value >= 0.0 => {
+            Some(format!("{}px", numeric_text(*value)))
+        }
+        StaticValue::String(value) if value == "none" => Some(value.clone()),
+        StaticValue::String(value) => {
+            let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+            let mut index = 0;
+            let mut sizes = 0;
+            while index < tokens.len() && sizes < axes {
+                if tokens[index] == "auto" {
+                    index += 1;
+                }
+                let token = *tokens.get(index)?;
+                let number = web_length_number(token)?;
+                if number < 0.0 {
+                    return None;
+                }
+                index += 1;
+                sizes += 1;
+            }
+            (index == tokens.len() && sizes > 0).then(|| value.clone())
         }
         _ => None,
     }
@@ -3107,6 +3156,9 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::ClipRect => web_clip_rect(value)?,
         WebValueGrammar::ClipPath => web_clip_path(value)?,
         WebValueGrammar::Contain => web_contain(value)?,
+        WebValueGrammar::ContainIntrinsicSize { axes } => {
+            web_contain_intrinsic_size(value, axes)?
+        }
         WebValueGrammar::SvgDasharray => web_svg_dasharray(value)?,
         WebValueGrammar::UrlOrNone => web_url_or_none(value)?,
         WebValueGrammar::Time => {
@@ -3636,6 +3688,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "captionSide" | "caretShape" | "clear" | "clip" | "clipPath" | "clipRule" | "colorScheme"
         | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
         | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
+        | "containIntrinsicBlockSize" | "containIntrinsicHeight"
+        | "containIntrinsicInlineSize" | "containIntrinsicSize" | "containIntrinsicWidth"
         | "contentVisibility" | "displayInside" | "displayList" | "displayOutside"
         | "dominantBaseline" | "emptyCells" | "fill" | "fillOpacity" | "fillRule"
         | "float" | "forcedColorAdjust"
@@ -6934,6 +6988,9 @@ mod tests {
                 columnCount: 3, columnFill: 'balance', columnRuleColor: '#123456',
                 columnRuleStyle: 'dashed', columnRuleWidth: '2px', columnSpan: 'all',
                 columnWidth: '16rem', contain: 'layout paint', contentVisibility: 'auto',
+                containIntrinsicBlockSize: 'auto 320px', containIntrinsicHeight: '20rem',
+                containIntrinsicInlineSize: 480, containIntrinsicSize: '320px 180px',
+                containIntrinsicWidth: 'none',
                 displayInside: 'grid', displayList: 'list-item',
                 displayOutside: 'inline-level', emptyCells: 'hide',
                 listStyleImage: 'url(#marker)', listStylePosition: 'inside',
@@ -6942,7 +6999,9 @@ mod tests {
               wider: {
                 borderSpacing: '8px 12px 16px', clip: 'circle(50%)', columnCount: 0,
                 columnRuleWidth: '-1px', columnWidth: 'calc(50% - 1rem)',
-                contain: 'size inline-size', listStyleImage: 'linear-gradient(red, blue)',
+                contain: 'size inline-size', containIntrinsicBlockSize: 'auto',
+                containIntrinsicSize: '320px 180px 90px',
+                listStyleImage: 'linear-gradient(red, blue)',
                 listStyleType: 'symbols(cyclic "A")'
               }
             })
@@ -6951,7 +7010,7 @@ mod tests {
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
             panic!("exact list and table values were not lowerable")
         };
-        assert_eq!(entries.len(), 21);
+        assert_eq!(entries.len(), 26);
         assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
             matches!(property, StyleProperty::WebOnly(_, _))
         })));
@@ -6962,8 +7021,8 @@ mod tests {
             panic!("wider list and table values should remain residual")
         };
         assert!(entries.is_empty());
-        assert_eq!(residual.len(), 8);
-        assert_eq!(gaps.len(), 8);
+        assert_eq!(residual.len(), 10);
+        assert_eq!(gaps.len(), 10);
     }
 
     #[test]

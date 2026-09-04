@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 240, covered: 240 },
+    values: { total: 241, covered: 241 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 202, covered: 202 },
+    corpus: { total: 203, covered: 203 },
     silent: 0,
   })
 })
@@ -544,6 +544,17 @@ test('list, table, columns, and containment values agree with official StyleX', 
     tableLayout: ['auto', 'fixed'],
   }
   for (const [property, values] of Object.entries(keywords)) {
+    for (const value of values) assert.equal(compareStylexValue({ property, value }).covered, true)
+  }
+
+  const intrinsicSizes: Record<string, readonly (string | number)[]> = {
+    containIntrinsicBlockSize: ['none', 320, 'auto 320px'],
+    containIntrinsicHeight: ['none', '20rem', 'auto 20rem'],
+    containIntrinsicInlineSize: ['none', 480, 'auto 480px'],
+    containIntrinsicSize: ['none', 320, '320px 180px', 'auto 320px auto 180px'],
+    containIntrinsicWidth: ['none', '30rem', 'auto 30rem'],
+  }
+  for (const [property, values] of Object.entries(intrinsicSizes)) {
     for (const value of values) assert.equal(compareStylexValue({ property, value }).covered, true)
   }
 
