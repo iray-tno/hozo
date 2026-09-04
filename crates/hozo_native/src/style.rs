@@ -633,6 +633,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::GridRow(_)
         | StyleProperty::TransitionProperty(_)
         | StyleProperty::TransitionDuration(..)
+        | StyleProperty::TransitionDelay(..)
         | StyleProperty::TransitionTimingFunction(..)
         | StyleProperty::Animation(_)
         // Child-scoped: these mean something for the element's children, not

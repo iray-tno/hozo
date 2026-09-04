@@ -53,6 +53,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'containerType', value: 'inline-size' },
   { property: 'gridTemplateColumns', value: '1fr 1fr' },
   { property: 'transitionDuration', value: '200ms' },
+  { property: 'transition', value: 'opacity 200ms ease-in-out 100ms' },
   { property: 'whiteSpace', value: 'nowrap' },
   { property: 'textOverflow', value: 'ellipsis' },
   { property: 'wordBreak', value: 'break-word' },
@@ -370,16 +371,22 @@ function sourceFor({ property, value }: StylexValueCase): string {
   const companions =
     property === 'gridTemplateColumns'
       ? "display: 'grid', "
-      : property === 'transitionDuration'
+      : property === 'transitionDuration' || property === 'transitionDelay'
         ? "transitionProperty: 'opacity', "
         : property === 'textOverflow'
           ? "whiteSpace: 'nowrap', "
           : property === 'lineHeight'
             ? 'fontSize: 16, '
             : ''
+  const transitionClass =
+    property === 'transition' && String(value).startsWith('background-color')
+      ? 'bg-white hover:bg-black'
+      : property === 'transition' && String(value).startsWith('transform')
+        ? 'scale-100 hover:scale-95'
+        : 'opacity-100 hover:opacity-50'
   const props =
     component === 'Pressable'
-      ? ' accessibilityRole="button" className="opacity-100 hover:opacity-50"'
+      ? ` accessibilityRole="button" className="${transitionClass}"`
       : component === 'TextInput'
         ? ' accessibilityLabel="Field"'
         : ''
@@ -428,6 +435,23 @@ function cssComponents(value: string): string[] {
 
 function expandStylexShorthand(property: string, value: string): Array<[string, string]> {
   const parts = cssComponents(value)
+  if (property === 'transition') {
+    const timings = new Set(['linear', 'ease-in', 'ease-out', 'ease-in-out'])
+    const times = parts.filter((part) => /^\d*\.?\d+(?:ms|s)$/.test(part))
+    const milliseconds = (part: string | undefined) => {
+      if (!part) return '0ms'
+      return part.endsWith('ms') ? part : `${Number(part.slice(0, -1)) * 1000}ms`
+    }
+    return [
+      [
+        'transition-property',
+        parts.find((part) => !times.includes(part) && !timings.has(part)) ?? 'all',
+      ],
+      ['transition-duration', milliseconds(times[0])],
+      ['transition-timing-function', parts.find((part) => timings.has(part)) ?? 'ease'],
+      ['transition-delay', milliseconds(times[1])],
+    ]
+  }
   if (property === 'flex-flow') {
     const directions = new Set(['row', 'row-reverse', 'column', 'column-reverse'])
     const wraps = new Set(['nowrap', 'wrap', 'wrap-reverse'])

@@ -25,6 +25,7 @@ import { Animated, Easing, type StyleProp, StyleSheet, type ViewStyle } from 're
 
 export interface HozoTransitionSpec {
   duration: number
+  delay?: number
   easing: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
 }
 
@@ -95,6 +96,7 @@ export function HozoAnimated({ style, hozoTransition, children, ...props }: Hozo
     const animation = Animated.timing(progress, {
       toValue: 1,
       duration: hozoTransition.duration,
+      delay: hozoTransition.delay ?? 0,
       easing: easingFor(hozoTransition.easing),
       // Colours are in here too, and React Native cannot interpolate one
       // on the native driver. One animation on the JavaScript driver is

@@ -11,7 +11,7 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 281, covered: 281 },
+    values: { total: 282, covered: 282 },
     constructs: { total: 16, covered: 16 },
     corpus: { total: 243, covered: 243 },
     silent: 0,
@@ -570,6 +570,21 @@ test('outline shorthand agrees with official StyleX', () => {
   for (const value of ['none', 'solid', '2px solid #123456', 'thick double invert', 2] as const) {
     assert.deepEqual(compareStylexValue({ property: 'outline', value }), {
       property: 'outline',
+      value,
+      covered: true,
+      silent: false,
+    })
+  }
+})
+
+test('transition shorthand agrees with official StyleX and lowers to the Native runtime', () => {
+  for (const value of [
+    'opacity 200ms ease-in-out',
+    'background-color 150ms linear 50ms',
+    'transform 300ms ease-out',
+  ]) {
+    assert.deepEqual(compareStylexValue({ property: 'transition', value }), {
+      property: 'transition',
       value,
       covered: true,
       silent: false,

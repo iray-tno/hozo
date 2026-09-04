@@ -31,6 +31,7 @@ import { blendColor } from './color-transition.ts'
 
 export interface HozoTransition {
   duration: number
+  delay?: number
   easing: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
   opacity: boolean
   transform: boolean
@@ -237,6 +238,7 @@ export function HozoPressable({
           Animated.timing(opacity, {
             toValue: targetOpacity,
             duration: hozoTransition.duration,
+            delay: hozoTransition.delay ?? 0,
             easing: easingFor(hozoTransition.easing),
             useNativeDriver: true,
           }),
@@ -258,6 +260,7 @@ export function HozoPressable({
             Animated.timing(transformValues.get(spec.key)!, {
               toValue: targets.get(spec.key) ?? identityFor(spec),
               duration: hozoTransition.duration,
+              delay: hozoTransition.delay ?? 0,
               easing: easingFor(hozoTransition.easing),
               useNativeDriver: true,
             }),
@@ -284,6 +287,7 @@ export function HozoPressable({
           Animated.timing(colorProgress, {
             toValue: 1,
             duration: hozoTransition.duration,
+            delay: hozoTransition.delay ?? 0,
             easing: easingFor(hozoTransition.easing),
             useNativeDriver: false,
           }),
@@ -436,6 +440,7 @@ export function HozoText({ style, ...props }: HozoTextProps) {
     Animated.timing(progress, {
       toValue: 1,
       duration: context.transition.duration,
+      delay: context.transition.delay ?? 0,
       easing: easingFor(context.transition.easing),
       useNativeDriver: false,
     }).start()

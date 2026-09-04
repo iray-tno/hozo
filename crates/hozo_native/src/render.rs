@@ -194,6 +194,7 @@ pub(super) fn render_node(
                 declaration.property,
                 StyleProperty::TransitionProperty(_)
                     | StyleProperty::TransitionDuration(..)
+                    | StyleProperty::TransitionDelay(..)
                     | StyleProperty::TransitionTimingFunction(..)
             )
         {
@@ -468,6 +469,7 @@ pub(super) fn render_node(
             d.property,
             StyleProperty::TransitionProperty(_)
                 | StyleProperty::TransitionDuration(..)
+                | StyleProperty::TransitionDelay(..)
                 | StyleProperty::TransitionTimingFunction(..)
         )
     });
@@ -581,18 +583,18 @@ pub(super) fn render_node(
     } else if !style_array_parts.is_empty() {
         props_text.push_str(&format!(" style={{[{}]}}", style_array_parts.join(", ")));
     }
-    if let Some((duration, easing, opacity, transform, colors)) = transition {
+    if let Some((duration, delay, easing, opacity, transform, colors)) = transition {
         props_text.push_str(&format!(
-            " hozoTransition={{{{ duration: {duration}, easing: '{easing}', opacity: {opacity}, transform: {transform}, colors: {colors} }}}}"
+            " hozoTransition={{{{ duration: {duration}, delay: {delay}, easing: '{easing}', opacity: {opacity}, transform: {transform}, colors: {colors} }}}}"
         ));
     }
     // The same prop name, deliberately, with fewer fields: `HozoAnimated`
     // works out which properties moved by comparing one render's style
     // with the last, so it needs no list of them. Sharing the name means
     // an element that becomes a `Pressable` later keeps the class working.
-    if let Some((duration, easing)) = ambient_transition {
+    if let Some((duration, delay, easing)) = ambient_transition {
         props_text.push_str(&format!(
-            " hozoTransition={{{{ duration: {duration}, easing: '{easing}' }}}}"
+            " hozoTransition={{{{ duration: {duration}, delay: {delay}, easing: '{easing}' }}}}"
         ));
     }
     if needs_focus_visible {

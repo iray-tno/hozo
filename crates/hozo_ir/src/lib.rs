@@ -1652,6 +1652,7 @@ pub enum StyleProperty {
     /// distinguishable long enough for `dedupe_last_wins` to prefer the
     /// written one.
     TransitionDuration(u32, Origin),
+    TransitionDelay(u32, Origin),
     TransitionTimingFunction(String, Origin),
     /// A static `stylex.keyframes(...)` referenced by `animationName`.
     /// The Web backend hoists and deduplicates the carried frames; Native
@@ -2279,6 +2280,7 @@ impl StyleProperty {
             | StyleProperty::WhiteSpace(..)
             | StyleProperty::TransitionProperty(..)
             | StyleProperty::TransitionDuration(..)
+            | StyleProperty::TransitionDelay(..)
             | StyleProperty::TransitionTimingFunction(..)
             | StyleProperty::AnimationName(..)
             | StyleProperty::Animation(..)
@@ -2644,6 +2646,7 @@ impl StyleProperty {
             // where it can't.
             StyleProperty::TransitionProperty(_)
             | StyleProperty::TransitionDuration(..)
+            | StyleProperty::TransitionDelay(..)
             | StyleProperty::TransitionTimingFunction(..) => Some(
                 "CSS transitions: React Native has no declarative transition in its StyleSheet"
                     .to_string(),
@@ -4690,6 +4693,7 @@ impl StyleProperty {
                 candidates.first().and_then(StyleProperty::origin)
             }
             StyleProperty::TransitionDuration(_, origin)
+            | StyleProperty::TransitionDelay(_, origin)
             | StyleProperty::TransitionTimingFunction(_, origin) => Some(*origin),
             _ => None,
         }

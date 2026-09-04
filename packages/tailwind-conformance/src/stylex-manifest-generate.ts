@@ -45,8 +45,10 @@ const CONTEXTUAL_PROPERTIES = new Set([
   'gridTemplateRows',
   'textOverflow',
   'transitionDuration',
+  'transitionDelay',
   'transitionProperty',
   'transitionTimingFunction',
+  'transition',
   'whiteSpace',
 ])
 

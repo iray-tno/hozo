@@ -1279,6 +1279,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         ),
         StyleProperty::TransitionProperty(p) => ("transition-property", p.clone()),
         StyleProperty::TransitionDuration(ms, _) => ("transition-duration", format!("{ms}ms")),
+        StyleProperty::TransitionDelay(ms, _) => ("transition-delay", format!("{ms}ms")),
         StyleProperty::TransitionTimingFunction(f, _) => ("transition-timing-function", f.clone()),
         StyleProperty::AnimationName(keyframes) => ("animation-name", keyframes.name.clone()),
         StyleProperty::Animation(a) => ("animation", a.shorthand().to_string()),

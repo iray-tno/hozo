@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-04 時点では
-全 CSS 名で 444/522 (85.1%)、両 platform に名前が存在するか、同じ typed IR へ
-正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 17/17
-(100%)、Web-only 集合で 293/370 (79.2%)。残りは optional adapter 候補 1、
+全 CSS 名で 445/522 (85.2%)、両 platform に名前が存在するか、同じ typed IR へ
+正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 19/19
+(100%)、Web-only 集合で 292/368 (79.3%)。残りは optional adapter 候補 1、
 未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
@@ -963,7 +963,7 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 281/281 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 282/282 (100%)、一般的なauthoring
 construct 16/16 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
 持たせた宣言243/243 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
@@ -1035,7 +1035,7 @@ CSS と同じ宣言を出す。Native は spread を消費したうえで
 `WEB_ONLY_PROPERTY_ON_NATIVE` を error にし、黙って drop しない。許可した keyword
 集合外の値は対応済みと数えず、従来どおり公式 StyleX の residual に残す。
 さらに実用corpusから word-break、overflow-wrap、visibility、background position/
-repeat/size、object-position、justify-self、place-items、transition-delay、
+repeat/size、object-position、justify-self、place-items、
 animation-duration の保守的な静的値を追加した。これらもWebでは公式CSSと一致し、
 Nativeでは近似せず明示的にrefuseする。
 
@@ -1049,15 +1049,17 @@ contextual の実装済み 8 名は Grid の template/placement である。静�
 `auto`、等しい span、full span を既存 Grid IR に読み、Native では
 `HozoGrid`/`HozoGridItem` solver を再利用する。それより広い CSS Grid value は
 近似せず `STYLEX_NOT_LOWERED` として StyleX に残す。
-加えて transition property/duration/timing の3名は既存のNative interaction・ambient
-transition runtimeへ接続する。Nativeで忠実に補間できるproperty、整数ms、4種のeasing
-だけをtyped IRへ入れ、それ以外は公式StyleXに残す。
+加えて transition property/duration/delay/timing と shorthand は既存のNative
+interaction・ambient transition runtimeへ接続する。shorthandは単一transitionを4つの
+reset slotへ展開し、delayは`Animated.timing`まで渡す。Nativeで忠実に補間できる
+property、非負の整数ms、4種のeasingだけをtyped IRへ入れ、list、負のdelay、より広い
+easingは公式StyleXに残す。
 contextual 3名の `container` / `containerName` / `containerType` も既存の
 `HozoContainer` runtimeへ接続する。typeは `normal`、`size`、`inline-size`、nameは
 単一の保守的なCSS identifierに限定し、複数nameなどruntimeが忠実に扱えない値は
 公式StyleXのresidualに残す。加えて `whiteSpace` / `textOverflow` はTextの
 `numberOfLines` / `ellipsizeMode`、`caretColor` はTextInputの`cursorColor`へlowerする。
-これでcontextual property-name集合は17/17になった。
+これでcontextual property-name集合は19/19になった。
 
 共存実測の結論は **Hozo → StyleX の順だけが安全**。StyleX を先にすると
 spread が第二の `className` になり、Hozo は JSX の last-wins で本来消える
