@@ -116,8 +116,8 @@
     {
       "name": "anchorName",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "animation",
@@ -2312,8 +2312,8 @@
     {
       "name": "positionAnchor",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "positionArea",
@@ -2342,8 +2342,8 @@
     {
       "name": "positionVisibility",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "printColorAdjust",

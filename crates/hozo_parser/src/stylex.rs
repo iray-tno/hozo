@@ -1065,6 +1065,7 @@ enum WebValueGrammar {
     ImageResolution,
     InitialLetter,
     TimelineNames { allow_all: bool },
+    DashedIdent { keyword: &'static str },
     ViewTransitionName,
     MathDepth,
     TabSize,
@@ -1082,6 +1083,10 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "animationComposition" => (
             "animation-composition",
             &["replace", "add", "accumulate"],
+        ),
+        "positionVisibility" => (
+            "position-visibility",
+            &["always", "anchors-visible", "no-overflow"],
         ),
         "animationDirection" => (
             "animation-direction",
@@ -1445,6 +1450,14 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "scrollTimelineName" => Some((
             "scroll-timeline-name",
             WebValueGrammar::TimelineNames { allow_all: false },
+        )),
+        "anchorName" => Some((
+            "anchor-name",
+            WebValueGrammar::TimelineNames { allow_all: false },
+        )),
+        "positionAnchor" => Some((
+            "position-anchor",
+            WebValueGrammar::DashedIdent { keyword: "auto" },
         )),
         "timelineScope" => Some((
             "timeline-scope",
@@ -2013,6 +2026,12 @@ fn web_timeline_names(value: &StaticValue, allow_all: bool) -> Option<String> {
     web_comma_groups(value)?
         .iter()
         .all(|name| name.trim().starts_with("--") && web_css_identifier(name.trim()))
+        .then(|| value.clone())
+}
+
+fn web_dashed_ident(value: &StaticValue, keyword: &str) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    (value == keyword || value.starts_with("--") && web_css_identifier(value))
         .then(|| value.clone())
 }
 
@@ -3469,6 +3488,7 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::ImageResolution => web_image_resolution(value)?,
         WebValueGrammar::InitialLetter => web_initial_letter(value)?,
         WebValueGrammar::TimelineNames { allow_all } => web_timeline_names(value, allow_all)?,
+        WebValueGrammar::DashedIdent { keyword } => web_dashed_ident(value, keyword)?,
         WebValueGrammar::ViewTransitionName => web_view_transition_name(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
@@ -3930,7 +3950,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
-        "accentColor" | "alignmentBaseline" | "animationComposition" | "animationDelay"
+        "accentColor" | "alignmentBaseline" | "anchorName" | "animationComposition" | "animationDelay"
         | "animationDirection" | "animationFillMode" | "animationIterationCount"
         | "animationPlayState" | "animationTimingFunction" | "appearance" | "WebkitAppearance"
         | "WebkitLineClamp" | "WebkitTextStrokeWidth"
@@ -3973,7 +3993,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "orphans" | "overflowBlock" | "overflowBlockX" | "overflowClipMargin"
         | "overscrollBehaviorY" | "pageBreakAfter"
         | "pageBreakBefore" | "pageBreakInside"
-        | "paintOrder" | "printColorAdjust" | "resize"
+        | "paintOrder" | "positionAnchor" | "positionVisibility" | "printColorAdjust" | "resize"
         | "rubyAlign" | "rubyMerge" | "rubyPosition" | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollTimelineAxis" | "scrollTimelineName"
         | "scrollbarGutter" | "scrollbarWidth"
