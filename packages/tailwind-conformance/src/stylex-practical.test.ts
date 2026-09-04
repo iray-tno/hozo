@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 245, covered: 245 },
+    values: { total: 248, covered: 248 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 207, covered: 207 },
+    corpus: { total: 210, covered: 210 },
     silent: 0,
   })
 })
@@ -608,6 +608,26 @@ test('paged, ruby, and bidi typesetting controls agree with official StyleX', ()
     rubyMerge: ['separate', 'collapse', 'auto'],
     rubyPosition: ['over', 'under', 'alternate', 'inter-character'],
     unicodeBidi: ['normal', 'embed', 'isolate', 'bidi-override', 'isolate-override', 'plaintext'],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('browser compatibility controls agree with official StyleX', () => {
+  const values: Record<string, readonly string[]> = {
+    boxDecorationBreak: ['slice', 'clone'],
+    imeMode: ['auto', 'normal', 'active', 'inactive', 'disabled'],
+    interpolateSize: ['allow-keywords', 'numeric-only'],
+    MsOverflowStyle: ['auto', 'none', 'scrollbar', '-ms-autohiding-scrollbar'],
+    WebkitBoxOrient: ['vertical', 'horizontal', 'inline-axis', 'block-axis'],
   }
   for (const [property, propertyValues] of Object.entries(values)) {
     for (const value of propertyValues) {

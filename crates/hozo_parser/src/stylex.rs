@@ -1122,6 +1122,7 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "backgroundPositionX" => ("background-position-x", &["left", "center", "right"]),
         "backgroundPositionY" => ("background-position-y", &["top", "center", "bottom"]),
+        "boxDecorationBreak" => ("box-decoration-break", &["slice", "clone"]),
         "borderCollapse" => ("border-collapse", &["collapse", "separate"]),
         "breakAfter" => (
             "break-after",
@@ -1157,6 +1158,10 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "columnSpan" => ("column-span", &["none", "all"]),
         "WebkitAppearance" => ("-webkit-appearance", &["auto", "none", "textfield"]),
+        "WebkitBoxOrient" => (
+            "-webkit-box-orient",
+            &["vertical", "horizontal", "inline-axis", "block-axis"],
+        ),
         "colorScheme" => (
             "color-scheme",
             &["normal", "light", "dark", "light dark", "only light", "only dark"],
@@ -1222,6 +1227,8 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             "image-rendering",
             &["auto", "crisp-edges", "pixelated", "optimizeSpeed", "optimizeQuality"],
         ),
+        "imeMode" => ("ime-mode", &["auto", "normal", "active", "inactive", "disabled"]),
+        "interpolateSize" => ("interpolate-size", &["allow-keywords", "numeric-only"]),
         "justifyItems" => (
             "justify-items",
             &[
@@ -1232,6 +1239,10 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             ],
         ),
         "MozOsxFontSmoothing" => ("-moz-osx-font-smoothing", &["grayscale"]),
+        "MsOverflowStyle" => (
+            "-ms-overflow-style",
+            &["auto", "none", "scrollbar", "-ms-autohiding-scrollbar"],
+        ),
         "overflowAnchor" => ("overflow-anchor", &["auto", "none"]),
         "overscrollBehavior" => ("overscroll-behavior", &["auto", "contain", "none"]),
         "overscrollBehaviorBlock" => {
@@ -3741,7 +3752,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "borderImageRepeat" | "borderImageSlice" | "borderImageSource" | "borderImageWidth"
         | "borderSpacing" | "gridAutoColumns" | "gridAutoFlow" | "gridAutoRows"
         | "gridTemplateAreas"
-        | "breakAfter" | "breakBefore" | "breakInside"
+        | "boxDecorationBreak" | "breakAfter" | "breakBefore" | "breakInside"
         | "captionSide" | "caretShape" | "clear" | "clip" | "clipPath" | "clipRule" | "colorScheme"
         | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
         | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
@@ -3757,13 +3768,13 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
         | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
         | "fontVariationSettings" | "hangingPunctuation" | "hyphenateCharacter" | "hyphens"
-        | "imageRendering" | "inlineSize"
+        | "imageRendering" | "imeMode" | "inlineSize" | "interpolateSize"
         | "justifyItems" | "lineBreak" | "listStyleImage" | "listStylePosition"
         | "listStyleType" | "maxBlockSize" | "maxInlineSize"
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
         | "maskClip" | "maskComposite" | "maskImage" | "maskMode" | "maskOrigin"
         | "maskPosition" | "maskRepeat" | "maskSize" | "maskType" | "WebkitMaskImage"
-        | "minInlineSize" | "MozOsxFontSmoothing"
+        | "minInlineSize" | "MozOsxFontSmoothing" | "MsOverflowStyle"
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
@@ -3784,7 +3795,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
         | "textDecorationSkipInk" | "textDecorationThickness"
         | "textJustify" | "textOrientation" | "textWrap" | "transitionDelay"
-        | "animationDuration" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
+        | "animationDuration" | "WebkitBoxOrient" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
         | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" => {
             vec![web_only_property(property, value)?]
         }
