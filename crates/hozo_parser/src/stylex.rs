@@ -1072,6 +1072,7 @@ enum WebValueGrammar {
     MasonryAutoFlow,
     Angle(&'static [&'static str]),
     TextDecorationSkip,
+    CounterList { allow_reversed: bool },
     ViewTransitionName,
     MathDepth,
     TabSize,
@@ -1549,6 +1550,24 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "textDecorationSkip" => Some((
             "text-decoration-skip",
             WebValueGrammar::TextDecorationSkip,
+        )),
+        "counterIncrement" => Some((
+            "counter-increment",
+            WebValueGrammar::CounterList {
+                allow_reversed: false,
+            },
+        )),
+        "counterReset" => Some((
+            "counter-reset",
+            WebValueGrammar::CounterList {
+                allow_reversed: true,
+            },
+        )),
+        "counterSet" => Some((
+            "counter-set",
+            WebValueGrammar::CounterList {
+                allow_reversed: false,
+            },
         )),
         "baselineShift" => Some((
             "baseline-shift",
@@ -2199,6 +2218,37 @@ fn web_text_decoration_skip(value: &StaticValue) -> Option<String> {
             .enumerate()
             .all(|(index, token)| !tokens[..index].contains(token)))
     .then(|| value.clone())
+}
+
+fn web_counter_list(value: &StaticValue, allow_reversed: bool) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    if value == "none" {
+        return Some(value.clone());
+    }
+    let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+    let mut index = 0;
+    while index < tokens.len() {
+        let token = tokens[index];
+        let identifier = allow_reversed
+            .then(|| token.strip_prefix("reversed(")?.strip_suffix(')'))
+            .flatten()
+            .unwrap_or(token);
+        if !web_css_identifier(identifier)
+            || matches!(
+                identifier,
+                "none" | "inherit" | "initial" | "revert" | "revert-layer" | "unset"
+            )
+        {
+            return None;
+        }
+        index += 1;
+        if index < tokens.len() && tokens[index].parse::<i64>().is_ok() {
+            index += 1;
+        }
+    }
+    (!tokens.is_empty()).then(|| value.clone())
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3654,6 +3704,9 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::MasonryAutoFlow => web_masonry_auto_flow(value)?,
         WebValueGrammar::Angle(keywords) => web_angle(value, keywords)?,
         WebValueGrammar::TextDecorationSkip => web_text_decoration_skip(value)?,
+        WebValueGrammar::CounterList { allow_reversed } => {
+            web_counter_list(value, allow_reversed)?
+        }
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -4142,6 +4195,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
         | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
         | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
+        | "counterIncrement" | "counterReset" | "counterSet"
         | "fontVariationSettings" | "glyphOrientationHorizontal" | "glyphOrientationVertical"
         | "hangingPunctuation" | "hyphenateCharacter"
         | "hyphenateLimitChars" | "hyphens"

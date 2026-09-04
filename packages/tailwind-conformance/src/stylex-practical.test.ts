@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 272, covered: 272 },
+    values: { total: 275, covered: 275 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 234, covered: 234 },
+    corpus: { total: 237, covered: 237 },
     silent: 0,
   })
 })
@@ -495,6 +495,24 @@ test('legacy SVG geometry and decoration skipping agree with official StyleX', (
     kerning: ['auto', 0, '0.1em'],
     markerOffset: ['auto', 0, '4px'],
     textDecorationSkip: ['none', 'objects', 'objects ink', 'spaces edges box-decoration'],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('generated-content counters agree with official StyleX', () => {
+  const values: Record<string, readonly string[]> = {
+    counterIncrement: ['none', 'chapter', 'chapter 1 section -2'],
+    counterReset: ['none', 'chapter 0', 'chapter 0 section 1', 'reversed(chapter) 10'],
+    counterSet: ['none', 'chapter', 'chapter 3 section -1'],
   }
   for (const [property, propertyValues] of Object.entries(values)) {
     for (const value of propertyValues) {
