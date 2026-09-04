@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 264, covered: 264 },
+    values: { total: 266, covered: 266 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 226, covered: 226 },
+    corpus: { total: 228, covered: 228 },
     silent: 0,
   })
 })
@@ -755,6 +755,31 @@ test('animation timeline boundaries and view insets agree with official StyleX',
     animationRangeStart: ['normal', 0, '20%', 'entry', 'entry 20%', 'exit-crossing 80%'],
     animationRangeEnd: ['normal', 100, '80%', 'exit', 'exit 80%', 'entry-crossing 20%'],
     viewTimelineInset: ['auto', 0, '10%', 'auto 10%', '1rem 20%'],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('masonry track alignment controls agree with official StyleX', () => {
+  const values: Record<string, readonly string[]> = {
+    alignTracks: ['normal', 'stretch', 'center', 'baseline', 'space-between', 'space-evenly'],
+    justifyTracks: ['normal', 'stretch', 'center', 'left', 'right', 'space-around'],
+    masonryAutoFlow: [
+      'pack',
+      'next',
+      'definite-first',
+      'ordered',
+      'pack definite-first',
+      'next ordered',
+    ],
   }
   for (const [property, propertyValues] of Object.entries(values)) {
     for (const value of propertyValues) {
