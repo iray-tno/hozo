@@ -1069,6 +1069,7 @@ enum WebValueGrammar {
     AnimationTimeline,
     AnimationRangeBoundary,
     ViewTimelineInset,
+    MasonryAutoFlow,
     ViewTransitionName,
     MathDepth,
     TabSize,
@@ -1112,6 +1113,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
                 "auto", "baseline", "before-edge", "text-before-edge", "middle", "central",
                 "after-edge", "text-after-edge", "ideographic", "alphabetic", "hanging",
                 "mathematical",
+            ],
+        ),
+        "alignTracks" => (
+            "align-tracks",
+            &[
+                "normal", "stretch", "center", "start", "end", "flex-start", "flex-end",
+                "baseline", "first baseline", "last baseline", "space-between", "space-around",
+                "space-evenly",
             ],
         ),
         "backgroundAttachment" => ("background-attachment", &["scroll", "fixed", "local"]),
@@ -1262,6 +1271,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
                 "self-start", "self-end", "left", "right", "baseline", "first baseline",
                 "last baseline", "safe center", "unsafe center", "legacy right", "legacy left",
                 "legacy center", "initial", "inherit", "unset",
+            ],
+        ),
+        "justifyTracks" => (
+            "justify-tracks",
+            &[
+                "normal", "stretch", "center", "start", "end", "flex-start", "flex-end",
+                "left", "right", "baseline", "first baseline", "last baseline", "space-between",
+                "space-around", "space-evenly",
             ],
         ),
         "MozOsxFontSmoothing" => ("-moz-osx-font-smoothing", &["grayscale"]),
@@ -1448,6 +1465,7 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             },
         )),
         "mathDepth" => Some(("math-depth", WebValueGrammar::MathDepth)),
+        "masonryAutoFlow" => Some(("masonry-auto-flow", WebValueGrammar::MasonryAutoFlow)),
         "imageResolution" => Some(("image-resolution", WebValueGrammar::ImageResolution)),
         "initialLetter" => Some(("initial-letter", WebValueGrammar::InitialLetter)),
         "scrollTimelineName" => Some((
@@ -2105,6 +2123,24 @@ fn web_view_timeline_inset(value: &StaticValue) -> Option<String> {
             .then(|| value.clone())
         }
     }
+}
+
+fn web_masonry_auto_flow(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+    if tokens.is_empty() || tokens.len() > 2 {
+        return None;
+    }
+    let packing = tokens
+        .iter()
+        .filter(|token| matches!(**token, "pack" | "next"))
+        .count();
+    let ordering = tokens
+        .iter()
+        .filter(|token| matches!(**token, "definite-first" | "ordered"))
+        .count();
+    (packing <= 1 && ordering <= 1 && packing + ordering == tokens.len())
+        .then(|| value.clone())
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3557,6 +3593,7 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::AnimationTimeline => web_animation_timeline(value)?,
         WebValueGrammar::AnimationRangeBoundary => web_animation_range_boundary(value)?,
         WebValueGrammar::ViewTimelineInset => web_view_timeline_inset(value)?,
+        WebValueGrammar::MasonryAutoFlow => web_masonry_auto_flow(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -4017,7 +4054,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
-        "accentColor" | "alignmentBaseline" | "anchorName" | "animationComposition" | "animationDelay"
+        "accentColor" | "alignTracks" | "alignmentBaseline" | "anchorName"
+        | "animationComposition" | "animationDelay"
         | "animationRangeEnd" | "animationRangeStart" | "animationTimeline"
         | "animationDirection" | "animationFillMode" | "animationIterationCount"
         | "animationPlayState" | "animationTimingFunction" | "appearance" | "WebkitAppearance"
@@ -4053,7 +4091,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
         | "maskClip" | "maskComposite" | "maskImage" | "maskMode" | "maskOrigin"
         | "maskPosition" | "maskRepeat" | "maskSize" | "maskType" | "WebkitMaskImage"
-        | "marginTrim" | "mathDepth" | "mathShift" | "mathStyle" | "minInlineSize"
+        | "justifyTracks" | "marginTrim" | "masonryAutoFlow" | "mathDepth" | "mathShift"
+        | "mathStyle" | "minInlineSize"
         | "MozOsxFontSmoothing" | "MsOverflowStyle"
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
