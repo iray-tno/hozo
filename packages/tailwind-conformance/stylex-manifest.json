@@ -2354,8 +2354,8 @@
     {
       "name": "quotes",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "resize",
@@ -2600,8 +2600,8 @@
     {
       "name": "scrollbarColor",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "scrollbarGutter",
@@ -3134,8 +3134,8 @@
     {
       "name": "zoom",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     }
   ]
 }
