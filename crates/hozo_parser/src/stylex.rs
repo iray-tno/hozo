@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
     Angle, BorderStyle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef,
-    FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Keyframe, Keyframes, Length, Origin,
+    FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Justify, Keyframe, Keyframes, Length, Origin,
     Overflow, Radius, Scale, SourceSpan, StyleDeclaration, StyleProperty, StylexResidual,
     StylexResidualArgument,
     TextOverflow, TextShadowValue, TransformFunction, WhiteSpace,
@@ -2801,6 +2801,31 @@ fn stylex_text_shadow(value: &StaticValue) -> Option<TextShadowValue> {
     })
 }
 
+fn stylex_place_content(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+    if !(1..=2).contains(&parts.len()) {
+        return None;
+    }
+    let alignment = |value| {
+        Some(match value {
+            "flex-start" => Justify::Start,
+            "center" => Justify::Center,
+            "flex-end" => Justify::End,
+            "space-between" => Justify::Between,
+            "space-around" => Justify::Around,
+            "space-evenly" => Justify::Evenly,
+            _ => return None,
+        })
+    };
+    let align = alignment(parts[0])?;
+    let justify = alignment(parts.get(1).copied().unwrap_or(parts[0]))?;
+    Some(vec![
+        StyleProperty::AlignContent(align),
+        StyleProperty::JustifyContent(justify),
+    ])
+}
+
 fn stylex_columns(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     let mut width = "auto".to_string();
     let mut count = "auto".to_string();
@@ -3855,6 +3880,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "transform" => vec![StyleProperty::Transform(transform_functions(value)?)],
         "transformOrigin" => vec![StyleProperty::TransformOrigin(transform_origin(value)?)],
         "textShadow" => vec![StyleProperty::TextShadow(stylex_text_shadow(value)?)],
+        "placeContent" => stylex_place_content(value)?,
         // The shared IR deliberately keeps the complete shadow list as CSS
         // text. That preserves authored layer order and also maps directly
         // to React Native's string-valued `boxShadow` support.
@@ -4152,6 +4178,7 @@ fn property_priority(property: &str) -> u16 {
             | "marginInline"
             | "listStyle"
             | "overflow"
+            | "placeContent"
             | "placeItems"
             | "paddingBlock"
             | "paddingInline"
@@ -4402,6 +4429,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("animation")
     } else if property == "caret" || property.starts_with("caret") {
         Some("caret")
+    } else if matches!(property, "placeContent" | "alignContent" | "justifyContent") {
+        Some("place-content")
     } else if matches!(property, "placeItems" | "alignItems" | "justifyItems") {
         Some("place-items")
     } else {
@@ -8106,6 +8135,22 @@ mod tests {
             hozo_ir::DiagnosticCode::StylexNotLowered
         );
         assert!(parsed.diagnostics[0].message.contains("module-scope"));
+    }
+
+    #[test]
+    fn place_content_uses_two_final_slots_and_declines_wider_alignment() {
+        assert_eq!(
+            stylex_place_content(&StaticValue::String("space-between center".to_string())),
+            Some(vec![
+                StyleProperty::AlignContent(Justify::Between),
+                StyleProperty::JustifyContent(Justify::Center),
+            ])
+        );
+        assert!(stylex_place_content(&StaticValue::String("stretch".to_string())).is_none());
+        assert!(stylex_place_content(&StaticValue::String("safe center".to_string())).is_none());
+        assert_eq!(property_priority("placeContent"), 2000);
+        assert!(property_names_overlap("placeContent", "alignContent"));
+        assert!(property_names_overlap("placeContent", "justifyContent"));
     }
 
     #[test]

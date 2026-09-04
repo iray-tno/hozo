@@ -11,11 +11,22 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 239, covered: 239 },
+    values: { total: 240, covered: 240 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 201, covered: 201 },
+    corpus: { total: 202, covered: 202 },
     silent: 0,
   })
+})
+
+test('placeContent expands to portable content-alignment slots', () => {
+  for (const value of ['center', 'space-between center', 'flex-start flex-end']) {
+    assert.deepEqual(compareStylexValue({ property: 'placeContent', value }), {
+      property: 'placeContent',
+      value,
+      covered: true,
+      silent: false,
+    })
+  }
 })
 
 test('single-layer text shadow agrees with StyleX and lowers on Native', () => {

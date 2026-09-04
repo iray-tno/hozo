@@ -65,6 +65,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'objectPosition', value: 'center' },
   { property: 'justifySelf', value: 'center' },
   { property: 'placeItems', value: 'center' },
+  { property: 'placeContent', value: 'space-between center' },
   { property: 'transitionDelay', value: '100ms' },
   { property: 'animationDuration', value: '200ms' },
   { property: 'animationComposition', value: 'add' },
@@ -392,6 +393,12 @@ function expandStylexShorthand(property: string, value: string): Array<[string, 
     return [
       ['flex-direction', parts.find((part) => directions.has(part)) ?? 'row'],
       ['flex-wrap', parts.find((part) => wraps.has(part)) ?? 'nowrap'],
+    ]
+  }
+  if (property === 'place-content') {
+    return [
+      ['align-content', parts[0] ?? value],
+      ['justify-content', parts[1] ?? parts[0] ?? value],
     ]
   }
   if (property === 'container') {
@@ -873,6 +880,7 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
       'rowGap',
       'justifySelf',
       'placeItems',
+      'placeContent',
       'flexFlow',
       'container',
       'gridGap',
