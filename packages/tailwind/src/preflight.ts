@@ -27,5 +27,6 @@ const require = createRequire(import.meta.url)
  * the same way it gets the theme.
  */
 export function preflightCss(): string {
-  return readFileSync(require.resolve('tailwindcss/preflight.css'), 'utf8')
+  const content = readFileSync(require.resolve('tailwindcss/preflight.css'), 'utf8')
+  return `@layer base {\n${content}\n}`
 }
