@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 243, covered: 243 },
+    values: { total: 245, covered: 245 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 205, covered: 205 },
+    corpus: { total: 207, covered: 207 },
     silent: 0,
   })
 })
@@ -587,6 +587,27 @@ test('modern and legacy fragmentation controls agree with official StyleX', () =
     pageBreakAfter: ['auto', 'always', 'avoid', 'left', 'recto'],
     pageBreakBefore: ['auto', 'always', 'avoid', 'right', 'verso'],
     pageBreakInside: ['auto', 'avoid'],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('paged, ruby, and bidi typesetting controls agree with official StyleX', () => {
+  const values: Record<string, readonly (string | number)[]> = {
+    orphans: [1, 3],
+    widows: [1, 3],
+    rubyAlign: ['start', 'center', 'space-between', 'space-around'],
+    rubyMerge: ['separate', 'collapse', 'auto'],
+    rubyPosition: ['over', 'under', 'alternate', 'inter-character'],
+    unicodeBidi: ['normal', 'embed', 'isolate', 'bidi-override', 'isolate-override', 'plaintext'],
   }
   for (const [property, propertyValues] of Object.entries(values)) {
     for (const value of propertyValues) {

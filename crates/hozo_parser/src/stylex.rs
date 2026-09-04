@@ -1260,6 +1260,15 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "pageBreakInside" => ("page-break-inside", &["auto", "avoid"]),
         "resize" => ("resize", &["none", "both", "horizontal", "vertical"]),
+        "rubyAlign" => (
+            "ruby-align",
+            &["start", "center", "space-between", "space-around"],
+        ),
+        "rubyMerge" => ("ruby-merge", &["separate", "collapse", "auto"]),
+        "rubyPosition" => (
+            "ruby-position",
+            &["over", "under", "alternate", "inter-character"],
+        ),
         "scrollSnapAlign" => ("scroll-snap-align", &["none", "start", "end", "center"]),
         "scrollSnapStop" => ("scroll-snap-stop", &["normal", "always"]),
         "scrollSnapType" => (
@@ -1285,6 +1294,10 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             &["auto", "optimizeSpeed", "optimizeLegibility", "geometricPrecision"],
         ),
         "touchAction" => ("touch-action", &["auto", "none", "manipulation"]),
+        "unicodeBidi" => (
+            "unicode-bidi",
+            &["normal", "embed", "isolate", "bidi-override", "isolate-override", "plaintext"],
+        ),
         "wordBreak" => ("word-break", &["normal", "break-all", "keep-all", "break-word"]),
         "wordWrap" => ("word-wrap", &["normal", "break-word"]),
         "overflowWrap" => ("overflow-wrap", &["normal", "break-word", "anywhere"]),
@@ -1374,6 +1387,22 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             WebValueGrammar::Length {
                 keywords: &["thin", "medium", "thick"],
                 minimum: 0.0,
+            },
+        )),
+        "orphans" => Some((
+            "orphans",
+            WebValueGrammar::Integer {
+                keywords: &[],
+                minimum: 1,
+                maximum: i64::MAX,
+            },
+        )),
+        "widows" => Some((
+            "widows",
+            WebValueGrammar::Integer {
+                keywords: &[],
+                minimum: 1,
+                maximum: i64::MAX,
             },
         )),
         "borderSpacing" => Some((
@@ -3738,9 +3767,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
-        | "overscrollBehaviorY" | "pageBreakAfter" | "pageBreakBefore" | "pageBreakInside"
+        | "orphans" | "overscrollBehaviorY" | "pageBreakAfter" | "pageBreakBefore" | "pageBreakInside"
         | "paintOrder" | "printColorAdjust" | "resize"
-        | "scrollSnapAlign"
+        | "rubyAlign" | "rubyMerge" | "rubyPosition" | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
         | "shapeImageThreshold" | "shapeMargin" | "shapeOutside" | "shapeRendering"
         | "stroke" | "strokeDasharray" | "strokeDashoffset"
@@ -3748,7 +3777,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "strokeWidth" | "tabSize" | "tableLayout" | "textAnchor" | "textCombineUpright"
         | "textEmphasisColor" | "textEmphasisPosition" | "textEmphasisStyle" | "textFillColor"
         | "textRendering" | "textSizeAdjust" | "textUnderlineOffset" | "textUnderlinePosition"
-        | "touchAction" | "transformBox" | "transformStyle" | "willChange"
+        | "touchAction" | "transformBox" | "transformStyle" | "unicodeBidi" | "widows" | "willChange"
         | "wordBreak" | "wordSpacing" | "wordWrap"
         | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
