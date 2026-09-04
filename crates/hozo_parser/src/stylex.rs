@@ -1070,6 +1070,8 @@ enum WebValueGrammar {
     AnimationRangeBoundary,
     ViewTimelineInset,
     MasonryAutoFlow,
+    Angle(&'static [&'static str]),
+    TextDecorationSkip,
     ViewTransitionName,
     MathDepth,
     TabSize,
@@ -1534,6 +1536,20 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "gridAutoRows" => Some(("grid-auto-rows", WebValueGrammar::GridTrackList)),
         "gridAutoFlow" => Some(("grid-auto-flow", WebValueGrammar::GridAutoFlow)),
         "gridTemplateAreas" => Some(("grid-template-areas", WebValueGrammar::GridTemplateAreas)),
+        "glyphOrientationHorizontal" => Some((
+            "glyph-orientation-horizontal",
+            WebValueGrammar::Angle(&[]),
+        )),
+        "glyphOrientationVertical" => Some((
+            "glyph-orientation-vertical",
+            WebValueGrammar::Angle(&["auto"]),
+        )),
+        "kerning" => Some(("kerning", WebValueGrammar::SvgLength(&["auto"]))),
+        "markerOffset" => Some(("marker-offset", WebValueGrammar::SvgLength(&["auto"]))),
+        "textDecorationSkip" => Some((
+            "text-decoration-skip",
+            WebValueGrammar::TextDecorationSkip,
+        )),
         "baselineShift" => Some((
             "baseline-shift",
             WebValueGrammar::SvgLength(&["baseline", "sub", "super"]),
@@ -2150,6 +2166,39 @@ fn web_masonry_auto_flow(value: &StaticValue) -> Option<String> {
         .count();
     (packing <= 1 && ordering <= 1 && packing + ordering == tokens.len())
         .then(|| value.clone())
+}
+
+fn web_angle(value: &StaticValue, keywords: &[&str]) -> Option<String> {
+    match value {
+        StaticValue::Number(number) if number.is_finite() => Some(length_value(value)),
+        StaticValue::String(value) if keywords.contains(&value.as_str()) => Some(value.clone()),
+        StaticValue::String(value) if value == "0" => Some(value.clone()),
+        StaticValue::String(value) => ["deg", "grad", "rad", "turn"]
+            .iter()
+            .find_map(|unit| value.strip_suffix(unit))?
+            .parse::<f64>()
+            .ok()
+            .filter(|number| number.is_finite())
+            .map(|_| value.clone()),
+        StaticValue::Number(_) => None,
+    }
+}
+
+fn web_text_decoration_skip(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "none" {
+        return Some(value.clone());
+    }
+    let choices = ["objects", "spaces", "ink", "edges", "box-decoration"];
+    let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+    (tokens.len() <= choices.len()
+        && !tokens.is_empty()
+        && tokens.iter().all(|token| choices.contains(token))
+        && tokens
+            .iter()
+            .enumerate()
+            .all(|(index, token)| !tokens[..index].contains(token)))
+    .then(|| value.clone())
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3603,6 +3652,8 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::AnimationRangeBoundary => web_animation_range_boundary(value)?,
         WebValueGrammar::ViewTimelineInset => web_view_timeline_inset(value)?,
         WebValueGrammar::MasonryAutoFlow => web_masonry_auto_flow(value)?,
+        WebValueGrammar::Angle(keywords) => web_angle(value, keywords)?,
+        WebValueGrammar::TextDecorationSkip => web_text_decoration_skip(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -4091,7 +4142,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
         | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
         | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
-        | "fontVariationSettings" | "hangingPunctuation" | "hyphenateCharacter"
+        | "fontVariationSettings" | "glyphOrientationHorizontal" | "glyphOrientationVertical"
+        | "hangingPunctuation" | "hyphenateCharacter"
         | "hyphenateLimitChars" | "hyphens"
         | "imageOrientation" | "imageRendering" | "imageResolution" | "imeMode"
         | "initialLetter" | "initialLetterAlign" | "inlineSize" | "interpolateSize"
@@ -4102,7 +4154,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "maskBorderMode" | "maskBorderOutset" | "maskBorderRepeat" | "maskBorderSlice"
         | "maskBorderSource" | "maskBorderWidth" | "maskPosition" | "maskRepeat"
         | "maskSize" | "maskType" | "WebkitMaskImage"
-        | "justifyTracks" | "marginTrim" | "masonryAutoFlow" | "mathDepth" | "mathShift"
+        | "justifyTracks" | "kerning" | "marginTrim" | "markerOffset" | "masonryAutoFlow"
+        | "mathDepth" | "mathShift"
         | "mathStyle" | "minInlineSize"
         | "MozOsxFontSmoothing" | "MsOverflowStyle"
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
@@ -4128,7 +4181,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "overflowWrap" | "visibility"
         | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
         | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
-        | "textDecorationSkipInk" | "textDecorationThickness"
+        | "textDecorationSkip" | "textDecorationSkipInk" | "textDecorationThickness"
         | "textJustify" | "textOrientation" | "textWrap" | "transitionDelay"
         | "animationDuration" | "WebkitBoxOrient" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
         | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" => {
