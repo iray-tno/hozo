@@ -1062,6 +1062,8 @@ enum WebValueGrammar {
     HangingPunctuation,
     HyphenateCharacter,
     HyphenateLimitChars,
+    ImageResolution,
+    InitialLetter,
     MathDepth,
     TabSize,
     TextCombineUpright,
@@ -1228,6 +1230,15 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "hyphens" => ("hyphens", &["none", "manual", "auto"]),
         "mathShift" => ("math-shift", &["normal", "compact"]),
         "mathStyle" => ("math-style", &["normal", "compact"]),
+        "marginTrim" => (
+            "margin-trim",
+            &["none", "block", "block-start", "block-end", "inline", "inline-start", "inline-end"],
+        ),
+        "imageOrientation" => ("image-orientation", &["from-image", "none"]),
+        "initialLetterAlign" => (
+            "initial-letter-align",
+            &["auto", "alphabetic", "hanging", "ideographic"],
+        ),
         "imageRendering" => (
             "image-rendering",
             &["auto", "crisp-edges", "pixelated", "optimizeSpeed", "optimizeQuality"],
@@ -1425,6 +1436,8 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             },
         )),
         "mathDepth" => Some(("math-depth", WebValueGrammar::MathDepth)),
+        "imageResolution" => Some(("image-resolution", WebValueGrammar::ImageResolution)),
+        "initialLetter" => Some(("initial-letter", WebValueGrammar::InitialLetter)),
         "orphans" => Some((
             "orphans",
             WebValueGrammar::Integer {
@@ -1921,6 +1934,55 @@ fn web_math_depth(value: &StaticValue) -> Option<String> {
             inner.parse::<i64>().ok().map(|_| value.clone())
         }
     }
+}
+
+fn web_image_resolution(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+    if tokens.is_empty() || tokens.len() > 3 {
+        return None;
+    }
+    let mut from_image = false;
+    let mut snap = false;
+    let mut resolution = false;
+    for token in tokens {
+        match token {
+            "from-image" if !from_image => from_image = true,
+            "snap" if !snap => snap = true,
+            token if !resolution => {
+                let number = ["dppx", "dpi", "dpcm", "x"]
+                    .iter()
+                    .find_map(|unit| token.strip_suffix(unit))?
+                    .parse::<f64>()
+                    .ok()?;
+                if !number.is_finite() || number <= 0.0 {
+                    return None;
+                }
+                resolution = true;
+            }
+            _ => return None,
+        }
+    }
+    (from_image || resolution || snap).then(|| value.clone())
+}
+
+fn web_initial_letter(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    if value == "normal" {
+        return Some(value.clone());
+    }
+    let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+    if tokens.is_empty() || tokens.len() > 2 {
+        return None;
+    }
+    let size = tokens[0].parse::<f64>().ok()?;
+    if !size.is_finite() || size < 1.0 {
+        return None;
+    }
+    if let Some(sink) = tokens.get(1) {
+        sink.parse::<u64>().ok().filter(|sink| *sink > 0)?;
+    }
+    Some(value.clone())
 }
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
@@ -3365,6 +3427,8 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
             }
         }
         WebValueGrammar::HyphenateLimitChars => web_hyphenate_limit_chars(value)?,
+        WebValueGrammar::ImageResolution => web_image_resolution(value)?,
+        WebValueGrammar::InitialLetter => web_initial_letter(value)?,
         WebValueGrammar::MathDepth => web_math_depth(value)?,
         WebValueGrammar::TabSize => web_tab_size(value)?,
         WebValueGrammar::TextCombineUpright => web_text_combine_upright(value)?,
@@ -3853,13 +3917,14 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
         | "fontVariationSettings" | "hangingPunctuation" | "hyphenateCharacter"
         | "hyphenateLimitChars" | "hyphens"
-        | "imageRendering" | "imeMode" | "inlineSize" | "interpolateSize"
+        | "imageOrientation" | "imageRendering" | "imageResolution" | "imeMode"
+        | "initialLetter" | "initialLetterAlign" | "inlineSize" | "interpolateSize"
         | "justifyItems" | "lineBreak" | "lineHeightStep" | "listStyleImage" | "listStylePosition"
         | "listStyleType" | "maxBlockSize" | "maxInlineSize"
         | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
         | "maskClip" | "maskComposite" | "maskImage" | "maskMode" | "maskOrigin"
         | "maskPosition" | "maskRepeat" | "maskSize" | "maskType" | "WebkitMaskImage"
-        | "mathDepth" | "mathShift" | "mathStyle" | "minInlineSize"
+        | "marginTrim" | "mathDepth" | "mathShift" | "mathStyle" | "minInlineSize"
         | "MozOsxFontSmoothing" | "MsOverflowStyle"
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"

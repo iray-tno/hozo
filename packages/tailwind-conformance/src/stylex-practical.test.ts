@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 253, covered: 253 },
+    values: { total: 256, covered: 256 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 215, covered: 215 },
+    corpus: { total: 218, covered: 218 },
     silent: 0,
   })
 })
@@ -669,6 +669,34 @@ test('hyphenation and MathML layout controls agree with official StyleX', () => 
     mathDepth: [-1, 0, 2, 'auto-add', 'add(-2)', 'add(3)'],
     mathShift: ['normal', 'compact'],
     mathStyle: ['normal', 'compact'],
+  }
+  for (const [property, propertyValues] of Object.entries(values)) {
+    for (const value of propertyValues) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+})
+
+test('image metadata and initial-letter controls agree with official StyleX', () => {
+  const values: Record<string, readonly string[]> = {
+    imageOrientation: ['from-image', 'none'],
+    imageResolution: ['snap', 'from-image', '2dppx', '300dpi snap', 'from-image 2dppx snap'],
+    initialLetter: ['normal', '2', '3 2'],
+    initialLetterAlign: ['auto', 'alphabetic', 'hanging', 'ideographic'],
+    marginTrim: [
+      'none',
+      'block',
+      'block-start',
+      'block-end',
+      'inline',
+      'inline-start',
+      'inline-end',
+    ],
   }
   for (const [property, propertyValues] of Object.entries(values)) {
     for (const value of propertyValues) {
