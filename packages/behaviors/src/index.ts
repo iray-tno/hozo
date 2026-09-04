@@ -33,6 +33,24 @@ export {
   shouldRestoreFocus,
 } from './focus-scope.tsx'
 export {
+  computeSafePolygon,
+  type DelayGroupConfig,
+  DelayGroupMachine,
+  isPointInPolygon,
+  type Point,
+  type Polygon,
+} from './hover-geometry.ts'
+export {
+  type ContentProps,
+  TooltipGroupProvider,
+  type TooltipGroupProviderProps,
+  type TriggerProps,
+  type UseHoverTriggerOptions,
+  type UseHoverTriggerReturn,
+  useHoverTrigger,
+  useTooltipGroup,
+} from './hover-trigger.tsx'
+export {
   LiveRegion,
   type LiveRegionMode,
   type LiveRegionProps,
@@ -54,6 +72,10 @@ export {
   tabStops,
   useRovingItem,
 } from './roving-focus.tsx'
+export {
+  Tooltip,
+  type TooltipProps,
+} from './tooltip.tsx'
 export {
   isTypeaheadKey,
   nextSearch,

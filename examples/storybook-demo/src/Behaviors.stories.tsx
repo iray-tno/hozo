@@ -6,7 +6,10 @@ import {
   type Placement,
   Portal,
   RovingFocusGroup,
+  Tooltip,
+  TooltipGroupProvider,
   useAnnounce,
+  useHoverTrigger,
   useRovingItem,
   useTypeahead,
 } from '@hozo/behaviors'
@@ -577,6 +580,148 @@ function FloatingPopoverDemo() {
   )
 }
 
+function TooltipDelayGroupingDemo() {
+  const tools = [
+    { label: 'Bold', shortcut: '⌘B', icon: 'B' },
+    { label: 'Italic', shortcut: '⌘I', icon: 'I' },
+    { label: 'Underline', shortcut: '⌘U', icon: 'U' },
+    { label: 'Code snippet', shortcut: '⌘E', icon: '</>' },
+    { label: 'Hyperlink', shortcut: '⌘K', icon: '🔗' },
+  ]
+
+  return (
+    <View className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-6 max-w-xl">
+      <Heading level={3} className="text-base font-bold text-slate-900">
+        Tooltip Delay Grouping (Warmup State)
+      </Heading>
+      <Paragraph className="text-xs text-slate-600 leading-relaxed">
+        Hover over an icon — the first tooltip opens after a standard delay (700ms). Once warm,
+        moving across neighboring icons opens subsequent tooltips instantly (0ms delay).
+      </Paragraph>
+
+      <TooltipGroupProvider openDelay={700} closeDelay={200} skipDelayDuration={300}>
+        <View className="flex flex-row items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm inline-flex">
+          {tools.map((tool) => (
+            <Tooltip
+              key={tool.label}
+              placement="top"
+              offset={6}
+              content={
+                <View className="flex flex-row items-center gap-2 rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg">
+                  <Text>{tool.label}</Text>
+                  <span className="rounded bg-slate-700 px-1 py-0.5 text-[10px] font-mono text-slate-300">
+                    {tool.shortcut}
+                  </span>
+                </View>
+              }
+            >
+              <button
+                type="button"
+                className="flex h-9 w-9 items-center justify-center rounded-md font-mono text-xs font-semibold text-slate-700 hover:bg-slate-100 focus:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {tool.icon}
+              </button>
+            </Tooltip>
+          ))}
+        </View>
+      </TooltipGroupProvider>
+    </View>
+  )
+}
+
+function HoverCardDemo() {
+  const anchorRef = useRef<HTMLButtonElement | null>(null)
+  const [following, setFollowing] = useState(false)
+
+  const { isOpen, setIsOpen, triggerProps, contentProps } = useHoverTrigger({
+    anchorRef,
+    openDelay: 400,
+    closeDelay: 300,
+    hoverableContent: true,
+    placement: 'bottom',
+  })
+
+  return (
+    <View className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-6 max-w-xl">
+      <Heading level={3} className="text-base font-bold text-slate-900">
+        HoverCard with Safe Polygon
+      </Heading>
+      <Paragraph className="text-xs text-slate-600 leading-relaxed">
+        Hover over the user tag. Move the pointer diagonally towards the card — the safe polygon
+        keeps the card open, allowing you to interact with elements inside it.
+      </Paragraph>
+
+      <View className="pt-2">
+        <button
+          ref={anchorRef}
+          type="button"
+          {...triggerProps}
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-sky-400 font-bold text-[10px] text-white">
+            H
+          </span>
+          @hozo_framework
+        </button>
+
+        {isOpen && (
+          <Portal>
+            <DismissableLayer onDismiss={() => setIsOpen(false)}>
+              <FloatingPositioner
+                anchorRef={anchorRef}
+                placement="bottom-start"
+                offset={8}
+                className="z-50"
+              >
+                <div
+                  {...contentProps}
+                  className="w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl space-y-3 animate-in fade-in zoom-in-95"
+                >
+                  <View className="flex flex-row items-center justify-between">
+                    <View className="flex flex-row items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 via-sky-400 to-emerald-400 text-sm font-bold text-white shadow-md">
+                        HZ
+                      </span>
+                      <View>
+                        <Text className="text-sm font-bold text-slate-900">Hozo Compiler</Text>
+                        <Text className="text-xs text-slate-500">@hozo_framework</Text>
+                      </View>
+                    </View>
+                    <Button
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                        following
+                          ? 'border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                      }`}
+                      onPress={() => setFollowing(!following)}
+                    >
+                      {following ? 'Following' : 'Follow'}
+                    </Button>
+                  </View>
+
+                  <Paragraph className="text-xs text-slate-600 leading-relaxed">
+                    Universal UI Compiler and headless runtime behaviors for React Native and
+                    Semantic Web.
+                  </Paragraph>
+
+                  <View className="flex flex-row gap-4 text-xs text-slate-500 border-t border-slate-100 pt-2">
+                    <Text>
+                      <strong className="font-semibold text-slate-800">142</strong> Following
+                    </Text>
+                    <Text>
+                      <strong className="font-semibold text-slate-800">12.8k</strong> Followers
+                    </Text>
+                  </View>
+                </div>
+              </FloatingPositioner>
+            </DismissableLayer>
+          </Portal>
+        )}
+      </View>
+    </View>
+  )
+}
+
 const meta = {
   title: 'Behaviors/Showcase',
   component: BehaviorsShowcase,
@@ -584,7 +729,13 @@ const meta = {
 
 export default meta
 export const Showcase: StoryObj<typeof meta> = {
-  render: () => <BehaviorsShowcase />,
+  render: () => (
+    <View className="space-y-8">
+      <BehaviorsShowcase />
+      <TooltipDelayGroupingDemo />
+      <HoverCardDemo />
+    </View>
+  ),
 }
 export const LiveRegionAnnouncements: StoryObj<typeof meta> = {
   render: () => <LiveRegionDemo />,
@@ -603,4 +754,10 @@ export const TypeaheadList: StoryObj<typeof meta> = {
 }
 export const FloatingPopover: StoryObj<typeof meta> = {
   render: () => <FloatingPopoverDemo />,
+}
+export const TooltipGrouping: StoryObj<typeof meta> = {
+  render: () => <TooltipDelayGroupingDemo />,
+}
+export const HoverCard: StoryObj<typeof meta> = {
+  render: () => <HoverCardDemo />,
 }
