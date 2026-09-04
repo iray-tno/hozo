@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 234, covered: 234 },
+    values: { total: 238, covered: 238 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 196, covered: 196 },
+    corpus: { total: 200, covered: 200 },
     silent: 0,
   })
 })
@@ -142,6 +142,21 @@ test('border image longhands agree with official StyleX', () => {
     { property: 'borderImageOutset', value: '4px 8px' },
     { property: 'borderImageOutset', value: 2 },
     { property: 'borderImageRepeat', value: 'round stretch' },
+  ]) {
+    assert.deepEqual(compareStylexValue(testCase), {
+      ...testCase,
+      covered: true,
+      silent: false,
+    })
+  }
+})
+
+test('implicit grid tracks, flow, and template areas agree with official StyleX', () => {
+  for (const testCase of [
+    { property: 'gridAutoColumns', value: 'minmax(100px, 1fr)' },
+    { property: 'gridAutoRows', value: '48px auto' },
+    { property: 'gridAutoFlow', value: 'column dense' },
+    { property: 'gridTemplateAreas', value: '"header header" "main aside"' },
   ]) {
     assert.deepEqual(compareStylexValue(testCase), {
       ...testCase,

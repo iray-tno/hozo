@@ -695,24 +695,8 @@ fn stylex_border_width(value: &StaticValue) -> Option<Length> {
     matches!(&value, Length::Px(number) if number.is_finite() && *number >= 0.0).then_some(value)
 }
 
-fn stylex_grid_tracks(value: &StaticValue) -> Option<GridTracks> {
-    let StaticValue::String(value) = value else {
-        return None;
-    };
+fn normalize_stylex_grid_value(value: &str) -> String {
     let value = value.trim();
-    let compact = value
-        .chars()
-        .filter(|character| !character.is_whitespace())
-        .collect::<String>();
-    if let Some(inner) = compact
-        .strip_prefix("repeat(")
-        .and_then(|value| value.strip_suffix(",minmax(0,1fr))"))
-    {
-        let count = inner.parse::<u32>().ok()?;
-        return (count > 0)
-            .then(|| GridTracks::Css(format!("repeat({count},minmax(0,1fr))")));
-    }
-
     // StyleX removes whitespace around commas inside functions but keeps
     // whitespace between tracks. Match that CSS while accepting the usual
     // authored spelling (`minmax(120px, 2fr) 1fr`).
@@ -739,6 +723,27 @@ fn stylex_grid_tracks(value: &StaticValue) -> Option<GridTracks> {
         normalized.push(character);
         index += 1;
     }
+    normalized
+}
+
+fn stylex_grid_tracks(value: &StaticValue) -> Option<GridTracks> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let compact = value
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    if let Some(inner) = compact
+        .strip_prefix("repeat(")
+        .and_then(|value| value.strip_suffix(",minmax(0,1fr))"))
+    {
+        let count = inner.parse::<u32>().ok()?;
+        return (count > 0)
+            .then(|| GridTracks::Css(format!("repeat({count},minmax(0,1fr))")));
+    }
+
+    let normalized = normalize_stylex_grid_value(value);
     let valid = normalized.split_whitespace().all(|track| {
         if let Some(inner) = track
             .strip_prefix("minmax(")
@@ -1010,6 +1015,9 @@ enum WebValueGrammar {
     BorderImageRepeat,
     BorderImageSlice,
     BorderImageWidth,
+    GridAutoFlow,
+    GridTemplateAreas,
+    GridTrackList,
     CommaKeywordGroups {
         keywords: &'static [&'static str],
         minimum: usize,
@@ -1334,6 +1342,10 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "borderImageWidth" => Some(("border-image-width", WebValueGrammar::BorderImageWidth)),
         "borderImageOutset" => Some(("border-image-outset", WebValueGrammar::BorderImageOutset)),
         "borderImageRepeat" => Some(("border-image-repeat", WebValueGrammar::BorderImageRepeat)),
+        "gridAutoColumns" => Some(("grid-auto-columns", WebValueGrammar::GridTrackList)),
+        "gridAutoRows" => Some(("grid-auto-rows", WebValueGrammar::GridTrackList)),
+        "gridAutoFlow" => Some(("grid-auto-flow", WebValueGrammar::GridAutoFlow)),
+        "gridTemplateAreas" => Some(("grid-template-areas", WebValueGrammar::GridTemplateAreas)),
         "baselineShift" => Some((
             "baseline-shift",
             WebValueGrammar::SvgLength(&["baseline", "sub", "super"]),
@@ -1853,6 +1865,115 @@ fn web_border_image_repeat(value: &StaticValue) -> Option<String> {
     ((1..=2).contains(&parts.len())
         && parts.iter().all(|part| matches!(*part, "stretch" | "repeat" | "round" | "space")))
     .then(|| parts.join(" "))
+}
+
+fn web_grid_track_breadth(value: &str, flex: bool, fit_content: bool) -> bool {
+    if matches!(value, "auto" | "min-content" | "max-content") {
+        return true;
+    }
+    if web_length_percentage_string(value)
+        && web_length_number(value).is_some_and(|number| number >= 0.0)
+    {
+        return true;
+    }
+    if flex
+        && value
+            .strip_suffix("fr")
+            .and_then(|number| number.parse::<f64>().ok())
+            .is_some_and(|number| number.is_finite() && number > 0.0)
+    {
+        return true;
+    }
+    if fit_content {
+        if let Some(inner) = value
+            .strip_prefix("fit-content(")
+            .and_then(|value| value.strip_suffix(')'))
+        {
+            return web_length_percentage_string(inner)
+                && web_length_number(inner).is_some_and(|number| number >= 0.0);
+        }
+    }
+    let Some(inner) = value
+        .strip_prefix("minmax(")
+        .and_then(|value| value.strip_suffix(')'))
+    else {
+        return false;
+    };
+    let Some((minimum, maximum)) = inner.split_once(',') else {
+        return false;
+    };
+    web_grid_track_breadth(minimum, false, false)
+        && web_grid_track_breadth(maximum, true, false)
+}
+
+fn web_grid_track_list(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let normalized = normalize_stylex_grid_value(value);
+    let tracks = web_components(&normalized)?;
+    tracks
+        .iter()
+        .all(|track| web_grid_track_breadth(track, true, true))
+        .then_some(normalized)
+}
+
+fn web_grid_auto_flow(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.split_ascii_whitespace().collect::<Vec<_>>().join(" ");
+    matches!(value.as_str(), "row" | "column" | "dense" | "row dense" | "column dense")
+        .then_some(value)
+}
+
+fn web_grid_template_areas(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    if value == "none" {
+        return Some(value.to_string());
+    }
+    let rows = web_components(value)?;
+    let mut cells = Vec::with_capacity(rows.len());
+    for row in &rows {
+        let quote = row.chars().next()?;
+        if !matches!(quote, '\'' | '"') || !row.ends_with(quote) || row.len() < 2 {
+            return None;
+        }
+        let row = row[1..row.len() - 1].split_ascii_whitespace().collect::<Vec<_>>();
+        if row.is_empty()
+            || row.iter().any(|cell| {
+                !cell.chars().all(|character| character == '.') && !web_css_identifier(cell)
+            })
+        {
+            return None;
+        }
+        cells.push(row);
+    }
+    let columns = cells.first()?.len();
+    if cells.iter().any(|row| row.len() != columns) {
+        return None;
+    }
+    let mut bounds: HashMap<&str, (usize, usize, usize, usize)> = HashMap::new();
+    for (row, columns) in cells.iter().enumerate() {
+        for (column, area) in columns.iter().enumerate() {
+            if area.chars().all(|character| character == '.') {
+                continue;
+            }
+            bounds
+                .entry(area)
+                .and_modify(|bounds| {
+                    bounds.1 = row;
+                    bounds.2 = column.min(bounds.2);
+                    bounds.3 = column.max(bounds.3);
+                })
+                .or_insert((row, row, column, column));
+        }
+    }
+    for (area, (row_start, row_end, column_start, column_end)) in bounds {
+        if (row_start..=row_end).any(|row| {
+            (column_start..=column_end).any(|column| cells[row][column] != area)
+        }) {
+            return None;
+        }
+    }
+    Some(rows.join(" "))
 }
 
 fn web_svg_dasharray(value: &StaticValue) -> Option<String> {
@@ -2846,6 +2967,9 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::BorderImageRepeat => web_border_image_repeat(value)?,
         WebValueGrammar::BorderImageSlice => web_border_image_slice(value)?,
         WebValueGrammar::BorderImageWidth => web_border_image_width(value)?,
+        WebValueGrammar::GridAutoFlow => web_grid_auto_flow(value)?,
+        WebValueGrammar::GridTemplateAreas => web_grid_template_areas(value)?,
+        WebValueGrammar::GridTrackList => web_grid_track_list(value)?,
         WebValueGrammar::CommaKeywordGroups {
             keywords,
             minimum,
@@ -3355,7 +3479,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY"
         | "baselineShift" | "blockSize" | "borderCollapse" | "borderImageOutset"
         | "borderImageRepeat" | "borderImageSlice" | "borderImageSource" | "borderImageWidth"
-        | "borderSpacing"
+        | "borderSpacing" | "gridAutoColumns" | "gridAutoFlow" | "gridAutoRows"
+        | "gridTemplateAreas"
         | "captionSide" | "caretShape" | "clear" | "clip" | "clipPath" | "clipRule" | "colorScheme"
         | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
         | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
@@ -3891,6 +4016,7 @@ fn property_priority(property: &str) -> u16 {
             | "gap"
             | "gridColumn"
             | "gridRow"
+            | "gridTemplateAreas"
             | "container"
             | "insetBlock"
             | "insetInline"
@@ -6448,6 +6574,44 @@ mod tests {
     }
 
     #[test]
+    fn grid_auto_tracks_flow_and_areas_lower_exactly_on_web() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                gridAutoColumns: 'minmax(100px, 1fr) max-content',
+                gridAutoRows: '48px auto', gridAutoFlow: 'column dense',
+                gridTemplateAreas: '"header header" "main aside"'
+              },
+              wider: {
+                gridAutoColumns: 'calc(100% - 1rem)',
+                gridAutoRows: 'repeat(2, 1fr)',
+                gridAutoFlow: 'var(--flow)',
+                gridTemplateAreas: '"a a" "a b"'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("common implicit-grid declarations were not lowerable")
+        };
+        assert_eq!(entries.len(), 4);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider implicit-grid syntax should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 4);
+        assert_eq!(gaps.len(), 4);
+    }
+
+    #[test]
     fn browser_typography_keywords_are_exact_and_composed_values_remain_residual() {
         let frontend = frontend(
             r#"
@@ -7743,6 +7907,7 @@ mod tests {
         assert_eq!(property_priority("scrollMarginInline"), 2000);
         assert_eq!(property_priority("scrollMarginInlineStart"), 3000);
         assert_eq!(property_priority("scrollMarginLeft"), 4000);
+        assert_eq!(property_priority("gridTemplateAreas"), 2000);
     }
 
     #[test]

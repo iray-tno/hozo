@@ -903,6 +903,10 @@ test('closed-keyword Web-only StyleX properties match the official CSS and fail 
     ['borderImageWidth', `'1 2 3 4'`],
     ['borderImageOutset', `'4px 8px'`],
     ['borderImageRepeat', `'round stretch'`],
+    ['gridAutoColumns', `'minmax(100px, 1fr)'`],
+    ['gridAutoRows', `'48px auto'`],
+    ['gridAutoFlow', `'column dense'`],
+    ['gridTemplateAreas', `'"header header" "main aside"'`],
   ] as const
 
   for (const [property, value] of samples) {

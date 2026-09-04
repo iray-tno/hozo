@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 367)
+  assert.equal(mapped.size, 371)
   for (const name of [
     'display',
     'padding',
@@ -116,6 +116,10 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
     'borderImageWidth',
     'borderImageOutset',
     'borderImageRepeat',
+    'gridAutoColumns',
+    'gridAutoRows',
+    'gridAutoFlow',
+    'gridTemplateAreas',
   ]) {
     assert.ok(mapped.has(property), `${property} should have a lowering arm`)
   }
@@ -123,7 +127,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 367)
+  assert.equal(mapped.length, 371)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -188,7 +192,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 372)
-  assert.equal(surface.mappedWebOnly.size, 218)
+  assert.equal(surface.mappedWebOnly.size, 222)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))
@@ -236,6 +240,10 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('borderImageSource'))
   assert.ok(surface.mappedWebOnly.has('borderImageSlice'))
   assert.ok(surface.mappedWebOnly.has('borderImageRepeat'))
+  assert.ok(surface.mappedWebOnly.has('gridAutoColumns'))
+  assert.ok(surface.mappedWebOnly.has('gridAutoRows'))
+  assert.ok(surface.mappedWebOnly.has('gridAutoFlow'))
+  assert.ok(surface.mappedWebOnly.has('gridTemplateAreas'))
   assert.equal(
     surface.native.size + surface.contextual.size + surface.adapter.size + surface.webOnly.size,
     surface.official.size,
