@@ -38,11 +38,12 @@ Hozo's Storybook showcases the entire universal component hierarchy across 5 cle
   - `TooltipGrouping`: Toolbar delay warmup (700ms cold, instant 0ms warm across siblings).
   - `HoverCard`: Safe polygon bridge navigation to interactive profile cards with buttons.
 
-## Quality & Accessibility Conformance
+## Automated Accessibility Testing
 
 Every story is automatically built and tested against **`axe-core`** in CI:
-- **39/39 stories passing** with **0 accessibility violations**.
-- Guarantees zero contrast defects, proper landmark nesting, valid ARIA states, and native keyboard navigation.
+- **39/39 stories passing** with **0 automated violations**.
+- Catches machine-testable issues: color contrast thresholds, missing labels, invalid ARIA roles/attributes, and duplicate IDs.
+- *Note*: Automated audits cover the rule-based subset of accessibility. Interactive keyboard trap behavior and real-world screen reader usability (VoiceOver, TalkBack, NVDA) require ongoing empirical testing.
 
 ## Development
 
