@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 248, covered: 248 },
+    values: { total: 250, covered: 250 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 210, covered: 210 },
+    corpus: { total: 212, covered: 212 },
     silent: 0,
   })
 })
@@ -638,6 +638,27 @@ test('browser compatibility controls agree with official StyleX', () => {
         silent: false,
       })
     }
+  }
+})
+
+test('logical overflow aliases and clip margins agree with official StyleX', () => {
+  for (const property of ['overflowBlock', 'overflowBlockX']) {
+    for (const value of ['visible', 'hidden', 'clip', 'scroll', 'auto']) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
+  }
+  for (const value of [0, 4, 'content-box', '4px content-box', 'padding-box 8px']) {
+    assert.deepEqual(compareStylexValue({ property: 'overflowClipMargin', value }), {
+      property: 'overflowClipMargin',
+      value,
+      covered: true,
+      silent: false,
+    })
   }
 })
 

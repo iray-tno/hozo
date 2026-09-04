@@ -1025,6 +1025,7 @@ enum WebValueGrammar {
     ClipPath,
     Contain,
     ContainIntrinsicSize { axes: usize },
+    OverflowClipMargin,
     SvgDasharray,
     UrlOrNone,
     Time,
@@ -1242,6 +1243,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "MsOverflowStyle" => (
             "-ms-overflow-style",
             &["auto", "none", "scrollbar", "-ms-autohiding-scrollbar"],
+        ),
+        "overflowBlock" => (
+            "overflow-y",
+            &["visible", "hidden", "clip", "scroll", "auto"],
+        ),
+        "overflowBlockX" => (
+            "overflow-block-x",
+            &["visible", "hidden", "clip", "scroll", "auto"],
         ),
         "overflowAnchor" => ("overflow-anchor", &["auto", "none"]),
         "overscrollBehavior" => ("overscroll-behavior", &["auto", "contain", "none"]),
@@ -1685,6 +1694,10 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             "perspective-origin",
             WebValueGrammar::PerspectiveOrigin,
         )),
+        "overflowClipMargin" => Some((
+            "overflow-clip-margin",
+            WebValueGrammar::OverflowClipMargin,
+        )),
         "willChange" => Some(("will-change", WebValueGrammar::WillChange)),
         "animationIterationCount" => Some((
             "animation-iteration-count",
@@ -1837,6 +1850,31 @@ fn web_contain_intrinsic_size(value: &StaticValue, axes: usize) -> Option<String
                 sizes += 1;
             }
             (index == tokens.len() && sizes > 0).then(|| value.clone())
+        }
+        _ => None,
+    }
+}
+
+fn web_overflow_clip_margin(value: &StaticValue) -> Option<String> {
+    match value {
+        StaticValue::Number(value) if value.is_finite() && *value >= 0.0 => {
+            Some(format!("{}px", numeric_text(*value)))
+        }
+        StaticValue::String(value) => {
+            let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
+            if tokens.is_empty() || tokens.len() > 2 {
+                return None;
+            }
+            let boxes = ["content-box", "padding-box", "border-box"];
+            let box_count = tokens.iter().filter(|token| boxes.contains(token)).count();
+            let length_count = tokens
+                .iter()
+                .filter(|token| {
+                    web_length_number(token).is_some_and(|number| number >= 0.0)
+                })
+                .count();
+            (box_count <= 1 && length_count <= 1 && box_count + length_count == tokens.len())
+                .then(|| value.clone())
         }
         _ => None,
     }
@@ -3226,6 +3264,7 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::ContainIntrinsicSize { axes } => {
             web_contain_intrinsic_size(value, axes)?
         }
+        WebValueGrammar::OverflowClipMargin => web_overflow_clip_margin(value)?,
         WebValueGrammar::SvgDasharray => web_svg_dasharray(value)?,
         WebValueGrammar::UrlOrNone => web_url_or_none(value)?,
         WebValueGrammar::Time => {
@@ -3778,7 +3817,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
         | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
         | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
-        | "orphans" | "overscrollBehaviorY" | "pageBreakAfter" | "pageBreakBefore" | "pageBreakInside"
+        | "orphans" | "overflowBlock" | "overflowBlockX" | "overflowClipMargin"
+        | "overscrollBehaviorY" | "pageBreakAfter"
+        | "pageBreakBefore" | "pageBreakInside"
         | "paintOrder" | "printColorAdjust" | "resize"
         | "rubyAlign" | "rubyMerge" | "rubyPosition" | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollbarGutter" | "scrollbarWidth"
@@ -4530,7 +4571,9 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("grid-column")
     } else if property.starts_with("gridRow") {
         Some("grid-row")
-    } else if property == "overflow" || matches!(property, "overflowX" | "overflowY") {
+    } else if property == "overflow"
+        || matches!(property, "overflowX" | "overflowY" | "overflowBlock" | "overflowBlockX")
+    {
         Some("overflow")
     } else if property.starts_with("scrollMargin") {
         Some("scroll-margin")
