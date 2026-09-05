@@ -1,4 +1,5 @@
-import React, { createContext, type ReactNode, useContext } from 'react'
+import { HozoTextSizeContext } from '@hozo/runtime'
+import React, { type ReactNode, useContext } from 'react'
 // The components rather than their names. These files used to render
 // `React.createElement('View')`, and React Native resolves a string tag
 // through its view config registry, where the registered names are
@@ -51,25 +52,22 @@ export interface HeadingProps extends TypographyNativeProps {
 /**
  * The size the text around this is drawn at.
  *
- * React Native offers nothing for this. Its `fontSize` is a number of
- * points with no relative unit, a nested `Text` inherits visually but
- * cannot read what it inherited, and the only ancestor context the
- * platform exposes -- `TextAncestorContext` -- is a boolean saying
- * whether there is a `Text` above at all.
+ * `@hozo/runtime`'s, not one of this package's own. The compiler emits
+ * `HozoTextSize` for an element whose size it could not read, and that
+ * publishes into this context -- so a compiled ancestor and one of the
+ * components below, rendered uncompiled, agree about the base. Two
+ * contexts would have been two answers.
  *
- * So Hozo carries it. `Text` publishes the size it was given, and the
- * components below scale against it. The default is React Native's own:
- * `RCTFont.mm` reads `const CGFloat defaultFontSize = 14`, and the
- * constants this replaces -- 11, 11, 12 -- are exactly the ratios above
- * applied to it.
+ * React Native offers nothing to build this on. Its `fontSize` is a
+ * number of points with no relative unit, a nested `Text` inherits
+ * visually but cannot read what it inherited, and the only ancestor
+ * context the platform exposes -- `TextAncestorContext` -- is a boolean
+ * saying whether there is a `Text` above at all.
  *
- * The limit is a plain React Native `<Text>` in between: it sets a size
- * this cannot see, so the scaling is against 14 rather than against what
- * is on screen. The compiled path has the same shape and a wider reach --
- * it follows the size through Views as well, which React Native itself
- * does not.
+ * The default is React Native's own, and the constants this replaced --
+ * 11, 11, 12 -- are exactly the ratios applied to it.
  */
-const TextSize = createContext(14)
+const TextSize = HozoTextSizeContext
 
 function relative(ratio: number, base: number) {
   return Math.round(base * ratio)

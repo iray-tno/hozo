@@ -102,3 +102,9 @@ export {
 export { hozoActivateKeyDown, hozoActivateKeyUp } from './activate.ts'
 export { hozoInteractive } from './interactive.ts'
 export { hozoScrollable } from './scrollable.ts'
+
+export {
+  HOZO_DEFAULT_FONT_SIZE,
+  HozoTextSizeContext,
+  useHozoTextSize,
+} from './text-size.ts'

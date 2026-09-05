@@ -40,41 +40,32 @@ function workspaceRoot() {
 }
 
 const rust = readFileSync(
-  path.join(workspaceRoot(), 'crates', 'hozo_native', 'src', 'render.rs'),
+  path.join(workspaceRoot(), 'crates', 'hozo_native', 'src', 'text.rs'),
   'utf8',
 )
 
-/** The `semantic_defaults` arm for a primitive, up to the next one. */
-function arm(primitive: string) {
-  const start = rust.indexOf(`Primitive::${primitive}`)
-  assert.notEqual(start, -1, `no semantic default for Primitive::${primitive}`)
-  const end = rust.indexOf('\n        Primitive::', start + 1)
-  return rust.slice(start, end === -1 ? rust.indexOf('\n        _ => Vec::new()', start) : end)
-}
-
-/** The multiplier in `(base * N)`, which is how every one of them is written. */
-function ratioIn(primitive: string) {
-  const match = /base \* ([0-9.]+)/.exec(arm(primitive))
-  assert.ok(match, `no \`base * N\` in the ${primitive} arm`)
+/** One `pub(super) const NAME: f64 = N;` from the compiler's table. */
+function constant(name: string) {
+  const match = new RegExp(`const ${name}: f64 = ([0-9.]+);`).exec(rust)
+  assert.ok(match, `no ${name} in the compiler's ratio table`)
   return Number(match[1])
 }
 
 test('sub, sup and small scale by what the compiler scales them by', () => {
-  assert.equal(TEXT_SIZE_RATIOS.sub, ratioIn('Sub'))
-  assert.equal(TEXT_SIZE_RATIOS.sup, ratioIn('Sup'))
-  assert.equal(TEXT_SIZE_RATIOS.small, ratioIn('Small'))
+  assert.equal(TEXT_SIZE_RATIOS.sub, constant('SUB_RATIO'))
+  assert.equal(TEXT_SIZE_RATIOS.sup, constant('SUP_RATIO'))
+  assert.equal(TEXT_SIZE_RATIOS.small, constant('SMALL_RATIO'))
 })
 
 test('ruby text is half on both sides', () => {
-  assert.equal(TEXT_SIZE_RATIOS.rubyText, ratioIn('RubyText'))
+  assert.equal(TEXT_SIZE_RATIOS.rubyText, constant('RUBY_TEXT_RATIO'))
   assert.equal(TEXT_SIZE_RATIOS.rubyText, 0.5)
 })
 
 test('the six heading ratios are the same six', () => {
-  // Written as a match in the Rust and an array here, so this reads the
-  // arms rather than a `base * N`.
-  const heading = arm('Heading')
-  const found = [...heading.matchAll(/^\s+(?:[1-6]|_) => ([0-9.]+),$/gm)].map((m) => Number(m[1]))
+  const match = /const HEADING_RATIOS: \[f64; 6\] = \[([^\]]+)\];/.exec(rust)
+  assert.ok(match, 'no HEADING_RATIOS in the compiler')
+  const found = (match[1] as string).split(',').map((each) => Number(each.trim()))
   assert.deepEqual(found, [...TEXT_SIZE_RATIOS.heading])
 })
 

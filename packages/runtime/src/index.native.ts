@@ -52,6 +52,13 @@ export {
 export { HozoSpaced } from './spacing.native.tsx'
 
 export {
+  HozoRelativeText,
+  type HozoRelativeTextProps,
+  HozoTextSize,
+  type HozoTextSizeProps,
+} from './text-size.native.tsx'
+
+export {
   HozoAnimated,
   type HozoAnimatedProps,
   type HozoTransitionSpec,

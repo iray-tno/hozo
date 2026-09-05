@@ -63,6 +63,16 @@ pub(super) fn render_node(
     // the silent divergence this backend exists to avoid.
     inherited: &[StyleDeclaration],
     parent_font_size: Option<f64>,
+    // Whether an ancestor carried a style the compiler could not read.
+    //
+    // `parent_font_size` is only as good as what Hozo resolved. An author's
+    // `style={{ fontSize: 20 }}` is a number the compiler never sees, so a
+    // ratio applied against the size it *can* see would scale from the
+    // wrong base -- and silently, which is the failure this backend spends
+    // its time avoiding. Where this is true, the ratio is handed to a
+    // runtime component instead, which reads the size that actually
+    // applied.
+    parent_size_opaque: bool,
     // Styles an ancestor wrote for this element with `*:` or `**:`.
     from_ancestor: FromAncestor,
     source: &str,
@@ -290,16 +300,82 @@ pub(super) fn render_node(
     // A `Text` is where inheritance stops: React Native takes over from
     // here, so its descendants need nothing from the compiler. What it
     // Semantic typography default styles on Native:
-    let find_base_font_size = || -> Option<f64> {
-        let find = |list: &[StyleDeclaration]| {
+    // Whether this element answers its own ratio at runtime, and whether
+    // it has to publish a size for one below it that does.
+    let relative_at_runtime = if parent_size_opaque { size_ratio(node) } else { None };
+    let opaque_here = size_is_opaque(node);
+    let publishes_size =
+        opaque_here && component == "Text" && has_relative_descendant(node);
+    // The size a relative one scales against, per condition.
+    //
+    // `parent_font_size` before `inherited`, which is the other way round
+    // from how this used to read. The parent's is the *nearer* of the two:
+    // it is that element's own size with its semantic default folded in,
+    // while `inherited` is whatever a View further up handed down. Reading
+    // the farther one first is why a `Small` inside an `<Heading level={1}>`
+    // scaled against the page's 16 rather than the heading's 32, and came
+    // out smaller than the body text it was supposed to be smaller than.
+    //
+    // Conditions rather than one number, because a conditional size still
+    // reaches the element -- `md:text-xl` is carried down like any other
+    // text declaration -- and a ratio that exists only at `Always` left the
+    // inherited value standing above the breakpoint. A `Small` under
+    // `text-base md:text-xl` rendered at 20px on a tablet: the same size as
+    // the body, with the shrink gone.
+    let base_font_sizes = || -> Vec<(Condition, f64)> {
+        let find = |list: &[StyleDeclaration], want: &Condition| {
             list.iter().rev().find_map(|d| match &d.property {
-                StyleProperty::FontSize(Length::Px(px)) if d.condition == Condition::Always => {
-                    Some(*px)
-                }
+                StyleProperty::FontSize(Length::Px(px)) if &d.condition == want => Some(*px),
                 _ => None,
             })
         };
-        find(&style).or_else(|| find(inherited)).or(parent_font_size)
+        let mut conditions: Vec<Condition> = vec![Condition::Always];
+        for declaration in style.iter().chain(inherited.iter()) {
+            if matches!(declaration.property, StyleProperty::FontSize(_))
+                && !conditions.contains(&declaration.condition)
+            {
+                conditions.push(declaration.condition.clone());
+            }
+        }
+        conditions
+            .into_iter()
+            .filter_map(|condition| {
+                let px = find(&style, &condition)
+                    .or_else(|| {
+                        // The unconditional fallbacks answer for a condition
+                        // of their own only.
+                        if condition == Condition::Always {
+                            parent_font_size
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| find(inherited, &condition))
+                    .or_else(|| {
+                        if condition == Condition::Always {
+                            None
+                        } else {
+                            // A conditional ratio still needs a base when the
+                            // size at that breakpoint came from further up.
+                            find(&style, &Condition::Always)
+                                .or(parent_font_size)
+                                .or_else(|| find(inherited, &Condition::Always))
+                        }
+                    })?;
+                Some((condition, px))
+            })
+            .collect()
+    };
+
+    // One `fontSize` per condition a base is known for.
+    let scaled = |ratio: f64, bases: Vec<(Condition, f64)>| -> Vec<StyleDeclaration> {
+        bases
+            .into_iter()
+            .map(|(condition, base)| StyleDeclaration {
+                property: StyleProperty::FontSize(Length::Px((base * ratio).round())),
+                condition,
+            })
+            .collect()
     };
 
     let semantic_defaults: Vec<StyleDeclaration> = match node.primitive {
@@ -323,35 +399,13 @@ pub(super) fn render_node(
             property: StyleProperty::FontFamily("monospace".to_string()),
             condition: Condition::Always,
         }],
-        Primitive::Sub => {
-            let mut defs = Vec::new();
-            if let Some(base) = find_base_font_size() {
-                defs.push(StyleDeclaration {
-                    property: StyleProperty::FontSize(Length::Px((base * 0.75).round())),
-                    condition: Condition::Always,
-                });
+        Primitive::Sub | Primitive::Sup | Primitive::Small | Primitive::RubyText => {
+            match (parent_size_opaque, size_ratio(node)) {
+                // Answered at runtime instead; see `rendered_component`.
+                (true, Some(_)) => Vec::new(),
+                (false, Some(ratio)) => scaled(ratio, base_font_sizes()),
+                (_, None) => Vec::new(),
             }
-            defs
-        }
-        Primitive::Sup => {
-            let mut defs = Vec::new();
-            if let Some(base) = find_base_font_size() {
-                defs.push(StyleDeclaration {
-                    property: StyleProperty::FontSize(Length::Px((base * 0.75).round())),
-                    condition: Condition::Always,
-                });
-            }
-            defs
-        }
-        Primitive::Small => {
-            let mut defs = Vec::new();
-            if let Some(base) = find_base_font_size() {
-                defs.push(StyleDeclaration {
-                    property: StyleProperty::FontSize(Length::Px((base * 0.85).round())),
-                    condition: Condition::Always,
-                });
-            }
-            defs
         }
         // The browser's UA stylesheet for h1...h6, which React Native has
         // no equivalent of. `heading_level` reached the Web backend and was
@@ -363,27 +417,11 @@ pub(super) fn render_node(
                 property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
                 condition: Condition::Always,
             }];
-            let level = match &node.props.heading_level {
-                Some(hozo_ir::HeadingLevel::Static(level)) => Some(*level),
-                // A level chosen at runtime has no size the compiler can
-                // know. The weight above still holds for every level.
-                Some(hozo_ir::HeadingLevel::Dynamic(_)) => None,
-                // What both `Heading` components default to.
-                None => Some(1),
-            };
-            if let (Some(level), Some(base)) = (level, find_base_font_size()) {
-                let ratio = match level.clamp(1, 6) {
-                    1 => 2.0,
-                    2 => 1.5,
-                    3 => 1.17,
-                    4 => 1.0,
-                    5 => 0.83,
-                    _ => 0.67,
-                };
-                defs.push(StyleDeclaration {
-                    property: StyleProperty::FontSize(Length::Px((base * ratio).round())),
-                    condition: Condition::Always,
-                });
+            // The weight holds for every level, so it is above rather than
+            // here. The size is one of six, and `size_ratio` declines a
+            // level chosen at runtime -- that one the compiler cannot pick.
+            if let (false, Some(ratio)) = (parent_size_opaque, size_ratio(node)) {
+                defs.extend(scaled(ratio, base_font_sizes()));
             }
             defs
         }
@@ -391,16 +429,6 @@ pub(super) fn render_node(
         // UA stylesheet says (`rt { font-size: 50% }`) and what JIS X 4051
         // says for 振り仮名. Missing entirely until now: the annotation
         // drew at the base size, so ruby and its text were the same size.
-        Primitive::RubyText => {
-            let mut defs = Vec::new();
-            if let Some(base) = find_base_font_size() {
-                defs.push(StyleDeclaration {
-                    property: StyleProperty::FontSize(Length::Px((base * 0.5).round())),
-                    condition: Condition::Always,
-                });
-            }
-            defs
-        }
         // `mark` has no highlight without one. The UA stylesheet sets the
         // pair -- `background-color: Mark; color: MarkText` -- and both are
         // needed: a yellow ground under inherited light text is less
@@ -601,6 +629,19 @@ pub(super) fn render_node(
     } else if component == "Text" && interaction_context && !pressed_parts.is_empty() {
         runtime.need_component("HozoText");
         "HozoText"
+    } else if relative_at_runtime.is_some() {
+        // The compiler could not see the size this scales against, so the
+        // ratio travels to a component that can. Costs a context read, and
+        // only here -- everything the compiler *can* resolve stays a plain
+        // `Text` with a number in a stylesheet.
+        runtime.need_component("HozoRelativeText");
+        "HozoRelativeText"
+    } else if publishes_size {
+        // The other half. This element holds the size the ratio above
+        // needs and holds it in a form only React Native can evaluate, so
+        // it says what it resolved to.
+        runtime.need_component("HozoTextSize");
+        "HozoTextSize"
     } else {
         component
     };
@@ -630,6 +671,36 @@ pub(super) fn render_node(
         .iter()
         .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
         .collect::<String>();
+    // An authored `style` joins the array instead of becoming a second
+    // `style` attribute.
+    //
+    // It used to be re-emitted verbatim with everything else Hozo does not
+    // model, which put two `style` props on one element:
+    //
+    //     <Text style={hozoStyles.hozo0} style={{ fontSize: 20 }}>
+    //
+    // JSX resolves duplicates last-wins, so *every compiled class on that
+    // element was dropped* -- silently, and only on the elements where
+    // someone reached for an inline style. A spread in the same position
+    // already had a diagnostic for exactly this; a named `style` had
+    // nothing. In the array it composes the way React Native composes
+    // styles, and the author's still wins, because it is still last.
+    let authored_style: Vec<String> = node
+        .props
+        .passthrough
+        .iter()
+        .filter(|prop| prop.name.as_deref() == Some("style"))
+        .filter_map(|prop| {
+            let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
+            let value = text.split_once('=')?.1.trim();
+            // `style={expr}`. A string is not a style React Native accepts,
+            // so anything else is left where it was.
+            let inner = value.strip_prefix('{')?.strip_suffix('}')?;
+            Some(inner.trim().to_string())
+        })
+        .collect();
+    style_array_parts.extend(authored_style);
+
     if needs_pressed_fn {
         let state = if needs_focus_visible {
             "{ pressed, hovered, focused, focusVisible }"
@@ -660,6 +731,10 @@ pub(super) fn render_node(
         props_text.push_str(&format!(
             " hozoTransition={{{{ duration: {duration}, delay: {delay}, easing: '{easing}' }}}}"
         ));
+    }
+    // The ratio, for the component that resolves it.
+    if let Some(ratio) = relative_at_runtime {
+        props_text.push_str(&format!(" hozoRelative={{{ratio}}}"));
     }
     if needs_focus_visible {
         props_text.push_str(" hozoFocusVisible");
@@ -903,6 +978,10 @@ pub(super) fn render_node(
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.
     for prop in &node.props.passthrough {
+        // Already in the style array above.
+        if prop.name.as_deref() == Some("style") {
+            continue;
+        }
         props_text.push(' ');
         props_text.push_str(&render_verbatim(
             prop.span,
@@ -961,6 +1040,7 @@ pub(super) fn render_node(
                     theme,
                     &descend,
                     current_font_size,
+                    parent_size_opaque || opaque_here,
                     FromAncestor { direct: &to_children, all: &descendants },
                     source,
                     allocator,

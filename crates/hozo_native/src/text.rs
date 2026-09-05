@@ -5,6 +5,72 @@
 
 use super::*;
 
+/// How much smaller than the text around it each of these draws.
+///
+/// Mirrored by `packages/typography/src/text-size.ts`, which the fallback
+/// components use, and checked against it by `ratios.test.ts`. Two copies
+/// of a number is how a compiled build and an uncompiled one come to
+/// render the same source at different sizes.
+///
+/// The values are the browser UA stylesheet's, which is what the Web
+/// backend renders and therefore the only reference the two platforms
+/// share.
+pub(super) const SUB_RATIO: f64 = 0.75;
+pub(super) const SUP_RATIO: f64 = 0.75;
+pub(super) const SMALL_RATIO: f64 = 0.85;
+pub(super) const RUBY_TEXT_RATIO: f64 = 0.5;
+pub(super) const HEADING_RATIOS: [f64; 6] = [2.0, 1.5, 1.17, 1.0, 0.83, 0.67];
+
+/// What this element scales the surrounding text size by, if it does.
+///
+/// `None` for everything that is not relative, and for a heading whose
+/// level is a runtime expression -- that is one of six ratios and the
+/// compiler cannot tell which.
+pub(super) fn size_ratio(node: &Node) -> Option<f64> {
+    match node.primitive {
+        Primitive::Sub => Some(SUB_RATIO),
+        Primitive::Sup => Some(SUP_RATIO),
+        Primitive::Small => Some(SMALL_RATIO),
+        Primitive::RubyText => Some(RUBY_TEXT_RATIO),
+        Primitive::Heading => {
+            let level = match &node.props.heading_level {
+                Some(hozo_ir::HeadingLevel::Static(level)) => *level,
+                Some(hozo_ir::HeadingLevel::Dynamic(_)) => return None,
+                // What both `Heading` components default to.
+                None => 1,
+            };
+            Some(HEADING_RATIOS[(level.clamp(1, 6) - 1) as usize])
+        }
+        _ => None,
+    }
+}
+
+/// Whether this element carries a style the compiler cannot read.
+///
+/// A `style={{...}}` prop or a `{...spread}`. Either can name a font
+/// size, and neither is a declaration Hozo resolved -- so a ratio
+/// resolved against what the compiler *can* see would be scaling from a
+/// number that is not the one on screen.
+pub(super) fn size_is_opaque(node: &Node) -> bool {
+    node.props
+        .passthrough
+        .iter()
+        .any(|prop| prop.is_spread || prop.name.as_deref() == Some("style"))
+}
+
+/// Whether anything below this element scales against its size.
+///
+/// Asked of an opaque element, to decide whether it has to publish the
+/// size it resolves at runtime. Most do not, and a component boundary
+/// nobody reads is one nobody should pay for.
+pub(super) fn has_relative_descendant(node: &Node) -> bool {
+    node.children.iter().any(|child| match child {
+        hozo_ir::Child::Node(child) => {
+            size_ratio(child).is_some() || has_relative_descendant(child)
+        }
+        _ => false,
+    })
+}
 /// Builds the inserted `<Text>` that carries a non-Text node's string
 /// content, with the text-styling declarations moved onto it.
 #[allow(clippy::too_many_arguments)]
@@ -572,6 +638,112 @@ mod tests {
         // text-lg is 18px; leading-tight is 1.25; tracking-wide is 0.025em.
         assert!(output.styles.contains("lineHeight: 22.5,"), "{}", output.styles);
         assert!(output.styles.contains("letterSpacing: 0.45,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_relative_size_scales_against_the_nearest_one_not_the_furthest() {
+        // `find` used to read the inherited declarations before the
+        // parent's own size, and the inherited ones come from further up.
+        // So a `Small` inside an `<Heading level={1}>` scaled against the
+        // page's 16 rather than the heading's 32 and came out smaller than
+        // the body text it is supposed to be smaller than.
+        let source = r#"
+            import { View, Heading, Small } from '@hozo/core'
+            const el = (
+              <View className="text-base">
+                <Heading level={1}>T<Small>s</Small></Heading>
+              </View>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        // 16 * 2 = 32 for the heading, and 32 * 0.85 = 27 inside it.
+        assert!(output.styles.contains("fontSize: 32,"), "{}", output.styles);
+        assert!(output.styles.contains("fontSize: 27,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_conditional_base_gets_a_conditional_ratio() {
+        // The inherited `md:text-xl` reaches the element like any other
+        // text declaration. A ratio that existed only at `Always` left it
+        // standing above the breakpoint, so a `Small` under
+        // `text-base md:text-xl` rendered at 20 on a tablet -- the size of
+        // the body, with the shrink gone.
+        let source = r#"
+            import { View, Small } from '@hozo/core'
+            const el = <View className="text-base md:text-xl">a<Small>s</Small></View>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.styles.contains("fontSize: 14,"), "{}", output.styles);
+        // 20 * 0.85, not the 20 it inherited.
+        assert!(output.styles.contains("fontSize: 17,"), "{}", output.styles);
+        assert!(!output.styles.contains("fontSize: 20,\n    lineHeight: 28,\n  },\n}"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_size_the_compiler_cannot_read_is_resolved_at_runtime() {
+        // An author's `style` is a number Hozo never sees. Scaling against
+        // what it *can* see would be scaling from the wrong base, so the
+        // ratio goes to a component instead: one publishes the size React
+        // Native resolved, the other reads it.
+        let source = r#"
+            import { Text, RubyText } from '@hozo/core'
+            const el = <Text style={{ fontSize: 20 }}>漢<RubyText>かん</RubyText></Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.contains("<HozoTextSize style={{ fontSize: 20 }}>"), "{}", output.jsx);
+        assert!(output.jsx.contains("<HozoRelativeText hozoRelative={0.5}>"), "{}", output.jsx);
+        // And no guess in a stylesheet beside it.
+        assert!(!output.styles.contains("fontSize"), "{}", output.styles);
+    }
+
+    #[test]
+    fn an_opaque_element_with_nothing_relative_below_it_stays_a_text() {
+        // The component boundary is only worth what it answers. Most
+        // elements with an inline style have nothing scaling against them.
+        let source = r#"
+            import { Text } from '@hozo/core'
+            const el = <Text style={{ fontSize: 20 }}>a</Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(!output.jsx.contains("HozoTextSize"), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<Text "), "{}", output.jsx);
+    }
+
+    #[test]
+    fn a_size_the_compiler_can_read_stays_a_number_in_a_stylesheet() {
+        // The runtime pair is for the blind case only. Everything Hozo
+        // resolves is still a plain `Text` and costs nothing to render.
+        let source = r#"
+            import { View, Text, RubyText } from '@hozo/core'
+            const el = <View className="text-xl"><Text>漢<RubyText>かん</RubyText></Text></View>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(!output.jsx.contains("Hozo"), "{}", output.jsx);
+        assert!(output.styles.contains("fontSize: 10,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn an_authored_style_joins_the_array_rather_than_replacing_it() {
+        // Two `style` attributes on one element: JSX keeps the last, so
+        // every compiled class on it was dropped. Silently, and only where
+        // someone reached for an inline style.
+        let source = r#"
+            import { Text } from '@hozo/core'
+            const el = <Text className="text-xl" style={{ color: 'red' }}>a</Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert_eq!(
+            output.jsx,
+            "<Text style={[hozoStyles.hozo0, { color: 'red' }]}>a</Text>"
+        );
+        assert!(output.styles.contains("fontSize: 20,"), "{}", output.styles);
     }
 
     #[test]
