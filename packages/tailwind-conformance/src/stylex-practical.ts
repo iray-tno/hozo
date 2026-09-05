@@ -129,6 +129,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'gridAutoRows', value: '48px auto' },
   { property: 'gridAutoFlow', value: 'column dense' },
   { property: 'gridTemplateAreas', value: '"header header" "main aside"' },
+  { property: 'gridArea', value: '1 / 1 / 3 / 3' },
   { property: 'fontKerning', value: 'normal' },
   { property: 'fontFeatureSettings', value: '"kern" 1' },
   { property: 'fontLanguageOverride', value: '"TRK"' },
@@ -306,6 +307,16 @@ function jsValue(value: string | number): string {
 }
 
 function sourceFor({ property, value }: StylexValueCase): string {
+  if (property === 'gridArea') {
+    return `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '48px 48px' },
+  item: { gridArea: ${jsValue(value)} },
+})
+export const Probe = () => <View {...stylex.props(styles.grid)}><View {...stylex.props(styles.item)} /></View>
+`
+  }
   const textProperties = new Set([
     'color',
     'fontSize',
@@ -438,6 +449,17 @@ function cssComponents(value: string): string[] {
 
 function expandStylexShorthand(property: string, value: string): Array<[string, string]> {
   const parts = cssComponents(value)
+  if (property === 'grid-area') {
+    const [rowStart, columnStart, rowEnd, columnEnd] = value.split('/').map((part) => part.trim())
+    if (rowStart && columnStart && rowEnd && columnEnd) {
+      return [
+        ['grid-row-start', rowStart],
+        ['grid-column-start', columnStart],
+        ['grid-row-end', rowEnd],
+        ['grid-column-end', columnEnd],
+      ]
+    }
+  }
   if (property === 'animation-range') {
     const names = new Set(['cover', 'contain', 'entry', 'exit', 'entry-crossing', 'exit-crossing'])
     const lengthPercentage = /^(?:0|[+-]?(?:\d+\.?\d*|\.\d+)(?:%|px|rem|em))$/
@@ -998,6 +1020,7 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
       'gridAutoRows',
       'gridAutoFlow',
       'gridTemplateAreas',
+      'gridArea',
     ].includes(property),
   ),
   borders: STYLEX_VALUE_CASES.filter(({ property }) => property.startsWith('border')),

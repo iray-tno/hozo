@@ -38,6 +38,7 @@ const CONTEXTUAL_PROPERTIES = new Set([
   'gridColumn',
   'gridColumnEnd',
   'gridColumnStart',
+  'gridArea',
   'gridRow',
   'gridRowEnd',
   'gridRowStart',

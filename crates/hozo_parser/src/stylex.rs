@@ -840,6 +840,21 @@ fn stylex_grid_span(value: &StaticValue) -> Option<GridSpan> {
     (start > 0 && start == end).then_some(GridSpan::Span(start))
 }
 
+fn stylex_grid_area(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let parts = value.split('/').map(str::trim).collect::<Vec<_>>();
+    let [row_start, column_start, row_end, column_end] = parts.as_slice() else {
+        return None;
+    };
+    let line = |value: &str| stylex_grid_line(&StaticValue::String(value.to_string()));
+    Some(vec![
+        StyleProperty::GridRowStart(line(row_start)?),
+        StyleProperty::GridColumnStart(line(column_start)?),
+        StyleProperty::GridRowEnd(line(row_end)?),
+        StyleProperty::GridColumnEnd(line(column_end)?),
+    ])
+}
+
 fn transform_angle(value: &str) -> Option<Angle> {
     if value == "0" {
         return Some(Angle::Deg(0.0));
@@ -4743,6 +4758,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "gridRowEnd" => vec![StyleProperty::GridRowEnd(stylex_grid_line(value)?)],
         "gridColumn" => vec![StyleProperty::GridColumn(stylex_grid_span(value)?)],
         "gridRow" => vec![StyleProperty::GridRow(stylex_grid_span(value)?)],
+        "gridArea" => stylex_grid_area(value)?,
         "rotate" => vec![StyleProperty::Rotate(stylex_rotate(value)?)],
         "scale" => vec![StyleProperty::Scale(stylex_scale(value)?)],
         "translate" => vec![StyleProperty::Translate(stylex_translate(value)?)],
@@ -5016,7 +5032,7 @@ fn property_priority(property: &str) -> u16 {
     let property = canonical_property(property);
     if matches!(
         property,
-        "padding" | "margin" | "inset" | "scrollMargin" | "scrollPadding"
+        "padding" | "margin" | "inset" | "scrollMargin" | "scrollPadding" | "gridArea"
     ) {
         return 1000;
     }
@@ -7261,7 +7277,8 @@ mod tests {
                 gridColumnEnd: -1,
                 gridRowStart: '2',
                 gridRowEnd: 'auto'
-              }
+              },
+              area: { gridArea: '1 / 2 / 3 / -1' }
             })
         "#,
         );
@@ -7309,6 +7326,18 @@ mod tests {
         assert_eq!(
             lines[3].properties,
             vec![StyleProperty::GridRowEnd(GridLine::Auto)]
+        );
+        let Rule::Ready { entries: area, .. } = &frontend.sheets["styles"]["area"] else {
+            panic!("grid area was not lowerable")
+        };
+        assert_eq!(
+            area[0].properties,
+            vec![
+                StyleProperty::GridRowStart(GridLine::Line(1)),
+                StyleProperty::GridColumnStart(GridLine::Line(2)),
+                StyleProperty::GridRowEnd(GridLine::Line(3)),
+                StyleProperty::GridColumnEnd(GridLine::Line(-1)),
+            ]
         );
     }
 

@@ -1363,9 +1363,9 @@
     },
     {
       "name": "gridArea",
-      "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "lane": "contextual",
+      "status": "mapped",
+      "basis": "contextual-runtime"
     },
     {
       "name": "gridAutoColumns",
