@@ -4189,6 +4189,42 @@ fn stylex_transition(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     ])
 }
 
+fn stylex_caret(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let components = web_components(value)?;
+    if components.len() > 2 {
+        return None;
+    }
+    let shapes = ["bar", "block", "underscore"];
+    let mut color = None;
+    let mut shape = None;
+    let mut autos = 0;
+    for component in components {
+        if component == "auto" {
+            autos += 1;
+        } else if shapes.contains(&component.as_str()) && shape.is_none() {
+            shape = Some(component);
+        } else if web_shorthand_color(&component) && color.is_none() {
+            color = Some(component);
+        } else {
+            return None;
+        }
+    }
+    if autos > usize::from(color.is_some()) + usize::from(shape.is_some()) + 1 {
+        return None;
+    }
+    let color = match color {
+        Some(value) => StyleProperty::CaretColor(css_color(&StaticValue::String(value))?),
+        None => web_longhand("caret-color", "auto"),
+    };
+    Some(vec![
+        color,
+        web_longhand("caret-shape", shape.unwrap_or_else(|| "auto".to_string())),
+    ])
+}
+
 /// Maps CSS-in-JS property spelling onto the already-tested Tailwind parser.
 /// The tokens are internal only; no generated class string reaches output.
 fn token_for(property: &str, value: &StaticValue) -> Option<String> {
@@ -4584,6 +4620,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" | "zoom" => {
             vec![web_only_property(property, value)?]
         }
+        "caret" => stylex_caret(value)?,
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
         "whiteSpace" => vec![StyleProperty::WhiteSpace(stylex_white_space(value)?)],
         "textOverflow" => vec![StyleProperty::TextOverflow(stylex_text_overflow(value)?)],
@@ -5105,6 +5142,7 @@ fn property_priority(property: &str) -> u16 {
             | "animationRange"
             | "scrollTimeline"
             | "viewTimeline"
+            | "caret"
             | "outline"
             | "textDecoration"
             | "textEmphasis"
@@ -7473,11 +7511,11 @@ mod tests {
                 backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundSize: 'cover',
                 objectPosition: 'center', justifySelf: 'center', placeItems: 'center',
                 transitionDelay: '100ms', animationDuration: '.2s',
-                content: '"New" open-quote'
+                content: '"New" open-quote', caret: '#123456 bar'
               },
               wider: {
                 backgroundSize: 'calc(100% - 1px)', transitionDelay: 'calc(1s - 2ms)',
-                content: 'attr(data-label)'
+                content: 'attr(data-label)', caret: 'red blue'
               }
             })
         "#,
@@ -7485,7 +7523,13 @@ mod tests {
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
             panic!("exact Web values were not lowerable")
         };
-        assert_eq!(entries.len(), 12);
+        assert_eq!(entries.len(), 13);
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            property == &StyleProperty::CaretColor(Color::Css("#123456".to_string()))
+        }));
+        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
+            property == &StyleProperty::WebOnly("caret-shape".to_string(), "bar".to_string())
+        }));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
@@ -7493,8 +7537,8 @@ mod tests {
             panic!("wider values should remain residual")
         };
         assert!(entries.is_empty());
-        assert_eq!(residual.len(), 3);
-        assert_eq!(gaps.len(), 3);
+        assert_eq!(residual.len(), 4);
+        assert_eq!(gaps.len(), 4);
     }
 
     #[test]
@@ -9077,6 +9121,32 @@ mod tests {
     }
 
     #[test]
+    fn caret_color_longhand_suppresses_only_its_conditional_shorthand_slot() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { TextInput } from '@hozo/core'
+            const styles = stylex.create({
+              all: { caret: '#123456 bar' },
+              color: { caretColor: '#654321' }
+            })
+            const input = <TextInput {...stylex.props(styles.color, active && styles.all)} />
+        "#,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let style = &parsed.roots[0].node.style;
+        assert!(!style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && matches!(declaration.property, StyleProperty::CaretColor(_))
+        }));
+        assert!(style.iter().any(|declaration| {
+            matches!(declaration.condition, Condition::Expr(_))
+                && declaration.property
+                    == StyleProperty::WebOnly("caret-shape".to_string(), "bar".to_string())
+        }));
+    }
+
+    #[test]
     fn the_official_four_property_priority_tiers_are_explicit() {
         assert_eq!(property_priority("padding"), 1000);
         assert_eq!(property_priority("paddingInline"), 2000);
@@ -9093,6 +9163,9 @@ mod tests {
         assert_eq!(property_priority("textDecorationLine"), 3000);
         assert!(property_names_overlap("textDecoration", "textDecorationLine"));
         assert!(property_names_overlap("textEmphasis", "textEmphasisColor"));
+        assert_eq!(property_priority("caret"), 2000);
+        assert_eq!(property_priority("caretColor"), 3000);
+        assert!(property_names_overlap("caret", "caretColor"));
         assert_eq!(property_priority("outline"), 2000);
         assert_eq!(property_priority("outlineWidth"), 3000);
         assert!(property_names_overlap("outline", "outlineWidth"));

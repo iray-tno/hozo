@@ -107,6 +107,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'scrollbarColor', value: '#666 transparent' },
   { property: 'quotes', value: '"“" "”" "‘" "’"' },
   { property: 'content', value: '"New" open-quote' },
+  { property: 'caret', value: '#123456 bar' },
   { property: 'zoom', value: 1.25 },
   { property: 'textDecoration', value: 'underline wavy #123456' },
   { property: 'textEmphasis', value: 'filled sesame #123456' },
@@ -526,6 +527,15 @@ function expandStylexShorthand(property: string, value: string): Array<[string, 
       ['transition-duration', milliseconds(times[0])],
       ['transition-timing-function', parts.find((part) => timings.has(part)) ?? 'ease'],
       ['transition-delay', milliseconds(times[1])],
+    ]
+  }
+  if (property === 'caret') {
+    const shapes = new Set(['auto', 'bar', 'block', 'underscore'])
+    const shape = parts.find((part) => shapes.has(part)) ?? 'auto'
+    const color = parts.find((part) => !shapes.has(part)) ?? 'auto'
+    return [
+      ['caret-color', color],
+      ['caret-shape', shape],
     ]
   }
   if (property === 'flex-flow') {
@@ -1109,6 +1119,7 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
       'scrollbarColor',
       'quotes',
       'content',
+      'caret',
       'zoom',
       'textDecoration',
       'textEmphasis',
