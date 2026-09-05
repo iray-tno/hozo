@@ -2721,6 +2721,52 @@ fn web_border_image_repeat(value: &StaticValue) -> Option<String> {
     .then(|| parts.join(" "))
 }
 
+/// Preserve the CSS shorthand so its resets remain exact, while accepting a
+/// source-first single image grammar whose constituent values we can validate.
+fn stylex_border_image(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    if value == "none" {
+        return Some(vec![web_longhand("border-image", value)]);
+    }
+    let mut tokens = web_top_level_tokens(value, true)?;
+    let source = tokens.first()?.clone();
+    web_mask_image(&StaticValue::String(source))?;
+    tokens.remove(0);
+
+    let repeat_at = tokens
+        .iter()
+        .position(|token| matches!(token.as_str(), "stretch" | "repeat" | "round" | "space"))
+        .unwrap_or(tokens.len());
+    let repeat = tokens.split_off(repeat_at);
+    if !repeat.is_empty() {
+        web_border_image_repeat(&StaticValue::String(repeat.join(" ")))?;
+    }
+    let slash = tokens.iter().enumerate().filter(|(_, token)| *token == "/").map(|(at, _)| at).collect::<Vec<_>>();
+    if slash.len() > 2 {
+        return None;
+    }
+    let slice_end = slash.first().copied().unwrap_or(tokens.len());
+    if slice_end == 0 {
+        return None;
+    }
+    web_border_image_slice(&StaticValue::String(tokens[..slice_end].join(" ")))?;
+    if let Some(first) = slash.first().copied() {
+        let width_end = slash.get(1).copied().unwrap_or(tokens.len());
+        if first + 1 == width_end {
+            return None;
+        }
+        web_border_image_width(&StaticValue::String(tokens[first + 1..width_end].join(" ")))?;
+        if let Some(second) = slash.get(1).copied() {
+            if second + 1 == tokens.len() {
+                return None;
+            }
+            web_border_image_outset(&StaticValue::String(tokens[second + 1..].join(" ")))?;
+        }
+    }
+    Some(vec![web_longhand("border-image", minify_css_commas(value))])
+}
+
 fn web_grid_track_breadth(value: &str, flex: bool, fit_content: bool) -> bool {
     if matches!(value, "auto" | "min-content" | "max-content") {
         return true;
@@ -4876,6 +4922,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             vec![web_only_property(property, value)?]
         }
         "caret" => stylex_caret(value)?,
+        "borderImage" => stylex_border_image(value)?,
         "mask" => stylex_mask(value)?,
         "offset" => stylex_offset(value)?,
         "positionTryFallbacks" => vec![web_longhand(
@@ -5391,6 +5438,7 @@ fn property_priority(property: &str) -> u16 {
             | "borderInlineColor"
             | "borderInlineStyle"
             | "borderInlineWidth"
+            | "borderImage"
             | "columnRule"
             | "columns"
             | "flex"
@@ -5626,6 +5674,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("inset")
     } else if matches!(property, "gap" | "rowGap" | "columnGap") {
         Some("gap")
+    } else if property == "borderImage" || property.starts_with("borderImage") {
+        Some("border-image")
     } else if property == "borderRadius" || property.ends_with("Radius") {
         Some("border-radius")
     } else if property == "borderColor"
@@ -8044,11 +8094,13 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             const styles = stylex.create({
               exact: {
+                borderImage: 'url(border.svg) 30 round',
                 borderImageSource: 'linear-gradient(red, blue)',
                 borderImageSlice: '30% fill', borderImageWidth: '1 2 3 4',
                 borderImageOutset: '4px 8px', borderImageRepeat: 'round stretch'
               },
               wider: {
+                borderImage: 'image-set(url(a.png) 1x, url(b.png) 2x) 30',
                 borderImageSource: 'image-set(url(a.png) 1x, url(b.png) 2x)',
                 borderImageSlice: 'calc(30% + 5%) fill',
                 borderImageWidth: 'calc(1rem + 2px)',
@@ -8061,7 +8113,7 @@ mod tests {
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
             panic!("common border-image longhands were not lowerable")
         };
-        assert_eq!(entries.len(), 5);
+        assert_eq!(entries.len(), 6);
         assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
             matches!(property, StyleProperty::WebOnly(_, _))
         })));
@@ -8072,8 +8124,8 @@ mod tests {
             panic!("wider border-image syntax should remain residual")
         };
         assert!(entries.is_empty());
-        assert_eq!(residual.len(), 5);
-        assert_eq!(gaps.len(), 5);
+        assert_eq!(residual.len(), 6);
+        assert_eq!(gaps.len(), 6);
     }
 
     #[test]
@@ -9506,6 +9558,10 @@ mod tests {
         assert_eq!(property_priority("maskImage"), 3000);
         assert!(property_names_overlap("mask", "maskImage"));
         assert!(property_names_overlap("mask", "maskBorderSource"));
+        assert_eq!(property_priority("borderImage"), 2000);
+        assert_eq!(property_priority("borderImageSource"), 3000);
+        assert!(property_names_overlap("borderImage", "borderImageSource"));
+        assert!(!property_names_overlap("borderImageWidth", "borderWidth"));
         assert_eq!(property_priority("positionTry"), 3000);
         assert!(property_names_overlap("positionTry", "positionTryFallbacks"));
         assert_eq!(property_priority("offset"), 2000);
