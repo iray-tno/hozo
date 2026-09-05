@@ -3128,6 +3128,140 @@ fn web_mask_size(value: &StaticValue) -> Option<String> {
         .then(|| groups.join(","))
 }
 
+fn web_top_level_tokens(value: &str, slash_token: bool) -> Option<Vec<String>> {
+    if value.contains([';', '{', '}', '\n', '\r']) {
+        return None;
+    }
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0_u32;
+    let mut quote = None;
+    let mut escaped = false;
+    for character in value.chars() {
+        if escaped {
+            current.push(character);
+            escaped = false;
+            continue;
+        }
+        if character == '\\' && quote.is_some() {
+            current.push(character);
+            escaped = true;
+            continue;
+        }
+        if let Some(active_quote) = quote {
+            current.push(character);
+            if character == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => {
+                quote = Some(character);
+                current.push(character);
+            }
+            '(' => {
+                depth += 1;
+                current.push(character);
+            }
+            ')' => {
+                depth = depth.checked_sub(1)?;
+                current.push(character);
+            }
+            '/' if slash_token && depth == 0 => {
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+                tokens.push("/".to_string());
+            }
+            character if character.is_ascii_whitespace() && depth == 0 => {
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+            }
+            _ => current.push(character),
+        }
+    }
+    if depth != 0 || quote.is_some() || escaped {
+        return None;
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    (!tokens.is_empty()).then_some(tokens)
+}
+
+/// Keep the CSS shorthand so its specified reset of `mask-border-*` remains
+/// intact, but accept only a practical single-layer grammar we can validate.
+fn stylex_mask(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    if value == "none" {
+        return Some(vec![web_longhand("mask", value)]);
+    }
+    let tokens = web_top_level_tokens(value, true)?;
+    let image = tokens.first()?;
+    web_mask_image(&StaticValue::String(image.clone()))?;
+
+    let repeat = ["repeat-x", "repeat-y", "repeat", "space", "round", "no-repeat"];
+    let boxes = ["border-box", "padding-box", "content-box", "fill-box", "stroke-box", "view-box", "no-clip"];
+    let mode = ["alpha", "luminance", "match-source"];
+    let composite = ["add", "subtract", "intersect", "exclude"];
+    let mut position = Vec::new();
+    let mut size = Vec::new();
+    let mut repeats = Vec::new();
+    let mut geometry = Vec::new();
+    let mut after_slash = false;
+    let mut suffix_started = false;
+    let mut modes = 0;
+    let mut composites = 0;
+    for token in &tokens[1..] {
+        if token == "/" {
+            if after_slash || position.is_empty() {
+                return None;
+            }
+            after_slash = true;
+        } else if repeat.contains(&token.as_str()) {
+            suffix_started = true;
+            repeats.push(token.as_str());
+        } else if boxes.contains(&token.as_str()) {
+            suffix_started = true;
+            geometry.push(token.as_str());
+        } else if mode.contains(&token.as_str()) {
+            suffix_started = true;
+            modes += 1;
+        } else if composite.contains(&token.as_str()) {
+            suffix_started = true;
+            composites += 1;
+        } else if after_slash {
+            if suffix_started {
+                return None;
+            }
+            size.push(token.as_str());
+        } else {
+            if suffix_started {
+                return None;
+            }
+            position.push(token.as_str());
+        }
+    }
+    if repeats.len() > 2 || geometry.len() > 2 || modes > 1 || composites > 1 {
+        return None;
+    }
+    if !position.is_empty() {
+        web_mask_position(&StaticValue::String(position.join(" ")))?;
+    }
+    if after_slash {
+        if size.is_empty() {
+            return None;
+        }
+        web_mask_size(&StaticValue::String(size.join(" ")))?;
+    } else if !size.is_empty() {
+        return None;
+    }
+    Some(vec![web_longhand("mask", minify_css_commas(value))])
+}
+
 fn web_offset_path(value: &StaticValue) -> Option<String> {
     let StaticValue::String(value) = value else { return None };
     let value = value.trim();
@@ -4678,6 +4812,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             vec![web_only_property(property, value)?]
         }
         "caret" => stylex_caret(value)?,
+        "mask" => stylex_mask(value)?,
         "offset" => stylex_offset(value)?,
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
         "whiteSpace" => vec![StyleProperty::WhiteSpace(stylex_white_space(value)?)],
@@ -5203,6 +5338,7 @@ fn property_priority(property: &str) -> u16 {
             | "scrollTimeline"
             | "viewTimeline"
             | "caret"
+            | "mask"
             | "offset"
             | "outline"
             | "textDecoration"
@@ -5465,6 +5601,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("text-emphasis")
     } else if property == "caret" || property.starts_with("caret") {
         Some("caret")
+    } else if property == "mask" || property.starts_with("mask") {
+        Some("mask")
     } else if property == "offset" || property.starts_with("offset") {
         Some("offset")
     } else if property == "outline" || property.starts_with("outline") {
@@ -7701,6 +7839,7 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             const styles = stylex.create({
               exact: {
+                mask: 'url(mask.svg) center / cover no-repeat',
                 WebkitMaskImage: 'url(mask.svg)',
                 maskImage: 'linear-gradient(black, transparent)',
                 maskMode: 'luminance', maskRepeat: 'no-repeat',
@@ -7709,6 +7848,7 @@ mod tests {
                 maskComposite: 'exclude', maskType: 'alpha'
               },
               wider: {
+                mask: 'url(a.svg), url(b.svg)',
                 WebkitMaskImage: 'image-set(url(a.png) 1x, url(b.png) 2x)',
                 maskImage: 'cross-fade(url(a.png), url(b.png), 50%)',
                 maskMode: 'match-source, var(--mask-mode)',
@@ -7723,7 +7863,7 @@ mod tests {
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
             panic!("common mask longhands were not lowerable")
         };
-        assert_eq!(entries.len(), 10);
+        assert_eq!(entries.len(), 11);
         assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
             matches!(property, StyleProperty::WebOnly(_, _))
         })));
@@ -7734,8 +7874,8 @@ mod tests {
             panic!("wider mask syntax should remain residual")
         };
         assert!(entries.is_empty());
-        assert_eq!(residual.len(), 10);
-        assert_eq!(gaps.len(), 10);
+        assert_eq!(residual.len(), 11);
+        assert_eq!(gaps.len(), 11);
     }
 
     #[test]
@@ -9248,6 +9388,10 @@ mod tests {
         assert_eq!(property_priority("caret"), 2000);
         assert_eq!(property_priority("caretColor"), 3000);
         assert!(property_names_overlap("caret", "caretColor"));
+        assert_eq!(property_priority("mask"), 2000);
+        assert_eq!(property_priority("maskImage"), 3000);
+        assert!(property_names_overlap("mask", "maskImage"));
+        assert!(property_names_overlap("mask", "maskBorderSource"));
         assert_eq!(property_priority("offset"), 2000);
         assert_eq!(property_priority("offsetPath"), 3000);
         assert!(property_names_overlap("offset", "offsetPath"));
