@@ -3585,6 +3585,21 @@ fn stylex_legacy_motion(property: &'static str, value: &StaticValue) -> Option<S
     Some(web_longhand(property, css_value))
 }
 
+fn stylex_speech_cue(property: &'static str, value: &StaticValue) -> Option<StyleProperty> {
+    let value = web_url_or_none(value)?;
+    Some(web_longhand(property, value))
+}
+
+fn stylex_speech_pause(property: &'static str, value: &StaticValue) -> Option<StyleProperty> {
+    const STRENGTHS: &[&str] = &["none", "x-weak", "weak", "medium", "strong", "x-strong"];
+    let value = match value {
+        StaticValue::Number(number) if number.is_finite() && *number >= 0.0 => length_value(value),
+        StaticValue::String(value) if STRENGTHS.contains(&value.as_str()) => value.clone(),
+        _ => return None,
+    };
+    Some(web_longhand(property, value))
+}
+
 /// Expand the common path-first `offset` shorthand without losing StyleX's
 /// independently ranked longhand slots. Position/anchor slash syntax stays
 /// residual until its wider grammar can be represented exactly.
@@ -5092,6 +5107,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             vec![web_only_property(property, value)?]
         }
         "caret" => stylex_caret(value)?,
+        "cue" => vec![stylex_speech_cue("cue", value)?],
+        "cueAfter" => vec![stylex_speech_cue("cue-after", value)?],
+        "cueBefore" => vec![stylex_speech_cue("cue-before", value)?],
         "borderImage" => stylex_border_image(value)?,
         "font" => stylex_font(value)?,
         "mask" => stylex_mask(value)?,
@@ -5101,6 +5119,12 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "motionPath" => vec![stylex_legacy_motion("motion-path", value)?],
         "motionRotation" => vec![stylex_legacy_motion("motion-rotation", value)?],
         "offset" => stylex_offset(value)?,
+        "pause" => vec![stylex_speech_pause("pause", value)?],
+        "pauseAfter" => vec![stylex_speech_pause("pause-after", value)?],
+        "pauseBefore" => vec![stylex_speech_pause("pause-before", value)?],
+        "rest" => vec![stylex_speech_pause("rest", value)?],
+        "restAfter" => vec![stylex_speech_pause("rest-after", value)?],
+        "restBefore" => vec![stylex_speech_pause("rest-before", value)?],
         "positionTryFallbacks" => vec![web_longhand(
             "position-try-fallbacks",
             web_position_try_fallbacks(value)?,
@@ -8438,6 +8462,43 @@ mod tests {
     }
 
     #[test]
+    fn speech_timing_properties_keep_the_stylex_oracle_boundary() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                cue: 'url(chime.wav)', cueAfter: 'none', cueBefore: 'url(alert.wav)',
+                pause: 'medium', pauseAfter: 200, pauseBefore: 'strong',
+                rest: 'weak', restAfter: 300, restBefore: 'none'
+              },
+              wider: {
+                cue: 'linear-gradient(red, blue)', cueAfter: 'var(--cue)', cueBefore: 'url(',
+                pause: 'sometimes', pauseAfter: -1, pauseBefore: '200ms',
+                rest: 'often', restAfter: -1, restBefore: '300ms'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("speech timing properties were not lowerable")
+        };
+        assert_eq!(entries.len(), 9);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider speech timing values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 9);
+        assert_eq!(gaps.len(), 9);
+    }
+
+    #[test]
     fn grid_auto_tracks_flow_and_areas_lower_exactly_on_web() {
         let frontend = frontend(
             r#"
@@ -9633,7 +9694,7 @@ mod tests {
             import { View } from '@hozo/core'
             const styles = stylex.create({
               active: { opacity: 0.5, speak: 'normal' },
-              inactive: { padding: 8, cueAfter: 'none' }
+              inactive: { padding: 8, border: 'solid' }
             })
             const card = <View {...stylex.props(active ? styles.active : styles.inactive)} />
         "#;
@@ -9646,7 +9707,7 @@ mod tests {
         assert!(residual.contains("(active)"), "{residual}");
         assert!(residual.contains("!(active)"), "{residual}");
         assert!(residual.contains("speak: 'normal'"), "{residual}");
-        assert!(residual.contains("cueAfter: 'none'"), "{residual}");
+        assert!(residual.contains("border: 'solid'"), "{residual}");
         assert!(!residual.contains("opacity: 0.5"), "{residual}");
         assert!(!residual.contains("padding: 8"), "{residual}");
     }
