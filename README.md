@@ -195,11 +195,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **460/522 property names
-(88.1%)**, including **134/134 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **461/522 property names
+(88.3%)**, including **134/134 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **21/21 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **305/366 (83.3%)**. The
+independently at **306/366 (83.6%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -216,8 +216,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **297/297 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **259/259 (100%)** declarations after
+corpus currently measures **298/298 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **260/260 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -277,9 +277,11 @@ and type. The accepted subset includes ordinary URLs and gradients, layered
 keyword values, and static length/percentage positions and sizes. The practical
 single-layer `mask` shorthand remains a CSS shorthand so its mask-border resets
 are preserved, while its image, position, size, repeat, box, mode, and composite
-components are validated before lowering. Multiple layers, wider image
-functions, variables, and mask-border shorthand remain with the official
-StyleX compiler instead of being approximated.
+components are validated before lowering. The source-first `maskBorder`
+shorthand likewise reuses the validated slice, width, outset, repeat, and mode
+grammar while retaining its CSS resets. Multiple layers, wider image
+functions, variables, and less common component orderings remain with the
+official StyleX compiler instead of being approximated.
 
 Modern anchor placement covers StyleX's published `positionArea` keywords and
 the common static `positionTry`, `positionTryFallbacks`, and legacy

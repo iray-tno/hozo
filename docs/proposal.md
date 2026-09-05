@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-04 時点では
-全 CSS 名で 460/522 (88.1%)、両 platform に名前が存在するか、同じ typed IR へ
+全 CSS 名で 461/522 (88.3%)、両 platform に名前が存在するか、同じ typed IR へ
 正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 21/21
-(100%)、Web-only 集合で 305/366 (83.3%)。残りは optional adapter 候補 1、
+(100%)、Web-only 集合で 306/366 (83.6%)。残りは optional adapter 候補 1、
 未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
@@ -963,9 +963,9 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 297/297 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 298/298 (100%)、一般的なauthoring
 construct 16/16 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
-持たせた宣言259/259 (100%)、silent failure 0となった。valueはHozo Webが公式
+持たせた宣言260/260 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
@@ -1010,8 +1010,9 @@ mask系は`WebkitMaskImage`と標準`maskImage`、mode、repeat、position、siz
 clip、composite、typeのlonghandをexact Web-onlyとして扱う。通常のURL/gradient、
 layered keyword、静的なlength/percentageのposition/sizeを対象にする。実用的な単一layer
 の`mask` shorthandは構成要素を検証したうえでCSS shorthandのまま保持し、mask-border
-resetも失わない。複数layer、より広いimage function、variable、mask-border shorthandは
-近似せず公式StyleXへ残す。
+resetも失わない。source-firstの`maskBorder` shorthandもslice/width/outset/repeat/modeを
+検証し、CSS resetを保持する。複数layer、より広いimage function、variable、異なる
+component順は近似せず公式StyleXへ残す。
 
 anchor positioningではStyleX公開型の`positionArea` keywordと、静的な
 `positionTry` / `positionTryFallbacks` / 旧`positionTryOptions`のfallback listを扱う。
