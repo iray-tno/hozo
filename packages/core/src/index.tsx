@@ -160,7 +160,7 @@ function useLayoutRef<T extends HTMLElement>(onLayout?: (event: HozoLayoutEvent)
     const observer = new ResizeObserver(emit)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [Boolean(onLayout)])
+  }, [])
 
   return elementRef
 }
@@ -353,7 +353,7 @@ export function Image({
 }: ImageProps) {
   const ref = useLayoutRef<HTMLImageElement>(onLayout)
   const [failed, setFailed] = useState(false)
-  useEffect(() => setFailed(false), [src])
+  useEffect(() => setFailed(false), [])
   const webSrc = (failed ? undefined : webImageSource(src)) ?? webImageSource(defaultSource)
   return (
     <img
@@ -530,7 +530,7 @@ export function FlatList<T>({
     )
     observer.observe(target)
     return () => observer.disconnect()
-  }, [data.length, horizontal, onEndReached, onEndReachedThreshold])
+  }, [data.length, horizontal, onEndReached, onEndReachedThreshold, containerRef.current])
 
   return (
     <div
@@ -809,6 +809,10 @@ export {
   HozoToolbar,
   type HozoToolbarItem as ToolbarItem,
   type HozoToolbarItem,
+  // What a toolbar item's `render` is handed. It was the one prop type
+  // in this package a caller could be given and could not name.
+  type HozoToolbarItemProps as ToolbarItemProps,
+  type HozoToolbarItemProps,
   type HozoToolbarProps as ToolbarProps,
   type HozoToolbarProps,
 } from './toolbar.ts'

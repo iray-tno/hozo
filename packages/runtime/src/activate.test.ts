@@ -59,7 +59,7 @@ test('Space is suppressed on key down and activates on key up', () => {
 })
 
 test('every other key is left alone', () => {
-  for (const key of ['a', 'Tab', 'Escape', 'ArrowDown', 'Shift', 'Enter '.trim() + 'x']) {
+  for (const key of ['a', 'Tab', 'Escape', 'ArrowDown', 'Shift', `${'Enter '.trim()}x`]) {
     const down = event(key)
     hozoActivateKeyDown(down.handler)
     const up = event(key)

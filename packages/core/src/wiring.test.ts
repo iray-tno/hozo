@@ -11,6 +11,7 @@ import {
   HozoTabs,
   type HozoTabsProps,
   HozoToolbar,
+  type HozoToolbarItemProps,
   HozoTree,
 } from './index.tsx'
 
@@ -77,9 +78,18 @@ test('the toolbar is one tab stop and says which way it goes', () => {
     createElement(HozoToolbar, {
       accessibilityLabel: 'Formatting',
       items: [
-        { render: (props: any) => createElement('button', { ...props, key: 'b' }, 'B') },
-        { render: (props: any) => createElement('button', { ...props, key: 'i' }, 'I') },
-        { render: (props: any) => createElement('button', { ...props, key: 'u' }, 'U') },
+        {
+          render: (props: HozoToolbarItemProps) =>
+            createElement('button', { ...props, key: 'b' }, 'B'),
+        },
+        {
+          render: (props: HozoToolbarItemProps) =>
+            createElement('button', { ...props, key: 'i' }, 'I'),
+        },
+        {
+          render: (props: HozoToolbarItemProps) =>
+            createElement('button', { ...props, key: 'u' }, 'U'),
+        },
       ],
     }),
   )

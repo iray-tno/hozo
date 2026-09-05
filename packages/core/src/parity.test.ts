@@ -51,7 +51,7 @@ const WEB_ONLY = new Map([
     'Button',
     'The Web fallback renders an `<a>` when given `href`. The native answer ' +
       'is Pressable plus Linking, which is a decision rather than a ' +
-      're-export -- see #227.',
+      're-export -- see #254.',
   ],
   ['ButtonProps', 'With `Button`.'],
 ])

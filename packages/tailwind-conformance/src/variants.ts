@@ -305,8 +305,7 @@ function canonicalSuffix(suffix: string): string {
 }
 
 export function compareVariant(entry: VariantCase, vars: Map<string, string>): VariantVerdict {
-  const source =
-    `import { View } from '@hozo/core'\n` + `const el = <View className="${entry.candidate}" />\n`
+  const source = `import { View } from '@hozo/core'\nconst el = <View className="${entry.candidate}" />\n`
   const [compiled] = hozoCompile(source)
   const actual = compiled ? shapesFor(compiled.css, /\.hozo-\d+/.source, true) : []
   if (actual.length === 0) {

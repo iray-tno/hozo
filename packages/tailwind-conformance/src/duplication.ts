@@ -80,7 +80,7 @@ export function atomise(css: string): Atoms {
         atomName = `h${names.size.toString(36)}`
         names.set(atom, atomName)
         const body = `.${atomName}${suffix.replace('&', '')} { ${text}; }`
-        atomicCss += rule.atRules.reduceRight((inner, at) => `${at} { ${inner} }`, body) + '\n'
+        atomicCss += `${rule.atRules.reduceRight((inner, at) => `${at} { ${inner} }`, body)}\n`
       }
       list.push(atomName)
     }

@@ -577,7 +577,10 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
   kind: CanvasLeafNode['kind'],
 ) {
   const Component = ({ onPress, onActiveChange, accessibilityLabel, disabled, ...props }: P) => {
-    const node = useMemo(() => ({ kind, props }) as unknown as FlatNode, [props])
+    // Not memoised. `props` is a rest object, new on every render, so a
+    // memo keyed on it recomputed every time -- the cost of a hook with
+    // none of the saving, on every shape in the scene.
+    const node = { kind, props } as unknown as FlatNode
     const context = useSceneNode(node)
     useIsoLayoutEffect(() => {
       if (!onPress || disabled) {
@@ -613,7 +616,8 @@ export const Text = interactiveLeaf<TextProps>('text')
 export const Path = interactiveLeaf<PathProps>('path')
 
 export function Group({ children, ...props }: GroupProps) {
-  const node = useMemo(() => ({ kind: 'group' as const, props }), [props])
+  // A rest object is new on every render; see `interactiveLeaf`.
+  const node = { kind: 'group' as const, props }
   const context = useSceneNode(node)
   return (
     <SceneContext.Provider
@@ -630,7 +634,8 @@ export function Group({ children, ...props }: GroupProps) {
 }
 
 export function Clip({ children, ...props }: ClipProps) {
-  const node = useMemo(() => ({ kind: 'clip' as const, props }), [props])
+  // A rest object is new on every render; see `interactiveLeaf`.
+  const node = { kind: 'clip' as const, props }
   const context = useSceneNode(node)
   return (
     <SceneContext.Provider
@@ -875,6 +880,12 @@ export function useCanvasScene(children: ReactNode) {
   )
 
   return {
+    // `revision` is read by nothing, and that is the point of it: a
+    // counter the store bumps, whose only job is to invalidate this
+    // snapshot. `biome check --unsafe` removed it once, and every hover
+    // and press test in this package failed with nothing under the
+    // pointer, because the scene never refreshed.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: it is what invalidates the snapshot
     scene: useMemo(() => store.snapshot(), [store, revision]),
     // A scene revision redraws the platform surface, but must not rerender
     // every marker just because the root observed it. Stable provider value

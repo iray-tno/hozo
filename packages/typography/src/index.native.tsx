@@ -161,8 +161,8 @@ function replaceSpacesWithNbsp(node: ReactNode): ReactNode {
     return React.Children.map(node, replaceSpacesWithNbsp)
   }
   if (React.isValidElement(node)) {
-    const element = node as React.ReactElement<any>
-    if (element.props && element.props.children) {
+    const element = node as React.ReactElement<{ children?: ReactNode }>
+    if (element.props?.children) {
       return React.cloneElement(element, {
         children: replaceSpacesWithNbsp(element.props.children),
       })

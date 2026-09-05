@@ -5,7 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 
 import { createCompiler } from '@hozo/compiler'
-import { CACHE_DIR, StylexModuleCache } from '@hozo/compiler/project'
+import { CACHE_DIR, StylexModuleCache, type StylexResolvedBindings } from '@hozo/compiler/project'
 
 import { metroStatePath, withHozo } from './config.ts'
 import { transformHozoSource } from './transform.ts'
@@ -78,7 +78,13 @@ test('withHozo carries platform-scoped Metro aliases into StyleX lowering', asyn
       projectRoot: root,
       resolver: {
         marker: 'preserved',
-        resolveRequest(context: any, moduleName: string, platform: string | null) {
+        // Metro hands its resolver a context object it also expects back;
+        // the fields this test touches are the two below.
+        resolveRequest(
+          context: { originModulePath: string; [key: string]: unknown },
+          moduleName: string,
+          platform: string | null,
+        ) {
           if (moduleName === '@theme/styles') {
             return {
               type: 'sourceFile',
@@ -111,17 +117,18 @@ test('withHozo carries platform-scoped Metro aliases into StyleX lowering', asyn
     const androidBindings = state.stylexBindings.android
     const iosBindings = state.stylexBindings.ios
     assert.ok(
-      androidBindings.some((entry: any) =>
+      androidBindings.some((entry: StylexResolvedBindings) =>
         entry.bindings.some(
-          (binding: any) =>
+          (binding: StylexResolvedBindings['bindings'][number]) =>
             binding.specifier === '@theme/styles' && binding.moduleId === androidStyles,
         ),
       ),
     )
     assert.ok(
-      iosBindings.some((entry: any) =>
+      iosBindings.some((entry: StylexResolvedBindings) =>
         entry.bindings.some(
-          (binding: any) => binding.specifier === '@theme/styles' && binding.moduleId === iosStyles,
+          (binding: StylexResolvedBindings['bindings'][number]) =>
+            binding.specifier === '@theme/styles' && binding.moduleId === iosStyles,
         ),
       ),
     )

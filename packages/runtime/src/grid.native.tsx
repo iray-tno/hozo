@@ -95,8 +95,16 @@ export function HozoGrid({
   const rows = gridRows(placements, tracks)
 
   return rows.map((cells, row) => (
+    // A grid cell is its coordinates. Rows and columns are generated from the
+    // track counts rather than from data, so there is nothing else for one to
+    // be, and two cells never trade places.
+    // biome-ignore lint/suspicious/noArrayIndexKey: a cell is its coordinates
     <View key={row} style={{ flexDirection: 'row', columnGap }}>
       {cells.map((cell, column) => (
+        // A grid cell is its coordinates. Rows and columns are generated from the
+        // track counts rather than from data, so there is nothing else for one to
+        // be, and two cells never trade places.
+        // biome-ignore lint/suspicious/noArrayIndexKey: a cell is its coordinates
         <View key={column} style={gridCellStyle(cell.tracks, columnGap)}>
           {cell.child === null ? null : unwrapGridItem(list[cell.child])}
         </View>
