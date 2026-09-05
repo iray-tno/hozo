@@ -195,11 +195,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **450/522 property names
-(86.2%)**, including **134/134 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **451/522 property names
+(86.4%)**, including **134/134 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **21/21 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **295/366 (80.6%)**. The
+independently at **296/366 (80.9%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -216,14 +216,19 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **287/287 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **248/248 (100%)** declarations after
+corpus currently measures **288/288 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **249/249 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
 and Native either lowers faithfully or follows the entry's explicit Web-only policy.
 Unsupported cases may remain official residuals, but do not earn coverage.
 The current corpus has zero silent failures.
+
+Generated `content` supports the exact common static subset: `normal`, `none`,
+quoted strings, and quote-control keywords. Function forms such as `attr()` and
+`counter()` remain with the official StyleX compiler until their wider grammar
+and pseudo-element use are represented without accepting arbitrary CSS text.
 
 Static StyleX `textShadow` values are portable when they are `none` or one
 explicitly coloured layer whose offsets and optional blur use px/zero. Web

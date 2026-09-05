@@ -1104,6 +1104,7 @@ enum WebValueGrammar {
     CounterList { allow_reversed: bool },
     ScrollbarColor,
     Quotes,
+    Content,
     Zoom,
     TextDecoration,
     TextEmphasis,
@@ -1606,6 +1607,7 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         )),
         "scrollbarColor" => Some(("scrollbar-color", WebValueGrammar::ScrollbarColor)),
         "quotes" => Some(("quotes", WebValueGrammar::Quotes)),
+        "content" => Some(("content", WebValueGrammar::Content)),
         "zoom" => Some(("zoom", WebValueGrammar::Zoom)),
         "textDecoration" => Some(("text-decoration", WebValueGrammar::TextDecoration)),
         "textEmphasis" => Some(("text-emphasis", WebValueGrammar::TextEmphasis)),
@@ -2393,6 +2395,21 @@ fn web_quotes(value: &StaticValue) -> Option<String> {
     }
     let strings = web_components(value)?;
     (strings.len() % 2 == 0 && strings.iter().all(|string| web_css_string(string)))
+        .then(|| value.clone())
+}
+
+fn web_generated_content(value: &StaticValue) -> Option<String> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    if matches!(value.as_str(), "normal" | "none") {
+        return Some(value.clone());
+    }
+    let components = web_components(value)?;
+    let quote_keywords = ["open-quote", "close-quote", "no-open-quote", "no-close-quote"];
+    components
+        .iter()
+        .all(|component| web_css_string(component) || quote_keywords.contains(&component.as_str()))
         .then(|| value.clone())
 }
 
@@ -3984,6 +4001,7 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         }
         WebValueGrammar::ScrollbarColor => web_scrollbar_color(value)?,
         WebValueGrammar::Quotes => web_quotes(value)?,
+        WebValueGrammar::Content => web_generated_content(value)?,
         WebValueGrammar::Zoom => web_zoom(value)?,
         WebValueGrammar::TextDecoration => web_text_decoration(value)?,
         WebValueGrammar::TextEmphasis => web_text_emphasis(value)?,
@@ -4519,7 +4537,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
         | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
         | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
-        | "counterIncrement" | "counterReset" | "counterSet" | "quotes"
+        | "counterIncrement" | "counterReset" | "counterSet" | "quotes" | "content"
         | "fontVariationSettings" | "glyphOrientationHorizontal" | "glyphOrientationVertical"
         | "hangingPunctuation" | "hyphenateCharacter"
         | "hyphenateLimitChars" | "hyphens"
@@ -7454,16 +7472,20 @@ mod tests {
                 wordBreak: 'break-word', overflowWrap: 'anywhere', visibility: 'hidden',
                 backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundSize: 'cover',
                 objectPosition: 'center', justifySelf: 'center', placeItems: 'center',
-                transitionDelay: '100ms', animationDuration: '.2s'
+                transitionDelay: '100ms', animationDuration: '.2s',
+                content: '"New" open-quote'
               },
-              wider: { backgroundSize: 'calc(100% - 1px)', transitionDelay: 'calc(1s - 2ms)' }
+              wider: {
+                backgroundSize: 'calc(100% - 1px)', transitionDelay: 'calc(1s - 2ms)',
+                content: 'attr(data-label)'
+              }
             })
         "#,
         );
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
             panic!("exact Web values were not lowerable")
         };
-        assert_eq!(entries.len(), 11);
+        assert_eq!(entries.len(), 12);
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
@@ -7471,8 +7493,8 @@ mod tests {
             panic!("wider values should remain residual")
         };
         assert!(entries.is_empty());
-        assert_eq!(residual.len(), 2);
-        assert_eq!(gaps.len(), 2);
+        assert_eq!(residual.len(), 3);
+        assert_eq!(gaps.len(), 3);
     }
 
     #[test]
