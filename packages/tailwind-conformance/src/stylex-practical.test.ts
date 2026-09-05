@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 292, covered: 292 },
+    values: { total: 296, covered: 296 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 253, covered: 253 },
+    corpus: { total: 257, covered: 257 },
     silent: 0,
   })
 })
@@ -859,6 +859,10 @@ test('anchor positioning identifiers agree with official StyleX', () => {
   const values: Record<string, readonly string[]> = {
     anchorName: ['none', '--tooltip-anchor', '--tooltip-anchor, --fallback-anchor'],
     positionAnchor: ['auto', '--tooltip-anchor'],
+    positionArea: ['top', 'span-inline-end'],
+    positionTryFallbacks: ['flip-block, --menu-below', 'top'],
+    positionTryOptions: ['flip-inline', '--menu-below flip-block'],
+    positionTry: ['none', 'most-width flip-block, --menu-below'],
     positionVisibility: ['always', 'anchors-visible', 'no-overflow'],
   }
   for (const [property, propertyValues] of Object.entries(values)) {

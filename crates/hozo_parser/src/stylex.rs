@@ -1142,6 +1142,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             "position-visibility",
             &["always", "anchors-visible", "no-overflow"],
         ),
+        "positionArea" => (
+            "position-area",
+            &[
+                "top", "left", "bottom", "right", "center", "block-start", "block-end",
+                "inline-start", "inline-end", "span-inline-start", "span-inline-end",
+                "span-block-start", "span-block-end",
+            ],
+        ),
         "animationDirection" => (
             "animation-direction",
             &["normal", "reverse", "alternate", "alternate-reverse"],
@@ -3128,6 +3136,62 @@ fn web_mask_size(value: &StaticValue) -> Option<String> {
         .then(|| groups.join(","))
 }
 
+fn web_position_try_fallbacks(value: &StaticValue) -> Option<String> {
+    const AREAS: &[&str] = &[
+        "top", "left", "bottom", "right", "center", "block-start", "block-end",
+        "inline-start", "inline-end", "span-inline-start", "span-inline-end",
+        "span-block-start", "span-block-end",
+    ];
+    const TACTICS: &[&str] = &["flip-block", "flip-inline", "flip-start"];
+    let StaticValue::String(value) = value else { return None };
+    if value == "none" {
+        return Some(value.clone());
+    }
+    let groups = web_comma_groups(value)?;
+    groups
+        .iter()
+        .all(|group| {
+            let words = group.split_ascii_whitespace().collect::<Vec<_>>();
+            let bases = words
+                .iter()
+                .filter(|word| {
+                    AREAS.contains(word) || word.starts_with("--") && web_css_identifier(word)
+                })
+                .count();
+            let tactics = words.iter().filter(|word| TACTICS.contains(word)).count();
+            !words.is_empty()
+                && bases <= 1
+                && bases + tactics == words.len()
+                && tactics <= 3
+                && TACTICS
+                    .iter()
+                    .all(|tactic| words.iter().filter(|word| *word == tactic).count() <= 1)
+        })
+        .then(|| groups.join(","))
+}
+
+fn web_position_try(value: &StaticValue) -> Option<String> {
+    const ORDERS: &[&str] = &[
+        "normal", "most-width", "most-height", "most-block-size", "most-inline-size",
+    ];
+    let StaticValue::String(value) = value else { return None };
+    if value == "none" {
+        return Some(value.clone());
+    }
+    let groups = web_comma_groups(value)?;
+    let mut normalized = groups.iter().map(|group| (*group).to_string()).collect::<Vec<_>>();
+    let first = normalized.first_mut()?;
+    let words = first.split_ascii_whitespace().collect::<Vec<_>>();
+    if words.first().is_some_and(|word| ORDERS.contains(word)) {
+        if words.len() == 1 {
+            return None;
+        }
+        *first = words[1..].join(" ");
+    }
+    web_position_try_fallbacks(&StaticValue::String(normalized.join(",")))?;
+    Some(minify_css_commas(value))
+}
+
 fn web_top_level_tokens(value: &str, slash_token: bool) -> Option<Vec<String>> {
     if value.contains([';', '{', '}', '\n', '\r']) {
         return None;
@@ -4787,7 +4851,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "orphans" | "outline" | "overflowBlock" | "overflowBlockX" | "overflowClipMargin"
         | "overscrollBehaviorY" | "pageBreakAfter"
         | "pageBreakBefore" | "pageBreakInside"
-        | "paintOrder" | "positionAnchor" | "positionVisibility" | "printColorAdjust" | "resize"
+        | "paintOrder" | "positionAnchor" | "positionArea" | "positionVisibility" | "printColorAdjust" | "resize"
         | "rubyAlign" | "rubyMerge" | "rubyPosition" | "scrollSnapAlign"
         | "scrollSnapStop" | "scrollSnapType" | "scrollTimelineAxis" | "scrollTimelineName"
         | "scrollbarColor" | "scrollbarGutter" | "scrollbarWidth"
@@ -4814,6 +4878,15 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "caret" => stylex_caret(value)?,
         "mask" => stylex_mask(value)?,
         "offset" => stylex_offset(value)?,
+        "positionTryFallbacks" => vec![web_longhand(
+            "position-try-fallbacks",
+            web_position_try_fallbacks(value)?,
+        )],
+        "positionTryOptions" => vec![web_longhand(
+            "position-try-options",
+            web_position_try_fallbacks(value)?,
+        )],
+        "positionTry" => vec![web_longhand("position-try", web_position_try(value)?)],
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
         "whiteSpace" => vec![StyleProperty::WhiteSpace(stylex_white_space(value)?)],
         "textOverflow" => vec![StyleProperty::TextOverflow(stylex_text_overflow(value)?)],
@@ -5605,6 +5678,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("mask")
     } else if property == "offset" || property.starts_with("offset") {
         Some("offset")
+    } else if property == "positionTry" || property.starts_with("positionTry") {
+        Some("position-try")
     } else if property == "outline" || property.starts_with("outline") {
         Some("outline")
     } else if matches!(property, "placeContent" | "alignContent" | "justifyContent") {
@@ -7924,6 +7999,45 @@ mod tests {
     }
 
     #[test]
+    fn anchor_positioning_fallbacks_lower_common_values_and_preserve_wider_syntax() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                positionArea: 'top',
+                positionTryFallbacks: 'flip-block, --menu-below',
+                positionTryOptions: 'flip-inline',
+                positionTry: 'most-width flip-block, --menu-below'
+              },
+              wider: {
+                positionArea: 'top center',
+                positionTryFallbacks: 'flip-block flip-block',
+                positionTryOptions: 'var(--fallback)',
+                positionTry: 'most-width'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("common anchor positioning values were not lowerable")
+        };
+        assert_eq!(entries.len(), 4);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider anchor positioning syntax should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 4);
+        assert_eq!(gaps.len(), 4);
+    }
+
+    #[test]
     fn border_image_longhands_lower_common_values_and_preserve_wider_syntax() {
         let frontend = frontend(
             r#"
@@ -9392,6 +9506,8 @@ mod tests {
         assert_eq!(property_priority("maskImage"), 3000);
         assert!(property_names_overlap("mask", "maskImage"));
         assert!(property_names_overlap("mask", "maskBorderSource"));
+        assert_eq!(property_priority("positionTry"), 3000);
+        assert!(property_names_overlap("positionTry", "positionTryFallbacks"));
         assert_eq!(property_priority("offset"), 2000);
         assert_eq!(property_priority("offsetPath"), 3000);
         assert!(property_names_overlap("offset", "offsetPath"));
