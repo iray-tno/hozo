@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 298, covered: 298 },
+    values: { total: 307, covered: 307 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 260, covered: 260 },
+    corpus: { total: 269, covered: 269 },
     silent: 0,
   })
 })
@@ -180,6 +180,30 @@ test('border image longhands agree with official StyleX', () => {
       covered: true,
       silent: false,
     })
+  }
+})
+
+test('corner shape keywords agree with official StyleX', () => {
+  const properties = [
+    'cornerShape',
+    'cornerStartStartShape',
+    'cornerStartEndShape',
+    'cornerEndStartShape',
+    'cornerEndEndShape',
+    'cornerTopLeftShape',
+    'cornerTopRightShape',
+    'cornerBottomLeftShape',
+    'cornerBottomRightShape',
+  ]
+  for (const property of properties) {
+    for (const value of ['round', 'scoop', 'bevel', 'notch', 'square', 'squircle']) {
+      assert.deepEqual(compareStylexValue({ property, value }), {
+        property,
+        value,
+        covered: true,
+        silent: false,
+      })
+    }
   }
 })
 

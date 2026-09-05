@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 461)
+  assert.equal(mapped.size, 470)
   for (const name of [
     'display',
     'padding',
@@ -124,6 +124,15 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
     'maskBorderSlice',
     'maskBorder',
     'borderImage',
+    'cornerShape',
+    'cornerStartStartShape',
+    'cornerStartEndShape',
+    'cornerEndStartShape',
+    'cornerEndEndShape',
+    'cornerTopLeftShape',
+    'cornerTopRightShape',
+    'cornerBottomLeftShape',
+    'cornerBottomRightShape',
     'positionArea',
     'positionTry',
     'positionTryFallbacks',
@@ -177,7 +186,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 461)
+  assert.equal(mapped.length, 470)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -253,7 +262,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 366)
-  assert.equal(surface.mappedWebOnly.size, 306)
+  assert.equal(surface.mappedWebOnly.size, 315)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('content'))
   assert.ok(surface.mappedWebOnly.has('caret'))
@@ -290,6 +299,9 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('maskBorderSource'))
   assert.ok(surface.mappedWebOnly.has('maskBorder'))
   assert.ok(surface.mappedWebOnly.has('borderImage'))
+  assert.ok(surface.mappedWebOnly.has('cornerShape'))
+  assert.ok(surface.mappedWebOnly.has('cornerStartStartShape'))
+  assert.ok(surface.mappedWebOnly.has('cornerTopLeftShape'))
   assert.ok(surface.mappedWebOnly.has('glyphOrientationVertical'))
   assert.ok(surface.mappedWebOnly.has('textDecorationSkip'))
   assert.ok(surface.mappedWebOnly.has('viewTransitionName'))

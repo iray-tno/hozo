@@ -1150,6 +1150,42 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
                 "span-block-start", "span-block-end",
             ],
         ),
+        "cornerShape" => (
+            "corner-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
+        "cornerStartStartShape" => (
+            "corner-start-start-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
+        "cornerStartEndShape" => (
+            "corner-start-end-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
+        "cornerEndStartShape" => (
+            "corner-end-start-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
+        "cornerEndEndShape" => (
+            "corner-end-end-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
+        "cornerTopLeftShape" => (
+            "corner-top-left-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
+        "cornerTopRightShape" => (
+            "corner-top-right-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
+        "cornerBottomLeftShape" => (
+            "corner-bottom-left-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
+        "cornerBottomRightShape" => (
+            "corner-bottom-right-shape",
+            &["round", "scoop", "bevel", "notch", "square", "squircle"],
+        ),
         "animationDirection" => (
             "animation-direction",
             &["normal", "reverse", "alternate", "alternate-reverse"],
@@ -4889,7 +4925,10 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
         | "containIntrinsicBlockSize" | "containIntrinsicHeight"
         | "containIntrinsicInlineSize" | "containIntrinsicSize" | "containIntrinsicWidth"
-        | "contentVisibility" | "displayInside" | "displayList" | "displayOutside"
+        | "contentVisibility" | "cornerShape" | "cornerStartStartShape" | "cornerStartEndShape"
+        | "cornerEndStartShape" | "cornerEndEndShape" | "cornerTopLeftShape"
+        | "cornerTopRightShape" | "cornerBottomLeftShape" | "cornerBottomRightShape"
+        | "displayInside" | "displayList" | "displayOutside"
         | "dominantBaseline" | "emptyCells" | "fill" | "fillOpacity" | "fillRule"
         | "float" | "forcedColorAdjust"
         | "fontFeatureSettings" | "fontKerning" | "fontLanguageOverride" | "fontOpticalSizing"
@@ -5499,6 +5538,7 @@ fn property_priority(property: &str) -> u16 {
             | "scrollMarginInline"
             | "scrollPaddingBlock"
             | "scrollPaddingInline"
+            | "cornerShape"
     ) {
         return 2000;
     }
@@ -5515,6 +5555,10 @@ fn property_priority(property: &str) -> u16 {
             | "borderTopStyle"
             | "borderRightStyle"
             | "borderBottomStyle"
+            | "cornerTopLeftShape"
+            | "cornerTopRightShape"
+            | "cornerBottomLeftShape"
+            | "cornerBottomRightShape"
             | "borderLeftStyle"
             | "borderInlineStartColor"
             | "borderInlineEndColor"
@@ -5702,6 +5746,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("gap")
     } else if property == "borderImage" || property.starts_with("borderImage") {
         Some("border-image")
+    } else if property.starts_with("corner") && property.ends_with("Shape") {
+        Some("corner-shape")
     } else if property == "borderRadius" || property.ends_with("Radius") {
         Some("border-radius")
     } else if property == "borderColor"
@@ -8157,6 +8203,51 @@ mod tests {
     }
 
     #[test]
+    fn corner_shapes_lower_published_keywords_and_preserve_future_grammar() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                cornerShape: 'squircle',
+                cornerStartStartShape: 'scoop', cornerStartEndShape: 'bevel',
+                cornerEndStartShape: 'notch', cornerEndEndShape: 'square',
+                cornerTopLeftShape: 'round', cornerTopRightShape: 'scoop',
+                cornerBottomLeftShape: 'bevel', cornerBottomRightShape: 'notch'
+              },
+              wider: {
+                cornerShape: 'superellipse(0.5)',
+                cornerStartStartShape: 'superellipse(0.5)',
+                cornerStartEndShape: 'superellipse(0.5)',
+                cornerEndStartShape: 'superellipse(0.5)',
+                cornerEndEndShape: 'superellipse(0.5)',
+                cornerTopLeftShape: 'superellipse(0.5)',
+                cornerTopRightShape: 'superellipse(0.5)',
+                cornerBottomLeftShape: 'superellipse(0.5)',
+                cornerBottomRightShape: 'superellipse(0.5)'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("published corner-shape keywords were not lowerable")
+        };
+        assert_eq!(entries.len(), 9);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("future corner-shape grammar should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 9);
+        assert_eq!(gaps.len(), 9);
+    }
+
+    #[test]
     fn grid_auto_tracks_flow_and_areas_lower_exactly_on_web() {
         let frontend = frontend(
             r#"
@@ -9592,6 +9683,10 @@ mod tests {
         assert_eq!(property_priority("borderImageSource"), 3000);
         assert!(property_names_overlap("borderImage", "borderImageSource"));
         assert!(!property_names_overlap("borderImageWidth", "borderWidth"));
+        assert_eq!(property_priority("cornerShape"), 2000);
+        assert_eq!(property_priority("cornerStartStartShape"), 3000);
+        assert_eq!(property_priority("cornerTopLeftShape"), 4000);
+        assert!(property_names_overlap("cornerShape", "cornerTopLeftShape"));
         assert_eq!(property_priority("positionTry"), 3000);
         assert!(property_names_overlap("positionTry", "positionTryFallbacks"));
         assert_eq!(property_priority("offset"), 2000);
