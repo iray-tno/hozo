@@ -20,7 +20,6 @@ export const FlatList = 'FlatList'
 export const RefreshControl = 'RefreshControl'
 export const Modal = 'Modal'
 
-// Read off  by the packages that wanted it until now, where
 // Read off `globalThis` by the packages that wanted it until now, where
 // React Native has never put it. Now imported, so the stub has to carry
 // it -- which is the point: a missing import fails loudly here, and a
@@ -114,6 +113,10 @@ export const Easing = {
 }
 
 export const Animated = {
+  // A host element like the rest of this file. Absent until something
+  // rendered `HozoAnimated`, which nothing did.
+  View: 'Animated.View',
+  Text: 'Animated.Text',
   Value: class {
     constructor(value) {
       this.value = value
@@ -137,7 +140,20 @@ export const Animated = {
     }
   },
   createAnimatedComponent: (component) => component,
-  timing: () => ({ start: () => {}, stop: () => {} }),
+  // Counted, because when an animation *restarts* is the question one
+  // of these components actually answers. `HozoAnimated` restarts on a
+  // style change, and it knows the style changed only from a dependency
+  // that nothing inside the effect reads -- which is the shape a linter
+  // calls unnecessary. Nothing could see the difference until this
+  // recorded it.
+  timing: (value, config) => {
+    Animated.__hozoTimings.push({ value, config })
+    return { start: () => {}, stop: () => {} }
+  },
+  __hozoTimings: [],
+  __hozoResetTimings: () => {
+    Animated.__hozoTimings.length = 0
+  },
   loop: (animation) => animation,
   parallel: () => ({ start: () => {}, stop: () => {} }),
 }
