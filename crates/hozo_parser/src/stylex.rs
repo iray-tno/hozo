@@ -2721,18 +2721,29 @@ fn web_border_image_repeat(value: &StaticValue) -> Option<String> {
     .then(|| parts.join(" "))
 }
 
-/// Preserve the CSS shorthand so its resets remain exact, while accepting a
-/// source-first single image grammar whose constituent values we can validate.
-fn stylex_border_image(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+/// Preserve an image-border CSS shorthand so its resets remain exact, while
+/// accepting a source-first grammar whose constituent values we can validate.
+fn stylex_image_border(
+    value: &StaticValue,
+    css_property: &'static str,
+    mask: bool,
+) -> Option<Vec<StyleProperty>> {
     let StaticValue::String(value) = value else { return None };
     let value = value.trim();
     if value == "none" {
-        return Some(vec![web_longhand("border-image", value)]);
+        return Some(vec![web_longhand(css_property, value)]);
     }
     let mut tokens = web_top_level_tokens(value, true)?;
     let source = tokens.first()?.clone();
     web_mask_image(&StaticValue::String(source))?;
     tokens.remove(0);
+    if mask
+        && tokens
+            .last()
+            .is_some_and(|token| matches!(token.as_str(), "alpha" | "luminance"))
+    {
+        tokens.pop();
+    }
 
     let repeat_at = tokens
         .iter()
@@ -2742,7 +2753,12 @@ fn stylex_border_image(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     if !repeat.is_empty() {
         web_border_image_repeat(&StaticValue::String(repeat.join(" ")))?;
     }
-    let slash = tokens.iter().enumerate().filter(|(_, token)| *token == "/").map(|(at, _)| at).collect::<Vec<_>>();
+    let slash = tokens
+        .iter()
+        .enumerate()
+        .filter(|(_, token)| *token == "/")
+        .map(|(at, _)| at)
+        .collect::<Vec<_>>();
     if slash.len() > 2 {
         return None;
     }
@@ -2764,7 +2780,15 @@ fn stylex_border_image(value: &StaticValue) -> Option<Vec<StyleProperty>> {
             web_border_image_outset(&StaticValue::String(tokens[second + 1..].join(" ")))?;
         }
     }
-    Some(vec![web_longhand("border-image", minify_css_commas(value))])
+    Some(vec![web_longhand(css_property, minify_css_commas(value))])
+}
+
+fn stylex_border_image(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    stylex_image_border(value, "border-image", false)
+}
+
+fn stylex_mask_border(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    stylex_image_border(value, "mask-border", true)
 }
 
 fn web_grid_track_breadth(value: &str, flex: bool, fit_content: bool) -> bool {
@@ -4924,6 +4948,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "caret" => stylex_caret(value)?,
         "borderImage" => stylex_border_image(value)?,
         "mask" => stylex_mask(value)?,
+        "maskBorder" => stylex_mask_border(value)?,
         "offset" => stylex_offset(value)?,
         "positionTryFallbacks" => vec![web_longhand(
             "position-try-fallbacks",
@@ -5460,6 +5485,7 @@ fn property_priority(property: &str) -> u16 {
             | "viewTimeline"
             | "caret"
             | "mask"
+            | "maskBorder"
             | "offset"
             | "outline"
             | "textDecoration"
@@ -7965,6 +7991,7 @@ mod tests {
             const styles = stylex.create({
               exact: {
                 mask: 'url(mask.svg) center / cover no-repeat',
+                maskBorder: 'url(mask.svg) 30 round alpha',
                 WebkitMaskImage: 'url(mask.svg)',
                 maskImage: 'linear-gradient(black, transparent)',
                 maskMode: 'luminance', maskRepeat: 'no-repeat',
@@ -7974,6 +8001,7 @@ mod tests {
               },
               wider: {
                 mask: 'url(a.svg), url(b.svg)',
+                maskBorder: 'image-set(url(a.png) 1x, url(b.png) 2x) 30',
                 WebkitMaskImage: 'image-set(url(a.png) 1x, url(b.png) 2x)',
                 maskImage: 'cross-fade(url(a.png), url(b.png), 50%)',
                 maskMode: 'match-source, var(--mask-mode)',
@@ -7988,7 +8016,7 @@ mod tests {
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
             panic!("common mask longhands were not lowerable")
         };
-        assert_eq!(entries.len(), 11);
+        assert_eq!(entries.len(), 12);
         assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
             matches!(property, StyleProperty::WebOnly(_, _))
         })));
@@ -7999,8 +8027,8 @@ mod tests {
             panic!("wider mask syntax should remain residual")
         };
         assert!(entries.is_empty());
-        assert_eq!(residual.len(), 11);
-        assert_eq!(gaps.len(), 11);
+        assert_eq!(residual.len(), 12);
+        assert_eq!(gaps.len(), 12);
     }
 
     #[test]
@@ -9558,6 +9586,8 @@ mod tests {
         assert_eq!(property_priority("maskImage"), 3000);
         assert!(property_names_overlap("mask", "maskImage"));
         assert!(property_names_overlap("mask", "maskBorderSource"));
+        assert_eq!(property_priority("maskBorder"), 2000);
+        assert!(property_names_overlap("maskBorder", "maskBorderSource"));
         assert_eq!(property_priority("borderImage"), 2000);
         assert_eq!(property_priority("borderImageSource"), 3000);
         assert!(property_names_overlap("borderImage", "borderImageSource"));
