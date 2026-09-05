@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 290, covered: 290 },
+    values: { total: 291, covered: 291 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 251, covered: 251 },
+    corpus: { total: 252, covered: 252 },
     silent: 0,
   })
 })
@@ -146,6 +146,7 @@ test('motion paths and float shapes agree with official StyleX', () => {
     { property: 'offsetPosition', value: 'center top' },
     { property: 'offsetRotate', value: 'auto 45deg' },
     { property: 'offsetRotate', value: 'reverse -15deg' },
+    { property: 'offset', value: 'path("M 0 0 L 100 100") 25% auto 45deg' },
     { property: 'shapeImageThreshold', value: 0.5 },
     { property: 'shapeMargin', value: '1rem' },
     { property: 'shapeOutside', value: 'circle(50%)' },
