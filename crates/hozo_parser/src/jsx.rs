@@ -292,7 +292,7 @@ fn primitive_name(name: &str) -> Option<&'static str> {
         "Mark" => Some("Mark"),
         "NoBreak" => Some("NoBreak"),
         "Ruby" => Some("Ruby"),
-        "Rt" => Some("Rt"),
+        "RubyText" => Some("RubyText"),
         _ => None,
     }
 }
@@ -614,7 +614,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Mark" => Some(Primitive::Mark),
         "NoBreak" => Some(Primitive::NoBreak),
         "Ruby" => Some(Primitive::Ruby),
-        "Rt" => Some(Primitive::Rt),
+        "RubyText" => Some(Primitive::RubyText),
         _ => None,
     }
 }
@@ -638,6 +638,17 @@ fn build_node(
             if object.name.as_str() == "Svg" {
                 let element = SvgElement::from_name(member.property.name.as_str())?;
                 (object.name.as_str(), Primitive::Svg(element))
+            } else if object.name.as_str() == "Ruby" {
+                // `<Ruby.RubyText>` as well as `<RubyText>`, the way
+                // `TermList` reads both spellings. The member keeps the
+                // full name rather than shortening to `Text`: the flat
+                // export has to be readable on its own, and a `<Text>`
+                // that meant the annotation would not be.
+                let prim = match member.property.name.as_str() {
+                    "RubyText" => Primitive::RubyText,
+                    _ => return None,
+                };
+                (object.name.as_str(), prim)
             } else if object.name.as_str() == "TermList" {
                 let prim = match member.property.name.as_str() {
                     "Term" => Primitive::Term,
@@ -1316,12 +1327,12 @@ fn validate_semantic_children(
                     | Primitive::Mark
                     | Primitive::NoBreak
                     | Primitive::Ruby
-                    | Primitive::Rt
+                    | Primitive::RubyText
             ),
             Primitive::Ruby => matches!(
                 child.primitive,
                 Primitive::Text
-                    | Primitive::Rt
+                    | Primitive::RubyText
                     | Primitive::Strong
                     | Primitive::Emphasis
                     | Primitive::Underline

@@ -186,10 +186,14 @@ fn semantic_primitives_lower_to_native_text_and_view() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    // The heading carries a style now: h1...h6 are bold in every browser
+    // through the UA stylesheet, and React Native has no such thing, so
+    // the compiler is the only place it can come from.
     assert_eq!(
         output.jsx,
-        "<View><Text accessibilityRole=\"header\">Title</Text><Text>Body</Text></View>"
+        "<View><Text style={hozoStyles.hozo1} accessibilityRole=\"header\">Title</Text><Text>Body</Text></View>"
     );
+    assert!(output.styles.contains("fontWeight: '700'"), "{}", output.styles);
 }
 
 #[test]
@@ -223,7 +227,7 @@ fn article_and_navigation_keep_roles_on_native() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert_eq!(
             output.jsx,
-            "<View role=\"article\"><Text accessibilityRole=\"header\">Title</Text><View role=\"navigation\" accessibilityLabel={\"Primary\"}></View></View>"
+            "<View role=\"article\"><Text style={hozoStyles.hozo1} accessibilityRole=\"header\">Title</Text><View role=\"navigation\" accessibilityLabel={\"Primary\"}></View></View>"
         );
 }
 

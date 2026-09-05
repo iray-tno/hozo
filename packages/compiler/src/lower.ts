@@ -65,7 +65,7 @@ const HOZO_PRIMITIVES = [
   'Mark',
   'NoBreak',
   'Ruby',
-  'Rt',
+  'RubyText',
 ] as const
 
 /**

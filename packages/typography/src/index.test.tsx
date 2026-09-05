@@ -10,8 +10,8 @@ import {
   Mark,
   NoBreak,
   Paragraph,
-  Rt,
   Ruby,
+  RubyText,
   Small,
   Strikethrough,
   Strong,
@@ -40,7 +40,7 @@ test('typography primitives render semantic HTML tags', () => {
         <Mark>Highlighted</Mark>
         <NoBreak>No Break Text</NoBreak>
         <Ruby>
-          漢字<Rt>かんじ</Rt>
+          漢字<RubyText>かんじ</RubyText>
         </Ruby>
       </Paragraph>
     </div>,
@@ -63,14 +63,14 @@ test('typography primitives render semantic HTML tags', () => {
   assert.ok(html.includes('white-space:nowrap'), 'NoBreak contains white-space:nowrap style')
   assert.ok(
     html.includes('<ruby>漢字<rt>かんじ</rt></ruby>'),
-    'Ruby and Rt render semantic ruby tags',
+    'Ruby and RubyText render semantic ruby tags',
   )
 })
 
 test('typography primitives forward accessibility labels as aria-label', () => {
   const html = renderToStaticMarkup(
     <Ruby accessibilityLabel="かんじ">
-      漢字<Rt>かんじ</Rt>
+      漢字<RubyText>かんじ</RubyText>
     </Ruby>,
   )
   assert.ok(html.includes('aria-label="かんじ"'), 'Ruby forwards accessibilityLabel to aria-label')

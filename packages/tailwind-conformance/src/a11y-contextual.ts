@@ -20,7 +20,15 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     purpose: 'paragraph, heading level and section intent survive platform lowering',
     source: '<Section><Heading level={2}>Title</Heading><Paragraph>Body</Paragraph></Section>',
     web: ['<section>', '<h2>Title</h2>', '<p>Body</p>'],
-    native: ['<View>', '<Text accessibilityRole="header">Title</Text>', '<Text>Body</Text>'],
+    // The heading carries a style now -- bold, and sized by level. On
+    // the Web that comes from the UA stylesheet and h2 is enough to say
+    // it; React Native has no such thing, so the compiler is the only
+    // place it can come from.
+    native: [
+      '<View>',
+      '<Text style={hozoStyles.hozo1} accessibilityRole="header">Title</Text>',
+      '<Text>Body</Text>',
+    ],
   },
   {
     name: 'document landmarks',

@@ -608,7 +608,7 @@ fn render_node(
                 | "Mark"
                 | "NoBreak"
                 | "Ruby"
-                | "Rt"
+                | "RubyText"
         );
 
     // The generated class is dropped when no rule was written for it. It
@@ -2043,7 +2043,7 @@ export function Login() {
     #[test]
     fn typography_primitives_lower_to_semantic_html_elements() {
         let source = r#"
-            import { Paragraph, Strong, Emphasis, Underline, Strikethrough, Sub, Sup, Code, Small, Mark, NoBreak, Ruby, Rt } from '@hozo/core'
+            import { Paragraph, Strong, Emphasis, Underline, Strikethrough, Sub, Sup, Code, Small, Mark, NoBreak, Ruby, RubyText } from '@hozo/core'
             const el = (
                 <Paragraph>
                     <Strong>bold</Strong>
@@ -2056,7 +2056,7 @@ export function Login() {
                     <Small>fine print</Small>
                     <Mark>highlight</Mark>
                     <NoBreak>100 km/h</NoBreak>
-                    <Ruby>漢字<Rt>かんじ</Rt></Ruby>
+                    <Ruby>漢字<RubyText>かんじ</RubyText></Ruby>
                 </Paragraph>
             )
             "#;

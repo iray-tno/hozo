@@ -7,8 +7,8 @@ import {
   Mark,
   NoBreak,
   Paragraph,
-  Rt,
   Ruby,
+  RubyText,
   Small,
   Strikethrough,
   Strong,
@@ -97,7 +97,7 @@ function TypographyDemo() {
         <Paragraph className="text-base leading-relaxed text-slate-700">
           Pronunciation guide with Ruby:{' '}
           <Ruby>
-            枘<Rt>ほぞ</Rt>
+            枘<RubyText>ほぞ</RubyText>
           </Ruby>{' '}
           (Tenon / Hozo).
         </Paragraph>
@@ -278,19 +278,19 @@ function ScriptsAndAnnotationsDemo() {
 
         <View className="space-y-1 border-b border-slate-100 pb-3">
           <Text className="font-mono text-xs text-indigo-700 font-semibold">
-            East Asian Phonetic Guides (&lt;Ruby&gt;, &lt;Rt&gt;)
+            East Asian Phonetic Guides (&lt;Ruby&gt;, &lt;RubyText&gt;)
           </Text>
           <Paragraph className="text-base leading-loose text-slate-900">
             Japanese:{' '}
             <Ruby className="text-lg">
-              東京<Rt className="text-xs text-indigo-700">とうきょう</Rt>
+              東京<RubyText className="text-xs text-indigo-700">とうきょう</RubyText>
             </Ruby>
             へようこそ。
           </Paragraph>
           <Paragraph className="text-base leading-loose text-slate-900">
             Universal term:{' '}
             <Ruby className="text-lg">
-              枘<Rt className="text-xs text-indigo-700 font-semibold">ほぞ</Rt>
+              枘<RubyText className="text-xs text-indigo-700 font-semibold">ほぞ</RubyText>
             </Ruby>{' '}
             (Tenon / Hozo).
           </Paragraph>

@@ -143,7 +143,7 @@ export function Ruby({ className, children, style, ...props }: TypographyUnivers
   )
 }
 
-export function Rt({ className, children, style, ...props }: TypographyUniversalProps) {
+export function RubyText({ className, children, style, ...props }: TypographyUniversalProps) {
   return (
     <rt className={className} style={style} {...domProps(props)}>
       {children}
@@ -189,3 +189,9 @@ export function Link({
     </a>
   )
 }
+
+// Both spellings, the way `TermList` reads both. The member keeps the
+// full name rather than shortening to `Text`: a flat export has to be
+// readable on its own, and a `<Text>` that meant the annotation would
+// not be. The compiler recognises the pair in `hozo_parser`.
+Ruby.RubyText = RubyText

@@ -1,6 +1,6 @@
 import { Button, Heading, Paragraph, Text, View } from '@hozo/core'
 import { Progress, Separator } from '@hozo/semantics'
-import { Code, Rt, Ruby } from '@hozo/typography'
+import { Code, Ruby, RubyText } from '@hozo/typography'
 
 export function Welcome() {
   return (
@@ -18,7 +18,7 @@ export function Welcome() {
         <Paragraph className="text-base text-slate-700 leading-relaxed">
           Zero-runtime universal UI framework named after traditional Japanese joinery{' '}
           <Ruby className="font-semibold text-slate-900">
-            枘<Rt className="text-xs text-indigo-700 font-bold">ほぞ</Rt>
+            枘<RubyText className="text-xs text-indigo-700 font-bold">ほぞ</RubyText>
           </Ruby>{' '}
           (mortise &amp; tenon). Compiles JSX directly to native HTML5 semantic elements and React
           Native Fabric components with zero runtime overhead.

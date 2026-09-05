@@ -176,7 +176,7 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         Primitive::Mark => ("mark", Vec::new()),
         Primitive::NoBreak => ("span", vec![("style", AttrValue::Expression("{ whiteSpace: 'nowrap' }".to_string()))]),
         Primitive::Ruby => ("ruby", Vec::new()),
-        Primitive::Rt => ("rt", Vec::new()),
+        Primitive::RubyText => ("rt", Vec::new()),
         Primitive::Pressable => {
             let mut attrs = Vec::new();
             match &node.props.accessibility_role {
