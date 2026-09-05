@@ -11,7 +11,7 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 316, covered: 316 },
+    values: { total: 320, covered: 320 },
     constructs: { total: 16, covered: 16 },
     corpus: { total: 270, covered: 270 },
     silent: 0,
@@ -160,6 +160,13 @@ test('motion paths and float shapes agree with official StyleX', () => {
       silent: false,
     })
   }
+})
+
+test('legacy motion aliases agree with the CSS emitted by official StyleX', () => {
+  const properties = new Set(['motion', 'motionOffset', 'motionPath', 'motionRotation'])
+  const cases = STYLEX_VALUE_CASES.filter(({ property }) => properties.has(property))
+  assert.equal(cases.length, properties.size)
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })
 
 test('border image longhands agree with official StyleX', () => {
