@@ -195,11 +195,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **445/522 property names
-(85.2%)**, including **134/134 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **448/522 property names
+(85.8%)**, including **134/134 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **19/19 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **292/368 (79.3%)**. The
+independently at **295/368 (80.2%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -216,8 +216,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **282/282 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **243/243 (100%)** declarations after
+corpus currently measures **285/285 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **246/246 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -250,8 +250,10 @@ arbitrary CSS keyframes run on React Native. A module-scope static
 and follows the same explicit Native refusal policy; exported sheets carry it
 through the project module registry. Static keyframe references also preserve
 the official fallback order in `firstThatWorks(...)` and value arrays. Dynamic
-keyframes, simultaneous animation-name lists, wider easing syntax, and timelines
-remain with the official StyleX compiler.
+keyframes, simultaneous animation-name lists, and wider easing syntax remain with the
+official StyleX compiler. Practical single `animationRange`, `scrollTimeline`, and
+`viewTimeline` shorthands expand into independently ranked longhand slots on Web;
+lists and dynamic timeline functions remain residual.
 
 Common Web compositing and 3D controls lower without runtime CSS parsing:
 `clipPath`, `perspective`, `perspectiveOrigin`, `transformBox`,

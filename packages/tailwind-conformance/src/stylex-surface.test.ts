@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 445)
+  assert.equal(mapped.size, 448)
   for (const name of [
     'display',
     'padding',
@@ -46,6 +46,9 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
     'borderBlockStyle',
     'borderInlineStartStyle',
     'borderTopStyle',
+    'animationRange',
+    'scrollTimeline',
+    'viewTimeline',
   ]) {
     assert.ok(mapped.has(name), `${name} should have a lowering arm`)
   }
@@ -162,7 +165,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 445)
+  assert.equal(mapped.length, 448)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -183,6 +186,9 @@ test('every mapped property records why it is counted', () => {
   assert.equal(manifestEntry('listStyleType')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('listStyle')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('scrollMargin')?.basis, 'exact-web-native-refusal')
+  assert.equal(manifestEntry('animationRange')?.basis, 'exact-web-native-refusal')
+  assert.equal(manifestEntry('scrollTimeline')?.basis, 'exact-web-native-refusal')
+  assert.equal(manifestEntry('viewTimeline')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('backdropFilter')?.basis, 'adapter-candidate')
 })
 
@@ -231,7 +237,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 368)
-  assert.equal(surface.mappedWebOnly.size, 292)
+  assert.equal(surface.mappedWebOnly.size, 295)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('scrollSnapType'))
   assert.ok(surface.mappedWebOnly.has('scrollbarWidth'))

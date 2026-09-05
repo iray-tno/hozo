@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 282, covered: 282 },
+    values: { total: 285, covered: 285 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 243, covered: 243 },
+    corpus: { total: 246, covered: 246 },
     silent: 0,
   })
 })
@@ -876,6 +876,19 @@ test('animation timeline boundaries and view insets agree with official StyleX',
       })
     }
   }
+})
+
+test('timeline shorthands agree with their official StyleX longhand semantics', () => {
+  const cases = [
+    { property: 'animationRange', value: 'entry 20% exit 80%' },
+    { property: 'animationRange', value: '20% 80%' },
+    { property: 'animationRange', value: 'entry 20%' },
+    { property: 'scrollTimeline', value: '--page-scroll y' },
+    { property: 'scrollTimeline', value: 'inline --page-scroll' },
+    { property: 'viewTimeline', value: '--card-view inline auto 10%' },
+    { property: 'viewTimeline', value: '10% --card-view y' },
+  ] as const
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })
 
 test('masonry track alignment controls agree with official StyleX', () => {

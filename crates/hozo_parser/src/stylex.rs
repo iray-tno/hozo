@@ -2180,6 +2180,87 @@ fn web_view_timeline_inset(value: &StaticValue) -> Option<String> {
     }
 }
 
+fn stylex_animation_range(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    if value.contains(',') {
+        return None;
+    }
+    let parts = web_components(value)?;
+    let boundary = |parts: &[String]| {
+        let value = StaticValue::String(parts.join(" "));
+        web_animation_range_boundary(&value).map(|_| match value {
+            StaticValue::String(value) => value,
+            StaticValue::Number(_) => unreachable!(),
+        })
+    };
+    let (start, end) = if let Some(start) = boundary(&parts) {
+        (start, "normal".to_string())
+    } else {
+        let candidates = (1..parts.len())
+            .filter_map(|split| Some((boundary(&parts[..split])?, boundary(&parts[split..])?)))
+            .collect::<Vec<_>>();
+        if candidates.len() != 1 {
+            return None;
+        }
+        candidates.into_iter().next()?
+    };
+    Some(vec![
+        web_longhand("animation-range-start", start),
+        web_longhand("animation-range-end", end),
+    ])
+}
+
+fn stylex_scroll_timeline(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let mut name = None;
+    let mut axis = None;
+    for part in web_components(value)? {
+        if matches!(part.as_str(), "block" | "inline" | "x" | "y") && axis.is_none() {
+            axis = Some(part);
+        } else if (part == "none" || part.starts_with("--") && web_css_identifier(&part))
+            && name.is_none()
+        {
+            name = Some(part);
+        } else {
+            return None;
+        }
+    }
+    Some(vec![
+        web_longhand("scroll-timeline-name", name.unwrap_or_else(|| "none".to_string())),
+        web_longhand("scroll-timeline-axis", axis.unwrap_or_else(|| "block".to_string())),
+    ])
+}
+
+fn stylex_view_timeline(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let mut name = None;
+    let mut axis = None;
+    let mut inset = Vec::new();
+    for part in web_components(value)? {
+        if matches!(part.as_str(), "block" | "inline" | "x" | "y") && axis.is_none() {
+            axis = Some(part);
+        } else if (part == "none" || part.starts_with("--") && web_css_identifier(&part))
+            && name.is_none()
+        {
+            name = Some(part);
+        } else {
+            inset.push(part);
+        }
+    }
+    let inset = if inset.is_empty() {
+        "auto".to_string()
+    } else {
+        let inset = inset.join(" ");
+        web_view_timeline_inset(&StaticValue::String(inset.clone()))?;
+        inset
+    };
+    Some(vec![
+        web_longhand("view-timeline-name", name.unwrap_or_else(|| "none".to_string())),
+        web_longhand("view-timeline-axis", axis.unwrap_or_else(|| "block".to_string())),
+        web_longhand("view-timeline-inset", inset),
+    ])
+}
+
 fn web_masonry_auto_flow(value: &StaticValue) -> Option<String> {
     let StaticValue::String(value) = value else { return None };
     let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
@@ -4505,6 +4586,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             Origin::Written,
         )],
         "transition" => stylex_transition(value)?,
+        "animationRange" => stylex_animation_range(value)?,
+        "scrollTimeline" => stylex_scroll_timeline(value)?,
+        "viewTimeline" => stylex_view_timeline(value)?,
         "containerName" => vec![StyleProperty::ContainerName(stylex_container_name(value)?)],
         "containerType" => vec![StyleProperty::Keyword(
             "container-type",
@@ -4963,6 +5047,9 @@ fn property_priority(property: &str) -> u16 {
             | "marginInline"
             | "listStyle"
             | "transition"
+            | "animationRange"
+            | "scrollTimeline"
+            | "viewTimeline"
             | "outline"
             | "textDecoration"
             | "textEmphasis"
@@ -8119,6 +8206,43 @@ mod tests {
             declaration.property,
             StyleProperty::TransitionDelay(50, Origin::Written)
         )));
+        assert!(node.props.passthrough.is_empty());
+        assert!(node.props.stylex_residuals.is_empty());
+        assert!(parsed.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn timeline_shorthands_expand_into_independent_longhand_slots() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              motion: {
+                animationRange: 'entry 20% exit 80%',
+                scrollTimeline: '--page y',
+                viewTimeline: '--card inline 10% 20%',
+                viewTimelineInset: 'auto',
+              }
+            })
+            const card = <View {...stylex.props(styles.motion)} />
+        "#,
+        );
+        let node = &parsed.roots[0].node;
+        for (property, value) in [
+            ("animation-range-start", "entry 20%"),
+            ("animation-range-end", "exit 80%"),
+            ("scroll-timeline-name", "--page"),
+            ("scroll-timeline-axis", "y"),
+            ("view-timeline-name", "--card"),
+            ("view-timeline-axis", "inline"),
+            ("view-timeline-inset", "auto"),
+        ] {
+            assert!(node.style.iter().any(|declaration| matches!(
+                &declaration.property,
+                StyleProperty::WebOnly(name, actual) if name == property && actual == value
+            )), "missing {property}: {value} in {:?}", node.style);
+        }
         assert!(node.props.passthrough.is_empty());
         assert!(node.props.stylex_residuals.is_empty());
         assert!(parsed.diagnostics.is_empty());

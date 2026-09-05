@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-04 時点では
-全 CSS 名で 445/522 (85.2%)、両 platform に名前が存在するか、同じ typed IR へ
+全 CSS 名で 448/522 (85.8%)、両 platform に名前が存在するか、同じ typed IR へ
 正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 19/19
-(100%)、Web-only 集合で 292/368 (79.3%)。残りは optional adapter 候補 1、
+(100%)、Web-only 集合で 295/368 (80.2%)。残りは optional adapter 候補 1、
 未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
@@ -963,9 +963,9 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 282/282 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 285/285 (100%)、一般的なauthoring
 construct 16/16 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
-持たせた宣言243/243 (100%)、silent failure 0となった。valueはHozo Webが公式
+持たせた宣言246/246 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
@@ -990,7 +990,9 @@ module-scopeの静的な`stylex.keyframes`と、それを参照する`animationN
 frame本体ごと保持し、content hash名でWeb stylesheetへ一度だけhoistする。export済み
 sheet内の参照もproject module registryを越えて保持する。静的keyframe参照の
 `firstThatWorks(...)`とvalue arrayも公式と同じfallback順で出力する。dynamic keyframes、
-同時再生するanimation-name list、より広いeasing構文、timelineは公式StyleX側のresidualに残す。
+同時再生するanimation-name list、より広いeasing構文は公式StyleX側のresidualに残す。
+単一の`animationRange` / `scrollTimeline` / `viewTimeline` shorthandはWebで独立した
+longhand slotへ展開し、listやdynamic timeline functionはresidualに残す。
 
 Webのcompositing / 3D制御では、静的な`clipPath`、`perspective`、
 `perspectiveOrigin`、`transformBox`、`transformStyle`、`willChange`を安全な
