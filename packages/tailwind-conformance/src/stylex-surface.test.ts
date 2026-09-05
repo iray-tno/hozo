@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 454)
+  assert.equal(mapped.size, 455)
   for (const name of [
     'display',
     'padding',
@@ -171,7 +171,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 454)
+  assert.equal(mapped.length, 455)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -247,7 +247,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 366)
-  assert.equal(surface.mappedWebOnly.size, 299)
+  assert.equal(surface.mappedWebOnly.size, 300)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('content'))
   assert.ok(surface.mappedWebOnly.has('caret'))
@@ -276,6 +276,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('animationRangeStart'))
   assert.ok(surface.mappedWebOnly.has('alignTracks'))
   assert.ok(surface.mappedWebOnly.has('masonryAutoFlow'))
+  assert.ok(surface.mappedWebOnly.has('mask'))
   assert.ok(surface.mappedWebOnly.has('maskBorderSource'))
   assert.ok(surface.mappedWebOnly.has('glyphOrientationVertical'))
   assert.ok(surface.mappedWebOnly.has('textDecorationSkip'))
