@@ -869,6 +869,17 @@ fn stylex_grid_template(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     ])
 }
 
+fn stylex_grid(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let mut properties = stylex_grid_template(value)?;
+    properties.extend([
+        web_longhand("grid-template-areas", "none"),
+        web_longhand("grid-auto-rows", "auto"),
+        web_longhand("grid-auto-columns", "auto"),
+        web_longhand("grid-auto-flow", "row"),
+    ]);
+    Some(properties)
+}
+
 fn transform_angle(value: &str) -> Option<Angle> {
     if value == "0" {
         return Some(Angle::Deg(0.0));
@@ -4829,6 +4840,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "gridRow" => vec![StyleProperty::GridRow(stylex_grid_span(value)?)],
         "gridArea" => stylex_grid_area(value)?,
         "gridTemplate" => stylex_grid_template(value)?,
+        "grid" => stylex_grid(value)?,
         "rotate" => vec![StyleProperty::Rotate(stylex_rotate(value)?)],
         "scale" => vec![StyleProperty::Scale(stylex_scale(value)?)],
         "translate" => vec![StyleProperty::Translate(stylex_translate(value)?)],
@@ -5107,6 +5119,7 @@ fn property_priority(property: &str) -> u16 {
             | "inset"
             | "scrollMargin"
             | "scrollPadding"
+            | "grid"
             | "gridArea"
             | "gridTemplate"
     ) {
@@ -7356,7 +7369,8 @@ mod tests {
                 gridRowEnd: 'auto'
               },
               area: { gridArea: '1 / 2 / 3 / -1' },
-              template: { gridTemplate: '80px 1fr / 120px 2fr' }
+              template: { gridTemplate: '80px 1fr / 120px 2fr' },
+              shorthand: { grid: '80px 1fr / 120px 2fr' }
             })
         "#,
         );
@@ -7425,6 +7439,21 @@ mod tests {
             vec![
                 StyleProperty::GridTemplateRows(GridTracks::Css("80px 1fr".to_string())),
                 StyleProperty::GridTemplateColumns(GridTracks::Css("120px 2fr".to_string())),
+            ]
+        );
+        let Rule::Ready { entries: shorthand, .. } = &frontend.sheets["styles"]["shorthand"]
+        else {
+            panic!("grid shorthand was not lowerable")
+        };
+        assert_eq!(
+            shorthand[0].properties,
+            vec![
+                StyleProperty::GridTemplateRows(GridTracks::Css("80px 1fr".to_string())),
+                StyleProperty::GridTemplateColumns(GridTracks::Css("120px 2fr".to_string())),
+                StyleProperty::WebOnly("grid-template-areas".to_string(), "none".to_string()),
+                StyleProperty::WebOnly("grid-auto-rows".to_string(), "auto".to_string()),
+                StyleProperty::WebOnly("grid-auto-columns".to_string(), "auto".to_string()),
+                StyleProperty::WebOnly("grid-auto-flow".to_string(), "row".to_string()),
             ]
         );
     }
@@ -9155,6 +9184,7 @@ mod tests {
         assert_eq!(property_priority("paddingBlockStart"), 4000);
         assert_eq!(canonical_property("paddingBlockStart"), "paddingTop");
         assert_eq!(property_priority("scrollMargin"), 1000);
+        assert_eq!(property_priority("grid"), 1000);
         assert_eq!(property_priority("scrollMarginInline"), 2000);
         assert_eq!(property_priority("scrollMarginInlineStart"), 3000);
         assert_eq!(property_priority("scrollMarginLeft"), 4000);

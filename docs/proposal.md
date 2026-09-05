@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-04 時点では
-全 CSS 名で 452/522 (86.6%)、両 platform に名前が存在するか、同じ typed IR へ
+全 CSS 名で 453/522 (86.8%)、両 platform に名前が存在するか、同じ typed IR へ
 正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 21/21
-(100%)、Web-only 集合で 297/366 (81.1%)。残りは optional adapter 候補 1、
+(100%)、Web-only 集合で 298/366 (81.4%)。残りは optional adapter 候補 1、
 未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
@@ -963,9 +963,9 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 289/289 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 290/290 (100%)、一般的なauthoring
 construct 16/16 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
-持たせた宣言250/250 (100%)、silent failure 0となった。valueはHozo Webが公式
+持たせた宣言251/251 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
@@ -1027,6 +1027,9 @@ implicit browser Gridでは、`gridAutoColumns`、`gridAutoRows`、`gridAutoFlow
 `gridTemplateAreas`をexact Web-onlyとして扱う。静的なtrack size、dense flow、矩形の
 named-area templateを対象にし、calcやrepeatを含むimplicit track、variable、非矩形の
 area定義は公式StyleXのresidualに残す。Nativeでは明示的にrefuseする。
+track-onlyの`grid: "rows / columns"` shorthandは同じcontextual Native track runtimeへ
+lowerする。Webではshorthandが要求するtemplate area、implicit track、auto-flowの
+初期値resetも出力し、area付きやauto-flow形式はresidualに残す。
 
 authoring constructでは、`stylex.props`の再帰arrayとternaryを条件式IRへ展開し、
 module-localな`const` object literalのspreadもsource順にflattenする。対象objectは
