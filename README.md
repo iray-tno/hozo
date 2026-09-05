@@ -195,11 +195,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **470/522 property names
-(90.0%)**, including **134/134 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **471/522 property names
+(90.2%)**, including **134/134 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **21/21 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **315/366 (86.1%)**. The
+independently at **316/366 (86.3%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -216,8 +216,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **307/307 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **269/269 (100%)** declarations after
+corpus currently measures **308/308 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **270/270 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -241,6 +241,13 @@ keeps the authored CSS semantics; Native expands the declaration to
 relative-unit, and dynamic values remain with the official StyleX transform.
 Portable `placeContent` similarly expands common flex alignment values into
 independent `alignContent` and `justifyContent` slots on both platforms.
+
+The common single-family `font` shorthand lowers exactly on Web for optional
+normal/italic style and numeric or keyword weight, a static size, optional
+line-height, and one identifier or quoted family. Keeping the shorthand intact
+preserves its full reset behavior. Variant/stretch syntax, family lists, system
+fonts, and dynamic values remain official residuals with explicit Native
+refusal.
 
 StyleX's standalone `translate`, `rotate`, and `scale` properties use typed IR
 instead of becoming Web-only CSS strings. Web preserves their authored

@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-04 時点では
-全 CSS 名で 470/522 (90.0%)、両 platform に名前が存在するか、同じ typed IR へ
+全 CSS 名で 471/522 (90.2%)、両 platform に名前が存在するか、同じ typed IR へ
 正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 21/21
-(100%)、Web-only 集合で 315/366 (86.1%)。残りは optional adapter 候補 1、
+(100%)、Web-only 集合で 316/366 (86.3%)。残りは optional adapter 候補 1、
 未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
@@ -963,9 +963,9 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 307/307 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 308/308 (100%)、一般的なauthoring
 construct 16/16 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
-持たせた宣言269/269 (100%)、silent failure 0となった。valueはHozo Webが公式
+持たせた宣言270/270 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
@@ -988,6 +988,11 @@ degree rotate、数値/% の1〜3軸 scale を portable subset とし、それ�
 単一 layer を portable subset とする。Web は同じ `text-shadow` を出力し、Native は
 `textShadowColor` / `textShadowOffset` / `textShadowRadius` へ分解する。複数 layer、
 相対単位、動的値は近似せず公式 StyleX transform の residual に残す。
+
+`font` shorthandはnormal/italic style、weight、静的size、任意line-height、単一familyの
+一般形をexact Web-onlyとして扱い、shorthandのreset semanticsを保持する。variant/stretch、
+family list、system font、dynamic valueは公式StyleXのresidualに残し、Nativeは明示的に
+refuseする。
 
 animation control longhandのうちcomposition、正負delay、direction、fill mode、
 非負iteration count、play state、keyword / `cubic-bezier()` / `steps()` timing
