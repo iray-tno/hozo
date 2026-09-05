@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 296, covered: 296 },
+    values: { total: 297, covered: 297 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 257, covered: 257 },
+    corpus: { total: 259, covered: 259 },
     silent: 0,
   })
 })
@@ -163,6 +163,7 @@ test('motion paths and float shapes agree with official StyleX', () => {
 
 test('border image longhands agree with official StyleX', () => {
   for (const testCase of [
+    { property: 'borderImage', value: 'url(border.svg) 30 round' },
     { property: 'borderImageSource', value: 'linear-gradient(red, blue)' },
     { property: 'borderImageSource', value: 'url(border.svg)' },
     { property: 'borderImageSlice', value: '30% fill' },
