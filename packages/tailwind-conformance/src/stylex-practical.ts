@@ -119,6 +119,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'offsetPath', value: 'path("M 0 0 L 100 100")' },
   { property: 'offsetPosition', value: 'center top' },
   { property: 'offsetRotate', value: 'auto 45deg' },
+  { property: 'offset', value: 'path("M 0 0 L 100 100") 25% auto 45deg' },
   { property: 'shapeImageThreshold', value: 0.5 },
   { property: 'shapeMargin', value: '1rem' },
   { property: 'shapeOutside', value: 'circle(50%)' },
@@ -551,6 +552,18 @@ function expandStylexShorthand(property: string, value: string): Array<[string, 
       ['caret-color', color],
       ['caret-shape', shape],
     ]
+  }
+  if (property === 'offset') {
+    const path = parts[0]
+    if (path) {
+      return [
+        ['offset-position', 'normal'],
+        ['offset-path', path],
+        ['offset-distance', parts[1] ?? '0'],
+        ['offset-rotate', parts.slice(2).join(' ') || 'auto'],
+        ['offset-anchor', 'auto'],
+      ]
+    }
   }
   if (property === 'flex-flow') {
     const directions = new Set(['row', 'row-reverse', 'column', 'column-reverse'])
@@ -1146,6 +1159,7 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
       'offsetPath',
       'offsetPosition',
       'offsetRotate',
+      'offset',
       'shapeImageThreshold',
       'shapeMargin',
       'shapeOutside',

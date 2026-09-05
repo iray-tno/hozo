@@ -195,11 +195,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **453/522 property names
-(86.8%)**, including **134/134 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **454/522 property names
+(87.0%)**, including **134/134 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **21/21 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **298/366 (81.4%)**. The
+independently at **299/366 (81.7%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -216,8 +216,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **290/290 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **251/251 (100%)** declarations after
+corpus currently measures **291/291 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **252/252 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -282,8 +282,10 @@ Static motion paths and float shapes cover the common `offsetAnchor`,
 `offsetDistance`, `offsetPath`, `offsetPosition`, and `offsetRotate` longhands,
 plus physical `float`/`clear`, `shapeOutside`, `shapeMargin`, and
 `shapeImageThreshold`. Safe paths, rays, basic shapes, positions, angles, and
-lengths lower exactly on Web. Direction-relative float values, calculations,
-newer shape syntax, and the `offset` shorthand remain official residuals.
+lengths lower exactly on Web. The common single-path `offset` shorthand also
+expands to its five independently ranked longhand slots, including CSS initial
+values. Position/anchor slash forms, direction-relative float values,
+calculations, and newer shape syntax remain official residuals.
 
 Common border-image longhands cover `borderImageSource`, `borderImageSlice`,
 `borderImageWidth`, `borderImageOutset`, and `borderImageRepeat`. Ordinary URLs

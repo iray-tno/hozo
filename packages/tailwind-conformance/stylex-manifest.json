@@ -1994,8 +1994,8 @@
     {
       "name": "offset",
       "lane": "web-only",
-      "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "status": "mapped",
+      "basis": "exact-web-native-refusal"
     },
     {
       "name": "offsetAnchor",

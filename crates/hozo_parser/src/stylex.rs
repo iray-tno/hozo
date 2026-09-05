@@ -3175,6 +3175,52 @@ fn web_offset_rotate(value: &StaticValue) -> Option<String> {
     .then(|| parts.join(" "))
 }
 
+/// Expand the common path-first `offset` shorthand without losing StyleX's
+/// independently ranked longhand slots. Position/anchor slash syntax stays
+/// residual until its wider grammar can be represented exactly.
+fn stylex_offset(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    if value == "none" {
+        return Some(vec![
+            web_longhand("offset-position", "normal"),
+            web_longhand("offset-path", "none"),
+            web_longhand("offset-distance", "0px"),
+            web_longhand("offset-rotate", "auto"),
+            web_longhand("offset-anchor", "auto"),
+        ]);
+    }
+    let close = value.find(')')?;
+    let path = value[..=close].trim();
+    let path = web_offset_path(&StaticValue::String(path.to_string()))?;
+    let rest = value[close + 1..]
+        .split_ascii_whitespace()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let (distance, rotate) = match rest.as_slice() {
+        [] => ("0px".to_string(), "auto".to_string()),
+        [distance] => {
+            let value = StaticValue::String(distance.clone());
+            (web_length_percentage(&value).then(|| length_value(&value))?, "auto".to_string())
+        }
+        [distance, rotate @ ..] => {
+            let distance_value = StaticValue::String(distance.clone());
+            let rotate_value = StaticValue::String(rotate.join(" "));
+            (
+                web_length_percentage(&distance_value).then(|| length_value(&distance_value))?,
+                web_offset_rotate(&rotate_value)?,
+            )
+        }
+    };
+    Some(vec![
+        web_longhand("offset-position", "normal"),
+        web_longhand("offset-path", path),
+        web_longhand("offset-distance", distance),
+        web_longhand("offset-rotate", rotate),
+        web_longhand("offset-anchor", "auto"),
+    ])
+}
+
 fn web_shape_outside(value: &StaticValue) -> Option<String> {
     let StaticValue::String(value) = value else { return None };
     let value = value.trim();
@@ -4632,6 +4678,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             vec![web_only_property(property, value)?]
         }
         "caret" => stylex_caret(value)?,
+        "offset" => stylex_offset(value)?,
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
         "whiteSpace" => vec![StyleProperty::WhiteSpace(stylex_white_space(value)?)],
         "textOverflow" => vec![StyleProperty::TextOverflow(stylex_text_overflow(value)?)],
@@ -5156,6 +5203,7 @@ fn property_priority(property: &str) -> u16 {
             | "scrollTimeline"
             | "viewTimeline"
             | "caret"
+            | "offset"
             | "outline"
             | "textDecoration"
             | "textEmphasis"
@@ -5417,6 +5465,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("text-emphasis")
     } else if property == "caret" || property.starts_with("caret") {
         Some("caret")
+    } else if property == "offset" || property.starts_with("offset") {
+        Some("offset")
     } else if property == "outline" || property.starts_with("outline") {
         Some("outline")
     } else if matches!(property, "placeContent" | "alignContent" | "justifyContent") {
@@ -7696,6 +7746,7 @@ mod tests {
             const styles = stylex.create({
               exact: {
                 float: 'left', clear: 'both',
+                offset: 'path("M 0 0 L 100 100") 25% auto 45deg',
                 offsetAnchor: 'left top', offsetDistance: '25%',
                 offsetPath: 'path("M 0 0 L 100 100")',
                 offsetPosition: 'center top', offsetRotate: 'auto 45deg',
@@ -7704,6 +7755,7 @@ mod tests {
               },
               wider: {
                 float: 'inline-start', clear: 'inline-end',
+                offset: 'normal path("M 0 0 L 100 100") 20% / center',
                 offsetAnchor: 'calc(50% + 1px) top', offsetDistance: 'calc(25% + 1px)',
                 offsetPath: 'shape(from 0 0, line to 100% 100%)',
                 offsetPosition: 'calc(50% + 1px) top', offsetRotate: '0.25turn',
@@ -7716,7 +7768,7 @@ mod tests {
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
             panic!("common motion-path and float-shape values were not lowerable")
         };
-        assert_eq!(entries.len(), 10);
+        assert_eq!(entries.len(), 11);
         assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
             matches!(property, StyleProperty::WebOnly(_, _))
         })));
@@ -7727,8 +7779,8 @@ mod tests {
             panic!("wider motion-path and float-shape syntax should remain residual")
         };
         assert!(entries.is_empty());
-        assert_eq!(residual.len(), 10);
-        assert_eq!(gaps.len(), 10);
+        assert_eq!(residual.len(), 11);
+        assert_eq!(gaps.len(), 11);
     }
 
     #[test]
@@ -9196,6 +9248,9 @@ mod tests {
         assert_eq!(property_priority("caret"), 2000);
         assert_eq!(property_priority("caretColor"), 3000);
         assert!(property_names_overlap("caret", "caretColor"));
+        assert_eq!(property_priority("offset"), 2000);
+        assert_eq!(property_priority("offsetPath"), 3000);
+        assert!(property_names_overlap("offset", "offsetPath"));
         assert_eq!(property_priority("outline"), 2000);
         assert_eq!(property_priority("outlineWidth"), 3000);
         assert!(property_names_overlap("outline", "outlineWidth"));
