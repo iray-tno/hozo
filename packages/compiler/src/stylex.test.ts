@@ -711,6 +711,47 @@ export const Grid = () => (
   )
 })
 
+test('StyleX gridTemplate shorthand reuses the contextual track runtime', () => {
+  const source = `import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+const styles = stylex.create({
+  grid: { display: 'grid', gridTemplate: '80px 1fr / 120px 2fr' },
+})
+export const Grid = () => <View {...stylex.props(styles.grid)}><View /></View>
+`
+  const official = transformSync(source, {
+    filename: '/app/GridTemplate.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = official?.metadata as { stylex?: [string, { ltr: string }, number][] }
+  assert.match(
+    (metadata.stylex ?? []).map(([, css]) => css.ltr).join('\n'),
+    /grid-template:80px 1fr \/ 120px 2fr/,
+  )
+
+  const web = compile(source)[0]
+  assert.ok(web)
+  assert.equal(web.diagnostics.length, 0)
+  assert.match(web.css, /grid-template-rows: 80px 1fr/)
+  assert.match(web.css, /grid-template-columns: 120px 2fr/)
+
+  const native = compileNative(source)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0)
+  assert.deepEqual(native.runtimeImports, ['HozoGrid'])
+  assert.match(
+    native.jsx,
+    /tracks=\{\[\{ kind: 'points', value: 120 \}, \{ kind: 'fr', value: 2 \}\]\}/,
+  )
+  assert.match(
+    native.jsx,
+    /rowTracks=\{\[\{ kind: 'points', value: 80 \}, \{ kind: 'fr', value: 1 \}\]\}/,
+  )
+})
+
 test('the expanded RN-portable StyleX property slice agrees with the official CSS oracle', () => {
   const samples = [
     ['alignContent', `'center'`],

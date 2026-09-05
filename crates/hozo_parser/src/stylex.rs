@@ -855,6 +855,20 @@ fn stylex_grid_area(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     ])
 }
 
+fn stylex_grid_template(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let (rows, columns) = value.split_once('/')?;
+    if columns.contains('/') {
+        return None;
+    }
+    let rows = stylex_grid_tracks(&StaticValue::String(rows.trim().to_string()))?;
+    let columns = stylex_grid_tracks(&StaticValue::String(columns.trim().to_string()))?;
+    Some(vec![
+        StyleProperty::GridTemplateRows(rows),
+        StyleProperty::GridTemplateColumns(columns),
+    ])
+}
+
 fn transform_angle(value: &str) -> Option<Angle> {
     if value == "0" {
         return Some(Angle::Deg(0.0));
@@ -4759,6 +4773,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "gridColumn" => vec![StyleProperty::GridColumn(stylex_grid_span(value)?)],
         "gridRow" => vec![StyleProperty::GridRow(stylex_grid_span(value)?)],
         "gridArea" => stylex_grid_area(value)?,
+        "gridTemplate" => stylex_grid_template(value)?,
         "rotate" => vec![StyleProperty::Rotate(stylex_rotate(value)?)],
         "scale" => vec![StyleProperty::Scale(stylex_scale(value)?)],
         "translate" => vec![StyleProperty::Translate(stylex_translate(value)?)],
@@ -5032,7 +5047,13 @@ fn property_priority(property: &str) -> u16 {
     let property = canonical_property(property);
     if matches!(
         property,
-        "padding" | "margin" | "inset" | "scrollMargin" | "scrollPadding" | "gridArea"
+        "padding"
+            | "margin"
+            | "inset"
+            | "scrollMargin"
+            | "scrollPadding"
+            | "gridArea"
+            | "gridTemplate"
     ) {
         return 1000;
     }
@@ -7278,7 +7299,8 @@ mod tests {
                 gridRowStart: '2',
                 gridRowEnd: 'auto'
               },
-              area: { gridArea: '1 / 2 / 3 / -1' }
+              area: { gridArea: '1 / 2 / 3 / -1' },
+              template: { gridTemplate: '80px 1fr / 120px 2fr' }
             })
         "#,
         );
@@ -7337,6 +7359,16 @@ mod tests {
                 StyleProperty::GridColumnStart(GridLine::Line(2)),
                 StyleProperty::GridRowEnd(GridLine::Line(3)),
                 StyleProperty::GridColumnEnd(GridLine::Line(-1)),
+            ]
+        );
+        let Rule::Ready { entries: template, .. } = &frontend.sheets["styles"]["template"] else {
+            panic!("grid template was not lowerable")
+        };
+        assert_eq!(
+            template[0].properties,
+            vec![
+                StyleProperty::GridTemplateRows(GridTracks::Css("80px 1fr".to_string())),
+                StyleProperty::GridTemplateColumns(GridTracks::Css("120px 2fr".to_string())),
             ]
         );
     }
