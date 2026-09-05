@@ -133,6 +133,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'gridTemplateAreas', value: '"header header" "main aside"' },
   { property: 'gridArea', value: '1 / 1 / 3 / 3' },
   { property: 'gridTemplate', value: '48px 1fr / 1fr 2fr' },
+  { property: 'grid', value: '48px 1fr / 1fr 2fr' },
   { property: 'fontKerning', value: 'normal' },
   { property: 'fontFeatureSettings', value: '"kern" 1' },
   { property: 'fontLanguageOverride', value: '"TRK"' },
@@ -386,7 +387,7 @@ export const Probe = () => <View {...stylex.props(styles.grid)}><View {...stylex
           ? 'Pressable'
           : 'View'
   const companions =
-    property === 'gridTemplateColumns' || property === 'gridTemplate'
+    property === 'gridTemplateColumns' || property === 'gridTemplate' || property === 'grid'
       ? "display: 'grid', "
       : property === 'transitionDuration' || property === 'transitionDelay'
         ? "transitionProperty: 'opacity', "
@@ -469,6 +470,19 @@ function expandStylexShorthand(property: string, value: string): Array<[string, 
       return [
         ['grid-template-rows', rows],
         ['grid-template-columns', columns],
+      ]
+    }
+  }
+  if (property === 'grid') {
+    const [rows, columns] = value.split('/').map((part) => part.trim())
+    if (rows && columns) {
+      return [
+        ['grid-template-rows', rows],
+        ['grid-template-columns', columns],
+        ['grid-template-areas', 'none'],
+        ['grid-auto-rows', 'auto'],
+        ['grid-auto-columns', 'auto'],
+        ['grid-auto-flow', 'row'],
       ]
     }
   }
@@ -1043,6 +1057,7 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
       'gridTemplateAreas',
       'gridArea',
       'gridTemplate',
+      'grid',
     ].includes(property),
   ),
   borders: STYLEX_VALUE_CASES.filter(({ property }) => property.startsWith('border')),
