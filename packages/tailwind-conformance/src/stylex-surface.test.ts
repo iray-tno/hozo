@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 470)
+  assert.equal(mapped.size, 471)
   for (const name of [
     'display',
     'padding',
@@ -133,6 +133,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
     'cornerTopRightShape',
     'cornerBottomLeftShape',
     'cornerBottomRightShape',
+    'font',
     'positionArea',
     'positionTry',
     'positionTryFallbacks',
@@ -186,7 +187,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 470)
+  assert.equal(mapped.length, 471)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -262,7 +263,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 366)
-  assert.equal(surface.mappedWebOnly.size, 315)
+  assert.equal(surface.mappedWebOnly.size, 316)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('content'))
   assert.ok(surface.mappedWebOnly.has('caret'))
@@ -302,6 +303,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedWebOnly.has('cornerShape'))
   assert.ok(surface.mappedWebOnly.has('cornerStartStartShape'))
   assert.ok(surface.mappedWebOnly.has('cornerTopLeftShape'))
+  assert.ok(surface.mappedWebOnly.has('font'))
   assert.ok(surface.mappedWebOnly.has('glyphOrientationVertical'))
   assert.ok(surface.mappedWebOnly.has('textDecorationSkip'))
   assert.ok(surface.mappedWebOnly.has('viewTransitionName'))

@@ -3432,6 +3432,62 @@ fn stylex_mask(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     Some(vec![web_longhand("mask", minify_css_commas(value))])
 }
 
+/// Validate the common single-family font shorthand while retaining the CSS
+/// shorthand's full reset behavior. Variant, stretch, family lists, system
+/// fonts, and open-ended relative syntax stay with the official transform.
+fn stylex_font(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else { return None };
+    let value = value.trim();
+    let tokens = web_top_level_tokens(value, true)?;
+    let size_at = tokens.iter().position(|token| {
+        matches!(
+            token.as_str(),
+            "xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large" | "xxx-large"
+        ) || web_length_percentage_string(token)
+            && web_length_number(token).is_some_and(|number| number > 0.0)
+    })?;
+    if size_at > 2 {
+        return None;
+    }
+    let mut style = false;
+    let mut weight = false;
+    for token in &tokens[..size_at] {
+        if !style && matches!(token.as_str(), "normal" | "italic") {
+            style = true;
+        } else if !weight
+            && (matches!(token.as_str(), "normal" | "bold" | "bolder" | "lighter")
+                || token.parse::<u16>().is_ok_and(|number| {
+                    (100..=900).contains(&number) && number % 100 == 0
+                }))
+        {
+            weight = true;
+        } else {
+            return None;
+        }
+    }
+    let tail = &tokens[size_at + 1..];
+    let family = match tail {
+        [family] => family,
+        [slash, line_height, family] if slash == "/" => {
+            let valid_line_height = line_height == "normal"
+                || line_height
+                    .parse::<f64>()
+                    .is_ok_and(|number| number.is_finite() && number >= 0.0)
+                || web_length_percentage_string(line_height)
+                    && web_length_number(line_height).is_some_and(|number| number >= 0.0);
+            if !valid_line_height {
+                return None;
+            }
+            family
+        }
+        _ => return None,
+    };
+    if !web_css_identifier(family) && !web_css_string(family) {
+        return None;
+    }
+    Some(vec![web_longhand("font", value)])
+}
+
 fn web_offset_path(value: &StaticValue) -> Option<String> {
     let StaticValue::String(value) = value else { return None };
     let value = value.trim();
@@ -4986,6 +5042,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         }
         "caret" => stylex_caret(value)?,
         "borderImage" => stylex_border_image(value)?,
+        "font" => stylex_font(value)?,
         "mask" => stylex_mask(value)?,
         "maskBorder" => stylex_mask_border(value)?,
         "offset" => stylex_offset(value)?,
@@ -5488,6 +5545,7 @@ fn property_priority(property: &str) -> u16 {
             | "grid"
             | "gridArea"
             | "gridTemplate"
+            | "font"
     ) {
         return 1000;
     }
@@ -5764,6 +5822,8 @@ fn property_name_family(property: &str) -> Option<&'static str> {
         Some("border-style")
     } else if property == "flex" || matches!(property, "flexGrow" | "flexShrink" | "flexBasis") {
         Some("flex")
+    } else if property == "font" || property.starts_with("font") {
+        Some("font")
     } else if property.starts_with("gridColumn") {
         Some("grid-column")
     } else if property.starts_with("gridRow") {
@@ -8339,6 +8399,41 @@ mod tests {
     }
 
     #[test]
+    fn font_shorthand_lowers_common_single_family_values_and_preserves_wider_syntax() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                font: 'italic 700 16px Arial'
+              },
+              exactLineHeight: {
+                font: 'normal 1rem / 1.5 sans-serif'
+              },
+              wider: {
+                font: 'small-caps condensed 16px Arial, sans-serif'
+              }
+            })
+        "#,
+        );
+        for name in ["exact", "exactLineHeight"] {
+            let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"][name] else {
+                panic!("common font shorthand was not lowerable")
+            };
+            assert_eq!(entries.len(), 1);
+            assert!(matches!(entries[0].properties[0], StyleProperty::WebOnly(_, _)));
+            assert!(residual.is_empty());
+            assert!(gaps.is_empty());
+        }
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider font shorthand should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
+    }
+
+    #[test]
     fn browser_text_controls_validate_exact_css_grammars() {
         let frontend = frontend(
             r#"
@@ -9687,6 +9782,9 @@ mod tests {
         assert_eq!(property_priority("cornerStartStartShape"), 3000);
         assert_eq!(property_priority("cornerTopLeftShape"), 4000);
         assert!(property_names_overlap("cornerShape", "cornerTopLeftShape"));
+        assert_eq!(property_priority("font"), 1000);
+        assert_eq!(property_priority("fontFamily"), 3000);
+        assert!(property_names_overlap("font", "fontFamily"));
         assert_eq!(property_priority("positionTry"), 3000);
         assert!(property_names_overlap("positionTry", "positionTryFallbacks"));
         assert_eq!(property_priority("offset"), 2000);

@@ -32,6 +32,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'borderTopWidth', value: 2 },
   { property: 'borderStyle', value: 'solid' },
   { property: 'fontSize', value: 16 },
+  { property: 'font', value: 'italic 700 16px Arial' },
   { property: 'fontWeight', value: 700 },
   { property: 'lineHeight', value: 1.5 },
   { property: 'letterSpacing', value: 0.25 },
@@ -968,6 +969,7 @@ export const STYLEX_REAL_SOURCE_FIXTURES = {
     [
       'color',
       'fontSize',
+      'font',
       'fontWeight',
       'lineHeight',
       'letterSpacing',

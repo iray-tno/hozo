@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 307, covered: 307 },
+    values: { total: 308, covered: 308 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 269, covered: 269 },
+    corpus: { total: 270, covered: 270 },
     silent: 0,
   })
 })
@@ -259,6 +259,17 @@ test('new common text values are covered without silent fallback', () => {
     covered: true,
     silent: false,
   })
+})
+
+test('common single-family font shorthand agrees with official StyleX', () => {
+  for (const value of ['700 16px Arial', 'italic 700 16px Arial']) {
+    assert.deepEqual(compareStylexValue({ property: 'font', value }), {
+      property: 'font',
+      value,
+      covered: true,
+      silent: false,
+    })
+  }
 })
 
 test('every accepted browser typography keyword agrees with official StyleX', () => {
