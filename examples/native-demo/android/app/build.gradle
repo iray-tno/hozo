@@ -57,6 +57,12 @@ react {
     // script and a project script share.
     codegenDir = file(gradle.ext.reactNativeCodegenDir)
 
+    // Same reason, one package further out. 0.87 takes hermesc from the
+    // `hermes-compiler` package rather than from its own `sdks/`, and
+    // looks for it under the app. The plugin substitutes `%OS-BIN%`, so
+    // this stays one string for every platform.
+    hermesCommand = "${gradle.ext.hermesCompilerDir}/hermesc/%OS-BIN%/hermesc"
+
     /* Autolinking */
     autolinkLibrariesWithApp()
 }

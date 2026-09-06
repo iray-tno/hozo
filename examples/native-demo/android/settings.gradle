@@ -1,15 +1,23 @@
 // Where React Native's build-time packages actually are, asked rather than
 // assumed.
 //
-// The stock template spells these out as paths -- this file writes
-// `includeBuild("../node_modules/@react-native/gradle-plugin")`, and
+// The stock template assumes a flat `node_modules` in three separate
+// places: this file writes
+// `includeBuild("../node_modules/@react-native/gradle-plugin")`,
 // `app/build.gradle` documents `../../node_modules/@react-native/codegen`
-// as its default. Both are correct for npm's flat `node_modules` and
-// neither exists here. This is a pnpm workspace, and both packages are
-// *transitive* dependencies of `react-native`: pnpm gives a package only
-// what it declared, so these live under `node_modules/.pnpm/` and the app's
-// own `node_modules/@react-native/` holds nothing but `metro-babel-transformer`
+// as its `codegenDir` default, and the Gradle plugin looks for hermesc at
+// `node_modules/hermes-compiler/hermesc/%OS-BIN%/` under the app. All three
+// are right for npm and none of them exists here.
+//
+// This is a pnpm workspace, and all three packages are *transitive*
+// dependencies of `react-native`: pnpm gives a package only what it
+// declared, so they live under `node_modules/.pnpm/` and the app's own
+// `node_modules/@react-native/` holds nothing but `metro-babel-transformer`
 // and `metro-config`.
+//
+// Three occurrences of one problem is why this is a helper rather than
+// three inline lookups, and why each was found one CI run at a time: the
+// build fails at the first, and only then reaches the second.
 //
 // Gradle's failure for the first one names the missing directory and
 // mentions neither pnpm nor React Native, which is a bad half-hour for
@@ -45,6 +53,12 @@ pluginManagement {
 
     gradle.ext.reactNativeGradlePluginDir = resolveThroughReactNative("@react-native/gradle-plugin")
     gradle.ext.reactNativeCodegenDir = resolveThroughReactNative("@react-native/codegen")
+    // The third of these, and the reason the helper exists rather than
+    // three inline copies. React Native 0.87 stopped shipping prebuilt
+    // hermesc inside its own package and takes it from `hermes-compiler`
+    // instead, which the plugin looks for at
+    // `node_modules/hermes-compiler/hermesc/%OS-BIN%/` under the app.
+    gradle.ext.hermesCompilerDir = resolveThroughReactNative("hermes-compiler")
 
     includeBuild(gradle.ext.reactNativeGradlePluginDir)
 }
