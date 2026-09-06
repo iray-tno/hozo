@@ -35,15 +35,19 @@ function normalizeTypeScriptCase(testcase) {
 
 function normalizeRustCase(testcase) {
   const name = testcase.getAttribute('name') ?? ''
-  const parts = name.split('::').filter((part) => part && part !== 'tests')
+  const parts = name.split('::').filter((part) => Boolean(part) && part !== 'tests')
 
-  if (parts.length <= 1) {
-    testcase.setAttribute('classname', 'root')
-    return
-  }
+  const testName = parts.at(-1) || name
+  testcase.setAttribute('name', testName)
 
-  testcase.setAttribute('name', parts.at(-1))
-  testcase.setAttribute('classname', parts.slice(0, -1).join('::'))
+  const rawClass = testcase.getAttribute('classname')
+  const parentSuite = testcase.parentNode?.getAttribute('name')
+  const crateName = rawClass && rawClass !== 'root' ? rawClass : parentSuite
+
+  const moduleParts = parts.slice(0, -1)
+  const fullClass = [crateName, ...moduleParts].filter(Boolean).join('::') || 'root'
+
+  testcase.setAttribute('classname', fullClass)
 }
 
 export function normalizeJUnit(xml, reportType, suitePackageName) {
