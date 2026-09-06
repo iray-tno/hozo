@@ -18,9 +18,4 @@ buildscript {
     }
 }
 
-// See `node-resolve.gradle`. Applied here as well as from
-// `settings.gradle`, because that one's `ext` belongs to the Settings
-// object and a project cannot read it.
-apply from: 'node-resolve.gradle'
-
 apply plugin: "com.facebook.react.rootproject"

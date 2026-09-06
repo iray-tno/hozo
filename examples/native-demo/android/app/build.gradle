@@ -52,8 +52,10 @@ react {
 
     // Not a default: the commented block above documents
     // `../../node_modules/@react-native/codegen`, and pnpm does not put it
-    // there. See `../node-resolve.gradle`.
-    codegenDir = file(rootProject.ext.reactNativeCodegenDir)
+    // there. `settings.gradle` explains where it does, and parks the
+    // answer on `gradle.ext` because that is the one scope a settings
+    // script and a project script share.
+    codegenDir = file(gradle.ext.reactNativeCodegenDir)
 
     /* Autolinking */
     autolinkLibrariesWithApp()
