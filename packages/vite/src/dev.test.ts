@@ -61,12 +61,37 @@ function project(files: Record<string, string>): string {
   return root
 }
 
+/**
+ * Collects what the plugin says rather than what it emits.
+ *
+ * The server runs silent, so a `this.warn` would otherwise go nowhere and
+ * a test could not tell a warning from its absence. Vite routes plugin
+ * warnings through the logger, so replacing the logger is the whole of it.
+ */
+function collectWarnings() {
+  const warnings: string[] = []
+  const noop = () => {}
+  return {
+    warnings,
+    logger: {
+      info: noop,
+      warn: (message: string) => warnings.push(message),
+      warnOnce: (message: string) => warnings.push(message),
+      error: noop,
+      clearScreen: noop,
+      hasErrorLogged: () => false,
+      hasWarned: false,
+    },
+  }
+}
+
 async function serve(
   root: string,
   options: HozoOptions = {},
   aliases: Record<string, string> = {},
   extraPlugins: PluginOption[] = [],
   beforePlugins: PluginOption[] = [],
+  customLogger?: ReturnType<typeof collectWarnings>['logger'],
 ) {
   const server = await createServer({
     root,
@@ -86,6 +111,7 @@ async function serve(
       },
     },
     plugins: [...beforePlugins, hozo(options), ...extraPlugins],
+    ...(customLogger ? { customLogger } : {}),
   })
   servers.push(server)
   return server
@@ -453,4 +479,98 @@ test('MDX authored against Hozo compiles, and its prose is not scanned', async (
   for (const prose of ['block', 'table', 'visible', 'border', 'grid', 'hidden', 'isolate']) {
     assert.doesNotMatch(candidates(root), new RegExp(`.${prose} {`), `prose leaked: ${prose}`)
   }
+})
+
+test('MDX folded to _jsx() before Hozo saw it is reported rather than lost', async () => {
+  // The other half of the test above, and the one that matters more.
+  //
+  // Without `jsx: true` the MDX plugin folds the document to `_jsx(View,
+  // {...})`, which Hozo cannot read. Nothing then fails: the elements
+  // render, the class names sit on them uncompiled, and a project that
+  // also runs Tailwind over the same tree gets rules for them anyway --
+  // which is exactly the app this was found on. A Hozo-only project
+  // loses the styling for those elements and is told nothing.
+  //
+  // `@astrojs/mdx` exposes no `jsx` option at all (#137), so this is not
+  // a setting somebody forgot on Astro. Hozo cannot compile it either
+  // way. What it can do is say so.
+  const { default: mdx } = await import('@mdx-js/rollup')
+  const { default: react } = await import('@vitejs/plugin-react')
+  const root = project({
+    'page.mdx': [
+      "import { View, Text } from '@hozo/core'",
+      '',
+      '# A catalogue page',
+      '',
+      '<View className="p-4">',
+      '  <Text className="text-xl">inline in MDX</Text>',
+      '</View>',
+      '',
+    ].join('\n'),
+    // The `@hozo/core` import survives, because nothing lowered -- which
+    // is the premise of this test. Vite resolves it for real and the
+    // temporary project has no node_modules, so it needs a target. A stub
+    // rather than the real package: what is under test is what the plugin
+    // says about the file, and the components are never rendered.
+    'core-stub.js': 'export const View = () => null\nexport const Text = () => null\n',
+  })
+  const collected = collectWarnings()
+  const server = await serve(
+    root,
+    {},
+    { '@hozo/core': path.join(root, 'core-stub.js') },
+    [react()],
+    // No `jsx: true`, which is the whole point. The plugin still needs an
+    // `enforce: 'pre'` or Vite's own transform is handed raw Markdown.
+    [{ ...mdx(), enforce: 'pre' }],
+    collected.logger,
+  )
+
+  const result = await server.transformRequest('/page.mdx')
+  assert.ok(result, 'the module was not transformed')
+  // The premise: nothing lowered, and the classes went through as written.
+  assert.doesNotMatch(result.code, /hozo-view/, 'this fixture was supposed to be unlowerable')
+  assert.match(result.code, /"p-4"/, 'the class was not passed through as expected')
+
+  const warning = collected.warnings.find((message) => message.includes('_jsx()'))
+  assert.ok(
+    warning,
+    `no warning about the folded primitives. Warnings: ${JSON.stringify(collected.warnings)}`,
+  )
+  // Both names, so the message points at the markup rather than the file.
+  assert.match(warning, /Text, View/)
+  // And both routes out, since which one applies depends on the host.
+  assert.match(warning, /jsx: true/)
+  assert.match(warning, /\.tsx component/)
+})
+
+test('MDX that compiles is not warned about', async () => {
+  // The same plugin with `jsx: true`. A warning here would be the kind
+  // that teaches people to ignore warnings.
+  const { default: mdx } = await import('@mdx-js/rollup')
+  const { default: react } = await import('@vitejs/plugin-react')
+  const root = project({
+    'page.mdx': [
+      "import { View } from '@hozo/core'",
+      '',
+      '<View className="p-4">compiled</View>',
+      '',
+    ].join('\n'),
+  })
+  const collected = collectWarnings()
+  const server = await serve(
+    root,
+    {},
+    {},
+    [react()],
+    [{ ...mdx({ jsx: true }), enforce: 'pre' }],
+    collected.logger,
+  )
+
+  const result = await server.transformRequest('/page.mdx')
+  assert.match(result?.code ?? '', /hozo-view/, 'the fixture did not lower')
+  assert.deepEqual(
+    collected.warnings.filter((message) => message.includes('_jsx()')),
+    [],
+  )
 })

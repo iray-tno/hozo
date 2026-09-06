@@ -98,6 +98,73 @@ export function referencesHozoPrimitive(code: string): boolean {
   return HOZO_PRIMITIVES.some((name) => new RegExp(`\\b${name}\\b`).test(code))
 }
 
+/**
+ * A JSX call the automatic runtime produces: `_jsx(Tag, {...})`.
+ *
+ * Every spelling of it, because they are not interchangeable at runtime
+ * and a check that knew only one would be right in production and blind
+ * in development. `jsx` takes one child and `jsxs` takes several;
+ * `jsxDEV` is what the development runtime exports instead of both, and
+ * it is what a Vite dev server actually produced when this was first run
+ * against one. The leading underscore is the renamed import MDX and Babel
+ * emit; a source that imported the runtime itself would have neither.
+ */
+const JSX_CALL = /\b_?jsxs?(?:DEV)?\(\s*([A-Za-z_$][\w$]*)\s*,/g
+
+/**
+ * Hozo primitives that reached this pass already folded to function calls.
+ *
+ * Hozo reads JSX. An MDX plugin that is not told `jsx: true` folds the
+ * document to `_jsx(View, { className: "p-4" })` before any of this runs,
+ * and there is no JSX left to lower -- so every `className` in the file
+ * passes through as written.
+ *
+ * That failure is silent, and worse than it looks. The elements are right,
+ * the classes are on them, and a project that also runs Tailwind over the
+ * same tree gets rules for those classes anyway -- so the page looks
+ * correct and nothing is reported. A Hozo-only project loses the styling
+ * for those elements entirely, with no error at build and none at run
+ * time. `@astrojs/mdx` is the case that matters: it exposes no `jsx`
+ * option at all (#137), so on Astro this is not a setting anybody forgot.
+ *
+ * Hozo cannot compile this, and reading `_jsx()` calls would mean teaching
+ * both backends to emit them, since Hozo writes JSX and splices at spans.
+ * What it can do is say so, which is the whole of this function: turn a
+ * silent loss into a line at build time.
+ *
+ * Only names bound from a module the project trusts, because the
+ * compiler's own rule is per tag rather than per file -- an `@expo/ui`
+ * `Button` folded to a call is not something Hozo was going to lower.
+ * Returned sorted and deduplicated, so the message reads the same on every
+ * machine.
+ */
+export function foldedPrimitiveCalls(code: string, sources: readonly string[]): string[] {
+  const bound = new Set<string>()
+  for (const source of sources) {
+    const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const importRe = new RegExp(`import\\s*\\{([^}]*)\\}\\s*from\\s*['"]${escaped}['"]`, 'g')
+    for (const match of code.matchAll(importRe)) {
+      for (const part of (match[1] as string).split(',')) {
+        // `View as Box` binds `Box`, which is the name the call site uses.
+        const local = part
+          .trim()
+          .split(/\s+as\s+/)
+          .pop()
+          ?.trim()
+        if (local) bound.add(local)
+      }
+    }
+  }
+  if (bound.size === 0) return []
+
+  const folded = new Set<string>()
+  for (const match of code.matchAll(JSX_CALL)) {
+    const name = match[1] as string
+    if (bound.has(name)) folded.add(name)
+  }
+  return [...folded].sort()
+}
+
 /** An event handler on a lowered element, which React will not send across a boundary. */
 const HANDLER_PROP = /\son[A-Z]\w*=\{/
 

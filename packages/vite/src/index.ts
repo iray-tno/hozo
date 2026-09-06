@@ -30,7 +30,7 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 import { type CandidateCache, type Compiler, createCompiler, type Theme } from '@hozo/compiler'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
-import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
+import { foldedPrimitiveCalls, lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   discoverSources,
   type HozoProjectOptions,
@@ -197,6 +197,35 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       if (stylexGraphChanged || (resolvedCurrent && reexportSpecifiers.length > 0)) {
         compiler.setStylexModules(stylexModules.moduleSources())
       }
+      // The one failure this pass can see and cannot fix.
+      //
+      // A `.mdx` arrives here as whatever the MDX plugin produced. Told
+      // `jsx: true` it produces JSX and everything below works; told
+      // nothing it folds the document to `_jsx()` calls, and Hozo reads
+      // JSX. There is then no error anywhere: the elements render, their
+      // classes pass through uncompiled, and only a project that also
+      // runs Tailwind over the same tree gets rules for them. So the page
+      // looks right on the app that found this and loses its styling on
+      // one without Tailwind, silently, in both cases.
+      //
+      // `@astrojs/mdx` exposes no `jsx` option (#137), so on Astro this
+      // is not a setting to turn on -- the answer there is to move the
+      // markup into a `.tsx` and import it, which compiles fully and
+      // needs no island. The message says both, since a project on
+      // `@mdx-js/rollup` or `@next/mdx` has the cheaper fix.
+      if (isTransformedSource(file)) {
+        const folded = foldedPrimitiveCalls(code, compiler.sources)
+        if (folded.length > 0) {
+          this.warn(
+            `${file}: ${folded.join(', ')} reached Hozo already compiled to _jsx() calls, so ` +
+              'nothing here was lowered and these class names are passing through uncompiled. ' +
+              'Pass `jsx: true` to the MDX plugin so Hozo sees the JSX; on Astro, where ' +
+              '`@astrojs/mdx` has no such option, move this markup into a .tsx component and ' +
+              'import it -- that compiles fully and needs no client directive.',
+          )
+        }
+      }
+
       const lowered = lowerModule(code, id, file, compiler, root, stylexModules)
       if (!lowered) return
 
