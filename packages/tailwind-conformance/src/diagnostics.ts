@@ -7,7 +7,7 @@
 // codebase with no defects in it. Every diagnostic in this compiler could
 // be replaced with `return` today and nothing in the report would move.
 //
-// The denominator is read from `diagnostic_code_str` in `crates/hozo_napi`,
+// The denominator is read from `DiagnosticCode::as_str` in `crates/hozo_ir`,
 // which is an exhaustive `match` over the whole enum -- adding a variant
 // without a string does not compile, so that function cannot be missing
 // one. The cases are written by hand, which is the honest division: the
@@ -29,7 +29,7 @@ function repoRoot(): string {
 }
 
 /**
- * Every code the addon can emit, from the one place that must list them all.
+ * Every code the addon can emit, from the IR's one exhaustive string mapping.
  *
  * Read from the source rather than from a copy here, for the reason every
  * denominator in this package is: a list of somebody else's cases kept by
@@ -37,13 +37,13 @@ function repoRoot(): string {
  * halves look reasonable.
  */
 export function declaredDiagnosticCodes(): string[] {
-  const source = readFileSync(path.join(repoRoot(), 'crates', 'hozo_napi', 'src', 'lib.rs'), 'utf8')
+  const source = readFileSync(path.join(repoRoot(), 'crates', 'hozo_ir', 'src', 'lib.rs'), 'utf8')
   const codes = [...source.matchAll(/DiagnosticCode::\w+\s*=>\s*"([A-Z0-9_]+)"/g)].map(
     (match) => match[1],
   )
   if (codes.length === 0) {
     throw new Error(
-      'no diagnostic codes found in hozo_napi -- the match this reads has moved, and a ' +
+      'no diagnostic codes found in hozo_ir -- the match this reads has moved, and a ' +
         'denominator that silently became empty is the failure this file exists to prevent',
     )
   }

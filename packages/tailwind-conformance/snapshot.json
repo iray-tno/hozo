@@ -6,7 +6,12 @@
   },
   "stylex": {
     "properties": 522,
-    "mapped": 492,
+    "mapped": 504,
+    "compilerRelevantProperties": 504,
+    "mappedCompilerRelevant": 504,
+    "productRelevantProperties": 505,
+    "mappedProductRelevant": 504,
+    "nonActionableProperties": 17,
     "nativeProperties": 134,
     "mappedNative": 134,
     "contextualProperties": 21,
@@ -14,11 +19,11 @@
     "adapterProperties": 1,
     "mappedAdapter": 0,
     "webOnlyProperties": 366,
-    "mappedWebOnly": 337
+    "mappedWebOnly": 349
   },
   "stylexValues": {
-    "cases": 329,
-    "covered": 329
+    "cases": 348,
+    "covered": 348
   },
   "stylexConstructs": {
     "cases": 16,

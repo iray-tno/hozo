@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "sources": {
     "stylex": "0.19.0",
     "reactNative": "0.87.0"
@@ -9,3133 +9,3655 @@
       "name": "MozOsxFontSmoothing",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "MsOverflowStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitAppearance",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitBackgroundClip",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitBoxOrient",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitFontSmoothing",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitLineClamp",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitMaskImage",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitTapHighlightColor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitTextFillColor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitTextStrokeColor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "WebkitTextStrokeWidth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "accentColor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "alignContent",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "alignItems",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "alignSelf",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "alignTracks",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "alignmentBaseline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "anchorName",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animation",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "animationComposition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationDelay",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationDirection",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationDuration",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationFillMode",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationIterationCount",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationName",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationPlayState",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationRange",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationRangeEnd",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationRangeStart",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationTimeline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "animationTimingFunction",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "appearance",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "aspectRatio",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "azimuth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backdropFilter",
       "lane": "adapter",
       "status": "unmapped",
-      "basis": "adapter-candidate"
+      "basis": "adapter-candidate",
+      "disposition": "optional-adapter"
     },
     {
       "name": "backfaceVisibility",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "background",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "backgroundAttachment",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundBlendMode",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundClip",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundImage",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundOrigin",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundPosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundPositionX",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundPositionY",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundRepeat",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "backgroundSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "baselineShift",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "behavior",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "obsolete-or-nonstandard"
     },
     {
       "name": "blockSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "border",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderBlock",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderBlockColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBlockEnd",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderBlockEndColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBlockEndStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderBlockEndWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBlockStart",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderBlockStartColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBlockStartStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderBlockStartWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBlockStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderBlockWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBottom",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderBottomColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBottomLeftRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBottomRightRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderBottomStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderBottomWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderCollapse",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderEndEndRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderEndStartRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderImage",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderImageOutset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderImageRepeat",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderImageSlice",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderImageSource",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderImageWidth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderInline",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderInlineColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderInlineEnd",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderInlineEndColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderInlineEndStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderInlineEndWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderInlineStart",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderInlineStartColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderInlineStartStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderInlineStartWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderInlineStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderInlineWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderLeft",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderLeftColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderLeftStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderLeftWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderRight",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderRightColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderRightStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderRightWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderSpacing",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderStartEndRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderStartStartRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderStyle",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderTop",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "upstream-rejected"
     },
     {
       "name": "borderTopColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderTopLeftRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderTopRightRadius",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderTopStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "borderTopWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "borderWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "bottom",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "boxAlign",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "boxDecorationBreak",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "boxDirection",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "boxFlex",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "boxFlexGroup",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "boxLines",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "boxOrdinalGroup",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "boxOrient",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "boxShadow",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "boxSizing",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "boxSuppress",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "breakAfter",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "breakBefore",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "breakInside",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "captionSide",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "caret",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "caretColor",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "caretShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "clear",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "clip",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "clipPath",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "clipRule",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "color",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "colorScheme",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columnCount",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columnFill",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columnGap",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "columnRule",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columnRuleColor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columnRuleStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columnRuleWidth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columnSpan",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columnWidth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "columns",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "contain",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "containIntrinsicBlockSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "containIntrinsicHeight",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "containIntrinsicInlineSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "containIntrinsicSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "containIntrinsicWidth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "container",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "containerName",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "containerType",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "content",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "contentVisibility",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerBottomLeftShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerBottomRightShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerEndEndShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerEndStartShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerStartEndShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerStartStartShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerTopLeftShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cornerTopRightShape",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "counterIncrement",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "counterReset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "counterSet",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cue",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cueAfter",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cueBefore",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "cursor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "direction",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "display",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "displayInside",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "displayList",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "displayOutside",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "dominantBaseline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "emptyCells",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "end",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "fill",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fillOpacity",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fillRule",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "filter",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "flex",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "flexBasis",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "flexDirection",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "flexFlow",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "flexGrow",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "flexShrink",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "flexWrap",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "float",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "font",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontFamily",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "fontFeatureSettings",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontKerning",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontLanguageOverride",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontOpticalSizing",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontPalette",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontSize",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "fontSizeAdjust",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontStretch",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontStyle",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "fontSynthesis",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontSynthesisPosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontSynthesisSmallCaps",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontSynthesisStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontSynthesisWeight",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontVariant",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "fontVariantAlternates",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontVariantCaps",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontVariantEastAsian",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontVariantLigatures",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontVariantNumeric",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontVariantPosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontVariationSettings",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "fontWeight",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "forcedColorAdjust",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "gap",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "glyphOrientationHorizontal",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "glyphOrientationVertical",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "grid",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "gridArea",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridAutoColumns",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "gridAutoFlow",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "gridAutoRows",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "gridColumn",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridColumnEnd",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridColumnGap",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "gridColumnStart",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridGap",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "gridRow",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridRowEnd",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridRowGap",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "gridRowStart",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridTemplate",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridTemplateAreas",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "gridTemplateColumns",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "gridTemplateRows",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "hangingPunctuation",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "height",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "hyphenateCharacter",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "hyphenateLimitChars",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "hyphens",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "imageOrientation",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "imageRendering",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "imageResolution",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "imeMode",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "initialLetter",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "initialLetterAlign",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "inlineSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "inset",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "insetBlock",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "insetBlockEnd",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "insetBlockStart",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "insetInline",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "insetInlineEnd",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "insetInlineStart",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "interpolateSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "isolation",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "justifyContent",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "justifyItems",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "justifySelf",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "justifyTracks",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "kerning",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "left",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "letterSpacing",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "lineBreak",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "lineHeight",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "lineHeightStep",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "listStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "listStyleImage",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "listStylePosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "listStyleType",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "margin",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginBlock",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginBlockEnd",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginBlockStart",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginBottom",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginInline",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginInlineEnd",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginInlineStart",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginLeft",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginRight",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginTop",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "marginTrim",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "marker",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "markerEnd",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "markerMid",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "markerOffset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "markerStart",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "mask",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskBorder",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskBorderMode",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskBorderOutset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskBorderRepeat",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskBorderSlice",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskBorderSource",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskBorderWidth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskClip",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskComposite",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskImage",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskMode",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskOrigin",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskPosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskRepeat",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maskType",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "masonryAutoFlow",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "mathDepth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "mathShift",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "mathStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maxBlockSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maxHeight",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "maxInlineSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "maxWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "minBlockSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "minHeight",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "minInlineSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "minWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "mixBlendMode",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "motion",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "motionOffset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "motionPath",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "motionRotation",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "objectFit",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "objectPosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "offset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "offsetAnchor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "offsetDistance",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "offsetPath",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "offsetPosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "offsetRotate",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "opacity",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "order",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "orphans",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "outline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "outlineColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "outlineOffset",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "outlineStyle",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "outlineWidth",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "overflow",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "overflowAnchor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overflowBlock",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overflowBlockX",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overflowClipMargin",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overflowWrap",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overflowX",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overflowY",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overscrollBehavior",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overscrollBehaviorBlock",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overscrollBehaviorInline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overscrollBehaviorX",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "overscrollBehaviorY",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "padding",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingBlock",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingBlockEnd",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingBlockStart",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingBottom",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingInline",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingInlineEnd",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingInlineStart",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingLeft",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingRight",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "paddingTop",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "page",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "pageBreakAfter",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "pageBreakBefore",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "pageBreakInside",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "paintOrder",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "pause",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "pauseAfter",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "pauseBefore",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "perspective",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "perspectiveOrigin",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "placeContent",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "placeItems",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "placeSelf",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "pointerEvents",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "position",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "positionAnchor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "positionArea",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "positionTry",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "positionTryFallbacks",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "positionTryOptions",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "positionVisibility",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "printColorAdjust",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "quotes",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "resize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "rest",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "restAfter",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "restBefore",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "right",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "rotate",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "rowGap",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "rubyAlign",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "rubyMerge",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "rubyPosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scale",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "scrollBehavior",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMargin",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginBlock",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginBlockEnd",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginBlockStart",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginBottom",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginInline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginInlineEnd",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginInlineStart",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginLeft",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginRight",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollMarginTop",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPadding",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingBlock",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingBlockEnd",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingBlockStart",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingBottom",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingInline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingInlineEnd",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingInlineStart",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingLeft",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingRight",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollPaddingTop",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollSnapAlign",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollSnapStop",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollSnapType",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollTimeline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollTimelineAxis",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollTimelineName",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollbarColor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollbarGutter",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "scrollbarWidth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "shapeImageThreshold",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "shapeMargin",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "shapeOutside",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "shapeRendering",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "speak",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "speakAs",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "src",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "descriptor-only"
     },
     {
       "name": "start",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "stroke",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "strokeDasharray",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "strokeDashoffset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "strokeLinecap",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "strokeLinejoin",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "strokeMiterlimit",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "strokeOpacity",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "strokeWidth",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "tabSize",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "tableLayout",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textAlign",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "textAlignLast",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textAnchor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textCombineUpright",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textDecoration",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textDecorationColor",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "textDecorationLine",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "textDecorationSkip",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textDecorationSkipInk",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textDecorationStyle",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "textDecorationThickness",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textEmphasis",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textEmphasisColor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textEmphasisPosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textEmphasisStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textFillColor",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textIndent",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textJustify",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textOrientation",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textOverflow",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "textRendering",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textShadow",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "textSizeAdjust",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textTransform",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "textUnderlineOffset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textUnderlinePosition",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "textWrap",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "theme",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "obsolete-or-nonstandard"
     },
     {
       "name": "timelineScope",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "top",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "touchAction",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "transform",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "transformBox",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "transformOrigin",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "transformStyle",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "transition",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "transitionDelay",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "transitionDuration",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "transitionProperty",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "transitionTimingFunction",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "translate",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "unicodeBidi",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "unicodeRange",
       "lane": "web-only",
       "status": "unmapped",
-      "basis": "not-yet-lowered"
+      "basis": "not-yet-lowered",
+      "disposition": "descriptor-only"
     },
     {
       "name": "userSelect",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "verticalAlign",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "viewTimeline",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "viewTimelineAxis",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "viewTimelineInset",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "viewTimelineName",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "viewTransitionName",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "visibility",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "voiceBalance",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "voiceDuration",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "voiceFamily",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "voicePitch",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "voiceRange",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "voiceRate",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "voiceStress",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "voiceVolume",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "whiteSpace",
       "lane": "contextual",
       "status": "mapped",
-      "basis": "contextual-runtime"
+      "basis": "contextual-runtime",
+      "disposition": "implemented"
     },
     {
       "name": "widows",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "width",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "willChange",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "wordBreak",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "wordSpacing",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "wordWrap",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "writingMode",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     },
     {
       "name": "zIndex",
       "lane": "universal",
       "status": "mapped",
-      "basis": "shared-typed-ir"
+      "basis": "shared-typed-ir",
+      "disposition": "implemented"
     },
     {
       "name": "zoom",
       "lane": "web-only",
       "status": "mapped",
-      "basis": "exact-web-native-refusal"
+      "basis": "exact-web-native-refusal",
+      "disposition": "implemented"
     }
   ]
 }

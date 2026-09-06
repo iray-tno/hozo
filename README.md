@@ -200,8 +200,11 @@ Against StyleX 0.19.0's published types that is **504/522 property names
 React Native's published keys and exact compile-time Native equivalents, and
 **21/21 (100%)** contextual-runtime names. Web-only lowering is reported
 independently at **349/366 (95.4%)**. The
-remaining surface is reported separately as 1 optional-adapter candidate and
-the unmapped Web-only names. These are
+reviewed compiler-relevant surface is **504/504 (100%)**. Including optional
+platform adapters it is **504/505 (99.8%)**, with `backdropFilter` as the sole
+remaining adapter candidate. Of the other 17 published names, StyleX itself
+emits no CSS for 13 in its default mode, two are `@font-face` descriptors, and
+two are obsolete or non-standard. These are
 property-name upper bounds: each
 property still accepts only the statically safe value subset the shared IR can
 represent.

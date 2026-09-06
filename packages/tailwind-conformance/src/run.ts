@@ -82,6 +82,12 @@ console.log(
   `All CSS names:       ${stylex.mapped.size}/${stylex.official.size} = ${pct(stylex.mapped.size, stylex.official.size)}`,
 )
 console.log(
+  `Compiler-relevant:   ${stylex.mappedCompilerRelevant.size}/${stylex.compilerRelevant.size} = ${pct(stylex.mappedCompilerRelevant.size, stylex.compilerRelevant.size)}`,
+)
+console.log(
+  `Including adapters:  ${stylex.mappedProductRelevant.size}/${stylex.productRelevant.size} = ${pct(stylex.mappedProductRelevant.size, stylex.productRelevant.size)}`,
+)
+console.log(
   `Universal names:     ${stylex.mappedNative.size}/${stylex.native.size} = ${pct(stylex.mappedNative.size, stylex.native.size)}`,
 )
 console.log(
@@ -97,6 +103,11 @@ console.log('These are property-name upper bounds; accepted values and StyleX AP
 record('stylex', {
   properties: stylex.official.size,
   mapped: stylex.mapped.size,
+  compilerRelevantProperties: stylex.compilerRelevant.size,
+  mappedCompilerRelevant: stylex.mappedCompilerRelevant.size,
+  productRelevantProperties: stylex.productRelevant.size,
+  mappedProductRelevant: stylex.mappedProductRelevant.size,
+  nonActionableProperties: stylex.nonActionable.size,
   nativeProperties: stylex.native.size,
   mappedNative: stylex.mappedNative.size,
   contextualProperties: stylex.contextual.size,
