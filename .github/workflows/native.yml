@@ -66,6 +66,12 @@ jobs:
       # `@hozo/metro`'s transformer, and that transformer is the compiler. No
       # addon, no bundle.
       - run: pnpm --filter @hozo/compiler build:native
+      # And the whole workspace, because `metro.config.js` imports
+      # `@hozo/metro/config`, whose `exports` map points at `dist/`. The
+      # addon alone leaves that unbuilt, and Metro's failure is a missing
+      # file rather than anything naming Hozo. `ci.yml` gets this for free:
+      # its `pnpm test` goes through turbo, which builds first.
+      - run: pnpm turbo run build
 
       # One ABI. The committed `gradle.properties` lists four because a real
       # device needs them; the emulator here is x86_64 and building the other
