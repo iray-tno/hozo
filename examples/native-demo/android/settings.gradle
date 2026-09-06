@@ -1,0 +1,12 @@
+// `node-resolve.gradle` explains why these are looked up rather than
+// written as paths. It is applied here and again from `build.gradle`,
+// because a settings script and a project script cannot share `ext` and
+// this one needs its answer first.
+apply from: 'node-resolve.gradle'
+
+pluginManagement { includeBuild(reactNativeGradlePluginDir) }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'HozoNativeDemo'
+include ':app'
+includeBuild(reactNativeGradlePluginDir)

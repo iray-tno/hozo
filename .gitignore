@@ -50,3 +50,15 @@ packages/compiler/wasm/
 
 # Copied from packages/compiler/wasm by scripts/copy-wasm.mjs.
 apps/landing/public/wasm/
+
+# Android. The project under examples/native-demo is checked in -- it is what
+# CI boots -- but everything Gradle and the SDK write into it is not.
+# `local.properties` in particular holds an absolute SDK path and belongs to
+# one machine.
+.gradle/
+build/
+local.properties
+*.keystore
+!examples/native-demo/android/app/debug.keystore
+*.apk
+.cxx/

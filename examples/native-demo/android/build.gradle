@@ -1,0 +1,26 @@
+buildscript {
+    ext {
+        buildToolsVersion = "37.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 37
+        targetSdkVersion = 36
+        ndkVersion = "27.1.12297006"
+        kotlinVersion = "2.2.0"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+// See `node-resolve.gradle`. Applied here as well as from
+// `settings.gradle`, because that one's `ext` belongs to the Settings
+// object and a project cannot read it.
+apply from: 'node-resolve.gradle'
+
+apply plugin: "com.facebook.react.rootproject"

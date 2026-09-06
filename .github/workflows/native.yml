@@ -1,0 +1,110 @@
+# Does Hozo's Native output actually run?
+#
+# Nothing else in this repository answers that. `ci.yml`'s `test` and
+# `platform-compat` render every native tree against a stub this project
+# wrote, which can only confirm that Hozo agrees with itself --
+# `react-native-stub.js` says so in its own header. `examples/native-demo`
+# bundles through a real Metro, so the transform is covered; the runtime is
+# not covered at all.
+#
+# The Web side closed this hole already. `apps/landing/scripts/check-repl.mjs`
+# starts headless Chrome because "a real browser is the only thing that can
+# say whether a thing a browser has to do works". This is that sentence for
+# the other platform. See #297.
+#
+# Weekly and on demand, not per pull request and not per merge to main. The
+# question is "does it still boot", which moves slowly, and the run is tens
+# of minutes. A paths filter was considered and rejected: the Native output
+# depends on `hozo_ir`, `hozo_parser` and the shared lowering as much as on
+# `hozo_native`, so an honest filter is most of the repository. `dispatch`
+# covers the moment it matters most, which is before a release (#8).
+name: native
+
+on:
+  schedule:
+    - cron: '0 4 * * 2'
+  workflow_dispatch:
+  # A pull request that edits this machinery runs it. Narrowly the wrong
+  # shape -- the rest of the reasoning above rejects paths filters -- and
+  # deliberately so, because these three paths are not a guess about what
+  # might break the app; they are the app and the job that boots it. It is
+  # also the only way to see this workflow work before it is on the default
+  # branch, since `workflow_dispatch` cannot reach a file that is not there
+  # yet.
+  pull_request:
+    paths:
+      - '.github/workflows/native.yml'
+      - 'examples/native-demo/android/**'
+      - 'examples/native-demo/ios/**'
+      - 'examples/native-demo/scripts/**'
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      # Gradle runs Metro to bake the bundle into the release APK, Metro runs
+      # `@hozo/metro`'s transformer, and that transformer is the compiler. No
+      # addon, no bundle.
+      - run: pnpm --filter @hozo/compiler build:native
+
+      # One ABI. The committed `gradle.properties` lists four because a real
+      # device needs them; the emulator here is x86_64 and building the other
+      # three is three quarters of the time for nothing.
+      - name: Build the release APK
+        working-directory: examples/native-demo/android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+
+      # The emulator needs hardware acceleration to be usable, and the
+      # runner's KVM device is not world-accessible by default.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot it, and fail if it did not come up
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash examples/native-demo/scripts/android-smoke.sh
+
+      # Whatever the run learned, kept. On a failure the log is the whole
+      # story, and on a success the tree dump is the input the accessibility
+      # work in #297 builds on.
+      - name: Keep what it saw
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-boot
+          path: |
+            window_dump.xml
+            examples/native-demo/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
+          retention-days: 14
