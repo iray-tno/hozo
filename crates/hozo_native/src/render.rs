@@ -1125,6 +1125,19 @@ pub(super) fn render_node(
         {
             continue;
         }
+        // A link's browser-only props. React Native's Pressable ignores
+        // them, so they were harmless -- and they were also four props in
+        // the output claiming something the platform does not do.
+        // `download` is diagnosed where the tag is chosen; the other three
+        // change nothing here, because a link leaves the app either way.
+        if node.primitive == Primitive::Button
+            && matches!(
+                prop.name.as_deref(),
+                Some("target") | Some("rel") | Some("external") | Some("download")
+            )
+        {
+            continue;
+        }
         props_text.push(' ');
         props_text.push_str(&render_verbatim(
             prop.span,

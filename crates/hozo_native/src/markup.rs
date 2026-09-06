@@ -121,6 +121,26 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),
         Primitive::Button if node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href")) => {
+            // `download` is the one of the four Web-only props whose absence
+            // is felt. See `DiagnosticCode::PropHasNoNativeEquivalent`.
+            if let Some(prop) = node
+                .props
+                .passthrough
+                .iter()
+                .find(|prop| prop.name.as_deref() == Some("download"))
+            {
+                diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::PropHasNoNativeEquivalent,
+                    severity: Severity::Warning,
+                    message: "`download` has no equivalent on React Native: the platform has no \
+                              download at all, so this link opens and the operating system \
+                              decides -- a download on Android, a viewer on iOS. Fetch the file \
+                              with a file-system library and hand it to `Share` if it has to be \
+                              saved."
+                        .to_string(),
+                    span: prop.span.0,
+                });
+            }
             ("HozoLink", vec![("accessibilityRole", "button".to_string())])
         }
         Primitive::Button => ("Pressable", vec![("accessibilityRole", "button".to_string())]),

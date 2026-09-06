@@ -57,6 +57,8 @@ export {
   type PanResponderInstance,
 } from './pan-responder.ts'
 export type {
+  ButtonNativeProps as ButtonProps,
+  ButtonNativeProps,
   FlatListProps,
   ImageProps,
   ListNativeProps,
@@ -67,6 +69,7 @@ export type {
   ViewProps,
 } from './primitives.native.tsx'
 export {
+  Button,
   FlatList,
   Image,
   List,
