@@ -81,6 +81,28 @@ checks.push(
   ],
 )
 
+// The automated conformance matrix page, generated directly from snapshot.json.
+// It must render the live figures and also ship no client scripts or islands.
+const conformance = readFileSync(path.join('dist', 'conformance', 'index.html'), 'utf8')
+const snapshot = JSON.parse(
+  readFileSync(path.join('..', '..', 'packages', 'tailwind-conformance', 'snapshot.json'), 'utf8'),
+)
+
+checks.push(
+  [conformance.includes('Cross-Platform'), 'conformance page did not render title'],
+  [conformance.includes(snapshot.versions.tailwind), 'conformance page missing tailwind version'],
+  [conformance.includes(snapshot.versions.reactNative), 'conformance page missing RN version'],
+  [
+    conformance.includes(snapshot.catalogue.match.toLocaleString()),
+    'conformance page missing catalogue count',
+  ],
+  [!/<astro-island/.test(conformance), 'conformance page hydrated an island unexpectedly'],
+  [
+    !/<script(?![^>]*type="application\/ld\+json")/.test(conformance),
+    'conformance page shipped JavaScript for static data',
+  ],
+)
+
 for (const [ok, message] of checks) {
   if (!ok) throw new Error(message)
 }
