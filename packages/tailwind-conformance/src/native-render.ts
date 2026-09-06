@@ -18,7 +18,7 @@
 // are valid; this says the tree is assembled correctly.
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire, registerHooks } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -41,17 +41,32 @@ registerHooks({
       return { url: new URL('./react-native-stub.js', import.meta.url).href, shortCircuit: true }
     }
     // Metro picks a `.native` entry ahead of the plain one; Node does not.
+    //
+    // `@hozo/core` and the two packages it re-exports are here so the
+    // *uncompiled* fallbacks can be rendered as well as the generated
+    // output. Those components are what a project gets for a file the
+    // compiler could not lower, and nothing had ever run them.
     // This has to be a resolve hook rather than a `require` shim, because
     // these packages import each other -- `@hozo/runtime` re-exports
     // `HozoDialog` from `@hozo/behaviors` -- and those imports are resolved by
     // Node's loader, out of reach of anything the generated module is
     // handed. Without it the Web dialog loads and renders a `<dialog>`.
-    if (specifier === '@hozo/runtime' || specifier === '@hozo/behaviors') {
+    if (
+      specifier === '@hozo/runtime' ||
+      specifier === '@hozo/behaviors' ||
+      specifier === '@hozo/core' ||
+      specifier === '@hozo/semantics' ||
+      specifier === '@hozo/typography'
+    ) {
+      // Both extensions, because both are in use: `@hozo/core`'s native
+      // entry is a `.ts` barrel and `@hozo/semantics`'s renders, so it is
+      // a `.tsx`. The `load` hook below transpiles the second.
       const root = path.dirname(require.resolve(`${specifier}/package.json`))
-      return {
-        url: pathToFileURL(path.join(root, 'src', 'index.native.ts')).href,
-        shortCircuit: true,
-      }
+      const entry = ['index.native.ts', 'index.native.tsx']
+        .map((name) => path.join(root, 'src', name))
+        .find((candidate) => existsSync(candidate))
+      if (entry === undefined) throw new Error(`no native entry for ${specifier}`)
+      return { url: pathToFileURL(entry).href, shortCircuit: true }
     }
     return next(specifier, context)
   },

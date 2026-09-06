@@ -1,4 +1,4 @@
-import { HozoRuby, HozoRubyText, HozoTextSizeContext } from '@hozo/runtime'
+import { HozoLink, HozoRuby, HozoRubyText, HozoTextSizeContext } from '@hozo/runtime'
 import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // The components rather than their names. These files used to render
 // `React.createElement('View')`, and React Native resolves a string tag
@@ -10,8 +10,6 @@ import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // half through `react-dom/server`.
 import {
   type AccessibilityRole,
-  Linking,
-  Pressable,
   Text as RNText,
   type StyleProp,
   StyleSheet,
@@ -227,27 +225,39 @@ export interface LinkProps extends TypographyNativeProps {
   onPress?: (event: { defaultPrevented?: boolean }) => void
 }
 
-export function Link({ href, onPress, children, ...props }: LinkProps) {
-  return React.createElement(
-    Pressable,
-    {
-      accessibilityRole: 'link',
-      onPress: (event: { defaultPrevented?: boolean }) => {
-        onPress?.(event)
-        // `Linking` imported rather than read off `globalThis`, where React Native
-        // has never put it. The lookup always returned `undefined` and the
-        // `if` around it always failed, so this did nothing at all -- silently,
-        // which is the worst way for an accessibility affordance to be absent.
-        if (!event?.defaultPrevented) void Linking.openURL(href)
-      },
-      ...props,
-    },
-    typeof children === 'string'
-      ? React.createElement(RNText, { accessibilityRole: 'link' }, children)
-      : children,
+/**
+ * A link, which on this platform is a Pressable that opens a URL.
+ *
+ * That was written out here and again in `@hozo/runtime` -- the second
+ * being what the compiler emits for this very component, so the two
+ * halves of one `<Link>` had separate implementations of opening a URL,
+ * of respecting a handler that prevented it, and of wrapping a string
+ * child so React Native does not throw on it. They had already drifted
+ * on the role: this one let a caller's `accessibilityRole` win and the
+ * other overwrote it, which was the bug in #289.
+ *
+ * `target`, `rel`, `download` and `external` stay in the prop type and
+ * are dropped here. They are browser concepts, and a link leaves the app
+ * on this platform whatever they say; the compiler reports `download`,
+ * which is the one whose absence is felt.
+ */
+export function Link({
+  href,
+  onPress,
+  children,
+  external: _external,
+  target: _target,
+  rel: _rel,
+  download: _download,
+  style,
+  ...props
+}: LinkProps) {
+  return (
+    <HozoLink href={href} onPress={onPress} style={asWeb(style)} {...props}>
+      {children}
+    </HozoLink>
   )
 }
-
 // Both spellings, the way `TermList` reads both. The member keeps the
 // full name rather than shortening to `Text`: a flat export has to be
 // readable on its own, and a `<Text>` that meant the annotation would
