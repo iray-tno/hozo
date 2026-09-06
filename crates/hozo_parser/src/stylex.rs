@@ -3565,6 +3565,26 @@ fn web_offset_rotate(value: &StaticValue) -> Option<String> {
     .then(|| parts.join(" "))
 }
 
+fn stylex_legacy_motion(property: &'static str, value: &StaticValue) -> Option<StyleProperty> {
+    let css_value = match property {
+        "motion-path" => web_offset_path(value)?,
+        "motion-offset" => web_length_percentage(value).then(|| length_value(value))?,
+        "motion-rotation" => match value {
+            StaticValue::Number(number) if number.is_finite() => length_value(value),
+            value => web_offset_rotate(value)?,
+        },
+        "motion" => match value {
+            StaticValue::Number(number) if number.is_finite() => length_value(value),
+            StaticValue::Number(_) => return None,
+            StaticValue::String(_) => web_offset_path(value)
+                .or_else(|| web_length_percentage(value).then(|| length_value(value)))
+                .or_else(|| web_offset_rotate(value))?,
+        },
+        _ => return None,
+    };
+    Some(web_longhand(property, css_value))
+}
+
 /// Expand the common path-first `offset` shorthand without losing StyleX's
 /// independently ranked longhand slots. Position/anchor slash syntax stays
 /// residual until its wider grammar can be represented exactly.
@@ -5076,6 +5096,10 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "font" => stylex_font(value)?,
         "mask" => stylex_mask(value)?,
         "maskBorder" => stylex_mask_border(value)?,
+        "motion" => vec![stylex_legacy_motion("motion", value)?],
+        "motionOffset" => vec![stylex_legacy_motion("motion-offset", value)?],
+        "motionPath" => vec![stylex_legacy_motion("motion-path", value)?],
+        "motionRotation" => vec![stylex_legacy_motion("motion-rotation", value)?],
         "offset" => stylex_offset(value)?,
         "positionTryFallbacks" => vec![web_longhand(
             "position-try-fallbacks",
@@ -8376,6 +8400,41 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 8);
         assert_eq!(gaps.len(), 8);
+    }
+
+    #[test]
+    fn legacy_motion_aliases_reuse_the_validated_offset_grammars() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                motion: 'path("M 0 0 L 100 100")', motionOffset: '25%',
+                motionPath: 'ray(45deg)', motionRotation: 'auto 45deg'
+              },
+              wider: {
+                motion: 'var(--motion)', motionOffset: 'calc(25% + 1px)',
+                motionPath: 'paint(route)', motionRotation: 'spin 45deg'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("legacy motion aliases were not lowerable")
+        };
+        assert_eq!(entries.len(), 4);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider legacy motion values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 4);
+        assert_eq!(gaps.len(), 4);
     }
 
     #[test]
