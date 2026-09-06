@@ -11,11 +11,13 @@ directly.
 
 | | |
 | --- | --- |
-| `crates/` | The compiler, in Rust. `hozo_ir` is the intermediate representation everything else agrees on; `hozo_parser` reads JSX and Tailwind classes into it; `hozo_web` and `hozo_native` lower it; `hozo_napi` exposes the result to Node. |
-| `packages/` | The published surface, in TypeScript. `@hozo/compiler` loads the native addon, `@hozo/core` is the component set, `@hozo/runtime` is what compiled output calls at run time, `@hozo/behaviors` is the headless behavior and positioning layer, and the rest are build-tool integrations. |
+| `crates/` | The compiler, in Rust. `hozo_ir` is the intermediate representation everything else agrees on; `hozo_parser` reads JSX and Tailwind classes into it; `hozo_web` and `hozo_native` lower it; `hozo_napi` exposes the result to Node; `hozo_wasm` binds it for the browser. |
+| `packages/` | The published surface, in TypeScript. `@hozo/compiler` loads the native addon, `@hozo/core` is the component set, `@hozo/runtime` is what compiled output calls at run time, `@hozo/behaviors` is the headless behavior and positioning layer, `@hozo/semantics` and `@hozo/typography` provide semantic primitives, `@hozo/canvas` provides declarative 2D graphics, and the rest are build-tool integrations. |
 | `packages/tailwind-conformance/` | Not a package anyone installs. It is the evidence: Hozo's output compared against Tailwind's own engine, over a denominator derived from that engine rather than written by hand. |
+| `apps/` | Web applications. `landing` hosts the documentation site, in-browser WASM REPL, and automated conformance matrix. |
 | `docs/proposal.md` | Where the project is going. |
 | `docs/decisions/` | Questions already settled, with the evidence. Read the relevant record before reopening one. |
+| `docs/rfcs/` | Technical specifications, API proposals, and assistive technology (AT) verification matrices. |
 
 ## Before you open a pull request
 
@@ -30,7 +32,7 @@ both have to appear:
 
 ```
  Tasks:    24 successful, 24 total
-9 packages pack correctly
+12 packages pack correctly
 ```
 
 If your change moves any conformance number, also run the audit and commit the

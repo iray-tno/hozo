@@ -535,6 +535,10 @@ crates/
   hozo_native/     Hozo IR -> React Native lowering
   hozo_cache/      project-wide candidate scan cache
   hozo_napi/       Node native binding (napi-rs)
+  hozo_wasm/       WebAssembly browser compiler binding (wasm-bindgen)
+
+apps/
+  landing/         landing site, interactive REPL playground, and conformance matrix
 
 examples/
   login-demo/            Vite, Web and SSR
@@ -579,6 +583,7 @@ to check every entry point is actually in them.
   complete — `@hozo/tailwind-conformance` reports exactly which utilities
   match the real engine. Its current numbers are committed at
   [packages/tailwind-conformance/snapshot.json](packages/tailwind-conformance/snapshot.json),
+  published live at the [Conformance Matrix](https://iray-tno.github.io/hozo/conformance/),
   and CI fails if a change moves any of them without moving that file too.
   They are not repeated here: a number copied into prose is a number that
   can drift from the thing it describes.
