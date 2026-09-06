@@ -11,7 +11,7 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 320, covered: 320 },
+    values: { total: 329, covered: 329 },
     constructs: { total: 16, covered: 16 },
     corpus: { total: 270, covered: 270 },
     silent: 0,
@@ -164,6 +164,23 @@ test('motion paths and float shapes agree with official StyleX', () => {
 
 test('legacy motion aliases agree with the CSS emitted by official StyleX', () => {
   const properties = new Set(['motion', 'motionOffset', 'motionPath', 'motionRotation'])
+  const cases = STYLEX_VALUE_CASES.filter(({ property }) => properties.has(property))
+  assert.equal(cases.length, properties.size)
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
+})
+
+test('speech cue and pause controls agree with the CSS emitted by official StyleX', () => {
+  const properties = new Set([
+    'cue',
+    'cueAfter',
+    'cueBefore',
+    'pause',
+    'pauseAfter',
+    'pauseBefore',
+    'rest',
+    'restAfter',
+    'restBefore',
+  ])
   const cases = STYLEX_VALUE_CASES.filter(({ property }) => properties.has(property))
   assert.equal(cases.length, properties.size)
   for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
