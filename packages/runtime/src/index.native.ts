@@ -27,6 +27,7 @@ export {
   type HozoRubyTextProps,
   HozoSummary,
   type HozoSummaryProps,
+  hozoTextChildren,
 } from '@hozo/behaviors'
 export type { BreakpointName, Viewport } from './ambient.ts'
 export { HozoBackdropFilter, type HozoBackdropFilterProps } from './backdrop.native.tsx'

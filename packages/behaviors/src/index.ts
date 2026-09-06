@@ -84,6 +84,7 @@ export {
   HozoRubyText,
   type HozoRubyTextProps,
 } from './ruby.tsx'
+export { hozoTextChildren } from './text-child.ts'
 export {
   Tooltip,
   type TooltipProps,

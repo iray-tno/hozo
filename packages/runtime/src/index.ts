@@ -114,6 +114,7 @@ export {
   type HozoRubyTextProps,
   HozoSummary,
   type HozoSummaryProps,
+  hozoTextChildren,
 } from '@hozo/behaviors'
 export { hozoActivateKeyDown, hozoActivateKeyUp } from './activate.ts'
 export { hozoInteractive } from './interactive.ts'

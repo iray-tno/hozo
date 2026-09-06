@@ -14,12 +14,11 @@
 // So the native answer to every one of them is React Native's own
 // component, re-exported here.
 
-import { HozoLink } from '@hozo/runtime'
+import { HozoLink, hozoTextChildren } from '@hozo/runtime'
 import type { ComponentType, ReactNode } from 'react'
 import {
   type PressableProps,
   Pressable as RNPressable,
-  Text as RNText,
   View as RNView,
   type StyleProp,
   type ViewStyle,
@@ -63,7 +62,7 @@ export interface ListNativeProps {
 export function List({ ordered: _ordered, children, ...props }: ListNativeProps) {
   return (
     <RNView role="list" {...props}>
-      {children}
+      {hozoTextChildren(children)}
     </RNView>
   )
 }
@@ -71,7 +70,7 @@ export function List({ ordered: _ordered, children, ...props }: ListNativeProps)
 export function ListItem({ children, ...props }: Omit<ListNativeProps, 'ordered'>) {
   return (
     <RNView role="listitem" {...props}>
-      {children}
+      {hozoTextChildren(children)}
     </RNView>
   )
 }
@@ -142,13 +141,7 @@ export function Button({
   }
   return (
     <RNPressable accessibilityRole="button" onPress={onPress} {...shared}>
-      {/* A `Pressable` is a View, and React Native throws on a bare string
-          inside one. The compiled path never hands one over -- `<Button>Save
-          </Button>` lowers to `<Pressable><Text>Save</Text></Pressable>` --
-          so this is the uncompiled path only, where a label is the commonest
-          thing a Button is given. `HozoLink` does the same for the branch
-          above. */}
-      {typeof children === 'string' ? <RNText>{children}</RNText> : children}
+      {hozoTextChildren(children)}
     </RNPressable>
   )
 }
