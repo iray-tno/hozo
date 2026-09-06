@@ -374,7 +374,11 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // A non-breaking run is a character on this platform rather than a
     // style: React Native has no `white-space`, so the spaces themselves
     // are replaced.
-    native: ['<Text>x<Text>1</Text>y<Text>2</Text>', 'no\u00A0break'],
+    // Each of the three carries a size now. Nothing here names one, so
+    // the ratios are applied to React Native's own default rather than
+    // skipped -- which used to leave small print the size of the print
+    // around it.
+    native: ['<Text>x<Text style={hozoStyles.hozo1}>1</Text>', 'no\u00A0break'],
   },
   {
     name: 'ruby and its reading',
@@ -387,7 +391,9 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // static, which is most ruby.
     source: '<Ruby>漢字<RubyText>かんじ</RubyText></Ruby>',
     web: ['<ruby>', '<rt>'],
-    native: ['<Text accessibilityLabel="漢字">漢字<Text>かんじ</Text></Text>'],
+    native: [
+      '<Text accessibilityLabel="漢字">漢字<Text style={hozoStyles.hozo1}>かんじ</Text></Text>',
+    ],
   },
 ]
 

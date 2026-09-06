@@ -378,6 +378,28 @@ pub(super) fn render_node(
                                 .or(parent_font_size)
                                 .or_else(|| find(inherited, &Condition::Always))
                         }
+                    })
+                    .or_else(|| {
+                        // Nothing named a size anywhere, so React Native's own
+                        // default is the size this will be drawn at.
+                        //
+                        // This used to emit nothing, and `<Text>a<Small>x</Small></Text>`
+                        // -- the commonest shape there is -- rendered small
+                        // print at the size of the print around it. Three
+                        // answers to one source: 13.6 on the Web, 12 through
+                        // the components in `@hozo/typography`, and no
+                        // reduction at all here.
+                        //
+                        // Not a guess. `RCTFont.mm` reads
+                        // `const CGFloat defaultFontSize = 14`, and
+                        // `packages/typography/src/text-size.ts` already scales
+                        // against it -- the constants it replaced, 11 and 12,
+                        // are these ratios applied to exactly this number.
+                        //
+                        // Only for a condition of its own, like the fallbacks
+                        // above: a base invented for `md:` would apply a ratio
+                        // at a breakpoint where nothing set a size.
+                        (condition == Condition::Always).then_some(DEFAULT_FONT_SIZE)
                     })?;
                 Some((condition, px))
             })
