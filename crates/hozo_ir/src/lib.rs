@@ -5094,3 +5094,110 @@ mod svg_element_tests {
         SvgElement::ForeignObject,
     ];
 }
+
+/// The stable name a diagnostic goes by outside this crate.
+///
+/// Lifted out of `hozo_napi` when a second binding needed it. A code
+/// arriving at a build tool as `A11Y_INTERACTIVE_WITHOUT_ROLE` and at a
+/// browser as something else would be two names for one rule, and the
+/// mapping is long enough that nobody would notice the day they drifted.
+impl DiagnosticCode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DiagnosticCode::A11yInteractiveWithoutRole => "A11Y_INTERACTIVE_WITHOUT_ROLE",
+            DiagnosticCode::RoleHasNoWebEquivalent => "ROLE_HAS_NO_WEB_EQUIVALENT",
+            DiagnosticCode::AriaIncompletePattern => "ARIA_INCOMPLETE_PATTERN",
+            DiagnosticCode::AriaPropNotAllowed => "ARIA_PROP_NOT_ALLOWED",
+            DiagnosticCode::AriaNameProhibited => "ARIA_NAME_PROHIBITED",
+            DiagnosticCode::FocusableDisabledUnsupported => "FOCUSABLE_DISABLED_UNSUPPORTED",
+            DiagnosticCode::TailwindVariantNotSupported => "TAILWIND_VARIANT_NOT_SUPPORTED",
+            DiagnosticCode::A11yMissingAccessibleName => "A11Y_MISSING_ACCESSIBLE_NAME",
+            DiagnosticCode::A11yDialogWithoutDismiss => "A11Y_DIALOG_WITHOUT_DISMISS",
+            DiagnosticCode::InvalidSemanticNesting => "INVALID_SEMANTIC_NESTING",
+            DiagnosticCode::UnsafePropSpreadAfterStyle => "UNSAFE_PROP_SPREAD_AFTER_STYLE",
+            DiagnosticCode::WebOnlyPropertyOnNative => "WEB_ONLY_PROPERTY_ON_NATIVE",
+            DiagnosticCode::DynamicClassNameNotResolved => "DYNAMIC_CLASS_NAME_NOT_RESOLVED",
+            DiagnosticCode::DynamicPropNotResolved => "DYNAMIC_PROP_NOT_RESOLVED",
+            DiagnosticCode::TailwindVariantCannotMatch => "TAILWIND_VARIANT_CANNOT_MATCH",
+            DiagnosticCode::VisitedStyleIgnored => "VISITED_STYLE_IGNORED",
+            DiagnosticCode::A11yHiddenButFocusable => "A11Y_HIDDEN_BUT_FOCUSABLE",
+            DiagnosticCode::A11yPositiveTabIndex => "A11Y_POSITIVE_TAB_INDEX",
+            DiagnosticCode::A11yHeadingLevelSkipped => "A11Y_HEADING_LEVEL_SKIPPED",
+            DiagnosticCode::NotWiredOnWeb => "NOT_WIRED_ON_WEB",
+            DiagnosticCode::PropCollidesWithPlatformName => "PROP_COLLIDES_WITH_PLATFORM_NAME",
+            DiagnosticCode::HozoAttributeIsPrivate => "HOZO_ATTRIBUTE_IS_PRIVATE",
+            DiagnosticCode::A11yDuplicateId => "A11Y_DUPLICATE_ID",
+            DiagnosticCode::A11yInteractiveNesting => "A11Y_INTERACTIVE_NESTING",
+            DiagnosticCode::A11yPressWithoutKeyboard => "A11Y_PRESS_WITHOUT_KEYBOARD",
+            DiagnosticCode::NotWiredOnNative => "NOT_WIRED_ON_NATIVE",
+            DiagnosticCode::PrimitiveNotLowered => "PRIMITIVE_NOT_LOWERED",
+            DiagnosticCode::UnreadableArbitraryValue => "UNREADABLE_ARBITRARY_VALUE",
+            DiagnosticCode::StylexNotLowered => "STYLEX_NOT_LOWERED",
+        }
+    }
+}
+
+/// The severity as a build tool spells it.
+impl Severity {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            // Build-stopping; callers are expected to fail on this
+            // rather than print it (see `@hozo/metro`).
+            Severity::Error => "error",
+            Severity::Warning => "warning",
+            Severity::Info => "info",
+        }
+    }
+}
+
+/// Translates UTF-8 byte offsets into UTF-16 code unit offsets.
+///
+/// oxc reports byte offsets and every backend here uses them; JavaScript
+/// indexes a string by UTF-16 code unit. A binding is where the
+/// representation changes, so the translation belongs beside them rather
+/// than inside one of them -- a consumer that splices with an untranslated
+/// offset cuts in the wrong place, and the error grows with every
+/// non-ASCII character before it. Two code units per em dash, ten for
+/// `こんにちは` -- enough to delete the rest of the file, which is how this
+/// was found.
+///
+/// Marks only where the two counts diverge. An all-ASCII source -- every
+/// fixture in this repository, which is why nothing caught this -- costs
+/// one scan and no memory, and `at` returns its argument. Between two
+/// marks every character is one byte and one code unit, and that is what
+/// makes the interpolation exact rather than approximate.
+pub struct Utf16Offsets {
+    /// `(byte, utf16)` immediately after each character where they differ.
+    marks: Vec<(u32, u32)>,
+}
+
+impl Utf16Offsets {
+    pub fn new(source: &str) -> Self {
+        let mut marks = Vec::new();
+        let mut utf16: u32 = 0;
+        for (byte, ch) in source.char_indices() {
+            let bytes = ch.len_utf8() as u32;
+            let units = ch.len_utf16() as u32;
+            utf16 += units;
+            if bytes != units {
+                marks.push((byte as u32 + bytes, utf16));
+            }
+        }
+        Utf16Offsets { marks }
+    }
+
+    pub fn at(&self, byte: u32) -> u32 {
+        if self.marks.is_empty() {
+            return byte;
+        }
+        match self.marks.binary_search_by_key(&byte, |&(mark, _)| mark) {
+            Ok(index) => self.marks[index].1,
+            Err(0) => byte,
+            Err(index) => {
+                let (mark, utf16) = self.marks[index - 1];
+                utf16 + (byte - mark)
+            }
+        }
+    }
+}
+

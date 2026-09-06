@@ -7,9 +7,34 @@ members = [
   "crates/hozo_web",
   "crates/hozo_native",
   "crates/hozo_napi",
+  "crates/hozo_wasm",
 ]
 
 [workspace.package]
 version = "0.0.0"
 edition = "2021"
 license = "MIT"
+
+# The compiler has to cross a network before it can answer anything, which
+# is true of no other build in this workspace -- so the trade is different
+# here and the profile is its own rather than a change to `release`.
+#
+# A profile in a member manifest is ignored with a warning; this has to be
+# at the root, and `hozo_wasm` is built with `--profile wasm`.
+#
+# `opt-level = "z"` rather than "s", measured rather than assumed:
+#
+#            raw        gzip       compile (Web / Native)
+#   s    1,692,214    552,642     0.181ms / 0.170ms
+#   z    1,351,758    447,531     0.201ms / 0.199ms
+#
+# 19% smaller over the wire for 0.02ms per compile. The page pays the
+# first once and the second on a keystroke, and a fifth of a millisecond
+# is not a keystroke anybody feels.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

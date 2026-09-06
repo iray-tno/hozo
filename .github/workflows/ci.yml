@@ -86,3 +86,31 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native:release
       - run: pnpm turbo run report -- --check
+
+  # The browser binding, and the test that it still agrees with the Node
+  # one. Its own job because `cargo install wasm-bindgen-cli` is a long
+  # compile on a cold cache, and no other job should wait for it.
+  wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      # The exact version the crate pins. The two schemas must match, and
+      # the error when they do not names neither manifest.
+      - name: Install wasm-bindgen-cli
+        run: |
+          version=$(grep -oP '^wasm-bindgen = "=\K[0-9.]+' crates/hozo_wasm/Cargo.toml)
+          cargo install wasm-bindgen-cli --version "$version" --locked
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: node scripts/build-wasm.mjs
+      - run: node --test packages/tailwind-conformance/src/wasm-binding.test.ts
