@@ -19,6 +19,7 @@ import type { ComponentType, ReactNode } from 'react'
 import {
   type PressableProps,
   Pressable as RNPressable,
+  Text as RNText,
   View as RNView,
   type StyleProp,
   type ViewStyle,
@@ -141,7 +142,13 @@ export function Button({
   }
   return (
     <RNPressable accessibilityRole="button" onPress={onPress} {...shared}>
-      {children}
+      {/* A `Pressable` is a View, and React Native throws on a bare string
+          inside one. The compiled path never hands one over -- `<Button>Save
+          </Button>` lowers to `<Pressable><Text>Save</Text></Pressable>` --
+          so this is the uncompiled path only, where a label is the commonest
+          thing a Button is given. `HozoLink` does the same for the branch
+          above. */}
+      {typeof children === 'string' ? <RNText>{children}</RNText> : children}
     </RNPressable>
   )
 }
