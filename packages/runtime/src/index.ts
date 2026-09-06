@@ -21,6 +21,14 @@
 /** A React Native style object, as the compiler emits it. */
 export type StyleObject = Record<string, unknown>
 
+export {
+  configureHozoBackdropFilter,
+  createExpoBlurAdapter,
+  type ExpoBlurAdapterOptions,
+  type HozoBackdropFilterAdapter,
+  type HozoBackdropFilterAdapterProps,
+} from './backdrop.ts'
+
 /**
  * Resolves whitespace-separated class names to React Native style objects.
  *

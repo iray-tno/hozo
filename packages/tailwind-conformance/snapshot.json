@@ -6,32 +6,32 @@
   },
   "stylex": {
     "properties": 522,
-    "mapped": 504,
+    "mapped": 505,
     "compilerRelevantProperties": 504,
     "mappedCompilerRelevant": 504,
     "productRelevantProperties": 505,
-    "mappedProductRelevant": 504,
+    "mappedProductRelevant": 505,
     "nonActionableProperties": 17,
     "nativeProperties": 134,
     "mappedNative": 134,
     "contextualProperties": 21,
     "mappedContextual": 21,
     "adapterProperties": 1,
-    "mappedAdapter": 0,
+    "mappedAdapter": 1,
     "webOnlyProperties": 366,
     "mappedWebOnly": 349
   },
   "stylexValues": {
-    "cases": 348,
-    "covered": 348
+    "cases": 349,
+    "covered": 349
   },
   "stylexConstructs": {
     "cases": 16,
     "covered": 16
   },
   "stylexCorpus": {
-    "cases": 270,
-    "covered": 270
+    "cases": 271,
+    "covered": 271
   },
   "stylexSafety": {
     "silent": 0
@@ -88,9 +88,9 @@
     "inOrder": 20303
   },
   "refusalAudit": {
-    "refusals": 10411,
-    "checkable": 10077,
-    "confirmed": 10045,
+    "refusals": 10404,
+    "checkable": 10070,
+    "confirmed": 10038,
     "partial": 28,
     "suspect": 4,
     "uncheckable": 334
@@ -120,8 +120,8 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 514,
-    "refused": 2299,
+    "covered": 515,
+    "refused": 2298,
     "noOp": 32,
     "silent": 0
   },

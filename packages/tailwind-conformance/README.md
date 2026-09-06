@@ -30,7 +30,7 @@ The conformance audit measures five key cross-platform dimensions:
   - `SILENT`: Compiles to nothing without a diagnostic. **Guaranteed to be 0.**
 
 ### 3. StyleX Surface & Practical Scorecard
-- **Property Surface Mapping**: Audits against StyleX's published `CSSProperties` type denominator (522 property names). StyleX 0.19 publishes 522 names; 13 shorthands emit no CSS because they are deliberately disallowed in its default property-specificity mode, two are `@font-face`-only descriptors, and two are obsolete or non-standard. The reviewed compiler-relevant surface is 504/504 (or 504/505 including optional platform adapters like `backdropFilter`).
+- **Property Surface Mapping**: Audits against StyleX's published `CSSProperties` type denominator (522 property names). StyleX 0.19 publishes 522 names; 13 shorthands emit no CSS because they are deliberately disallowed in its default property-specificity mode, two are `@font-face`-only descriptors, and two are obsolete or non-standard. The reviewed compiler-relevant surface is 504/504, while the product-relevant surface is 505/505 including the opt-in `backdropFilter` Native adapter. Every remaining unmapped name has a checked-in disposition, and manifest generation fails on an unreviewed gap.
 - **Practical Scorecard**: Measures real executable fixtures across Card, Typography, Input, Scroll, Motion, Grid, and Border scenarios. Validates that Web output agrees with the official StyleX Babel plugin and Native either lowers or triggers explicit Web-only diagnostics.
 
 ### 4. Accessibility & ARIA Invariants

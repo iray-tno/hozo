@@ -29,6 +29,7 @@ export {
   type HozoSummaryProps,
 } from '@hozo/behaviors'
 export type { BreakpointName, Viewport } from './ambient.ts'
+export { HozoBackdropFilter, type HozoBackdropFilterProps } from './backdrop.native.tsx'
 export {
   HozoContainer,
   type HozoContainerProps,

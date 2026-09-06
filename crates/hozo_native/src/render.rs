@@ -6,6 +6,27 @@
 use super::*;
 use super::text::*;
 
+enum NativeBackdropFilter {
+    None,
+    Blur(String),
+}
+
+fn native_backdrop_filter(declaration: &StyleDeclaration) -> Option<NativeBackdropFilter> {
+    if declaration.condition != Condition::Always {
+        return None;
+    }
+    match &declaration.property {
+        StyleProperty::BackdropFilter(FilterFunction::None, _) => {
+            Some(NativeBackdropFilter::None)
+        }
+        StyleProperty::BackdropFilter(FilterFunction::Blur, value) => value
+            .strip_prefix("blur(")?
+            .strip_suffix("px)")
+            .map(|radius| NativeBackdropFilter::Blur(radius.to_string())),
+        _ => None,
+    }
+}
+
 /// Resolve StyleX's browser feature fallback before any contextual Native
 /// lowering looks at the node. Keeping the wrapper until the backend is
 /// important for Web's duplicate declarations, but TextInput props, text
@@ -177,6 +198,7 @@ pub(super) fn render_node(
     } else {
         Vec::new()
     };
+    let mut backdrop_filter = None;
 
     for declaration in &style {
         // Lowered as a prop just above, so it must not also be reported as
@@ -190,6 +212,10 @@ pub(super) fn render_node(
             continue;
         }
         if grid.is_some() && grid_absorbs(&declaration.property) {
+            continue;
+        }
+        if let Some(filter) = native_backdrop_filter(declaration) {
+            backdrop_filter = Some(filter);
             continue;
         }
         if grid_item.is_some()
@@ -637,9 +663,24 @@ pub(super) fn render_node(
             matches!(condition, Condition::Container { .. })
         })
     });
+    let renders_backdrop_filter = matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
+        && component == "View"
+        && !declares_container;
+    if matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
+        && !renders_backdrop_filter
+    {
+        diagnostics.push(unwired_variant(
+            node,
+            "`backdropFilter` needs an ordinary View on Native; it cannot replace an interactive, text, animated, or container-query component.",
+            Severity::Error,
+        ));
+    }
     let rendered_component = if declares_container {
         runtime.need_component("HozoContainer");
         "HozoContainer"
+    } else if renders_backdrop_filter {
+        runtime.need_component("HozoBackdropFilter");
+        "HozoBackdropFilter"
     } else if component == "Pressable" && (needs_hover_or_focus || transition.is_some()) {
         runtime.need_component("HozoPressable");
         "HozoPressable"
@@ -688,6 +729,11 @@ pub(super) fn render_node(
         .iter()
         .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
         .collect::<String>();
+    if rendered_component == "HozoBackdropFilter" {
+        if let Some(NativeBackdropFilter::Blur(radius)) = &backdrop_filter {
+            props_text.push_str(&format!(" hozoBlurRadius={{{radius}}}"));
+        }
+    }
     // A progress bar's position, which React Native carries on
     // `accessibilityValue` rather than on `value` and `max`.
     //

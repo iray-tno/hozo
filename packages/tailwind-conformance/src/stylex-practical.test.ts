@@ -11,9 +11,9 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 348, covered: 348 },
+    values: { total: 349, covered: 349 },
     constructs: { total: 16, covered: 16 },
-    corpus: { total: 270, covered: 270 },
+    corpus: { total: 271, covered: 271 },
     silent: 0,
   })
 })
@@ -98,6 +98,15 @@ test('compositing and 3D rendering hints agree with official StyleX', () => {
       silent: false,
     })
   }
+})
+
+test('static backdrop blur agrees with StyleX and uses the Native adapter lane', () => {
+  assert.deepEqual(compareStylexValue({ property: 'backdropFilter', value: 'blur(12px)' }), {
+    property: 'backdropFilter',
+    value: 'blur(12px)',
+    covered: true,
+    silent: false,
+  })
 })
 
 test('common mask longhands agree with official StyleX', () => {

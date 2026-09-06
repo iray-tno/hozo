@@ -11,8 +11,8 @@ use std::collections::{HashMap, HashSet};
 
 use hozo_ir::{
     Angle, BorderStyle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef,
-    FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Justify, Keyframe, Keyframes, Length, Origin,
-    Overflow, Radius, Scale, SourceSpan, StyleDeclaration, StyleProperty, StylexResidual,
+    FilterFunction, FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Justify, Keyframe,
+    Keyframes, Length, Origin, Overflow, Radius, Scale, SourceSpan, StyleDeclaration, StyleProperty, StylexResidual,
     StylexResidualArgument,
     TextOverflow, TextShadowValue, TransformFunction, WhiteSpace,
 };
@@ -5494,6 +5494,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             }
             vec![StyleProperty::FilterRaw(value.to_string())]
         }
+        "backdropFilter" => stylex_backdrop_filter(value)?,
         "direction" => {
             let StaticValue::String(value) = value else { return None };
             let value = ["inherit", "ltr", "rtl"]
@@ -5683,6 +5684,34 @@ fn supported_filter_list(value: &str) -> bool {
         rest = rest[close..].trim_start();
     }
     true
+}
+
+/// The portable part of CSS backdrop-filter that a Native blur component can
+/// represent. Wider filter chains remain in the official StyleX residual.
+fn stylex_backdrop_filter(value: &StaticValue) -> Option<Vec<StyleProperty>> {
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    let value = value.trim();
+    if value == "none" {
+        return Some(vec![StyleProperty::BackdropFilter(
+            FilterFunction::None,
+            "none".to_string(),
+        )]);
+    }
+    let radius = value.strip_prefix("blur(")?.strip_suffix(')')?.trim();
+    let radius = if radius == "0" {
+        0.0
+    } else {
+        radius.strip_suffix("px")?.trim().parse::<f64>().ok()?
+    };
+    if !radius.is_finite() || radius < 0.0 {
+        return None;
+    }
+    Some(vec![StyleProperty::BackdropFilter(
+        FilterFunction::Blur,
+        format!("blur({}px)", minified_css_number(radius)),
+    )])
 }
 
 /// The aliases StyleX's default `property-specificity` mode normalizes before
@@ -8267,6 +8296,46 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 6);
         assert_eq!(gaps.len(), 6);
+    }
+
+    #[test]
+    fn backdrop_filter_lowers_only_the_native_adapter_subset() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: { backdropFilter: 'blur(12px)' },
+              none: { backdropFilter: 'none' },
+              wider: { backdropFilter: 'brightness(0.8) blur(12px)' }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("static pixel blur was not lowerable")
+        };
+        assert!(matches!(
+            entries[0].properties.as_slice(),
+            [StyleProperty::BackdropFilter(FilterFunction::Blur, value)] if value == "blur(12px)"
+        ));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["none"] else {
+            panic!("backdrop-filter none was not lowerable")
+        };
+        assert!(matches!(
+            entries[0].properties.as_slice(),
+            [StyleProperty::BackdropFilter(FilterFunction::None, value)] if value == "none"
+        ));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider backdrop filter should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
     }
 
     #[test]
