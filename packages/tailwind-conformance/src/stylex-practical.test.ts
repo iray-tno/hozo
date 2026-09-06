@@ -11,7 +11,7 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 308, covered: 308 },
+    values: { total: 316, covered: 316 },
     constructs: { total: 16, covered: 16 },
     corpus: { total: 270, covered: 270 },
     silent: 0,
@@ -593,6 +593,22 @@ test('browser presentation controls agree with official StyleX', () => {
       })
     }
   }
+})
+
+test('legacy box controls agree with the CSS emitted by official StyleX', () => {
+  const properties = new Set([
+    'boxAlign',
+    'boxDirection',
+    'boxFlex',
+    'boxFlexGroup',
+    'boxLines',
+    'boxOrdinalGroup',
+    'boxOrient',
+    'boxSuppress',
+  ])
+  const cases = STYLEX_VALUE_CASES.filter(({ property }) => properties.has(property))
+  assert.equal(cases.length, properties.size)
+  for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
 })
 
 test('text decoration shorthands agree with official StyleX', () => {

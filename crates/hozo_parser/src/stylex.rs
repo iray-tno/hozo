@@ -695,6 +695,28 @@ fn stylex_border_width(value: &StaticValue) -> Option<Length> {
     matches!(&value, Length::Px(number) if number.is_finite() && *number >= 0.0).then_some(value)
 }
 
+fn stylex_legacy_box_number(
+    property: &'static str,
+    value: &StaticValue,
+    minimum: f64,
+    integer: bool,
+) -> Option<StyleProperty> {
+    let number = match value {
+        StaticValue::Number(number) => *number,
+        StaticValue::String(number) => number.parse::<f64>().ok()?,
+    };
+    if !number.is_finite() || number < minimum || integer && number.fract() != 0.0 {
+        return None;
+    }
+    let css_value = match value {
+        // StyleX 0.19 classifies these legacy numeric properties as lengths
+        // and appends px. Mirror the oracle, odd as that historical result is.
+        StaticValue::Number(_) => format!("{}px", numeric_text(number)),
+        StaticValue::String(value) => value.clone(),
+    };
+    Some(web_longhand(property, css_value))
+}
+
 fn normalize_stylex_grid_value(value: &str) -> String {
     let value = value.trim();
     // StyleX removes whitespace around commas inside functions but keeps
@@ -1240,6 +1262,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "backgroundPositionX" => ("background-position-x", &["left", "center", "right"]),
         "backgroundPositionY" => ("background-position-y", &["top", "center", "bottom"]),
+        "boxAlign" => ("box-align", &["start", "center", "end", "baseline", "stretch"]),
+        "boxDirection" => ("box-direction", &["normal", "reverse", "inherit"]),
+        "boxLines" => ("box-lines", &["single", "multiple"]),
+        "boxOrient" => (
+            "box-orient",
+            &["horizontal", "vertical", "inline-axis", "block-axis", "inherit"],
+        ),
+        "boxSuppress" => ("box-suppress", &["show", "discard", "hide"]),
         "boxDecorationBreak" => ("box-decoration-break", &["slice", "clone"]),
         "borderCollapse" => ("border-collapse", &["collapse", "separate"]),
         "breakAfter" => (
@@ -4975,6 +5005,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "borderImageRepeat" | "borderImageSlice" | "borderImageSource" | "borderImageWidth"
         | "borderSpacing" | "gridAutoColumns" | "gridAutoFlow" | "gridAutoRows"
         | "gridTemplateAreas"
+        | "boxAlign" | "boxDirection" | "boxLines" | "boxOrient" | "boxSuppress"
         | "boxDecorationBreak" | "breakAfter" | "breakBefore" | "breakInside"
         | "captionSide" | "caretShape" | "clear" | "clip" | "clipPath" | "clipRule" | "colorScheme"
         | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
@@ -5056,6 +5087,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         )],
         "positionTry" => vec![web_longhand("position-try", web_position_try(value)?)],
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
+        "boxFlex" => vec![stylex_legacy_box_number("box-flex", value, 0.0, false)?],
+        "boxFlexGroup" => vec![stylex_legacy_box_number("box-flex-group", value, 1.0, true)?],
+        "boxOrdinalGroup" => vec![stylex_legacy_box_number("box-ordinal-group", value, 1.0, true)?],
         "whiteSpace" => vec![StyleProperty::WhiteSpace(stylex_white_space(value)?)],
         "textOverflow" => vec![StyleProperty::TextOverflow(stylex_text_overflow(value)?)],
         "caretColor" => vec![StyleProperty::CaretColor(color()?)],
@@ -8305,6 +8339,43 @@ mod tests {
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 9);
         assert_eq!(gaps.len(), 9);
+    }
+
+    #[test]
+    fn legacy_box_properties_match_stylex_numeric_and_keyword_output() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                boxAlign: 'center', boxDirection: 'reverse', boxFlex: 1,
+                boxFlexGroup: 2, boxLines: 'multiple', boxOrdinalGroup: 2,
+                boxOrient: 'vertical', boxSuppress: 'discard'
+              },
+              wider: {
+                boxAlign: 'around', boxDirection: 'sideways', boxFlex: -1,
+                boxFlexGroup: 1.5, boxLines: 'wrap', boxOrdinalGroup: 0,
+                boxOrient: 'diagonal', boxSuppress: 'remove'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("legacy box properties were not lowerable")
+        };
+        assert_eq!(entries.len(), 8);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("invalid legacy box values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 8);
+        assert_eq!(gaps.len(), 8);
     }
 
     #[test]
