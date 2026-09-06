@@ -1223,6 +1223,13 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "transformStyle" => ("transform-style", &["flat", "preserve-3d"]),
         "appearance" => ("appearance", &["auto", "none", "textfield"]),
+        "azimuth" => (
+            "azimuth",
+            &[
+                "left-side", "far-left", "left", "center-left", "center", "center-right",
+                "right", "far-right", "right-side", "behind",
+            ],
+        ),
         "alignmentBaseline" => (
             "alignment-baseline",
             &[
@@ -1473,6 +1480,11 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
             "shape-rendering",
             &["auto", "optimizeSpeed", "crispEdges", "geometricPrecision"],
         ),
+        "speak" => ("speak", &["auto", "normal", "none", "never", "always"]),
+        "speakAs" => (
+            "speak-as",
+            &["normal", "spell-out", "digits", "literal-punctuation", "no-punctuation"],
+        ),
         "strokeLinecap" => ("stroke-linecap", &["butt", "round", "square"]),
         "strokeLinejoin" => ("stroke-linejoin", &["miter", "round", "bevel"]),
         "textAnchor" => ("text-anchor", &["start", "middle", "end"]),
@@ -1490,6 +1502,22 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "overflowWrap" => ("overflow-wrap", &["normal", "break-word", "anywhere"]),
         "visibility" => ("visibility", &["visible", "hidden", "collapse"]),
         "viewTimelineAxis" => ("view-timeline-axis", &["block", "inline", "x", "y"]),
+        "voiceBalance" => (
+            "voice-balance",
+            &["left", "center", "right", "leftwards", "rightwards"],
+        ),
+        "voiceFamily" => ("voice-family", &["male", "female", "child"]),
+        "voicePitch" => ("voice-pitch", &["x-low", "low", "medium", "high", "x-high"]),
+        "voiceRange" => ("voice-range", &["x-low", "low", "medium", "high", "x-high"]),
+        "voiceRate" => ("voice-rate", &["x-slow", "slow", "medium", "fast", "x-fast"]),
+        "voiceStress" => (
+            "voice-stress",
+            &["normal", "strong", "moderate", "none", "reduced"],
+        ),
+        "voiceVolume" => (
+            "voice-volume",
+            &["silent", "x-soft", "soft", "medium", "loud", "x-loud"],
+        ),
         "backgroundPosition" => (
             "background-position",
             &[
@@ -1592,6 +1620,7 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "masonryAutoFlow" => Some(("masonry-auto-flow", WebValueGrammar::MasonryAutoFlow)),
         "imageResolution" => Some(("image-resolution", WebValueGrammar::ImageResolution)),
         "initialLetter" => Some(("initial-letter", WebValueGrammar::InitialLetter)),
+        "voiceDuration" => Some(("voice-duration", WebValueGrammar::Time)),
         "scrollTimelineName" => Some((
             "scroll-timeline-name",
             WebValueGrammar::TimelineNames { allow_all: false },
@@ -5094,6 +5123,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "textRendering" | "textSizeAdjust" | "textUnderlineOffset" | "textUnderlinePosition"
         | "timelineScope" | "touchAction" | "transformBox" | "transformStyle" | "unicodeBidi"
         | "viewTimelineAxis" | "viewTimelineInset" | "viewTimelineName" | "viewTransitionName"
+        | "azimuth" | "speak" | "speakAs" | "voiceBalance" | "voiceDuration"
+        | "voiceFamily" | "voicePitch" | "voiceRange" | "voiceRate" | "voiceStress"
+        | "voiceVolume"
         | "widows" | "willChange"
         | "wordBreak" | "wordSpacing" | "wordWrap"
         | "overflowWrap" | "visibility"
@@ -8499,6 +8531,45 @@ mod tests {
     }
 
     #[test]
+    fn speech_voice_properties_keep_closed_value_boundaries() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: {
+                azimuth: 'center-right', speak: 'normal', speakAs: 'spell-out',
+                voiceBalance: 'left', voiceDuration: '500ms', voiceFamily: 'male',
+                voicePitch: 'medium', voiceRange: 'high', voiceRate: 'fast',
+                voiceStress: 'strong', voiceVolume: 'loud'
+              },
+              wider: {
+                azimuth: '20deg', speak: 'sometimes', speakAs: 'words',
+                voiceBalance: '25%', voiceDuration: '-1ms', voiceFamily: 'Alex',
+                voicePitch: '220Hz', voiceRange: '2st', voiceRate: '120%',
+                voiceStress: 'heavy', voiceVolume: '6dB'
+              }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("speech voice properties were not lowerable")
+        };
+        assert_eq!(entries.len(), 11);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("wider speech voice values should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 11);
+        assert_eq!(gaps.len(), 11);
+    }
+
+    #[test]
     fn grid_auto_tracks_flow_and_areas_lower_exactly_on_web() {
         let frontend = frontend(
             r#"
@@ -9635,7 +9706,7 @@ mod tests {
                 opacity: 1,
                 '@media (min-width: 600px)': {
                   padding: 24,
-                  speak: 'normal'
+                  behavior: 'url(example.htc)'
                 }
               }
             })
@@ -9648,7 +9719,7 @@ mod tests {
         let residual = node.props.stylex_residuals[0].render_expression(source);
         assert_eq!(residual.matches("@media (min-width: 600px)").count(), 1, "{residual}");
         assert!(residual.contains("padding: 24"), "{residual}");
-        assert!(residual.contains("speak: 'normal'"), "{residual}");
+        assert!(residual.contains("behavior: 'url(example.htc)'"), "{residual}");
         assert!(!residual.contains("opacity: 1"), "{residual}");
     }
 
@@ -9693,7 +9764,7 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             import { View } from '@hozo/core'
             const styles = stylex.create({
-              active: { opacity: 0.5, speak: 'normal' },
+              active: { opacity: 0.5, behavior: 'url(example.htc)' },
               inactive: { padding: 8, border: 'solid' }
             })
             const card = <View {...stylex.props(active ? styles.active : styles.inactive)} />
@@ -9706,7 +9777,7 @@ mod tests {
         let residual = node.props.stylex_residuals[0].render_expression(source);
         assert!(residual.contains("(active)"), "{residual}");
         assert!(residual.contains("!(active)"), "{residual}");
-        assert!(residual.contains("speak: 'normal'"), "{residual}");
+        assert!(residual.contains("behavior: 'url(example.htc)'"), "{residual}");
         assert!(residual.contains("border: 'solid'"), "{residual}");
         assert!(!residual.contains("opacity: 0.5"), "{residual}");
         assert!(!residual.contains("padding: 8"), "{residual}");
@@ -9718,7 +9789,7 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             import { View } from '@hozo/core'
             const inset = { padding: 8 }
-            const shared = { ...inset, opacity: 0.5, speak: 'normal' }
+            const shared = { ...inset, opacity: 0.5, behavior: 'url(example.htc)' }
             const styles = stylex.create({
               root: { ...shared, ...{ marginTop: 4 }, opacity: 0.75 }
             })
@@ -9735,7 +9806,7 @@ mod tests {
         }));
         assert_eq!(node.props.stylex_residuals.len(), 1);
         let residual = node.props.stylex_residuals[0].render_expression(source);
-        assert!(residual.contains("speak: 'normal'"), "{residual}");
+        assert!(residual.contains("behavior: 'url(example.htc)'"), "{residual}");
         assert!(!residual.contains("opacity"), "{residual}");
         assert!(!residual.contains("padding"), "{residual}");
     }
@@ -9816,7 +9887,7 @@ mod tests {
             import * as stylex from '@stylexjs/stylex'
             import { View } from '@hozo/core'
             const styles = stylex.create({
-              root: { padding: 16, speak: 'normal' }
+              root: { padding: 16, behavior: 'url(example.htc)' }
             })
             const card = <View {...stylex.props(styles.root)} />
         "#;
@@ -9826,7 +9897,7 @@ mod tests {
         assert!(node.props.passthrough.is_empty());
         assert_eq!(node.props.stylex_residuals.len(), 1);
         let residual = node.props.stylex_residuals[0].render_expression(source);
-        assert!(residual.contains("speak: 'normal'"));
+        assert!(residual.contains("behavior: 'url(example.htc)'"));
         assert!(!residual.contains("padding: 16"));
         assert_eq!(parsed.diagnostics.len(), 1);
         assert!(parsed.diagnostics[0].span.start >= node.span.start);

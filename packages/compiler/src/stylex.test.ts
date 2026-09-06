@@ -241,7 +241,7 @@ test('mixed StyleX rules lower supported declarations and isolate the residual',
   const mixed = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
 const styles = stylex.create({
-  root: { padding: 16, speak: 'normal' },
+  root: { padding: 16, behavior: 'url(example.htc)' },
   active: { opacity: 0.5, border: 'solid' },
 })
 export const Card = ({ active }) => (
@@ -252,7 +252,7 @@ export const Card = ({ active }) => (
   assert.ok(web)
   assert.match(web.css, /padding-top: 16px/)
   assert.match(web.css, /opacity: 0.5/)
-  assert.match(web.jsx, /stylex\.create\(\{ __hozo0: \{ speak: 'normal' \} \}\)/)
+  assert.match(web.jsx, /stylex\.create\(\{ __hozo0: \{ behavior: 'url\(example\.htc\)' \} \}\)/)
   assert.match(web.jsx, /active\) && stylex\.create\(\{ __hozo1: \{ border: 'solid' \} \}\)/)
   assert.match(web.jsx, /\.className\]\.filter\(Boolean\)\.join\(' '\)/)
   assert.doesNotMatch(web.jsx, /styles\.root|styles\.active/)
