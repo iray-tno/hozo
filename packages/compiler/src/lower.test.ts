@@ -2,7 +2,12 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { createCompiler } from './index.ts'
-import { lowerModule, namespaceHozoClasses, referencesHozoPrimitive } from './lower.ts'
+import {
+  foldedPrimitiveCalls,
+  lowerModule,
+  namespaceHozoClasses,
+  referencesHozoPrimitive,
+} from './lower.ts'
 
 /** Every test names its files relative to this, as a project does. */
 const ROOT = ''
@@ -274,5 +279,65 @@ test('one interactive primitive is enough to need a boundary', () => {
   assert.equal(
     needsClient('<Section><Text>a</Text><Button onPress={save}>Save</Button></Section>'),
     true,
+  )
+})
+
+// What `foldedPrimitiveCalls` is for: an MDX plugin that was not told
+// `jsx: true` hands Hozo function calls instead of JSX, nothing lowers,
+// and the class names pass through uncompiled with nothing reported.
+// `@astrojs/mdx` has no such option to be told (#137).
+const FOLDED = `import {Fragment as _Fragment, jsx as _jsx, jsxs as _jsxs} from "react/jsx-runtime";
+import {View, Text} from '@hozo/core';
+function _createMdxContent(props) {
+  const _components = { h1: "h1", ...props.components };
+  return _jsxs(_Fragment, {
+    children: [_jsx(_components.h1, { children: "A catalogue page" }), "\n", _jsx(View, {
+      className: "p-4",
+      children: _jsx(Text, { className: "text-xl", children: "inline in MDX" })
+    })]
+  });
+}
+`
+
+test('names the primitives an MDX plugin folded to calls before Hozo saw them', () => {
+  assert.deepEqual(foldedPrimitiveCalls(FOLDED, compiler.sources), ['Text', 'View'])
+})
+
+test('the development runtime spells it differently and counts the same', () => {
+  // A Vite dev server emits `jsxDEV`, not `jsx` -- which is what it
+  // actually produced the first time this ran against one. A check that
+  // knew only the production spelling would be right in a build and blind
+  // in the place people work.
+  const dev = FOLDED.replaceAll('_jsx(', '_jsxDEV(').replaceAll('_jsxs(', '_jsxDEV(')
+  assert.deepEqual(foldedPrimitiveCalls(dev, compiler.sources), ['Text', 'View'])
+})
+
+test('the name at the call site is the one that is reported', () => {
+  const aliased = `import { View as Box } from '@hozo/core'\nconst x = _jsx(Box, { className: "p-4" })\n`
+  assert.deepEqual(foldedPrimitiveCalls(aliased, compiler.sources), ['Box'])
+})
+
+test('a primitive-shaped name from a module the project does not trust is left alone', () => {
+  // The same rule the compiler applies per tag. `@expo/ui` exports a
+  // `Button` that shares nothing with Hozo's but its spelling, and a
+  // folded one of those is the correct outcome rather than a loss.
+  const expo = `import { Button } from '@expo/ui'\nconst x = _jsx(Button, { label: "Save" })\n`
+  assert.deepEqual(foldedPrimitiveCalls(expo, compiler.sources), [])
+})
+
+test('JSX that reached Hozo as JSX is not folded', () => {
+  const jsx = `import { View } from '@hozo/core'\nexport const P = () => <View className="p-4" />\n`
+  assert.deepEqual(foldedPrimitiveCalls(jsx, compiler.sources), [])
+})
+
+test('a member expression is not a bound name', () => {
+  // `_jsx(_components.h1, …)` is every heading in a folded MDX document,
+  // and none of them is a Hozo primitive.
+  assert.deepEqual(
+    foldedPrimitiveCalls(
+      `import { View } from '@hozo/core'\nconst x = _jsx(_components.h1, {})\n`,
+      compiler.sources,
+    ),
+    [],
   )
 })
