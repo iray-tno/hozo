@@ -60,13 +60,12 @@ jobs:
           cp -r examples/storybook-demo/storybook-static/* apps/landing/dist/storybook/
 
       - name: Report (Rust nextest)
-        run: cargo nextest run --profile ci || true
-
-      - name: Copy & normalize nextest JUnit
         run: |
           mkdir -p junit-reports
-          cp target/nextest/ci/nextest.xml junit-reports/nextest.xml || true
-          node packages/test-reporter/src/normalize-junit.mjs rust junit-reports/nextest.xml || true
+          cargo nextest run --workspace --profile ci --junit-path junit-reports/nextest.xml || true
+          if [ -f junit-reports/nextest.xml ]; then
+            node packages/test-reporter/src/normalize-junit.mjs rust junit-reports/nextest.xml || true
+          fi
 
       - name: Report (Clippy)
         run: cargo clippy --message-format=json 2>/dev/null | node packages/test-reporter/src/clippy-to-junit.mjs > junit-reports/clippy.xml || true
@@ -83,7 +82,7 @@ jobs:
           curl -fsSL https://iray-tno.github.io/hozo/reports/history/allure-history.jsonl -o allure-history/allure-history.jsonl || rm -f allure-history/allure-history.jsonl
 
       - name: Build Allure HTML reports
-        run: pnpm --filter @hozo/test-reporter exec allure generate -o "$GITHUB_WORKSPACE/apps/landing/dist/reports" "$GITHUB_WORKSPACE/junit-reports" || true
+        run: pnpm --filter @hozo/test-reporter exec allure generate --cwd "$GITHUB_WORKSPACE" -o "$GITHUB_WORKSPACE/apps/landing/dist/reports" "$GITHUB_WORKSPACE/junit-reports" || true
 
       - name: Persist Allure history
         run: |

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { globSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { normalizeJUnit } from './normalize-junit.mjs'
 
@@ -67,19 +67,25 @@ for (const pkg of packages) {
     }
   }
 
+  const testFiles = globSync(pkg.testPattern, { cwd: pkg.dir }).map((f) => f.replaceAll('\\', '/'))
+  if (testFiles.length === 0) {
+    process.stderr.write(`No test files found for ${pkg.name} matching ${pkg.testPattern}\n`)
+    totalFailed++
+    continue
+  }
+
   const destFile = join(process.cwd(), 'junit-reports', `node-${pkg.name}.xml`)
   const nodeArgs = [
     '--test',
     '--test-reporter=junit',
     `--test-reporter-destination=${destFile}`,
     ...(pkg.extraArgs ?? []),
-    pkg.testPattern,
+    ...testFiles,
   ]
 
-  const result = spawnSync('node', nodeArgs, {
+  const result = spawnSync(process.execPath, nodeArgs, {
     cwd: pkg.dir,
     stdio: 'inherit',
-    shell: process.platform === 'win32',
   })
 
   if (result.status !== 0) {
@@ -88,7 +94,7 @@ for (const pkg of packages) {
 
   try {
     const raw = readFileSync(destFile, 'utf8')
-    writeFileSync(destFile, normalizeJUnit(raw, 'typescript'), 'utf8')
+    writeFileSync(destFile, normalizeJUnit(raw, 'typescript', pkg.name), 'utf8')
   } catch (err) {
     process.stderr.write(`Failed to normalize ${destFile}: ${err.message}\n`)
   }
