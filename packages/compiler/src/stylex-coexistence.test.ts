@@ -74,7 +74,7 @@ test('a mixed rule gives the official transform only its residual declarations',
 import { View } from '@hozo/core'
 
 const styles = stylex.create({
-  root: { padding: 16, speak: 'normal' },
+  root: { padding: 16, behavior: 'url(example.htc)' },
 })
 
 export const Card = () => <View {...stylex.props(styles.root)} />
@@ -82,7 +82,7 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   const hozoFirst = lowerModule(mixed, filename, filename, compiler, ROOT)
   assert.ok(hozoFirst)
   assert.match(hozoFirst.css, /padding-top: 16px/)
-  assert.match(hozoFirst.code, /__hozo0: \{ speak: 'normal' \}/)
+  assert.match(hozoFirst.code, /__hozo0: \{ behavior: 'url\(example\.htc\)' \}/)
   assert.doesNotMatch(hozoFirst.code, /className=.*styles\.root/)
 
   const stylexSecond = officialStylex(hozoFirst.code)
