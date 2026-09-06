@@ -294,14 +294,16 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
   {
     name: 'a disclosure and its trigger',
     purpose: 'the summary is the control, and it is a control on both platforms',
-    // The Web element is a control by being a `<summary>`; React Native
-    // has to be told, so the trigger becomes a Pressable with a button
-    // role. What the compiled half cannot say is whether it is open --
-    // that is runtime state, and only the component in `@hozo/semantics`
-    // carries `accessibilityState={{ expanded }}`.
+    // `<details>` is the whole feature on the Web: the browser opens it,
+    // hides the body while closed, and reports the expanded state without
+    // being asked. React Native has none of that, so the pair becomes two
+    // components from `@hozo/behaviors` -- the same arrangement `Dialog`
+    // has, and for the same reason. It used to be a View holding a
+    // Pressable with no handler and then the body, always: a disclosure
+    // that could not close.
     source: '<Details><Summary>More</Summary><Paragraph>Body</Paragraph></Details>',
     web: ['<details>', '<summary>'],
-    native: ['<Pressable accessibilityRole="button">'],
+    native: ['<HozoDetails>', '<HozoSummary>'],
   },
   {
     name: 'a group of fields and its name',

@@ -514,7 +514,11 @@ fn structural_form_and_disclosure_primitives_lower_to_native_components() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.contains(r#"<View role="group">"#), "{}", output.jsx);
-    assert!(output.jsx.contains(r#"<Pressable accessibilityRole="button">"#), "{}", output.jsx);
+    // The disclosure is two runtime components now. It used to be a View
+    // holding a Pressable and then the body, always -- no toggle on the
+    // button and the body visible whether it was open or not.
+    assert!(output.jsx.contains("<HozoDetails>"), "{}", output.jsx);
+    assert!(output.jsx.contains("<HozoSummary>"), "{}", output.jsx);
     assert!(output.jsx.contains(r#"<View role="list">"#), "{}", output.jsx);
     // Legend and Term receive bold font weight semantic defaults
     assert!(output.styles.contains("fontWeight: '700',"), "{}", output.styles);

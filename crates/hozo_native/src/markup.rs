@@ -75,8 +75,13 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Address => ("View", Vec::new()),
         Primitive::Fieldset => ("View", vec![("role", "group".to_string())]),
         Primitive::Legend => ("Text", Vec::new()),
-        Primitive::Details => ("View", Vec::new()),
-        Primitive::Summary => ("Pressable", vec![("accessibilityRole", "button".to_string())]),
+        // A disclosure is behaviour, and React Native has no element for
+        // it. These used to be a View holding a Pressable with a button
+        // role and then the body, always: no toggle on the button and the
+        // body visible whether it was open or not. The behaviour lives in
+        // `@hozo/behaviors`, for the reason `Dialog` does.
+        Primitive::Details => ("HozoDetails", Vec::new()),
+        Primitive::Summary => ("HozoSummary", Vec::new()),
         Primitive::TermList => ("View", vec![("role", "list".to_string())]),
         Primitive::Term => ("Text", Vec::new()),
         Primitive::Description => ("View", Vec::new()),

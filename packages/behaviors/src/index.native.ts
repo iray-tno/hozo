@@ -5,6 +5,12 @@ export {
   type HozoDialogProps,
 } from './dialog.native.tsx'
 export {
+  HozoDetails,
+  type HozoDetailsProps,
+  HozoSummary,
+  type HozoSummaryProps,
+} from './disclosure.native.tsx'
+export {
   DismissableLayer,
   type DismissableLayerProps,
 } from './dismissable-layer.native.tsx'
