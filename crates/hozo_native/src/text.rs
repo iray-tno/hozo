@@ -5,6 +5,36 @@
 
 use super::*;
 
+/// React Native's own default, from `RCTFont.mm`:
+/// `const CGFloat defaultFontSize = 14`.
+///
+/// What a relative size scales against when nothing named one, which is
+/// most text. Mirrored by `HOZO_DEFAULT_FONT_SIZE` in `@hozo/runtime`,
+/// where the runtime half falls back to the same number.
+///
+/// Two shapes it gets wrong, both of which were wrong before it existed
+/// too -- the old behaviour was to emit nothing, so the text simply did
+/// not shrink:
+///
+/// 1. A component the compiler cannot read that renders a `Text` around
+///    its children and sets a size on it. React Native inherits only
+///    `Text` to `Text`, so that is the one shape a foreign component can
+///    affect -- a design system's `<Body>` with a Hozo `<Small>` inside.
+///    Nothing fixes it: handing the ratio to `HozoRelativeText` reads the
+///    same default, because that component publishes into no context, and
+///    React Native offers no way to ask what size is being inherited.
+///    Using a Hozo `Text` in between is what makes it work.
+///
+/// 2. A project that changes the default globally -- `Text.defaultProps`,
+///    or an Android theme. Everything then scales from a number that is
+///    no longer the default.
+///
+/// If either turns out to bite, the answer is a diagnostic rather than a
+/// cleverer guess: say that the base is not visible here and that 14 was
+/// assumed. It is not written yet because it would fire on ordinary
+/// migration code, and a warning nobody can act on is noise. Someone
+/// hitting it is the evidence that would settle that.
+pub(super) const DEFAULT_FONT_SIZE: f64 = 14.0;
 /// How much smaller than the text around it each of these draws.
 ///
 /// Mirrored by `packages/typography/src/text-size.ts`, which the fallback
@@ -784,18 +814,19 @@ mod tests {
     }
 
     #[test]
-    fn a_size_the_compiler_cannot_see_leaves_the_annotation_alone() {
-        // No font size anywhere is not 14: React Native's default is the
-        // platform's, and inventing one here would put a number on screen
-        // that nothing in the source asked for. So the ratio is skipped,
-        // which is the same choice `Sub`, `Sup` and `Small` make.
+    fn a_ruby_reading_with_no_base_is_half_the_platform_default() {
+        // This asserted the opposite, and called 14 an invention. It is
+        // the size React Native draws at, so a reading scaled against it
+        // is scaled against what will be on screen. The old behaviour
+        // left the reading the same size as the word it annotates.
         let source = r#"
             import { Text, RubyText } from '@hozo/core'
             const el = <Text>漢字<RubyText>かんじ</RubyText></Text>
             "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(!output.styles.contains("fontSize"), "{}", output.styles);
+        // 14 * 0.5.
+        assert!(output.styles.contains("fontSize: 7,"), "{}", output.styles);
     }
 
     #[test]
@@ -960,7 +991,14 @@ mod tests {
     }
 
     #[test]
-    fn relative_typography_does_not_guess_font_size_when_parent_is_unresolved() {
+    fn a_relative_size_with_no_base_uses_the_platform_default() {
+        // This used to assert the opposite -- that nothing was emitted,
+        // on the grounds that the compiler should not invent a number.
+        // It is not an invention: React Native draws this at 14 whatever
+        // Hozo does, so scaling against 14 is scaling against the size
+        // that will be on screen. Emitting nothing meant a subscript the
+        // same size as the text it subscripts, which is the one thing it
+        // must not be.
         let source = r#"
             import { Text } from '@hozo/core'
             import { Sub } from '@hozo/typography'
@@ -974,7 +1012,49 @@ mod tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        // Without static parent font size, compiler does not invent arbitrary approximations
-        assert!(!output.styles.contains("fontSize:"), "{}", output.styles);
+        // 14 * 0.75, which is what `@hozo/typography` renders uncompiled.
+        assert!(output.styles.contains("fontSize: 11,"), "{}", output.styles);
+    }
+
+    #[test]
+    fn the_default_only_answers_where_nothing_else_does() {
+        // The three things that outrank it, in order. A default that won
+        // over a size somebody wrote would be worse than no default.
+        let known = r#"
+            import { Text, Small } from '@hozo/core'
+            const el = <Text className="text-xl"><Small>x</Small></Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(known);
+        let output = lower(&parsed.roots[0].node, known, &Theme::default());
+        // 20 * 0.85, not 14 * 0.85.
+        assert!(output.styles.contains("fontSize: 17,"), "{}", output.styles);
+
+        // A size only React Native can resolve still goes to the runtime
+        // pair rather than being answered with the default here.
+        let opaque = r#"
+            import { Text, Small } from '@hozo/core'
+            const el = <Text style={{ fontSize: 24 }}>a<Small>x</Small></Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(opaque);
+        let output = lower(&parsed.roots[0].node, opaque, &Theme::default());
+        assert!(output.jsx.contains("HozoRelativeText"), "{}", output.jsx);
+        assert!(!output.styles.contains("fontSize"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_conditional_base_and_the_default_answer_their_own_conditions() {
+        // `md:text-xl` names a size above the breakpoint and nothing below
+        // it, so the ratio needs both: the default under it, the declared
+        // one above. A default applied at `md` would put a ratio where
+        // there is already a size to scale from.
+        let source = r#"
+            import { View, Small } from '@hozo/core'
+            const el = <View className="md:text-xl">a<Small>x</Small></View>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        // 14 * 0.85 unconditionally, and 20 * 0.85 at md.
+        assert!(output.styles.contains("fontSize: 12,"), "{}", output.styles);
+        assert!(output.styles.contains("fontSize: 17,"), "{}", output.styles);
     }
 }
