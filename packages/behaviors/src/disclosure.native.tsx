@@ -25,6 +25,7 @@ import {
   useState,
 } from 'react'
 import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import { hozoTextChildren } from './text-child.native.tsx'
 
 interface DisclosureState {
   open: boolean
@@ -69,7 +70,7 @@ export function HozoSummary({ children, ...props }: HozoSummaryProps) {
       onPress={toggle}
       {...props}
     >
-      {children}
+      {hozoTextChildren(children)}
     </Pressable>
   )
 }
@@ -100,7 +101,7 @@ export function HozoDetails({
 
   return (
     <DisclosureContext.Provider value={{ open, toggle }}>
-      <View {...props}>{visible}</View>
+      <View {...props}>{hozoTextChildren(visible)}</View>
     </DisclosureContext.Provider>
   )
 }

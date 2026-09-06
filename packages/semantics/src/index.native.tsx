@@ -1,4 +1,4 @@
-import { HozoDetails, HozoSummary } from '@hozo/runtime'
+import { HozoDetails, HozoSummary, hozoTextChildren } from '@hozo/runtime'
 import React, { type ComponentProps, type ReactNode } from 'react'
 // The components rather than their names. These files used to render
 // `React.createElement('View')`, and React Native resolves a string tag
@@ -52,20 +52,20 @@ export interface TimeNativeProps extends SemanticsTextNativeProps {
   datetime?: string
 }
 
-export function Main({ role = 'main', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function Main({ role = 'main', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
-export function Header({ role = 'banner', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function Header({ role = 'banner', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
-export function Footer({ role = 'contentinfo', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function Footer({ role = 'contentinfo', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
-export function Aside({ role = 'complementary', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function Aside({ role = 'complementary', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
 /**
@@ -80,24 +80,24 @@ export function Aside({ role = 'complementary', ...props }: SemanticsNativeProps
  * So this is a plain box here, and says so, rather than claiming a
  * landmark by naming a widget. The Web half is a real `<search>`.
  */
-export function Search(props: SemanticsNativeProps) {
-  return React.createElement(View, props)
+export function Search({ children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, props, hozoTextChildren(children))
 }
 
-export function Section(props: SemanticsNativeProps) {
-  return React.createElement(View, props)
+export function Section({ children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, props, hozoTextChildren(children))
 }
 
-export function Article({ role = 'article', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function Article({ role = 'article', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
-export function Nav({ role = 'navigation', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function Nav({ role = 'navigation', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
-export function Figure({ role = 'figure', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function Figure({ role = 'figure', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
 export function Figcaption(props: SemanticsTextNativeProps) {
@@ -108,12 +108,12 @@ export function Time(props: TimeNativeProps) {
   return React.createElement(Text, props)
 }
 
-export function Address(props: SemanticsNativeProps) {
-  return React.createElement(View, props)
+export function Address({ children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, props, hozoTextChildren(children))
 }
 
-export function Fieldset({ role = 'group', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function Fieldset({ role = 'group', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
 export function Legend({ style, ...props }: SemanticsTextNativeProps) {
@@ -186,12 +186,12 @@ export function Term({ style, ...props }: SemanticsTextNativeProps) {
   return React.createElement(Text, { style: [{ fontWeight: 'bold' }, style], ...props })
 }
 
-export function Description(props: SemanticsNativeProps) {
-  return React.createElement(View, props)
+export function Description({ children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, props, hozoTextChildren(children))
 }
 
-export function TermList({ role = 'list', ...props }: SemanticsNativeProps) {
-  return React.createElement(View, { role, ...props })
+export function TermList({ role = 'list', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
 TermList.Term = Term
@@ -207,6 +207,7 @@ export function Separator({
   decorative = false,
   role = decorative ? 'none' : 'separator',
   style,
+  children,
   ...props
 }: SeparatorProps) {
   const defaultStyle =
@@ -217,12 +218,16 @@ export function Separator({
   // has no such value, so the line that used to set it here was a string
   // the platform would ignore. `none` it does have, and that is the half
   // worth keeping -- a decorative rule should be silent on both props.
-  return React.createElement(View, {
-    role,
-    accessibilityRole: decorative ? 'none' : undefined,
-    style: [defaultStyle, style],
-    ...props,
-  })
+  return React.createElement(
+    View,
+    {
+      role,
+      accessibilityRole: decorative ? 'none' : undefined,
+      style: [defaultStyle, style],
+      ...props,
+    },
+    hozoTextChildren(children),
+  )
 }
 
 export interface ProgressProps extends SemanticsNativeProps {
@@ -258,7 +263,7 @@ export function Progress({
       style,
       ...props,
     },
-    children,
+    hozoTextChildren(children),
   )
 }
 

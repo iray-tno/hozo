@@ -1,5 +1,6 @@
+import { hozoTextChildren } from '@hozo/behaviors'
 import type { ReactNode } from 'react'
-import { Linking, Pressable, type PressableProps, Text } from 'react-native'
+import { Linking, Pressable, type PressableProps } from 'react-native'
 
 export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
   href: string
@@ -51,7 +52,7 @@ export function HozoLink({
         if (!event.defaultPrevented) void Linking.openURL(href)
       }}
     >
-      {typeof children === 'string' ? <Text>{children}</Text> : children}
+      {hozoTextChildren(children)}
     </Pressable>
   )
 }
