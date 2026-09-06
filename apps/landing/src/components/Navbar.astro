@@ -1,9 +1,11 @@
 ---
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+const homeUrl = baseUrl ? `${baseUrl}/` : '/'
 ---
 <header class="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-[#0a0c10]/80 backdrop-blur-md">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <a href="#" class="flex items-center gap-2 group">
+      <a href={homeUrl} class="flex items-center gap-2 group">
         <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 via-sky-400 to-emerald-400 flex items-center justify-center p-0.5 shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
           <div class="w-full h-full bg-[#0a0c10] rounded-[6px] flex items-center justify-center font-bold text-white tracking-tighter text-sm">
             HZ
@@ -17,20 +19,24 @@
     </div>
 
     <nav class="hidden md:flex items-center gap-8 text-sm text-slate-300 font-medium">
-      <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/storybook/`} class="text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-1.5">
+      <a href={`${baseUrl}/conformance/`} class="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+        Conformance
+      </a>
+      <a href={`${baseUrl}/storybook/`} class="text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-1.5">
         <span class="w-2 h-2 rounded-full bg-pink-400"></span>
         Storybook
       </a>
-      <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/reports/`} class="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1.5">
+      <a href={`${baseUrl}/reports/`} class="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1.5">
         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
         Reports
       </a>
-      <a href="#philosophy" class="hover:text-white transition-colors">Philosophy</a>
-      <a href="#tiered-styles" class="hover:text-white transition-colors">Tiered Styles</a>
-      <a href="#code-showcase" class="hover:text-white transition-colors">Code Comparison</a>
-      <a href="#accessibility" class="hover:text-white transition-colors">Accessibility</a>
-      <a href="#integrations" class="hover:text-white transition-colors">Integrations</a>
-      <a href="#architecture" class="hover:text-white transition-colors">Architecture</a>
+      <a href={`${homeUrl}#philosophy`} class="hover:text-white transition-colors">Philosophy</a>
+      <a href={`${homeUrl}#tiered-styles`} class="hover:text-white transition-colors">Tiered Styles</a>
+      <a href={`${homeUrl}#code-showcase`} class="hover:text-white transition-colors">Code Comparison</a>
+      <a href={`${homeUrl}#accessibility`} class="hover:text-white transition-colors">Accessibility</a>
+      <a href={`${homeUrl}#integrations`} class="hover:text-white transition-colors">Integrations</a>
+      <a href={`${homeUrl}#architecture`} class="hover:text-white transition-colors">Architecture</a>
     </nav>
 
     <div class="flex items-center gap-3">

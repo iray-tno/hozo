@@ -144,9 +144,16 @@ module.exports = withHozo(
           <p class="text-slate-400 text-xs mb-4">
             Differential automated test suite comparing Hozo against real Tailwind engine.
           </p>
-          <div class="p-3 rounded-lg bg-black/60 border border-white/5 text-xs text-emerald-400 font-mono">
+          <div class="p-3 rounded-lg bg-black/60 border border-white/5 text-xs text-emerald-400 font-mono mb-4">
             &check; Continuous differential snapshots verified in CI
           </div>
+          <a
+            href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/conformance/`}
+            class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
+            <span>Open Conformance Matrix</span>
+            <span>&rarr;</span>
+          </a>
         </div>
       </div>
     </div>
