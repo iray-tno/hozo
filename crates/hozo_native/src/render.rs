@@ -671,6 +671,50 @@ pub(super) fn render_node(
         .iter()
         .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
         .collect::<String>();
+    // A progress bar's position, which React Native carries on
+    // `accessibilityValue` rather than on `value` and `max`.
+    //
+    // Those two are `<progress>`'s own props, and Hozo passes them through
+    // because on the Web they are exactly right. On a View they are two
+    // props the platform ignores, so the element announced itself as a
+    // progress bar and reported no position -- a screen reader saying
+    // "progress bar" and nothing else. The expressions are re-used as
+    // written, so a value that changes still changes.
+    if node.primitive == Primitive::Progress {
+        let authored = |name: &str| -> Option<String> {
+            node.props
+                .passthrough
+                .iter()
+                .filter(|prop| prop.name.as_deref() == Some(name))
+                .find_map(|prop| {
+                    let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
+                    let value = text.split_once('=')?.1.trim();
+                    value
+                        .strip_prefix('{')
+                        .and_then(|inner| inner.strip_suffix('}'))
+                        .map(|inner| inner.trim().to_string())
+                        .or_else(|| {
+                            // `max="100"`, which JSX gives as a string.
+                            value.strip_prefix('"')?.strip_suffix('"').map(|inner| {
+                                format!("'{inner}'")
+                            })
+                        })
+                })
+        };
+        let now = authored("value");
+        let max = authored("max");
+        if now.is_some() || max.is_some() {
+            let mut fields = vec!["min: 0".to_string()];
+            if let Some(max) = &max {
+                fields.push(format!("max: {max}"));
+            }
+            if let Some(now) = &now {
+                fields.push(format!("now: {now}"));
+            }
+            props_text.push_str(&format!(" accessibilityValue={{{{ {} }}}}", fields.join(", ")));
+        }
+    }
+
     // An authored `style` joins the array instead of becoming a second
     // `style` attribute.
     //
@@ -980,6 +1024,13 @@ pub(super) fn render_node(
     for prop in &node.props.passthrough {
         // Already in the style array above.
         if prop.name.as_deref() == Some("style") {
+            continue;
+        }
+        // Already translated into `accessibilityValue` above, and a View
+        // does nothing with either.
+        if node.primitive == Primitive::Progress
+            && matches!(prop.name.as_deref(), Some("value") | Some("max"))
+        {
             continue;
         }
         props_text.push(' ');

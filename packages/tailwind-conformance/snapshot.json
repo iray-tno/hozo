@@ -6,27 +6,27 @@
   },
   "stylex": {
     "properties": 522,
-    "mapped": 362,
-    "nativeProperties": 132,
-    "mappedNative": 132,
-    "contextualProperties": 17,
-    "mappedContextual": 17,
+    "mapped": 492,
+    "nativeProperties": 134,
+    "mappedNative": 134,
+    "contextualProperties": 21,
+    "mappedContextual": 21,
     "adapterProperties": 1,
     "mappedAdapter": 0,
-    "webOnlyProperties": 372,
-    "mappedWebOnly": 213
+    "webOnlyProperties": 366,
+    "mappedWebOnly": 337
   },
   "stylexValues": {
-    "cases": 229,
-    "covered": 229
+    "cases": 329,
+    "covered": 329
   },
   "stylexConstructs": {
     "cases": 16,
     "covered": 16
   },
   "stylexCorpus": {
-    "cases": 186,
-    "covered": 186
+    "cases": 270,
+    "covered": 270
   },
   "stylexSafety": {
     "silent": 0
@@ -46,10 +46,10 @@
     "noOp": 1
   },
   "a11yContracts": {
-    "cases": 19,
-    "covered": 19,
+    "cases": 32,
+    "covered": 32,
     "primitives": 48,
-    "uncontracted": 30
+    "uncontracted": 0
   },
   "ariaRoles": {
     "roles": 113,
@@ -58,10 +58,10 @@
     "falsePositives": 0
   },
   "diagnostics": {
-    "declared": 28,
+    "declared": 29,
     "fires": 27,
     "silent": 0,
-    "noCase": 0,
+    "noCase": 1,
     "unreachable": 1
   },
   "rnwFree": {

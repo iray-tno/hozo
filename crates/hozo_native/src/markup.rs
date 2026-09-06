@@ -59,7 +59,16 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Header => ("View", vec![("role", "banner".to_string())]),
         Primitive::Footer => ("View", vec![("role", "contentinfo".to_string())]),
         Primitive::Aside => ("View", vec![("role", "complementary".to_string())]),
-        Primitive::Search => ("View", vec![("role", "search".to_string())]),
+        // No role. React Native's `Role` carries every other landmark in
+        // this file -- banner, complementary, contentinfo, navigation, main,
+        // figure, group, list, separator -- and for search it has
+        // `searchbox`, which is the field rather than the region around it.
+        // `accessibilityRole: 'search'` means the field too.
+        //
+        // So this emitted a value the platform does not accept, and the
+        // component in `@hozo/semantics` already said so and emitted none.
+        // The two disagreed, and this was the half that was wrong.
+        Primitive::Search => ("View", Vec::new()),
         Primitive::Figure => ("View", vec![("role", "figure".to_string())]),
         Primitive::Figcaption => ("Text", Vec::new()),
         Primitive::Time => ("Text", Vec::new()),
@@ -72,6 +81,11 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Term => ("Text", Vec::new()),
         Primitive::Description => ("View", Vec::new()),
         Primitive::Separator => ("View", vec![("role", "separator".to_string())]),
+        // The role is a role React Native has. The *value* is the part
+        // that needs translating, and it happens in `render.rs`, where the
+        // source is in reach: `value` and `max` are props of `<progress>`
+        // and mean nothing on a View, so a compiled progress bar announced
+        // itself as one and reported no position at all.
         Primitive::Progress => ("View", vec![("role", "progressbar".to_string())]),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),

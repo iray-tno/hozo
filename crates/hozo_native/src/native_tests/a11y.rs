@@ -255,7 +255,13 @@ fn landmark_primitives_lower_to_native_views_with_roles() {
     assert!(output.jsx.contains("<View role=\"main\">"));
     assert!(output.jsx.contains("<View role=\"banner\"><Text>Banner</Text></View>"));
     assert!(output.jsx.contains("<View role=\"complementary\"><Text>Sidebar</Text></View>"));
-    assert!(output.jsx.contains("<View role=\"search\"><Text>Search</Text></View>"));
+    // No role for search. React Native's `Role` carries every other
+    // landmark here and offers `searchbox` for this one, which is the
+    // field rather than the region around it -- as is
+    // `accessibilityRole: 'search'`. This used to emit a value the
+    // platform does not accept, while the component in `@hozo/semantics`
+    // already emitted none.
+    assert!(output.jsx.contains("<View><Text>Search</Text></View>"));
     assert!(output.jsx.contains("<View role=\"figure\"><Text>Caption</Text></View>"));
     assert!(output.jsx.contains("<Text>2026-09-02</Text>"));
     assert!(output.jsx.contains("<View><Text>Location</Text></View>"));

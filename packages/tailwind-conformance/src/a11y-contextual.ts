@@ -250,6 +250,142 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     web: ['<svg aria-hidden'],
     native: ['<Svg aria-hidden'],
   },
+  {
+    name: 'landmark regions',
+    purpose: 'the regions a screen reader navigates by survive both lowerings',
+    source: '<Main><Header>H</Header><Aside>A</Aside><Footer>F</Footer></Main>',
+    web: ['<main>', '<header>', '<aside>', '<footer>'],
+    // React Native has no elements, so every one of these is a role. The
+    // names differ because ARIA's do: a `<header>` is a banner.
+    native: [
+      '<View role="main">',
+      '<View role="banner">',
+      '<View role="complementary">',
+      '<View role="contentinfo">',
+    ],
+  },
+  {
+    name: 'the landmark React Native has no word for',
+    purpose: 'a search region is a region on Web and an unlabelled box on Native, deliberately',
+    // React Native's `Role` carries every other landmark here and offers
+    // `searchbox` for this one, which is the field rather than the region
+    // around it -- and `accessibilityRole: 'search'` means the field too.
+    // So this is a plain View and says so, rather than claiming a landmark
+    // by naming a widget. The compiler emitted `role="search"` until the
+    // contract was written, which React Native does not accept.
+    source: '<Search>S</Search>',
+    web: ['<search>'],
+    native: ['<View><Text>S</Text></View>'],
+  },
+  {
+    name: 'figure and its caption',
+    purpose: 'a figure keeps the association between the drawing and what it is called',
+    source: '<Figure><Figcaption>Caption</Figcaption></Figure>',
+    web: ['<figure>', '<figcaption>'],
+    native: ['<View role="figure">', '<Text>Caption</Text>'],
+  },
+  {
+    name: 'contact address',
+    purpose: 'an address is a block on both platforms and claims no role it cannot keep',
+    source: '<Address>Somewhere</Address>',
+    web: ['<address>'],
+    native: ['<View><Text>Somewhere</Text></View>'],
+  },
+  {
+    name: 'a disclosure and its trigger',
+    purpose: 'the summary is the control, and it is a control on both platforms',
+    // The Web element is a control by being a `<summary>`; React Native
+    // has to be told, so the trigger becomes a Pressable with a button
+    // role. What the compiled half cannot say is whether it is open --
+    // that is runtime state, and only the component in `@hozo/semantics`
+    // carries `accessibilityState={{ expanded }}`.
+    source: '<Details><Summary>More</Summary><Paragraph>Body</Paragraph></Details>',
+    web: ['<details>', '<summary>'],
+    native: ['<Pressable accessibilityRole="button">'],
+  },
+  {
+    name: 'a group of fields and its name',
+    purpose: 'a fieldset is a named group, which is the one thing it exists to be',
+    source: '<Fieldset><Legend>Name</Legend></Fieldset>',
+    web: ['<fieldset>', '<legend>'],
+    native: ['<View role="group">'],
+  },
+  {
+    name: 'a description list',
+    purpose: 'terms and their descriptions stay a list on both platforms',
+    // `<dl>` is a list on the Web through the element. On React Native the
+    // list role is on the container and the two halves are plain text and
+    // a plain box: ARIA has `term` and `definition`, React Native's role
+    // union has neither, and inventing a nearby one would be worse than
+    // saying nothing.
+    source: '<TermList><Term>Hozo</Term><Description>A compiler</Description></TermList>',
+    web: ['<dl>', '<dt>', '<dd>'],
+    native: ['<View role="list">'],
+  },
+  {
+    name: 'a progress bar reports its position',
+    purpose: 'the value reaches assistive technology on both platforms, not just the role',
+    // `value` and `max` are `<progress>`'s own props and mean nothing on a
+    // View, so the compiled element announced itself as a progress bar and
+    // reported no position -- "progress bar", and nothing else. React
+    // Native carries the position on `accessibilityValue`.
+    source: '<Progress value={40} max={100} />',
+    web: ['<progress value={40} max={100}>'],
+    native: ['role="progressbar"', 'accessibilityValue={{ min: 0, max: 100, now: 40 }}'],
+  },
+  {
+    name: 'a separator is a separator',
+    purpose: 'a rule between sections is announced as one rather than as an empty box',
+    source: '<Separator />',
+    web: ['<hr />'],
+    native: ['<View role="separator">'],
+  },
+  {
+    name: 'a machine-readable time',
+    purpose: 'the machine-readable form survives, and the visible text is still text',
+    source: '<Time dateTime="2026-09-06">today</Time>',
+    web: ['<time dateTime="2026-09-06">'],
+    native: ['<Text dateTime="2026-09-06">today</Text>'],
+  },
+  {
+    name: 'inline emphasis and its meaning',
+    purpose: 'weight, italics and the rest are elements on Web and styles on Native',
+    // The asymmetry is the contract. `<strong>` carries meaning a screen
+    // reader can announce; React Native's `Text` has no equivalent, so the
+    // compiler applies the UA stylesheet's *appearance* and the meaning is
+    // lost. Written down rather than implied: the alternative would be to
+    // claim a role React Native does not have.
+    source:
+      '<Paragraph><Strong>a</Strong><Emphasis>b</Emphasis><Underline>c</Underline><Strikethrough>d</Strikethrough><Code>f</Code><Mark>g</Mark></Paragraph>',
+    web: ['<strong>', '<em>', '<u>', '<s>', '<code>', '<mark>'],
+    // Six styled runs, one per element: the appearance survives and the
+    // meaning does not. The styles themselves are `semantic_defaults` in
+    // the Native backend and are checked there.
+    native: ['<Text style={hozoStyles.hozo1}>a</Text>', '<Text style={hozoStyles.hozo6}>g</Text>'],
+  },
+  {
+    name: 'scripts, small print and an unbreakable run',
+    purpose: 'subscript, superscript and small print keep their appearance across the two',
+    source:
+      '<Paragraph>x<Sub>1</Sub>y<Sup>2</Sup><Small>fine print</Small><NoBreak>no break</NoBreak></Paragraph>',
+    web: ['<sub>', '<sup>', '<small>', "whiteSpace: 'nowrap'"],
+    // A non-breaking run is a character on this platform rather than a
+    // style: React Native has no `white-space`, so the spaces themselves
+    // are replaced.
+    native: ['<Text>x<Text>1</Text>y<Text>2</Text>', 'no\u00A0break'],
+  },
+  {
+    name: 'ruby and its reading',
+    purpose: 'the annotation is not read twice, and is not read as part of the base text',
+    // `<ruby>` on the Web is one element a screen reader knows how to
+    // announce. React Native has no ruby layout at all, so both halves are
+    // text -- and the reading is marked `aria-hidden` by the component in
+    // `@hozo/typography` rather than by the compiler, which is the gap
+    // this case records.
+    source: '<Ruby>漢字<RubyText>かんじ</RubyText></Ruby>',
+    web: ['<ruby>', '<rt>'],
+    native: ['<Text>漢字<Text>かんじ</Text></Text>'],
+  },
 ]
 
 /**
@@ -282,7 +418,7 @@ export function primitivesUnderContract(): Set<string> {
 
 export function compareA11yContextual(testCase: A11yContextualCase): A11yContextualResult {
   const source =
-    `import { Article, Button, Dialog, Heading, Image, Link, List, ListItem, Nav, Paragraph, Pressable, Section, TextInput } from '@hozo/core'\n` +
+    `import { Address, Article, Aside, Button, Code, Description, Details, Dialog, Emphasis, Fieldset, Figcaption, Figure, Footer, Header, Heading, Image, Legend, Link, List, ListItem, Main, Mark, Nav, NoBreak, Paragraph, Pressable, Progress, Ruby, RubyText, Search, Section, Separator, Small, Strikethrough, Strong, Sub, Summary, Sup, Term, TermList, Time, TextInput, Underline } from '@hozo/core'\n` +
     `export function C() { return ${testCase.source} }\n`
   const [web] = compile(source)
   const [native] = compileNative(source)
