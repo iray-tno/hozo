@@ -32,6 +32,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
       - uses: pnpm/action-setup@v4
@@ -42,6 +43,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @hozo/compiler build:native
+      # The REPL page fetches this. Without it the page still deploys and
+      # says the compiler is missing, which is worse than a slower deploy.
+      - name: Install wasm-bindgen-cli
+        run: |
+          version=$(grep -oP '^wasm-bindgen = "=\K[0-9.]+' crates/hozo_wasm/Cargo.toml)
+          cargo install wasm-bindgen-cli --version "$version" --locked
+      - run: node scripts/build-wasm.mjs
       - run: pnpm build
       - run: pnpm --filter @hozo/landing build
       - run: pnpm --filter @hozo/example-storybook build

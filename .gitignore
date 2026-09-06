@@ -47,3 +47,6 @@ allure-history/
 # more than `pnpm install` provides, and 1.3MB that would be committed
 # again on every compiler change.
 packages/compiler/wasm/
+
+# Copied from packages/compiler/wasm by scripts/copy-wasm.mjs.
+apps/landing/public/wasm/
