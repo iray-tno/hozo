@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "node scripts/copy-wasm.mjs && astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "node scripts/copy-wasm.mjs && astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "test": "astro build && node scripts/check-build.mjs && node scripts/check-static.mjs"
+    "test": "node scripts/copy-wasm.mjs && astro build && node scripts/check-build.mjs && node scripts/check-static.mjs && node scripts/check-repl.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.0",
