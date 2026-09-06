@@ -3629,6 +3629,65 @@ fn stylex_speech_pause(property: &'static str, value: &StaticValue) -> Option<St
     Some(web_longhand(property, value))
 }
 
+fn web_number_with_unit(value: &str, unit: &str, minimum: f64, maximum: f64) -> Option<String> {
+    let number = value.strip_suffix(unit)?.parse::<f64>().ok()?;
+    (number.is_finite() && number >= minimum && number <= maximum).then(|| value.to_string())
+}
+
+fn stylex_azimuth(value: &StaticValue) -> Option<StyleProperty> {
+    const KEYWORDS: &[&str] = &[
+        "left-side", "far-left", "left", "center-left", "center", "center-right", "right",
+        "far-right", "right-side", "behind",
+    ];
+    let StaticValue::String(value) = value else { return None };
+    let value = if KEYWORDS.contains(&value.as_str()) {
+        value.clone()
+    } else if let Some(value) = web_angle(&StaticValue::String(value.clone()), &[]) {
+        value
+    } else {
+        let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
+        let ["behind", direction] = parts.as_slice() else {
+            return None;
+        };
+        matches!(*direction, "far-left" | "left" | "center-left" | "center-right" | "right" | "far-right")
+            .then(|| value.clone())?
+    };
+    Some(web_longhand("azimuth", value))
+}
+
+fn stylex_voice_value(property: &'static str, value: &StaticValue) -> Option<StyleProperty> {
+    let StaticValue::String(value) = value else { return None };
+    let exact = match property {
+        "voice-balance" => {
+            matches!(value.as_str(), "left" | "center" | "right" | "leftwards" | "rightwards")
+                .then(|| value.clone())
+                .or_else(|| web_number_with_unit(value, "%", -100.0, 100.0))
+        }
+        "voice-family" => (matches!(value.as_str(), "male" | "female" | "child")
+            || web_css_identifier(value)
+            || web_css_string(value))
+        .then(|| value.clone()),
+        "voice-pitch" | "voice-range" => {
+            matches!(value.as_str(), "x-low" | "low" | "medium" | "high" | "x-high")
+                .then(|| value.clone())
+                .or_else(|| web_number_with_unit(value, "Hz", 0.0, f64::INFINITY))
+                .or_else(|| web_number_with_unit(value, "kHz", 0.0, f64::INFINITY))
+                .or_else(|| web_number_with_unit(value, "st", f64::NEG_INFINITY, f64::INFINITY))
+        }
+        "voice-rate" => matches!(value.as_str(), "x-slow" | "slow" | "medium" | "fast" | "x-fast")
+            .then(|| value.clone())
+            .or_else(|| web_number_with_unit(value, "%", 0.0, f64::INFINITY)),
+        "voice-volume" => {
+            matches!(value.as_str(), "silent" | "x-soft" | "soft" | "medium" | "loud" | "x-loud")
+                .then(|| value.clone())
+                .or_else(|| web_number_with_unit(value, "%", 0.0, f64::INFINITY))
+                .or_else(|| web_number_with_unit(value, "dB", f64::NEG_INFINITY, f64::INFINITY))
+        }
+        _ => None,
+    }?;
+    Some(web_longhand(property, exact))
+}
+
 /// Expand the common path-first `offset` shorthand without losing StyleX's
 /// independently ranked longhand slots. Position/anchor slash syntax stays
 /// residual until its wider grammar can be represented exactly.
@@ -5123,9 +5182,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         | "textRendering" | "textSizeAdjust" | "textUnderlineOffset" | "textUnderlinePosition"
         | "timelineScope" | "touchAction" | "transformBox" | "transformStyle" | "unicodeBidi"
         | "viewTimelineAxis" | "viewTimelineInset" | "viewTimelineName" | "viewTransitionName"
-        | "azimuth" | "speak" | "speakAs" | "voiceBalance" | "voiceDuration"
-        | "voiceFamily" | "voicePitch" | "voiceRange" | "voiceRate" | "voiceStress"
-        | "voiceVolume"
+        | "speak" | "speakAs" | "voiceDuration" | "voiceStress"
         | "widows" | "willChange"
         | "wordBreak" | "wordSpacing" | "wordWrap"
         | "overflowWrap" | "visibility"
@@ -5139,6 +5196,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             vec![web_only_property(property, value)?]
         }
         "caret" => stylex_caret(value)?,
+        "azimuth" => vec![stylex_azimuth(value)?],
         "cue" => vec![stylex_speech_cue("cue", value)?],
         "cueAfter" => vec![stylex_speech_cue("cue-after", value)?],
         "cueBefore" => vec![stylex_speech_cue("cue-before", value)?],
@@ -5157,6 +5215,12 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "rest" => vec![stylex_speech_pause("rest", value)?],
         "restAfter" => vec![stylex_speech_pause("rest-after", value)?],
         "restBefore" => vec![stylex_speech_pause("rest-before", value)?],
+        "voiceBalance" => vec![stylex_voice_value("voice-balance", value)?],
+        "voiceFamily" => vec![stylex_voice_value("voice-family", value)?],
+        "voicePitch" => vec![stylex_voice_value("voice-pitch", value)?],
+        "voiceRange" => vec![stylex_voice_value("voice-range", value)?],
+        "voiceRate" => vec![stylex_voice_value("voice-rate", value)?],
+        "voiceVolume" => vec![stylex_voice_value("voice-volume", value)?],
         "positionTryFallbacks" => vec![web_longhand(
             "position-try-fallbacks",
             web_position_try_fallbacks(value)?,
@@ -8531,7 +8595,7 @@ mod tests {
     }
 
     #[test]
-    fn speech_voice_properties_keep_closed_value_boundaries() {
+    fn speech_voice_properties_keep_validated_value_boundaries() {
         let frontend = frontend(
             r#"
             import * as stylex from '@stylexjs/stylex'
@@ -8564,9 +8628,12 @@ mod tests {
         let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
             panic!("wider speech voice values should remain residual")
         };
-        assert!(entries.is_empty());
-        assert_eq!(residual.len(), 11);
-        assert_eq!(gaps.len(), 11);
+        assert_eq!(entries.len(), 7);
+        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
+            matches!(property, StyleProperty::WebOnly(_, _))
+        })));
+        assert_eq!(residual.len(), 4);
+        assert_eq!(gaps.len(), 4);
     }
 
     #[test]
