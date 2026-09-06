@@ -963,7 +963,7 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 340/340 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 347/347 (100%)、一般的なauthoring
 construct 16/16 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
 持たせた宣言270/270 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
@@ -1051,8 +1051,9 @@ speech-strength keywordまたは非負の静的時間をexact Web-onlyとして�
 
 CSS Speechの `azimuth` / `speak` / `speakAs` と8つの `voice*` propertyは、
 closed keywordおよび非負の静的 `voiceDuration` をexact Web-onlyとして扱う。
-周波数、dB、任意voice名などの開いた構文は公式StyleXへ残し、Nativeでは対応済み
-subsetを明示的にrefuseする。
+さらに一般的なangle、単一voice名、balance/rateのpercentage、pitch/rangeの
+frequency・semitone、volumeのpercentage・dBも値域と単位を検証して扱う。複数voiceや
+任意の複合構文は公式StyleXへ残し、Nativeでは対応済みsubsetを明示的にrefuseする。
 
 border imageでは、`borderImageSource`、`borderImageSlice`、`borderImageWidth`、
 `borderImageOutset`、`borderImageRepeat`のlonghandをexact Web-onlyとして扱う。
