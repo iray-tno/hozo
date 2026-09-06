@@ -286,6 +286,26 @@ pub enum DiagnosticCode {
     /// utility whose target primitive Hozo doesn't have yet
     /// (`placeholder-*`, which React Native carries as `TextInput`'s
     /// `placeholderTextColor`).
+    /// A prop React Native has no equivalent for, on an element that
+    /// behaves differently without it.
+    ///
+    /// Distinct from `WebOnlyPropertyOnNative`, which is about style
+    /// utilities: this is about props, and the difference that matters is
+    /// that a style silently not applying is usually visible while a prop
+    /// silently not applying is usually not.
+    ///
+    /// The case it exists for is `<Button href download>`. On the Web that
+    /// is a file the browser saves; React Native has no download in it at
+    /// all -- the whole public surface is `Linking` and `Share`, and
+    /// fetching a file to a path needs `expo-file-system` or
+    /// `react-native-blob-util`, a dependency Hozo should not choose for
+    /// anyone. So the link opens and the OS decides, which on Android is
+    /// a download and on iOS is a viewer.
+    ///
+    /// Not raised for `target`, `rel` or `external`. Those are browser
+    /// concepts whose absence changes nothing observable here: a link on
+    /// this platform leaves the app whatever they say.
+    PropHasNoNativeEquivalent,
     NotWiredOnNative,
     /// A Hozo primitive sits inside something the compiler carries but
     /// doesn't read -- an expression container, or an unmodeled component's
@@ -5129,6 +5149,7 @@ impl DiagnosticCode {
             DiagnosticCode::A11yDuplicateId => "A11Y_DUPLICATE_ID",
             DiagnosticCode::A11yInteractiveNesting => "A11Y_INTERACTIVE_NESTING",
             DiagnosticCode::A11yPressWithoutKeyboard => "A11Y_PRESS_WITHOUT_KEYBOARD",
+            DiagnosticCode::PropHasNoNativeEquivalent => "PROP_HAS_NO_NATIVE_EQUIVALENT",
             DiagnosticCode::NotWiredOnNative => "NOT_WIRED_ON_NATIVE",
             DiagnosticCode::PrimitiveNotLowered => "PRIMITIVE_NOT_LOWERED",
             DiagnosticCode::UnreadableArbitraryValue => "UNREADABLE_ARBITRARY_VALUE",

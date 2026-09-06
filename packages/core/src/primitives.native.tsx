@@ -14,8 +14,15 @@
 // So the native answer to every one of them is React Native's own
 // component, re-exported here.
 
-import type { ReactNode } from 'react'
-import { View as RNView, type StyleProp, type ViewStyle } from 'react-native'
+import { HozoLink } from '@hozo/runtime'
+import type { ComponentType, ReactNode } from 'react'
+import {
+  type PressableProps,
+  Pressable as RNPressable,
+  View as RNView,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 
 export type {
   FlatListProps,
@@ -70,3 +77,88 @@ export function ListItem({ children, ...props }: Omit<ListNativeProps, 'ordered'
 
 /** The name the Web half publishes for the same prop set. */
 export type ListProps = ListNativeProps
+
+/**
+ * A button, and a link when it is given an `href`.
+ *
+ * The Web half renders an `<a role="button">` for the second case; here
+ * that is `HozoLink`, which is what the compiler emits for the same
+ * source and already carries React Native's answer -- a Pressable with a
+ * link role that opens the destination through `Linking` and respects a
+ * handler that prevented it.
+ *
+ * `target`, `rel` and `external` are accepted and ignored. They are
+ * browser concepts whose absence changes nothing here: a link leaves the
+ * app whatever they say. `download` is the one that is felt, and the
+ * compiler reports it -- `PROP_HAS_NO_NATIVE_EQUIVALENT`, because React
+ * Native has no download in it at all. This path is the uncompiled one,
+ * where nothing is there to report; the prop is dropped and the link
+ * opens, which is what the compiled path does too.
+ */
+export function Button({
+  children,
+  onPress,
+  disabled,
+  accessibilityLabel,
+  accessibilityHint,
+  href,
+  style,
+  testID,
+}: ButtonNativeProps) {
+  const shared = {
+    disabled,
+    accessibilityLabel,
+    accessibilityHint,
+    // The pair React Native wants: the prop for the platform's own
+    // handling, and the state for what a screen reader announces.
+    accessibilityState: disabled === undefined ? undefined : { disabled },
+    style,
+    testID,
+  }
+  if (href !== undefined) {
+    // `HozoLink` is seen here with its Web props -- a package resolves
+    // `@hozo/runtime`'s types through the Web entry whichever platform it
+    // is building for, because `exports` carries one `types` and this
+    // package compiles both halves in one `tsc` run. The module Metro
+    // loads takes a React Native press event and a `StyleProp`. Third
+    // occurrence of the same boundary; `@hozo/semantics` and
+    // `@hozo/typography` carry the same line.
+    //
+    // Cast to a component and rendered as one: calling it would make it a
+    // function call rather than an element, which loses its identity to
+    // React and would break the moment it used a hook.
+    const Link = HozoLink as unknown as ComponentType<
+      { href: string; accessibilityRole: string; children?: ReactNode } & Omit<
+        ButtonNativeProps,
+        'href' | 'children'
+      >
+    >
+    return (
+      <Link href={href} accessibilityRole="button" onPress={onPress} {...shared}>
+        {children}
+      </Link>
+    )
+  }
+  return (
+    <RNPressable accessibilityRole="button" onPress={onPress} {...shared}>
+      {children}
+    </RNPressable>
+  )
+}
+
+export interface ButtonNativeProps {
+  children?: ReactNode
+  onPress?: PressableProps['onPress']
+  disabled?: boolean
+  accessibilityLabel?: string
+  accessibilityHint?: string
+  /** A destination rather than an action, which makes this a link. */
+  href?: string
+  /** Accepted and ignored; see above. */
+  external?: boolean
+  target?: string
+  rel?: string
+  download?: boolean | string
+  style?: StyleProp<ViewStyle>
+  testID?: string
+}

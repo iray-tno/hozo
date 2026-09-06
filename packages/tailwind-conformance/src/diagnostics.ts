@@ -142,6 +142,14 @@ const PROVOCATIONS: Record<string, Provocation> = {
   // `contrast-less:` is the durable choice, not merely the next one that
   // works: neither iOS nor Android exposes a reduce-contrast setting, so
   // it is unwired for a reason that cannot be researched away.
+  // A prop rather than a utility, and the difference is why it has a code
+  // of its own: a style that does not apply is usually visible, and a prop
+  // that does not is usually not. React Native has no download in it at
+  // all, so the link opens and the operating system decides.
+  PROP_HAS_NO_NATIVE_EQUIVALENT: {
+    source: '<Button href="https://example.com/report.pdf" download>Get</Button>',
+    backend: 'native',
+  },
   NOT_WIRED_ON_NATIVE: {
     source: '<View className="contrast-less:p-4">x</View>',
     backend: 'native',
