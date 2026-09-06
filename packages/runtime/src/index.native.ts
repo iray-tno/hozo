@@ -21,6 +21,10 @@ export {
   type HozoDetailsProps,
   HozoDialog,
   type HozoDialogProps,
+  HozoRuby,
+  type HozoRubyProps,
+  HozoRubyText,
+  type HozoRubyTextProps,
   HozoSummary,
   type HozoSummaryProps,
 } from '@hozo/behaviors'

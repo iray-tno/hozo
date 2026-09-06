@@ -14,6 +14,32 @@ use hozo_ir::{AccessibilityRole, Diagnostic, DiagnosticCode, Node, Primitive, Se
 /// be (no `style` prop covering layout/typography, only a handful of color
 /// props). `Pressable` gets the same interactive-without-role diagnostic as
 /// the Web backend, using RN's actual accessibility prop names.
+/**
+ * The word a ruby annotation annotates, when the compiler can read it.
+ *
+ * React Native flattens nested `Text` into one accessibility node, so a
+ * screen reader reads the base and then the reading: 「漢字かんじ」, the
+ * word twice and the second time spelled out. The lever that stops it is
+ * the parent's own `accessibilityLabel`, which replaces the children
+ * rather than being assembled from them.
+ *
+ * `None` when any part of the base is an expression -- that is a string
+ * only React Native will ever hold, and `HozoRuby` reads it there.
+ */
+fn static_ruby_base(node: &Node) -> Option<String> {
+    let mut base = String::new();
+    for child in &node.children {
+        match child {
+            hozo_ir::Child::Text(text) => base.push_str(text),
+            hozo_ir::Child::Node(child) if child.primitive == Primitive::RubyText => {}
+            // A styled base (`<Ruby><Strong>漢</Strong>…`) is still
+            // readable, as long as everything under it is.
+            hozo_ir::Child::Node(child) => base.push_str(&static_ruby_base(child)?),
+            _ => return None,
+        }
+    }
+    (!base.trim().is_empty()).then_some(base)
+}
 pub fn native_component(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'static str, Vec<(&'static str, String)>) {
     let (component, attrs) = native_component_inner(node, diagnostics);
     (component, apply_authored_role(node, attrs))
@@ -112,7 +138,16 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Small => ("Text", Vec::new()),
         Primitive::Mark => ("Text", Vec::new()),
         Primitive::NoBreak => ("Text", Vec::new()),
-        Primitive::Ruby => ("Text", Vec::new()),
+        // The label is the base text, so the reading is not announced
+        // after it. Written here when it is static, which is most ruby,
+        // and by `HozoRuby` when it is not -- see `static_ruby_base`.
+        // An author who wrote their own label knows what the word is;
+        // `render.rs` emits that one and this must not add a second.
+        Primitive::Ruby if node.props.accessibility_label.is_some() => ("Text", Vec::new()),
+        Primitive::Ruby => match static_ruby_base(node) {
+            Some(base) => ("Text", vec![("accessibilityLabel", base)]),
+            None => ("HozoRuby", Vec::new()),
+        },
         Primitive::RubyText => ("Text", Vec::new()),
         Primitive::Pressable => {
             let mut props = Vec::new();

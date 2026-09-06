@@ -185,6 +185,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
         None,
         // Nothing above the root, so nothing above it is opaque.
         false,
+        false,
         FromAncestor::default(),
         source,
         &mut allocator,
@@ -563,6 +564,8 @@ fn render_verbatim(
             // Inside an expression the compiler only carries: it cannot see
             // what that expression does to the text size either.
             true,
+            // And a ruby annotation cannot reach here from one.
+            false,
             // Nothing: this element is inside an expression the compiler
             // only carries, so the `*:` above it could not have been
             // resolved to reach it either -- which is what the warning at

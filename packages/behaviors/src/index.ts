@@ -79,6 +79,12 @@ export {
   useRovingItem,
 } from './roving-focus.tsx'
 export {
+  HozoRuby,
+  type HozoRubyProps,
+  HozoRubyText,
+  type HozoRubyTextProps,
+} from './ruby.tsx'
+export {
   Tooltip,
   type TooltipProps,
 } from './tooltip.tsx'
