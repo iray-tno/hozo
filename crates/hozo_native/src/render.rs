@@ -73,6 +73,12 @@ pub(super) fn render_node(
     // runtime component instead, which reads the size that actually
     // applied.
     parent_size_opaque: bool,
+    // Whether the enclosing ruby had to hand its label to a component.
+    //
+    // The reading has to be identifiable there, and a plain `Text` is not:
+    // `HozoRuby` compares by identity to decide what the word is. Static
+    // ruby needs none of this -- the label is already a literal.
+    in_dynamic_ruby: bool,
     // Styles an ancestor wrote for this element with `*:` or `**:`.
     from_ancestor: FromAncestor,
     source: &str,
@@ -273,6 +279,17 @@ pub(super) fn render_node(
     }
 
     let (mut component, extra_props) = markup::native_component(node, diagnostics);
+    // A ruby whose word only React Native can read hands the label to a
+    // component, and the reading has to be identifiable there -- a plain
+    // `Text` is not, since `HozoRuby` compares by identity to decide what
+    // the word is. Before `rendered_component`, which reads `component`.
+    if node.primitive == Primitive::Ruby && component == "HozoRuby" {
+        runtime.need_component("HozoRuby");
+    }
+    if in_dynamic_ruby && node.primitive == Primitive::RubyText {
+        component = "HozoRubyText";
+        runtime.need_component("HozoRubyText");
+    }
     // Recorded here, where the tag is decided, and only for the primitives
     // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
     // imported and must not be imported over.
@@ -1099,6 +1116,7 @@ pub(super) fn render_node(
                     &descend,
                     current_font_size,
                     parent_size_opaque || opaque_here,
+                    node.primitive == Primitive::Ruby && component == "HozoRuby",
                     FromAncestor { direct: &to_children, all: &descendants },
                     source,
                     allocator,

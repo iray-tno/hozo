@@ -1,5 +1,5 @@
-import { HozoTextSizeContext } from '@hozo/runtime'
-import React, { type ReactNode, useContext } from 'react'
+import { HozoRuby, HozoRubyText, HozoTextSizeContext } from '@hozo/runtime'
+import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // The components rather than their names. These files used to render
 // `React.createElement('View')`, and React Native resolves a string tag
 // through its view config registry, where the registered names are
@@ -175,33 +175,49 @@ export function NoBreak({ children, ...props }: TypographyNativeProps) {
   return <Text {...props}>{replaceSpacesWithNbsp(children)}</Text>
 }
 
-export function Ruby({ children, accessibilityLabel, ...props }: TypographyNativeProps) {
+/**
+ * A Native style handed over as if it were a Web one -- a resolver's
+ * limit rather than a claim about the value.
+ *
+ * A package resolves `@hozo/runtime`'s types through the Web entry
+ * whichever platform it is building for, because `exports` carries a
+ * single `types` and this package compiles both halves in one `tsc` run.
+ * So these are seen with `style?: CSSProperties` here while the module
+ * Metro loads takes `StyleProp<TextStyle>`. `@hozo/semantics` has the
+ * same line for the same reason.
+ */
+const asWeb = (style: TypographyNativeProps['style']) =>
+  style as unknown as ComponentProps<typeof HozoRuby>['style']
+/**
+ * Ruby, sharing the pair the Native backend emits.
+ *
+ * React Native flattens nested `Text` into one accessibility node, so a
+ * screen reader read the base and then the reading: 「漢字かんじ」. The
+ * `accessible={false}` that used to be on the annotation could not stop
+ * it -- the flattening happens above, and the parent's label is built
+ * from the text it contains whatever the children say about themselves.
+ */
+export function Ruby({ children, accessibilityLabel, style, ...props }: TypographyNativeProps) {
   return (
-    <Text
-      accessible={accessibilityLabel != null}
-      accessibilityLabel={accessibilityLabel}
+    <HozoRuby accessibilityLabel={accessibilityLabel} style={asWeb(style)} {...props}>
+      {children}
+    </HozoRuby>
+  )
+}
+
+export function RubyText({ style, children, ...props }: TypographyNativeProps) {
+  // Half the size of the text it annotates, against the size `Text`
+  // published; `fontSize: '0.65em'` was here and React Native ignored it.
+  const base = useContext(TextSize)
+  return (
+    <HozoRubyText
+      style={asWeb([{ fontSize: relative(TEXT_SIZE_RATIOS.rubyText, base), opacity: 0.85 }, style])}
       {...props}
     >
       {children}
-    </Text>
+    </HozoRubyText>
   )
 }
-
-export function RubyText({ style, ...props }: TypographyNativeProps) {
-  // `fontSize: '0.65em'` was here, which React Native ignored -- so ruby
-  // drew at the size of the text it annotates. Half, now, against the size
-  // `Text` published.
-  const base = useContext(TextSize)
-  return (
-    <Text
-      style={[{ fontSize: relative(TEXT_SIZE_RATIOS.rubyText, base), opacity: 0.85 }, style]}
-      accessible={false}
-      aria-hidden={true}
-      {...props}
-    />
-  )
-}
-
 export interface LinkProps extends TypographyNativeProps {
   href: string
   external?: boolean

@@ -379,14 +379,15 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
   {
     name: 'ruby and its reading',
     purpose: 'the annotation is not read twice, and is not read as part of the base text',
-    // `<ruby>` on the Web is one element a screen reader knows how to
-    // announce. React Native has no ruby layout at all, so both halves are
-    // text -- and the reading is marked `aria-hidden` by the component in
-    // `@hozo/typography` rather than by the compiler, which is the gap
-    // this case records.
+    // `<ruby>` on the Web is one element a browser knows how to lay out
+    // and announce. React Native has no ruby layout, and flattens nested
+    // `Text` into one accessibility node -- so the base and the reading
+    // were announced together: 「漢字かんじ」, the word twice. The label is
+    // what stops that, and the compiler writes it when the word is
+    // static, which is most ruby.
     source: '<Ruby>漢字<RubyText>かんじ</RubyText></Ruby>',
     web: ['<ruby>', '<rt>'],
-    native: ['<Text>漢字<Text>かんじ</Text></Text>'],
+    native: ['<Text accessibilityLabel="漢字">漢字<Text>かんじ</Text></Text>'],
   },
 ]
 
