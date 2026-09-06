@@ -21,6 +21,8 @@
   },
   "devDependencies": {
     "@hozo/metro": "workspace:*",
+    "@react-native-community/cli": "20.2.0",
+    "@react-native-community/cli-platform-android": "20.2.0",
     "@react-native/metro-babel-transformer": "^0.87.0",
     "@react-native/metro-config": "^0.87.0",
     "metro": "^0.87.0"
