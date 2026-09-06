@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { transformSync } from '@babel/core'
+import stylexPlugin from '@stylexjs/babel-plugin'
 import { generateStylexManifest } from './stylex-manifest-generate.ts'
 import {
   manifestEntry,
@@ -9,6 +11,22 @@ import {
   stylexSurface,
   stylexVersion,
 } from './stylex-surface.ts'
+
+function officialCss(property: string, value: string): string {
+  const source = `
+    import stylex from '@stylexjs/stylex';
+    export const styles = stylex.create({ base: { ${property}: ${JSON.stringify(value)} } });
+  `
+  const output = transformSync(source, {
+    filename: '/app/stylex-surface.tsx',
+    babelrc: false,
+    configFile: false,
+    parserOpts: { sourceType: 'module', plugins: ['typescript', 'jsx'] },
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  })
+  const metadata = output?.metadata as { stylex?: [string, { ltr: string }, number][] }
+  return (metadata.stylex ?? []).map(([, css]) => css.ltr).join('\n')
+}
 
 test('the checked-in StyleX manifest matches upstream types and Rust lowering arms', () => {
   assert.deepEqual(stylexManifest(), generateStylexManifest())
@@ -235,6 +253,72 @@ test('every mapped property records why it is counted', () => {
   assert.equal(manifestEntry('scrollTimeline')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('viewTimeline')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('backdropFilter')?.basis, 'adapter-candidate')
+})
+
+test('every unmapped property has an explicit reviewed disposition', () => {
+  const entries = stylexManifest().properties.filter(({ status }) => status === 'unmapped')
+  assert.equal(entries.length, 18)
+  assert.deepEqual(
+    entries
+      .filter(({ disposition }) => disposition === 'upstream-rejected')
+      .map(({ name }) => name),
+    [
+      'animation',
+      'background',
+      'border',
+      'borderBlock',
+      'borderBlockEnd',
+      'borderBlockStart',
+      'borderBottom',
+      'borderInline',
+      'borderInlineEnd',
+      'borderInlineStart',
+      'borderLeft',
+      'borderRight',
+      'borderTop',
+    ],
+  )
+  assert.deepEqual(
+    entries.filter(({ disposition }) => disposition === 'descriptor-only').map(({ name }) => name),
+    ['src', 'unicodeRange'],
+  )
+  assert.deepEqual(
+    entries
+      .filter(({ disposition }) => disposition === 'obsolete-or-nonstandard')
+      .map(({ name }) => name),
+    ['behavior', 'theme'],
+  )
+  assert.deepEqual(
+    entries.filter(({ disposition }) => disposition === 'optional-adapter').map(({ name }) => name),
+    ['backdropFilter'],
+  )
+})
+
+test('upstream-rejected shorthands emit no CSS in StyleX default mode', () => {
+  const entries = stylexManifest().properties.filter(
+    ({ disposition }) => disposition === 'upstream-rejected',
+  )
+  for (const { name } of entries) {
+    const value = name === 'animation' ? 'fade 1s' : name === 'background' ? 'red' : '1px solid red'
+    assert.equal(
+      officialCss(name, value),
+      '',
+      `${name} unexpectedly became an upstream declaration`,
+    )
+  }
+})
+
+test('actionable coverage separates compiler work from optional adapters', () => {
+  const surface = stylexSurface()
+  assert.equal(surface.compilerRelevant.size, 504)
+  assert.equal(surface.mappedCompilerRelevant.size, 504)
+  assert.equal(surface.productRelevant.size, 505)
+  assert.equal(surface.mappedProductRelevant.size, 504)
+  assert.equal(surface.nonActionable.size, 17)
+  assert.deepEqual(
+    [...surface.productRelevant].filter((name) => !surface.mapped.has(name)),
+    ['backdropFilter'],
+  )
 })
 
 test('the universal denominator is derived from StyleX and React Native', () => {

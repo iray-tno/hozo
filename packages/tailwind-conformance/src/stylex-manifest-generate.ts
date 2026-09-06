@@ -8,6 +8,13 @@ const require = createRequire(import.meta.url)
 
 export type StylexLane = 'universal' | 'contextual' | 'adapter' | 'web-only'
 export type StylexStatus = 'mapped' | 'unmapped'
+export type StylexDisposition =
+  | 'implemented'
+  | 'compiler-candidate'
+  | 'optional-adapter'
+  | 'upstream-rejected'
+  | 'descriptor-only'
+  | 'obsolete-or-nonstandard'
 export type StylexBasis =
   | 'shared-typed-ir'
   | 'contextual-runtime'
@@ -22,10 +29,11 @@ export interface StylexManifestProperty {
   lane: StylexLane
   status: StylexStatus
   basis: StylexBasis
+  disposition: StylexDisposition
 }
 
 export interface StylexManifest {
-  schemaVersion: 1
+  schemaVersion: 2
   sources: { stylex: string; reactNative: string }
   properties: StylexManifestProperty[]
 }
@@ -55,6 +63,35 @@ const CONTEXTUAL_PROPERTIES = new Set([
 ])
 
 const ADAPTER_PROPERTIES = new Set(['backdropFilter'])
+const COMPILER_CANDIDATE_PROPERTIES = new Set<string>()
+
+// These names are part of StyleX's published TypeScript surface, but its
+// default property-specificity transform deliberately emits no declaration
+// for them. Counting them as Hozo implementation gaps would ask Hozo to
+// diverge from the compiler it is interoperating with.
+const UPSTREAM_REJECTED_PROPERTIES = new Set([
+  'animation',
+  'background',
+  'border',
+  'borderBlock',
+  'borderBlockEnd',
+  'borderBlockStart',
+  'borderBottom',
+  'borderInline',
+  'borderInlineEnd',
+  'borderInlineStart',
+  'borderLeft',
+  'borderRight',
+  'borderTop',
+])
+
+// @font-face descriptors do not have declaration semantics on the ordinary
+// element rules produced by stylex.create.
+const DESCRIPTOR_ONLY_PROPERTIES = new Set(['src', 'unicodeRange'])
+
+// `behavior` is obsolete IE syntax and `theme` is not a standard CSS
+// property. They remain visible in the raw published-type denominator.
+const OBSOLETE_OR_NONSTANDARD_PROPERTIES = new Set(['behavior', 'theme'])
 
 // StyleX also publishes CSS shorthand/legacy spellings that React Native does
 // not expose as style keys. Hozo can still preserve their Native semantics by
@@ -161,6 +198,16 @@ function basisFor(lane: StylexLane, mapped: boolean): StylexBasis {
   return 'exact-web-native-refusal'
 }
 
+function dispositionFor(name: string, mapped: boolean): StylexDisposition {
+  if (mapped) return 'implemented'
+  if (COMPILER_CANDIDATE_PROPERTIES.has(name)) return 'compiler-candidate'
+  if (ADAPTER_PROPERTIES.has(name)) return 'optional-adapter'
+  if (UPSTREAM_REJECTED_PROPERTIES.has(name)) return 'upstream-rejected'
+  if (DESCRIPTOR_ONLY_PROPERTIES.has(name)) return 'descriptor-only'
+  if (OBSOLETE_OR_NONSTANDARD_PROPERTIES.has(name)) return 'obsolete-or-nonstandard'
+  throw new Error(`Unmapped StyleX property ${name} has no reviewed disposition`)
+}
+
 export function generateStylexManifest(): StylexManifest {
   const official = officialStylexPropertiesFromTypes()
   const mapped = mappedHozoStylexPropertiesFromRust()
@@ -173,7 +220,7 @@ export function generateStylexManifest(): StylexManifest {
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     sources: {
       stylex: packageVersion(path.join(stylexDir(), 'package.json')),
       reactNative: reactNativeVersion(),
@@ -186,6 +233,7 @@ export function generateStylexManifest(): StylexManifest {
         lane,
         status: isMapped ? 'mapped' : 'unmapped',
         basis: basisFor(lane, isMapped),
+        disposition: dispositionFor(name, isMapped),
       }
     }),
   }

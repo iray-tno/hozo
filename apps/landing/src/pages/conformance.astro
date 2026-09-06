@@ -114,15 +114,15 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
               <span class="text-[10px] px-2 py-0.5 rounded bg-pink-500/10 text-pink-300 border border-pink-500/20">Universal Subsets</span>
             </div>
             <div class="text-3xl sm:text-4xl font-extrabold text-white mb-1">
-              {pct(snapshot.stylex.mappedNative, snapshot.stylex.nativeProperties)}
+              {pct(snapshot.stylex.mappedProductRelevant, snapshot.stylex.productRelevantProperties)}
             </div>
-            <div class="text-xs text-slate-400 mb-4">Universal Native Properties</div>
+            <div class="text-xs text-slate-400 mb-4">Actionable Product Surface</div>
             <p class="text-xs text-slate-300 leading-relaxed">
-              All <strong>{snapshot.stylex.mappedNative}/{snapshot.stylex.nativeProperties}</strong> cross-platform StyleX properties mapped to native Fabric styles, plus <strong>{snapshot.stylex.mappedWebOnly}</strong> Web-only styles.
+              <strong>{snapshot.stylex.mappedCompilerRelevant}/{snapshot.stylex.compilerRelevantProperties}</strong> compiler-relevant names are mapped; only one optional adapter remains.
             </p>
           </div>
           <div class="mt-4 pt-4 border-t border-white/5 text-[11px] text-pink-300/80">
-            &check; {snapshot.stylex.mapped} total properties mapped
+            &check; Raw published-type coverage remains {snapshot.stylex.mapped}/{snapshot.stylex.properties}
           </div>
         </div>
 
@@ -344,7 +344,20 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+          <div class="p-5 rounded-xl glass-panel">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono text-slate-400">Compiler-Relevant</span>
+              <span class="text-xs font-mono font-bold text-pink-400">100%</span>
+            </div>
+            <div class="text-2xl font-bold text-white mb-1">
+              {snapshot.stylex.mappedCompilerRelevant} / {snapshot.stylex.compilerRelevantProperties}
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Ordinary declaration names, excluding optional adapters and upstream non-declarations.
+            </p>
+          </div>
+
           <div class="p-5 rounded-xl glass-panel">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-mono text-slate-400">Universal Properties</span>

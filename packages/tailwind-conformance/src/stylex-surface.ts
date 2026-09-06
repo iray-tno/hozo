@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs'
 
 import type {
+  StylexDisposition,
   StylexLane,
   StylexManifest,
   StylexManifestProperty,
@@ -46,6 +47,15 @@ function propertiesIn(lane: StylexLane, mappedOnly = false): Set<string> {
   )
 }
 
+function propertiesWithDisposition(...dispositions: StylexDisposition[]): Set<string> {
+  const accepted = new Set(dispositions)
+  return new Set(
+    stylexManifest()
+      .properties.filter(({ disposition }) => accepted.has(disposition))
+      .map(({ name }) => name),
+  )
+}
+
 export interface StylexSurface {
   official: Set<string>
   native: Set<string>
@@ -58,6 +68,11 @@ export interface StylexSurface {
   mappedAdapter: Set<string>
   webOnly: Set<string>
   mappedWebOnly: Set<string>
+  compilerRelevant: Set<string>
+  mappedCompilerRelevant: Set<string>
+  productRelevant: Set<string>
+  mappedProductRelevant: Set<string>
+  nonActionable: Set<string>
 }
 
 export function stylexSurface(): StylexSurface {
@@ -65,6 +80,14 @@ export function stylexSurface(): StylexSurface {
   const mapped = mappedHozoStylexProperties()
   const native = propertiesIn('universal')
   const mappedNative = propertiesIn('universal', true)
+  const adapter = propertiesIn('adapter')
+  const nonActionable = propertiesWithDisposition(
+    'upstream-rejected',
+    'descriptor-only',
+    'obsolete-or-nonstandard',
+  )
+  const productRelevant = new Set([...official].filter((name) => !nonActionable.has(name)))
+  const compilerRelevant = new Set([...productRelevant].filter((name) => !adapter.has(name)))
   return {
     official,
     native,
@@ -73,10 +96,15 @@ export function stylexSurface(): StylexSurface {
     missingNative: new Set([...native].filter((name) => !mappedNative.has(name))),
     contextual: propertiesIn('contextual'),
     mappedContextual: propertiesIn('contextual', true),
-    adapter: propertiesIn('adapter'),
+    adapter,
     mappedAdapter: propertiesIn('adapter', true),
     webOnly: propertiesIn('web-only'),
     mappedWebOnly: propertiesIn('web-only', true),
+    compilerRelevant,
+    mappedCompilerRelevant: new Set([...compilerRelevant].filter((name) => mapped.has(name))),
+    productRelevant,
+    mappedProductRelevant: new Set([...productRelevant].filter((name) => mapped.has(name))),
+    nonActionable,
   }
 }
 

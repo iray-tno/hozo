@@ -18,6 +18,16 @@ property-name denominator and its intersection with React Native's published
 style keys. The numerator is read from the Rust frontend's lowering arms, so a
 new mapping cannot be added without moving the snapshot.
 
+The raw published-type ratio stays visible, but it is not treated as an
+implementation backlog. StyleX 0.19 publishes 522 names; 13 shorthands emit no
+CSS in its default property-specificity mode, two are `@font-face`-only
+descriptors, and two are obsolete or non-standard. The reviewed
+compiler-relevant surface is therefore 504/504. Including optional platform
+adapters produces a product-relevant score of 504/505, with `backdropFilter`
+as the one remaining adapter candidate. Each unmapped name has a checked-in
+disposition, and manifest generation fails when an upstream update introduces
+an unreviewed gap.
+
 This is intentionally called a **property-name upper bound**. One mapped name
 does not imply every value is accepted, and it says nothing about StyleX APIs
 such as themes, keyframes, or unsupported nested conditions. A separate
