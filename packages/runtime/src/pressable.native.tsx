@@ -79,12 +79,17 @@ const transformRank = (key: string) =>
 
 function transformTargets(style: StyleProp<ViewStyle>): TransformTarget[] {
   const merged = new Map<string, TransformTarget>()
-  const visit = (part: any) => {
+  const visit = (part: StyleProp<ViewStyle>) => {
     if (!part) return
     if (Array.isArray(part)) return part.forEach(visit)
-    const transform = StyleSheet.flatten(part)?.transform as any[] | undefined
+    const transform = StyleSheet.flatten(part)?.transform
+    // React Native also accepts a CSS transform string, which has no
+    // entries to read. Nothing here can animate one, and the `as any[]`
+    // that used to stand here let it reach `Object.entries` and come back
+    // with a key of `'0'`.
+    if (typeof transform === 'string') return
     for (const entry of transform || []) {
-      const [key, raw] = Object.entries(entry)[0] || []
+      const [key, raw] = Object.entries(entry as Record<string, unknown>)[0] || []
       if (!key) continue
       if (key === 'scale' && typeof raw === 'number') {
         merged.set('scaleX', { key: 'scaleX', value: raw, degrees: false })

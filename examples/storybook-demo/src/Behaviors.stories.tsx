@@ -70,6 +70,8 @@ function BehaviorsShowcase() {
           <View className="mt-2 space-y-1 rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700">
             <Text className="font-bold text-slate-900">Recent Announcements Log:</Text>
             {log.map((entry, i) => (
+              // A log, appended to and never reordered. The index is the line number.
+              // biome-ignore lint/suspicious/noArrayIndexKey: an append-only log
               <Text key={i} className="block text-slate-600">
                 {entry}
               </Text>

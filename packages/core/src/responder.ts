@@ -256,6 +256,11 @@ export function useResponderDomProps<T extends HTMLElement>(
 ) {
   const propsRef = useRef(props)
   propsRef.current = props
+  // `enabled` is not read in the effect and is not there for that: the
+  // cleanup is the body, and it has to run when a responder is turned off
+  // rather than only when it unmounts. Dropping the dependency leaves a
+  // disabled element holding the pointer capture.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: turning it off has to release
   useEffect(() => () => releaseRegistration(propsRef), [enabled])
   return createResponderDomProps(elementRef, propsRef, enabled)
 }

@@ -81,6 +81,12 @@ export function HozoTabs({
       >
         {tabs.map((tab, at) => (
           <button
+            // Identified by position and nothing else: `defaultIndex`,
+            // `onKeyDown(event, at)` and the roving `tabIndex` are all indices. A key
+            // derived from anything else would be a second identity disagreeing with
+            // the first -- which is the bug `option-key.ts` fixes for the two
+            // components that select by value instead.
+            // biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
             key={`tab-${at}`}
             ref={(node) => {
               refs.current[at] = node
@@ -103,6 +109,12 @@ export function HozoTabs({
       </div>
       {tabs.map((tab, at) => (
         <div
+          // Identified by position and nothing else: `defaultIndex`,
+          // `onKeyDown(event, at)` and the roving `tabIndex` are all indices. A key
+          // derived from anything else would be a second identity disagreeing with
+          // the first -- which is the bug `option-key.ts` fixes for the two
+          // components that select by value instead.
+          // biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
           key={`panel-${at}`}
           role="tabpanel"
           id={`${base}-panel-${at}`}

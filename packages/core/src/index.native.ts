@@ -97,6 +97,10 @@ export {
   HozoToolbar,
   type HozoToolbarItem as ToolbarItem,
   type HozoToolbarItem,
+  // What a toolbar item's `render` is handed. It was the one prop type
+  // in this package a caller could be given and could not name.
+  type HozoToolbarItemProps as ToolbarItemProps,
+  type HozoToolbarItemProps,
   type HozoToolbarProps as ToolbarProps,
   type HozoToolbarProps,
 } from './toolbar.native.tsx'

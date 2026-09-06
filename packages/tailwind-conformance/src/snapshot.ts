@@ -188,7 +188,7 @@ export interface Change {
  */
 export function finish(check: boolean): void {
   reportTimings()
-  const current = JSON.stringify(sections, null, 2) + '\n'
+  const current = `${JSON.stringify(sections, null, 2)}\n`
   if (!check) {
     // The failure this whole file exists to prevent, in its own image: if
     // `--check` were ever dropped on the way to this script -- a task

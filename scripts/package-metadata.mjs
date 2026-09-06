@@ -252,7 +252,7 @@ export function applyMetadata(name) {
       if (range.startsWith('workspace:')) merged[field][dep] = 'workspace:^'
     }
   }
-  return { file, text: JSON.stringify(ordered(merged), null, 2) + '\n' }
+  return { file, text: `${JSON.stringify(ordered(merged), null, 2)}\n` }
 }
 
 if (import.meta.filename === process.argv[1]) {

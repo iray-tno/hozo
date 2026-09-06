@@ -332,9 +332,8 @@ export function lowerModule(
   // the Native backend's hooks; this is the Web half of that contract.
   const runtimeImports = [...new Set(components.flatMap((component) => component.runtimeImports))]
   if (runtimeImports.length > 0) {
-    next =
-      `import { ${runtimeImports.sort().join(', ')} } from '@hozo/runtime'
-` + next
+    next = `import { ${runtimeImports.sort().join(', ')} } from '@hozo/runtime'
+${next}`
   }
 
   const isDerivedModule = id.includes('?')

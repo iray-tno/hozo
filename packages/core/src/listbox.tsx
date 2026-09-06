@@ -7,8 +7,18 @@ import {
   searchIndex,
 } from '@hozo/behaviors'
 import { type KeyboardEvent, type ReactNode, useCallback, useRef, useState } from 'react'
+import { optionKey } from './option-key.ts'
 
 export interface HozoListboxOption<T> {
+  /**
+   * An identity of the caller's own, when the value has none.
+   *
+   * Options are keyed by their value, which is how they are selected.
+   * That works for a string or a number and not for an object, and not
+   * for two options that genuinely share a value -- this is the way out
+   * of both.
+   */
+  id?: string
   value: T
   label: string
   render?: ReactNode
@@ -148,7 +158,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
     >
       {options.map((option, at) => (
         <div
-          key={`option-${at}`}
+          key={optionKey(option.value, option.id, at)}
           ref={(node) => {
             refs.current[at] = node
           }}

@@ -1,7 +1,17 @@
 import { type ReactNode, useCallback, useState } from 'react'
 import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import { optionKey } from './option-key.ts'
 
 export interface HozoRadioOption<T> {
+  /**
+   * An identity of the caller's own, when the value has none.
+   *
+   * Options are keyed by their value, which is how they are selected.
+   * That works for a string or a number and not for an object, and not
+   * for two options that genuinely share a value -- this is the way out
+   * of both.
+   */
+  id?: string
   value: T
   label: ReactNode
   disabled?: boolean
@@ -43,7 +53,7 @@ export function HozoRadioGroup<T>({
     <View accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel} style={style}>
       {options.map((option, at) => (
         <Pressable
-          key={`radio-${at}`}
+          key={optionKey(option.value, option.id, at)}
           accessibilityRole="radio"
           accessibilityState={{ checked: option.value === current, disabled: option.disabled }}
           style={optionStyle}

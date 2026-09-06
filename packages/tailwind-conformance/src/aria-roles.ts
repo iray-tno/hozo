@@ -275,8 +275,7 @@ function interactive(
 }
 
 export function compareAriaRole(testCase: AriaRoleCase): AriaRoleResult {
-  const source =
-    `import { View } from '@hozo/core'\n` + `export function C() { return (${testCase.source}) }\n`
+  const source = `import { View } from '@hozo/core'\nexport function C() { return (${testCase.source}) }\n`
   const codes = [
     ...(compile(source)[0]?.diagnostics ?? []),
     ...(compileNative(source)[0]?.diagnostics ?? []),

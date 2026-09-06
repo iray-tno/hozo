@@ -244,7 +244,7 @@ server.listen(0, () => {
           `[a11y] ${stories} stories, no new violations` +
             (held > 0
               ? ` (${held} held against ${Object.values(KNOWN)
-                  .map((n) => '#' + n)
+                  .map((n) => `#${n}`)
                   .join(', ')})`
               : ''),
         )

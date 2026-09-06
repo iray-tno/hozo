@@ -26,7 +26,7 @@ test('a plain React Native file compiles', () => {
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.
-  const source = "import { View } from 'some-ui-kit'\n" + card
+  const source = `import { View } from 'some-ui-kit'\n${card}`
   assert.equal(lowerModule(source, 'Card.tsx', 'Card.tsx', compiler, ROOT), undefined)
 })
 
@@ -75,7 +75,7 @@ test('the same name resolves differently in the same file', () => {
 test('a project can add its own module to the trusted list', () => {
   // The re-export case: a design system wrapping the primitives it
   // re-exports is still handing Hozo the components it knows.
-  const source = "import { View } from './ui'\n" + card
+  const source = `import { View } from './ui'\n${card}`
   assert.equal(lowerModule(source, 'Card.tsx', 'Card.tsx', compiler, ROOT), undefined)
 
   const withUi = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES, './ui'])

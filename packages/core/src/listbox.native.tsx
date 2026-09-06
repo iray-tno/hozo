@@ -1,7 +1,17 @@
 import { type ReactNode, useCallback, useState } from 'react'
 import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import { optionKey } from './option-key.ts'
 
 export interface HozoListboxOption<T> {
+  /**
+   * An identity of the caller's own, when the value has none.
+   *
+   * Options are keyed by their value, which is how they are selected.
+   * That works for a string or a number and not for an object, and not
+   * for two options that genuinely share a value -- this is the way out
+   * of both.
+   */
+  id?: string
   value: T
   label: string
   render?: ReactNode
@@ -78,7 +88,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
     >
       {options.map((option, at) => (
         <Pressable
-          key={`option-${at}`}
+          key={optionKey(option.value, option.id, at)}
           accessibilityRole="menuitem"
           accessibilityState={{
             selected: chosen.includes(option.value),

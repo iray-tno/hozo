@@ -59,6 +59,12 @@ export function HozoMenu({
         >
           {items.map((item, at) => (
             <Pressable
+              // Identified by position and nothing else: `defaultIndex`,
+              // `onKeyDown(event, at)` and the roving `tabIndex` are all indices. A key
+              // derived from anything else would be a second identity disagreeing with
+              // the first -- which is the bug `option-key.ts` fixes for the two
+              // components that select by value instead.
+              // biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
               key={`item-${at}`}
               accessibilityRole="menuitem"
               accessibilityState={{ disabled: item.disabled }}

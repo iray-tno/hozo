@@ -90,6 +90,11 @@ export function HozoAnimated({ style, hozoTransition, children, ...props }: Hozo
     previous.current = signature
   }
 
+  // `signature` is read above rather than inside, and it is what says the
+  // style moved -- `hozoTransition` does not change when only the values
+  // do. Without it a style change starts no transition at all, which is
+  // the whole feature. `biome check --unsafe` offers to remove it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: it is what says the style changed
   useEffect(() => {
     if (!hozoTransition) return
     progress.setValue(0)
@@ -109,6 +114,7 @@ export function HozoAnimated({ style, hozoTransition, children, ...props }: Hozo
     return () => animation.stop()
   }, [progress, signature, hozoTransition])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: as above -- `signature` is what changed
   const animated = useMemo(() => {
     if (!hozoTransition) return flat
     const overrides: Record<string, unknown> = {}
