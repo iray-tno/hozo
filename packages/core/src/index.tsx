@@ -5,7 +5,7 @@
 // job is to make invoking these at runtime unnecessary where it can, not
 // to make them required.
 
-import { hozoInteractive } from '@hozo/runtime'
+import { HozoLink, hozoInteractive } from '@hozo/runtime'
 import {
   type AriaRole,
   type CSSProperties,
@@ -663,30 +663,28 @@ export function Button({
   download,
 }: ButtonProps) {
   if (href != null) {
-    const finalTarget = external ? '_blank' : target
-    const finalRel = external || target === '_blank' ? (rel ?? 'noreferrer noopener') : rel
+    // Delegated rather than written out again. The `<a>` this used to
+    // render, the `rel` it derived from `external`, and the pair that
+    // makes a disabled anchor behave, are one implementation now, in
+    // `@hozo/runtime`'s `HozoLink` -- which is also what the compiler
+    // emits for this source on React Native, so both platforms answer
+    // `<Button href>` from the same place.
     return (
-      <a
-        role="button"
+      <HozoLink
+        accessibilityRole="button"
         href={href}
-        target={finalTarget}
-        rel={finalRel}
+        external={external}
+        target={target}
+        rel={rel}
         download={download}
         className={className}
-        aria-label={accessibilityLabel}
-        aria-description={accessibilityHint}
-        aria-disabled={disabled ? true : undefined}
-        data-hozo-disabled={disabled ? '' : undefined}
-        onClick={
-          disabled
-            ? (e) => {
-                e.preventDefault()
-              }
-            : (onPress as MouseEventHandler<HTMLAnchorElement>)
-        }
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
+        disabled={disabled}
+        onPress={onPress as MouseEventHandler<HTMLAnchorElement>}
       >
         {children}
-      </a>
+      </HozoLink>
     )
   }
   return (
