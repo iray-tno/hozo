@@ -82,7 +82,7 @@ export function stylexSurface(): StylexSurface {
   const mappedNative = propertiesIn('universal', true)
   const adapter = propertiesIn('adapter')
   const nonActionable = propertiesWithDisposition(
-    'upstream-rejected',
+    'default-mode-disallowed',
     'descriptor-only',
     'obsolete-or-nonstandard',
   )

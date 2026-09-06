@@ -950,7 +950,7 @@ StyleX 自身が公開する `CSSProperties` と React Native 自身が公開す
 全 CSS 名で 504/522 (96.6%)、両 platform に名前が存在するか、同じ typed IR へ
 正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 21/21
 (100%)、Web-only 集合で 349/366 (95.4%)。公開型のうちStyleX自身が既定modeで
-CSSを生成しない13 shorthand、`@font-face`専用descriptor 2、obsoleteまたは
+意図的に禁止する13 shorthand、`@font-face`専用descriptor 2、obsoleteまたは
 non-standardな2名を別分類すると、compiler-relevant surfaceは504/504 (100%)。
 optional adapterも含むproduct surfaceは504/505 (99.8%)で、残りは
 `backdropFilter` adapter候補1件だけである。

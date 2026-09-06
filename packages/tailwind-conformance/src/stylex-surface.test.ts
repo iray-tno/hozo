@@ -260,7 +260,7 @@ test('every unmapped property has an explicit reviewed disposition', () => {
   assert.equal(entries.length, 18)
   assert.deepEqual(
     entries
-      .filter(({ disposition }) => disposition === 'upstream-rejected')
+      .filter(({ disposition }) => disposition === 'default-mode-disallowed')
       .map(({ name }) => name),
     [
       'animation',
@@ -294,9 +294,9 @@ test('every unmapped property has an explicit reviewed disposition', () => {
   )
 })
 
-test('upstream-rejected shorthands emit no CSS in StyleX default mode', () => {
+test('default-mode-disallowed shorthands emit no CSS in StyleX default mode', () => {
   const entries = stylexManifest().properties.filter(
-    ({ disposition }) => disposition === 'upstream-rejected',
+    ({ disposition }) => disposition === 'default-mode-disallowed',
   )
   for (const { name } of entries) {
     const value = name === 'animation' ? 'fade 1s' : name === 'background' ? 'red' : '1px solid red'

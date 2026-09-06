@@ -143,7 +143,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "animationComposition",
@@ -276,7 +276,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "backgroundAttachment",
@@ -381,14 +381,14 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderBlock",
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderBlockColor",
@@ -402,7 +402,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderBlockEndColor",
@@ -430,7 +430,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderBlockStartColor",
@@ -472,7 +472,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderBottomColor",
@@ -584,7 +584,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderInlineColor",
@@ -598,7 +598,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderInlineEndColor",
@@ -626,7 +626,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderInlineStartColor",
@@ -668,7 +668,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderLeftColor",
@@ -703,7 +703,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderRightColor",
@@ -759,7 +759,7 @@
       "lane": "web-only",
       "status": "unmapped",
       "basis": "not-yet-lowered",
-      "disposition": "upstream-rejected"
+      "disposition": "default-mode-disallowed"
     },
     {
       "name": "borderTopColor",
