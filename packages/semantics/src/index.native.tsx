@@ -1,4 +1,5 @@
-import React, { type ReactNode } from 'react'
+import { HozoDetails, HozoSummary } from '@hozo/runtime'
+import React, { type ComponentProps, type ReactNode } from 'react'
 // The components rather than their names. These files used to render
 // `React.createElement('View')`, and React Native resolves a string tag
 // through its view config registry, where the registered names are
@@ -9,7 +10,6 @@ import React, { type ReactNode } from 'react'
 // half through `react-dom/server`.
 import {
   type AccessibilityRole,
-  Pressable,
   type Role,
   type StyleProp,
   Text,
@@ -126,47 +126,62 @@ export interface DetailsNativeProps extends SemanticsNativeProps {
   onToggle?: (open: boolean) => void
 }
 
-const DetailsContext = React.createContext<{
-  open: boolean
-  toggle: () => void
-}>({ open: false, toggle: () => {} })
+/**
+ * The disclosure the Native backend emits, under the names this package
+ * publishes.
+ *
+ * One implementation rather than two. The pair in `@hozo/behaviors` is
+ * what a compiled `<Details>` becomes, and this one used to be a second
+ * disclosure beside it -- with the same bug the compiled path had, which
+ * is how a second implementation goes wrong: it rendered every child
+ * whether it was open or not, so the body never actually hid.
+ */
+/**
+ * The one place a Native style has to be handed over as if it were a Web
+ * one, and it is a resolver's limit rather than a claim about the value.
+ *
+ * A package resolves `@hozo/runtime`'s types through the Web entry
+ * whichever platform it is building for, because `exports` carries a
+ * single `types` and this package compiles both halves in one `tsc` run.
+ * So `HozoDetails` is seen with `style?: CSSProperties` here while the
+ * module Metro loads takes `StyleProp<ViewStyle>` -- the same component,
+ * read through the wrong declaration file.
+ *
+ * The alternative was a second disclosure in this file, which is what
+ * used to be here: it rendered every child whether it was open or not, so
+ * the body never hid. A cast at a known boundary beats a copy that drifts.
+ */
+const asWeb = (style: DetailsNativeProps['style']) =>
+  style as unknown as ComponentProps<typeof HozoDetails>['style']
 
 export function Details({
-  open: controlledOpen,
-  defaultOpen = false,
+  open,
+  defaultOpen,
   onToggle,
   children,
+  style,
   ...props
 }: DetailsNativeProps) {
-  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
-  const isOpen = controlledOpen ?? uncontrolledOpen
-  const toggle = React.useCallback(() => {
-    const next = !isOpen
-    setUncontrolledOpen(next)
-    onToggle?.(next)
-  }, [isOpen, onToggle])
-
-  return React.createElement(
-    DetailsContext.Provider,
-    { value: { open: isOpen, toggle } },
-    React.createElement(View, props, children),
+  return (
+    <HozoDetails
+      open={open}
+      defaultOpen={defaultOpen}
+      onToggle={onToggle}
+      style={asWeb(style)}
+      {...props}
+    >
+      {children}
+    </HozoDetails>
   )
 }
 
-export function Summary({ children, ...props }: SemanticsNativeProps) {
-  const { open, toggle } = React.useContext(DetailsContext)
-  return React.createElement(
-    Pressable,
-    {
-      accessibilityRole: 'button',
-      accessibilityState: { expanded: open },
-      onPress: toggle,
-      ...props,
-    },
-    children,
+export function Summary({ children, style, ...props }: SemanticsNativeProps) {
+  return (
+    <HozoSummary style={asWeb(style)} {...props}>
+      {children}
+    </HozoSummary>
   )
 }
-
 export function Term({ style, ...props }: SemanticsTextNativeProps) {
   return React.createElement(Text, { style: [{ fontWeight: 'bold' }, style], ...props })
 }

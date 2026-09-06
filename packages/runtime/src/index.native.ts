@@ -17,8 +17,12 @@
 export {
   Dialog,
   type DialogProps,
+  HozoDetails,
+  type HozoDetailsProps,
   HozoDialog,
   type HozoDialogProps,
+  HozoSummary,
+  type HozoSummaryProps,
 } from '@hozo/behaviors'
 export type { BreakpointName, Viewport } from './ambient.ts'
 export {

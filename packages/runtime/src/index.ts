@@ -96,8 +96,12 @@ export function createClassResolver(
 export {
   Dialog,
   type DialogProps,
+  HozoDetails,
+  type HozoDetailsProps,
   HozoDialog,
   type HozoDialogProps,
+  HozoSummary,
+  type HozoSummaryProps,
 } from '@hozo/behaviors'
 export { hozoActivateKeyDown, hozoActivateKeyUp } from './activate.ts'
 export { hozoInteractive } from './interactive.ts'

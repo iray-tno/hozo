@@ -965,6 +965,13 @@ pub(super) fn render_node(
     if let Some(open) = &node.props.open {
         props_text.push_str(&format!(" open={{{}}}", render_condition_expr(source, open)));
     }
+    if matches!(node.primitive, Primitive::Details | Primitive::Summary) {
+        runtime.need_component(if node.primitive == Primitive::Details {
+            "HozoDetails"
+        } else {
+            "HozoSummary"
+        });
+    }
     if node.primitive == Primitive::Dialog {
         // The behaviour lives in `@hozo/behaviors`; the compiler only lowers
         // the styles and checks the props.
