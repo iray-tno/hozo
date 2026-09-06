@@ -1,93 +1,64 @@
 # @hozo/tailwind-conformance
 
-Differential test against the real Tailwind engine. For each candidate utility it compiles the class both ways — through the actual `tailwindcss` package and through Hozo — and compares the results.
+Automated differential test suite comparing Hozo against upstream oracles (Tailwind CSS, React Native Fabric, StyleX, and W3C ARIA specifications).
 
-## Two denominators
+> **Live Conformance Matrix**: The latest verified measurements from CI are published directly on the web at [`/conformance/`](https://iray-tno.github.io/hozo/conformance/).
 
-It measures against two lists, and they say different things.
+For each candidate utility, component, and property, it compiles both ways — through the actual upstream package (`tailwindcss`, `@stylexjs/stylex`, React Native type checkers, `aria-query`) and through Hozo — and diffs the results with zero silent tolerances.
 
-**Curated** (`candidates.ts`, 120 utilities) — a hand-picked slice of what real app code uses. Good for "does the common path work", useless as a claim about Tailwind coverage: we chose it, and we chose it knowing what Hozo implements.
+## Two Denominators
 
-**Full catalogue** (`catalog.ts`) — every class Tailwind's own design system can generate, asked for through `__unstable__loadDesignSystem().getClassList()`, the entry point the official IntelliSense extension uses. Nothing in it is our choice. Entries Tailwind itself produces no standalone CSS for (a gradient stop with no gradient, a negative form of something that takes none) leave the denominator, and Tailwind decides that too.
+It measures Tailwind lowering against two lists, and they say different things:
 
-## StyleX property surface
+- **Curated** (`candidates.ts`, 120 utilities) — a hand-picked slice of what real app code uses. Good for "does the common path work", useless as an unbounded claim about Tailwind coverage: we chose it, and we chose it knowing what Hozo implements.
+- **Full catalogue** (`catalog.ts`) — every class Tailwind's own design system can generate, asked for through `__unstable__loadDesignSystem().getClassList()`, the entry point the official IntelliSense extension uses. Nothing in it is our choice. Entries Tailwind itself produces no standalone CSS for (a gradient stop with no gradient, a negative form of something that takes none) leave the denominator, and Tailwind decides that too.
 
-The report also measures the experimental StyleX frontend against StyleX's
-published `CSSProperties` declaration. It prints both the complete CSS
-property-name denominator and its intersection with React Native's published
-style keys. The numerator is read from the Rust frontend's lowering arms, so a
-new mapping cannot be added without moving the snapshot.
+## Report Sections
 
-The raw published-type ratio stays visible, but it is not treated as an
-implementation backlog. StyleX 0.19 publishes 522 names; 13 shorthands emit no
-CSS because they are deliberately disallowed in its default
-property-specificity mode, two are `@font-face`-only
-descriptors, and two are obsolete or non-standard. The reviewed
-compiler-relevant surface is therefore 504/504. Including optional platform
-adapters produces a product-relevant score of 504/505, with `backdropFilter`
-as the one remaining adapter candidate. Each unmapped name has a checked-in
-disposition, and manifest generation fails when an upstream update introduces
-an unreviewed gap.
+The conformance audit measures five key cross-platform dimensions:
 
-This is intentionally called a **property-name upper bound**. One mapped name
-does not imply every value is accepted, and it says nothing about StyleX APIs
-such as themes, keyframes, or unsupported nested conditions. A separate
-executable construct scorecard covers the supported syntax, including
-resolver-bound cross-file sheets.
+### 1. Web Lowering
+- **Coverage & Fidelity**: Compares normalized declarations against Tailwind CSS output.
+- Every class must match the exact property name, canonical value, and rule cascade order. Zero mismatches permitted.
 
-Read the full percentage with its shape in mind: value expansion dominates it. `mask-*` alone is over a quarter of the catalogue, and covering `bg-blue-500` and `bg-blue-600` is one code path counted twice. The per-namespace table is the actionable view — which families Hozo handles, which it doesn't, and where it emits something *wrong*.
+### 2. Native Lowering
+- **Coverage**: Measures whether utilities lower to real React Native StyleSheet properties and Fabric primitives on `View` and `Text`.
+- Categorized into:
+  - `COVERED`: Lowers faithfully to a valid native style or prop.
+  - `REFUSED`: Raises a build-stopping error naming the utility and reason (e.g. `content`, `outline`, multiple `boxShadow` offsets).
+  - `NO-OP`: Deliberately emitted as empty where React Native already exhibits the behavior by default (e.g. `box-border` in Yoga).
+  - `SILENT`: Compiles to nothing without a diagnostic. **Guaranteed to be 0.**
 
-## Sections
+### 3. StyleX Surface & Practical Scorecard
+- **Property Surface Mapping**: Audits against StyleX's published `CSSProperties` type denominator (522 property names). StyleX 0.19 publishes 522 names; 13 shorthands emit no CSS because they are deliberately disallowed in its default property-specificity mode, two are `@font-face`-only descriptors, and two are obsolete or non-standard. The reviewed compiler-relevant surface is 504/504 (or 504/505 including optional platform adapters like `backdropFilter`).
+- **Practical Scorecard**: Measures real executable fixtures across Card, Typography, Input, Scroll, Motion, Grid, and Border scenarios. Validates that Web output agrees with the official StyleX Babel plugin and Native either lowers or triggers explicit Web-only diagnostics.
 
-The report has three sections, measuring different things:
+### 4. Accessibility & ARIA Invariants
+- **Role Validation**: Validates all roles against the machine-readable W3C ARIA specification (`aria-query`). Verifies 113 valid roles (83 static, 30 interactive) with 0 false positives.
+- **A11y Contracts**: Confirms that all semantic primitives enforce required accessible properties (e.g. `href` on links, `alt` on images) and report incomplete patterns.
 
-**Web** — coverage *and* fidelity, because Tailwind is the oracle.
+### 5. Compiler Diagnostics & RNW-Free Audit
+- **Diagnostic Coverage**: Audits declared compiler diagnostics across the pipeline, ensuring each diagnostic has real test fixtures and no dead or silent codes.
+- **React Native Web-Free**: Asserts that all semantic primitives and responder bridges lower to pure HTML5/DOM and CSS without importing or depending on `react-native-web`.
 
-**Native** — coverage only. Tailwind exists as CSS, so it can't say what `p-4` "should" be in React Native; there's nothing to diff against. What it can measure is what Hozo does with each utility, split three ways:
+## Commands
 
-| | meaning |
-|---|---|
-| `COVERED` | lowers to a real RN style — or prop, since RN expresses some CSS concepts that way |
-| `REFUSED` | raises a build-stopping error naming the utility — a known gap |
-| `SILENT` | compiles to nothing, and nothing says so |
-
-Each candidate is tried on both `View` and `Text` and counts as covered if either works, because whether a utility lowers can depend on the primitive: truncation becomes `numberOfLines`, which only exists on `Text`. The question being answered is "can this be used on Native at all", not "does it work on a View".
-
-That rule would hide something on its own, so anything covered on some primitives but not others is also listed separately as **restricted**. Writing one of those on the wrong element is still a build error, and a bare coverage number would quietly imply otherwise.
-
-That third category is the point of the split. A refusal is a supportable answer; disappearing quietly is the failure mode this project keeps trying to avoid, so the two aren't lumped together as "unsupported". A `SILENT` entry isn't automatically a bug — `whitespace-normal` is one, because RN's Text already wraps — but each one should be a decision someone made, not an oversight.
-
-A refusal outranks partial output: `truncate`'s `overflow` lowers fine while its `text-overflow` can't, and since the error stops the build, calling it "covered" would claim a build that actually fails.
-
-Because Web fidelity is measured against Tailwind alone, a React Native limitation is never a valid reason to accept a Web mismatch — Native isn't what that section measures.
-
-```
-pnpm --filter @hozo/compiler build:native   # the report needs the native addon
-pnpm --filter @hozo/tailwind-conformance report
-pnpm --filter @hozo/tailwind-conformance test   # the normalizer's own tests
+```sh
+pnpm --filter @hozo/compiler build:native       # rebuild Rust addon first
+pnpm --filter @hozo/tailwind-conformance report # run full differential audit
+pnpm --filter @hozo/tailwind-conformance test   # fast unit & snapshot tests
 ```
 
-## StyleX compile benchmark
+### StyleX Compile Benchmark
 
-Property-family changes can be compared on the same machine and runtime. The
-benchmark reuses one compiler, warms it up, then reports the median cost of one
-Web plus Native compile pair. Record `main`, then compare the branch; a slowdown
-greater than 5% exits non-zero. The corpus hash prevents unlike runs from being
-compared.
+Property-family changes can be benchmarked on the same machine and runtime. The benchmark warms up the compiler and measures median compile time for Web and Native pairs. Slowdowns greater than 5% exit non-zero:
 
-```
+```sh
 pnpm --filter @hozo/tailwind-conformance benchmark:stylex --output stylex-main.json
 pnpm --filter @hozo/tailwind-conformance benchmark:stylex --compare stylex-main.json
 ```
 
-## The two numbers
-
-- **Coverage** — of the candidates Tailwind produces a rule for, how many Hozo emits *something* for. A gap here is unimplemented surface, not a bug.
-- **Fidelity** — of those, how many match Tailwind's meaning exactly. A gap here *is* a bug: the class is accepted but compiles to the wrong thing, which is worse than not supporting it.
-
-Both are measured against `src/candidates.ts` — a representative slice of what real app code uses, not all of Tailwind (which is unbounded once arbitrary values count). The denominator is a judgement call, so the number is only meaningful alongside that list.
-
-## Why a normalizer
+## Why a Normalizer
 
 The two sides constantly differ without disagreeing:
 
@@ -98,17 +69,13 @@ The two sides constantly differ without disagreeing:
 | `background-color: var(--color-blue-500)` | `background-color: oklch(…)` |
 | `line-height: calc(1.75 / 1.25)` | `line-height: 28px` |
 
-So `normalize.ts` resolves custom properties, folds `calc()`, converts rem→px, expands shorthands to longhands, and canonicalizes value spelling — then the two are compared as declaration maps.
-
-**It refuses to guess.** Anything it can't confidently resolve is reported `SKIPPED` rather than counted as a match or a mismatch, because a normalizer that quietly mis-resolves would manufacture both. `normalize.test.ts` pins that behavior directly; it's the load-bearing part of the whole comparison, and if it's wrong every number here is wrong.
+`normalize.ts` resolves custom properties, folds `calc()`, converts rem→px, expands shorthands to longhands, and canonicalizes value spelling. Anything that cannot be resolved with certainty is reported as `SKIPPED` rather than guessed, preventing manufactured matches or mismatches.
 
 ## Verdicts
 
-| | meaning |
+| Verdict | Meaning |
 |---|---|
-| `MATCH` | normalized declarations are identical |
-| `MISMATCH` | both emit, and they disagree — a fidelity bug |
-| `UNSUPPORTED` | Hozo emits nothing — a coverage gap |
-| `SKIPPED` | one side couldn't be normalized; no claim made |
-
-`compare.ts` also has an accepted-differences list for deliberate, permanent divergences. It's currently empty, and the bar for adding to it is high: its one former entry (`rounded-full`) turned out to be excused by a Native constraint in a Web-only comparison, which is exactly the kind of reasoning an allowlist makes easy to smuggle in. The fix was to model the difference properly — `Radius::Full` lets Web emit Tailwind's exact `calc(infinity * 1px)` while Native falls back to a finite value — not to keep waving it through.
+| `MATCH` | Normalized declarations are identical |
+| `MISMATCH` | Both emit, and they disagree — a fidelity bug |
+| `UNSUPPORTED` | Hozo emits nothing — an explicit coverage gap |
+| `SKIPPED` | One side could not be normalized; no claim made |

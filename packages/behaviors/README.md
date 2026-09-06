@@ -2,7 +2,7 @@
 
 Universal headless runtime behaviors and positioning primitives for Hozo.
 
-These primitives provide the essential interaction mechanics — focus management, outside click handling, keyboard navigation, collision-aware floating positioning, and hover delay groups — on both Web and React Native.
+These primitives provide the essential interaction mechanics — focus management, outside click handling, keyboard navigation, collision-aware floating positioning, disclosure states, phonetic reading control, and hover delay groups — on both Web and React Native.
 
 ## Included Behaviors
 
@@ -14,18 +14,23 @@ These primitives provide the essential interaction mechanics — focus managemen
 
 ### 2. Focus & Keyboard Management
 - **`FocusScope`**: Universal focus containment (tab trapping), initial auto-focus target resolution, and focus restoration to opener element on unmount.
-- **`RovingFocus`**: WAI-ARIA roving `tabIndex` manager for toolbars, menus, tablists, radio groups, and tree views, supporting horizontal/vertical orientations and wrap-around.
-- **`Typeahead`**: Predictive keyboard navigation matching query prefixes with loop prevention and reset timeout.
+- **`RovingFocusGroup` / `useRovingItem`**: WAI-ARIA roving `tabIndex` manager for toolbars, menus, tablists, radio groups, and tree views, supporting horizontal/vertical orientations and wrap-around.
+- **`useTypeahead`**: Predictive keyboard navigation matching query prefixes with loop prevention and reset timeout.
 
 ### 3. Layers, Portals & Dismissals
 - **`DismissableLayer`**: Outside pointerdown/press dismissal and Escape key handling with proper nested stacking order.
-- **`Portal`**: Universal React Portal rendering across Web DOM (`document.body` or custom node) and React Native root hierarchies with sibling `inert` coordination.
+- **`Portal` / `PortalHost` / `PortalProvider`**: Universal React Portal rendering across Web DOM (`document.body` or custom node) and React Native root hierarchies with sibling `inert` coordination.
+- **`Dialog` / `HozoDialog`**: Headless modal dialog coordination handling modal focus isolation, Escape dismissal, body scroll locking, and backdrop tap handling.
 
 ### 4. Floating Anchoring & Positioning
-- **`FloatingPositioner`**: Zero-dependency floating positioning supporting 12 placements, auto-flip, shift overflow boundary constraints, arrow offset clamping, `matchAnchorWidth` for selects, and `referenceHidden` tracking.
+- **`FloatingPositioner` / `useFloatingPosition`**: Zero-dependency floating positioning supporting 12 placements, auto-flip, shift overflow boundary constraints, arrow offset clamping, `matchAnchorWidth` for selects, and `referenceHidden` tracking.
 
-### 5. Screen Reader Announcements
-- **`LiveRegion`**: Universal polite and assertive screen reader live announcements with queued vocalization.
+### 5. Disclosures & Reading Control
+- **`HozoDetails` / `HozoSummary`**: Headless disclosure logic coordinating open/collapsed expansion state, keyboard triggers (Enter / Space), and `aria-expanded` attributes.
+- **`HozoRuby` / `HozoRubyText`**: Phonetic CJK ruby pronunciation control ensuring visual furigana renders while preventing double-voicing on mobile screen readers (VoiceOver & TalkBack).
+
+### 6. Screen Reader Announcements
+- **`LiveRegion` / `useAnnounce`**: Universal polite and assertive screen reader live announcements with queued vocalization.
 
 ## Usage Example
 

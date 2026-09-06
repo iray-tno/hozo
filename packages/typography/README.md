@@ -1,6 +1,6 @@
 # @hozo/typography
 
-Universal typography, semantic inline formatting, and accessible CJK ruby primitives for Hozo.
+Universal typography, semantic text formatting, relative text scaling, and accessible CJK ruby primitives for Hozo.
 
 ```tsx
 import {
@@ -11,10 +11,16 @@ import {
   Emphasis,
   Underline,
   Strikethrough,
+  Del,
+  Sub,
+  Sup,
   Code,
+  Small,
+  Mark,
   NoBreak,
   Ruby,
-  Rt,
+  RubyText,
+  Link,
 } from '@hozo/typography'
 
 export function ArticlePreview() {
@@ -22,19 +28,43 @@ export function ArticlePreview() {
     <Paragraph>
       <Heading level={2}>
         <Ruby accessibilityLabel="かんじ">
-          漢字<Rt>かんじ</Rt>
+          漢字<RubyText>かんじ</RubyText>
         </Ruby>
       </Heading>
       <Strong>Bold importance</Strong> and <Emphasis>stress emphasis</Emphasis>.
       Speed limit is <NoBreak>100 km/h</NoBreak>.
+      Read more at <Link href="/details" external>documentation</Link>.
     </Paragraph>
   )
 }
 ```
 
+## Component Catalog
+
+### 1. Structural Typography
+- **`Heading`**: Document headings with `level={1 | 2 | 3 | 4 | 5 | 6}` (default `1`). Web lowers to `<h1>`–`<h6>`; Native lowers to `<Text accessibilityRole="header">`.
+- **`Paragraph`**: Semantic prose paragraph. Web lowers to `<p>`; Native lowers to `<Text>`.
+- **`Text`**: Foundational inline text container. Web lowers to `<span>`; Native lowers to `<Text>`.
+
+### 2. Semantic Inline Formatting
+- **`Strong`**: High importance text. Web lowers to `<strong>`; Native lowers to `<Text>` with bold font weight.
+- **`Emphasis`**: Stress emphasis text. Web lowers to `<em>`; Native lowers to `<Text>` with italic font style.
+- **`Underline`**: Underlined text. Web lowers to `<u>`; Native lowers to `<Text>` with underline text decoration.
+- **`Strikethrough` / `Del`**: Strikethrough / deleted text. Web lowers to `<s>`; Native lowers to `<Text>` with line-through text decoration.
+- **`Sub` / `Sup`**: Subscript and superscript text. Web lowers to `<sub>` and `<sup>`; Native applies relative typography scaling and vertical alignments.
+- **`Code`**: Inline computer code. Web lowers to `<code>`; Native applies monospace font family.
+- **`Small`**: Side-comments / small print. Web lowers to `<small>`; Native lowers with reduced relative font size ratio.
+- **`Mark`**: Highlighted / marked text. Web lowers to `<mark>`; Native applies highlight background color.
+- **`NoBreak`**: Inline text with nowrap protection. Web lowers with `white-space: nowrap`; Native automatically converts ASCII spaces to non-breaking Unicode spaces (`\u00A0`).
+
+### 3. Accessible CJK Ruby
+- **`Ruby` / `RubyText`**: Phonetic CJK annotations (furigana). Accessible via `RubyText` or `Ruby.RubyText`. Web lowers to standard `<ruby>` and `<rt>`. Native provides visual furigana while allowing parent `accessibilityLabel` annotations to suppress duplicate speech output on screen readers (VoiceOver & TalkBack).
+
+### 4. Universal Links
+- **`Link`**: Accessible cross-platform hyperlink. Supports `href`, `target`, `rel`, `external`, and `onPress`. Web lowers to `<a href="...">`; Native lowers to an accessible Pressable text with link role.
+
 ## Features
 
-- **Semantic Web HTML**: Lowers to `<strong>`, `<em>`, `<u>`, `<s>`, `<sub>`, `<sup>`, `<code>`, `<small>`, `<mark>`, `<ruby>`, `<rt>`, and `<span style="white-space: nowrap">`.
-- **React Native Text Styles**: Lowers to `<Text>` with bold font weights, italic styles, underline/line-through text decorations, and monospace font families.
-- **NoBreak on Native**: Automatically transforms standard space characters (`' '`) into non-breaking Unicode spaces (`\u00A0`) inside child text nodes.
-- **Accessible CJK Ruby**: Provides visual furigana while allowing parent `accessibilityLabel` annotations to suppress duplicate screen-reader speech on VoiceOver and TalkBack.
+- **Semantic Web HTML**: Direct compiler lowering to real HTML5 typography and text-level semantics, completely free of `react-native-web`.
+- **Zero Runtime Foundation**: Primitives compile away at build time, with pure React fallbacks when running uncompiled.
+- **Relative Typography Scaling**: Built-in support for proportional text sizing (`text-sm`, `text-lg`, etc.) and parent-relative ratio calculations that stay synchronized between CSS and React Native styles.
