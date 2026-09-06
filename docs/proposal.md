@@ -684,29 +684,41 @@ Dialog は、
 
 ## 11. パッケージ構成
 
+実実装では、責務の分離とバンドルサイズの最小化（Tree-shaking / RSC対応）を徹底するため、以下のパッケージ群に分割・具現化されている。
+
 ```
 @hozo/core
-    recommended primitives
-    semantic components
+    canonical primitives (View, Text, Pressable, Link, FlatList)
+    universal compound components (Dialog, Popover, Menu, Tabs, Toolbar, Radio)
 
 @hozo/compiler
-    Rust compiler
-    TSX analysis
-    Hozo IR
-    Web / Native lowering
-    diagnostics
+    JS entry point over Rust compiler
+    TSX analysis, Hozo IR, Web/Native lowering, diagnostics
 
 @hozo/runtime
-    truly dynamic styles
-    interactive behavior
-    accessibility behavior
+    dynamic styles, media query subscriptions
+    interaction state, ambient animations, transitions
+
+@hozo/behaviors
+    headless accessibility behaviors (FocusScope, RovingFocus, Safe Polygon)
+    floating positioning, live region, hover delay state machines
+
+@hozo/typography
+    universal typography (Heading, Paragraph, Strong, Code, Small)
+    accessible CJK ruby annotations, relative text sizing
+
+@hozo/semantics
+    HTML5 landmarks (Main, Header, Footer, Aside, Nav)
+    document sectioning, forms (Fieldset/Legend), disclosures (Details/Summary)
+
+@hozo/canvas
+    declarative 2D scene graph (Web Canvas 2D & React Native Skia)
 
 @hozo/tailwind
-    Tailwind integration
+    Tailwind CSS v4 theme extraction and token resolution
 
-@hozo/a11y
-    complex accessibility primitives
-    Dialog etc.
+@hozo/vite / @hozo/next / @hozo/metro / @hozo/storybook
+    bundler & framework integrations
 ```
 
 将来的に、

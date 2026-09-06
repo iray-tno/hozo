@@ -56,7 +56,7 @@ Tier 2  Semantic primitives                            <- where growth goes
         Meaning stated rather than inferred. Real elements on Web, an
         ARIA-annotated View on Native. No runtime.
 
-Tier 3  Patterns that need behaviour (@hozo/a11y)
+Tier 3  Patterns that need behaviour (@hozo/a11y -> @hozo/behaviors)
         Dialog / Tabs / Menu / Listbox / Disclosure / Combobox
         State, focus management, keyboard. Headless, unstyled. This is
         where roving tabindex lives -- see 001.
@@ -68,6 +68,12 @@ Escape  Carried verbatim
         Canvas, Skia, maps, WebGL. Hozo does not model them and does not
         get in the way of them.
 ```
+
+> [!NOTE]
+> **Implementation Evolution (September 2026)**:
+> - The planned `@hozo/a11y` runtime behaviors were shipped as **`@hozo/behaviors`** (focus trapping, roving tabindex, collision-aware floating positioning, safe polygon), while compound accessible components (`Dialog`, `Menu`, `Tabs`, `Toolbar`, etc.) live in **`@hozo/core`**.
+> - Canvas & Skia drawing, originally considered an unmodeled escape hatch, was formalized into a declarative 2D scene graph in **`@hozo/canvas`** (lowering to native Canvas 2D on Web and `@shopify/react-native-skia` on React Native).
+> - Document landmarks and typography were given dedicated zero-runtime primitive packages: **`@hozo/semantics`** and **`@hozo/typography`**.
 
 The split between app authors and library authors falls out of this rather
 than needing its own mechanism: Tier 2 and 3 are the sensible defaults,
