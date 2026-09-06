@@ -11,7 +11,7 @@ import {
 test('the practical StyleX scorecard is measured from executable fixtures', () => {
   const score = stylexPracticalScorecard()
   assert.deepEqual(score, {
-    values: { total: 347, covered: 347 },
+    values: { total: 348, covered: 348 },
     constructs: { total: 16, covered: 16 },
     corpus: { total: 270, covered: 270 },
     silent: 0,
@@ -203,6 +203,15 @@ test('speech voice controls agree with the CSS emitted by official StyleX', () =
   const cases = STYLEX_VALUE_CASES.filter(({ property }) => properties.has(property))
   assert.equal(cases.length, properties.size + 7)
   for (const testCase of cases) assert.equal(compareStylexValue(testCase).covered, true)
+})
+
+test('named page selection agrees with the CSS emitted by official StyleX', () => {
+  const testCase = { property: 'page', value: 'chapter' }
+  assert.deepEqual(compareStylexValue(testCase), {
+    ...testCase,
+    covered: true,
+    silent: false,
+  })
 })
 
 test('border image longhands agree with official StyleX', () => {

@@ -3688,6 +3688,11 @@ fn stylex_voice_value(property: &'static str, value: &StaticValue) -> Option<Sty
     Some(web_longhand(property, exact))
 }
 
+fn stylex_page(value: &StaticValue) -> Option<StyleProperty> {
+    let StaticValue::String(value) = value else { return None };
+    web_css_identifier(value).then(|| web_longhand("page", value.clone()))
+}
+
 /// Expand the common path-first `offset` shorthand without losing StyleX's
 /// independently ranked longhand slots. Position/anchor slash syntax stays
 /// residual until its wider grammar can be represented exactly.
@@ -5209,6 +5214,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "motionPath" => vec![stylex_legacy_motion("motion-path", value)?],
         "motionRotation" => vec![stylex_legacy_motion("motion-rotation", value)?],
         "offset" => stylex_offset(value)?,
+        "page" => vec![stylex_page(value)?],
         "pause" => vec![stylex_speech_pause("pause", value)?],
         "pauseAfter" => vec![stylex_speech_pause("pause-after", value)?],
         "pauseBefore" => vec![stylex_speech_pause("pause-before", value)?],
@@ -8634,6 +8640,36 @@ mod tests {
         })));
         assert_eq!(residual.len(), 4);
         assert_eq!(gaps.len(), 4);
+    }
+
+    #[test]
+    fn named_page_selection_accepts_only_a_static_identifier() {
+        let frontend = frontend(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            const styles = stylex.create({
+              exact: { page: 'chapter' },
+              wider: { page: 'chapter cover' }
+            })
+        "#,
+        );
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+            panic!("named page selection was not lowerable")
+        };
+        assert_eq!(entries.len(), 1);
+        assert!(matches!(
+            &entries[0].properties[0],
+            StyleProperty::WebOnly(name, _) if name == "page"
+        ));
+        assert!(residual.is_empty());
+        assert!(gaps.is_empty());
+
+        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+            panic!("invalid page syntax should remain residual")
+        };
+        assert!(entries.is_empty());
+        assert_eq!(residual.len(), 1);
+        assert_eq!(gaps.len(), 1);
     }
 
     #[test]

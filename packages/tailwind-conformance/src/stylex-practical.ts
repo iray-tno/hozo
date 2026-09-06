@@ -176,6 +176,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'voiceRange', value: '2st' },
   { property: 'voiceRate', value: '120%' },
   { property: 'voiceVolume', value: '6dB' },
+  { property: 'page', value: 'chapter' },
   { property: 'shapeImageThreshold', value: 0.5 },
   { property: 'shapeMargin', value: '1rem' },
   { property: 'shapeOutside', value: 'circle(50%)' },

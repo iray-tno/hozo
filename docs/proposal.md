@@ -947,9 +947,9 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-04 時点では
-全 CSS 名で 503/522 (96.4%)、両 platform に名前が存在するか、同じ typed IR へ
+全 CSS 名で 504/522 (96.6%)、両 platform に名前が存在するか、同じ typed IR へ
 正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 21/21
-(100%)、Web-only 集合で 348/366 (95.1%)。残りは optional adapter 候補 1、
+(100%)、Web-only 集合で 349/366 (95.4%)。残りは optional adapter 候補 1、
 未対応の Web-only 名と別集計する。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
@@ -963,7 +963,7 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 347/347 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 348/348 (100%)、一般的なauthoring
 construct 16/16 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
 持たせた宣言270/270 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
@@ -1054,6 +1054,10 @@ closed keywordおよび非負の静的 `voiceDuration` をexact Web-onlyとし�
 さらに一般的なangle、単一voice名、balance/rateのpercentage、pitch/rangeの
 frequency・semitone、volumeのpercentage・dBも値域と単位を検証して扱う。複数voiceや
 任意の複合構文は公式StyleXへ残し、Nativeでは対応済みsubsetを明示的にrefuseする。
+
+paged mediaの `page` は静的なCSS identifierをexact Web-onlyとして扱い、印刷用の
+named `@page` 選択を保持する。動的な名前は公式StyleXへ残し、Nativeでは明示的に
+refuseする。
 
 border imageでは、`borderImageSource`、`borderImageSlice`、`borderImageWidth`、
 `borderImageOutset`、`borderImageRepeat`のlonghandをexact Web-onlyとして扱う。

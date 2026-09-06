@@ -25,7 +25,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 503)
+  assert.equal(mapped.size, 504)
   for (const name of [
     'display',
     'padding',
@@ -200,6 +200,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
     'voiceRate',
     'voiceStress',
     'voiceVolume',
+    'page',
   ]) {
     assert.ok(mapped.has(property), `${property} should have a lowering arm`)
   }
@@ -207,7 +208,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 503)
+  assert.equal(mapped.length, 504)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -283,7 +284,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.equal(surface.mappedAdapter.size, 0)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 366)
-  assert.equal(surface.mappedWebOnly.size, 348)
+  assert.equal(surface.mappedWebOnly.size, 349)
   assert.ok(surface.mappedWebOnly.has('overscrollBehavior'))
   assert.ok(surface.mappedWebOnly.has('content'))
   assert.ok(surface.mappedWebOnly.has('caret'))
