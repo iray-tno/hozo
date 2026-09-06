@@ -20,7 +20,7 @@
     "audit:cargo": "cargo audit",
     "audit:pnpm": "pnpm audit --audit-level critical",
     "test:junit": "node packages/test-reporter/src/run-tests-junit.mjs",
-    "report:allure": "pnpm --filter @hozo/test-reporter exec allure generate -o apps/landing/dist/reports junit-reports",
+    "report:allure": "pnpm --filter @hozo/test-reporter exec allure generate -o ../../apps/landing/dist/reports ../../junit-reports",
     "build:wasm": "node scripts/build-wasm.mjs"
   },
   "devDependencies": {

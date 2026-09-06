@@ -10,8 +10,9 @@ const REPORT_TYPES = {
 function moduleFromTypeScriptPath(filePath) {
   return filePath
     .replaceAll('\\', '/')
+    .replace(/^.*?packages\/[^/]+\//, '')
     .replace(/^\.\//, '')
-    .replace(/^src\//, '')
+    .replace(/^(src|\.test-build)\//, '')
     .replace(/\.(test|spec)\.[^.]+$/, '')
     .replace(/\.[^.]+$/, '')
     .split('/')
@@ -20,8 +21,15 @@ function moduleFromTypeScriptPath(filePath) {
 }
 
 function normalizeTypeScriptCase(testcase) {
+  const file = testcase.getAttribute('file')
+  const classname = testcase.getAttribute('classname')
+  const parentName = testcase.parentNode?.getAttribute('name')
   const source =
-    testcase.getAttribute('classname') ?? testcase.parentNode?.getAttribute('name') ?? ''
+    file && file !== 'test'
+      ? file
+      : classname && classname !== 'test'
+        ? classname
+        : (parentName ?? '')
   testcase.setAttribute('classname', moduleFromTypeScriptPath(source) || 'root')
 }
 
@@ -38,7 +46,7 @@ function normalizeRustCase(testcase) {
   testcase.setAttribute('classname', parts.slice(0, -1).join('::'))
 }
 
-export function normalizeJUnit(xml, reportType) {
+export function normalizeJUnit(xml, reportType, suitePackageName) {
   const suiteName = REPORT_TYPES[reportType]
   if (!suiteName) {
     throw new Error(`Unknown report type: ${reportType}`)
@@ -60,11 +68,47 @@ export function normalizeJUnit(xml, reportType) {
     else normalizeRustCase(testcase)
   }
 
-  for (const testsuite of document.getElementsByTagName('testsuite')) {
-    testsuite.setAttribute('name', suiteName)
+  const root = document.documentElement
+  const existingSuites = Array.from(document.getElementsByTagName('testsuite'))
+
+  if (existingSuites.length === 0) {
+    // Allure 3 reader requires <testsuite> elements to discover testcases.
+    // Wrap direct testcase children in a <testsuite> element.
+    const allCases = Array.from(document.getElementsByTagName('testcase'))
+    const suiteElem = document.createElement('testsuite')
+    suiteElem.setAttribute('name', suitePackageName || suiteName)
+    suiteElem.setAttribute('package', suiteName)
+    suiteElem.setAttribute('tests', String(allCases.length))
+
+    let failures = 0
+    let errors = 0
+    for (const c of allCases) {
+      if (c.getElementsByTagName('failure').length > 0) failures++
+      if (c.getElementsByTagName('error').length > 0) errors++
+      suiteElem.appendChild(c)
+    }
+    suiteElem.setAttribute('failures', String(failures))
+    suiteElem.setAttribute('errors', String(errors))
+
+    if (root.tagName.toLowerCase() === 'testsuites') {
+      root.appendChild(suiteElem)
+    } else {
+      const newRoot = document.createElement('testsuites')
+      newRoot.setAttribute('name', suiteName)
+      newRoot.appendChild(suiteElem)
+      return new XMLSerializer().serializeToString(newRoot)
+    }
+  } else {
+    for (const testsuite of existingSuites) {
+      if (!testsuite.getAttribute('package')) {
+        testsuite.setAttribute('package', suiteName)
+      }
+      if (reportType === 'rust') {
+        testsuite.setAttribute('package', 'Rust')
+      }
+    }
   }
 
-  const root = document.documentElement
   if (root.tagName.toLowerCase() === 'testsuites') {
     root.setAttribute('name', suiteName)
   }
@@ -73,12 +117,12 @@ export function normalizeJUnit(xml, reportType) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [reportType, filePath] = process.argv.slice(2)
+  const [reportType, filePath, packageName] = process.argv.slice(2)
   if (!reportType || !filePath) {
-    console.error('Usage: normalize-junit <rust|typescript> <path-to-junit.xml>')
+    console.error('Usage: normalize-junit <rust|typescript> <path-to-junit.xml> [package-name]')
     process.exit(1)
   }
 
   const xml = readFileSync(filePath, 'utf8')
-  writeFileSync(filePath, normalizeJUnit(xml, reportType), 'utf8')
+  writeFileSync(filePath, normalizeJUnit(xml, reportType, packageName), 'utf8')
 }

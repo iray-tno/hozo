@@ -1,0 +1,5 @@
+# Nextest configuration for Hozo
+[profile.default]
+
+[profile.ci]
+junit = { path = "junit-reports/nextest.xml" }
