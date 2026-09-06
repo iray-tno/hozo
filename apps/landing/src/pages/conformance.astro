@@ -145,6 +145,28 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             &check; {snapshot.diagnostics.declared} compiler diagnostics active
           </div>
         </div>
+
+        <!-- Cross-platform contracts KPI -->
+        <div class="p-6 rounded-2xl glass-panel border-t-2 border-t-emerald-400 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">Platform Contracts</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Both Backends</span>
+            </div>
+            <div class="text-3xl sm:text-4xl font-extrabold text-white mb-1">
+              {snapshot.a11yContracts.primitives - snapshot.a11yContracts.uncontracted}/{snapshot.a11yContracts.primitives}
+            </div>
+            <div class="text-xs text-slate-400 mb-4">Primitives Under Contract</div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Every primitive is pinned by a case that compiles one source through
+              <strong>both</strong> backends and states what each has to produce &mdash; including where
+              they legitimately differ.
+            </p>
+          </div>
+          <div class="mt-4 pt-4 border-t border-white/5 text-[11px] text-emerald-300/80">
+            &check; {snapshot.a11yContracts.covered}/{snapshot.a11yContracts.cases} contract cases holding
+          </div>
+        </div>
       </div>
 
       <!-- Section: Web Conformance Details -->
