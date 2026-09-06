@@ -62,8 +62,9 @@ jobs:
       - name: Report (Rust nextest)
         run: |
           mkdir -p junit-reports
-          cargo nextest run --workspace --profile ci --junit-path junit-reports/nextest.xml || true
-          if [ -f junit-reports/nextest.xml ]; then
+          cargo nextest run --workspace --profile ci || true
+          if [ -f target/nextest/ci/nextest.xml ]; then
+            cp target/nextest/ci/nextest.xml junit-reports/nextest.xml
             node packages/test-reporter/src/normalize-junit.mjs rust junit-reports/nextest.xml || true
           fi
 

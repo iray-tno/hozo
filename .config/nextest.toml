@@ -2,4 +2,4 @@
 [profile.default]
 
 [profile.ci]
-junit = { path = "junit-reports/nextest.xml" }
+junit = { path = "nextest.xml" }
