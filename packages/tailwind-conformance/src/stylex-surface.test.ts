@@ -43,7 +43,7 @@ test('StyleX publishes the property denominator used by the report', () => {
 
 test('the manifest numerator reproduces the Rust frontend mapping', () => {
   const mapped = mappedHozoStylexProperties()
-  assert.equal(mapped.size, 504)
+  assert.equal(mapped.size, 505)
   for (const name of [
     'display',
     'padding',
@@ -69,6 +69,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
     'animationRange',
     'scrollTimeline',
     'viewTimeline',
+    'backdropFilter',
   ]) {
     assert.ok(mapped.has(name), `${name} should have a lowering arm`)
   }
@@ -226,7 +227,7 @@ test('the manifest numerator reproduces the Rust frontend mapping', () => {
 
 test('every mapped property records why it is counted', () => {
   const mapped = stylexManifest().properties.filter(({ status }) => status === 'mapped')
-  assert.equal(mapped.length, 504)
+  assert.equal(mapped.length, 505)
   assert.ok(
     mapped.every(({ basis }) => !basis.endsWith('candidate') && basis !== 'not-yet-lowered'),
   )
@@ -252,12 +253,13 @@ test('every mapped property records why it is counted', () => {
   assert.equal(manifestEntry('animationRange')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('scrollTimeline')?.basis, 'exact-web-native-refusal')
   assert.equal(manifestEntry('viewTimeline')?.basis, 'exact-web-native-refusal')
-  assert.equal(manifestEntry('backdropFilter')?.basis, 'adapter-candidate')
+  assert.equal(manifestEntry('backdropFilter')?.basis, 'optional-adapter')
+  assert.equal(manifestEntry('backdropFilter')?.disposition, 'implemented')
 })
 
 test('every unmapped property has an explicit reviewed disposition', () => {
   const entries = stylexManifest().properties.filter(({ status }) => status === 'unmapped')
-  assert.equal(entries.length, 18)
+  assert.equal(entries.length, 17)
   assert.deepEqual(
     entries
       .filter(({ disposition }) => disposition === 'default-mode-disallowed')
@@ -290,7 +292,7 @@ test('every unmapped property has an explicit reviewed disposition', () => {
   )
   assert.deepEqual(
     entries.filter(({ disposition }) => disposition === 'optional-adapter').map(({ name }) => name),
-    ['backdropFilter'],
+    [],
   )
 })
 
@@ -313,11 +315,11 @@ test('actionable coverage separates compiler work from optional adapters', () =>
   assert.equal(surface.compilerRelevant.size, 504)
   assert.equal(surface.mappedCompilerRelevant.size, 504)
   assert.equal(surface.productRelevant.size, 505)
-  assert.equal(surface.mappedProductRelevant.size, 504)
+  assert.equal(surface.mappedProductRelevant.size, 505)
   assert.equal(surface.nonActionable.size, 17)
   assert.deepEqual(
     [...surface.productRelevant].filter((name) => !surface.mapped.has(name)),
-    ['backdropFilter'],
+    [],
   )
 })
 
@@ -365,7 +367,7 @@ test('coverage tiers partition the published StyleX property surface', () => {
   assert.ok(surface.mappedContextual.has('textOverflow'))
   assert.ok(surface.mappedContextual.has('caretColor'))
   assert.equal(surface.adapter.size, 1)
-  assert.equal(surface.mappedAdapter.size, 0)
+  assert.equal(surface.mappedAdapter.size, 1)
   assert.ok(surface.adapter.has('backdropFilter'))
   assert.equal(surface.webOnly.size, 366)
   assert.equal(surface.mappedWebOnly.size, 349)

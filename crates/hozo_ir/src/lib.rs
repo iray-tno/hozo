@@ -2609,13 +2609,13 @@ impl StyleProperty {
                 "`bg-blend-*`: React Native has `mixBlendMode` but no background-blend-mode -- there is no separate background layer there to blend against"
                     .to_string(),
             ),
-            // `filter` is real on React Native; `backdrop-filter` is not --
-            // there is no such style key, and blurring what is *behind* a
-            // view needs a native blur component (`@react-native-community/
-            // blur`, Expo's BlurView) rather than a style.
+            // React Native has no backdrop-filter style key. The Native
+            // backend consumes the supported static blur subset through an
+            // opt-in component adapter; every other occurrence reaches this
+            // explicit diagnostic instead of becoming an inert style.
             StyleProperty::BackdropFilter(..) => Some(
                 "`backdrop-*`: React Native has no backdrop-filter style -- blurring what's \
-                 behind a view needs a native blur component"
+                 behind a view needs the supported View adapter context"
                     .to_string(),
             ),
             // React Native's `cursor` is real but narrow: `auto` and
@@ -5200,4 +5200,3 @@ impl Utf16Offsets {
         }
     }
 }
-

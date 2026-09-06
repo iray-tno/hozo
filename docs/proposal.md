@@ -959,13 +959,13 @@ same-file・module-scope の `stylex.create` と、
 
 StyleX 自身が公開する `CSSProperties` と React Native 自身が公開する style key
 を機械的に交差させる分母も conformance report に追加した。2026-09-04 時点では
-全 CSS 名で 504/522 (96.6%)、両 platform に名前が存在するか、同じ typed IR へ
+全 CSS 名で 505/522 (96.7%)、両 platform に名前が存在するか、同じ typed IR へ
 正確に展開できる集合で 134/134 (100%)、contextual runtime 集合で 21/21
 (100%)、Web-only 集合で 349/366 (95.4%)。公開型のうちStyleX自身が既定modeで
 意図的に禁止する13 shorthand、`@font-face`専用descriptor 2、obsoleteまたは
 non-standardな2名を別分類すると、compiler-relevant surfaceは504/504 (100%)。
-optional adapterも含むproduct surfaceは504/505 (99.8%)で、残りは
-`backdropFilter` adapter候補1件だけである。
+optional adapterも含むproduct surfaceは505/505 (100%)。`backdropFilter`は
+opt-inのNative component adapterとして実装済みである。
 これは value や API
 を含めた互換率ではなく property-name の上限値で、
 代表値は公式 Babel plugin の CSS と個別に差分検証する。
@@ -978,9 +978,9 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 持たせる。これを90%計画のproperty/value/construct/real-sourceの多軸scorecardの
 基盤とする。
 
-現在の実行可能scorecardでは、代表value 348/348 (100%)、一般的なauthoring
+現在の実行可能scorecardでは、代表value 349/349 (100%)、一般的なauthoring
 construct 16/16 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
-持たせた宣言270/270 (100%)、silent failure 0となった。valueはHozo Webが公式
+持たせた宣言271/271 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
 coverageには加点しない。このためproperty名がmappedでも一般値が通らないケースを
@@ -1023,8 +1023,11 @@ longhand slotへ展開し、listやdynamic timeline functionはresidualに残す
 
 Webのcompositing / 3D制御では、静的な`clipPath`、`perspective`、
 `perspectiveOrigin`、`transformBox`、`transformStyle`、`willChange`を安全な
-grammarでlowerし、Nativeでは明示的にrefuseする。`backdropFilter`は単なるWeb出力で
-adapter 1/1と数えず、BlurView / Expo adapterを実装するまでadapter候補のまま残す。
+grammarでlowerし、Nativeでは明示的にrefuseする。通常のViewに対する静的な単一
+`backdropFilter: blur(Npx)`はopt-in Native component adapterへlowerし、`none`はno-opとする。
+Expo連携は`expo-blur`をHozoの依存にせずfactoryで提供する。CSS radiusとExpo intensityは
+同一尺度ではないため変換を調整可能にし、filter chain、条件付きblur、非対応component文脈は
+residualまたは明示diagnosticのままにする。
 
 mask系は`WebkitMaskImage`と標準`maskImage`、mode、repeat、position、size、origin、
 clip、composite、typeのlonghandをexact Web-onlyとして扱う。通常のURL/gradient、

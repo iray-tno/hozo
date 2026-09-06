@@ -94,6 +94,7 @@ export const STYLEX_VALUE_CASES: readonly StylexValueCase[] = [
   { property: 'transformBox', value: 'fill-box' },
   { property: 'transformStyle', value: 'preserve-3d' },
   { property: 'willChange', value: 'opacity, transform' },
+  { property: 'backdropFilter', value: 'blur(12px)' },
   { property: 'mask', value: 'url(mask.svg) center / cover no-repeat' },
   { property: 'WebkitMaskImage', value: 'url(mask.svg)' },
   { property: 'maskImage', value: 'linear-gradient(black, transparent)' },
@@ -1004,7 +1005,10 @@ export function compareStylexConstruct(testCase: StylexConstructCase): StylexCon
 }
 
 export const STYLEX_REAL_SOURCE_FIXTURES = {
-  card: STYLEX_VALUE_CASES.slice(0, 14),
+  card: [
+    ...STYLEX_VALUE_CASES.slice(0, 14),
+    ...STYLEX_VALUE_CASES.filter(({ property }) => property === 'backdropFilter'),
+  ],
   typography: STYLEX_VALUE_CASES.filter(({ property }) =>
     [
       'color',

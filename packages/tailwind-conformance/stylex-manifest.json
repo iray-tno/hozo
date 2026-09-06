@@ -260,9 +260,9 @@
     {
       "name": "backdropFilter",
       "lane": "adapter",
-      "status": "unmapped",
-      "basis": "adapter-candidate",
-      "disposition": "optional-adapter"
+      "status": "mapped",
+      "basis": "optional-adapter",
+      "disposition": "implemented"
     },
     {
       "name": "backfaceVisibility",

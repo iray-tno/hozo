@@ -751,7 +751,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::InsetRingColor(_)
         | StyleProperty::InsetShadow(_) => vec![],
         // Composed, not emitted here -- see `filter_entry`. `BackdropFilter`
-        // is refused upstream: React Native has no such style key.
+        // is consumed by the contextual opt-in component adapter in render.rs.
         StyleProperty::Filter(..)
         | StyleProperty::FilterRaw(..)
         | StyleProperty::BackdropFilter(..)

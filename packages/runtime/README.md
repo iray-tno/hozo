@@ -4,7 +4,8 @@ The small amount that genuinely has to happen at runtime.
 
 Hozo compiles away everything it can. What is left is here: styles the compiler could not resolve statically, the interaction states CSS pseudo-classes give you for free on Web and nothing gives you on Native, and the accessibility behaviour that is behaviour rather than markup.
 
-Nothing here is meant to be imported by hand. Generated components import what they need.
+Generated components import what they need. The exception is explicit setup for an optional
+platform adapter, because Hozo does not add a native module to every application automatically.
 
 ## What lives here
 
@@ -17,6 +18,32 @@ Nothing here is meant to be imported by hand. Generated components import what t
 **Transitions.** `transition-*` utilities compile to `Animated` timings, including colour interpolation, with the blend point preserved when an interrupted transition restarts.
 
 **Layout that CSS does for free.** The `HozoGrid` and `HozoSpaced` helpers reproduce the parts of grid and gap that React Native's layout engine does not have.
+
+**Optional backdrop blur.** Static StyleX `backdropFilter: 'blur(Npx)'` on an ordinary `View`
+uses a configured Native component. Expo users can keep `expo-blur` in the application rather
+than making it a Hozo dependency:
+
+```ts
+import { BlurView } from 'expo-blur'
+import {
+  configureHozoBackdropFilter,
+  createExpoBlurAdapter,
+} from '@hozo/runtime'
+
+configureHozoBackdropFilter(
+  createExpoBlurAdapter(BlurView, {
+    props: { tint: 'default' },
+    // Optional: Expo intensity and a CSS pixel radius are different scales.
+    intensityForRadius: (radius) => Math.min(100, radius * 4),
+  }),
+)
+```
+
+On Android, Expo's real background blur additionally needs a `BlurTargetView` around the content
+and its ref passed as `blurTarget`; pass that and the selected `blurMethod` through `props`. The
+adapter cannot infer the target across the React tree. Hozo supports one static non-negative
+`blur(px)` (plus the no-op `none`); filter chains, conditional blur, and non-View contexts remain
+explicit diagnostics or official StyleX residuals.
 
 ## Platform split
 

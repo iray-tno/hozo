@@ -195,14 +195,14 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **504/522 property names
-(96.6%)**, including **134/134 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **505/522 property names
+(96.7%)**, including **134/134 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **21/21 (100%)** contextual-runtime names. Web-only lowering is reported
 independently at **349/366 (95.4%)**. The
 reviewed compiler-relevant surface is **504/504 (100%)**. Including optional
-platform adapters it is **504/505 (99.8%)**, with `backdropFilter` as the sole
-remaining adapter candidate. Of the other 17 published names, StyleX itself
+platform adapters it is **505/505 (100%)**: `backdropFilter` uses an opt-in
+Native component adapter. The other 17 published names are not current compiler work: StyleX itself
 deliberately disallows 13 shorthands in its default mode, two are `@font-face` descriptors, and
 two are obsolete or non-standard. These are
 property-name upper bounds: each
@@ -219,8 +219,8 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **348/348 (100%)** representative values, **16/16
-(100%)** common authoring constructs, and **270/270 (100%)** declarations after
+corpus currently measures **349/349 (100%)** representative values, **16/16
+(100%)** common authoring constructs, and **271/271 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
 compilers and counts only when Web agrees with the official StyleX Babel output
@@ -277,9 +277,12 @@ lists and dynamic timeline functions remain residual.
 Common Web compositing and 3D controls lower without runtime CSS parsing:
 `clipPath`, `perspective`, `perspectiveOrigin`, `transformBox`,
 `transformStyle`, and `willChange`. Their accepted static grammar is validated
-and Native refusal remains explicit. `backdropFilter` deliberately remains the
-scorecard's adapter candidate until it has a real BlurView/Expo adapter; Web-only
-output is not counted as a Native adapter implementation.
+and Native refusal remains explicit. A single static non-negative
+`backdropFilter: 'blur(Npx)'` on an ordinary View lowers through an opt-in Native
+component adapter; `none` is a no-op. Expo integration is supplied as a factory
+without making `expo-blur` a Hozo dependency. CSS blur radius and Expo intensity
+are different scales, so their mapping is explicitly configurable. Filter chains,
+conditional blur, and incompatible component contexts remain residual or diagnosed.
 
 The common mask longhands are exact Web-only declarations: prefixed and
 standard mask images, mode, repeat, position, size, origin, clip, composite,
