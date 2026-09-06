@@ -1,3 +1,4 @@
+import { HozoLink } from '@hozo/runtime'
 import type { CSSProperties, ReactNode } from 'react'
 
 export interface TypographyUniversalProps {
@@ -160,6 +161,13 @@ export interface LinkProps extends TypographyUniversalProps {
   onPress?: (event: React.MouseEvent<HTMLAnchorElement>) => void
 }
 
+/**
+ * An anchor, and the one place that decides what `external` means.
+ *
+ * The derivation used to live here and again in `@hozo/core`’s
+ * `Button`, which renders the same element for `<Button href>`. Both
+ * now go through `HozoLink`; see the note there.
+ */
 export function Link({
   href,
   target,
@@ -172,21 +180,24 @@ export function Link({
   onPress,
   ...props
 }: LinkProps) {
-  const finalTarget = external ? '_blank' : target
-  const finalRel = external || target === '_blank' ? (rel ?? 'noreferrer noopener') : rel
   return (
-    <a
+    <HozoLink
       href={href}
-      target={finalTarget}
-      rel={finalRel}
+      target={target}
+      rel={rel}
       download={download}
-      onClick={onPress}
+      external={external}
+      onPress={onPress}
       className={className}
       style={style}
-      {...domProps(props)}
+      testID={props.testID}
+      nativeID={props.nativeID}
+      accessibilityLabel={props.accessibilityLabel}
+      accessibilityHint={props.accessibilityHint}
+      aria-hidden={props['aria-hidden']}
     >
       {children}
-    </a>
+    </HozoLink>
   )
 }
 
