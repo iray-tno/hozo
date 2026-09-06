@@ -117,7 +117,7 @@ export {
 } from '@hozo/behaviors'
 export { hozoActivateKeyDown, hozoActivateKeyUp } from './activate.ts'
 export { hozoInteractive } from './interactive.ts'
-export { HozoLink, type HozoLinkProps } from './link.ts'
+export { externalLinkAttributes, HozoLink, type HozoLinkProps } from './link.ts'
 export { hozoScrollable } from './scrollable.ts'
 
 export {

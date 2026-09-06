@@ -476,6 +476,29 @@ fn source_text(source: &str, expr_ref: hozo_ir::ExprRef) -> &str {
 /// wrapping the *combinator structure* it built (see hozo_parser's
 /// `dynamic_class` module), not anything it parsed out of the leaves
 /// themselves.
+/// The value half of a JSX attribute, as written.
+///
+/// `PassthroughProp::span` covers the whole attribute, and a prop whose
+/// value is an expression has to be re-emitted inside one -- so the name
+/// and the `=` have to come off. The first `=` is always the separator,
+/// since an attribute name cannot contain one, and the braces come off
+/// because what is wanted is an expression rather than a JSX value.
+///
+/// A boolean shorthand (`<Link external>`) has no `=` at all and reads as
+/// `true`, which is what JSX means by it.
+fn attribute_value_source(source: &str, span: hozo_ir::ExprRef) -> String {
+    let text = source_text(source, span);
+    let Some((_, value)) = text.split_once('=') else {
+        return "true".to_string();
+    };
+    let value = value.trim();
+    value
+        .strip_prefix('{')
+        .and_then(|rest| rest.strip_suffix('}'))
+        .unwrap_or(value)
+        .trim()
+        .to_string()
+}
 fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String {
     use hozo_ir::ConditionExpr;
     match expr {
@@ -1114,12 +1137,94 @@ fn render_node(
         attrs.push_str(&format!(" {}={{{guard} ? '' : undefined}}", css::expr_ref_attribute(expr_ref)));
     }
 
+    // `external`, which is Hozo's own spelling and not the DOM's.
+    //
+    // It used to reach the anchor verbatim -- the generated file said
+    // `<a href="..." external>` -- and, far worse, neither `target` nor
+    // `rel` was emitted at all. The attribute itself was harmless, since
+    // React drops an unknown prop whose value is `true` before it reaches
+    // the document; the missing `rel` was not. The opened page kept
+    // `window.opener` and could navigate the one it came from, while the
+    // same source rendered through `@hozo/core` severed it. The compiled
+    // and uncompiled halves of one component disagreed about a security
+    // property, silently, with no diagnostic (#290).
+    //
+    // `externalLinkAttributes` in `@hozo/runtime` is the other
+    // implementation of this; `external-link.test.ts` in the conformance
+    // suite compares them, because a three-line rule in two languages
+    // is a rule that will be changed in one of them.
+    let mut external_target_consumed = false;
+    if tag == "a" {
+        let named = |wanted: &str| {
+            node.props
+                .passthrough
+                .iter()
+                .find(|prop| prop.name.as_deref() == Some(wanted))
+        };
+        let authored_rel = named("rel").is_some();
+        match named("external") {
+            // `<Link external>` and `external={true}`. Known here, so it
+            // becomes the attributes it means rather than a ternary over
+            // a constant -- the shape `focusable` already uses above.
+            Some(prop) if prop.literal.as_deref() == Some("true") => {
+                external_target_consumed = true;
+                attrs.push_str(" target=\"_blank\"");
+                if !authored_rel {
+                    attrs.push_str(" rel=\"noreferrer noopener\"");
+                }
+            }
+            // `external={false}` says nothing beyond dropping the prop.
+            Some(prop) if prop.literal.is_some() => {}
+            Some(prop) => {
+                // Carried as a ternary rather than decided, which is what
+                // Hozo does with every expression it cannot read. The
+                // expression is emitted twice; `data-hozo-disabled` above
+                // already re-emits `disabled` the same way.
+                external_target_consumed = true;
+                let expr = attribute_value_source(source, prop.span);
+                attrs.push_str(&format!(" target={{({expr}) ? '_blank' : undefined}}"));
+                if !authored_rel {
+                    attrs.push_str(&format!(
+                        " rel={{({expr}) ? 'noreferrer noopener' : undefined}}"
+                    ));
+                }
+            }
+            None => {}
+        }
+        // A `_blank` written out by hand earns the same `rel`: the risk
+        // belongs to the new browsing context, not to the spelling.
+        if named("external").is_none() && !authored_rel {
+            if let Some(prop) = named("target") {
+                match prop.literal.as_deref() {
+                    Some("_blank") => attrs.push_str(" rel=\"noreferrer noopener\""),
+                    Some(_) => {}
+                    None => {
+                        let expr = attribute_value_source(source, prop.span);
+                        attrs.push_str(&format!(
+                            " rel={{(({expr}) === '_blank') ? 'noreferrer noopener' : undefined}}"
+                        ));
+                    }
+                }
+            }
+        }
+    }
     // Everything Hozo doesn't model, re-emitted verbatim and last so JSX's
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics. Known cross-platform props were consumed above;
     // an unknown RN-specific prop is still carried as written, because a
     // visible React warning is safer than silently deleting app behavior.
     for prop in &node.props.passthrough {
+        // `external` is not an attribute the DOM has; it was lowered into
+        // `target` and `rel` above. The authored `target` goes with it
+        // when it did, because `external` means `_blank` and passthrough
+        // props are emitted last -- left in place it would win, and
+        // `@hozo/runtime`'s half resolves the contradiction the other way.
+        if tag == "a" {
+            let name = prop.name.as_deref();
+            if name == Some("external") || (external_target_consumed && name == Some("target")) {
+                continue;
+            }
+        }
         attrs.push(' ');
         attrs.push_str(&render_verbatim(
             prop.span,
@@ -2167,6 +2272,73 @@ export function Login() {
         );
     }
 
+    /// One case per branch of the `external` lowering.
+    ///
+    /// The differential test in the conformance suite is the one that
+    /// keeps this agreeing with `externalLinkAttributes`; these pin the
+    /// emitted text, which is what a reader of a generated file sees.
+    #[test]
+    fn external_becomes_a_target_and_a_rel_that_severs_the_opener() {
+        let cases = [
+            (
+                r#"<Link href="https://example.com" external>Docs</Link>"#,
+                "<a target=\"_blank\" rel=\"noreferrer noopener\" href=\"https://example.com\">Docs</a>",
+            ),
+            (
+                r#"<Link href="https://example.com" external={false}>Docs</Link>"#,
+                "<a href=\"https://example.com\">Docs</a>",
+            ),
+            // The author wrote one, so the author gets it. Passthrough
+            // props are emitted last and JSX resolves duplicates
+            // last-wins, which is how the rest of this backend defers.
+            (
+                r#"<Link href="https://example.com" external rel="me">Docs</Link>"#,
+                "<a target=\"_blank\" href=\"https://example.com\" rel=\"me\">Docs</a>",
+            ),
+            // `external` and a `target` that contradicts it. `external`
+            // wins, and the authored one is dropped rather than left to
+            // win by position -- the same resolution the runtime half
+            // reaches, where `external ? '_blank' : target` decides it.
+            (
+                r#"<Link href="https://example.com" external target="_self">Docs</Link>"#,
+                "<a target=\"_blank\" rel=\"noreferrer noopener\" href=\"https://example.com\">Docs</a>",
+            ),
+            // A `_blank` written out by hand earns the same `rel`: the
+            // risk belongs to the new browsing context, not the spelling.
+            (
+                r#"<Link href="https://example.com" target="_blank">Docs</Link>"#,
+                "<a rel=\"noreferrer noopener\" href=\"https://example.com\" target=\"_blank\">Docs</a>",
+            ),
+            (
+                r#"<Link href="https://example.com" target="_self">Docs</Link>"#,
+                "<a href=\"https://example.com\" target=\"_self\">Docs</a>",
+            ),
+            // Carried as a ternary rather than decided, which is what
+            // this backend does with every expression it cannot read.
+            (
+                r#"<Link href="https://example.com" external={leaves}>Docs</Link>"#,
+                "<a target={(leaves) ? '_blank' : undefined} rel={(leaves) ? 'noreferrer noopener' : undefined} href=\"https://example.com\">Docs</a>",
+            ),
+            (
+                r#"<Link href="https://example.com" target={where}>Docs</Link>"#,
+                "<a rel={((where) === '_blank') ? 'noreferrer noopener' : undefined} href=\"https://example.com\" target={where}>Docs</a>",
+            ),
+            (
+                r#"<Button href="https://example.com" external>Docs</Button>"#,
+                "<a role=\"button\" target=\"_blank\" rel=\"noreferrer noopener\" href=\"https://example.com\">Docs</a>",
+            ),
+        ];
+        for (element, expected) in cases {
+            let source = format!(
+                "import {{ Link, Button }} from '@hozo/core'
+const el = {element}"
+            );
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
+            assert_eq!(output.jsx, expected, "{element}");
+        }
+    }
     #[test]
     fn dynamic_heading_level_uses_the_typed_fallback_component() {
         let source = r#"
