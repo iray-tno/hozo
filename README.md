@@ -203,7 +203,7 @@ independently at **349/366 (95.4%)**. The
 reviewed compiler-relevant surface is **504/504 (100%)**. Including optional
 platform adapters it is **504/505 (99.8%)**, with `backdropFilter` as the sole
 remaining adapter candidate. Of the other 17 published names, StyleX itself
-emits no CSS for 13 in its default mode, two are `@font-face` descriptors, and
+deliberately disallows 13 shorthands in its default mode, two are `@font-face` descriptors, and
 two are obsolete or non-standard. These are
 property-name upper bounds: each
 property still accepts only the statically safe value subset the shared IR can

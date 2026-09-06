@@ -20,7 +20,8 @@ new mapping cannot be added without moving the snapshot.
 
 The raw published-type ratio stays visible, but it is not treated as an
 implementation backlog. StyleX 0.19 publishes 522 names; 13 shorthands emit no
-CSS in its default property-specificity mode, two are `@font-face`-only
+CSS because they are deliberately disallowed in its default
+property-specificity mode, two are `@font-face`-only
 descriptors, and two are obsolete or non-standard. The reviewed
 compiler-relevant surface is therefore 504/504. Including optional platform
 adapters produces a product-relevant score of 504/505, with `backdropFilter`

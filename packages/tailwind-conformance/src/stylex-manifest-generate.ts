@@ -12,7 +12,7 @@ export type StylexDisposition =
   | 'implemented'
   | 'compiler-candidate'
   | 'optional-adapter'
-  | 'upstream-rejected'
+  | 'default-mode-disallowed'
   | 'descriptor-only'
   | 'obsolete-or-nonstandard'
 export type StylexBasis =
@@ -69,7 +69,7 @@ const COMPILER_CANDIDATE_PROPERTIES = new Set<string>()
 // default property-specificity transform deliberately emits no declaration
 // for them. Counting them as Hozo implementation gaps would ask Hozo to
 // diverge from the compiler it is interoperating with.
-const UPSTREAM_REJECTED_PROPERTIES = new Set([
+const DEFAULT_MODE_DISALLOWED_PROPERTIES = new Set([
   'animation',
   'background',
   'border',
@@ -202,7 +202,7 @@ function dispositionFor(name: string, mapped: boolean): StylexDisposition {
   if (mapped) return 'implemented'
   if (COMPILER_CANDIDATE_PROPERTIES.has(name)) return 'compiler-candidate'
   if (ADAPTER_PROPERTIES.has(name)) return 'optional-adapter'
-  if (UPSTREAM_REJECTED_PROPERTIES.has(name)) return 'upstream-rejected'
+  if (DEFAULT_MODE_DISALLOWED_PROPERTIES.has(name)) return 'default-mode-disallowed'
   if (DESCRIPTOR_ONLY_PROPERTIES.has(name)) return 'descriptor-only'
   if (OBSOLETE_OR_NONSTANDARD_PROPERTIES.has(name)) return 'obsolete-or-nonstandard'
   throw new Error(`Unmapped StyleX property ${name} has no reviewed disposition`)
