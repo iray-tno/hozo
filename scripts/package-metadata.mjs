@@ -1,9 +1,9 @@
 // The publishing metadata for every package, in one place.
 //
-// Nine packages need the same eight fields to agree, and a registry is
+// Twelve packages need the same eight fields to agree, and a registry is
 // unforgiving about disagreement: a wrong `exports` path produces a
 // package that installs cleanly and imports nothing, and npm has no undo
-// past 72 hours. Keeping the shape here rather than in nine files means
+// past 72 hours. Keeping the shape here rather than in twelve files means
 // the answer to "what does a Hozo package look like" has one place to be
 // wrong in; `check-packages.mjs` re-derives it and fails on any hand edit
 // that drifted, then looks inside the tarballs to see whether the answer
@@ -26,7 +26,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
  * The version every package publishes at. They release in lockstep.
  *
  * Read from a package rather than written here, because Changesets owns
- * it: a release bumps all nine together (`.changeset/config.json` has them
+ * it: a release bumps all twelve together (`.changeset/config.json` has them
  * as a `fixed` group), and a constant in this file would be rewritten back
  * over the bump on the next run. `check-packages.mjs` is what makes the
  * lockstep an assertion rather than an intention.
