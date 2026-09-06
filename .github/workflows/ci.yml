@@ -111,6 +111,8 @@ jobs:
           version=$(grep -oP '^wasm-bindgen = "=\K[0-9.]+' crates/hozo_wasm/Cargo.toml)
           cargo install wasm-bindgen-cli --version "$version" --locked
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
-      - run: pnpm --filter @hozo/compiler build:native
+      # `build` depends on `build:native`, and the test imports the compiler's
+      # compiled JavaScript rather than its source.
+      - run: pnpm turbo run build --filter=@hozo/compiler
       - run: node scripts/build-wasm.mjs
       - run: node --test packages/tailwind-conformance/src/wasm-binding.test.ts
