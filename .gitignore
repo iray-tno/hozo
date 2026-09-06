@@ -41,3 +41,9 @@ allure-history/
 # global excludes: Biome reads this file and not that one, so a machine
 # with one of these would fail `pnpm lint` while CI, which has none, passed.
 .claude/settings.local.json
+
+# Built by `node scripts/build-wasm.mjs`, which needs the
+# `wasm32-unknown-unknown` target and a version-matched `wasm-bindgen` --
+# more than `pnpm install` provides, and 1.3MB that would be committed
+# again on every compiler change.
+packages/compiler/wasm/
