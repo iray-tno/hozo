@@ -195,11 +195,11 @@ The first slice accepts a namespace import, a same-file module-scope static
 `stylex.props(styles.base, condition && styles.variant)`. It covers the common
 universal layout, spacing, size, colour, opacity, radius and text properties,
 including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **503/522 property names
-(96.4%)**, including **134/134 (100%)** when the denominator includes both
+Against StyleX 0.19.0's published types that is **504/522 property names
+(96.6%)**, including **134/134 (100%)** when the denominator includes both
 React Native's published keys and exact compile-time Native equivalents, and
 **21/21 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **348/366 (95.1%)**. The
+independently at **349/366 (95.4%)**. The
 remaining surface is reported separately as 1 optional-adapter candidate and
 the unmapped Web-only names. These are
 property-name upper bounds: each
@@ -216,7 +216,7 @@ frontend or dependency change, refresh it with
 `pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
 
 Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **347/347 (100%)** representative values, **16/16
+corpus currently measures **348/348 (100%)** representative values, **16/16
 (100%)** common authoring constructs, and **270/270 (100%)** declarations after
 weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
 and Border scenarios. Every representative value runs the Hozo Web and Native
