@@ -16,6 +16,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import { createCompiler } from '@hozo/compiler'
+
 import { renderNative, type Tree } from './native-render.ts'
 
 function children(tree: Tree): Tree[] {
@@ -132,4 +134,51 @@ test('a compiled class survives an inline style beside it', () => {
   const style = flatten(tree?.props.style)
   assert.equal(style.fontSize, 20, 'the compiled class was dropped')
   assert.equal(style.color, 'red')
+})
+
+test('the ratio is the one the project’s own browser applies', () => {
+  // Preflight sets `sub`/`sup` to 75% and `small` to 80%; the bare user
+  // agent makes all three `smaller`, which Chrome resolves as a division
+  // by 1.2. Measured at bases 16, 20 and 32, with and without this
+  // repository's generated preflight (#315).
+  //
+  // The compiler had one table for both, and it was not either browser's:
+  // `small` at 0.85 draws 13.6 from a base of 16, and 13.6 is a size no
+  // browser renders `<small>` at.
+  const source = `import { Text, Small, Sub } from '@hozo/core'
+export function Label() {
+  return <Text className="text-base">a<Small>s</Small><Sub>2</Sub></Text>
+}`
+  const compiled = (preflight: boolean) =>
+    createCompiler({ colors: [], preflight }).compileNative(source)[0] as { styles: string }
+
+  // 16 * 0.8 = 12.8 -> 13, and 16 * 0.75 = 12.
+  const reset = compiled(true).styles
+  assert.match(reset, /fontSize: 13,/)
+  assert.match(reset, /fontSize: 12,/)
+
+  // 16 / 1.2 = 13.33 -> 13, for both.
+  const bare = compiled(false).styles
+  assert.match(bare, /fontSize: 13,/)
+  assert.doesNotMatch(bare, /fontSize: 12,/)
+})
+
+test('a reset heading does not scale at runtime either', () => {
+  // The half the static fix in #315 missed. An opaque parent sends the
+  // ratio to `HozoRelativeText` instead of resolving it, and that path
+  // read the user agent's table whatever the project shipped: a level-1
+  // heading under `style={{ fontSize: 20 }}` drew at 40 on the phone
+  // while the browser -- `font-size: inherit` under preflight -- drew it
+  // at 20.
+  const source = `import { Text, Heading } from '@hozo/core'
+export function Label() {
+  return <Text style={{ fontSize: 20 }}>t<Heading level={1}>T</Heading></Text>
+}`
+  const { jsx } = createCompiler({ colors: [], preflight: true }).compileNative(source)[0] as {
+    jsx: string
+  }
+  assert.doesNotMatch(jsx, /hozoRelative/)
+  // And no publisher above it, since nothing below is relative any more.
+  assert.doesNotMatch(jsx, /HozoTextSize/)
+  assert.match(jsx, /accessibilityRole="header"/)
 })

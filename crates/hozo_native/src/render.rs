@@ -345,10 +345,10 @@ pub(super) fn render_node(
     // Semantic typography default styles on Native:
     // Whether this element answers its own ratio at runtime, and whether
     // it has to publish a size for one below it that does.
-    let relative_at_runtime = if parent_size_opaque { size_ratio(node) } else { None };
+    let relative_at_runtime = if parent_size_opaque { size_ratio(node, theme) } else { None };
     let opaque_here = size_is_opaque(node);
     let publishes_size =
-        opaque_here && component == "Text" && has_relative_descendant(node);
+        opaque_here && component == "Text" && has_relative_descendant(node, theme);
     // The size a relative one scales against, per condition.
     //
     // `parent_font_size` before `inherited`, which is the other way round
@@ -534,7 +534,7 @@ pub(super) fn render_node(
             ]
         }
         Primitive::Sub | Primitive::Sup | Primitive::Small | Primitive::RubyText => {
-            match (parent_size_opaque, size_ratio(node)) {
+            match (parent_size_opaque, size_ratio(node, theme)) {
                 // Answered at runtime instead; see `rendered_component`.
                 (true, Some(_)) => Vec::new(),
                 (false, Some(ratio)) => scaled(ratio, base_font_sizes()),
@@ -569,7 +569,7 @@ pub(super) fn render_node(
             // The weight holds for every level, so it is above rather than
             // here. The size is one of six, and `size_ratio` declines a
             // level chosen at runtime -- that one the compiler cannot pick.
-            if let (false, Some(ratio)) = (parent_size_opaque, size_ratio(node)) {
+            if let (false, Some(ratio)) = (parent_size_opaque, size_ratio(node, theme)) {
                 defs.extend(scaled(ratio, base_font_sizes()));
             }
             defs
