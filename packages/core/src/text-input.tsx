@@ -48,6 +48,16 @@ export interface TextInputProps {
   /** Additional guidance announced after the field's accessible name. */
   accessibilityHint?: string
   onChangeText?: (text: string) => void
+  /**
+   * Found by typechecking `examples/native-demo` for the first time.
+   *
+   * React Native's own `TextInput` takes this, so the acceptance screen
+   * has always passed one and the emulator has always reported it as a
+   * `resource-id`. This half never declared it, and nothing noticed
+   * because the file that passes it had no tsconfig -- so the prop was
+   * fine on one platform and a type error waiting on the other.
+   */
+  testID?: string
   disabled?: boolean
   /** A `<textarea>` rather than an `<input>`. */
   multiline?: boolean
@@ -77,6 +87,7 @@ export function TextInput({
   accessibilityLabel,
   accessibilityHint,
   onChangeText,
+  testID,
   disabled,
   multiline,
   numberOfLines,
@@ -92,6 +103,7 @@ export function TextInput({
     placeholder,
     'aria-label': accessibilityLabel,
     'aria-description': accessibilityHint,
+    'data-testid': testID,
     disabled,
     // `editable={false}` and `readOnly` are one attribute under two
     // spellings, and React Native 0.87 has both.

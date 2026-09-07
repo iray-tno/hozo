@@ -140,9 +140,15 @@ importers:
       '@react-native/metro-config':
         specifier: ^0.87.0
         version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
       metro:
         specifier: ^0.87.0
         version: 0.87.0(supports-color@8.1.1)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/next-demo:
     dependencies:
