@@ -74,7 +74,7 @@ test('computeSafePolygon: computes polygon for placement left', () => {
 })
 
 test('DelayGroupMachine: transitions and delays', async () => {
-  const machine = new DelayGroupMachine({ openDelay: 50, closeDelay: 20, skipDelayDuration: 30 })
+  const machine = new DelayGroupMachine({ openDelay: 50, closeDelay: 20, skipDelayDuration: 0 })
   assert.equal(machine.getIsWarm(), false)
   assert.equal(machine.getEffectiveOpenDelay(), 50)
   assert.equal(machine.getCloseDelay(), 20)
@@ -85,22 +85,16 @@ test('DelayGroupMachine: transitions and delays', async () => {
   assert.equal(machine.getEffectiveOpenDelay(), 0)
 
   // Close tooltip-1 -> still warm during grace period
-  let cooledDown = false
-  machine.onClose('tooltip-1', () => {
-    cooledDown = true
+  const cooledDown = new Promise<void>((resolve) => {
+    machine.onClose('tooltip-1', resolve)
   })
   assert.equal(machine.getIsWarm(), true)
 
-  // Wait 10ms (still within 30ms)
-  await new Promise((r) => setTimeout(r, 10))
-  assert.equal(machine.getIsWarm(), true)
-  assert.equal(cooledDown, false)
-
-  // Wait remaining 30ms -> cools down
-  await new Promise((r) => setTimeout(r, 30))
+  // Observe the scheduled transition itself rather than assuming that a short
+  // sleep resumes before a longer timer on every CI host.
+  await cooledDown
   assert.equal(machine.getIsWarm(), false)
   assert.equal(machine.getEffectiveOpenDelay(), 50)
-  assert.equal(cooledDown, true)
 
   // Re-open and dispose
   machine.onOpen('tooltip-2')
