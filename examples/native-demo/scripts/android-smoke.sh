@@ -51,6 +51,25 @@ fail() {
   exit 1
 }
 
+# Whether the app is still running, and what killed it if not.
+#
+# The crash check used to run once, right after launch, which covers a
+# render that throws on the first frame and nothing after it. A screen
+# reached by pressing something can throw too, and when it does the app
+# dies and the launcher becomes visible -- so the next dump is of the home
+# screen and the failure reads as "the thing did not open". It was not the
+# tap; it was the screen.
+still_alive() {
+  local what="$1"
+  # shellcheck disable=SC2001 -- the CR below is literal on purpose; adb's
+  # shell output is CRLF and every other reader here strips it the same way.
+  if [ -z "$(adb shell pidof "$package" | tr -d '')" ]; then
+    echo '--- the exception ---'
+    adb logcat -d | grep -A 30 'FATAL EXCEPTION' | tail -40 || true
+    fail "$package died $what"
+  fi
+}
+
 # Pulls the current tree to a named file and leaves it in the working
 # directory, where the workflow collects it.
 #
@@ -193,6 +212,7 @@ fi
 echo "pressing Continue at ${tap_x},${tap_y}"
 adb shell input tap "$tap_x" "$tap_y"
 sleep 2
+still_alive 'while opening the dialog'
 
 dump dialog_dump.xml
 if ! grep -q 'smoke-dialog' dialog_dump.xml; then
@@ -205,6 +225,7 @@ echo "the dialog is open"
 echo "dismissing with Back"
 adb shell input keyevent 4
 sleep 2
+still_alive 'while dismissing the dialog'
 dump dismissed_dump.xml
 # The app first, and this order matters. Asserting only that the dialog is
 # gone tests an absence, and an absence is also what leaving the app looks
@@ -245,6 +266,7 @@ fi
 echo "opening the gallery at ${tap_x},${tap_y}"
 adb shell input tap "$tap_x" "$tap_y"
 sleep 2
+still_alive 'while opening the gallery'
 
 dump gallery_dump.xml
 if ! grep -q "gallery-Heading" gallery_dump.xml; then
