@@ -104,6 +104,7 @@ export function Button({
   accessibilityHint,
   href,
   external,
+  replace,
   style,
   testID,
 }: ButtonNativeProps) {
@@ -133,7 +134,7 @@ export function Button({
       { href: string; children?: ReactNode } & Omit<ButtonNativeProps, 'href' | 'children'>
     >
     return (
-      <Link href={href} external={external} onPress={onPress} {...shared}>
+      <Link href={href} external={external} replace={replace} onPress={onPress} {...shared}>
         {children}
       </Link>
     )
@@ -155,6 +156,8 @@ export interface ButtonNativeProps {
   href?: string
   /** Accepted and ignored; see above. */
   external?: boolean
+  /** Ask an installed router to replace its current history entry. */
+  replace?: boolean
   target?: string
   rel?: string
   download?: boolean | string

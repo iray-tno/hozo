@@ -28,6 +28,19 @@ On Web, links remain real `<a href>` elements, so SEO, copying destinations, rig
 and new-tab gestures continue to work. On React Native, the same provider connects `Link`,
 `Button href`, and other destination-bearing primitives to the installed router.
 
+Use `replace` for redirect-like navigation that should not leave the current screen in router
+history:
+
+```tsx
+<Button href="/signed-in" replace>
+  Continue
+</Button>
+```
+
+The framework adapters map this to Next.js or Expo Router's `replace`, and to TanStack Router's
+`navigate({ to, replace: true })`. Without a provider, `replace` is inert and the platform's normal
+link fallback still works.
+
 ## Framework adapters
 
 The adapter entry points accept router instances structurally, so Hozo does not install or bundle

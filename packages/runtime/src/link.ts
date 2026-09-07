@@ -43,6 +43,8 @@ export interface HozoLinkProps {
   disabled?: boolean
   /** Leaves the app: `_blank` and a `rel` that severs `window.opener`. */
   external?: boolean
+  /** Ask an installed router to replace its current history entry. */
+  replace?: boolean
   target?: '_blank' | '_self' | '_parent' | '_top' | string
   rel?: string
   download?: boolean | string
@@ -82,6 +84,7 @@ export function HozoLink({
   accessibilityRole,
   disabled,
   external,
+  replace,
   target,
   rel,
   download,
@@ -115,6 +118,10 @@ export function HozoLink({
       // attribute the utility silently stops matching on this element
       // while it matches everywhere else.
       'data-hozo-disabled': disabled ? '' : undefined,
+      // The document-level navigation adapter sees compiled anchors too,
+      // so router-only intent travels as inert data rather than an invalid
+      // DOM `replace` attribute.
+      'data-hozo-navigation-replace': replace ? '' : undefined,
       onClick: disabled
         ? (event: React.MouseEvent<HTMLAnchorElement>) => {
             event.preventDefault()

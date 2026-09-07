@@ -9,23 +9,32 @@ import {
 
 test('Next.js receives the authored href through push', () => {
   const calls: string[] = []
-  const navigate = nextRouterNavigation({ push: (href) => calls.push(href) })
+  const navigate = nextRouterNavigation({
+    push: (href) => calls.push(`push:${href}`),
+    replace: (href) => calls.push(`replace:${href}`),
+  })
   assert.equal(navigate('/orders/1', { href: '/orders/1' }), true)
-  assert.deepEqual(calls, ['/orders/1'])
+  assert.equal(navigate('/signed-in', { href: '/signed-in', replace: true }), true)
+  assert.deepEqual(calls, ['push:/orders/1', 'replace:/signed-in'])
 })
 
 test('Expo Router receives the authored href through ordinary navigate semantics', () => {
   const calls: string[] = []
-  const navigate = expoRouterNavigation({ navigate: (href: string) => calls.push(href) })
+  const navigate = expoRouterNavigation({
+    navigate: (href: string) => calls.push(`navigate:${href}`),
+    replace: (href: string) => calls.push(`replace:${href}`),
+  })
   assert.equal(navigate('/orders/2', { href: '/orders/2' }), true)
-  assert.deepEqual(calls, ['/orders/2'])
+  assert.equal(navigate('/signed-in', { href: '/signed-in', replace: true }), true)
+  assert.deepEqual(calls, ['navigate:/orders/2', 'replace:/signed-in'])
 })
 
 test('TanStack Router receives a to option rather than an untyped positional URL', () => {
   const calls: unknown[] = []
   const navigate = tanStackRouterNavigation({ navigate: (options: unknown) => calls.push(options) })
   assert.equal(navigate('/orders/3', { href: '/orders/3' }), true)
-  assert.deepEqual(calls, [{ to: '/orders/3' }])
+  assert.equal(navigate('/signed-in', { href: '/signed-in', replace: true }), true)
+  assert.deepEqual(calls, [{ to: '/orders/3' }, { to: '/signed-in', replace: true }])
 })
 
 test('an asynchronous router remains pending until its transition completes', async () => {

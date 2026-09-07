@@ -3,6 +3,8 @@ export interface HozoNavigationRequest {
   href: string
   /** Bypass application routing and use the platform destination handler. */
   external?: boolean
+  /** Replace the current router history entry instead of pushing a new one. */
+  replace?: boolean
 }
 
 /**

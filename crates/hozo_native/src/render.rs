@@ -1110,6 +1110,21 @@ pub(super) fn render_node(
             props_text.push_str(&format!(" accessibilityState={{{{ disabled: Boolean({disabled}) }}}}"));
         }
     }
+    let destination_primitive = node.primitive == Primitive::Link
+        || (node.primitive == Primitive::Button
+            && node
+                .props
+                .passthrough
+                .iter()
+                .any(|prop| prop.name.as_deref() == Some("href")));
+    if destination_primitive {
+        if let Some(replace) = &node.props.navigation_replace {
+            props_text.push_str(&format!(
+                " replace={{{}}}",
+                render_condition_expr(source, replace)
+            ));
+        }
+    }
     // Everything Hozo doesn't model, re-emitted verbatim and last so JSX's
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.

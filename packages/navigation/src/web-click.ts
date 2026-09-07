@@ -51,7 +51,7 @@ export function navigationRequestForClick(event: RoutableClick): HozoNavigationR
     return null
   }
 
-  return { href }
+  return anchor.hasAttribute('data-hozo-navigation-replace') ? { href, replace: true } : { href }
 }
 
 /** Offers one eligible click to an adapter while retaining the browser as fallback. */
