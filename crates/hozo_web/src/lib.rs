@@ -1174,6 +1174,25 @@ fn render_node(
         }
     }
 
+    // Like `replace`, prefetch intent belongs to the router rather than
+    // HTML. The provider observes this inert marker on hover or focus.
+    if let Some(prefetch) = &node.props.navigation_prefetch {
+        if tag == "a" {
+            match prefetch {
+                hozo_ir::ConditionExpr::Static(true) => {
+                    attrs.push_str(" data-hozo-navigation-prefetch=\"\"");
+                }
+                hozo_ir::ConditionExpr::Static(false) => {}
+                other => attrs.push_str(&format!(
+                    " data-hozo-navigation-prefetch={{({}) ? '' : undefined}}",
+                    render_condition_expr(source, other)
+                )),
+            }
+        } else if tag == "Pressable" {
+            attrs.push_str(&boolean_attribute("prefetch", prefetch, source));
+        }
+    }
+
     // `external`, which is Hozo's own spelling and not the DOM's.
     //
     // It used to reach the anchor verbatim -- the generated file said
@@ -2373,6 +2392,34 @@ const el = {element}"
             assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
             assert_eq!(output.jsx, expected, "{element}");
             assert!(!output.jsx.contains(" replace="), "{element}: {}", output.jsx);
+        }
+    }
+
+    #[test]
+    fn prefetch_navigation_intent_is_an_inert_anchor_marker() {
+        let cases = [
+            (
+                r#"<Link href="/likely" prefetch>Likely</Link>"#,
+                r#"<a data-hozo-navigation-prefetch="" href="/likely">Likely</a>"#,
+            ),
+            (
+                r#"<Button href="/likely" prefetch={warm}>Likely</Button>"#,
+                r#"<a data-hozo-navigation-prefetch={(warm) ? '' : undefined} href="/likely">Likely</a>"#,
+            ),
+            (
+                r#"<Pressable href="/likely" prefetch={false}>Likely</Pressable>"#,
+                r#"<a href="/likely">Likely</a>"#,
+            ),
+        ];
+        for (element, expected) in cases {
+            let source = format!(
+                "import {{ Link, Button, Pressable }} from '@hozo/core'\nconst el = {element}"
+            );
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
+            assert_eq!(output.jsx, expected, "{element}");
+            assert!(!output.jsx.contains(" prefetch="), "{element}: {}", output.jsx);
         }
     }
 

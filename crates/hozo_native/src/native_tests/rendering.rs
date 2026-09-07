@@ -585,6 +585,25 @@ fn destination_replace_intent_reaches_hozo_link() {
     );
 }
 
+#[test]
+fn destination_prefetch_intent_reaches_hozo_link() {
+    let source = r#"
+        import { Button, Link, Pressable } from '@hozo/core'
+        const el = (
+            <View>
+                <Link href="/one" prefetch>One</Link>
+                <Button href="/two" prefetch={likely}>Two</Button>
+                <Pressable href="/three" prefetch>Three</Pressable>
+            </View>
+        )
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(output.jsx.matches(" prefetch={true}").count(), 2, "{}", output.jsx);
+    assert!(output.jsx.contains(" prefetch={likely}"), "{}", output.jsx);
+}
+
 /// The rule the browser draws and React Native does not.
 ///
 /// `<hr>` takes its line from the user-agent stylesheet. React Native has

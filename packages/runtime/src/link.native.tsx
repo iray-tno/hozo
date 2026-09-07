@@ -1,13 +1,14 @@
 import { hozoTextChildren } from '@hozo/behaviors'
-import type { ReactNode } from 'react'
+import { type ReactNode, useRef } from 'react'
 import { Linking, Pressable, type PressableProps } from 'react-native'
-import { activateHozoNavigation } from './navigation.ts'
+import { activateHozoNavigation, prefetchHozoNavigation } from './navigation.ts'
 import { useHozoNavigation } from './navigation-context.tsx'
 
 export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
   href: string
   external?: boolean
   replace?: boolean
+  prefetch?: boolean
   onPress?: PressableProps['onPress']
   children?: PressableProps['children']
 }
@@ -38,16 +39,28 @@ export function HozoLink({
   href,
   external,
   replace,
+  prefetch,
   onPress,
+  onPressIn,
+  disabled,
   children,
   accessibilityRole = 'link',
   ...props
 }: HozoLinkProps) {
   const navigation = useHozoNavigation()
+  const prefetchedHref = useRef<string | null>(null)
   return (
     <Pressable
       {...props}
+      disabled={disabled}
       accessibilityRole={accessibilityRole}
+      onPressIn={(event) => {
+        onPressIn?.(event)
+        if (prefetch && !disabled && prefetchedHref.current !== href) {
+          prefetchedHref.current = href
+          prefetchHozoNavigation(navigation, { href, external, replace })
+        }
+      }}
       onPress={(event) => {
         onPress?.(event)
         if (!event.defaultPrevented) {

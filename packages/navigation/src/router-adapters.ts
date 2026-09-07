@@ -1,9 +1,10 @@
-import type { NavigationAdapterOptions } from './adapter.ts'
+import type { NavigationAdapterOptions, NavigationPrefetch } from './adapter.ts'
 
 /** The stable imperative subset exposed by Next.js App Router. */
 export interface NextRouterLike {
   push(href: string): unknown
   replace(href: string): unknown
+  prefetch?(href: string): unknown
 }
 
 /**
@@ -14,10 +15,12 @@ export interface NextRouterLike {
 export interface ExpoRouterLike {
   navigate(href: never): unknown
   replace(href: never): unknown
+  prefetch?(href: never): unknown
 }
 
 export interface TanStackRouterLike {
   navigate(options: never): unknown
+  preloadRoute?(options: never): unknown
 }
 
 function acceptedWhenComplete(result: unknown): true | Promise<true> {
@@ -54,4 +57,16 @@ export function tanStackRouterNavigation(
     acceptedWhenComplete(
       router.navigate((request.replace ? { to: href, replace: true } : { to: href }) as never),
     )
+}
+
+export function nextRouterPrefetch(router: NextRouterLike): NavigationPrefetch | undefined {
+  return router.prefetch ? (href) => router.prefetch?.(href) : undefined
+}
+
+export function expoRouterPrefetch(router: ExpoRouterLike): NavigationPrefetch | undefined {
+  return router.prefetch ? (href) => router.prefetch?.(href as never) : undefined
+}
+
+export function tanStackRouterPrefetch(router: TanStackRouterLike): NavigationPrefetch | undefined {
+  return router.preloadRoute ? (href) => router.preloadRoute?.({ to: href } as never) : undefined
 }

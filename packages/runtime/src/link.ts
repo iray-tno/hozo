@@ -49,6 +49,8 @@ export interface HozoLinkProps
   external?: boolean
   /** Ask an installed router to replace its current history entry. */
   replace?: boolean
+  /** Warm an application-owned route when the user shows intent to follow it. */
+  prefetch?: boolean
   target?: '_blank' | '_self' | '_parent' | '_top' | string
   rel?: string
   download?: boolean | string
@@ -90,6 +92,7 @@ export function HozoLink({
   disabled,
   external,
   replace,
+  prefetch,
   target,
   rel,
   download,
@@ -129,6 +132,7 @@ export function HozoLink({
       // so router-only intent travels as inert data rather than an invalid
       // DOM `replace` attribute.
       'data-hozo-navigation-replace': replace ? '' : undefined,
+      'data-hozo-navigation-prefetch': prefetch ? '' : undefined,
       onClick: disabled
         ? (event: React.MouseEvent<HTMLAnchorElement>) => {
             event.preventDefault()

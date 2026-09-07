@@ -1195,6 +1195,12 @@ pub(super) fn render_node(
                 render_condition_expr(source, replace)
             ));
         }
+        if let Some(prefetch) = &node.props.navigation_prefetch {
+            props_text.push_str(&format!(
+                " prefetch={{{}}}",
+                render_condition_expr(source, prefetch)
+            ));
+        }
     }
     // Everything Hozo doesn't model, re-emitted verbatim and last so JSX's
     // last-wins duplicate resolution keeps matching the source's own

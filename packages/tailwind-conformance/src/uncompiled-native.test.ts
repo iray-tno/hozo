@@ -65,6 +65,10 @@ function pathToText(tree: Tree | string, needle: string, above: string[] = []): 
 }
 
 const core = require('../../core/src/index.native.ts') as Record<string, unknown>
+const runtimeNavigation = require('../../runtime/src/navigation-context.tsx') as Record<
+  string,
+  unknown
+>
 
 test('a Button given a label puts it inside a Text', () => {
   const path = pathToText(render(react.createElement(core.Button, null, 'Save')), 'Save')
@@ -81,6 +85,25 @@ test('a Link given a label puts it inside a Text, and is a link', () => {
   const tree = render(react.createElement(core.Link, { href: 'https://example.com' }, 'Docs'))
   assert.equal(tree.props.accessibilityRole, 'link')
   assert.deepEqual(pathToText(tree, 'Docs'), ['Pressable', 'Text'])
+})
+
+test('a prefetched Native link warms once when pressing begins', () => {
+  const seen: string[] = []
+  const element = react.createElement(
+    runtimeNavigation.HozoNavigationProvider,
+    {
+      adapter: {
+        navigate: () => true,
+        prefetch: (request: { href: string }) => seen.push(request.href),
+      },
+    },
+    react.createElement(core.Link, { href: '/likely', prefetch: true }, 'Likely'),
+  )
+  const tree = render(element)
+  const onPressIn = tree.props.onPressIn as (event: { defaultPrevented?: boolean }) => void
+  onPressIn({})
+  onPressIn({})
+  assert.deepEqual(seen, ['/likely'])
 })
 
 test('an element child is left as it was written', () => {
