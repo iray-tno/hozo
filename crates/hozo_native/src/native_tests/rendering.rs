@@ -584,3 +584,64 @@ fn destination_replace_intent_reaches_hozo_link() {
         output.jsx
     );
 }
+
+/// The rule the browser draws and React Native does not.
+///
+/// `<hr>` takes its line from the user-agent stylesheet. React Native has
+/// none, so a `View` with no size is zero pixels tall -- and a compiled
+/// separator was exactly that while the uncompiled fallback in
+/// `@hozo/semantics` set the height by hand. Turning the compiler on
+/// removed a divider from the screen (#309), which is the sort of
+/// difference the Web half hides: nothing about `<hr />` suggests the
+/// other platform is short of anything.
+#[test]
+fn a_separator_is_one_pixel_and_says_what_it_is() {
+    let cases = [
+        (
+            r#"<Separator />"#,
+            "height: 1,",
+            r#"<View style={hozoStyles.hozo0} role="separator"></View>"#,
+        ),
+        (
+            r#"<Separator orientation="vertical" />"#,
+            "width: 1,",
+            r#"<View style={hozoStyles.hozo0} role="separator"></View>"#,
+        ),
+        // A rule drawn to look like a line is not structure. `role` and
+        // `accessibilityRole` both say `none`, which is the one value
+        // React Native has for silence -- it has no `separator` at all,
+        // and Android discards the ARIA spelling as well.
+        (
+            r#"<Separator decorative />"#,
+            "height: 1,",
+            r#"<View style={hozoStyles.hozo0} role="none" accessibilityRole="none"></View>"#,
+        ),
+    ];
+    for (element, size, jsx) in cases {
+        let source =
+            format!("import {{ Separator }} from '@hozo/core'\nconst el = {element}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
+        assert!(output.styles.contains(size), "{element}: {}", output.styles);
+        assert!(
+            output.styles.contains("alignSelf: 'stretch',"),
+            "{element}: {}",
+            output.styles
+        );
+        assert_eq!(output.jsx, jsx, "{element}");
+    }
+}
+
+/// Neither of a rule's own props is a prop the platform reads.
+#[test]
+fn a_separator_does_not_pass_its_own_props_through() {
+    for element in [r#"<Separator decorative />"#, r#"<Separator orientation="vertical" />"#] {
+        let source =
+            format!("import {{ Separator }} from '@hozo/core'\nconst el = {element}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(!output.jsx.contains("decorative"), "{element}: {}", output.jsx);
+        assert!(!output.jsx.contains("orientation"), "{element}: {}", output.jsx);
+    }
+}

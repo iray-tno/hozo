@@ -26,6 +26,19 @@ use hozo_ir::{AccessibilityRole, Diagnostic, DiagnosticCode, Node, Primitive, Se
  * `None` when any part of the base is an expression -- that is a string
  * only React Native will ever hold, and `HozoRuby` reads it there.
  */
+/// Whether a `<Separator>` was marked decorative.
+///
+/// A JSX shorthand (`<Separator decorative>`) is the literal `"true"`,
+/// which is what the attribute means. A value the compiler cannot read is
+/// treated as not set: one role goes into the file, and guessing at an
+/// expression would be choosing it wrongly half the time.
+fn separator_is_decorative(node: &Node) -> bool {
+    node.props
+        .passthrough
+        .iter()
+        .find(|prop| prop.name.as_deref() == Some("decorative"))
+        .is_some_and(|prop| prop.literal.as_deref() != Some("false"))
+}
 fn static_ruby_base(node: &Node) -> Option<String> {
     let mut base = String::new();
     for child in &node.children {
@@ -111,6 +124,26 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::TermList => ("View", vec![("role", "list".to_string())]),
         Primitive::Term => ("Text", Vec::new()),
         Primitive::Description => ("View", Vec::new()),
+        // `decorative` decides the role, and it was not being read: every
+        // rule announced itself as a separator, including the ones drawn
+        // purely to look like a line. The uncompiled fallback in
+        // `@hozo/semantics` has always read it.
+        //
+        // `role` rather than `accessibilityRole` for the separator case,
+        // because React Native's `AccessibilityRole` has no such value.
+        // Android throws the `role` away too --
+        // `ReactAccessibilityDelegate.kt` has no `Role.SEPARATOR` arm and
+        // falls to "No mapping from ARIA role to AccessibilityRole" -- so
+        // this is what the platform allows to be said rather than what it
+        // will repeat. `none` it does have, and silencing a decorative
+        // rule is the half that works (#309).
+        Primitive::Separator if separator_is_decorative(node) => (
+            "View",
+            vec![
+                ("role", "none".to_string()),
+                ("accessibilityRole", "none".to_string()),
+            ],
+        ),
         Primitive::Separator => ("View", vec![("role", "separator".to_string())]),
         // The role is a role React Native has. The *value* is the part
         // that needs translating, and it happens in `render.rs`, where the
