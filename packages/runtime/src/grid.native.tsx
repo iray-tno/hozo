@@ -8,23 +8,7 @@ import {
   gridRows,
   gridTrackSizes,
 } from './grid.ts'
-
-/**
- * How much a measurement has to move before it counts as having moved.
- *
- * Half a device pixel, which is below anything a grid track can express
- * and above the noise Yoga produces. `onLayout` reports floats, and a
- * measured layout that feeds its own input has to decide when to stop --
- * otherwise 372.99998 and 373.00002 are different widths forever.
- *
- * This is not hypothetical. The acceptance screen never stopped drawing on
- * an emulator: `uiautomator dump` could not find an idle window across six
- * attempts, and the frame counter climbed by about twenty-four a second
- * with nobody touching it. A screenshot showed the screen half-built,
- * stopped at this grid. Nothing offline could see it, because a stub has
- * no layout engine and never fires `onLayout` at all.
- */
-const SETTLED = 0.5
+import { keepIfSettled } from './measured.ts'
 
 interface Props {
   tracks: readonly GridTrack[]
@@ -73,11 +57,10 @@ export function HozoGrid({
     const totalHeight = rows.reduce((a, b) => a + b, 0) + Math.max(0, rows.length - 1) * rowGap
     const rememberHeight = (child: number) => (event: LayoutChangeEvent) => {
       const height = event.nativeEvent.layout.height
-      setHeights((current) =>
-        Math.abs((current[child] ?? Number.NaN) - height) < SETTLED
-          ? current
-          : Object.assign([...current], { [child]: height }),
-      )
+      setHeights((current) => {
+        const kept = keepIfSettled(current[child], height)
+        return kept === current[child] ? current : Object.assign([...current], { [child]: kept })
+      })
     }
     return (
       <View
@@ -90,7 +73,7 @@ export function HozoGrid({
         // wobbles in the last decimal it never does.
         onLayout={(event) => {
           const next = event.nativeEvent.layout.width
-          setWidth((current) => (Math.abs(current - next) < SETTLED ? current : next))
+          setWidth((current) => keepIfSettled(current, next))
         }}
       >
         {layout.map((item) => {

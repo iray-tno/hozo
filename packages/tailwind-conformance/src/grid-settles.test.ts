@@ -63,30 +63,30 @@ const measuringGrid = () =>
   )
 
 /**
- * A mounted grid, a render counter, and a way to replay a layout pass.
+ * Mounts something that measures, counts its commits, and replays layout.
+ *
+ * A `Profiler` rather than a counter in a wrapper component: the state
+ * lives inside the component under test and re-renders only it, so a
+ * counter one level up stays at one forever and every assertion here
+ * passes without measuring anything. The "really changed" tests caught
+ * that -- a real width change has to move the number, and it did not.
  *
  * `create` inside `act`, because React 19 does not flush outside one and
  * the root comes back unmounted -- the same trap `native-render.ts`
  * documents.
  */
-function mounted() {
-  // A `Profiler` rather than a counter in a wrapper component. The
-  // wrapper never re-renders: `setWidth` lives inside `HozoGrid` and
-  // re-renders only it, so a counter one level up stays at one forever
-  // and every assertion here passes without measuring anything. The
-  // third test caught that -- a real width change has to move the
-  // number, and it did not.
+function mountMeasured(id: string, element: () => unknown) {
   let renders = 0
   const Counted = () =>
     react.createElement(
       react.Profiler,
       {
-        id: 'grid',
+        id,
         onRender: () => {
           renders += 1
         },
       },
-      measuringGrid(),
+      element(),
     )
   let root: Root | undefined
   renderer.act(() => {
@@ -111,9 +111,10 @@ function mounted() {
    * Replays one width until the commits stop, and says how many it took.
    *
    * A measured layout converges over more than one pass by design -- the
-   * first tells it the width, the second the heights that width produced.
-   * Asserting from the first pass would call that convergence a loop. What
-   * this exists to catch is the case where it never arrives.
+   * first pass tells it the width, the second the heights that width
+   * produced. Asserting from the first pass would call that convergence a
+   * loop. What these tests exist to catch is the case where it never
+   * arrives.
    */
   const settle = (width: number, limit = 6) => {
     for (let pass = 0; pass < limit; pass += 1) {
@@ -127,6 +128,7 @@ function mounted() {
   return { layout, settle, renders: () => renders }
 }
 
+const mounted = () => mountMeasured('grid', measuringGrid)
 test('the harness reaches the grid at all', () => {
   // Guards the two below. Both pass trivially if nothing reports layout,
   // which is exactly how a test of a measured layout goes quiet without
@@ -161,4 +163,40 @@ test('a width that really changed is still taken', () => {
   const settled = grid.renders()
   grid.layout(812)
   assert.ok(grid.renders() > settled, 'the grid ignored a real width change')
+})
+
+// --- the same hazard, one component over ------------------------------------
+
+const container = require('@hozo/runtime') as { HozoContainer: unknown }
+
+/** A container query, which stores a width and renders from it. */
+const mountedContainer = () =>
+  mountMeasured('container', () =>
+    react.createElement(container.HozoContainer, { hozoContainerName: 'card' }, 'inside'),
+  )
+test('a container query settles on the same width too', () => {
+  // `HozoContainer` had `current === measured`, which is what `HozoGrid`
+  // had on the measurement that looped. Nothing has seen this one loop --
+  // no screen in this repository uses a container query yet -- and it is
+  // the same three ingredients: a stored width, a render that depends on
+  // it, and a float coming back from Yoga. Fixing only the one that was
+  // caught is how a repository gets two implementations of one rule.
+  const box = mountedContainer()
+  assert.ok(box.layout(373) >= 1, 'the container reports no layout')
+  assert.ok(Number.isFinite(box.settle(373)), 'the container never settled')
+  const settled = box.renders()
+  for (const width of [372.99998, 373.00002, 372.99999]) box.layout(width)
+  assert.equal(
+    box.renders(),
+    settled,
+    `the container re-rendered ${box.renders() - settled} times for a width that did not change`,
+  )
+})
+
+test('and follows a width that really moved', () => {
+  const box = mountedContainer()
+  box.settle(373)
+  const settled = box.renders()
+  box.layout(812)
+  assert.ok(box.renders() > settled, 'the container ignored a real width change')
 })

@@ -19,6 +19,8 @@
 import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
 import { type LayoutChangeEvent, View, type ViewProps } from 'react-native'
 
+import { keepIfSettled } from './measured.ts'
+
 /**
  * Container widths in scope, by name.
  *
@@ -71,7 +73,11 @@ export function HozoContainer({
   // it would be the quiet kind of breakage this compiler exists to avoid.
   const measure = (event: LayoutChangeEvent) => {
     const measured = event.nativeEvent.layout.width
-    setWidth((current) => (current === measured ? current : measured))
+    // A tolerance rather than `===`, for the reason `measured.ts` gives.
+    // This one has not been seen looping, and it is the same shape as the
+    // one that was: a stored width, a render that depends on it, and a
+    // float coming back from Yoga.
+    setWidth((current) => keepIfSettled(current, measured))
     onLayout?.(event)
   }
 

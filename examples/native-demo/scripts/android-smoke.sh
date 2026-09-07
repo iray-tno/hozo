@@ -74,9 +74,16 @@ dump() {
     # count is the question: a window that never idles is one that is
     # still drawing, and the delta across a retry says whether something
     # is animating continuously or the app was merely slow to start.
+    # Both, because uiautomator waits for the *device* to go quiet rather
+    # than the app. A frozen app count next to a climbing system one says
+    # the app is not the thing keeping the screen busy, and the first fix
+    # here was aimed at the app.
     echo "  dump attempt $attempt did not settle; frames drawn so far:"
-    adb shell dumpsys gfxinfo "$package" 2>/dev/null \
-      | grep -E 'Total frames rendered|Janky frames' | sed 's/^/    /' || true
+    for who in "$package" com.android.systemui; do
+      printf '    %s: ' "$who"
+      adb shell dumpsys gfxinfo "$who" 2>/dev/null \
+        | grep -E 'Total frames rendered' | head -1 || echo '(none)'
+    done
     sleep 5
   done
   echo "--- what has focus ---"
