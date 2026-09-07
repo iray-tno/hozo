@@ -8,7 +8,8 @@
     "bundle": "node ./scripts/bundle.mjs",
     "bundle:production": "node ./scripts/bundle.mjs --production --platform android",
     "measure:production": "node ./scripts/measure-production.mjs",
-    "test": "node ./scripts/bundle.mjs && node ./scripts/check-bundle.mjs && node ./scripts/bundle.mjs --entry canvas.js --out canvas.bundle && node ./scripts/check-canvas-bundle.mjs && node ./scripts/measure-production.mjs"
+    "test": "node ./scripts/bundle.mjs && node ./scripts/check-bundle.mjs && node ./scripts/bundle.mjs --entry canvas.js --out canvas.bundle && node ./scripts/check-canvas-bundle.mjs && node ./scripts/measure-production.mjs",
+    "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {
     "@babel/runtime": "^8.0.0",
@@ -25,6 +26,8 @@
     "@react-native-community/cli-platform-android": "20.2.0",
     "@react-native/metro-babel-transformer": "^0.87.0",
     "@react-native/metro-config": "^0.87.0",
-    "metro": "^0.87.0"
+    "@types/react": "^19.2.18",
+    "metro": "^0.87.0",
+    "typescript": "^7.0.2"
   }
 }
