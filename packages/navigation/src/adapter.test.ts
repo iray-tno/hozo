@@ -52,3 +52,16 @@ test('external and explicitly declined navigation retain the platform fallback',
   assert.equal(await adapter.navigate({ href: '/declined' }), false)
   assert.equal(await adapter.navigate({ href: '/external', external: true }), false)
 })
+
+test('prefetch follows the same route boundary without affecting navigation', async () => {
+  const seen: string[] = []
+  const adapter = createNavigationAdapter({
+    onNavigate: () => true,
+    onPrefetch: (href) => seen.push(href),
+  })
+
+  await adapter.prefetch?.({ href: '/likely' })
+  await adapter.prefetch?.({ href: 'https://example.com' })
+  await adapter.prefetch?.({ href: '/outside', external: true })
+  assert.deepEqual(seen, ['/likely'])
+})

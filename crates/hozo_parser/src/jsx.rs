@@ -1047,6 +1047,21 @@ fn build_node(
                     consumed,
                 )
             }
+            "prefetch"
+                if matches!(
+                    primitive,
+                    Primitive::Link | Primitive::Button | Primitive::Pressable
+                ) =>
+            {
+                capture_flag(
+                    attr,
+                    &mut props.navigation_prefetch,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
             "horizontal" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => match &attr.value {
                 None => props.scroll_horizontal = Some(ConditionExpr::Static(true)),
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {

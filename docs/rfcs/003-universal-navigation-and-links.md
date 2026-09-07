@@ -82,6 +82,12 @@ When an in-app `href` is clicked:
 2. Invokes the registered client-side router transition without full page reload.
 3. External links (`https://...`) fall back directly to native browser navigation on Web or `Linking.openURL` on Native.
 
+`prefetch` is an explicit, best-effort hint rather than an eager render-time side effect. Web
+signals intent on pointer hover or keyboard focus; Native signals it on press-in. The navigation
+adapter applies the same application-route boundary as navigation and maps the hint to the
+framework's prefetch/preload operation. Disabled links and destinations owned by the platform
+(external, download, or a new browsing context) are not warmed.
+
 ---
 
 ## 4. Non-DOM Surfaces: `@hozo/canvas` & `<Svg>`

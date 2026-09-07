@@ -10,12 +10,13 @@ export interface NavigationProviderProps extends NavigationAdapterOptions {
 /** Connects destination-bearing Native primitives to an application router. */
 export function NavigationProvider({
   onNavigate,
+  onPrefetch,
   shouldHandle,
   children,
 }: NavigationProviderProps) {
   const adapter = useMemo(
-    () => createNavigationAdapter({ onNavigate, shouldHandle }),
-    [onNavigate, shouldHandle],
+    () => createNavigationAdapter({ onNavigate, onPrefetch, shouldHandle }),
+    [onNavigate, onPrefetch, shouldHandle],
   )
   return <HozoNavigationProvider adapter={adapter}>{children}</HozoNavigationProvider>
 }

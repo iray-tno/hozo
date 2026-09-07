@@ -159,6 +159,7 @@ export interface LinkProps extends TypographyUniversalProps {
   download?: boolean | string
   external?: boolean
   replace?: boolean
+  prefetch?: boolean
   onPress?: (event: React.MouseEvent<HTMLAnchorElement>) => void
 }
 
@@ -176,6 +177,7 @@ export function Link({
   download,
   external,
   replace,
+  prefetch,
   className,
   children,
   style,
@@ -190,6 +192,7 @@ export function Link({
       download={download}
       external={external}
       replace={replace}
+      prefetch={prefetch}
       onPress={onPress}
       className={className}
       style={style}

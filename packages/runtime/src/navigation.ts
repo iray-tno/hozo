@@ -17,6 +17,8 @@ export interface HozoNavigationRequest {
  */
 export interface HozoNavigationAdapter {
   navigate(request: HozoNavigationRequest): boolean | Promise<boolean>
+  /** Warms an application-owned destination without navigating to it. */
+  prefetch?(request: HozoNavigationRequest): unknown | Promise<unknown>
 }
 
 export type HozoNavigationFallback = (href: string) => unknown | Promise<unknown>
@@ -36,4 +38,18 @@ export async function activateHozoNavigation(
 ): Promise<void> {
   if (!request.external && adapter && (await adapter.navigate(request))) return
   await fallback(request.href)
+}
+
+/** Offers a destination to an installed router without a platform fallback. */
+export function prefetchHozoNavigation(
+  adapter: HozoNavigationAdapter | null,
+  request: HozoNavigationRequest,
+): void {
+  if (request.external) return
+  try {
+    const result = adapter?.prefetch?.(request)
+    if (result !== undefined) void Promise.resolve(result).catch(() => {})
+  } catch {
+    // Prefetch is speculative. A cache warm-up must never break interaction.
+  }
 }

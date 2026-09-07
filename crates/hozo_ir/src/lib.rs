@@ -945,6 +945,10 @@ pub struct PropSet {
     /// Web lowers this to an inert data marker for delegated navigation;
     /// Native passes it to `HozoLink` directly.
     pub navigation_replace: Option<ConditionExpr>,
+    /// Speculative route warming for destination-bearing primitives.
+    /// Web lowers this to an inert marker consumed on hover/focus;
+    /// Native passes it to `HozoLink` for press-in intent.
+    pub navigation_prefetch: Option<ConditionExpr>,
     /// Explicit override; `None` means derive the role from `Primitive`
     /// (e.g. `Button` -> `AccessibilityRole::Button`).
     pub accessibility_role: Option<AccessibilityRole>,

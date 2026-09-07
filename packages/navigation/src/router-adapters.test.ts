@@ -3,8 +3,11 @@ import test from 'node:test'
 
 import {
   expoRouterNavigation,
+  expoRouterPrefetch,
   nextRouterNavigation,
+  nextRouterPrefetch,
   tanStackRouterNavigation,
+  tanStackRouterPrefetch,
 } from './router-adapters.ts'
 
 test('Next.js receives the authored href through push', () => {
@@ -50,4 +53,29 @@ test('an asynchronous router remains pending until its transition completes', as
   assert.equal(complete, false)
   assert.equal(await result, true)
   assert.equal(complete, true)
+})
+
+test('framework prefetch adapters use each router without making them required', async () => {
+  const calls: unknown[] = []
+  const next = nextRouterPrefetch({
+    push() {},
+    replace() {},
+    prefetch: (href) => calls.push(`next:${href}`),
+  })
+  const expo = expoRouterPrefetch({
+    navigate() {},
+    replace() {},
+    prefetch: (href: string) => calls.push(`expo:${href}`),
+  })
+  const tanStack = tanStackRouterPrefetch({
+    navigate() {},
+    preloadRoute: (options: unknown) => calls.push(options),
+  })
+
+  await next?.('/next', { href: '/next' })
+  await expo?.('/expo', { href: '/expo' })
+  await tanStack?.('/tanstack', { href: '/tanstack' })
+  assert.deepEqual(calls, ['next:/next', 'expo:/expo', { to: '/tanstack' }])
+
+  assert.equal(nextRouterPrefetch({ push() {}, replace() {} }), undefined)
 })

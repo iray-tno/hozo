@@ -1,10 +1,16 @@
 import type { HozoNavigationAdapter, HozoNavigationRequest } from '@hozo/runtime/navigation'
 
 export type NavigationResult = boolean | undefined | Promise<boolean | undefined>
+export type NavigationPrefetch = (
+  href: string,
+  request: Readonly<HozoNavigationRequest>,
+) => unknown | Promise<unknown>
 
 export interface NavigationAdapterOptions {
   /** Performs the router transition. Returning false asks Hozo to use the platform fallback. */
   onNavigate(href: string, request: Readonly<HozoNavigationRequest>): NavigationResult
+  /** Warms a route after a destination-bearing primitive signals user intent. */
+  onPrefetch?: NavigationPrefetch
   /** Selects destinations owned by the application router. */
   shouldHandle?: (href: string, request: Readonly<HozoNavigationRequest>) => boolean
 }
@@ -24,6 +30,7 @@ export function isLocalHref(href: string): boolean {
 /** Turns an ordinary router callback into the small contract used by Hozo primitives. */
 export function createNavigationAdapter({
   onNavigate,
+  onPrefetch,
   shouldHandle = isLocalHref,
 }: NavigationAdapterOptions): HozoNavigationAdapter {
   return {
@@ -33,6 +40,10 @@ export function createNavigationAdapter({
       return result instanceof Promise
         ? result.then((handled) => handled !== false)
         : result !== false
+    },
+    prefetch(request) {
+      if (!onPrefetch || request.external || !shouldHandle(request.href, request)) return
+      return onPrefetch(request.href, request)
     },
   }
 }

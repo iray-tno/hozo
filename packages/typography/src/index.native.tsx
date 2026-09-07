@@ -220,6 +220,7 @@ export interface LinkProps extends TypographyNativeProps {
   href: string
   external?: boolean
   replace?: boolean
+  prefetch?: boolean
   target?: string
   rel?: string
   download?: boolean | string
@@ -247,6 +248,7 @@ export function Link({
   children,
   external,
   replace,
+  prefetch,
   target: _target,
   rel: _rel,
   download: _download,
@@ -258,6 +260,7 @@ export function Link({
       href={href}
       external={external}
       replace={replace}
+      prefetch={prefetch}
       onPress={onPress}
       style={asWeb(style)}
       {...props}

@@ -588,6 +588,7 @@ export interface PressableProps extends UniversalProps, ResponderProps {
   href?: string
   external?: boolean
   replace?: boolean
+  prefetch?: boolean
   target?: '_blank' | '_self' | '_parent' | '_top' | string
   rel?: string
   download?: boolean | string
@@ -605,6 +606,7 @@ export function Pressable({
   href,
   external,
   replace,
+  prefetch,
   target,
   rel,
   download,
@@ -627,6 +629,7 @@ export function Pressable({
         href={href}
         external={external}
         replace={replace}
+        prefetch={prefetch}
         target={target}
         rel={rel}
         download={download}
@@ -681,6 +684,7 @@ export interface ButtonProps {
   href?: string
   external?: boolean
   replace?: boolean
+  prefetch?: boolean
   target?: '_blank' | '_self' | '_parent' | '_top' | string
   rel?: string
   download?: boolean | string
@@ -704,6 +708,7 @@ export function Button({
   href,
   external,
   replace,
+  prefetch,
   target,
   rel,
   download,
@@ -722,6 +727,7 @@ export function Button({
         href={href}
         external={external}
         replace={replace}
+        prefetch={prefetch}
         target={target}
         rel={rel}
         download={download}

@@ -94,6 +94,24 @@ test('replace is an inert marker shared by Button and Link', () => {
   }
 })
 
+test('prefetch is an inert intent marker shared by every destination primitive', () => {
+  for (const element of [
+    <Button href="/likely" prefetch key="button">
+      Continue
+    </Button>,
+    <Link href="/likely" prefetch key="link">
+      Continue
+    </Link>,
+    <Pressable href="/likely" prefetch key="pressable">
+      Continue
+    </Pressable>,
+  ]) {
+    const html = renderToStaticMarkup(element)
+    assert.match(html, /data-hozo-navigation-prefetch=""/)
+    assert.doesNotMatch(html, /\sprefetch(?:=|\s|>)/)
+  }
+})
+
 test('a destination-bearing Pressable is the same semantic link', () => {
   const html = renderToStaticMarkup(
     <Pressable href="https://example.com" external replace>

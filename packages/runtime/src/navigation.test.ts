@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { activateHozoNavigation, type HozoNavigationAdapter } from './navigation.ts'
+import {
+  activateHozoNavigation,
+  type HozoNavigationAdapter,
+  prefetchHozoNavigation,
+} from './navigation.ts'
 
 test('an installed adapter owns an internal destination it accepts', async () => {
   const seen: string[] = []
@@ -57,4 +61,19 @@ test('no provider preserves the standalone platform behavior', async () => {
     opened = href
   })
   assert.equal(opened, 'myapp://settings')
+})
+
+test('prefetch is optional, router-owned, and never offered for an external destination', () => {
+  const seen: string[] = []
+  const adapter: HozoNavigationAdapter = {
+    navigate: () => true,
+    prefetch(request) {
+      seen.push(request.href)
+    },
+  }
+
+  prefetchHozoNavigation(adapter, { href: '/likely' })
+  prefetchHozoNavigation(adapter, { href: 'https://example.com', external: true })
+  prefetchHozoNavigation(null, { href: '/standalone' })
+  assert.deepEqual(seen, ['/likely'])
 })

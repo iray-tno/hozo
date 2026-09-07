@@ -37,9 +37,24 @@ history:
 </Button>
 ```
 
-The framework adapters map this to Next.js or Expo Router's `replace`, and to TanStack Router's
+The framework adapters map `replace` to Next.js or Expo Router's `replace`, and to TanStack Router's
 `navigate({ to, replace: true })`. Without a provider, `replace` is inert and the platform's normal
 link fallback still works.
+
+Use `prefetch` for destinations worth warming once the user shows intent. Hozo keeps the trigger
+platform-appropriate: pointer hover or keyboard focus on Web, and press-in on React Native. It is
+best-effort, runs once per current destination, and never prefetches disabled, external, download,
+or new-context links:
+
+```tsx
+<Pressable href="/products/42" prefetch>
+  Product card
+</Pressable>
+```
+
+`NavigationProvider` accepts an optional `onPrefetch`. The framework providers connect it to
+Next.js `router.prefetch`, Expo Router `router.prefetch` when available, and TanStack Router
+`router.preloadRoute`. Routers without a prefetch method remain valid adapters.
 
 ## Framework adapters
 

@@ -44,6 +44,7 @@ export interface PressableProps extends RNPressableProps {
   href?: string
   external?: boolean
   replace?: boolean
+  prefetch?: boolean
   /** Browser-only destination controls; ignored by the uncompiled Native fallback. */
   target?: string
   rel?: string
@@ -54,6 +55,7 @@ export function Pressable({
   href,
   external,
   replace,
+  prefetch,
   target: _target,
   rel: _rel,
   download: _download,
@@ -62,9 +64,9 @@ export function Pressable({
   if (href === undefined) return <RNPressable {...props} />
 
   const Link = HozoLink as unknown as ComponentType<
-    { href: string; external?: boolean; replace?: boolean } & RNPressableProps
+    { href: string; external?: boolean; replace?: boolean; prefetch?: boolean } & RNPressableProps
   >
-  return <Link href={href} external={external} replace={replace} {...props} />
+  return <Link href={href} external={external} replace={replace} prefetch={prefetch} {...props} />
 }
 
 export interface ListNativeProps {
@@ -130,6 +132,7 @@ export function Button({
   href,
   external,
   replace,
+  prefetch,
   style,
   testID,
 }: ButtonNativeProps) {
@@ -159,7 +162,14 @@ export function Button({
       { href: string; children?: ReactNode } & Omit<ButtonNativeProps, 'href' | 'children'>
     >
     return (
-      <Link href={href} external={external} replace={replace} onPress={onPress} {...shared}>
+      <Link
+        href={href}
+        external={external}
+        replace={replace}
+        prefetch={prefetch}
+        onPress={onPress}
+        {...shared}
+      >
         {children}
       </Link>
     )
@@ -183,6 +193,8 @@ export interface ButtonNativeProps {
   external?: boolean
   /** Ask an installed router to replace its current history entry. */
   replace?: boolean
+  /** Warm the application route when the user begins pressing the link. */
+  prefetch?: boolean
   target?: string
   rel?: string
   download?: boolean | string

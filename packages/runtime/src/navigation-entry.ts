@@ -3,6 +3,7 @@ export {
   type HozoNavigationAdapter,
   type HozoNavigationFallback,
   type HozoNavigationRequest,
+  prefetchHozoNavigation,
 } from './navigation.ts'
 export {
   HozoNavigationProvider,
