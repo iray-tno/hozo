@@ -12,5 +12,5 @@
     "verbatimModuleSyntax": true,
     "types": ["react", "react-native"]
   },
-  "include": ["App.tsx", "CanvasBench.tsx", "HozoBench.tsx", "NativeBench.tsx"]
+  "include": ["App.tsx", "Gallery.tsx", "CanvasBench.tsx", "HozoBench.tsx", "NativeBench.tsx"]
 }

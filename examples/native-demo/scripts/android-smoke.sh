@@ -206,4 +206,40 @@ fi
 echo "focused after dismissal:"
 grep -o 'resource-id="[^"]*"[^>]*focused="true"' dismissed_dump.xml || echo '  (nothing reports focus)'
 
-echo "ok: $package is up, its tree contains $expect_id, and the dialog opens and closes"
+# --- the census screen -----------------------------------------------------
+
+# `Gallery.tsx` renders every primitive at once, which is what the
+# accessibility contract in #260 is about -- the acceptance screen above is
+# eight of them arranged the way an application would. Reached by pressing a
+# button rather than by a second activity, because the tap machinery is
+# already here and an activity would be a second thing to keep working.
+
+if ! read -r tap_x tap_y < <(centre_of dismissed_dump.xml smoke-gallery); then
+  fail "smoke-gallery has no bounds in the tree, so the census screen is unreachable"
+fi
+echo "opening the gallery at ${tap_x},${tap_y}"
+adb shell input tap "$tap_x" "$tap_y"
+sleep 2
+
+dump gallery_dump.xml
+if ! grep -q "gallery-Heading" gallery_dump.xml; then
+  echo '--- tree after opening the gallery ---'
+  cat gallery_dump.xml
+  fail "the gallery did not open"
+fi
+
+# A picture as well as a tree. Nothing compares these yet -- what to
+# compare them against is a decision nobody has made -- so they are
+# artifacts rather than assertions, and the tree beside them is the part
+# that is checked.
+adb exec-out screencap -p > ./gallery.png 2>/dev/null || true
+
+# How much of the census actually arrived. Not asserted at a number: the
+# screen scrolls, and a dump reports what is on screen, so the count is a
+# fact about the viewport as much as about the primitives. The comparison
+# that matters happens offline against what the compiler emitted.
+found=$(grep -o 'resource-id="gallery-[A-Za-z]*"' gallery_dump.xml | sort -u | wc -l)
+echo "the gallery tree names $found primitives"
+[ "$found" -ge 10 ] || fail "only $found primitives reached the tree, which is not a census"
+
+echo "ok: $package is up, its tree contains $expect_id, the dialog opens and closes, and the gallery renders $found primitives"

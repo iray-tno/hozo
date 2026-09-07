@@ -122,6 +122,8 @@ jobs:
             *-failed.png
             dialog_dump.xml
             dismissed_dump.xml
+            gallery_dump.xml
+            gallery.png
             examples/native-demo/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 14

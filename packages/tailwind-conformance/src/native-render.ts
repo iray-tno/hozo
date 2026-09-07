@@ -175,13 +175,27 @@ export function renderNativeWithLayouts(
  * keep it on screen (`runtime-cost.ts`). Both need the same module, and
  * neither should be hand-assembling one.
  */
-export function loadNativeModule(source: string): Record<string, unknown> {
+export function loadNativeModule(
+  source: string,
+  /**
+   * Where to put the transformed module, when the source has relative
+   * imports.
+   *
+   * The default is a temporary directory inside this package, which is
+   * fine for a fixture written as a string and wrong for a real file:
+   * `examples/native-demo/App.tsx` imports `./Gallery.tsx`, and a copy of
+   * it compiled somewhere else cannot resolve that. Pass the directory the
+   * source came from and the relative imports resolve as they do on a
+   * device.
+   */
+  near?: string,
+): Record<string, unknown> {
   const transformed = transformHozoSource(source, 'Component.tsx')
   if (transformed === null) {
     throw new Error('the transformer declined this source')
   }
 
-  const dir = mkdtempSync(path.join(packageRoot(), '.native-render-'))
+  const dir = mkdtempSync(path.join(near ?? packageRoot(), '.native-render-'))
   try {
     writeFileSync(path.join(dir, 'input.tsx'), transformed)
     execFileSync(
@@ -209,7 +223,16 @@ export function loadNativeModule(source: string): Record<string, unknown> {
 
     const compiled = readFileSync(path.join(dir, 'input.js'), 'utf8')
     const exports: Record<string, unknown> = {}
-    new Function('require', 'exports', compiled)(nativeRequire, exports)
+    // A `require` rooted at the file that was written, not at this one.
+    // The generated module carries the original’s relative imports --
+    // `App.tsx` imports `./Gallery.tsx` -- and resolving those against
+    // `native-render.ts` looks for them in this package, where they are
+    // not. Bound to the temporary file instead, so `near` is enough to
+    // make them resolve.
+    new Function('require', 'exports', compiled)(
+      createRequire(path.join(near ?? packageRoot(), 'input.tsx')),
+      exports,
+    )
     return exports
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -271,12 +294,4 @@ function renderNativeFixture(
       for (const [key, value] of restore) globals[key] = value
     }
   }
-}
-
-/// The generated module's own requires. Nothing is intercepted here: the
-/// resolve hook above already redirects `react-native` and the two Hozo
-/// packages, and it has to, since those packages import each other through
-/// Node's loader rather than through anything handed to this module.
-function nativeRequire(id: string): unknown {
-  return require(id)
 }
