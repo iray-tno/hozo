@@ -96,7 +96,16 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # `-no-snapshot-*` because the log says the emulator was saving a
+          # `default_boot` snapshot on every shutdown and restoring it on
+          # the next run -- and the only run that ever read the
+          # accessibility tree was the first one, before a snapshot
+          # existed. Every run since has started from a restored image and
+          # uiautomator has never found an idle window on one, while the
+          # frame counters say nothing is drawing. A hypothesis rather than
+          # a diagnosis: it fits both facts and no other explanation fits
+          # either, and one run settles it.
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: bash examples/native-demo/scripts/android-smoke.sh
 
       # Whatever the run learned, kept. On a failure the log is the whole
