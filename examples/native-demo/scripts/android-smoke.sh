@@ -81,6 +81,13 @@ dump() {
   done
   echo "--- what has focus ---"
   adb shell dumpsys window 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | sed 's/^/  /' || true
+  # A screenshot needs no idle window, so it is the one thing that still
+  # works when the tree will not come. Offline profiling has ruled out a
+  # React render loop and `HozoAnimated` (`acceptance-screen.test.ts`), so
+  # what is left is something drawing natively -- and a picture of the
+  # screen says whether the remote image resolved, whether a field has a
+  # blinking caret, and whether anything is mid-transition.
+  adb exec-out screencap -p > "./${into%.xml}-failed.png" 2>/dev/null || true
   fail "could not read the accessibility tree after six attempts"
 }
 

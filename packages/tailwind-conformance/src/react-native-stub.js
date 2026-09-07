@@ -32,6 +32,30 @@ export const Linking = {
   openURL: async () => {},
 }
 
+// The gesture responder, which the acceptance screen uses and nothing here
+// had ever rendered. `examples/native-demo/App.tsx` calls
+// `PanResponder.create` at the top of its body, so without this the whole
+// screen throws before drawing anything -- which is what it did, and is
+// why the first attempt to profile it offline got a stack trace instead of
+// a number.
+//
+// `panHandlers` is the whole contract from the caller's side: a bag of
+// `onStartShouldSetResponder`-shaped props spread onto a view. The
+// callbacks are kept rather than dropped so a test can invoke them, but
+// nothing here synthesises a gesture; that needs a device.
+export const PanResponder = {
+  create: (config) => ({
+    panHandlers: {
+      onStartShouldSetResponder: config.onStartShouldSetPanResponder,
+      onMoveShouldSetResponder: config.onMoveShouldSetPanResponder,
+      onResponderGrant: config.onPanResponderGrant,
+      onResponderMove: config.onPanResponderMove,
+      onResponderRelease: config.onPanResponderRelease,
+      onResponderTerminate: config.onPanResponderTerminate,
+    },
+  }),
+}
+
 export const StyleSheet = {
   // Identity, deliberately. The real `create` returns opaque registry
   // values; the point here is to read back the style Hozo wrote. Whether

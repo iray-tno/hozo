@@ -110,6 +110,7 @@ jobs:
           name: android-boot
           path: |
             window_dump.xml
+            *-failed.png
             dialog_dump.xml
             dismissed_dump.xml
             examples/native-demo/android/app/build/outputs/apk/release/*.apk
