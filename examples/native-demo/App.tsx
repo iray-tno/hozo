@@ -131,6 +131,22 @@ export default function App() {
             >
               <Text className="text-center font-bold text-white">Continue</Text>
             </Pressable>
+
+            {/* Beside Continue rather than at the foot of the screen.
+                It was below the list, which put it at y=2315 of 2400 --
+                inside the system gesture area, where a tap is a home
+                gesture and not a press. The dump reports bounds for
+                anything it can see, including things the app does not
+                own the bottom of. */}
+            <Pressable
+              className="mt-2 rounded-lg bg-slate-200 p-3"
+              accessibilityRole="button"
+              accessibilityLabel="Show every primitive"
+              onPress={() => setShowingGallery(true)}
+              testID="smoke-gallery"
+            >
+              <Text className="text-center">Gallery</Text>
+            </Pressable>
           </View>
         }
         renderItem={({ item }) => (
@@ -142,15 +158,6 @@ export default function App() {
         testID="smoke-list"
       />
 
-      <Pressable
-        className="mx-6 mb-4 rounded-lg bg-slate-200 p-3"
-        accessibilityRole="button"
-        accessibilityLabel="Show every primitive"
-        onPress={() => setShowingGallery(true)}
-        testID="smoke-gallery"
-      >
-        <Text className="text-center">Gallery</Text>
-      </Pressable>
       <Dialog
         className="m-6 rounded-xl bg-white p-6"
         open={confirming}

@@ -111,6 +111,14 @@ dump() {
 # nothing installed: the dump already says where everything is.
 # node rather than python, because this repository already requires node
 # everywhere and requires python nowhere.
+#
+# Refuses a target in the bottom eighth of the screen. A dump reports
+# bounds for everything it can see, and the app does not own the bottom
+# of the display: the gallery button was at y=2315 of 2400 the first time,
+# inside the system gesture area, so tapping it went home instead of
+# opening anything and the next dump was of the launcher. A press that
+# lands on the navigation bar is not a press this can make, and saying so
+# is better than reporting whatever the home screen happens to contain.
 centre_of() {
   node --eval '
     const [file, wanted] = process.argv.slice(1)
@@ -120,7 +128,13 @@ centre_of() {
       const box = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0])
       if (!box) continue
       const [left, top, right, bottom] = box.slice(1).map(Number)
-      console.log((left + right) >> 1, (top + bottom) >> 1)
+      const height = Number(/bounds="\[0,0\]\[\d+,(\d+)\]"/.exec(xml)?.[1] ?? 0)
+      const y = (top + bottom) >> 1
+      if (height && y > height * 0.875) {
+        console.error(`${wanted} is at y=${y} of ${height}, inside the system gesture area`)
+        process.exit(2)
+      }
+      console.log((left + right) >> 1, y)
       process.exit(0)
     }
     process.exit(1)
