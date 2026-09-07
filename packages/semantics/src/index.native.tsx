@@ -260,7 +260,15 @@ export function Progress({
         max: max ?? 100,
         now: value,
       },
-      style,
+      // The box the browser gives `<progress>` and React Native gives
+      // nothing. Measured in headless Chrome under this project’s own
+      // preflight: 160 x 16. Without it a `View` is zero pixels in both
+      // directions -- invisible on screen, and absent from the
+      // accessibility tree as well, since Android does not report a
+      // zero-area view (#309).
+      //
+      // The author’s style comes second, so any of it wins.
+      style: [{ width: 160, height: 16 }, style],
       ...props,
     },
     hozoTextChildren(children),
