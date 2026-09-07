@@ -63,17 +63,25 @@ fail() {
 # fix in the app.
 dump() {
   local into="$1"
-  for attempt in 1 2 3 4 5; do
+  for attempt in 1 2 3 4 5 6; do
     adb shell rm -f /sdcard/dump.xml >/dev/null 2>&1 || true
     if adb shell uiautomator dump /sdcard/dump.xml 2>&1 | grep -q 'UI hierarchy dumped'; then
       if adb pull /sdcard/dump.xml "./$into" >/dev/null 2>&1; then
         return 0
       fi
     fi
-    echo "  dump attempt $attempt did not settle, retrying"
-    sleep 3
+    # What "not idle" means, printed rather than guessed at. The frame
+    # count is the question: a window that never idles is one that is
+    # still drawing, and the delta across a retry says whether something
+    # is animating continuously or the app was merely slow to start.
+    echo "  dump attempt $attempt did not settle; frames drawn so far:"
+    adb shell dumpsys gfxinfo "$package" 2>/dev/null \
+      | grep -E 'Total frames rendered|Janky frames' | sed 's/^/    /' || true
+    sleep 5
   done
-  fail "could not read the accessibility tree after five attempts"
+  echo "--- what has focus ---"
+  adb shell dumpsys window 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | sed 's/^/  /' || true
+  fail "could not read the accessibility tree after six attempts"
 }
 
 # The centre of an element, read out of its `bounds`, which uiautomator
@@ -117,7 +125,12 @@ pid="$(adb shell pidof "$package" | tr -d '\r')"
 [ -n "$pid" ] || fail "$package never started"
 echo "started as pid $pid"
 
-sleep 5
+# Long enough for a crash on first render to have happened, and long enough
+# for the screen to stop drawing. The second is what `uiautomator dump`
+# needs: it waits for an idle window and gives up on its own schedule, and
+# this screen fetches a remote image, measures a grid, and settles a
+# transition before it is done.
+sleep 12
 still="$(adb shell pidof "$package" | tr -d '\r')"
 [ -n "$still" ] || fail "$package started and then died"
 
