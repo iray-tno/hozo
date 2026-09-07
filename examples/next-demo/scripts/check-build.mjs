@@ -11,10 +11,15 @@ function filesUnder(directory) {
   })
 }
 
-const artifacts = filesUnder('.next').filter((file) => /\.(?:js|mjs|css|html)$/.test(file))
+// The directory the build that is being checked actually wrote to. The
+// bundler comparison gives each of its two builds one of its own, so that
+// neither shares `.next` with the `build` script turbo runs beside it.
+const dist = process.env.HOZO_NEXT_DIST_DIR ?? '.next'
+
+const artifacts = filesUnder(dist).filter((file) => /\.(?:js|mjs|css|html)$/.test(file))
 const output = artifacts.map((file) => readFileSync(file, 'utf8')).join('\n')
-const html = readFileSync(path.join('.next', 'server', 'app', 'index.html'), 'utf8')
-const notes = readFileSync(path.join('.next', 'server', 'app', 'notes.html'), 'utf8')
+const html = readFileSync(path.join(dist, 'server', 'app', 'index.html'), 'utf8')
+const notes = readFileSync(path.join(dist, 'server', 'app', 'notes.html'), 'utf8')
 
 /**
  * The words of the MDX page that are prose rather than classes.

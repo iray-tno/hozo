@@ -22,6 +22,19 @@ export default withMDX(
       // Turbopack refuses to read anything above the root it is given.
       turbopack: { root: path.resolve(import.meta.dirname, '../..') },
       pageExtensions: ['ts', 'tsx', 'mdx'],
+      // Where this build writes, so that two of them in this package do
+      // not share one directory.
+      //
+      // `build` and `test` here both run `next build`, and turbo starts
+      // them together -- `test` depends on `^build`, its dependencies'
+      // builds, not its own. Next refuses the second with "Another next
+      // build process is already running", and the pair that did not
+      // collide was worse: `test` begins by deleting `.next`, which is
+      // the artifact `build` just wrote.
+      //
+      // An environment variable rather than a flag because `next build`
+      // has none for this; the config is the only place Next reads it.
+      distDir: process.env.HOZO_NEXT_DIST_DIR ?? '.next',
     },
     { css: 'src/theme.css' },
   ),
