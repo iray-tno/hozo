@@ -19,6 +19,11 @@ export function Card({ title, onOpen }) {
 
 On Web that `Section`/`Heading` pair becomes `<section>` and `<h2>` with a scoped class, not a pair of `<div>`s. The primitives with no React Native equivalent — `Section`, `Article`, `Nav`, `List`, `ListItem`, `Paragraph`, `Heading` — exist so that the semantics can be *stated* rather than inferred from a `View` that happens to look like a heading.
 
+Give `Pressable` an `href` when the whole custom surface is navigation, such as a card or list row.
+It remains a real `<a>` on Web and a link-role Pressable on Native, while `external`, `replace`,
+disabled state, and an installed `@hozo/navigation` router keep the same behavior as `Link` and
+`Button href`.
+
 ## These also run
 
 Every component here is a working React implementation, not a marker the compiler consumes and discards. When Hozo isn't in the build, or can't fully lower a particular usage, the same code renders through these — with the accessibility props mapped to ARIA either way. That is what makes adoption incremental and what makes a Storybook story render before any of this is set up.
@@ -46,4 +51,3 @@ The universal props follow React Native's names — `accessibilityLabel`, `acces
 - **`Toolbar`**: Accessible action toolbar maintaining single tab stop and arrow navigation across items.
 - **`RadioGroup`**: Single-select options with arrow-key switching and `aria-checked` states.
 - **`Slider` & `Switch`**: Accessible range and toggle controls with ARIA states.
-

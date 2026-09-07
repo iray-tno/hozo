@@ -153,7 +153,13 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Progress => ("View", vec![("role", "progressbar".to_string())]),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),
-        Primitive::Button if node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href")) => {
+        Primitive::Button | Primitive::Pressable
+            if node
+                .props
+                .passthrough
+                .iter()
+                .any(|p| p.name.as_deref() == Some("href")) =>
+        {
             // `download` is the one of the four Web-only props whose absence
             // is felt. See `DiagnosticCode::PropHasNoNativeEquivalent`.
             if let Some(prop) = node
@@ -174,8 +180,8 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
                     span: prop.span.0,
                 });
             }
-            // `Button` controls appearance; following an `href` is still
-            // navigation, so let `HozoLink` keep its link-role default.
+            // The primitive controls appearance; following an `href` is
+            // still navigation, so let `HozoLink` keep its link-role default.
             ("HozoLink", Vec::new())
         }
         Primitive::Button => ("Pressable", vec![("accessibilityRole", "button".to_string())]),

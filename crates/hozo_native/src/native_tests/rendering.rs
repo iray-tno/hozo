@@ -645,3 +645,24 @@ fn a_separator_does_not_pass_its_own_props_through() {
         assert!(!output.jsx.contains("orientation"), "{element}: {}", output.jsx);
     }
 }
+
+#[test]
+fn destination_pressable_is_a_native_link() {
+    let source = r#"
+        import { Pressable } from '@hozo/core'
+        const el = <Pressable href="/card" replace external>Card</Pressable>
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .jsx
+            .contains(r#"<HozoLink replace={true} href="/card" external>"#),
+        "{}",
+        output.jsx
+    );
+    assert!(output.jsx.contains("<Text>Card</Text></HozoLink>"), "{}", output.jsx);
+    assert!(output.jsx.contains(" external"), "{}", output.jsx);
+    assert!(!output.jsx.contains("accessibilityRole=\"button\""), "{}", output.jsx);
+}

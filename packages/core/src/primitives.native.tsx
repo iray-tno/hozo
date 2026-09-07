@@ -17,8 +17,8 @@
 import { HozoLink, hozoTextChildren } from '@hozo/runtime'
 import type { ComponentType, ReactNode } from 'react'
 import {
-  type PressableProps,
   Pressable as RNPressable,
+  type PressableProps as RNPressableProps,
   View as RNView,
   type StyleProp,
   type ViewStyle,
@@ -27,7 +27,6 @@ import {
 export type {
   FlatListProps,
   ImageProps,
-  PressableProps,
   ScrollViewProps,
   TextInputProps,
   ViewProps,
@@ -35,11 +34,38 @@ export type {
 export {
   FlatList,
   Image,
-  Pressable,
   ScrollView,
   TextInput,
   View,
 } from 'react-native'
+
+export interface PressableProps extends RNPressableProps {
+  /** A destination turns the free-form surface into a semantic link. */
+  href?: string
+  external?: boolean
+  replace?: boolean
+  /** Browser-only destination controls; ignored by the uncompiled Native fallback. */
+  target?: string
+  rel?: string
+  download?: boolean | string
+}
+
+export function Pressable({
+  href,
+  external,
+  replace,
+  target: _target,
+  rel: _rel,
+  download: _download,
+  ...props
+}: PressableProps) {
+  if (href === undefined) return <RNPressable {...props} />
+
+  const Link = HozoLink as unknown as ComponentType<
+    { href: string; external?: boolean; replace?: boolean } & RNPressableProps
+  >
+  return <Link href={href} external={external} replace={replace} {...props} />
+}
 
 export interface ListNativeProps {
   children?: ReactNode
@@ -88,13 +114,12 @@ export type ListProps = ListNativeProps
  * prevented it. `Button` names its presentation; `href` decides its
  * navigation semantics.
  *
- * `target`, `rel` and `external` are accepted and ignored. They are
- * browser concepts whose absence changes nothing here: a link leaves the
- * app whatever they say. `download` is the one that is felt, and the
+ * `target` and `rel` are accepted and ignored because they are browser
+ * concepts. `external` remains meaningful: it prevents an installed
+ * application router from claiming the destination. `download` is felt, and the
  * compiler reports it -- `PROP_HAS_NO_NATIVE_EQUIVALENT`, because React
  * Native has no download in it at all. This path is the uncompiled one,
- * where nothing is there to report; the prop is dropped and the link
- * opens, which is what the compiled path does too.
+ * where nothing is there to report; the prop is dropped and the link opens.
  */
 export function Button({
   children,
@@ -148,7 +173,7 @@ export function Button({
 
 export interface ButtonNativeProps {
   children?: ReactNode
-  onPress?: PressableProps['onPress']
+  onPress?: RNPressableProps['onPress']
   disabled?: boolean
   accessibilityLabel?: string
   accessibilityHint?: string

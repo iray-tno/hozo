@@ -204,6 +204,26 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         // Web-only idea, and can say so on a plain `<button>`.
         Primitive::Button => ("button", vec![("type", AttrValue::text("button"))]),
         Primitive::Link => ("a", Vec::new()),
+        Primitive::Pressable
+            if node
+                .props
+                .passthrough
+                .iter()
+                .any(|prop| prop.name.as_deref() == Some("href"))
+                && !node.props.has_responder_handlers()
+                && node.props.on_layout.is_none() =>
+        {
+            ("a", Vec::new())
+        }
+        Primitive::Pressable
+            if node
+                .props
+                .passthrough
+                .iter()
+                .any(|prop| prop.name.as_deref() == Some("href")) =>
+        {
+            ("Pressable", Vec::new())
+        }
         Primitive::Image if node.props.on_layout.is_some() || node.props.image_default_source.is_some() =>
             ("Image", image_attrs(node, diagnostics)),
         Primitive::Image => ("img", image_attrs(node, diagnostics)),

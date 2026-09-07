@@ -52,6 +52,7 @@ import {
   Nav,
   NoBreak,
   Paragraph,
+  Pressable,
   Progress,
   Ruby,
   RubyText,
@@ -163,6 +164,14 @@ export default function Gallery() {
         <Button accessibilityLabel="A button" testID="gallery-Button">
           Button
         </Button>
+
+        <Pressable
+          href="/gallery-card"
+          accessibilityLabel="A linked card"
+          testID="gallery-Pressable"
+        >
+          <Text>Pressable link card</Text>
+        </Pressable>
 
         <View testID="gallery-View">
           <Text>View</Text>

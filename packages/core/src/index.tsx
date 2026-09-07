@@ -581,9 +581,16 @@ export function FlatList<T>({
 export interface PressableProps extends UniversalProps, ResponderProps {
   className?: string
   children?: ReactNode
-  onPress?: MouseEventHandler<HTMLDivElement>
+  onPress?: MouseEventHandler<HTMLElement>
   accessibilityRole?: 'button' | 'link'
   disabled?: boolean
+  /** A destination turns the free-form surface into a semantic link. */
+  href?: string
+  external?: boolean
+  replace?: boolean
+  target?: '_blank' | '_self' | '_parent' | '_top' | string
+  rel?: string
+  download?: boolean | string
 }
 
 // No native HTML element matches Pressable's semantics (proposal §10.2):
@@ -595,16 +602,45 @@ export function Pressable({
   onPress,
   accessibilityRole,
   disabled,
+  href,
+  external,
+  replace,
+  target,
+  rel,
+  download,
   onLayout,
   ...universal
 }: PressableProps) {
-  const ref = useLayoutRef<HTMLDivElement>(onLayout)
-  const responder = useResponderDomProps(ref, universal, !disabled)
+  const anchorRef = useLayoutRef<HTMLAnchorElement>(onLayout)
+  const divRef = useLayoutRef<HTMLDivElement>(onLayout)
   // Both spellings of the state, folded the way React Native folds them --
   // `Pressable.js` merges the `disabled` prop into `accessibilityState`,
   // and the compiled path merges them into one guard. Two sources for one
   // attribute is how they end up disagreeing.
   const isDisabled = disabled || universal.accessibilityState?.disabled
+  const anchorResponder = useResponderDomProps(anchorRef, universal, !isDisabled)
+  const divResponder = useResponderDomProps(divRef, universal, !isDisabled)
+  if (href != null) {
+    return (
+      <HozoLink
+        ref={anchorRef}
+        href={href}
+        external={external}
+        replace={replace}
+        target={target}
+        rel={rel}
+        download={download}
+        className={className}
+        accessibilityRole={accessibilityRole ?? universal.role}
+        disabled={isDisabled}
+        onPress={onPress}
+        {...universalDomProps(universal)}
+        {...anchorResponder}
+      >
+        {children}
+      </HozoLink>
+    )
+  }
   // Without an `onPress` this is not a control, so it gets no tab stop and
   // no key handlers -- only the announcement, which a disabled region is
   // still entitled to.
@@ -613,7 +649,7 @@ export function Pressable({
     : { 'aria-disabled': isDisabled || undefined }
   return (
     <div
-      ref={ref}
+      ref={divRef}
       className={className}
       // Spread before anything written explicitly below, for the reason on
       // `universalDomProps` -- it names every key unconditionally, so a
@@ -628,7 +664,7 @@ export function Pressable({
       // the click but not the keyboard, and the compiled path suppressed
       // neither.
       {...interaction}
-      {...responder}
+      {...divResponder}
     >
       {children}
     </div>
