@@ -50,8 +50,8 @@ test('external opens a new context and severs the opener, through either compone
     { target: link.target, rel: link.rel },
     { target: button.target, rel: button.rel },
   )
-  // The one thing they are meant to differ on.
-  assert.equal(button.role, 'button')
+  // The component name controls presentation, not the destination's role.
+  assert.equal(button.role, undefined)
   assert.equal(link.role, undefined)
 })
 

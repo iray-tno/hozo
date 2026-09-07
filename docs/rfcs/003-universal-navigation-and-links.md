@@ -10,7 +10,7 @@
 
 With foundational `<Link>` and `<Button href="...">` primitives available in `@hozo/core`, cross-platform navigation faces deep architectural trade-offs across platforms (DOM vs React Native) and across rendering surfaces (HTML/Views vs Canvas/SVG):
 - **Inline vs Block Navigation**: Web `<a>` can wrap inline spans or large block cards; React Native requires inline text links inside `<Text>`, but block-level interactive cards inside `<Pressable>`.
-- **Button Links vs Content Links**: `<Button href>` lowers to `<a role="button">` for action navigation, but keyboard activation semantics differ (`Enter` for links vs `Space` + `Enter` for buttons).
+- **Button Links vs Content Links**: `<Button href>` keeps Button presentation while exposing link semantics, because its function is navigation (`Enter`) rather than an action (`Space` + `Enter`).
 - **Client-Side Routing vs External Links**: Seamlessly supporting in-app routing (Next.js `next/link`, Expo Router `expo-router`, TanStack Router) without coupling core primitives to a specific framework.
 - **Canvas & SVG Hit-Testing**: Declarative 2D Canvas scenes and SVG shapes navigating to URLs while exposing accessible links to search engines and screen readers.
 
@@ -22,7 +22,7 @@ With foundational `<Link>` and `<Button href="...">` primitives available in `@h
 ┌───────────────────────────────────────────────────────────────┐
 │ Application Source                                            │
 │   <Link href="/about">            (Inline text link)           │
-│   <Button href="/checkout">       (Action button link)        │
+│   <Button href="/checkout">       (Prominent navigation)      │
 │   <Pressable href="/items/42">    (Block / card link)         │
 └───────────────────────────────┬───────────────────────────────┘
                                 │
@@ -36,8 +36,8 @@ With foundational `<Link>` and `<Button href="...">` primitives available in `@h
                                 ▼
 ┌───────────────────────────────────────────────────────────────┐
 │ Target Lowering                                               │
-│   Web:    <a>, <a role="button">, Next.js Link                │
-│   Native: <Text onPress>, <Pressable>, Expo Router Link       │
+│   Web:    semantic <a>, optionally intercepted by a router    │
+│   Native: link-role Pressable, optionally routed in-app       │
 │   Canvas: hit-test dispatch + off-screen accessible anchor    │
 └───────────────────────────────────────────────────────────────┘
 ```
@@ -46,8 +46,8 @@ With foundational `<Link>` and `<Button href="...">` primitives available in `@h
 
 | Primitive | Intended Use Case | Web Lowering | Native Lowering | Keyboard Activation |
 |---|---|---|---|---|
-| **`<Link>`** | Inline editorial text navigation | `<a>` | `<Text onPress={...}>` | `Enter` |
-| **`<Button href>`** | Action-oriented call to action | `<a role="button">` | `<Pressable accessibilityRole="button">` | `Enter` & `Space` |
+| **`<Link>`** | Inline editorial text navigation | `<a>` | `<HozoLink>` / link-role `Pressable` | `Enter` |
+| **`<Button href>`** | Visually button-like navigation | `<a>` | `<Pressable accessibilityRole="link">` | `Enter` |
 | **`<Pressable href>`** | Interactive block, card, or list row | `<a className="hozo-pressable">` | `<Pressable accessibilityRole="link">` | `Enter` |
 
 ---
@@ -100,8 +100,8 @@ Universal SVG shapes with `href` lower to `<a xlink:href="...">` on Web and tap 
 
 - **`rel="noreferrer noopener"`**: Automatically injected when `external={true}` or `target="_blank"` is present.
 - **Keyboard Modalities**:
-  - Semantic links respond exclusively to `Enter`.
-  - Action button links with `role="button"` respond to both `Space` (with `preventDefault` scroll prevention) and `Enter`.
+  - Every destination-bearing primitive retains link semantics and responds to `Enter`.
+  - Action buttons without `href` respond to both `Space` and `Enter`.
 
 ---
 
@@ -109,7 +109,7 @@ Universal SVG shapes with `href` lower to `<a xlink:href="...">` on Web and tap 
 
 | Target Platform | Semantic Output | Expected AT Behavior | Verified |
 |---|---|---|---|
-| Web / Chrome + NVDA | `<a>` vs `<a role="button">` | Reads "link" vs "button", opens on Enter/Space | ⬜ |
-| Web / Safari + VoiceOver | `<a>` vs `<a role="button">` | Listed in Links rotor vs Buttons rotor | ⬜ |
+| Web / Chrome + NVDA | `<a>` vs `<button>` | Reads "link" vs "button", uses Enter vs Enter/Space | ⬜ |
+| Web / Safari + VoiceOver | `<a>` vs `<button>` | Listed in Links rotor vs Buttons rotor | ⬜ |
 | iOS + VoiceOver | `<Text>` / `<Pressable>` link role | Announces role="link", double-tap navigates | ⬜ |
 | Android + TalkBack | `<Text>` / `<Pressable>` link role | Announces role="link", double-tap navigates | ⬜ |

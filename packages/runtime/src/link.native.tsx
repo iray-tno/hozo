@@ -14,17 +14,11 @@ export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
 /**
  * Native semantic link with the same destination-bearing API as `<a>`.
  *
- * `accessibilityRole` is a default rather than a constant. It used to be
- * written after the spread, so a caller's value was overwritten and the
- * one caller that has a value is the compiler: `<Button href>` lowers to
- * `<HozoLink accessibilityRole="button">` on both backends, and a button
- * that navigates announced itself as a link on this platform only. The
- * Web half honours the same prop, and its comment already said this was
- * the case it existed for.
- *
- * The Native backend's own test asserted on the emitted string, where the
- * attribute is present, so nothing noticed for as long as the two halves
- * disagreed. `link-role.test.ts` renders instead.
+ * `accessibilityRole` is a default rather than a constant, so an author
+ * building a deliberately custom widget can override it. Hozo's own
+ * destination-bearing primitives do not: a component that follows an
+ * `href` is announced as a link even when `Button` supplies its visual
+ * treatment.
  *
  * A string child is wrapped, because `Pressable` is a View and React
  * Native throws on a bare string inside one. The compiler already wraps

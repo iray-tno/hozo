@@ -141,7 +141,9 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
                     span: prop.span.0,
                 });
             }
-            ("HozoLink", vec![("accessibilityRole", "button".to_string())])
+            // `Button` controls appearance; following an `href` is still
+            // navigation, so let `HozoLink` keep its link-role default.
+            ("HozoLink", Vec::new())
         }
         Primitive::Button => ("Pressable", vec![("accessibilityRole", "button".to_string())]),
         Primitive::Link => ("HozoLink", Vec::new()),

@@ -138,11 +138,11 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         Primitive::Separator => ("hr", Vec::new()),
         Primitive::Progress if node.props.on_layout.is_some() => ("Progress", Vec::new()),
         Primitive::Progress => ("progress", Vec::new()),
-        // When a `<Button>` carries `href`, lower it to `<a role="button">` so it retains
-        // full browser navigation capabilities (SEO, middle-click, context menu) while
-        // expressing button visual semantics.
+        // `Button` names the visual primitive. An `href` makes its function
+        // navigation, so preserve the anchor's native link semantics as well
+        // as its browser affordances (SEO, middle-click, context menu).
         Primitive::Button if node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href")) => {
-            ("a", vec![("role", AttrValue::text("button"))])
+            ("a", Vec::new())
         }
         // `type="button"`, always. A `<button>` inside a `<form>` defaults
         // to `type="submit"`, and React Native has no forms -- so a

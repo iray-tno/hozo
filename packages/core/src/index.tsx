@@ -667,11 +667,11 @@ export function Button({
     // render, the `rel` it derived from `external`, and the pair that
     // makes a disabled anchor behave, are one implementation now, in
     // `@hozo/runtime`'s `HozoLink` -- which is also what the compiler
-    // emits for this source on React Native, so both platforms answer
-    // `<Button href>` from the same place.
+    // emits for this source on React Native. `Button` names the visual
+    // primitive; `href` makes its function navigation, so the link keeps
+    // its native role on both platforms.
     return (
       <HozoLink
-        accessibilityRole="button"
         href={href}
         external={external}
         target={target}

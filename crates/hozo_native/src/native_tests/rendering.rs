@@ -552,5 +552,6 @@ fn progress_and_button_with_href_lower_to_native_components() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.contains(r#"role="progressbar""#), "{}", output.jsx);
-    assert!(output.jsx.contains(r#"<HozoLink accessibilityRole="button" href="https://example.com">"#), "{}", output.jsx);
+    assert!(output.jsx.contains(r#"<HozoLink href="https://example.com">"#), "{}", output.jsx);
+    assert!(!output.jsx.contains(r#"accessibilityRole="button" href="https://example.com""#), "{}", output.jsx);
 }

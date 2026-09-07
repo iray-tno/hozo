@@ -2268,7 +2268,7 @@ export function Login() {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(
             output.jsx,
-            "<div className=\"hozo-view\"><progress value={50} max={100}>50%</progress><a role=\"button\" href=\"https://example.com\">Go</a></div>"
+            "<div className=\"hozo-view\"><progress value={50} max={100}>50%</progress><a href=\"https://example.com\">Go</a></div>"
         );
     }
 
@@ -2325,7 +2325,7 @@ export function Login() {
             ),
             (
                 r#"<Button href="https://example.com" external>Docs</Button>"#,
-                "<a role=\"button\" target=\"_blank\" rel=\"noreferrer noopener\" href=\"https://example.com\">Docs</a>",
+                "<a target=\"_blank\" rel=\"noreferrer noopener\" href=\"https://example.com\">Docs</a>",
             ),
         ];
         for (element, expected) in cases {

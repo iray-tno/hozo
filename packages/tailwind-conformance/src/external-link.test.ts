@@ -145,5 +145,5 @@ test('a button that navigates gets the same treatment as a link', () => {
   const [rendered] = renderWeb([{ name: 'C', jsx: (web as { jsx: string }).jsx }])
   const html = (rendered as { html: string }).html
   assert.deepEqual(anchor(html), { target: '_blank', rel: 'noreferrer noopener' }, html)
-  assert.match(html, /role="button"/, html)
+  assert.doesNotMatch(html, /role="button"/, html)
 })
