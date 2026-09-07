@@ -25,6 +25,12 @@ Every component here is a working React implementation, not a marker the compile
 
 The Native counterparts are chosen the same way: `Image` maps to React Native's `Image`, `ScrollView` and `FlatList` to theirs, so the virtualized list stays virtualized.
 
+`Button` follows the operation it represents. Without `href` it is a Native
+`Pressable` with button semantics. With `href` it follows the same
+`Pressable` + `Linking.openURL` fallback contract as compiler output, ready for
+the shared optional navigation adapter. Browser-only
+`target`, `rel`, and `download` metadata is not forwarded to native views.
+
 ## Accessibility props
 
 The universal props follow React Native's names — `accessibilityLabel`, `accessibilityHint`, `accessibilityState`, `accessibilityValue`, `accessibilityLiveRegion`, `testID`, `nativeID` — and map onto ARIA on Web. `role` is accepted directly as well; React Native has supported it since 0.71, so it means the same thing on both sides.
@@ -46,4 +52,3 @@ The universal props follow React Native's names — `accessibilityLabel`, `acces
 - **`Toolbar`**: Accessible action toolbar maintaining single tab stop and arrow navigation across items.
 - **`RadioGroup`**: Single-select options with arrow-key switching and `aria-checked` states.
 - **`Slider` & `Switch`**: Accessible range and toggle controls with ARIA states.
-

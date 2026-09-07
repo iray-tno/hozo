@@ -1,6 +1,7 @@
 // Semantics & Typography re-exports
 export * from '@hozo/semantics'
 export * from '@hozo/typography'
+export { Button, type ButtonProps } from './button.native.tsx'
 export {
   HozoCombobox as Combobox,
   HozoCombobox,

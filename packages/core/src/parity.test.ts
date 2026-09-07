@@ -47,13 +47,6 @@ const WEB_ONLY = new Map([
       '`export … from` in a barrel would load `react-native-svg` for every ' +
       'project, and it is an optional peer.',
   ],
-  [
-    'Button',
-    'The Web fallback renders an `<a>` when given `href`. The native answer ' +
-      'is Pressable plus Linking, which is a decision rather than a ' +
-      're-export -- see #254.',
-  ],
-  ['ButtonProps', 'With `Button`.'],
 ])
 
 const sourceFor = (specifier: string, native: boolean) => {
