@@ -28,7 +28,7 @@ interface WebpackRule {
 
 test("registers the loader with both of Next's bundlers", () => {
   const config = withHozo({}, { root: project('export const x = 1\n') }) as {
-    turbopack: { rules: Record<string, { loaders: { loader: string }[]; as: string }> }
+    turbopack: { rules: Record<string, { loaders: { loader: string }[]; as?: string }> }
     webpack: (
       config: { module?: { rules?: WebpackRule[] } },
       context: unknown,
@@ -38,9 +38,12 @@ test("registers the loader with both of Next's bundlers", () => {
   }
 
   const rule = config.turbopack.rules['*.tsx']
-  assert.equal(rule.as, '*.tsx')
   assert.match(rule.loaders[0].loader, /loader\.js$/)
-  assert.equal(config.turbopack.rules['*.ts'].as, '*.ts')
+  // `as` means "the loader changed this module into that source kind".
+  // Hozo preserves TS/TSX, and claiming otherwise makes an imported TSX
+  // module re-enter Turbopack as `child.tsx.tsx`.
+  assert.equal(rule.as, undefined)
+  assert.equal(config.turbopack.rules['*.ts'].as, undefined)
 
   const webpack = config.webpack({}, {})
   assert.match(webpack.module.rules[0].use![0].loader, /loader\.js$/)

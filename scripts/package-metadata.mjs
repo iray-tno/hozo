@@ -102,7 +102,12 @@ const PACKAGES = {
     keywords: ['react-native', 'runtime', 'styles', 'animation'],
   },
   navigation: {
-    exports: { '.': './dist/index.js' },
+    exports: {
+      '.': './dist/index.js',
+      './next': './dist/next.js',
+      './expo-router': './dist/expo-router.js',
+      './tanstack-router': './dist/tanstack-router.js',
+    },
     native: true,
     keywords: ['react-native', 'react', 'navigation', 'router', 'deep-linking', 'universal'],
   },

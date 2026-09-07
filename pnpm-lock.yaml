@@ -149,6 +149,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/navigation':
+        specifier: workspace:*
+        version: link:../../packages/navigation
       '@mdx-js/loader':
         specifier: ^3.1.1
         version: 3.1.1(supports-color@8.1.1)
@@ -241,6 +244,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/navigation':
+        specifier: workspace:*
+        version: link:../../packages/navigation
       '@tanstack/react-router':
         specifier: ^1.170.29
         version: 1.170.29(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
