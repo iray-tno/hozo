@@ -79,6 +79,33 @@ Custom schemes are normalized as application paths: `myapp://products/42?ref=mai
 `path: '/products/42'` with `queryParams.ref === 'mail'`. Repeated query keys remain arrays rather
 than being discarded. Pass `{ initial: false }` when only later arrivals matter.
 
+### Domain verification files
+
+The same package creates the two JSON documents that prove a Web domain belongs to the native app:
+
+```ts
+import {
+  createAndroidAssetLinks,
+  createAppleAppSiteAssociation,
+  serializeDeepLinkVerification,
+} from '@hozo/navigation'
+
+const apple = createAppleAppSiteAssociation([{
+  appIDs: ['ABCDE12345.com.example.app'],
+  components: [{ path: '/products/*' }],
+}])
+
+const android = createAndroidAssetLinks([{
+  packageName: 'com.example.app',
+  sha256CertFingerprints: [process.env.ANDROID_SHA256!],
+}])
+```
+
+Serve the serialized values as `application/json` over HTTPS, without redirects, at
+`/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` respectively. Publish
+one file on every associated host. The generator validates identifiers and canonicalizes Android
+certificate fingerprints; it does not guess signing identities from the local machine.
+
 ## Framework adapters
 
 The adapter entry points accept router instances structurally, so Hozo does not install or bundle
