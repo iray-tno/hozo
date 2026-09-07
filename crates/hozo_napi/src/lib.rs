@@ -742,6 +742,14 @@ pub struct JsTheme {
     /// the `oklch`, React Native the `hex`, which is why both are carried
     /// rather than converting at the boundary.
     pub colors: Vec<JsThemeColor>,
+    /// Whether this project ships a CSS reset over the browser’s own
+    /// stylesheet -- the resolved `preflight` option, not `usesTailwind`.
+    ///
+    /// The Native backend has no user-agent stylesheet to match, so it
+    /// supplies defaults chosen against a browser; this says which browser
+    /// rendering it should match. Absent means no reset, which is what a
+    /// caller that has never heard of the question should get (#315).
+    pub preflight: Option<bool>,
 }
 
 #[napi(object)]
@@ -756,6 +764,7 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
         return hozo_ir::Theme::default();
     };
     let spacing_px = theme.spacing_px;
+    let preflight = theme.preflight.unwrap_or(false);
     hozo_ir::Theme::new(
         theme
             .colors
@@ -765,6 +774,7 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
             })
             .collect(),
         spacing_px,
+        preflight,
     )
 }
 

@@ -636,11 +636,16 @@ fn a_separator_is_one_pixel_and_says_what_it_is() {
             r#"<View style={hozoStyles.hozo0} role="none" accessibilityRole="none"></View>"#,
         ),
     ];
+    // Under a reset, which is what a Tailwind project ships.
+    // `Theme::default()` means no reset and draws the user agent's two
+    // pixels instead; both are checked, because the number is a fact about
+    // the project rather than about the primitive (#315).
+    let reset = Theme::new(std::collections::HashMap::new(), None, true);
     for (element, size, jsx) in cases {
         let source =
             format!("import {{ Separator }} from '@hozo/core'\nconst el = {element}");
         let parsed = hozo_parser::parse_tsx(&source);
-        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        let output = lower(&parsed.roots[0].node, &source, &reset);
         assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
         assert!(output.styles.contains(size), "{element}: {}", output.styles);
         assert!(
@@ -684,4 +689,52 @@ fn destination_pressable_is_a_native_link() {
     assert!(output.jsx.contains("<Text>Card</Text></HozoLink>"), "{}", output.jsx);
     assert!(output.jsx.contains(" external"), "{}", output.jsx);
     assert!(!output.jsx.contains("accessibilityRole=\"button\""), "{}", output.jsx);
+}
+
+/// The same rule and the same heading, in a project that ships no reset.
+///
+/// The browser draws `<hr>` as a 2px inset border and `<h1>` at 32px bold
+/// until something resets them, so a compiler matching the browser has to
+/// know which browser rendering the project actually gets. Measured both
+/// ways in headless Chrome (#315).
+#[test]
+fn without_a_reset_the_defaults_are_the_user_agent_s() {
+    let source = "import { Separator, Heading } from '@hozo/core'\nconst el = <Separator />";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.styles.contains("height: 2,"), "{}", output.styles);
+
+    let source = "import { Heading } from '@hozo/core'\nconst el = <Heading level={1}>T</Heading>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.styles.contains("fontSize: 28,"), "{}", output.styles);
+    assert!(output.styles.contains("fontWeight: '700',"), "{}", output.styles);
+}
+
+/// A heading under a reset is body text, which is what the browser shows.
+///
+/// Tailwind's preflight sets `h1`-`h6` to `font-size: inherit; font-weight:
+/// inherit`. Measured at 16px and weight 400 with it, 32px and 700 without.
+/// Supplying a size here would make the phone show an outline the browser
+/// does not -- which is what it did (#315).
+///
+/// The level still reaches a screen reader through
+/// `accessibilityRole="header"`, which is the half that is about structure.
+#[test]
+fn a_heading_under_a_reset_carries_its_role_and_no_size() {
+    let reset = Theme::new(std::collections::HashMap::new(), None, true);
+    for level in [1, 2, 6] {
+        let source = format!(
+            "import {{ Heading }} from '@hozo/core'\nconst el = <Heading level={{{level}}}>T</Heading>"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &reset);
+        assert!(!output.styles.contains("fontSize"), "level {level}: {}", output.styles);
+        assert!(!output.styles.contains("fontWeight"), "level {level}: {}", output.styles);
+        assert!(
+            output.jsx.contains(r#"accessibilityRole="header""#),
+            "level {level}: {}",
+            output.jsx
+        );
+    }
 }

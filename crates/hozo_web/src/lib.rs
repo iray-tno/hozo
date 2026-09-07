@@ -1565,6 +1565,7 @@ export function Login() {
                 hozo_ir::ThemeColor { oklch: "oklch(0.7 0.2 30)".into(), hex: "#e05a2b".into() },
             )]),
             None,
+            false,
         );
         let names = vec!["bg-brand".to_string(), "accent-height".to_string()];
         let css = render_candidate_stylesheet(&names, &theme);

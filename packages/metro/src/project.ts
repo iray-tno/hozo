@@ -40,26 +40,35 @@ export function candidateModulePath(projectRoot: string): string {
   return path.join(projectRoot, 'node_modules', '.hozo', CANDIDATE_MODULE)
 }
 
+/** What one project scan told the config layer. */
+export interface GeneratedCandidateModule {
+  /** Absolute path of the written module, mostly so a caller can log it. */
+  modulePath: string
+  /**
+   * Whether the scan saw any Tailwind class at all.
+   *
+   * Reported from here because it is the same walk: `withHozo` needs it to
+   * resolve `preflight: 'auto'`, and a second scan to ask one boolean
+   * would be a second disk walk that could also disagree with this one.
+   */
+  usesTailwind: boolean
+}
+
 /**
  * Scans the project and writes the candidate resolver module. Call from
  * `metro.config.js` before returning the config.
  *
- * Returns the module's path, mostly so a caller can log it.
- */
-/**
- * Generates the project-wide candidate module, resolving against the
- * project's theme.
- *
- * Async because reading the theme means asking Tailwind, and Tailwind's
- * design-system loader is async. Metro config files can await, and the
- * alternative -- resolving these classes against the default palette
- * while every other class in the app uses the project's -- would be two
- * different answers for the same utility in one bundle.
+ * Resolves against the project's theme. Async because reading the theme
+ * means asking Tailwind, and Tailwind's design-system loader is async.
+ * Metro config files can await, and the alternative -- resolving these
+ * classes against the default palette while every other class in the app
+ * uses the project's -- would be two different answers for the same
+ * utility in one bundle.
  */
 export async function generateCandidateModule(
   projectRoot: string,
   options: HozoProjectOptions = {},
-): Promise<string> {
+): Promise<GeneratedCandidateModule> {
   const theme = await loadProjectTheme(projectRoot, {
     css: options.css,
     warn: (message) => console.warn(message),
@@ -71,5 +80,5 @@ export async function generateCandidateModule(
   }
   const modulePath = candidateModulePath(projectRoot)
   writeFileIfChanged(modulePath, cache.renderNativeModule(theme))
-  return modulePath
+  return { modulePath, usesTailwind: cache.usesTailwind }
 }

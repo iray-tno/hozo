@@ -513,11 +513,15 @@ pub(super) fn render_node(
                 .iter()
                 .find(|prop| prop.name.as_deref() == Some("orientation"))
                 .is_some_and(|prop| prop.literal.as_deref() == Some("vertical"));
+            // One pixel under a reset, two without one. Measured: the
+            // preflight sets `hr { height: 0; border-top-width: 1px }` and
+            // the bare user agent draws a 2px inset border (#315).
+            let px = if theme.preflight() { 1.0 } else { 2.0 };
             let thickness = StyleDeclaration {
                 property: if vertical {
-                    StyleProperty::Width(hozo_ir::Dimension::Length(Length::Px(1.0)))
+                    StyleProperty::Width(hozo_ir::Dimension::Length(Length::Px(px)))
                 } else {
-                    StyleProperty::Height(hozo_ir::Dimension::Length(Length::Px(1.0)))
+                    StyleProperty::Height(hozo_ir::Dimension::Length(Length::Px(px)))
                 },
                 condition: Condition::Always,
             };
@@ -542,6 +546,21 @@ pub(super) fn render_node(
         // dropped here, so a level-1 and a level-6 heading rendered at the
         // same size and the same weight -- identical on a phone, an outline
         // on the Web.
+        Primitive::Heading if theme.preflight() => {
+            // Nothing, which is what the browser renders here.
+            //
+            // Tailwind’s preflight resets `h1`-`h6` to `font-size: inherit;
+            // font-weight: inherit`, so in a project that ships it a heading
+            // is body text until the author says otherwise -- measured at
+            // 16px and weight 400, against 32px and 700 without it. Supplying
+            // a size and a weight here would make the phone show an outline
+            // the browser does not (#315).
+            //
+            // The level is not lost: `accessibilityRole="header"` carries it
+            // to a screen reader either way, which is the half that is about
+            // structure rather than about looks.
+            Vec::new()
+        }
         Primitive::Heading => {
             let mut defs = vec![StyleDeclaration {
                 property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
