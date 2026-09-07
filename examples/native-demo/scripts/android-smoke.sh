@@ -65,10 +65,18 @@ dump() {
   local into="$1"
   for attempt in 1 2 3 4 5 6; do
     adb shell rm -f /sdcard/dump.xml >/dev/null 2>&1 || true
-    if adb shell uiautomator dump /sdcard/dump.xml 2>&1 | grep -q 'UI hierarchy dumped'; then
-      if adb pull /sdcard/dump.xml "./$into" >/dev/null 2>&1; then
-        return 0
-      fi
+    # Judged by whether a file arrived, not by what the command said.
+    #
+    # This used to test the output for "UI hierarchy dumped", and that was
+    # wrong twice over: `grep -q` swallowed the line, so neither the
+    # success message nor the "could not get idle state" error reached the
+    # log and every diagnosis after it was made blind -- and the message
+    # itself is not a contract. AOSP has shipped it misspelled
+    # ("hierchary"), so a working dump could fail the test and retry six
+    # times over a file that was already there.
+    adb shell uiautomator dump /sdcard/dump.xml 2>&1 | sed 's/^/    /' || true
+    if adb pull /sdcard/dump.xml "./$into" >/dev/null 2>&1 && [ -s "./$into" ]; then
+      return 0
     fi
     # What "not idle" means, printed rather than guessed at. The frame
     # count is the question: a window that never idles is one that is
