@@ -140,3 +140,22 @@ test('neither prop reaches the output as itself', () => {
     assert.doesNotMatch(compiledNative(attrs).jsx, leaks)
   }
 })
+
+test('StyleX composes with the default the same way a class does', () => {
+  // The same question as the `className` case above, through the other
+  // styling frontend. Both arrive as declarations, so both compose; a
+  // `stylex.props` spread landing as a runtime prop would have replaced
+  // the style object wholesale and taken the rule with it.
+  const source = [
+    "import * as stylex from '@stylexjs/stylex'",
+    "import { Separator } from '@hozo/core'",
+    "const styles = stylex.create({ rule: { height: 8, backgroundColor: 'red' } })",
+    'export function F() { return <Separator {...stylex.props(styles.rule)} /> }',
+  ].join('\n')
+  const { styles } = compileNative(source, 'F.tsx')[0] as { styles: string }
+
+  assert.match(styles, /height: 8,/)
+  assert.doesNotMatch(styles, /height: 1,/)
+  // `alignSelf` is the compiler's and the author never mentioned it.
+  assert.match(styles, /alignSelf: 'stretch',/)
+})

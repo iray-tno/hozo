@@ -475,6 +475,37 @@ pub(super) fn render_node(
         // line from a `border-*` or `bg-*` utility the author writes; a
         // default here would be a colour nobody asked for that a theme
         // could not see coming.
+        // The bar itself, which the browser sizes and React Native does
+        // not. `<progress>` has an intrinsic box; a `View` has none, so a
+        // compiled progress bar was zero pixels in both directions --
+        // invisible on the screen, and absent from the accessibility tree
+        // as well, because a zero-area view is not something Android
+        // reports. A device found the second half first (#309).
+        //
+        // Measured rather than recalled, in headless Chrome with this
+        // project's own preflight applied, which is the stylesheet a Hozo
+        // page actually renders under:
+        //
+        //     <progress> -> 160 x 16
+        //     <hr>       -> 1 tall (Tailwind sets border-top-width: 1px)
+        //
+        // The width is as literal as the height. It is an odd default for
+        // a React Native layout -- a fixed-width bar in a flex column --
+        // and it is what the Web half renders, which is the number that
+        // matters: an author who overrides one overrides both, and an
+        // author who overrides neither gets the same bar on both
+        // platforms. Choosing a nicer number here would buy a divergence
+        // that is invisible precisely when nobody is looking.
+        Primitive::Progress => vec![
+            StyleDeclaration {
+                property: StyleProperty::Width(hozo_ir::Dimension::Length(Length::Px(160.0))),
+                condition: Condition::Always,
+            },
+            StyleDeclaration {
+                property: StyleProperty::Height(hozo_ir::Dimension::Length(Length::Px(16.0))),
+                condition: Condition::Always,
+            },
+        ],
         Primitive::Separator => {
             let vertical = node
                 .props
