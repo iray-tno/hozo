@@ -158,7 +158,27 @@ export default function Gallery() {
 
         <Separator testID="gallery-Separator" />
 
+        {/* Two of them, which is an experiment rather than a census entry.
+            `gallery-Progress` did not appear in the accessibility tree at
+            all on the first device run, and there are two candidate
+            reasons: it lowers to a `View` with no size, and a zero-area
+            view is not something `uiautomator dump` reports -- or the role
+            is reaching the platform and the instrument cannot see it,
+            since Android answers `progressbar` with a `roleDescription`
+            and that is not among the attributes a dump carries.
+
+            Giving one of them a size separates the two. If the sized one
+            appears and the bare one does not, it is the area; if neither
+            appears, the role is not making the node reportable and the
+            question moves to an instrument that can read a
+            `roleDescription`. See #309. */}
         <Progress value={40} max={100} testID="gallery-Progress" />
+        <Progress
+          value={40}
+          max={100}
+          className="h-2 bg-slate-300"
+          testID="gallery-ProgressSized"
+        />
 
         <Button accessibilityLabel="A button" testID="gallery-Button">
           Button

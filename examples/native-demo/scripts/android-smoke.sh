@@ -281,6 +281,28 @@ fi
 # that is checked.
 adb exec-out screencap -p > ./gallery.png 2>/dev/null || true
 
+# Which of the census the tree names, and which it does not.
+#
+# Printed rather than asserted. `uiautomator dump` reports a fixed set of
+# attributes and a `roleDescription` is not among them, so an element can
+# be reaching the platform correctly and still be invisible here -- which
+# is one of the two open questions about `Progress` in #309. A list of
+# names is what turns that from a guess into a comparison.
+echo "the census, as the tree has it:"
+node --eval '
+  const [dump, screen] = process.argv.slice(1)
+  const fs = require("node:fs")
+  const inTree = new Set(
+    [...fs.readFileSync(dump, "utf8").matchAll(/resource-id="(gallery-\w+)"/g)].map((m) => m[1]),
+  )
+  const written = new Set(
+    [...fs.readFileSync(screen, "utf8").matchAll(/testID="(gallery-\w+)"/g)].map((m) => m[1]),
+  )
+  const missing = [...written].filter((name) => !inTree.has(name)).sort()
+  console.log(`  ${inTree.size} of ${written.size} named`)
+  console.log(`  absent: ${missing.join(", ") || "(none)"}`)
+' gallery_dump.xml "$(dirname "$0")/../Gallery.tsx"
+
 # How much of the census actually arrived. Not asserted at a number: the
 # screen scrolls, and a dump reports what is on screen, so the count is a
 # fact about the viewport as much as about the primitives. The comparison
