@@ -27,3 +27,43 @@ platform behavior. Use `shouldHandle` when the router also owns an absolute univ
 On Web, links remain real `<a href>` elements, so SEO, copying destinations, right-click menus,
 and new-tab gestures continue to work. On React Native, the same provider connects `Link`,
 `Button href`, and other destination-bearing primitives to the installed router.
+
+## Framework adapters
+
+The adapter entry points accept router instances structurally, so Hozo does not install or bundle
+a second copy of the framework router.
+
+```tsx
+// Next.js App Router
+'use client'
+
+import { NextNavigationProvider } from '@hozo/navigation/next'
+import { useRouter } from 'next/navigation'
+
+export function AppNavigation({ children }) {
+  const router = useRouter()
+  return <NextNavigationProvider router={router}>{children}</NextNavigationProvider>
+}
+```
+
+```tsx
+// Expo Router
+import { ExpoRouterNavigationProvider } from '@hozo/navigation/expo-router'
+import { useRouter } from 'expo-router'
+
+export function AppNavigation({ children }) {
+  const router = useRouter()
+  return <ExpoRouterNavigationProvider router={router}>{children}</ExpoRouterNavigationProvider>
+}
+```
+
+```tsx
+// TanStack Router / TanStack Start
+import { TanStackNavigationProvider } from '@hozo/navigation/tanstack-router'
+import { useRouter } from '@tanstack/react-router'
+
+export function AppNavigation({ children }) {
+  const router = useRouter()
+  return <TanStackNavigationProvider router={router}>{children}</TanStackNavigationProvider>
+}
+```

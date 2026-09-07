@@ -1,4 +1,5 @@
-import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router'
+import { TanStackNavigationProvider } from '@hozo/navigation/tanstack-router'
+import { createRootRoute, HeadContent, Scripts, useRouter } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 export const Route = createRootRoute({
@@ -13,13 +14,14 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: ReactNode }) {
+  const router = useRouter()
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        {children}
+        <TanStackNavigationProvider router={router}>{children}</TanStackNavigationProvider>
         <Scripts />
       </body>
     </html>

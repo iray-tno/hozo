@@ -66,13 +66,16 @@ export function withHozo<T extends Record<string, unknown>>(
   // that a bare name doesn't reach.
   const loader = createRequire(import.meta.url).resolve('../loader.js')
 
+  // Deliberately no `as`: that field tells Turbopack the loader changed the
+  // source kind. Hozo returns TSX as TSX and TS as TS; declaring `as` here
+  // makes an imported component re-enter the pipeline as `child.tsx.tsx`.
+  // MDX's own rule still declares `as: '*.tsx'`, because it really does
+  // turn Markdown into TSX before this rule handles the result.
   const tsxRule = {
     loaders: [{ loader, options: loaderOptions }],
-    as: '*.tsx',
   }
   const tsRule = {
     loaders: [{ loader, options: loaderOptions }],
-    as: '*.ts',
   }
 
   return {
