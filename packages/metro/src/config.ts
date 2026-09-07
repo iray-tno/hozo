@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import {
   CACHE_DIR,
   type HozoProjectOptions,
+  preflightEnabled,
   StylexModuleCache,
   type StylexResolutionRequest,
   type StylexResolvedBindings,
@@ -64,6 +65,17 @@ export interface HozoMetroState {
   upstreamTransformer?: string
   css?: string
   sources?: readonly string[]
+  /**
+   * Whether the project ships a CSS reset -- `preflight` with `'auto'`
+   * already resolved, here rather than in the worker on purpose.
+   *
+   * `'auto'` is answered by the project scan, and the scan happens once,
+   * here. A worker resolving it for itself would have to scan too, and
+   * two walks of a project mid-edit can disagree, which would compile one
+   * half of a bundle against a reset browser and the other half against a
+   * bare one (#315).
+   */
+  preflight?: boolean
   /** Resolver-verified StyleX edges, isolated because Metro resolution is platform-aware. */
   stylexBindings?: Record<string, StylexResolvedBindings[]>
 }
@@ -168,7 +180,7 @@ export async function withHozo<T extends MetroConfigShape>(
       ? configuredUpstream
       : undefined
 
-  await generateCandidateModule(projectRoot, {
+  const { usesTailwind } = await generateCandidateModule(projectRoot, {
     css: options.css,
     content: options.content,
   })
@@ -176,6 +188,7 @@ export async function withHozo<T extends MetroConfigShape>(
     upstreamTransformer,
     css: options.css,
     sources: options.sources,
+    preflight: preflightEnabled(options.preflight, usesTailwind),
   }
   const statePath = metroStatePath(projectRoot)
   const writeState = () => writeMetroState(statePath, state)

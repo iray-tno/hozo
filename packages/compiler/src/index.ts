@@ -224,6 +224,23 @@ function loadNative(): NativeBinding {
  */
 export interface Theme {
   colors: { token: string; oklch: string; hex: string }[]
+  /** One spacing step in pixels; Tailwind's `--spacing`, 0.25rem by default. */
+  spacingPx?: number
+  /**
+   * Whether the project ships a CSS reset over the browser's own stylesheet.
+   *
+   * The resolved `preflight` option -- `preflightEnabled` in
+   * `@hozo/compiler/project` -- not `usesTailwind`, and not the raw
+   * option. Only the Native backend reads it: it has no user-agent
+   * stylesheet to inherit, so its defaults are copied from a browser, and
+   * this says which browser (#315). Omitted means no reset, which is what
+   * a caller that has never heard of the question should get.
+   *
+   * It rides on the theme because it is one project-wide fact resolved
+   * once at build start, crossing the addon boundary once with the rest of
+   * them, rather than a second per-file argument to forget.
+   */
+  preflight?: boolean
 }
 
 /**

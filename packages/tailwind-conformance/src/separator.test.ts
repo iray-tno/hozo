@@ -27,7 +27,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { test } from 'node:test'
 
-import { compile, compileNative } from '@hozo/compiler'
+import { compile, createCompiler } from '@hozo/compiler'
 
 import './native-render.ts'
 
@@ -40,6 +40,17 @@ const renderer = require('react-test-renderer') as {
   act: (callback: () => void) => void
 }
 const semantics = require('../../semantics/src/index.native.tsx') as { Separator: unknown }
+
+/**
+ * A compiler told the project ships a CSS reset, which is the browser the
+ * fallback was written from.
+ *
+ * `hr` is 1px under Tailwind's Preflight and 2px under a bare user-agent
+ * stylesheet, and since #315 the compiler follows whichever the project
+ * has. The fallback is a plain React component with no build to ask, so it
+ * has one number, and it is this one. The last test says what that costs.
+ */
+const reset = createCompiler({ colors: [], preflight: true })
 
 /** The fallback's rendered props, which are what the compiler has to match. */
 function fallback(props: Record<string, unknown>) {
@@ -58,7 +69,7 @@ function flatten(style: unknown): Record<string, unknown> {
 
 function compiledNative(attrs: string) {
   const source = `import { Separator } from '@hozo/core'\nexport function F() { return <Separator ${attrs}/> }`
-  const [out] = compileNative(source, 'F.tsx')
+  const [out] = reset.compileNative(source)
   return out as { jsx: string; styles: string }
 }
 
@@ -152,10 +163,33 @@ test('StyleX composes with the default the same way a class does', () => {
     "const styles = stylex.create({ rule: { height: 8, backgroundColor: 'red' } })",
     'export function F() { return <Separator {...stylex.props(styles.rule)} /> }',
   ].join('\n')
-  const { styles } = compileNative(source, 'F.tsx')[0] as { styles: string }
+  const { styles } = reset.compileNative(source)[0] as { styles: string }
 
   assert.match(styles, /height: 8,/)
   assert.doesNotMatch(styles, /height: 1,/)
   // `alignSelf` is the compiler's and the author never mentioned it.
   assert.match(styles, /alignSelf: 'stretch',/)
+})
+
+test('a project without a reset gets the other browser, and the fallback cannot follow', () => {
+  // The residue of #315, asserted rather than left to be discovered.
+  //
+  // The compiled half tracks the project: no reset means the user-agent
+  // stylesheet, and a bare `hr` is 2px. The fallback is a component in
+  // `@hozo/semantics` with no build to ask, so it stays at 1px and a
+  // non-Tailwind project renders its compiled rules one pixel thicker
+  // than its uncompiled ones.
+  //
+  // Small, and the alternative was worse: matching the fallback here
+  // would mean the compiled Native rule disagreeing with the project's
+  // own Web rule, which is the parity Hozo exists for. If the fallbacks
+  // are ever handed the resolved flag -- the generated candidate module
+  // is already per-project and already reaches the device -- this test is
+  // the one to delete.
+  const bare = createCompiler({ colors: [] })
+  const source = `import { Separator } from '@hozo/core'
+export function F() { return <Separator /> }`
+  const { styles } = bare.compileNative(source)[0] as { styles: string }
+  assert.match(styles, /height: 2,/)
+  assert.equal(flatten(fallback({}).props.style).height, 1)
 })

@@ -36,6 +36,37 @@ pub struct Theme {
     /// the root font size is 16px, so a step is 4px unless a project says
     /// otherwise.
     spacing_px: f64,
+    /// Whether the project ships a CSS reset that flattens the browser’s
+    /// own stylesheet.
+    ///
+    /// The Native backend supplies defaults for things React Native has no
+    /// user-agent stylesheet for -- heading sizes, the rule a `<hr>` draws.
+    /// Every one of them was chosen to match a browser, and *which* browser
+    /// rendering depends on this: a project on Tailwind ships its preflight,
+    /// which resets `h1`-`h6` to `font-size: inherit; font-weight: inherit`
+    /// and turns `<hr>` into a 1px border, and a project without one gets the
+    /// user agent’s 32px bold heading and 2px rule.
+    ///
+    /// Measured, in headless Chrome, with and without this repository’s own
+    /// generated preflight:
+    ///
+    /// ```text
+    /// h1     32px / 700     ->  16px / 400
+    /// hr     2 tall         ->  1 tall
+    /// ```
+    ///
+    /// So one number baked into the compiler cannot match both, and the
+    /// default configuration -- Tailwind, preflight on -- was the one it did
+    /// not match: a compiled `<Heading level={1}>` was 16px in the browser
+    /// and 28 on a phone (#315).
+    ///
+    /// It rides on the theme because it is the same shape as the rest of it:
+    /// one project-wide fact, resolved once at `buildStart`, crossing the
+    /// addon boundary a single time. It follows the *resolved* `preflight`
+    /// option rather than `usesTailwind` directly, so it is the author’s
+    /// declared choice rather than an inference from whether some unrelated
+    /// file happens to contain a utility class.
+    preflight: bool,
 }
 
 /// Tailwind's own default, and what every caller got before a theme could
@@ -44,13 +75,28 @@ const DEFAULT_SPACING_PX: f64 = 4.0;
 
 impl Default for Theme {
     fn default() -> Self {
-        Theme { colors: HashMap::new(), spacing_px: DEFAULT_SPACING_PX }
+        // No theme means no project, which is every unit test and every
+        // caller that has not been told otherwise. `false` is the honest
+        // answer there: nothing has said a reset is being shipped.
+        Theme { colors: HashMap::new(), spacing_px: DEFAULT_SPACING_PX, preflight: false }
     }
 }
 
 impl Theme {
-    pub fn new(colors: HashMap<String, ThemeColor>, spacing_px: Option<f64>) -> Self {
-        Theme { colors, spacing_px: spacing_px.unwrap_or(DEFAULT_SPACING_PX) }
+    pub fn new(
+        colors: HashMap<String, ThemeColor>,
+        spacing_px: Option<f64>,
+        preflight: bool,
+    ) -> Self {
+        Theme { colors, spacing_px: spacing_px.unwrap_or(DEFAULT_SPACING_PX), preflight }
+    }
+
+    /// Whether a CSS reset is flattening the browser’s own stylesheet.
+    ///
+    /// The Native backend asks this before supplying a default the browser
+    /// would otherwise have supplied. See the field.
+    pub fn preflight(&self) -> bool {
+        self.preflight
     }
 
     pub fn spacing_px(&self) -> f64 {

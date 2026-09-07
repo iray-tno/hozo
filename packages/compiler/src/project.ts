@@ -129,9 +129,17 @@ export interface HozoProjectOptions {
    * opinionated reset, and a project with no stake in Tailwind's
    * assumptions should not be handed one.
    *
-   * `true` always emits it, `false` never. Native ignores this: React
-   * Native has no cascade and no user-agent stylesheet, so there is
-   * nothing to reset.
+   * `true` always emits it, `false` never.
+   *
+   * Native reads the answer too, which it did not until #315. There is
+   * nothing to reset on React Native -- no cascade, no user-agent
+   * stylesheet -- but that is the reason: the defaults the Native backend
+   * supplies for `Heading` and `Separator` were copied from a browser, and
+   * a browser under Preflight is a different browser. An `h1` is 16px/400
+   * with the reset and 32px/700 without it, an `hr` 1px against 2px. So
+   * this option decides which of the two the phone is asked to match, and
+   * a project that sets it for the Web sets it for both halves by setting
+   * it once.
    */
   preflight?: boolean | 'auto'
   /** Report project-scan work and timing through the bundler's logger. */
@@ -414,8 +422,32 @@ export function preflightCssFor(
   css: string,
   usesTailwind: boolean,
 ): string {
-  const wanted = preflight === undefined || preflight === 'auto' ? usesTailwind : preflight
-  return wanted ? css : ''
+  return preflightEnabled(preflight, usesTailwind) ? css : ''
+}
+
+/**
+ * Whether this project ships a reset -- the option with `'auto'` resolved.
+ *
+ * Two things need the answer and they are on different platforms, which is
+ * why it is a function rather than a line inside `preflightCssFor`. The
+ * Web integrations need it to decide the bytes of `preflight.css`. The
+ * Native compiler needs it because it has no user-agent stylesheet at all
+ * and supplies defaults chosen against a browser -- and *which* browser
+ * rendering it should match is exactly this question. A reset `h1` is
+ * 16px/400 and an `hr` is 1px; the unreset ones are 32px/700 and 2px
+ * (#315, measured in headless Chrome).
+ *
+ * Resolve it once per build and hold it. Under `'auto'` the answer comes
+ * from `CandidateCache.usesTailwind`, which is monotonic during a build --
+ * false until the first Tailwind class is seen -- so asking twice can give
+ * two answers, and half a bundle compiled against each is a divergence no
+ * test would report.
+ */
+export function preflightEnabled(
+  preflight: boolean | 'auto' | undefined,
+  usesTailwind: boolean,
+): boolean {
+  return preflight === undefined || preflight === 'auto' ? usesTailwind : preflight
 }
 
 /** Writes a generated artifact only when its bytes actually changed. */

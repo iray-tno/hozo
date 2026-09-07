@@ -100,13 +100,30 @@ interface CompilerState {
   stylexModules?: StylexModuleCache
 }
 
+/**
+ * The project's tokens plus the one build decision the Native backend
+ * reads: whether the Web half of this project ships a CSS reset.
+ *
+ * Resolved in withHozo and carried through metro.json, because 'auto' is
+ * answered by the project scan and the scan happens there -- once, in the
+ * config process the workers cannot see. A theme is built even when the
+ * project has none, because passing undefined here would quietly mean
+ * "no reset" for a project that has one (#315).
+ */
+function themeWithPreflight(theme: Theme | undefined, preflight: boolean): Theme | undefined {
+  if (!preflight) return theme
+  return { ...(theme ?? { colors: [] }), preflight }
+}
+
 const compilers = new Map<string, CompilerState>()
 function compilerFor(
   projectRoot: string | undefined,
   theme: Theme | undefined,
   sources: readonly string[],
 ): CompilerState {
-  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}`
+  // A compiler is given its theme once, so a project whose resolved
+  // preflight differs needs a compiler of its own: the key has to say so.
+  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}:${theme?.preflight ?? false}`
   let state = compilers.get(key)
   if (!state) {
     const compiler = createCompiler(theme, sources)
@@ -133,7 +150,11 @@ export async function transform(params: TransformParams): Promise<unknown> {
         warn: (message) => console.warn(message),
       })
     : undefined
-  const compilerState = compilerFor(projectRoot, theme, state?.sources ?? DEFAULT_PRIMITIVE_SOURCES)
+  const compilerState = compilerFor(
+    projectRoot,
+    themeWithPreflight(theme, state?.preflight ?? false),
+    state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
+  )
   const platform = params.options?.platform ?? 'default'
   if (
     compilerState.stylexModules?.replaceResolvedBindings(state?.stylexBindings?.[platform] ?? [])
