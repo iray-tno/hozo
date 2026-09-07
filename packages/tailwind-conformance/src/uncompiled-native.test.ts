@@ -91,3 +91,21 @@ test('an element child is left as it was written', () => {
   const path = pathToText(render(react.createElement(core.Button, null, label)), 'Save')
   assert.deepEqual(path, ['Pressable', 'Text'])
 })
+
+test('a dialog carries the testID it was given', () => {
+  // Found on a device. The emulator's tree showed the open dialog as a
+  // `View` with `content-desc="Confirm your address"` and no
+  // `resource-id` at all -- so `<Dialog testID>` compiled, rendered, and
+  // dropped the one prop that makes an element findable.
+  //
+  // Neither half had it: `@hozo/behaviors`' native dialog had no `testID`
+  // in its props, and neither did its Web half, so nothing looked
+  // asymmetric. `@hozo/core` carried a byte-for-byte copy of the native
+  // one, which is why the bug was in two places and a fix to either would
+  // have left the other. The copy is gone; core delegates now.
+  const tree = render(
+    react.createElement(core.Dialog, { open: true, testID: 'smoke-dialog' }, 'Body'),
+  )
+  const found = JSON.stringify(tree).includes('"testID":"smoke-dialog"')
+  assert.ok(found, `no testID in the rendered dialog: ${JSON.stringify(tree)}`)
+})
