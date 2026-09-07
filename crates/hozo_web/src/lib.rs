@@ -1243,6 +1243,14 @@ fn render_node(
                 continue;
             }
         }
+        // `decorative` and `orientation` are Hozo's words for a rule, not
+        // the DOM's. They were reaching `<hr>` as attributes nothing reads,
+        // while `markup::separator_attrs` says what they actually mean.
+        if node.primitive == Primitive::Separator
+            && matches!(prop.name.as_deref(), Some("decorative") | Some("orientation"))
+        {
+            continue;
+        }
         attrs.push(' ');
         attrs.push_str(&render_verbatim(
             prop.span,
@@ -2269,6 +2277,37 @@ export function Login() {
         );
     }
 
+    /// A rule's own two props, which the DOM has no meaning for.
+    ///
+    /// `decorative` and `orientation` are Hozo's spellings. Both used to
+    /// reach `<hr>` verbatim -- attributes nothing reads -- while the two
+    /// things they are for went unsaid: a decorative rule was still
+    /// announced as a separator, and a vertical one never said which way
+    /// it ran. The uncompiled fallback has always emitted both (#309).
+    #[test]
+    fn a_separator_says_what_its_props_mean() {
+        let cases = [
+            (r#"<Separator />"#, "<hr />"),
+            (
+                r#"<Separator decorative />"#,
+                r#"<hr role="none" aria-hidden={true} />"#,
+            ),
+            (
+                r#"<Separator orientation="vertical" />"#,
+                r#"<hr aria-orientation="vertical" />"#,
+            ),
+        ];
+        for (element, expected) in cases {
+            let source = format!(
+                "import {{ Separator }} from '@hozo/core'
+const el = {element}"
+            );
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
+            assert_eq!(output.jsx, expected, "{element}");
+        }
+    }
     #[test]
     fn progress_and_button_with_href_lower_to_html_primitives() {
         let source = r#"

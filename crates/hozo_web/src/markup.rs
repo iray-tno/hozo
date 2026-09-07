@@ -34,6 +34,44 @@ impl AttrValue {
 /// interactive) it's exactly the case proposal §10.2's diagnostic example
 /// warns about, so that diagnostic is emitted here rather than silently
 /// shipping an inaccessible interactive `<div>`.
+/// Whether a boolean-shaped prop is present and not literally `false`.
+///
+/// `<Separator decorative>` is JSX shorthand for `true`, which the parser
+/// records as the literal `"true"`. A value it cannot read is treated as
+/// absent: the attribute has to be decided once, here, and guessing at an
+/// expression would be deciding it wrongly half the time.
+fn flag_is_set(node: &Node, name: &str) -> bool {
+    node.props
+        .passthrough
+        .iter()
+        .find(|prop| prop.name.as_deref() == Some(name))
+        .is_some_and(|prop| prop.literal.as_deref() != Some("false"))
+}
+
+/// The rule's role and orientation, which the DOM does not infer.
+///
+/// `<hr>` has an implicit `separator` role, so the explicit one matters
+/// only for the other case: a decorative rule is `role="none"` and
+/// `aria-hidden`, which is what stops it being announced as structure it
+/// does not carry. `aria-orientation` is only emitted for `vertical`,
+/// since horizontal is the default and saying so adds nothing.
+fn separator_attrs(node: &Node) -> Vec<(&'static str, AttrValue)> {
+    let mut attrs = Vec::new();
+    if flag_is_set(node, "decorative") {
+        attrs.push(("role", AttrValue::text("none")));
+        attrs.push(("aria-hidden", AttrValue::Expression("true".to_string())));
+    }
+    let vertical = node
+        .props
+        .passthrough
+        .iter()
+        .find(|prop| prop.name.as_deref() == Some("orientation"))
+        .is_some_and(|prop| prop.literal.as_deref() == Some("vertical"));
+    if vertical {
+        attrs.push(("aria-orientation", AttrValue::text("vertical")));
+    }
+    attrs
+}
 pub fn element_shape(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'static str, Vec<(&'static str, AttrValue)>) {
     let (component, attrs) = element_shape_inner(node, diagnostics);
     (component, apply_authored_role(node, attrs, diagnostics))
@@ -134,8 +172,19 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         Primitive::Term => ("dt", Vec::new()),
         Primitive::Description if node.props.on_layout.is_some() => ("Description", Vec::new()),
         Primitive::Description => ("dd", Vec::new()),
-        Primitive::Separator if node.props.on_layout.is_some() => ("Separator", Vec::new()),
-        Primitive::Separator => ("hr", Vec::new()),
+        // `decorative` and `orientation` are Hozo's own spellings, and the
+        // backend used to model neither -- so both reached the DOM as
+        // attributes `<hr>` has no meaning for, while the two things they
+        // are *for* went unsaid. A decorative rule was still announced as a
+        // separator, and a vertical one did not say which way it ran.
+        //
+        // The uncompiled fallback in `@hozo/semantics` has always done both.
+        // Found by the census screen in #308: turning the compiler on
+        // changed what a screen reader hears (#309).
+        Primitive::Separator if node.props.on_layout.is_some() => {
+            ("Separator", separator_attrs(node))
+        }
+        Primitive::Separator => ("hr", separator_attrs(node)),
         Primitive::Progress if node.props.on_layout.is_some() => ("Progress", Vec::new()),
         Primitive::Progress => ("progress", Vec::new()),
         // `Button` names the visual primitive. An `href` makes its function

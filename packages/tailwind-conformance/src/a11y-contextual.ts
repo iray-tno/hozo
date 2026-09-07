@@ -337,10 +337,26 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
   },
   {
     name: 'a separator is a separator',
-    purpose: 'a rule between sections is announced as one rather than as an empty box',
+    purpose: 'a rule between sections is announced as one, and is a rule rather than an empty box',
     source: '<Separator />',
     web: ['<hr />'],
-    native: ['<View role="separator">'],
+    // The style is half the contract. `<hr>` takes its line from the
+    // browser's user-agent stylesheet; React Native has none, so a `View`
+    // with no size is zero pixels tall and draws nothing at all. This case
+    // used to match `<View role="separator">` and passed while the
+    // compiled rule was invisible on a device (#309).
+    native: ['<View style={hozoStyles.hozo0} role="separator">'],
+  },
+  {
+    name: 'a decorative separator is silent',
+    purpose: 'a rule drawn to look like a line is not announced as structure',
+    // The other half of the same prop. `decorative` says the rule carries
+    // no meaning, and both backends used to emit it verbatim -- an
+    // attribute neither platform reads -- while still announcing the
+    // element as a separator.
+    source: '<Separator decorative />',
+    web: ['<hr role="none" aria-hidden={true} />'],
+    native: ['role="none"', 'accessibilityRole="none"'],
   },
   {
     name: 'a machine-readable time',

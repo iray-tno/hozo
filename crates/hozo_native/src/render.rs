@@ -464,6 +464,40 @@ pub(super) fn render_node(
             property: StyleProperty::FontFamily("monospace".to_string()),
             condition: Condition::Always,
         }],
+        // The rule itself, which the browser draws and React Native does
+        // not. `<hr>` gets its line from the UA stylesheet; a `View` with
+        // no size is zero pixels tall and draws nothing, so a compiled
+        // separator was invisible while the uncompiled fallback -- which
+        // has always set this -- drew one. Turning the compiler on removed
+        // a divider from the screen (#309).
+        //
+        // No colour. The fallback sets none either, and a rule takes its
+        // line from a `border-*` or `bg-*` utility the author writes; a
+        // default here would be a colour nobody asked for that a theme
+        // could not see coming.
+        Primitive::Separator => {
+            let vertical = node
+                .props
+                .passthrough
+                .iter()
+                .find(|prop| prop.name.as_deref() == Some("orientation"))
+                .is_some_and(|prop| prop.literal.as_deref() == Some("vertical"));
+            let thickness = StyleDeclaration {
+                property: if vertical {
+                    StyleProperty::Width(hozo_ir::Dimension::Length(Length::Px(1.0)))
+                } else {
+                    StyleProperty::Height(hozo_ir::Dimension::Length(Length::Px(1.0)))
+                },
+                condition: Condition::Always,
+            };
+            vec![
+                thickness,
+                StyleDeclaration {
+                    property: StyleProperty::AlignSelf(hozo_ir::AlignSelf::Stretch),
+                    condition: Condition::Always,
+                },
+            ]
+        }
         Primitive::Sub | Primitive::Sup | Primitive::Small | Primitive::RubyText => {
             match (parent_size_opaque, size_ratio(node)) {
                 // Answered at runtime instead; see `rendered_component`.
@@ -513,10 +547,16 @@ pub(super) fn render_node(
         _ => Vec::new(),
     };
 
+    // `inherited` is text inheritance and belongs to `Text`. The semantic
+    // defaults do not: every one of them happened to be a text property
+    // until `Separator` needed a height, and the gate was quietly deciding
+    // that a default could only ever be about type. Widening it changes
+    // nothing above -- each of those arms matches a primitive that lowers
+    // to `Text` anyway -- and it is what makes a rule one pixel tall.
     let style: Vec<StyleDeclaration> = if component == "Text" {
         inherited.iter().cloned().chain(semantic_defaults).chain(style).collect()
     } else {
-        style
+        semantic_defaults.into_iter().chain(style).collect()
     };
 
     // What an ancestor's `*:`/`**:` wrote for this element, before its
@@ -1150,6 +1190,16 @@ pub(super) fn render_node(
                 prop.name.as_deref(),
                 Some("target") | Some("rel") | Some("external") | Some("download")
             )
+        {
+            continue;
+        }
+        // A rule's own two props, which are Hozo's words rather than React
+        // Native's. `decorative` picks the role in `markup.rs` and
+        // `orientation` picks which side gets the one pixel; a `View` does
+        // nothing with either, and passing them on was two props claiming
+        // something the platform does not read.
+        if node.primitive == Primitive::Separator
+            && matches!(prop.name.as_deref(), Some("decorative") | Some("orientation"))
         {
             continue;
         }
