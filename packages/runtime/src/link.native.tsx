@@ -1,9 +1,12 @@
 import { hozoTextChildren } from '@hozo/behaviors'
 import type { ReactNode } from 'react'
 import { Linking, Pressable, type PressableProps } from 'react-native'
+import { activateHozoNavigation } from './navigation.ts'
+import { useHozoNavigation } from './navigation-context.tsx'
 
 export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
   href: string
+  external?: boolean
   onPress?: PressableProps['onPress']
   children?: ReactNode
 }
@@ -38,18 +41,22 @@ export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
  */
 export function HozoLink({
   href,
+  external,
   onPress,
   children,
   accessibilityRole = 'link',
   ...props
 }: HozoLinkProps) {
+  const navigation = useHozoNavigation()
   return (
     <Pressable
       {...props}
       accessibilityRole={accessibilityRole}
       onPress={(event) => {
         onPress?.(event)
-        if (!event.defaultPrevented) void Linking.openURL(href)
+        if (!event.defaultPrevented) {
+          void activateHozoNavigation(navigation, { href, external }, Linking.openURL)
+        }
       }}
     >
       {hozoTextChildren(children)}

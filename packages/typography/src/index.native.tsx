@@ -236,16 +236,15 @@ export interface LinkProps extends TypographyNativeProps {
  * on the role: this one let a caller's `accessibilityRole` win and the
  * other overwrote it, which was the bug in #289.
  *
- * `target`, `rel`, `download` and `external` stay in the prop type and
- * are dropped here. They are browser concepts, and a link leaves the app
- * on this platform whatever they say; the compiler reports `download`,
- * which is the one whose absence is felt.
+ * `target`, `rel`, and `download` stay in the prop type and are dropped
+ * here. `external` reaches HozoLink because it decides whether an installed
+ * application router may handle the destination before platform fallback.
  */
 export function Link({
   href,
   onPress,
   children,
-  external: _external,
+  external,
   target: _target,
   rel: _rel,
   download: _download,
@@ -253,7 +252,7 @@ export function Link({
   ...props
 }: LinkProps) {
   return (
-    <HozoLink href={href} onPress={onPress} style={asWeb(style)} {...props}>
+    <HozoLink href={href} external={external} onPress={onPress} style={asWeb(style)} {...props}>
       {children}
     </HozoLink>
   )

@@ -89,7 +89,11 @@ const PACKAGES = {
     // load it on every import of this package -- an optional dependency
     // that is always loaded is not optional. The compiler emits an import
     // from here only for a file that uses an SVG element.
-    exports: { '.': './dist/index.js', './svg': './dist/svg.js' },
+    exports: {
+      '.': './dist/index.js',
+      './navigation': './dist/navigation-entry.js',
+      './svg': './dist/svg.js',
+    },
     // Metro resolves `.native.js` by filename suffix only while a package
     // has no `exports`; once it does, conditions take over and the suffix
     // is ignored. Naming the condition is what keeps the native build
