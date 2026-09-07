@@ -51,6 +51,25 @@ fail() {
   exit 1
 }
 
+# Whether the app is still running, and what killed it if not.
+#
+# The crash check used to run once, right after launch, which covers a
+# render that throws on the first frame and nothing after it. A screen
+# reached by pressing something can throw too, and when it does the app
+# dies and the launcher becomes visible -- so the next dump is of the home
+# screen and the failure reads as "the thing did not open". It was not the
+# tap; it was the screen.
+still_alive() {
+  local what="$1"
+  # shellcheck disable=SC2001 -- the CR below is literal on purpose; adb's
+  # shell output is CRLF and every other reader here strips it the same way.
+  if [ -z "$(adb shell pidof "$package" | tr -d '')" ]; then
+    echo '--- the exception ---'
+    adb logcat -d | grep -A 30 'FATAL EXCEPTION' | tail -40 || true
+    fail "$package died $what"
+  fi
+}
+
 # Pulls the current tree to a named file and leaves it in the working
 # directory, where the workflow collects it.
 #
@@ -111,6 +130,14 @@ dump() {
 # nothing installed: the dump already says where everything is.
 # node rather than python, because this repository already requires node
 # everywhere and requires python nowhere.
+#
+# Refuses a target in the bottom eighth of the screen. A dump reports
+# bounds for everything it can see, and the app does not own the bottom
+# of the display: the gallery button was at y=2315 of 2400 the first time,
+# inside the system gesture area, so tapping it went home instead of
+# opening anything and the next dump was of the launcher. A press that
+# lands on the navigation bar is not a press this can make, and saying so
+# is better than reporting whatever the home screen happens to contain.
 centre_of() {
   node --eval '
     const [file, wanted] = process.argv.slice(1)
@@ -120,7 +147,13 @@ centre_of() {
       const box = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0])
       if (!box) continue
       const [left, top, right, bottom] = box.slice(1).map(Number)
-      console.log((left + right) >> 1, (top + bottom) >> 1)
+      const height = Number(/bounds="\[0,0\]\[\d+,(\d+)\]"/.exec(xml)?.[1] ?? 0)
+      const y = (top + bottom) >> 1
+      if (height && y > height * 0.875) {
+        console.error(`${wanted} is at y=${y} of ${height}, inside the system gesture area`)
+        process.exit(2)
+      }
+      console.log((left + right) >> 1, y)
       process.exit(0)
     }
     process.exit(1)
@@ -179,6 +212,7 @@ fi
 echo "pressing Continue at ${tap_x},${tap_y}"
 adb shell input tap "$tap_x" "$tap_y"
 sleep 2
+still_alive 'while opening the dialog'
 
 dump dialog_dump.xml
 if ! grep -q 'smoke-dialog' dialog_dump.xml; then
@@ -191,7 +225,19 @@ echo "the dialog is open"
 echo "dismissing with Back"
 adb shell input keyevent 4
 sleep 2
+still_alive 'while dismissing the dialog'
 dump dismissed_dump.xml
+# The app first, and this order matters. Asserting only that the dialog is
+# gone tests an absence, and an absence is also what leaving the app looks
+# like: if Back is not consumed by the modal it pops the activity, the tree
+# becomes the launcher's, and `smoke-dialog` is missing from it for the
+# wrong reason. The previous run reported "ok" on exactly that, because
+# nothing after it ever looked.
+if ! grep -q "$expect_id" dismissed_dump.xml; then
+  echo '--- tree after Back ---'
+  cat dismissed_dump.xml
+  fail "Back left the app instead of dismissing the dialog"
+fi
 if grep -q 'smoke-dialog' dismissed_dump.xml; then
   echo '--- tree after Back ---'
   cat dismissed_dump.xml
@@ -206,4 +252,41 @@ fi
 echo "focused after dismissal:"
 grep -o 'resource-id="[^"]*"[^>]*focused="true"' dismissed_dump.xml || echo '  (nothing reports focus)'
 
-echo "ok: $package is up, its tree contains $expect_id, and the dialog opens and closes"
+# --- the census screen -----------------------------------------------------
+
+# `Gallery.tsx` renders every primitive at once, which is what the
+# accessibility contract in #260 is about -- the acceptance screen above is
+# eight of them arranged the way an application would. Reached by pressing a
+# button rather than by a second activity, because the tap machinery is
+# already here and an activity would be a second thing to keep working.
+
+if ! read -r tap_x tap_y < <(centre_of dismissed_dump.xml smoke-gallery); then
+  fail "smoke-gallery has no bounds in the tree, so the census screen is unreachable"
+fi
+echo "opening the gallery at ${tap_x},${tap_y}"
+adb shell input tap "$tap_x" "$tap_y"
+sleep 2
+still_alive 'while opening the gallery'
+
+dump gallery_dump.xml
+if ! grep -q "gallery-Heading" gallery_dump.xml; then
+  echo '--- tree after opening the gallery ---'
+  cat gallery_dump.xml
+  fail "the gallery did not open"
+fi
+
+# A picture as well as a tree. Nothing compares these yet -- what to
+# compare them against is a decision nobody has made -- so they are
+# artifacts rather than assertions, and the tree beside them is the part
+# that is checked.
+adb exec-out screencap -p > ./gallery.png 2>/dev/null || true
+
+# How much of the census actually arrived. Not asserted at a number: the
+# screen scrolls, and a dump reports what is on screen, so the count is a
+# fact about the viewport as much as about the primitives. The comparison
+# that matters happens offline against what the compiler emitted.
+found=$(grep -o 'resource-id="gallery-[A-Za-z]*"' gallery_dump.xml | sort -u | wc -l)
+echo "the gallery tree names $found primitives"
+[ "$found" -ge 10 ] || fail "only $found primitives reached the tree, which is not a census"
+
+echo "ok: $package is up, its tree contains $expect_id, the dialog opens and closes, and the gallery renders $found primitives"

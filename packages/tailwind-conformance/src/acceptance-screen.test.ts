@@ -45,14 +45,12 @@ const stub = require('./react-native-stub.js') as {
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const source = readFileSync(
-  path.join(here, '..', '..', '..', 'examples', 'native-demo', 'App.tsx'),
-  'utf8',
-)
+const appDirectory = path.join(here, '..', '..', '..', 'examples', 'native-demo')
+const source = readFileSync(path.join(appDirectory, 'App.tsx'), 'utf8')
 
 /** Commits, and animations started, from mounting the screen and waiting. */
 function mountAndWait() {
-  const App = loadNativeModule(source).default
+  const App = loadNativeModule(source, appDirectory).default
   stub.Animated.__hozoResetTimings()
   let commits = 0
   const counted = () =>

@@ -14,6 +14,8 @@ import {
 } from '@hozo/core'
 import { useRef, useState } from 'react'
 
+import Gallery from './Gallery.tsx'
+
 const rows = [
   { id: 'one', title: 'First virtual row' },
   { id: 'two', title: 'Second virtual row' },
@@ -23,6 +25,7 @@ const rows = [
 export default function App() {
   const [email, setEmail] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [showingGallery, setShowingGallery] = useState(false)
   const [gridWidth, setGridWidth] = useState(0)
   const [gesture, setGesture] = useState({ dx: 0, dy: 0, touches: 0 })
   const pan = useRef(
@@ -37,6 +40,13 @@ export default function App() {
       },
     }),
   ).current
+
+  // A second screen rather than a second registered component: an
+  // activity launches one root, and the smoke script already knows how
+  // to press a button. `Gallery.tsx` is the census the accessibility
+  // contract needs -- every primitive at once, rather than the eight
+  // this screen happens to arrange.
+  if (showingGallery) return <Gallery />
 
   return (
     <View className="flex-1 bg-slate-50 text-slate-900">
@@ -120,6 +130,22 @@ export default function App() {
               testID="smoke-interaction"
             >
               <Text className="text-center font-bold text-white">Continue</Text>
+            </Pressable>
+
+            {/* Beside Continue rather than at the foot of the screen.
+                It was below the list, which put it at y=2315 of 2400 --
+                inside the system gesture area, where a tap is a home
+                gesture and not a press. The dump reports bounds for
+                anything it can see, including things the app does not
+                own the bottom of. */}
+            <Pressable
+              className="mt-2 rounded-lg bg-slate-200 p-3"
+              accessibilityRole="button"
+              accessibilityLabel="Show every primitive"
+              onPress={() => setShowingGallery(true)}
+              testID="smoke-gallery"
+            >
+              <Text className="text-center">Gallery</Text>
             </Pressable>
           </View>
         }

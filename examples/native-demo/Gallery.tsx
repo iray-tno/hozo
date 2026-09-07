@@ -1,0 +1,177 @@
+// Every primitive on one screen, so a device can be asked about all of
+// them at once.
+//
+// `App.tsx` is an acceptance screen: a handful of primitives arranged the
+// way an application would arrange them, which is what makes it a good
+// smoke test and a poor census. The accessibility contract in #260 is
+// about *every* primitive, and until now the only ones a device had ever
+// rendered were the eight that happened to be on that screen.
+//
+// So this is the census. Each primitive gets a `testID` of the form
+// `gallery-<name>`, which is what lets the tree be joined back to the
+// compiler's output for the same source -- the comparison
+// `packages/tailwind-conformance/src/native-tree.ts` already makes for
+// the acceptance screen.
+//
+// Hand-written and guarded rather than generated. `gallery.test.ts` fails
+// if `@hozo/core` publishes a component this screen does not render and
+// does not excuse with a reason, which is the same shape as `WEB_ONLY` in
+// the parity test and `NEEDS_MORE_THAN_CHILDREN` in the fallback one. A
+// generated screen would also have to typecheck and render, and the guard
+// buys the property that matters -- nothing added later goes unseen --
+// for a fraction of the machinery.
+//
+// The composite widgets are not here. `Combobox`, `Listbox`, `Menu`,
+// `RadioGroup`, `Tabs`, `Toolbar` and `Tree` are ARIA patterns driven by
+// props rather than children, they have fifty-six tests of their own in
+// `@hozo/core`, and none of them accepts a `testID` at all -- which is its
+// own finding and not one to fix in the same change as this.
+
+import {
+  Address,
+  Article,
+  Aside,
+  Button,
+  Code,
+  Del,
+  Description,
+  Details,
+  Emphasis,
+  Fieldset,
+  Figcaption,
+  Figure,
+  Footer,
+  Header,
+  Heading,
+  Legend,
+  Link,
+  List,
+  ListItem,
+  Main,
+  Mark,
+  Nav,
+  NoBreak,
+  Paragraph,
+  Progress,
+  Ruby,
+  RubyText,
+  ScrollView,
+  Search,
+  Section,
+  Separator,
+  Small,
+  Strikethrough,
+  Strong,
+  Sub,
+  Summary,
+  Sup,
+  Term,
+  TermList,
+  Text,
+  Time,
+  Underline,
+  View,
+} from '@hozo/core'
+
+/**
+ * The census screen.
+ *
+ * Reached from `App.tsx` by pressing the button with `testID`
+ * `smoke-gallery`, because a second registered component would need a
+ * second activity and the smoke script already knows how to press things.
+ */
+export default function Gallery() {
+  return (
+    <ScrollView className="flex-1 bg-slate-50" testID="gallery">
+      <Main className="p-4 gap-2" testID="gallery-Main">
+        <Heading level={1} className="text-xl" testID="gallery-Heading">
+          Gallery
+        </Heading>
+
+        <Header className="gap-1" testID="gallery-Header">
+          <Text testID="gallery-Text">Text</Text>
+          <Paragraph testID="gallery-Paragraph">Paragraph</Paragraph>
+        </Header>
+
+        <Nav accessibilityLabel="Sections" testID="gallery-Nav">
+          <Link href="https://example.com" testID="gallery-Link">
+            Link
+          </Link>
+        </Nav>
+
+        <Section className="gap-1" testID="gallery-Section">
+          <Strong testID="gallery-Strong">Strong</Strong>
+          <Emphasis testID="gallery-Emphasis">Emphasis</Emphasis>
+          <Underline testID="gallery-Underline">Underline</Underline>
+          <Strikethrough testID="gallery-Strikethrough">Strikethrough</Strikethrough>
+          <Del testID="gallery-Del">Del</Del>
+          <Code testID="gallery-Code">Code</Code>
+          <Mark testID="gallery-Mark">Mark</Mark>
+          <Small testID="gallery-Small">Small</Small>
+          <NoBreak testID="gallery-NoBreak">NoBreak</NoBreak>
+          <Text>
+            Sub<Sub testID="gallery-Sub">sub</Sub> and sup
+            <Sup testID="gallery-Sup">sup</Sup>
+          </Text>
+          <Ruby testID="gallery-Ruby">
+            漢<RubyText testID="gallery-RubyText">かん</RubyText>
+          </Ruby>
+          <Time dateTime="2026-09-07" testID="gallery-Time">
+            7 September 2026
+          </Time>
+        </Section>
+
+        <Article className="gap-1" testID="gallery-Article">
+          <Aside testID="gallery-Aside">
+            <Text>Aside</Text>
+          </Aside>
+          <Address testID="gallery-Address">
+            <Text>Address</Text>
+          </Address>
+        </Article>
+
+        <Search testID="gallery-Search">
+          <Text>Search</Text>
+        </Search>
+
+        <Figure testID="gallery-Figure">
+          <Figcaption testID="gallery-Figcaption">Figcaption</Figcaption>
+        </Figure>
+
+        <Fieldset testID="gallery-Fieldset">
+          <Legend testID="gallery-Legend">Legend</Legend>
+        </Fieldset>
+
+        <List testID="gallery-List">
+          <ListItem testID="gallery-ListItem">ListItem</ListItem>
+        </List>
+
+        <TermList testID="gallery-TermList">
+          <Term testID="gallery-Term">Term</Term>
+          <Description testID="gallery-Description">Description</Description>
+        </TermList>
+
+        <Details open testID="gallery-Details">
+          <Summary testID="gallery-Summary">Summary</Summary>
+          <Text>Disclosed</Text>
+        </Details>
+
+        <Separator testID="gallery-Separator" />
+
+        <Progress value={40} max={100} testID="gallery-Progress" />
+
+        <Button accessibilityLabel="A button" testID="gallery-Button">
+          Button
+        </Button>
+
+        <View testID="gallery-View">
+          <Text>View</Text>
+        </View>
+
+        <Footer testID="gallery-Footer">
+          <Text>Footer</Text>
+        </Footer>
+      </Main>
+    </ScrollView>
+  )
+}
