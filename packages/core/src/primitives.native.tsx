@@ -102,6 +102,7 @@ export function Button({
   accessibilityLabel,
   accessibilityHint,
   href,
+  external,
   style,
   testID,
 }: ButtonNativeProps) {
@@ -134,7 +135,13 @@ export function Button({
       >
     >
     return (
-      <Link href={href} accessibilityRole="button" onPress={onPress} {...shared}>
+      <Link
+        href={href}
+        external={external}
+        accessibilityRole="button"
+        onPress={onPress}
+        {...shared}
+      >
         {children}
       </Link>
     )
