@@ -134,9 +134,13 @@ const NOT_LOWERED = new Map([
   [
     'Del',
     '`export const Del = Strikethrough` in `@hozo/typography`. The compiler ' +
-      'matches on the tag, so `<Del>` is carried verbatim and renders this ' +
-      'component -- the same element either way, and only the class ' +
-      'compilation is lost.',
+      'matches on the tag, so `<Del>` is carried verbatim and the fallback ' +
+      'component renders it. ' +
+      'This note used to end "only the class compilation is lost", which ' +
+      'was wrong: the Native transform then deleted the import that ' +
+      'defined it, so on a device it was not rendered at all but a ' +
+      'ReferenceError saying the property does not exist. An emulator ' +
+      'found that; nothing here could.',
   ],
 ])
 
