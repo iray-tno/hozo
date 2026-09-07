@@ -206,6 +206,17 @@ echo "dismissing with Back"
 adb shell input keyevent 4
 sleep 2
 dump dismissed_dump.xml
+# The app first, and this order matters. Asserting only that the dialog is
+# gone tests an absence, and an absence is also what leaving the app looks
+# like: if Back is not consumed by the modal it pops the activity, the tree
+# becomes the launcher's, and `smoke-dialog` is missing from it for the
+# wrong reason. The previous run reported "ok" on exactly that, because
+# nothing after it ever looked.
+if ! grep -q "$expect_id" dismissed_dump.xml; then
+  echo '--- tree after Back ---'
+  cat dismissed_dump.xml
+  fail "Back left the app instead of dismissing the dialog"
+fi
 if grep -q 'smoke-dialog' dismissed_dump.xml; then
   echo '--- tree after Back ---'
   cat dismissed_dump.xml
