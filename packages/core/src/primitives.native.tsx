@@ -81,11 +81,12 @@ export type ListProps = ListNativeProps
 /**
  * A button, and a link when it is given an `href`.
  *
- * The Web half renders an `<a role="button">` for the second case; here
- * that is `HozoLink`, which is what the compiler emits for the same
- * source and already carries React Native's answer -- a Pressable with a
- * link role that opens the destination through `Linking` and respects a
- * handler that prevented it.
+ * The Web half renders an `<a>` for the second case; here that is
+ * `HozoLink`, which is what the compiler emits for the same source and
+ * carries React Native's answer -- a Pressable with a link role that
+ * opens the destination through `Linking` and respects a handler that
+ * prevented it. `Button` names its presentation; `href` decides its
+ * navigation semantics.
  *
  * `target`, `rel` and `external` are accepted and ignored. They are
  * browser concepts whose absence changes nothing here: a link leaves the
@@ -129,19 +130,10 @@ export function Button({
     // function call rather than an element, which loses its identity to
     // React and would break the moment it used a hook.
     const Link = HozoLink as unknown as ComponentType<
-      { href: string; accessibilityRole: string; children?: ReactNode } & Omit<
-        ButtonNativeProps,
-        'href' | 'children'
-      >
+      { href: string; children?: ReactNode } & Omit<ButtonNativeProps, 'href' | 'children'>
     >
     return (
-      <Link
-        href={href}
-        external={external}
-        accessibilityRole="button"
-        onPress={onPress}
-        {...shared}
-      >
+      <Link href={href} external={external} onPress={onPress} {...shared}>
         {children}
       </Link>
     )

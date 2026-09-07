@@ -100,8 +100,9 @@ export function HozoLink({
       'data-testid': testID,
       id: nativeID,
       // Only when asked for: an `<a href>` is already a link, and saying
-      // so again is noise in the accessibility tree. `Button` asks for
-      // `button`, which is the case this is here for.
+      // so again is noise in the accessibility tree. Kept as an escape
+      // hatch for deliberately custom widgets, not used by Hozo's
+      // destination-bearing primitives.
       role: accessibilityRole,
       'aria-label': accessibilityLabel,
       'aria-description': accessibilityHint,

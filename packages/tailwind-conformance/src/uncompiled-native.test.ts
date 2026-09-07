@@ -71,9 +71,9 @@ test('a Button given a label puts it inside a Text', () => {
   assert.deepEqual(path, ['Pressable', 'Text'], 'the label was not wrapped')
 })
 
-test('a Button that navigates does the same, and is still a button', () => {
+test('a Button that navigates does the same, and is a link', () => {
   const tree = render(react.createElement(core.Button, { href: 'https://example.com' }, 'Docs'))
-  assert.equal(tree.props.accessibilityRole, 'button')
+  assert.equal(tree.props.accessibilityRole, 'link')
   assert.deepEqual(pathToText(tree, 'Docs'), ['Pressable', 'Text'])
 })
 
