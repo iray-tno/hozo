@@ -147,3 +147,17 @@ test('a button that navigates gets the same treatment as a link', () => {
   assert.deepEqual(anchor(html), { target: '_blank', rel: 'noreferrer noopener' }, html)
   assert.doesNotMatch(html, /role="button"/, html)
 })
+
+test('a destination Pressable keeps anchor affordances too', () => {
+  const source = `
+    import { Pressable } from '@hozo/core'
+    export function C() {
+      return <Pressable href="https://example.com" external>Card</Pressable>
+    }
+  `
+  const [web] = compile(source, 'C.tsx')
+  const [rendered] = renderWeb([{ name: 'C', jsx: (web as { jsx: string }).jsx }])
+  const html = (rendered as { html: string }).html
+  assert.deepEqual(anchor(html), { target: '_blank', rel: 'noreferrer noopener' }, html)
+  assert.doesNotMatch(html, /role="button"/, html)
+})

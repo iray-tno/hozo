@@ -16,7 +16,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { Button, Link } from './index.tsx'
+import { Button, Link, Pressable } from './index.tsx'
 
 /** The attributes a destination gets, read back off the rendered anchor. */
 function anchor(html: string) {
@@ -92,6 +92,19 @@ test('replace is an inert marker shared by Button and Link', () => {
     assert.match(html, /data-hozo-navigation-replace=""/)
     assert.doesNotMatch(html, /\sreplace(?:=|\s|>)/)
   }
+})
+
+test('a destination-bearing Pressable is the same semantic link', () => {
+  const html = renderToStaticMarkup(
+    <Pressable href="https://example.com" external replace>
+      Card
+    </Pressable>,
+  )
+  assert.match(html, /^<a /)
+  assert.match(html, /target="_blank"/)
+  assert.match(html, /rel="noreferrer noopener"/)
+  assert.match(html, /data-hozo-navigation-replace=""/)
+  assert.doesNotMatch(html, /role="button"/)
 })
 
 test('a disabled Button link is announced as unavailable and matches disabled: utilities', () => {

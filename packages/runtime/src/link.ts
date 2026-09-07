@@ -26,10 +26,14 @@
 // does not recognise the extension at all. The native halves here are
 // `.tsx` and are never imported by a test that runs this way.
 
-import type { CSSProperties, MouseEventHandler, ReactNode } from 'react'
+import type { AnchorHTMLAttributes, CSSProperties, MouseEventHandler, ReactNode, Ref } from 'react'
 import { createElement } from 'react'
 
-export interface HozoLinkProps {
+export interface HozoLinkProps
+  extends Omit<
+    AnchorHTMLAttributes<HTMLAnchorElement>,
+    'children' | 'className' | 'download' | 'href' | 'onClick' | 'rel' | 'role' | 'style' | 'target'
+  > {
   href: string
   children?: ReactNode
   onPress?: MouseEventHandler<HTMLAnchorElement>
@@ -49,6 +53,7 @@ export interface HozoLinkProps {
   rel?: string
   download?: boolean | string
   'aria-hidden'?: boolean
+  ref?: Ref<HTMLAnchorElement>
 }
 
 /**
@@ -89,11 +94,13 @@ export function HozoLink({
   rel,
   download,
   'aria-hidden': ariaHidden,
+  ...anchorProps
 }: HozoLinkProps) {
   const destination = externalLinkAttributes(external, target, rel)
   return createElement(
     'a',
     {
+      ...anchorProps,
       href,
       target: destination.target,
       rel: destination.rel,

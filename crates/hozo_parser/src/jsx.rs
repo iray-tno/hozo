@@ -1032,7 +1032,12 @@ fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
-            "replace" if matches!(primitive, Primitive::Link | Primitive::Button) => {
+            "replace"
+                if matches!(
+                    primitive,
+                    Primitive::Link | Primitive::Button | Primitive::Pressable
+                ) =>
+            {
                 capture_flag(
                     attr,
                     &mut props.navigation_replace,

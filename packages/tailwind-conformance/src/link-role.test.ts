@@ -44,3 +44,16 @@ test('a compiled Link is still a link', () => {
   )
   assert.equal(firstRole(tree), 'link')
 })
+
+test('a compiled destination Pressable announces itself as a link', () => {
+  const tree = renderNative(
+    `
+      import { Pressable } from '@hozo/core'
+      export function Fixture() {
+        return <Pressable href="/card">Card</Pressable>
+      }
+    `,
+    'Fixture',
+  )
+  assert.equal(firstRole(tree), 'link')
+})

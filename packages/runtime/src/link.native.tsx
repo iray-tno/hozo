@@ -9,7 +9,7 @@ export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
   external?: boolean
   replace?: boolean
   onPress?: PressableProps['onPress']
-  children?: ReactNode
+  children?: PressableProps['children']
 }
 
 /**
@@ -55,7 +55,7 @@ export function HozoLink({
         }
       }}
     >
-      {hozoTextChildren(children)}
+      {typeof children === 'function' ? children : hozoTextChildren(children as ReactNode)}
     </Pressable>
   )
 }

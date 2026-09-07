@@ -980,7 +980,17 @@ fn render_node(
         // made this element focusable itself, so "Hozo put it in the tab
         // order" and "Hozo owes it the rest of being a control" cannot
         // drift apart.
-        if synthesized_control {
+        if tag == "a" && disabled_expr.is_some() && !authored_target {
+            // Anchors have no native disabled state. Keep the real href
+            // for copying, SEO, and browser menus, but suppress ordinary
+            // activation while disabled. The uncompiled HozoLink uses the
+            // same conditional handler shape.
+            attrs.push_str(&format!(
+                " onClick={{({}) ? (event) => event.preventDefault() : {}}}",
+                disabled_expr.as_deref().unwrap_or("false"),
+                source_text(source, on_press)
+            ));
+        } else if synthesized_control {
             // One call, not five expressions. `disabled` means five things
             // at once (see docs/decisions/001) and emitting them
             // separately is how they came apart: this announced
@@ -1009,6 +1019,13 @@ fn render_node(
             });
         } else {
             attrs.push_str(&format!(" {name}={{{}}}", source_text(source, on_press)));
+        }
+    }
+    if tag == "a" && node.props.on_press.is_none() {
+        if let Some(disabled) = &disabled_expr {
+            attrs.push_str(&format!(
+                " onClick={{({disabled}) ? (event) => event.preventDefault() : undefined}}"
+            ));
         }
     }
     for (name, value) in [
@@ -1140,8 +1157,8 @@ fn render_node(
     // `replace` belongs to an application router, not to HTML. Preserve
     // it on the real anchor as inert data so @hozo/navigation's delegated
     // click handler can reconstruct the request for compiled output too.
-    if tag == "a" {
-        if let Some(replace) = &node.props.navigation_replace {
+    if let Some(replace) = &node.props.navigation_replace {
+        if tag == "a" {
             match replace {
                 hozo_ir::ConditionExpr::Static(true) => {
                     attrs.push_str(" data-hozo-navigation-replace=\"\"");
@@ -1152,6 +1169,8 @@ fn render_node(
                     render_condition_expr(source, other)
                 )),
             }
+        } else if tag == "Pressable" {
+            attrs.push_str(&boolean_attribute("replace", replace, source));
         }
     }
 
@@ -2355,6 +2374,79 @@ const el = {element}"
             assert_eq!(output.jsx, expected, "{element}");
             assert!(!output.jsx.contains(" replace="), "{element}: {}", output.jsx);
         }
+    }
+
+    #[test]
+    fn pressable_with_href_is_a_real_disableable_link() {
+        let source = r#"
+            import { Pressable } from '@hozo/core'
+            const el = (
+                <Pressable href="/card" replace disabled={blocked} onPress={visit}>
+                    Card
+                </Pressable>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<a "), "{}", output.jsx);
+        assert!(
+            output.jsx.contains("data-hozo-navigation-replace=\"\""),
+            "{}",
+            output.jsx
+        );
+        assert!(output.jsx.contains("aria-disabled={blocked}"), "{}", output.jsx);
+        assert!(
+            output.jsx.contains(
+                "onClick={(blocked) ? (event) => event.preventDefault() : visit}"
+            ),
+            "{}",
+            output.jsx
+        );
+        assert!(output.jsx.contains("href=\"/card\""), "{}", output.jsx);
+        assert!(!output.jsx.contains("role=\"button\""), "{}", output.jsx);
+
+        // A destination with no authored handler still needs to stop the
+        // browser's own activation. This also covers Button-with-href,
+        // which shared the anchor path before Pressable joined it.
+        let source = r#"
+            import { Button } from '@hozo/core'
+            const el = <Button href="/card" disabled>Card</Button>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(
+            output.jsx.contains(
+                "onClick={(true) ? (event) => event.preventDefault() : undefined}"
+            ),
+            "{}",
+            output.jsx
+        );
+
+        let source = r#"
+            import { Pressable } from '@hozo/core'
+            const el = (
+                <Pressable
+                    href="/drag-card"
+                    replace
+                    onStartShouldSetResponder={() => true}
+                >
+                    Card
+                </Pressable>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<Pressable "), "{}", output.jsx);
+        assert!(output.jsx.contains(" replace"), "{}", output.jsx);
+        assert!(output.jsx.contains("href=\"/drag-card\""), "{}", output.jsx);
+        assert!(
+            output.jsx.contains("onStartShouldSetResponder={() => true}"),
+            "{}",
+            output.jsx
+        );
     }
 
     /// One case per branch of the `external` lowering.

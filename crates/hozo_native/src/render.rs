@@ -1110,7 +1110,7 @@ pub(super) fn render_node(
         runtime.need_component(element.runtime_name());
     }
     if node.primitive == Primitive::Link
-        || (node.primitive == Primitive::Button
+        || (matches!(node.primitive, Primitive::Button | Primitive::Pressable)
             && node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href")))
     {
         runtime.need_component("HozoLink");
@@ -1151,7 +1151,7 @@ pub(super) fn render_node(
         }
     }
     let destination_primitive = node.primitive == Primitive::Link
-        || (node.primitive == Primitive::Button
+        || (matches!(node.primitive, Primitive::Button | Primitive::Pressable)
             && node
                 .props
                 .passthrough
@@ -1181,14 +1181,14 @@ pub(super) fn render_node(
             continue;
         }
         // A link's browser-only props. React Native's Pressable ignores
-        // them, so they were harmless -- and they were also four props in
-        // the output claiming something the platform does not do.
-        // `download` is diagnosed where the tag is chosen; the other three
-        // change nothing here, because a link leaves the app either way.
-        if node.primitive == Primitive::Button
+        // them, so they were harmless -- but still claimed behavior the
+        // platform does not have. `external` is deliberately retained:
+        // HozoLink uses it to bypass an installed application router.
+        // `download` is diagnosed where the component is chosen.
+        if matches!(node.primitive, Primitive::Button | Primitive::Pressable)
             && matches!(
                 prop.name.as_deref(),
-                Some("target") | Some("rel") | Some("external") | Some("download")
+                Some("target") | Some("rel") | Some("download")
             )
         {
             continue;
