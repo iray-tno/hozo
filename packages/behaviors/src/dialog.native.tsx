@@ -7,6 +7,16 @@ export interface DialogProps {
   accessibilityLabel?: string
   accessibilityHint?: string
   style?: unknown
+  /**
+   * Dropped until a device said so.
+   *
+   * The Web half carries `testID` into `data-testid` like every other
+   * universal prop. This one did not have it in the type at all, so
+   * `<Dialog testID>` compiled and vanished -- and the emulator's
+   * accessibility tree showed the dialog identified by nothing but its
+   * label, which is what found it (#297).
+   */
+  testID?: string
   children?: ReactNode
 }
 
@@ -16,6 +26,7 @@ export function Dialog({
   accessibilityLabel,
   accessibilityHint,
   style,
+  testID,
   children,
 }: DialogProps) {
   return (
@@ -27,6 +38,7 @@ export function Dialog({
         accessibilityRole="none"
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
+        testID={testID}
       >
         {children}
       </View>

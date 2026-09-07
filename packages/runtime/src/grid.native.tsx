@@ -1,6 +1,5 @@
 import { Children, isValidElement, type ReactNode, useState } from 'react'
 import { type LayoutChangeEvent, View } from 'react-native'
-
 import {
   type GridTrack,
   gridCellStyle,
@@ -9,6 +8,7 @@ import {
   gridRows,
   gridTrackSizes,
 } from './grid.ts'
+import { keepIfSettled } from './measured.ts'
 
 interface Props {
   tracks: readonly GridTrack[]
@@ -57,14 +57,24 @@ export function HozoGrid({
     const totalHeight = rows.reduce((a, b) => a + b, 0) + Math.max(0, rows.length - 1) * rowGap
     const rememberHeight = (child: number) => (event: LayoutChangeEvent) => {
       const height = event.nativeEvent.layout.height
-      setHeights((current) =>
-        current[child] === height ? current : Object.assign([...current], { [child]: height }),
-      )
+      setHeights((current) => {
+        const kept = keepIfSettled(current[child], height)
+        return kept === current[child] ? current : Object.assign([...current], { [child]: kept })
+      })
     }
     return (
       <View
         style={{ position: 'relative', alignSelf: 'stretch', height: totalHeight }}
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+        // Guarded, and its sibling above always was. This one was not,
+        // and that asymmetry is the whole bug: the container height is
+        // derived from the measured heights, so every height change
+        // relaid the container out and fired this again. With the same
+        // integer width React bails and it stops; with a width that
+        // wobbles in the last decimal it never does.
+        onLayout={(event) => {
+          const next = event.nativeEvent.layout.width
+          setWidth((current) => keepIfSettled(current, next))
+        }}
       >
         {layout.map((item) => {
           const cellWidth =

@@ -26,17 +26,15 @@ on:
   workflow_dispatch:
   # A pull request that edits this machinery runs it. Narrowly the wrong
   # shape -- the rest of the reasoning above rejects paths filters -- and
-  # deliberately so, because these three paths are not a guess about what
-  # might break the app; they are the app and the job that boots it. It is
+  # deliberately so, because these two paths are not a guess about what
+  # might break the app: they are the app and the job that boots it. It is
   # also the only way to see this workflow work before it is on the default
   # branch, since `workflow_dispatch` cannot reach a file that is not there
   # yet.
   pull_request:
     paths:
       - '.github/workflows/native.yml'
-      - 'examples/native-demo/android/**'
-      - 'examples/native-demo/ios/**'
-      - 'examples/native-demo/scripts/**'
+      - 'examples/native-demo/**'
 
 concurrency:
   group: native-${{ github.ref }}
@@ -98,12 +96,22 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # `-no-snapshot-*` because the log says the emulator was saving a
+          # `default_boot` snapshot on every shutdown and restoring it on
+          # the next run -- and the only run that ever read the
+          # accessibility tree was the first one, before a snapshot
+          # existed. Every run since has started from a restored image and
+          # uiautomator has never found an idle window on one, while the
+          # frame counters say nothing is drawing. A hypothesis rather than
+          # a diagnosis: it fits both facts and no other explanation fits
+          # either, and one run settles it.
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: bash examples/native-demo/scripts/android-smoke.sh
 
       # Whatever the run learned, kept. On a failure the log is the whole
-      # story, and on a success the tree dump is the input the accessibility
-      # work in #297 builds on.
+      # story, and on a success the three trees -- at rest, with the dialog
+      # open, and after dismissing it -- are what
+      # `packages/tailwind-conformance/src/native-tree.ts` reads offline.
       - name: Keep what it saw
         if: always()
         uses: actions/upload-artifact@v4
@@ -111,6 +119,9 @@ jobs:
           name: android-boot
           path: |
             window_dump.xml
+            *-failed.png
+            dialog_dump.xml
+            dismissed_dump.xml
             examples/native-demo/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 14

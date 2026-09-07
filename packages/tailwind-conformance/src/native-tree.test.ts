@@ -91,11 +91,16 @@ test('what the compiler emitted is what the device exposes', () => {
   assert.deepEqual(divergences(compiled, device), [])
 })
 
-test('the compiler named these, so the screen has to have rendered them', () => {
+test('the resting screen shows everything except the thing that is closed', () => {
   // A `testID` in the output and not in the tree is a screen that did not
   // draw it -- a different failure from a mismatched role, and worth its
   // own message.
-  assert.deepEqual(missingOnDevice(compiled, device), [])
+  //
+  // Except for the dialog, which is `open={confirming}` and false at rest.
+  // Absent here is the correct answer, and present is the assertion in the
+  // dialog fixture below. The pair is the statement; neither half says it
+  // alone.
+  assert.deepEqual(missingOnDevice(compiled, device), ['smoke-dialog'])
 })
 
 test('the comparison is actually comparing something', () => {

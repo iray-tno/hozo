@@ -13,6 +13,14 @@ export interface DialogProps {
   accessibilityLabel?: string
   accessibilityHint?: string
   className?: string
+  /**
+   * The same prop the native half was missing, for the same reason it
+   * mattered there: a caller writes it and expects to find the element.
+   * Neither half had it, so the asymmetry was invisible until an
+   * emulator's accessibility tree showed the dialog with no identifier
+   * on it at all (#297).
+   */
+  testID?: string
   children?: ReactNode
 }
 
@@ -22,6 +30,7 @@ export function Dialog({
   accessibilityLabel,
   accessibilityHint,
   className,
+  testID,
   children,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement | null>(null)
@@ -68,6 +77,7 @@ export function Dialog({
       className={className}
       aria-label={accessibilityLabel}
       aria-description={accessibilityHint}
+      data-testid={testID}
     >
       {children}
     </dialog>

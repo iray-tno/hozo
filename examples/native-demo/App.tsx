@@ -137,6 +137,7 @@ export default function App() {
         open={confirming}
         onClose={() => setConfirming(false)}
         accessibilityLabel="Confirm your address"
+        testID="smoke-dialog"
       >
         <Text className="text-lg font-bold">Is this right?</Text>
         <Text className="text-slate-600">{email}</Text>
