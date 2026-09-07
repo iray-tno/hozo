@@ -1,6 +1,5 @@
 import { Children, isValidElement, type ReactNode, useState } from 'react'
 import { type LayoutChangeEvent, View } from 'react-native'
-
 import {
   type GridTrack,
   gridCellStyle,
@@ -9,6 +8,23 @@ import {
   gridRows,
   gridTrackSizes,
 } from './grid.ts'
+
+/**
+ * How much a measurement has to move before it counts as having moved.
+ *
+ * Half a device pixel, which is below anything a grid track can express
+ * and above the noise Yoga produces. `onLayout` reports floats, and a
+ * measured layout that feeds its own input has to decide when to stop --
+ * otherwise 372.99998 and 373.00002 are different widths forever.
+ *
+ * This is not hypothetical. The acceptance screen never stopped drawing on
+ * an emulator: `uiautomator dump` could not find an idle window across six
+ * attempts, and the frame counter climbed by about twenty-four a second
+ * with nobody touching it. A screenshot showed the screen half-built,
+ * stopped at this grid. Nothing offline could see it, because a stub has
+ * no layout engine and never fires `onLayout` at all.
+ */
+const SETTLED = 0.5
 
 interface Props {
   tracks: readonly GridTrack[]
@@ -58,13 +74,24 @@ export function HozoGrid({
     const rememberHeight = (child: number) => (event: LayoutChangeEvent) => {
       const height = event.nativeEvent.layout.height
       setHeights((current) =>
-        current[child] === height ? current : Object.assign([...current], { [child]: height }),
+        Math.abs((current[child] ?? Number.NaN) - height) < SETTLED
+          ? current
+          : Object.assign([...current], { [child]: height }),
       )
     }
     return (
       <View
         style={{ position: 'relative', alignSelf: 'stretch', height: totalHeight }}
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+        // Guarded, and its sibling above always was. This one was not,
+        // and that asymmetry is the whole bug: the container height is
+        // derived from the measured heights, so every height change
+        // relaid the container out and fired this again. With the same
+        // integer width React bails and it stops; with a width that
+        // wobbles in the last decimal it never does.
+        onLayout={(event) => {
+          const next = event.nativeEvent.layout.width
+          setWidth((current) => (Math.abs(current - next) < SETTLED ? current : next))
+        }}
       >
         {layout.map((item) => {
           const cellWidth =
