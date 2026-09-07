@@ -647,6 +647,14 @@ export interface ButtonProps {
   target?: '_blank' | '_self' | '_parent' | '_top' | string
   rel?: string
   download?: boolean | string
+  /**
+   * The third half-missing `testID` in this package, and the third found
+   * the same way. `ButtonNativeProps` has had one since the native half
+   * was written; this side never did, so the same source was fine on one
+   * platform and a type error on the other -- invisible while no file
+   * that passes it was typechecked.
+   */
+  testID?: string
 }
 
 export function Button({
@@ -661,6 +669,7 @@ export function Button({
   target,
   rel,
   download,
+  testID,
 }: ButtonProps) {
   if (href != null) {
     // Delegated rather than written out again. The `<a>` this used to
@@ -681,6 +690,7 @@ export function Button({
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
         disabled={disabled}
+        testID={testID}
         onPress={onPress as MouseEventHandler<HTMLAnchorElement>}
       >
         {children}
@@ -704,6 +714,7 @@ export function Button({
       data-hozo-disabled={disabled ? '' : undefined}
       aria-label={accessibilityLabel}
       aria-description={accessibilityHint}
+      data-testid={testID}
       onClick={onPress as MouseEventHandler<HTMLButtonElement>}
     >
       {children}

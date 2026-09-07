@@ -500,3 +500,60 @@ test('writes no StyleSheet for a file that produced no styles', () => {
   // rewritten at all.
   assert.match(output, /accessibilityRole="list"/)
 })
+
+test('a tag the compiler carried keeps the import that defines it', () => {
+  // Found by an emulator, in the only way it could be.
+  //
+  // `Del` is `export const Del = Strikethrough` in `@hozo/typography`. The
+  // compiler matches on the tag and has no `Primitive` for that one, so it
+  // carries `<Del>` through verbatim -- which is the deliberate fallback --
+  // and the import was then deleted unconditionally. Nothing defined `Del`
+  // in the output, so the bundle built, shipped, and died on first render
+  // with `ReferenceError: Property 'Del' doesn't exist`.
+  //
+  // Metro bundles an undefined identifier happily; it is only an error when
+  // it runs. So no test here could see it and the device saw it at once.
+  const source = [
+    "import { Del, Strikethrough, Text } from '@hozo/core'",
+    'export function F() {',
+    '  return <Text><Del>gone</Del><Strikethrough>struck</Strikethrough></Text>',
+    '}',
+  ].join('\n')
+  const out = transformHozoSource(source, 'F.tsx') as string
+
+  assert.match(out, /<Del>/, 'the carried tag was supposed to survive')
+  assert.match(out, /import \{ Del \} from '@hozo\/core'/)
+})
+
+test('and nothing else comes back with it', () => {
+  // The name alone cannot answer this. `View` and `Text` are in the
+  // compiled output as React Native components under the same spelling, so
+  // a survivor test that looked only at names would re-import every file's
+  // primitives -- and declare each of them twice, which is a syntax error
+  // rather than a slow leak. What React Native provides is subtracted
+  // first.
+  const source = [
+    "import { View, Text } from '@hozo/core'",
+    'export function F() { return <View><Text>hi</Text></View> }',
+  ].join('\n')
+  const out = transformHozoSource(source, 'F.tsx') as string
+
+  assert.doesNotMatch(out, /@hozo\/core/)
+  assert.equal((out.match(/^import .* from 'react-native'$/gm) ?? []).length, 1)
+})
+
+test('a foreign component is nobody else s to import', () => {
+  // `@expo/ui`'s `Button` is carried on purpose -- the compiler declines to
+  // lower a tag from a module the project does not trust -- and it already
+  // has an import of its own. Adding `@hozo/core` for it would bind the
+  // name twice and to the wrong component.
+  const source = [
+    "import { View } from '@hozo/core'",
+    "import { Button } from '@expo/ui'",
+    'export function F() { return <View><Button label="x" /></View> }',
+  ].join('\n')
+  const out = transformHozoSource(source, 'F.tsx') as string
+
+  assert.doesNotMatch(out, /@hozo\/core/)
+  assert.match(out, /import \{ Button \} from '@expo\/ui'/)
+})

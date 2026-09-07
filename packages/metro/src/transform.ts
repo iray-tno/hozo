@@ -245,7 +245,41 @@ export function transformHozoSource(
     next = next.slice(0, edit.start) + edit.text + next.slice(edit.end)
   }
 
+  // The import goes, except for the names still standing in the output.
+  //
+  // This used to be an unconditional delete, and an unconditional delete
+  // is only safe if the compiler lowered everything it was given. It does
+  // not: a tag it has no `Primitive` for is carried verbatim -- that is the
+  // deliberate fallback -- and the carried reference then has nothing to
+  // resolve to. `<Del>` is the case that found it. It is
+  // `export const Del = Strikethrough` in `@hozo/typography`, the compiler
+  // matches on the tag and does not know that one, so the output kept
+  // `<Del>` and dropped the only import that defined it. On a device that
+  // is `ReferenceError: Property 'Del' doesn't exist` and a dead app; in
+  // every test this repository had, it was invisible.
+  //
+  // The Web half has always asked this question before deleting. This is
+  // the same question, derived rather than listed: the import statement
+  // names the bindings, so the survivors are whichever of those the
+  // rewritten source still mentions. A hand-written list of primitives is
+  // what let `Del` through in the first place.
+  const coreImport = HOZO_CORE_IMPORT_RE.exec(next)?.[0]
   next = next.replace(HOZO_CORE_IMPORT_RE, '')
+  /** The names the author imported from `@hozo/core`, aliases resolved. */
+  const declaredByAuthor =
+    coreImport === undefined
+      ? []
+      : (/\{([^}]*)\}/.exec(coreImport)?.[1] ?? '')
+          .split(',')
+          .map((part) => part.trim().replace(/^type\s+/, ''))
+          .map(
+            (part) =>
+              part
+                .split(/\s+as\s+/)
+                .pop()
+                ?.trim() ?? '',
+          )
+          .filter(Boolean)
 
   // Only the bindings the file does not already have. These came from the
   // same original module record as the compiled roots; none of the edits
@@ -272,10 +306,35 @@ export function transformHozoSource(
     nativeSpecifiers.length > 0
       ? `import { ${nativeSpecifiers.join(', ')} } from 'react-native'\n`
       : ''
+
+  // Whatever the author imported that is still standing and that nothing
+  // else provides.
+  //
+  // Computed here rather than where the import was removed, because "still
+  // standing" cannot be decided on the name alone: `View` and `Text` are in
+  // the compiled output as React Native components under the same spelling,
+  // so a name test would re-import every file's primitives and declare each
+  // of them twice. What is left after subtracting the React Native bindings
+  // is the set the compiler carried and nothing defines.
+  // Local names, not specifiers. `PanResponder as GestureResponder` is one
+  // specifier and binds `GestureResponder`, so a set of specifiers answers
+  // "is this name already defined" with no -- and the fallback import binds
+  // it a second time. An existing test caught that, which is what it was
+  // written for.
+  const providedByNative = new Set([
+    ...needed,
+    ...nativeValueImports.map((entry) => entry.local),
+    ...alreadyImported,
+  ])
+  const carried = declaredByAuthor.filter(
+    (name) => !providedByNative.has(name) && new RegExp(`\\b${name}\\b`).test(next),
+  )
+  const coreFallbackImport =
+    carried.length > 0 ? `import { ${carried.join(', ')} } from '@hozo/core'\n` : ''
   const styleDeclaration = hasStyles
     ? `const hozoStyles = StyleSheet.create(${mergedStyles})\n`
     : ''
-  next = `${rnImport}${styleDeclaration}${next}`
+  next = `${rnImport}${coreFallbackImport}${styleDeclaration}${next}`
   // SVG comes from a subpath rather than the main entry, and that is not
   // tidiness. `react-native-svg` is an optional peer dependency, and a
   // re-export from `@hozo/runtime`'s index would load it on every import

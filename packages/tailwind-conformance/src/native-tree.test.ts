@@ -100,7 +100,14 @@ test('the resting screen shows everything except the thing that is closed', () =
   // Absent here is the correct answer, and present is the assertion in the
   // dialog fixture below. The pair is the statement; neither half says it
   // alone.
-  assert.deepEqual(missingOnDevice(compiled, device), ['smoke-dialog'])
+  //
+  // And except for `smoke-gallery`, which is newer than this fixture. The
+  // dump was captured before the census screen had a button to reach it,
+  // so the compiler names one element the emulator had never drawn. The
+  // next dump from the device job contains it, and this list shrinks when
+  // the fixture is refreshed -- which is a better failure than a fixture
+  // that quietly stops describing the screen.
+  assert.deepEqual(missingOnDevice(compiled, device), ['smoke-dialog', 'smoke-gallery'])
 })
 
 test('the comparison is actually comparing something', () => {
