@@ -79,6 +79,21 @@ test('a same-tab link is left alone', () => {
   assert.deepEqual(anchor(html), { target: undefined, rel: undefined, role: undefined })
 })
 
+test('replace is an inert marker shared by Button and Link', () => {
+  for (const element of [
+    <Button href="/signed-in" replace key="button">
+      Continue
+    </Button>,
+    <Link href="/signed-in" replace key="link">
+      Continue
+    </Link>,
+  ]) {
+    const html = renderToStaticMarkup(element)
+    assert.match(html, /data-hozo-navigation-replace=""/)
+    assert.doesNotMatch(html, /\sreplace(?:=|\s|>)/)
+  }
+})
+
 test('a disabled Button link is announced as unavailable and matches disabled: utilities', () => {
   // `data-hozo-disabled` rather than `:disabled`, which matches form
   // controls only -- an anchor is not one, so the utility would compile

@@ -32,6 +32,13 @@ test('an ordinary anchor click retains the authored relative href', () => {
   assert.deepEqual(click(), { href: '/account' })
 })
 
+test('a replace marker is recovered as router navigation intent', () => {
+  assert.deepEqual(click({ href: '/signed-in', 'data-hozo-navigation-replace': '' }), {
+    href: '/signed-in',
+    replace: true,
+  })
+})
+
 test('browser-owned link affordances are not intercepted', () => {
   assert.equal(click(undefined, { ctrlKey: true }), null)
   assert.equal(click(undefined, { button: 1 }), null)

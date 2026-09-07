@@ -1032,6 +1032,16 @@ fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
+            "replace" if matches!(primitive, Primitive::Link | Primitive::Button) => {
+                capture_flag(
+                    attr,
+                    &mut props.navigation_replace,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
             "horizontal" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => match &attr.value {
                 None => props.scroll_horizontal = Some(ConditionExpr::Static(true)),
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
@@ -1682,4 +1692,3 @@ mod tests {
         assert_eq!(output.roots[0].node.props.accessibility_role, None);
     }
 }
-

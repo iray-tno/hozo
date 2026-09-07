@@ -1137,6 +1137,24 @@ fn render_node(
         attrs.push_str(&format!(" {}={{{guard} ? '' : undefined}}", css::expr_ref_attribute(expr_ref)));
     }
 
+    // `replace` belongs to an application router, not to HTML. Preserve
+    // it on the real anchor as inert data so @hozo/navigation's delegated
+    // click handler can reconstruct the request for compiled output too.
+    if tag == "a" {
+        if let Some(replace) = &node.props.navigation_replace {
+            match replace {
+                hozo_ir::ConditionExpr::Static(true) => {
+                    attrs.push_str(" data-hozo-navigation-replace=\"\"");
+                }
+                hozo_ir::ConditionExpr::Static(false) => {}
+                other => attrs.push_str(&format!(
+                    " data-hozo-navigation-replace={{({}) ? '' : undefined}}",
+                    render_condition_expr(source, other)
+                )),
+            }
+        }
+    }
+
     // `external`, which is Hozo's own spelling and not the DOM's.
     //
     // It used to reach the anchor verbatim -- the generated file said
@@ -2270,6 +2288,34 @@ export function Login() {
             output.jsx,
             "<div className=\"hozo-view\"><progress value={50} max={100}>50%</progress><a href=\"https://example.com\">Go</a></div>"
         );
+    }
+
+    #[test]
+    fn replace_navigation_intent_is_an_inert_anchor_marker() {
+        let cases = [
+            (
+                r#"<Link href="/done" replace>Done</Link>"#,
+                r#"<a data-hozo-navigation-replace="" href="/done">Done</a>"#,
+            ),
+            (
+                r#"<Button href="/done" replace={shouldReplace}>Done</Button>"#,
+                r#"<a data-hozo-navigation-replace={(shouldReplace) ? '' : undefined} href="/done">Done</a>"#,
+            ),
+            (
+                r#"<Link href="/done" replace={false}>Done</Link>"#,
+                r#"<a href="/done">Done</a>"#,
+            ),
+        ];
+        for (element, expected) in cases {
+            let source = format!(
+                "import {{ Link, Button }} from '@hozo/core'\nconst el = {element}"
+            );
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
+            assert_eq!(output.jsx, expected, "{element}");
+            assert!(!output.jsx.contains(" replace="), "{element}: {}", output.jsx);
+        }
     }
 
     /// One case per branch of the `external` lowering.

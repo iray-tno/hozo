@@ -644,6 +644,7 @@ export interface ButtonProps {
   accessibilityHint?: string
   href?: string
   external?: boolean
+  replace?: boolean
   target?: '_blank' | '_self' | '_parent' | '_top' | string
   rel?: string
   download?: boolean | string
@@ -666,6 +667,7 @@ export function Button({
   accessibilityHint,
   href,
   external,
+  replace,
   target,
   rel,
   download,
@@ -683,6 +685,7 @@ export function Button({
       <HozoLink
         href={href}
         external={external}
+        replace={replace}
         target={target}
         rel={rel}
         download={download}

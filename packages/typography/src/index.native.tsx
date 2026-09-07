@@ -219,6 +219,7 @@ export function RubyText({ style, children, ...props }: TypographyNativeProps) {
 export interface LinkProps extends TypographyNativeProps {
   href: string
   external?: boolean
+  replace?: boolean
   target?: string
   rel?: string
   download?: boolean | string
@@ -245,6 +246,7 @@ export function Link({
   onPress,
   children,
   external,
+  replace,
   target: _target,
   rel: _rel,
   download: _download,
@@ -252,7 +254,14 @@ export function Link({
   ...props
 }: LinkProps) {
   return (
-    <HozoLink href={href} external={external} onPress={onPress} style={asWeb(style)} {...props}>
+    <HozoLink
+      href={href}
+      external={external}
+      replace={replace}
+      onPress={onPress}
+      style={asWeb(style)}
+      {...props}
+    >
       {children}
     </HozoLink>
   )

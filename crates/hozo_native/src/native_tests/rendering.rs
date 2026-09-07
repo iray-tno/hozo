@@ -555,3 +555,32 @@ fn progress_and_button_with_href_lower_to_native_components() {
     assert!(output.jsx.contains(r#"<HozoLink href="https://example.com">"#), "{}", output.jsx);
     assert!(!output.jsx.contains(r#"accessibilityRole="button" href="https://example.com""#), "{}", output.jsx);
 }
+
+#[test]
+fn destination_replace_intent_reaches_hozo_link() {
+    let source = r#"
+        import { Button } from '@hozo/core'
+        import { Link } from '@hozo/typography'
+        const el = (
+            <View>
+                <Link href="/one" replace>One</Link>
+                <Button href="/two" replace={shouldReplace}>Two</Button>
+            </View>
+        )
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output.jsx.contains(r#"<HozoLink replace={true} href="/one">"#),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains(r#"<HozoLink replace={shouldReplace} href="/two">"#),
+        "{}",
+        output.jsx
+    );
+}

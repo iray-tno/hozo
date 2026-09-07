@@ -7,6 +7,7 @@ import { useHozoNavigation } from './navigation-context.tsx'
 export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
   href: string
   external?: boolean
+  replace?: boolean
   onPress?: PressableProps['onPress']
   children?: ReactNode
 }
@@ -36,6 +37,7 @@ export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
 export function HozoLink({
   href,
   external,
+  replace,
   onPress,
   children,
   accessibilityRole = 'link',
@@ -49,7 +51,7 @@ export function HozoLink({
       onPress={(event) => {
         onPress?.(event)
         if (!event.defaultPrevented) {
-          void activateHozoNavigation(navigation, { href, external }, Linking.openURL)
+          void activateHozoNavigation(navigation, { href, external, replace }, Linking.openURL)
         }
       }}
     >

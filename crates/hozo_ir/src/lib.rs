@@ -941,6 +941,10 @@ pub struct PropSet {
     pub on_scroll: Option<ExprRef>,
     pub scroll_event_throttle: Option<ExprRef>,
     pub disabled: Option<ConditionExpr>,
+    /// Router history intent for destination-bearing `Link` and `Button`.
+    /// Web lowers this to an inert data marker for delegated navigation;
+    /// Native passes it to `HozoLink` directly.
+    pub navigation_replace: Option<ConditionExpr>,
     /// Explicit override; `None` means derive the role from `Primitive`
     /// (e.g. `Button` -> `AccessibilityRole::Button`).
     pub accessibility_role: Option<AccessibilityRole>,

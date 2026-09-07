@@ -3,6 +3,7 @@ import type { NavigationAdapterOptions } from './adapter.ts'
 /** The stable imperative subset exposed by Next.js App Router. */
 export interface NextRouterLike {
   push(href: string): unknown
+  replace(href: string): unknown
 }
 
 /**
@@ -12,6 +13,7 @@ export interface NextRouterLike {
  */
 export interface ExpoRouterLike {
   navigate(href: never): unknown
+  replace(href: never): unknown
 }
 
 export interface TanStackRouterLike {
@@ -32,17 +34,24 @@ function acceptedWhenComplete(result: unknown): true | Promise<true> {
 export function nextRouterNavigation(
   router: NextRouterLike,
 ): NavigationAdapterOptions['onNavigate'] {
-  return (href) => acceptedWhenComplete(router.push(href))
+  return (href, request) =>
+    acceptedWhenComplete(request.replace ? router.replace(href) : router.push(href))
 }
 
 export function expoRouterNavigation(
   router: ExpoRouterLike,
 ): NavigationAdapterOptions['onNavigate'] {
-  return (href) => acceptedWhenComplete(router.navigate(href as never))
+  return (href, request) =>
+    acceptedWhenComplete(
+      request.replace ? router.replace(href as never) : router.navigate(href as never),
+    )
 }
 
 export function tanStackRouterNavigation(
   router: TanStackRouterLike,
 ): NavigationAdapterOptions['onNavigate'] {
-  return (href) => acceptedWhenComplete(router.navigate({ to: href } as never))
+  return (href, request) =>
+    acceptedWhenComplete(
+      router.navigate((request.replace ? { to: href, replace: true } : { to: href }) as never),
+    )
 }
