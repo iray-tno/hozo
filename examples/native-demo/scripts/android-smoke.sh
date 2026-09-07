@@ -53,9 +53,27 @@ fail() {
 
 # Pulls the current tree to a named file and leaves it in the working
 # directory, where the workflow collects it.
+#
+# Retried, because `uiautomator dump` refuses to run while the window is
+# not idle and says so with "ERROR: could not get idle state" -- then exits
+# 0 and writes nothing, so the failure arrives later as a missing file. It
+# is transient: a shared runner under load takes longer to settle than
+# uiautomator's own patience, and the first green run of this job simply
+# got a quieter machine. Retrying is the mitigation; there is nothing to
+# fix in the app.
 dump() {
-  adb shell uiautomator dump /sdcard/dump.xml >/dev/null
-  adb pull /sdcard/dump.xml "./$1" >/dev/null
+  local into="$1"
+  for attempt in 1 2 3 4 5; do
+    adb shell rm -f /sdcard/dump.xml >/dev/null 2>&1 || true
+    if adb shell uiautomator dump /sdcard/dump.xml 2>&1 | grep -q 'UI hierarchy dumped'; then
+      if adb pull /sdcard/dump.xml "./$into" >/dev/null 2>&1; then
+        return 0
+      fi
+    fi
+    echo "  dump attempt $attempt did not settle, retrying"
+    sleep 3
+  done
+  fail "could not read the accessibility tree after five attempts"
 }
 
 # The centre of an element, read out of its `bounds`, which uiautomator
