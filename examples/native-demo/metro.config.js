@@ -25,6 +25,14 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ]
 
+// Resolve startup code from this app's React Native, too. Metro's default
+// closes over the copy visible beside @react-native/metro-config; in a pnpm
+// workspace with more than one React Native version that can be a different
+// app's version (or no hoisted copy at all).
+config.serializer.getModulesRunBeforeMainModule = () => [
+  require.resolve('react-native/setup-env', { paths: [projectRoot] }),
+]
+
 // Exported as a promise, which Metro awaits. withHozo generates the
 // candidate module, preserves the rest of this config, and installs its
 // transformer while retaining any transformer already configured by RN,
