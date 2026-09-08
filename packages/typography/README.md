@@ -97,3 +97,22 @@ fontFamily(fonts, 'body', 'ios') // "InterVariable"
 
 Mark a platform as `external` when `next/font`, global CSS, Expo startup code, or native asset
 linking already owns it. Such entries generate no duplicate registration and have no runtime cost.
+
+For Expo, derive the options consumed by its official `expo-font` config plugin from the same
+manifest. Hozo does not install or wrap Expo:
+
+```ts
+// app.config.ts
+import { createExpoFontOptions } from '@hozo/typography/fonts/expo'
+import { fonts } from './fonts'
+
+export default {
+  expo: {
+    plugins: [['expo-font', createExpoFontOptions(fonts)]]
+  }
+}
+```
+
+iOS receives its font file list; Android receives named XML families with explicit weight/style
+faces. Variable-weight and oblique Android faces are refused because Expo's Android configuration
+cannot represent them without silently changing their meaning.
