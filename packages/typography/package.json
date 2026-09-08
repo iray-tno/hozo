@@ -37,6 +37,10 @@
       "types": "./dist/fonts-expo.d.ts",
       "default": "./dist/fonts-expo.js"
     },
+    "./fonts/native": {
+      "types": "./dist/fonts-native.d.ts",
+      "default": "./dist/fonts-native.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
