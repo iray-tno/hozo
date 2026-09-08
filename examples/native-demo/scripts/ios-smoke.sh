@@ -18,12 +18,13 @@
 #   2. the process is alive some seconds after launch, because a throw on
 #      first render takes a moment and an immediate check passes for an app
 #      already on its way down;
-#   3. React Native reached `AppRegistry.runApplication`, which is RN's own
-#      `console.log('Running "HozoNativeDemo"')` in `AppRegistryImpl.js` --
-#      not a line this repository added to the app, and not dev-only;
+#   3. React Native initialised, from the `NSLog` that
+#      `RCTReactNativeFactory.mm` makes unconditionally while setting the
+#      runtime up -- a line React Native writes, not one this repository
+#      added to the app;
 #   4. the screen is not one flat colour. This is the outcome check, and
-#      the reason (3) is not enough on its own: an app whose tree threw
-#      after registration logs exactly what a healthy one logs and shows a
+#      the reason (3) is not enough on its own: (3) happens before any
+#      JavaScript runs, so an app whose bundle throws logs it and shows a
 #      blank window.
 #
 # What it does not do is read the accessibility tree, which is the thing
@@ -88,13 +89,24 @@ trap 'kill "$log_pid" 2>/dev/null || true' EXIT
 xcrun simctl install "$udid" "$app"
 xcrun simctl launch "$udid" "$bundle_id"
 
-# RN's own line, waited for rather than slept at. Sixty seconds because a
-# cold simulator on a shared runner is slow and the alternative -- a fixed
-# sleep long enough to be safe -- is a minute of nothing on every run.
-running=false
+# React Native's own line, and a native one on purpose.
+#
+# The first version of this waited for `Running "HozoNativeDemo"`, which
+# `AppRegistryImpl.js` logs with `console.log` -- and JavaScript's console
+# does not reach the system log in a release build, so it never arrived.
+# The app was fine: the same run's log has React Native starting, a
+# `RCTScrollViewComponentView` on screen, and the acceptance screen's
+# remote image being fetched. Sixty seconds of waiting for a line that
+# cannot appear, and a failure that named the app rather than the check.
+#
+# `RCTReactNativeFactory.mm` logs this one with `NSLog`, unconditionally,
+# while setting up the runtime. It says React Native initialised, which is
+# less than the old line claimed -- the screenshot below is what says the
+# app drew.
+started=false
 for _ in $(seq 1 60); do
-  if grep -q "Running \"${process_name}\"" "$log_file"; then
-    running=true
+  if grep -q '_setUpFeatureFlags called with release level' "$log_file"; then
+    started=true
     break
   fi
   sleep 1
@@ -107,13 +119,26 @@ if ! xcrun simctl spawn "$udid" launchctl list 2>/dev/null | grep -q "UIKitAppli
   fail "${bundle_id} is not running: it launched and then died"
 fi
 
-"$running" || fail "React Native never reached AppRegistry.runApplication in 60s"
+"$started" || fail 'React Native never initialised in 60s'
 
-xcrun simctl io "$udid" screenshot "$screenshot"
-[ -s "$screenshot" ] || fail 'the screenshot is empty'
+# The outcome, polled rather than slept at: a screen that is still one
+# colour is either a screen that has not been drawn yet or one that never
+# will be, and the only difference between them is how long you wait.
+drew=false
+for attempt in $(seq 1 30); do
+  xcrun simctl io "$udid" screenshot "$screenshot" > /dev/null 2>&1 || true
+  if [ -s "$screenshot" ] && node "${here}/screen-colours.mjs" "$screenshot" 8 > /dev/null 2>&1; then
+    drew=true
+    echo "the screen had something on it after ${attempt}s"
+    break
+  fi
+  sleep 1
+done
 
-# The outcome. Everything above this line is satisfied by an app that drew
-# a blank window.
-node "${here}/screen-colours.mjs" "$screenshot" 8 || fail 'the app launched but drew nothing'
+if ! "$drew"; then
+  # Print what the count actually was, rather than only that it failed.
+  node "${here}/screen-colours.mjs" "$screenshot" 8 || true
+  fail 'the app initialised React Native and then drew nothing'
+fi
 
-echo 'the app booted, registered and drew'
+echo 'the app booted, initialised React Native and drew'
