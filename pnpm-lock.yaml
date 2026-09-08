@@ -369,6 +369,10 @@ importers:
         version: 19.2.8(react@19.2.8)
 
   packages/canvas:
+    dependencies:
+      '@hozo/runtime':
+        specifier: workspace:^
+        version: link:../runtime
     devDependencies:
       '@shopify/react-native-skia':
         specifier: ^2.11.1

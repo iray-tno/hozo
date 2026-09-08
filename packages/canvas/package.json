@@ -47,6 +47,9 @@
     "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js",
     "test:performance": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.bench.js"
   },
+  "dependencies": {
+    "@hozo/runtime": "workspace:^"
+  },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-native": ">=0.76",

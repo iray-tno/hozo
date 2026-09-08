@@ -1,3 +1,4 @@
+import { activateHozoNavigation, useHozoNavigation } from '@hozo/runtime/navigation'
 import {
   type DrawingNodeProps,
   FillType,
@@ -20,6 +21,7 @@ import { type ComponentType, type ReactNode, useMemo, useRef, useState } from 'r
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
+  Linking,
   type PointerEvent,
   type StyleProp,
   StyleSheet,
@@ -47,6 +49,7 @@ import {
   Clip,
   type ClipProps,
   canvasControls,
+  canvasPressEvent,
   canvasUnreadableText,
   Ellipse,
   Group,
@@ -77,6 +80,7 @@ export {
   hitTestCanvas,
 } from './hit-test.ts'
 export type {
+  CanvasDestination,
   CanvasInteractionProps,
   CanvasPaintProps,
   CanvasPressEvent,
@@ -486,7 +490,8 @@ function Root({
   testID,
 }: CanvasProps) {
   const pressedTarget = useRef<{ id: string; touchId: number } | undefined>(undefined)
-  const { scene, collector, isInteractive, press, activate, interactions } =
+  const navigation = useHozoNavigation()
+  const { scene, collector, isInteractive, press, activate, interactions, interactionRevision } =
     useCanvasScene(children)
   const [layout, setLayout] = useState({
     width: width ?? viewBox?.[2] ?? 0,
@@ -534,7 +539,7 @@ function Root({
     const hit = hitAt(surfacePoint(event))
     if (hit) {
       pressedTarget.current = { id: hit.id, touchId: event.nativeEvent.identifier }
-      activate(hit.id, { point: hit.point, surfacePoint: surfacePoint(event) })
+      activate(hit.id, canvasPressEvent(hit.point, surfacePoint(event)))
     }
     return hit !== undefined
   }
@@ -551,7 +556,10 @@ function Root({
     const hit = hitAt(point)
     activate(undefined, undefined)
     if (!hit || hit.id !== startedTarget.id) return
-    press(hit.id, { point: hit.point, surfacePoint: point })
+    const destination = press(hit.id, canvasPressEvent(hit.point, point))
+    if (destination) {
+      void activateHozoNavigation(navigation, destination, Linking.openURL)
+    }
   }
   const onResponderTerminate = () => {
     pressedTarget.current = undefined
@@ -579,7 +587,7 @@ function Root({
     if (event.nativeEvent.pointerType === 'touch') return
     const point = pointerPoint(event)
     const hit = hitAt(point)
-    activate(hit?.id, hit ? { point: hit.point, surfacePoint: point } : undefined)
+    activate(hit?.id, hit ? canvasPressEvent(hit.point, point) : undefined)
   }
   const onPointerLeave = () => activate(undefined, undefined)
 
@@ -604,9 +612,10 @@ function Root({
       console.warn(`[hozo] ${message}`),
     )
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the registry revision intentionally invalidates semantic controls without redrawing the scene
   const controls = useMemo(
     () => canvasControls(scene, interactions, (message) => console.warn(`[hozo] ${message}`)),
-    [scene, interactions],
+    [scene, interactions, interactionRevision],
   )
   const pointFor = (id: string) =>
     canvasNodePoint(scene, id, {
@@ -650,8 +659,8 @@ function Root({
       </View>
       {/*
         The same real controls the Web surface renders, in the shape this
-        platform reads: an accessibility element per named pressable
-        shape, with a button role and the shape's name.
+        platform reads: an accessibility element per named interactive
+        shape, with the destination/action role and the shape's name.
 
         A screen reader focusing one activates it the way keyboard focus
         does on the Web, so a tooltip driven by `onActiveChange` appears
@@ -668,9 +677,18 @@ function Root({
             <View
               key={control.id}
               accessible
-              accessibilityRole="button"
+              accessibilityRole={control.destination ? 'link' : 'button'}
               accessibilityLabel={control.label}
-              onAccessibilityTap={() => press(control.id, pointFor(control.id))}
+              onAccessibilityTap={() => {
+                const point = pointFor(control.id)
+                const destination = press(
+                  control.id,
+                  canvasPressEvent(point.point, point.surfacePoint),
+                )
+                if (destination) {
+                  void activateHozoNavigation(navigation, destination, Linking.openURL)
+                }
+              }}
               onAccessibilityEscape={() => activate(undefined, undefined)}
             />
           ))}
