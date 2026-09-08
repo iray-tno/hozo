@@ -5,6 +5,18 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "@hozo/example-next#build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "@hozo/example-storybook#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["storybook-static/**"]
+    },
+    "@hozo/example-tanstack-start#build": {
+      "dependsOn": ["^build"],
+      "outputs": [".output/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
