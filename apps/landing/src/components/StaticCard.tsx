@@ -17,22 +17,25 @@ import { Heading, Link, List, ListItem, Paragraph, Section, Text, View } from '@
  */
 export function StaticCard() {
   return (
-    <Section className="p-8 rounded-2xl bg-slate-900">
-      <Heading level={2} className="text-2xl font-bold text-white">
+    <Section className="p-8 rounded-2xl bg-yakisugi-800 timber-panel border border-wood">
+      <Heading level={2} className="text-2xl font-bold text-shikkui">
         Compiled at build time
       </Heading>
-      <Paragraph className="mt-4 text-slate-300">
+      <Paragraph className="mt-4 text-shikkui-muted leading-relaxed">
         Every element below was a Hozo primitive in the source and is plain HTML in this page.
       </Paragraph>
       <View className="mt-6 flex flex-col gap-2">
-        <List className="text-slate-300">
+        <List className="text-shikkui-muted space-y-1">
           <ListItem>No runtime import</ListItem>
           <ListItem>No event handler</ListItem>
           <ListItem>
-            <Text className="font-semibold">No client bundle</Text>
+            <Text className="font-semibold text-hinoki-light">No client bundle</Text>
           </ListItem>
         </List>
-        <Link href="https://github.com/iray-tno/hozo" className="text-sky-400 underline">
+        <Link
+          href="https://github.com/iray-tno/hozo"
+          className="text-hinoki underline hover:text-hinoki-light mt-2 inline-block"
+        >
           The compiler that produced this
         </Link>
       </View>
