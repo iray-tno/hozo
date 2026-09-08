@@ -24,11 +24,20 @@ import { existsSync, rmSync } from 'node:fs'
 /** 0xC0000409, as Node reports it either signed or unsigned. */
 const STACK_BUFFER_OVERRUN = new Set([-1073740791, 3221226505])
 
+// Which directory to build into, named by the caller.
+//
+// `build` and `test` both run this script, and turbo starts them together:
+// `test` depends on `^build`, its dependencies' builds, not its own. Both
+// removing and writing one directory produced
+// `EEXIST: mkdir 'storybook-static/sb-common-assets'` -- whichever task
+// lost the race (#322).
+const output = process.argv[2] ?? 'storybook-static'
+
 // Removed rather than overwritten: a stale artifact from an earlier run
 // would let a build that produced nothing look like one that worked.
-rmSync('storybook-static', { recursive: true, force: true })
+rmSync(output, { recursive: true, force: true })
 
-const result = spawnSync('storybook', ['build', '--output-dir', 'storybook-static', '--quiet'], {
+const result = spawnSync('storybook', ['build', '--output-dir', output, '--quiet'], {
   stdio: 'inherit',
   shell: true,
 })
@@ -36,7 +45,7 @@ const result = spawnSync('storybook', ['build', '--output-dir', 'storybook-stati
 if (result.status === 0) process.exit(0)
 
 const teardownCrash = process.platform === 'win32' && STACK_BUFFER_OVERRUN.has(result.status)
-if (teardownCrash && existsSync('storybook-static')) {
+if (teardownCrash && existsSync(output)) {
   console.warn(
     `[storybook-demo] build exited ${result.status} after writing its output -- ` +
       'the known libuv teardown crash. check-build.mjs decides from here.',
