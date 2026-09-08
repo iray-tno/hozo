@@ -1981,6 +1981,38 @@ impl Display {
     }
 }
 
+/// A colour token split from its opacity modifier: `blue-500/50` is
+/// `("blue-500", Some(0.5))`.
+///
+/// Tailwind writes the modifier after a slash, and until now the slash
+/// travelled with the token into the palette lookup, where nothing matched
+/// it. The Web backend then emitted its unresolved-colour marker --
+/// `var(--hozo-color-blue-500/50)`, which is not a valid custom property
+/// name, so every browser drops the declaration and the element has no
+/// colour. The Native backend emitted `hozo-unresolved:blue-500/50` into a
+/// style object, which React Native cannot parse either.
+///
+/// Both were silent. The conformance suite did not catch it because its
+/// candidate list contains no class with a modifier at all: the denominator
+/// never asked.
+///
+/// Only the plain numeric form. Tailwind also accepts `/[0.5]` and
+/// `/(--var)`, and those stay unresolved rather than guessed at -- an
+/// arbitrary alpha is a value this has no way to evaluate, and the marker
+/// they fall back to is at least honest about that.
+pub fn split_color_alpha(token: &str) -> (&str, Option<f64>) {
+    let Some((base, modifier)) = token.rsplit_once('/') else {
+        return (token, None);
+    };
+    match modifier.parse::<f64>() {
+        // Tailwind's modifier is a percentage, and the scale it documents
+        // is 0-100. Anything outside that is not a modifier it would have
+        // produced, so it goes through unsplit and stays unresolved.
+        Ok(percent) if (0.0..=100.0).contains(&percent) => (base, Some(percent / 100.0)),
+        _ => (token, None),
+    }
+}
+
 /// The React Native style key and inset side an `env(safe-area-inset-*)`
 /// arbitrary value asks for, if it is one.
 ///

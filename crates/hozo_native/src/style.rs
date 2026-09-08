@@ -118,13 +118,55 @@ pub(crate) fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
         // can't before anything reaches here.
         Color::Css(text) => return js_string(text),
     };
-    match theme.color(token) {
-        Some(resolved) => js_string(&resolved.hex),
+    // Split before the lookup: the opacity modifier is part of the class,
+    // not part of the token Tailwind's palette defines. Left joined,
+    // `blue-500/50` matched nothing and produced the marker below -- an
+    // unparseable string reaching a React Native style object, with no
+    // diagnostic, which is the silent-wrong-answer case this file's own
+    // header says the marker exists to prevent.
+    let (token, alpha) = hozo_ir::split_color_alpha(token);
+    let resolved = match theme.color(token) {
+        Some(resolved) => resolved.hex,
         // Not in the project's theme either. Still deliberately not
         // colour-shaped, so a missed resolution fails loudly rather than
         // rendering something plausible.
-        None => format!("'hozo-unresolved:{token}'"),
+        None => return format!("'hozo-unresolved:{token}'"),
+    };
+    match alpha {
+        None => js_string(&resolved),
+        // `color-mix` is CSS; React Native has no equivalent, so the alpha
+        // is folded into the colour itself. `rgba()` rather than an
+        // eight-digit hex because React Native accepts both and this one
+        // survives a glance in a style object.
+        Some(alpha) => match rgb_channels(&resolved) {
+            Some((r, g, b)) => js_string(&format!("rgba({r}, {g}, {b}, {alpha})")),
+            // A theme colour that is not a hex triple -- a project can put
+            // anything in `--color-*`. Refusing here rather than emitting
+            // half of it.
+            None => format!("'hozo-unresolved:{token}/{}'", alpha * 100.0),
+        },
     }
+}
+
+/// The three channels of a `#rrggbb`, which is the shape both the palette
+/// and `@hozo/tailwind`'s theme extraction produce.
+fn rgb_channels(hex: &str) -> Option<(u8, u8, u8)> {
+    let digits = hex.strip_prefix('#')?;
+    // Both lengths, because the palette uses both: Tailwind writes `#000`
+    // and `#fff` short and everything else long, and reading only the long
+    // form turned `bg-black/25` into the unresolved marker while
+    // `bg-blue-500/50` worked.
+    let pair = |at: usize| -> Option<u8> {
+        match digits.len() {
+            3 => {
+                let digit = digits.get(at..at + 1)?;
+                u8::from_str_radix(&format!("{digit}{digit}"), 16).ok()
+            }
+            6 => u8::from_str_radix(digits.get(at * 2..at * 2 + 2)?, 16).ok(),
+            _ => None,
+        }
+    };
+    Some((pair(0)?, pair(1)?, pair(2)?))
 }
 
 /// Whether a property styles the element's *children* rather than the
@@ -846,6 +888,33 @@ mod tests {
         assert_eq!(
             property_and_value(&StyleProperty::TextColor(Color::Token("brand-primary".to_string())), &Theme::default()),
             vec![("color", "'hozo-unresolved:brand-primary'".to_string())]
+        );
+    }
+
+    #[test]
+    fn an_opacity_modifier_folds_into_the_colour() {
+        // React Native has no `color-mix`, so the alpha goes into the
+        // colour itself. Before this the token kept its modifier through
+        // the palette lookup, missed, and reached the style object as
+        // `'hozo-unresolved:blue-500/50'` -- a string React Native cannot
+        // parse, emitted with no diagnostic.
+        let prop = StyleProperty::BackgroundColor(Color::Token("blue-500/50".to_string()));
+        assert_eq!(
+            property_and_value(&prop, &Theme::default()),
+            vec![("backgroundColor", "'rgba(43, 127, 255, 0.5)'".to_string())]
+        );
+    }
+
+    #[test]
+    fn a_short_hex_gets_the_same_treatment() {
+        // `black` and `white` are `#000` and `#fff` in the palette, and a
+        // reader that only understood six digits turned `bg-black/25` into
+        // the unresolved marker while `bg-blue-500/50` worked -- one class
+        // shape, two answers.
+        let prop = StyleProperty::BackgroundColor(Color::Token("black/25".to_string()));
+        assert_eq!(
+            property_and_value(&prop, &Theme::default()),
+            vec![("backgroundColor", "'rgba(0, 0, 0, 0.25)'".to_string())]
         );
     }
 

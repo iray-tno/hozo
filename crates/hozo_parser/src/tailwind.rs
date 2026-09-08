@@ -1261,6 +1261,13 @@ enum ColorFamily {
 /// means "not supported yet", not "not a colour utility Hozo will ever
 /// have" -- these are the implementation targets.
 fn is_non_color_suffix(family: ColorFamily, suffix: &str) -> bool {
+    // Without the modifier, because it is not part of the name being
+    // classified. Left on, `text-white/70` asked whether `white/70` is a
+    // colour, got no for a reason that has nothing to do with colour, and
+    // was reported as an unwired utility -- while `bg-blue-500/50` took
+    // the other branch and reached the backend as a token nothing could
+    // resolve. One class, two different wrong answers.
+    let (suffix, _) = hozo_ir::split_color_alpha(suffix);
     let head = suffix.split('-').next().unwrap_or(suffix);
     match family {
         // background-size / -position / -repeat / -attachment / -clip /
