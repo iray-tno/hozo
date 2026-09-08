@@ -1,5 +1,6 @@
 import {
   createContext,
+  type ElementType,
   type ReactNode,
   useCallback,
   useContext,
@@ -56,6 +57,39 @@ const FOCUSED = 2
 const PRESSED = 4
 const FOCUS_VISIBLE = 8
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+
+/**
+ * Which Pressable to render, and it is not a preference.
+ *
+ * `Animated.createAnimatedComponent` drops a *function* style. React
+ * Native's `AnimatedProps.__getValueWithStaticProps` flattens the static
+ * style before handing it on:
+ *
+ *     const flatStaticStyle = flattenStyle(staticStyle);
+ *     ...
+ *     } else { props[key] = flatStaticStyle; }
+ *
+ * and `flattenStyle` of a function is `undefined`, so the element renders
+ * with no style at all -- no background, no padding, nothing. A compiled
+ * `hover:` class produces exactly that callback, so every Pressable with a
+ * state variant and no transition rendered unstyled on both platforms.
+ *
+ * Measured rather than reasoned: four probes on the census screen, each
+ * adding one ingredient, and the one that lost its colour was the callback
+ * without a transition (#357). #334 had already fixed the transition half
+ * by passing an array, which is why that half draws.
+ *
+ * So an element with nothing to animate gets the plain Pressable, which
+ * takes a callback as its own API and keeps React Native's timing for
+ * `pressed` with it.
+ */
+// Annotated because the inferred type of the animated component names an
+// internal React Native type that cannot be referenced from a declaration
+// file. `ElementType` says the only thing the caller needs: it is a
+// component to render.
+export function pressableFor(transition: HozoTransition | undefined): ElementType {
+  return transition ? AnimatedPressable : Pressable
+}
 const AnimatedText = Animated.createAnimatedComponent(Text)
 type InteractionContextValue = HozoPressableState & { transition?: HozoTransition }
 const InteractionContext = createContext<InteractionContextValue | null>(null)
@@ -312,6 +346,7 @@ export function HozoPressable({
     },
     [animateInteraction],
   )
+  const PressableComponent = pressableFor(hozoTransition)
   const modality = useRef<'keyboard' | 'pointer'>('keyboard')
 
   // The style for the state this component is in, resolved here because
@@ -343,7 +378,7 @@ export function HozoPressable({
 
   return (
     <InteractionContext.Provider value={context}>
-      <AnimatedPressable
+      <PressableComponent
         {...props}
         onHoverIn={(event: MouseEvent) => {
           setFlag(HOVERED, true)
@@ -365,7 +400,7 @@ export function HozoPressable({
         }}
         onPointerDown={
           hozoFocusVisible
-            ? (event) => {
+            ? (event: Parameters<NonNullable<PressableProps['onPointerDown']>>[0]) => {
                 modality.current = 'pointer'
                 setFlag(FOCUS_VISIBLE, false)
                 onPointerDown?.(event)
@@ -374,7 +409,7 @@ export function HozoPressable({
         }
         onKeyDown={
           hozoFocusVisible
-            ? (event) => {
+            ? (event: Parameters<NonNullable<PressableProps['onKeyDown']>>[0]) => {
                 modality.current = 'keyboard'
                 if ((interactionRef.current & FOCUSED) !== 0) setFlag(FOCUS_VISIBLE, true)
                 onKeyDown?.(event)
