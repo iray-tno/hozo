@@ -42,6 +42,10 @@
       "react-native": "./dist/expo-router.native.js",
       "default": "./dist/expo-router.js"
     },
+    "./expo-config": {
+      "types": "./dist/expo-config.d.ts",
+      "default": "./dist/expo-config.js"
+    },
     "./tanstack-router": {
       "types": "./dist/tanstack-router.d.ts",
       "react-native": "./dist/tanstack-router.native.js",

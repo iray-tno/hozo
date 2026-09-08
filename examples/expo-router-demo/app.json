@@ -2,10 +2,23 @@
   "expo": {
     "name": "Hozo Expo Router fixture",
     "slug": "hozo-expo-router-fixture",
-    "scheme": "hozofixture",
     "version": "1.0.0",
     "orientation": "portrait",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "@hozo/navigation/expo-config",
+        {
+          "scheme": "hozofixture",
+          "domains": [
+            {
+              "host": "app.example.com",
+              "pathPrefixes": ["/products"]
+            }
+          ]
+        }
+      ]
+    ],
     "web": {
       "bundler": "metro"
     }
