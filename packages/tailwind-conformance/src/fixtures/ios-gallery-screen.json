@@ -1,0 +1,380 @@
+[
+  {
+    "frame": [0, 0, 393, 852],
+    "enabled": true,
+    "value": "",
+    "type": "other",
+    "traits": [],
+    "identifier": "gallery",
+    "label": ""
+  },
+  {
+    "frame": [0, 0, 393, 716.6666870117188],
+    "enabled": true,
+    "value": "",
+    "type": "other",
+    "traits": [],
+    "identifier": "gallery-Main",
+    "label": ""
+  },
+  {
+    "frame": [12.666666984558105, 12.666666984558105, 367.66668701171875, 28],
+    "enabled": true,
+    "value": "",
+    "type": "staticText",
+    "traits": [],
+    "identifier": "gallery-Heading",
+    "label": "Gallery"
+  },
+  {
+    "frame": [12.666666984558105, 47.33333206176758, 367.66668701171875, 17],
+    "enabled": true,
+    "value": "",
+    "type": "staticText",
+    "traits": [],
+    "identifier": "gallery-Text",
+    "label": "Text"
+  },
+  {
+    "frame": [12.666666984558105, 47.33333206176758, 367.66668701171875, 37.000003814697266],
+    "enabled": true,
+    "value": "",
+    "type": "other",
+    "traits": [],
+    "identifier": "gallery-Header",
+    "label": ""
+  },
+  {
+    "frame": [12.666666984558105, 67.33333206176758, 367.66668701171875, 17],
+    "enabled": true,
+    "value": "",
+    "type": "staticText",
+    "traits": [],
+    "identifier": "gallery-Paragraph",
+    "label": "Paragraph"
+  },
+  {
+    "frame": [12.666666984558105, 90.66666412353516, 367.66668701171875, 17],
+    "enabled": true,
+    "value": "",
+    "type": "other",
+    "traits": [],
+    "identifier": "gallery-Nav",
+    "label": "Sections"
+  },
+  {
+    "frame": [12.666666984558105, 90.66666412353516, 367.66668701171875, 17],
+    "enabled": true,
+    "value": "",
+    "type": "link",
+    "traits": [],
+    "identifier": "gallery-Link",
+    "label": "Link"
+  },
+  {
+    "frame": [12.666666984558105, 114.33333587646484, 367.66668701171875, 17],
+    "enabled": true,
+    "value": "",
+    "type": "staticText",
+    "traits": [],
+    "identifier": "gallery-Strong",
+    "label": "Strong"
+  },
+  {
+    "frame": [12.666666984558105, 114.33333587646484, 367.66668701171875, 235.33331298828125],
+    "enabled": true,
+    "value": "",
+    "type": "other",
+    "traits": [],
+    "identifier": "gallery-Section",
+    "label": ""
+  },
+  {
+    "frame": [12.666666984558105, 134.33333587646484, 367.66668701171875, 17],
+    "enabled": true,
+    "value": "",
+    "type": "staticText",
+    "traits": [],
+    "identifier": "gallery-Emphasis",
+    "label": "Emphasis"
+  },
+  {
+    "enabled": true,
+    "label": "Underline",
+    "identifier": "gallery-Underline",
+    "frame": [12.666666984558105, 154.66666793823242, 367.66668701171875, 17],
+    "type": "staticText",
+    "traits": [],
+    "value": ""
+  },
+  {
+    "value": "",
+    "label": "Strikethrough",
+    "traits": [],
+    "enabled": true,
+    "type": "staticText",
+    "frame": [12.666666984558105, 174.66666793823242, 367.66668701171875, 17],
+    "identifier": "gallery-Strikethrough"
+  },
+  {
+    "type": "staticText",
+    "traits": [],
+    "frame": [12.666666984558105, 195, 367.66668701171875, 17],
+    "enabled": true,
+    "label": "Del",
+    "value": "",
+    "identifier": "gallery-Del"
+  },
+  {
+    "identifier": "gallery-Code",
+    "frame": [12.666666984558105, 215.33333587646484, 367.66668701171875, 17],
+    "label": "Code",
+    "traits": [],
+    "enabled": true,
+    "type": "staticText",
+    "value": ""
+  },
+  {
+    "type": "staticText",
+    "traits": [],
+    "enabled": true,
+    "value": "",
+    "identifier": "gallery-Mark",
+    "label": "Mark",
+    "frame": [12.666666984558105, 235.33333587646484, 367.66668701171875, 17]
+  },
+  {
+    "identifier": "gallery-Small",
+    "frame": [12.666666984558105, 255.66666412353516, 367.66668701171875, 13.333328247070312],
+    "value": "",
+    "enabled": true,
+    "label": "Small",
+    "type": "staticText",
+    "traits": []
+  },
+  {
+    "enabled": true,
+    "label": "NoBreak",
+    "type": "staticText",
+    "identifier": "gallery-NoBreak",
+    "value": "",
+    "traits": [],
+    "frame": [12.666666984558105, 272.00000762939453, 367.66668701171875, 17]
+  },
+  {
+    "label": "漢",
+    "frame": [12.666666984558105, 312.66666412353516, 367.66668701171875, 17],
+    "traits": [],
+    "identifier": "gallery-Ruby",
+    "type": "staticText",
+    "value": "",
+    "enabled": true
+  },
+  {
+    "value": "",
+    "traits": [],
+    "frame": [12.666666984558105, 332.66666412353516, 367.66668701171875, 17],
+    "label": "7 September 2026",
+    "enabled": true,
+    "identifier": "gallery-Time",
+    "type": "staticText"
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 356, 367.66668701171875, 17],
+    "traits": [],
+    "identifier": "gallery-Aside",
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 356, 367.66668701171875, 37.333343505859375],
+    "identifier": "gallery-Article",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 376.3333339691162, 367.66668701171875, 17],
+    "identifier": "gallery-Address",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 399.6666564941406, 367.66668701171875, 17],
+    "identifier": "gallery-Search",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 423, 367.66668701171875, 17],
+    "identifier": "gallery-Figure",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "staticText",
+    "enabled": true,
+    "frame": [12.666666984558105, 423, 367.66668701171875, 17],
+    "identifier": "gallery-Figcaption",
+    "traits": [],
+    "label": "Figcaption"
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 446.6666564941406, 367.66668701171875, 17],
+    "identifier": "gallery-Fieldset",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "staticText",
+    "enabled": true,
+    "frame": [12.666666984558105, 446.6666564941406, 367.66668701171875, 17],
+    "identifier": "gallery-Legend",
+    "traits": [],
+    "label": "Legend"
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 470, 367.66668701171875, 17],
+    "identifier": "gallery-List",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 470, 367.66668701171875, 17],
+    "identifier": "gallery-ListItem",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "staticText",
+    "enabled": true,
+    "frame": [12.666666984558105, 493.3333435058594, 367.66668701171875, 17],
+    "identifier": "gallery-Term",
+    "traits": [],
+    "label": "Term"
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 493.3333435058594, 367.66668701171875, 33.999969482421875],
+    "identifier": "gallery-TermList",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 510.3333435058594, 367.66668701171875, 16.999969482421875],
+    "identifier": "gallery-Description",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "expanded",
+    "type": "button",
+    "enabled": true,
+    "frame": [12.666666984558105, 533.6666870117188, 367.66668701171875, 17],
+    "identifier": "gallery-Summary",
+    "traits": [],
+    "label": "Summary"
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 533.6666870117188, 367.66668701171875, 34],
+    "identifier": "gallery-Details",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 574, 367.66668701171875, 1],
+    "identifier": "gallery-Separator",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "40%",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 581.6666870117188, 160, 16],
+    "identifier": "gallery-Progress",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "40%",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 604, 160, 6.33331298828125],
+    "identifier": "gallery-ProgressSized",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "button",
+    "enabled": true,
+    "frame": [12.666666984558105, 616.6666870117188, 367.66668701171875, 17],
+    "identifier": "gallery-Button",
+    "traits": [],
+    "label": "A button"
+  },
+  {
+    "value": "",
+    "type": "link",
+    "enabled": true,
+    "frame": [12.666666984558105, 640, 367.66668701171875, 17],
+    "identifier": "gallery-Pressable",
+    "traits": [],
+    "label": "A linked card"
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 663.6666870117188, 367.66668701171875, 17],
+    "identifier": "gallery-View",
+    "traits": [],
+    "label": ""
+  },
+  {
+    "value": "",
+    "type": "other",
+    "enabled": true,
+    "frame": [12.666666984558105, 687, 367.66668701171875, 17],
+    "identifier": "gallery-Footer",
+    "traits": [],
+    "label": ""
+  }
+]
