@@ -347,7 +347,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           css: options.css,
           warn: (message) => this.warn(message),
         })
-        compiler = createCompiler(theme, options.sources)
+        compiler = createCompiler(theme, options.sources, options.fontAvailability)
 
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves

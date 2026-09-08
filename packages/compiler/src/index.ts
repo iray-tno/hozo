@@ -6,9 +6,11 @@
 
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-
+import { diagnoseStaticFonts, type FontAvailability } from './font-diagnostics.ts'
 import { loadNativeBinding } from './native-loader.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
+
+export type { FontAvailability } from './font-diagnostics.ts'
 
 const require = createRequire(import.meta.url)
 
@@ -289,13 +291,61 @@ export interface Compiler {
  * `sources` is per *tag*: a name imported from a module not on the list is
  * carried verbatim instead of lowered. Left out, the default set applies.
  */
-export function createCompiler(theme?: Theme, sources?: readonly string[]): Compiler {
+export function createCompiler(
+  theme?: Theme,
+  sources?: readonly string[],
+  fontAvailability?: FontAvailability,
+): Compiler {
   const allowed = sources ? [...sources] : [...DEFAULT_PRIMITIVE_SOURCES]
   const inner = new (loadNative().Compiler)(theme, allowed)
   return {
-    compile: (source, bindings) => inner.compile(source, bindings),
-    compileNative: (source, bindings) => inner.compileNative(source, bindings),
-    compileNativeModule: (source, bindings) => inner.compileNativeModule(source, bindings),
+    compile: (source, bindings) =>
+      inner.compile(source, bindings).map((result) => ({
+        ...result,
+        diagnostics: [
+          ...result.diagnostics,
+          ...diagnoseStaticFonts(
+            result.css,
+            'web',
+            fontAvailability,
+            result.spanStart,
+            result.spanEnd,
+          ),
+        ],
+      })),
+    compileNative: (source, bindings) =>
+      inner.compileNative(source, bindings).map((result) => ({
+        ...result,
+        diagnostics: [
+          ...result.diagnostics,
+          ...diagnoseStaticFonts(
+            result.styles,
+            'native',
+            fontAvailability,
+            result.spanStart,
+            result.spanEnd,
+          ),
+        ],
+      })),
+    compileNativeModule: (source, bindings) => {
+      const module = inner.compileNativeModule(source, bindings)
+      return {
+        ...module,
+        components: module.components.map((result) => ({
+          ...result,
+          diagnostics: [
+            ...result.diagnostics,
+            ...diagnoseStaticFonts(
+              result.styles,
+              'native',
+              fontAvailability,
+              result.spanStart,
+              result.spanEnd,
+            ),
+          ],
+        })),
+      }
+    },
     setStylexModules: (modules) => inner.setStylexModules(modules),
     compileCanvasPaints: (source, native) => inner.compileCanvasPaints(source, native),
     sources: allowed,

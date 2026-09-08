@@ -74,7 +74,12 @@ Font selection (`fontFamily`) and font availability are separate. Define the lat
 registering anything at module import time:
 
 ```ts
-import { createFontFaceCss, defineFonts, fontFamily } from '@hozo/typography/fonts'
+import {
+  createFontAvailability,
+  createFontFaceCss,
+  defineFonts,
+  fontFamily,
+} from '@hozo/typography/fonts'
 
 export const fonts = defineFonts({
   body: {
@@ -99,8 +104,15 @@ Pass the generated CSS to Hozo's Vite, TanStack Start, Storybook, Next, or Metro
 written once into the project-wide base stylesheet and loaded before generated utilities:
 
 ```ts
-hozo({ fontFaceCss: createFontFaceCss(fonts) })
+hozo({
+  fontFaceCss: createFontFaceCss(fonts),
+  fontAvailability: createFontAvailability(fonts)
+})
 ```
+
+`fontAvailability` is metadata only. It lets the compiler warn when a literal managed family uses
+a platform or weight/style combination the manifest definitely does not provide. Unknown and
+dynamic families are left alone because they may be system fonts or host-managed loaders.
 
 Mark a platform as `external` when `next/font`, global CSS, Expo startup code, or native asset
 linking already owns it. Such entries generate no duplicate registration and have no runtime cost.

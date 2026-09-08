@@ -6,7 +6,12 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { globbySync, isGitIgnoredSync } from 'globby'
 
-import { type CandidateCache, openCandidateCache, type StylexExternalBinding } from './index.ts'
+import {
+  type CandidateCache,
+  type FontAvailability,
+  openCandidateCache,
+  type StylexExternalBinding,
+} from './index.ts'
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
 
 export {
@@ -150,6 +155,8 @@ export interface HozoProjectOptions {
    * install the typography package or carrying a font registry at runtime.
    */
   fontFaceCss?: string
+  /** Static font registration facts produced by `createFontAvailability`. */
+  fontAvailability?: FontAvailability
   /** Report project-scan work and timing through the bundler's logger. */
   debug?: boolean
 }

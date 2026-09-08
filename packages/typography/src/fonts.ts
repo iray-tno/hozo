@@ -38,6 +38,20 @@ export interface FontFamilyDefinition {
 
 export type FontManifest = Readonly<Record<string, FontFamilyDefinition>>
 
+export interface FontAvailability {
+  families: Array<{
+    id: string
+    names: Record<FontPlatform, string>
+    external: FontPlatform[]
+    faces: Array<{
+      platforms: FontPlatform[]
+      weightFrom: number
+      weightTo: number
+      style: FontStyle
+    }>
+  }>
+}
+
 function externalPlatforms(value: FontFamilyDefinition['external']): Set<FontPlatform> {
   return new Set(value === true ? ['web', 'ios', 'android'] : (value ?? []))
 }
@@ -155,6 +169,41 @@ export function fontFamily(
   if (!definition) return undefined
   if (platform === 'web') return definition.family
   return definition.nativeFamily?.[platform] ?? definition.family
+}
+
+function weightRange(weight: FontWeight | undefined): [number, number] {
+  const normalized = normalizedWeight(weight)
+  const [from, to = from] = normalized.split(' ').map(Number)
+  return [from!, to!]
+}
+
+/** Creates the small serializable registry used by Hozo's conservative compiler diagnostics. */
+export function createFontAvailability(manifest: FontManifest): FontAvailability {
+  defineFonts(manifest)
+  return {
+    families: Object.entries(manifest).map(([id, definition]) => ({
+      id,
+      names: {
+        web: definition.family,
+        ios: definition.nativeFamily?.ios ?? definition.family,
+        android: definition.nativeFamily?.android ?? definition.family,
+      },
+      external: [...externalPlatforms(definition.external)],
+      faces: (definition.faces ?? []).map((face) => {
+        const [weightFrom, weightTo] = weightRange(face.weight)
+        return {
+          platforms: (['web', 'ios', 'android'] as const).filter((platform) =>
+            platform === 'web'
+              ? (face.sources.web?.length ?? 0) > 0
+              : face.sources[platform] !== undefined,
+          ),
+          weightFrom,
+          weightTo,
+          style: face.style ?? 'normal',
+        }
+      }),
+    })),
+  }
 }
 
 function quoted(value: string): string {
