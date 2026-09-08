@@ -1,8 +1,14 @@
 # RFC 003: Universal Navigation, Links, Pressables & Router Adapters
 
-- **Status**: Draft
+- **Status**: Accepted
 - **Tracking Issue**: #185
 - **Target Packages**: `@hozo/core`, `@hozo/navigation`, `@hozo/canvas`
+
+The architecture is implemented across the semantic destination primitives,
+router adapters, deep-link ingress, Canvas destinations, and `Svg.Link`.
+Automated behavior is covered by the package and compiler suites; physical
+Android touch and TalkBack validation remains tracked separately in #26 and
+does not keep this architecture RFC open.
 
 ---
 
