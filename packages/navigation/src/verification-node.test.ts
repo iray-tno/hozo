@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { createAndroidAssetLinks, createAppleAppSiteAssociation } from './verification.ts'
-import { writeDeepLinkVerificationFiles } from './verification-node.ts'
+import {
+  checkDeepLinkVerificationFiles,
+  writeDeepLinkVerificationFiles,
+} from './verification-node.ts'
 
 const apple = createAppleAppSiteAssociation([{ appIDs: ['ABCDE12345.com.example.app'] }])
 const android = createAndroidAssetLinks([
@@ -32,6 +35,10 @@ test('writes both fixed verification paths below a public directory', () => {
       apple: { path: applePath, changed: false },
       android: { path: androidPath, changed: false },
     })
+    assert.deepEqual(checkDeepLinkVerificationFiles({ outputDirectory, apple, android }), {
+      apple: { path: applePath, current: true },
+      android: { path: androidPath, current: true },
+    })
   } finally {
     rmSync(outputDirectory, { recursive: true, force: true })
   }
@@ -50,4 +57,11 @@ test('writes only the platform documents explicitly supplied', () => {
 
 test('refuses an empty write that would only create a directory', () => {
   assert.throws(() => writeDeepLinkVerificationFiles({ outputDirectory: tmpdir() }), /At least one/)
+})
+
+test('a check reports missing files without creating the directory', () => {
+  const outputDirectory = path.join(tmpdir(), `hozo-links-missing-${process.pid}-${Date.now()}`)
+  const checked = checkDeepLinkVerificationFiles({ outputDirectory, apple })
+  assert.equal(checked.apple?.current, false)
+  assert.equal(existsSync(outputDirectory), false)
 })
