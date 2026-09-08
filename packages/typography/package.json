@@ -33,6 +33,10 @@
       "types": "./dist/fonts.d.ts",
       "default": "./dist/fonts.js"
     },
+    "./fonts/expo": {
+      "types": "./dist/fonts-expo.d.ts",
+      "default": "./dist/fonts-expo.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
