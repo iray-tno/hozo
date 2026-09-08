@@ -22,8 +22,9 @@
 // be a tenth of a frame, which is where the question becomes real.
 //
 // A phone's engine is slower than this one by some factor nobody here has
-// measured, so the absolute bounds below are deliberately loose. What the
-// assertions actually protect is the shape of the curve.
+// measured, and a saturated shared runner made the same call 30x slower in
+// #330. There is deliberately no wall-clock assertion: the checks below
+// compare work done in the same process and protect the shape of the curve.
 
 import assert from 'node:assert/strict'
 import { performance } from 'node:perf_hooks'
@@ -147,12 +148,4 @@ test('nesting depth does not multiply the cost', () => {
   const shallow = bestOf(5, nested(1_000, 1), miss)
   const deep = bestOf(5, nested(1_000, 50), miss)
   assert.ok(deep < shallow * 4, `fifty levels cost ${(deep / shallow).toFixed(1)}x one level`)
-})
-
-test('ten thousand shapes stay well inside a frame', () => {
-  // Loose on purpose: this runs on shared CI and says nothing about a
-  // phone. It is a tripwire for the cost changing by an order of
-  // magnitude, not a performance guarantee.
-  const elapsed = perCall(scatter(10_000), miss)
-  assert.ok(elapsed < 4_000, `a miss over 10,000 shapes took ${elapsed.toFixed(0)}us`)
 })
