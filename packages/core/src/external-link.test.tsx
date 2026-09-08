@@ -16,7 +16,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { Button, Link, Pressable } from './index.tsx'
+import { Button, Link, Pressable, Svg } from './index.tsx'
 
 /** The attributes a destination gets, read back off the rendered anchor. */
 function anchor(html: string) {
@@ -123,6 +123,22 @@ test('a destination-bearing Pressable is the same semantic link', () => {
   assert.match(html, /rel="noreferrer noopener"/)
   assert.match(html, /data-hozo-navigation-replace=""/)
   assert.doesNotMatch(html, /role="button"/)
+})
+
+test('an Svg.Link fallback is a secure semantic anchor with router intent', () => {
+  const html = renderToStaticMarkup(
+    <Svg viewBox="0 0 10 10">
+      <Svg.Link href="https://example.com/detail" external replace prefetch>
+        <Svg.Rect width={10} height={10} />
+      </Svg.Link>
+    </Svg>,
+  )
+  assert.match(html, /<a /)
+  assert.match(html, /href="https:\/\/example.com\/detail"/)
+  assert.match(html, /target="_blank"/)
+  assert.match(html, /rel="noreferrer noopener"/)
+  assert.match(html, /data-hozo-navigation-replace=""/)
+  assert.match(html, /data-hozo-navigation-prefetch=""/)
 })
 
 test('a disabled Button link is announced as unavailable and matches disabled: utilities', () => {

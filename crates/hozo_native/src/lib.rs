@@ -69,7 +69,7 @@ pub use candidate::render_candidate_module;
 use hozo_ir::{
     AlignSelf, Axis, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, Environment, ExprRef, FilterFunction,
     FormState, Length, Node, Primitive,
-    Severity, Structural, StyleDeclaration, StyleProperty, TextOverflow, Theme, WhiteSpace,
+    Severity, Structural, StyleDeclaration, StyleProperty, SvgElement, TextOverflow, Theme, WhiteSpace,
 };
 
 pub struct LowerOutput {
@@ -1000,6 +1000,17 @@ mod svg_tests {
         assert!(out.runtime_imports.contains(&"Svg"), "{:?}", out.runtime_imports);
         assert!(out.runtime_imports.contains(&"SvgText"), "{:?}", out.runtime_imports);
         assert!(!out.runtime_imports.contains(&"Text"), "{:?}", out.runtime_imports);
+    }
+
+    #[test]
+    fn svg_link_uses_the_router_aware_native_group() {
+        let out = compile(
+            "import { Svg } from '@hozo/core'\n\
+             export const C = () => <Svg><Svg.Link href=\"/detail\" replace><Svg.Rect width={10} height={10} /></Svg.Link></Svg>\n",
+        );
+        assert!(out.runtime_imports.contains(&"SvgLink"), "{:?}", out.runtime_imports);
+        assert!(out.jsx.contains(r#"<SvgLink replace={true} href="/detail">"#), "{}", out.jsx);
+        assert!(out.jsx.contains("</SvgLink>"), "{}", out.jsx);
     }
 }
 

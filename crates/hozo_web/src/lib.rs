@@ -1529,6 +1529,25 @@ export function Login() {
     }
 
     #[test]
+    fn svg_link_is_a_semantic_router_aware_anchor() {
+        let source = r#"
+            import { Svg } from '@hozo/core'
+            const el = <Svg><Svg.Link href="/detail" replace><Svg.Rect width={10} height={10} /></Svg.Link></Svg>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(
+            output
+                .jsx
+                .contains(r#"<a data-hozo-navigation-replace="" href="/detail">"#),
+            "{}",
+            output.jsx
+        );
+        assert!(output.jsx.contains("</a>"), "{}", output.jsx);
+    }
+
+    #[test]
     fn candidate_css_uses_the_real_tailwind_names() {
         // The classes a scan finds live somewhere the AST-based reader
         // can't see them, so the only thing that can match at runtime is
