@@ -11,4 +11,6 @@ Hozo runs diverse test and linting runners across Rust, Node.js, and Biome. This
 - **`src/biome-to-junit.mjs`**: Converts Biome JSON diagnostics and format reports into standard JUnit test suites.
 - **`src/clippy-to-junit.mjs`**: Converts `cargo clippy --message-format=json` compiler output into JUnit assertions.
 - **`src/run-tests-junit.mjs`**: Executes the Node.js test runner with JUnit reporters, categorizing test results by package.
+- **`src/run-command-junit.mjs`**: Wraps integration, performance, and conformance commands as JUnit suites while preserving their logs.
+- **`src/assert-junit.mjs`**: Fails CI after the report has been published when any collected suite failed.
 - **`src/normalize-junit.mjs`**: Cleans and canonicalizes suite names and durations to produce consistent Allure trends across CI runs.

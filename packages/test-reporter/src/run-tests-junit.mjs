@@ -51,7 +51,7 @@ const packages = [
   { name: 'vite', dir: 'packages/vite', testPattern: 'src/*.test.ts' },
 ]
 
-let totalFailed = 0
+const failedPackages = new Set()
 
 for (const pkg of packages) {
   process.stdout.write(`Running tests for ${pkg.name}...\n`)
@@ -64,13 +64,14 @@ for (const pkg of packages) {
     })
     if (prepRes.status !== 0) {
       process.stderr.write(`Prep failed for ${pkg.name}\n`)
+      failedPackages.add(pkg.name)
     }
   }
 
   const testFiles = globSync(pkg.testPattern, { cwd: pkg.dir }).map((f) => f.replaceAll('\\', '/'))
   if (testFiles.length === 0) {
     process.stderr.write(`No test files found for ${pkg.name} matching ${pkg.testPattern}\n`)
-    totalFailed++
+    failedPackages.add(pkg.name)
     continue
   }
 
@@ -89,7 +90,7 @@ for (const pkg of packages) {
   })
 
   if (result.status !== 0) {
-    totalFailed++
+    failedPackages.add(pkg.name)
   }
 
   try {
@@ -99,6 +100,25 @@ for (const pkg of packages) {
     process.stderr.write(`Failed to normalize ${destFile}: ${err.message}\n`)
   }
 }
+
+const totalFailed = failedPackages.size
+const failure =
+  totalFailed === 0
+    ? ''
+    : `<failure message="${totalFailed} package test run(s) failed" type="package-tests">${[
+        ...failedPackages,
+      ].join(', ')}</failure>`
+writeFileSync(
+  join(process.cwd(), 'junit-reports', 'node-summary.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Node package tests" tests="1" failures="${totalFailed === 0 ? 0 : 1}" errors="0">
+  <testsuite name="Node package test runner" tests="1" failures="${totalFailed === 0 ? 0 : 1}" errors="0">
+    <testcase name="all configured packages produced passing JUnit" classname="typescript.runner">${failure}</testcase>
+  </testsuite>
+</testsuites>
+`,
+  'utf8',
+)
 
 process.stdout.write(`\nAll tests completed. Total packages failed: ${totalFailed}\n`)
 if (totalFailed > 0) {

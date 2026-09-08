@@ -9,7 +9,12 @@ on:
       - 'packages/**'
       - 'crates/**'
       - '.github/workflows/deploy-pages.yml'
+      - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'scripts/**'
+      - 'turbo.json'
+  schedule:
+    - cron: '0 3 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -62,7 +67,7 @@ jobs:
       - name: Report (Rust nextest)
         run: |
           mkdir -p junit-reports
-          cargo nextest run --workspace --profile ci || true
+          node packages/test-reporter/src/run-command-junit.mjs nextest cargo nextest run --workspace --profile ci || true
           if [ -f target/nextest/ci/nextest.xml ]; then
             cp target/nextest/ci/nextest.xml junit-reports/nextest.xml
             node packages/test-reporter/src/normalize-junit.mjs rust junit-reports/nextest.xml || true
@@ -76,6 +81,15 @@ jobs:
 
       - name: Report (TypeScript & Unit tests)
         run: node packages/test-reporter/src/run-tests-junit.mjs || true
+
+      - name: Report (real app integration builds)
+        run: node packages/test-reporter/src/run-command-junit.mjs integration pnpm test:integration || true
+
+      - name: Report (performance tripwires)
+        run: node packages/test-reporter/src/run-command-junit.mjs performance pnpm test:performance || true
+
+      - name: Report (full differential conformance)
+        run: node packages/test-reporter/src/run-command-junit.mjs conformance pnpm report:conformance || true
 
       - name: Fetch previous Allure history
         run: |
@@ -106,3 +120,9 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # Report first, then make regressions visible on main. Every producer
+      # above writes JUnit even when its command fails, so this step can fail
+      # the workflow without preventing the diagnostic page from deploying.
+      - name: Assert reported checks passed
+        run: node packages/test-reporter/src/assert-junit.mjs

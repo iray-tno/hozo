@@ -228,9 +228,15 @@ export function metadataFor(name) {
     // points nowhere. With it, a stack trace through Hozo lands on the
     // real line and "go to definition" reaches the commented original,
     // which for a compiler is worth the few kilobytes. Tests are excluded
-    // by name -- npm honours negations here, and they are the only thing
-    // under `src` that nobody installing this wants.
-    files: [...(spec.files ?? ['dist']), 'src', '!src/**/*.test.ts', '!src/**/*.test.tsx'],
+    // by name -- npm honours negations here. Benchmarks follow the same
+    // rule: useful in the repository, but not part of the package API.
+    files: [
+      ...(spec.files ?? ['dist']),
+      'src',
+      '!src/**/*.test.ts',
+      '!src/**/*.test.tsx',
+      '!src/**/*.bench.ts',
+    ],
     keywords: spec.keywords,
   }
 }

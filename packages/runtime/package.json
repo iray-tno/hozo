@@ -43,7 +43,8 @@
     "dist",
     "src",
     "!src/**/*.test.ts",
-    "!src/**/*.test.tsx"
+    "!src/**/*.test.tsx",
+    "!src/**/*.bench.ts"
   ],
   "publishConfig": {
     "access": "public",
@@ -52,7 +53,8 @@
   "scripts": {
     "build": "tsc -p .",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node --test src/*.test.ts"
+    "test": "node --test src/*.test.ts",
+    "test:performance": "node --test src/*.bench.ts"
   },
   "dependencies": {
     "@hozo/behaviors": "workspace:^"
