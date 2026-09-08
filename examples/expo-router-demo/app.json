@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Hozo Expo Router fixture",
+    "slug": "hozo-expo-router-fixture",
+    "scheme": "hozofixture",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "plugins": ["expo-router"],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
