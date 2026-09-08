@@ -88,6 +88,13 @@ adapter applies the same application-route boundary as navigation and maps the h
 framework's prefetch/preload operation. Disabled links and destinations owned by the platform
 (external, download, or a new browsing context) are not warmed.
 
+Deep-link ingress is deliberately adjacent to, rather than part of, route matching. `useDeepLink`
+normalizes the initial URL and later platform URL events into `{ url, path, queryParams, fragment,
+source }`; the application remains responsible for authentication and choosing a route. On Native
+the listener is installed before the asynchronous initial-URL read so a newer foreground arrival
+cannot be followed by stale cold-start handling. On Web the same hook observes the initial address,
+history traversal, and hash changes without patching `history.pushState` or duplicating router work.
+
 ---
 
 ## 4. Non-DOM Surfaces: `@hozo/canvas` & `<Svg>`

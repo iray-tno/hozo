@@ -56,6 +56,29 @@ or new-context links:
 Next.js `router.prefetch`, Expo Router `router.prefetch` when available, and TanStack Router
 `router.preloadRoute`. Routers without a prefetch method remain valid adapters.
 
+## Deep-link ingress
+
+`useDeepLink` presents cold starts and later URL arrivals with one event shape. On React Native it
+subscribes before reading `Linking.getInitialURL()`, so a foreground link cannot be overwritten by
+a slower cold-start lookup. On Web it reports the initial address and later back/forward or hash
+arrivals without taking over routing:
+
+```tsx
+import { useDeepLink } from '@hozo/navigation'
+
+function DeepLinkGate() {
+  useDeepLink(({ url, path, queryParams, fragment, source }) => {
+    // Validate authentication, attribution, or other ingress policy here.
+    console.log({ url, path, queryParams, fragment, source })
+  })
+  return null
+}
+```
+
+Custom schemes are normalized as application paths: `myapp://products/42?ref=mail` becomes
+`path: '/products/42'` with `queryParams.ref === 'mail'`. Repeated query keys remain arrays rather
+than being discarded. Pass `{ initial: false }` when only later arrivals matter.
+
 ## Framework adapters
 
 The adapter entry points accept router instances structurally, so Hozo does not install or bundle
