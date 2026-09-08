@@ -37,8 +37,8 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           {/* Subtitle */}
           <View className="max-w-3xl mx-auto mb-10 text-center flex flex-col gap-3">
             <Paragraph className="text-lg sm:text-xl text-shikkui-muted leading-relaxed">
-              Hozo fits your React Native source to each platform’s native strengths—semantic HTML and
-              CSS on the Web, React Native primitives on iOS and Android, with first-class
+              Hozo fits your React Native source to each platform’s native strengths—semantic HTML
+              and CSS on the Web, React Native primitives on iOS and Android, with first-class
               accessibility.
             </Paragraph>
             <Paragraph className="text-base sm:text-lg text-hinoki font-medium leading-relaxed">
@@ -102,9 +102,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               </Text>
             </View>
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
-              <Text className="text-lg sm:text-xl font-bold text-bengara mb-1 block">
-                Compiler
-              </Text>
+              <Text className="text-lg sm:text-xl font-bold text-bengara mb-1 block">Compiler</Text>
               <Text className="text-xs text-stone-400 block">Rust + oxc</Text>
             </View>
           </View>

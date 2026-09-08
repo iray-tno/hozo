@@ -50,7 +50,9 @@ export function TieredStyles() {
                   <Text className="text-hinoki-light">className</Text>=
                   <Text className="text-tatami-light">"p-4 bg-blue-500"</Text> /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web Output (Pure HTML & scoped CSS)'}</Text>
+                <Text className="text-stone-500 block mb-1">
+                  {'// Web Output (Pure HTML & scoped CSS)'}
+                </Text>
                 <Text className="text-tatami-light block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
                   <Text className="text-hinoki-light">className</Text>=
@@ -90,7 +92,9 @@ export function TieredStyles() {
                   <Text className="text-hinoki-light">className</Text>=
                   {`={cn('p-4', active && 'bg-blue-500')}`} /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web Output (Precompiled Branch)'}</Text>
+                <Text className="text-stone-500 block mb-1">
+                  {'// Web Output (Precompiled Branch)'}
+                </Text>
                 <Text className="text-hinoki block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
                   <Text className="text-hinoki-light">className</Text>=
@@ -129,11 +133,13 @@ export function TieredStyles() {
                   &lt;<Text className="text-hinoki">View</Text>{' '}
                   <Text className="text-hinoki-light">className</Text>={`={props.className}`} /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web Output (Cached Resolver)'}</Text>
+                <Text className="text-stone-500 block mb-1">
+                  {'// Web Output (Cached Resolver)'}
+                </Text>
                 <Text className="text-bengara block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
-                  <Text className="text-hinoki-light">className</Text>={`={hozoClasses(props.className)}`}{' '}
-                  /&gt;
+                  <Text className="text-hinoki-light">className</Text>=
+                  {`={hozoClasses(props.className)}`} /&gt;
                 </Text>
               </div>
             </View>

@@ -15,9 +15,10 @@ export function Philosophy() {
             Performant by Design. Accessible by Structure.
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            Cross-platform UI usually forces an unwanted compromise: heavy client-side wrappers on the Web,
-            or inflexible WebViews on Mobile. Hozo eliminates unnecessary runtime wrappers—compiling
-            standard React Native components directly into each platform's native primitives.
+            Cross-platform UI usually forces an unwanted compromise: heavy client-side wrappers on
+            the Web, or inflexible WebViews on Mobile. Hozo eliminates unnecessary runtime
+            wrappers—compiling standard React Native components directly into each platform's native
+            primitives.
           </Paragraph>
         </View>
 
