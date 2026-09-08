@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hozo.dev/schemas/hozo-links.schema.json",
+  "title": "Hozo deep-link verification configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "outputDirectory": {
+      "description": "Public/static directory, relative to this config file. Defaults to public.",
+      "type": "string",
+      "minLength": 1,
+      "default": "public"
+    },
+    "apple": {
+      "description": "Apple apps and ordered Universal Link component rules.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/appleAssociation"
+      }
+    },
+    "android": {
+      "description": "Android apps and their installed-build signing fingerprints.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/androidAssociation"
+      }
+    }
+  },
+  "anyOf": [{ "required": ["apple"] }, { "required": ["android"] }],
+  "$defs": {
+    "appleAssociation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appIDs"],
+      "properties": {
+        "appIDs": {
+          "description": "Application Identifier Prefix followed by the bundle identifier.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9]+\\.[A-Za-z0-9.-]+$"
+          }
+        },
+        "components": {
+          "description": "Ordered URL rules. Exclusions should precede broader inclusions.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/appleComponent"
+          }
+        }
+      }
+    },
+    "appleComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "query": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          ]
+        },
+        "fragment": { "type": "string" },
+        "exclude": { "type": "boolean" },
+        "comment": { "type": "string" },
+        "caseSensitive": { "type": "boolean" },
+        "percentEncoded": { "type": "boolean" }
+      }
+    },
+    "androidAssociation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageName", "sha256CertFingerprints"],
+      "properties": {
+        "packageName": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$"
+        },
+        "sha256CertFingerprints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "description": "A 32-byte SHA-256 signing certificate fingerprint, with optional colons.",
+            "type": "string",
+            "pattern": "^(?:[A-Fa-f0-9]{2}:?){32}$"
+          }
+        }
+      }
+    }
+  }
+}

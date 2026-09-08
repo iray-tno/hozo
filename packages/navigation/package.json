@@ -55,10 +55,12 @@
       "types": "./dist/verification-node.d.ts",
       "default": "./dist/verification-node.js"
     },
+    "./hozo-links.schema.json": "./hozo-links.schema.json",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
+    "hozo-links.schema.json",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx"

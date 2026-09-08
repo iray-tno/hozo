@@ -109,10 +109,12 @@ const PACKAGES = {
       './tanstack-router': './dist/tanstack-router.js',
       './verification': './dist/verification.js',
       './verification/node': './dist/verification-node.js',
+      './hozo-links.schema.json': './hozo-links.schema.json',
     },
     // Pure verification data can use the default build everywhere, while
     // the writer is deliberately Node-only. Neither has a `.native` peer.
     noNative: ['./verification', './verification/node'],
+    files: ['dist', 'hozo-links.schema.json'],
     native: true,
     keywords: ['react-native', 'react', 'navigation', 'router', 'deep-linking', 'universal'],
   },
