@@ -8,7 +8,7 @@ function filesUnder(directory) {
   })
 }
 
-const artifacts = filesUnder('storybook-static')
+const artifacts = filesUnder(process.argv[2] ?? 'storybook-static')
   .filter((file) => /\.(?:js|css)$/.test(file))
   .map((file) => readFileSync(file, 'utf8'))
   .join('\n')

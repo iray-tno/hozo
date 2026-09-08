@@ -14,8 +14,18 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
-const html = readFileSync(path.join('dist', 'index.html'), 'utf8')
-const mdx = readFileSync(path.join('dist', 'mdx-example', 'index.html'), 'utf8')
+// Which build to read, because there is more than one.
+//
+// `build` and `test` both run `astro build`, and turbo starts them
+// together: `test` depends on `^build`, its dependencies' builds, not its
+// own. Sharing `dist` had them writing and deleting each other's files
+// mid-build, which surfaced as Astro crashing inside its own prerender
+// step -- twice, with two different messages, neither naming the cause
+// (#322).
+const dist = process.argv[2] ?? 'dist'
+
+const html = readFileSync(path.join(dist, 'index.html'), 'utf8')
+const mdx = readFileSync(path.join(dist, 'mdx-example', 'index.html'), 'utf8')
 
 /** Hozo's compiled class names, matched by shape rather than spelled. */
 const GENERATED_CLASS = /\bhozo-[a-z0-9]+-r\d+-\d+\b/
@@ -31,9 +41,9 @@ const GENERATED_CLASS = /\bhozo-[a-z0-9]+-r\d+-\d+\b/
  * no CSS.
  */
 const stylesheets = [
-  ...readdirSync(path.join('dist', '_astro'))
+  ...readdirSync(path.join(dist, '_astro'))
     .filter((name) => name.endsWith('.css'))
-    .map((name) => readFileSync(path.join('dist', '_astro', name), 'utf8')),
+    .map((name) => readFileSync(path.join(dist, '_astro', name), 'utf8')),
   ...[...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((match) => match[1]),
 ].join('\n')
 
@@ -83,7 +93,7 @@ checks.push(
 
 // The automated conformance matrix page, generated directly from snapshot.json.
 // It must render the live figures and also ship no client scripts or islands.
-const conformance = readFileSync(path.join('dist', 'conformance', 'index.html'), 'utf8')
+const conformance = readFileSync(path.join(dist, 'conformance', 'index.html'), 'utf8')
 const snapshot = JSON.parse(
   readFileSync(path.join('..', '..', 'packages', 'tailwind-conformance', 'snapshot.json'), 'utf8'),
 )

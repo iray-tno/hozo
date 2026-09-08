@@ -8,7 +8,9 @@ function filesUnder(directory) {
   })
 }
 
-const artifacts = filesUnder('.output')
+// The build to read, named by `build-and-check.mjs` so that it is not the
+// one the `build` task is writing beside it (#322).
+const artifacts = filesUnder(process.argv[2] ?? '.output')
   .filter((file) => /\.(?:js|mjs|css)$/.test(file))
   .map((file) => ({ file, content: readFileSync(file, 'utf8') }))
 const output = artifacts.map(({ content }) => content).join('\n')

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "tsc --noEmit -p . && node scripts/build.mjs && node scripts/check-build.mjs && node scripts/check-a11y.mjs",
+    "test": "tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check",
     "typecheck": "tsc --noEmit -p .",
     "check:a11y": "node scripts/check-a11y.mjs"
   },

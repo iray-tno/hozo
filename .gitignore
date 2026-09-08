@@ -5,6 +5,11 @@ node_modules/
 dist/
 dist-ssr/
 .output/
+# The check builds into one of these, so that it never shares a directory
+# with the `build` script running beside it (#322).
+.output-check/
+dist-check/
+storybook-static-check/
 storybook-static/
 artifacts/
 .next/

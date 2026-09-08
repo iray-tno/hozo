@@ -23,7 +23,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const STATIC = path.resolve('storybook-static')
+const STATIC = path.resolve(process.argv[2] ?? 'storybook-static')
 
 /** Where a browser might be, per platform. Nothing is installed for this. */
 const BROWSERS = [

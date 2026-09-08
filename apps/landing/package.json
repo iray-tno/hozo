@@ -9,7 +9,7 @@
     "build": "node scripts/copy-wasm.mjs && astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "test": "node scripts/copy-wasm.mjs && astro build && node scripts/check-build.mjs && node scripts/check-static.mjs && node scripts/check-repl.mjs"
+    "test": "node scripts/copy-wasm.mjs && astro build --outDir dist-check && node scripts/check-build.mjs dist-check && node scripts/check-static.mjs && node scripts/check-repl.mjs dist-check"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.0",

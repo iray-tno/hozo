@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "test": "vite build && node scripts/check-build.mjs"
+    "test": "node scripts/build-and-check.mjs"
   },
   "dependencies": {
     "@hozo/core": "workspace:*",

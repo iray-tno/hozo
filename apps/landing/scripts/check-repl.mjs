@@ -17,7 +17,13 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist')
+// The build to serve, named by the caller: `build` and `test` run
+// concurrently and no longer share one directory (#322).
+const dist = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  process.argv[2] ?? 'dist',
+)
 
 if (!existsSync(path.join(dist, 'wasm', 'hozo_wasm_bg.wasm'))) {
   console.log(
