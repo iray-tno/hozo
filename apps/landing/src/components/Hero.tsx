@@ -17,14 +17,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-4xl mx-auto flex flex-col items-center">
           {/* Architectural eyebrow tagline (Text-only) */}
-          <View className="inline-flex items-center gap-2.5 mb-8">
+          <View className="inline-flex items-center gap-2 mb-8">
             <View className="flex h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
             <Text className="text-xs sm:text-sm font-bold uppercase tracking-widest text-hinoki">
               Rust-powered Universal UI Compiler
-            </Text>
-            <Text className="text-xs text-stone-600 select-none">•</Text>
-            <Text className="text-xs sm:text-sm text-shikkui-muted font-medium tracking-wide">
-              Zero Runtime • Semantic Web & Mobile
             </Text>
           </View>
 
@@ -35,17 +31,20 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           >
             Write React Native.
             <br />
-            <Text className="gradient-text">Ship true Semantic Web & Mobile.</Text>
+            <Text className="gradient-text">Ship Semantic Web & Native UI.</Text>
           </Heading>
 
           {/* Subtitle */}
-          <Paragraph className="text-lg sm:text-xl text-shikkui-muted mb-10 leading-relaxed max-w-3xl mx-auto">
-            Hozo compiles universal React Native components directly into platform-native primitives
-            at build time: genuine{' '}
-            <Text className="text-shikkui font-semibold">HTML, CSS, and W3C ARIA</Text> on Web, and
-            true <Text className="text-shikkui font-semibold">Fabric views & StyleSheet</Text> on
-            iOS & Android. Zero runtime glue, zero div-soup.
-          </Paragraph>
+          <View className="max-w-3xl mx-auto mb-10 text-center flex flex-col gap-3">
+            <Paragraph className="text-lg sm:text-xl text-shikkui-muted leading-relaxed">
+              Hozo fits your React Native source to each platform’s native strengths—semantic HTML
+              and CSS on the Web, React Native primitives on iOS and Android, with first-class
+              accessibility.
+            </Paragraph>
+            <Paragraph className="text-base sm:text-lg text-hinoki font-medium leading-relaxed">
+              Static paths compile away. Only truly dynamic behavior remains at runtime.
+            </Paragraph>
+          </View>
 
           {/* CTA Links */}
           <View className="flex flex-wrap items-center justify-center gap-4 mb-12">
@@ -53,7 +52,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               href={`${cleanBase}/repl/`}
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-bengara hover:bg-bengara-hover shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
             >
-              <span>Interactive REPL</span>
+              <span>Try the REPL</span>
               <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-yakisugi-950 text-hinoki-light border border-wood">
                 Playground
               </span>
@@ -65,16 +64,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               <span>Explore Storybook</span>
             </Link>
             <Link
-              href={`${cleanBase}/reports/`}
-              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-hinoki-light hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
-            >
-              <span>Test Reports (Allure)</span>
-            </Link>
-            <Link
               href={`${cleanBase}/conformance/`}
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
             >
-              <span>Conformance Matrix</span>
+              <span>View Conformance</span>
             </Link>
           </View>
 
@@ -89,31 +82,28 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           {/* Key Metrics & Badges */}
           <View className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl w-full text-left">
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
-              <Text className="text-2xl font-bold text-shikkui mb-1 block">0 ms</Text>
-              <Text className="text-xs text-stone-400 block">
-                <Text className="text-shikkui-muted font-semibold">Zero runtime</Text> cost for
-                static styles
+              <Text className="text-lg sm:text-xl font-bold text-shikkui mb-1 block">
+                Static paths
+              </Text>
+              <Text className="text-xs text-stone-400 block">Zero-runtime styling</Text>
+            </View>
+            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
+              <Text className="text-lg sm:text-xl font-bold text-hinoki mb-1 block">
+                Accessibility
+              </Text>
+              <Text className="text-xs text-stone-400 block">First-class by design</Text>
+            </View>
+            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
+              <Text className="text-lg sm:text-xl font-bold text-tatami-light mb-1 block">
+                Integrations
+              </Text>
+              <Text className="text-xs text-stone-400 block leading-tight">
+                Vite · Next.js · Metro · Storybook · TanStack
               </Text>
             </View>
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
-              <Text className="text-2xl font-bold text-hinoki mb-1 block">W3C ARIA</Text>
-              <Text className="text-xs text-stone-400 block">
-                <Text className="text-shikkui-muted font-semibold">First-class A11y</Text> via{' '}
-                <code className="text-shikkui-muted text-xs font-mono">aria-query</code>
-              </Text>
-            </View>
-            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
-              <Text className="text-2xl font-bold text-tatami-light mb-1 block">5 Bundlers</Text>
-              <Text className="text-xs text-stone-400 block">
-                Vite, Next, Metro, Storybook, TanStack
-              </Text>
-            </View>
-            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
-              <Text className="text-2xl font-bold text-bengara mb-1 block">Rust Core</Text>
-              <Text className="text-xs text-stone-400 block">
-                <Text className="text-shikkui-muted font-semibold">Obsessively fast</Text> AST
-                lowering with oxc
-              </Text>
+              <Text className="text-lg sm:text-xl font-bold text-bengara mb-1 block">Compiler</Text>
+              <Text className="text-xs text-stone-400 block">Rust + oxc</Text>
             </View>
           </View>
         </View>
