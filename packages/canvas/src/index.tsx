@@ -1,3 +1,4 @@
+import { activateHozoNavigation, useHozoNavigation } from '@hozo/runtime/navigation'
 import {
   type CSSProperties,
   type ReactNode,
@@ -22,6 +23,7 @@ import {
   Circle,
   Clip,
   canvasControls,
+  canvasPressEvent,
   canvasUnreadableText,
   cssFontShorthand,
   Ellipse,
@@ -50,6 +52,7 @@ export {
 } from './hit-test.ts'
 export { type CanvasViewport, renderCanvas2D } from './render-canvas-2d.ts'
 export type {
+  CanvasDestination,
   CanvasInteractionProps,
   CanvasPaintProps,
   CanvasPressEvent,
@@ -178,7 +181,8 @@ function Root({
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pressedTargets = useRef(new Map<number, string>())
-  const { scene, collector, isInteractive, press, activate, interactions } =
+  const navigation = useHozoNavigation()
+  const { scene, collector, isInteractive, press, activate, interactions, interactionRevision } =
     useCanvasScene(children)
   const [size, setSize] = useState<Size>(() => ({
     width: width ?? viewBox?.[2] ?? 300,
@@ -285,12 +289,13 @@ function Root({
     )
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     pressedTargets.current.delete(event.pointerId)
-    if (!event.isPrimary || event.button !== 0) return
+    if (!event.isPrimary || (event.button !== 0 && event.button !== 1)) return
     const hit = hitAt(surfacePoint(event))
     if (!hit) return
+    if (event.button === 1 && interactions.destination(hit.id)) event.preventDefault()
     pressedTargets.current.set(event.pointerId, hit.id)
     if (event.pointerType === 'touch') {
-      activate(hit.id, { point: hit.point, surfacePoint: surfacePoint(event) })
+      activate(hit.id, canvasPressEvent(hit.point, surfacePoint(event)))
     }
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
@@ -304,7 +309,16 @@ function Root({
     // release also counted as a press.
     if (event.pointerType === 'touch') activate(undefined, undefined)
     if (!hit || hit.id !== startedTarget) return
-    press(hit.id, { point: hit.point, surfacePoint: point })
+    const pressEvent = canvasPressEvent(hit.point, point, event)
+    const destination = press(hit.id, pressEvent)
+    if (!destination) return
+
+    const newContext = event.button === 1 || event.ctrlKey || event.metaKey || event.shiftKey
+    if (newContext || destination.external) {
+      window.open(destination.href, '_blank', 'noopener,noreferrer')
+      return
+    }
+    void activateHozoNavigation(navigation, destination, (href) => window.location.assign(href))
   }
   const onPointerCancel = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     pressedTargets.current.delete(event.pointerId)
@@ -323,7 +337,7 @@ function Root({
     if (event.pointerType === 'touch') return
     const point = surfacePoint(event)
     const hit = hitAt(point)
-    activate(hit?.id, hit ? { point: hit.point, surfacePoint: point } : undefined)
+    activate(hit?.id, hit ? canvasPressEvent(hit.point, point) : undefined)
   }
   const onPointerLeave = () => activate(undefined, undefined)
 
@@ -352,9 +366,10 @@ function Root({
       console.warn(`[hozo] ${message}`),
     )
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the registry revision intentionally invalidates semantic controls without redrawing the scene
   const controls = useMemo(
     () => canvasControls(scene, interactions, (message) => console.warn(`[hozo] ${message}`)),
-    [scene, interactions],
+    [scene, interactions, interactionRevision],
   )
   /**
    * Where a keyboard "is" when it reaches a shape.
@@ -393,14 +408,14 @@ function Root({
         {collector}
       </canvas>
       {/*
-        A real control per named pressable shape.
+        A real control per named interactive shape.
 
         The canvas is one element and the shapes in it are pixels, so a
         keyboard has nothing to reach and a screen reader has nothing to
-        announce. These are buttons -- real focus, real Enter and Space,
-        real accessible names -- placed in the same visually-hidden layer
-        the fallback already uses, in scene order so the tab order is the
-        reading order.
+        announce. Actions become buttons; destinations become anchors. Both
+        have real focus, native keyboard behaviour, and accessible names,
+        placed in the same visually-hidden layer the fallback already uses,
+        in scene order so the tab order is the reading order.
 
         Focus moves the active target, which is what makes a tooltip
         appear for a keyboard the same way hovering does for a mouse. The
@@ -413,17 +428,44 @@ function Root({
       */}
       {controls.length > 0 ? (
         <div style={accessibleOnlyStyle} data-hozo-canvas-controls="">
-          {controls.map((control) => (
-            <button
-              key={control.id}
-              type="button"
-              onClick={() => press(control.id, pointFor(control.id))}
-              onFocus={() => activate(control.id, pointFor(control.id))}
-              onBlur={() => activate(undefined, undefined)}
-            >
-              {control.label}
-            </button>
-          ))}
+          {controls.map((control) => {
+            const point = pointFor(control.id)
+            if (control.destination) {
+              return (
+                <a
+                  key={control.id}
+                  href={control.destination.href}
+                  target={control.destination.external ? '_blank' : undefined}
+                  rel={control.destination.external ? 'noreferrer noopener' : undefined}
+                  data-hozo-navigation-replace={control.destination.replace ? '' : undefined}
+                  onClick={(event) => {
+                    const pressEvent = canvasPressEvent(point.point, point.surfacePoint, event)
+                    press(control.id, pressEvent)
+                    if (pressEvent.defaultPrevented) event.preventDefault()
+                  }}
+                  onFocus={() =>
+                    activate(control.id, canvasPressEvent(point.point, point.surfacePoint))
+                  }
+                  onBlur={() => activate(undefined, undefined)}
+                >
+                  {control.label}
+                </a>
+              )
+            }
+            return (
+              <button
+                key={control.id}
+                type="button"
+                onClick={() => press(control.id, canvasPressEvent(point.point, point.surfacePoint))}
+                onFocus={() =>
+                  activate(control.id, canvasPressEvent(point.point, point.surfacePoint))
+                }
+                onBlur={() => activate(undefined, undefined)}
+              >
+                {control.label}
+              </button>
+            )
+          })}
         </div>
       ) : null}
       {accessibilityMode === 'fallback' ? (

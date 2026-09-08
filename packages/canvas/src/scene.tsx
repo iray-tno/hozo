@@ -18,11 +18,70 @@ export interface CanvasPressEvent {
   point: CanvasPoint
   /** Position in logical CSS pixels or React Native points. */
   surfacePoint: CanvasPoint
+  /** Browser-style modifier state, also present (as false) on touch-only hosts. */
+  altKey: boolean
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+  /** `0` for the primary button and `1` for a mouse-wheel press. */
+  button: number
+  /** Whether the authored handler kept this activation from following its destination. */
+  readonly defaultPrevented: boolean
+  /** Keep an href-bearing shape available for authored selection or another local interaction. */
+  preventDefault(): void
+}
+
+export interface CanvasDestination {
+  href: string
+  /** Bypass an installed application router and open the platform destination. */
+  external?: boolean
+  /** Replace the router history entry for an ordinary primary activation. */
+  replace?: boolean
+}
+
+interface CanvasPressModifiers {
+  altKey?: boolean
+  ctrlKey?: boolean
+  metaKey?: boolean
+  shiftKey?: boolean
+  button?: number
+}
+
+/** Builds the cancellable event shared by pointer, keyboard, and accessibility activation. */
+export function canvasPressEvent(
+  point: CanvasPoint,
+  surfacePoint: CanvasPoint,
+  modifiers: CanvasPressModifiers = {},
+): CanvasPressEvent {
+  let defaultPrevented = false
+  const event = { point, surfacePoint }
+  // Keep the two historical coordinate fields as the enumerable payload.
+  // Consumers that log or spread an event do not suddenly acquire browser
+  // bookkeeping, while direct event access follows the familiar DOM shape.
+  Object.defineProperties(event, {
+    altKey: { value: modifiers.altKey ?? false, enumerable: false },
+    ctrlKey: { value: modifiers.ctrlKey ?? false, enumerable: false },
+    metaKey: { value: modifiers.metaKey ?? false, enumerable: false },
+    shiftKey: { value: modifiers.shiftKey ?? false, enumerable: false },
+    button: { value: modifiers.button ?? 0, enumerable: false },
+    defaultPrevented: { get: () => defaultPrevented, enumerable: false },
+    preventDefault: {
+      value: () => {
+        defaultPrevented = true
+      },
+      enumerable: false,
+    },
+  })
+  return event as CanvasPressEvent
 }
 
 export interface CanvasInteractionProps {
   /** Portable discrete activation for closed Canvas geometry. */
   onPress?: (event: CanvasPressEvent) => void
+  /** Turns this shape into a destination while leaving its pixels on the Canvas surface. */
+  href?: string
+  external?: boolean
+  replace?: boolean
   /**
    * The shape a person is currently indicating, by whatever means the
    * device has. `undefined` when they stop indicating it.
@@ -47,11 +106,11 @@ export interface CanvasInteractionProps {
   /**
    * What this shape is called, which is what makes it reachable at all.
    *
-   * A pressable shape is a control, and a control on a canvas is
+   * An interactive shape is a control, and a control on a canvas is
    * unreachable by every route except a pointer: there is one element,
    * and the shapes inside it are pixels. So a named one is given a real
-   * `<button>` in the surface's hidden layer -- real DOM, real focus,
-   * real Enter and Space -- and the canvas keeps the drawing.
+   * semantic control in the surface's hidden layer -- a button for an
+   * action or an anchor for a destination -- and the canvas keeps the drawing.
    *
    * Required for that to happen, and deliberately: a button with no
    * accessible name is announced as "button" and is exactly the invisible
@@ -363,11 +422,45 @@ interface StoredNode {
 class CanvasInteractionStore {
   readonly #handlers = new Map<string, (event: CanvasPressEvent) => void>()
   readonly #labels = new Map<string, string>()
+  readonly #destinations = new Map<string, CanvasDestination>()
+  readonly #listeners = new Set<() => void>()
+  #version = 0
 
-  set(id: string, handler: (event: CanvasPressEvent) => void, label?: string) {
-    this.#handlers.set(id, handler)
+  get version() {
+    return this.#version
+  }
+
+  subscribe(listener: () => void) {
+    this.#listeners.add(listener)
+    return () => {
+      this.#listeners.delete(listener)
+    }
+  }
+
+  set(
+    id: string,
+    handler: ((event: CanvasPressEvent) => void) | undefined,
+    label: string | undefined,
+    destination: CanvasDestination | undefined,
+  ) {
+    const previousHas = this.has(id)
+    const previousLabel = this.#labels.get(id)
+    const previousDestination = this.#destinations.get(id)
+    if (handler === undefined) this.#handlers.delete(id)
+    else this.#handlers.set(id, handler)
     if (label === undefined) this.#labels.delete(id)
     else this.#labels.set(id, label)
+    if (destination === undefined) this.#destinations.delete(id)
+    else this.#destinations.set(id, destination)
+    if (
+      previousHas !== this.has(id) ||
+      previousLabel !== label ||
+      previousDestination?.href !== destination?.href ||
+      previousDestination?.external !== destination?.external ||
+      previousDestination?.replace !== destination?.replace
+    ) {
+      this.#emit()
+    }
   }
 
   label(id: string) {
@@ -375,16 +468,28 @@ class CanvasInteractionStore {
   }
 
   remove(id: string) {
+    const hadInteraction = this.has(id)
     this.#handlers.delete(id)
     this.#labels.delete(id)
+    this.#destinations.delete(id)
+    if (hadInteraction) this.#emit()
   }
 
   has(id: string) {
-    return this.#handlers.has(id)
+    return this.#handlers.has(id) || this.#destinations.has(id)
   }
 
   press(id: string, event: CanvasPressEvent) {
     this.#handlers.get(id)?.(event)
+  }
+
+  destination(id: string) {
+    return this.#destinations.get(id)
+  }
+
+  #emit() {
+    this.#version += 1
+    for (const listener of this.#listeners) listener()
   }
 }
 
@@ -576,20 +681,43 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
   // distinction and the plain `leaf` went with it.
   kind: CanvasLeafNode['kind'],
 ) {
-  const Component = ({ onPress, onActiveChange, accessibilityLabel, disabled, ...props }: P) => {
+  const Component = ({
+    onPress,
+    onActiveChange,
+    accessibilityLabel,
+    disabled,
+    href,
+    external,
+    replace,
+    ...props
+  }: P) => {
     // Not memoised. `props` is a rest object, new on every render, so a
     // memo keyed on it recomputed every time -- the cost of a hook with
     // none of the saving, on every shape in the scene.
     const node = { kind, props } as unknown as FlatNode
     const context = useSceneNode(node)
     useIsoLayoutEffect(() => {
-      if (!onPress || disabled) {
+      if ((!onPress && !href) || disabled) {
         context.interactions.remove(context.id)
         return
       }
-      context.interactions.set(context.id, onPress, accessibilityLabel)
+      context.interactions.set(
+        context.id,
+        onPress,
+        accessibilityLabel,
+        href === undefined ? undefined : { href, external, replace },
+      )
       return () => context.interactions.remove(context.id)
-    }, [context.interactions, context.id, onPress, accessibilityLabel, disabled])
+    }, [
+      context.interactions,
+      context.id,
+      onPress,
+      accessibilityLabel,
+      disabled,
+      href,
+      external,
+      replace,
+    ])
     useIsoLayoutEffect(() => {
       if (!onActiveChange || disabled) {
         context.active.remove(context.id)
@@ -728,10 +856,11 @@ export function unhandledShape(node: never, where: string): undefined {
 export interface CanvasControl {
   id: string
   label: string
+  destination?: CanvasDestination
 }
 
 /**
- * The named pressable shapes, in the order they were drawn.
+ * The named interactive shapes, in the order they were drawn.
  *
  * Scene order and not registration order, so the tab order a keyboard
  * walks is the order an eye reads. The registry knows the handlers; only
@@ -760,12 +889,12 @@ export function canvasControls(
           if (!warned.has(node.id)) {
             warned.add(node.id)
             warn?.(
-              `a Canvas ${node.kind} has onPress but no accessibilityLabel, so it can only be ` +
+              `an interactive Canvas ${node.kind} has no accessibilityLabel, so it can only be ` +
                 'reached with a pointer. Name it to give it a keyboard control.',
             )
           }
         } else {
-          found.push({ id: node.id, label })
+          found.push({ id: node.id, label, destination: interactions.destination(node.id) })
         }
       }
       if (node.kind === 'group' || node.kind === 'clip') walk(node.children)
@@ -848,11 +977,16 @@ export function useCanvasScene(children: ReactNode) {
   if (!activeStoreRef.current) activeStoreRef.current = new CanvasActiveStore()
   const active = activeStoreRef.current
   const [revision, setRevision] = useState(store.version)
+  const [interactionRevision, setInteractionRevision] = useState(interactions.version)
 
   useIsoLayoutEffect(() => {
     setRevision(store.version)
     return store.subscribe(() => setRevision(store.version))
   }, [store])
+  useIsoLayoutEffect(() => {
+    setInteractionRevision(interactions.version)
+    return interactions.subscribe(() => setInteractionRevision(interactions.version))
+  }, [interactions])
 
   const rootContext = useMemo(
     () => ({ store, interactions, active }),
@@ -871,7 +1005,10 @@ export function useCanvasScene(children: ReactNode) {
     [interactions, active],
   )
   const press = useCallback(
-    (id: string, event: CanvasPressEvent) => interactions.press(id, event),
+    (id: string, event: CanvasPressEvent) => {
+      interactions.press(id, event)
+      return event.defaultPrevented ? undefined : interactions.destination(id)
+    },
     [interactions],
   )
   const activate = useCallback(
@@ -895,5 +1032,6 @@ export function useCanvasScene(children: ReactNode) {
     press,
     activate,
     interactions,
+    interactionRevision,
   }
 }

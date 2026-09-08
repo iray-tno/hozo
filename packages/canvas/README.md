@@ -28,7 +28,7 @@ export function Sparkline() {
 
 ## Interaction
 
-`Rect`, `RoundedRect`, `Circle`, and `Ellipse` support a portable `onPress`.
+Every Canvas leaf supports portable `onPress` and destination-bearing `href`.
 The same topmost shape must contain both the pointer/touch start and release;
 dragging away cancels activation. Non-interactive drawing above a target does
 not block it.
@@ -47,21 +47,58 @@ not block it.
 />
 ```
 
+An `href` uses the same installed `@hozo/navigation` adapter as `Link`,
+`Button href`, and `Pressable href`. On Web, Ctrl/Command-click, Shift-click,
+and a middle-button press open a new browsing context without entering the
+client router. A named destination also produces a real anchor in the hidden
+accessibility layer; an action produces a button. Native exposes the matching
+link or button role.
+
+```tsx
+<Canvas.Rect
+  width={40}
+  height={20}
+  href="/orders/42"
+  replace
+  accessibilityLabel="Open order 42"
+/>
+```
+
+`onPress` runs before navigation. It receives the familiar `ctrlKey`,
+`metaKey`, `shiftKey`, `altKey`, and `button` fields. Call `preventDefault()`
+to retain an activation for local interaction—for example, Ctrl/Command-click
+or Shift-click selection in a Canvas-drawn table—without following `href`.
+
+```tsx
+<Canvas.Rect
+  width={40}
+  height={20}
+  href="/orders/42"
+  accessibilityLabel="Open order 42"
+  onPress={(event) => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      event.preventDefault()
+      toggleSelectedOrder(42)
+    }
+  }}
+/>
+```
+
 Hit testing follows reverse paint order, `viewBox`, `fit`, nested group
 translation/rotation/scale/origin, and rectangle clips. It uses the closed
 shape's geometry rather than inspecting painted pixels. Changing only an event
 handler or `disabled` updates a separate registry and does not redraw the
 scene.
 
-`Line`, `Path`, hover, pointer-move, and path-clip hit testing are deliberately
-outside this first portable contract. `Line` and `Path` do not accept
-`onPress`; placing an interactive closed shape under a path clip throws an
-explicit error rather than silently creating an inert target.
+Line hit testing follows its painted stroke and cap. Path containment and text
+measurement are answered by each platform's renderer so they can participate
+without a second geometry or font implementation.
 
-Canvas pixels still cannot provide keyboard or screen-reader interaction. Any
-selection or drill-down exposed through `onPress` must also have equivalent,
-visible controls outside the Canvas. Do not put those controls in the visually
-hidden `accessibleFallback`.
+Canvas pixels cannot themselves provide keyboard or screen-reader interaction.
+A named interactive shape therefore gets a semantic control in a visually
+hidden sibling layer. An unnamed interactive shape remains pointer-only and
+reports a warning; give it an `accessibilityLabel` or provide equivalent
+visible controls outside the Canvas.
 
 Canvas pixels are not semantic content. Every root must therefore either have
 an `accessibilityLabel`, provide an `accessibleFallback` (for example a data
