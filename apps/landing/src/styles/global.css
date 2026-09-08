@@ -1,61 +1,138 @@
 @import "tailwindcss";
 
+@theme {
+  --color-yakisugi-950: #100f0e;
+  --color-yakisugi-900: #141312;
+  --color-yakisugi-800: #1c1a18;
+  --color-yakisugi-700: #252320;
+  --color-yakisugi-600: #33302b;
+  --color-sumi: #141312;
+  --color-shikkui: #f7f5f0;
+  --color-shikkui-muted: #dcd7cc;
+  --color-washi: #efece4;
+  --color-hinoki: #c8a882;
+  --color-hinoki-light: #dfc8ab;
+  --color-hinoki-dark: #a8855e;
+  --color-kuri: #7a5c43;
+  --color-kuri-dark: #543f2e;
+  --color-bengara: #9e3d31;
+  --color-bengara-hover: #b54738;
+  --color-tatami: #556348;
+  --color-tatami-light: #708260;
+  --color-ainezumi: #222831;
+  --color-ainezumi-light: #2d3748;
+}
+
 @layer base {
   :root {
-    --bg-dark: #0a0c10;
-    --bg-card: #12161f;
-    --border-color: #1e2638;
-    --accent-indigo: #6366f1;
-    --accent-cyan: #06b6d4;
-    --accent-emerald: #10b981;
-    --accent-amber: #f59e0b;
+    --bg-dark: #141312;
+    --bg-card: #1c1a18;
+    --border-color: #2a2723;
+    --border-wood: rgba(200, 168, 130, 0.18);
+    --accent-hinoki: #c8a882;
+    --accent-bengara: #9e3d31;
+    --accent-tatami: #556348;
+    --accent-ainezumi: #222831;
+
+    /* Hozo compiler theme color bindings */
+    --hozo-color-hinoki: #c8a882;
+    --hozo-color-hinoki-light: #dfc8ab;
+    --hozo-color-hinoki-dark: #a8855e;
+    --hozo-color-shikkui: #f7f5f0;
+    --hozo-color-shikkui-muted: #dcd7cc;
+    --hozo-color-washi: #efece4;
+    --hozo-color-bengara: #9e3d31;
+    --hozo-color-bengara-hover: #b54738;
+    --hozo-color-tatami: #556348;
+    --hozo-color-tatami-light: #708260;
+    --hozo-color-yakisugi-950: #100f0e;
+    --hozo-color-yakisugi-900: #141312;
+    --hozo-color-yakisugi-800: #1c1a18;
+    --hozo-color-kuri: #7a5c43;
   }
 
   body {
     background-color: var(--bg-dark);
-    color: #e2e8f0;
+    color: #ded8cb;
     font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      "Plus Jakarta Sans", "Zen Kaku Gothic New", -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, "Helvetica Neue", Arial, sans-serif;
     overflow-x: hidden;
   }
 
   code,
   pre {
     font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+      "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
       monospace;
   }
 }
 
-/* Custom glow and glass effects */
+/* Timber-framed architectural panels */
+.timber-panel,
 .glass-panel {
-  background: rgba(18, 22, 31, 0.75);
+  background: rgba(28, 26, 24, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(200, 168, 130, 0.16);
 }
 
+.timber-panel-glow,
 .glass-panel-glow {
-  background: rgba(18, 22, 31, 0.85);
+  background: rgba(28, 26, 24, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  box-shadow: 0 0 30px -10px rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(200, 168, 130, 0.32);
+  box-shadow: 0 0 30px -10px rgba(200, 168, 130, 0.12);
 }
 
+/* Subtle architectural borders & backgrounds */
+.border-wood {
+  border-color: rgba(200, 168, 130, 0.18);
+}
+.border-wood-strong {
+  border-color: rgba(200, 168, 130, 0.35);
+}
+.border-bengara-subtle {
+  border-color: rgba(158, 61, 49, 0.3);
+}
+.border-tatami-subtle {
+  border-color: rgba(85, 99, 72, 0.3);
+}
+
+.bg-wood-subtle {
+  background-color: rgba(200, 168, 130, 0.1);
+}
+.bg-bengara-subtle {
+  background-color: rgba(158, 61, 49, 0.12);
+}
+.bg-tatami-subtle {
+  background-color: rgba(85, 99, 72, 0.15);
+}
+.bg-glow-hinoki {
+  background-color: rgba(200, 168, 130, 0.08);
+}
+.bg-glow-bengara {
+  background-color: rgba(158, 61, 49, 0.08);
+}
+
+/* Hinoki gold to Shikkui plaster gradient */
 .gradient-text {
-  background: linear-gradient(135deg, #a5b4fc 0%, #38bdf8 50%, #34d399 100%);
+  background: linear-gradient(135deg, #f7f5f0 0%, #dfc8ab 45%, #c8a882 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .gradient-text-subtle {
-  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+  background: linear-gradient(135deg, #f7f5f0 0%, #c8a882 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
+/* Shoji / Koshi architectural lattice grid */
 .grid-background {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background-image:
+    linear-gradient(to right, rgba(200, 168, 130, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(200, 168, 130, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
 }

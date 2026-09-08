@@ -3,39 +3,41 @@ import Accessibility from '../components/Accessibility.astro'
 import Architecture from '../components/Architecture.astro'
 import CodeShowcase from '../components/CodeShowcase.astro'
 import Footer from '../components/Footer.astro'
-import Hero from '../components/Hero.astro'
+import { Hero } from '../components/Hero.tsx'
 import Integrations from '../components/Integrations.astro'
 import Navbar from '../components/Navbar.astro'
-import Philosophy from '../components/Philosophy.astro'
+import { Philosophy } from '../components/Philosophy.tsx'
 import { StaticCard } from '../components/StaticCard.tsx'
-import TieredStyles from '../components/TieredStyles.astro'
+import { TieredStyles } from '../components/TieredStyles.tsx'
 import '../styles/global.css'
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 ---
 
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="ja" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/favicon.svg`} />
+    <link rel="icon" type="image/svg+xml" href={`${baseUrl}/favicon.svg`} />
     <meta name="generator" content={Astro.generator} />
-    <title>Hozo — Universal UI Compiler for React Native</title>
+    <title>ほぞ Hozo — 日本建築の構造美学で組む Universal UI Compiler</title>
     <meta
       name="description"
-      content="A Rust-powered universal UI compiler and accessibility-first layer for React Native. Compiles to Semantic Web and Fabric."
+      content="釘を使わず木を組むように。React Native を Web（Semantic HTML / CSS / W3C ARIA）とネイティブ（Fabric / StyleSheet）へ直截にコンパイルする Rust 製 Universal UI Compiler。"
     />
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
   </head>
-  <body class="bg-[#0a0c10] text-slate-200 antialiased min-h-screen relative grid-background">
+  <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
     <Navbar />
     <main>
-      <Hero />
+      <Hero baseUrl={baseUrl} />
       <Philosophy />
       <TieredStyles />
       <!-- No `client:` directive, deliberately. Astro renders this at
