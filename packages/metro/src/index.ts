@@ -12,7 +12,7 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { type Compiler, createCompiler, type Theme } from '@hozo/compiler'
-import { CACHE_DIR, StylexModuleCache } from '@hozo/compiler/project'
+import { CACHE_DIR, importSpecifier, StylexModuleCache } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { loadProjectTheme } from '@hozo/tailwind'
 import { readMetroState } from './config.ts'
@@ -35,6 +35,17 @@ interface UpstreamTransformer {
 }
 
 let upstream: UpstreamTransformer | undefined
+
+/** Adds the generated stylesheet only to Metro's Web graph. */
+export function withWebFontFaces(
+  source: string,
+  filename: string,
+  platform: string,
+  fontFaceCssPath: string | undefined,
+): string {
+  if (platform !== 'web' || fontFaceCssPath === undefined) return source
+  return `import ${JSON.stringify(importSpecifier(filename, fontFaceCssPath))}\n${source}`
+}
 
 /// The transformer this one wraps, in the order a project is likely to
 /// have it.
@@ -168,7 +179,11 @@ export async function transform(params: TransformParams): Promise<unknown> {
     compilerState.compiler,
     compilerState.stylexModules,
   )
-  const nextParams = rewritten === null ? params : { ...params, src: rewritten }
+  const withFonts =
+    rewritten === null
+      ? null
+      : withWebFontFaces(rewritten, params.filename, platform, state?.fontFaceCssPath)
+  const nextParams = withFonts === null ? params : { ...params, src: withFonts }
   return loadUpstream(projectRoot).transform(nextParams)
 }
 

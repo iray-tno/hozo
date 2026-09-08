@@ -8,6 +8,7 @@ import { createCompiler } from '@hozo/compiler'
 import { CACHE_DIR, StylexModuleCache, type StylexResolvedBindings } from '@hozo/compiler/project'
 
 import { metroStatePath, withHozo } from './config.ts'
+import { withWebFontFaces } from './index.ts'
 import { transformHozoSource } from './transform.ts'
 
 test('withHozo preserves Metro settings and records the existing transformer', async () => {
@@ -166,6 +167,34 @@ test('withHozo accepts a promised config and an explicit project root', async ()
       // Nothing was scanned, so nothing uses Tailwind, so no reset.
       preflight: false,
     })
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('font faces are written once and imported only by Metro Web', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-metro-fonts-'))
+  try {
+    const css = '@font-face { font-family: "Fixture"; src: url("/Fixture.woff2"); }'
+    await withHozo(
+      { projectRoot: root, transformer: {} },
+      { content: { include: [] }, fontFaceCss: css },
+    )
+    const state = JSON.parse(readFileSync(metroStatePath(root), 'utf8'))
+    assert.equal(readFileSync(state.fontFaceCssPath, 'utf8'), `${css}\n`)
+
+    const source = 'export const value = 1\n'
+    const web = withWebFontFaces(source, path.join(root, 'App.tsx'), 'web', state.fontFaceCssPath)
+    assert.match(web, /font-faces\.css/)
+    assert.match(web, /export const value/)
+    assert.equal(
+      withWebFontFaces(source, path.join(root, 'App.tsx'), 'ios', state.fontFaceCssPath),
+      source,
+    )
+    assert.equal(
+      withWebFontFaces(source, path.join(root, 'App.tsx'), 'android', state.fontFaceCssPath),
+      source,
+    )
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

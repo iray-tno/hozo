@@ -20,7 +20,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { createCompiler } from './index.ts'
-import { preflightEnabled } from './project.ts'
+import { preflightEnabled, webBaseCssFor } from './project.ts'
 
 const SOURCE = `import { Heading, Separator } from '@hozo/core'
 export function Rule() { return <Separator /> }
@@ -66,4 +66,13 @@ test('a caller that has never heard of the question gets no reset', () => {
   // the browser's own defaults, which is the answer that needs no
   // configuration to be true.
   assert.deepEqual(styles(undefined), styles(false))
+})
+
+test('font faces are independent of whether the project asks for a reset', () => {
+  const fonts = '@font-face { font-family: "Inter"; src: url("/Inter.woff2"); }\n'
+  assert.equal(webBaseCssFor(fonts, false, 'html { line-height: 1.5; }', true), fonts)
+  assert.equal(
+    webBaseCssFor(fonts, true, 'html { line-height: 1.5; }', false),
+    `${fonts.trim()}\n\nhtml { line-height: 1.5; }\n`,
+  )
 })

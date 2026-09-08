@@ -9,6 +9,7 @@ import {
   StylexModuleCache,
   type StylexResolutionRequest,
   type StylexResolvedBindings,
+  writeFileIfChanged,
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 
@@ -76,6 +77,8 @@ export interface HozoMetroState {
    * bare one (#315).
    */
   preflight?: boolean
+  /** Absolute generated stylesheet imported only by Metro's Web platform. */
+  fontFaceCssPath?: string
   /** Resolver-verified StyleX edges, isolated because Metro resolution is platform-aware. */
   stylexBindings?: Record<string, StylexResolvedBindings[]>
 }
@@ -184,11 +187,17 @@ export async function withHozo<T extends MetroConfigShape>(
     css: options.css,
     content: options.content,
   })
+  const fontFaceCss = options.fontFaceCss?.trim()
+  const fontFaceCssPath = fontFaceCss
+    ? path.join(projectRoot, CACHE_DIR, 'font-faces.css')
+    : undefined
+  if (fontFaceCssPath) writeFileIfChanged(fontFaceCssPath, `${fontFaceCss}\n`)
   const state: HozoMetroState = {
     upstreamTransformer,
     css: options.css,
     sources: options.sources,
     preflight: preflightEnabled(options.preflight, usesTailwind),
+    fontFaceCssPath,
   }
   const statePath = metroStatePath(projectRoot)
   const writeState = () => writeMetroState(statePath, state)
