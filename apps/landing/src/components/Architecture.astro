@@ -5,10 +5,10 @@
     <div class="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
       <span class="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">Internal Design</span>
       <h3 class="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4">
-        コンパイラ構造（木組みの工程）
+        Compiler Architecture
       </h3>
       <p class="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-        Rust と <a href="https://oxc.rs/" target="_blank" class="text-hinoki hover:underline font-semibold">oxc</a> による超高速 AST 解析。プラットフォーム非依存の中間表現（IR）が、Web と Native の完全な対称性を保証します。
+        High-performance AST parsing powered by Rust and <a href="https://oxc.rs/" target="_blank" class="text-hinoki hover:underline font-semibold">oxc</a>. A platform-independent Intermediate Representation (IR) guarantees symmetric compilation to Web and Native.
       </p>
     </div>
 
@@ -17,8 +17,8 @@
       <div class="space-y-6">
         <!-- Level 1: Input -->
         <div class="p-4 rounded-xl bg-yakisugi-900 border border-hinoki/20 text-center">
-          <div class="text-xs font-mono uppercase tracking-widest text-stone-400 mb-1">設計図 (Source Code)</div>
-          <div class="text-base font-bold text-shikkui">React Native TSX / @hozo/core プリミティブ</div>
+          <div class="text-xs font-mono uppercase tracking-widest text-stone-400 mb-1">Source Code</div>
+          <div class="text-base font-bold text-shikkui">React Native TSX / @hozo/core Primitives</div>
         </div>
 
         <div class="flex justify-center text-hinoki">
@@ -28,22 +28,22 @@
         <!-- Level 2: Rust Compiler Core -->
         <div class="p-6 rounded-xl bg-yakisugi-950/90 border border-hinoki/30">
           <div class="flex items-center justify-between mb-4">
-            <span class="text-xs font-mono font-bold text-hinoki uppercase tracking-widest">Rust Compiler Engine (木工旋盤)</span>
+            <span class="text-xs font-mono font-bold text-hinoki uppercase tracking-widest">Rust Compiler Engine</span>
             <span class="text-xs font-mono px-2.5 py-0.5 rounded bg-hinoki/15 text-hinoki-light border border-hinoki/30">hozo_parser & hozo_ir</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
             <div class="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/15 text-xs">
               <div class="font-bold text-hinoki mb-1">Style IR</div>
-              <div class="text-stone-400 text-[11px]">Tailwind・静的スタイル抽出</div>
+              <div class="text-stone-400 text-[11px]">Tailwind & static style extraction</div>
             </div>
             <div class="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/15 text-xs">
               <div class="font-bold text-tatami-light mb-1">Semantic IR</div>
-              <div class="text-stone-400 text-[11px]">ロール・要素・状態遷移</div>
+              <div class="text-stone-400 text-[11px]">Roles, elements & state transitions</div>
             </div>
             <div class="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/15 text-xs">
               <div class="font-bold text-bengara mb-1">Diagnostics</div>
-              <div class="text-stone-400 text-[11px]">W3C ARIA 静的検証</div>
+              <div class="text-stone-400 text-[11px]">W3C ARIA static validation</div>
             </div>
           </div>
         </div>
@@ -62,7 +62,7 @@
             </div>
             <div class="text-sm font-semibold text-shikkui mb-2">Semantic DOM + CSS + ARIA</div>
             <p class="text-xs text-stone-400">
-              純粋なセマンティック HTML タグ (&lt;h1&gt;, &lt;p&gt;, &lt;button&gt;)、事前計算 CSS クラス、ゼロランタイム。
+              Pure semantic HTML tags (&lt;h1&gt;, &lt;p&gt;, &lt;button&gt;), precomputed CSS classes, zero runtime.
             </p>
           </div>
 
@@ -74,7 +74,7 @@
             </div>
             <div class="text-sm font-semibold text-shikkui mb-2">React Native Fabric</div>
             <p class="text-xs text-stone-400">
-              View、Text、Pressable、および Metro AST 統合による事前計算済み StyleSheet オブジェクト。
+              View, Text, Pressable, and precomputed StyleSheet objects integrated into the Metro AST.
             </p>
           </div>
         </div>

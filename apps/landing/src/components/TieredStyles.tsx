@@ -15,11 +15,12 @@ export function TieredStyles() {
             level={2}
             className="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4"
           >
-            3段構えのスタイル解決 (Tiered Resolution)
+            Tiered Style Resolution
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            クラス名が動的でも、Hozo は妥協しません。完全な静的抽出から構造的ブール展開、
-            そして最終手段の動的キャッシュまで、三層の仕口でランタイム負荷を極小化します。
+            Even with dynamic class names, Hozo never compromises. From compile-time static
+            extraction to structural boolean toggles and incremental candidate caching, three
+            interlocking tiers eliminate runtime overhead.
           </Paragraph>
         </View>
 
@@ -29,27 +30,27 @@ export function TieredStyles() {
             <View>
               <View className="flex items-center justify-between mb-4">
                 <Text className="text-xs font-bold px-2.5 py-1 rounded bg-tatami-subtle text-tatami-light border border-tatami-subtle">
-                  第1層 • 静的 (Static)
+                  Tier 1 • Static
                 </Text>
                 <Text className="text-xs font-mono text-tatami-light font-semibold">
                   0ms Runtime
                 </Text>
               </View>
               <Heading level={3} className="text-lg font-bold text-shikkui mb-2">
-                削り出し（完全消去）
+                Pure Elimination
               </Heading>
               <Paragraph className="text-stone-400 text-sm mb-6">
-                文字列リテラルはビルド時に完全抽出。Web では本物の CSS クラス、Native では計算済みの
-                StyleSheet オブジェクトへと展開されます。
+                Literal class names are extracted during build time. Emitted as genuine CSS classes
+                on Web and precomputed StyleSheet objects on Native.
               </Paragraph>
               <div className="rounded-xl bg-yakisugi-950 border border-wood p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
-                <Text className="text-stone-500 block mb-1">{'// 入力 (Source)'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
                   <Text className="text-hinoki-light">className</Text>=
                   <Text className="text-tatami-light">"p-4 bg-blue-500"</Text> /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web 出力 (Pure HTML)'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Web Output (Pure HTML)'}</Text>
                 <Text className="text-tatami-light block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
                   <Text className="text-hinoki-light">class</Text>=
@@ -58,8 +59,9 @@ export function TieredStyles() {
               </div>
             </View>
             <View className="text-xs text-stone-400 border-t border-wood pt-4">
-              &bull; JavaScript ランタイムコスト 0<br />
-              &bull; ブラウザネイティブの CSS カスケード
+              &bull; Zero JavaScript runtime cost
+              <br />
+              &bull; Browser-native CSS cascade
             </View>
           </View>
 
@@ -68,26 +70,27 @@ export function TieredStyles() {
             <View>
               <View className="flex items-center justify-between mb-4">
                 <Text className="text-xs font-bold px-2.5 py-1 rounded bg-wood-subtle text-hinoki-light border border-wood">
-                  第2層 • 構造的 (Structural)
+                  Tier 2 • Structural
                 </Text>
                 <Text className="text-xs font-mono text-hinoki font-semibold">Boolean Toggle</Text>
               </View>
               <Heading level={3} className="text-lg font-bold text-shikkui mb-2">
-                条件分岐の事前展開
+                Precompiled Branching
               </Heading>
               <Paragraph className="text-stone-400 text-sm mb-6">
-                <code className="text-shikkui-muted text-xs font-mono">cn(...)</code> などの条件式は
-                AST
-                を保持したまま両方の枝をビルド時に事前コンパイル。実行時には真偽値の反転のみが残ります。
+                Conditionals like{' '}
+                <code className="text-shikkui-muted text-xs font-mono">cn(...)</code> are
+                pre-compiled for both branches while preserving AST shape. At runtime, only a fast
+                boolean toggle remains.
               </Paragraph>
               <div className="rounded-xl bg-yakisugi-950 border border-wood p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
-                <Text className="text-stone-500 block mb-1">{'// 入力 (Source)'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
                   <Text className="text-hinoki-light">className</Text>=
                   {`={cn('p-4', active && 'bg-blue-500')}`} /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web 出力'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Web Output'}</Text>
                 <Text className="text-hinoki block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
                   <Text className="text-hinoki-light">class</Text>=
@@ -96,9 +99,9 @@ export function TieredStyles() {
               </div>
             </View>
             <View className="text-xs text-stone-400 border-t border-wood pt-4">
-              &bull; 事前計算済み CSS クラス名
+              &bull; Precalculated CSS class names
               <br />
-              &bull; 実行時スタイル再計算エンジンの排除
+              &bull; Zero runtime style recalculation
             </View>
           </View>
 
@@ -107,26 +110,26 @@ export function TieredStyles() {
             <View>
               <View className="flex items-center justify-between mb-4">
                 <Text className="text-xs font-bold px-2.5 py-1 rounded bg-bengara-subtle text-bengara-hover border border-bengara-subtle">
-                  第3層 • 動的 (Dynamic)
+                  Tier 3 • Dynamic
                 </Text>
                 <Text className="text-xs font-mono text-bengara font-semibold">
                   Cached Fallback
                 </Text>
               </View>
               <Heading level={3} className="text-lg font-bold text-shikkui mb-2">
-                プロジェクト全体キャッシュ
+                Whole-Project Cache
               </Heading>
               <Paragraph className="text-stone-400 text-sm mb-6">
-                props や外部から渡される未知の変数について、Hozo
-                はプロジェクト内の候補クラスを走査・事前生成し、高速キャッシュルックアップで対応します。
+                For props and unknown dynamic variables, Hozo analyzes candidate classes across the
+                project and pre-generates them into a high-speed cached lookup.
               </Paragraph>
               <div className="rounded-xl bg-yakisugi-950 border border-wood p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
-                <Text className="text-stone-500 block mb-1">{'// 入力 (Source)'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
                   <Text className="text-hinoki-light">className</Text>={`={props.className}`} /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web 出力'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Web Output'}</Text>
                 <Text className="text-bengara block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
                   <Text className="text-hinoki-light">class</Text>={`={hzRuntime(props.className)}`}{' '}
@@ -135,9 +138,9 @@ export function TieredStyles() {
               </div>
             </View>
             <View className="text-xs text-stone-400 border-t border-wood pt-4">
-              &bull; インクリメンタルな候補キャッシュ
+              &bull; Incremental candidate caching
               <br />
-              &bull; CSS ルールの抜け漏れを根絶
+              &bull; Zero missing CSS rules
             </View>
           </View>
         </View>

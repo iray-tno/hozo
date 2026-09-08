@@ -5,11 +5,10 @@
     <div class="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
       <span class="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">Accessibility-First</span>
       <h3 class="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4">
-        誰もが通れる、頑丈な構造を組む
+        Accessible by Structure, Not Afterthought
       </h3>
       <p class="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-        アクセシビリティは後付けの装飾ではなく、建築の土台です。Hozo はビルド時に W3C ARIA 違反を検知し、
-        キーボードと支援技術に対応した振る舞いを構造から保証します。
+        Accessibility isn't decorative trim—it is the foundational joinery of software. Hozo enforces W3C ARIA conformance at compile time and provides seamless cross-platform keyboard and focus behaviors.
       </p>
     </div>
 
@@ -22,9 +21,9 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h4 class="text-xl font-bold text-shikkui mb-3">ビルド時 ARIA 静的検査</h4>
+          <h4 class="text-xl font-bold text-shikkui mb-3">Compile-Time ARIA Verification</h4>
           <p class="text-stone-400 text-sm leading-relaxed mb-6">
-            機械可読な W3C 仕様 <code class="text-shikkui-muted text-xs">aria-query</code> から直接導出されたルールで、無効なロールや属性不足をコンパイル時に検知。本番環境にバグを出荷させません。
+            Directly derived from the machine-readable W3C specification via <code class="text-shikkui-muted text-xs">aria-query</code>. Catches invalid roles, missing attributes, and malformed states during compilation before they ship to production.
           </p>
 
           <div class="p-4 rounded-xl bg-bengara/10 border border-bengara/30 font-mono text-xs text-shikkui">
@@ -35,10 +34,10 @@
 
         <ul class="mt-6 text-xs text-stone-400 space-y-2 border-t border-hinoki/10 pt-4">
           <li class="flex items-center gap-2">
-            <span class="text-tatami-light">&#x2713;</span> 自動マッピング (<code class="text-shikkui-muted">header &rarr; heading</code>, <code class="text-shikkui-muted">search &rarr; searchbox</code>)
+            <span class="text-tatami-light">&#x2713;</span> Automatic semantic mapping (<code class="text-shikkui-muted">header &rarr; heading</code>, <code class="text-shikkui-muted">search &rarr; searchbox</code>)
           </li>
           <li class="flex items-center gap-2">
-            <span class="text-tatami-light">&#x2713;</span> 抽象ロール警告 (<code class="text-shikkui-muted">role="widget"</code>)
+            <span class="text-tatami-light">&#x2713;</span> Abstract role warnings (<code class="text-shikkui-muted">role="widget"</code>)
           </li>
         </ul>
       </div>
@@ -51,9 +50,9 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
             </svg>
           </div>
-          <h4 class="text-xl font-bold text-shikkui mb-3">建具としての振る舞い (@hozo/behaviors)</h4>
+          <h4 class="text-xl font-bold text-shikkui mb-3">Accessible Behaviors (@hozo/behaviors)</h4>
           <p class="text-stone-400 text-sm leading-relaxed mb-6">
-            障子や引き戸のように、スムーズで整然とした対話パターン — フォーカス管理、キーボード操作、roving tabindex、衝突検知アンカリングをクロスプラットフォームで提供します。
+            Smooth, dependable interaction mechanics across Web and Native: focus management, keyboard navigation, roving tabindex, and collision-aware anchoring.
           </p>
 
           <div class="grid grid-cols-2 gap-3 font-mono text-xs">
@@ -74,10 +73,10 @@
 
         <ul class="mt-6 text-xs text-stone-400 space-y-2 border-t border-hinoki/10 pt-4">
           <li class="flex items-center gap-2">
-            <span class="text-tatami-light">&#x2713;</span> WAI-ARIA 準拠のキーボードリスナー
+            <span class="text-tatami-light">&#x2713;</span> WAI-ARIA compliant keyboard listeners
           </li>
           <li class="flex items-center gap-2">
-            <span class="text-tatami-light">&#x2713;</span> モーダルクローズ時の確実なフォーカス復元
+            <span class="text-tatami-light">&#x2713;</span> Deterministic focus restoration on dismissal
           </li>
         </ul>
       </div>

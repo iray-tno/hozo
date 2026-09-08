@@ -16,11 +16,11 @@ export function Hero({ baseUrl = '' }: HeroProps) {
 
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-4xl mx-auto flex flex-col items-center">
-          {/* Architectural badge / ほぞの理念 */}
+          {/* Architectural badge */}
           <View className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-yakisugi-800 border-wood-strong shadow-inner mb-8 border">
             <View className="flex h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
             <Text className="text-xs font-semibold text-hinoki-light">
-              ほぞ — Rust-powered Universal UI Compiler
+              Hozo — Rust-powered Universal UI Compiler
             </Text>
             <Text className="text-xs text-stone-500">•</Text>
             <Text className="text-xs text-shikkui-muted font-medium">
@@ -33,21 +33,18 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             level={1}
             className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-shikkui mb-6 leading-[1.12]"
           >
-            釘を使わず木を組むように。
+            Like joinery without nails.
             <br />
-            <Text className="gradient-text">Semantic Web & Fabric へ直截にコンパイル。</Text>
+            <Text className="gradient-text">Compiled cleanly to Semantic Web & Fabric.</Text>
           </Heading>
 
           {/* Subtitle */}
           <Paragraph className="text-lg sm:text-xl text-shikkui-muted mb-10 leading-relaxed max-w-3xl mx-auto">
-            日本の伝統木工「ほぞ継ぎ」のように、余計なランタイムを挟まず React Native
-            コンポーネントを 各プラットフォームの真のプリミティブへ精密に噛み合わせます。
-            <Text className="text-shikkui font-semibold">
-              {' '}
-              Web では Semantic HTML・CSS・W3C ARIA
-            </Text>
-            、<Text className="text-shikkui font-semibold">Native では Fabric と StyleSheet</Text>
-            へと静的に引き下げます。
+            Inspired by traditional Japanese joinery, Hozo fits React Native components into each
+            platform's native primitives without extraneous runtime glue:
+            <Text className="text-shikkui font-semibold"> Semantic HTML, CSS, and W3C ARIA</Text> on
+            Web, and <Text className="text-shikkui font-semibold">Fabric and StyleSheet</Text> on
+            Native.
           </Paragraph>
 
           {/* CTA Links */}
@@ -62,13 +59,13 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               href="#integrations"
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-hinoki-light bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              建築モデル（5大Bundlers）
+              Supported Bundlers
             </Link>
             <Link
               href="https://github.com/iray-tno/hozo/blob/main/docs/proposal.md"
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted bg-yakisugi-800 hover:bg-yakisugi-700 border border-stone-800 hover:border-stone-700 transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
             >
-              <span>設計提案書 (日本語)</span>
+              <span>Proposal (JP)</span>
             </Link>
           </View>
 
@@ -84,13 +81,13 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           <View className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl w-full text-left">
             <View className="p-4 rounded-xl timber-panel">
               <Text className="text-2xl font-bold text-shikkui mb-1 block">0 ms</Text>
-              <Text className="text-xs text-stone-400 block">静的スタイルのランタイム負荷</Text>
+              <Text className="text-xs text-stone-400 block">Runtime cost for static styles</Text>
             </View>
             <View className="p-4 rounded-xl timber-panel">
               <Text className="text-2xl font-bold text-hinoki mb-1 block">W3C ARIA</Text>
               <Text className="text-xs text-stone-400 block">
-                <code className="text-shikkui-muted text-xs font-mono">aria-query</code>{' '}
-                による静的検証
+                Static validation via{' '}
+                <code className="text-shikkui-muted text-xs font-mono">aria-query</code>
               </Text>
             </View>
             <View className="p-4 rounded-xl timber-panel">
@@ -101,7 +98,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </View>
             <View className="p-4 rounded-xl timber-panel">
               <Text className="text-2xl font-bold text-bengara mb-1 block">Rust Core</Text>
-              <Text className="text-xs text-stone-400 block">oxc による高速 AST 構文解析</Text>
+              <Text className="text-xs text-stone-400 block">High-speed AST parsing with oxc</Text>
             </View>
           </View>
         </View>
