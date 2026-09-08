@@ -25,7 +25,7 @@ export function Philosophy() {
         <View className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {/* Pillar 1 */}
           <View className="p-8 rounded-2xl timber-panel relative overflow-hidden group hover:border-wood-strong transition-all border border-wood">
-            <View className="w-12 h-12 rounded-xl bg-wood-subtle border border-wood flex items-center justify-center text-hinoki font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono">
+            <View className="w-12 h-12 rounded-xl bg-yakisugi-800 timber-grain timber-plank border border-wood-strong flex items-center justify-center text-hinoki font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono shadow-sm">
               01
             </View>
             <Heading level={3} className="text-xl font-bold text-shikkui mb-3">
@@ -46,7 +46,7 @@ export function Philosophy() {
 
           {/* Pillar 2 */}
           <View className="p-8 rounded-2xl timber-panel relative overflow-hidden group hover:border-wood-strong transition-all border border-wood">
-            <View className="w-12 h-12 rounded-xl bg-bengara-subtle border border-bengara-subtle flex items-center justify-center text-bengara font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono">
+            <View className="w-12 h-12 rounded-xl bg-yakisugi-800 timber-grain timber-plank border border-bengara-subtle flex items-center justify-center text-bengara font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono shadow-sm">
               02
             </View>
             <Heading level={3} className="text-xl font-bold text-shikkui mb-3">
@@ -70,7 +70,7 @@ export function Philosophy() {
 
           {/* Pillar 3 */}
           <View className="p-8 rounded-2xl timber-panel relative overflow-hidden group hover:border-wood-strong transition-all border border-wood">
-            <View className="w-12 h-12 rounded-xl bg-tatami-subtle border border-tatami-subtle flex items-center justify-center text-tatami-light font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono">
+            <View className="w-12 h-12 rounded-xl bg-yakisugi-800 timber-grain timber-plank border border-tatami-subtle flex items-center justify-center text-tatami-light font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono shadow-sm">
               03
             </View>
             <Heading level={3} className="text-xl font-bold text-shikkui mb-3">
@@ -88,7 +88,7 @@ export function Philosophy() {
 
           {/* Pillar 4 */}
           <View className="p-8 rounded-2xl timber-panel relative overflow-hidden group hover:border-wood-strong transition-all border border-wood">
-            <View className="w-12 h-12 rounded-xl bg-wood-subtle border border-wood flex items-center justify-center text-hinoki-light font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono">
+            <View className="w-12 h-12 rounded-xl bg-yakisugi-800 timber-grain timber-plank border border-wood-strong flex items-center justify-center text-hinoki-light font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono shadow-sm">
               04
             </View>
             <Heading level={3} className="text-xl font-bold text-shikkui mb-3">

@@ -43,7 +43,13 @@ const homeUrl = baseUrl ? `${baseUrl}/` : '/'
       <a href={`${homeUrl}#architecture`} class="hover:text-shikkui transition-colors">Architecture</a>
     </nav>
 
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 sm:gap-3">
+      <a
+        href={`${baseUrl}/repl/`}
+        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-bengara hover:bg-bengara-hover text-shikkui shadow-sm transition-all md:hidden"
+      >
+        <span>REPL</span>
+      </a>
       <a
         href="https://github.com/iray-tno/hozo"
         target="_blank"

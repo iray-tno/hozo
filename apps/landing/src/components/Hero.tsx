@@ -16,10 +16,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
 
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-4xl mx-auto flex flex-col items-center">
-          {/* Architectural badge */}
-          <View className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-yakisugi-800 border-wood-strong shadow-inner mb-8 border">
+          {/* Architectural timber plaque */}
+          <View className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-lg mb-8 border">
             <View className="flex h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
-            <Text className="text-xs font-semibold text-hinoki-light">
+            <Text className="text-xs font-bold text-hinoki-light tracking-wide">
               Hozo — Rust-powered Universal UI Compiler
             </Text>
             <Text className="text-xs text-stone-500">•</Text>
@@ -50,22 +50,31 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           {/* CTA Links */}
           <View className="flex flex-wrap items-center justify-center gap-4 mb-12">
             <Link
-              href={storybookUrl}
+              href={`${cleanBase}/repl/`}
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-bengara hover:bg-bengara-hover shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
+            >
+              <span>Interactive REPL</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-yakisugi-950 text-hinoki-light border border-wood">
+                Playground
+              </span>
+            </Link>
+            <Link
+              href={storybookUrl}
+              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
             >
               <span>Explore Storybook</span>
             </Link>
             <Link
-              href="#integrations"
-              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-hinoki-light bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+              href={`${cleanBase}/reports/`}
+              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-hinoki-light hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
             >
-              Supported Bundlers
+              <span>Test Reports (Allure)</span>
             </Link>
             <Link
-              href="https://github.com/iray-tno/hozo/blob/main/docs/proposal.md"
-              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted bg-yakisugi-800 hover:bg-yakisugi-700 border border-stone-800 hover:border-stone-700 transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
+              href={`${cleanBase}/conformance/`}
+              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
             >
-              <span>Proposal (JP)</span>
+              <span>Conformance Matrix</span>
             </Link>
           </View>
 
@@ -79,24 +88,24 @@ export function Hero({ baseUrl = '' }: HeroProps) {
 
           {/* Key Metrics & Badges */}
           <View className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl w-full text-left">
-            <View className="p-4 rounded-xl timber-panel">
+            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
               <Text className="text-2xl font-bold text-shikkui mb-1 block">0 ms</Text>
               <Text className="text-xs text-stone-400 block">Runtime cost for static styles</Text>
             </View>
-            <View className="p-4 rounded-xl timber-panel">
+            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
               <Text className="text-2xl font-bold text-hinoki mb-1 block">W3C ARIA</Text>
               <Text className="text-xs text-stone-400 block">
                 Static validation via{' '}
                 <code className="text-shikkui-muted text-xs font-mono">aria-query</code>
               </Text>
             </View>
-            <View className="p-4 rounded-xl timber-panel">
+            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
               <Text className="text-2xl font-bold text-tatami-light mb-1 block">5 Bundlers</Text>
               <Text className="text-xs text-stone-400 block">
                 Vite, Next, Metro, Storybook, TanStack
               </Text>
             </View>
-            <View className="p-4 rounded-xl timber-panel">
+            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
               <Text className="text-2xl font-bold text-bengara mb-1 block">Rust Core</Text>
               <Text className="text-xs text-stone-400 block">High-speed AST parsing with oxc</Text>
             </View>
