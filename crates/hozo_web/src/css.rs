@@ -955,12 +955,28 @@ fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
         // `var(--hozo-color-#ff0000)`.
         Color::Css(text) => return text.clone(),
     };
-    match theme.color(token) {
+    // The opacity modifier travels with the token -- `blue-500/50` -- and
+    // is split off here rather than by the parser, so that the palette,
+    // the project theme and the unresolved fallback all see the name
+    // Tailwind actually defines.
+    let (token, alpha) = hozo_ir::split_color_alpha(token);
+    let resolved = match theme.color(token) {
         Some(resolved) => resolved.oklch,
         // Not in the project's theme either. Still a reference rather than
         // a guess: correct-but-unresolved, which is what this has always
         // done for a token nothing defines.
         None => format!("{UNRESOLVED_COLOR_PREFIX}{token})"),
+    };
+    match alpha {
+        None => resolved,
+        // What Tailwind emits for the modifier, and it emits two: an
+        // `in srgb` fallback holding the literal colour, then an
+        // `in oklab` holding the theme variable. Hozo resolves the
+        // literal already, so the second form with the resolved colour
+        // in it is the one that says the same thing -- and it is the one
+        // the conformance normaliser compares against, because a later
+        // declaration of the same property wins.
+        Some(alpha) => format!("color-mix(in oklab, {resolved} {}%, transparent)", alpha * 100.0),
     }
 }
 
@@ -2451,6 +2467,29 @@ mod tests {
         let (name, value) = property_and_value(&prop, &Theme::default());
         assert_eq!(name, "background-color");
         assert_eq!(value, "oklch(62.3% 0.214 259.815)");
+    }
+
+    #[test]
+    fn an_opacity_modifier_becomes_a_color_mix() {
+        // Tailwind's own output for `bg-blue-500/50` is two declarations:
+        // an `in srgb` fallback holding the literal colour and an
+        // `in oklab` holding the theme variable. Hozo resolves the literal
+        // already, so one declaration says the same thing -- and the later
+        // of Tailwind's two is the one a declaration map keeps.
+        let prop = StyleProperty::BackgroundColor(Color::Token("blue-500/50".to_string()));
+        let (name, value) = property_and_value(&prop, &Theme::default());
+        assert_eq!(name, "background-color");
+        assert_eq!(value, "color-mix(in oklab, oklch(62.3% 0.214 259.815) 50%, transparent)");
+    }
+
+    #[test]
+    fn a_modifier_that_is_not_a_percentage_stays_unresolved() {
+        // The marker is the honest answer for something this cannot
+        // evaluate. Tailwind also accepts `/[0.5]` and `/(--var)`, and
+        // guessing at either would be worse than saying nothing.
+        let prop = StyleProperty::BackgroundColor(Color::Token("blue-500/[0.5]".to_string()));
+        let (_, value) = property_and_value(&prop, &Theme::default());
+        assert_eq!(value, "var(--hozo-color-blue-500/[0.5])");
     }
 
     #[test]

@@ -89,6 +89,21 @@ export const CANDIDATE_GROUPS: Record<string, string[]> = {
     'text-black',
     'border-red-500',
     'bg-transparent',
+    // The opacity modifier, which this list did not contain in any form
+    // until a colour with one turned out to compile to an invalid CSS
+    // declaration on Web and an unparseable string on Native -- silently,
+    // for as long as the modifier has been accepted. The report is
+    // measured against Tailwind's own output, so a class the list never
+    // names is a question the denominator never asks.
+    //
+    // Four rather than one: a long hex (`blue-500`), the two short ones
+    // (`black`, `white`) that the first fix mishandled because the palette
+    // writes them `#000` and `#fff`, and a border to cover the third
+    // property family.
+    'bg-blue-500/50',
+    'text-white/70',
+    'bg-black/25',
+    'border-slate-300/40',
   ],
   border: [
     'border',

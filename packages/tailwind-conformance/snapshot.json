@@ -37,22 +37,22 @@
     "silent": 0
   },
   "web": {
-    "candidates": 120,
-    "comparable": 120,
-    "coverage": 120,
-    "fidelity": 120,
+    "candidates": 124,
+    "comparable": 124,
+    "coverage": 124,
+    "fidelity": 124,
     "skipped": 0
   },
   "native": {
-    "candidates": 120,
-    "covered": 114,
+    "candidates": 124,
+    "covered": 118,
     "refused": 5,
     "silent": 0,
     "noOp": 1
   },
   "a11yContracts": {
-    "cases": 32,
-    "covered": 32,
+    "cases": 33,
+    "covered": 33,
     "primitives": 48,
     "uncontracted": 0
   },
@@ -100,7 +100,7 @@
     "rejected": 0
   },
   "render": {
-    "rendered": 120,
+    "rendered": 124,
     "dangling": 0
   },
   "runtime": {
