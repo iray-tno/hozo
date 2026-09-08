@@ -214,20 +214,40 @@ dismiss_system_dialog() {
   grep -q "isn't responding" "$into" || return 0
   echo "a system dialog is in front of the app:"
   grep -o 'text="[^"]*isn.t responding"' "$into" | sed 's/^/  /' || true
-  local x y
-  if read -r x y < <(centre_of "$into" android:id/aerr_wait); then
-    echo "  pressing Wait at ${x},${y}"
-    adb shell input tap "$x" "$y"
-    sleep 3
-  else
-    echo '  no Wait button in it; pressing Back'
-    adb shell input keyevent KEYCODE_BACK
-    sleep 3
-  fi
-  dump "$into"
-  if grep -q "isn't responding" "$into"; then
-    fail 'a system dialog kept coming back: this emulator is too loaded to be asked'
-  fi
+
+  # Three attempts with a growing wait, rather than the one short retry
+  # this had first. Pressing Wait dismisses the dialog and tells Android to
+  # keep waiting for the unresponsive app -- which is the *launcher* here,
+  # not this one -- and a launcher that is still stuck puts the dialog
+  # straight back. The first version pressed once, looked eight seconds
+  # later, found it again and gave up; the load that caused it takes longer
+  # than that to clear.
+  local x y attempt
+  for attempt in 1 2 3; do
+    if read -r x y < <(centre_of "$into" android:id/aerr_wait); then
+      echo "  attempt ${attempt}: pressing Wait at ${x},${y}"
+      adb shell input tap "$x" "$y"
+    else
+      echo "  attempt ${attempt}: no Wait button in it; pressing Back"
+      adb shell input keyevent KEYCODE_BACK
+    fi
+    # The dialog belonged to another app, so dismissing it leaves whatever
+    # was behind it in front -- which may be the launcher rather than this
+    # app. Asking for the activity again is idempotent and puts the window
+    # being measured back where the dump can see it.
+    #
+    # Safe to do mid-round-trip because `MainActivity` is `singleTask` in
+    # the manifest: this brings the running instance forward and delivers
+    # `onNewIntent` rather than starting a second one, so the dialog under
+    # test is still open behind the system one.
+    adb shell am start -n "$activity" > /dev/null 2>&1 || true
+    sleep $((attempt * 5))
+    still_alive 'while a system dialog was in front of it'
+    dump "$into"
+    grep -q "isn't responding" "$into" || return 0
+  done
+
+  fail 'a system dialog kept coming back after three tries: this emulator is too loaded to be asked'
 }
 
 echo "reading the accessibility tree"
