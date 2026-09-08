@@ -12,13 +12,12 @@ export function Philosophy() {
             level={2}
             className="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4"
           >
-            Obsessively Performant. Accessible by Default.
+            Performant by Design. Accessible by Structure.
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            Cross-platform UI usually forces a painful choice: compromise the Web with div-soup and
-            heavy runtime CSS-in-JS, or compromise Mobile with WebViews. Hozo rejects runtime
-            glue—compiling standard React Native components directly into each platform's truest,
-            highest-performance native primitives.
+            Cross-platform UI usually forces an unwanted compromise: heavy client-side wrappers on the Web,
+            or inflexible WebViews on Mobile. Hozo eliminates unnecessary runtime wrappers—compiling
+            standard React Native components directly into each platform's native primitives.
           </Paragraph>
         </View>
 
@@ -70,15 +69,15 @@ export function Philosophy() {
               03
             </View>
             <Heading level={3} className="text-xl font-bold text-shikkui mb-3">
-              Obsessively Performant
+              Zero-Runtime Static Paths
             </Heading>
             <Paragraph className="text-stone-400 text-sm leading-relaxed mb-4">
               All static styles compile to zero-runtime CSS classes on Web and precomputed
-              StyleSheets on Native. Static utilities cost 0ms at runtime; dynamic expressions fold
-              at compile time to eliminate JS thread contention.
+              StyleSheets on Native. Static utilities cost 0ms at runtime; finite dynamic branches
+              are precompiled so runtime work is reduced to the remaining condition.
             </Paragraph>
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-xs text-tatami-light font-mono">
-              Static (0ms) &rarr; Structural (Boolean fold) &rarr; Dynamic fallback
+              Static (0 JS) &rarr; Structural (Boolean fold) &rarr; Dynamic fallback
             </View>
           </View>
 
@@ -98,7 +97,7 @@ export function Philosophy() {
               <code className="text-shikkui-muted text-xs font-mono">&lt;h1&gt;-&lt;h6&gt;</code>,{' '}
               <code className="text-shikkui-muted text-xs font-mono">Section</code> becomes{' '}
               <code className="text-shikkui-muted text-xs font-mono">&lt;section&gt;</code>, and on
-              Mobile they lower to native Fabric components.
+              Mobile they lower to native React Native primitives rendered by Fabric.
             </Paragraph>
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-xs text-hinoki-light font-mono">
               <Text className="text-hinoki">import</Text> {'{ Heading, Section, Button }'}{' '}

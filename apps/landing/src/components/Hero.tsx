@@ -24,7 +24,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </Text>
             <Text className="text-xs text-stone-600 select-none">•</Text>
             <Text className="text-xs sm:text-sm text-shikkui-muted font-medium tracking-wide">
-              Zero Runtime • Semantic Web & Mobile
+              Zero Runtime on Static Paths • Minimal Runtime for Dynamic Behaviors
             </Text>
           </View>
 
@@ -42,9 +42,9 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           <Paragraph className="text-lg sm:text-xl text-shikkui-muted mb-10 leading-relaxed max-w-3xl mx-auto">
             Hozo compiles universal React Native components directly into platform-native primitives
             at build time: genuine{' '}
-            <Text className="text-shikkui font-semibold">HTML, CSS, and W3C ARIA</Text> on Web, and
-            true <Text className="text-shikkui font-semibold">Fabric views & StyleSheet</Text> on
-            iOS & Android. Zero runtime glue, zero div-soup.
+            <Text className="text-shikkui font-semibold">HTML, CSS, and W3C ARIA</Text> on Web, and{' '}
+            <Text className="text-shikkui font-semibold">React Native primitives & StyleSheet</Text>,
+            rendered by Fabric on iOS & Android. Zero div-soup, zero runtime overhead on static paths.
           </Paragraph>
 
           {/* CTA Links */}
@@ -89,10 +89,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           {/* Key Metrics & Badges */}
           <View className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl w-full text-left">
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
-              <Text className="text-2xl font-bold text-shikkui mb-1 block">0 ms</Text>
+              <Text className="text-2xl font-bold text-shikkui mb-1 block">Static Paths</Text>
               <Text className="text-xs text-stone-400 block">
-                <Text className="text-shikkui-muted font-semibold">Zero runtime</Text> cost for
-                static styles
+                <Text className="text-shikkui-muted font-semibold">0 JS runtime</Text> cost for
+                static styles & primitives
               </Text>
             </View>
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
@@ -103,16 +103,15 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               </Text>
             </View>
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
-              <Text className="text-2xl font-bold text-tatami-light mb-1 block">5 Bundlers</Text>
+              <Text className="text-2xl font-bold text-tatami-light mb-1 block">5 Integrations</Text>
               <Text className="text-xs text-stone-400 block">
-                Vite, Next, Metro, Storybook, TanStack
+                Vite, Next.js, Metro, Storybook, TanStack
               </Text>
             </View>
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
               <Text className="text-2xl font-bold text-bengara mb-1 block">Rust Core</Text>
               <Text className="text-xs text-stone-400 block">
-                <Text className="text-shikkui-muted font-semibold">Obsessively fast</Text> AST
-                lowering with oxc
+                <Text className="text-shikkui-muted font-semibold">Fast AST lowering</Text> with oxc
               </Text>
             </View>
           </View>

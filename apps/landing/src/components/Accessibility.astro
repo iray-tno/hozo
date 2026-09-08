@@ -8,7 +8,7 @@
         Accessible by Structure, Not Afterthought
       </h3>
       <p class="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-        Accessibility isn't decorative trim—it is the foundational joinery of software. Hozo enforces W3C ARIA conformance at compile time and provides seamless cross-platform keyboard and focus behaviors.
+        Accessibility isn't decorative trim—it is the foundational joinery of software. Hozo validates supported WAI-ARIA role and attribute constraints at compile time and provides seamless cross-platform keyboard and focus behaviors.
       </p>
     </div>
 
@@ -27,8 +27,8 @@
           </p>
 
           <div class="p-4 rounded-xl bg-bengara/10 border border-bengara/30 font-mono text-xs text-shikkui">
-            <div class="text-bengara font-semibold mb-1">&#x2715; Hozo Diagnostic [A11Y-004]</div>
-            <div class="text-stone-300">Element with role="checkbox" requires aria-checked (or accessibilityState.checked)</div>
+            <div class="text-bengara font-semibold mb-1">&#x2715; Hozo Diagnostic [ARIA_INCOMPLETE_PATTERN]</div>
+            <div class="text-stone-300">`role="checkbox"` needs aria-checked to mean anything, and this element has none of them.</div>
           </div>
         </div>
 

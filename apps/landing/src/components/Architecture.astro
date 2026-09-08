@@ -8,7 +8,7 @@
         Compiler Architecture
       </h3>
       <p class="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-        High-performance AST parsing powered by Rust and <a href="https://oxc.rs/" target="_blank" class="text-hinoki hover:underline font-semibold">oxc</a>. A platform-independent Intermediate Representation (IR) guarantees symmetric compilation to Web and Native.
+        High-performance AST parsing powered by Rust and <a href="https://oxc.rs/" target="_blank" class="text-hinoki hover:underline font-semibold">oxc</a>. A shared IR drives both backends while making platform asymmetries explicit.
       </p>
     </div>
 
@@ -62,7 +62,7 @@
             </div>
             <div class="text-sm font-semibold text-shikkui mb-2">Semantic DOM + CSS + ARIA</div>
             <p class="text-xs text-stone-400">
-              Pure semantic HTML tags (&lt;h1&gt;, &lt;p&gt;, &lt;button&gt;), precomputed CSS classes, zero runtime.
+              Pure semantic HTML tags (&lt;h1&gt;, &lt;p&gt;, &lt;button&gt;), precomputed CSS classes, zero runtime on static paths.
             </p>
           </div>
 
@@ -72,9 +72,9 @@
               <span class="text-xs font-mono font-bold text-tatami-light">Native Backend</span>
               <span class="text-[10px] font-mono text-stone-400">crates/hozo_native</span>
             </div>
-            <div class="text-sm font-semibold text-shikkui mb-2">React Native Fabric</div>
+            <div class="text-sm font-semibold text-shikkui mb-2">React Native Primitives (Fabric)</div>
             <p class="text-xs text-stone-400">
-              View, Text, Pressable, and precomputed StyleSheet objects integrated into the Metro AST.
+              View, Text, Pressable, and precomputed StyleSheet objects rendered by React Native's Fabric engine.
             </p>
           </div>
         </div>

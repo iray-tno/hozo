@@ -50,11 +50,11 @@ export function TieredStyles() {
                   <Text className="text-hinoki-light">className</Text>=
                   <Text className="text-tatami-light">"p-4 bg-blue-500"</Text> /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web Output (Pure HTML)'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Web Output (Pure HTML & scoped CSS)'}</Text>
                 <Text className="text-tatami-light block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
-                  <Text className="text-hinoki-light">class</Text>=
-                  <Text className="text-tatami-light">"hz-p-4 hz-bg-blue-500"</Text> /&gt;
+                  <Text className="text-hinoki-light">className</Text>=
+                  <Text className="text-tatami-light">"hozo-view hozo-0"</Text> /&gt;
                 </Text>
               </div>
             </View>
@@ -90,11 +90,11 @@ export function TieredStyles() {
                   <Text className="text-hinoki-light">className</Text>=
                   {`={cn('p-4', active && 'bg-blue-500')}`} /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web Output'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Web Output (Precompiled Branch)'}</Text>
                 <Text className="text-hinoki block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
-                  <Text className="text-hinoki-light">class</Text>=
-                  {`={"hz-p-4 " + (active ? "hz-bg-blue-500" : "")}`} /&gt;
+                  <Text className="text-hinoki-light">className</Text>=
+                  {`={"hozo-view " + (active ? "hozo-1" : "hozo-0")}`} /&gt;
                 </Text>
               </div>
             </View>
@@ -129,10 +129,10 @@ export function TieredStyles() {
                   &lt;<Text className="text-hinoki">View</Text>{' '}
                   <Text className="text-hinoki-light">className</Text>={`={props.className}`} /&gt;
                 </Text>
-                <Text className="text-stone-500 block mb-1">{'// Web Output'}</Text>
+                <Text className="text-stone-500 block mb-1">{'// Web Output (Cached Resolver)'}</Text>
                 <Text className="text-bengara block">
                   &lt;<Text className="text-hinoki">div</Text>{' '}
-                  <Text className="text-hinoki-light">class</Text>={`={hzRuntime(props.className)}`}{' '}
+                  <Text className="text-hinoki-light">className</Text>={`={hozoClasses(props.className)}`}{' '}
                   /&gt;
                 </Text>
               </div>

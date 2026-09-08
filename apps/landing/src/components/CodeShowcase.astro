@@ -9,7 +9,7 @@
       </h3>
       <p class="text-shikkui-muted text-base sm:text-lg leading-relaxed">
         From a single universal component, Hozo lowers directly to genuine Semantic HTML and CSS on the Web,
-        and native Fabric and StyleSheet on React Native. Zero wrapper runtimes.
+        and native React Native primitives and StyleSheet on Mobile.
       </p>
     </div>
 
@@ -56,13 +56,13 @@
               No RNW Wrapper
             </span>
           </div>
-          <pre class="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed"><code><span class="text-stone-500">// Semantic HTML & scoped CSS classes</span>
+          <pre class="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed"><code><span class="text-stone-500">// Real compiler output: semantic DOM & scoped atomic CSS</span>
 <span class="text-hinoki">export function</span> <span class="text-hinoki-light">NotificationCard</span>(&#123; <span class="text-shikkui-muted">title</span>, <span class="text-shikkui-muted">message</span>, <span class="text-shikkui-muted">onDismiss</span> &#125;) &#123;
   <span class="text-hinoki">return</span> (
-    &lt;<span class="text-tatami-light">div</span> <span class="text-hinoki">role</span>=<span class="text-tatami-light">"alert"</span> <span class="text-hinoki">class</span>=<span class="text-tatami-light">"hz-p-6 hz-rounded-2xl hz-bg-yakisugi-800 hz-border"</span>&gt;
-      &lt;<span class="text-tatami-light">h2</span> <span class="text-hinoki">class</span>=<span class="text-tatami-light">"hz-text-xl hz-font-bold hz-text-shikkui hz-mb-2"</span>&gt;&#123;title&#125;&lt;/<span class="text-tatami-light">h2</span>&gt;
-      &lt;<span class="text-tatami-light">p</span> <span class="text-hinoki">class</span>=<span class="text-tatami-light">"hz-text-stone-400 hz-text-sm hz-mb-4"</span>&gt;&#123;message&#125;&lt;/<span class="text-tatami-light">p</span>&gt;
-      &lt;<span class="text-tatami-light">button</span> <span class="text-hinoki">type</span>=<span class="text-tatami-light">"button"</span> <span class="text-hinoki">onClick</span>=&#123;onDismiss&#125; <span class="text-hinoki">class</span>=<span class="text-tatami-light">"hz-bg-bengara hz-px-4 hz-py-2 hz-text-shikkui"</span>&gt;
+    &lt;<span class="text-tatami-light">div</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"hozo-view hozo-0"</span> <span class="text-hinoki-light">role</span>=<span class="text-tatami-light">"alert"</span>&gt;
+      &lt;<span class="text-tatami-light">h2</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"hozo-1"</span>&gt;&#123;title&#125;&lt;/<span class="text-tatami-light">h2</span>&gt;
+      &lt;<span class="text-tatami-light">p</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"hozo-2"</span>&gt;&#123;message&#125;&lt;/<span class="text-tatami-light">p</span>&gt;
+      &lt;<span class="text-tatami-light">button</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"hozo-3"</span> <span class="text-hinoki-light">type</span>=<span class="text-tatami-light">"button"</span> <span class="text-hinoki-light">onClick</span>=&#123;onDismiss&#125;&gt;
         Dismiss
       &lt;/<span class="text-tatami-light">button</span>&gt;
     &lt;/<span class="text-tatami-light">div</span>&gt;
@@ -78,17 +78,17 @@
               Native Lowering (Fabric / StyleSheet)
             </span>
             <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-tatami/15 text-tatami-light border border-tatami/30">
-              Fabric Native
+              React Native / Fabric
             </span>
           </div>
-          <pre class="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed"><code><span class="text-stone-500">// React Native primitives + precomputed styles</span>
+          <pre class="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed"><code><span class="text-stone-500">// Real compiler output: StyleSheet & native primitives</span>
 <span class="text-hinoki">export function</span> <span class="text-hinoki-light">NotificationCard</span>(&#123; <span class="text-shikkui-muted">title</span>, <span class="text-shikkui-muted">message</span>, <span class="text-shikkui-muted">onDismiss</span> &#125;) &#123;
   <span class="text-hinoki">return</span> (
-    &lt;<span class="text-shikkui">View</span> <span class="text-stone-400">accessibilityRole</span>=<span class="text-tatami-light">"alert"</span> <span class="text-stone-400">style</span>=&#123;styles.card&#125;&gt;
-      &lt;<span class="text-shikkui">Text</span> <span class="text-stone-400">accessibilityRole</span>=<span class="text-tatami-light">"header"</span> <span class="text-stone-400">style</span>=&#123;styles.title&#125;&gt;&#123;title&#125;&lt;/<span class="text-shikkui">Text</span>&gt;
-      &lt;<span class="text-shikkui">Text</span> <span class="text-stone-400">style</span>=&#123;styles.body&#125;&gt;&#123;message&#125;&lt;/<span class="text-shikkui">Text</span>&gt;
-      &lt;<span class="text-shikkui">Pressable</span> <span class="text-stone-400">accessibilityRole</span>=<span class="text-tatami-light">"button"</span> <span class="text-stone-400">onPress</span>=&#123;onDismiss&#125; <span class="text-stone-400">style</span>=&#123;styles.button&#125;&gt;
-        &lt;<span class="text-shikkui">Text</span> <span class="text-stone-400">style</span>=&#123;styles.buttonText&#125;&gt;Dismiss&lt;/<span class="text-shikkui">Text</span>&gt;
+    &lt;<span class="text-shikkui">View</span> <span class="text-stone-400">style</span>=&#123;hozoStyles.hozo0&#125; <span class="text-stone-400">role</span>=<span class="text-tatami-light">"alert"</span>&gt;
+      &lt;<span class="text-shikkui">Text</span> <span class="text-stone-400">style</span>=&#123;hozoStyles.hozo1&#125; <span class="text-stone-400">accessibilityRole</span>=<span class="text-tatami-light">"header"</span>&gt;&#123;title&#125;&lt;/<span class="text-shikkui">Text</span>&gt;
+      &lt;<span class="text-shikkui">Text</span> <span class="text-stone-400">style</span>=&#123;hozoStyles.hozo2&#125;&gt;&#123;message&#125;&lt;/<span class="text-shikkui">Text</span>&gt;
+      &lt;<span class="text-shikkui">Pressable</span> <span class="text-stone-400">style</span>=&#123;hozoStyles.hozo3&#125; <span class="text-stone-400">accessibilityRole</span>=<span class="text-tatami-light">"button"</span> <span class="text-stone-400">onPress</span>=&#123;onDismiss&#125;&gt;
+        &lt;<span class="text-shikkui">Text</span> <span class="text-stone-400">style</span>=&#123;hozoStyles.hozo3_text&#125;&gt;Dismiss&lt;/<span class="text-shikkui">Text</span>&gt;
       &lt;/<span class="text-shikkui">Pressable</span>&gt;
     &lt;/<span class="text-shikkui">View</span>&gt;
   )

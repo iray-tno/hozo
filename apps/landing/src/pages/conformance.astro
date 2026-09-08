@@ -102,7 +102,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
           <div class="mt-4 pt-4 border-t border-white/5 text-[11px] text-emerald-300/80 font-semibold">
-            &check; 0 silent failures (guaranteed)
+            &check; 0 silent failures in the measured corpus
           </div>
         </div>
 
@@ -217,7 +217,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
               {pct(snapshot.arbitrary.match, snapshot.arbitrary.candidates)} Fidelity
             </div>
             <p class="text-xs text-slate-400 leading-relaxed">
-              Full support for arbitrary value syntax like <code class="text-slate-300">p-[13px]</code>, <code class="text-slate-300">bg-[#0d1117]</code>, and CSS variable bindings.
+              High fidelity for arbitrary value syntax like <code class="text-slate-300">p-[13px]</code>, <code class="text-slate-300">bg-[#0d1117]</code>, and CSS variable bindings across tested utilities.
             </p>
           </div>
         </div>
