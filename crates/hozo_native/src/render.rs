@@ -1201,6 +1201,7 @@ pub(super) fn render_node(
         }
     }
     let destination_primitive = node.primitive == Primitive::Link
+        || node.primitive == Primitive::Svg(SvgElement::Link)
         || (matches!(node.primitive, Primitive::Button | Primitive::Pressable)
             && node
                 .props

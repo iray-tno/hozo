@@ -44,3 +44,4 @@ export {
   TSpan,
   Use,
 } from 'react-native-svg'
+export { SvgLink, type SvgLinkProps } from './svg-link.native.tsx'

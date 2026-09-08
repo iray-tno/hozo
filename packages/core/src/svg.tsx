@@ -17,6 +17,7 @@
 // candidate stylesheet supplies its CSS, which is the same arrangement
 // every other primitive in this package has.
 
+import { SvgLink } from '@hozo/runtime/svg'
 import type { ReactNode, SVGProps } from 'react'
 
 type Passthrough<T> = SVGProps<T> & { children?: ReactNode }
@@ -62,6 +63,8 @@ const Root = element<SVGSVGElement>('svg')
  * ```
  */
 export const Svg = Object.assign(Root, {
+  /** A destination-bearing group: an SVG anchor on Web and a pressable group on Native. */
+  Link: SvgLink,
   G: element<SVGGElement>('g'),
   Rect: element<SVGRectElement>('rect'),
   Circle: element<SVGCircleElement>('circle'),

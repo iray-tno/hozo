@@ -1035,7 +1035,10 @@ fn build_node(
             "replace"
                 if matches!(
                     primitive,
-                    Primitive::Link | Primitive::Button | Primitive::Pressable
+                    Primitive::Link
+                        | Primitive::Button
+                        | Primitive::Pressable
+                        | Primitive::Svg(SvgElement::Link)
                 ) =>
             {
                 capture_flag(
@@ -1050,7 +1053,10 @@ fn build_node(
             "prefetch"
                 if matches!(
                     primitive,
-                    Primitive::Link | Primitive::Button | Primitive::Pressable
+                    Primitive::Link
+                        | Primitive::Button
+                        | Primitive::Pressable
+                        | Primitive::Svg(SvgElement::Link)
                 ) =>
             {
                 capture_flag(

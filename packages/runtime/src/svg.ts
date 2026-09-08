@@ -4,4 +4,4 @@
 // directly and never imports anything. The file exists so the subpath
 // resolves on both platforms rather than being a Native-only entry that
 // breaks a bundler configured for one resolution.
-export {}
+export { SvgLink, type SvgLinkProps } from './svg-link.ts'

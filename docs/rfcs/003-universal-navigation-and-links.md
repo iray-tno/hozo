@@ -105,7 +105,11 @@ When a scene element in `@hozo/canvas` specifies `href`:
 - **Accessibility & SEO**: Canvas maintains an off-screen, visually hidden semantic fallback tree containing real DOM `<a>` elements on Web and accessibility elements on Native, ensuring screen readers and crawlers discover all links.
 
 ### SVG Primitives
-Universal SVG shapes with `href` lower to `<a xlink:href="...">` on Web and tap responders on Native.
+`<Svg.Link href="...">` groups one or more universal SVG shapes. It lowers to
+a semantic `<a href="...">` on Web, where the browser retains modified-click
+and context-menu behavior, and to a router-aware pressable SVG group on Native.
+The wrapper avoids overloading `href` on `Svg.Image`, `Svg.Use`, and
+`Svg.TextPath`, where SVG already assigns it a non-navigation meaning.
 
 ---
 

@@ -467,6 +467,9 @@ pub enum SvgElement {
     /// The root. Also the namespace object, so `<Svg>` and `<Svg.Rect>`
     /// come from one import.
     Root,
+    /// A destination-bearing group: a real SVG anchor on Web and a
+    /// router-aware pressable group on React Native.
+    Link,
     G,
     Rect,
     Circle,
@@ -512,6 +515,7 @@ impl SvgElement {
     pub fn name(self) -> &'static str {
         match self {
             SvgElement::Root => "Svg",
+            SvgElement::Link => "Link",
             SvgElement::G => "G",
             SvgElement::Rect => "Rect",
             SvgElement::Circle => "Circle",
@@ -548,6 +552,7 @@ impl SvgElement {
     /// `@hozo/runtime` re-exports it under this name for the same reason.
     pub fn runtime_name(self) -> &'static str {
         match self {
+            SvgElement::Link => "SvgLink",
             // Three collide with a name the generated file already has.
             // `Text` is React Native's own; `Image` is Hozo's primitive,
             // which the compiler emits around a bare `<Image>`; `Symbol`
@@ -567,6 +572,7 @@ impl SvgElement {
     pub fn tag(self) -> &'static str {
         match self {
             SvgElement::Root => "svg",
+            SvgElement::Link => "a",
             SvgElement::LinearGradient => "linearGradient",
             SvgElement::RadialGradient => "radialGradient",
             SvgElement::ClipPath => "clipPath",
@@ -600,6 +606,7 @@ impl SvgElement {
     pub fn from_name(name: &str) -> Option<SvgElement> {
         Some(match name {
             "Svg" => SvgElement::Root,
+            "Link" => SvgElement::Link,
             "G" => SvgElement::G,
             "Rect" => SvgElement::Rect,
             "Circle" => SvgElement::Circle,
@@ -5161,6 +5168,7 @@ mod svg_element_tests {
     // drift these tests exist to catch, one level down.
     const ALL: &[SvgElement] = &[
         SvgElement::Root,
+        SvgElement::Link,
         SvgElement::G,
         SvgElement::Rect,
         SvgElement::Circle,
