@@ -8,5 +8,5 @@
   // Tests stay out of the published output: they are the only thing here
   // that needs `node:test`, and nobody installing this wants them.
   "include": ["src/**/*"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.bench.ts"]
 }

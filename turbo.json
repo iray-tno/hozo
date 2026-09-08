@@ -15,6 +15,10 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "test:performance": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "report": {
       "dependsOn": ["^build"],
       "cache": false

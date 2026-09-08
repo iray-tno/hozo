@@ -67,7 +67,8 @@
     "hozo-links.schema.json",
     "src",
     "!src/**/*.test.ts",
-    "!src/**/*.test.tsx"
+    "!src/**/*.test.tsx",
+    "!src/**/*.bench.ts"
   ],
   "publishConfig": {
     "access": "public",
