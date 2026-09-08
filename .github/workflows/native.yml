@@ -194,9 +194,27 @@ jobs:
       - run: node scripts/screen-colours.test.mjs
         working-directory: examples/native-demo
 
+      # Twice, because CocoaPods fails here intermittently and the failure
+      # is inside its own Ruby:
+      #
+      #     ArgumentError - pathname contains null byte
+      #     cocoapods/project.rb:452:in `realdirpath`
+      #
+      # Two runs in five so far, and CocoaPods' own error report names it
+      # as a known one for pnpm monorepos. Nothing in this repository
+      # produces the null byte and nothing here can stop it, so the honest
+      # options were a retry or a red job every other week.
+      #
+      # A retry that hides a real failure would be worse than the flake.
+      # This one does not: a deterministic failure fails both times and is
+      # reported, and the first failure is printed rather than swallowed,
+      # so the log still says how often it happens.
       - name: Install the pods
         working-directory: examples/native-demo/ios
-        run: pod install
+        run: |
+          pod install && exit 0
+          echo "::warning::pod install failed once; retrying -- see the note in native.yml"
+          pod install
 
       # `-derivedDataPath` so the app lands somewhere the smoke script can
       # name, rather than under a hashed directory in ~/Library.
