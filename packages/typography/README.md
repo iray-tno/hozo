@@ -123,3 +123,20 @@ export default {
 iOS receives its font file list; Android receives named XML families with explicit weight/style
 faces. Variable-weight and oblique Android faces are refused because Expo's Android configuration
 cannot represent them without silently changing their meaning.
+
+For a bare React Native app, Hozo leaves native-project mutation to the app but makes the required
+registration set explicit and testable:
+
+```ts
+import { createNativeFontPlan } from '@hozo/typography/fonts/native'
+import { fonts } from './fonts'
+
+const iosFonts = createNativeFontPlan(fonts, 'ios')
+const androidFonts = createNativeFontPlan(fonts, 'android')
+```
+
+Register every entry in `files` before React renders, using the native asset-linking mechanism your
+app already owns. `families` gives the corresponding `fontFamily`, weight, and style descriptors;
+it is suitable for a small project generator or a CI assertion. The helper only describes the
+plan—it never edits Xcode, Gradle, Info.plist, or Android resources—and omits platforms marked
+`external` so an existing loader remains the single owner.
