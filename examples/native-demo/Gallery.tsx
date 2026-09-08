@@ -53,6 +53,13 @@
 //
 //   probe-role        probe-focus + accessibilityRole and a label
 //   probe-brand       probe-focus with the project theme colour
+//   probe-in-list     the same button inside a FlatList header
+//
+// The second run answered the first three: probe-hover draws now, and
+// probe-role draws, so neither the callback nor the accessibility role
+// is what keeps Continue invisible. probe-brand was below the fold and
+// says nothing yet, which is why these three sit at the top of the
+// screen rather than at the foot of it.
 //
 // The last is the Continue button's class list exactly. Each has a colour
 // nothing else on this screen uses, so one screenshot scan says which ones
@@ -71,6 +78,7 @@ import {
   Fieldset,
   Figcaption,
   Figure,
+  FlatList,
   Footer,
   Header,
   Heading,
@@ -120,6 +128,40 @@ export default function Gallery() {
           Gallery
         </Heading>
 
+        <Pressable
+          className="rounded-lg bg-fuchsia-600 p-3 transition-colors duration-200 hover:bg-fuchsia-700 focus-visible:bg-fuchsia-800"
+          accessibilityRole="button"
+          accessibilityLabel="A probe with a role"
+          testID="probe-role"
+        >
+          <Text className="text-white">Role and label</Text>
+        </Pressable>
+
+        <Pressable
+          className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
+          testID="probe-brand"
+        >
+          <Text className="text-white">Theme colour</Text>
+        </Pressable>
+
+        {/* The acceptance screen renders its Continue button inside a
+            FlatList header, and every probe so far has been in this
+            ScrollView. If this one draws and Continue does not, the
+            difference is the list rather than the button. */}
+        <FlatList
+          data={[{ id: 'only' }]}
+          keyExtractor={(item) => item.id}
+          testID="probe-list"
+          ListHeaderComponent={
+            <Pressable
+              className="rounded-lg bg-teal-500 p-3 transition-colors duration-200 hover:bg-teal-600"
+              testID="probe-in-list"
+            >
+              <Text className="text-white">In a list header</Text>
+            </Pressable>
+          }
+          renderItem={() => <Text>List row</Text>}
+        />
         <Header className="gap-1" testID="gallery-Header">
           <Text testID="gallery-Text">Text</Text>
           <Paragraph testID="gallery-Paragraph">Paragraph</Paragraph>
@@ -248,22 +290,6 @@ export default function Gallery() {
           testID="probe-focus"
         >
           <Text className="text-white">Focus visible</Text>
-        </Pressable>
-
-        <Pressable
-          className="rounded-lg bg-fuchsia-600 p-3 transition-colors duration-200 hover:bg-fuchsia-700 focus-visible:bg-fuchsia-800"
-          accessibilityRole="button"
-          accessibilityLabel="A probe with a role"
-          testID="probe-role"
-        >
-          <Text className="text-white">Role and label</Text>
-        </Pressable>
-
-        <Pressable
-          className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
-          testID="probe-brand"
-        >
-          <Text className="text-white">Theme colour</Text>
         </Pressable>
 
         <View testID="gallery-View">
