@@ -1,23 +1,10 @@
-import { defineFonts } from '@hozo/typography/fonts'
+import { defineFonts, type FontManifest } from '@hozo/typography/fonts'
 import { createExpoFontOptions } from '@hozo/typography/fonts/expo'
 import type { ExpoConfig } from 'expo/config'
 
-const materialSymbols =
-  './node_modules/@expo-google-fonts/material-symbols/400Regular/MaterialSymbols_400Regular.ttf'
+import manifest from './fonts.json'
 
-const fonts = defineFonts({
-  fixtureSymbols: {
-    family: 'Material Symbols',
-    nativeFamily: { android: 'material_symbols', ios: 'MaterialSymbols' },
-    external: ['web'],
-    faces: [
-      {
-        sources: { ios: materialSymbols, android: materialSymbols },
-        weight: 400,
-      },
-    ],
-  },
-})
+const fonts = defineFonts(manifest as FontManifest)
 
 export default {
   name: 'Hozo Expo Router fixture',

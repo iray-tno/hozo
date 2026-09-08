@@ -95,7 +95,7 @@ createFontFaceCss(fonts) // deterministic CSS for the Web build
 fontFamily(fonts, 'body', 'ios') // "InterVariable"
 ```
 
-Pass the generated CSS to Hozo's Vite, TanStack Start, Storybook, or Next integration. It is
+Pass the generated CSS to Hozo's Vite, TanStack Start, Storybook, Next, or Metro integration. It is
 written once into the project-wide base stylesheet and loaded before generated utilities:
 
 ```ts

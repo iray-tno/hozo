@@ -1,6 +1,8 @@
 const path = require('node:path')
 const { getDefaultConfig } = require('expo/metro-config')
 const { withHozo } = require('@hozo/metro/config')
+const { createFontFaceCss, defineFonts } = require('@hozo/typography/fonts')
+const fontManifest = require('./fonts.json')
 
 const projectRoot = __dirname
 const workspaceRoot = path.resolve(projectRoot, '..', '..')
@@ -16,4 +18,5 @@ module.exports = withHozo(config, {
   root: projectRoot,
   css: 'global.css',
   sources: ['@hozo/core'],
+  fontFaceCss: createFontFaceCss(defineFonts(fontManifest)),
 })
