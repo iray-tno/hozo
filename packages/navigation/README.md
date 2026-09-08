@@ -126,6 +126,7 @@ For a no-code build step, add `hozo-links.json` at the project root:
 
 ```json
 {
+  "$schema": "./node_modules/@hozo/navigation/hozo-links.schema.json",
   "outputDirectory": "public",
   "apple": [{ "appIDs": ["ABCDE12345.com.example.app"] }],
   "android": [{
