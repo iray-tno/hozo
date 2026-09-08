@@ -25,6 +25,7 @@
     "test:junit": "node packages/test-reporter/src/run-tests-junit.mjs",
     "report:conformance": "pnpm --filter @hozo/compiler build:native:release && turbo run report -- --check",
     "report:allure": "pnpm --filter @hozo/test-reporter exec allure generate -o ../../apps/landing/dist/reports ../../junit-reports",
+    "measure:real-app": "node scripts/measure-real-app.mjs",
     "build:wasm": "node scripts/build-wasm.mjs"
   },
   "devDependencies": {

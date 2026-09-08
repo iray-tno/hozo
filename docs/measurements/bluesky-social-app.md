@@ -1,0 +1,234 @@
+# Real-app measurement: Bluesky social-app
+
+This is a read-only compiler measurement, not a claim that Bluesky can be migrated without changes. The checkout is excluded from Hozo's repository; only this aggregate report is committed.
+
+## Corpus
+
+| | |
+|---|---|
+| Repository | https://github.com/bluesky-social/social-app |
+| Commit | `007c893de107c2ecbf2188d618196075f19c8f5a` |
+| Source | `src/**/*.tsx` |
+| Files | 1,050 |
+| Source bytes | 5,224,642 |
+| Shared / Web / Native | 973 / 62 / 15 |
+
+## Findings
+
+1. **The corpus parses cleanly:** 0 parse or compile failures across 1,050 TSX files.
+2. **Unchanged Web output is not safe yet:** 511 files contain 2,150 lowered DOM style arrays, a confirmed invalid React DOM shape.
+3. **RNW cannot yet be removed:** 71 files retain 81 direct React Native JSX bindings after Web lowering.
+4. **The app is not className-shaped:** 430 files use ALF atoms while only 8 use `className`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
+
+## Authored surface
+
+| Signal | Files or bindings |
+|---|---:|
+| filesImportingReactNative | 605 |
+| filesWithDirectReactNativeJsx | 573 |
+| directReactNativeJsxBindings | 696 |
+| filesWithAliasedDirectReactNativeJsx | 13 |
+| aliasedDirectReactNativeJsxBindings | 15 |
+| filesWithForeignPrimitiveNames | 532 |
+| filesWithClassName | 8 |
+| filesWithStyleProp | 651 |
+| filesWithStyleSheetCreate | 46 |
+| filesUsingAlfAtoms | 430 |
+
+Only direct imports from `react-native` are counted as direct React Native JSX. Custom ALF components remain foreign by design; treating every component named `Text` or `Button` as a React Native primitive would create false transformations.
+
+## Lowering outcome
+
+| Outcome | Count |
+|---|---:|
+| filesLowered | 567 |
+| filesLoweredForWeb | 563 |
+| filesLoweredForNative | 537 |
+| webComponents | 1211 |
+| nativeComponents | 1164 |
+| directReactNativeJsxPassedThroughOnWeb | 5 |
+| filesWithDirectReactNativeJsxResidueOnWeb | 71 |
+| directReactNativeJsxBindingsResidueOnWeb | 81 |
+| sharedBackendShapeMismatches | 0 |
+| parseOrCompileFailures | 0 |
+
+Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
+
+## Diagnostics
+
+| | Count |
+|---|---:|
+| Files with errors | 0 |
+| Files with warnings | 27 |
+| ARIA_NAME_PROHIBITED | 40 |
+| A11Y_INTERACTIVE_WITHOUT_ROLE | 31 |
+| A11Y_INTERACTIVE_NESTING | 4 |
+| A11Y_PRESS_WITHOUT_KEYBOARD | 3 |
+| ARIA_INCOMPLETE_PATTERN | 2 |
+| ROLE_HAS_NO_WEB_EQUIVALENT | 1 |
+| UNSAFE_PROP_SPREAD_AFTER_STYLE | 1 |
+
+## Most common React Native imports
+
+| Import | Files |
+|---|---:|
+| View | 553 |
+| Pressable | 76 |
+| StyleSheet | 51 |
+| Keyboard | 23 |
+| useWindowDimensions | 20 |
+| ScrollView | 18 |
+| ActivityIndicator | 16 |
+| LayoutAnimation | 16 |
+| Platform | 13 |
+| Text | 13 |
+| TextInput | 9 |
+| AppState | 6 |
+| Dimensions | 5 |
+| Linking | 5 |
+| TouchableOpacity | 5 |
+
+## React Native JSX left in Web output
+
+| Import | Files or bindings |
+|---|---:|
+| View | 34 |
+| ActivityIndicator | 14 |
+| Text | 11 |
+| TouchableOpacity | 5 |
+| FlatList | 3 |
+| TouchableWithoutFeedback | 3 |
+| Modal | 2 |
+| Pressable | 2 |
+| RefreshControl | 2 |
+| ScrollView | 2 |
+| Animated | 1 |
+| Image | 1 |
+| TextInput | 1 |
+
+## Wrong-output boundary
+
+| Confirmed invariant violation | Count |
+|---|---:|
+| Files whose lowered DOM contains `style={[...]}` | 511 |
+| Invalid DOM style-array occurrences | 2150 |
+
+A lowered DOM element with style={[...]} is confirmed wrong output: React DOM requires one style object. Other suspicious samples still require source/output review.
+
+This is a lower bound, not a complete wrong-output count. An automatic compiler run can prove this structural violation, but absence of it does not prove rendered behavior is correct. The remaining samples below are the deterministic queue for manual review and follow-up fixtures.
+
+## Review samples
+
+### foreignPrimitiveNames
+
+- `src/Splash.tsx`
+- `src/Splash.web.tsx`
+- `src/ageAssurance/components/DeviceSignalsNotice.tsx`
+- `src/ageAssurance/components/NoAccessScreen.tsx`
+- `src/ageAssurance/components/RedirectOverlay.tsx`
+- `src/components/AccountList.tsx`
+- `src/components/AltBadgeWithDialog.tsx`
+- `src/components/AppLanguageDropdown.tsx`
+- `src/components/Autocomplete/AutocompleteItemEmoji.tsx`
+- `src/components/Autocomplete/AutocompleteItemSearch.tsx`
+- `src/components/BetaBadge.tsx`
+- `src/components/BotAccountAlert.tsx`
+
+### invalidDomStyleArrays
+
+- `src/Splash.tsx: 1`
+- `src/ageAssurance/components/NoAccessScreen.tsx: 10`
+- `src/ageAssurance/components/RedirectOverlay.tsx: 8`
+- `src/components/AccountList.tsx: 8`
+- `src/components/Admonition.tsx: 3`
+- `src/components/Autocomplete/AutocompleteItemSearch.tsx: 1`
+- `src/components/AvatarBubbles.tsx: 1`
+- `src/components/AvatarStack.tsx: 2`
+- `src/components/BetaBadge.tsx: 1`
+- `src/components/BotAccountAlert.tsx: 3`
+- `src/components/BotBadge.tsx: 1`
+- `src/components/Button.tsx: 3`
+
+### directReactNativeJsxResidueOnWeb
+
+- `src/Splash.tsx: View`
+- `src/components/DebugFieldDisplay.tsx: TouchableWithoutFeedback`
+- `src/components/Dialog/index.tsx: ScrollView`
+- `src/components/Dialog/index.web.tsx: FlatList, View`
+- `src/components/Dialog/shared.tsx: View`
+- `src/components/InterestTabs.tsx: View`
+- `src/components/InternationalPhoneCodeSelect.tsx: Text as RNText`
+- `src/components/Lightbox/chrome/ImageMenu.tsx: Modal`
+- `src/components/Lightbox/pager/ImagePager.tsx: View`
+- `src/components/Post/Embed/ExternalEmbed/ExternalGif.tsx: ActivityIndicator`
+- `src/components/Post/Embed/ExternalEmbed/ExternalPlayer.tsx: ActivityIndicator`
+- `src/components/Post/Embed/VideoEmbed/GifPresentationControls.tsx: ActivityIndicator`
+
+### diagnostic:ARIA_NAME_PROHIBITED
+
+- `src/components/ContextMenu/Backdrop.ios.tsx`
+- `src/components/ContextMenu/Backdrop.tsx`
+- `src/components/ContextMenu/index.tsx`
+- `src/components/Dialog/index.tsx`
+- `src/components/Dialog/index.web.tsx`
+- `src/components/FocusScope/index.tsx`
+- `src/components/Lightbox/Lightbox.web.tsx`
+- `src/components/MediaPreview.tsx`
+- `src/components/Menu/index.tsx`
+- `src/components/Menu/index.web.tsx`
+- `src/components/Post/Embed/VideoEmbed/VideoEmbedInner/TimeIndicator.tsx`
+- `src/components/Post/Embed/VideoEmbed/VideoEmbedInner/VideoEmbedInnerWeb.tsx`
+
+### diagnostic:A11Y_INTERACTIVE_WITHOUT_ROLE
+
+- `src/components/ContextMenu/Backdrop.ios.tsx`
+- `src/components/ContextMenu/Backdrop.tsx`
+- `src/components/ContextMenu/index.tsx`
+- `src/components/Dialog/index.tsx`
+- `src/components/Dialog/index.web.tsx`
+- `src/components/Lightbox/Lightbox.web.tsx`
+- `src/components/Menu/index.tsx`
+- `src/components/Menu/index.web.tsx`
+- `src/components/PostControls/DiscoverDebug.tsx`
+- `src/components/ProgressGuide/Toast.tsx`
+- `src/components/dms/MessageItem.tsx`
+- `src/components/forms/DateField/index.shared.tsx`
+
+### diagnostic:A11Y_PRESS_WITHOUT_KEYBOARD
+
+- `src/components/Dialog/index.web.tsx`
+- `src/view/com/util/EventStopper.tsx`
+
+### directReactNativeJsxPassedThroughOnWeb
+
+- `src/components/InternationalPhoneCodeSelect.tsx: Text as RNText`
+- `src/components/Pressable.tsx: Pressable as NativePressable`
+- `src/components/RichTextTag.tsx: Text as RNText`
+- `src/view/com/util/List.tsx: RefreshControl`
+- `src/view/screens/Home.tsx: ActivityIndicator`
+
+### diagnostic:UNSAFE_PROP_SPREAD_AFTER_STYLE
+
+- `src/components/Menu/index.web.tsx`
+
+### diagnostic:A11Y_INTERACTIVE_NESTING
+
+- `src/components/contacts/components/OTPInput.tsx`
+- `src/components/moderation/PostHider.tsx`
+
+### diagnostic:ROLE_HAS_NO_WEB_EQUIVALENT
+
+- `src/components/contacts/components/OTPInput.tsx`
+
+### diagnostic:ARIA_INCOMPLETE_PATTERN
+
+- `src/components/dms/ReactionsDialog.tsx`
+
+## Reproduce
+
+1. Clone the repository to `temp/social-app`.
+2. Check out `007c893de107c2ecbf2188d618196075f19c8f5a`.
+3. Build `@hozo/compiler`'s native addon and TypeScript package.
+4. Run:
+
+   `pnpm measure:real-app -- --root temp/social-app --name "Bluesky social-app" --repository https://github.com/bluesky-social/social-app --expected-commit 007c893de107c2ecbf2188d618196075f19c8f5a --output docs/measurements/bluesky-social-app.md`
