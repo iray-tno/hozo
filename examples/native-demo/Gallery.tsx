@@ -54,6 +54,7 @@
 //   probe-role        probe-focus + accessibilityRole and a label
 //   probe-brand       probe-focus with the project theme colour
 //   probe-in-list     the same button inside a FlatList header
+//   probe-verbatim    every prop Continue has, including onPress
 //
 // The second run answered the first three: probe-hover draws now, and
 // probe-role draws, so neither the callback nor the accessibility role
@@ -142,6 +143,20 @@ export default function Gallery() {
           testID="probe-brand"
         >
           <Text className="text-white">Theme colour</Text>
+        </Pressable>
+
+        {/* Everything Continue has, on this screen instead of that one. If
+            this draws, the difference is the screen rather than the
+            element, and the next place to look is App.tsx's own compiled
+            module. */}
+        <Pressable
+          className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
+          accessibilityRole="button"
+          accessibilityLabel="A probe that copies Continue"
+          onPress={() => undefined}
+          testID="probe-verbatim"
+        >
+          <Text className="text-center font-bold text-white">Verbatim copy</Text>
         </Pressable>
 
         {/* The acceptance screen renders its Continue button inside a
