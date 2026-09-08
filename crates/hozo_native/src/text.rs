@@ -35,19 +35,45 @@ use super::*;
 /// migration code, and a warning nobody can act on is noise. Someone
 /// hitting it is the evidence that would settle that.
 pub(super) const DEFAULT_FONT_SIZE: f64 = 14.0;
-/// How much smaller than the text around it each of these draws.
+/// How much smaller than the text around it each of these draws, in a
+/// project that ships Tailwind's preflight.
 ///
 /// Mirrored by `packages/typography/src/text-size.ts`, which the fallback
 /// components use, and checked against it by `ratios.test.ts`. Two copies
 /// of a number is how a compiled build and an uncompiled one come to
 /// render the same source at different sizes.
 ///
-/// The values are the browser UA stylesheet's, which is what the Web
-/// backend renders and therefore the only reference the two platforms
-/// share.
+/// These were described as the user agent's, and are not: preflight sets
+/// `sub`/`sup` to 75% and `small` to 80%, while the bare user agent sets
+/// all three to `smaller`. Measured in headless Chrome at bases 16, 20 and
+/// 32, with and without this repository's own generated preflight:
+///
+/// ```text
+///             bare UA    preflight
+///   small     0.8333     0.80
+///   sub, sup  0.8333     0.75
+///   rt        0.50       0.50
+///   code      1.0        1.0
+/// ```
+///
+/// So `small` was 0.85 in both copies and 0.85 is neither number: small
+/// print came out a size the browser never draws it at, whichever project
+/// it was compiled for. `sub` and `sup` were right, for reset projects
+/// only (#315).
+///
+/// `rt` and `code` are the same on both sides and stay single constants.
+/// The 13px a bare `<code>` measures at is Chrome's fixed-font default
+/// applying to a `medium` size, not a ratio -- give any ancestor a size in
+/// pixels, which every Hozo utility does, and it inherits it whole.
 pub(super) const SUB_RATIO: f64 = 0.75;
 pub(super) const SUP_RATIO: f64 = 0.75;
-pub(super) const SMALL_RATIO: f64 = 0.85;
+pub(super) const SMALL_RATIO: f64 = 0.8;
+/// `font-size: smaller`, which is what the user agent gives all three of
+/// `small`, `sub` and `sup` when nothing has reset it.
+///
+/// The CSS scaling factor, not a rounded measurement: Chrome divides by
+/// 1.2, and measured the same at every base tried.
+pub(super) const SMALLER_RATIO: f64 = 1.0 / 1.2;
 pub(super) const RUBY_TEXT_RATIO: f64 = 0.5;
 pub(super) const HEADING_RATIOS: [f64; 6] = [2.0, 1.5, 1.17, 1.0, 0.83, 0.67];
 
@@ -56,12 +82,23 @@ pub(super) const HEADING_RATIOS: [f64; 6] = [2.0, 1.5, 1.17, 1.0, 0.83, 0.67];
 /// `None` for everything that is not relative, and for a heading whose
 /// level is a runtime expression -- that is one of six ratios and the
 /// compiler cannot tell which.
-pub(super) fn size_ratio(node: &Node) -> Option<f64> {
+///
+/// The theme, because three of these are one number under a reset and a
+/// different one without it, and because a reset heading is not relative
+/// at all: preflight gives `h1`-`h6` `font-size: inherit`, which is the
+/// absence of a ratio rather than a ratio of one. Answering it here rather
+/// than at each caller is what makes the runtime path agree with the
+/// compiled one -- an opaque parent hands this ratio to
+/// `HozoRelativeText`, and a heading scaling by 2 there while the compiled
+/// one scales by nothing is the same source at two sizes (#315).
+pub(super) fn size_ratio(node: &Node, theme: &Theme) -> Option<f64> {
+    let reset = theme.preflight();
     match node.primitive {
-        Primitive::Sub => Some(SUB_RATIO),
-        Primitive::Sup => Some(SUP_RATIO),
-        Primitive::Small => Some(SMALL_RATIO),
+        Primitive::Sub => Some(if reset { SUB_RATIO } else { SMALLER_RATIO }),
+        Primitive::Sup => Some(if reset { SUP_RATIO } else { SMALLER_RATIO }),
+        Primitive::Small => Some(if reset { SMALL_RATIO } else { SMALLER_RATIO }),
         Primitive::RubyText => Some(RUBY_TEXT_RATIO),
+        Primitive::Heading if reset => None,
         Primitive::Heading => {
             let level = match &node.props.heading_level {
                 Some(hozo_ir::HeadingLevel::Static(level)) => *level,
@@ -93,10 +130,10 @@ pub(super) fn size_is_opaque(node: &Node) -> bool {
 /// Asked of an opaque element, to decide whether it has to publish the
 /// size it resolves at runtime. Most do not, and a component boundary
 /// nobody reads is one nobody should pay for.
-pub(super) fn has_relative_descendant(node: &Node) -> bool {
+pub(super) fn has_relative_descendant(node: &Node, theme: &Theme) -> bool {
     node.children.iter().any(|child| match child {
         hozo_ir::Child::Node(child) => {
-            size_ratio(child).is_some() || has_relative_descendant(child)
+            size_ratio(child, theme).is_some() || has_relative_descendant(child, theme)
         }
         _ => false,
     })
@@ -455,6 +492,15 @@ mod tests {
     use crate::lower;
     use hozo_ir::{DiagnosticCode, Theme};
 
+    /// A project that ships a CSS reset, which is what `preflight: 'auto'`
+    /// resolves to for anything using Tailwind -- so it is the theme most
+    /// of these cases are about. Under it `small` is 80% and `sub`/`sup`
+    /// are 75%; the bare user agent makes all three `smaller`, and
+    /// `Theme::default()` is that one (#315).
+    fn reset() -> Theme {
+        Theme::new(std::collections::HashMap::new(), None, true)
+    }
+
     #[test]
     fn raw_text_in_a_view_is_wrapped_and_takes_its_text_styles_with_it() {
         // Two separate hazards, both invisible on Web: a raw string inside
@@ -700,16 +746,22 @@ mod tests {
         // standing above the breakpoint, so a `Small` under
         // `text-base md:text-xl` rendered at 20 on a tablet -- the size of
         // the body, with the shrink gone.
+        // `text-2xl` rather than `text-xl` for the breakpoint, so that the
+        // scaled number is not also one of the unscaled ones: 20 * 0.8 is
+        // 16, which is the base size this element inherits, and an
+        // assertion on it would have passed with the ratio missing
+        // entirely.
         let source = r#"
             import { View, Small } from '@hozo/core'
-            const el = <View className="text-base md:text-xl">a<Small>s</Small></View>
+            const el = <View className="text-base md:text-2xl">a<Small>s</Small></View>
             "#;
         let parsed = hozo_parser::parse_tsx(source);
-        let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.styles.contains("fontSize: 14,"), "{}", output.styles);
-        // 20 * 0.85, not the 20 it inherited.
-        assert!(output.styles.contains("fontSize: 17,"), "{}", output.styles);
-        assert!(!output.styles.contains("fontSize: 20,\n    lineHeight: 28,\n  },\n}"), "{}", output.styles);
+        let output = lower(&parsed.roots[0].node, source, &reset());
+        // 16 * 0.8 = 12.8 -> 13 at the base.
+        assert!(output.styles.contains("fontSize: 13,"), "{}", output.styles);
+        // 24 * 0.8 = 19.2 -> 19 above the breakpoint, not the 24 it inherited.
+        assert!(output.styles.contains("fontSize: 19,"), "{}", output.styles);
+        assert!(!output.styles.contains("fontSize: 24,\n    lineHeight: 32,\n  },\n}"), "{}", output.styles);
     }
 
     #[test]
@@ -728,6 +780,35 @@ mod tests {
         assert!(output.jsx.contains("<HozoRelativeText hozoRelative={0.5}>"), "{}", output.jsx);
         // And no guess in a stylesheet beside it.
         assert!(!output.styles.contains("fontSize"), "{}", output.styles);
+    }
+
+    #[test]
+    fn a_reset_heading_is_not_relative_at_runtime_either() {
+        // The runtime half of #315, which the static half did not cover.
+        // A `Heading` inside an opaque parent hands its ratio to
+        // `HozoRelativeText` instead of resolving it, and that path read a
+        // ratio table the reset does not use: a level-1 heading under
+        // `style={{ fontSize: 20 }}` scaled by 2 and drew at 40, while the
+        // browser -- where preflight gives `h1` `font-size: inherit` --
+        // drew it at 20.
+        //
+        // Asking `size_ratio` rather than the primitive is what makes the
+        // two halves agree: no ratio, no relative component, and no
+        // publisher above it either, because nothing below is relative.
+        let source = r#"
+            import { Text, Heading } from '@hozo/core'
+            const el = <Text style={{ fontSize: 20 }}>t<Heading level={1}>T</Heading></Text>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &reset());
+        assert!(!output.jsx.contains("hozoRelative"), "{}", output.jsx);
+        assert!(!output.jsx.contains("HozoTextSize"), "{}", output.jsx);
+        // The level still reaches a screen reader.
+        assert!(output.jsx.contains(r#"accessibilityRole="header""#), "{}", output.jsx);
+
+        // Without the reset it is relative, and by the user agent's 2.
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.contains("hozoRelative={2}"), "{}", output.jsx);
     }
 
     #[test]
@@ -980,14 +1061,37 @@ mod tests {
             )
             "#;
         let parsed = hozo_parser::parse_tsx(source);
-        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        let output = lower(&parsed.roots[0].node, source, &reset());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        // text-base is 16px:
+        // text-base is 16px, in a project that ships the reset:
         // Sub/Sup = 16 * 0.75 = 12px
-        // Small = 16 * 0.85 = 13.6 -> round = 14px
+        // Small = 16 * 0.80 = 12.8 -> round = 13px
         assert!(output.styles.contains("fontSize: 12,"), "{}", output.styles);
-        assert!(output.styles.contains("fontSize: 14,"), "{}", output.styles);
+        assert!(output.styles.contains("fontSize: 13,"), "{}", output.styles);
+    }
+
+    /// The same source in a project with no reset, where the user agent
+    /// makes all three `smaller` rather than 75% and 80%.
+    #[test]
+    fn without_a_reset_all_three_are_the_user_agent_s_smaller() {
+        let source = r#"
+            import { Text } from '@hozo/core'
+            import { Sub, Sup, Small } from '@hozo/typography'
+            const el = (
+              <Text className="text-base">
+                H<Sub>2</Sub>O
+                <Small>fine print</Small>
+              </Text>
+            )
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        // 16 / 1.2 = 13.33 -> 13, for the subscript and the small print
+        // alike. Measured in headless Chrome at 16, 20 and 32.
+        assert!(output.styles.contains("fontSize: 13,"), "{}", output.styles);
+        assert!(!output.styles.contains("fontSize: 12,"), "{}", output.styles);
     }
 
     #[test]
@@ -1009,7 +1113,7 @@ mod tests {
             )
             "#;
         let parsed = hozo_parser::parse_tsx(source);
-        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        let output = lower(&parsed.roots[0].node, source, &reset());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         // 14 * 0.75, which is what `@hozo/typography` renders uncompiled.
