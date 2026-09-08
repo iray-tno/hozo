@@ -5,9 +5,6 @@
   "description": "JUnit normalization and Allure 3 test report generator for Hozo",
   "license": "MIT",
   "type": "module",
-  "scripts": {
-    "test": "node --test src/*.test.mjs"
-  },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.12",
     "allure": "^3.16.0"

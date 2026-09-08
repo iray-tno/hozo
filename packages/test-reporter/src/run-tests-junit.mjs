@@ -42,6 +42,7 @@ const packages = [
     testPattern: 'src/*.test.ts',
     extraArgs: ['--test-concurrency=1'],
   },
+  { name: 'test-reporter', dir: 'packages/test-reporter', testPattern: 'src/*.test.mjs' },
   {
     name: 'typography',
     dir: 'packages/typography',
