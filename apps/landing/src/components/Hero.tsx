@@ -20,11 +20,11 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           <View className="inline-flex items-center gap-2.5 mb-8">
             <View className="flex h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
             <Text className="text-xs sm:text-sm font-bold uppercase tracking-widest text-hinoki">
-              Hozo — Rust-powered Universal UI Compiler
+              Rust-powered Universal UI Compiler
             </Text>
             <Text className="text-xs text-stone-600 select-none">•</Text>
             <Text className="text-xs sm:text-sm text-shikkui-muted font-medium tracking-wide">
-              Zero Runtime • Semantic Web & Fabric
+              Zero Runtime • Semantic Web & Mobile
             </Text>
           </View>
 
@@ -33,18 +33,18 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             level={1}
             className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-shikkui mb-6 leading-[1.12]"
           >
-            Like joinery without nails.
+            Write React Native.
             <br />
-            <Text className="gradient-text">Compiled cleanly to Semantic Web & Fabric.</Text>
+            <Text className="gradient-text">Ship true Semantic Web & Mobile.</Text>
           </Heading>
 
           {/* Subtitle */}
           <Paragraph className="text-lg sm:text-xl text-shikkui-muted mb-10 leading-relaxed max-w-3xl mx-auto">
-            Inspired by traditional Japanese joinery, Hozo fits React Native components into each
-            platform's native primitives without extraneous runtime glue:
-            <Text className="text-shikkui font-semibold"> Semantic HTML, CSS, and W3C ARIA</Text> on
-            Web, and <Text className="text-shikkui font-semibold">Fabric and StyleSheet</Text> on
-            Native.
+            Hozo compiles universal React Native components directly into platform-native primitives
+            at build time: genuine{' '}
+            <Text className="text-shikkui font-semibold">HTML, CSS, and W3C ARIA</Text> on Web, and
+            true <Text className="text-shikkui font-semibold">Fabric views & StyleSheet</Text> on
+            iOS & Android. Zero runtime glue, zero div-soup.
           </Paragraph>
 
           {/* CTA Links */}
@@ -90,12 +90,15 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           <View className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl w-full text-left">
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
               <Text className="text-2xl font-bold text-shikkui mb-1 block">0 ms</Text>
-              <Text className="text-xs text-stone-400 block">Runtime cost for static styles</Text>
+              <Text className="text-xs text-stone-400 block">
+                <Text className="text-shikkui-muted font-semibold">Zero runtime</Text> cost for
+                static styles
+              </Text>
             </View>
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
               <Text className="text-2xl font-bold text-hinoki mb-1 block">W3C ARIA</Text>
               <Text className="text-xs text-stone-400 block">
-                Static validation via{' '}
+                <Text className="text-shikkui-muted font-semibold">First-class A11y</Text> via{' '}
                 <code className="text-shikkui-muted text-xs font-mono">aria-query</code>
               </Text>
             </View>
@@ -107,7 +110,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </View>
             <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
               <Text className="text-2xl font-bold text-bengara mb-1 block">Rust Core</Text>
-              <Text className="text-xs text-stone-400 block">High-speed AST parsing with oxc</Text>
+              <Text className="text-xs text-stone-400 block">
+                <Text className="text-shikkui-muted font-semibold">Obsessively fast</Text> AST
+                lowering with oxc
+              </Text>
             </View>
           </View>
         </View>
