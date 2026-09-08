@@ -11,7 +11,7 @@
 
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { type Compiler, createCompiler, type Theme } from '@hozo/compiler'
+import { type Compiler, createCompiler, type FontAvailability, type Theme } from '@hozo/compiler'
 import { CACHE_DIR, importSpecifier, StylexModuleCache } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { loadProjectTheme } from '@hozo/tailwind'
@@ -131,13 +131,14 @@ function compilerFor(
   projectRoot: string | undefined,
   theme: Theme | undefined,
   sources: readonly string[],
+  fontAvailability: FontAvailability | undefined,
 ): CompilerState {
   // A compiler is given its theme once, so a project whose resolved
   // preflight differs needs a compiler of its own: the key has to say so.
-  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}:${theme?.preflight ?? false}`
+  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}:${theme?.preflight ?? false}:${JSON.stringify(fontAvailability)}`
   let state = compilers.get(key)
   if (!state) {
-    const compiler = createCompiler(theme, sources)
+    const compiler = createCompiler(theme, sources, fontAvailability)
     const stylexModules = projectRoot
       ? new StylexModuleCache(path.join(projectRoot, CACHE_DIR, 'stylex-modules.json'))
       : undefined
@@ -165,6 +166,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
     projectRoot,
     themeWithPreflight(theme, state?.preflight ?? false),
     state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
+    state?.fontAvailability,
   )
   const platform = params.options?.platform ?? 'default'
   if (

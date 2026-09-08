@@ -67,7 +67,7 @@ function projectState(options) {
         // The compiler is built here rather than per module, which is the
         // only place it can be: the theme is what it needs and the theme is
         // a promise. See `createCompiler`.
-        state.compiler = createCompiler(resolved, options.sources)
+        state.compiler = createCompiler(resolved, options.sources, options.fontAvailability)
         state.compiler.setStylexModules(stylexModules.moduleSources())
         return resolved
       }),

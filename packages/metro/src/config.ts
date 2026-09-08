@@ -79,6 +79,8 @@ export interface HozoMetroState {
   preflight?: boolean
   /** Absolute generated stylesheet imported only by Metro's Web platform. */
   fontFaceCssPath?: string
+  /** Serializable font registration facts used by transformer diagnostics. */
+  fontAvailability?: HozoProjectOptions['fontAvailability']
   /** Resolver-verified StyleX edges, isolated because Metro resolution is platform-aware. */
   stylexBindings?: Record<string, StylexResolvedBindings[]>
 }
@@ -198,6 +200,7 @@ export async function withHozo<T extends MetroConfigShape>(
     sources: options.sources,
     preflight: preflightEnabled(options.preflight, usesTailwind),
     fontFaceCssPath,
+    fontAvailability: options.fontAvailability,
   }
   const statePath = metroStatePath(projectRoot)
   const writeState = () => writeMetroState(statePath, state)

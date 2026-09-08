@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createFontFaceCss, defineFonts, fontFamily } from './fonts.ts'
+import { createFontAvailability, createFontFaceCss, defineFonts, fontFamily } from './fonts.ts'
 
 test('one logical family carries Web and platform-specific Native names', () => {
   const fonts = defineFonts({
@@ -25,6 +25,43 @@ test('one logical family carries Web and platform-specific Native names', () => 
   assert.equal(fontFamily(fonts, 'body', 'ios'), 'InterVariable')
   assert.equal(fontFamily(fonts, 'body', 'android'), 'inter')
   assert.equal(fontFamily(fonts, 'missing', 'web'), undefined)
+})
+
+test('derives compact cross-platform availability facts for the compiler', () => {
+  const availability = createFontAvailability(
+    defineFonts({
+      body: {
+        family: 'Inter',
+        nativeFamily: { ios: 'InterVariable', android: 'inter' },
+        external: ['ios'],
+        faces: [
+          {
+            sources: { web: [{ url: './Inter.woff2' }], android: './Inter.ttf' },
+            weight: '100 900',
+            style: 'italic',
+          },
+        ],
+      },
+    }),
+  )
+
+  assert.deepEqual(availability, {
+    families: [
+      {
+        id: 'body',
+        names: { web: 'Inter', ios: 'InterVariable', android: 'inter' },
+        external: ['ios'],
+        faces: [
+          {
+            platforms: ['web', 'android'],
+            weightFrom: 100,
+            weightTo: 900,
+            style: 'italic',
+          },
+        ],
+      },
+    ],
+  })
 })
 
 test('Web emission is deterministic, safe, and deduplicated', () => {
