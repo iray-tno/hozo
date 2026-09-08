@@ -122,6 +122,24 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: bash examples/native-demo/scripts/android-smoke.sh
 
+      # The comparison, against the tree that came off the emulator a
+      # moment ago rather than against the checked-in one. Same functions
+      # as `native-tree.test.ts` runs offline: two comparisons that agree
+      # today and drift tomorrow is the failure this repository keeps
+      # finding, so there is one and two callers.
+      #
+      # Until this step existed the dump was collected, uploaded and never
+      # read, so a platform regression -- React Native choosing a different
+      # widget, an OS release dropping a trait -- would have waited for
+      # somebody to refresh a fixture by hand.
+      - name: Check the tree against what the compiler emitted
+        run: |
+          node --experimental-strip-types \
+            packages/tailwind-conformance/src/native-tree-check.ts \
+            --platform android \
+            --tree window_dump.xml \
+            --source examples/native-demo/App.tsx
+
       # Whatever the run learned, kept. On a failure the log is the whole
       # story, and on a success the three trees -- at rest, with the dialog
       # open, and after dismissing it -- are what
@@ -214,6 +232,16 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             | tee ios-uitest.log
           node examples/native-demo/scripts/extract-trees.mjs ios-uitest.log
+
+      # The same comparison as the Android job runs, through the other
+      # adapter. See that step for why it is here rather than only offline.
+      - name: Check the tree against what the compiler emitted
+        run: |
+          node --experimental-strip-types \
+            packages/tailwind-conformance/src/native-tree-check.ts \
+            --platform ios \
+            --tree ios-acceptance-tree.json \
+            --source examples/native-demo/App.tsx
 
       - name: Keep what it saw
         if: always()

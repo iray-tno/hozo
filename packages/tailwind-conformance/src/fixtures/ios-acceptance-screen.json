@@ -1,0 +1,101 @@
+[
+  {
+    "type": "other",
+    "label": "Hozo native acceptance screen",
+    "enabled": true,
+    "value": "",
+    "frame": [0, 0, 393, 852],
+    "traits": [],
+    "identifier": "smoke-list"
+  },
+  {
+    "type": "other",
+    "label": "",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 532.6666870117188, 354.33331298828125, 36],
+    "traits": [],
+    "identifier": "smoke-row-one"
+  },
+  {
+    "type": "other",
+    "label": "",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 575, 354.33331298828125, 36.333343505859375],
+    "traits": [],
+    "identifier": "smoke-row-two"
+  },
+  {
+    "type": "other",
+    "label": "",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 617.6666870117188, 354.33331298828125, 36.3333740234375],
+    "traits": [],
+    "identifier": "smoke-row-three"
+  },
+  {
+    "type": "other",
+    "label": "",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 191.6666717529297, 354.33331298828125, 64],
+    "traits": [],
+    "identifier": "smoke-horizontal-scroll"
+  },
+  {
+    "type": "other",
+    "label": "",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 268.6666564941406, 354.33331298828125, 78.66668701171875],
+    "traits": [],
+    "identifier": "smoke-grid"
+  },
+  {
+    "type": "other",
+    "label": "",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 390, 354.33331298828125, 38],
+    "traits": [],
+    "identifier": "smoke-pan-responder"
+  },
+  {
+    "type": "button",
+    "label": "Review email address",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 441, 354.33331298828125, 17],
+    "traits": [],
+    "identifier": "smoke-interaction"
+  },
+  {
+    "type": "button",
+    "label": "Show every primitive",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 477, 354.33331298828125, 36.33331298828125],
+    "traits": [],
+    "identifier": "smoke-gallery"
+  },
+  {
+    "type": "image",
+    "label": "React Native logo",
+    "enabled": true,
+    "value": "",
+    "frame": [19.33333396911621, 64, 64, 64],
+    "traits": [],
+    "identifier": "smoke-image"
+  },
+  {
+    "type": "textField",
+    "label": "Email address",
+    "enabled": true,
+    "value": "you@example.com",
+    "frame": [20, 141.6666717529297, 353, 36.33332824707031],
+    "traits": [],
+    "identifier": "smoke-input"
+  }
+]

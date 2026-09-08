@@ -44,6 +44,7 @@ test('the dump yields the elements the source named, and no Android furniture', 
   // `android:id/content` and `…:id/action_bar_root` are in every dump and
   // belong to the platform rather than to any source.
   assert.deepEqual([...device.keys()].sort(), [
+    'smoke-gallery',
     'smoke-grid',
     'smoke-horizontal-scroll',
     'smoke-image',
@@ -101,13 +102,13 @@ test('the resting screen shows everything except the thing that is closed', () =
   // dialog fixture below. The pair is the statement; neither half says it
   // alone.
   //
-  // And except for `smoke-gallery`, which is newer than this fixture. The
-  // dump was captured before the census screen had a button to reach it,
-  // so the compiler names one element the emulator had never drawn. The
-  // next dump from the device job contains it, and this list shrinks when
-  // the fixture is refreshed -- which is a better failure than a fixture
-  // that quietly stops describing the screen.
-  assert.deepEqual(missingOnDevice(compiled, device), ['smoke-dialog', 'smoke-gallery'])
+  // `smoke-gallery` was in this list until the fixture was refreshed: the
+  // first dump predated the census screen's button, so the compiler named
+  // an element the emulator had never drawn, and the comment here said
+  // the list would shrink when a newer dump replaced it. It did, which is
+  // the fixture doing what a stale one cannot -- failing rather than
+  // quietly describing a screen that no longer exists.
+  assert.deepEqual(missingOnDevice(compiled, device), ['smoke-dialog'])
 })
 
 test('the comparison is actually comparing something', () => {

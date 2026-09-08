@@ -254,3 +254,132 @@ export function missingOnDevice(
 ): string[] {
   return [...compiled.keys()].filter((testID) => !device.has(testID)).sort()
 }
+
+/**
+ * The XCUIElement types that mean a role, and which role they mean.
+ *
+ * The iOS half of the adapter, and it answers the same question the Android
+ * table does from the other side. React Native does not pass a role through
+ * as data on iOS either: it sets traits and a type on the view, and
+ * `elementType` is what XCUITest reports back.
+ *
+ * Measured, one row per element that has actually rendered -- the same rule
+ * `ANDROID_ROLE_CLASSES` grows by. A row for `checkBox` that nothing has
+ * drawn would look exactly like a fact.
+ *
+ * `staticText` and `other` are deliberately absent. They are what React
+ * Native uses for everything it has no widget for, so reporting no role is
+ * the honest answer rather than a lost one -- and telling those two apart
+ * is what the divergence list is for.
+ *
+ * There is no `header` row, and not because a heading has none: XCUITest
+ * has no public API for accessibility *traits*, so `gallery-Heading` comes
+ * back as `staticText` whether or not it carries the header trait. That is
+ * a limit of the reader rather than a finding about iOS, and it is the one
+ * thing the Android side can say that this one cannot.
+ */
+export const IOS_ROLE_TYPES: Record<string, string> = {
+  button: 'button',
+  link: 'link',
+  image: 'image',
+}
+
+/** One element of the JSON `AccessibilityTreeTests.swift` prints. */
+interface IosElement {
+  identifier: string
+  type: string
+  label: string
+  value: string
+  frame: number[]
+  enabled: boolean
+}
+
+/**
+ * Every element the XCUITest dump exposes, in the shared vocabulary.
+ *
+ * React Native puts a `testID` in iOS's `accessibilityIdentifier`, which
+ * XCUITest reports as `identifier` -- the same join key `resource-id` is on
+ * Android, and for the same reason: nothing else in the tree survives
+ * compilation recognisably.
+ *
+ * The collector already dropped the elements with no identifier, which is
+ * where iOS's own furniture lives -- the window, the status bar, UIKit's
+ * scaffolding. Android's furniture has to be filtered here because its
+ * dump names it (`android:id/content`); iOS's is simply nameless.
+ */
+export function parseIosTree(json: string): Map<string, AnnouncedNode> {
+  const byId = new Map<string, AnnouncedNode>()
+  for (const element of JSON.parse(json) as IosElement[]) {
+    if (!element.identifier) continue
+    const role = IOS_ROLE_TYPES[element.type]
+    byId.set(element.identifier, {
+      testID: element.identifier,
+      ...(role === undefined ? {} : { role }),
+      ...(element.label ? { name: element.label } : {}),
+    })
+  }
+  return byId
+}
+
+/**
+ * Elements the compiler names that a resting screen does not draw.
+ *
+ * Data rather than a special case in a test, because the device job checks
+ * the same thing against a fresh tree and the two must not disagree about
+ * what counts as expected.
+ */
+export const ABSENT_AT_REST: Record<string, string> = {
+  'smoke-dialog': 'open={confirming}, which is false until Continue is pressed',
+}
+
+/**
+ * Roles a platform has no way to announce, measured rather than assumed.
+ *
+ * A divergence here is not a defect to fix: it is a fact about the
+ * platform, and the row is where the reason lives. Everything else is a
+ * defect, which is what makes the device job's check worth running.
+ *
+ * The Android side is empty and that is a finding of its own -- every role
+ * the acceptance screen asks for survives there. iOS loses `list`: React
+ * Native renders it as a plain view, XCUITest reports `other`, and there is
+ * no element type in between. The reverse asymmetry is in
+ * `android-roles.test.ts`: Android drops every landmark, and iOS was
+ * measured doing the same.
+ */
+export const ROLE_NOT_ON_PLATFORM: Record<string, Record<string, string>> = {
+  android: {},
+  ios: {
+    list: 'React Native renders a list as a plain view on iOS; XCUITest reports `other`',
+  },
+}
+
+/**
+ * The divergences that are defects, with the platform's own limits removed.
+ *
+ * Shared by the offline fixtures and the device job so that neither can
+ * quietly forgive something the other reports.
+ */
+export function unexplainedDivergences(
+  compiled: Map<string, AnnouncedNode>,
+  device: Map<string, AnnouncedNode>,
+  platform: string,
+): Divergence[] {
+  const allowed = ROLE_NOT_ON_PLATFORM[platform] ?? {}
+  return divergences(compiled, device).filter(
+    (divergence) =>
+      !(
+        divergence.field === 'role' &&
+        divergence.device === undefined &&
+        divergence.compiled !== undefined &&
+        divergence.compiled in allowed
+      ),
+  )
+}
+
+/** Elements missing from the tree that nothing explains. */
+export function unexplainedAbsences(
+  compiled: Map<string, AnnouncedNode>,
+  device: Map<string, AnnouncedNode>,
+): string[] {
+  return missingOnDevice(compiled, device).filter((testID) => !(testID in ABSENT_AT_REST))
+}
