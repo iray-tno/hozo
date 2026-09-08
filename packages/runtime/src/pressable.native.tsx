@@ -314,6 +314,22 @@ export function HozoPressable({
   )
   const modality = useRef<'keyboard' | 'pointer'>('keyboard')
 
+  // The style for the state this component is in, resolved here because
+  // the animated path cannot hand React Native a callback -- see the
+  // `style` prop below.
+  const resolvedStyle = useMemo(
+    () =>
+      typeof style === 'function'
+        ? style({
+            pressed: (interaction & PRESSED) !== 0,
+            hovered: (interaction & HOVERED) !== 0,
+            focused: (interaction & FOCUSED) !== 0,
+            focusVisible: (interaction & FOCUS_VISIBLE) !== 0,
+          })
+        : style,
+    [interaction, style],
+  )
+
   const context = useMemo(
     () => ({
       pressed: (interaction & PRESSED) !== 0,
@@ -375,32 +391,51 @@ export function HozoPressable({
           setFlag(PRESSED, false)
           onPressOut?.(event)
         }}
-        style={({ pressed }: PressableStateCallbackType) => {
-          const resolved =
-            typeof style === 'function'
-              ? style({
-                  pressed: pressed || (interaction & PRESSED) !== 0,
-                  hovered: (interaction & HOVERED) !== 0,
-                  focused: (interaction & FOCUSED) !== 0,
-                  focusVisible: (interaction & FOCUS_VISIBLE) !== 0,
-                })
-              : style
-          if (!hozoTransition) return resolved
-          // Cast because `Animated.createAnimatedComponent` types its
-          // `style` callback as returning a plain resolved ViewStyle, while
-          // the whole point of an animated component is that the style may
-          // hold `Animated.Value`s. React Native accepts them here at
-          // runtime -- they are what it interpolates -- but its own types
-          // have no way to say so.
-          return [
-            resolved,
-            {
-              ...(hozoTransition.opacity ? { opacity } : null),
-              ...(hozoTransition.transform ? { transform: animatedTransform } : null),
-              ...(hozoTransition.colors ? animatedColors : null),
-            },
-          ] as unknown as StyleProp<ViewStyle>
-        }}
+        // An array when there is a transition, a callback when there is
+        // not, and the difference is not a preference.
+        //
+        // `AnimatedProps` builds the animated node from `props.style`, and
+        // its first act is to skip anything that is not an object:
+        //
+        //     if (key === 'style') {
+        //       // Ignore `style` if it is not an object (or array).
+        //       if (typeof value === 'object' && value != null) {
+        //
+        // A callback is a function, so no node was ever attached. Pressable
+        // still called it, so the `Animated.Value`s it returned reached the
+        // view as plain objects where colours and numbers belong -- and a
+        // `backgroundColor` that is an object is not a colour, so the view
+        // dropped it. The compiled `bg-brand` button rendered with no
+        // background at all, and its white label with it, for as long as
+        // this code has existed. Found by the first screenshot anything
+        // ever took of the acceptance screen (#297).
+        //
+        // The state the callback would have supplied is state this
+        // component already keeps: `pressed` is set from `onPressIn` and
+        // `onPressOut`, which is what drives Pressable's own flag too.
+        style={
+          hozoTransition
+            ? // Cast because `Animated.createAnimatedComponent` types
+              // `style` as a resolved ViewStyle, while the whole point of
+              // an animated component is that it may hold `Animated.Value`s.
+              ([
+                resolvedStyle,
+                {
+                  ...(hozoTransition.opacity ? { opacity } : null),
+                  ...(hozoTransition.transform ? { transform: animatedTransform } : null),
+                  ...(hozoTransition.colors ? animatedColors : null),
+                },
+              ] as unknown as StyleProp<ViewStyle>)
+            : ({ pressed }: PressableStateCallbackType) =>
+                typeof style === 'function'
+                  ? style({
+                      pressed: pressed || (interaction & PRESSED) !== 0,
+                      hovered: (interaction & HOVERED) !== 0,
+                      focused: (interaction & FOCUSED) !== 0,
+                      focusVisible: (interaction & FOCUS_VISIBLE) !== 0,
+                    })
+                  : style
+        }
       />
     </InteractionContext.Provider>
   )
