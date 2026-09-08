@@ -16,14 +16,14 @@ export function Hero({ baseUrl = '' }: HeroProps) {
 
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-4xl mx-auto flex flex-col items-center">
-          {/* Architectural timber plaque */}
-          <View className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-lg mb-8 border">
+          {/* Architectural eyebrow tagline (Text-only) */}
+          <View className="inline-flex items-center gap-2.5 mb-8">
             <View className="flex h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
-            <Text className="text-xs font-bold text-hinoki-light tracking-wide">
+            <Text className="text-xs sm:text-sm font-bold uppercase tracking-widest text-hinoki">
               Hozo — Rust-powered Universal UI Compiler
             </Text>
-            <Text className="text-xs text-stone-500">•</Text>
-            <Text className="text-xs text-shikkui-muted font-medium">
+            <Text className="text-xs text-stone-600 select-none">•</Text>
+            <Text className="text-xs sm:text-sm text-shikkui-muted font-medium tracking-wide">
               Zero Runtime • Semantic Web & Fabric
             </Text>
           </View>
