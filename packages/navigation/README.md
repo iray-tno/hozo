@@ -140,6 +140,31 @@ Run `pnpm exec hozo-links` to generate the assets and `pnpm exec hozo-links --ch
 when committed assets are missing or stale. Paths in the config are resolved relative to the config
 file, so the command behaves the same from a workspace root or an individual app.
 
+### Expo app configuration
+
+The website files prove the domain-to-app direction. Expo also needs the app-to-domain direction.
+Add the config plugin next to `expo-router` in `app.json`:
+
+```json
+{
+  "expo": {
+    "plugins": [
+      "expo-router",
+      ["@hozo/navigation/expo-config", {
+        "scheme": "myapp",
+        "domains": [{
+          "host": "app.example.com",
+          "pathPrefixes": ["/products"]
+        }]
+      }]
+    ]
+  }
+}
+```
+
+This adds `scheme`, iOS `associatedDomains`, and Android HTTPS `intentFilters` with `autoVerify`.
+It preserves unrelated configuration and can be applied repeatedly without duplicating entries.
+
 ## Framework adapters
 
 The adapter entry points accept router instances structurally, so Hozo does not install or bundle
