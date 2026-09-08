@@ -134,6 +134,9 @@ importers:
       '@react-native-community/cli-platform-android':
         specifier: 20.2.0
         version: 20.2.0
+      '@react-native-community/cli-platform-ios':
+        specifier: 20.2.0
+        version: 20.2.0
       '@react-native/metro-babel-transformer':
         specifier: ^0.87.0
         version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)

@@ -196,8 +196,43 @@ if adb logcat -d | grep -q 'FATAL EXCEPTION'; then
   fail "$package logged a fatal exception"
 fi
 
+# A system dialog on top of everything, which is not the app failing.
+#
+# `uiautomator` dumps the frontmost window, and on a loaded runner that
+# can be Android's own "isn't responding" dialog -- for the *launcher*,
+# not for this app, which the run that found this had happily rendered
+# and even fetched its remote image. The tree is then a `package="android"`
+# alert with Close app and Wait in it, `smoke-list` is legitimately absent,
+# and the failure reads as "the app rendered nothing".
+#
+# Pressing Wait dismisses it and leaves whatever was behind it in front.
+# One retry: if a second dialog arrives, the emulator is too slow to be
+# asked this question and saying that is more useful than pressing buttons
+# in a loop.
+dismiss_system_dialog() {
+  local into="$1"
+  grep -q "isn't responding" "$into" || return 0
+  echo "a system dialog is in front of the app:"
+  grep -o 'text="[^"]*isn.t responding"' "$into" | sed 's/^/  /' || true
+  local x y
+  if read -r x y < <(centre_of "$into" android:id/aerr_wait); then
+    echo "  pressing Wait at ${x},${y}"
+    adb shell input tap "$x" "$y"
+    sleep 3
+  else
+    echo '  no Wait button in it; pressing Back'
+    adb shell input keyevent KEYCODE_BACK
+    sleep 3
+  fi
+  dump "$into"
+  if grep -q "isn't responding" "$into"; then
+    fail 'a system dialog kept coming back: this emulator is too loaded to be asked'
+  fi
+}
+
 echo "reading the accessibility tree"
 dump window_dump.xml
+dismiss_system_dialog window_dump.xml
 if ! grep -q "$expect_id" window_dump.xml; then
   echo '--- accessibility tree ---'
   cat window_dump.xml
@@ -215,6 +250,7 @@ sleep 2
 still_alive 'while opening the dialog'
 
 dump dialog_dump.xml
+dismiss_system_dialog dialog_dump.xml
 if ! grep -q 'smoke-dialog' dialog_dump.xml; then
   echo '--- tree after pressing Continue ---'
   cat dialog_dump.xml
@@ -227,6 +263,7 @@ adb shell input keyevent 4
 sleep 2
 still_alive 'while dismissing the dialog'
 dump dismissed_dump.xml
+dismiss_system_dialog dismissed_dump.xml
 # The app first, and this order matters. Asserting only that the dialog is
 # gone tests an absence, and an absence is also what leaving the app looks
 # like: if Back is not consumed by the modal it pops the activity, the tree
@@ -269,6 +306,7 @@ sleep 2
 still_alive 'while opening the gallery'
 
 dump gallery_dump.xml
+dismiss_system_dialog gallery_dump.xml
 if ! grep -q "gallery-Heading" gallery_dump.xml; then
   echo '--- tree after opening the gallery ---'
   cat gallery_dump.xml

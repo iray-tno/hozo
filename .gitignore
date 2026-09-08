@@ -65,3 +65,22 @@ local.properties
 !examples/native-demo/android/app/debug.keystore
 *.apk
 .cxx/
+
+# iOS. Same rule as Android above: the project under examples/native-demo is
+# checked in, and everything Xcode and CocoaPods write into it is not. The
+# list is React Native's own template gitignore, trimmed to what this
+# repository can actually produce.
+**/Pods/
+xcuserdata/
+DerivedData/
+*.xcworkspace
+*.xcuserstate
+*.hmap
+*.ipa
+**/.xcode.env.local
+# Not committed, because it can only be generated on macOS and nothing in
+# this repository is developed there. CI runs `pod install` and the build's
+# own manifest check compares the two files it just wrote, so they agree
+# within a run; what floats between runs is the pod versions, which React
+# Native pins to its own release for all but a few mirrors.
+Podfile.lock

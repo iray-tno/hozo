@@ -24,9 +24,19 @@ cd android && ./gradlew assembleRelease -PreactNativeArchitectures=x86_64
 bash ../scripts/android-smoke.sh
 ```
 
-iOS has no host yet, so everything below is still Android-with-your-own-eyes and iOS-with-your-own-everything.
+There is an iOS host now too. `ios/` is the same project from React Native's own template, renamed, and the workflow's `ios` job installs the pods, builds it for a simulator, boots it and fails if it did not come up. Locally, on a Mac:
 
-What the automated boot establishes is narrow: the process starts, stays up, and its accessibility tree contains a `testID` the app renders. It says nothing about any of the passes below.
+```sh
+cd ios && pod install
+xcodebuild -workspace HozoNativeDemo.xcworkspace -scheme HozoNativeDemo \
+  -configuration Release -sdk iphonesimulator -derivedDataPath build \
+  CODE_SIGNING_ALLOWED=NO build
+bash ../scripts/ios-smoke.sh
+```
+
+The two jobs establish different things, and neither is a pass below. Android reads the accessibility tree, which is where every defect this workflow has found so far came from. iOS does not read one — `uiautomator dump` has no equivalent, and the tree is behind XCUITest or a third-party runner — so it establishes the half Android cannot: that the output survives CocoaPods, Hermes and the Xcode phase that runs Metro, that React Native reached `AppRegistry.runApplication`, and that the screen is not one flat colour. That last one is the outcome check: an app whose tree threw after registration logs everything a healthy one logs.
+
+So everything below is still Android-with-your-own-eyes and iOS-with-your-own-everything.
 
 ## Visual and interaction pass
 

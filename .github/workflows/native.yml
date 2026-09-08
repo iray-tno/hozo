@@ -18,6 +18,20 @@
 # depends on `hozo_ir`, `hozo_parser` and the shared lowering as much as on
 # `hozo_native`, so an honest filter is most of the repository. `dispatch`
 # covers the moment it matters most, which is before a release (#8).
+#
+# Two platforms, because they are two runtimes rather than one output run
+# twice: different renderer, different text metrics, and an accessibility
+# API with a different vocabulary. The Android job is the one that reads
+# the accessibility tree, and every defect this workflow has found so far
+# came from that tree rather than from the boot. The iOS job does not read
+# one yet -- `uiautomator dump` has no equivalent, the tree is behind
+# XCUITest or a third-party runner, and that is a bigger decision than a
+# first job should make. What it does establish is the half the Android
+# job cannot: that Hozo's output survives CocoaPods, Hermes and the Xcode
+# script phase that runs Metro.
+#
+# The iOS job also costs ten times what the Android one does per minute,
+# which is the other half of why this schedule is weekly.
 name: native
 
 on:
@@ -125,5 +139,67 @@ jobs:
             gallery_dump.xml
             gallery.png
             examples/native-demo/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
+          retention-days: 14
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      # The same two reasons as the Android job: Xcode's "Bundle React
+      # Native code and images" phase runs Metro, Metro runs
+      # `@hozo/metro`'s transformer, and that transformer is the compiler.
+      # No addon, no bundle -- and `metro.config.js` imports
+      # `@hozo/metro/config`, whose `exports` map points at `dist/`.
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm turbo run build
+
+      # The decoder the smoke test judges the screen with, checked before
+      # it is trusted: a decoder that mis-reads a blank screen reports
+      # noise, and noise passes.
+      - run: node scripts/screen-colours.test.mjs
+        working-directory: examples/native-demo
+
+      - name: Install the pods
+        working-directory: examples/native-demo/ios
+        run: pod install
+
+      # `-derivedDataPath` so the app lands somewhere the smoke script can
+      # name, rather than under a hashed directory in ~/Library.
+      # Simulator builds need no signing, and saying so is what keeps this
+      # from asking for a team.
+      - name: Build for the simulator
+        working-directory: examples/native-demo/ios
+        run: |
+          xcodebuild \
+            -workspace HozoNativeDemo.xcworkspace \
+            -scheme HozoNativeDemo \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Boot it, and fail if it did not come up
+        run: bash examples/native-demo/scripts/ios-smoke.sh
+
+      - name: Keep what it saw
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-boot
+          path: |
+            ios-screen.png
+            ios-app.log
           if-no-files-found: ignore
           retention-days: 14
