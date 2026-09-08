@@ -44,6 +44,14 @@
       "react-native": "./dist/tanstack-router.native.js",
       "default": "./dist/tanstack-router.js"
     },
+    "./verification": {
+      "types": "./dist/verification.d.ts",
+      "default": "./dist/verification.js"
+    },
+    "./verification/node": {
+      "types": "./dist/verification-node.d.ts",
+      "default": "./dist/verification-node.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

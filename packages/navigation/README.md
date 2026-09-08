@@ -106,6 +106,22 @@ Serve the serialized values as `application/json` over HTTPS, without redirects,
 one file on every associated host. The generator validates identifiers and canonicalizes Android
 certificate fingerprints; it does not guess signing identities from the local machine.
 
+Build scripts can place both documents into any framework's public directory without hard-coding
+either filename:
+
+```ts
+import { writeDeepLinkVerificationFiles } from '@hozo/navigation/verification/node'
+
+writeDeepLinkVerificationFiles({
+  outputDirectory: new URL('./public', import.meta.url).pathname,
+  apple,
+  android,
+})
+```
+
+Existing identical files are left untouched, keeping watch builds stable. This Node-only writer is
+an explicit subpath so React Native bundles never resolve `node:fs`.
+
 ## Framework adapters
 
 The adapter entry points accept router instances structurally, so Hozo does not install or bundle
