@@ -104,6 +104,23 @@ test('writes the base layer before anything is compiled, too', () => {
   assert.match(readFileSync(css, 'utf8'), /max-width: 100%/)
 })
 
+test('writes configured font faces before the first module is compiled', () => {
+  const root = project('export const x = 1\n')
+  const config = withHozo(
+    {},
+    {
+      root,
+      preflight: false,
+      fontFaceCss: '@font-face { font-family: "Fixture"; src: url("/Fixture.woff2"); }',
+    },
+  ) as {
+    turbopack: { rules: Record<string, { loaders: { options: { preflightPath: string } }[] }> }
+  }
+  const css = config.turbopack.rules['*.tsx'].loaders[0].options.preflightPath
+  assert.match(readFileSync(css, 'utf8'), /Fixture\.woff2/)
+  assert.doesNotMatch(readFileSync(css, 'utf8'), /max-width: 100%/)
+})
+
 test('writes the candidate stylesheet before anything is compiled', () => {
   // Turbopack has no build-start hook, so this happens while the config is
   // being evaluated. A module compiled before the file existed would be a

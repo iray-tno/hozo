@@ -376,6 +376,18 @@ test('`preflight` overrides the inference in both directions', async () => {
   assert.match(preflight(on), /max-width: 100%/, 'a project that asked for it went without')
 })
 
+test('font faces are hoisted even when a StyleX-only project declines Preflight', async () => {
+  const root = project({ 'App.tsx': NO_TAILWIND_APP })
+  await serve(root, {
+    preflight: false,
+    fontFaceCss: '@font-face { font-family: "Fixture"; src: url("/Fixture.woff2"); }',
+  })
+  const css = preflight(root)
+  assert.match(css, /@font-face/)
+  assert.match(css, /Fixture\.woff2/)
+  assert.doesNotMatch(css, /max-width: 100%/)
+})
+
 test('the base layer follows the project across an edit', async () => {
   // The candidate stylesheet decides it, and that is rewritten whenever a
   // scanned file changes. A project that gains its first Tailwind class

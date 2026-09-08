@@ -142,6 +142,14 @@ export interface HozoProjectOptions {
    * it once.
    */
   preflight?: boolean | 'auto'
+  /**
+   * Hoisted `@font-face` CSS to load before generated utilities.
+   *
+   * `createFontFaceCss` from `@hozo/typography/fonts` produces this value.
+   * Keeping the integration string-based avoids making every compiler user
+   * install the typography package or carrying a font registry at runtime.
+   */
+  fontFaceCss?: string
   /** Report project-scan work and timing through the bundler's logger. */
   debug?: boolean
 }
@@ -423,6 +431,19 @@ export function preflightCssFor(
   usesTailwind: boolean,
 ): string {
   return preflightEnabled(preflight, usesTailwind) ? css : ''
+}
+
+/** Font faces plus the optional reset, in the order Web needs them. */
+export function webBaseCssFor(
+  fontFaceCss: string | undefined,
+  preflight: boolean | 'auto' | undefined,
+  css: string,
+  usesTailwind: boolean,
+): string {
+  const fonts = fontFaceCss?.trim()
+  const base = preflightCssFor(preflight, css, usesTailwind).trim()
+  const sections = [fonts, base].filter((section): section is string => Boolean(section))
+  return sections.length === 0 ? '' : `${sections.join('\n\n')}\n`
 }
 
 /**

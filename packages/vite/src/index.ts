@@ -36,13 +36,13 @@ import {
   type HozoProjectOptions,
   importSpecifier,
   isTransformedSource,
-  preflightCssFor,
   preflightCssPath,
   resolveStylexRequests,
   type StylexModuleCache,
   scannableFile,
   scanProject,
   scanSummary,
+  webBaseCssFor,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
 import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
@@ -106,7 +106,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
   /// way, since it lives under `node_modules` where the watcher does not
   /// look.
   function writePreflightCss() {
-    const css = preflightCssFor(options.preflight, preflight, cache.usesTailwind)
+    const css = webBaseCssFor(options.fontFaceCss, options.preflight, preflight, cache.usesTailwind)
     if (!writeFileIfChanged(preflightPath, css)) return
     const module = server?.moduleGraph.getModuleById(preflightPath)
     if (module) {

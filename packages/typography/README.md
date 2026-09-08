@@ -95,6 +95,13 @@ createFontFaceCss(fonts) // deterministic CSS for the Web build
 fontFamily(fonts, 'body', 'ios') // "InterVariable"
 ```
 
+Pass the generated CSS to Hozo's Vite, TanStack Start, Storybook, or Next integration. It is
+written once into the project-wide base stylesheet and loaded before generated utilities:
+
+```ts
+hozo({ fontFaceCss: createFontFaceCss(fonts) })
+```
+
 Mark a platform as `external` when `next/font`, global CSS, Expo startup code, or native asset
 linking already owns it. Such entries generate no duplicate registration and have no runtime cost.
 

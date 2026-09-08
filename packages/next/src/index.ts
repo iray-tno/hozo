@@ -22,10 +22,10 @@ import { cssFileNameFor } from '@hozo/compiler/lower'
 import {
   discoverTransformedSources,
   type HozoProjectOptions,
-  preflightCssFor,
   preflightCssPath,
   scanProject,
   scanSummary,
+  webBaseCssFor,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
 import { preflightCss } from '@hozo/tailwind'
@@ -213,7 +213,12 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
   // disappears -- see `preflightCssFor`.
   writeFileIfChanged(
     preflightPath,
-    preflightCssFor(options.preflight, preflightCss(), project.cache.usesTailwind),
+    webBaseCssFor(
+      options.fontFaceCss,
+      options.preflight,
+      preflightCss(),
+      project.cache.usesTailwind,
+    ),
   )
   // And the same treatment for the per-module stylesheets, for the same
   // reason one layer down. The loader writes a module's CSS beside it and

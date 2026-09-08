@@ -17,10 +17,10 @@ import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
   importSpecifier,
-  preflightCssFor,
   resolveStylexRequests,
   StylexModuleCache,
   scannableFile,
+  webBaseCssFor,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
 import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
@@ -210,11 +210,11 @@ function resolveFromLoader(loader, specifier, importer) {
   })
 }
 
-/** Tailwind's base layer, on the terms `preflightCssFor` describes. */
+/** Project font faces and Tailwind's optional base layer. */
 function writePreflight(options, cache) {
   writeFileIfChanged(
     options.preflightPath,
-    preflightCssFor(options.preflight, preflightCss(), cache.usesTailwind),
+    webBaseCssFor(options.fontFaceCss, options.preflight, preflightCss(), cache.usesTailwind),
   )
 }
 
