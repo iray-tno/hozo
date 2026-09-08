@@ -21,17 +21,23 @@
 #
 # Two platforms, because they are two runtimes rather than one output run
 # twice: different renderer, different text metrics, and an accessibility
-# API with a different vocabulary. The Android job is the one that reads
-# the accessibility tree, and every defect this workflow has found so far
-# came from that tree rather than from the boot. The iOS job does not read
-# one yet -- `uiautomator dump` has no equivalent, the tree is behind
-# XCUITest or a third-party runner, and that is a bigger decision than a
-# first job should make. What it does establish is the half the Android
-# job cannot: that Hozo's output survives CocoaPods, Hermes and the Xcode
+# API with a different vocabulary. Both jobs read the accessibility tree,
+# which is where every defect this workflow has found came from rather than
+# from the boot -- Android through `uiautomator dump`, which needs nothing
+# installed, and iOS through an XCUITest target, because `uiautomator` has
+# no equivalent there. The iOS job also establishes the half the Android
+# one cannot: that Hozo's output survives CocoaPods, Hermes and the Xcode
 # script phase that runs Metro.
 #
-# The iOS job also costs ten times what the Android one does per minute,
-# which is the other half of why this schedule is weekly.
+# Neither job costs money. This repository is public and both runners are
+# standard GitHub-hosted ones, which are free for public repositories --
+# the ten-to-one multiplier that used to be written here applies to billed
+# minutes, which these are not. What the iOS job does spend is a scarce
+# concurrent macOS slot for twenty-odd minutes, and the wall-clock time of
+# anyone waiting on it.
+#
+# So the schedule stands on the reason above it rather than on that one:
+# "does it still boot" moves slowly, and a run is tens of minutes.
 name: native
 
 on:
