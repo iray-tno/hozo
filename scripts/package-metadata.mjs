@@ -107,7 +107,12 @@ const PACKAGES = {
       './next': './dist/next.js',
       './expo-router': './dist/expo-router.js',
       './tanstack-router': './dist/tanstack-router.js',
+      './verification': './dist/verification.js',
+      './verification/node': './dist/verification-node.js',
     },
+    // Pure verification data can use the default build everywhere, while
+    // the writer is deliberately Node-only. Neither has a `.native` peer.
+    noNative: ['./verification', './verification/node'],
     native: true,
     keywords: ['react-native', 'react', 'navigation', 'router', 'deep-linking', 'universal'],
   },
@@ -188,7 +193,7 @@ export function metadataFor(name) {
         // `.native.js` of its own and was getting the plain map, so Metro
         // resolved the Web file -- which re-exports nothing -- and the
         // components the compiler imported from it did not exist.
-        spec.native
+        spec.native && !spec.noNative?.includes(subpath)
         ? {
             types,
             'react-native': target.replace(/\.js$/, '.native.js'),
