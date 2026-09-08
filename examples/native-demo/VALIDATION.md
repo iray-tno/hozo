@@ -34,13 +34,27 @@ xcodebuild -workspace HozoNativeDemo.xcworkspace -scheme HozoNativeDemo \
 bash ../scripts/ios-smoke.sh
 ```
 
-The two jobs establish different things, and neither is a pass below. Android reads the accessibility tree, which is where every defect this workflow has found so far came from. iOS does not read one — `uiautomator dump` has no equivalent, and the tree is behind XCUITest or a third-party runner — so it establishes the half Android cannot: that the output survives CocoaPods, Hermes and the Xcode phase that runs Metro, that React Native reached `AppRegistry.runApplication`, and that the screen is not one flat colour. That last one is the outcome check: an app whose tree threw after registration logs everything a healthy one logs.
+Both jobs now read the accessibility tree, which is where every defect this workflow has found came from — an invisible `Separator`, a `Progress` with no box, a `Dialog` with no `testID`, a `Del` that threw, and a `Pressable` whose transition took its background with it.
 
-So everything below is still Android-with-your-own-eyes and iOS-with-your-own-everything.
+They read it differently, because the platforms offer different things. Android uses `uiautomator dump`, which needs nothing installed. iOS has no equivalent, so the tree comes from an XCUITest target in `ios/` — Apple's own tool, reading the hierarchy from outside the process — which prints it to the build log between markers for `scripts/extract-trees.mjs` to cut out. Run it locally on a Mac with:
+
+```sh
+xcodebuild test -workspace ios/HozoNativeDemo.xcworkspace -scheme HozoNativeDemo \
+  -configuration Release -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO | tee ios-uitest.log
+node scripts/extract-trees.mjs ios-uitest.log
+```
+
+`-configuration Release` is not optional: the Xcode phase skips bundling in Debug, so a Debug app comes up looking for a Metro server that is not running.
+
+The iOS job also keeps a screenshot and checks it is not one flat colour, which the tree does not answer — an app that renders an accessibility tree it never draws is a real shape, and the Continue button that was there in the tree and invisible on screen is what proved it.
+
+Everything below is still with-your-own-eyes on both.
 
 ## Visual and interaction pass
 
-_Screenshots of each of these are the next phase of #297; the judgement about what the screenshots show is not._
+_Both jobs now keep a screenshot, and the compiled Continue button being invisible in one of them (#334) is what those artifacts are for. The judgement about what a screenshot shows is still a person's._
 
 - `smoke-image`: the remote logo loads, is 80×80, cropped, and rounded.
 - `smoke-horizontal-scroll`: a horizontal gesture reaches cards three and four without vertical-axis capture.
@@ -51,7 +65,7 @@ _Screenshots of each of these are the next phase of #297; the judgement about wh
 
 ## Screen-reader pass
 
-_The tree these announce from is machine-readable, and #297 will assert it against the contract in #260. What a screen reader says out loud stays here._
+_The tree these announce from is machine-readable on both platforms now, and `native-tree.ts` asserts the Android one against the contract in #260; the iOS half of that comparison is the next change. What a screen reader says out loud stays here._
 
 - VoiceOver and TalkBack announce the acceptance screen as a list and each virtual row once.
 - The logo is announced as “React Native logo”.
