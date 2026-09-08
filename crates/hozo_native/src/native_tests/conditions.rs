@@ -997,6 +997,65 @@ fn viewport_sizes_become_an_inline_style_read_from_a_hook() {
 }
 
 #[test]
+fn a_safe_area_inset_is_read_from_a_hook_like_a_viewport_size_is() {
+    // The class is Tailwind's own -- `pt-[env(safe-area-inset-top)]` is
+    // what its engine produces, and the Web backend emits exactly the CSS
+    // Tailwind emits for it. Inventing a `pt-safe` would put a spelling in
+    // Hozo's mouth that the conformance denominator has never heard of.
+    //
+    // React Native has no cascade to resolve `env()` in, but it does have
+    // the number: it arrives through a hook rather than through a
+    // stylesheet, which is the same shape `h-screen` above already has.
+    let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] px-4" />
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(output.prelude, vec!["const __hozoSafeArea = useHozoSafeArea()"]);
+    assert_eq!(output.runtime_imports, vec!["useHozoSafeArea"]);
+    assert!(
+        output.jsx.contains(
+            "style={[hozoStyles.hozo0, { paddingTop: __hozoSafeArea.top, paddingBottom: __hozoSafeArea.bottom }]}"
+        ),
+        "{}",
+        output.jsx
+    );
+    // The padding the build *can* resolve stays in the StyleSheet, where
+    // it costs nothing per render.
+    assert!(output.styles.contains("paddingStart: 16,"), "{}", output.styles);
+    assert!(!output.styles.contains("paddingTop"), "{}", output.styles);
+}
+
+#[test]
+fn the_env_functions_react_native_cannot_answer_are_still_refused() {
+    // The rule is not "any `env()`". `safe-area-inset-*` is the one this
+    // platform has a value for; a keyboard inset or a viewport-segment
+    // query is a CSS environment variable with no React Native equivalent,
+    // and lowering it to a zero would be the silent wrong answer this
+    // refusal exists to prevent.
+    //
+    // And not any property either: `width: env(safe-area-inset-left)`
+    // parses on Web and means nothing on a phone, so the property list is
+    // padding, margin and the four insets.
+    for class in [
+        "pt-[env(keyboard-inset-height)]",
+        "w-[env(safe-area-inset-left)]",
+        "pt-[env(safe-area-inset-top,0px)]",
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class}\" />"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(!output.diagnostics.is_empty(), "{class} was accepted silently");
+        assert!(output.prelude.is_empty(), "{class}: {:?}", output.prelude);
+    }
+}
+
+#[test]
 fn spin_animation_uses_one_native_driver_hook() {
     let source = r#"
             import { View } from '@hozo/core'

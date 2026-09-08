@@ -59,6 +59,7 @@ export {
   type HozoTextProps,
   type HozoTransition,
 } from './pressable.native.tsx'
+export { type HozoSafeAreaInsets, useHozoSafeArea } from './safe-area.native.ts'
 export { HozoSpaced } from './spacing.native.tsx'
 
 export {

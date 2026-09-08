@@ -1974,6 +1974,62 @@ impl Display {
     }
 }
 
+/// The React Native style key and inset side an `env(safe-area-inset-*)`
+/// arbitrary value asks for, if it is one.
+///
+/// The one CSS function React Native can answer. A notch, a home indicator
+/// and a status bar are all real on both platforms; what differs is how the
+/// number arrives -- the cascade on Web, a hook on Native -- and that is a
+/// difference this compiler exists to absorb.
+///
+/// No new class names. `pt-[env(safe-area-inset-top)]` is a class Tailwind
+/// itself produces, and the Web backend already emits exactly the CSS
+/// Tailwind emits for it; inventing a `pt-safe` would put a spelling in
+/// Hozo's mouth that the conformance suite's denominator has never heard
+/// of.
+///
+/// The properties are the ones an inset is written on: padding, margin, and
+/// the four insets. Not width or height -- `w-[env(safe-area-inset-left)]`
+/// parses and means nothing -- and not the shorthands, because
+/// `padding: env(safe-area-inset-top)` on Web sets all four sides to the
+/// top inset, which nobody writes on purpose.
+pub fn safe_area_inset(property: &str, value: &str) -> Option<(&'static str, &'static str)> {
+    let side = value
+        .strip_prefix("env(safe-area-inset-")
+        .and_then(|rest| rest.strip_suffix(')'))
+        .and_then(|side| match side {
+            "top" | "right" | "bottom" | "left" => Some(side),
+            // A fallback -- `env(safe-area-inset-top, 0px)` -- is the same
+            // value with a default the runtime hook does not need, but
+            // parsing it would mean deciding what a *non-zero* fallback
+            // means on a platform where the value is never missing. Left
+            // refused until somebody writes one.
+            _ => None,
+        })?;
+    let side = match side {
+        "top" => "top",
+        "right" => "right",
+        "bottom" => "bottom",
+        _ => "left",
+    };
+    let key = match property {
+        "padding-top" => "paddingTop",
+        "padding-right" => "paddingRight",
+        "padding-bottom" => "paddingBottom",
+        "padding-left" => "paddingLeft",
+        "margin-top" => "marginTop",
+        "margin-right" => "marginRight",
+        "margin-bottom" => "marginBottom",
+        "margin-left" => "marginLeft",
+        "top" => "top",
+        "right" => "right",
+        "bottom" => "bottom",
+        "left" => "left",
+        _ => return None,
+    };
+    Some((key, side))
+}
+
 impl StyleProperty {
     /// `Some(description)` when React Native has no way to express this, so
     /// the Native backend can refuse it by name instead of dropping it. Kept
@@ -2402,6 +2458,14 @@ impl StyleProperty {
         // because the arbitrary catalogue is checked for *fidelity* on Web
         // and never for silence on Native.
         if let StyleProperty::Arbitrary(property, value) = self {
+            // Except a safe-area inset, which is a value React Native does
+            // have -- it arrives through a hook rather than through the
+            // cascade. Same shape as the viewport sizes below, and for the
+            // same reason: a number only the device knows, that changes
+            // when the device rotates.
+            if safe_area_inset(property, value).is_some() {
+                return None;
+            }
             return Some(format!(
                 "`{property}: {value}`: an arbitrary value is a CSS property by name, and React \
                  Native's style keys are a different vocabulary -- there is nothing to translate \

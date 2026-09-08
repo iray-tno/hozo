@@ -25,6 +25,7 @@ pub(super) enum RuntimeHook {
     /// exactly, and it's why the breakpoints keep their coarse snapshot
     /// rather than being rebuilt on top of this.
     Viewport,
+    SafeArea,
     /// One environment query, by Tailwind's name for it.
     ///
     /// Seven queries, four subscriptions: the runtime answers
@@ -57,6 +58,7 @@ impl RuntimeHook {
             RuntimeHook::Breakpoint(bp) => format!("__hozoBp_{}", breakpoint_name(bp)),
             RuntimeHook::WidthAtLeast(px) => format!("__hozoWidth_{px}"),
             RuntimeHook::Viewport => "__hozoViewport".to_string(),
+            RuntimeHook::SafeArea => "__hozoSafeArea".to_string(),
             RuntimeHook::Animation(name) => format!("__hozoAnim_{}", animation_name(*name)),
             RuntimeHook::Environment(query) => {
                 format!("__hozoEnv_{}", environment_name(*query).replace('-', "_"))
@@ -69,6 +71,7 @@ impl RuntimeHook {
             RuntimeHook::Dark => "useHozoDark",
             RuntimeHook::Breakpoint(_) => "useHozoBreakpoint",
             RuntimeHook::Viewport => "useHozoViewport",
+            RuntimeHook::SafeArea => "useHozoSafeArea",
             RuntimeHook::Animation(_) => "useHozoAnimation",
             RuntimeHook::Environment(_) => "useHozoEnvironment",
             RuntimeHook::WidthAtLeast(_) => "useHozoWidthAtLeast",
@@ -87,6 +90,7 @@ impl RuntimeHook {
                 format!("const {} = useHozoWidthAtLeast({px})", self.binding())
             }
             RuntimeHook::Viewport => format!("const {} = useHozoViewport()", self.binding()),
+            RuntimeHook::SafeArea => format!("const {} = useHozoSafeArea()", self.binding()),
             RuntimeHook::Animation(name) => format!(
                 "const {} = useHozoAnimation('{}')",
                 self.binding(),
@@ -178,6 +182,14 @@ pub(super) fn build_style_entries(
         if viewport.is_some() {
             runtime.hooks.push(RuntimeHook::Viewport);
         }
+        // A safe-area inset is the same kind of value: the device knows it
+        // and the build does not, and it moves when the device rotates.
+        let (safe_area_props, props): (Vec<_>, Vec<_>) =
+            props.into_iter().partition(is_safe_area_inset);
+        let safe_area = safe_area_object(&safe_area_props);
+        if safe_area.is_some() {
+            runtime.hooks.push(RuntimeHook::SafeArea);
+        }
         let (animation_props, props): (Vec<_>, Vec<_>) =
             props.into_iter().partition(|property| matches!(property, StyleProperty::Animation(_)));
         // `animate-none` asks for no hook: it turns an animation off
@@ -191,7 +203,7 @@ pub(super) fn build_style_entries(
         if let Some(hook) = animation_hook {
             runtime.hooks.push(hook);
         }
-        if props.is_empty() && viewport.is_none() && animation.is_none() {
+        if props.is_empty() && viewport.is_none() && safe_area.is_none() && animation.is_none() {
             continue;
         }
         let name = match condition_suffix(&condition) {
@@ -208,6 +220,7 @@ pub(super) fn build_style_entries(
             .unwrap_or_else(|| vec![format!("{STYLE_OBJECT}.{name}")])
             .into_iter()
             .chain(viewport.clone())
+            .chain(safe_area.clone())
             .chain(animation.clone())
             .collect();
         // Each part carries the condition's guard. There may be two of them

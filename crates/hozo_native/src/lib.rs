@@ -583,6 +583,36 @@ fn render_verbatim(
     out
 }
 
+fn is_safe_area_inset(prop: &StyleProperty) -> bool {
+    matches!(prop, StyleProperty::Arbitrary(property, value)
+        if hozo_ir::safe_area_inset(property, value).is_some())
+}
+
+/// The inline style object for a group's safe-area insets, if it has any.
+///
+/// The same treatment as `viewport_object` and for the same reason: the
+/// number is not knowable at build time and changes with the device --
+/// rotate a phone and the notch moves from the top to the side.
+///
+/// The value comes from `react-native-safe-area-context`, wrapped by
+/// `useHozoSafeArea` in `@hozo/runtime`. Hozo does not ship native code and
+/// this is the one place that decision is visible: reading the real inset
+/// needs `UIView.safeAreaInsets` and Android's `WindowInsets`, and React
+/// Native's core exposes neither to JavaScript -- only a deprecated
+/// iOS-only `SafeAreaView` and an Android-only `StatusBar.currentHeight`.
+/// So the choice was a native module of our own or a wrapper around the
+/// one every React Native app already has, and the wrapper keeps `@hozo/*`
+/// installable without a rebuild.
+fn safe_area_object(props: &[StyleProperty]) -> Option<String> {
+    let mut pairs: Vec<String> = Vec::new();
+    for prop in props {
+        let StyleProperty::Arbitrary(property, value) = prop else { continue };
+        let Some((key, side)) = hozo_ir::safe_area_inset(property, value) else { continue };
+        pairs.push(format!("{key}: {}.{side}", RuntimeHook::SafeArea.binding()));
+    }
+    (!pairs.is_empty()).then(|| format!("{{ {} }}", pairs.join(", ")))
+}
+
 fn is_viewport_sized(prop: &StyleProperty) -> bool {
     viewport_dimension(prop).is_some()
 }
