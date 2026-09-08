@@ -49,7 +49,14 @@ export default function App() {
   if (showingGallery) return <Gallery />
 
   return (
-    <View className="flex-1 bg-slate-50 text-slate-900">
+    // The insets a notch and a home indicator take out of the window.
+    // Written as the class Tailwind itself produces, which is the whole
+    // point of #352: the browser resolves `env()` in the cascade and
+    // React Native reads the same number from a hook, so one spelling
+    // covers both. Before this the heading rendered *under* the Dynamic
+    // Island -- the iOS job screenshots this screen, and that is how it
+    // was found (#338).
+    <View className="flex-1 bg-slate-50 text-slate-900 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <FlatList
         className="flex-1"
         accessibilityLabel="Hozo native acceptance screen"

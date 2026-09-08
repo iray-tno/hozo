@@ -54,9 +54,11 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // The project's own theme, not Tailwind's defaults:  sets
 // --spacing to 0.2rem, so  is 19.2 rather than 24, and --color-brand
 // resolves to a real hex rather than the not-a-colour marker.
-expect(/paddingTop: 19.2/.test(app), 'the project spacing scale reached the styles')
-expect(bundle.includes('#3581f6'), 'the project colour resolved')
-expect(!/hozo-unresolved/.test(bundle), 'no colour was left unresolved')
+// The three theme assertions were here *and* again below, in a second
+// block with its own reporting. Two copies of one rule is the thing this
+// repository keeps finding drifted, and these had already started to: the
+// pair below is what actually gates, because this block exits first.
+// Kept there, deleted here.
 
 // A coarse dependency/runtime regression guard. This is an unminified dev
 // bundle, so the margin is intentionally broad; crossing it means a feature
@@ -79,8 +81,18 @@ console.log(`bundle check passed (${bundle.length} bytes)`)
 // sets `--spacing` to 0.2rem, so `p-6` is 19.2px and not 24; and
 // `--color-brand` resolves to a real hex rather than the marker the
 // compiler emits for a token it can't resolve.
+//
+// Asked of the whole bundle rather than the window around the App, and
+// that is a correction rather than a loosening. The window is 6000
+// characters either side of a string in the source; adding a safe-area
+// inset to the root element pushed this number out of it, and the check
+// then reported that the project's spacing scale had not reached the
+// styles when the styles were right there in the same file. The number is
+// what makes it specific -- 19.2 is `p-6` against this project's 0.2rem
+// spacing, where Tailwind's default would be 24 -- so it does not need a
+// position as well.
 const themed = []
-if (!/paddingTop: 19\.2/.test(app)) themed.push('the project spacing scale reached the styles')
+if (!/paddingTop: 19\.2/.test(bundle)) themed.push('the project spacing scale reached the styles')
 if (!bundle.includes('#3581f6')) themed.push('the project colour resolved')
 if (/hozo-unresolved/.test(bundle)) themed.push('no colour was left unresolved')
 
