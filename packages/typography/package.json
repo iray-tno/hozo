@@ -29,6 +29,10 @@
       "react-native": "./dist/index.native.js",
       "default": "./dist/index.js"
     },
+    "./fonts": {
+      "types": "./dist/fonts.d.ts",
+      "default": "./dist/fonts.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

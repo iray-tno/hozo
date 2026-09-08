@@ -79,7 +79,8 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'semantics', 'landmarks', 'accessibility', 'universal'],
   },
   typography: {
-    exports: { '.': './dist/index.js' },
+    exports: { '.': './dist/index.js', './fonts': './dist/fonts.js' },
+    noNative: ['./fonts'],
     native: true,
     keywords: ['react-native', 'react', 'typography', 'cjk', 'ruby', 'accessibility'],
   },

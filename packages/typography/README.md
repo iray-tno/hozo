@@ -68,3 +68,32 @@ export function ArticlePreview() {
 - **Semantic Web HTML**: Direct compiler lowering to real HTML5 typography and text-level semantics, completely free of `react-native-web`.
 - **Zero Runtime Foundation**: Primitives compile away at build time, with pure React fallbacks when running uncompiled.
 - **Relative Typography Scaling**: Built-in support for proportional text sizing (`text-sm`, `text-lg`, etc.) and parent-relative ratio calculations that stay synchronized between CSS and React Native styles.
+## Font assets
+
+Font selection (`fontFamily`) and font availability are separate. Define the latter once without
+registering anything at module import time:
+
+```ts
+import { createFontFaceCss, defineFonts, fontFamily } from '@hozo/typography/fonts'
+
+export const fonts = defineFonts({
+  body: {
+    family: 'Inter',
+    nativeFamily: { ios: 'InterVariable', android: 'inter' },
+    faces: [{
+      sources: {
+        web: [{ url: new URL('./Inter.woff2', import.meta.url).href, format: 'woff2' }],
+        ios: './assets/Inter.ttf',
+        android: './assets/Inter.ttf'
+      },
+      weight: '100 900'
+    }]
+  }
+})
+
+createFontFaceCss(fonts) // deterministic CSS for the Web build
+fontFamily(fonts, 'body', 'ios') // "InterVariable"
+```
+
+Mark a platform as `external` when `next/font`, global CSS, Expo startup code, or native asset
+linking already owns it. Such entries generate no duplicate registration and have no runtime cost.
