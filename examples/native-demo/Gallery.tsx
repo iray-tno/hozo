@@ -27,6 +27,28 @@
 // `@hozo/core`, and none of them accepts a `testID` at all -- which is its
 // own finding and not one to fix in the same change as this.
 
+// The four `probe-*` buttons at the foot of this screen are not part of
+// the census. They exist to answer #357, where the compiled Continue
+// button on the acceptance screen renders with no background and an
+// accessibility frame the size of its label -- on both platforms, and
+// still after #334, which fixed a real thing that turned out not to be
+// this one.
+//
+// Every test in this repository passes while that is true, because
+// `react-native-stub.js` makes `createAnimatedComponent` the identity:
+// the layer where this breaks is one no test here can reach. So the next
+// step is evidence rather than another guess, and each probe adds exactly
+// one thing to the compiled output -- measured, not assumed:
+//
+//   probe-plain       Pressable,      a static style
+//   probe-hover       HozoPressable,  + a callback style
+//   probe-transition  HozoPressable,  + hozoTransition
+//   probe-focus       HozoPressable,  + hozoFocusVisible
+//
+// The last is the Continue button's class list exactly. Each has a colour
+// nothing else on this screen uses, so one screenshot scan says which ones
+// drew; each has a frame in the tree, so the same run says which ones kept
+// their padding.
 import {
   Address,
   Article,
@@ -191,6 +213,32 @@ export default function Gallery() {
           testID="gallery-Pressable"
         >
           <Text>Pressable link card</Text>
+        </Pressable>
+
+        {/* The four probes from #357; the file header says what they are for. */}
+        <Pressable className="rounded-lg bg-red-500 p-3" testID="probe-plain">
+          <Text className="text-white">Plain</Text>
+        </Pressable>
+
+        <Pressable
+          className="rounded-lg bg-orange-500 p-3 hover:bg-orange-600"
+          testID="probe-hover"
+        >
+          <Text className="text-white">Hover, no transition</Text>
+        </Pressable>
+
+        <Pressable
+          className="rounded-lg bg-green-600 p-3 transition-colors duration-200 hover:bg-green-700"
+          testID="probe-transition"
+        >
+          <Text className="text-white">Transition</Text>
+        </Pressable>
+
+        <Pressable
+          className="rounded-lg bg-blue-600 p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
+          testID="probe-focus"
+        >
+          <Text className="text-white">Focus visible</Text>
         </Pressable>
 
         <View testID="gallery-View">
