@@ -160,6 +160,28 @@ centre_of() {
   ' "$1" "$2"
 }
 
+# No system error dialogs, because the ones that appear here belong to
+# other apps.
+#
+# A loaded emulator makes the launcher miss its deadline, and Android puts
+# "Pixel Launcher isn't responding" in front of everything -- including
+# this app, which is running perfectly well behind it. `uiautomator` dumps
+# the frontmost window, so the tree becomes that dialog and the run fails
+# saying this app rendered nothing.
+#
+# Dismissing it does not work: pressing Wait tells Android to keep waiting
+# for the app that is stuck, and a launcher that is still stuck raises the
+# dialog again. Three attempts over thirty-eight seconds were not enough on
+# one run, and a fourth would be the same guess with a bigger number.
+#
+# `hide_error_dialogs` is the setting Android has for exactly this. It
+# suppresses crash and ANR dialogs, which costs this script nothing: it
+# judges whether the app is alive from `pidof` and whether it crashed from
+# `FATAL EXCEPTION` in logcat, neither of which is a dialog. What it stops
+# is another app's dialog being mistaken for this one's tree.
+adb shell settings put global hide_error_dialogs 1 > /dev/null 2>&1 || true
+echo "error dialogs hidden: $(adb shell settings get global hide_error_dialogs | tr -d '\r')"
+
 [ -f "$apk" ] || fail "no release APK at $apk -- did assembleRelease run?"
 
 echo "installing $apk"
@@ -212,22 +234,38 @@ fi
 dismiss_system_dialog() {
   local into="$1"
   grep -q "isn't responding" "$into" || return 0
-  echo "a system dialog is in front of the app:"
+  echo "a system dialog is in front of the app despite hide_error_dialogs:"
   grep -o 'text="[^"]*isn.t responding"' "$into" | sed 's/^/  /' || true
-  local x y
-  if read -r x y < <(centre_of "$into" android:id/aerr_wait); then
-    echo "  pressing Wait at ${x},${y}"
-    adb shell input tap "$x" "$y"
-    sleep 3
-  else
-    echo '  no Wait button in it; pressing Back'
-    adb shell input keyevent KEYCODE_BACK
-    sleep 3
+
+  # The dialog belongs to whichever app stopped responding, and on this
+  # runner that has always been the launcher. Pressing Wait was tried and
+  # does not hold -- Android raises it again while that app is still stuck
+  # -- so the app is stopped instead. Nothing here needs a launcher: this
+  # app owns the screen for the rest of the run, and Android restarts the
+  # launcher on its own when something asks for HOME.
+  #
+  # Resolved rather than spelled: the emulator image decides which launcher
+  # it ships, and `com.google.android.apps.nexuslauncher` is true of this
+  # one image rather than of Android.
+  local home
+  home="$(adb shell cmd package resolve-activity -c android.intent.category.HOME --brief 2>/dev/null | tail -1 | tr -d '\r' | cut -d/ -f1)"
+  if [ -n "$home" ] && [ "$home" != "$package" ]; then
+    echo "  stopping $home, which is the app that is not responding"
+    adb shell am force-stop "$home" || true
   fi
+
+  # Dismissing another app's dialog leaves whatever was behind it in front,
+  # which may be the launcher rather than this app. Asking for the activity
+  # again is safe in the middle of the dialog round trip because
+  # `MainActivity` is `singleTask`: the running instance comes forward with
+  # `onNewIntent` rather than a second one starting.
+  adb shell am start -n "$activity" > /dev/null 2>&1 || true
+  sleep 5
+  still_alive 'while a system dialog was in front of it'
   dump "$into"
-  if grep -q "isn't responding" "$into"; then
-    fail 'a system dialog kept coming back: this emulator is too loaded to be asked'
-  fi
+  grep -q "isn't responding" "$into" || return 0
+
+  fail 'a system dialog is still in front after stopping the app that raised it'
 }
 
 echo "reading the accessibility tree"
