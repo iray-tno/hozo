@@ -1,0 +1,48 @@
+{
+  "name": "@hozo/migration-audit",
+  "version": "0.1.0",
+  "description": "Measure how safely Hozo can lower a real React Native application.",
+  "keywords": [
+    "react-native",
+    "migration",
+    "audit",
+    "compiler",
+    "conformance"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iray-tno/hozo.git",
+    "directory": "packages/migration-audit"
+  },
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/migration-audit#readme",
+  "bugs": {
+    "url": "https://github.com/iray-tno/hozo/issues"
+  },
+  "type": "module",
+  "main": "./src/index.mjs",
+  "bin": {
+    "hozo-migration-audit": "./src/cli.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/*.test.mjs",
+    "!src/**/*.bench.ts"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "test": "node --test src/*.test.mjs"
+  },
+  "dependencies": {
+    "@hozo/compiler": "workspace:^"
+  }
+}

@@ -1,6 +1,6 @@
 # Real-app measurement: Bluesky social-app
 
-This is a read-only compiler measurement, not a claim that Bluesky can be migrated without changes. The checkout is excluded from Hozo's repository; only this aggregate report is committed.
+This is a read-only compiler measurement, not a claim that the application can be migrated without changes. The audited checkout is not modified.
 
 ## Corpus
 
@@ -226,9 +226,6 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 
 ## Reproduce
 
-1. Clone the repository to `temp/social-app`.
-2. Check out `007c893de107c2ecbf2188d618196075f19c8f5a`.
-3. Build `@hozo/compiler`'s native addon and TypeScript package.
-4. Run:
+From a Hozo checkout with dependencies installed, run:
 
-   `pnpm measure:real-app -- --root temp/social-app --name "Bluesky social-app" --repository https://github.com/bluesky-social/social-app --expected-commit 007c893de107c2ecbf2188d618196075f19c8f5a --output docs/measurements/bluesky-social-app.md`
+`pnpm measure:bluesky`

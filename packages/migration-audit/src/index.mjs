@@ -3,8 +3,8 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 
-import { createCompiler } from '../packages/compiler/dist/index.js'
-import { lowerModule } from '../packages/compiler/dist/lower.js'
+import { createCompiler } from '@hozo/compiler'
+import { lowerModule } from '@hozo/compiler/lower'
 
 const SOURCE_EXTENSION = '.tsx'
 const SAMPLE_LIMIT = 12
@@ -14,13 +14,14 @@ const DOM_STYLE_ARRAY =
 function usage(message) {
   if (message) console.error(message)
   console.error(`Usage:
-  pnpm measure:real-app -- --root <checkout> [options]
+  hozo-migration-audit --root <checkout> [options]
 
 Options:
   --source <directory>       Source directory relative to the checkout (default: src)
   --name <name>              Human-readable corpus name
   --repository <url>         Canonical repository URL recorded in the report
   --expected-commit <sha>    Fail unless the checkout is at this commit
+  --reproduce-command <cmd>  Command recorded in the Markdown report
   --output <path>            Write the report to this path instead of stdout
   --format json|markdown     Output format (default: inferred from --output, otherwise json)`)
   process.exit(1)
@@ -30,6 +31,7 @@ function parseArgs(argv) {
   const options = { source: 'src' }
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index]
+    if (key === '--') continue
     const value = argv[index + 1]
     if (!key?.startsWith('--') || !value || value.startsWith('--'))
       usage(`Missing value for ${key}`)
@@ -40,6 +42,7 @@ function parseArgs(argv) {
     else if (key === '--repository') options.repository = value
     else if (key === '--expected-commit') options.expectedCommit = value
     else if (key === '--output') options.output = value
+    else if (key === '--reproduce-command') options.reproduceCommand = value
     else if (key === '--format' && (value === 'json' || value === 'markdown'))
       options.format = value
     else usage(`Unknown option: ${key}`)
@@ -79,7 +82,18 @@ function relative(root, file) {
 }
 
 function git(checkout, args) {
-  return execFileSync('git', ['-C', checkout, ...args], { encoding: 'utf8' }).trim()
+  return execFileSync('git', ['-C', checkout, ...args], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim()
+}
+
+function optionalGit(checkout, args) {
+  try {
+    return git(checkout, args)
+  } catch {
+    return undefined
+  }
 }
 
 function directReactNativeJsxBindings(source, imports) {
@@ -108,12 +122,13 @@ function diagnosticsFor(components, backend, file, report) {
 function measure(options) {
   const root = path.resolve(options.root)
   const sourceRoot = path.resolve(root, options.source)
-  const commit = git(root, ['rev-parse', 'HEAD'])
+  const commit = optionalGit(root, ['rev-parse', 'HEAD']) ?? 'unknown'
   if (options.expectedCommit && !commit.startsWith(options.expectedCommit)) {
     throw new Error(`Expected corpus commit ${options.expectedCommit}, found ${commit}`)
   }
 
-  const repository = options.repository ?? git(root, ['remote', 'get-url', 'origin'])
+  const repository =
+    options.repository ?? optionalGit(root, ['remote', 'get-url', 'origin']) ?? root
   const compiler = createCompiler()
   const files = walk(sourceRoot)
   const started = performance.now()
@@ -124,6 +139,7 @@ function measure(options) {
       repository,
       commit,
       sourceDirectory: options.source,
+      reproduceCommand: options.reproduceCommand,
     },
     scope: {
       tsxFiles: files.length,
@@ -336,7 +352,7 @@ function markdown(report) {
     .join('\n\n')
   return `# Real-app measurement: ${report.corpus.name}
 
-This is a read-only compiler measurement, not a claim that Bluesky can be migrated without changes. The checkout is excluded from Hozo's repository; only this aggregate report is committed.
+This is a read-only compiler measurement, not a claim that the application can be migrated without changes. The audited checkout is not modified.
 
 ## Corpus
 
@@ -409,24 +425,28 @@ ${sampleSections || 'No suspicious samples were produced.'}
 
 ## Reproduce
 
-1. Clone the repository to \`temp/social-app\`.
-2. Check out \`${report.corpus.commit}\`.
-3. Build \`@hozo/compiler\`'s native addon and TypeScript package.
-4. Run:
-
-   \`pnpm measure:real-app -- --root temp/social-app --name "${report.corpus.name}" --repository ${report.corpus.repository} --expected-commit ${report.corpus.commit} --output docs/measurements/bluesky-social-app.md\`
+${
+  report.corpus.reproduceCommand
+    ? `From a Hozo checkout with dependencies installed, run:\n\n\`${report.corpus.reproduceCommand}\``
+    : `Check out \`${report.corpus.commit}\` from ${report.corpus.repository}, build \`@hozo/compiler\`, then run:\n\n\`npx @hozo/migration-audit --root <checkout> --source ${report.corpus.sourceDirectory} --name "${report.corpus.name}" --repository ${report.corpus.repository} --expected-commit ${report.corpus.commit} --output hozo-audit.md\``
+}
 `
 }
 
-const options = parseArgs(process.argv.slice(2))
-const report = measure(options)
-const output =
-  options.format === 'markdown' ? markdown(report) : `${JSON.stringify(report, null, 2)}\n`
-if (options.output) {
-  const destination = path.resolve(options.output)
-  mkdirSync(path.dirname(destination), { recursive: true })
-  writeFileSync(destination, output)
-  console.log(`Wrote ${destination}`)
-} else {
-  process.stdout.write(output)
+export function runCli(argv = process.argv.slice(2)) {
+  const options = parseArgs(argv)
+  const report = measure(options)
+  const output =
+    options.format === 'markdown' ? markdown(report) : `${JSON.stringify(report, null, 2)}\n`
+  if (options.output) {
+    const destination = path.resolve(options.output)
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(destination, output)
+    console.log(`Wrote ${destination}`)
+  } else {
+    process.stdout.write(output)
+  }
+  return report
 }
+
+export { markdown as renderRealAppMarkdown, measure as measureRealApp }

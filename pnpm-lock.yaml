@@ -465,6 +465,12 @@ importers:
         specifier: 26.2.0
         version: 26.2.0
 
+  packages/migration-audit:
+    dependencies:
+      '@hozo/compiler':
+        specifier: workspace:^
+        version: link:../compiler
+
   packages/navigation:
     dependencies:
       '@hozo/runtime':

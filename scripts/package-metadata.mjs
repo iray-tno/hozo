@@ -1,9 +1,9 @@
 // The publishing metadata for every package, in one place.
 //
-// Thirteen packages need the same eight fields to agree, and a registry is
+// The published packages need the same eight fields to agree, and a registry is
 // unforgiving about disagreement: a wrong `exports` path produces a
 // package that installs cleanly and imports nothing, and npm has no undo
-// past 72 hours. Keeping the shape here rather than in thirteen files means
+// past 72 hours. Keeping the shape here rather than in every package means
 // the answer to "what does a Hozo package look like" has one place to be
 // wrong in; `check-packages.mjs` re-derives it and fails on any hand edit
 // that drifted, then looks inside the tarballs to see whether the answer
@@ -26,7 +26,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
  * The version every package publishes at. They release in lockstep.
  *
  * Read from a package rather than written here, because Changesets owns
- * it: a release bumps all thirteen together (`.changeset/config.json` has them
+ * it: a release bumps all packages together (`.changeset/config.json` has them
  * as a `fixed` group), and a constant in this file would be rewritten back
  * over the bump on the next run. `check-packages.mjs` is what makes the
  * lockstep an assertion rather than an intention.
@@ -164,6 +164,12 @@ const PACKAGES = {
     },
     keywords: ['metro', 'react-native', 'expo', 'transformer'],
   },
+  'migration-audit': {
+    exports: { '.': './src/index.mjs' },
+    excludeMjsTests: true,
+    files: ['src'],
+    keywords: ['react-native', 'migration', 'audit', 'compiler', 'conformance'],
+  },
   storybook: {
     // Same reason as the Next loader: Storybook reads `preset.js` itself.
     exports: { '.': './preset.js', './preset': './preset.js' },
@@ -232,9 +238,10 @@ export function metadataFor(name) {
     // rule: useful in the repository, but not part of the package API.
     files: [
       ...(spec.files ?? ['dist']),
-      'src',
+      ...(!spec.files?.includes('src') ? ['src'] : []),
       '!src/**/*.test.ts',
       '!src/**/*.test.tsx',
+      ...(spec.excludeMjsTests ? ['!src/**/*.test.mjs'] : []),
       '!src/**/*.bench.ts',
     ],
     keywords: spec.keywords,
