@@ -43,6 +43,7 @@ target/
 .probe-*/
 .test-build/
 junit-reports/
+allure-results/
 allure-history/
 
 # Per-user tool settings. Ignored here rather than only in a contributor's

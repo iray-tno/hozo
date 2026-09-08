@@ -96,8 +96,11 @@ jobs:
           mkdir -p allure-history
           curl -fsSL https://iray-tno.github.io/hozo/reports/history/allure-history.jsonl -o allure-history/allure-history.jsonl || rm -f allure-history/allure-history.jsonl
 
+      - name: Add source links to Allure results
+        run: node packages/test-reporter/src/junit-to-allure.mjs
+
       - name: Build Allure HTML reports
-        run: pnpm --filter @hozo/test-reporter exec allure generate --cwd "$GITHUB_WORKSPACE" -o "$GITHUB_WORKSPACE/apps/landing/dist/reports" "$GITHUB_WORKSPACE/junit-reports" || true
+        run: pnpm --filter @hozo/test-reporter exec allure generate --cwd "$GITHUB_WORKSPACE" -o "$GITHUB_WORKSPACE/apps/landing/dist/reports" "$GITHUB_WORKSPACE/allure-results" || true
 
       - name: Persist Allure history
         run: |
