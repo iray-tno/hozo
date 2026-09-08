@@ -16,9 +16,15 @@ import { createRequire } from 'node:module'
 const next = createRequire(import.meta.url).resolve('next/dist/bin/next')
 
 for (const bundler of ['turbopack', 'webpack']) {
-  rmSync('.next', { recursive: true, force: true })
+  // Not `.next`: that one belongs to this package's `build` script, which
+  // turbo runs at the same time as this. Sharing it meant either "Another
+  // next build process is already running" or -- worse, because it exits
+  // zero -- this script deleting the artifact `build` had just produced.
+  const distDir = `.next-check-${bundler}`
+  const env = { ...process.env, HOZO_NEXT_DIST_DIR: distDir }
+  rmSync(distDir, { recursive: true, force: true })
   const args = ['build', ...(bundler === 'webpack' ? ['--webpack'] : [])]
   console.log(`\n=== next build (${bundler}) ===`)
-  execFileSync(process.execPath, [next, ...args], { stdio: 'inherit' })
-  execFileSync(process.execPath, ['scripts/check-build.mjs'], { stdio: 'inherit' })
+  execFileSync(process.execPath, [next, ...args], { stdio: 'inherit', env })
+  execFileSync(process.execPath, ['scripts/check-build.mjs'], { stdio: 'inherit', env })
 }
