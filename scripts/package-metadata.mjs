@@ -241,6 +241,7 @@ const KEY_ORDER = [
   'type',
   'main',
   'types',
+  'bin',
   'exports',
   'files',
   'publishConfig',

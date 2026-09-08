@@ -122,6 +122,23 @@ writeDeepLinkVerificationFiles({
 Existing identical files are left untouched, keeping watch builds stable. This Node-only writer is
 an explicit subpath so React Native bundles never resolve `node:fs`.
 
+For a no-code build step, add `hozo-links.json` at the project root:
+
+```json
+{
+  "outputDirectory": "public",
+  "apple": [{ "appIDs": ["ABCDE12345.com.example.app"] }],
+  "android": [{
+    "packageName": "com.example.app",
+    "sha256CertFingerprints": ["01:23:...:EF"]
+  }]
+}
+```
+
+Run `pnpm exec hozo-links` to generate the assets and `pnpm exec hozo-links --check` in CI to fail
+when committed assets are missing or stale. Paths in the config are resolved relative to the config
+file, so the command behaves the same from a workspace root or an individual app.
+
 ## Framework adapters
 
 The adapter entry points accept router instances structurally, so Hozo does not install or bundle

@@ -28,10 +28,47 @@ export interface WrittenDeepLinkVerificationFiles {
   android?: WrittenVerificationFile
 }
 
+export interface CheckedVerificationFile {
+  path: string
+  current: boolean
+}
+
+export interface CheckedDeepLinkVerificationFiles {
+  apple?: CheckedVerificationFile
+  android?: CheckedVerificationFile
+}
+
 function writeIfChanged(filePath: string, content: string): boolean {
   if (existsSync(filePath) && readFileSync(filePath, 'utf8') === content) return false
   writeFileSync(filePath, content, 'utf8')
   return true
+}
+
+function documents({ outputDirectory, apple, android }: WriteDeepLinkVerificationOptions) {
+  const directory = path.resolve(outputDirectory, '.well-known')
+  return {
+    directory,
+    apple:
+      apple === undefined
+        ? undefined
+        : {
+            path: path.join(directory, 'apple-app-site-association'),
+            content: serializeDeepLinkVerification(apple),
+          },
+    android:
+      android === undefined
+        ? undefined
+        : {
+            path: path.join(directory, 'assetlinks.json'),
+            content: serializeDeepLinkVerification(android),
+          },
+  }
+}
+
+function requireDocument(options: DeepLinkVerificationFiles): void {
+  if (options.apple === undefined && options.android === undefined) {
+    throw new TypeError('At least one Apple or Android verification document is required')
+  }
 }
 
 /**
@@ -45,28 +82,50 @@ export function writeDeepLinkVerificationFiles({
   apple,
   android,
 }: WriteDeepLinkVerificationOptions): WrittenDeepLinkVerificationFiles {
-  if (apple === undefined && android === undefined) {
-    throw new TypeError('At least one Apple or Android verification document is required')
-  }
-
-  const directory = path.resolve(outputDirectory, '.well-known')
+  requireDocument({ apple, android })
+  const expected = documents({ outputDirectory, apple, android })
+  const { directory } = expected
   mkdirSync(directory, { recursive: true })
   const written: WrittenDeepLinkVerificationFiles = {}
 
-  if (apple !== undefined) {
-    const filePath = path.join(directory, 'apple-app-site-association')
+  if (expected.apple !== undefined) {
     written.apple = {
-      path: filePath,
-      changed: writeIfChanged(filePath, serializeDeepLinkVerification(apple)),
+      path: expected.apple.path,
+      changed: writeIfChanged(expected.apple.path, expected.apple.content),
     }
   }
-  if (android !== undefined) {
-    const filePath = path.join(directory, 'assetlinks.json')
+  if (expected.android !== undefined) {
     written.android = {
-      path: filePath,
-      changed: writeIfChanged(filePath, serializeDeepLinkVerification(android)),
+      path: expected.android.path,
+      changed: writeIfChanged(expected.android.path, expected.android.content),
     }
   }
 
   return written
+}
+
+/** Checks generated deployment files without creating or changing anything. */
+export function checkDeepLinkVerificationFiles(
+  options: WriteDeepLinkVerificationOptions,
+): CheckedDeepLinkVerificationFiles {
+  requireDocument(options)
+  const expected = documents(options)
+  const checked: CheckedDeepLinkVerificationFiles = {}
+  if (expected.apple !== undefined) {
+    checked.apple = {
+      path: expected.apple.path,
+      current:
+        existsSync(expected.apple.path) &&
+        readFileSync(expected.apple.path, 'utf8') === expected.apple.content,
+    }
+  }
+  if (expected.android !== undefined) {
+    checked.android = {
+      path: expected.android.path,
+      current:
+        existsSync(expected.android.path) &&
+        readFileSync(expected.android.path, 'utf8') === expected.android.content,
+    }
+  }
+  return checked
 }
