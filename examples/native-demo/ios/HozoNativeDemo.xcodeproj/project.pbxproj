@@ -11,6 +11,7 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		A11A0000000000000000AA02 /* AccessibilityTreeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0000000000000000AA01 /* AccessibilityTreeTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,8 @@
 		5DCACB8F33CDC322A6C60F78 /* libPods-HozoNativeDemo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-HozoNativeDemo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = HozoNativeDemo/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = HozoNativeDemo/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		A11A0000000000000000AA01 /* AccessibilityTreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccessibilityTreeTests.swift; path = HozoNativeDemoUITests/AccessibilityTreeTests.swift; sourceTree = "<group>"; };
+		A11A0000000000000000AA03 /* HozoNativeDemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HozoNativeDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -32,6 +35,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				0C80B921A6F3F58F76C31292 /* libPods-HozoNativeDemo.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A11A0000000000000000AA07 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,6 +80,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07FAE1A68108700A75B9A /* HozoNativeDemo */,
+				A11A0000000000000000AA04 /* HozoNativeDemoUITests */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -84,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* HozoNativeDemo.app */,
+				A11A0000000000000000AA03 /* HozoNativeDemoUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,6 +107,14 @@
 				5709B34CF0A7D63546082F79 /* Pods-HozoNativeDemo.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		A11A0000000000000000AA04 /* HozoNativeDemoUITests */ = {
+			isa = PBXGroup;
+			children = (
+				A11A0000000000000000AA01 /* AccessibilityTreeTests.swift */,
+			);
+			name = HozoNativeDemoUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -121,6 +141,24 @@
 			productReference = 13B07F961A680F5B00A75B9A /* HozoNativeDemo.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A11A0000000000000000AA05 /* HozoNativeDemoUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A11A0000000000000000AA0B /* Build configuration list for PBXNativeTarget "HozoNativeDemoUITests" */;
+			buildPhases = (
+				A11A0000000000000000AA06 /* Sources */,
+				A11A0000000000000000AA07 /* Frameworks */,
+				A11A0000000000000000AA08 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A11A0000000000000000AA09 /* PBXTargetDependency */,
+			);
+			name = HozoNativeDemoUITests;
+			productName = HozoNativeDemoUITests;
+			productReference = A11A0000000000000000AA03 /* HozoNativeDemoUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -131,6 +169,10 @@
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1120;
+					};
+					A11A0000000000000000AA05 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 13B07F861A680F5B00A75B9A;
 					};
 				};
 			};
@@ -148,9 +190,28 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* HozoNativeDemo */,
+				A11A0000000000000000AA05 /* HozoNativeDemoUITests */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXContainerItemProxy section */
+		A11A0000000000000000AA0A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 13B07F861A680F5B00A75B9A;
+			remoteInfo = HozoNativeDemo;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		A11A0000000000000000AA09 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 13B07F861A680F5B00A75B9A /* HozoNativeDemo */;
+			targetProxy = A11A0000000000000000AA0A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXResourcesBuildPhase section */
 		13B07F8E1A680F5B00A75B9A /* Resources */ = {
@@ -159,6 +220,13 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A11A0000000000000000AA08 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -245,6 +313,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A11A0000000000000000AA06 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A11A0000000000000000AA02 /* AccessibilityTreeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -448,6 +524,38 @@
 			};
 			name = Release;
 		};
+		A11A0000000000000000AA0C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hozonativedemo.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HozoNativeDemo;
+			};
+			name = Debug;
+		};
+		A11A0000000000000000AA0D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hozonativedemo.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HozoNativeDemo;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -465,6 +573,15 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A11A0000000000000000AA0B /* Build configuration list for PBXNativeTarget "HozoNativeDemoUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A11A0000000000000000AA0C /* Debug */,
+				A11A0000000000000000AA0D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

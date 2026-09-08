@@ -193,6 +193,28 @@ jobs:
       - name: Boot it, and fail if it did not come up
         run: bash examples/native-demo/scripts/ios-smoke.sh
 
+      # The tree, which is what the Android job is actually valuable for
+      # and what this one could not read until now. Release, because a
+      # Debug build does not bake the JavaScript bundle -- the Xcode phase
+      # skips it -- so the app would come up looking for a Metro server
+      # that is not there.
+      #
+      # The simulator `ios-smoke.sh` booted is reused: `xcodebuild` takes
+      # the one that is already up rather than starting a second.
+      - name: Read the accessibility tree
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace examples/native-demo/ios/HozoNativeDemo.xcworkspace \
+            -scheme HozoNativeDemo \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=${IOS_DEVICE_NAME:-iPhone 16}" \
+            -derivedDataPath examples/native-demo/ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee ios-uitest.log
+          node examples/native-demo/scripts/extract-trees.mjs ios-uitest.log
+
       - name: Keep what it saw
         if: always()
         uses: actions/upload-artifact@v4
@@ -201,5 +223,8 @@ jobs:
           path: |
             ios-screen.png
             ios-app.log
+            ios-uitest.log
+            ios-acceptance-tree.json
+            ios-gallery-tree.json
           if-no-files-found: ignore
           retention-days: 14
