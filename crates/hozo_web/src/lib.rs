@@ -103,6 +103,25 @@ const ACTIVITY_INDICATOR_BASE_CSS: &str = "@keyframes hozo-activity-indicator-sp
     to { transform: rotate(360deg); }\n\
 }\n\n";
 
+const MODAL_BASE_CSS: &str = "dialog[data-hozo-modal] {\n  \
+    position: fixed;\n  \
+    inset: 0;\n  \
+    width: 100vw;\n  \
+    height: 100dvh;\n  \
+    max-width: none;\n  \
+    max-height: none;\n  \
+    margin: 0;\n  \
+    padding: 0;\n  \
+    border: 0;\n\
+}\n\n\
+dialog[data-hozo-modal][data-hozo-transparent] { background: transparent; }\n\
+dialog[data-hozo-modal][data-hozo-transparent]::backdrop { background: transparent; }\n\
+dialog[data-hozo-modal][data-hozo-animation=\"fade\"] { animation: hozo-modal-fade 150ms ease-out; }\n\
+dialog[data-hozo-modal][data-hozo-animation=\"slide\"] { animation: hozo-modal-slide 200ms ease-out; }\n\
+@keyframes hozo-modal-fade { from { opacity: 0; } }\n\
+@keyframes hozo-modal-slide { from { transform: translateY(100%); } }\n\
+@media (prefers-reduced-motion: reduce) { dialog[data-hozo-modal] { animation: none; } }\n\n";
+
 /// What a browser does for `<button disabled>` in forced-colors mode,
 /// for everything else Hozo marks disabled.
 ///
@@ -193,6 +212,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::ActivityIndicator) {
         css.push_str(ACTIVITY_INDICATOR_BASE_CSS);
     }
+    if contains_primitive(root, Primitive::Modal) {
+        css.push_str(MODAL_BASE_CSS);
+    }
     if contains_prop(root, |node| node.props.pointer_events.is_some()) {
         css.push_str(POINTER_EVENTS_BASE_CSS);
     }
@@ -239,6 +261,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     }
     if jsx.contains("<HozoRefreshControl") {
         runtime_imports.push("HozoRefreshControl");
+    }
+    if jsx.contains("<HozoModal") {
+        runtime_imports.push("HozoModal");
     }
     // Exactly when the spread was written, rather than a second guess at
     // the same question. A ScrollView carried through as a foreign tag

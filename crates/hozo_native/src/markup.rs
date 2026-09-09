@@ -193,6 +193,7 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::ScrollView => ("ScrollView", Vec::new()),
         Primitive::FlatList => ("FlatList", vec![("accessibilityRole", "list".to_string())]),
         Primitive::RefreshControl => ("RefreshControl", Vec::new()),
+        Primitive::Modal => ("Modal", Vec::new()),
         Primitive::Strong => ("Text", Vec::new()),
         Primitive::Emphasis => ("Text", Vec::new()),
         Primitive::Underline => ("Text", Vec::new()),

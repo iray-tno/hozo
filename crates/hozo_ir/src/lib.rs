@@ -426,6 +426,8 @@ pub enum Primitive {
     FlatList,
     /// Pull-to-refresh intent nested in a ScrollView or FlatList.
     RefreshControl,
+    /// React Native's top-layer presentation surface.
+    Modal,
     /// An SVG element, by its own name: `Svg`, `Rect`, `Path`, `G`.
     ///
     /// One variant rather than fourteen because the lowering really is
