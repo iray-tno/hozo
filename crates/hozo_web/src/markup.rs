@@ -233,9 +233,10 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
             || node.props.refreshing.is_some()
             || node.props.on_layout.is_some()
             || node.props.on_scroll.is_some() =>
-            ("ScrollView", Vec::new()),
+            ("HozoScrollView", Vec::new()),
         Primitive::ScrollView => ("div", Vec::new()),
-        Primitive::FlatList => ("FlatList", Vec::new()),
+        Primitive::FlatList => ("HozoFlatList", Vec::new()),
+        Primitive::RefreshControl => ("HozoRefreshControl", Vec::new()),
         Primitive::Strong => ("strong", Vec::new()),
         Primitive::Emphasis => ("em", Vec::new()),
         Primitive::Underline => ("u", Vec::new()),

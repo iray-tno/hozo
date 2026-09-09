@@ -231,6 +231,15 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if jsx.contains("<HozoView") {
         runtime_imports.push("HozoView");
     }
+    if jsx.contains("<HozoScrollView") {
+        runtime_imports.push("HozoScrollView");
+    }
+    if jsx.contains("<HozoFlatList") {
+        runtime_imports.push("HozoFlatList");
+    }
+    if jsx.contains("<HozoRefreshControl") {
+        runtime_imports.push("HozoRefreshControl");
+    }
     // Exactly when the spread was written, rather than a second guess at
     // the same question. A ScrollView carried through as a foreign tag
     // keeps `@hozo/core`'s own component, and an author who wrote
@@ -647,6 +656,9 @@ fn render_node(
                 | "Image"
                 | "ScrollView"
                 | "FlatList"
+                | "HozoScrollView"
+                | "HozoFlatList"
+                | "HozoRefreshControl"
                 | "Pressable"
                 | "Strong"
                 | "Emphasis"
@@ -884,7 +896,7 @@ fn render_node(
     }
     if let Some(horizontal) = &node.props.scroll_horizontal {
         let horizontal = render_condition_expr(source, horizontal);
-        if matches!(tag, "ScrollView" | "FlatList") {
+        if matches!(tag, "ScrollView" | "FlatList" | "HozoScrollView" | "HozoFlatList") {
             attrs.push_str(&format!(" horizontal={{{horizontal}}}"));
         } else {
             attrs.push_str(&format!(" data-hozo-horizontal={{{horizontal} ? '' : undefined}}"));
@@ -916,7 +928,7 @@ fn render_node(
         }
     }
     if node.primitive == Primitive::ScrollView {
-        if tag == "ScrollView" {
+        if tag == "HozoScrollView" {
             if let Some(refreshing) = &node.props.refreshing {
                 attrs.push_str(&format!(" refreshing={{{}}}", render_condition_expr(source, refreshing)));
             }
@@ -963,6 +975,13 @@ fn render_node(
         }
         if let Some(value) = &node.props.shows_horizontal_scroll_indicator {
             attrs.push_str(&format!(" showsHorizontalScrollIndicator={{{}}}", render_condition_expr(source, value)));
+        }
+    } else if node.primitive == Primitive::RefreshControl {
+        if let Some(refreshing) = &node.props.refreshing {
+            attrs.push_str(&format!(" refreshing={{{}}}", render_condition_expr(source, refreshing)));
+        }
+        if let Some(on_refresh) = node.props.on_refresh {
+            attrs.push_str(&format!(" onRefresh={{{}}}", source_text(source, on_refresh)));
         }
     }
     if matches!(node.primitive, Primitive::ScrollView | Primitive::FlatList) {
@@ -1771,7 +1790,8 @@ export function Login() {
         "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.jsx.starts_with("<FlatList className=\"hozo-0\""), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<HozoFlatList className=\"hozo-0\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoFlatList"));
         assert!(output.jsx.contains("renderItem={({ item }) => <span className=\"hozo-1\">{item}</span>}"), "{}", output.jsx);
         assert!(output.css.contains("height: 160px"), "{}", output.css);
         assert!(output.css.contains("padding-top: 8px"), "{}", output.css);
@@ -1790,7 +1810,8 @@ export function Login() {
         "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.jsx.starts_with("<FlatList"), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<HozoFlatList"), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoFlatList"));
         assert!(output.jsx.contains(" horizontal={horizontal}"), "{}", output.jsx);
         assert!(output.jsx.contains(" refreshing={loading} onRefresh={reload}"), "{}", output.jsx);
         assert!(output.jsx.contains(" showsHorizontalScrollIndicator={false}"), "{}", output.jsx);
@@ -1814,7 +1835,8 @@ export function Login() {
         "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.jsx.starts_with("<ScrollView className=\"hozo-scroll-view hozo-0\""), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<HozoScrollView className=\"hozo-scroll-view hozo-0\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoScrollView"));
         assert!(output.jsx.contains(" horizontal={wide}"), "{}", output.jsx);
         assert!(output.jsx.contains(" refreshing={loading} onRefresh={reload}"), "{}", output.jsx);
         assert!(output.jsx.contains(" keyboardShouldPersistTaps={\"handled\"}"), "{}", output.jsx);
@@ -1954,7 +1976,8 @@ export function Login() {
         "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.jsx.starts_with("<ScrollView className=\"hozo-scroll-view\""), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<HozoScrollView className=\"hozo-scroll-view\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoScrollView"));
         assert!(output.jsx.contains("onScroll={remember} scrollEventThrottle={16}"), "{}", output.jsx);
     }
 

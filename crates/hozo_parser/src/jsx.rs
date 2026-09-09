@@ -604,6 +604,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Image" => Some(Primitive::Image),
         "ScrollView" => Some(Primitive::ScrollView),
         "FlatList" => Some(Primitive::FlatList),
+        "RefreshControl" => Some(Primitive::RefreshControl),
         // The root, which is both the element and the namespace object.
         "Svg" => Some(Primitive::Svg(SvgElement::Root)),
         "Main" => Some(Primitive::Main),
@@ -1098,7 +1099,7 @@ fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
-            "refreshing" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => match &attr.value {
+            "refreshing" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList | Primitive::RefreshControl) => match &attr.value {
                 None => props.refreshing = Some(ConditionExpr::Static(true)),
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
                     props.refreshing = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
@@ -1107,7 +1108,7 @@ fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
-            "onRefresh" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => match &attr.value {
+            "onRefresh" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList | Primitive::RefreshControl) => match &attr.value {
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
                     props.on_refresh = Some(to_expr_ref(container.expression.span()));
                 }

@@ -424,6 +424,8 @@ pub enum Primitive {
     /// A data-driven list. Web keeps the lightweight core renderer while
     /// Native lowers to React Native's virtualized FlatList.
     FlatList,
+    /// Pull-to-refresh intent nested in a ScrollView or FlatList.
+    RefreshControl,
     /// An SVG element, by its own name: `Svg`, `Rect`, `Path`, `G`.
     ///
     /// One variant rather than fourteen because the lowering really is
