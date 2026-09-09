@@ -27,7 +27,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { TEXT_SIZE_RATIOS } from './text-size.ts'
+import { BARE_TEXT_SIZE_RATIOS, TEXT_SIZE_RATIOS } from './text-size.ts'
 
 function workspaceRoot() {
   let at = path.dirname(fileURLToPath(import.meta.url))
@@ -84,24 +84,14 @@ test('the ratios are the ones a browser applies', () => {
   assert.deepEqual(TEXT_SIZE_RATIOS.heading, [2, 1.5, 1.17, 1, 0.83, 0.67])
 })
 
-test('the components cannot follow the compiler into an unreset project', () => {
-  // The residue of #315, asserted rather than left to be discovered.
-  //
-  // The compiler picks its ratios from the resolved `preflight` option:
-  // `smaller` -- 1/1.2 -- for all three of `small`, `sub` and `sup` when
-  // the project ships no reset. These components have no build to ask, so
-  // they hold the reset numbers, and in a project without one they render
-  // small print a little smaller than the compiled half does.
-  //
-  // 12.8 against 13.33 at a base of 16: visible side by side, and the
-  // alternative was the compiled Native text disagreeing with the
-  // project's own Web text, which is the parity this package exists for.
-  // If these components are ever handed the resolved flag, this test is
-  // the one to delete.
+test('the bare table follows the compiler into an unreset project', () => {
   const smaller = /const SMALLER_RATIO: f64 = ([0-9.]+) \/ ([0-9.]+);/.exec(rust)
   assert.ok(smaller, 'no SMALLER_RATIO in the compiler')
-  assert.equal(Number(smaller[1]) / Number(smaller[2]), 1 / 1.2)
-  assert.notEqual(TEXT_SIZE_RATIOS.small, 1 / 1.2)
+  const ratio = Number(smaller[1]) / Number(smaller[2])
+  assert.equal(ratio, 1 / 1.2)
+  assert.equal(BARE_TEXT_SIZE_RATIOS.small, ratio)
+  assert.equal(BARE_TEXT_SIZE_RATIOS.sub, ratio)
+  assert.equal(BARE_TEXT_SIZE_RATIOS.sup, ratio)
 })
 
 test('React Native’s own default is the base the components fall back to', () => {

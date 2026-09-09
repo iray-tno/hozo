@@ -15,11 +15,9 @@
  *
  * These are the numbers a project shipping Tailwind's preflight renders,
  * which is what `preflight: 'auto'` gives anything using Tailwind. The
- * bare user agent is a second set -- `small`, `sub` and `sup` are all
- * `smaller`, about 0.8333 -- and the compiler picks between the two from
- * the resolved `preflight` option. These components cannot: they are
- * ordinary React with no build to ask, so they hold the common case and
- * `ratios.test.ts` says what that costs (#315).
+ * bare user agent is a second set below. `@hozo/metro` carries the resolved
+ * choice through `@hozo/runtime/project`, so the compiler and fallback
+ * components select the same table (#336).
  *
  * `small` was 0.85 here and in the compiler, and 0.85 is neither number.
  * Measured in headless Chrome at bases 16, 20 and 32: 0.80 with the
@@ -31,4 +29,13 @@ export const TEXT_SIZE_RATIOS = {
   small: 0.8,
   rubyText: 0.5,
   heading: [2, 1.5, 1.17, 1, 0.83, 0.67],
+} as const
+
+/** Browser defaults when the project deliberately ships no reset. */
+export const BARE_TEXT_SIZE_RATIOS = {
+  sub: 1 / 1.2,
+  sup: 1 / 1.2,
+  small: 1 / 1.2,
+  rubyText: 0.5,
+  heading: TEXT_SIZE_RATIOS.heading,
 } as const

@@ -1,4 +1,5 @@
 import { HozoDetails, HozoSummary, hozoTextChildren } from '@hozo/runtime'
+import { hozoPreflight } from '@hozo/runtime/project'
 import React, { type ComponentProps, type ReactNode } from 'react'
 // The components rather than their names. These files used to render
 // `React.createElement('View')`, and React Native resolves a string tag
@@ -220,10 +221,11 @@ export function Separator({
   children,
   ...props
 }: SeparatorProps) {
+  const thickness = hozoPreflight ? 1 : 2
   const defaultStyle =
     orientation === 'vertical'
-      ? { width: 1, alignSelf: 'stretch' as const }
-      : { height: 1, alignSelf: 'stretch' as const }
+      ? { width: thickness, alignSelf: 'stretch' as const }
+      : { height: thickness, alignSelf: 'stretch' as const }
   // Only `role` carries "separator": React Native's `accessibilityRole`
   // has no such value, so the line that used to set it here was a string
   // the platform would ignore. `none` it does have, and that is the half

@@ -171,25 +171,10 @@ test('StyleX composes with the default the same way a class does', () => {
   assert.match(styles, /alignSelf: 'stretch',/)
 })
 
-test('a project without a reset gets the other browser, and the fallback cannot follow', () => {
-  // The residue of #315, asserted rather than left to be discovered.
-  //
-  // The compiled half tracks the project: no reset means the user-agent
-  // stylesheet, and a bare `hr` is 2px. The fallback is a component in
-  // `@hozo/semantics` with no build to ask, so it stays at 1px and a
-  // non-Tailwind project renders its compiled rules one pixel thicker
-  // than its uncompiled ones.
-  //
-  // Small, and the alternative was worse: matching the fallback here
-  // would mean the compiled Native rule disagreeing with the project's
-  // own Web rule, which is the parity Hozo exists for. If the fallbacks
-  // are ever handed the resolved flag -- the generated candidate module
-  // is already per-project and already reaches the device -- this test is
-  // the one to delete.
+test('a project without a reset gets the bare browser thickness', () => {
   const bare = createCompiler({ colors: [] })
   const source = `import { Separator } from '@hozo/core'
 export function F() { return <Separator /> }`
   const { styles } = bare.compileNative(source)[0] as { styles: string }
   assert.match(styles, /height: 2,/)
-  assert.equal(flatten(fallback({}).props.style).height, 1)
 })

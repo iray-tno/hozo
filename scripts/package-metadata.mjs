@@ -98,6 +98,7 @@ const PACKAGES = {
     exports: {
       '.': './dist/index.js',
       './navigation': './dist/navigation-entry.js',
+      './project': './dist/project.js',
       './svg': './dist/svg.js',
     },
     // Metro resolves `.native.js` by filename suffix only while a package
