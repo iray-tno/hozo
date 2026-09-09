@@ -118,6 +118,17 @@ export interface HozoProjectOptions {
    */
   sources?: readonly string[]
   /**
+   * Refuse Web output that still renders JSX imported directly from
+   * `react-native`.
+   *
+   * Defaults to false so existing projects may keep React Native Web as a
+   * compatibility fallback while migrating. Enable it once RNW is absent:
+   * supported primitives still lower normally, while an unsupported or
+   * deliberately carried binding fails the build instead of becoming a
+   * late module-resolution error or silently restoring RNW.
+   */
+  rnwFree?: boolean
+  /**
    * Whether the Web integrations emit Tailwind's base layer.
    *
    * Hozo compiles Tailwind's utilities, and those utilities are authored

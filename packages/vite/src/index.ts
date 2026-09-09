@@ -240,7 +240,9 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         }
       }
 
-      const lowered = lowerModule(source, id, file, compiler, root, stylexModules)
+      const lowered = lowerModule(source, id, file, compiler, root, stylexModules, {
+        rnwFree: options.rnwFree,
+      })
       if (!lowered) return
 
       // Shared with Metro and Next, which is new: this warned on

@@ -138,6 +138,17 @@ const NO_TAILWIND_APP = `import { View } from '@hozo/core'
 export const App = () => <View style={{ padding: 16 }} />
 `
 
+test('RNW-free mode stops a Vite transform that retains direct React Native JSX', async () => {
+  const root = project({
+    'App.tsx': `import { SectionList } from 'react-native'
+export const App = () => <SectionList sections={sections} renderItem={renderItem} />
+`,
+  })
+  const server = await serve(root, { rnwFree: true })
+
+  await assert.rejects(server.transformRequest('/App.tsx'), /RNW_FREE_JSX_REMAINS/)
+})
+
 const ACCENT = "export const accent = () => 'bg-emerald-500'\n"
 
 const APP = `import { View } from '@hozo/core'

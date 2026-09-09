@@ -23,7 +23,10 @@ after(() => {
 interface WebpackRule {
   enforce?: string
   test?: RegExp
-  use?: { loader: string; options: { root: string; candidateCssPath: string } }[]
+  use?: {
+    loader: string
+    options: { root: string; candidateCssPath: string; rnwFree?: boolean }
+  }[]
 }
 
 test("registers the loader with both of Next's bundlers", () => {
@@ -47,6 +50,27 @@ test("registers the loader with both of Next's bundlers", () => {
 
   const webpack = config.webpack({}, {})
   assert.match(webpack.module.rules[0].use![0].loader, /loader\.js$/)
+})
+
+test('passes RNW-free enforcement to both Next bundlers', () => {
+  const config = withHozo(
+    {},
+    {
+      root: project('export const x = 1\n'),
+      rnwFree: true,
+    },
+  ) as {
+    turbopack: {
+      rules: Record<string, { loaders: { options: { rnwFree?: boolean } }[] }>
+    }
+    webpack: (
+      config: { module?: { rules?: WebpackRule[] } },
+      context: unknown,
+    ) => { module: { rules: WebpackRule[] } }
+  }
+
+  assert.equal(config.turbopack.rules['*.tsx'].loaders[0].options.rnwFree, true)
+  assert.equal(config.webpack({}, {}).module.rules[0].use?.[0]?.options.rnwFree, true)
 })
 
 test('the webpack rule is `pre`, which is what makes it run before SWC', () => {
