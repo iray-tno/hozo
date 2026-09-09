@@ -110,6 +110,17 @@ export function Surface() {
   assert.deepEqual(native.nativeImports, ['View'])
 })
 
+test('module metadata distinguishes JSX bindings from types and comments', () => {
+  const source = `import { Animated, View } from 'react-native'
+const ref = useAnimatedRef<View>()
+// <View /> is documentation, not JSX.
+export function Surface() { return <Animated.View /> }
+`
+  const module = compiler.compileNativeModule(source)
+
+  assert.deepEqual(module.jsxBindings, ['Animated'])
+})
+
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.

@@ -49,6 +49,11 @@ pub struct ImportBinding {
 
 pub struct ParseOutput {
     pub roots: Vec<Root>,
+    /// Local bindings that occur as the root name of an actual JSX tag.
+    ///
+    /// Unlike a text scan, this excludes comments and TypeScript type
+    /// arguments while retaining namespace JSX such as `Animated.View`.
+    pub jsx_bindings: std::collections::HashSet<String>,
     /// Diagnostics about the source as written, independent of target
     /// platform -- backends raise their own separately during `lower()`.
     pub diagnostics: Vec<Diagnostic>,
@@ -251,6 +256,9 @@ pub fn parse_tsx_with_stylex(
     collector.visit_program(&ret.program);
     collector.consumed.extend(stylex_scan_spans);
 
+    let mut jsx_bindings = JsxBindingCollector::default();
+    jsx_bindings.visit_program(&ret.program);
+
     for root in &collector.roots {
         aria_check::check(&root.node, &mut collector.diagnostics);
     }
@@ -267,11 +275,39 @@ pub fn parse_tsx_with_stylex(
 
     ParseOutput {
         roots: collector.roots,
+        jsx_bindings: jsx_bindings.bindings,
         diagnostics: collector.diagnostics,
         consumed_class_spans: collector.consumed,
         non_class_spans,
         imports,
         foreign_primitives: foreign,
+    }
+}
+
+/// Collects the binding at the left edge of every JSX element name.
+/// `Animated.View` therefore records `Animated`, while `<View>` records
+/// `View`. Oxc has already separated JSX from comments and type syntax.
+#[derive(Default)]
+struct JsxBindingCollector {
+    bindings: std::collections::HashSet<String>,
+}
+
+impl<'a> Visit<'a> for JsxBindingCollector {
+    fn visit_jsx_element(&mut self, element: &oxc_ast::ast::JSXElement<'a>) {
+        match &element.opening_element.name {
+            oxc_ast::ast::JSXElementName::IdentifierReference(identifier) => {
+                self.bindings.insert(identifier.name.to_string());
+            }
+            oxc_ast::ast::JSXElementName::MemberExpression(member) => {
+                if let Some(identifier) = member.object.get_identifier() {
+                    self.bindings.insert(identifier.name.to_string());
+                }
+            }
+            oxc_ast::ast::JSXElementName::Identifier(_)
+            | oxc_ast::ast::JSXElementName::NamespacedName(_)
+            | oxc_ast::ast::JSXElementName::ThisExpression(_) => {}
+        }
+        oxc_ast_visit::walk::walk_jsx_element(self, element);
     }
 }
 

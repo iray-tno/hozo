@@ -96,11 +96,9 @@ function optionalGit(checkout, args) {
   }
 }
 
-function directReactNativeJsxBindings(source, imports) {
-  return imports.filter((name) => {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    return new RegExp(`<\\s*${escaped}(?:[.\\s/>])`).test(source)
-  })
+function directReactNativeJsxBindings(jsxBindings, imports) {
+  const used = new Set(jsxBindings)
+  return imports.filter((name) => used.has(name))
 }
 
 function diagnosticsFor(components, backend, file, report) {
@@ -225,7 +223,7 @@ function measure(options) {
     }
 
     const directBindings = directReactNativeJsxBindings(
-      source,
+      nativeModule?.jsxBindings ?? [],
       rnImports.map((item) => item.local),
     )
     if (directBindings.length > 0) {
@@ -285,7 +283,8 @@ function measure(options) {
       )
     }
     if (platform !== 'native') {
-      const residue = directReactNativeJsxBindings(loweredWebCode, directBindings)
+      const loweredJsxBindings = compiler.compileNativeModule(loweredWebCode).jsxBindings
+      const residue = directReactNativeJsxBindings(loweredJsxBindings, directBindings)
       if (residue.length > 0) {
         report.lowering.filesWithDirectReactNativeJsxResidueOnWeb += 1
         report.lowering.directReactNativeJsxBindingsResidueOnWeb += residue.length
