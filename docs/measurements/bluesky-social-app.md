@@ -17,7 +17,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 
 1. **The corpus parses cleanly:** 0 parse or compile failures across 1,050 TSX files.
 2. **The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.
-3. **RNW cannot yet be removed:** 43 files retain 47 direct React Native JSX bindings after Web lowering.
+3. **RNW cannot yet be removed:** 40 files retain 44 direct React Native JSX bindings after Web lowering.
 4. **The app is not className-shaped:** 430 files use ALF atoms while only 8 use `className`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 
 ## Authored surface
@@ -44,11 +44,11 @@ Only direct imports from `react-native` are counted as direct React Native JSX. 
 | filesLowered | 573 |
 | filesLoweredForWeb | 567 |
 | filesLoweredForNative | 543 |
-| webComponents | 1222 |
-| nativeComponents | 1177 |
+| webComponents | 1223 |
+| nativeComponents | 1178 |
 | directReactNativeJsxPassedThroughOnWeb | 1 |
-| filesWithDirectReactNativeJsxResidueOnWeb | 43 |
-| directReactNativeJsxBindingsResidueOnWeb | 47 |
+| filesWithDirectReactNativeJsxResidueOnWeb | 40 |
+| directReactNativeJsxBindingsResidueOnWeb | 44 |
 | sharedBackendShapeMismatches | 0 |
 | parseOrCompileFailures | 0 |
 
@@ -59,9 +59,9 @@ Platform suffixes are respected: Web-only files run through Web lowering, iOS/An
 | | Count |
 |---|---:|
 | Files with errors | 0 |
-| Files with warnings | 30 |
+| Files with warnings | 31 |
 | ARIA_NAME_PROHIBITED | 40 |
-| A11Y_INTERACTIVE_WITHOUT_ROLE | 33 |
+| A11Y_INTERACTIVE_WITHOUT_ROLE | 34 |
 | A11Y_INTERACTIVE_NESTING | 4 |
 | A11Y_PRESS_WITHOUT_KEYBOARD | 3 |
 | A11Y_MISSING_ACCESSIBLE_NAME | 2 |
@@ -94,7 +94,6 @@ Platform suffixes are respected: Web-only files run through Web lowering, iOS/An
 | Import | Files or bindings |
 |---|---:|
 | View | 34 |
-| TouchableWithoutFeedback | 3 |
 | FlatList | 2 |
 | Modal | 2 |
 | RefreshControl | 2 |
@@ -133,7 +132,6 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 ### directReactNativeJsxResidueOnWeb
 
 - `src/Splash.tsx: View`
-- `src/components/DebugFieldDisplay.tsx: TouchableWithoutFeedback`
 - `src/components/Dialog/index.tsx: ScrollView`
 - `src/components/Dialog/index.web.tsx: FlatList, View`
 - `src/components/Dialog/shared.tsx: View`
@@ -144,6 +142,7 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 - `src/components/ProgressGuide/FollowDialog.tsx: View`
 - `src/components/ProgressGuide/List.tsx: View`
 - `src/components/Tooltip/index.tsx: View`
+- `src/components/dialogs/LanguageSelectDialog.tsx: View`
 
 ### diagnostic:ARIA_NAME_PROHIBITED
 

@@ -247,7 +247,7 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         Primitive::NoBreak => ("span", vec![("style", AttrValue::Expression("{ whiteSpace: 'nowrap' }".to_string()))]),
         Primitive::Ruby => ("ruby", Vec::new()),
         Primitive::RubyText => ("rt", Vec::new()),
-        Primitive::Pressable | Primitive::TouchableOpacity => {
+        Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback => {
             let mut attrs = Vec::new();
             match &node.props.accessibility_role {
                 Some(AccessibilityRole::Button) => attrs.push((if node.props.has_responder_handlers() { "accessibilityRole" } else { "role" }, AttrValue::text("button"))),
@@ -264,10 +264,10 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
                 Some(AccessibilityRole::NativeOnly(_)) => {}
                 None => {
                     if node.props.on_press.is_some() {
-                        let name = if node.primitive == Primitive::TouchableOpacity {
-                            "TouchableOpacity"
-                        } else {
-                            "Pressable"
+                        let name = match node.primitive {
+                            Primitive::TouchableOpacity => "TouchableOpacity",
+                            Primitive::TouchableWithoutFeedback => "TouchableWithoutFeedback",
+                            _ => "Pressable",
                         };
                         diagnostics.push(Diagnostic {
                             code: DiagnosticCode::A11yInteractiveWithoutRole,
@@ -288,12 +288,11 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
                 // on the all-lowercase form and drops it.
                 attrs.push(("tabIndex", AttrValue::Expression("0".to_string())));
             }
-            let component = if node.primitive == Primitive::TouchableOpacity {
-                "HozoTouchableOpacity"
-            } else if node.props.has_responder_handlers() {
-                "Pressable"
-            } else {
-                "div"
+            let component = match node.primitive {
+                Primitive::TouchableOpacity => "HozoTouchableOpacity",
+                Primitive::TouchableWithoutFeedback => "HozoTouchableWithoutFeedback",
+                _ if node.props.has_responder_handlers() => "Pressable",
+                _ => "div",
             };
             (component, attrs)
         }
