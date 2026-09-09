@@ -26,6 +26,14 @@ export function Shared() {
 export function Spinner() { return <ActivityIndicator /> }
 `,
     )
+    writeFileSync(
+      path.join(source, 'Syntax.tsx'),
+      `import { Animated, View } from 'react-native'
+const ref = useAnimatedRef<View>()
+// <View /> is documentation, not a rendered dependency.
+export function Syntax() { return <Animated.View /> }
+`,
+    )
     execFileSync('git', ['init', '--quiet'], { cwd: root })
     execFileSync('git', ['config', 'user.name', 'Hozo Test'], { cwd: root })
     execFileSync('git', ['config', 'user.email', 'test@hozo.invalid'], { cwd: root })
@@ -33,13 +41,13 @@ export function Spinner() { return <ActivityIndicator /> }
     execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
 
     const report = measureRealApp({ root, source: 'src', name: 'fixture' })
-    assert.equal(report.scope.tsxFiles, 2)
+    assert.equal(report.scope.tsxFiles, 3)
     assert.equal(report.lowering.parseOrCompileFailures, 0)
     assert.equal(report.review.confirmedWrongOutputFiles, 0)
     assert.equal(report.review.invalidDomStyleArrayOccurrences, 0)
-    assert.equal(report.lowering.filesWithDirectReactNativeJsxResidueOnWeb, 0)
-    assert.equal(report.lowering.directReactNativeJsxBindingsResidueOnWeb, 0)
-    assert.deepEqual(report.reactNativeJsxResidueImports, {})
+    assert.equal(report.lowering.filesWithDirectReactNativeJsxResidueOnWeb, 1)
+    assert.equal(report.lowering.directReactNativeJsxBindingsResidueOnWeb, 1)
+    assert.deepEqual(report.reactNativeJsxResidueImports, { Animated: 1 })
 
     const markdown = renderRealAppMarkdown(report)
     assert.match(markdown, /Real-app measurement: fixture/)

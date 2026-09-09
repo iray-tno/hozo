@@ -17,7 +17,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 
 1. **The corpus parses cleanly:** 0 parse or compile failures across 1,050 TSX files.
 2. **The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.
-3. **RNW cannot yet be removed:** 13 files retain 13 direct React Native JSX bindings after Web lowering.
+3. **RNW cannot yet be removed:** 9 files retain 9 direct React Native JSX bindings after Web lowering.
 4. **The app is not className-shaped:** 430 files use ALF atoms while only 8 use `className`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 
 ## Authored surface
@@ -47,8 +47,8 @@ Only direct imports from `react-native` are counted as direct React Native JSX. 
 | webComponents | 1223 |
 | nativeComponents | 1178 |
 | directReactNativeJsxPassedThroughOnWeb | 1 |
-| filesWithDirectReactNativeJsxResidueOnWeb | 13 |
-| directReactNativeJsxBindingsResidueOnWeb | 13 |
+| filesWithDirectReactNativeJsxResidueOnWeb | 9 |
+| directReactNativeJsxBindingsResidueOnWeb | 9 |
 | sharedBackendShapeMismatches | 0 |
 | parseOrCompileFailures | 0 |
 
@@ -93,13 +93,11 @@ Platform suffixes are respected: Web-only files run through Web lowering, iOS/An
 
 | Import | Files or bindings |
 |---|---:|
-| View | 3 |
 | FlatList | 2 |
 | Modal | 2 |
 | RefreshControl | 2 |
 | ScrollView | 2 |
 | Animated | 1 |
-| Pressable | 1 |
 
 ## Wrong-output boundary
 
@@ -164,11 +162,8 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 - `src/components/Dialog/index.tsx: ScrollView`
 - `src/components/Dialog/index.web.tsx: FlatList`
 - `src/components/Lightbox/chrome/ImageMenu.tsx: Modal`
-- `src/components/Lightbox/pager/ImagePager.tsx: View`
 - `src/components/images/Gallery/index.tsx: FlatList`
-- `src/screens/Search/modules/ExploreTrendingVideos.tsx: View`
 - `src/screens/SignupQueued.tsx: Modal`
-- `src/screens/VideoFeed/index.tsx: View`
 - `src/view/com/lists/MyLists.tsx: RefreshControl`
 - `src/view/com/notifications/NotificationFeedItem.tsx: Animated`
 - `src/view/com/pager/TabBar.tsx: ScrollView`

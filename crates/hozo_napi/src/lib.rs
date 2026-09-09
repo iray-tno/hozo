@@ -651,6 +651,7 @@ pub struct SourceImport {
 pub struct CompiledNativeModule {
     pub components: Vec<CompiledNativeComponent>,
     pub imports: Vec<SourceImport>,
+    pub jsx_bindings: Vec<String>,
     pub foreign_primitives: Vec<String>,
 }
 
@@ -702,8 +703,10 @@ fn lower_native_module(
         .collect();
     let mut foreign_primitives: Vec<String> = parsed.foreign_primitives.iter().cloned().collect();
     foreign_primitives.sort();
+    let mut jsx_bindings: Vec<String> = parsed.jsx_bindings.iter().cloned().collect();
+    jsx_bindings.sort();
 
-    CompiledNativeModule { components, imports, foreign_primitives }
+    CompiledNativeModule { components, imports, jsx_bindings, foreign_primitives }
 }
 
 fn lower_native_components(

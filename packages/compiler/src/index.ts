@@ -116,6 +116,8 @@ export interface StylexExternalBinding {
 export interface CompiledNativeModule {
   components: CompiledNativeComponent[]
   imports: SourceImport[]
+  /** Local bindings used as real JSX tag roots; comments and type syntax are excluded. */
+  jsxBindings: string[]
   /** Primitive-named bindings the compiler deliberately carried verbatim. */
   foreignPrimitives: string[]
 }
