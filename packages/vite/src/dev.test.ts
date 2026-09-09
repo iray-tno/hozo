@@ -495,19 +495,22 @@ test('MDX authored against Hozo compiles, and its prose is not scanned', async (
   }
 })
 
-test('MDX folded to _jsx() before Hozo saw it is reported rather than lost', async () => {
+test('MDX folded to _jsx() before Hozo saw it compiles anyway', async () => {
   // The other half of the test above, and the one that matters more.
   //
   // Without `jsx: true` the MDX plugin folds the document to `_jsx(View,
-  // {...})`, which Hozo cannot read. Nothing then fails: the elements
-  // render, the class names sit on them uncompiled, and a project that
-  // also runs Tailwind over the same tree gets rules for them anyway --
-  // which is exactly the app this was found on. A Hozo-only project
-  // loses the styling for those elements and is told nothing.
+  // {...})` and there is no JSX left to read. Nothing then failed: the
+  // elements rendered, the class names sat on them uncompiled, and a
+  // project that also runs Tailwind over the same tree got rules for them
+  // anyway -- which is exactly the app this was found on. A Hozo-only
+  // project lost the styling for those elements and was told nothing.
+  // `@astrojs/mdx` exposes no `jsx` option at all (#137), so this was
+  // never a setting somebody forgot on Astro.
   //
-  // `@astrojs/mdx` exposes no `jsx` option at all (#137), so this is not
-  // a setting somebody forgot on Astro. Hozo cannot compile it either
-  // way. What it can do is say so.
+  // Now the calls are put back as JSX before lowering reads them, and
+  // this pass folds them again at the end -- which it was already doing
+  // to its own output. This test used to assert the opposite, in the same
+  // words: "this fixture was supposed to be unlowerable".
   const { default: mdx } = await import('@mdx-js/rollup')
   const { default: react } = await import('@vitejs/plugin-react')
   const root = project({
@@ -521,11 +524,10 @@ test('MDX folded to _jsx() before Hozo saw it is reported rather than lost', asy
       '</View>',
       '',
     ].join('\n'),
-    // The `@hozo/core` import survives, because nothing lowered -- which
-    // is the premise of this test. Vite resolves it for real and the
-    // temporary project has no node_modules, so it needs a target. A stub
-    // rather than the real package: what is under test is what the plugin
-    // says about the file, and the components are never rendered.
+    // Vite resolves `@hozo/core` for real and the temporary project has no
+    // node_modules, so it needs a target. A stub rather than the real
+    // package: what is under test is what the plugin does to the file, and
+    // the components are never rendered.
     'core-stub.js': 'export const View = () => null\nexport const Text = () => null\n',
   })
   const collected = collectWarnings()
@@ -542,17 +544,74 @@ test('MDX folded to _jsx() before Hozo saw it is reported rather than lost', asy
 
   const result = await server.transformRequest('/page.mdx')
   assert.ok(result, 'the module was not transformed')
-  // The premise: nothing lowered, and the classes went through as written.
-  assert.doesNotMatch(result.code, /hozo-view/, 'this fixture was supposed to be unlowerable')
-  assert.match(result.code, /"p-4"/, 'the class was not passed through as expected')
+  assert.match(result.code, /hozo-view/, 'the folded primitives did not lower')
+  // Both of them, not only the outer one: the nested `Text` was a child of
+  // a call rather than of an element, which is the part a naive un-fold
+  // would have flattened.
+  assert.match(result.code, /hozo-\w+-r0-0/, 'View did not lower')
+  assert.match(result.code, /hozo-\w+-r0-1/, 'the nested Text did not lower')
+  // And the class names are gone, rather than sitting beside the compiled
+  // ones. `p-4` surviving would mean the element carried both.
+  assert.doesNotMatch(result.code, /"p-4"/, 'the raw class name is still on the element')
+  // Still calls, in the runtime the file was already using: this pass
+  // hands the file to a bundler as JavaScript, and JSX left in it would
+  // not parse.
+  assert.doesNotMatch(result.code, /<div/, 'JSX was left in the module')
+
+  assert.deepEqual(
+    collected.warnings.filter((message) => message.includes('_jsx()')),
+    [],
+    'warned about calls it actually compiled',
+  )
+})
+
+test('and an MDX call with no JSX spelling is still reported', async () => {
+  // What is left of the warning. A fold's own output can always be
+  // written back as JSX -- it came from JSX -- so the calls that cannot
+  // are the hand-written ones, which an `.mdx` can hold because its ESM
+  // block is ordinary JavaScript. A computed prop name is one: there is
+  // no attribute that spells it, and the un-folder declines rather than
+  // approximating.
+  //
+  // Beside markup that does compile, because the decision is per call the
+  // way every other one is per tag: one call it cannot read is not a
+  // reason to leave the page uncompiled.
+  const { default: mdx } = await import('@mdx-js/rollup')
+  const { default: react } = await import('@vitejs/plugin-react')
+  const root = project({
+    'page.mdx': [
+      "import { View, Text } from '@hozo/core'",
+      '',
+      'export const odd = _jsx(View, { [key]: 1 })',
+      '',
+      '<Text className="text-xl">compiled</Text>',
+      '',
+    ].join('\n'),
+    'core-stub.js': 'export const View = () => null\nexport const Text = () => null\n',
+  })
+  const collected = collectWarnings()
+  const server = await serve(
+    root,
+    {},
+    { '@hozo/core': path.join(root, 'core-stub.js') },
+    [react()],
+    [{ ...mdx(), enforce: 'pre' }],
+    collected.logger,
+  )
+
+  const result = await server.transformRequest('/page.mdx')
+  assert.ok(result, 'the module was not transformed')
+  assert.match(result.code, /hozo-\w+-r0-0/, 'the markup beside it did not lower')
 
   const warning = collected.warnings.find((message) => message.includes('_jsx()'))
   assert.ok(
     warning,
-    `no warning about the folded primitives. Warnings: ${JSON.stringify(collected.warnings)}`,
+    `no warning about the call left folded. Warnings: ${JSON.stringify(collected.warnings)}`,
   )
-  // Both names, so the message points at the markup rather than the file.
-  assert.match(warning, /Text, View/)
+  // The name of what is still uncompiled, so the message points at the
+  // markup rather than at the file.
+  assert.match(warning, /View/)
+  assert.doesNotMatch(warning, /Text/)
   // And both routes out, since which one applies depends on the host.
   assert.match(warning, /jsx: true/)
   assert.match(warning, /\.tsx component/)

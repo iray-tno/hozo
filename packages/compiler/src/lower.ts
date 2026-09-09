@@ -127,10 +127,14 @@ const JSX_CALL = /\b_?jsxs?(?:DEV)?\(\s*([A-Za-z_$][\w$]*)\s*,/g
  * time. `@astrojs/mdx` is the case that matters: it exposes no `jsx`
  * option at all (#137), so on Astro this is not a setting anybody forgot.
  *
- * Hozo cannot compile this, and reading `_jsx()` calls would mean teaching
- * both backends to emit them, since Hozo writes JSX and splices at spans.
- * What it can do is say so, which is the whole of this function: turn a
- * silent loss into a line at build time.
+ * Most of it Hozo now compiles. `Compiler.unfoldJsxCalls` writes the calls
+ * back as JSX before lowering reads them, and `@hozo/vite` folds them
+ * again on the way out -- the step it was already applying to its own
+ * output. So this function is no longer the answer to the whole problem;
+ * it is the answer to what is left, and it is asked of the *un-folded*
+ * text. A call still named here is one with no JSX spelling at all -- a
+ * computed prop name, a spread child -- which the un-folder declines
+ * rather than approximates.
  *
  * Only names bound from a module the project trusts, because the
  * compiler's own rule is per tag rather than per file -- an `@expo/ui`

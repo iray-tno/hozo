@@ -9,9 +9,11 @@ mod jsx;
 mod scan;
 mod stylex;
 mod tailwind;
+mod unfold;
 pub(crate) mod tailwind_variants;
 
 pub use jsx::is_primitive_name;
+pub use unfold::unfold_jsx_calls;
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
 pub use scan::{resolve_class_name, scan_class_candidates, source_uses_tailwind, ScannedUtility};
 pub use stylex::{

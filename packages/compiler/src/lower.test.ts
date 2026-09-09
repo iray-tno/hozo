@@ -307,9 +307,15 @@ test('one interactive primitive is enough to need a boundary', () => {
 })
 
 // What `foldedPrimitiveCalls` is for: an MDX plugin that was not told
-// `jsx: true` hands Hozo function calls instead of JSX, nothing lowers,
-// and the class names pass through uncompiled with nothing reported.
-// `@astrojs/mdx` has no such option to be told (#137).
+// `jsx: true` hands Hozo function calls instead of JSX. `@astrojs/mdx`
+// has no such option to be told (#137).
+//
+// Most of these now compile -- `Compiler.unfoldJsxCalls` writes them back
+// as JSX before lowering reads them, and `@hozo/vite` folds them again on
+// the way out. This function is asked of the *un-folded* text, so what it
+// still names is what has no JSX spelling at all. The fixture below is the
+// input to that, and it is still the right question to ask of a module:
+// which primitives are folded here.
 const FOLDED = `import {Fragment as _Fragment, jsx as _jsx, jsxs as _jsxs} from "react/jsx-runtime";
 import {View, Text} from '@hozo/core';
 function _createMdxContent(props) {
