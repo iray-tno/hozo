@@ -218,14 +218,14 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     name: 'virtualized list semantics',
     purpose: 'a long list keeps its list role on Native and its runtime component on Web',
     // Asymmetric on purpose, and worth pinning because it looks like a gap.
-    // Web carries `FlatList` verbatim -- it is `@hozo/core`'s own component
-    // there, and the semantics are that component's to provide -- while
+    // Web lowers to the RNW-free `HozoFlatList` runtime component, whose
+    // semantics are that component's to provide, while
     // Native lowers to React Native's and adds the role its own list
     // primitive would have carried.
     source:
       '<FlatList accessibilityLabel="Rows" data={rows} ' +
       'renderItem={({ item }) => <Text>{item}</Text>} />',
-    web: ['<FlatList accessibilityLabel={"Rows"}'],
+    web: ['<HozoFlatList accessibilityLabel={"Rows"}'],
     native: ['<FlatList accessibilityRole="list" accessibilityLabel={"Rows"}'],
   },
   {
