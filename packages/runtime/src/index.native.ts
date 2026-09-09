@@ -29,6 +29,10 @@ export {
   type HozoSummaryProps,
   hozoTextChildren,
 } from '@hozo/behaviors'
+export {
+  HozoActivityIndicator,
+  type HozoActivityIndicatorProps,
+} from './activity-indicator.native.ts'
 export type { BreakpointName, Viewport } from './ambient.ts'
 export { HozoBackdropFilter, type HozoBackdropFilterProps } from './backdrop.native.tsx'
 export {

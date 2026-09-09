@@ -140,6 +140,7 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         Primitive::List => ("ul", Vec::new()),
         Primitive::ListItem if node.props.on_layout.is_some() => ("ListItem", Vec::new()),
         Primitive::ListItem => ("li", Vec::new()),
+        Primitive::ActivityIndicator => ("HozoActivityIndicator", Vec::new()),
         Primitive::Main if node.props.on_layout.is_some() => ("Main", Vec::new()),
         Primitive::Main => ("main", Vec::new()),
         Primitive::Header if node.props.on_layout.is_some() => ("Header", Vec::new()),

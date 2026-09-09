@@ -17,7 +17,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 
 1. **The corpus parses cleanly:** 0 parse or compile failures across 1,050 TSX files.
 2. **The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.
-3. **RNW cannot yet be removed:** 59 files retain 66 direct React Native JSX bindings after Web lowering.
+3. **RNW cannot yet be removed:** 46 files retain 52 direct React Native JSX bindings after Web lowering.
 4. **The app is not className-shaped:** 430 files use ALF atoms while only 8 use `className`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 
 ## Authored surface
@@ -41,14 +41,14 @@ Only direct imports from `react-native` are counted as direct React Native JSX. 
 
 | Outcome | Count |
 |---|---:|
-| filesLowered | 570 |
-| filesLoweredForWeb | 566 |
-| filesLoweredForNative | 540 |
-| webComponents | 1219 |
-| nativeComponents | 1172 |
-| directReactNativeJsxPassedThroughOnWeb | 2 |
-| filesWithDirectReactNativeJsxResidueOnWeb | 59 |
-| directReactNativeJsxBindingsResidueOnWeb | 66 |
+| filesLowered | 573 |
+| filesLoweredForWeb | 567 |
+| filesLoweredForNative | 543 |
+| webComponents | 1220 |
+| nativeComponents | 1175 |
+| directReactNativeJsxPassedThroughOnWeb | 1 |
+| filesWithDirectReactNativeJsxResidueOnWeb | 46 |
+| directReactNativeJsxBindingsResidueOnWeb | 52 |
 | sharedBackendShapeMismatches | 0 |
 | parseOrCompileFailures | 0 |
 
@@ -94,7 +94,6 @@ Platform suffixes are respected: Web-only files run through Web lowering, iOS/An
 | Import | Files or bindings |
 |---|---:|
 | View | 34 |
-| ActivityIndicator | 14 |
 | TouchableOpacity | 5 |
 | TouchableWithoutFeedback | 3 |
 | FlatList | 2 |
@@ -142,10 +141,10 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 - `src/components/InterestTabs.tsx: View`
 - `src/components/Lightbox/chrome/ImageMenu.tsx: Modal`
 - `src/components/Lightbox/pager/ImagePager.tsx: View`
-- `src/components/Post/Embed/ExternalEmbed/ExternalGif.tsx: ActivityIndicator`
-- `src/components/Post/Embed/ExternalEmbed/ExternalPlayer.tsx: ActivityIndicator`
-- `src/components/Post/Embed/VideoEmbed/GifPresentationControls.tsx: ActivityIndicator`
-- `src/components/Post/Embed/VideoEmbed/index.tsx: ActivityIndicator`
+- `src/components/Post/Embed/VideoEmbed/index.web.tsx: View`
+- `src/components/ProgressGuide/FollowDialog.tsx: View`
+- `src/components/ProgressGuide/List.tsx: View`
+- `src/components/Tooltip/index.tsx: View`
 
 ### diagnostic:ARIA_NAME_PROHIBITED
 
@@ -202,7 +201,6 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 ### directReactNativeJsxPassedThroughOnWeb
 
 - `src/view/com/util/List.tsx: RefreshControl`
-- `src/view/screens/Home.tsx: ActivityIndicator`
 
 ### diagnostic:A11Y_MISSING_ACCESSIBLE_NAME
 

@@ -391,6 +391,7 @@ pub enum Primitive {
     /// One static list entry: `<li>` on Web and a listitem-role `View` on
     /// React Native.
     ListItem,
+    ActivityIndicator,
     Pressable,
     Button,
     /// A destination-bearing interaction: `<a>` on Web and Hozo's

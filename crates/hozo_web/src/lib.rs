@@ -98,6 +98,11 @@ const SCROLL_VIEW_BASE_CSS: &str = ":where(.hozo-scroll-view) { \
     display: none;\n\
 }\n\n";
 
+const ACTIVITY_INDICATOR_BASE_CSS: &str = "@keyframes hozo-activity-indicator-spin {\n  \
+    from { transform: rotate(0deg); }\n  \
+    to { transform: rotate(360deg); }\n\
+}\n\n";
+
 /// What a browser does for `<button disabled>` in forced-colors mode,
 /// for everything else Hozo marks disabled.
 ///
@@ -185,6 +190,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::ScrollView) {
         css.push_str(SCROLL_VIEW_BASE_CSS);
     }
+    if contains_primitive(root, Primitive::ActivityIndicator) {
+        css.push_str(ACTIVITY_INDICATOR_BASE_CSS);
+    }
     if contains_prop(root, |node| node.props.pointer_events.is_some()) {
         css.push_str(POINTER_EVENTS_BASE_CSS);
     }
@@ -210,6 +218,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     };
     if contains_primitive(root, Primitive::Dialog) {
         runtime_imports.push("HozoDialog");
+    }
+    if contains_primitive(root, Primitive::ActivityIndicator) {
+        runtime_imports.push("HozoActivityIndicator");
     }
     // Exactly when the spread was written, rather than a second guess at
     // the same question. A ScrollView carried through as a foreign tag
