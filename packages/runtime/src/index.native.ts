@@ -76,13 +76,16 @@ export {
 } from './pressable.native.tsx'
 export { type HozoSafeAreaInsets, useHozoSafeArea } from './safe-area.native.ts'
 export { HozoSpaced } from './spacing.native.tsx'
-
 export {
   HozoRelativeText,
   type HozoRelativeTextProps,
   HozoTextSize,
   type HozoTextSizeProps,
 } from './text-size.native.tsx'
+export {
+  HozoTouchableOpacity,
+  type HozoTouchableOpacityProps,
+} from './touchable-opacity.native.ts'
 
 export {
   HozoAnimated,

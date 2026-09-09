@@ -222,6 +222,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::ActivityIndicator) {
         runtime_imports.push("HozoActivityIndicator");
     }
+    if contains_primitive(root, Primitive::TouchableOpacity) {
+        runtime_imports.push("HozoTouchableOpacity");
+    }
     // Exactly when the spread was written, rather than a second guess at
     // the same question. A ScrollView carried through as a foreign tag
     // keeps `@hozo/core`'s own component, and an author who wrote
@@ -579,6 +582,7 @@ fn render_node(
         tag = match node.primitive {
             Primitive::View => "View",
             Primitive::Pressable => "Pressable",
+            Primitive::TouchableOpacity => "HozoTouchableOpacity",
             _ => tag,
         };
     }

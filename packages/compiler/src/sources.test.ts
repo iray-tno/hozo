@@ -51,6 +51,25 @@ export function Loading() { return <ActivityIndicator size="large" color="white"
   assert.deepEqual(native.nativeImports, ['ActivityIndicator'])
 })
 
+test('TouchableOpacity keeps press feedback on Web and the native primitive on device', () => {
+  const source = `import { TouchableOpacity } from 'react-native'
+export function Save() {
+  return <TouchableOpacity activeOpacity={0.4} accessibilityRole="button" onPress={save}>Save</TouchableOpacity>
+}
+`
+  const web = lowerModule(source, 'Save.tsx', 'Save.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(web.code, /<HozoTouchableOpacity/)
+  assert.match(web.code, /activeOpacity=\{0\.4\}/)
+  assert.match(web.code, /\{\.\.\.hozoInteractive\(save\)\}/)
+  assert.match(web.code, /import \{ HozoTouchableOpacity, hozoInteractive \} from '@hozo\/runtime'/)
+
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.match(native.jsx, /<TouchableOpacity[^>]*activeOpacity=\{0\.4\}/)
+  assert.deepEqual(native.nativeImports, ['TouchableOpacity', 'Text'])
+})
+
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.

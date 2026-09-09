@@ -25,7 +25,6 @@ export {
   HozoActivityIndicator,
   type HozoActivityIndicatorProps,
 } from './activity-indicator.ts'
-
 export {
   configureHozoBackdropFilter,
   createExpoBlurAdapter,
@@ -33,6 +32,10 @@ export {
   type HozoBackdropFilterAdapter,
   type HozoBackdropFilterAdapterProps,
 } from './backdrop.ts'
+export {
+  HozoTouchableOpacity,
+  type HozoTouchableOpacityProps,
+} from './touchable-opacity.ts'
 
 /**
  * Resolves whitespace-separated class names to React Native style objects.
