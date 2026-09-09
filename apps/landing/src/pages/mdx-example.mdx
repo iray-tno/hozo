@@ -3,6 +3,7 @@ layout: ../layouts/Probe.astro
 title: Hozo components in Astro MDX
 ---
 
+import { View, Text } from '@hozo/core'
 import { StaticCard } from '../components/StaticCard.tsx'
 
 # Hozo components in Astro MDX
@@ -16,7 +17,11 @@ primitives to plain HTML and a stylesheet before Astro ever saw them.
 
 <StaticCard />
 
-Writing a primitive inline in this file rather than importing one does not
-compile: `@astrojs/mdx` does not expose `jsx: true`, so Hozo is handed
-`_jsx()` calls instead of the JSX it reads. The primitive still renders
-through `@hozo/core`, but its class names pass through uncompiled.
+A primitive written inline in this file compiles too. `@astrojs/mdx` exposes
+no `jsx: true` (#137), so Hozo is handed `_jsx()` calls rather than the JSX it
+reads -- and the Vite integration puts them back before reading and folds them
+again afterwards, which it was already doing to its own output.
+
+<View className="p-4 gap-2 rounded-lg">
+  <Text className="text-xl">inline in Astro MDX</Text>
+</View>

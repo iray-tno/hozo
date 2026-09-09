@@ -197,36 +197,50 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       if (stylexGraphChanged || (resolvedCurrent && reexportSpecifiers.length > 0)) {
         compiler.setStylexModules(stylexModules.moduleSources())
       }
-      // The one failure this pass can see and cannot fix.
-      //
       // A `.mdx` arrives here as whatever the MDX plugin produced. Told
       // `jsx: true` it produces JSX and everything below works; told
       // nothing it folds the document to `_jsx()` calls, and Hozo reads
-      // JSX. There is then no error anywhere: the elements render, their
-      // classes pass through uncompiled, and only a project that also
-      // runs Tailwind over the same tree gets rules for them. So the page
-      // looks right on the app that found this and loses its styling on
-      // one without Tailwind, silently, in both cases.
+      // JSX. `@astrojs/mdx` exposes no `jsx` option at all (#137), so on
+      // Astro this was never a setting anybody forgot.
       //
-      // `@astrojs/mdx` exposes no `jsx` option (#137), so on Astro this
-      // is not a setting to turn on -- the answer there is to move the
-      // markup into a `.tsx` and import it, which compiles fully and
-      // needs no island. The message says both, since a project on
-      // `@mdx-js/rollup` or `@next/mdx` has the cheaper fix.
+      // So the calls are put back as JSX before Hozo reads them, and the
+      // step at the end of this same transform -- `transformWithOxc`,
+      // which hands the file to oxc as `.tsx` -- folds them again. That
+      // pairing is why the un-fold lives here rather than in
+      // `lowerModule`: it is only sound for a file this pass is going to
+      // fold back, and every other integration is handed real JSX.
+      //
+      // What it cannot put back stays folded, and that is what is
+      // reported. `unfoldJsxCalls` declines anything with no JSX spelling
+      // -- a computed prop key, a spread child -- rather than
+      // approximating it, so the warning now names exactly the calls that
+      // are still passing through uncompiled instead of all of them.
+      let source = code
+      let jsxImportSource: string | undefined
       if (isTransformedSource(file)) {
-        const folded = foldedPrimitiveCalls(code, compiler.sources)
+        const unfolded = compiler.unfoldJsxCalls(code)
+        source = unfolded?.code ?? code
+        // Folded back with the runtime it was folded with. Astro's MDX
+        // output calls `_jsx` from `astro/jsx-runtime`; re-folded under
+        // this project's default the same tree is built by React's
+        // runtime, and Astro renders that as the string `[object
+        // Object]` -- no error, on a page whose stylesheet came out
+        // correct. Measured on `apps/landing`.
+        jsxImportSource = unfolded?.importSource
+        const folded = foldedPrimitiveCalls(source, compiler.sources)
         if (folded.length > 0) {
           this.warn(
-            `${file}: ${folded.join(', ')} reached Hozo already compiled to _jsx() calls, so ` +
-              'nothing here was lowered and these class names are passing through uncompiled. ' +
-              'Pass `jsx: true` to the MDX plugin so Hozo sees the JSX; on Astro, where ' +
-              '`@astrojs/mdx` has no such option, move this markup into a .tsx component and ' +
-              'import it -- that compiles fully and needs no client directive.',
+            `${file}: ${folded.join(', ')} reached Hozo as _jsx() calls that cannot be written ` +
+              'as JSX -- a computed prop name or a spread child -- so nothing there was lowered ' +
+              'and those class names are passing through uncompiled. Pass `jsx: true` to the ' +
+              'MDX plugin so Hozo sees the JSX; on Astro, where `@astrojs/mdx` has no such ' +
+              'option, move this markup into a .tsx component and import it -- that compiles ' +
+              'fully and needs no client directive.',
           )
         }
       }
 
-      const lowered = lowerModule(code, id, file, compiler, root, stylexModules)
+      const lowered = lowerModule(source, id, file, compiler, root, stylexModules)
       if (!lowered) return
 
       // Shared with Metro and Next, which is new: this warned on
@@ -277,7 +291,9 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         const compiled = await transformWithOxc(
           next,
           `${file}.tsx`,
-          undefined,
+          jsxImportSource
+            ? { jsx: { runtime: 'automatic', importSource: jsxImportSource } }
+            : undefined,
           undefined,
           resolvedConfig,
         )

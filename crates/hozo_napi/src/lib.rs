@@ -364,6 +364,15 @@ fn lower_web(
 /// So the argument is gone rather than defaulted. Compiling against a
 /// project's theme now requires holding one of these, and there is nothing
 /// left to forget.
+/// A module whose folded primitives are JSX again, and the runtime they
+/// were folded with -- which is the runtime they have to be folded back
+/// with. See `hozo_parser::unfold::Unfolded`.
+#[napi(object)]
+pub struct UnfoldedModule {
+    pub code: String,
+    pub import_source: Option<String>,
+}
+
 #[napi]
 pub struct Compiler {
     theme: hozo_ir::Theme,
@@ -395,6 +404,19 @@ impl Compiler {
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
         )
+    }
+
+    /// Puts a machine-folded `_jsx(View, {...})` back as `<View ...>`.
+    ///
+    /// `None` when there is nothing to put back, which is every
+    /// hand-written file. See `hozo_parser::unfold_jsx_calls` for why this
+    /// exists, what it declines to touch, and why the caller is told which
+    /// runtime to fold it back to.
+    #[napi]
+    pub fn unfold_jsx_calls(&self, source: String) -> Option<UnfoldedModule> {
+        hozo_parser::unfold_jsx_calls(&source, self.sources.as_deref()).map(|unfolded| {
+            UnfoldedModule { code: unfolded.code, import_source: unfolded.import_source }
+        })
     }
 
     #[napi]

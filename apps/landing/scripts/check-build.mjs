@@ -76,14 +76,39 @@ const checks = [
 ]
 
 // The same component reached from MDX rather than from `.astro`, which
-// is a different path through Astro and worth its own assertions. An
-// imported component is compiled as `.tsx` before MDX sees it, so this
-// works where writing a primitive inline in the `.mdx` does not --
-// `@astrojs/mdx` exposes no `jsx: true`, and Hozo cannot read `_jsx()`
-// calls.
+// is a different path through Astro and worth its own assertions -- and
+// the page carries two of them: a component imported from a `.tsx`, and a
+// primitive written inline in the Markdown.
+//
+// The inline one is #137, and it is why these assertions matter more than
+// the rest of this file. `@astrojs/mdx` exposes no `jsx: true`, so Hozo is
+// handed `_jsx()` calls rather than JSX, and for as long as that was true
+// the inline primitive rendered with its class names passing through
+// uncompiled. It *looked* right here, because this app also runs Tailwind
+// over the same tree and Tailwind generated `.p-4` for it -- a Hozo-only
+// project lost the styling entirely, with nothing reported at build or at
+// run time. So the check is that the class is a *generated* one, which
+// Tailwind cannot produce and only lowering can.
+//
+// Both are found by the text they contain rather than by position, so
+// editing the prose around them cannot quietly disarm the check -- and by
+// the text rather than by a marker attribute, because an *uncompiled*
+// primitive renders through `@hozo/core`'s real component, which drops a
+// prop it does not model. Anchoring on one would have made "did not
+// lower" and "is not on the page" the same failure.
+const inline = /<div class="([^"]*)"[^>]*><span class="([^"]*)">inline in Astro MDX</.exec(mdx)
 checks.push(
   [GENERATED_CLASS.test(mdx), 'the imported component did not lower on the MDX page'],
   [/<section class="[^"]*hozo-/.test(mdx), 'Section did not lower on the MDX page'],
+  [Boolean(inline), 'the inline primitive is not on the MDX page at all'],
+  [
+    Boolean(inline) && GENERATED_CLASS.test(inline[1]),
+    'the inline primitive did not lower: its className passed through uncompiled (#137)',
+  ],
+  [
+    Boolean(inline) && GENERATED_CLASS.test(inline[2]),
+    'the primitive nested inside the inline one did not lower (#137)',
+  ],
   [!/<astro-island/.test(mdx), 'the MDX page hydrated something'],
   [
     !/<script(?![^>]*type="application\/ld\+json")/.test(mdx),

@@ -199,6 +199,7 @@ interface NativeCompiler {
   compile(source: string, bindings?: StylexExternalBinding[]): CompiledComponent[]
   compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
   compileNativeModule(source: string, bindings?: StylexExternalBinding[]): CompiledNativeModule
+  unfoldJsxCalls(source: string): UnfoldedModule | undefined
   setStylexModules(modules: StylexModuleSource[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
 }
@@ -261,6 +262,21 @@ export interface Theme {
  * left to forget: the free `compile` below takes no theme, so compiling
  * against a project's own requires holding one of these.
  */
+/**
+ * A module whose folded primitives are JSX again.
+ *
+ * `importSource` is the JSX runtime the calls came from, and the caller
+ * has to fold them back with it: Astro MDX output is `_jsx` from
+ * `astro/jsx-runtime`, and the same tree re-folded under a project's
+ * default is built by React's runtime -- which Astro renders as
+ * `[object Object]`, with no error, on a page whose stylesheet came out
+ * correct.
+ */
+export interface UnfoldedModule {
+  code: string
+  importSource?: string
+}
+
 export interface Compiler {
   compile(source: string, bindings?: StylexExternalBinding[]): CompiledComponent[]
   compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
@@ -270,6 +286,16 @@ export interface Compiler {
    * the file around `compileNative`.
    */
   compileNativeModule(source: string, bindings?: StylexExternalBinding[]): CompiledNativeModule
+  /**
+   * A machine-folded module with its primitives written back as JSX,
+   * or `undefined` when there is nothing folded to put back.
+   *
+   * For an integration handed the output of an MDX plugin that was not
+   * told `jsx: true` -- `@astrojs/mdx` has no such option to be told
+   * (#137). Everything downstream then works unchanged, and the same
+   * integration folds it back on the way out.
+   */
+  unfoldJsxCalls(source: string): UnfoldedModule | undefined
   /** Replace the project's parsed cross-file StyleX registry. */
   setStylexModules(modules: StylexModuleSource[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
@@ -346,6 +372,7 @@ export function createCompiler(
         })),
       }
     },
+    unfoldJsxCalls: (source) => inner.unfoldJsxCalls(source) ?? undefined,
     setStylexModules: (modules) => inner.setStylexModules(modules),
     compileCanvasPaints: (source, native) => inner.compileCanvasPaints(source, native),
     sources: allowed,
