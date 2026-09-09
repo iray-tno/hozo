@@ -38,6 +38,16 @@ const DisclosureContext = createContext<DisclosureState>({
 })
 
 export interface HozoDetailsProps {
+  /**
+   * Tailwind classes, the same prop the Web half takes.
+   *
+   * On a tag the compiler lowers it is gone by runtime, replaced by a
+   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
+   * this side has no CSS engine to resolve a class list against -- and
+   * the type still has to accept it, because an app is type-checked
+   * against the source the compiler reads rather than its output.
+   */
+  className?: string
   children?: ReactNode
   /** Controlled. Without it the disclosure keeps its own state. */
   open?: boolean
@@ -49,6 +59,16 @@ export interface HozoDetailsProps {
 }
 
 export interface HozoSummaryProps {
+  /**
+   * Tailwind classes, the same prop the Web half takes.
+   *
+   * On a tag the compiler lowers it is gone by runtime, replaced by a
+   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
+   * this side has no CSS engine to resolve a class list against -- and
+   * the type still has to accept it, because an app is type-checked
+   * against the source the compiler reads rather than its output.
+   */
+  className?: string
   children?: ReactNode
   style?: StyleProp<ViewStyle>
   testID?: string

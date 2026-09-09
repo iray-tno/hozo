@@ -12,14 +12,32 @@ export interface HozoResponderTouch {
   locationY: number
   pageX: number
   pageY: number
-  target: EventTarget | null
+  /**
+   * What was touched, in whichever platform's currency.
+   *
+   * A DOM node in the browser and a native view tag -- a number -- on
+   * device, with `undefined` because React Native's own touch declares it
+   * optional. This said `EventTarget | null` and nothing else, which is
+   * the browser's answer written into a shape whose whole purpose is to
+   * be platform-free.
+   *
+   * That was invisible for the same reason the missing `className` was:
+   * the `react-native` export condition carried no `types`, so `tsc` in a
+   * React Native app never asked React Native's declarations whether these
+   * handlers fit. Asked, it says no -- `{...pan.panHandlers}` on a native
+   * `View` does not type-check, because a handler taking this event is not
+   * one React Native may call.
+   */
+  target: EventTarget | number | null | undefined
   timestamp: number
 }
 
 export interface HozoResponderEvent {
   nativeEvent: HozoResponderTouch & {
-    changedTouches: HozoResponderTouch[]
-    touches: HozoResponderTouch[]
+    // `readonly`, because React Native's are, and a `readonly T[]` is not
+    // assignable to a `T[]`. Nothing here mutates them.
+    changedTouches: readonly HozoResponderTouch[]
+    touches: readonly HozoResponderTouch[]
   }
   touchHistory: HozoTouchHistory
   preventDefault(): void
@@ -37,7 +55,8 @@ export interface HozoTouchTrack {
 }
 
 export interface HozoTouchHistory {
-  touchBank: HozoTouchTrack[]
+  /** `readonly` for the same reason the touch lists are. */
+  touchBank: readonly HozoTouchTrack[]
   numberActiveTouches: number
   indexOfSingleActiveTouch: number
   mostRecentTimeStamp: number

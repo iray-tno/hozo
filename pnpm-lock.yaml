@@ -612,6 +612,9 @@ importers:
       '@babel/core':
         specifier: 7.29.7
         version: 7.29.7(supports-color@8.1.1)
+      '@hozo/canvas':
+        specifier: workspace:*
+        version: link:../canvas
       '@hozo/core':
         specifier: workspace:*
         version: link:../core

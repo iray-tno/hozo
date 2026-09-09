@@ -28,18 +28,27 @@
   },
   "exports": {
     ".": {
+      "react-native": {
+        "types": "./dist/index.native.d.ts",
+        "default": "./dist/index.native.js"
+      },
       "types": "./dist/index.d.ts",
-      "react-native": "./dist/index.native.js",
       "default": "./dist/index.js"
     },
     "./next": {
+      "react-native": {
+        "types": "./dist/next.native.d.ts",
+        "default": "./dist/next.native.js"
+      },
       "types": "./dist/next.d.ts",
-      "react-native": "./dist/next.native.js",
       "default": "./dist/next.js"
     },
     "./expo-router": {
+      "react-native": {
+        "types": "./dist/expo-router.native.d.ts",
+        "default": "./dist/expo-router.native.js"
+      },
       "types": "./dist/expo-router.d.ts",
-      "react-native": "./dist/expo-router.native.js",
       "default": "./dist/expo-router.js"
     },
     "./expo-config": {
@@ -47,8 +56,11 @@
       "default": "./dist/expo-config.js"
     },
     "./tanstack-router": {
+      "react-native": {
+        "types": "./dist/tanstack-router.native.d.ts",
+        "default": "./dist/tanstack-router.native.js"
+      },
       "types": "./dist/tanstack-router.d.ts",
-      "react-native": "./dist/tanstack-router.native.js",
       "default": "./dist/tanstack-router.js"
     },
     "./verification": {

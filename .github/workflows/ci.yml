@@ -51,6 +51,13 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm test:packages
+      # Every workspace, examples included -- and the examples are the
+      # point. `pnpm test:packages` stops at `./packages/*`, so nothing in
+      # CI had ever type-checked an app *against* the published entry
+      # points. That is precisely where the `react-native` export
+      # condition resolving to the Web declarations was visible, and it
+      # went unseen for the whole life of the Native backend.
+      - run: pnpm typecheck
 
   platform-compat:
     strategy:
