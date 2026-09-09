@@ -27,9 +27,15 @@ Every Hozo integration takes the same options.
 | `root` | Project root. Defaults to Vite's. |
 | `content` | Which files the project-wide scan walks. |
 | `sources` | Modules whose primitives may be lowered. Defaults to `@hozo/core` and `react-native`. |
+| `rnwFree` | Fail when Web output still renders JSX imported from `react-native`. Defaults to `false` for incremental migration. |
 | `debug` | Report what the scan found. |
 
 `css` is the one worth setting. Left out, Hozo looks for the usual filenames and falls back to Tailwind's defaults if it finds none, reporting what it looked for. That fallback is right until the project defines its own tokens under a name Hozo did not guess — and then `bg-brand` compiles to a CSS variable nothing defines and `p-4` to the wrong number of pixels, neither of which is an error.
+
+Set `rnwFree: true` only after removing `react-native-web`. It adds no work to
+the default path; in strict mode it checks the emitted JSX bindings and stops
+the build with the exact imported names that still require RNW. Aliases and
+namespace JSX are tracked by the parser rather than guessed from source text.
 
 ## Two stylesheets
 

@@ -54,10 +54,16 @@ exactly `HozoProjectOptions` and add nothing:
 | `css`     | Tailwind entry stylesheet, read for `@theme` and not bundled |
 | `content` | source globs and ignores for the project-wide scan          |
 | `root`    | project root; defaults to whatever the bundler already knows |
+| `rnwFree` | fail if emitted Web JSX still uses a direct `react-native` binding |
 | `debug`   | report scan work and timing through the bundler's logger     |
 
 An error-severity diagnostic fails the build in all four, and prints the
 same way.
+
+`rnwFree` defaults to `false`, which lets React Native Web remain as an
+incremental-migration fallback. Set it to `true` once RNW is absent; both
+Turbopack and webpack then stop on any unsupported direct React Native JSX
+binding rather than failing later during module resolution.
 
 ## Dev mode
 

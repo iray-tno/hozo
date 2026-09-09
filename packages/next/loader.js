@@ -161,6 +161,7 @@ export default function hozoLoader(source) {
           state.compiler,
           options.root,
           state.stylexModules,
+          { rnwFree: options.rnwFree },
         )
         if (!lowered) {
           callback(null, source)

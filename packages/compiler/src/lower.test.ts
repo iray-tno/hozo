@@ -34,6 +34,41 @@ test('leaves alone what it has nothing to do with', () => {
   assert.equal(lowerModule(notTsx, 'a.ts', 'a.ts', compiler, ROOT), undefined)
 })
 
+test('RNW-free mode refuses a direct React Native JSX binding left in Web output', () => {
+  const source = `import { SectionList as Rows } from 'react-native'
+export const Page = () => <Rows sections={sections} renderItem={renderItem} />
+`
+
+  assert.equal(lowerModule(source, file, file, compiler, ROOT), undefined)
+  assert.throws(
+    () => lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true }),
+    /RNW_FREE_JSX_REMAINS: Web output still renders SectionList as Rows/,
+  )
+})
+
+test('RNW-free mode accepts supported bindings and ignores non-JSX mentions', () => {
+  const source = `import { View, SectionList } from 'react-native'
+type Props = { component?: typeof SectionList }
+// <SectionList> in documentation is not rendered JSX.
+export const Page = () => <View />
+`
+
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true })
+  assert.ok(lowered)
+  assert.match(lowered.code, /<div/)
+})
+
+test('RNW-free mode identifies namespace JSX by its imported root', () => {
+  const source = `import * as RN from 'react-native'
+export const Page = () => <RN.SectionList sections={sections} renderItem={renderItem} />
+`
+
+  assert.throws(
+    () => lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true }),
+    /RNW_FREE_JSX_REMAINS: Web output still renders \* as RN/,
+  )
+})
+
 test('normalizes React Native style props only on lowered DOM elements', () => {
   const source = `import { View } from 'react-native'
 const props = { id: 'card' }

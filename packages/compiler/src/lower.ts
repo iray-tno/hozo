@@ -14,7 +14,12 @@
 
 import path from 'node:path'
 import { lowerCanvasPaints } from './canvas.ts'
-import type { CompileDiagnostic, Compiler } from './index.ts'
+import type {
+  CompileDiagnostic,
+  CompiledNativeModule,
+  Compiler,
+  StylexExternalBinding,
+} from './index.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
 const HOZO_CORE_IMPORT_RE =
@@ -319,6 +324,49 @@ export interface LoweredModule {
   diagnostics: CompileDiagnostic[]
 }
 
+export interface LowerModuleOptions {
+  /** Fail when Web output still renders JSX bound directly from `react-native`. */
+  rnwFree?: boolean
+}
+
+/** Direct React Native imports that are still used as JSX tag roots. */
+function directReactNativeJsxBindings(module: CompiledNativeModule): string[] {
+  const used = new Set(module.jsxBindings)
+  return [
+    ...new Set(
+      module.imports
+        .filter((entry) => entry.source === 'react-native' && used.has(entry.local))
+        .map((entry) =>
+          entry.imported === entry.local ? entry.local : `${entry.imported} as ${entry.local}`,
+        ),
+    ),
+  ].sort()
+}
+
+/**
+ * Enforces the opt-in RNW-free boundary on emitted Web source.
+ *
+ * This deliberately uses the parser's binding metadata rather than a tag
+ * regexp: comments and type arguments are not JSX, aliases must be named by
+ * their actual local binding, and `Animated.View` is rooted at the namespace
+ * import. The extra parse exists only in strict mode, so migration safety has
+ * no cost for the default build path.
+ */
+function assertRnwFree(
+  code: string,
+  file: string,
+  compiler: Compiler,
+  bindings?: StylexExternalBinding[],
+): void {
+  const residue = directReactNativeJsxBindings(compiler.compileNativeModule(code, bindings))
+  if (residue.length === 0) return
+  throw new Error(
+    `[hozo] ${file}: RNW_FREE_JSX_REMAINS: Web output still renders ${residue.join(', ')} ` +
+      `from 'react-native'. Hozo cannot remove React Native Web safely. Lower or wrap ` +
+      `those elements, or disable rnwFree while keeping react-native-web installed.`,
+  )
+}
+
 /**
  * Lowers one module, or `undefined` when there is nothing to lower.
  *
@@ -333,6 +381,7 @@ export function lowerModule(
   compiler: Compiler,
   root: string,
   stylexModules?: StylexModuleCache,
+  options: LowerModuleOptions = {},
 ): LoweredModule | undefined {
   // `.mdx` alongside `.tsx` because by the time this runs the MDX
   // transform has already turned the file into JSX; the extension is all
@@ -346,7 +395,10 @@ export function lowerModule(
   // modules has nothing this can lower, and most of a project's files are
   // that. The real decision needs the AST and comes next.
   const hasSemanticCandidate = allowed.some((module) => code.includes(module))
-  if (!hasSemanticCandidate && !canvas.touched) return undefined
+  if (!hasSemanticCandidate && !canvas.touched) {
+    if (options.rnwFree && code.includes('react-native')) assertRnwFree(code, file, compiler)
+    return undefined
+  }
 
   // Per tag, not per file. A file mixing `react-native` with `@expo/ui`
   // is ordinary in an Expo app, and both export `Text`, `Button`, `List`,
@@ -361,7 +413,10 @@ export function lowerModule(
     ? stylexModules?.bindingsFor(path.resolve(file))
     : undefined
   const components = hasSemanticCandidate ? compiler.compile(canvas.code, stylexBindings) : []
-  if (components.length === 0 && !canvas.touched) return undefined
+  if (components.length === 0 && !canvas.touched) {
+    if (options.rnwFree) assertRnwFree(canvas.code, file, compiler, stylexBindings)
+    return undefined
+  }
 
   let next = canvas.code
   let css = ''
@@ -406,6 +461,8 @@ export function lowerModule(
     next = `import { ${runtimeImports.sort().join(', ')} } from '@hozo/runtime'
 ${next}`
   }
+
+  if (options.rnwFree) assertRnwFree(next, file, compiler, stylexBindings)
 
   const isDerivedModule = id.includes('?')
   const cssFileName = isDerivedModule
