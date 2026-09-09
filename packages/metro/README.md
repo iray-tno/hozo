@@ -35,7 +35,7 @@ Without it, an app is type-checked against the **Web** declarations: a native-on
 
 A `className` Hozo can't read statically — `<View className={getVariant()} />` — still has to produce styles. On Web that's free: the class string reaches the DOM and the browser matches it against a generated stylesheet. React Native has no CSS engine, so the string has to be resolved on device.
 
-`withHozo` scans the project for class-shaped strings and writes `node_modules/.hozo/candidates.native.js`: a class-name → style-object map plus a resolver bound to it (from `@hozo/runtime`). Files with an unreadable `className` import it; files without one don't. The lower-level `generateCandidateModule` API remains available from `@hozo/metro/project`.
+`withHozo` scans the project for class-shaped strings and writes `node_modules/.hozo/candidates.native.js`: a class-name → style-object map plus a resolver bound to it (from `@hozo/runtime`). Files with an unreadable `className` import it; files without one don't. The same module carries the resolved `preflight` choice to Native fallback components, so an uncompiled `Heading`, `Separator`, `Small`, `Sub`, or `Sup` uses the same browser defaults as compiled code. Metro redirects `@hozo/runtime/project` automatically; no provider or application import is required. The lower-level `generateCandidateModule` API remains available from `@hozo/metro/project`.
 
 It runs at config load rather than inside the transformer because Metro transforms in `jest-worker` subprocesses. Scanning there would mean several processes writing one cache file; the config layer is ordinary main-process code, so there's exactly one writer.
 

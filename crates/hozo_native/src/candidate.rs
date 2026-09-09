@@ -87,6 +87,11 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
         out.push_str(&format!("  {}: {},\n", quote(name), quote(reason)));
     }
     out.push_str("}\n\nexport const hozoClasses = createClassResolver(styles, unsupported)\n");
+    // This module is already the one project-specific value Metro carries
+    // onto the device. Keep the resolved reset choice beside the candidate
+    // map so uncompiled fallback components use the same browser defaults
+    // as the compiler (#336).
+    out.push_str(&format!("export const hozoPreflight = {}\n", theme.preflight()));
     out
 }
 
@@ -170,6 +175,16 @@ mod tests {
         assert!(module.contains("paddingTop: 16,"), "{module}");
         assert!(module.contains(r#""bg-blue-500": {"#), "{module}");
         assert!(module.contains("createClassResolver(styles, unsupported)"), "{module}");
+        assert!(module.contains("export const hozoPreflight = false"), "{module}");
+    }
+
+    #[test]
+    fn carries_the_resolved_preflight_choice() {
+        let module = render_candidate_module(
+            &[],
+            &Theme::new(Default::default(), None, true),
+        );
+        assert!(module.contains("export const hozoPreflight = true"), "{module}");
     }
 
     #[test]

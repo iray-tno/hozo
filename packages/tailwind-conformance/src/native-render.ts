@@ -68,6 +68,13 @@ registerHooks({
       if (entry === undefined) throw new Error(`no native entry for ${specifier}`)
       return { url: pathToFileURL(entry).href, shortCircuit: true }
     }
+    if (specifier === '@hozo/runtime/project') {
+      const root = path.dirname(require.resolve('@hozo/runtime/package.json'))
+      return {
+        url: pathToFileURL(path.join(root, 'src', 'project.native.ts')).href,
+        shortCircuit: true,
+      }
+    }
     return next(specifier, context)
   },
   // Node strips types from `.ts` but has no JSX transform, and Hozo's

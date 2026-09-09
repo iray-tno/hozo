@@ -38,6 +38,14 @@
       "types": "./dist/navigation-entry.d.ts",
       "default": "./dist/navigation-entry.js"
     },
+    "./project": {
+      "react-native": {
+        "types": "./dist/project.native.d.ts",
+        "default": "./dist/project.native.js"
+      },
+      "types": "./dist/project.d.ts",
+      "default": "./dist/project.js"
+    },
     "./svg": {
       "react-native": {
         "types": "./dist/svg.native.d.ts",

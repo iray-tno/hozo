@@ -18,6 +18,7 @@ import path from 'node:path'
 
 import {
   type HozoProjectOptions,
+  preflightEnabled,
   scanProject,
   scanSummary,
   writeFileIfChanged,
@@ -52,6 +53,8 @@ export interface GeneratedCandidateModule {
    * would be a second disk walk that could also disagree with this one.
    */
   usesTailwind: boolean
+  /** The one resolved answer shared by the compiler and runtime fallbacks. */
+  preflight: boolean
 }
 
 /**
@@ -78,7 +81,8 @@ export async function generateCandidateModule(
     // eslint-disable-next-line no-console
     console.info(scanSummary(stats))
   }
+  const preflight = preflightEnabled(options.preflight, cache.usesTailwind)
   const modulePath = candidateModulePath(projectRoot)
-  writeFileIfChanged(modulePath, cache.renderNativeModule(theme))
-  return { modulePath, usesTailwind: cache.usesTailwind }
+  writeFileIfChanged(modulePath, cache.renderNativeModule({ colors: [], ...theme, preflight }))
+  return { modulePath, usesTailwind: cache.usesTailwind, preflight }
 }

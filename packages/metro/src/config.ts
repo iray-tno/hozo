@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 import {
   CACHE_DIR,
   type HozoProjectOptions,
-  preflightEnabled,
   StylexModuleCache,
   type StylexResolutionRequest,
   type StylexResolvedBindings,
@@ -13,7 +12,9 @@ import {
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 
-import { generateCandidateModule } from './project.ts'
+import { candidateModulePath, generateCandidateModule } from './project.ts'
+
+const PROJECT_RUNTIME_MODULE = '@hozo/runtime/project'
 
 /**
  * The same options every Hozo integration takes, under this one's name.
@@ -185,9 +186,10 @@ export async function withHozo<T extends MetroConfigShape>(
       ? configuredUpstream
       : undefined
 
-  const { usesTailwind } = await generateCandidateModule(projectRoot, {
+  const { preflight } = await generateCandidateModule(projectRoot, {
     css: options.css,
     content: options.content,
+    preflight: options.preflight,
   })
   const fontFaceCss = options.fontFaceCss?.trim()
   const fontFaceCssPath = fontFaceCss
@@ -198,7 +200,7 @@ export async function withHozo<T extends MetroConfigShape>(
     upstreamTransformer,
     css: options.css,
     sources: options.sources,
-    preflight: preflightEnabled(options.preflight, usesTailwind),
+    preflight,
     fontFaceCssPath,
     fontAvailability: options.fontAvailability,
   }
@@ -222,6 +224,13 @@ export async function withHozo<T extends MetroConfigShape>(
   const configuredResolveRequest = config.resolver?.resolveRequest
   const resolvedPlatforms = new Set<string>()
   const resolveRequest: MetroResolveRequest = (context, moduleName, platform) => {
+    // `@hozo/runtime/project` has a useful common-case fallback in the
+    // published package. A configured Native build gets the exact value
+    // generated for this project instead, without asking every app for a
+    // provider at its root (#336).
+    if (moduleName === PROJECT_RUNTIME_MODULE && platform !== 'web') {
+      return { type: 'sourceFile', filePath: candidateModulePath(projectRoot) }
+    }
     const delegate = configuredResolveRequest ?? context.resolveRequest
     const key = platformKey(platform)
     if (!resolvedPlatforms.has(key)) {

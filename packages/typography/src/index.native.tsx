@@ -1,4 +1,5 @@
 import { HozoLink, HozoRuby, HozoRubyText, HozoTextSizeContext } from '@hozo/runtime'
+import { hozoPreflight } from '@hozo/runtime/project'
 import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // The components rather than their names. These files used to render
 // `React.createElement('View')`, and React Native resolves a string tag
@@ -15,9 +16,9 @@ import {
   StyleSheet,
   type TextStyle,
 } from 'react-native'
-import { TEXT_SIZE_RATIOS } from './text-size.ts'
+import { BARE_TEXT_SIZE_RATIOS, TEXT_SIZE_RATIOS } from './text-size.ts'
 
-export { TEXT_SIZE_RATIOS } from './text-size.ts'
+export { BARE_TEXT_SIZE_RATIOS, TEXT_SIZE_RATIOS } from './text-size.ts'
 
 export interface TypographyNativeProps {
   /**
@@ -101,17 +102,14 @@ export function Heading({
   style,
   ...props
 }: HeadingProps) {
-  // Bold and sized by level, which is what h1...h6 get from the UA
-  // stylesheet on the Web and got from nothing at all here.
+  // Preflight resets headings to inherited size and weight. Without it,
+  // reproduce the browser's heading defaults that Native does not have.
   const base = useContext(TextSize)
-  const ratio = TEXT_SIZE_RATIOS.heading[Math.min(6, Math.max(1, level)) - 1] as number
-  return (
-    <Text
-      accessibilityRole={accessibilityRole}
-      style={[{ fontSize: relative(ratio, base), fontWeight: 'bold' }, style]}
-      {...props}
-    />
-  )
+  const ratio = BARE_TEXT_SIZE_RATIOS.heading[Math.min(6, Math.max(1, level)) - 1] as number
+  const defaultStyle = hozoPreflight
+    ? undefined
+    : { fontSize: relative(ratio, base), fontWeight: 'bold' as const }
+  return <Text accessibilityRole={accessibilityRole} style={[defaultStyle, style]} {...props} />
 }
 
 export function Strong({ style, ...props }: TypographyNativeProps) {
@@ -134,12 +132,14 @@ export const Del = Strikethrough
 
 export function Sub({ style, ...props }: TypographyNativeProps) {
   const base = useContext(TextSize)
-  return <Text style={[{ fontSize: relative(TEXT_SIZE_RATIOS.sub, base) }, style]} {...props} />
+  const ratios = hozoPreflight ? TEXT_SIZE_RATIOS : BARE_TEXT_SIZE_RATIOS
+  return <Text style={[{ fontSize: relative(ratios.sub, base) }, style]} {...props} />
 }
 
 export function Sup({ style, ...props }: TypographyNativeProps) {
   const base = useContext(TextSize)
-  return <Text style={[{ fontSize: relative(TEXT_SIZE_RATIOS.sup, base) }, style]} {...props} />
+  const ratios = hozoPreflight ? TEXT_SIZE_RATIOS : BARE_TEXT_SIZE_RATIOS
+  return <Text style={[{ fontSize: relative(ratios.sup, base) }, style]} {...props} />
 }
 
 export function Code({ style, ...props }: TypographyNativeProps) {
@@ -148,11 +148,9 @@ export function Code({ style, ...props }: TypographyNativeProps) {
 
 export function Small({ style, ...props }: TypographyNativeProps) {
   const base = useContext(TextSize)
+  const ratios = hozoPreflight ? TEXT_SIZE_RATIOS : BARE_TEXT_SIZE_RATIOS
   return (
-    <Text
-      style={[{ fontSize: relative(TEXT_SIZE_RATIOS.small, base), opacity: 0.8 }, style]}
-      {...props}
-    />
+    <Text style={[{ fontSize: relative(ratios.small, base), opacity: 0.8 }, style]} {...props} />
   )
 }
 
