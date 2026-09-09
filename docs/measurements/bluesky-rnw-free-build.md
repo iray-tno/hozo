@@ -17,9 +17,9 @@ This is a dependency-boundary measurement, not a claim that the application runs
 
 1. **The unmodified production graph builds:** 0 errors.
 2. **The graph is not RNW-free:** the successful baseline contains 74 bundled React Native Web modules (430839 unminified module bytes reported by Webpack).
-3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 73 RNW modules and makes 321 RN/RNW requests from 224 unique importing modules.
-4. **Both app APIs and dependencies remain:** 82 app modules and 138 modules owned by 40 third-party packages make those requests.
-5. **The block is effective:** repeating that build with RN/RNW unavailable produces 328 resolution diagnostics (325 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
+3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 73 RNW modules and makes 302 RN/RNW requests from 207 unique importing modules.
+4. **Both app APIs and dependencies remain:** 65 app modules and 138 modules owned by 40 third-party packages make those requests.
+5. **The block is effective:** repeating that build with RN/RNW unavailable produces 309 resolution diagnostics (306 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
 
 This confirms that today's `rnwFree` compiler option means “no direct React Native JSX remains.” It does not mean “the complete application dependency graph builds without React Native Web.” Keep the name for now, but do not make the broader release claim until these boundaries are closed.
 
@@ -27,7 +27,7 @@ This confirms that today's `rnwFree` compiler option means “no direct React Na
 
 | Owner | Importing modules |
 |---|---:|
-| application | 82 |
+| application | 65 |
 | @sentry/react-native | 24 |
 | @react-navigation/elements | 19 |
 | react-native-keyboard-controller | 19 |
@@ -76,12 +76,11 @@ These counts are referenced identifiers remaining after Hozo lowering, restricte
 
 | API | Reachable app modules |
 |---|---:|
-| Keyboard | 19 |
 | useWindowDimensions | 16 |
 | LayoutAnimation | 14 |
 | AppState | 8 |
-| View | 8 |
 | Pressable | 7 |
+| View | 7 |
 | Dimensions | 6 |
 | Linking | 6 |
 | Alert | 2 |
