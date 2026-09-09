@@ -37,9 +37,9 @@ export function Spinner() { return <ActivityIndicator /> }
     assert.equal(report.lowering.parseOrCompileFailures, 0)
     assert.equal(report.review.confirmedWrongOutputFiles, 0)
     assert.equal(report.review.invalidDomStyleArrayOccurrences, 0)
-    assert.equal(report.lowering.filesWithDirectReactNativeJsxResidueOnWeb, 1)
-    assert.equal(report.lowering.directReactNativeJsxBindingsResidueOnWeb, 1)
-    assert.deepEqual(report.reactNativeJsxResidueImports, { Text: 1 })
+    assert.equal(report.lowering.filesWithDirectReactNativeJsxResidueOnWeb, 0)
+    assert.equal(report.lowering.directReactNativeJsxBindingsResidueOnWeb, 0)
+    assert.deepEqual(report.reactNativeJsxResidueImports, {})
 
     const markdown = renderRealAppMarkdown(report)
     assert.match(markdown, /Real-app measurement: fixture/)
