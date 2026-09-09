@@ -37,6 +37,10 @@ export {
   HozoContainerQuery,
   type HozoContainerWidths,
 } from './container.native.tsx'
+// `index.ts` names the Web implementation explicitly after TypeScript
+// emits it. Override that star export so Metro never sends DOM conversion
+// through a native render path.
+export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.native.ts'
 export { HozoGrid, HozoGridItem } from './grid.native.tsx'
 export type { GridTrack } from './grid.ts'
 export {

@@ -34,6 +34,30 @@ test('leaves alone what it has nothing to do with', () => {
   assert.equal(lowerModule(notTsx, 'a.ts', 'a.ts', compiler, ROOT), undefined)
 })
 
+test('normalizes React Native style props only on lowered DOM elements', () => {
+  const source = `import { View } from 'react-native'
+const props = { id: 'card' }
+export function Page() {
+  return <View style={[{ padding: 4 }, false, { padding: 8 }]} {...props} />
+}
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.match(
+    lowered.code,
+    /style=\{hozoDomStyle\(\[\{ padding: 4 \}, false, \{ padding: 8 \}\]\)\}/,
+  )
+  assert.match(lowered.code, /\{\.\.\.hozoDomProps\(props\)\}/)
+  assert.match(lowered.code, /import \{ hozoDomProps, hozoDomStyle \} from '@hozo\/runtime'/)
+})
+
+test('adds no DOM style runtime to an element without inline style or prop spreads', () => {
+  const source = `import { View } from 'react-native'
+export function Page() { return <View className="p-4" /> }
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.doesNotMatch(lowered.code, /hozoDom(?:Props|Style)/)
+})
+
 test('a derived module gets its own companion stylesheet', () => {
   // Route-splitting frameworks transform several query-qualified modules
   // from one source file, and each owns different JSX -- one shared path

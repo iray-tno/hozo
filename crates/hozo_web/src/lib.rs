@@ -219,6 +219,12 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if jsx.contains("hozoScrollable()") {
         runtime_imports.push("hozoScrollable");
     }
+    if jsx.contains("hozoDomStyle(") {
+        runtime_imports.push("hozoDomStyle");
+    }
+    if jsx.contains("hozoDomProps(") {
+        runtime_imports.push("hozoDomProps");
+    }
     LowerOutput { jsx, css, runtime_imports, diagnostics }
 }
 
@@ -1270,6 +1276,31 @@ fn render_node(
     // an unknown RN-specific prop is still carried as written, because a
     // visible React warning is safer than silently deleting app behavior.
     for prop in &node.props.passthrough {
+        // React Native accepts a recursively nested StyleProp array; React
+        // DOM accepts one object. Passing the array through does not throw:
+        // React serializes its numeric indices as CSS property names and
+        // the browser ignores them, which is a quiet total style loss.
+        // Keep the native-shaped value and normalize it only on a host DOM
+        // element. A fallback component owns the same conversion itself.
+        if !is_hozo_component && prop.name.as_deref() == Some("style") {
+            let value = attribute_value_source(source, prop.span);
+            attrs.push_str(&format!(" style={{hozoDomStyle({value})}}"));
+            continue;
+        }
+        // A spread can carry the same style without naming it in source.
+        // The helper returns an ordinary spread unchanged when it has no
+        // style key, so allocation is paid only by the dynamic path that
+        // actually needs normalization.
+        if !is_hozo_component && prop.is_spread {
+            let text = source_text(source, prop.span);
+            let value = text
+                .strip_prefix("{...")
+                .and_then(|rest| rest.strip_suffix('}'))
+                .unwrap_or(text)
+                .trim();
+            attrs.push_str(&format!(" {{...hozoDomProps({value})}}"));
+            continue;
+        }
         // `external` is not an attribute the DOM has; it was lowered into
         // `target` and `rel` above. The authored `target` goes with it
         // when it did, because `external` means `_blank` and passthrough
@@ -1526,6 +1557,41 @@ export function Login() {
 
         assert!(output.jsx.contains("onClick={g}"), "{}", output.jsx);
         assert!(output.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn host_dom_normalizes_inline_style_and_spread_values() {
+        let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View style={[base, active && selected]} {...rest} />
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(
+            output
+                .jsx
+                .contains("style={hozoDomStyle([base, active && selected])}"),
+            "{}",
+            output.jsx
+        );
+        assert!(output.jsx.contains("{...hozoDomProps(rest)}"), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"hozoDomStyle"), "{:?}", output.runtime_imports);
+        assert!(output.runtime_imports.contains(&"hozoDomProps"), "{:?}", output.runtime_imports);
+    }
+
+    #[test]
+    fn static_host_dom_keeps_the_zero_runtime_path() {
+        let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="p-4" />
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+
+        assert!(!output.jsx.contains("hozoDom"), "{}", output.jsx);
+        assert!(!output.runtime_imports.contains(&"hozoDomStyle"));
+        assert!(!output.runtime_imports.contains(&"hozoDomProps"));
     }
 
     #[test]
