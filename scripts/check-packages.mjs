@@ -108,6 +108,33 @@ for (const name of PACKAGE_NAMES) {
       fail(name, 'has .native sources and does not declare react-native as a peer')
     }
   }
+
+  // The same failure one level in: a `react-native` condition that Metro
+  // reaches and TypeScript cannot.
+  //
+  // The condition was a bare string, and `types` was listed ahead of it.
+  // A resolver takes the first matching condition, and every React Native
+  // project sets `customConditions: ["react-native"]` -- `expo/
+  // tsconfig.base` and `@react-native/typescript-config` both do -- so
+  // `tsc` asked for the native entry point, matched `types` first, and was
+  // handed the Web declarations. Silently: Metro reads this map with its
+  // own conditions and never looks at `types`, so the app kept working
+  // while every native prop type went unchecked.
+  for (const [subpath, entry] of Object.entries(json.exports ?? {})) {
+    const condition = entry?.['react-native']
+    if (!condition) continue
+    if (typeof condition === 'string') {
+      fail(name, `exports["${subpath}"]["react-native"] has no "types" of its own`)
+      continue
+    }
+    if (!condition.types?.endsWith('.native.d.ts')) {
+      fail(name, `exports["${subpath}"]["react-native"].types is not a .native.d.ts`)
+    }
+    const order = Object.keys(entry)
+    if (order.indexOf('react-native') > order.indexOf('types')) {
+      fail(name, `exports["${subpath}"] lists "types" before "react-native"; the first match wins`)
+    }
+  }
   // `workspace:*` publishes as an exact pin, which gives a project holding
   // two Hozo packages one patch apart two copies of the compiler -- and so
   // two native addons and two candidate caches. `workspace:^` dedupes.

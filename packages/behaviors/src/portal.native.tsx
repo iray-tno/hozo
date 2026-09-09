@@ -2,6 +2,16 @@ import React, { createContext, type ReactNode, useContext, useEffect, useId, use
 import { View } from 'react-native'
 
 export interface PortalProps {
+  /**
+   * Tailwind classes, the same prop the Web half takes.
+   *
+   * On a tag the compiler lowers it is gone by runtime, replaced by a
+   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
+   * this side has no CSS engine to resolve a class list against -- and
+   * the type still has to accept it, because an app is type-checked
+   * against the source the compiler reads rather than its output.
+   */
+  className?: string
   children?: ReactNode
   name?: string
   disabled?: boolean
@@ -57,7 +67,18 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 /**
  * Root host that renders the active portaled items at the top of the React Native view hierarchy.
  */
-export function PortalHost({ items: directItems }: { items?: Map<string, ReactNode> }) {
+export function PortalHost({
+  items: directItems,
+}: {
+  items?: Map<string, ReactNode>
+  /**
+   * Accepted and unused, so the two halves agree on the prop every other
+   * component takes. The rest of this component's props do not agree --
+   * the Web half is a marker `<div>` taking an `id`, this one renders the
+   * items -- which is a divergence of its own and not this one's to fix.
+   */
+  className?: string
+}) {
   if (!directItems || directItems.size === 0) {
     return null
   }

@@ -4,6 +4,25 @@
     "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+
+    // What makes `tsc` resolve the same file Metro does.
+    //
+    // Every Hozo package publishes two entry points -- `index.js` and
+    // `index.native.js` -- behind a `react-native` export condition. Metro
+    // sets that condition; TypeScript matches it only when it is named
+    // here, and otherwise type-checks this app against the *Web*
+    // declarations, where a native-only export like `HozoPressable` does
+    // not exist and every component with two halves is checked against
+    // the wrong one.
+    //
+    // Written out because this file extends nothing. A real app extends
+    // `expo/tsconfig.base` or `@react-native/typescript-config`, and both
+    // of those already set it -- which is worth knowing, because it means
+    // every React Native project was already asking for the native entry
+    // point and getting the Web types anyway, until the export maps put
+    // the condition ahead of `types`.
+    "customConditions": ["react-native"],
+
     "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,

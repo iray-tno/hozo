@@ -19,6 +19,18 @@ module.exports = withHozo(config, { root: projectRoot })
 
 Metro accepts a promised config, so `withHozo` can resolve the Tailwind theme and generate the dynamic candidate module before bundling begins. It preserves the supplied config and records an existing Babel transformer as its upstream, including Expo's or another tool's transformer.
 
+## TypeScript
+
+Nothing to configure, as long as the project's `tsconfig.json` extends `expo/tsconfig.base` or `@react-native/typescript-config`. Both set:
+
+```json
+{ "compilerOptions": { "moduleResolution": "bundler", "customConditions": ["react-native"] } }
+```
+
+which is what makes `tsc` resolve the same entry point Metro does. Every Hozo package publishes two — `index.js` and `index.native.js` — behind a `react-native` export condition, and TypeScript matches that condition only when it is named. A hand-written `tsconfig.json` that extends neither preset has to say it itself; `customConditions` requires `moduleResolution` to be `bundler`, `node16` or `nodenext`.
+
+Without it, an app is type-checked against the **Web** declarations: a native-only export such as `HozoPressable` reads as missing, and a component whose two halves differ is checked against the wrong half. It still bundles and runs correctly — this is the type layer only — which is why it goes unnoticed.
+
 ## What the generated candidate module is for
 
 A `className` Hozo can't read statically — `<View className={getVariant()} />` — still has to produce styles. On Web that's free: the class string reaches the DOM and the browser matches it against a generated stylesheet. React Native has no CSS engine, so the string has to be resolved on device.

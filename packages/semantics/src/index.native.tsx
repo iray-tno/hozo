@@ -19,6 +19,16 @@ import {
 } from 'react-native'
 
 export interface SemanticsNativeProps {
+  /**
+   * Tailwind classes, read by the compiler and gone by runtime.
+   *
+   * The Web half of this file has always declared it; this half never
+   * did, and nothing noticed because the `react-native` export condition
+   * carried no `types`, so a React Native app was type-checked against
+   * the Web declarations instead. Uncompiled, the prop is simply ignored
+   * here -- which is what the fallback components are for.
+   */
+  className?: string
   children?: ReactNode
   style?: StyleProp<ViewStyle>
   testID?: string

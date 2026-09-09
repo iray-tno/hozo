@@ -11,6 +11,13 @@
 // emit as a runtime import has to be reachable from here. See
 // `hozo_native::LowerOutput::runtime_imports` for that list.
 
+// The `className` prop, for TypeScript only. Imported for its side
+// effect: the file declares nothing at runtime and augments React
+// Native's prop interfaces so an app can be type-checked against the same
+// source the compiler reads. See the file for why it is here rather than
+// in `@hozo/core`.
+import './class-name.native.ts'
+
 // Re-exported rather than left in `@hozo/behaviors`: generated code should
 // depend on one package, not on how the compiler divides its own. The
 // implementation stays there, where its tests and its reasoning are.

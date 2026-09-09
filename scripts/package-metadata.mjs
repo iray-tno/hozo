@@ -201,8 +201,30 @@ export function metadataFor(name) {
   const exportsField = {}
   for (const [subpath, target] of Object.entries(spec.exports)) {
     const types = target.replace(/\.js$/, '.d.ts')
-    // `types` first: the resolver takes the first matching condition, and
-    // a `default` ahead of it wins for a TypeScript consumer too.
+    const native = target.replace(/\.js$/, '.native.js')
+    // The resolver takes the first matching condition, so order is the
+    // whole meaning of this map.
+    //
+    // `types` used to be first, on the reasoning that a `default` ahead of
+    // it would win for a TypeScript consumer. True, and it also won over
+    // `react-native` -- which is the condition every React Native project
+    // is already asking for: `expo/tsconfig.base` and
+    // `@react-native/typescript-config` both set `customConditions:
+    // ["react-native"]`. So `tsc` on device asked for the native entry
+    // point, matched `types`, and was handed the *Web* declarations, for
+    // the whole life of the Native backend. Nothing failed loudly: the app
+    // bundles and runs correctly either way, because Metro reads this map
+    // with its own conditions and never looks at `types` at all.
+    //
+    // What it cost is in `@hozo/tailwind-conformance/src/class-name-parity.test.ts`
+    // and in `packages/runtime/src/class-name.native.ts`: a native-only
+    // export read as missing, and every native prop type went unchecked --
+    // not one of them declared `className`, the prop the whole authoring
+    // model is built on.
+    //
+    // So `react-native` comes first, with `types` of its own inside it.
+    // A resolver that doesn't set the condition falls through to exactly
+    // the map that was here before.
     exportsField[subpath] = target.startsWith('./dist')
       ? // Every subpath, not only the root. `@hozo/runtime/svg` has a
         // `.native.js` of its own and was getting the plain map, so Metro
@@ -210,8 +232,8 @@ export function metadataFor(name) {
         // components the compiler imported from it did not exist.
         spec.native && !spec.noNative?.includes(subpath)
         ? {
+            'react-native': { types: native.replace(/\.js$/, '.d.ts'), default: native },
             types,
-            'react-native': target.replace(/\.js$/, '.native.js'),
             default: target,
           }
         : { types, default: target }
