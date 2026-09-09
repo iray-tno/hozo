@@ -1,9 +1,10 @@
 ---
-import Footer from '../components/Footer.astro'
-import Navbar from '../components/Navbar.astro'
+import { Footer } from '../components/Footer.tsx'
+import { Navbar } from '../components/Navbar.tsx'
 import '../styles/global.css'
 import snapshot from '../../../../packages/tailwind-conformance/snapshot.json'
 
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFixed(1)}%`)
 ---
 
@@ -28,7 +29,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
     />
   </head>
   <body class="bg-[#0a0c10] text-slate-200 antialiased min-h-screen relative grid-background">
-    <Navbar />
+    <Navbar baseUrl={baseUrl} />
 
     <main class="pt-28 pb-24 md:pt-36 md:pb-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Breadcrumb / Header Header -->
@@ -563,6 +564,6 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
       </div>
     </main>
 
-    <Footer />
+    <Footer baseUrl={baseUrl} />
   </body>
 </html>

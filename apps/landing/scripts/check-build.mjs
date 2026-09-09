@@ -53,7 +53,7 @@ const checks = [
   [/<section class="[^"]*hozo-/.test(html), 'Section did not lower to <section>'],
   [/<h2 class="[^"]*hozo-/.test(html), 'Heading level={2} did not lower to <h2>'],
   [/<ol|<ul/.test(html), 'List did not lower to a list element'],
-  [/<a href="https:\/\/github.com\/iray-tno\/hozo"/.test(html), 'Link did not lower to <a>'],
+  [/<a [^>]*href="https:\/\/github\.com\/iray-tno\/hozo"/.test(html), 'Link did not lower to <a>'],
   // Not "`@hozo/core` is absent from the page": this page is *about*
   // Hozo, so the name is in its copy and in its code samples. The claim
   // that matters is the one below -- a page with no script cannot have

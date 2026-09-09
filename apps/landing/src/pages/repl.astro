@@ -10,8 +10,8 @@
 // A textarea rather than an editor. Monaco is more than twice the size of
 // the compiler, and what this page has to answer -- what does this become,
 // and what does the compiler have to say about it -- needs none of it.
-import Footer from '../components/Footer.astro'
-import Navbar from '../components/Navbar.astro'
+import { Footer } from '../components/Footer.tsx'
+import { Navbar } from '../components/Navbar.tsx'
 import '../styles/global.css'
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
@@ -58,7 +58,7 @@ const PANES = [
     />
   </head>
   <body class="bg-[#0a0c10] text-slate-200 antialiased min-h-screen relative grid-background">
-    <Navbar />
+    <Navbar baseUrl={baseUrl} />
 
     <main class="pt-28 pb-24 md:pt-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="mb-8">
@@ -115,7 +115,7 @@ const PANES = [
       </div>
     </main>
 
-    <Footer />
+    <Footer baseUrl={baseUrl} />
     <script>
       import '../scripts/repl.ts'
     </script>
