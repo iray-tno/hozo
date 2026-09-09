@@ -226,6 +226,6 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 
 ## Reproduce
 
-From a Hozo checkout with dependencies installed, run:
+The corpus runner fetches and verifies https://github.com/bluesky-social/social-app at commit `007c893de107c2ecbf2188d618196075f19c8f5a`. From a Hozo checkout with dependencies installed, run:
 
 `pnpm measure:bluesky`

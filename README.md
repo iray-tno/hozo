@@ -570,8 +570,9 @@ pnpm typecheck
 ```
 
 The pinned Bluesky corpus is also reproducible from a fresh checkout. The command acquires the
-corpus without installing its dependencies, builds the compiler, writes an audit under
-`artifacts/measurements`, and compares it with the committed baseline:
+corpus at the exact commit recorded in the measurement, refuses an existing checkout at a
+different commit, builds the compiler, writes an audit under `artifacts/measurements`, and compares
+it with the committed baseline. It does not install the corpus dependencies:
 
 ```sh
 pnpm measure:bluesky
