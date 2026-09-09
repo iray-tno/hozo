@@ -22,6 +22,11 @@
 export type StyleObject = Record<string, unknown>
 
 export {
+  HozoActivityIndicator,
+  type HozoActivityIndicatorProps,
+} from './activity-indicator.ts'
+
+export {
   configureHozoBackdropFilter,
   createExpoBlurAdapter,
   type ExpoBlurAdapterOptions,

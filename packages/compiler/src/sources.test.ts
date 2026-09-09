@@ -35,6 +35,22 @@ export function Card() { return <Box className="p-4"><RNText>Hi</RNText></Box> }
   assert.doesNotMatch(lowered.code, /<Box|<RNText/)
 })
 
+test('ActivityIndicator lowers to an accessible Web spinner and stays native on device', () => {
+  const source = `import { ActivityIndicator } from 'react-native'
+export function Loading() { return <ActivityIndicator size="large" color="white" /> }
+`
+  const web = lowerModule(source, 'Loading.tsx', 'Loading.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(web.code, /<HozoActivityIndicator size="large" color="white"/)
+  assert.match(web.code, /import \{ HozoActivityIndicator \} from '@hozo\/runtime'/)
+  assert.match(web.css, /@keyframes hozo-activity-indicator-spin/)
+
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.match(native.jsx, /<ActivityIndicator size="large" color="white"/)
+  assert.deepEqual(native.nativeImports, ['ActivityIndicator'])
+})
+
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.

@@ -153,6 +153,7 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Progress => ("View", vec![("role", "progressbar".to_string())]),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),
+        Primitive::ActivityIndicator => ("ActivityIndicator", Vec::new()),
         Primitive::Button | Primitive::Pressable
             if node
                 .props
