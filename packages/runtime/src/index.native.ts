@@ -41,6 +41,10 @@ export {
   type HozoActivityIndicatorProps,
 } from './activity-indicator.native.ts'
 export type { BreakpointName, Viewport } from './ambient.ts'
+export {
+  HozoAnimatedView,
+  type HozoAnimatedViewProps,
+} from './animated-view.native.ts'
 export { HozoBackdropFilter, type HozoBackdropFilterProps } from './backdrop.native.tsx'
 export {
   HozoContainer,

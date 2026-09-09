@@ -17,7 +17,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 
 1. **The corpus parses cleanly:** 0 parse or compile failures across 1,050 TSX files.
 2. **The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.
-3. **RNW cannot yet be removed:** 1 files retain 1 direct React Native JSX bindings after Web lowering.
+3. **The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.
 4. **The app is not className-shaped:** 430 files use ALF atoms while only 8 use `className`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 
 ## Authored surface
@@ -47,8 +47,8 @@ Only direct imports from `react-native` are counted as direct React Native JSX. 
 | webComponents | 1223 |
 | nativeComponents | 1178 |
 | directReactNativeJsxPassedThroughOnWeb | 0 |
-| filesWithDirectReactNativeJsxResidueOnWeb | 1 |
-| directReactNativeJsxBindingsResidueOnWeb | 1 |
+| filesWithDirectReactNativeJsxResidueOnWeb | 0 |
+| directReactNativeJsxBindingsResidueOnWeb | 0 |
 | sharedBackendShapeMismatches | 0 |
 | parseOrCompileFailures | 0 |
 
@@ -93,7 +93,7 @@ Platform suffixes are respected: Web-only files run through Web lowering, iOS/An
 
 | Import | Files or bindings |
 |---|---:|
-| Animated | 1 |
+| None | 0 |
 
 ## Wrong-output boundary
 
@@ -174,10 +174,6 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 ### diagnostic:ARIA_INCOMPLETE_PATTERN
 
 - `src/components/dms/ReactionsDialog.tsx`
-
-### directReactNativeJsxResidueOnWeb
-
-- `src/view/com/notifications/NotificationFeedItem.tsx: Animated`
 
 ### diagnostic:A11Y_MISSING_ACCESSIBLE_NAME
 

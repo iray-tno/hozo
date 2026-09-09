@@ -25,6 +25,7 @@ export {
   HozoActivityIndicator,
   type HozoActivityIndicatorProps,
 } from './activity-indicator.ts'
+export { HozoAnimatedView, type HozoAnimatedViewProps } from './animated-view.ts'
 export {
   configureHozoBackdropFilter,
   createExpoBlurAdapter,

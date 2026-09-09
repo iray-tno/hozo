@@ -148,6 +148,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       react:
         specifier: ^19.2.8
         version: 19.2.8

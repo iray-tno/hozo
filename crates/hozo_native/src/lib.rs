@@ -134,6 +134,7 @@ impl RuntimeNeeds {
     }
 
     fn need_native(&mut self, name: &'static str) {
+        let name = name.split_once('.').map_or(name, |(root, _)| root);
         if !name.starts_with("Hozo") && !self.native.contains(&name) {
             self.native.push(name);
         }

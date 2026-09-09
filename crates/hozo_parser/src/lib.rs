@@ -186,6 +186,20 @@ fn primitive_aliases_from_imports(
         .collect()
 }
 
+fn animated_namespaces_from_imports(
+    imports: &[ImportBinding],
+    sources: Option<&[String]>,
+) -> std::collections::HashSet<String> {
+    imports
+        .iter()
+        .filter(|entry| entry.imported == "Animated")
+        .filter(|entry| {
+            sources.is_none_or(|allowed| allowed.iter().any(|source| source == &entry.source))
+        })
+        .map(|entry| entry.local.clone())
+        .collect()
+}
+
 /// Parses TSX source into Hozo IR node trees, one per top-level JSX
 /// element found (e.g. one per component's returned JSX).
 pub fn parse_tsx(source_text: &str) -> ParseOutput {
@@ -240,6 +254,7 @@ pub fn parse_tsx_with_stylex(
         Some(sources) => foreign_primitives_from_imports(&imports, sources),
     };
     let primitive_aliases = primitive_aliases_from_imports(&imports, sources);
+    let animated_namespaces = animated_namespaces_from_imports(&imports, sources);
     let mut stylex = stylex::Frontend::collect(&ret.program, &ret.module_record);
     if let Some(registry) = registry {
         registry.attach(&mut stylex, &ret.module_record, bindings);
@@ -249,6 +264,7 @@ pub fn parse_tsx_with_stylex(
         module_record: &ret.module_record,
         foreign: &foreign,
         primitive_aliases: &primitive_aliases,
+        animated_namespaces: &animated_namespaces,
         stylex,
     };
 
