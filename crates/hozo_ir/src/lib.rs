@@ -393,6 +393,9 @@ pub enum Primitive {
     ListItem,
     ActivityIndicator,
     Pressable,
+    /// React Native's opacity-feedback press target. Web lowering keeps the
+    /// feedback in a tiny runtime component; Native keeps TouchableOpacity.
+    TouchableOpacity,
     Button,
     /// A destination-bearing interaction: `<a>` on Web and Hozo's
     /// `Linking.openURL` wrapper on React Native.

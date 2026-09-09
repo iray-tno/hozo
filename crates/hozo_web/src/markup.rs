@@ -247,7 +247,7 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         Primitive::NoBreak => ("span", vec![("style", AttrValue::Expression("{ whiteSpace: 'nowrap' }".to_string()))]),
         Primitive::Ruby => ("ruby", Vec::new()),
         Primitive::RubyText => ("rt", Vec::new()),
-        Primitive::Pressable => {
+        Primitive::Pressable | Primitive::TouchableOpacity => {
             let mut attrs = Vec::new();
             match &node.props.accessibility_role {
                 Some(AccessibilityRole::Button) => attrs.push((if node.props.has_responder_handlers() { "accessibilityRole" } else { "role" }, AttrValue::text("button"))),
@@ -264,12 +264,18 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
                 Some(AccessibilityRole::NativeOnly(_)) => {}
                 None => {
                     if node.props.on_press.is_some() {
+                        let name = if node.primitive == Primitive::TouchableOpacity {
+                            "TouchableOpacity"
+                        } else {
+                            "Pressable"
+                        };
                         diagnostics.push(Diagnostic {
                             code: DiagnosticCode::A11yInteractiveWithoutRole,
                             severity: Severity::Warning,
-                            message: "Interactive Pressable has no accessible role. Consider: \
-                                      accessibilityRole=\"button\""
-                                .to_string(),
+                            message: format!(
+                                "Interactive {name} has no accessible role. Consider: \
+                                 accessibilityRole=\"button\""
+                            ),
                             span: node.span,
                         });
                     }
@@ -282,7 +288,14 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
                 // on the all-lowercase form and drops it.
                 attrs.push(("tabIndex", AttrValue::Expression("0".to_string())));
             }
-            (if node.props.has_responder_handlers() { "Pressable" } else { "div" }, attrs)
+            let component = if node.primitive == Primitive::TouchableOpacity {
+                "HozoTouchableOpacity"
+            } else if node.props.has_responder_handlers() {
+                "Pressable"
+            } else {
+                "div"
+            };
+            (component, attrs)
         }
         // `multiline` is a prop on React Native and an element on the
         // DOM, so it is decided here rather than added as an attribute.
