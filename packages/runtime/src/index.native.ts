@@ -79,6 +79,10 @@ export {
   HozoTouchableOpacity,
   type HozoTouchableOpacityProps,
 } from './touchable-opacity.native.ts'
+export {
+  HozoTouchableWithoutFeedback,
+  type HozoTouchableWithoutFeedbackProps,
+} from './touchable-without-feedback.native.ts'
 
 export {
   HozoAnimated,

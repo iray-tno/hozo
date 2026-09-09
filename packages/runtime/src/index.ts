@@ -36,6 +36,10 @@ export {
   HozoTouchableOpacity,
   type HozoTouchableOpacityProps,
 } from './touchable-opacity.ts'
+export {
+  HozoTouchableWithoutFeedback,
+  type HozoTouchableWithoutFeedbackProps,
+} from './touchable-without-feedback.ts'
 
 /**
  * Resolves whitespace-separated class names to React Native style objects.
