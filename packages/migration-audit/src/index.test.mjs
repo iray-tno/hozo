@@ -28,10 +28,10 @@ export function Spinner() { return <ActivityIndicator /> }
     )
     writeFileSync(
       path.join(source, 'Syntax.tsx'),
-      `import { Animated, View } from 'react-native'
+      `import { Animated, SectionList, View } from 'react-native'
 const ref = useAnimatedRef<View>()
 // <View /> is documentation, not a rendered dependency.
-export function Syntax() { return <Animated.View /> }
+export function Syntax() { return <><Animated.View /><SectionList /></> }
 `,
     )
     execFileSync('git', ['init', '--quiet'], { cwd: root })
@@ -47,13 +47,21 @@ export function Syntax() { return <Animated.View /> }
     assert.equal(report.review.invalidDomStyleArrayOccurrences, 0)
     assert.equal(report.lowering.filesWithDirectReactNativeJsxResidueOnWeb, 1)
     assert.equal(report.lowering.directReactNativeJsxBindingsResidueOnWeb, 1)
-    assert.deepEqual(report.reactNativeJsxResidueImports, { Animated: 1 })
+    assert.deepEqual(report.reactNativeJsxResidueImports, { SectionList: 1 })
 
     const markdown = renderRealAppMarkdown(report)
     assert.match(markdown, /Real-app measurement: fixture/)
     assert.match(markdown, /DOM style-array invariant holds/)
     assert.match(markdown, /Invalid DOM style-array occurrences \| 0/)
     assert.match(markdown, /npx @hozo\/migration-audit/)
+    assert.match(markdown, /RNW cannot yet be removed at the JSX boundary/)
+
+    report.lowering.filesWithDirectReactNativeJsxResidueOnWeb = 0
+    report.lowering.directReactNativeJsxBindingsResidueOnWeb = 0
+    report.reactNativeJsxResidueImports = {}
+    const complete = renderRealAppMarkdown(report)
+    assert.match(complete, /direct RN JSX boundary is closed/)
+    assert.match(complete, /\| None \| 0 \|/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

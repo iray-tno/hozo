@@ -265,6 +265,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if jsx.contains("<HozoModal") {
         runtime_imports.push("HozoModal");
     }
+    if jsx.contains("<HozoAnimatedView") {
+        runtime_imports.push("HozoAnimatedView");
+    }
     // Exactly when the spread was written, rather than a second guess at
     // the same question. A ScrollView carried through as a foreign tag
     // keeps `@hozo/core`'s own component, and an author who wrote
@@ -705,7 +708,7 @@ fn render_node(
     // and comparing the classes in the DOM against the ones the stylesheet
     // defines, which is a comparison nothing had made before.
     let mut classes = if rules.len() == rules_before { String::new() } else { class_name };
-    if node.primitive == Primitive::View {
+    if matches!(node.primitive, Primitive::View | Primitive::AnimatedView) {
         *uses_view_base = true;
         classes = if classes.is_empty() {
             "hozo-view".to_string()

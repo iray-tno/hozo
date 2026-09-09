@@ -161,6 +161,28 @@ export function Sheet() {
   assert.ok(native.nativeImports.includes('Modal'))
 })
 
+test('trusted React Native Animated.View lowers through the animated style bridge', () => {
+  const source = `import { Animated } from 'react-native'
+export function Reveal() { return <Animated.View style={{ opacity: value }} /> }
+`
+  const web = lowerModule(source, 'Reveal.tsx', 'Reveal.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(web.code, /<HozoAnimatedView[^>]*style=\{\{ opacity: value \}\}/)
+  assert.match(web.code, /import \{ HozoAnimatedView \} from '@hozo\/runtime'/)
+
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.match(native.jsx, /<Animated\.View/)
+  assert.ok(native.nativeImports.includes('Animated'))
+})
+
+test('an unrelated Animated namespace remains foreign', () => {
+  const source = `import { Animated } from 'some-ui'
+export function Reveal() { return <Animated.View /> }
+`
+  assert.equal(lowerModule(source, 'Reveal.tsx', 'Reveal.tsx', compiler, ROOT), undefined)
+})
+
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.

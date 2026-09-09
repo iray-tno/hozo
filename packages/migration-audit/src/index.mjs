@@ -346,6 +346,9 @@ function markdown(report) {
   const topImports = Object.entries(report.reactNativeImports).slice(0, 15)
   const residueImports = Object.entries(report.reactNativeJsxResidueImports)
   const diagnostics = Object.entries(report.diagnostics.byCode)
+  const rnJsxFinding = report.lowering.directReactNativeJsxBindingsResidueOnWeb
+    ? `**RNW cannot yet be removed at the JSX boundary:** ${report.lowering.filesWithDirectReactNativeJsxResidueOnWeb} files retain ${report.lowering.directReactNativeJsxBindingsResidueOnWeb} direct React Native JSX bindings after Web lowering.`
+    : '**The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.'
   const sampleSections = Object.entries(report.samples)
     .map(([name, values]) => `### ${name}\n\n${values.map((value) => `- \`${value}\``).join('\n')}`)
     .join('\n\n')
@@ -371,7 +374,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 
 1. **The corpus parses cleanly:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.tsxFiles.toLocaleString()} TSX files.
 2. ${webStyleFinding}
-3. **RNW cannot yet be removed:** ${report.lowering.filesWithDirectReactNativeJsxResidueOnWeb} files retain ${report.lowering.directReactNativeJsxBindingsResidueOnWeb} direct React Native JSX bindings after Web lowering.
+3. ${rnJsxFinding}
 4. **The app is not className-shaped:** ${report.authoredSignals.filesUsingAlfAtoms} files use ALF atoms while only ${report.authoredSignals.filesWithClassName} use \`className\`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 
 ## Authored surface
@@ -408,7 +411,7 @@ ${table(topImports)}
 
 | Import | Files or bindings |
 |---|---:|
-${table(residueImports)}
+${residueImports.length > 0 ? table(residueImports) : '| None | 0 |'}
 
 ## Wrong-output boundary
 

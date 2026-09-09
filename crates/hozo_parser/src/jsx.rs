@@ -120,6 +120,8 @@ pub(crate) struct Scope<'r, 'a> {
     /// `Text as RNText` therefore builds the same IR as `Text`, while the
     /// source-facing local name remains available for import bookkeeping.
     pub primitive_aliases: &'r std::collections::HashMap<String, String>,
+    /// Trusted local bindings for React Native's `Animated` namespace.
+    pub animated_namespaces: &'r std::collections::HashSet<String>,
     /// Static same-file StyleX definitions available to JSX spreads.
     pub stylex: crate::stylex::Frontend,
 }
@@ -679,6 +681,10 @@ fn build_node(
                     _ => return None,
                 };
                 (object.name.as_str(), prim)
+            } else if scope.animated_namespaces.contains(object.name.as_str())
+                && member.property.name.as_str() == "View"
+            {
+                (object.name.as_str(), Primitive::AnimatedView)
             } else {
                 return None;
             }

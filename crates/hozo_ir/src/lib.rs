@@ -428,6 +428,8 @@ pub enum Primitive {
     RefreshControl,
     /// React Native's top-layer presentation surface.
     Modal,
+    /// React Native Animated's namespace View component.
+    AnimatedView,
     /// An SVG element, by its own name: `Svg`, `Rect`, `Path`, `G`.
     ///
     /// One variant rather than fourteen because the lowering really is
