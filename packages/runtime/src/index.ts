@@ -33,6 +33,14 @@ export {
   type HozoBackdropFilterAdapterProps,
 } from './backdrop.ts'
 export {
+  type HozoResponderEvent,
+  type HozoResponderTouch,
+  type HozoTouchHistory,
+  type HozoTouchTrack,
+  type ResponderProps,
+  useResponderDomProps,
+} from './responder.ts'
+export {
   HozoTouchableOpacity,
   type HozoTouchableOpacityProps,
 } from './touchable-opacity.ts'
@@ -40,6 +48,7 @@ export {
   HozoTouchableWithoutFeedback,
   type HozoTouchableWithoutFeedbackProps,
 } from './touchable-without-feedback.ts'
+export { HozoView, type HozoViewProps } from './view.ts'
 
 /**
  * Resolves whitespace-separated class names to React Native style objects.

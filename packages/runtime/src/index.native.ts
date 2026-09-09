@@ -90,9 +90,9 @@ export {
   HozoTouchableWithoutFeedback,
   type HozoTouchableWithoutFeedbackProps,
 } from './touchable-without-feedback.native.ts'
-
 export {
   HozoAnimated,
   type HozoAnimatedProps,
   type HozoTransitionSpec,
 } from './transition.native.tsx'
+export { HozoView, type HozoViewProps } from './view.native.ts'

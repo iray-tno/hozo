@@ -6,7 +6,7 @@ import {
   createResponderDomProps,
   type HozoResponderEvent,
   type ResponderProps,
-} from '../../core/src/responder.ts'
+} from '../../runtime/src/responder.ts'
 
 interface FakeElement {
   captured: Set<number>
