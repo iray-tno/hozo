@@ -7,7 +7,7 @@ import test from 'node:test'
 
 import { measureRealApp, renderRealAppMarkdown } from './index.mjs'
 
-test('measures platform-aware residue and confirmed DOM style arrays', () => {
+test('measures platform-aware residue after DOM style arrays are normalized', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-'))
   try {
     const source = path.join(root, 'src')
@@ -35,15 +35,16 @@ export function Spinner() { return <ActivityIndicator /> }
     const report = measureRealApp({ root, source: 'src', name: 'fixture' })
     assert.equal(report.scope.tsxFiles, 2)
     assert.equal(report.lowering.parseOrCompileFailures, 0)
-    assert.equal(report.review.confirmedWrongOutputFiles, 1)
-    assert.equal(report.review.invalidDomStyleArrayOccurrences, 1)
+    assert.equal(report.review.confirmedWrongOutputFiles, 0)
+    assert.equal(report.review.invalidDomStyleArrayOccurrences, 0)
     assert.equal(report.lowering.filesWithDirectReactNativeJsxResidueOnWeb, 1)
     assert.equal(report.lowering.directReactNativeJsxBindingsResidueOnWeb, 1)
     assert.deepEqual(report.reactNativeJsxResidueImports, { Text: 1 })
 
     const markdown = renderRealAppMarkdown(report)
     assert.match(markdown, /Real-app measurement: fixture/)
-    assert.match(markdown, /Invalid DOM style-array occurrences \| 1/)
+    assert.match(markdown, /DOM style-array invariant holds/)
+    assert.match(markdown, /Invalid DOM style-array occurrences \| 0/)
     assert.match(markdown, /npx @hozo\/migration-audit/)
   } finally {
     rmSync(root, { recursive: true, force: true })

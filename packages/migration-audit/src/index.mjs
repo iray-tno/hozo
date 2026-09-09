@@ -350,6 +350,9 @@ function markdown(report) {
   const sampleSections = Object.entries(report.samples)
     .map(([name, values]) => `### ${name}\n\n${values.map((value) => `- \`${value}\``).join('\n')}`)
     .join('\n\n')
+  const webStyleFinding = report.review.invalidDomStyleArrayOccurrences
+    ? `**Unchanged Web output is not safe yet:** ${report.review.confirmedWrongOutputFiles} files contain ${report.review.invalidDomStyleArrayOccurrences.toLocaleString()} lowered DOM style arrays, a confirmed invalid React DOM shape.`
+    : '**The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.'
   return `# Real-app measurement: ${report.corpus.name}
 
 This is a read-only compiler measurement, not a claim that the application can be migrated without changes. The audited checkout is not modified.
@@ -368,7 +371,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 ## Findings
 
 1. **The corpus parses cleanly:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.tsxFiles.toLocaleString()} TSX files.
-2. **Unchanged Web output is not safe yet:** ${report.review.confirmedWrongOutputFiles} files contain ${report.review.invalidDomStyleArrayOccurrences.toLocaleString()} lowered DOM style arrays, a confirmed invalid React DOM shape.
+2. ${webStyleFinding}
 3. **RNW cannot yet be removed:** ${report.lowering.filesWithDirectReactNativeJsxResidueOnWeb} files retain ${report.lowering.directReactNativeJsxBindingsResidueOnWeb} direct React Native JSX bindings after Web lowering.
 4. **The app is not className-shaped:** ${report.authoredSignals.filesUsingAlfAtoms} files use ALF atoms while only ${report.authoredSignals.filesWithClassName} use \`className\`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 

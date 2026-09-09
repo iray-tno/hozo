@@ -16,7 +16,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 ## Findings
 
 1. **The corpus parses cleanly:** 0 parse or compile failures across 1,050 TSX files.
-2. **Unchanged Web output is not safe yet:** 511 files contain 2,150 lowered DOM style arrays, a confirmed invalid React DOM shape.
+2. **The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.
 3. **RNW cannot yet be removed:** 71 files retain 81 direct React Native JSX bindings after Web lowering.
 4. **The app is not className-shaped:** 430 files use ALF atoms while only 8 use `className`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 
@@ -110,8 +110,8 @@ Platform suffixes are respected: Web-only files run through Web lowering, iOS/An
 
 | Confirmed invariant violation | Count |
 |---|---:|
-| Files whose lowered DOM contains `style={[...]}` | 511 |
-| Invalid DOM style-array occurrences | 2150 |
+| Files whose lowered DOM contains `style={[...]}` | 0 |
+| Invalid DOM style-array occurrences | 0 |
 
 A lowered DOM element with style={[...]} is confirmed wrong output: React DOM requires one style object. Other suspicious samples still require source/output review.
 
@@ -133,21 +133,6 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 - `src/components/Autocomplete/AutocompleteItemSearch.tsx`
 - `src/components/BetaBadge.tsx`
 - `src/components/BotAccountAlert.tsx`
-
-### invalidDomStyleArrays
-
-- `src/Splash.tsx: 1`
-- `src/ageAssurance/components/NoAccessScreen.tsx: 10`
-- `src/ageAssurance/components/RedirectOverlay.tsx: 8`
-- `src/components/AccountList.tsx: 8`
-- `src/components/Admonition.tsx: 3`
-- `src/components/Autocomplete/AutocompleteItemSearch.tsx: 1`
-- `src/components/AvatarBubbles.tsx: 1`
-- `src/components/AvatarStack.tsx: 2`
-- `src/components/BetaBadge.tsx: 1`
-- `src/components/BotAccountAlert.tsx: 3`
-- `src/components/BotBadge.tsx: 1`
-- `src/components/Button.tsx: 3`
 
 ### directReactNativeJsxResidueOnWeb
 

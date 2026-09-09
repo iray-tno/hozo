@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@hozo/compiler": "workspace:^",
+    "@hozo/runtime": "workspace:^",
     "@hozo/tailwind": "workspace:^"
   },
   "peerDependencies": {

@@ -98,14 +98,16 @@ async function serve(
     configFile: false,
     logLevel: 'silent',
     server: { middlewareMode: true, watch: null },
-    // The temporary project has no node_modules of its own, so React's
-    // JSX runtime is resolved from this repository's. Vite's own JSX
-    // transform then runs exactly as it would in a real project -- which
+    // The temporary project has no node_modules of its own, so React's JSX
+    // runtime and Hozo's generated runtime are resolved from this package's
+    // dependencies. Vite's own JSX transform then runs exactly as it would
+    // in a real project -- which
     // matters, because it is what reads the output Hozo produced.
     resolve: {
       alias: {
         'react/jsx-dev-runtime': createRequire(import.meta.url).resolve('react/jsx-dev-runtime'),
         'react/jsx-runtime': createRequire(import.meta.url).resolve('react/jsx-runtime'),
+        '@hozo/runtime': createRequire(import.meta.url).resolve('@hozo/runtime'),
         react: createRequire(import.meta.url).resolve('react'),
         ...aliases,
       },

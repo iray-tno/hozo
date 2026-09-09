@@ -233,7 +233,7 @@ export const Card = () => <View {...stylex.props(styles.root)} />
 `
   const component = compile(unsupported)[0]
   assert.ok(component)
-  assert.match(component.jsx, /\.\.\.stylex\.props\(styles\.root\)/)
+  assert.match(component.jsx, /\.\.\.hozoDomProps\(stylex\.props\(styles\.root\)\)/)
   assert.equal(component.diagnostics[0]?.code, 'STYLEX_NOT_LOWERED')
 })
 

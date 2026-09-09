@@ -492,6 +492,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/runtime':
+        specifier: workspace:^
+        version: link:../runtime
       '@hozo/tailwind':
         specifier: workspace:^
         version: link:../tailwind
@@ -679,6 +682,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/runtime':
+        specifier: workspace:^
+        version: link:../runtime
       '@hozo/tailwind':
         specifier: workspace:^
         version: link:../tailwind

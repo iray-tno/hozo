@@ -5,7 +5,7 @@
 // job is to make invoking these at runtime unnecessary where it can, not
 // to make them required.
 
-import { HozoLink, hozoInteractive } from '@hozo/runtime'
+import { type HozoDomStyle, HozoLink, hozoDomStyle, hozoInteractive } from '@hozo/runtime'
 import {
   type AriaRole,
   type CSSProperties,
@@ -53,7 +53,7 @@ export interface HozoLayoutEvent {
  * The compiler preserves the original expression; only the Web fallback
  * below interprets it as a React DOM style object.
  */
-export type HozoStyle = CSSProperties | Readonly<Record<string, unknown>>
+export type HozoStyle = HozoDomStyle
 
 export interface UniversalProps {
   /** Explicit ARIA/React Native role; validated by the compiler when static. */
@@ -108,7 +108,7 @@ function universalDomProps(props: UniversalProps) {
     // Native-shaped values are carried by the compiler and never execute
     // this path; keeping their wider public type is what lets that source
     // type-check before compilation.
-    style: props.style as CSSProperties | undefined,
+    style: hozoDomStyle(props.style),
     'data-testid': props.testID,
     id: props.nativeID,
     'data-hozo-pointer-events': props.pointerEvents,
