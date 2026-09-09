@@ -148,14 +148,34 @@ fn foreign_primitives_from_imports(
 ) -> std::collections::HashSet<String> {
     imports
         .iter()
-        .filter(|entry| jsx::is_primitive_name(&entry.local))
+        .filter(|entry| {
+            jsx::is_primitive_name(&entry.local) || jsx::is_primitive_name(&entry.imported)
+        })
         .filter(|entry| {
             let module = entry.source.as_str();
-            let local = entry.local.as_str();
+            let imported = entry.imported.as_str();
             !sources.iter().any(|s| s == module)
-                || INCOMPATIBLE_PRIMITIVES.contains(&(module, local))
+                || INCOMPATIBLE_PRIMITIVES.contains(&(module, imported))
         })
         .map(|entry| entry.local.clone())
+        .collect()
+}
+
+fn primitive_aliases_from_imports(
+    imports: &[ImportBinding],
+    sources: Option<&[String]>,
+) -> std::collections::HashMap<String, String> {
+    imports
+        .iter()
+        .filter(|entry| {
+            sources.is_none_or(|allowed| allowed.iter().any(|source| source == &entry.source))
+        })
+        .filter(|entry| jsx::is_primitive_name(&entry.imported))
+        .filter(|entry| {
+            !INCOMPATIBLE_PRIMITIVES
+                .contains(&(entry.source.as_str(), entry.imported.as_str()))
+        })
+        .map(|entry| (entry.local.clone(), entry.imported.clone()))
         .collect()
 }
 
@@ -212,12 +232,18 @@ pub fn parse_tsx_with_stylex(
         None => std::collections::HashSet::new(),
         Some(sources) => foreign_primitives_from_imports(&imports, sources),
     };
+    let primitive_aliases = primitive_aliases_from_imports(&imports, sources);
     let mut stylex = stylex::Frontend::collect(&ret.program, &ret.module_record);
     if let Some(registry) = registry {
         registry.attach(&mut stylex, &ret.module_record, bindings);
     }
     let stylex_scan_spans = stylex.scan_spans.clone();
-    let scope = jsx::Scope { module_record: &ret.module_record, foreign: &foreign, stylex };
+    let scope = jsx::Scope {
+        module_record: &ret.module_record,
+        foreign: &foreign,
+        primitive_aliases: &primitive_aliases,
+        stylex,
+    };
 
     let mut collector = JsxCollector::new(&scope);
     collector.visit_program(&ret.program);
@@ -662,19 +688,39 @@ mod import_tests {
     }
 
     #[test]
-    fn a_renamed_import_is_judged_by_the_name_the_jsx_uses() {
-        // `View as Box` makes `<Box>`, which the tag matcher declines
-        // anyway -- so the local name is what matters, not the exported
-        // one. The reverse is the dangerous direction:
-        // `Pressable as View` from a module nobody trusts puts a foreign
-        // component behind a name Hozo would otherwise lower.
-        assert!(foreign_primitives("import { View as Box } from 'some-ui-kit'
-", &trusted()).is_empty());
+    fn a_renamed_import_is_judged_by_its_export_and_its_local_binding() {
+        // A known export behind an alias is lowerable only from a trusted
+        // module, so the untrusted copy must be marked by its local name.
+        let aliased = foreign_primitives("import { View as Box } from 'some-ui-kit'
+", &trusted());
+        assert!(aliased.contains("Box"));
+
+        // The reverse is dangerous too: `Pressable as View` from a module
+        // nobody trusts puts a foreign component behind a canonical name.
 
         let foreign =
             foreign_primitives("import { Pressable as View } from 'some-ui-kit'
 ", &trusted());
         assert!(foreign.contains("View"));
+    }
+
+    #[test]
+    fn trusted_primitive_aliases_build_the_canonical_ir() {
+        let source = "import { Text as RNText, Pressable as NativePressable } from 'react-native'
+export const Card = () => <NativePressable><RNText>Hello</RNText></NativePressable>
+";
+        let output = parse_tsx_with(source, Some(&trusted()));
+
+        assert_eq!(output.roots.len(), 1);
+        assert_eq!(output.roots[0].node.primitive, hozo_ir::Primitive::Pressable);
+        assert_eq!(output.roots[0].node.children.len(), 1);
+        let hozo_ir::Child::Node(text) = &output.roots[0].node.children[0] else {
+            panic!("aliased Text was not lowered as a child")
+        };
+        assert_eq!(text.primitive, hozo_ir::Primitive::Text);
+        assert!(output.foreign_primitives.is_empty());
+
+        assert_eq!(parse_tsx(source).roots.len(), 1, "the trust-all parser must agree");
     }
 
     #[test]
@@ -735,6 +781,17 @@ mod incompatibility_tests {
         let foreign = foreign_primitives("import { Button, View } from 'react-native'\n", &sources);
         assert!(foreign.contains("Button"));
         assert!(!foreign.contains("View"), "the rest of react-native is the same component");
+    }
+
+    #[test]
+    fn an_aliased_react_native_button_is_still_incompatible() {
+        let sources = vec!["react-native".to_string(), "@hozo/core".to_string()];
+        let foreign = foreign_primitives(
+            "import { Button as NativeButton } from 'react-native'
+",
+            &sources,
+        );
+        assert!(foreign.contains("NativeButton"));
     }
 
     #[test]

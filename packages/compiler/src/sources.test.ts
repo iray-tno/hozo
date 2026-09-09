@@ -23,10 +23,29 @@ test('a plain React Native file compiles', () => {
   assert.match(lowered.css, /padding-top: 16px/)
 })
 
+test('trusted aliases compile by their canonical React Native export', () => {
+  const source = `import { View as Box, Text as RNText } from 'react-native'
+export function Card() { return <Box className="p-4"><RNText>Hi</RNText></Box> }
+`
+  const lowered = lowerModule(source, 'Card.tsx', 'Card.tsx', compiler, ROOT)
+
+  assert.ok(lowered)
+  assert.match(lowered.code, /<div/)
+  assert.match(lowered.code, /<span[^>]*>Hi<\/span>/)
+  assert.doesNotMatch(lowered.code, /<Box|<RNText/)
+})
+
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.
   const source = `import { View } from 'some-ui-kit'\n${card}`
+  assert.equal(lowerModule(source, 'Card.tsx', 'Card.tsx', compiler, ROOT), undefined)
+})
+
+test('an alias does not make an untrusted primitive export safe', () => {
+  const source = `import { View as Box } from 'some-ui-kit'
+export function Card() { return <Box className="p-4" /> }
+`
   assert.equal(lowerModule(source, 'Card.tsx', 'Card.tsx', compiler, ROOT), undefined)
 })
 

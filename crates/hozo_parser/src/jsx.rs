@@ -116,8 +116,22 @@ pub(crate) struct Scope<'r, 'a> {
     /// with nothing in common with the Hozo primitive of the same name
     /// beyond the spelling.
     pub foreign: &'r std::collections::HashSet<String>,
+    /// Local import binding to the canonical primitive export it names.
+    /// `Text as RNText` therefore builds the same IR as `Text`, while the
+    /// source-facing local name remains available for import bookkeeping.
+    pub primitive_aliases: &'r std::collections::HashMap<String, String>,
     /// Static same-file StyleX definitions available to JSX spreads.
     pub stylex: crate::stylex::Frontend,
+}
+
+impl Scope<'_, '_> {
+    fn primitive_for_local(&self, local: &str) -> Option<Primitive> {
+        if self.foreign.contains(local) {
+            return None;
+        }
+        let canonical = self.primitive_aliases.get(local).map_or(local, String::as_str);
+        primitive_for_name(canonical)
+    }
 }
 
 /// Finds and lowers Hozo primitives nested inside something the compiler
@@ -145,13 +159,14 @@ impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
                 // Carried, not lowered -- and its own children are visited
                 // by the walk that continues below, so a Hozo primitive
                 // inside a foreign component still compiles.
-            } else if let Some(name) = primitive_name(ident.name.as_str()) {
+            } else if self.scope.primitive_for_local(ident.name.as_str()).is_some() {
+                let name = ident.name.as_str();
                 match build_node(it, self.scope, self.diagnostics, self.consumed) {
                     Some(node) => {
                         self.nested.push(NestedNode { span: to_span(it.span()), node })
                     }
                     // Unreachable through this finder, which only matches
-                    // the four identifier names `build_node` accepts --
+                    // identifier bindings `build_node` accepts --
                     // kept so a future widening of one and not the other
                     // degrades to a named gap rather than a silently
                     // uncompiled element.
@@ -630,7 +645,7 @@ fn build_node(
 ) -> Option<Node> {
     let (local, primitive) = match &el.opening_element.name {
         JSXElementName::IdentifierReference(ident) => {
-            (ident.name.as_str(), primitive_for_name(ident.name.as_str())?)
+            (ident.name.as_str(), scope.primitive_for_local(ident.name.as_str())?)
         }
         // `<Svg.Rect>` and `<TermList.Term>`. Member expressions Hozo reads.
         JSXElementName::MemberExpression(member) => {
