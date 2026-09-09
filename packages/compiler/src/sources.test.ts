@@ -92,6 +92,24 @@ export function Learn() {
   assert.deepEqual(native.nativeImports, ['TouchableWithoutFeedback', 'View', 'Text'])
 })
 
+test('measured and responder Views use the RNW-free Web bridge', () => {
+  const source = `import { View } from 'react-native'
+export function Surface() {
+  return <View onLayout={measure} onStartShouldSetResponder={() => true} />
+}
+`
+  const web = lowerModule(source, 'Surface.tsx', 'Surface.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(web.code, /<HozoView[^>]*onLayout=\{measure\}/)
+  assert.match(web.code, /onStartShouldSetResponder=\{\(\) => true\}/)
+  assert.match(web.code, /import \{ HozoView \} from '@hozo\/runtime'/)
+
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.match(native.jsx, /<View[^>]*onLayout=\{measure\}/)
+  assert.deepEqual(native.nativeImports, ['View'])
+})
+
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.

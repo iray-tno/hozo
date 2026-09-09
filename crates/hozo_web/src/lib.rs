@@ -228,6 +228,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::TouchableWithoutFeedback) {
         runtime_imports.push("HozoTouchableWithoutFeedback");
     }
+    if jsx.contains("<HozoView") {
+        runtime_imports.push("HozoView");
+    }
     // Exactly when the spread was written, rather than a second guess at
     // the same question. A ScrollView carried through as a foreign tag
     // keeps `@hozo/core`'s own component, and an author who wrote
@@ -583,7 +586,7 @@ fn render_node(
     });
     if has_pan_handlers_spread {
         tag = match node.primitive {
-            Primitive::View => "View",
+            Primitive::View => "HozoView",
             Primitive::Pressable => "Pressable",
             Primitive::TouchableOpacity => "HozoTouchableOpacity",
             Primitive::TouchableWithoutFeedback => "HozoTouchableWithoutFeedback",
@@ -1866,7 +1869,8 @@ export function Login() {
         "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.jsx.starts_with("<View className=\"hozo-view\""), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<HozoView className=\"hozo-view\""), "{}", output.jsx);
+        assert_eq!(output.runtime_imports, vec!["HozoView"]);
         assert!(output.jsx.contains("testID={\"measured\"} onLayout={measure}"), "{}", output.jsx);
         assert!(output.jsx.contains("<span>child</span>"), "{}", output.jsx);
     }
@@ -1890,7 +1894,8 @@ export function Login() {
         "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.jsx.starts_with("<View className=\"hozo-view\""), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<HozoView className=\"hozo-view\""), "{}", output.jsx);
+        assert_eq!(output.runtime_imports, vec!["HozoView"]);
         for expected in [
             "onStartShouldSetResponder={wantStart}",
             "onStartShouldSetResponderCapture={captureStart}",
@@ -1922,7 +1927,8 @@ export function Login() {
         "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.jsx.starts_with("<View className=\"hozo-view hozo-0\""), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<HozoView className=\"hozo-view hozo-0\""), "{}", output.jsx);
+        assert_eq!(output.runtime_imports, vec!["HozoView"]);
         assert!(output.jsx.contains("{...pan.panHandlers}"), "{}", output.jsx);
     }
 
@@ -2185,7 +2191,8 @@ export function Login() {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(output.jsx.contains("{...rest}"));
         assert!(output.jsx.contains("onLayout={onLayout}"));
-        assert!(output.jsx.starts_with("<View "), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<HozoView "), "{}", output.jsx);
+        assert_eq!(output.runtime_imports, vec!["HozoView"]);
         assert!(output.jsx.contains(r#"testID={"row"}"#));
     }
 

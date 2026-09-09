@@ -17,7 +17,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 
 1. **The corpus parses cleanly:** 0 parse or compile failures across 1,050 TSX files.
 2. **The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.
-3. **RNW cannot yet be removed:** 40 files retain 44 direct React Native JSX bindings after Web lowering.
+3. **RNW cannot yet be removed:** 13 files retain 13 direct React Native JSX bindings after Web lowering.
 4. **The app is not className-shaped:** 430 files use ALF atoms while only 8 use `className`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 
 ## Authored surface
@@ -47,8 +47,8 @@ Only direct imports from `react-native` are counted as direct React Native JSX. 
 | webComponents | 1223 |
 | nativeComponents | 1178 |
 | directReactNativeJsxPassedThroughOnWeb | 1 |
-| filesWithDirectReactNativeJsxResidueOnWeb | 40 |
-| directReactNativeJsxBindingsResidueOnWeb | 44 |
+| filesWithDirectReactNativeJsxResidueOnWeb | 13 |
+| directReactNativeJsxBindingsResidueOnWeb | 13 |
 | sharedBackendShapeMismatches | 0 |
 | parseOrCompileFailures | 0 |
 
@@ -93,7 +93,7 @@ Platform suffixes are respected: Web-only files run through Web lowering, iOS/An
 
 | Import | Files or bindings |
 |---|---:|
-| View | 34 |
+| View | 3 |
 | FlatList | 2 |
 | Modal | 2 |
 | RefreshControl | 2 |
@@ -129,21 +129,6 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 - `src/components/Autocomplete/AutocompleteItemSearch.tsx`
 - `src/components/BetaBadge.tsx`
 
-### directReactNativeJsxResidueOnWeb
-
-- `src/Splash.tsx: View`
-- `src/components/Dialog/index.tsx: ScrollView`
-- `src/components/Dialog/index.web.tsx: FlatList, View`
-- `src/components/Dialog/shared.tsx: View`
-- `src/components/InterestTabs.tsx: View`
-- `src/components/Lightbox/chrome/ImageMenu.tsx: Modal`
-- `src/components/Lightbox/pager/ImagePager.tsx: View`
-- `src/components/Post/Embed/VideoEmbed/index.web.tsx: View`
-- `src/components/ProgressGuide/FollowDialog.tsx: View`
-- `src/components/ProgressGuide/List.tsx: View`
-- `src/components/Tooltip/index.tsx: View`
-- `src/components/dialogs/LanguageSelectDialog.tsx: View`
-
 ### diagnostic:ARIA_NAME_PROHIBITED
 
 - `src/components/ContextMenu/Backdrop.ios.tsx`
@@ -173,6 +158,21 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 - `src/components/ProgressGuide/Toast.tsx`
 - `src/components/dms/MessageItem.tsx`
 - `src/components/forms/DateField/index.shared.tsx`
+
+### directReactNativeJsxResidueOnWeb
+
+- `src/components/Dialog/index.tsx: ScrollView`
+- `src/components/Dialog/index.web.tsx: FlatList`
+- `src/components/Lightbox/chrome/ImageMenu.tsx: Modal`
+- `src/components/Lightbox/pager/ImagePager.tsx: View`
+- `src/components/images/Gallery/index.tsx: FlatList`
+- `src/screens/Search/modules/ExploreTrendingVideos.tsx: View`
+- `src/screens/SignupQueued.tsx: Modal`
+- `src/screens/VideoFeed/index.tsx: View`
+- `src/view/com/lists/MyLists.tsx: RefreshControl`
+- `src/view/com/notifications/NotificationFeedItem.tsx: Animated`
+- `src/view/com/pager/TabBar.tsx: ScrollView`
+- `src/view/com/util/List.tsx: RefreshControl`
 
 ### diagnostic:A11Y_PRESS_WITHOUT_KEYBOARD
 

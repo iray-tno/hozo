@@ -111,7 +111,8 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
             ("svg", vec![("role", AttrValue::text(role))])
         }
         Primitive::Svg(element) => (element.tag(), Vec::new()),
-        Primitive::View if node.props.on_layout.is_some() || node.props.has_responder_handlers() => ("View", Vec::new()),
+        Primitive::View if node.props.on_layout.is_some() || node.props.has_responder_handlers() =>
+            ("HozoView", Vec::new()),
         Primitive::View => ("div", Vec::new()),
         Primitive::Text if node.props.on_layout.is_some() => ("Text", Vec::new()),
         Primitive::Text => ("span", Vec::new()),
