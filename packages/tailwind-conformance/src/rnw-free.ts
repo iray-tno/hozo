@@ -17,13 +17,13 @@ export const RNW_FREE_CASES: RnwFreeCase[] = [
   {
     primitive: 'View responder',
     jsx: '<View onStartShouldSetResponder={want} onResponderMove={move} onResponderRelease={release} />',
-    webMarker: '<View',
+    webMarker: '<HozoView',
     nativeMarker: '<View',
   },
   {
     primitive: 'PanResponder spread',
     jsx: '<View {...pan.panHandlers} />',
-    webMarker: '<View',
+    webMarker: '<HozoView',
     nativeMarker: '<View',
   },
   { primitive: 'Text', jsx: '<Text>Hello</Text>', webMarker: '<span', nativeMarker: '<Text' },
