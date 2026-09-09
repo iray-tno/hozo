@@ -73,7 +73,7 @@ export const RNW_FREE_CASES: RnwFreeCase[] = [
   {
     primitive: 'FlatList',
     jsx: '<FlatList data={rows} renderItem={({ item }) => <Text className="p-2">{item}</Text>} />',
-    webMarker: '<FlatList',
+    webMarker: '<HozoFlatList',
     nativeMarker: '<FlatList',
   },
   {

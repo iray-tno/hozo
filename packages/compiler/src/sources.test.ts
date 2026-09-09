@@ -121,6 +121,27 @@ export function Surface() { return <Animated.View /> }
   assert.deepEqual(module.jsxBindings, ['Animated'])
 })
 
+test('scroll, list, and nested refresh controls use RNW-free Web bridges', () => {
+  const source = `import { FlatList, RefreshControl, ScrollView } from 'react-native'
+export function Lists() {
+  return <><ScrollView onScroll={track}>x</ScrollView><FlatList data={rows} renderItem={row} refreshControl={<RefreshControl refreshing={busy} onRefresh={reload} />} /></>
+}
+`
+  const web = lowerModule(source, 'Lists.tsx', 'Lists.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(web.code, /<HozoScrollView[^>]*onScroll=\{track\}/)
+  assert.match(web.code, /<HozoFlatList[^>]*refreshControl=\{<HozoRefreshControl/)
+  assert.match(web.code, /refreshing=\{busy\} onRefresh=\{reload\}/)
+  assert.match(
+    web.code,
+    /import \{ HozoFlatList, HozoRefreshControl, HozoScrollView \} from '@hozo\/runtime'/,
+  )
+
+  const native = compiler.compileNative(source)
+  assert.match(native.map((part) => part.jsx).join(''), /<RefreshControl/)
+  assert.ok(native.flatMap((part) => part.nativeImports).includes('RefreshControl'))
+})
+
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.
