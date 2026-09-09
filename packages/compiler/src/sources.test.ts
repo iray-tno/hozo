@@ -142,6 +142,25 @@ export function Lists() {
   assert.ok(native.flatMap((part) => part.nativeImports).includes('RefreshControl'))
 })
 
+test('React Native Modal uses the browser top-layer bridge and stays native on device', () => {
+  const source = `import { Modal, View } from 'react-native'
+export function Sheet() {
+  return <Modal visible={open} transparent animationType="fade" onRequestClose={close}><View>Body</View></Modal>
+}
+`
+  const web = lowerModule(source, 'Sheet.tsx', 'Sheet.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(web.code, /<HozoModal[^>]*visible=\{open\} transparent animationType="fade"/)
+  assert.match(web.code, /onRequestClose=\{close\}/)
+  assert.match(web.code, /import \{ HozoModal \} from '@hozo\/runtime'/)
+  assert.match(web.css, /dialog\[data-hozo-modal\]/)
+
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.match(native.jsx, /<Modal[^>]*visible=\{open\}/)
+  assert.ok(native.nativeImports.includes('Modal'))
+})
+
 test("a file of somebody else's components is left alone", () => {
   // No diagnostic and nothing parsed. A project whose own components
   // happen to be named `View` is not doing anything wrong.

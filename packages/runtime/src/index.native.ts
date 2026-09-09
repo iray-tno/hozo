@@ -75,6 +75,7 @@ export {
   HozoScrollView,
   type HozoScrollViewProps,
 } from './list.native.ts'
+export { HozoModal, type HozoModalProps } from './modal.native.ts'
 export {
   HozoPressable,
   type HozoPressableProps,

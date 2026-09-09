@@ -605,6 +605,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "ScrollView" => Some(Primitive::ScrollView),
         "FlatList" => Some(Primitive::FlatList),
         "RefreshControl" => Some(Primitive::RefreshControl),
+        "Modal" => Some(Primitive::Modal),
         // The root, which is both the element and the namespace object.
         "Svg" => Some(Primitive::Svg(SvgElement::Root)),
         "Main" => Some(Primitive::Main),

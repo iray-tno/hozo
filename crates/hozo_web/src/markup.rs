@@ -237,6 +237,7 @@ fn element_shape_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'sta
         Primitive::ScrollView => ("div", Vec::new()),
         Primitive::FlatList => ("HozoFlatList", Vec::new()),
         Primitive::RefreshControl => ("HozoRefreshControl", Vec::new()),
+        Primitive::Modal => ("HozoModal", Vec::new()),
         Primitive::Strong => ("strong", Vec::new()),
         Primitive::Emphasis => ("em", Vec::new()),
         Primitive::Underline => ("u", Vec::new()),

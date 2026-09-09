@@ -43,6 +43,7 @@ export {
   HozoScrollView,
   type HozoScrollViewProps,
 } from './list.ts'
+export { HozoModal, type HozoModalProps } from './modal.ts'
 export {
   type HozoResponderEvent,
   type HozoResponderTouch,
