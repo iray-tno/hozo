@@ -58,6 +58,31 @@ export const Page = () => <View />
   assert.match(lowered.code, /<div/)
 })
 
+test('RNW-free mode rehomes StyleSheet while preserving values and types', () => {
+  const source = `import { useMemo } from 'react'
+import { type ViewStyle, StyleSheet as Sheet, View } from 'react-native'
+const styles = Sheet.create({ card: { padding: 4 } })
+export const Page = () => <View style={useMemo(() => styles.card, [])} />
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true })!
+  assert.match(lowered.code, /import \{ useMemo \} from 'react'/)
+  assert.match(lowered.code, /import \{ type ViewStyle, View \} from 'react-native'/)
+  assert.match(lowered.code, /import \{ StyleSheet as Sheet \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /Sheet\.create/)
+})
+
+test('RNW-free API lowering also transforms non-JSX TypeScript modules', () => {
+  const source = `import { StyleSheet } from 'react-native'
+export const flatten = StyleSheet.flatten
+`
+  const lowered = lowerModule(source, 'styles.ts', 'styles.ts', compiler, ROOT, undefined, {
+    rnwFree: true,
+  })!
+  assert.match(lowered.code, /from '@hozo\/runtime'/)
+  assert.equal(lowered.css, '')
+  assert.equal(lowered.needsClientBoundary, false)
+})
+
 test('RNW-free mode identifies namespace JSX by its imported root', () => {
   const source = `import * as RN from 'react-native'
 export const Page = () => <RN.SectionList sections={sections} renderItem={renderItem} />
