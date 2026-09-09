@@ -20,6 +20,11 @@ This is a read-only compiler measurement, not a claim that the application can b
 3. **The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.
 4. **The app is not className-shaped:** 430 files use ALF atoms while only 8 use `className`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
 
+The separate [production dependency-graph measurement](./bluesky-rnw-free-build.md) builds this
+same pinned corpus with Hozo connected to Webpack, records every reachable RN/RNW request, and then
+proves that the build fails when React Native Web is made unavailable. That report defines the
+remaining boundary beyond direct JSX.
+
 ## Authored surface
 
 | Signal | Files or bindings |
