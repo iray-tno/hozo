@@ -27,6 +27,45 @@
 // `@hozo/core`, and none of them accepts a `testID` at all -- which is its
 // own finding and not one to fix in the same change as this.
 
+// The four `probe-*` buttons at the foot of this screen are not part of
+// the census. They exist to answer #357, where the compiled Continue
+// button on the acceptance screen renders with no background and an
+// accessibility frame the size of its label -- on both platforms, and
+// still after #334, which fixed a real thing that turned out not to be
+// this one.
+//
+// Every test in this repository passes while that is true, because
+// `react-native-stub.js` makes `createAnimatedComponent` the identity:
+// the layer where this breaks is one no test here can reach. So the next
+// step is evidence rather than another guess, and each probe adds exactly
+// one thing to the compiled output -- measured, not assumed:
+//
+//   probe-plain       Pressable,      a static style
+//   probe-hover       HozoPressable,  + a callback style
+//   probe-transition  HozoPressable,  + hozoTransition
+//   probe-focus       HozoPressable,  + hozoFocusVisible
+//
+// The first run answered it: probe-hover was the only one that lost its
+// style, which is the callback React Native drops when it reaches an
+// animated component. Two more probes narrow what is left, because the
+// acceptance screen's Continue button has the same ingredients as
+// probe-focus and still draws no background:
+//
+//   probe-role        probe-focus + accessibilityRole and a label
+//   probe-brand       probe-focus with the project theme colour
+//   probe-in-list     the same button inside a FlatList header
+//   probe-verbatim    every prop Continue has, including onPress
+//
+// The second run answered the first three: probe-hover draws now, and
+// probe-role draws, so neither the callback nor the accessibility role
+// is what keeps Continue invisible. probe-brand was below the fold and
+// says nothing yet, which is why these three sit at the top of the
+// screen rather than at the foot of it.
+//
+// The last is the Continue button's class list exactly. Each has a colour
+// nothing else on this screen uses, so one screenshot scan says which ones
+// drew; each has a frame in the tree, so the same run says which ones kept
+// their padding.
 import {
   Address,
   Article,
@@ -40,6 +79,7 @@ import {
   Fieldset,
   Figcaption,
   Figure,
+  FlatList,
   Footer,
   Header,
   Heading,
@@ -89,6 +129,54 @@ export default function Gallery() {
           Gallery
         </Heading>
 
+        <Pressable
+          className="rounded-lg bg-fuchsia-600 p-3 transition-colors duration-200 hover:bg-fuchsia-700 focus-visible:bg-fuchsia-800"
+          accessibilityRole="button"
+          accessibilityLabel="A probe with a role"
+          testID="probe-role"
+        >
+          <Text className="text-white">Role and label</Text>
+        </Pressable>
+
+        <Pressable
+          className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
+          testID="probe-brand"
+        >
+          <Text className="text-white">Theme colour</Text>
+        </Pressable>
+
+        {/* Everything Continue has, on this screen instead of that one. If
+            this draws, the difference is the screen rather than the
+            element, and the next place to look is App.tsx's own compiled
+            module. */}
+        <Pressable
+          className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
+          accessibilityRole="button"
+          accessibilityLabel="A probe that copies Continue"
+          onPress={() => undefined}
+          testID="probe-verbatim"
+        >
+          <Text className="text-center font-bold text-white">Verbatim copy</Text>
+        </Pressable>
+
+        {/* The acceptance screen renders its Continue button inside a
+            FlatList header, and every probe so far has been in this
+            ScrollView. If this one draws and Continue does not, the
+            difference is the list rather than the button. */}
+        <FlatList
+          data={[{ id: 'only' }]}
+          keyExtractor={(item) => item.id}
+          testID="probe-list"
+          ListHeaderComponent={
+            <Pressable
+              className="rounded-lg bg-teal-500 p-3 transition-colors duration-200 hover:bg-teal-600"
+              testID="probe-in-list"
+            >
+              <Text className="text-white">In a list header</Text>
+            </Pressable>
+          }
+          renderItem={() => <Text>List row</Text>}
+        />
         <Header className="gap-1" testID="gallery-Header">
           <Text testID="gallery-Text">Text</Text>
           <Paragraph testID="gallery-Paragraph">Paragraph</Paragraph>
@@ -191,6 +279,32 @@ export default function Gallery() {
           testID="gallery-Pressable"
         >
           <Text>Pressable link card</Text>
+        </Pressable>
+
+        {/* The four probes from #357; the file header says what they are for. */}
+        <Pressable className="rounded-lg bg-red-500 p-3" testID="probe-plain">
+          <Text className="text-white">Plain</Text>
+        </Pressable>
+
+        <Pressable
+          className="rounded-lg bg-orange-500 p-3 hover:bg-orange-600"
+          testID="probe-hover"
+        >
+          <Text className="text-white">Hover, no transition</Text>
+        </Pressable>
+
+        <Pressable
+          className="rounded-lg bg-green-600 p-3 transition-colors duration-200 hover:bg-green-700"
+          testID="probe-transition"
+        >
+          <Text className="text-white">Transition</Text>
+        </Pressable>
+
+        <Pressable
+          className="rounded-lg bg-blue-600 p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
+          testID="probe-focus"
+        >
+          <Text className="text-white">Focus visible</Text>
         </Pressable>
 
         <View testID="gallery-View">

@@ -34,6 +34,31 @@ interface Props {
  * and any number of them at runtime, so the count that decides which child
  * is last is only known here.
  */
+/**
+ * The parent spacing behind a child's own style, in whatever shape the
+ * child's style has.
+ *
+ * A Pressable's style can be a *callback*, and the compiler emits one for
+ * any element with a state variant -- `hover:`, `focus-visible:`,
+ * `active:`. Putting a function in an array does not compose it with
+ * anything: React Native flattens the array, finds a function where a
+ * style object belongs, and skips it. The child then renders with the
+ * spacing and nothing else -- no background, no padding, no radius.
+ *
+ * That is what made the acceptance screen's Continue button invisible
+ * (#357), and it was not the button. Six probes on a screen whose
+ * container uses `gap-*` all drew, including one copied prop for prop;
+ * the difference was the `space-y-4` on the container.
+ *
+ * So a callback stays a callback, with the spacing behind whatever it
+ * returns for the state it is called with.
+ */
+function spaced(parent: unknown, own: unknown): unknown {
+  if (typeof own !== 'function') return [parent, own]
+  const resolve = own as (state: unknown) => unknown
+  return (state: unknown) => [parent, resolve(state)]
+}
+
 export function HozoSpaced({ style, children }: Props): ReactNode {
   // `toArray` flattens nested arrays and drops null/undefined/booleans, so
   // a conditional child that renders nothing doesn't take the last slot and
@@ -45,6 +70,6 @@ export function HozoSpaced({ style, children }: Props): ReactNode {
   return list.map((child, index) => {
     if (!targets.has(index)) return child
     const element = child as ReactElement<{ style?: unknown }>
-    return cloneElement(element, { style: [style, element.props.style] })
+    return cloneElement(element, { style: spaced(style, element.props.style) })
   })
 }

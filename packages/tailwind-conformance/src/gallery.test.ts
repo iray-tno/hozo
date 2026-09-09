@@ -123,8 +123,23 @@ test('and it renders', () => {
   })
   const tree = (root as { toJSON: () => unknown }).toJSON()
   assert.ok(tree, 'the gallery rendered nothing')
-  const found = JSON.stringify(tree)
+
+  // Walked rather than stringified. `JSON.stringify` on a rendered tree
+  // throws the moment any prop holds a React element -- a
+  // `ListHeaderComponent` is one -- because an element carries a fiber
+  // that points back at the tree. The error then names a circular
+  // structure rather than the screen, which is a poor way to find out
+  // that somebody added a list.
+  const ids = new Set<string>()
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return
+    const element = node as { props?: { testID?: unknown }; children?: unknown[] }
+    if (typeof element.props?.testID === 'string') ids.add(element.props.testID)
+    for (const child of element.children ?? []) walk(child)
+  }
+  walk(tree)
+
   for (const name of ['gallery-Heading', 'gallery-Ruby', 'gallery-Summary', 'gallery-Progress']) {
-    assert.ok(found.includes(name), `${name} is not in the rendered tree`)
+    assert.ok(ids.has(name), `${name} is not in the rendered tree`)
   }
 })
