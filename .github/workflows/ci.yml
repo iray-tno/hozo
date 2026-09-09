@@ -58,6 +58,14 @@ jobs:
       # condition resolving to the Web declarations was visible, and it
       # went unseen for the whole life of the Native backend.
       - run: pnpm typecheck
+      # A real Astro build, and the assertions about what came out of it.
+      # `apps/landing` is the only place a `.mdx` is compiled end to end
+      # -- through `@astrojs/mdx`, which hands Hozo `_jsx()` calls rather
+      # than JSX -- and nothing in CI had ever run it. `test:build` rather
+      # than `test`: the REPL check drives headless Chrome against a
+      # WebAssembly build this job does not have, and belongs where that
+      # build already happens (`deploy-pages.yml`).
+      - run: pnpm --filter @hozo/landing run test:build
 
   platform-compat:
     strategy:
