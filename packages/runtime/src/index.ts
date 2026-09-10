@@ -154,6 +154,7 @@ export { hozoActivateKeyDown, hozoActivateKeyUp } from './activate.ts'
 export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.ts'
 export { hozoInteractive } from './interactive.ts'
 export { externalLinkAttributes, HozoLink, type HozoLinkProps } from './link.ts'
+export { Platform, type PlatformSelectSpec } from './platform.ts'
 export { hozoScrollable } from './scrollable.ts'
 export { type HozoNamedStyles, type HozoStyle, StyleSheet } from './stylesheet.ts'
 

@@ -28,7 +28,7 @@ const HOZO_CORE_IMPORT_RE =
 const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])react-native\3\s*;?/g
 
 /** React Native value exports whose Web contract Hozo owns in strict mode. */
-const RNW_FREE_RUNTIME_EXPORTS = new Set(['StyleSheet'])
+const RNW_FREE_RUNTIME_EXPORTS = new Set(['Platform', 'StyleSheet'])
 
 /**
  * Moves supported value imports out of `react-native` before a Web bundler
