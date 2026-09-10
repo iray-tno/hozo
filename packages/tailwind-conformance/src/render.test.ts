@@ -34,7 +34,7 @@ test('semantic primitives render native document elements', () => {
       return <Section><Heading level={3}>Title</Heading><Paragraph>Body</Paragraph></Section>
     }
   `)
-  assert.equal(rendered.html, '<section><h3>Title</h3><p>Body</p></section>')
+  assert.equal(rendered.html, `<section class="hozo-view"><h3>Title</h3><p>Body</p></section>`)
 })
 
 test('article and navigation landmarks survive an actual Web render', () => {
@@ -44,7 +44,7 @@ test('article and navigation landmarks survive an actual Web render', () => {
       return <Article><Nav accessibilityLabel="Primary" /></Article>
     }
   `)
-  assert.equal(rendered.html, '<article><nav aria-label="Primary"></nav></article>')
+  assert.equal(rendered.html, `<article class="hozo-view"><nav class="hozo-view" aria-label="Primary"></nav></article>`)
 })
 
 test('a small ordered list renders as native HTML list elements', () => {
@@ -54,7 +54,7 @@ test('a small ordered list renders as native HTML list elements', () => {
       return <List ordered><ListItem>One</ListItem><ListItem>Two</ListItem></List>
     }
   `)
-  assert.equal(rendered.html, '<ol><li>One</li><li>Two</li></ol>')
+  assert.equal(rendered.html, `<ol class="hozo-view"><li class="hozo-view">One</li><li class="hozo-view">Two</li></ol>`)
 })
 
 test('every class in the DOM has a rule in the stylesheet', () => {

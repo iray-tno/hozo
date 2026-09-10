@@ -69,6 +69,54 @@ const ARIA_STATE_ATTRS: &[(&str, &str)] = &[
 /// The `[data-hozo-*]` bases below are deliberately *not* wrapped. Those
 /// are behaviour rather than defaults -- a disabled control has to look
 /// disabled in forced colours even if a component class says otherwise.
+/// Whether this primitive is one of React Native's boxes.
+///
+/// Every one of these lowers to a React Native `View`, so every one of
+/// them is a column flex container on device -- and on the Web only
+/// `View` was, because only `View` carried the base. `<Section
+/// className="flex items-center">` was a row in a browser and a column on
+/// a phone, from one source, with nothing said about it. Measured through
+/// both backends on the same input.
+///
+/// `react-native-web` has the same answer, and where it comes from is
+/// worth saying: RNW has one `View` that picks its element from `role`,
+/// and the base style is applied *before* the element is chosen -- so a
+/// `<nav>` and a `<section>` carry exactly the class a `<div>` does,
+/// `flex-direction: column` included. Rendered and read off the output
+/// rather than recalled. The rule there is that direction belongs to the
+/// component and not to the tag, and this is that rule.
+///
+/// It is also the only rule that can hold on both platforms. Making the
+/// Web `row` instead would mean making Native `row` too, and the only way
+/// to do that is to inject a `flexDirection` React Native does not have --
+/// which would relayout every hand-written `View` in a ported app.
+///
+/// `Separator` and `Progress` are deliberately absent. They are `View`s on
+/// Native only because React Native has no `<hr>` and no `<progress>`; on
+/// the Web they are a void element and a replaced element, and
+/// `display: flex` on either is meaningless at best.
+fn is_view_box(primitive: Primitive) -> bool {
+    matches!(
+        primitive,
+        Primitive::View
+            | Primitive::AnimatedView
+            | Primitive::Section
+            | Primitive::Article
+            | Primitive::Nav
+            | Primitive::Main
+            | Primitive::Header
+            | Primitive::Footer
+            | Primitive::Aside
+            | Primitive::Search
+            | Primitive::Figure
+            | Primitive::Address
+            | Primitive::Fieldset
+            | Primitive::TermList
+            | Primitive::Description
+            | Primitive::List
+            | Primitive::ListItem
+    )
+}
 const VIEW_BASE_CSS: &str = ":where(.hozo-view) { \
     display: flex;\n  \
     flex-direction: column;\n  \
@@ -708,7 +756,7 @@ fn render_node(
     // and comparing the classes in the DOM against the ones the stylesheet
     // defines, which is a comparison nothing had made before.
     let mut classes = if rules.len() == rules_before { String::new() } else { class_name };
-    if matches!(node.primitive, Primitive::View | Primitive::AnimatedView) {
+    if is_view_box(node.primitive) {
         *uses_view_base = true;
         classes = if classes.is_empty() {
             "hozo-view".to_string()
@@ -2369,7 +2417,7 @@ export function Login() {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert_eq!(output.jsx, "<section><h2>Title</h2><p>Body</p></section>");
+        assert_eq!(output.jsx, "<section className=\"hozo-view\"><h2>Title</h2><p>Body</p></section>");
     }
 
     #[test]
@@ -2424,7 +2472,7 @@ export function Login() {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(
             output.jsx,
-            "<main><header>Banner</header><aside>Sidebar</aside><search>Searchbox</search><figure><figcaption>Caption</figcaption></figure><time>2026-09-02</time><address>Contact</address><footer>Footer</footer></main>"
+            "<main className=\"hozo-view\"><header className=\"hozo-view\">Banner</header><aside className=\"hozo-view\">Sidebar</aside><search className=\"hozo-view\">Searchbox</search><figure className=\"hozo-view\"><figcaption>Caption</figcaption></figure><time>2026-09-02</time><address className=\"hozo-view\">Contact</address><footer className=\"hozo-view\">Footer</footer></main>"
         );
     }
 
@@ -2452,7 +2500,7 @@ export function Login() {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(
             output.jsx,
-            "<fieldset><legend>Options</legend><details><summary>More</summary><dl><dt>Term</dt><dd>Detail</dd><dt>CompoundTerm</dt><dd>CompoundDetail</dd></dl></details></fieldset>"
+            "<fieldset className=\"hozo-view\"><legend>Options</legend><details><summary>More</summary><dl className=\"hozo-view\"><dt>Term</dt><dd className=\"hozo-view\">Detail</dd><dt>CompoundTerm</dt><dd className=\"hozo-view\">CompoundDetail</dd></dl></details></fieldset>"
         );
     }
 
@@ -2745,7 +2793,7 @@ const el = {element}"
             "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert_eq!(output.jsx, "<article><h1>Title</h1><nav aria-label={\"Primary\"}></nav></article>");
+        assert_eq!(output.jsx, "<article className=\"hozo-view\"><h1>Title</h1><nav className=\"hozo-view\" aria-label={\"Primary\"}></nav></article>");
     }
 
     #[test]
@@ -2928,7 +2976,7 @@ const el = {element}
             "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert_eq!(output.jsx, "<ol><li>First</li></ol>");
+        assert_eq!(output.jsx, "<ol className=\"hozo-view\"><li className=\"hozo-view\">First</li></ol>");
 
         let dynamic = r#"
             import { List, ListItem } from '@hozo/core'
@@ -2936,7 +2984,7 @@ const el = {element}
             "#;
         let parsed = hozo_parser::parse_tsx(dynamic);
         let output = lower(&parsed.roots[0].node, dynamic, &Theme::default());
-        assert_eq!(output.jsx, "<List ordered={ranked}><li>First</li></List>");
+        assert_eq!(output.jsx, "<List className=\"hozo-view\" ordered={ranked}><li className=\"hozo-view\">First</li></List>");
     }
 
     /// Compiles one element and returns its JSX.
@@ -3205,7 +3253,8 @@ mod role_tests {
         let output = lower_source(
             "import { List } from '@hozo/core'\nexport const C = () => <List role=\"menu\">x</List>\n",
         );
-        assert!(output.jsx.contains(r#"<ul role="menu">"#), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<ul "), "{}", output.jsx);
+        assert!(output.jsx.contains(r#"role="menu""#), "{}", output.jsx);
     }
 
     #[test]
@@ -3217,7 +3266,8 @@ mod role_tests {
         let output = lower_source(
             "import { List } from '@hozo/core'\nexport const C = () => <List role=\"list\">x</List>\n",
         );
-        assert!(output.jsx.contains(r#"<ul role="list">"#), "{}", output.jsx);
+        assert!(output.jsx.starts_with("<ul "), "{}", output.jsx);
+        assert!(output.jsx.contains(r#"role="list""#), "{}", output.jsx);
     }
 
     #[test]

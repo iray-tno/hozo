@@ -19,7 +19,7 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     name: 'semantic document structure',
     purpose: 'paragraph, heading level and section intent survive platform lowering',
     source: '<Section><Heading level={2}>Title</Heading><Paragraph>Body</Paragraph></Section>',
-    web: ['<section>', '<h2>Title</h2>', '<p>Body</p>'],
+    web: ['<section className="hozo-view">', '<h2>Title</h2>', '<p>Body</p>'],
     // The heading carries a style now -- bold, and sized by level. On
     // the Web that comes from the UA stylesheet and h2 is enough to say
     // it; React Native has no such thing, so the compiler is the only
@@ -34,14 +34,14 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     name: 'document landmarks',
     purpose: 'article and named navigation landmarks remain explicit on both platforms',
     source: '<Article><Nav accessibilityLabel="Primary" /></Article>',
-    web: ['<article>', '<nav aria-label={"Primary"}>'],
+    web: ['<article className="hozo-view">', '<nav className="hozo-view" aria-label={"Primary"}>'],
     native: ['<View role="article">', '<View role="navigation" accessibilityLabel={"Primary"}>'],
   },
   {
     name: 'invalid document nesting diagnostic',
     purpose: 'a statically invalid paragraph structure never ships silently',
     source: '<Paragraph>Intro<Section>Details</Section></Paragraph>',
-    web: ['<p>Intro<section>Details</section></p>'],
+    web: [`<p>Intro<section className="hozo-view">Details</section></p>`],
     native: ['<Text>Intro<View><Text>Details</Text></View></Text>'],
     diagnostics: ['INVALID_SEMANTIC_NESTING'],
   },
@@ -49,7 +49,7 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     name: 'ordered static list',
     purpose: 'ordered list and item semantics survive without virtualizing a small document list',
     source: '<List ordered><ListItem>First</ListItem><ListItem>Second</ListItem></List>',
-    web: ['<ol>', '<li>First</li>', '<li>Second</li>'],
+    web: ['<ol className="hozo-view">', '<li className="hozo-view">First</li>', '<li className="hozo-view">Second</li>'],
     native: ['<View accessibilityRole="list">', '<View role="listitem"><Text>First</Text></View>'],
   },
   {
@@ -257,7 +257,7 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     name: 'landmark regions',
     purpose: 'the regions a screen reader navigates by survive both lowerings',
     source: '<Main><Header>H</Header><Aside>A</Aside><Footer>F</Footer></Main>',
-    web: ['<main>', '<header>', '<aside>', '<footer>'],
+    web: ['<main className="hozo-view">', '<header className="hozo-view">', '<aside className="hozo-view">', '<footer className="hozo-view">'],
     // React Native has no elements, so every one of these is a role. The
     // names differ because ARIA's do: a `<header>` is a banner.
     native: [
@@ -277,21 +277,21 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // by naming a widget. The compiler emitted `role="search"` until the
     // contract was written, which React Native does not accept.
     source: '<Search>S</Search>',
-    web: ['<search>'],
+    web: ['<search className="hozo-view">'],
     native: ['<View><Text>S</Text></View>'],
   },
   {
     name: 'figure and its caption',
     purpose: 'a figure keeps the association between the drawing and what it is called',
     source: '<Figure><Figcaption>Caption</Figcaption></Figure>',
-    web: ['<figure>', '<figcaption>'],
+    web: ['<figure className="hozo-view">', '<figcaption>'],
     native: ['<View role="figure">', '<Text>Caption</Text>'],
   },
   {
     name: 'contact address',
     purpose: 'an address is a block on both platforms and claims no role it cannot keep',
     source: '<Address>Somewhere</Address>',
-    web: ['<address>'],
+    web: ['<address className="hozo-view">'],
     native: ['<View><Text>Somewhere</Text></View>'],
   },
   {
@@ -312,7 +312,7 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     name: 'a group of fields and its name',
     purpose: 'a fieldset is a named group, which is the one thing it exists to be',
     source: '<Fieldset><Legend>Name</Legend></Fieldset>',
-    web: ['<fieldset>', '<legend>'],
+    web: ['<fieldset className="hozo-view">', '<legend>'],
     native: ['<View role="group">'],
   },
   {
@@ -324,7 +324,7 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // union has neither, and inventing a nearby one would be worse than
     // saying nothing.
     source: '<TermList><Term>Hozo</Term><Description>A compiler</Description></TermList>',
-    web: ['<dl>', '<dt>', '<dd>'],
+    web: ['<dl className="hozo-view">', '<dt>', '<dd className="hozo-view">'],
     native: ['<View role="list">'],
   },
   {
