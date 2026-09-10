@@ -93,6 +93,19 @@ export const Page = () => <View onClick={() => Keyboard.dismiss()} style={styles
   assert.match(lowered.code, /import \{ Keyboard, Platform, StyleSheet \} from '@hozo\/runtime'/)
 })
 
+test('RNW-free mode rehomes a TextInput that remains a runtime component value', () => {
+  const source = `import { TextInput, View } from 'react-native'
+const Field = makeField(TextInput)
+export const Page = () => <View><TextInput accessibilityLabel="Name" /><Field /></View>
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true })!
+  assert.match(lowered.code, /import \{ View \} from 'react-native'/)
+  assert.match(lowered.code, /import \{ TextInput \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /const Field = makeField\(TextInput\)/)
+  assert.match(lowered.code, /<input aria-label=\{"Name"\}/)
+  assert.equal(lowered.needsClientBoundary, false)
+})
+
 test('RNW-free mode identifies namespace JSX by its imported root', () => {
   const source = `import * as RN from 'react-native'
 export const Page = () => <RN.SectionList sections={sections} renderItem={renderItem} />

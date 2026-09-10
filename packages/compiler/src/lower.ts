@@ -29,6 +29,7 @@ const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])reac
 
 /** React Native value exports whose Web contract Hozo owns in strict mode. */
 const RNW_FREE_RUNTIME_EXPORTS = new Set(['Keyboard', 'Platform', 'StyleSheet'])
+const RNW_FREE_COMPONENT_EXPORTS = new Set(['TextInput'])
 
 /**
  * Moves supported value imports out of `react-native` before a Web bundler
@@ -39,7 +40,7 @@ const RNW_FREE_RUNTIME_EXPORTS = new Set(['Keyboard', 'Platform', 'StyleSheet'])
  * any React Native API dynamically, so splitting it would make an unsafe
  * promise about the whole namespace.
  */
-export function lowerRnwFreeRuntimeImports(code: string): string {
+function rehomeReactNativeImports(code: string, owned: ReadonlySet<string>): string {
   return code.replace(
     RN_NAMED_IMPORT_RE,
     (statement, importType: string | undefined, body: string, quote: string) => {
@@ -52,7 +53,7 @@ export function lowerRnwFreeRuntimeImports(code: string): string {
           normalized,
         )
         const imported = match?.[2]
-        if (!match || match[1] || !imported || !RNW_FREE_RUNTIME_EXPORTS.has(imported)) {
+        if (!match || match[1] || !imported || !owned.has(imported)) {
           remaining.push(raw)
           continue
         }
@@ -65,6 +66,14 @@ export function lowerRnwFreeRuntimeImports(code: string): string {
       return `${original}import { ${moved.join(', ')} } from '@hozo/runtime'\n`
     },
   )
+}
+
+export function lowerRnwFreeRuntimeImports(code: string): string {
+  return rehomeReactNativeImports(code, RNW_FREE_RUNTIME_EXPORTS)
+}
+
+function lowerRnwFreeComponentImports(code: string): string {
+  return rehomeReactNativeImports(code, RNW_FREE_COMPONENT_EXPORTS)
 }
 
 /**
@@ -445,9 +454,11 @@ export function lowerModule(
   // that still says where it came from. See `TRANSFORMABLE`.
   const isTransformed = file.endsWith('.mdx')
   const apiLowered = options.rnwFree ? lowerRnwFreeRuntimeImports(code) : code
-  const loweredRuntimeImport = apiLowered !== code
+  const loweredApiImport = apiLowered !== code
   if (!file.endsWith('.tsx') && !isTransformed) {
-    return loweredRuntimeImport ? runtimeImportOnlyModule(apiLowered, id, file) : undefined
+    const componentLowered = options.rnwFree ? lowerRnwFreeComponentImports(apiLowered) : apiLowered
+    if (componentLowered !== apiLowered) return runtimeImportOnlyModule(componentLowered, id, file)
+    return loweredApiImport ? runtimeImportOnlyModule(apiLowered, id, file) : undefined
   }
 
   const allowed = compiler.sources
@@ -459,7 +470,7 @@ export function lowerModule(
   if (!hasSemanticCandidate && !canvas.touched) {
     if (options.rnwFree && apiLowered.includes('react-native'))
       assertRnwFree(apiLowered, file, compiler)
-    return loweredRuntimeImport ? runtimeImportOnlyModule(canvas.code, id, file) : undefined
+    return loweredApiImport ? runtimeImportOnlyModule(canvas.code, id, file) : undefined
   }
 
   // Per tag, not per file. A file mixing `react-native` with `@expo/ui`
@@ -476,8 +487,12 @@ export function lowerModule(
     : undefined
   const components = hasSemanticCandidate ? compiler.compile(canvas.code, stylexBindings) : []
   if (components.length === 0 && !canvas.touched) {
-    if (options.rnwFree) assertRnwFree(canvas.code, file, compiler, stylexBindings)
-    return loweredRuntimeImport ? runtimeImportOnlyModule(canvas.code, id, file) : undefined
+    const componentLowered = options.rnwFree
+      ? lowerRnwFreeComponentImports(canvas.code)
+      : canvas.code
+    if (options.rnwFree) assertRnwFree(componentLowered, file, compiler, stylexBindings)
+    if (componentLowered !== canvas.code) return runtimeImportOnlyModule(componentLowered, id, file)
+    return loweredApiImport ? runtimeImportOnlyModule(canvas.code, id, file) : undefined
   }
 
   let next = canvas.code
@@ -524,6 +539,7 @@ export function lowerModule(
 ${next}`
   }
 
+  if (options.rnwFree) next = lowerRnwFreeComponentImports(next)
   if (options.rnwFree) assertRnwFree(next, file, compiler, stylexBindings)
 
   const isDerivedModule = id.includes('?')

@@ -768,6 +768,10 @@ export function Button({
 }
 
 export {
+  HozoTextInput as TextInput,
+  type HozoTextInputProps as TextInputProps,
+} from '@hozo/runtime'
+export {
   Address,
   Aside,
   Description,
@@ -857,7 +861,6 @@ export {
   type HozoTabsProps as TabsProps,
   type HozoTabsProps,
 } from './tabs.ts'
-export { TextInput, type TextInputProps } from './text-input.tsx'
 export {
   HozoToolbar as Toolbar,
   HozoToolbar,

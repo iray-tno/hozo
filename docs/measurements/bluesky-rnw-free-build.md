@@ -17,9 +17,9 @@ This is a dependency-boundary measurement, not a claim that the application runs
 
 1. **The unmodified production graph builds:** 0 errors.
 2. **The graph is not RNW-free:** the successful baseline contains 74 bundled React Native Web modules (430839 unminified module bytes reported by Webpack).
-3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 73 RNW modules and makes 302 RN/RNW requests from 207 unique importing modules.
-4. **Both app APIs and dependencies remain:** 65 app modules and 138 modules owned by 40 third-party packages make those requests.
-5. **The block is effective:** repeating that build with RN/RNW unavailable produces 309 resolution diagnostics (306 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
+3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 73 RNW modules and makes 301 RN/RNW requests from 206 unique importing modules.
+4. **Both app APIs and dependencies remain:** 64 app modules and 138 modules owned by 40 third-party packages make those requests.
+5. **The block is effective:** repeating that build with RN/RNW unavailable produces 308 resolution diagnostics (305 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
 
 This confirms that today's `rnwFree` compiler option means “no direct React Native JSX remains.” It does not mean “the complete application dependency graph builds without React Native Web.” Keep the name for now, but do not make the broader release claim until these boundaries are closed.
 
@@ -27,7 +27,7 @@ This confirms that today's `rnwFree` compiler option means “no direct React Na
 
 | Owner | Importing modules |
 |---|---:|
-| application | 65 |
+| application | 64 |
 | @sentry/react-native | 24 |
 | @react-navigation/elements | 19 |
 | react-native-keyboard-controller | 19 |
@@ -78,12 +78,11 @@ The categories are ownership decisions, not claims that every counted use is liv
 
 ### Hozo core gaps
 
-These are surfaces Hozo already claims to lower or bridge. The remaining uses are runtime component values rather than JSX tags: Pressable is passed as a component/default or to animation wrappers, and TextInput is passed to an app-owned component factory. Supporting those contracts requires value-level Web components, not another JSX rule.
+These are surfaces Hozo already claims to lower or bridge. Rows here are runtime component values rather than JSX tags—for example, components passed as defaults, factory inputs, or animation wrappers. Supporting those contracts requires value-level Web components, not another JSX rule.
 
 | API | Modules | Priority | Ownership |
 |---|---:|---|---|
 | Pressable | 7 | P0 | Runtime component identity remains in component props and animation wrappers. |
-| TextInput | 1 | P0 | Runtime component identity remains in an app-owned input factory. |
 
 ### Hozo foundation candidates
 
