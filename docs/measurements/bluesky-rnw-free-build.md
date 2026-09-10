@@ -74,19 +74,16 @@ This confirms that today's `rnwFree` compiler option means “no direct React Na
 
 These counts are referenced identifiers remaining after Hozo lowering, restricted to modules that also reached the blocked production graph. Import declarations, type-only references, and JSX-only bindings removed by lowering are excluded.
 
-The categories are ownership decisions, not claims that every counted use is live at runtime. In particular, #378 removed audit false positives; a remaining primitive value now needs a use-site audit rather than being assumed to be an unlowered JSX tag.
+The categories are ownership decisions, not claims that every counted use is live at runtime. The import audit excludes TypeScript positions as well as import declarations and JSX removed by lowering, aligning this production-build measurement with the false-positive correction in #378.
 
 ### Hozo core gaps
 
-These are surfaces Hozo already claims to lower or bridge. Residual direct value use is P0 to inspect, but may prove to be a static member, ref, or other non-JSX contract rather than a lowering bug.
+These are surfaces Hozo already claims to lower or bridge. The remaining uses are runtime component values rather than JSX tags: Pressable is passed as a component/default or to animation wrappers, and TextInput is passed to an app-owned component factory. Supporting those contracts requires value-level Web components, not another JSX rule.
 
 | API | Modules | Priority | Ownership |
 |---|---:|---|---|
-| Pressable | 7 | P0 | Hozo-owned primitive; audit why a direct value import remains. |
-| View | 7 | P0 | Hozo-owned primitive; audit why a direct value import remains. |
-| FlatList | 1 | P0 | Hozo-owned bridge; verify the residual value use and windowing path. |
-| ScrollView | 1 | P0 | Hozo-owned bridge; verify the residual value use. |
-| TextInput | 1 | P0 | Hozo-owned form primitive; verify the residual value use. |
+| Pressable | 7 | P0 | Runtime component identity remains in component props and animation wrappers. |
+| TextInput | 1 | P0 | Runtime component identity remains in an app-owned input factory. |
 
 ### Hozo foundation candidates
 

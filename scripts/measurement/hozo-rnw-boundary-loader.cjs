@@ -49,6 +49,10 @@ module.exports = function hozoRnwBoundaryLoader(source) {
             () => ({
               visitor: {
                 ReferencedIdentifier(identifier) {
+                  // Babel considers identifiers inside TypeScript nodes
+                  // referenced too. They disappear before Webpack resolves
+                  // imports and therefore are not an RNW runtime boundary.
+                  if (identifier.findParent((parent) => parent.isTSType())) return
                   const local = identifier.node.name
                   if (importedByLocal.has(local)) used.add(local)
                 },
