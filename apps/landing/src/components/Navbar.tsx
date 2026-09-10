@@ -28,51 +28,69 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
           </Link>
         </View>
 
-        <Nav className="hidden md:flex md:flex-row items-center gap-8 text-sm text-shikkui-muted font-medium">
+        <Nav className="hidden md:flex md:flex-row items-center gap-4 lg:gap-5 xl:gap-3.5 2xl:gap-6 text-sm text-shikkui-muted font-medium whitespace-nowrap">
           <Link
             href={`${cleanBase}/conformance/`}
-            className="text-hinoki hover:text-hinoki-light font-semibold flex flex-row items-center gap-1.5 transition-colors"
+            className="text-hinoki hover:text-hinoki-light font-semibold flex flex-row items-center gap-1.5 transition-colors shrink-0"
           >
             <View className="w-2 h-2 rounded-full bg-hinoki" />
             <Text>Conformance</Text>
           </Link>
           <Link
             href={`${cleanBase}/repl/`}
-            className="text-bengara hover:text-bengara-hover font-semibold flex flex-row items-center gap-1.5 transition-colors"
+            className="text-bengara hover:text-bengara-hover font-semibold flex flex-row items-center gap-1.5 transition-colors shrink-0"
           >
             <View className="w-2 h-2 rounded-full bg-bengara" />
             <Text>REPL</Text>
           </Link>
           <Link
             href={`${cleanBase}/storybook/`}
-            className="text-tatami-light hover:text-shikkui font-semibold flex flex-row items-center gap-1.5 transition-colors"
+            className="text-tatami-light hover:text-shikkui font-semibold flex flex-row items-center gap-1.5 transition-colors shrink-0"
           >
             <View className="w-2 h-2 rounded-full bg-tatami" />
             <Text>Storybook</Text>
           </Link>
           <Link
             href={`${cleanBase}/reports/`}
-            className="text-hinoki-light hover:text-shikkui font-semibold flex flex-row items-center gap-1.5 transition-colors"
+            className="text-hinoki-light hover:text-shikkui font-semibold flex flex-row items-center gap-1.5 transition-colors shrink-0"
           >
             <View className="w-2 h-2 rounded-full bg-hinoki-light" />
             <Text>Reports</Text>
           </Link>
-          <Link href={`${homeUrl}#philosophy`} className="hover:text-shikkui transition-colors">
+          <Link
+            href={`${homeUrl}#philosophy`}
+            className="hidden lg:inline-flex hover:text-shikkui transition-colors shrink-0"
+          >
             <Text>Principles</Text>
           </Link>
-          <Link href={`${homeUrl}#tiered-styles`} className="hover:text-shikkui transition-colors">
+          <Link
+            href={`${homeUrl}#tiered-styles`}
+            className="hidden xl:inline-flex hover:text-shikkui transition-colors shrink-0"
+          >
             <Text>Tiered Styles</Text>
           </Link>
-          <Link href={`${homeUrl}#code-showcase`} className="hover:text-shikkui transition-colors">
+          <Link
+            href={`${homeUrl}#code-showcase`}
+            className="hidden 2xl:inline-flex hover:text-shikkui transition-colors shrink-0"
+          >
             <Text>Code Comparison</Text>
           </Link>
-          <Link href={`${homeUrl}#accessibility`} className="hover:text-shikkui transition-colors">
+          <Link
+            href={`${homeUrl}#accessibility`}
+            className="hidden xl:inline-flex hover:text-shikkui transition-colors shrink-0"
+          >
             <Text>Accessibility</Text>
           </Link>
-          <Link href={`${homeUrl}#integrations`} className="hover:text-shikkui transition-colors">
+          <Link
+            href={`${homeUrl}#integrations`}
+            className="hidden 2xl:inline-flex hover:text-shikkui transition-colors shrink-0"
+          >
             <Text>Integrations</Text>
           </Link>
-          <Link href={`${homeUrl}#architecture`} className="hover:text-shikkui transition-colors">
+          <Link
+            href={`${homeUrl}#architecture`}
+            className="hidden lg:inline-flex hover:text-shikkui transition-colors shrink-0"
+          >
             <Text>Architecture</Text>
           </Link>
         </Nav>
