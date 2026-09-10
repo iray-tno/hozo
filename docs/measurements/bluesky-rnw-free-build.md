@@ -70,32 +70,67 @@ This confirms that today's `rnwFree` compiler option means “no direct React Na
 | react-native-view-shot | 1 |
 | react-native-web-webview | 1 |
 
-## Remaining app-owned React Native APIs
+## Remaining app-owned React Native boundaries
 
 These counts are referenced identifiers remaining after Hozo lowering, restricted to modules that also reached the blocked production graph. Import declarations, type-only references, and JSX-only bindings removed by lowering are excluded.
 
+The categories are ownership decisions, not claims that every counted use is live at runtime. In particular, #378 removed audit false positives; a remaining primitive value now needs a use-site audit rather than being assumed to be an unlowered JSX tag.
+
+### Hozo core gaps
+
+These are surfaces Hozo already claims to lower or bridge. Residual direct value use is P0 to inspect, but may prove to be a static member, ref, or other non-JSX contract rather than a lowering bug.
+
+| API | Modules | Priority | Ownership |
+|---|---:|---|---|
+| Pressable | 7 | P0 | Hozo-owned primitive; audit why a direct value import remains. |
+| View | 7 | P0 | Hozo-owned primitive; audit why a direct value import remains. |
+| FlatList | 1 | P0 | Hozo-owned bridge; verify the residual value use and windowing path. |
+| ScrollView | 1 | P0 | Hozo-owned bridge; verify the residual value use. |
+| TextInput | 1 | P0 | Hozo-owned form primitive; verify the residual value use. |
+
+### Hozo foundation candidates
+
+These facts overlap with responsive styling, theme, or accessibility, but Hozo should adopt only the narrow capabilities it consumes rather than clone each complete React Native API.
+
+| API | Modules | Priority | Ownership |
+|---|---:|---|---|
+| useWindowDimensions | 16 | P1 | Viewport foundation candidate, shared with responsive lowering. |
+| Dimensions | 6 | P1 | Viewport foundation candidate, shared with responsive lowering. |
+| AccessibilityInfo | 1 | P1 | Adopt only the accessibility facts Hozo consumes, not the full API. |
+| useColorScheme | 1 | P1 | Theme foundation candidate; prefer one ambient color-scheme store. |
+
+### Explicit compatibility boundaries
+
+These are not commitments to reimplement the complete React Native subsystem. #388 hardens the narrow Animated.View adapter; its private-node risk matters, but the measured reach and explicit fallback keep it below core-gap work.
+
+| API | Modules | Priority | Ownership |
+|---|---:|---|---|
+| LayoutAnimation | 14 | P2 | RNW is effectively a callback/no-op; low practical value. |
+| Animated | 2 | P2 | Narrow compatibility boundary; full Animated is outside Hozo core. |
+
+### Platform services
+
+These belong in an optional platform/compatibility layer unless a smaller capability is already part of Hozo's UI, navigation, theme, or accessibility contract.
+
+| API | Modules | Priority | Ownership |
+|---|---:|---|---|
+| AppState | 8 | P2 | Application lifecycle service, not UI lowering. |
+| Linking | 6 | P2 | Platform/deep-link service; only navigation overlap belongs in Hozo core. |
+| Alert | 2 | P2 | Platform service. |
+| BackHandler | 1 | P2 | Platform service. |
+| findNodeHandle | 1 | P2 | Imperative compatibility escape hatch. |
+| InteractionManager | 1 | P2 | Scheduling service. |
+| Share | 1 | P2 | Platform service. |
+
+### Unclassified app APIs
+
 | API | Reachable app modules |
 |---|---:|
-| useWindowDimensions | 16 |
-| LayoutAnimation | 14 |
-| AppState | 8 |
-| Pressable | 7 |
-| View | 7 |
-| Dimensions | 6 |
-| Linking | 6 |
-| Alert | 2 |
-| Animated | 2 |
-| AccessibilityInfo | 1 |
-| BackHandler | 1 |
-| findNodeHandle | 1 |
-| FlatList | 1 |
-| InteractionManager | 1 |
-| ScrollView | 1 |
-| Share | 1 |
-| TextInput | 1 |
-| useColorScheme | 1 |
+| None | 0 |
 
 ## Third-party packages in the blocked graph
+
+Every row below is an external dependency boundary rather than a Hozo core gap. The measurement does not yet distinguish Web-dead code, configurable packages, adapter candidates, and unavoidable RNW dependencies; that requires package-by-package resolution experiments.
 
 | Owner | Importing modules |
 |---|---:|
@@ -175,7 +210,10 @@ These counts are referenced identifiers remaining after Hozo lowering, restricte
 
 ## Interpretation and next work
 
-- Prioritize the commonly reachable app-owned non-JSX APIs before compatibility aliases or adapters.
+- Audit the P0 residual primitive uses first; do not infer a JSX lowering failure from an imported value.
+- Treat viewport, theme, and accessibility facts as focused foundation candidates rather than promising the complete React Native APIs.
+- Keep application lifecycle, scheduling, sharing, and deep-link services outside core until an optional platform boundary is designed.
+- Keep #388 as P2 hardening: make the existing Animated.View compatibility adapter explicit and diagnosable without expanding it into Animated reimplementation.
 - Classify third-party packages as Web-dead/platform-gated, configurable, adapter candidates, or unavoidable RNW dependencies.
 - Repeat the build after each adapter batch; source counts alone do not close this boundary.
 - Inspect the successful final bundle for RNW modules before making a user-facing RNW-free claim.
