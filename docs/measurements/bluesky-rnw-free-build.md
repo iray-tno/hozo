@@ -11,15 +11,15 @@ This is a dependency-boundary measurement, not a claim that the application runs
 | Node | `v24.19.0` |
 | Package manager | `11.21.0` |
 | Baseline mode | Expo Webpack production build |
-| Hozo experiment | app-owned `.ts`/`.tsx` passes through the measurement loader (with Web lowering and `rnwFree: true` for TSX); `react-native` and `react-native-web` resolution then point to an absent module |
+| Hozo experiment | app-owned `.ts`/`.tsx` passes through the measurement loader (with Web lowering and `rnwFree: true`); `react-native` and `react-native-web` resolution then point to an absent module |
 
 ## Result
 
 1. **The unmodified production graph builds:** 0 errors.
 2. **The graph is not RNW-free:** the successful baseline contains 74 bundled React Native Web modules (430839 unminified module bytes reported by Webpack).
-3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 73 RNW modules and makes 385 RN/RNW requests from 277 unique importing modules.
-4. **Both app APIs and dependencies remain:** 135 app modules and 138 modules owned by 40 third-party packages make those requests.
-5. **The block is effective:** repeating that build with RN/RNW unavailable produces 392 resolution diagnostics (389 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
+3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 73 RNW modules and makes 341 RN/RNW requests from 241 unique importing modules.
+4. **Both app APIs and dependencies remain:** 99 app modules and 138 modules owned by 40 third-party packages make those requests.
+5. **The block is effective:** repeating that build with RN/RNW unavailable produces 348 resolution diagnostics (345 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
 
 This confirms that today's `rnwFree` compiler option means “no direct React Native JSX remains.” It does not mean “the complete application dependency graph builds without React Native Web.” Keep the name for now, but do not make the broader release claim until these boundaries are closed.
 
@@ -27,7 +27,7 @@ This confirms that today's `rnwFree` compiler option means “no direct React Na
 
 | Owner | Importing modules |
 |---|---:|
-| application | 135 |
+| application | 99 |
 | @sentry/react-native | 24 |
 | @react-navigation/elements | 19 |
 | react-native-keyboard-controller | 19 |
@@ -76,13 +76,12 @@ These counts are referenced identifiers remaining after Hozo lowering, restricte
 
 | API | Reachable app modules |
 |---|---:|
-| StyleSheet | 44 |
 | Platform | 20 |
 | Keyboard | 19 |
 | useWindowDimensions | 16 |
 | LayoutAnimation | 14 |
-| View | 10 |
 | AppState | 8 |
+| View | 8 |
 | Pressable | 7 |
 | Dimensions | 6 |
 | Linking | 6 |

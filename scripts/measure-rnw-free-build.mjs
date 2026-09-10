@@ -317,7 +317,7 @@ This is a dependency-boundary measurement, not a claim that the application runs
 | Node | \`${process.version}\` |
 | Package manager | \`${pnpmOutput(['--version'], checkout)}\` |
 | Baseline mode | Expo Webpack production build |
-| Hozo experiment | app-owned \`.ts\`/\`.tsx\` passes through the measurement loader (with Web lowering and \`rnwFree: true\` for TSX); \`react-native\` and \`react-native-web\` resolution then point to an absent module |
+| Hozo experiment | app-owned \`.ts\`/\`.tsx\` passes through the measurement loader (with Web lowering and \`rnwFree: true\`); \`react-native\` and \`react-native-web\` resolution then point to an absent module |
 
 ## Result
 

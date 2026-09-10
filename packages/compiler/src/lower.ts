@@ -25,6 +25,48 @@ import type { StylexModuleCache } from './stylex-project.ts'
 const HOZO_CORE_IMPORT_RE =
   /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/semantics|@hozo\/typography)['"]\s*\n?/g
 
+const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])react-native\3\s*;?/g
+
+/** React Native value exports whose Web contract Hozo owns in strict mode. */
+const RNW_FREE_RUNTIME_EXPORTS = new Set(['StyleSheet'])
+
+/**
+ * Moves supported value imports out of `react-native` before a Web bundler
+ * aliases that package to RNW. Types and unknown values stay on the original
+ * declaration; TypeScript/Babel removes type-only specifiers later.
+ *
+ * This deliberately handles named imports only. A namespace import can read
+ * any React Native API dynamically, so splitting it would make an unsafe
+ * promise about the whole namespace.
+ */
+export function lowerRnwFreeRuntimeImports(code: string): string {
+  return code.replace(
+    RN_NAMED_IMPORT_RE,
+    (statement, importType: string | undefined, body: string, quote: string) => {
+      if (importType) return statement
+      const remaining: string[] = []
+      const moved: string[] = []
+      for (const raw of body.split(',')) {
+        const normalized = raw.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').trim()
+        const match = /^(type\s+)?([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/.exec(
+          normalized,
+        )
+        const imported = match?.[2]
+        if (!match || match[1] || !imported || !RNW_FREE_RUNTIME_EXPORTS.has(imported)) {
+          remaining.push(raw)
+          continue
+        }
+        moved.push(match[3] ? `${imported} as ${match[3]}` : imported)
+      }
+      if (moved.length === 0) return statement
+      const original = remaining.some((part) => part.trim() !== '')
+        ? `import {${remaining.join(',')}} from ${quote}react-native${quote}\n`
+        : ''
+      return `${original}import { ${moved.join(', ')} } from '@hozo/runtime'\n`
+    },
+  )
+}
+
 /**
  * The names `@hozo/core`, `@hozo/semantics`, and `@hozo/typography` export. A lowered element never mentions these
  * (it becomes `div`/`span`/`button`), so one surviving in the output came
@@ -329,6 +371,21 @@ export interface LowerModuleOptions {
   rnwFree?: boolean
 }
 
+function runtimeImportOnlyModule(code: string, id: string, file: string): LoweredModule {
+  const isDerivedModule = id.includes('?')
+  const cssFileName = isDerivedModule
+    ? `${path.basename(file)}.${moduleIdHash(id)}.hozo.css`
+    : cssFileNameFor(file)
+  return {
+    code,
+    css: '',
+    cssFileName,
+    cssPath: path.join(path.dirname(file), cssFileName),
+    needsClientBoundary: false,
+    diagnostics: [],
+  }
+}
+
 /** Direct React Native imports that are still used as JSX tag roots. */
 function directReactNativeJsxBindings(module: CompiledNativeModule): string[] {
   const used = new Set(module.jsxBindings)
@@ -387,17 +444,22 @@ export function lowerModule(
   // transform has already turned the file into JSX; the extension is all
   // that still says where it came from. See `TRANSFORMABLE`.
   const isTransformed = file.endsWith('.mdx')
-  if (!file.endsWith('.tsx') && !isTransformed) return undefined
+  const apiLowered = options.rnwFree ? lowerRnwFreeRuntimeImports(code) : code
+  const loweredRuntimeImport = apiLowered !== code
+  if (!file.endsWith('.tsx') && !isTransformed) {
+    return loweredRuntimeImport ? runtimeImportOnlyModule(apiLowered, id, file) : undefined
+  }
 
   const allowed = compiler.sources
-  const canvas = lowerCanvasPaints(code, compiler, false)
+  const canvas = lowerCanvasPaints(apiLowered, compiler, false)
   // A cheap reject before parsing: a file mentioning none of the trusted
   // modules has nothing this can lower, and most of a project's files are
   // that. The real decision needs the AST and comes next.
   const hasSemanticCandidate = allowed.some((module) => code.includes(module))
   if (!hasSemanticCandidate && !canvas.touched) {
-    if (options.rnwFree && code.includes('react-native')) assertRnwFree(code, file, compiler)
-    return undefined
+    if (options.rnwFree && apiLowered.includes('react-native'))
+      assertRnwFree(apiLowered, file, compiler)
+    return loweredRuntimeImport ? runtimeImportOnlyModule(canvas.code, id, file) : undefined
   }
 
   // Per tag, not per file. A file mixing `react-native` with `@expo/ui`
@@ -415,7 +477,7 @@ export function lowerModule(
   const components = hasSemanticCandidate ? compiler.compile(canvas.code, stylexBindings) : []
   if (components.length === 0 && !canvas.touched) {
     if (options.rnwFree) assertRnwFree(canvas.code, file, compiler, stylexBindings)
-    return undefined
+    return loweredRuntimeImport ? runtimeImportOnlyModule(canvas.code, id, file) : undefined
   }
 
   let next = canvas.code
