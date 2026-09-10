@@ -44,7 +44,10 @@ test('article and navigation landmarks survive an actual Web render', () => {
       return <Article><Nav accessibilityLabel="Primary" /></Article>
     }
   `)
-  assert.equal(rendered.html, `<article class="hozo-view"><nav class="hozo-view" aria-label="Primary"></nav></article>`)
+  assert.equal(
+    rendered.html,
+    `<article class="hozo-view"><nav class="hozo-view" aria-label="Primary"></nav></article>`,
+  )
 })
 
 test('a small ordered list renders as native HTML list elements', () => {
@@ -54,7 +57,10 @@ test('a small ordered list renders as native HTML list elements', () => {
       return <List ordered><ListItem>One</ListItem><ListItem>Two</ListItem></List>
     }
   `)
-  assert.equal(rendered.html, `<ol class="hozo-view"><li class="hozo-view">One</li><li class="hozo-view">Two</li></ol>`)
+  assert.equal(
+    rendered.html,
+    `<ol class="hozo-view"><li class="hozo-view">One</li><li class="hozo-view">Two</li></ol>`,
+  )
 })
 
 test('every class in the DOM has a rule in the stylesheet', () => {

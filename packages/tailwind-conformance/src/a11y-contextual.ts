@@ -49,7 +49,11 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     name: 'ordered static list',
     purpose: 'ordered list and item semantics survive without virtualizing a small document list',
     source: '<List ordered><ListItem>First</ListItem><ListItem>Second</ListItem></List>',
-    web: ['<ol className="hozo-view">', '<li className="hozo-view">First</li>', '<li className="hozo-view">Second</li>'],
+    web: [
+      '<ol className="hozo-view">',
+      '<li className="hozo-view">First</li>',
+      '<li className="hozo-view">Second</li>',
+    ],
     native: ['<View accessibilityRole="list">', '<View role="listitem"><Text>First</Text></View>'],
   },
   {
@@ -257,7 +261,12 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     name: 'landmark regions',
     purpose: 'the regions a screen reader navigates by survive both lowerings',
     source: '<Main><Header>H</Header><Aside>A</Aside><Footer>F</Footer></Main>',
-    web: ['<main className="hozo-view">', '<header className="hozo-view">', '<aside className="hozo-view">', '<footer className="hozo-view">'],
+    web: [
+      '<main className="hozo-view">',
+      '<header className="hozo-view">',
+      '<aside className="hozo-view">',
+      '<footer className="hozo-view">',
+    ],
     // React Native has no elements, so every one of these is a role. The
     // names differ because ARIA's do: a `<header>` is a banner.
     native: [
