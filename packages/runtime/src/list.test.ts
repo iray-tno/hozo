@@ -45,3 +45,100 @@ test('FlatList renders data, stable keys, columns, and nested refresh intent', (
   assert.match(html, /data-hozo-list-index="0"[^>]*>0:a/)
   assert.match(html, /data-hozo-list-index="1"[^>]*>1:b/)
 })
+
+test('a thousand rows mount ten of them, and the rest is space', () => {
+  // #385: the bridge accepted `initialNumToRender` and rendered every row
+  // anyway, so a long feed was a long feed's worth of mounted subtrees.
+  //
+  // Asked of the server render, which is the one moment no viewport has
+  // been measured -- `initialNumToRender` is the whole answer there, and a
+  // crawler and `renderToStaticMarkup` both land on it.
+  const data = Array.from({ length: 1000 }, (_, index) => ({ id: `row-${index}` }))
+  const html = renderToStaticMarkup(
+    createElement(HozoFlatList<{ id: string }>, {
+      data,
+      keyExtractor: (item) => item.id,
+      renderItem: ({ item }) => item.id,
+      estimatedItemSize: 100,
+    }),
+  )
+
+  const mounted = html.match(/data-hozo-list-index=/g) ?? []
+  assert.equal(mounted.length, 10, 'mounted rows')
+  assert.match(html, /data-hozo-list-count="1000"/, 'the list still says how long it is')
+  // The 990 rows that are not mounted, as space: 10 mounted above, so the
+  // padding below is 990 x 100px.
+  assert.match(html, /padding-bottom:99000px/)
+  assert.doesNotMatch(html, /padding-top:[1-9]/, 'nothing is skipped at the top of a fresh list')
+})
+
+test('exact geometry from getItemLayout is used instead of an estimate', () => {
+  // The shortcut React Native offers a caller who already knows. 40px rows
+  // rather than the 100px default estimate, so the trailing space is
+  // 990 x 40 and no measurement had to happen for it to be right.
+  const data = Array.from({ length: 1000 }, (_, index) => ({ id: `row-${index}` }))
+  const html = renderToStaticMarkup(
+    createElement(HozoFlatList<{ id: string }>, {
+      data,
+      keyExtractor: (item) => item.id,
+      renderItem: ({ item }) => item.id,
+      getItemLayout: (_data, index) => ({ length: 40, offset: index * 40, index }),
+    }),
+  )
+  assert.match(html, /padding-bottom:39600px/)
+})
+
+test('inverted mirrors the scroller and every row back', () => {
+  // React Native's `inverted` puts row 0 at the bottom, and
+  // `react-native-web` does it with a mirror transform rather than by
+  // reversing anything. Layout, scroll offsets and measurement all stay in
+  // list space, which is why nothing in the windowing has to know about it.
+  const html = renderToStaticMarkup(
+    createElement(HozoFlatList<{ id: string }>, {
+      data: [{ id: 'a' }, { id: 'b' }],
+      keyExtractor: (item) => item.id,
+      renderItem: ({ item }) => item.id,
+      inverted: true,
+      ListHeaderComponent: 'header',
+    }),
+  )
+  const mirrors = html.match(/transform:scaleY\(-1\)/g) ?? []
+  // The scroller, the header, and one per row: mirroring the scroller
+  // alone would leave every row's own contents upside down.
+  assert.equal(mirrors.length, 4, `mirrors found: ${mirrors.length}`)
+})
+
+test('a horizontal list is windowed along its own axis', () => {
+  const data = Array.from({ length: 500 }, (_, index) => ({ id: `row-${index}` }))
+  const html = renderToStaticMarkup(
+    createElement(HozoFlatList<{ id: string }>, {
+      data,
+      keyExtractor: (item) => item.id,
+      renderItem: ({ item }) => item.id,
+      horizontal: true,
+      estimatedItemSize: 50,
+      initialNumToRender: 4,
+    }),
+  )
+  assert.match(html, /padding-right:24800px/, 'the unmounted rows are horizontal space')
+  assert.doesNotMatch(html, /padding-bottom/)
+  assert.equal((html.match(/data-hozo-list-index=/g) ?? []).length, 4)
+})
+
+test('columns are windowed as rows, not as items', () => {
+  // A two-column grid scrolls by rows. Windowed by item, each edge would
+  // mount half a row and measure a height no row has.
+  const data = Array.from({ length: 100 }, (_, index) => ({ id: `row-${index}` }))
+  const html = renderToStaticMarkup(
+    createElement(HozoFlatList<{ id: string }>, {
+      data,
+      keyExtractor: (item) => item.id,
+      renderItem: ({ item }) => item.id,
+      numColumns: 2,
+      initialNumToRender: 3,
+    }),
+  )
+  assert.equal((html.match(/data-hozo-list-row=/g) ?? []).length, 3, 'rows mounted')
+  assert.equal((html.match(/data-hozo-list-index=/g) ?? []).length, 6, 'items in those rows')
+  assert.match(html, /grid-template-columns:repeat\(2, minmax\(0, 1fr\)\)/)
+})

@@ -48,3 +48,25 @@ explicit diagnostics or official StyleX residuals.
 ## Platform split
 
 `index.ts` is the Web build and `index.native.ts` the React Native one, selected by the `react-native` export condition. The logic worth testing lives in platform-free modules — `ambient.ts`, `grid.ts`, `color-transition.ts` — so it can be tested without a device or a native module registry.
+
+## The Web `FlatList` is windowed
+
+`HozoFlatList` mounts the rows around the viewport and nothing else. Ten thousand rows are about seventy mounted subtrees at rest and a hundred and twenty while scrolling; the rest is padding on the row container, so a grid, a `gap` and a `contentContainerStyle` all keep working.
+
+The arithmetic is React Native's, ported from `@react-native/virtualized-lists`: `windowSize` is `(windowSize - 1)` viewports of overscan split half each way, and its default is React Native's own 21. `react-native-web` ships that same implementation, so a project moving off it gets the prop it already had rather than a narrower one wearing the same name.
+
+Sizes are measured rather than declared. `estimatedItemSize` covers the first paint and the mean of the measured rows takes over immediately after; `getItemLayout` skips measurement entirely for a caller who already knows. That ordering follows the frameworks that do this best — SwiftUI's `LazyVStack` and Compose's `LazyColumn` expose no sizing knobs at all, and the React libraries that measure automatically are the ones that handle variable heights — so React Native's knobs are treated as bounds rather than as requirements.
+
+| prop | behaviour |
+|---|---|
+| `initialNumToRender` | rows mounted before a viewport has been measured, which is every server render |
+| `windowSize`, `maxToRenderPerBatch` | as React Native, on rows |
+| `getItemLayout` | exact geometry, believed rather than measured; with `numColumns > 1` it describes items and only its `length` is used |
+| `scrollToIndex` | scrolls to the estimate and pins the row until the rows there report their sizes. React Native throws for an unmeasured row; this settles instead |
+| `maintainVisibleContentPosition` | holds the reader's row still, anchored by key so a prepend cannot renumber it out from under them |
+| `inverted` | a mirror transform on the scroller and each row, as `react-native-web` does it: row 0 at the bottom, `scrollToOffset(0)` with it |
+| `removeClippedSubviews` | accepted and unused — rows outside the window are not mounted at all |
+
+`numColumns` windows by **row**, not by item.
+
+The claims above are about layout, and jsdom has none, so `scripts/check-list.mjs` asks a real browser: ten thousand rows of varying height, scrolled, jumped to, prepended to and inverted. Run it with `pnpm test:browser`. It is where the defects were actually found — rows leaving the window kept reporting their size to a `ResizeObserver` after React removed them, and a removed element measures zero, which took ten thousand rows down to a scrollable length of 7,138px.
