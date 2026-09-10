@@ -18,7 +18,7 @@
 // `apps/landing/scripts/check-repl.mjs` draws the same line.
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -65,13 +65,26 @@ try {
     logLevel: 'silent',
   })
 
+  // axe, from the package rather than a CDN: the check has to work with
+  // no network, and the version has to be the one the lockfile pins.
+  copyFileSync(
+    path.join(
+      path.dirname(fileURLToPath(import.meta.resolve('axe-core/package.json'))),
+      'axe.min.js',
+    ),
+    path.join(dist, 'axe.js'),
+  )
+
   writeFileSync(
     path.join(dist, 'index.html'),
     '<!doctype html><meta charset="utf-8">' +
       // A viewport-sized scroller and nothing else on the page, so every
       // number below is about the list.
       '<style>html,body{margin:0}#app{height:600px}</style>' +
-      '<div id="app"></div><script type="module" src="/probe.js"></script>',
+      // axe first and not as a module, so it is a global by the time the
+      // probe runs.
+      '<div id="app"></div><script src="/axe.js"></script>' +
+      '<script type="module" src="/probe.js"></script>',
   )
 
   const server = createServer((request, response) => {
@@ -275,6 +288,34 @@ try {
     `inverted mounted ${results.invertedMounted} of ${results.total} rows`,
   )
 
+  // Focus is not the viewport, and unmounting the row that holds it does
+  // not degrade the experience -- it loses the place. The probe focuses a
+  // row, scrolls to the top, and asks what has focus afterwards.
+  check(
+    results.focusStillInList === true,
+    `scrolling away from the focused row moved focus out of the list (was ${results.focusWasId}, now ${results.focusKeptId})`,
+  )
+  check(
+    results.focusKeptId === results.focusWasId,
+    `focus moved from ${results.focusWasId} to ${results.focusKeptId}`,
+  )
+  // And something after it, so tabbing forward has a next row to reach.
+  check(
+    results.rowsAfterFocus > 0,
+    `nothing is mounted after the focused row, so Tab leaves the list`,
+  )
+  // What a screen reader is told the list contains. Mounted rows are not
+  // the answer: the other 9,933 are not in the accessibility tree to be
+  // counted, and this is the one number that can say so.
+  check(
+    results.ariaSetSize === String(results.dataCount),
+    `a row reports aria-setsize=${results.ariaSetSize} for a list of ${results.dataCount}`,
+  )
+  check(
+    Array.isArray(results.axeViolations) && results.axeViolations.length === 0,
+    `axe: ${JSON.stringify(results.axeViolations)}`,
+  )
+
   if (failures.length > 0) {
     console.error('list: the Web FlatList does not window as it should:\n')
     for (const failure of failures) console.error(`  - ${failure}`)
@@ -283,7 +324,8 @@ try {
   }
   console.log(
     `list: ${results.mountedAtRest} rows mounted of ${results.total} at rest, ` +
-      `${results.mountedScrolled} scrolled in; scrollToIndex, prepend and inverted all land`,
+      `${results.mountedScrolled} scrolled in; scrollToIndex, prepend and inverted all land; ` +
+      `focus survives a scroll away, aria-setsize=${results.ariaSetSize}, axe clean`,
   )
 } finally {
   rmSync(dist, { recursive: true, force: true })

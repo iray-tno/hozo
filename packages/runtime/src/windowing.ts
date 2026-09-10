@@ -385,3 +385,31 @@ export function anchorCorrection(
   if (index === -1) return 0
   return metrics.offsetAt(index) - anchor.offset
 }
+
+/**
+ * Rows kept mounted around the focused one, however the scroll window moved.
+ *
+ * Focus is not the viewport. A row can hold focus and be scrolled well out
+ * of sight, and unmounting it drops focus to `<body>` -- which is not a
+ * degraded experience but a lost place. Tabbing forward has the mirror
+ * problem: the last mounted row is the last row in the document, so there
+ * is nothing after it to move to.
+ *
+ * `FOCUS_MARGIN` is small on purpose. It is a landing strip either side of
+ * focus so a step past the edge has somewhere to go before the next
+ * recompute catches up -- not a second overscan window.
+ */
+export const FOCUS_MARGIN = 3
+
+export function withFocus(
+  window: WindowRange,
+  focusRow: number | null,
+  count: number,
+): WindowRange {
+  if (focusRow === null || count === 0) return window
+  if (focusRow < 0 || focusRow >= count) return window
+  return {
+    first: Math.max(0, Math.min(window.first, focusRow - FOCUS_MARGIN)),
+    last: Math.min(count - 1, Math.max(window.last, focusRow + FOCUS_MARGIN)),
+  }
+}

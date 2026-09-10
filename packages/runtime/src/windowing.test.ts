@@ -8,7 +8,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { anchorCorrection, anchorRow, initialRange, ListMetrics, windowRange } from './windowing.ts'
+import {
+  anchorCorrection,
+  anchorRow,
+  initialRange,
+  ListMetrics,
+  windowRange,
+  withFocus,
+} from './windowing.ts'
 
 /** `count` rows of `length` each, all measured. */
 function uniform(count: number, length: number, estimate = length): ListMetrics {
@@ -263,4 +270,31 @@ test('and an anchor that is gone asks for no correction at all', () => {
   const metrics = uniform(20, 100)
   const anchor = { key: 'k5', offset: 500 }
   assert.equal(anchorCorrection(anchor, ['a', 'b', 'c'], metrics), 0)
+})
+
+test('the focused row stays mounted however far the scroll moved from it', () => {
+  // Focus is not the viewport. Unmounting the row that holds it drops focus
+  // to `<body>`, which is not a degraded experience but a lost place.
+  const scrolled = { first: 400, last: 500 }
+  assert.deepEqual(withFocus(scrolled, 12, 1000), { first: 9, last: 500 })
+  assert.deepEqual(withFocus(scrolled, 900, 1000), { first: 400, last: 903 })
+})
+
+test('and it keeps rows on both sides of it, so a step past the edge lands', () => {
+  // Tabbing forward walks to the last mounted row and then to nothing,
+  // because there is nothing after it in the document.
+  const window = withFocus({ first: 0, last: 20 }, 20, 1000)
+  assert.ok(window.last > 20, `nothing after the focused row: ${JSON.stringify(window)}`)
+})
+
+test('a focus window never leaves the list', () => {
+  assert.deepEqual(withFocus({ first: 0, last: 4 }, 0, 5), { first: 0, last: 4 })
+  assert.deepEqual(withFocus({ first: 0, last: 4 }, 4, 5), { first: 0, last: 4 })
+})
+
+test('and no focus, or focus on a row that is gone, changes nothing', () => {
+  const window = { first: 10, last: 20 }
+  assert.deepEqual(withFocus(window, null, 100), window)
+  assert.deepEqual(withFocus(window, 500, 100), window, 'a row index the data no longer has')
+  assert.deepEqual(withFocus(window, 5, 0), window, 'an empty list')
 })
