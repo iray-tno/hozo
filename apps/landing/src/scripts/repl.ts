@@ -5,6 +5,11 @@
 // -- a visitor who reads the page and leaves pays nothing for it. See the
 // `wasm` profile in the workspace `Cargo.toml` for what that number was
 // traded against.
+import { CodeJar } from 'codejar'
+import Prism from 'prismjs'
+import 'prismjs/components/prism-jsx'
+import 'prismjs/components/prism-typescript'
+import 'prismjs/components/prism-tsx'
 
 interface ReplDiagnostic {
   code: string
@@ -80,7 +85,7 @@ const element = <T extends HTMLElement>(id: string): T => {
   return found as T
 }
 
-const source = element<HTMLTextAreaElement>('repl-source')
+const source = element<HTMLElement>('repl-source')
 const status = element('repl-status')
 const panes = {
   webJsx: element('repl-web-jsx'),
@@ -89,6 +94,19 @@ const panes = {
   nativeStyles: element('repl-native-styles'),
 }
 const diagnosticList = element('repl-diagnostics')
+
+const highlightTsx = (editor: HTMLElement) => {
+  const code = editor.textContent ?? ''
+  editor.innerHTML = Prism.highlight(code, Prism.languages.tsx ?? Prism.languages.javascript, 'tsx')
+}
+
+const jar = CodeJar(source, highlightTsx, {
+  tab: '  ',
+  spellcheck: false,
+})
+
+// Highlight initial source
+highlightTsx(source)
 
 /** `<`, `&` and the rest, since every pane writes compiled source. */
 function escaped(text: string): string {
@@ -143,18 +161,35 @@ function renderDiagnostics(text: string, found: ReplDiagnostic[]) {
 const joined = (parts: string[]) => parts.filter((part) => part.trim() !== '').join('\n\n')
 
 async function compile() {
-  const text = source.value
+  const text = jar.toString()
   status.textContent = 'Compiling…'
   try {
     const { compileWeb, compileNative } = await load()
     const web = JSON.parse(compileWeb(text)) as WebComponent[]
     const native = JSON.parse(compileNative(text)) as NativeComponent[]
 
-    panes.webJsx.textContent = joined(web.map((one) => one.jsx))
-    panes.webCss.textContent = joined(web.map((one) => one.css))
-    panes.nativeJsx.textContent = joined(native.map((one) => [...one.prelude, one.jsx].join('\n')))
-    panes.nativeStyles.textContent = joined(
+    const webJsxCode = joined(web.map((one) => one.jsx))
+    const webCssCode = joined(web.map((one) => one.css))
+    const nativeJsxCode = joined(native.map((one) => [...one.prelude, one.jsx].join('\n')))
+    const nativeStylesCode = joined(
       native.map((one) => (one.styles.trim() === '' ? '' : `StyleSheet.create(${one.styles})`)),
+    )
+
+    panes.webJsx.innerHTML = Prism.highlight(
+      webJsxCode,
+      Prism.languages.tsx ?? Prism.languages.javascript,
+      'tsx',
+    )
+    panes.webCss.innerHTML = Prism.highlight(webCssCode, Prism.languages.css, 'css')
+    panes.nativeJsx.innerHTML = Prism.highlight(
+      nativeJsxCode,
+      Prism.languages.tsx ?? Prism.languages.javascript,
+      'tsx',
+    )
+    panes.nativeStyles.innerHTML = Prism.highlight(
+      nativeStylesCode,
+      Prism.languages.tsx ?? Prism.languages.javascript,
+      'tsx',
     )
 
     // Both backends see the same source and mostly the same diagnostics;
@@ -191,12 +226,12 @@ async function compile() {
 // On a pause rather than on every keystroke. A compile is a fifth of a
 // millisecond, so this is about not repainting four panes mid-word.
 let pending: ReturnType<typeof setTimeout> | undefined
-source.addEventListener('input', () => {
+jar.onUpdate(() => {
   clearTimeout(pending)
   status.textContent = 'Typing…'
   pending = setTimeout(compile, 250)
 })
 
 // The first compile is the one that fetches the module, and it happens
-// because the textarea starts with something in it.
+// because the editor starts with something in it.
 void compile()

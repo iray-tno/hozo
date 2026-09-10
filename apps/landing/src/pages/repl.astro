@@ -7,9 +7,10 @@
 // two answers whole, because a REPL that says a file compiles while the
 // build says it does not is worse than no REPL.
 //
-// A textarea rather than an editor. Monaco is more than twice the size of
-// the compiler, and what this page has to answer -- what does this become,
-// and what does the compiler have to say about it -- needs none of it.
+// An ultra-lightweight micro-editor (CodeJar ~2KB + PrismJS ~15KB) rather than
+// Monaco. Monaco is more than twice the size of the compiler (5-10MB+), whereas
+// CodeJar and PrismJS provide instant syntax highlighting, tab indentation, and
+// clean caret handling with under 20KB footprint.
 import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import '../styles/global.css'
@@ -82,13 +83,13 @@ const PANES = [
             <h2 class="text-sm font-semibold text-slate-300">Source</h2>
             <span id="repl-status" class="font-mono text-xs text-slate-500">Loading…</span>
           </header>
-          <textarea
+          <div
             id="repl-source"
-            spellcheck="false"
+            role="textbox"
+            aria-multiline="true"
             aria-label="TSX to compile"
-            class="w-full h-[22rem] lg:h-[34rem] rounded-xl bg-slate-950/80 border border-white/10 p-4 font-mono text-sm text-slate-200 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-            >{EXAMPLE}</textarea
-          >
+            class="w-full h-[22rem] lg:h-[34rem] rounded-xl bg-slate-950/80 border border-white/10 p-4 font-mono text-sm text-slate-200 leading-relaxed overflow-auto focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
+          >{EXAMPLE}</div>
 
           <h2 class="text-sm font-semibold text-slate-300 mt-6 mb-2">Diagnostics</h2>
           <div id="repl-diagnostics" class="flex flex-col gap-2">
@@ -119,5 +120,62 @@ const PANES = [
     <script>
       import '../scripts/repl.ts'
     </script>
+    <style is:global>
+      /* Prism Syntax Highlighting - Hozo Timber Palette */
+      .token.comment,
+      .token.prolog,
+      .token.doctype,
+      .token.cdata {
+        color: #64748b;
+        font-style: italic;
+      }
+      .token.punctuation {
+        color: #94a3b8;
+      }
+      .token.property,
+      .token.tag,
+      .token.boolean,
+      .token.number,
+      .token.constant,
+      .token.symbol,
+      .token.deleted {
+        color: #f43f5e;
+      }
+      .token.selector,
+      .token.attr-name,
+      .token.string,
+      .token.char,
+      .token.builtin,
+      .token.inserted {
+        color: #34d399;
+      }
+      .token.operator,
+      .token.entity,
+      .token.url {
+        color: #cbd5e1;
+      }
+      .token.atrule,
+      .token.attr-value,
+      .token.keyword {
+        color: #c8a882;
+      }
+      .token.function,
+      .token.class-name {
+        color: #38bdf8;
+      }
+      .token.regex,
+      .token.important,
+      .token.variable {
+        color: #fb923c;
+      }
+
+      /* CodeJar container styles */
+      #repl-source {
+        tab-size: 2;
+        -moz-tab-size: 2;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
   </body>
 </html>
