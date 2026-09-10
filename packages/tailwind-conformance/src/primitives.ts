@@ -43,3 +43,44 @@ export function declaredPrimitives(): string[] {
   if (names.length === 0) throw new Error('the `Primitive` enum parsed as empty')
   return [...new Set(names)].sort()
 }
+
+export interface DeclaredPrimitive {
+  name: string
+  /** The doc comment above the variant, as one line. Empty when there is none. */
+  doc: string
+}
+
+/**
+ * Every variant with what the enum says about it.
+ *
+ * The doc comments are the only place the *intent* of a primitive is
+ * written down -- "a landmark header/banner: `<header>` on Web and
+ * `role="banner"` `View` on React Native" -- and they sit next to the
+ * declaration, which is the one place that cannot drift from the set.
+ * What a primitive actually compiles to is derived by asking the compiler;
+ * this is the half that has to be read.
+ */
+export function declaredPrimitivesWithDocs(): DeclaredPrimitive[] {
+  const source = readFileSync(path.join(repoRoot(), 'crates', 'hozo_ir', 'src', 'lib.rs'), 'utf8')
+  const start = source.indexOf('pub enum Primitive {')
+  if (start === -1) throw new Error('no `Primitive` enum in hozo_ir')
+  const body = source.slice(start, source.indexOf('\n}', start))
+
+  const found: DeclaredPrimitive[] = []
+  let doc: string[] = []
+  for (const line of body.split('\n')) {
+    const comment = /^\s*\/\/\/ ?(.*)$/.exec(line)
+    if (comment) {
+      doc.push(comment[1] as string)
+      continue
+    }
+    const variant = /^ {4}([A-Z][A-Za-z]*)[,(]/.exec(line)
+    if (variant) {
+      found.push({ name: variant[1] as string, doc: doc.join(' ').replace(/\s+/g, ' ').trim() })
+    }
+    // A blank line or the variant itself ends the run either way.
+    doc = []
+  }
+  if (found.length === 0) throw new Error('the `Primitive` enum parsed as empty')
+  return found.sort((a, b) => a.name.localeCompare(b.name))
+}

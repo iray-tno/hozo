@@ -422,6 +422,12 @@ Grid shorthand/line conflicts also remain explicit `STYLEX_NOT_LOWERED` gaps:
 their Native result needs runtime context or a more expressive Grid IR, so Hozo
 does not approximate them.
 
+### Every primitive, and what it becomes
+
+[`docs/primitives.md`](docs/primitives.md) lists all 54, with what each one compiles to on the Web and on React Native and which conformance case pins it. It is **generated** — `pnpm docs:primitives` — by compiling one snippet per primitive through both backends, so it cannot describe a lowering the compiler does not do. Adding a primitive without a snippet or a doc comment fails rather than leaving a hole, and CI checks the page is current.
+
+The half worth reading is where a role has to be written on one side and not the other: 17 of the 54. A `<nav>` is a navigation landmark because it is a `<nav>`; React Native has no elements, so every role it keeps is one the compiler put there — and the ones it has no word for are the ones genuinely lost.
+
 ### A box is a column, and `flex` does not change that
 
 The one thing a Web developer trips over. In a browser, `display: flex` on a `<div>` lays its children out in a **row**, because that is CSS's initial value. Hozo's boxes are not `<div>`s — they lower to a React Native `View`, whose direction is **column**, and the Web base follows React Native rather than the other way round. `react-native-web` makes the same choice, and applies it to `<nav>` and `<section>` as well as to `<div>`.
