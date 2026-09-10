@@ -17,7 +17,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-4xl mx-auto flex flex-col items-center">
           {/* Architectural eyebrow tagline (Text-only) */}
-          <View className="inline-flex items-center gap-2 mb-8">
+          <View className="inline-flex flex-row items-center gap-2 mb-8">
             <View className="flex h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
             <Text className="text-xs sm:text-sm font-bold uppercase tracking-widest text-hinoki">
               Rust-powered Universal UI Compiler
@@ -47,10 +47,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           </View>
 
           {/* CTA Links */}
-          <View className="flex flex-wrap items-center justify-center gap-4 mb-12">
+          <View className="flex flex-row flex-wrap items-center justify-center gap-4 mb-12">
             <Link
               href={`${cleanBase}/repl/`}
-              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-bengara hover:bg-bengara-hover shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
+              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-bengara hover:bg-bengara-hover shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
               <span>Try the REPL</span>
               <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-yakisugi-950 text-hinoki-light border border-wood">
@@ -59,20 +59,20 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </Link>
             <Link
               href={storybookUrl}
-              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
+              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
               <span>Explore Storybook</span>
             </Link>
             <Link
               href={`${cleanBase}/conformance/`}
-              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2"
+              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
               <span>View Conformance</span>
             </Link>
           </View>
 
           {/* Quick Command Snippet */}
-          <View className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-yakisugi-950 border border-wood text-xs text-shikkui-muted shadow-2xl backdrop-blur-md">
+          <View className="inline-flex flex-row items-center gap-3 px-4 py-2.5 rounded-xl bg-yakisugi-950 border border-wood text-xs text-shikkui-muted shadow-2xl backdrop-blur-md">
             <Text className="text-hinoki font-bold select-none">$</Text>
             <Text className="text-shikkui font-medium">pnpm add -D @hozo/vite @hozo/compiler</Text>
             <Text className="text-stone-600">|</Text>

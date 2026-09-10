@@ -28,7 +28,7 @@ export function TieredStyles() {
           {/* Tier 1 */}
           <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-tatami-light border-x border-b border-wood flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Text className="text-xs font-bold px-2.5 py-1 rounded bg-tatami-subtle text-tatami-light border border-tatami-subtle">
                   Tier 1 • Static
                 </Text>
@@ -70,7 +70,7 @@ export function TieredStyles() {
           {/* Tier 2 */}
           <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-hinoki border-x border-b border-wood flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Text className="text-xs font-bold px-2.5 py-1 rounded bg-wood-subtle text-hinoki-light border border-wood">
                   Tier 2 • Structural
                 </Text>
@@ -112,7 +112,7 @@ export function TieredStyles() {
           {/* Tier 3 */}
           <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-bengara border-x border-b border-wood flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Text className="text-xs font-bold px-2.5 py-1 rounded bg-bengara-subtle text-bengara-hover border border-bengara-subtle">
                   Tier 3 • Dynamic
                 </Text>

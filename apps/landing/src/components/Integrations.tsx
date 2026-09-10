@@ -36,10 +36,10 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           {/* Vite */}
           <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
-                  className="text-lg font-bold text-shikkui flex items-center gap-2"
+                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
                   <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-hinoki flex items-center justify-center font-mono text-xs font-bold border border-wood-strong">
                     V
@@ -79,10 +79,10 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           {/* Next.js */}
           <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
-                  className="text-lg font-bold text-shikkui flex items-center gap-2"
+                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
                   <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-shikkui flex items-center justify-center font-mono text-xs font-bold border border-wood">
                     N
@@ -118,10 +118,10 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           {/* Metro (Expo / React Native) */}
           <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
-                  className="text-lg font-bold text-shikkui flex items-center gap-2"
+                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
                   <Text className="w-7 h-7 rounded-lg bg-tatami-subtle text-tatami-light flex items-center justify-center font-mono text-xs font-bold border border-tatami-subtle">
                     M
@@ -155,10 +155,10 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           {/* Storybook */}
           <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
-                  className="text-lg font-bold text-shikkui flex items-center gap-2"
+                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
                   <Text className="w-7 h-7 rounded-lg bg-bengara-subtle text-bengara flex items-center justify-center font-mono text-xs font-bold border border-bengara-subtle">
                     S
@@ -186,7 +186,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
               </pre>
               <Link
                 href={storybookUrl}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-bengara hover:text-bengara-hover transition-colors"
+                className="inline-flex flex-row items-center gap-1.5 text-xs font-semibold text-bengara hover:text-bengara-hover transition-colors"
               >
                 <Text>Open Storybook Preview</Text>
                 <Text>&rarr;</Text>
@@ -197,10 +197,10 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           {/* TanStack Start */}
           <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
-                  className="text-lg font-bold text-shikkui flex items-center gap-2"
+                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
                   <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-hinoki-light flex items-center justify-center font-mono text-xs font-bold border border-wood">
                     T
@@ -235,10 +235,10 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           {/* Conformance */}
           <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
             <View>
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
-                  className="text-lg font-bold text-shikkui flex items-center gap-2"
+                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
                   <Text className="w-7 h-7 rounded-lg bg-tatami-subtle text-tatami-light flex items-center justify-center font-mono text-xs font-bold border border-tatami-subtle">
                     C
@@ -256,7 +256,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
               </View>
               <Link
                 href={conformanceUrl}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-hinoki hover:text-hinoki-light transition-colors"
+                className="inline-flex flex-row items-center gap-1.5 text-xs font-semibold text-hinoki hover:text-hinoki-light transition-colors"
               >
                 <Text>Open Conformance Matrix</Text>
                 <Text>&rarr;</Text>

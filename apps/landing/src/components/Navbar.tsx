@@ -13,9 +13,9 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
       role="banner"
       className="fixed top-0 left-0 right-0 z-50 border-b border-wood bg-yakisugi-header backdrop-blur-md"
     >
-      <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <View className="flex items-center gap-3">
-          <Link href={homeUrl} className="flex items-center gap-2 group">
+      <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex flex-row items-center justify-between">
+        <View className="flex flex-row items-center gap-3">
+          <Link href={homeUrl} className="flex flex-row items-center gap-2 group">
             <View className="w-8 h-8 rounded-lg bg-gradient-to-br from-hinoki-light via-hinoki to-kuri flex items-center justify-center p-0.5 shadow-md group-hover:scale-105 transition-transform">
               <View className="w-full h-full bg-yakisugi-950 rounded-[6px] flex items-center justify-center font-bold text-shikkui tracking-tighter text-sm">
                 <Text>HZ</Text>
@@ -28,31 +28,31 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
           </Link>
         </View>
 
-        <Nav className="hidden md:flex items-center gap-8 text-sm text-shikkui-muted font-medium">
+        <Nav className="hidden md:flex md:flex-row items-center gap-8 text-sm text-shikkui-muted font-medium">
           <Link
             href={`${cleanBase}/conformance/`}
-            className="text-hinoki hover:text-hinoki-light font-semibold flex items-center gap-1.5 transition-colors"
+            className="text-hinoki hover:text-hinoki-light font-semibold flex flex-row items-center gap-1.5 transition-colors"
           >
             <View className="w-2 h-2 rounded-full bg-hinoki" />
             <Text>Conformance</Text>
           </Link>
           <Link
             href={`${cleanBase}/repl/`}
-            className="text-bengara hover:text-bengara-hover font-semibold flex items-center gap-1.5 transition-colors"
+            className="text-bengara hover:text-bengara-hover font-semibold flex flex-row items-center gap-1.5 transition-colors"
           >
             <View className="w-2 h-2 rounded-full bg-bengara" />
             <Text>REPL</Text>
           </Link>
           <Link
             href={`${cleanBase}/storybook/`}
-            className="text-tatami-light hover:text-shikkui font-semibold flex items-center gap-1.5 transition-colors"
+            className="text-tatami-light hover:text-shikkui font-semibold flex flex-row items-center gap-1.5 transition-colors"
           >
             <View className="w-2 h-2 rounded-full bg-tatami" />
             <Text>Storybook</Text>
           </Link>
           <Link
             href={`${cleanBase}/reports/`}
-            className="text-hinoki-light hover:text-shikkui font-semibold flex items-center gap-1.5 transition-colors"
+            className="text-hinoki-light hover:text-shikkui font-semibold flex flex-row items-center gap-1.5 transition-colors"
           >
             <View className="w-2 h-2 rounded-full bg-hinoki-light" />
             <Text>Reports</Text>
@@ -77,16 +77,16 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
           </Link>
         </Nav>
 
-        <View className="flex items-center gap-2 sm:gap-3">
+        <View className="flex flex-row items-center gap-2 sm:gap-3">
           <Link
             href={`${cleanBase}/repl/`}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-bengara hover:bg-bengara-hover text-shikkui shadow-sm transition-all md:hidden"
+            className="inline-flex flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-bengara hover:bg-bengara-hover text-shikkui shadow-sm transition-all md:hidden"
           >
             <Text>REPL</Text>
           </Link>
           <Link
             href="https://github.com/iray-tno/hozo"
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-yakisugi-800 hover:bg-yakisugi-700 text-shikkui border border-wood hover:border-wood-strong transition-all"
+            className="inline-flex flex-row items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-yakisugi-800 hover:bg-yakisugi-700 text-shikkui border border-wood hover:border-wood-strong transition-all"
           >
             <svg
               className="w-4 h-4 fill-current text-hinoki"

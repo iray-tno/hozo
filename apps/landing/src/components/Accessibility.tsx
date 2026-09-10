@@ -66,12 +66,12 @@ export function Accessibility() {
             </View>
 
             <List className="mt-6 text-xs text-stone-400 space-y-2 border-t border-wood pt-4 list-none p-0 m-0">
-              <ListItem className="flex items-center gap-2">
+              <ListItem className="flex flex-row items-center gap-2">
                 <Text className="text-tatami-light">✓</Text> Automatic semantic mapping (
                 <code className="text-shikkui-muted">header &rarr; heading</code>,{' '}
                 <code className="text-shikkui-muted">search &rarr; searchbox</code>)
               </ListItem>
-              <ListItem className="flex items-center gap-2">
+              <ListItem className="flex flex-row items-center gap-2">
                 <Text className="text-tatami-light">✓</Text> Abstract role warnings (
                 <code className="text-shikkui-muted">role="widget"</code>)
               </ListItem>
@@ -106,26 +106,26 @@ export function Accessibility() {
               </Paragraph>
 
               <View className="grid grid-cols-2 gap-3 font-mono text-xs">
-                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex items-center gap-2">
+                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-hinoki" /> Dialog & Modal
                 </View>
-                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex items-center gap-2">
+                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-tatami-light" /> Combobox & Listbox
                 </View>
-                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex items-center gap-2">
+                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-bengara" /> Tabs & Panels
                 </View>
-                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex items-center gap-2">
+                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-hinoki-light" /> Menu & Toolbar
                 </View>
               </View>
             </View>
 
             <List className="mt-6 text-xs text-stone-400 space-y-2 border-t border-wood pt-4 list-none p-0 m-0">
-              <ListItem className="flex items-center gap-2">
+              <ListItem className="flex flex-row items-center gap-2">
                 <Text className="text-tatami-light">✓</Text> WAI-ARIA compliant keyboard listeners
               </ListItem>
-              <ListItem className="flex items-center gap-2">
+              <ListItem className="flex flex-row items-center gap-2">
                 <Text className="text-tatami-light">✓</Text> Deterministic focus restoration on
                 dismissal
               </ListItem>

@@ -58,7 +58,7 @@ export function Architecture() {
 
             {/* Level 2: Rust Compiler Core */}
             <View className="p-6 rounded-xl bg-yakisugi-950 border border-wood-strong">
-              <View className="flex items-center justify-between mb-4">
+              <View className="flex flex-row items-center justify-between mb-4">
                 <Text className="text-xs font-mono font-bold text-hinoki uppercase tracking-widest">
                   Rust Compiler Engine
                 </Text>
@@ -110,7 +110,7 @@ export function Architecture() {
             <View className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Web Backend */}
               <View className="p-5 rounded-xl bg-yakisugi-900 border border-wood">
-                <View className="flex items-center justify-between mb-2">
+                <View className="flex flex-row items-center justify-between mb-2">
                   <Text className="text-xs font-mono font-bold text-hinoki-light">Web Backend</Text>
                   <Text className="text-[10px] font-mono text-stone-400">crates/hozo_web</Text>
                 </View>
@@ -125,7 +125,7 @@ export function Architecture() {
 
               {/* Native Backend */}
               <View className="p-5 rounded-xl bg-yakisugi-900 border border-tatami-subtle">
-                <View className="flex items-center justify-between mb-2">
+                <View className="flex flex-row items-center justify-between mb-2">
                   <Text className="text-xs font-mono font-bold text-tatami-light">
                     Native Backend
                   </Text>
