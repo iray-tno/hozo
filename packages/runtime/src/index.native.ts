@@ -37,6 +37,12 @@ export {
   hozoTextChildren,
 } from '@hozo/behaviors'
 export {
+  TextInput as HozoTextInput,
+  TextInput,
+  type TextInputProps as HozoTextInputProps,
+  type TextInputProps,
+} from 'react-native'
+export {
   HozoActivityIndicator,
   type HozoActivityIndicatorProps,
 } from './activity-indicator.native.ts'

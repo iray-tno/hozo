@@ -405,7 +405,7 @@ The categories are ownership decisions, not claims that every counted use is liv
 
 ### Hozo core gaps
 
-These are surfaces Hozo already claims to lower or bridge. The remaining uses are runtime component values rather than JSX tags: Pressable is passed as a component/default or to animation wrappers, and TextInput is passed to an app-owned component factory. Supporting those contracts requires value-level Web components, not another JSX rule.
+These are surfaces Hozo already claims to lower or bridge. Rows here are runtime component values rather than JSX tags—for example, components passed as defaults, factory inputs, or animation wrappers. Supporting those contracts requires value-level Web components, not another JSX rule.
 
 ${appApiTable(appApis, coreApiOwnership)}
 
