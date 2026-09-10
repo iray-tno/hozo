@@ -118,7 +118,8 @@ server.listen(0, () => {
 
       const paneText = (id) => {
         const match = new RegExp(`id="${id}"[^>]*>([\\s\\S]*?)</pre>`).exec(dom)
-        return match ? match[1].trim() : ''
+        // Strip syntax highlighting spans so assertions check decoded text content
+        return match ? match[1].replace(/<[^>]+>/g, '').trim() : ''
       }
 
       const failures = []
