@@ -153,6 +153,7 @@ export {
 export { hozoActivateKeyDown, hozoActivateKeyUp } from './activate.ts'
 export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.ts'
 export { hozoInteractive } from './interactive.ts'
+export { Keyboard, type KeyboardSubscription } from './keyboard.ts'
 export { externalLinkAttributes, HozoLink, type HozoLinkProps } from './link.ts'
 export { Platform, type PlatformSelectSpec } from './platform.ts'
 export { hozoScrollable } from './scrollable.ts'

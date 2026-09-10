@@ -84,13 +84,13 @@ export const flatten = StyleSheet.flatten
 })
 
 test('RNW-free API lowering can move more than one owned runtime value', () => {
-  const source = `import { Platform, StyleSheet, View } from 'react-native'
+  const source = `import { Keyboard, Platform, StyleSheet, View } from 'react-native'
 const styles = StyleSheet.create({ card: { padding: Platform.select({ web: 8, default: 4 }) } })
-export const Page = () => <View style={styles.card} />
+export const Page = () => <View onClick={() => Keyboard.dismiss()} style={styles.card} />
 `
   const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true })!
   assert.match(lowered.code, /import \{ View \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ Platform, StyleSheet \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /import \{ Keyboard, Platform, StyleSheet \} from '@hozo\/runtime'/)
 })
 
 test('RNW-free mode identifies namespace JSX by its imported root', () => {
