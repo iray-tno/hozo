@@ -53,8 +53,8 @@
   "a11yContracts": {
     "cases": 33,
     "covered": 33,
-    "primitives": 48,
-    "uncontracted": 0
+    "primitives": 54,
+    "uncontracted": 6
   },
   "ariaRoles": {
     "roles": 113,
@@ -63,8 +63,8 @@
     "falsePositives": 0
   },
   "diagnostics": {
-    "declared": 30,
-    "fires": 28,
+    "declared": 31,
+    "fires": 29,
     "silent": 0,
     "noCase": 1,
     "unreachable": 1

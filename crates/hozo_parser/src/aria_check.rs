@@ -1314,7 +1314,7 @@ mod form_state_tests {
         // difference is which thing is at fault. These are built, the CSS
         // is correct, and the rule will never apply because a `<div>`
         // cannot be required.
-        for class_name in ["required:flex", "invalid:flex", "read-only:flex"] {
+        for class_name in ["required:p-4", "invalid:p-4", "read-only:p-4"] {
             assert_eq!(
                 codes("View", class_name),
                 vec![DiagnosticCode::TailwindVariantCannotMatch],
@@ -1324,11 +1324,11 @@ mod form_state_tests {
         // Including under a wrapper that doesn't change which element is
         // being talked about.
         assert_eq!(
-            codes("View", "md:required:flex"),
+            codes("View", "md:required:p-4"),
             vec![DiagnosticCode::TailwindVariantCannotMatch],
         );
         assert_eq!(
-            codes("View", "not-invalid:flex"),
+            codes("View", "not-invalid:p-4"),
             vec![DiagnosticCode::TailwindVariantCannotMatch],
         );
     }
@@ -1340,7 +1340,7 @@ mod form_state_tests {
         // matches the link it was written for, and the browser throws the
         // declaration away because keeping it would leak the user's
         // history.
-        for class_name in ["visited:flex", "visited:p-4", "visited:shadow-lg"] {
+        for class_name in ["visited:hidden", "visited:p-4", "visited:shadow-lg"] {
             assert_eq!(
                 codes("View", class_name),
                 vec![DiagnosticCode::VisitedStyleIgnored],
@@ -1371,13 +1371,13 @@ mod form_state_tests {
         // a descendant. Whether *those* are form controls is not something
         // this element's primitive can answer, so saying anything would be
         // a guess.
-        assert!(codes("View", "group-invalid:flex").is_empty());
-        assert!(codes("View", "has-[:invalid]:flex").is_empty());
+        assert!(codes("View", "group-invalid:p-4").is_empty());
+        assert!(codes("View", "has-[:invalid]:p-4").is_empty());
     }
 
     #[test]
     fn on_the_one_primitive_that_is_a_form_control_nothing_is_said() {
-        for class_name in ["required:flex", "invalid:flex", "placeholder-shown:flex"] {
+        for class_name in ["required:p-4", "invalid:p-4", "placeholder-shown:p-4"] {
             assert!(codes("TextInput", class_name).is_empty(), "{class_name}");
         }
     }
@@ -1386,7 +1386,7 @@ mod form_state_tests {
     fn the_three_that_need_a_control_hozo_does_not_have_stay_refused() {
         // Rule 2 of decision 003, unchanged: no primitive becomes a
         // checkbox, a radio, or a form's default button.
-        for class_name in ["checked:flex", "indeterminate:flex", "default:flex"] {
+        for class_name in ["checked:p-4", "indeterminate:p-4", "default:p-4"] {
             assert_eq!(
                 codes("TextInput", class_name),
                 vec![DiagnosticCode::TailwindVariantNotSupported],
