@@ -129,6 +129,9 @@
 .bg-glow-bengara {
   background-color: rgba(158, 61, 49, 0.08);
 }
+.bg-yakisugi-header {
+  background-color: rgba(16, 15, 14, 0.92);
+}
 
 /* Hinoki gold to Shikkui plaster gradient */
 .gradient-text {

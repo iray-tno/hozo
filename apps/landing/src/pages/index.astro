@@ -2,10 +2,10 @@
 import { Accessibility } from '../components/Accessibility.tsx'
 import { Architecture } from '../components/Architecture.tsx'
 import { CodeShowcase } from '../components/CodeShowcase.tsx'
-import Footer from '../components/Footer.astro'
+import { Footer } from '../components/Footer.tsx'
 import { Hero } from '../components/Hero.tsx'
-import Integrations from '../components/Integrations.astro'
-import Navbar from '../components/Navbar.astro'
+import { Integrations } from '../components/Integrations.tsx'
+import { Navbar } from '../components/Navbar.tsx'
 import { Philosophy } from '../components/Philosophy.tsx'
 import { StaticCard } from '../components/StaticCard.tsx'
 import { TieredStyles } from '../components/TieredStyles.tsx'
@@ -35,7 +35,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
     />
   </head>
   <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
-    <Navbar />
+    <Navbar baseUrl={baseUrl} />
     <main>
       <Hero baseUrl={baseUrl} />
       <Philosophy />
@@ -47,9 +47,9 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
       </div>
       <CodeShowcase />
       <Accessibility />
-      <Integrations />
+      <Integrations baseUrl={baseUrl} />
       <Architecture />
     </main>
-    <Footer />
+    <Footer baseUrl={baseUrl} />
   </body>
 </html>
