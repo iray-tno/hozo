@@ -216,17 +216,20 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
   },
   {
     name: 'virtualized list semantics',
-    purpose: 'a long list keeps its list role on Native and its runtime component on Web',
-    // Asymmetric on purpose, and worth pinning because it looks like a gap.
-    // Web lowers to the RNW-free `HozoFlatList` runtime component, whose
-    // semantics are that component's to provide, while
-    // Native lowers to React Native's and adds the role its own list
-    // primitive would have carried.
+    purpose: 'a long list reaches both platforms as a runtime component that knows its length',
+    // Symmetric now, and it was not. Web lowered to the RNW-free
+    // `HozoFlatList` and Native to React Native's own list, and the
+    // asymmetry was pinned here as deliberate. It cost something: a
+    // windowed list has a length its accessibility tree does not, and the
+    // prop that tells Android otherwise -- `accessibilityCollection` -- is
+    // not something a list can set for itself from inside `renderItem`. So
+    // both sides go through `@hozo/runtime` now, and the role Native adds
+    // is still added.
     source:
       '<FlatList accessibilityLabel="Rows" data={rows} ' +
       'renderItem={({ item }) => <Text>{item}</Text>} />',
     web: ['<HozoFlatList accessibilityLabel={"Rows"}'],
-    native: ['<FlatList accessibilityRole="list" accessibilityLabel={"Rows"}'],
+    native: ['<HozoFlatList accessibilityRole="list" accessibilityLabel={"Rows"}'],
   },
   {
     name: 'named drawing',

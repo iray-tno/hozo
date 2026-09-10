@@ -83,3 +83,13 @@ Windowing takes rows out of the document, and the accessibility tree is the docu
 The escape hatch for the last one is not more JavaScript: `content-visibility: auto` with `contain-intrinsic-size` leaves every row in the document and lets the browser skip its layout and paint, so the accessibility tree and Ctrl+F keep working while the cost of a long list mostly does not. It trades memory for that. Hozo does not choose it yet — measuring the trade properly, and against real browser support, is its own piece of work.
 
 `scripts/check-list.mjs` asks a browser about the first three: it focuses a row, scrolls ten thousand rows away, checks focus is still on the same row with rows mounted after it, reads `aria-setsize` off the DOM, and runs axe over the result.
+
+### The Native list is told how long it is too
+
+A React Native `FlatList` has the same problem the Web one does: it mounts the rows near the viewport, so TalkBack counts those and announces them. A ten-thousand-row feed reports however many cells happen to exist.
+
+Android has an answer and React Native does not document it. `accessibilityCollection` and `accessibilityCollectionItem` are registered as native props in `BaseViewConfig.android.js`, stored as tags by `BaseViewManager`, and read back into `AccessibilityNodeInfo.setCollectionInfo` by `ReactScrollViewAccessibilityDelegate` — which even works out which children are on screen. Neither appears in any `.d.ts` or in the documentation, so nothing that is not looking for them will find them.
+
+So `HozoFlatList` sets them, and the compiler emits `HozoFlatList` rather than React Native's list for exactly that reason. React Native's list is still what renders; the per-item position goes on the view the list already wraps each cell in, through its own `CellRendererComponent`, so nothing is nested more deeply than before.
+
+**iOS gets nothing, and that is not an oversight.** `BaseViewConfig.ios.js` registers neither prop and `React/Views` implements neither, so there is nowhere to send them. VoiceOver is told how long a React Native list is by nothing at all. Closing that needs a `UIAccessibilityContainer` shim in native code — see #353 — or React Native to grow the prop.

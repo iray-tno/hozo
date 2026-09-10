@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import { test } from 'node:test'
 
 import { renderNative, renderNativeWithLayouts, type Tree } from './native-render.ts'
+
+const require = createRequire(import.meta.url)
 
 function children(tree: Tree): Tree[] {
   return ((tree?.children ?? []) as (Tree | string)[]).filter(
@@ -383,4 +386,92 @@ test('focus-visible installs modality events only on an interaction that asks fo
   assert.equal(typeof tree?.props.onPointerDown, 'function')
   assert.equal(typeof tree?.props.onKeyDown, 'function')
   assert.equal(typeof tree?.props.style, 'function')
+})
+
+test('a compiled list tells Android how long it is', () => {
+  // A windowed list has a length its accessibility tree does not. React
+  // Native mounts the rows near the viewport and TalkBack counts those, so a
+  // ten-thousand-row feed announces however many cells happen to exist.
+  //
+  // `accessibilityCollection` is what says otherwise, and it is real but
+  // undocumented: `BaseViewConfig.android.js` registers it as a native prop,
+  // `BaseViewManager` stores it as a tag, and
+  // `ReactScrollViewAccessibilityDelegate` reads it back into
+  // `AccessibilityNodeInfo.setCollectionInfo` -- while React Native's own
+  // `.d.ts` files mention it nowhere. So it is checked rather than trusted: a
+  // prop nothing types is a prop that can be renamed without anything
+  // noticing.
+  //
+  // Rendered as Android, because the props only exist there and the stub
+  // reports `ios`. Without this the assertions below would all be about
+  // `undefined` -- which is how a test comes to compare nothing at all.
+  const platform = require('react-native').Platform as { OS: string }
+  const was = platform.OS
+  platform.OS = 'android'
+  try {
+    const tree = renderNative(
+      `
+      import { FlatList, Text } from '@hozo/core'
+      export function Rows() {
+        return <FlatList className="h-40" numColumns={2} data={rows} renderItem={({ item }) => <Text className="p-2">{item}</Text>} />
+      }
+      `,
+      'Rows',
+      { rows: ['One', 'Two', 'Three'] },
+    )
+    // Still React Native's list that renders, reached through the wrapper the
+    // compiler emits: the tree is the shape it always was.
+    assert.equal(tree?.type, 'FlatList')
+    assert.equal(tree?.props.accessibilityRole, 'list')
+    assert.deepEqual(tree?.props.data, ['One', 'Two', 'Three'])
+    assert.deepEqual(tree?.props.accessibilityCollection, {
+      itemCount: 3,
+      // Two columns, three items: two rows, the second half full.
+      rowCount: 2,
+      columnCount: 2,
+      hierarchical: false,
+    })
+
+    // And each cell says where it sits, through React Native's own
+    // `CellRendererComponent` rather than a second view nested inside one.
+    const Cell = tree?.props.CellRendererComponent as
+      | ((props: Record<string, unknown>) => { props: Record<string, unknown> })
+      | undefined
+    assert.equal(typeof Cell, 'function')
+    assert.deepEqual(Cell!({ index: 3, children: null }).props.accessibilityCollectionItem, {
+      rowIndex: 1,
+      columnIndex: 1,
+      rowSpan: 1,
+      columnSpan: 1,
+      heading: false,
+    })
+    // The handlers `VirtualizedList` measures and follows focus with have to
+    // survive the cell: swallowing either would break the list to describe it.
+    const onLayout = () => {}
+    const onFocusCapture = () => {}
+    const cell = Cell!({ index: 0, children: null, onLayout, onFocusCapture })
+    assert.equal(cell.props.onLayout, onLayout)
+    assert.equal(cell.props.onFocusCapture, onFocusCapture)
+  } finally {
+    platform.OS = was
+  }
+})
+
+test('and says nothing of the sort on iOS, because there is nothing to say it to', () => {
+  // `BaseViewConfig.ios.js` registers neither prop and `React/Views` has no
+  // implementation of either, so sending them would be sending them nowhere.
+  // Asserted rather than assumed: a prop that is merely ignored today is a
+  // prop that starts meaning something tomorrow.
+  const tree = renderNative(
+    `
+    import { FlatList, Text } from '@hozo/core'
+    export function Rows() {
+      return <FlatList data={rows} renderItem={({ item }) => <Text className="p-2">{item}</Text>} />
+    }
+    `,
+    'Rows',
+    { rows: ['One'] },
+  )
+  assert.equal(tree?.props.accessibilityCollection, undefined)
+  assert.equal(tree?.props.CellRendererComponent, undefined)
 })
