@@ -15,7 +15,7 @@ export function Footer({ baseUrl = '' }: FooterProps) {
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <View className="flex items-center gap-3">
+          <View className="flex flex-row items-center gap-3">
             <View className="w-7 h-7 rounded-lg bg-gradient-to-br from-hinoki-light to-kuri flex items-center justify-center p-0.5 shadow-md">
               <View className="w-full h-full bg-yakisugi-950 rounded-[5px] flex items-center justify-center font-bold text-shikkui tracking-tighter text-xs">
                 <Text>HZ</Text>
@@ -25,7 +25,7 @@ export function Footer({ baseUrl = '' }: FooterProps) {
             <Text className="text-xs text-stone-500">| Universal UI Compiler</Text>
           </View>
 
-          <View className="flex flex-wrap items-center justify-center md:justify-start gap-5 sm:gap-6 text-xs font-medium">
+          <View className="flex flex-row flex-wrap items-center justify-center md:justify-start gap-5 sm:gap-6 text-xs font-medium">
             <Link
               href={`${cleanBase}/repl/`}
               className="hover:text-bengara text-shikkui-muted transition-colors"

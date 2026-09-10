@@ -27,8 +27,8 @@ export function CodeShowcase() {
         <View className="rounded-2xl border border-wood bg-yakisugi-950 overflow-hidden shadow-2xl max-w-6xl mx-auto">
           {/* Top Bar: Source Input (Architectural Wooden Lintel / Nageshi) */}
           <View className="border-b border-wood p-4 sm:p-6 bg-yakisugi-900 timber-grain timber-plank">
-            <View className="flex items-center justify-between mb-3">
-              <View className="flex items-center gap-2">
+            <View className="flex flex-row items-center justify-between mb-3">
+              <View className="flex flex-row items-center gap-2">
                 <View className="w-3 h-3 rounded-full bg-bengara" />
                 <View className="w-3 h-3 rounded-full bg-hinoki" />
                 <View className="w-3 h-3 rounded-full bg-tatami-light" />
@@ -97,8 +97,8 @@ export function CodeShowcase() {
           <View className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-800">
             {/* Left: Web Output */}
             <View className="p-4 sm:p-6 bg-yakisugi-950">
-              <View className="flex items-center justify-between mb-3">
-                <View className="text-xs font-semibold text-hinoki flex items-center gap-1.5">
+              <View className="flex flex-row items-center justify-between mb-3">
+                <View className="text-xs font-semibold text-hinoki flex flex-row items-center gap-1.5">
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -163,8 +163,8 @@ export function CodeShowcase() {
 
             {/* Right: Native Output */}
             <View className="p-4 sm:p-6 bg-yakisugi-950">
-              <View className="flex items-center justify-between mb-3">
-                <View className="text-xs font-semibold text-tatami-light flex items-center gap-1.5">
+              <View className="flex flex-row items-center justify-between mb-3">
+                <View className="text-xs font-semibold text-tatami-light flex flex-row items-center gap-1.5">
                   <svg
                     className="w-4 h-4"
                     fill="none"
