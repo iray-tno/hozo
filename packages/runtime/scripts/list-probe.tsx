@@ -34,15 +34,24 @@ function rows(count: number, from = 0): Row[] {
 const results: Record<string, unknown> = {}
 let handle: HozoFlatListHandle | null = null
 let prepend: (() => void) | null = null
+/** How long the list is right now, which the prepend step changes. */
+let dataCount = 0
 
 function List({ inverted }: { inverted?: boolean }) {
   const [data, setData] = useState(() => rows(10_000))
+  dataCount = data.length
   prepend = () => setData((current) => [...rows(10, 100_000), ...current])
   return createElement(HozoFlatList<Row>, {
     data,
     keyExtractor: (item: Row) => item.id,
     renderItem: ({ item }: { item: Row }) =>
-      createElement('div', { style: { height: item.height } }, item.id),
+      // A button in every row, because focus is half of what this page
+      // asks about and a div cannot hold it.
+      createElement(
+        'div',
+        { style: { height: item.height } },
+        createElement('button', { type: 'button' }, item.id),
+      ),
     estimatedItemSize: 100,
     inverted,
     maintainVisibleContentPosition: { minIndexForVisible: 0 },
@@ -169,6 +178,49 @@ async function run() {
   results.anchorDriftPx = after
     ? Math.round(after.getBoundingClientRect().top - viewport.top - beforeTop)
     : undefined
+
+  // Focus, which is not the viewport. A row holding focus that scrolls out
+  // of the window used to be unmounted, and focus fell back to `<body>`.
+  const focusTarget = document.querySelector<HTMLButtonElement>('[data-hozo-list-row] button')
+  focusTarget?.focus()
+  const focusedId = document.activeElement?.textContent ?? ''
+  scroller().scrollTop = 0
+  await waitFor('the window to go back to the top', () => firstMountedRow() === 0)
+  await settle()
+  results.focusKeptId = document.activeElement?.textContent ?? ''
+  results.focusWasId = focusedId
+  results.focusStillInList = Boolean(document.activeElement?.closest?.('[data-hozo-list-row]'))
+  // And a row after the focused one, so tabbing forward has somewhere to go.
+  const focusRow = document.activeElement?.closest<HTMLElement>('[data-hozo-list-row]')
+  results.rowsAfterFocus = focusRow
+    ? [...document.querySelectorAll<HTMLElement>('[data-hozo-list-row]')].filter(
+        (element) => Number(element.dataset.hozoListRow) > Number(focusRow.dataset.hozoListRow),
+      ).length
+    : 0
+
+  // What a screen reader would be told the list contains, read off the
+  // rendered rows rather than from the data: this is the number that was
+  // wrong, and it was wrong in the DOM.
+  const item = document.querySelector<HTMLElement>('[role="listitem"]')
+  results.ariaSetSize = item?.getAttribute('aria-setsize')
+  // Against the list as it is now, not as it started: the prepend step
+  // above added ten rows, and 10,010 is the right answer.
+  results.dataCount = dataCount
+
+  // axe, over the list as it stands: windowed, scrolled, and with a focused
+  // row in it. The `list`/`listitem` ownership this asks about is exactly
+  // what the measuring wrapper broke.
+  const axe = (window as unknown as { axe?: { run: (root: Element) => Promise<unknown> } }).axe
+  if (axe) {
+    const report = (await axe.run(document.body)) as {
+      violations: { id: string; impact: string; nodes: unknown[] }[]
+    }
+    results.axeViolations = report.violations.map(
+      (violation) => `${violation.id} (${violation.impact}, ${violation.nodes.length})`,
+    )
+  } else {
+    results.axeViolations = ['axe did not load']
+  }
 
   // `inverted`, in a second root: row 0 is drawn at the *bottom* of the
   // viewport, which is the whole of what the prop means.
