@@ -14,6 +14,36 @@ const loader = path.join(root, 'scripts', 'measurement', 'hozo-rnw-boundary-load
 const importAuditDirectory = path.join(checkout, '.hozo-rnw-import-audit')
 const compilerRequire = createRequire(path.join(root, 'packages', 'compiler', 'package.json'))
 
+const coreApiOwnership = {
+  Pressable: ['P0', 'Hozo-owned primitive; audit why a direct value import remains.'],
+  View: ['P0', 'Hozo-owned primitive; audit why a direct value import remains.'],
+  FlatList: ['P0', 'Hozo-owned bridge; verify the residual value use and windowing path.'],
+  ScrollView: ['P0', 'Hozo-owned bridge; verify the residual value use.'],
+  TextInput: ['P0', 'Hozo-owned form primitive; verify the residual value use.'],
+}
+
+const foundationApiOwnership = {
+  Dimensions: ['P1', 'Viewport foundation candidate, shared with responsive lowering.'],
+  useWindowDimensions: ['P1', 'Viewport foundation candidate, shared with responsive lowering.'],
+  useColorScheme: ['P1', 'Theme foundation candidate; prefer one ambient color-scheme store.'],
+  AccessibilityInfo: ['P1', 'Adopt only the accessibility facts Hozo consumes, not the full API.'],
+}
+
+const compatibilityApiOwnership = {
+  Animated: ['P2', 'Narrow compatibility boundary; full Animated is outside Hozo core.'],
+  LayoutAnimation: ['P2', 'RNW is effectively a callback/no-op; low practical value.'],
+}
+
+const platformApiOwnership = {
+  AppState: ['P2', 'Application lifecycle service, not UI lowering.'],
+  Linking: ['P2', 'Platform/deep-link service; only navigation overlap belongs in Hozo core.'],
+  Alert: ['P2', 'Platform service.'],
+  BackHandler: ['P2', 'Platform service.'],
+  findNodeHandle: ['P2', 'Imperative compatibility escape hatch.'],
+  InteractionManager: ['P2', 'Scheduling service.'],
+  Share: ['P2', 'Platform service.'],
+}
+
 if (process.versions.node.split('.')[0] !== '24') {
   throw new Error(
     `Bluesky pins Node 24.19.0; this measurement is running ${process.version}. ` +
@@ -278,6 +308,37 @@ function appApiRows(importers) {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
 }
 
+function appApiTable(rows, ownership) {
+  const counts = new Map(rows)
+  const selected = Object.entries(ownership)
+    .filter(([api]) => counts.has(api))
+    .sort((a, b) => counts.get(b[0]) - counts.get(a[0]) || a[0].localeCompare(b[0]))
+  if (selected.length === 0)
+    return '| API | Modules | Priority | Ownership |\n|---|---:|---|---|\n| None | 0 | — | — |'
+  return [
+    '| API | Modules | Priority | Ownership |',
+    '|---|---:|---|---|',
+    ...selected.map(
+      ([api, [priority, ownershipNote]]) =>
+        `| ${api} | ${counts.get(api)} | ${priority} | ${ownershipNote} |`,
+    ),
+  ].join('\n')
+}
+
+function unclassifiedAppApiTable(rows) {
+  const known = new Set([
+    ...Object.keys(coreApiOwnership),
+    ...Object.keys(foundationApiOwnership),
+    ...Object.keys(compatibilityApiOwnership),
+    ...Object.keys(platformApiOwnership),
+  ])
+  return markdownTable(
+    rows.filter(([api]) => !known.has(api)),
+    'API',
+    'Reachable app modules',
+  )
+}
+
 function renderReport(baselineStats, hozoStats, blockedStats, boundaryRequests) {
   const baselineModules = flattenModules(baselineStats.modules)
   const rnwModules = baselineModules.filter((module) =>
@@ -333,13 +394,43 @@ This confirms that today's \`rnwFree\` compiler option means “no direct React 
 
 ${markdownTable(ownerRows)}
 
-## Remaining app-owned React Native APIs
+## Remaining app-owned React Native boundaries
 
 These counts are referenced identifiers remaining after Hozo lowering, restricted to modules that also reached the blocked production graph. Import declarations, type-only references, and JSX-only bindings removed by lowering are excluded.
 
-${markdownTable(appApis, 'API', 'Reachable app modules')}
+The categories are ownership decisions, not claims that every counted use is live at runtime. In particular, #378 removed audit false positives; a remaining primitive value now needs a use-site audit rather than being assumed to be an unlowered JSX tag.
+
+### Hozo core gaps
+
+These are surfaces Hozo already claims to lower or bridge. Residual direct value use is P0 to inspect, but may prove to be a static member, ref, or other non-JSX contract rather than a lowering bug.
+
+${appApiTable(appApis, coreApiOwnership)}
+
+### Hozo foundation candidates
+
+These facts overlap with responsive styling, theme, or accessibility, but Hozo should adopt only the narrow capabilities it consumes rather than clone each complete React Native API.
+
+${appApiTable(appApis, foundationApiOwnership)}
+
+### Explicit compatibility boundaries
+
+These are not commitments to reimplement the complete React Native subsystem. #388 hardens the narrow Animated.View adapter; its private-node risk matters, but the measured reach and explicit fallback keep it below core-gap work.
+
+${appApiTable(appApis, compatibilityApiOwnership)}
+
+### Platform services
+
+These belong in an optional platform/compatibility layer unless a smaller capability is already part of Hozo's UI, navigation, theme, or accessibility contract.
+
+${appApiTable(appApis, platformApiOwnership)}
+
+### Unclassified app APIs
+
+${unclassifiedAppApiTable(appApis)}
 
 ## Third-party packages in the blocked graph
+
+Every row below is an external dependency boundary rather than a Hozo core gap. The measurement does not yet distinguish Web-dead code, configurable packages, adapter candidates, and unavoidable RNW dependencies; that requires package-by-package resolution experiments.
 
 ${markdownTable(thirdParty)}
 
@@ -349,7 +440,10 @@ ${sample || '- None'}
 
 ## Interpretation and next work
 
-- Prioritize the commonly reachable app-owned non-JSX APIs before compatibility aliases or adapters.
+- Audit the P0 residual primitive uses first; do not infer a JSX lowering failure from an imported value.
+- Treat viewport, theme, and accessibility facts as focused foundation candidates rather than promising the complete React Native APIs.
+- Keep application lifecycle, scheduling, sharing, and deep-link services outside core until an optional platform boundary is designed.
+- Keep #388 as P2 hardening: make the existing Animated.View compatibility adapter explicit and diagnosable without expanding it into Animated reimplementation.
 - Classify third-party packages as Web-dead/platform-gated, configurable, adapter candidates, or unavoidable RNW dependencies.
 - Repeat the build after each adapter batch; source counts alone do not close this boundary.
 - Inspect the successful final bundle for RNW modules before making a user-facing RNW-free claim.
