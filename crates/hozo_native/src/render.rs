@@ -1152,6 +1152,12 @@ pub(super) fn render_node(
         // the styles and checks the props.
         runtime.need_component("HozoDialog");
     }
+    if node.primitive == Primitive::FlatList {
+        // The list itself is React Native's. What `@hozo/runtime` adds is
+        // the collection information Android needs and nothing computes on
+        // its own -- see `markup.rs`.
+        runtime.need_component("HozoFlatList");
+    }
     // Re-exported by `@hozo/runtime` from `react-native-svg` rather than
     // imported from there directly, so the one import channel the emitter
     // already has keeps working -- and so the optional peer dependency is

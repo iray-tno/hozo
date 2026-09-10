@@ -74,7 +74,11 @@ export const RNW_FREE_CASES: RnwFreeCase[] = [
     primitive: 'FlatList',
     jsx: '<FlatList data={rows} renderItem={({ item }) => <Text className="p-2">{item}</Text>} />',
     webMarker: '<HozoFlatList',
-    nativeMarker: '<FlatList',
+    // Both sides now. React Native's list is still what renders; the wrapper
+    // is there for `accessibilityCollection`, which a windowed list cannot set
+    // for itself and which is the only thing that tells TalkBack how long the
+    // list really is.
+    nativeMarker: '<HozoFlatList',
   },
   {
     primitive: 'ScrollView',

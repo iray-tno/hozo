@@ -117,6 +117,15 @@ export const AccessibilityInfo = {
   addEventListener: () => ({ remove: () => {} }),
 }
 
+// `ios`, arbitrarily but not silently: the stub renders one tree and the
+// two platforms differ, so a test that cares has to say which it means.
+// `list.native.ts` reads this to decide whether to send Android its
+// collection information.
+export const Platform = {
+  OS: 'ios',
+  select: (spec) => spec.ios ?? spec.native ?? spec.default,
+}
+
 export const I18nManager = {
   isRTL: false,
   doLeftAndRightSwapInRTL: true,

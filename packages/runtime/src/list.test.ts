@@ -142,3 +142,42 @@ test('columns are windowed as rows, not as items', () => {
   assert.equal((html.match(/data-hozo-list-index=/g) ?? []).length, 6, 'items in those rows')
   assert.match(html, /grid-template-columns:repeat\(2, minmax\(0, 1fr\)\)/)
 })
+
+test('a windowed row still says how long the list really is', () => {
+  // The one thing about virtualisation the Web can answer completely.
+  // Without it a screen reader announces what is *mounted* -- "list, 3
+  // items" for a thousand -- and has no way to know better, because the
+  // rows that are not there cannot be counted.
+  const data = Array.from({ length: 1000 }, (_, index) => ({ id: `row-${index}` }))
+  const html = renderToStaticMarkup(
+    createElement(HozoFlatList<{ id: string }>, {
+      data,
+      keyExtractor: (item) => item.id,
+      renderItem: ({ item }) => item.id,
+      initialNumToRender: 3,
+    }),
+  )
+  assert.equal((html.match(/aria-setsize="1000"/g) ?? []).length, 3)
+  assert.match(html, /aria-posinset="1"/)
+  assert.match(html, /aria-posinset="3"/)
+  assert.doesNotMatch(html, /aria-posinset="0"/, 'aria-posinset counts from one')
+})
+
+test('and the row wrapper does not stand between the list and its items', () => {
+  // ARIA requires a `listitem` to be owned by a `list`. The wrapper exists
+  // to be measured and to be the grid row, and windowing put it in the
+  // middle of that relationship -- so it is removed from the accessibility
+  // tree, which leaves the items where they were.
+  const html = renderToStaticMarkup(
+    createElement(HozoFlatList<{ id: string }>, {
+      data: [{ id: 'a' }, { id: 'b' }],
+      keyExtractor: (item) => item.id,
+      renderItem: ({ item }) => item.id,
+    }),
+  )
+  assert.match(html, /role="presentation" data-hozo-list-row="0"/)
+  // And the only thing between them is that wrapper: a `list` whose child
+  // is a `listitem` two levels down through anything *else* would be the
+  // same defect again.
+  assert.match(html, /role="list"[^>]*>\s*<div role="presentation"[^>]*>\s*<div role="listitem"/)
+})

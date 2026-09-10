@@ -22,6 +22,7 @@ import {
   ListMetrics,
   type MaintainVisibleContentPosition,
   windowRange,
+  withFocus,
 } from './windowing.ts'
 
 export interface HozoScrollEvent {
@@ -476,7 +477,21 @@ function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<Hoz
   const scrollRef = useRef({ offset: 0, velocity: 0, time: 0 })
   const emitRef = useRef(0)
 
-  /** Recomputes the window from wherever the scroller currently is. */
+  /**
+   * Rows kept mounted around wherever focus is, on top of the scroll window.
+   *
+   * Two things break without it. Focus lands on a row, the reader scrolls,
+   * that row leaves the window, React unmounts it -- and focus falls back to
+   * `<body>`, which loses their place entirely. And tabbing forward through
+   * a long list walks to the last mounted row and finds nothing after it,
+   * because there is nothing after it in the document.
+   *
+   * `FOCUS_MARGIN` rows either side, so stepping past the edge has somewhere
+   * to go before the next recompute catches up.
+   */
+  const focusRowRef = useRef<number | null>(null)
+
+  /** Recomputes the window from wherever the scroller and focus currently are. */
   const recompute = useCallback(() => {
     const root = rootRef.current
     if (!root) return
@@ -484,7 +499,7 @@ function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<Hoz
     // Before the first layout the viewport is zero and every window is
     // empty, which would unmount the rows the first render put there.
     if (visibleLength === 0) return
-    const next = windowRange({
+    const scrolled = windowRange({
       count: rows.length,
       offset: horizontal ? root.scrollLeft : root.scrollTop,
       visibleLength,
@@ -494,6 +509,7 @@ function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<Hoz
       previous: rangeRef.current,
       metrics: geometry,
     })
+    const next = withFocus(scrolled, focusRowRef.current, rows.length)
     if (next.first === rangeRef.current.first && next.last === rangeRef.current.last) return
     rangeRef.current = next
     setRange(next)
@@ -524,6 +540,42 @@ function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<Hoz
     const observer = new ResizeObserver(() => recompute())
     observer.observe(root)
     return () => observer.disconnect()
+  }, [recompute])
+
+  // Where focus is, as a row index. `focusin` and `focusout` bubble, so one
+  // pair of listeners on the scroller covers every row in it -- including
+  // the ones mounted after this ran.
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    const rowOf = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return null
+      const row = target.closest<HTMLElement>('[data-hozo-list-row]')
+      if (!row || !root.contains(row)) return null
+      const index = Number(row.dataset.hozoListRow)
+      return Number.isFinite(index) ? index : null
+    }
+    const onFocusIn = (event: FocusEvent) => {
+      const row = rowOf(event.target)
+      if (row === focusRowRef.current) return
+      focusRowRef.current = row
+      recompute()
+    }
+    const onFocusOut = (event: FocusEvent) => {
+      // Only when focus left the list entirely. Moving between two rows
+      // fires this for the one being left, and forgetting the row there
+      // would unmount the row focus is arriving at.
+      if (rowOf(event.relatedTarget) !== null) return
+      if (focusRowRef.current === null) return
+      focusRowRef.current = null
+      recompute()
+    }
+    root.addEventListener('focusin', onFocusIn)
+    root.addEventListener('focusout', onFocusOut)
+    return () => {
+      root.removeEventListener('focusin', onFocusIn)
+      root.removeEventListener('focusout', onFocusOut)
+    }
   }, [recompute])
 
   /**
@@ -831,6 +883,16 @@ function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<Hoz
         {
           key: keyExtractor?.(item, row.start + column) ?? row.start + column,
           role: 'listitem',
+          // How long the list is, and where this row is in it.
+          //
+          // Without these a screen reader announces what is *mounted*: a
+          // ten-thousand-row feed reads as "list, 67 items", and the reader
+          // has no way to know otherwise, because the other 9,933 rows are
+          // not in the accessibility tree to be counted. They are the one
+          // thing about virtualisation the Web can answer completely, and
+          // `@hozo/core`'s `Tree` already does the same for its rows.
+          'aria-setsize': items.length,
+          'aria-posinset': row.start + column + 1,
           'data-hozo-list-index': row.start + column,
         },
         renderItem({ item, index: row.start + column, separators }),
@@ -842,6 +904,12 @@ function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<Hoz
         {
           key: row.key,
           ref: (element: HTMLDivElement | null) => measure(element, row.key),
+          // Out of the accessibility tree, so the `listitem`s inside it are
+          // owned by the `list` above it. ARIA requires that relationship,
+          // and this wrapper -- which exists to be measured, and to be the
+          // grid row when there is more than one column -- broke it the
+          // moment windowing introduced it.
+          role: 'presentation',
           'data-hozo-list-row': index,
           style: {
             ...(columns > 1

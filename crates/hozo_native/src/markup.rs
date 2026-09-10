@@ -191,7 +191,15 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Link => ("HozoLink", Vec::new()),
         Primitive::Image => ("Image", image_attrs(node, diagnostics)),
         Primitive::ScrollView => ("ScrollView", Vec::new()),
-        Primitive::FlatList => ("FlatList", vec![("accessibilityRole", "list".to_string())]),
+        // `HozoFlatList` rather than React Native's own, for one prop it
+        // cannot set for itself: a windowed list has a length its
+        // accessibility tree does not, and Android's
+        // `accessibilityCollection` is what tells TalkBack the real one.
+        // See `@hozo/runtime`'s `list.native.ts` -- including why iOS gets
+        // nothing.
+        Primitive::FlatList => {
+            ("HozoFlatList", vec![("accessibilityRole", "list".to_string())])
+        }
         Primitive::RefreshControl => ("RefreshControl", Vec::new()),
         Primitive::Modal => ("Modal", Vec::new()),
         Primitive::AnimatedView => ("Animated.View", Vec::new()),

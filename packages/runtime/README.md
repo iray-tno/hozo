@@ -70,3 +70,26 @@ Sizes are measured rather than declared. `estimatedItemSize` covers the first pa
 `numColumns` windows by **row**, not by item.
 
 The claims above are about layout, and jsdom has none, so `scripts/check-list.mjs` asks a real browser: ten thousand rows of varying height, scrolled, jumped to, prepended to and inverted. Run it with `pnpm test:browser`. It is where the defects were actually found — rows leaving the window kept reporting their size to a `ResizeObserver` after React removed them, and a removed element measures zero, which took ten thousand rows down to a scrollable length of 7,138px.
+
+### Accessibility, and what virtualisation costs
+
+Windowing takes rows out of the document, and the accessibility tree is the document. Three of the four things that breaks are fixable and are fixed here; the fourth is not, and is worth knowing about.
+
+- **How long the list is.** Each row carries `aria-setsize` and `aria-posinset`, so a screen reader is told "item 4,940 of 10,010" rather than the number of rows that happen to be mounted. It is the one thing about virtualisation the Web can answer completely.
+- **Who owns the rows.** The measuring wrapper around each row is `role="presentation"`, so the `listitem`s inside it stay owned by the `list`. ARIA requires that relationship and a wrapper in the middle of it breaks it — axe calls it `aria-required-children`.
+- **Focus.** The window is the union of the scroll window and a small window around whatever holds focus. Without it, scrolling away from a focused row unmounts it and focus falls back to `<body>`; and tabbing forward walks to the last mounted row and finds nothing after it.
+- **Screen reader browse mode is still bounded.** VoiceOver and NVDA walk the accessibility tree rather than the viewport, and rows that are not mounted are not in it to walk to. `aria-setsize` tells the reader how many there are; it cannot make them reachable. Neither can find-in-page reach them. This is inherent to virtualisation rather than to this implementation.
+
+The escape hatch for the last one is not more JavaScript: `content-visibility: auto` with `contain-intrinsic-size` leaves every row in the document and lets the browser skip its layout and paint, so the accessibility tree and Ctrl+F keep working while the cost of a long list mostly does not. It trades memory for that. Hozo does not choose it yet — measuring the trade properly, and against real browser support, is its own piece of work.
+
+`scripts/check-list.mjs` asks a browser about the first three: it focuses a row, scrolls ten thousand rows away, checks focus is still on the same row with rows mounted after it, reads `aria-setsize` off the DOM, and runs axe over the result.
+
+### The Native list is told how long it is too
+
+A React Native `FlatList` has the same problem the Web one does: it mounts the rows near the viewport, so TalkBack counts those and announces them. A ten-thousand-row feed reports however many cells happen to exist.
+
+Android has an answer and React Native does not document it. `accessibilityCollection` and `accessibilityCollectionItem` are registered as native props in `BaseViewConfig.android.js`, stored as tags by `BaseViewManager`, and read back into `AccessibilityNodeInfo.setCollectionInfo` by `ReactScrollViewAccessibilityDelegate` — which even works out which children are on screen. Neither appears in any `.d.ts` or in the documentation, so nothing that is not looking for them will find them.
+
+So `HozoFlatList` sets them, and the compiler emits `HozoFlatList` rather than React Native's list for exactly that reason. React Native's list is still what renders; the per-item position goes on the view the list already wraps each cell in, through its own `CellRendererComponent`, so nothing is nested more deeply than before.
+
+**iOS gets nothing, and that is not an oversight.** `BaseViewConfig.ios.js` registers neither prop and `React/Views` implements neither, so there is nowhere to send them. VoiceOver is told how long a React Native list is by nothing at all. Closing that needs a `UIAccessibilityContainer` shim in native code — see #353 — or React Native to grow the prop.
