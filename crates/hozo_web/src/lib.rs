@@ -69,54 +69,6 @@ const ARIA_STATE_ATTRS: &[(&str, &str)] = &[
 /// The `[data-hozo-*]` bases below are deliberately *not* wrapped. Those
 /// are behaviour rather than defaults -- a disabled control has to look
 /// disabled in forced colours even if a component class says otherwise.
-/// Whether this primitive is one of React Native's boxes.
-///
-/// Every one of these lowers to a React Native `View`, so every one of
-/// them is a column flex container on device -- and on the Web only
-/// `View` was, because only `View` carried the base. `<Section
-/// className="flex items-center">` was a row in a browser and a column on
-/// a phone, from one source, with nothing said about it. Measured through
-/// both backends on the same input.
-///
-/// `react-native-web` has the same answer, and where it comes from is
-/// worth saying: RNW has one `View` that picks its element from `role`,
-/// and the base style is applied *before* the element is chosen -- so a
-/// `<nav>` and a `<section>` carry exactly the class a `<div>` does,
-/// `flex-direction: column` included. Rendered and read off the output
-/// rather than recalled. The rule there is that direction belongs to the
-/// component and not to the tag, and this is that rule.
-///
-/// It is also the only rule that can hold on both platforms. Making the
-/// Web `row` instead would mean making Native `row` too, and the only way
-/// to do that is to inject a `flexDirection` React Native does not have --
-/// which would relayout every hand-written `View` in a ported app.
-///
-/// `Separator` and `Progress` are deliberately absent. They are `View`s on
-/// Native only because React Native has no `<hr>` and no `<progress>`; on
-/// the Web they are a void element and a replaced element, and
-/// `display: flex` on either is meaningless at best.
-fn is_view_box(primitive: Primitive) -> bool {
-    matches!(
-        primitive,
-        Primitive::View
-            | Primitive::AnimatedView
-            | Primitive::Section
-            | Primitive::Article
-            | Primitive::Nav
-            | Primitive::Main
-            | Primitive::Header
-            | Primitive::Footer
-            | Primitive::Aside
-            | Primitive::Search
-            | Primitive::Figure
-            | Primitive::Address
-            | Primitive::Fieldset
-            | Primitive::TermList
-            | Primitive::Description
-            | Primitive::List
-            | Primitive::ListItem
-    )
-}
 const VIEW_BASE_CSS: &str = ":where(.hozo-view) { \
     display: flex;\n  \
     flex-direction: column;\n  \
@@ -756,7 +708,7 @@ fn render_node(
     // and comparing the classes in the DOM against the ones the stylesheet
     // defines, which is a comparison nothing had made before.
     let mut classes = if rules.len() == rules_before { String::new() } else { class_name };
-    if is_view_box(node.primitive) {
+    if node.primitive.is_view_box() {
         *uses_view_base = true;
         classes = if classes.is_empty() {
             "hozo-view".to_string()

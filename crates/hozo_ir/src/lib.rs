@@ -324,6 +324,20 @@ pub enum DiagnosticCode {
     /// It is carried verbatim so the official StyleX compiler can still
     /// handle it; Native gets a named gap instead of an empty style object.
     StylexNotLowered,
+    /// `flex` on one of React Native's boxes, with no direction said.
+    ///
+    /// Tailwind's `flex` is `display: flex` and nothing else -- the row
+    /// everyone associates with it comes from CSS's initial value, which
+    /// applies to a `<div>` and not to one of these. Every Hozo box is a
+    /// column flex container on both platforms, because React Native's is
+    /// and the Web base follows it. So `<View className="flex">` is two
+    /// things at once: redundant, since the box is already a flex
+    /// container, and almost always a defect, since the author who wrote
+    /// it was thinking of a row.
+    ///
+    /// Quiet in the way that matters: the page renders, nothing throws,
+    /// and the content is simply stacked the other way.
+    FlexDirectionUnsaid,
 }
 
 // ---------------------------------------------------------------------------
@@ -467,6 +481,45 @@ pub enum Primitive {
     Ruby,
     /// CJK ruby text annotation: `<rt>` on Web and furigana text on React Native.
     RubyText,
+}
+
+impl Primitive {
+    /// Whether this primitive is one of React Native's boxes.
+    ///
+    /// Every one of these lowers to a React Native `View`, so every one is
+    /// a column flex container on device -- and the Web backend gives them
+    /// the same base so they are one in a browser too. Here rather than in
+    /// either backend because it is a fact about the primitive: the Web
+    /// side needs it to pick a class and the parser needs it to say
+    /// anything about `flex`, and two lists would be one rule with two
+    /// answers.
+    ///
+    /// `Separator` and `Progress` are deliberately absent. They are `View`s
+    /// on Native only because React Native has no `<hr>` and no
+    /// `<progress>`; on the Web they are a void element and a replaced
+    /// element, and `display: flex` on either is meaningless at best.
+    pub fn is_view_box(self) -> bool {
+        matches!(
+            self,
+            Primitive::View
+                | Primitive::AnimatedView
+                | Primitive::Section
+                | Primitive::Article
+                | Primitive::Nav
+                | Primitive::Main
+                | Primitive::Header
+                | Primitive::Footer
+                | Primitive::Aside
+                | Primitive::Search
+                | Primitive::Figure
+                | Primitive::Address
+                | Primitive::Fieldset
+                | Primitive::TermList
+                | Primitive::Description
+                | Primitive::List
+                | Primitive::ListItem
+        )
+    }
 }
 
 /// The SVG elements Hozo lowers.
@@ -5279,6 +5332,7 @@ impl DiagnosticCode {
             DiagnosticCode::PrimitiveNotLowered => "PRIMITIVE_NOT_LOWERED",
             DiagnosticCode::UnreadableArbitraryValue => "UNREADABLE_ARBITRARY_VALUE",
             DiagnosticCode::StylexNotLowered => "STYLEX_NOT_LOWERED",
+            DiagnosticCode::FlexDirectionUnsaid => "FLEX_DIRECTION_UNSAID",
         }
     }
 }

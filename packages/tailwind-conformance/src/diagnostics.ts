@@ -164,6 +164,8 @@ const PROVOCATIONS: Record<string, Provocation> = {
       `const styles = stylex.create({ root: { transform: 'translateX(calc(100% - 2px))' } })\n` +
       `export function C() { return <View {...stylex.props(styles.root)} /> }\n`,
   },
+  // `flex` with no direction, on a box that was already a flex container.
+  FLEX_DIRECTION_UNSAID: { source: '<View className="flex items-center">x</View>' },
 }
 
 /**
