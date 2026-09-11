@@ -2,6 +2,7 @@
   "name": "@hozo/example-next",
   "private": true,
   "version": "0.0.0",
+  "description": "Next.js, on both bundlers.",
   "type": "module",
   "scripts": {
     "build": "next build",

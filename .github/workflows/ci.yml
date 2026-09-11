@@ -72,11 +72,13 @@ jobs:
       # an implementation that mounted every row would pass `pnpm
       # test:packages` unchanged.
       - run: pnpm --filter @hozo/runtime run test:browser
-      # The primitives reference is generated from the `Primitive` enum and
-      # from what the compiler emits, so it can only be stale -- and a
-      # stale reference is the thing #265 exists to prevent. Needs the
-      # native addon, which this job already built.
-      - run: pnpm docs:primitives:check
+      # The generated documentation: the primitives reference, from the
+      # `Primitive` enum and from what the compiler emits, and the README
+      # repository layout, from the directories that exist and what each
+      # says about itself. Both can only ever be stale, and a stale
+      # reference is what #265 exists to prevent. Needs the native addon,
+      # which this job already built.
+      - run: pnpm docs:check
 
   platform-compat:
     strategy:

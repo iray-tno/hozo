@@ -108,10 +108,11 @@ const SNIPPETS = {
 }
 
 /** Everything a snippet might name, so one import line covers them all. */
-const IMPORTS =
-  `import { ${Object.keys(SNIPPETS)
-    .filter((name) => name !== 'AnimatedView')
-    .join(', ')} } from '@hozo/core'\n` + `import { Animated } from 'react-native'\n`
+const NAMED = Object.keys(SNIPPETS)
+  // `Animated.View` is a member expression, not a name a barrel exports.
+  .filter((name) => name !== 'AnimatedView')
+  .join(', ')
+const IMPORTS = `import { ${NAMED} } from '@hozo/core'\nimport { Animated } from 'react-native'\n`
 
 /** The opening tag a backend emitted, attributes and all. */
 function openingTag(jsx) {

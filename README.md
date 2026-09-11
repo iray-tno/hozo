@@ -465,7 +465,7 @@ say more than "that is not a role":
 `@hozo/behaviors` carries the headless primitives that need real runtime behaviour — focus
 management, keyboard handling, floating positioning, and hover delay groups.
 
-All 39 Storybook stories are continuously checked against `axe-core` in CI,
+Every Storybook story is continuously checked against `axe-core` in CI,
 catching automated regressions in contrast, structural ARIA syntax, and roles
 with zero violations. Full accessibility conformance still requires manual
 screen reader testing (VoiceOver, TalkBack, NVDA).
@@ -491,9 +491,8 @@ static guarantees and minimizing runtime overhead:
                                ▲
 ┌───────────────────────────────────────────────────────────────┐
 │ Layer 1: Universal Primitives (Zero Runtime / Static SSR Safe)│
-│   @hozo/core        View, Text, Pressable, Link, FlatList     │
-│   @hozo/typography  Heading, Paragraph, Strong, Ruby, Rt      │
-│   @hozo/semantics   Main, Header, Footer, Aside, Nav, Time    │
+│   @hozo/core · @hozo/typography · @hozo/semantics             │
+│   Named one by one in docs/primitives.md, which is generated  │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -535,47 +534,56 @@ static guarantees and minimizing runtime overhead:
 
 ## Repository layout
 
+<!-- generated: repository-layout -->
+
 ```
 packages/
-  core/            @hozo/core        — canonical primitives and compound components
-  compiler/        @hozo/compiler    — JS entry point over the Rust compiler
-  runtime/         @hozo/runtime     — dynamic styles, interaction, behavior
-  behaviors/       @hozo/behaviors   — headless behaviors and floating positioning
-  typography/      @hozo/typography  — universal typography, ruby, and inline formatting
-  semantics/       @hozo/semantics   — document structure, landmarks, disclosures
-  canvas/          @hozo/canvas      — declarative 2D scene graph (Web Canvas & Skia)
-  tailwind/        @hozo/tailwind    — the project's theme, resolved
-  vite/            @hozo/vite        — Vite integration (Web backend)
-  next/            @hozo/next        — Next.js integration, Turbopack and webpack
-  metro/           @hozo/metro       — Metro integration (Native backend)
-  storybook/       @hozo/storybook   — Storybook preset over @hozo/vite
-  tailwind-conformance/              — differential tests against real Tailwind,
-                                       and snapshot.json, the numbers CI holds
+  behaviors/               Universal runtime behaviors substrate (LiveRegion, Portal, DismissableLayer, FocusScope, RovingFocus, FloatingPositioner) for Hozo.
+  canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
+  compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
+  core/                    Canonical primitives and semantic components for new Hozo projects.
+  metro/                   Metro integration for the Hozo compiler (Native lowering backend).
+  migration-audit/         Measure how safely Hozo can lower a real React Native application.
+  navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
+  next/                    Next.js integration for the Hozo compiler (Web lowering backend).
+  runtime/                 Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
+  semantics/               Universal landmarks, document sectioning, and semantic page structure primitives for Hozo.
+  storybook/               Zero-config Storybook Vite preset for Hozo.
+  tailwind/                Tailwind integration for Hozo's Style IR.
+  tailwind-conformance/    Differential test: compares Hozo's compiled CSS against the real Tailwind engine's output, per utility.
+  test-reporter/           JUnit normalization and Allure 3 test report generator for Hozo
+  typography/              Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.
+  vite/                    Vite integration for the Hozo compiler (Web lowering backend).
 
 crates/
-  hozo_ir/         platform-independent IR shared across the pipeline
-  hozo_parser/     TSX analysis + Style IR construction (oxc)
-  hozo_web/        Hozo IR -> DOM/CSS/ARIA lowering
-  hozo_native/     Hozo IR -> React Native lowering
-  hozo_cache/      project-wide candidate scan cache
-  hozo_napi/       Node native binding (napi-rs)
-  hozo_wasm/       WebAssembly browser compiler binding (wasm-bindgen)
+  hozo_cache/     Build cache for Hozo's candidate-class scan, with a swappable backing store.
+  hozo_ir/        Platform-independent intermediate representation shared across the Hozo compiler pipeline.
+  hozo_napi/      Node native binding exposing the Hozo compiler to JS build tooling.
+  hozo_native/    Hozo IR to React Native primitive/StyleSheet lowering (Native backend).
+  hozo_parser/    TSX analysis and Style IR construction.
+  hozo_wasm/      WebAssembly binding exposing the Hozo compiler to a browser.
+  hozo_web/       Hozo IR to DOM/CSS/ARIA lowering (Web backend).
 
 apps/
-  landing/         landing site, interactive REPL playground, and conformance matrix
+  landing/    Landing site, interactive REPL playground, and the live conformance matrix.
 
 examples/
-  login-demo/            Vite, Web and SSR
-  native-demo/           Metro bundle and Native runtime
-  next-demo/             Next.js, both bundlers
-  storybook-demo/        Storybook (39 stories, CI axe-core automated audit)
-  tanstack-start-demo/   TanStack Start
+  expo-router-demo/     @hozo/example-expo-router-demo  — Real Expo Router type and production-export fixture for @hozo/navigation.
+  login-demo/           login-demo                      — Phase 0 benchmark app -- exercises @hozo/core through @hozo/vite end to end.
+  native-demo/          @hozo/example-native-demo       — React Native example, and the end-to-end check that a Hozo source survives a real Metro bundle.
+  next-demo/            @hozo/example-next              — Next.js, on both bundlers.
+  storybook-demo/       @hozo/example-storybook         — Storybook, audited against axe-core in CI.
+  tanstack-start-demo/  @hozo/example-tanstack-start    — TanStack Start.
 
 docs/
-  proposal.md      full design document
+  proposal.md      the full design document
+  primitives.md    every primitive and what it lowers to, generated
   decisions/       settled questions, with the evidence behind them
+  measurements/    what was measured, and against what
   rfcs/            technical specifications and AT verification matrices
 ```
+
+<!-- /generated: repository-layout -->
 
 ## Development
 
@@ -610,8 +618,12 @@ to check every entry point is actually in them.
   locally.
 - **Migration is manual.** An existing app adopting Hozo changes its
   imports at the boundary itself; there is no codemod.
-- **No physical-device validation.** The Native backend is exercised
-  through Metro bundles and `react-test-renderer`, not on a device.
+- **No physical-device validation.** The Native backend does run on an
+  Android emulator and an iOS simulator — `.github/workflows/native.yml`
+  boots both, drives the demo app, and compares the accessibility tree
+  each platform actually produces against what the compiler said it
+  would. What is untested is real hardware, and every screen reader:
+  VoiceOver, TalkBack and NVDA are still read by hand.
 - **The Grid subset is partial**, and the Tailwind surface is wide but not
   complete — `@hozo/tailwind-conformance` reports exactly which utilities
   match the real engine. Its current numbers are committed at
