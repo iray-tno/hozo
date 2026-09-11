@@ -241,7 +241,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       }
 
       const lowered = lowerModule(source, id, file, compiler, root, stylexModules, {
-        rnwFree: options.rnwFree,
+        unloweredReactNativeJsx: options.unloweredReactNativeJsx,
       })
       if (!lowered) return
 

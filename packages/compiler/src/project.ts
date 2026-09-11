@@ -80,6 +80,8 @@ export interface ContentOptions {
   respectGitignore?: boolean
 }
 
+export type UnloweredReactNativeJsxPolicy = 'allow' | 'warn' | 'error'
+
 /**
  * Options whose meaning is shared by every Hozo bundler integration.
  *
@@ -118,16 +120,17 @@ export interface HozoProjectOptions {
    */
   sources?: readonly string[]
   /**
-   * Refuse Web output that still renders JSX imported directly from
-   * `react-native`.
+   * What to do when Web output still contains JSX backed directly
+   * by React Native after Hozo lowering.
    *
-   * Defaults to false so existing projects may keep React Native Web as a
-   * compatibility fallback while migrating. Enable it once RNW is absent:
-   * supported primitives still lower normally, while an unsupported or
-   * deliberately carried binding fails the build instead of becoming a
-   * late module-resolution error or silently restoring RNW.
+   * - 'allow' (default): Allow unlowered JSX to be resolved at bundle time
+   *   by a compatibility layer such as react-native-web.
+   * - 'warn': Emit a build warning listing any unlowered React Native JSX elements.
+   * - 'error': Fail the build if any direct React Native JSX remains in Web output.
+   *
+   * @default 'allow'
    */
-  rnwFree?: boolean
+  unloweredReactNativeJsx?: UnloweredReactNativeJsxPolicy
   /**
    * Whether the Web integrations emit Tailwind's base layer.
    *

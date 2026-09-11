@@ -11,7 +11,7 @@ This is a dependency-boundary measurement, not a claim that the application runs
 | Node | `v24.19.0` |
 | Package manager | `11.21.0` |
 | Baseline mode | Expo Webpack production build |
-| Hozo experiment | app-owned `.ts`/`.tsx` passes through the measurement loader (with Web lowering and `rnwFree: true`); `react-native` and `react-native-web` resolution then point to an absent module |
+| Hozo experiment | app-owned `.ts`/`.tsx` passes through the measurement loader (with Web lowering and `unloweredReactNativeJsx: 'error'`); `react-native` and `react-native-web` resolution then point to an absent module |
 
 ## Result
 
@@ -21,7 +21,7 @@ This is a dependency-boundary measurement, not a claim that the application runs
 4. **Both app APIs and dependencies remain:** 64 app modules and 138 modules owned by 40 third-party packages make those requests.
 5. **The block is effective:** repeating that build with RN/RNW unavailable produces 308 resolution diagnostics (305 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
 
-This confirms that today's `rnwFree` compiler option means “no direct React Native JSX remains.” It does not mean “the complete application dependency graph builds without React Native Web.” Keep the name for now, but do not make the broader release claim until these boundaries are closed.
+This confirms that `unloweredReactNativeJsx: 'error'` closes the direct JSX boundary (0 direct React Native JSX tags remain in application code). It does not mean “the complete application dependency graph builds without React Native Web”: 73 RNW modules and 308 resolution diagnostics remain across 40 third-party packages and app-level non-JSX references. Closing the full dependency graph is an independent dependency-level policy challenge.
 
 ## Blocked importers by owner
 

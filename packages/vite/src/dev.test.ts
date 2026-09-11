@@ -138,15 +138,38 @@ const NO_TAILWIND_APP = `import { View } from '@hozo/core'
 export const App = () => <View style={{ padding: 16 }} />
 `
 
-test('RNW-free mode stops a Vite transform that retains direct React Native JSX', async () => {
+test('unloweredReactNativeJsx: error stops a Vite transform that retains direct React Native JSX', async () => {
   const root = project({
     'App.tsx': `import { SectionList } from 'react-native'
 export const App = () => <SectionList sections={sections} renderItem={renderItem} />
 `,
   })
-  const server = await serve(root, { rnwFree: true })
+  const server = await serve(root, { unloweredReactNativeJsx: 'error' })
 
-  await assert.rejects(server.transformRequest('/App.tsx'), /RNW_FREE_JSX_REMAINS/)
+  await assert.rejects(server.transformRequest('/App.tsx'), /UNLOWERED_REACT_NATIVE_JSX/)
+})
+
+test('unloweredReactNativeJsx: warn does not fail the transform and emits a warning', async () => {
+  const root = project({
+    'App.tsx': `import { SectionList } from 'react-native'
+export const App = () => <SectionList sections={sections} renderItem={renderItem} />
+`,
+    'rn-mock.js': 'export const SectionList = () => null\n',
+  })
+  const { warnings, logger } = collectWarnings()
+  const server = await serve(
+    root,
+    { unloweredReactNativeJsx: 'warn' },
+    { 'react-native': path.join(root, 'rn-mock.js') },
+    [],
+    [],
+    logger,
+  )
+
+  const result = await server.transformRequest('/App.tsx')
+  assert.ok(result)
+  assert.ok(warnings.some((w) => w.includes('UNLOWERED_REACT_NATIVE_JSX')))
+  assert.ok(warnings.some((w) => w.includes('SectionList')))
 })
 
 const ACCENT = "export const accent = () => 'bg-emerald-500'\n"

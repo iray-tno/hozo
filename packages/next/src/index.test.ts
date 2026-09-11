@@ -25,7 +25,11 @@ interface WebpackRule {
   test?: RegExp
   use?: {
     loader: string
-    options: { root: string; candidateCssPath: string; rnwFree?: boolean }
+    options: {
+      root: string
+      candidateCssPath: string
+      unloweredReactNativeJsx?: 'allow' | 'warn' | 'error'
+    }
   }[]
 }
 
@@ -52,16 +56,16 @@ test("registers the loader with both of Next's bundlers", () => {
   assert.match(webpack.module.rules[0].use![0].loader, /loader\.js$/)
 })
 
-test('passes RNW-free enforcement to both Next bundlers', () => {
+test('passes unloweredReactNativeJsx policy to both Next bundlers', () => {
   const config = withHozo(
     {},
     {
       root: project('export const x = 1\n'),
-      rnwFree: true,
+      unloweredReactNativeJsx: 'error',
     },
   ) as {
     turbopack: {
-      rules: Record<string, { loaders: { options: { rnwFree?: boolean } }[] }>
+      rules: Record<string, { loaders: { options: { unloweredReactNativeJsx?: string } }[] }>
     }
     webpack: (
       config: { module?: { rules?: WebpackRule[] } },
@@ -69,8 +73,11 @@ test('passes RNW-free enforcement to both Next bundlers', () => {
     ) => { module: { rules: WebpackRule[] } }
   }
 
-  assert.equal(config.turbopack.rules['*.tsx'].loaders[0].options.rnwFree, true)
-  assert.equal(config.webpack({}, {}).module.rules[0].use?.[0]?.options.rnwFree, true)
+  assert.equal(config.turbopack.rules['*.tsx'].loaders[0].options.unloweredReactNativeJsx, 'error')
+  assert.equal(
+    config.webpack({}, {}).module.rules[0].use?.[0]?.options.unloweredReactNativeJsx,
+    'error',
+  )
 })
 
 test('the webpack rule is `pre`, which is what makes it run before SWC', () => {

@@ -34,71 +34,100 @@ test('leaves alone what it has nothing to do with', () => {
   assert.equal(lowerModule(notTsx, 'a.ts', 'a.ts', compiler, ROOT), undefined)
 })
 
-test('RNW-free mode refuses a direct React Native JSX binding left in Web output', () => {
+test('unloweredReactNativeJsx error policy refuses a direct React Native JSX binding left in Web output', () => {
   const source = `import { SectionList as Rows } from 'react-native'
 export const Page = () => <Rows sections={sections} renderItem={renderItem} />
 `
 
   assert.equal(lowerModule(source, file, file, compiler, ROOT), undefined)
   assert.throws(
-    () => lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true }),
-    /RNW_FREE_JSX_REMAINS: Web output still renders SectionList as Rows/,
+    () =>
+      lowerModule(source, file, file, compiler, ROOT, undefined, {
+        unloweredReactNativeJsx: 'error',
+      }),
+    /UNLOWERED_REACT_NATIVE_JSX: Web output still contains JSX backed directly by 'react-native' after lowering: SectionList as Rows/,
   )
 })
 
-test('RNW-free mode accepts supported bindings and ignores non-JSX mentions', () => {
+test('unloweredReactNativeJsx warn policy emits a warning diagnostic and does not throw', () => {
+  const source = `import { SectionList as Rows } from 'react-native'
+export const Page = () => <Rows sections={sections} renderItem={renderItem} />
+`
+
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'warn',
+  })
+  assert.ok(lowered)
+  assert.equal(lowered.diagnostics.length, 1)
+  assert.equal(lowered.diagnostics[0]?.code, 'UNLOWERED_REACT_NATIVE_JSX')
+  assert.equal(lowered.diagnostics[0]?.severity, 'warning')
+  assert.match(
+    lowered.diagnostics[0]?.message ?? '',
+    /Web output still contains JSX backed directly by 'react-native' after lowering: SectionList as Rows/,
+  )
+})
+
+test('unloweredReactNativeJsx accepts supported bindings and ignores non-JSX mentions', () => {
   const source = `import { View, SectionList } from 'react-native'
 type Props = { component?: typeof SectionList }
 // <SectionList> in documentation is not rendered JSX.
 export const Page = () => <View />
 `
 
-  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true })
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })
   assert.ok(lowered)
   assert.match(lowered.code, /<div/)
 })
 
-test('RNW-free mode rehomes StyleSheet while preserving values and types', () => {
+test('unloweredReactNativeJsx rehomes StyleSheet while preserving values and types', () => {
   const source = `import { useMemo } from 'react'
 import { type ViewStyle, StyleSheet as Sheet, View } from 'react-native'
 const styles = Sheet.create({ card: { padding: 4 } })
 export const Page = () => <View style={useMemo(() => styles.card, [])} />
 `
-  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true })!
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })!
   assert.match(lowered.code, /import \{ useMemo \} from 'react'/)
   assert.match(lowered.code, /import \{ type ViewStyle, View \} from 'react-native'/)
   assert.match(lowered.code, /import \{ StyleSheet as Sheet \} from '@hozo\/runtime'/)
   assert.match(lowered.code, /Sheet\.create/)
 })
 
-test('RNW-free API lowering also transforms non-JSX TypeScript modules', () => {
+test('unloweredReactNativeJsx API lowering also transforms non-JSX TypeScript modules', () => {
   const source = `import { StyleSheet } from 'react-native'
 export const flatten = StyleSheet.flatten
 `
   const lowered = lowerModule(source, 'styles.ts', 'styles.ts', compiler, ROOT, undefined, {
-    rnwFree: true,
+    unloweredReactNativeJsx: 'error',
   })!
   assert.match(lowered.code, /from '@hozo\/runtime'/)
   assert.equal(lowered.css, '')
   assert.equal(lowered.needsClientBoundary, false)
 })
 
-test('RNW-free API lowering can move more than one owned runtime value', () => {
+test('unloweredReactNativeJsx API lowering can move more than one owned runtime value', () => {
   const source = `import { Keyboard, Platform, StyleSheet, View } from 'react-native'
 const styles = StyleSheet.create({ card: { padding: Platform.select({ web: 8, default: 4 }) } })
 export const Page = () => <View onClick={() => Keyboard.dismiss()} style={styles.card} />
 `
-  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true })!
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })!
   assert.match(lowered.code, /import \{ View \} from 'react-native'/)
   assert.match(lowered.code, /import \{ Keyboard, Platform, StyleSheet \} from '@hozo\/runtime'/)
 })
 
-test('RNW-free mode rehomes a TextInput that remains a runtime component value', () => {
+test('unloweredReactNativeJsx rehomes a TextInput that remains a runtime component value', () => {
   const source = `import { TextInput, View } from 'react-native'
 const Field = makeField(TextInput)
 export const Page = () => <View><TextInput accessibilityLabel="Name" /><Field /></View>
 `
-  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true })!
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })!
   assert.match(lowered.code, /import \{ View \} from 'react-native'/)
   assert.match(lowered.code, /import \{ TextInput \} from '@hozo\/runtime'/)
   assert.match(lowered.code, /const Field = makeField\(TextInput\)/)
@@ -106,14 +135,17 @@ export const Page = () => <View><TextInput accessibilityLabel="Name" /><Field />
   assert.equal(lowered.needsClientBoundary, false)
 })
 
-test('RNW-free mode identifies namespace JSX by its imported root', () => {
+test('unloweredReactNativeJsx identifies namespace JSX by its imported root', () => {
   const source = `import * as RN from 'react-native'
 export const Page = () => <RN.SectionList sections={sections} renderItem={renderItem} />
 `
 
   assert.throws(
-    () => lowerModule(source, file, file, compiler, ROOT, undefined, { rnwFree: true }),
-    /RNW_FREE_JSX_REMAINS: Web output still renders \* as RN/,
+    () =>
+      lowerModule(source, file, file, compiler, ROOT, undefined, {
+        unloweredReactNativeJsx: 'error',
+      }),
+    /UNLOWERED_REACT_NATIVE_JSX: Web output still contains JSX backed directly by 'react-native' after lowering: \* as RN/,
   )
 })
 
