@@ -2,6 +2,7 @@
   "name": "@hozo/example-tanstack-start",
   "private": true,
   "version": "0.0.0",
+  "description": "TanStack Start.",
   "type": "module",
   "scripts": {
     "build": "vite build",

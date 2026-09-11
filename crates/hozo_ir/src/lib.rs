@@ -347,7 +347,17 @@ pub enum DiagnosticCode {
 /// Phase 0 primitive set (proposal §13). Image/Link land in a later phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Primitive {
+    /// The box everything else is built from: `<div>` on Web and
+    /// `View` on React Native.
+    ///
+    /// A column flex container on both, which is React Native's
+    /// default and not CSS's -- the Web side carries a base style that
+    /// says so, and `is_view_box` names every primitive that shares it.
     View,
+    /// A run of text: `<span>` on Web and `Text` on React Native.
+    ///
+    /// Not a box. It carries no flex base on either platform, so
+    /// `display: flex` on one means what CSS says it means.
     Text,
     /// A block of prose: `<p>` on Web and `Text` on React Native.
     Paragraph,
@@ -405,7 +415,18 @@ pub enum Primitive {
     /// One static list entry: `<li>` on Web and a listitem-role `View` on
     /// React Native.
     ListItem,
+    /// A busy indicator: `HozoActivityIndicator` on Web, which draws
+    /// its own spinner, and React Native's `ActivityIndicator`.
+    ///
+    /// The Web half exists because there is no element for this and a
+    /// project should not have to bring one.
     ActivityIndicator,
+    /// A surface that responds to a press: `<div>` with the keyboard
+    /// handlers a `<button>` gets for free on Web, and `Pressable` on
+    /// React Native.
+    ///
+    /// Carries no role of its own, which is why writing one is the
+    /// commonest thing `A11Y_INTERACTIVE_WITHOUT_ROLE` asks for.
     Pressable,
     /// React Native's opacity-feedback press target. Web lowering keeps the
     /// feedback in a tiny runtime component; Native keeps TouchableOpacity.
@@ -413,6 +434,12 @@ pub enum Primitive {
     /// A press target that attaches behavior to its only child instead of
     /// introducing a layout box.
     TouchableWithoutFeedback,
+    /// A control that submits an intent: `<button>` on Web and a
+    /// `Pressable` carrying `accessibilityRole="button"` on React
+    /// Native.
+    ///
+    /// Not React Native's own `Button`, which takes a `title` and
+    /// renders no children -- see `INCOMPATIBLE_PRIMITIVES`.
     Button,
     /// A destination-bearing interaction: `<a>` on Web and Hozo's
     /// `Linking.openURL` wrapper on React Native.

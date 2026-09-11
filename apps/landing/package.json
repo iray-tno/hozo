@@ -1,6 +1,7 @@
 {
   "name": "@hozo/landing",
   "version": "0.0.0",
+  "description": "Landing site, interactive REPL playground, and the live conformance matrix.",
   "private": true,
   "type": "module",
   "scripts": {
