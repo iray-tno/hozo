@@ -16,6 +16,7 @@ import { createRequire } from 'node:module'
 import test from 'node:test'
 import {
   HozoPressable,
+  HozoScrollView,
   HozoTouchableOpacity,
   HozoTouchableWithoutFeedback,
   HozoView,
@@ -30,7 +31,7 @@ const testRenderer = require('react-test-renderer') as {
     element: unknown,
     options?: { createNodeMock?: () => unknown },
   ) => {
-    root: { findByType: (type: string) => { props: Record<string, unknown> } }
+    root: { findAllByType: (type: string) => { props: Record<string, unknown> }[] }
     update: (element: unknown) => void
     unmount: () => void
   }
@@ -56,13 +57,13 @@ function element() {
 }
 
 /** Enough of a pointer event for one press. */
-const press = (node: unknown) => ({
-  isPrimary: true,
-  pointerId: 1,
-  clientX: 0,
-  clientY: 0,
-  pageX: 0,
-  pageY: 0,
+const press = (node: unknown, pointerId = 1, isPrimary = true, pageX = 0, pageY = 0) => ({
+  isPrimary,
+  pointerId,
+  clientX: pageX,
+  clientY: pageY,
+  pageX,
+  pageY,
   timeStamp: 0,
   target: node,
   currentTarget: node,
@@ -73,7 +74,23 @@ const press = (node: unknown) => ({
 
 type Handlers = {
   onPointerDown?: (event: ReturnType<typeof press>) => void
+  onPointerDownCapture?: (event: ReturnType<typeof press>) => void
+  onPointerMove?: (event: ReturnType<typeof press>) => void
   onPointerUp?: (event: ReturnType<typeof press>) => void
+}
+
+function ResponderProbe({
+  surface,
+  responderProps,
+  receive,
+}: {
+  surface: ReturnType<typeof element>
+  responderProps: ResponderProps
+  receive: (handlers: Handlers) => void
+}) {
+  const ref = useRef(surface.node) as unknown as RefObject<HTMLElement | null>
+  receive(useResponderDomProps(ref, responderProps) as Handlers)
+  return null
 }
 
 test('a responder that is turned off releases the pointer it had', () => {
@@ -110,10 +127,156 @@ test('a responder that is turned off releases the pointer it had', () => {
   })
 })
 
+test('capture negotiation carries move and release through the shared machine', () => {
+  const surface = element()
+  const calls: string[] = []
+  let handlers: Handlers = {}
+  let movedPageX = 0
+  let root: ReturnType<typeof testRenderer.create> | undefined
+
+  testRenderer.act(() => {
+    root = testRenderer.create(
+      <ResponderProbe
+        surface={surface}
+        responderProps={{
+          onStartShouldSetResponderCapture: () => true,
+          onResponderGrant: () => calls.push('grant'),
+          onResponderStart: () => calls.push('start'),
+          onResponderMove: (event) => {
+            calls.push('move')
+            movedPageX = event.nativeEvent.pageX
+          },
+          onResponderEnd: () => calls.push('end'),
+          onResponderRelease: () => calls.push('release'),
+        }}
+        receive={(next) => {
+          handlers = next
+        }}
+      />,
+    )
+  })
+  assert.ok(root)
+  const mounted = root
+
+  testRenderer.act(() => {
+    handlers.onPointerDownCapture?.(press(surface.node))
+    handlers.onPointerMove?.(press(surface.node, 1, true, 12, 4))
+    handlers.onPointerUp?.(press(surface.node, 1, true, 12, 4))
+  })
+  assert.equal(movedPageX, 12)
+  assert.deepEqual(calls, ['grant', 'start', 'move', 'end', 'release'])
+
+  testRenderer.act(() => mounted.unmount())
+})
+
+test('responder transfer asks the incumbent, rejects, then terminates when allowed', () => {
+  const first = element()
+  const second = element()
+  const calls: string[] = []
+  let firstHandlers: Handlers = {}
+  let secondHandlers: Handlers = {}
+  let allowTransfer = false
+  let root: ReturnType<typeof testRenderer.create> | undefined
+
+  const render = () => (
+    <>
+      <ResponderProbe
+        surface={first}
+        responderProps={{
+          onStartShouldSetResponder: () => true,
+          onResponderGrant: () => calls.push('first:grant'),
+          onResponderTerminate: () => calls.push('first:terminate'),
+          onResponderTerminationRequest: () => allowTransfer,
+        }}
+        receive={(next) => {
+          firstHandlers = next
+        }}
+      />
+      <ResponderProbe
+        surface={second}
+        responderProps={{
+          onStartShouldSetResponder: () => true,
+          onResponderGrant: () => calls.push('second:grant'),
+          onResponderReject: () => calls.push('second:reject'),
+        }}
+        receive={(next) => {
+          secondHandlers = next
+        }}
+      />
+    </>
+  )
+
+  testRenderer.act(() => {
+    root = testRenderer.create(render())
+  })
+  assert.ok(root)
+  const mounted = root
+  testRenderer.act(() => {
+    firstHandlers.onPointerDown?.(press(first.node, 1))
+    secondHandlers.onPointerDown?.(press(second.node, 2))
+    secondHandlers.onPointerUp?.(press(second.node, 2))
+  })
+  assert.deepEqual(calls, ['first:grant', 'second:reject'])
+
+  allowTransfer = true
+  testRenderer.act(() => mounted.update(render()))
+  testRenderer.act(() => {
+    secondHandlers.onPointerDown?.(press(second.node, 3))
+  })
+  assert.deepEqual(calls, ['first:grant', 'second:reject', 'first:terminate', 'second:grant'])
+  assert.deepEqual(first.released, [1])
+
+  testRenderer.act(() => {
+    firstHandlers.onPointerUp?.(press(first.node, 1))
+    secondHandlers.onPointerUp?.(press(second.node, 3))
+    mounted.unmount()
+  })
+})
+
+test('one responder keeps every active pointer until the final release', () => {
+  const surface = element()
+  const calls: string[] = []
+  let handlers: Handlers = {}
+  let root: ReturnType<typeof testRenderer.create> | undefined
+
+  testRenderer.act(() => {
+    root = testRenderer.create(
+      <ResponderProbe
+        surface={surface}
+        responderProps={{
+          onStartShouldSetResponder: () => true,
+          onResponderStart: () => calls.push('start'),
+          onResponderEnd: () => calls.push('end'),
+          onResponderRelease: () => calls.push('release'),
+        }}
+        receive={(next) => {
+          handlers = next
+        }}
+      />,
+    )
+  })
+  assert.ok(root)
+  const mounted = root
+  testRenderer.act(() => {
+    handlers.onPointerDown?.(press(surface.node, 10))
+    handlers.onPointerDown?.(press(surface.node, 11, false))
+    handlers.onPointerUp?.(press(surface.node, 10))
+  })
+  assert.deepEqual(calls, ['start', 'start', 'end'])
+
+  testRenderer.act(() => {
+    handlers.onPointerUp?.(press(surface.node, 11, false))
+  })
+  assert.deepEqual(calls, ['start', 'start', 'end', 'end', 'release'])
+
+  testRenderer.act(() => mounted.unmount())
+})
+
 const responderBridges: readonly [string, (props: ResponderProps) => ReactElement][] = [
   ['View', (props) => <HozoView {...props} />],
   ['Pressable', (props) => <HozoPressable {...props} />],
   ['TouchableOpacity', (props) => <HozoTouchableOpacity {...props} />],
+  ['ScrollView', (props) => <HozoScrollView {...props} />],
   [
     'TouchableWithoutFeedback',
     (props) => (
@@ -144,7 +307,7 @@ for (const [name, renderBridge] of responderBridges) {
     })
     assert.ok(root)
     const mounted = root
-    const host = mounted.root.findByType('div')
+    const host = mounted.root.findAllByType('div')[0]!
     assert.deepEqual(
       Object.keys(host.props).filter(
         (key) => key.startsWith('onResponder') || key.includes('ShouldSetResponder'),
@@ -162,3 +325,20 @@ for (const [name, renderBridge] of responderBridges) {
     testRenderer.act(() => mounted.unmount())
   })
 }
+
+test('a ScrollView without a responder contract adds no pointer negotiation handlers', () => {
+  let root: ReturnType<typeof testRenderer.create> | undefined
+  testRenderer.act(() => {
+    root = testRenderer.create(<HozoScrollView />)
+  })
+  assert.ok(root)
+  const mounted = root
+  const host = mounted.root.findAllByType('div')[0]!
+  assert.equal(host.props.onPointerDown, undefined)
+  assert.equal(host.props.onPointerDownCapture, undefined)
+  assert.equal(host.props.onPointerMove, undefined)
+  assert.equal(host.props.onPointerMoveCapture, undefined)
+  assert.equal(host.props.onPointerUp, undefined)
+
+  testRenderer.act(() => mounted.unmount())
+})
