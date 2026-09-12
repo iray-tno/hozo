@@ -137,6 +137,18 @@ export const useWidth = () => useSize().width
   assert.match(lowered.code, /useSize\(\)\.width/)
 })
 
+test('unloweredReactNativeJsx rehomes useColorScheme and preserves its type', () => {
+  const source = `import { type ColorSchemeName, useColorScheme as useTheme } from 'react-native'
+export const current: () => ColorSchemeName = useTheme
+`
+  const lowered = lowerModule(source, 'theme.ts', 'theme.ts', compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })!
+  assert.match(lowered.code, /import \{ type ColorSchemeName \} from 'react-native'/)
+  assert.match(lowered.code, /import \{ useColorScheme as useTheme \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /current: \(\) => ColorSchemeName = useTheme/)
+})
+
 test('unloweredReactNativeJsx rehomes a TextInput that remains a runtime component value', () => {
   const source = `import { TextInput, View } from 'react-native'
 const Field = makeField(TextInput)

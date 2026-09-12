@@ -33,6 +33,7 @@ export {
   type HozoBackdropFilterAdapter,
   type HozoBackdropFilterAdapterProps,
 } from './backdrop.ts'
+export { type ColorSchemeName, useColorScheme } from './color-scheme.ts'
 export {
   Dimensions,
   type DimensionsChangeHandler,
