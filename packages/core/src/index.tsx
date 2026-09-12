@@ -5,7 +5,7 @@
 // job is to make invoking these at runtime unnecessary where it can, not
 // to make them required.
 
-import { type HozoDomStyle, HozoLink, hozoDomStyle, hozoInteractive } from '@hozo/runtime'
+import { type HozoDomStyle, HozoLink, hozoDomStyle } from '@hozo/runtime'
 import {
   type AriaRole,
   type CSSProperties,
@@ -578,101 +578,10 @@ export function FlatList<T>({
   )
 }
 
-export interface PressableProps extends UniversalProps, ResponderProps {
-  className?: string
-  children?: ReactNode
-  onPress?: MouseEventHandler<HTMLElement>
-  accessibilityRole?: 'button' | 'link'
-  disabled?: boolean
-  /** A destination turns the free-form surface into a semantic link. */
-  href?: string
-  external?: boolean
-  replace?: boolean
-  prefetch?: boolean
-  target?: '_blank' | '_self' | '_parent' | '_top' | string
-  rel?: string
-  download?: boolean | string
-}
-
-// No native HTML element matches Pressable's semantics (proposal §10.2):
-// without an explicit `accessibilityRole`, this is exactly the
-// interactive-without-role case Hozo's compiler is meant to diagnose.
-export function Pressable({
-  className,
-  children,
-  onPress,
-  accessibilityRole,
-  disabled,
-  href,
-  external,
-  replace,
-  prefetch,
-  target,
-  rel,
-  download,
-  onLayout,
-  ...universal
-}: PressableProps) {
-  const anchorRef = useLayoutRef<HTMLAnchorElement>(onLayout)
-  const divRef = useLayoutRef<HTMLDivElement>(onLayout)
-  // Both spellings of the state, folded the way React Native folds them --
-  // `Pressable.js` merges the `disabled` prop into `accessibilityState`,
-  // and the compiled path merges them into one guard. Two sources for one
-  // attribute is how they end up disagreeing.
-  const isDisabled = disabled || universal.accessibilityState?.disabled
-  const anchorResponder = useResponderDomProps(anchorRef, universal, !isDisabled)
-  const divResponder = useResponderDomProps(divRef, universal, !isDisabled)
-  if (href != null) {
-    return (
-      <HozoLink
-        ref={anchorRef}
-        href={href}
-        external={external}
-        replace={replace}
-        prefetch={prefetch}
-        target={target}
-        rel={rel}
-        download={download}
-        className={className}
-        accessibilityRole={accessibilityRole ?? universal.role}
-        disabled={isDisabled}
-        onPress={onPress}
-        {...universalDomProps(universal)}
-        {...anchorResponder}
-      >
-        {children}
-      </HozoLink>
-    )
-  }
-  // Without an `onPress` this is not a control, so it gets no tab stop and
-  // no key handlers -- only the announcement, which a disabled region is
-  // still entitled to.
-  const interaction = onPress
-    ? hozoInteractive(onPress, isDisabled)
-    : { 'aria-disabled': isDisabled || undefined }
-  return (
-    <div
-      ref={divRef}
-      className={className}
-      // Spread before anything written explicitly below, for the reason on
-      // `universalDomProps` -- it names every key unconditionally, so a
-      // later spread of `undefined` erases what came before it.
-      {...universalDomProps(universal)}
-      role={accessibilityRole ?? universal.role}
-      // The same call the compiled path makes, so the two cannot answer
-      // differently. Everything `disabled` means is in there: see
-      // `@hozo/runtime`'s `interactive.ts` and docs/decisions/001.
-      //
-      // Written out here, this had already drifted twice -- it suppressed
-      // the click but not the keyboard, and the compiled path suppressed
-      // neither.
-      {...interaction}
-      {...divResponder}
-    >
-      {children}
-    </div>
-  )
-}
+export {
+  HozoPressable as Pressable,
+  type HozoPressableProps as PressableProps,
+} from '@hozo/runtime'
 
 export interface ButtonProps {
   className?: string

@@ -156,6 +156,12 @@ export { hozoInteractive } from './interactive.ts'
 export { Keyboard, type KeyboardSubscription } from './keyboard.ts'
 export { externalLinkAttributes, HozoLink, type HozoLinkProps } from './link.ts'
 export { Platform, type PlatformSelectSpec } from './platform.ts'
+export {
+  HozoPressable,
+  HozoPressable as Pressable,
+  type HozoPressableProps,
+  type HozoPressableState,
+} from './pressable.ts'
 export { hozoScrollable } from './scrollable.ts'
 export { type HozoNamedStyles, type HozoStyle, StyleSheet } from './stylesheet.ts'
 export {
