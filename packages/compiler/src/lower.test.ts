@@ -135,6 +135,20 @@ export const Page = () => <View><TextInput accessibilityLabel="Name" /><Field />
   assert.equal(lowered.needsClientBoundary, false)
 })
 
+test('unloweredReactNativeJsx rehomes a Pressable wrapped as a runtime component value', () => {
+  const source = `import { Pressable, View } from 'react-native'
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+export const Page = () => <View><Pressable onPress={save} /><AnimatedPressable /></View>
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })!
+  assert.match(lowered.code, /import \{ View \} from 'react-native'/)
+  assert.match(lowered.code, /import \{ Pressable \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /createAnimatedComponent\(Pressable\)/)
+  assert.doesNotMatch(lowered.code, /<Pressable\b/)
+})
+
 test('unloweredReactNativeJsx identifies namespace JSX by its imported root', () => {
   const source = `import * as RN from 'react-native'
 export const Page = () => <RN.SectionList sections={sections} renderItem={renderItem} />

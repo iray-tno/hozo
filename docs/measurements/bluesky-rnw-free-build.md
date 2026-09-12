@@ -17,17 +17,17 @@ This is a dependency-boundary measurement, not a claim that the application runs
 
 1. **The unmodified production graph builds:** 0 errors.
 2. **The graph is not RNW-free:** the successful baseline contains 74 bundled React Native Web modules (430839 unminified module bytes reported by Webpack).
-3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 73 RNW modules and makes 301 RN/RNW requests from 206 unique importing modules.
-4. **Both app APIs and dependencies remain:** 64 app modules and 138 modules owned by 40 third-party packages make those requests.
-5. **The block is effective:** repeating that build with RN/RNW unavailable produces 308 resolution diagnostics (305 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
+3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 73 RNW modules and makes 294 RN/RNW requests from 199 unique importing modules.
+4. **Both app APIs and dependencies remain:** 57 app modules and 138 modules owned by 40 third-party packages make those requests.
+5. **The block is effective:** repeating that build with RN/RNW unavailable produces 301 resolution diagnostics (298 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
 
-This confirms that `unloweredReactNativeJsx: 'error'` closes the direct JSX boundary (0 direct React Native JSX tags remain in application code). It does not mean “the complete application dependency graph builds without React Native Web”: 73 RNW modules and 308 resolution diagnostics remain across 40 third-party packages and app-level non-JSX references. Closing the full dependency graph is an independent dependency-level policy challenge.
+This confirms that `unloweredReactNativeJsx: 'error'` closes the direct JSX boundary (0 direct React Native JSX tags remain in application code). It does not mean “the complete application dependency graph builds without React Native Web.” Full dependency-level RNW elimination is a separate dependency-boundary challenge.
 
 ## Blocked importers by owner
 
 | Owner | Importing modules |
 |---|---:|
-| application | 64 |
+| application | 57 |
 | @sentry/react-native | 24 |
 | @react-navigation/elements | 19 |
 | react-native-keyboard-controller | 19 |
@@ -82,7 +82,7 @@ These are surfaces Hozo already claims to lower or bridge. Rows here are runtime
 
 | API | Modules | Priority | Ownership |
 |---|---:|---|---|
-| Pressable | 7 | P0 | Runtime component identity remains in component props and animation wrappers. |
+| None | 0 | — | — |
 
 ### Hozo foundation candidates
 
@@ -206,7 +206,7 @@ Every row below is an external dependency boundary rather than a Hozo core gap. 
 
 ## Interpretation and next work
 
-- Audit the P0 residual primitive uses first; do not infer a JSX lowering failure from an imported value.
+- The measured app-owned P0 core-gap table is empty; preserve that invariant as the remaining boundary work moves to foundation APIs and dependencies.
 - Treat viewport, theme, and accessibility facts as focused foundation candidates rather than promising the complete React Native APIs.
 - Keep application lifecycle, scheduling, sharing, and deep-link services outside core until an optional platform boundary is designed.
 - Keep #388 as P2 hardening: make the existing Animated.View compatibility adapter explicit and diagnosable without expanding it into Animated reimplementation.

@@ -88,7 +88,9 @@ export {
 export { HozoModal, type HozoModalProps } from './modal.native.ts'
 export {
   HozoPressable,
+  HozoPressable as Pressable,
   type HozoPressableProps,
+  type HozoPressableProps as PressableProps,
   type HozoPressableState,
   HozoText,
   type HozoTextProps,

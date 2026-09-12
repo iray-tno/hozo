@@ -32,7 +32,7 @@ const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])reac
 
 /** React Native value exports whose Web contract Hozo owns when checking unlowered JSX. */
 const RN_OWNED_RUNTIME_EXPORTS = new Set(['Keyboard', 'Platform', 'StyleSheet'])
-const RN_OWNED_COMPONENT_EXPORTS = new Set(['TextInput'])
+const RN_OWNED_COMPONENT_EXPORTS = new Set(['Pressable', 'TextInput'])
 
 /**
  * Moves supported value imports out of `react-native` before a Web bundler
