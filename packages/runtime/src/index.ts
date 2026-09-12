@@ -34,6 +34,13 @@ export {
   type HozoBackdropFilterAdapterProps,
 } from './backdrop.ts'
 export {
+  Dimensions,
+  type DimensionsChangeHandler,
+  type DimensionsValue,
+  type ScaledSize,
+  useWindowDimensions,
+} from './dimensions.ts'
+export {
   HozoFlatList,
   type HozoFlatListHandle,
   type HozoFlatListProps,

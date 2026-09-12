@@ -37,6 +37,7 @@ export {
   hozoTextChildren,
 } from '@hozo/behaviors'
 export {
+  Dimensions,
   TextInput as HozoTextInput,
   TextInput,
   type TextInputProps as HozoTextInputProps,
@@ -72,6 +73,7 @@ export {
   useHozoEnvironment,
   useHozoViewport,
   useHozoWidthAtLeast,
+  useWindowDimensions,
 } from './hooks.native.ts'
 export { hozoImageSource } from './image-source.native.ts'
 export * from './index.ts'

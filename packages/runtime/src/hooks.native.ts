@@ -44,15 +44,29 @@ Appearance.addChangeListener(({ colorScheme }) => {
   darkStore.set(colorScheme === 'dark')
 })
 
-const breakpointStore = createStore(bucketFor(Dimensions.get('window').width))
+function sameScaledSize(left: ScaledSize, right: ScaledSize): boolean {
+  return (
+    left.width === right.width &&
+    left.height === right.height &&
+    left.scale === right.scale &&
+    left.fontScale === right.fontScale
+  )
+}
+
+const initialWindow = Dimensions.get('window')
+const breakpointStore = createStore(bucketFor(initialWindow.width))
 // A second store over the same event, holding the size itself rather than
 // the bucket. Kept separate on purpose: a component using only `md:`
 // must not re-render on every resize that doesn't cross a breakpoint, and
 // it wouldn't if these shared one snapshot.
-const viewportStore = createStore(viewportOf(Dimensions.get('window')), sameViewport)
+const viewportStore = createStore(viewportOf(initialWindow), sameViewport)
+const windowDimensionsStore = createStore(initialWindow, sameScaledSize)
+const orientationStore = createStore(isPortrait(initialWindow))
 Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
   breakpointStore.set(bucketFor(window.width))
   viewportStore.set(viewportOf(window))
+  windowDimensionsStore.set(window)
+  orientationStore.set(isPortrait(window))
 })
 
 /** Whether the OS is in dark mode. Drives `dark:` utilities. */
@@ -112,6 +126,15 @@ export function useHozoWidthAtLeast(px: number): boolean {
  */
 export function useHozoViewport(): Viewport {
   return useSyncExternalStore(viewportStore.subscribe, viewportStore.get, viewportStore.get)
+}
+
+/** React Native's window dimensions, backed by Hozo's shared native listener. */
+export function useWindowDimensions(): ScaledSize {
+  return useSyncExternalStore(
+    windowDimensionsStore.subscribe,
+    windowDimensionsStore.get,
+    windowDimensionsStore.get,
+  )
 }
 
 /**
@@ -234,7 +257,6 @@ export function useHozoAnimation(name: HozoAnimation) {
 
 const reduceMotionStore = createStore(false)
 const invertColorsStore = createStore(false)
-const orientationStore = createStore(isPortrait(Dimensions.get('window')))
 // The four Tailwind has no name for. Three are iOS-only, and React Native
 // resolves those to `false` on Android rather than rejecting them, so
 // nothing here needs a platform check: a style that does not fire where
@@ -298,9 +320,6 @@ track('isDarkerSystemColorsEnabled', 'darkerSystemColorsChanged', darkerSystemCo
 // increase. Read as the nearest thing that platform has rather than left
 // unanswered, which would make `contrast-more:` iOS-only in practice.
 track('isHighTextContrastEnabled', 'highTextContrastChanged', highTextContrastStore)
-Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
-  orientationStore.set(isPortrait(window))
-})
 
 /**
  * Whether an environment query holds. Drives `motion-reduce:`, `ltr:` and

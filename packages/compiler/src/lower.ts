@@ -31,7 +31,13 @@ const HOZO_CORE_IMPORT_RE =
 const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])react-native\3\s*;?/g
 
 /** React Native value exports whose Web contract Hozo owns when checking unlowered JSX. */
-const RN_OWNED_RUNTIME_EXPORTS = new Set(['Keyboard', 'Platform', 'StyleSheet'])
+const RN_OWNED_RUNTIME_EXPORTS = new Set([
+  'Dimensions',
+  'Keyboard',
+  'Platform',
+  'StyleSheet',
+  'useWindowDimensions',
+])
 const RN_OWNED_COMPONENT_EXPORTS = new Set(['Pressable', 'TextInput'])
 
 /**
@@ -64,7 +70,7 @@ function rehomeReactNativeImports(code: string, owned: ReadonlySet<string>): str
       }
       if (moved.length === 0) return statement
       const original = remaining.some((part) => part.trim() !== '')
-        ? `import {${remaining.join(',')}} from ${quote}react-native${quote}\n`
+        ? `import { ${remaining.map((part) => part.trim()).join(', ')} } from ${quote}react-native${quote}\n`
         : ''
       return `${original}import { ${moved.join(', ')} } from '@hozo/runtime'\n`
     },

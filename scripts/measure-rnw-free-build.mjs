@@ -449,7 +449,7 @@ ${
     ? '- Audit the P0 residual primitive uses first; do not infer a JSX lowering failure from an imported value.'
     : '- The measured app-owned P0 core-gap table is empty; preserve that invariant as the remaining boundary work moves to foundation APIs and dependencies.'
 }
-- Treat viewport, theme, and accessibility facts as focused foundation candidates rather than promising the complete React Native APIs.
+- Treat any remaining foundation-table entries as focused capabilities rather than promising the complete React Native APIs.
 - Keep application lifecycle, scheduling, sharing, and deep-link services outside core until an optional platform boundary is designed.
 - Keep #388 as P2 hardening: make the existing Animated.View compatibility adapter explicit and diagnosable without expanding it into Animated reimplementation.
 - Classify third-party packages as Web-dead/platform-gated, configurable, adapter candidates, or unavoidable RNW dependencies.
