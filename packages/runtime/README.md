@@ -15,6 +15,19 @@ platform adapter, because Hozo does not add a native module to every application
 
 **Interaction state.** `HozoPressable` tracks pressed, hovered, focused and focus-visible, and provides them to descendants — which is how a `Text` inside a pressed button changes colour without the button knowing what is inside it. Focus-visible follows the input modality, so a tap does not draw a focus ring and a Tab key does.
 
+**Web responder negotiation.** `View`, `Pressable`, `TouchableOpacity`,
+`TouchableWithoutFeedback`, and `ScrollView` use one responder state machine. Pointer capture and
+bubble negotiation map to React Native's grant, start, move, end, release, rejection, and
+termination callbacks; one winning surface retains all active pointers until the final release.
+`ScrollView` installs these handlers only when the author supplied a responder contract, so an
+ordinary scroll container keeps the browser's unmediated scrolling path.
+
+This is a lifecycle compatibility layer, not an attempt to make browser input delivery identical
+to React Native. Pointer/touch coalescing, native dispatch timing, gesture recognition, and the
+platform's choice of synthesized mouse events remain platform behavior. Hozo normalizes ownership
+and callback order where an application explicitly asks for the responder API; it does not replace
+Pointer Events or the native input system.
+
 **Transitions.** `transition-*` utilities compile to `Animated` timings, including colour interpolation, with the blend point preserved when an interrupted transition restarts.
 
 **Layout that CSS does for free.** The `HozoGrid` and `HozoSpaced` helpers reproduce the parts of grid and gap that React Native's layout engine does not have.
