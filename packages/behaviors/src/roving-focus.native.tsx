@@ -1,22 +1,15 @@
 import React, { createContext, type ReactNode, useContext, useMemo } from 'react'
 import { type StyleProp, View, type ViewStyle } from 'react-native'
 
-export type Orientation = 'horizontal' | 'vertical' | 'both'
-export type RovingKey = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'
+import type { Orientation } from './roving-focus-rules.ts'
 
-export interface RovingOptions {
-  count: number
-  active: number
-  orientation?: Orientation
-  wrap?: boolean
-  disabled?: readonly number[]
-  rtl?: boolean
-}
-
-export function tabStops(options: Pick<RovingOptions, 'count' | 'active' | 'disabled'>): number[] {
-  const { count, active } = options
-  return Array.from({ length: count }, (_, index) => (index === active ? 0 : -1))
-}
+export {
+  nextIndex,
+  type Orientation,
+  type RovingKey,
+  type RovingOptions,
+  tabStops,
+} from './roving-focus-rules.ts'
 
 interface RovingFocusContextValue {
   active: number

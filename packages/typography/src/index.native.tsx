@@ -51,6 +51,10 @@ export interface TypographyNativeProps {
   ellipsizeMode?: 'head' | 'middle' | 'tail' | 'clip'
 }
 
+// The public concept keeps one name across platform entry points even
+// though its style field uses React Native's own type here.
+export type TypographyUniversalProps = TypographyNativeProps
+
 export type TextProps = TypographyNativeProps
 export type SemanticTextProps = TypographyNativeProps
 

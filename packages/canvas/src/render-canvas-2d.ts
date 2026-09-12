@@ -11,15 +11,10 @@ import {
   paintStrokes,
   unhandledShape,
 } from './scene.tsx'
+import type { CanvasViewport } from './viewport.ts'
 import { textLines } from './wrap-text.ts'
 
-export interface CanvasViewport {
-  width: number
-  height: number
-  pixelRatio: number
-  viewBox?: readonly [x: number, y: number, width: number, height: number]
-  fit?: 'contain' | 'stretch'
-}
+export type { CanvasViewport } from './viewport.ts'
 
 function applyTransform(context: CanvasRenderingContext2D, transform?: CanvasTransform) {
   if (!transform) return

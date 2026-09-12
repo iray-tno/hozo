@@ -27,7 +27,9 @@
 // Only the interfaces that do not already inherit one: `ScrollViewProps`,
 // `TextInputProps` and `ActivityIndicatorProps` extend `ViewProps`, and
 // `PressableProps` extends an `Omit` of it, so all four follow from the
-// first. `SectionList` is not a Hozo primitive and is not here.
+// first. React Native declares the Touchable props as type aliases, which
+// cannot be augmented; Hozo's wrappers add the authoring prop themselves.
+// `SectionList` is not a Hozo primitive and is not here.
 
 declare module 'react-native' {
   interface ViewProps {
