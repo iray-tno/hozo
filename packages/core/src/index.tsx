@@ -680,47 +680,11 @@ export {
   HozoTextInput as TextInput,
   type HozoTextInputProps as TextInputProps,
 } from '@hozo/runtime'
-export {
-  Address,
-  Aside,
-  Description,
-  Details,
-  type DetailsProps,
-  Fieldset,
-  Figcaption,
-  Figure,
-  Footer,
-  Header,
-  Legend,
-  Main,
-  Progress,
-  type ProgressProps,
-  Search,
-  Separator,
-  type SeparatorProps,
-  Summary,
-  Term,
-  TermList,
-  Time,
-  type TimeProps,
-} from '@hozo/semantics'
-export {
-  Code,
-  Del,
-  Emphasis,
-  Link,
-  type LinkProps,
-  Mark,
-  NoBreak,
-  Ruby,
-  RubyText,
-  Small,
-  Strikethrough,
-  Strong,
-  Sub,
-  Sup,
-  Underline,
-} from '@hozo/typography'
+// Keep the aggregation symmetric with the Native entry. Explicit exports
+// declared above win over names shared with these modules; everything else
+// follows automatically when semantics or typography grows.
+export * from '@hozo/semantics'
+export * from '@hozo/typography'
 // Composite accessible components powered by @hozo/behaviors.
 export {
   type Autocomplete,

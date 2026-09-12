@@ -1,16 +1,15 @@
-// What `@hozo/core` promises on one platform and not the other.
+// What every split Hozo package promises on one platform and not the other.
 //
-// `index.tsx` and `index.native.ts` are two hand-written lists, and they
-// had drifted: `View`, `Pressable`, `Image`, `ScrollView`, `FlatList`,
-// `List`, `ListItem` and `TextInput` were exported in a browser and
-// absent on React Native. `examples/native-demo` imports six of them.
-// Nothing failed, because Metro will bundle a named export that does not
-// exist -- it arrives as `undefined` and React throws at the first
-// render, on a device, which is the one place this repository does not
-// look.
+// Core's `index.tsx` and `index.native.ts` drifted first: `View`,
+// `Pressable`, `Image`, `ScrollView`, `FlatList`, `List`, `ListItem` and
+// `TextInput` were exported in a browser and absent on React Native.
+// Metro bundled those named imports as `undefined`, so the failure waited
+// for the first device render. Checking core alone then left every other
+// package with the same two-entry contract unguarded.
 //
-// A parity test rather than a rendering one: the difference is a fact
-// about the two files, and reading them costs nothing. Renders would need
+// The package pairs are discovered from the filesystem. A parity test
+// rather than a rendering one is enough: the difference is a fact about
+// the two entry files, and reading them costs nothing. Renders would need
 // React Native, which is exactly what a Node test process does not have.
 
 import assert from 'node:assert/strict'
@@ -32,8 +31,6 @@ function workspaceRoot() {
 }
 
 const packages = path.join(workspaceRoot(), 'packages')
-const here = path.join(packages, 'core', 'src')
-
 /**
  * Deliberate, with the reason each one is deliberate.
  *
@@ -42,12 +39,29 @@ const here = path.join(packages, 'core', 'src')
  */
 const WEB_ONLY = new Map([
   [
-    'Svg',
+    '@hozo/core:Svg',
     'A separate entry point on React Native (`@hozo/runtime/svg`), because ' +
       '`export … from` in a barrel would load `react-native-svg` for every ' +
       'project, and it is an optional peer.',
   ],
+  [
+    '@hozo/canvas:renderCanvas2D',
+    'The Canvas 2D renderer is a browser implementation detail; Native renders through Skia.',
+  ],
 ])
+
+function entryPairs() {
+  return globSync(path.join(packages, '*', 'src', 'index.native.{ts,tsx}'))
+    .map((native) => {
+      const packageName = path.basename(path.dirname(path.dirname(native)))
+      const web = ['index.ts', 'index.tsx']
+        .map((name) => path.join(packages, packageName, 'src', name))
+        .find(existsSync)
+      return web ? { name: `@hozo/${packageName}`, web, native } : undefined
+    })
+    .filter((pair) => pair !== undefined)
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
 
 const sourceFor = (specifier: string, native: boolean) => {
   const name = specifier.slice('@hozo/'.length)
@@ -55,15 +69,17 @@ const sourceFor = (specifier: string, native: boolean) => {
     ? ['index.native.ts', 'index.native.tsx', 'index.ts', 'index.tsx']
     : ['index.ts', 'index.tsx']) {
     const candidate = path.join(packages, name, 'src', file)
-    try {
-      return { source: readFileSync(candidate, 'utf8'), native }
-    } catch {}
+    if (existsSync(candidate)) return candidate
   }
   throw new Error(`no entry for ${specifier}`)
 }
 
 /** Every name a module publishes, following `export *` into this workspace. */
-function exported(source: string, native: boolean, seen = new Set<string>()): Set<string> {
+function exported(file: string, native: boolean, seen = new Set<string>()): Set<string> {
+  const resolvedFile = path.resolve(file)
+  if (seen.has(resolvedFile)) return new Set()
+  seen.add(resolvedFile)
+  const source = readFileSync(resolvedFile, 'utf8')
   const names = new Set<string>()
   for (const match of source.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)) {
     for (const part of (match[1] as string).split(',')) {
@@ -76,21 +92,26 @@ function exported(source: string, native: boolean, seen = new Set<string>()): Se
   )) {
     names.add(match[1] as string)
   }
-  for (const match of source.matchAll(/export\s+\*\s+from\s+'(@hozo\/[^']+)'/g)) {
+  for (const match of source.matchAll(/export\s+\*\s+from\s+['"]([^'"]+)['"]/g)) {
     const specifier = match[1] as string
-    if (seen.has(specifier)) continue
-    seen.add(specifier)
-    const from = sourceFor(specifier, native)
-    for (const name of exported(from.source, native, seen)) names.add(name)
+    const from = specifier.startsWith('@hozo/')
+      ? sourceFor(specifier, native)
+      : path.resolve(path.dirname(resolvedFile), specifier)
+    for (const name of exported(from, native, seen)) names.add(name)
   }
   return names
 }
 
-const web = exported(readFileSync(path.join(here, 'index.tsx'), 'utf8'), false)
-const nativeNames = exported(readFileSync(path.join(here, 'index.native.ts'), 'utf8'), true)
-
-test('every name @hozo/core publishes in a browser it also publishes on React Native', () => {
-  const missing = [...web].filter((name) => !nativeNames.has(name) && !WEB_ONLY.has(name))
+test('every Web export in a split package also exists on React Native', () => {
+  const missing: string[] = []
+  for (const pair of entryPairs()) {
+    const web = exported(pair.web, false)
+    const nativeNames = exported(pair.native, true)
+    for (const name of web) {
+      const qualified = `${pair.name}:${name}`
+      if (!nativeNames.has(name) && !WEB_ONLY.has(qualified)) missing.push(qualified)
+    }
+  }
   assert.deepEqual(
     missing,
     [],
@@ -101,8 +122,17 @@ test('every name @hozo/core publishes in a browser it also publishes on React Na
 test('the deliberate exceptions are still exceptions', () => {
   // A name listed as Web-only that has since gained a native export is a
   // stale comment, and the next person reads it as a rule.
-  for (const [name, why] of WEB_ONLY) {
-    assert.ok(web.has(name), `${name} is listed as Web-only and is not exported there: ${why}`)
+  const pairs = new Map(entryPairs().map((pair) => [pair.name, pair]))
+  for (const [qualified, why] of WEB_ONLY) {
+    const separator = qualified.indexOf(':')
+    const packageName = qualified.slice(0, separator)
+    const name = qualified.slice(separator + 1)
+    const pair = pairs.get(packageName)
+    assert.ok(pair, `${qualified} names a package without split entries: ${why}`)
+    assert.ok(
+      exported(pair.web, false).has(name),
+      `${qualified} is listed as Web-only and is not exported there: ${why}`,
+    )
   }
 })
 

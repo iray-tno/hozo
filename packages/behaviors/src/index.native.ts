@@ -69,6 +69,7 @@ export {
   PortalProvider,
 } from './portal.native.tsx'
 export {
+  nextIndex,
   type Orientation,
   RovingFocusGroup,
   type RovingFocusGroupProps,

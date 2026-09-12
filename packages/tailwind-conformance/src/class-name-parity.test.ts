@@ -26,7 +26,7 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, globSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
@@ -34,6 +34,7 @@ import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const packagesRoot = path.dirname(packageRoot)
 
 /**
  * The packages that publish a component under two entry points.
@@ -43,29 +44,22 @@ const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
  * Resolving `@hozo/core` would answer through the export map, and the
  * export map is the thing under test.
  */
-const PAIRS = [
-  { name: '@hozo/core', web: '../../core/src/index.tsx', native: '../../core/src/index.native.ts' },
-  {
-    name: '@hozo/typography',
-    web: '../../typography/src/index.tsx',
-    native: '../../typography/src/index.native.tsx',
-  },
-  {
-    name: '@hozo/semantics',
-    web: '../../semantics/src/index.tsx',
-    native: '../../semantics/src/index.native.tsx',
-  },
-  {
-    name: '@hozo/behaviors',
-    web: '../../behaviors/src/index.ts',
-    native: '../../behaviors/src/index.native.ts',
-  },
-  {
-    name: '@hozo/canvas',
-    web: '../../canvas/src/index.tsx',
-    native: '../../canvas/src/index.native.tsx',
-  },
-]
+const PAIRS = globSync(path.join(packagesRoot, '*', 'src', 'index.native.{ts,tsx}'))
+  .map((native) => {
+    const packageName = path.basename(path.dirname(path.dirname(native)))
+    const webName = ['index.ts', 'index.tsx'].find((name) =>
+      existsSync(path.join(packagesRoot, packageName, 'src', name)),
+    )
+    if (!webName) return undefined
+    return {
+      name: `@hozo/${packageName}`,
+      // The generated file sits one directory inside this package.
+      web: `../../${packageName}/src/${webName}`,
+      native: `../../${packageName}/src/${path.basename(native)}`,
+    }
+  })
+  .filter((pair) => pair !== undefined)
+  .sort((left, right) => left.name.localeCompare(right.name))
 
 const PREAMBLE = `import type { JSXElementConstructor } from 'react'
 

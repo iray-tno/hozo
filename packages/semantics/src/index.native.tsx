@@ -53,6 +53,10 @@ export interface SemanticsNativeProps {
   accessible?: boolean
 }
 
+// The public concept keeps one name across platform entry points even
+// though its style and role fields use the platform's own types here.
+export type SemanticsUniversalProps = SemanticsNativeProps
+
 /** The same, for the ones that render text rather than a box. */
 export interface SemanticsTextNativeProps extends Omit<SemanticsNativeProps, 'style'> {
   style?: StyleProp<TextStyle>

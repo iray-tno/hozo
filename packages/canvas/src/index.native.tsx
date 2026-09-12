@@ -97,6 +97,7 @@ export type {
   RoundedRectProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
+export type { CanvasViewport } from './viewport.ts'
 // The rule on its own, for a caller with a measurement of its own --
 // one that already knows its metrics, or is laying out for a font it
 // will load later.
