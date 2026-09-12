@@ -129,11 +129,16 @@ async function checkViewport(width, height) {
         // Give fonts and CSS layout a moment to settle
         await new Promise((r) => setTimeout(r, 600))
 
-        const evalExpr = `(() => {
-          const header = document.querySelector('header, [role="banner"]');
-          const container = header ? header.firstElementChild : null;
-          const trailing = container ? container.children[container.children.length - 1] : null;
-
+        const evalExpr = `(async () => {
+          const start = Date.now();
+          let header, container, trailing;
+          while (Date.now() - start < 10000) {
+            header = document.querySelector('header, [role="banner"]');
+            container = header ? header.firstElementChild : null;
+            trailing = container && container.children.length > 0 ? container.children[container.children.length - 1] : null;
+            if (trailing) break;
+            await new Promise((r) => setTimeout(r, 100));
+          }
           if (!trailing) return { error: 'trailing container not found' };
           const rect = trailing.getBoundingClientRect();
           return {
@@ -144,12 +149,27 @@ async function checkViewport(width, height) {
           };
         })()`
 
-        const { result: evalResult } = await send('Runtime.evaluate', {
-          expression: evalExpr,
-          returnByValue: true,
-        })
+        let evalResult
+        const evalDeadline = Date.now() + 15000
+        while (Date.now() < evalDeadline) {
+          try {
+            const res = await send('Runtime.evaluate', {
+              expression: evalExpr,
+              awaitPromise: true,
+              returnByValue: true,
+            })
+            evalResult = res.result
+            if (evalResult) break
+          } catch (err) {
+            if (String(err).includes('Execution context was destroyed')) {
+              await new Promise((r) => setTimeout(r, 200))
+              continue
+            }
+            throw err
+          }
+        }
         socket.close()
-        resolve(evalResult.value)
+        resolve(evalResult ? evalResult.value : { error: 'evaluate timed out' })
       } catch (err) {
         reject(err)
       }

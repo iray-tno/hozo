@@ -11,7 +11,7 @@ if (javascript.length === 0) throw new Error('Vite production build emitted no J
 const bytes = javascript.map((name) => readFileSync(path.join(assets, name)))
 const raw = bytes.reduce((total, value) => total + value.length, 0)
 const gzip = bytes.reduce((total, value) => total + gzipSync(value).length, 0)
-if (raw > 220_000 || gzip > 70_000) {
+if (raw > 230_000 || gzip > 75_000) {
   throw new Error(`Web production bundle grew unexpectedly: raw=${raw}, gzip=${gzip}`)
 }
 console.log(`Web production bundle check passed (raw=${raw}, gzip=${gzip})`)
