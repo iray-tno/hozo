@@ -554,6 +554,9 @@ importers:
       react-native-svg:
         specifier: ^15.15.5
         version: 15.15.5(react-native@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8)
+      react-test-renderer:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
 
   packages/semantics:
     dependencies:
