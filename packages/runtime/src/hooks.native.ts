@@ -12,6 +12,7 @@ import {
   AccessibilityInfo,
   Animated,
   Appearance,
+  type ColorSchemeName,
   Dimensions,
   Easing,
   I18nManager,
@@ -39,9 +40,9 @@ function viewportOf({ width, height }: { width: number; height: number }): Viewp
 
 // One subscription per app, not per component. See ./ambient.ts.
 
-const darkStore = createStore(Appearance.getColorScheme() === 'dark')
+const colorSchemeStore = createStore<ColorSchemeName | null>(Appearance.getColorScheme())
 Appearance.addChangeListener(({ colorScheme }) => {
-  darkStore.set(colorScheme === 'dark')
+  colorSchemeStore.set(colorScheme)
 })
 
 function sameScaledSize(left: ScaledSize, right: ScaledSize): boolean {
@@ -71,7 +72,20 @@ Dimensions.addEventListener('change', ({ window }: { window: ScaledSize }) => {
 
 /** Whether the OS is in dark mode. Drives `dark:` utilities. */
 export function useHozoDark(): boolean {
-  return useSyncExternalStore(darkStore.subscribe, darkStore.get, darkStore.get)
+  return useSyncExternalStore(
+    colorSchemeStore.subscribe,
+    () => colorSchemeStore.get() === 'dark',
+    () => colorSchemeStore.get() === 'dark',
+  )
+}
+
+/** React Native's color-scheme hook, backed by Hozo's shared native listener. */
+export function useColorScheme(): ColorSchemeName | null {
+  return useSyncExternalStore(
+    colorSchemeStore.subscribe,
+    colorSchemeStore.get,
+    colorSchemeStore.get,
+  )
 }
 
 /**

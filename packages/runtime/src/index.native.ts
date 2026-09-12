@@ -67,6 +67,7 @@ export { HozoGrid, HozoGridItem } from './grid.native.tsx'
 export type { GridTrack } from './grid.ts'
 export {
   type HozoAnimation,
+  useColorScheme,
   useHozoAnimation,
   useHozoBreakpoint,
   useHozoDark,

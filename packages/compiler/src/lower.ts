@@ -36,6 +36,7 @@ const RN_OWNED_RUNTIME_EXPORTS = new Set([
   'Keyboard',
   'Platform',
   'StyleSheet',
+  'useColorScheme',
   'useWindowDimensions',
 ])
 const RN_OWNED_COMPONENT_EXPORTS = new Set(['Pressable', 'TextInput'])
