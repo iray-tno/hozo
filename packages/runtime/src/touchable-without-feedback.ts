@@ -3,12 +3,18 @@ import {
   cloneElement,
   forwardRef,
   type HTMLAttributes,
-  isValidElement,
+  type PointerEvent,
   type ReactElement,
+  type Ref,
+  useCallback,
+  useRef,
 } from 'react'
 
+import { type ResponderProps, useResponderDomProps } from './responder.ts'
+
 export interface HozoTouchableWithoutFeedbackProps
-  extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
+  extends Omit<HTMLAttributes<HTMLElement>, 'children'>,
+    ResponderProps {
   children: ReactElement
   testID?: string
   nativeID?: string
@@ -27,6 +33,11 @@ export interface HozoTouchableWithoutFeedbackProps
   accessibilityLiveRegion?: 'none' | 'polite' | 'assertive'
   disabled?: boolean
   'data-hozo-disabled'?: string
+}
+
+function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
+  if (typeof ref === 'function') ref(value)
+  else if (ref) ref.current = value
 }
 
 /**
@@ -53,15 +64,63 @@ export const HozoTouchableWithoutFeedback = forwardRef<
     'aria-disabled': ariaDisabled,
     'data-hozo-disabled': dataHozoDisabled,
     onClick,
+    onPointerDown,
+    onPointerDownCapture,
+    onPointerMove,
+    onPointerMoveCapture,
+    onPointerUp,
+    onPointerCancel,
+    onLostPointerCapture,
+    onStartShouldSetResponder,
+    onStartShouldSetResponderCapture,
+    onMoveShouldSetResponder,
+    onMoveShouldSetResponderCapture,
+    onResponderGrant,
+    onResponderStart,
+    onResponderMove,
+    onResponderEnd,
+    onResponderRelease,
+    onResponderReject,
+    onResponderTerminate,
+    onResponderTerminationRequest,
     ...props
   },
-  ref,
+  forwardedRef,
 ) {
-  const child = Children.only(children)
-  if (!isValidElement<Record<string, unknown>>(child)) return child
-
+  const child = Children.only(children) as ReactElement<Record<string, unknown>>
+  const elementRef = useRef<HTMLElement>(null)
+  const childRef = child.props.ref as Ref<HTMLElement> | undefined
+  const setRef = useCallback(
+    (element: HTMLElement | null) => {
+      elementRef.current = element
+      assignRef(childRef, element)
+      assignRef(forwardedRef, element)
+    },
+    [childRef, forwardedRef],
+  )
   const unavailable = disabled || accessibilityState?.disabled === true
   const value = accessibilityValue
+  const responder = useResponderDomProps(
+    elementRef,
+    {
+      onStartShouldSetResponder,
+      onStartShouldSetResponderCapture,
+      onMoveShouldSetResponder,
+      onMoveShouldSetResponderCapture,
+      onResponderGrant,
+      onResponderStart,
+      onResponderMove,
+      onResponderEnd,
+      onResponderRelease,
+      onResponderReject,
+      onResponderTerminate,
+      onResponderTerminationRequest,
+    },
+    !unavailable,
+  )
+  const adoptTarget = (event: PointerEvent<HTMLElement>) => {
+    elementRef.current ??= event.currentTarget
+  }
   const clonedProps: Record<string, unknown> = {
     ...props,
     role: accessibilityRole ?? role,
@@ -82,7 +141,42 @@ export const HozoTouchableWithoutFeedback = forwardRef<
     'aria-label': accessibilityLabel,
     'aria-description': accessibilityHint,
     onClick: unavailable ? undefined : onClick,
+    onPointerDown: (event: PointerEvent<HTMLElement>) => {
+      adoptTarget(event)
+      responder.onPointerDown?.(event)
+      onPointerDown?.(event)
+    },
+    onPointerDownCapture: (event: PointerEvent<HTMLElement>) => {
+      adoptTarget(event)
+      responder.onPointerDownCapture?.(event)
+      onPointerDownCapture?.(event)
+    },
+    onPointerMove: (event: PointerEvent<HTMLElement>) => {
+      adoptTarget(event)
+      responder.onPointerMove?.(event)
+      onPointerMove?.(event)
+    },
+    onPointerMoveCapture: (event: PointerEvent<HTMLElement>) => {
+      adoptTarget(event)
+      responder.onPointerMoveCapture?.(event)
+      onPointerMoveCapture?.(event)
+    },
+    onPointerUp: (event: PointerEvent<HTMLElement>) => {
+      adoptTarget(event)
+      responder.onPointerUp?.(event)
+      onPointerUp?.(event)
+    },
+    onPointerCancel: (event: PointerEvent<HTMLElement>) => {
+      adoptTarget(event)
+      responder.onPointerCancel?.(event)
+      onPointerCancel?.(event)
+    },
+    onLostPointerCapture: (event: PointerEvent<HTMLElement>) => {
+      adoptTarget(event)
+      responder.onLostPointerCapture?.(event)
+      onLostPointerCapture?.(event)
+    },
   }
-  if (ref != null) clonedProps.ref = ref
+  clonedProps.ref = setRef
   return cloneElement(child, clonedProps)
 })

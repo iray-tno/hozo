@@ -14,8 +14,13 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import test from 'node:test'
-import { HozoPressable, HozoTouchableOpacity, HozoView } from '@hozo/runtime'
-import { type RefObject, useRef } from 'react'
+import {
+  HozoPressable,
+  HozoTouchableOpacity,
+  HozoTouchableWithoutFeedback,
+  HozoView,
+} from '@hozo/runtime'
+import { type ReactElement, type RefObject, useRef } from 'react'
 
 import { type ResponderProps, useResponderDomProps } from './responder.ts'
 
@@ -105,11 +110,21 @@ test('a responder that is turned off releases the pointer it had', () => {
   })
 })
 
-for (const [name, Component] of [
-  ['View', HozoView],
-  ['Pressable', HozoPressable],
-  ['TouchableOpacity', HozoTouchableOpacity],
-] as const) {
+const responderBridges: readonly [string, (props: ResponderProps) => ReactElement][] = [
+  ['View', (props) => <HozoView {...props} />],
+  ['Pressable', (props) => <HozoPressable {...props} />],
+  ['TouchableOpacity', (props) => <HozoTouchableOpacity {...props} />],
+  [
+    'TouchableWithoutFeedback',
+    (props) => (
+      <HozoTouchableWithoutFeedback {...props}>
+        <div />
+      </HozoTouchableWithoutFeedback>
+    ),
+  ],
+]
+
+for (const [name, renderBridge] of responderBridges) {
   test(`${name} carries the shared responder lifecycle without leaking Native props`, () => {
     const surface = element()
     const calls: string[] = []
@@ -117,13 +132,13 @@ for (const [name, Component] of [
 
     testRenderer.act(() => {
       root = testRenderer.create(
-        <Component
-          onStartShouldSetResponder={() => true}
-          onResponderGrant={() => calls.push('grant')}
-          onResponderStart={() => calls.push('start')}
-          onResponderEnd={() => calls.push('end')}
-          onResponderRelease={() => calls.push('release')}
-        />,
+        renderBridge({
+          onStartShouldSetResponder: () => true,
+          onResponderGrant: () => calls.push('grant'),
+          onResponderStart: () => calls.push('start'),
+          onResponderEnd: () => calls.push('end'),
+          onResponderRelease: () => calls.push('release'),
+        }),
         { createNodeMock: () => surface.node },
       )
     })
