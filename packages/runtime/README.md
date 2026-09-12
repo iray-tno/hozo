@@ -30,6 +30,21 @@ Pointer Events or the native input system.
 
 **Transitions.** `transition-*` utilities compile to `Animated` timings, including colour interpolation, with the blend point preserved when an interrupted transition restarts.
 
+### React Native `Animated.View` on Web
+
+`HozoAnimatedView` is a narrow compatibility adapter for React Native `Animated` values embedded
+in style objects and arrays. It reads the structural `__getValue()` boundary and subscribes through
+paired `addListener()` / `removeListener()` methods. The shape is covered against the Animated
+nodes used by this workspace's React Native 0.87 and React Native Web 0.21.2 dependencies; it is a
+tested structural contract, not a guarantee for every release or third-party Animated lookalike.
+
+Hozo deliberately does not reimplement the Animated graph, drivers, timing, interpolation, or
+event system. Those remain the job of React Native, React Native Web, or another animation runtime.
+On Web, Hozo only resolves current style values and redraws when a compatible node reports a
+change. An incompatible or throwing private node is omitted instead of leaking an invalid style;
+development builds emit a capability-specific warning once per node, while production stays
+quiet. A node with `addListener()` but no matching cleanup method is not subscribed.
+
 **Layout that CSS does for free.** The `HozoGrid` and `HozoSpaced` helpers reproduce the parts of grid and gap that React Native's layout engine does not have.
 
 **Optional backdrop blur.** Static StyleX `backdropFilter: 'blur(Npx)'` on an ordinary `View`
