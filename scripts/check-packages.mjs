@@ -18,6 +18,8 @@ import { globSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { build } from 'esbuild'
+
 import { applyMetadata, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -69,6 +71,21 @@ for (const name of PACKAGE_NAMES) {
   if (json.publishConfig?.access !== 'public') fail(name, 'publishConfig.access is not "public"')
   if (json.private) fail(name, 'still marked private')
   if (json.version !== VERSION) fail(name, `version is ${json.version}, expected ${VERSION}`)
+
+  // Tree shaking is part of the package contract. Native ambient hooks are
+  // the sole exception: importing that module installs the shared platform
+  // subscriptions even when no binding from it survives locally.
+  const expectedSideEffects = name === 'runtime' ? ['./dist/hooks.native.js'] : false
+  if (JSON.stringify(json.sideEffects) !== JSON.stringify(expectedSideEffects)) {
+    fail(
+      name,
+      `sideEffects is ${JSON.stringify(json.sideEffects)}, expected ${JSON.stringify(expectedSideEffects)}`,
+    )
+  }
+  for (const sideEffect of Array.isArray(json.sideEffects) ? json.sideEffects : []) {
+    const relative = sideEffect.replace(/^\.\//, '')
+    if (!files.has(relative)) fail(name, `${relative} is marked as a side effect but is not packed`)
+  }
 
   // Every entry point has to be in the tarball, which is the whole point.
   for (const target of [json.main, json.types, ...exportTargets(json.exports)]) {
@@ -155,6 +172,42 @@ for (const name of PACKAGE_NAMES) {
       fail(name, `depends on ${dep}, which is not published`)
     }
   }
+}
+
+// Metadata can look correct and still fail to shake at the package boundary.
+// Keep one real consumer-shaped bundle small enough that an accidentally
+// retained core/runtime surface is caught before publish. React remains a
+// peer and is deliberately excluded from the measured bytes.
+try {
+  const result = await build({
+    stdin: {
+      contents: "export { Text } from './packages/core/dist/index.js'",
+      resolveDir: root,
+      sourcefile: 'package-tree-shaking-probe.mjs',
+    },
+    bundle: true,
+    minify: true,
+    format: 'esm',
+    platform: 'browser',
+    write: false,
+    external: ['react', 'react-dom', 'react-native'],
+    logLevel: 'silent',
+  })
+  const bytes = result.outputFiles[0].contents.byteLength
+  const limit = 7_000
+  if (bytes > limit) {
+    fail(
+      'core',
+      `a bundled Text export is ${bytes} bytes, above the ${limit}-byte tree-shaking limit`,
+    )
+  } else {
+    console.log(`@hozo/core Text tree-shakes to ${bytes} bytes`)
+  }
+} catch (error) {
+  fail(
+    'core',
+    `tree-shaking probe could not bundle: ${error instanceof Error ? error.message : String(error)}`,
+  )
 }
 
 if (problems.length > 0) {

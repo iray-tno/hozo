@@ -23,6 +23,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "bin": {
     "hozo-links": "./dist/verification-cli.js"
   },

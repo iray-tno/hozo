@@ -106,6 +106,10 @@ const PACKAGES = {
     // is ignored. Naming the condition is what keeps the native build
     // reaching `index.native.js` instead of the DOM one.
     native: true,
+    // This module registers the one-per-app subscriptions that feed the
+    // ambient Native stores. Every other runtime module is declaration-only
+    // at import time and can be removed when none of its exports are used.
+    sideEffects: ['./dist/hooks.native.js'],
     keywords: ['react-native', 'runtime', 'styles', 'animation'],
   },
   navigation: {
@@ -252,6 +256,11 @@ export function metadataFor(name) {
     main,
     types: main.startsWith('./dist') ? main.replace(/\.js$/, '.d.ts') : undefined,
     exports: exportsField,
+    // Bundlers cannot cross a package boundary safely until the package says
+    // which modules execute work merely by being imported. One explicit
+    // runtime exception preserves the Native ambient listeners; every other
+    // generated package is side-effect-free.
+    sideEffects: spec.sideEffects ?? false,
     // `src` ships alongside `dist` because the build emits
     // `declarationMap` and `sourceMap`, and a map whose source is absent
     // points nowhere. With it, a stack trace through Hozo lands on the
@@ -286,6 +295,7 @@ const KEY_ORDER = [
   'type',
   'main',
   'types',
+  'sideEffects',
   'bin',
   'exports',
   'files',

@@ -21,6 +21,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "./dist/hooks.native.js"
+  ],
   "exports": {
     ".": {
       "react-native": {
