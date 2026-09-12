@@ -21,6 +21,7 @@
 /** A React Native style object, as the compiler emits it. */
 export type StyleObject = Record<string, unknown>
 
+export { AccessibilityInfo } from './accessibility-info.ts'
 export {
   HozoActivityIndicator,
   type HozoActivityIndicatorProps,

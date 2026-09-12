@@ -149,6 +149,19 @@ export const current: () => ColorSchemeName = useTheme
   assert.match(lowered.code, /current: \(\) => ColorSchemeName = useTheme/)
 })
 
+test('unloweredReactNativeJsx rehomes the AccessibilityInfo value', () => {
+  const source = `import { AccessibilityInfo, type AccessibilityChangeEvent } from 'react-native'
+export type Event = AccessibilityChangeEvent
+export const reduced = AccessibilityInfo.isReduceMotionEnabled()
+`
+  const lowered = lowerModule(source, 'a11y.ts', 'a11y.ts', compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })!
+  assert.match(lowered.code, /import \{ type AccessibilityChangeEvent \} from 'react-native'/)
+  assert.match(lowered.code, /import \{ AccessibilityInfo \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /AccessibilityInfo\.isReduceMotionEnabled\(\)/)
+})
+
 test('unloweredReactNativeJsx rehomes a TextInput that remains a runtime component value', () => {
   const source = `import { TextInput, View } from 'react-native'
 const Field = makeField(TextInput)

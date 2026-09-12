@@ -17,9 +17,9 @@ This is a dependency-boundary measurement, not a claim that the application runs
 
 1. **The unmodified production graph builds:** 0 errors.
 2. **The graph is not RNW-free:** the successful baseline contains 74 bundled React Native Web modules (430839 unminified module bytes reported by Webpack).
-3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 72 RNW modules and makes 271 RN/RNW requests from 178 unique importing modules.
-4. **Both app APIs and dependencies remain:** 36 app modules and 138 modules owned by 40 third-party packages make those requests.
-5. **The block is effective:** repeating that build with RN/RNW unavailable produces 278 resolution diagnostics (275 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
+3. **Hozo lowering still leaves a real dependency boundary:** its successful production graph contains 71 RNW modules and makes 270 RN/RNW requests from 177 unique importing modules.
+4. **Both app APIs and dependencies remain:** 35 app modules and 138 modules owned by 40 third-party packages make those requests.
+5. **The block is effective:** repeating that build with RN/RNW unavailable produces 277 resolution diagnostics (274 errors and 3 warnings), and the failed graph contains 0 resolved React Native Web modules.
 
 This confirms that `unloweredReactNativeJsx: 'error'` closes the direct JSX boundary (0 direct React Native JSX tags remain in application code). It does not mean “the complete application dependency graph builds without React Native Web.” Full dependency-level RNW elimination is a separate dependency-boundary challenge.
 
@@ -27,7 +27,7 @@ This confirms that `unloweredReactNativeJsx: 'error'` closes the direct JSX boun
 
 | Owner | Importing modules |
 |---|---:|
-| application | 36 |
+| application | 35 |
 | @sentry/react-native | 24 |
 | @react-navigation/elements | 19 |
 | react-native-keyboard-controller | 19 |
@@ -90,7 +90,7 @@ These facts overlap with responsive styling, theme, or accessibility, but Hozo s
 
 | API | Modules | Priority | Ownership |
 |---|---:|---|---|
-| AccessibilityInfo | 1 | P1 | Adopt only the accessibility facts Hozo consumes, not the full API. |
+| None | 0 | — | — |
 
 ### Explicit compatibility boundaries
 

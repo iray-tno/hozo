@@ -37,6 +37,7 @@ export {
   hozoTextChildren,
 } from '@hozo/behaviors'
 export {
+  AccessibilityInfo,
   Dimensions,
   TextInput as HozoTextInput,
   TextInput,
