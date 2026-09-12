@@ -27,7 +27,7 @@ module.exports = function hozoRnwBoundaryLoader(source) {
         compiler,
         options.projectRoot,
         undefined,
-        { rnwFree: true },
+        { unloweredReactNativeJsx: 'error' },
       )
       const code = result?.code ?? source
       if (options.auditDirectory) {

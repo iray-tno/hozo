@@ -161,7 +161,7 @@ export default function hozoLoader(source) {
           state.compiler,
           options.root,
           state.stylexModules,
-          { rnwFree: options.rnwFree },
+          { unloweredReactNativeJsx: options.unloweredReactNativeJsx },
         )
         if (!lowered) {
           callback(null, source)

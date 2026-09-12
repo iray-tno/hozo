@@ -20,16 +20,19 @@ import type {
   Compiler,
   StylexExternalBinding,
 } from './index.ts'
+import type { UnloweredReactNativeJsxPolicy } from './project.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
+
+export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
 const HOZO_CORE_IMPORT_RE =
   /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/semantics|@hozo\/typography)['"]\s*\n?/g
 
 const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])react-native\3\s*;?/g
 
-/** React Native value exports whose Web contract Hozo owns in strict mode. */
-const RNW_FREE_RUNTIME_EXPORTS = new Set(['Keyboard', 'Platform', 'StyleSheet'])
-const RNW_FREE_COMPONENT_EXPORTS = new Set(['TextInput'])
+/** React Native value exports whose Web contract Hozo owns when checking unlowered JSX. */
+const RN_OWNED_RUNTIME_EXPORTS = new Set(['Keyboard', 'Platform', 'StyleSheet'])
+const RN_OWNED_COMPONENT_EXPORTS = new Set(['TextInput'])
 
 /**
  * Moves supported value imports out of `react-native` before a Web bundler
@@ -68,13 +71,16 @@ function rehomeReactNativeImports(code: string, owned: ReadonlySet<string>): str
   )
 }
 
-export function lowerRnwFreeRuntimeImports(code: string): string {
-  return rehomeReactNativeImports(code, RNW_FREE_RUNTIME_EXPORTS)
+export function rehomeReactNativeRuntimeImports(code: string): string {
+  return rehomeReactNativeImports(code, RN_OWNED_RUNTIME_EXPORTS)
 }
 
-function lowerRnwFreeComponentImports(code: string): string {
-  return rehomeReactNativeImports(code, RNW_FREE_COMPONENT_EXPORTS)
+export function rehomeReactNativeComponentImports(code: string): string {
+  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS)
 }
+
+/** @deprecated Alias for internal backward-compat if needed */
+export const lowerRnwFreeRuntimeImports = rehomeReactNativeRuntimeImports
 
 /**
  * The names `@hozo/core`, `@hozo/semantics`, and `@hozo/typography` export. A lowered element never mentions these
@@ -376,8 +382,11 @@ export interface LoweredModule {
 }
 
 export interface LowerModuleOptions {
-  /** Fail when Web output still renders JSX bound directly from `react-native`. */
-  rnwFree?: boolean
+  /**
+   * What to do when Web output still contains JSX backed directly
+   * by React Native after Hozo lowering.
+   */
+  unloweredReactNativeJsx?: UnloweredReactNativeJsxPolicy
 }
 
 function runtimeImportOnlyModule(code: string, id: string, file: string): LoweredModule {
@@ -410,27 +419,38 @@ function directReactNativeJsxBindings(module: CompiledNativeModule): string[] {
 }
 
 /**
- * Enforces the opt-in RNW-free boundary on emitted Web source.
+ * Enforces the policy on unlowered React Native JSX elements in emitted Web source.
  *
  * This deliberately uses the parser's binding metadata rather than a tag
  * regexp: comments and type arguments are not JSX, aliases must be named by
  * their actual local binding, and `Animated.View` is rooted at the namespace
- * import. The extra parse exists only in strict mode, so migration safety has
- * no cost for the default build path.
+ * import. The extra parse exists only when policy is 'warn' or 'error', so
+ * the default 'allow' build path incurs zero overhead.
  */
-function assertRnwFree(
+function checkUnloweredReactNativeJsx(
   code: string,
   file: string,
   compiler: Compiler,
+  policy: UnloweredReactNativeJsxPolicy | undefined,
   bindings?: StylexExternalBinding[],
-): void {
+): CompileDiagnostic | undefined {
+  if (!policy || policy === 'allow') return undefined
   const residue = directReactNativeJsxBindings(compiler.compileNativeModule(code, bindings))
-  if (residue.length === 0) return
-  throw new Error(
-    `[hozo] ${file}: RNW_FREE_JSX_REMAINS: Web output still renders ${residue.join(', ')} ` +
-      `from 'react-native'. Hozo cannot remove React Native Web safely. Lower or wrap ` +
-      `those elements, or disable rnwFree while keeping react-native-web installed.`,
-  )
+  if (residue.length === 0) return undefined
+  const message =
+    `Web output still contains JSX backed directly by 'react-native' after lowering: ` +
+    `${residue.join(', ')}. These elements require a React Native Web-compatible ` +
+    `fallback, or lower them to Hozo primitives.`
+  if (policy === 'error') {
+    throw new Error(`[hozo] ${file}: UNLOWERED_REACT_NATIVE_JSX: ${message}`)
+  }
+  return {
+    code: 'UNLOWERED_REACT_NATIVE_JSX',
+    severity: 'warning',
+    message,
+    spanStart: 0,
+    spanEnd: 0,
+  }
 }
 
 /**
@@ -453,10 +473,14 @@ export function lowerModule(
   // transform has already turned the file into JSX; the extension is all
   // that still says where it came from. See `TRANSFORMABLE`.
   const isTransformed = file.endsWith('.mdx')
-  const apiLowered = options.rnwFree ? lowerRnwFreeRuntimeImports(code) : code
+  const policy = options.unloweredReactNativeJsx
+  const shouldRehome = policy === 'warn' || policy === 'error'
+  const apiLowered = shouldRehome ? rehomeReactNativeRuntimeImports(code) : code
   const loweredApiImport = apiLowered !== code
   if (!file.endsWith('.tsx') && !isTransformed) {
-    const componentLowered = options.rnwFree ? lowerRnwFreeComponentImports(apiLowered) : apiLowered
+    const componentLowered = shouldRehome
+      ? rehomeReactNativeComponentImports(apiLowered)
+      : apiLowered
     if (componentLowered !== apiLowered) return runtimeImportOnlyModule(componentLowered, id, file)
     return loweredApiImport ? runtimeImportOnlyModule(apiLowered, id, file) : undefined
   }
@@ -468,9 +492,16 @@ export function lowerModule(
   // that. The real decision needs the AST and comes next.
   const hasSemanticCandidate = allowed.some((module) => code.includes(module))
   if (!hasSemanticCandidate && !canvas.touched) {
-    if (options.rnwFree && apiLowered.includes('react-native'))
-      assertRnwFree(apiLowered, file, compiler)
-    return loweredApiImport ? runtimeImportOnlyModule(canvas.code, id, file) : undefined
+    let diagnostic: CompileDiagnostic | undefined
+    if (shouldRehome && apiLowered.includes('react-native')) {
+      diagnostic = checkUnloweredReactNativeJsx(apiLowered, file, compiler, policy)
+    }
+    if (loweredApiImport || diagnostic) {
+      const mod = runtimeImportOnlyModule(canvas.code, id, file)
+      if (diagnostic) mod.diagnostics.push(diagnostic)
+      return mod
+    }
+    return undefined
   }
 
   // Per tag, not per file. A file mixing `react-native` with `@expo/ui`
@@ -487,12 +518,22 @@ export function lowerModule(
     : undefined
   const components = hasSemanticCandidate ? compiler.compile(canvas.code, stylexBindings) : []
   if (components.length === 0 && !canvas.touched) {
-    const componentLowered = options.rnwFree
-      ? lowerRnwFreeComponentImports(canvas.code)
+    const componentLowered = shouldRehome
+      ? rehomeReactNativeComponentImports(canvas.code)
       : canvas.code
-    if (options.rnwFree) assertRnwFree(componentLowered, file, compiler, stylexBindings)
-    if (componentLowered !== canvas.code) return runtimeImportOnlyModule(componentLowered, id, file)
-    return loweredApiImport ? runtimeImportOnlyModule(canvas.code, id, file) : undefined
+    const diagnostic = checkUnloweredReactNativeJsx(
+      componentLowered,
+      file,
+      compiler,
+      policy,
+      stylexBindings,
+    )
+    if (componentLowered !== canvas.code || loweredApiImport || diagnostic) {
+      const mod = runtimeImportOnlyModule(componentLowered, id, file)
+      if (diagnostic) mod.diagnostics.push(diagnostic)
+      return mod
+    }
+    return undefined
   }
 
   let next = canvas.code
@@ -539,13 +580,27 @@ export function lowerModule(
 ${next}`
   }
 
-  if (options.rnwFree) next = lowerRnwFreeComponentImports(next)
-  if (options.rnwFree) assertRnwFree(next, file, compiler, stylexBindings)
+  if (shouldRehome) next = rehomeReactNativeComponentImports(next)
+  const unloweredDiagnostic = checkUnloweredReactNativeJsx(
+    next,
+    file,
+    compiler,
+    policy,
+    stylexBindings,
+  )
 
   const isDerivedModule = id.includes('?')
   const cssFileName = isDerivedModule
     ? `${path.basename(file)}.${moduleIdHash(id)}.hozo.css`
     : cssFileNameFor(file)
+
+  const diagnostics = [
+    ...canvas.diagnostics,
+    ...components.flatMap((component) => component.diagnostics),
+  ]
+  if (unloweredDiagnostic) {
+    diagnostics.push(unloweredDiagnostic)
+  }
 
   return {
     code: next,
@@ -553,9 +608,6 @@ ${next}`
     cssFileName,
     cssPath: path.join(path.dirname(file), cssFileName),
     needsClientBoundary: outputNeedsClientBoundary(components),
-    diagnostics: [
-      ...canvas.diagnostics,
-      ...components.flatMap((component) => component.diagnostics),
-    ],
+    diagnostics,
   }
 }

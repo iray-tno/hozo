@@ -381,7 +381,7 @@ This is a dependency-boundary measurement, not a claim that the application runs
 | Node | \`${process.version}\` |
 | Package manager | \`${pnpmOutput(['--version'], checkout)}\` |
 | Baseline mode | Expo Webpack production build |
-| Hozo experiment | app-owned \`.ts\`/\`.tsx\` passes through the measurement loader (with Web lowering and \`rnwFree: true\`); \`react-native\` and \`react-native-web\` resolution then point to an absent module |
+| Hozo experiment | app-owned \`.ts\`/\`.tsx\` passes through the measurement loader (with Web lowering and \`unloweredReactNativeJsx: 'error'\`); \`react-native\` and \`react-native-web\` resolution then point to an absent module |
 
 ## Result
 
@@ -391,7 +391,7 @@ This is a dependency-boundary measurement, not a claim that the application runs
 4. **Both app APIs and dependencies remain:** ${owners.get('application') ?? 0} app modules and ${thirdParty.reduce((sum, [, count]) => sum + count, 0)} modules owned by ${thirdParty.length} third-party packages make those requests.
 5. **The block is effective:** repeating that build with RN/RNW unavailable produces ${boundaryDiagnostics.length} resolution diagnostics (${boundaryErrors} errors and ${boundaryWarnings} warnings), and the failed graph contains ${blockedRnwModules.length} resolved React Native Web modules.
 
-This confirms that today's \`rnwFree\` compiler option means “no direct React Native JSX remains.” It does not mean “the complete application dependency graph builds without React Native Web.” Keep the name for now, but do not make the broader release claim until these boundaries are closed.
+This confirms that \`unloweredReactNativeJsx: 'error'\` closes the direct JSX boundary (0 direct React Native JSX tags remain in application code). It does not mean “the complete application dependency graph builds without React Native Web.” Full dependency-level RNW elimination is a separate dependency-boundary challenge.
 
 ## Blocked importers by owner
 
