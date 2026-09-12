@@ -5,13 +5,18 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
+  type Ref,
+  useCallback,
+  useRef,
   useState,
 } from 'react'
 
 import { type HozoDomStyle, hozoDomStyle } from './dom-style.ts'
+import { type ResponderProps, useResponderDomProps } from './responder.ts'
 
 export interface HozoTouchableOpacityProps
-  extends Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'style'> {
+  extends Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'style'>,
+    ResponderProps {
   activeOpacity?: number
   children?: ReactNode
   style?: HozoDomStyle
@@ -32,6 +37,11 @@ export interface HozoTouchableOpacityProps
   accessibilityLiveRegion?: 'none' | 'polite' | 'assertive'
   disabled?: boolean
   'data-hozo-disabled'?: string
+}
+
+function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
+  if (typeof ref === 'function') ref(value)
+  else if (ref) ref.current = value
 }
 
 /** React Native TouchableOpacity feedback without retaining React Native Web. */
@@ -58,17 +68,59 @@ export const HozoTouchableOpacity = forwardRef<HTMLDivElement, HozoTouchableOpac
       onPointerDown,
       onPointerUp,
       onPointerCancel,
+      onPointerDownCapture,
       onPointerLeave,
+      onPointerMove,
+      onPointerMoveCapture,
       onKeyDown,
       onKeyUp,
       onBlur,
+      onLostPointerCapture,
+      onStartShouldSetResponder,
+      onStartShouldSetResponderCapture,
+      onMoveShouldSetResponder,
+      onMoveShouldSetResponderCapture,
+      onResponderGrant,
+      onResponderStart,
+      onResponderMove,
+      onResponderEnd,
+      onResponderRelease,
+      onResponderReject,
+      onResponderTerminate,
+      onResponderTerminationRequest,
       ...props
     },
-    ref,
+    forwardedRef,
   ) {
+    const elementRef = useRef<HTMLDivElement>(null)
+    const setRef = useCallback(
+      (element: HTMLDivElement | null) => {
+        elementRef.current = element
+        assignRef(forwardedRef, element)
+      },
+      [forwardedRef],
+    )
     const [pressed, setPressed] = useState(false)
     const unavailable = disabled || accessibilityState?.disabled === true
     const value = accessibilityValue
+    const responder = useResponderDomProps(
+      elementRef,
+      {
+        onStartShouldSetResponder,
+        onStartShouldSetResponderCapture,
+        onMoveShouldSetResponder,
+        onMoveShouldSetResponderCapture,
+        onResponderGrant,
+        onResponderStart,
+        onResponderMove,
+        onResponderEnd,
+        onResponderRelease,
+        onResponderReject,
+        onResponderTerminate,
+        onResponderTerminationRequest,
+      },
+      !unavailable,
+    )
 
     const pressIn = (event: PointerEvent<HTMLDivElement>) => {
       if (!unavailable && event.isPrimary) setPressed(true)
@@ -99,7 +151,7 @@ export const HozoTouchableOpacity = forwardRef<HTMLDivElement, HozoTouchableOpac
       'div',
       {
         ...props,
-        ref,
+        ref: setRef,
         role: accessibilityRole ?? role,
         style: hozoDomStyle([style, pressed ? { opacity: activeOpacity } : undefined]),
         'data-testid': testID,
@@ -119,10 +171,36 @@ export const HozoTouchableOpacity = forwardRef<HTMLDivElement, HozoTouchableOpac
         'aria-label': accessibilityLabel,
         'aria-description': accessibilityHint,
         onClick: unavailable ? undefined : onClick,
-        onPointerDown: pressIn,
-        onPointerUp: pressOut,
-        onPointerCancel: cancel,
+        onPointerDown: (event) => {
+          pressIn(event)
+          responder.onPointerDown?.(event)
+        },
+        onPointerDownCapture: (event) => {
+          responder.onPointerDownCapture?.(event)
+          onPointerDownCapture?.(event)
+        },
+        onPointerMove: (event) => {
+          responder.onPointerMove?.(event)
+          onPointerMove?.(event)
+        },
+        onPointerMoveCapture: (event) => {
+          responder.onPointerMoveCapture?.(event)
+          onPointerMoveCapture?.(event)
+        },
+        onPointerUp: (event) => {
+          pressOut(event)
+          responder.onPointerUp?.(event)
+        },
+        onPointerCancel: (event) => {
+          cancel(event)
+          responder.onPointerCancel?.(event)
+        },
         onPointerLeave: leave,
+        onLostPointerCapture: (event) => {
+          setPressed(false)
+          responder.onLostPointerCapture?.(event)
+          onLostPointerCapture?.(event)
+        },
         onKeyDown: keyDown,
         onKeyUp: keyUp,
         onBlur: (event) => {
