@@ -120,6 +120,23 @@ export const Page = () => <View onClick={() => Keyboard.dismiss()} style={styles
   assert.match(lowered.code, /import \{ Keyboard, Platform, StyleSheet \} from '@hozo\/runtime'/)
 })
 
+test('unloweredReactNativeJsx rehomes viewport values and preserves dimension types', () => {
+  const source = `import { Dimensions, type ScaledSize, useWindowDimensions as useSize } from 'react-native'
+export const initial: ScaledSize = Dimensions.get('window')
+export const useWidth = () => useSize().width
+`
+  const lowered = lowerModule(source, 'viewport.ts', 'viewport.ts', compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })!
+  assert.match(lowered.code, /import \{ type ScaledSize \} from 'react-native'/)
+  assert.match(
+    lowered.code,
+    /import \{ Dimensions, useWindowDimensions as useSize \} from '@hozo\/runtime'/,
+  )
+  assert.match(lowered.code, /Dimensions\.get\('window'\)/)
+  assert.match(lowered.code, /useSize\(\)\.width/)
+})
+
 test('unloweredReactNativeJsx rehomes a TextInput that remains a runtime component value', () => {
   const source = `import { TextInput, View } from 'react-native'
 const Field = makeField(TextInput)
