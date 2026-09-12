@@ -32,6 +32,7 @@ const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])reac
 
 /** React Native value exports whose Web contract Hozo owns when checking unlowered JSX. */
 const RN_OWNED_RUNTIME_EXPORTS = new Set([
+  'AccessibilityInfo',
   'Dimensions',
   'Keyboard',
   'Platform',
