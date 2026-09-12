@@ -20,6 +20,7 @@
   },
   "type": "module",
   "main": "./preset.js",
+  "sideEffects": false,
   "exports": {
     ".": "./preset.js",
     "./preset": "./preset.js",

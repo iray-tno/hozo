@@ -21,6 +21,7 @@
   },
   "type": "module",
   "main": "./src/index.mjs",
+  "sideEffects": false,
   "bin": {
     "hozo-migration-audit": "./src/cli.mjs"
   },
