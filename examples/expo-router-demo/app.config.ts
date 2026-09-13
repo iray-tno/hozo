@@ -22,5 +22,6 @@ export default {
     ],
     ['expo-font', createExpoFontOptions(fonts)],
   ],
+  experiments: { typedRoutes: true },
   web: { bundler: 'metro' },
 } satisfies ExpoConfig

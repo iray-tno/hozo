@@ -183,6 +183,53 @@ export function AppNavigation({ children }) {
 }
 ```
 
+### Typed destinations (opt in)
+
+Router adapters deliberately leave core `href` values as strings. Applications that want their
+router's generated route union on Hozo components can opt into typed wrappers from separate
+subpaths. The normal `@hozo/navigation` entry point does not load Hozo components or a router.
+
+Expo Router uses the `Href` generated from the application's own `app` directory. Object
+destinations are converted with Expo's public `Link.resolveHref`, so Web still receives a real
+anchor URL:
+
+```tsx
+import { createExpoRouterNavigationPrimitives } from '@hozo/navigation/expo-router/typed'
+import { type Href, Link as ExpoLink } from 'expo-router'
+
+const Typed = createExpoRouterNavigationPrimitives<Href>(ExpoLink.resolveHref)
+
+<Typed.Link href="/settings">Settings</Typed.Link>
+<Typed.Button href={{ pathname: '/posts/[postId]', params: { postId: '42' } }}>
+  Open post
+</Typed.Button>
+```
+
+TanStack Router takes the router instance and validates each destination with its generated route
+tree. Its object remains a TanStack navigate option until the wrapper asks the router to build the
+concrete URL:
+
+```tsx
+import { createTanStackNavigationPrimitives } from '@hozo/navigation/tanstack-router/typed'
+
+const Typed = createTanStackNavigationPrimitives(router)
+
+<Typed.Link href={{ to: '/settings' }}>Settings</Typed.Link>
+<Typed.Button href={{ to: '/posts/$postId', params: { postId: '42' } }}>
+  Open post
+</Typed.Button>
+```
+
+Arbitrary external URLs remain explicit with `external`. For an internal URL that is intentionally
+computed outside the route graph, use the visible escape hatch instead of weakening every route:
+
+```tsx
+import { untypedHref } from '@hozo/navigation/typed'
+
+<Typed.Link href="https://example.com/docs" external>Docs</Typed.Link>
+<Typed.Pressable href={untypedHref(cmsDestination)}>CMS page</Typed.Pressable>
+```
+
 ```tsx
 // Expo Router
 import { ExpoRouterNavigationProvider } from '@hozo/navigation/expo-router'

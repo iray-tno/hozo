@@ -1,9 +1,12 @@
 import { Button, Heading, Paragraph, View } from '@hozo/core'
-import { createFileRoute } from '@tanstack/react-router'
+import { createTanStackNavigationPrimitives } from '@hozo/navigation/tanstack-router/typed'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
+  const Typed = createTanStackNavigationPrimitives(useRouter())
+
   return (
     <View className="min-h-screen items-center justify-center bg-slate-950 p-8">
       <View className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-xl">
@@ -20,6 +23,9 @@ function Home() {
         >
           Continue
         </Button>
+        <Typed.Link href={{ to: '/posts/$postId', params: { postId: '42' } }}>
+          Open typed post
+        </Typed.Link>
       </View>
     </View>
   )

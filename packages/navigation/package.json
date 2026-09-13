@@ -36,6 +36,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./typed": {
+      "types": "./dist/typed.d.ts",
+      "default": "./dist/typed.js"
+    },
     "./next": {
       "react-native": {
         "types": "./dist/next.native.d.ts",
@@ -52,6 +56,10 @@
       "types": "./dist/expo-router.d.ts",
       "default": "./dist/expo-router.js"
     },
+    "./expo-router/typed": {
+      "types": "./dist/expo-typed.d.ts",
+      "default": "./dist/expo-typed.js"
+    },
     "./expo-config": {
       "types": "./dist/expo-config.d.ts",
       "default": "./dist/expo-config.js"
@@ -63,6 +71,10 @@
       },
       "types": "./dist/tanstack-router.d.ts",
       "default": "./dist/tanstack-router.js"
+    },
+    "./tanstack-router/typed": {
+      "types": "./dist/tanstack-typed.d.ts",
+      "default": "./dist/tanstack-typed.js"
     },
     "./verification": {
       "types": "./dist/verification.d.ts",
@@ -96,15 +108,25 @@
     "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {
+    "@hozo/core": ">=0.1.0 <1",
+    "@tanstack/react-router": ">=1.100",
     "react": "^19.0.0",
     "react-native": ">=0.76"
   },
   "peerDependenciesMeta": {
+    "@hozo/core": {
+      "optional": true
+    },
+    "@tanstack/react-router": {
+      "optional": true
+    },
     "react-native": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@hozo/core": "workspace:^",
+    "@tanstack/react-router": "^1.170.29",
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
     "react-native": "^0.87.0"
