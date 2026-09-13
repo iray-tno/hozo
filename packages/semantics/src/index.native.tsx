@@ -111,6 +111,18 @@ export function Nav({ role = 'navigation', children, ...props }: SemanticsNative
   return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }
 
+export interface ListProps extends SemanticsNativeProps {
+  ordered?: boolean
+}
+
+export function List({ ordered: _ordered, role = 'list', children, ...props }: ListProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
+}
+
+export function ListItem({ role = 'listitem', children, ...props }: SemanticsNativeProps) {
+  return React.createElement(View, { role, ...props }, hozoTextChildren(children))
+}
+
 export function Figure({ role = 'figure', children, ...props }: SemanticsNativeProps) {
   return React.createElement(View, { role, ...props }, hozoTextChildren(children))
 }

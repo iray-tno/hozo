@@ -93,6 +93,27 @@ export function Nav({ className, children, style, ...props }: SemanticsUniversal
   )
 }
 
+export interface ListProps extends SemanticsUniversalProps {
+  ordered?: boolean
+}
+
+export function List({ ordered = false, className, children, style, ...props }: ListProps) {
+  const Tag = ordered ? 'ol' : 'ul'
+  return (
+    <Tag className={className} style={style} {...domProps(props)}>
+      {children}
+    </Tag>
+  )
+}
+
+export function ListItem({ className, children, style, ...props }: SemanticsUniversalProps) {
+  return (
+    <li className={className} style={style} {...domProps(props)}>
+      {children}
+    </li>
+  )
+}
+
 export function Figure({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
     <figure className={className} style={style} {...domProps(props)}>
