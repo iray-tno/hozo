@@ -1,20 +1,58 @@
 // Semantics & Typography re-exports
-export * from '@hozo/semantics'
-export * from '@hozo/typography'
+
+// Platform-free, and published on the Web side from the same file.
+export type { Autocomplete } from '@hozo/patterns'
 export {
+  Dialog,
+  type DialogProps,
   HozoCombobox as Combobox,
   HozoCombobox,
   type HozoComboboxOption as ComboboxOption,
   type HozoComboboxOption,
   type HozoComboboxProps as ComboboxProps,
   type HozoComboboxProps,
-} from './combobox.native.tsx'
-// Platform-free, and published on the Web side from the same file.
-export type { Autocomplete } from './combobox-rules.ts'
-export {
-  Dialog,
-  type DialogProps,
-} from './dialog.native.tsx'
+  HozoListbox as Listbox,
+  HozoListbox,
+  type HozoListboxOption as ListboxOption,
+  type HozoListboxOption,
+  type HozoListboxProps as ListboxProps,
+  type HozoListboxProps,
+  HozoMenu as Menu,
+  HozoMenu,
+  type HozoMenuItem as MenuItem,
+  type HozoMenuItem,
+  type HozoMenuProps as MenuProps,
+  type HozoMenuProps,
+  HozoRadioGroup as RadioGroup,
+  HozoRadioGroup,
+  type HozoRadioGroupProps as RadioGroupProps,
+  type HozoRadioGroupProps,
+  type HozoRadioOption as RadioOption,
+  type HozoRadioOption,
+  type HozoTab as Tab,
+  type HozoTab,
+  HozoTabs as Tabs,
+  HozoTabs,
+  type HozoTabsProps as TabsProps,
+  type HozoTabsProps,
+  HozoToolbar as Toolbar,
+  HozoToolbar,
+  type HozoToolbarItem as ToolbarItem,
+  type HozoToolbarItem,
+  // What a toolbar item's `render` is handed. It was the one prop type
+  // in this package a caller could be given and could not name.
+  type HozoToolbarItemProps as ToolbarItemProps,
+  type HozoToolbarItemProps,
+  type HozoToolbarProps as ToolbarProps,
+  type HozoToolbarProps,
+  HozoTree as Tree,
+  HozoTree,
+  type HozoTreeProps as TreeProps,
+  type HozoTreeProps,
+  type TreeNode,
+} from '@hozo/patterns'
+export * from '@hozo/semantics'
+export * from '@hozo/typography'
 // Shapes rather than components: platform-free descriptions of React
 // Native's own API, which the Web half implements and this half gets from
 // the platform. Published under the same names on both sides so a caller
@@ -34,22 +72,6 @@ export type {
   ResponderProps,
   UniversalProps,
 } from './index.tsx'
-export {
-  HozoListbox as Listbox,
-  HozoListbox,
-  type HozoListboxOption as ListboxOption,
-  type HozoListboxOption,
-  type HozoListboxProps as ListboxProps,
-  type HozoListboxProps,
-} from './listbox.native.tsx'
-export {
-  HozoMenu as Menu,
-  HozoMenu,
-  type HozoMenuItem as MenuItem,
-  type HozoMenuItem,
-  type HozoMenuProps as MenuProps,
-  type HozoMenuProps,
-} from './menu.native.tsx'
 export {
   PanResponder,
   type PanResponderCallbacks,
@@ -79,38 +101,3 @@ export {
   TextInput,
   View,
 } from './primitives.native.tsx'
-export {
-  HozoRadioGroup as RadioGroup,
-  HozoRadioGroup,
-  type HozoRadioGroupProps as RadioGroupProps,
-  type HozoRadioGroupProps,
-  type HozoRadioOption as RadioOption,
-  type HozoRadioOption,
-} from './radio.native.tsx'
-export {
-  type HozoTab as Tab,
-  type HozoTab,
-  HozoTabs as Tabs,
-  HozoTabs,
-  type HozoTabsProps as TabsProps,
-  type HozoTabsProps,
-} from './tabs.native.tsx'
-export {
-  HozoToolbar as Toolbar,
-  HozoToolbar,
-  type HozoToolbarItem as ToolbarItem,
-  type HozoToolbarItem,
-  // What a toolbar item's `render` is handed. It was the one prop type
-  // in this package a caller could be given and could not name.
-  type HozoToolbarItemProps as ToolbarItemProps,
-  type HozoToolbarItemProps,
-  type HozoToolbarProps as ToolbarProps,
-  type HozoToolbarProps,
-} from './toolbar.native.tsx'
-export {
-  HozoTree as Tree,
-  HozoTree,
-  type HozoTreeProps as TreeProps,
-  type HozoTreeProps,
-  type TreeNode,
-} from './tree.native.tsx'

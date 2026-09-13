@@ -26,14 +26,19 @@ import type { StylexModuleCache } from './stylex-project.ts'
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
 const PRIMITIVE_RUNTIME_EXPORTS = new Set(['HozoFlatList', 'HozoRefreshControl', 'HozoScrollView'])
+const PATTERN_RUNTIME_EXPORTS = new Set(['HozoDialog'])
 
 /** Render generated component imports according to the package that owns their implementation. */
 export function generatedRuntimeImports(names: readonly string[]): string {
   const primitives = names.filter((name) => PRIMITIVE_RUNTIME_EXPORTS.has(name))
-  const runtime = names.filter((name) => !PRIMITIVE_RUNTIME_EXPORTS.has(name))
+  const patterns = names.filter((name) => PATTERN_RUNTIME_EXPORTS.has(name))
+  const runtime = names.filter(
+    (name) => !PRIMITIVE_RUNTIME_EXPORTS.has(name) && !PATTERN_RUNTIME_EXPORTS.has(name),
+  )
   return [
     runtime.length > 0 ? `import { ${runtime.join(', ')} } from '@hozo/runtime'\n` : '',
     primitives.length > 0 ? `import { ${primitives.join(', ')} } from '@hozo/primitives'\n` : '',
+    patterns.length > 0 ? `import { ${patterns.join(', ')} } from '@hozo/patterns'\n` : '',
   ].join('')
 }
 

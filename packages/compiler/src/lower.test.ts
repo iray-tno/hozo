@@ -18,9 +18,10 @@ const compiler = createCompiler()
 
 test('generated components import from the package that owns them', () => {
   assert.equal(
-    generatedRuntimeImports(['HozoGrid', 'HozoFlatList', 'HozoScrollView']),
+    generatedRuntimeImports(['HozoGrid', 'HozoFlatList', 'HozoDialog', 'HozoScrollView']),
     "import { HozoGrid } from '@hozo/runtime'\n" +
-      "import { HozoFlatList, HozoScrollView } from '@hozo/primitives'\n",
+      "import { HozoFlatList, HozoScrollView } from '@hozo/primitives'\n" +
+      "import { HozoDialog } from '@hozo/patterns'\n",
   )
 })
 

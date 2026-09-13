@@ -13,7 +13,7 @@ import {
   HozoToolbar,
   type HozoToolbarItemProps,
   HozoTree,
-} from './index.tsx'
+} from './index.ts'
 
 const tabs = [
   { label: 'Profile', content: 'profile' },

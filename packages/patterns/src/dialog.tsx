@@ -1,5 +1,5 @@
+import { shouldRestoreFocus } from '@hozo/behaviors'
 import { type ReactNode, useEffect, useRef } from 'react'
-import { shouldRestoreFocus } from './focus-scope.tsx'
 
 export interface DialogProps {
   /** Whether the dialog is showing. Render is driven by this, not by mounting. */

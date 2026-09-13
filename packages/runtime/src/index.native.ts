@@ -22,12 +22,8 @@ import './class-name.native.ts'
 // depend on one package, not on how the compiler divides its own. The
 // implementation stays there, where its tests and its reasoning are.
 export {
-  Dialog,
-  type DialogProps,
   HozoDetails,
   type HozoDetailsProps,
-  HozoDialog,
-  type HozoDialogProps,
   HozoRuby,
   type HozoRubyProps,
   HozoRubyText,
