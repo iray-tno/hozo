@@ -1,6 +1,6 @@
 {
   "name": "@hozo/navigation",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Router-agnostic universal navigation for Hozo links and destination-bearing controls.",
   "keywords": [
     "react-native",
@@ -108,7 +108,7 @@
     "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {
-    "@hozo/core": ">=0.1.0 <1",
+    "@hozo/core": ">=0.2.0",
     "@tanstack/react-router": ">=1.100",
     "react": "^19.0.0",
     "react-native": ">=0.76"

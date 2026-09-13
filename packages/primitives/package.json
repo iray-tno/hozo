@@ -1,6 +1,6 @@
 {
   "name": "@hozo/primitives",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Canonical universal UI primitives for Hozo applications.",
   "keywords": [
     "react-native",
