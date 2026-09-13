@@ -50,6 +50,10 @@ export {
   type TreeNode,
 } from '@hozo/patterns'
 export * from '@hozo/primitives'
+// These names are also re-exported by typography for convenience. Keep the
+// facade's canonical binding explicit so bundlers do not enter typography --
+// and retain Ruby's compound-component setup -- for a plain Text or Link.
+export { Link, type LinkProps, Text, type TextProps } from '@hozo/primitives'
 export * from '@hozo/semantics'
 export * from '@hozo/typography'
 // Kept in the facade until the RN compatibility package owns this surface.
