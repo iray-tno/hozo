@@ -50,6 +50,7 @@
     "test": "node --test src/*.test.ts"
   },
   "dependencies": {
+    "@hozo/primitives": "workspace:^",
     "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {

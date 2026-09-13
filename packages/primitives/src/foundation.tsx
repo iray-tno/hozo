@@ -5,11 +5,6 @@
 
 import {
   type HozoDomStyle,
-  HozoLink,
-  HozoPressable,
-  type HozoPressableProps,
-  HozoTextInput,
-  type HozoTextInputProps,
   hozoDomStyle,
   type ResponderProps,
   useResponderDomProps,
@@ -23,6 +18,9 @@ import {
   useRef,
   useState,
 } from 'react'
+import { HozoLink } from './link.ts'
+import { HozoPressable, type HozoPressableProps } from './pressable.ts'
+import { HozoTextInput, type HozoTextInputProps } from './text-input.ts'
 
 export type {
   HozoResponderEvent,

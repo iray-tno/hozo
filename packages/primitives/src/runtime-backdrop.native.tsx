@@ -1,7 +1,6 @@
+import { hozoBackdropFilterAdapter } from '@hozo/runtime'
 import { createElement, type ReactElement } from 'react'
 import type { ViewProps } from 'react-native'
-
-import { hozoBackdropFilterAdapter } from './backdrop.ts'
 
 export interface HozoBackdropFilterProps extends ViewProps {
   hozoBlurRadius: number

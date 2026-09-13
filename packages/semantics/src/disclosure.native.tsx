@@ -15,6 +15,7 @@
 // The pair here is what the compiler emits instead, for the reason it
 // emits `HozoDialog`: the behaviour is React's, not the compiler's.
 
+import { hozoTextChildren } from '@hozo/behaviors'
 import {
   Children,
   createContext,
@@ -25,7 +26,6 @@ import {
   useState,
 } from 'react'
 import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
-import { hozoTextChildren } from './text-child.native.tsx'
 
 interface DisclosureState {
   open: boolean

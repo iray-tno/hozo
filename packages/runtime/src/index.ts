@@ -27,6 +27,7 @@ export {
   type ExpoBlurAdapterOptions,
   type HozoBackdropFilterAdapter,
   type HozoBackdropFilterAdapterProps,
+  hozoBackdropFilterAdapter,
 } from './backdrop.ts'
 export {
   type HozoResponderEvent,
@@ -36,7 +37,6 @@ export {
   type ResponderProps,
   useResponderDomProps,
 } from './responder.ts'
-export { type HozoLayoutEvent, HozoView, type HozoViewProps } from './view.ts'
 
 /**
  * Resolves whitespace-separated class names to React Native style objects.
@@ -110,33 +110,12 @@ export function createClassResolver(
   }
 }
 
-export {
-  HozoDetails,
-  type HozoDetailsProps,
-  HozoRuby,
-  type HozoRubyProps,
-  HozoRubyText,
-  type HozoRubyTextProps,
-  HozoSummary,
-  type HozoSummaryProps,
-  hozoTextChildren,
-} from '@hozo/behaviors'
 export { hozoActivateKeyDown, hozoActivateKeyUp } from './activate.ts'
+export { blendColor } from './color-transition.ts'
 export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.ts'
+export { externalLinkAttributes } from './external-link.ts'
 export { hozoInteractive } from './interactive.ts'
-export { externalLinkAttributes, HozoLink, type HozoLinkProps } from './link.ts'
-export {
-  HozoPressable,
-  HozoPressable as Pressable,
-  type HozoPressableProps,
-  type HozoPressableState,
-} from './pressable.ts'
 export { hozoScrollable } from './scrollable.ts'
-export {
-  HozoTextInput,
-  HozoTextInput as TextInput,
-  type HozoTextInputProps,
-} from './text-input.ts'
 
 export {
   HOZO_DEFAULT_FONT_SIZE,

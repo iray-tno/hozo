@@ -26,6 +26,7 @@
 // does not recognise the extension at all. The native halves here are
 // `.tsx` and are never imported by a test that runs this way.
 
+import { externalLinkAttributes } from '@hozo/runtime'
 import type { AnchorHTMLAttributes, CSSProperties, MouseEventHandler, ReactNode, Ref } from 'react'
 import { createElement } from 'react'
 
@@ -56,26 +57,6 @@ export interface HozoLinkProps
   download?: boolean | string
   'aria-hidden'?: boolean
   ref?: Ref<HTMLAnchorElement>
-}
-
-/**
- * `target` and `rel` for a destination, given what the author asked for.
- *
- * `external` is the shorthand, and `target="_blank"` written out by hand
- * gets the same `rel`, because the risk is a property of the new browsing
- * context rather than of the spelling. An explicit `rel` always wins: an
- * author who has written one has thought about it.
- */
-export function externalLinkAttributes(
-  external: boolean | undefined,
-  target: string | undefined,
-  rel: string | undefined,
-): { target: string | undefined; rel: string | undefined } {
-  const finalTarget = external ? '_blank' : target
-  return {
-    target: finalTarget,
-    rel: external || target === '_blank' ? (rel ?? 'noreferrer noopener') : rel,
-  }
 }
 
 export function HozoLink({

@@ -25,7 +25,25 @@ import type { StylexModuleCache } from './stylex-project.ts'
 
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
-const PRIMITIVE_RUNTIME_EXPORTS = new Set(['HozoFlatList', 'HozoRefreshControl', 'HozoScrollView'])
+const PRIMITIVE_EXPORTS = new Set(['HozoFlatList', 'HozoRefreshControl', 'HozoScrollView'])
+const PRIMITIVE_RUNTIME_EXPORTS = new Set([
+  'HozoAnimated',
+  'HozoBackdropFilter',
+  'HozoContainer',
+  'HozoContainerQuery',
+  'HozoGrid',
+  'HozoGridItem',
+  'HozoLink',
+  'HozoPressable',
+  'HozoRelativeText',
+  'HozoSpaced',
+  'HozoText',
+  'HozoTextInput',
+  'HozoTextSize',
+  'HozoView',
+])
+const SEMANTIC_RUNTIME_EXPORTS = new Set(['HozoDetails', 'HozoSummary'])
+const TYPOGRAPHY_RUNTIME_EXPORTS = new Set(['HozoRuby', 'HozoRubyText'])
 const PATTERN_RUNTIME_EXPORTS = new Set(['HozoDialog'])
 const RN_COMPAT_RUNTIME_EXPORTS = new Set([
   'HozoActivityIndicator',
@@ -37,18 +55,33 @@ const RN_COMPAT_RUNTIME_EXPORTS = new Set([
 
 /** Render generated component imports according to the package that owns their implementation. */
 export function generatedRuntimeImports(names: readonly string[]): string {
-  const primitives = names.filter((name) => PRIMITIVE_RUNTIME_EXPORTS.has(name))
+  const primitives = names.filter((name) => PRIMITIVE_EXPORTS.has(name))
+  const primitiveRuntime = names.filter((name) => PRIMITIVE_RUNTIME_EXPORTS.has(name))
+  const semantics = names.filter((name) => SEMANTIC_RUNTIME_EXPORTS.has(name))
+  const typography = names.filter((name) => TYPOGRAPHY_RUNTIME_EXPORTS.has(name))
   const patterns = names.filter((name) => PATTERN_RUNTIME_EXPORTS.has(name))
   const compat = names.filter((name) => RN_COMPAT_RUNTIME_EXPORTS.has(name))
   const runtime = names.filter(
     (name) =>
+      !PRIMITIVE_EXPORTS.has(name) &&
       !PRIMITIVE_RUNTIME_EXPORTS.has(name) &&
+      !SEMANTIC_RUNTIME_EXPORTS.has(name) &&
+      !TYPOGRAPHY_RUNTIME_EXPORTS.has(name) &&
       !PATTERN_RUNTIME_EXPORTS.has(name) &&
       !RN_COMPAT_RUNTIME_EXPORTS.has(name),
   )
   return [
     runtime.length > 0 ? `import { ${runtime.join(', ')} } from '@hozo/runtime'\n` : '',
     primitives.length > 0 ? `import { ${primitives.join(', ')} } from '@hozo/primitives'\n` : '',
+    primitiveRuntime.length > 0
+      ? `import { ${primitiveRuntime.join(', ')} } from '@hozo/primitives/runtime'\n`
+      : '',
+    semantics.length > 0
+      ? `import { ${semantics.join(', ')} } from '@hozo/semantics/runtime'\n`
+      : '',
+    typography.length > 0
+      ? `import { ${typography.join(', ')} } from '@hozo/typography/runtime'\n`
+      : '',
     patterns.length > 0 ? `import { ${patterns.join(', ')} } from '@hozo/patterns'\n` : '',
     compat.length > 0 ? `import { ${compat.join(', ')} } from '@hozo/rn-compat'\n` : '',
   ].join('')
@@ -84,7 +117,7 @@ const RN_OWNED_COMPONENT_EXPORTS = new Set(['Pressable', 'TextInput'])
 function rehomeReactNativeImports(
   code: string,
   owned: ReadonlySet<string>,
-  destination: '@hozo/runtime' | '@hozo/rn-compat',
+  destination: '@hozo/primitives' | '@hozo/rn-compat',
 ): string {
   return code.replace(
     RN_NAMED_IMPORT_RE,
@@ -118,7 +151,7 @@ export function rehomeReactNativeRuntimeImports(code: string): string {
 }
 
 export function rehomeReactNativeComponentImports(code: string): string {
-  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS, '@hozo/runtime')
+  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS, '@hozo/primitives')
 }
 
 /** @deprecated Alias for internal backward-compat if needed */

@@ -65,10 +65,7 @@ function pathToText(tree: Tree | string, needle: string, above: string[] = []): 
 }
 
 const core = require('../../core/src/index.native.ts') as Record<string, unknown>
-const runtimeNavigation = require('../../runtime/src/navigation-context.tsx') as Record<
-  string,
-  unknown
->
+const runtimeNavigation = require('@hozo/runtime/navigation') as Record<string, unknown>
 
 test('a Button given a label puts it inside a Text', () => {
   const path = pathToText(render(react.createElement(core.Button, null, 'Save')), 'Save')

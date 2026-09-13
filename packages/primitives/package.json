@@ -32,6 +32,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./runtime": {
+      "react-native": {
+        "types": "./dist/runtime.native.d.ts",
+        "default": "./dist/runtime.native.js"
+      },
+      "types": "./dist/runtime.d.ts",
+      "default": "./dist/runtime.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -52,6 +60,7 @@
     "test:browser": "node scripts/check-list.mjs"
   },
   "dependencies": {
+    "@hozo/behaviors": "workspace:^",
     "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {

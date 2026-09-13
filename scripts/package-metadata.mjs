@@ -72,7 +72,7 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'components', 'accessibility', 'universal'],
   },
   primitives: {
-    exports: { '.': './dist/index.js' },
+    exports: { '.': './dist/index.js', './runtime': './dist/runtime.js' },
     native: true,
     keywords: ['react-native', 'react', 'primitives', 'components', 'universal'],
   },
@@ -82,7 +82,7 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'patterns', 'accessibility', 'components'],
   },
   semantics: {
-    exports: { '.': './dist/index.js' },
+    exports: { '.': './dist/index.js', './runtime': './dist/runtime.js' },
     // Absent until now, and `index.native.tsx` was unreachable because of
     // it: Metro resolved the DOM build and rendered <div> on a phone.
     native: true,
@@ -91,6 +91,7 @@ const PACKAGES = {
   typography: {
     exports: {
       '.': './dist/index.js',
+      './runtime': './dist/runtime.js',
       './fonts': './dist/fonts.js',
       './fonts/expo': './dist/fonts-expo.js',
       './fonts/native': './dist/fonts-native.js',

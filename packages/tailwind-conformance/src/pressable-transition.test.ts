@@ -131,7 +131,7 @@ test('the runtime component keeps the base style under an animated one', () => {
     create: (element: unknown) => { toJSON: () => Tree }
     act: (callback: () => void) => void
   }
-  const { HozoPressable } = require('../../runtime/src/pressable.native.tsx') as {
+  const { HozoPressable } = require('../../primitives/src/pressable.native.tsx') as {
     HozoPressable: unknown
   }
 

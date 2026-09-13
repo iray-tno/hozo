@@ -1,3 +1,4 @@
+import { type HozoDomStyle, hozoDomStyle } from '@hozo/runtime'
 import {
   type ChangeEvent,
   type ChangeEventHandler,
@@ -7,8 +8,6 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-
-import { type HozoDomStyle, hozoDomStyle } from './dom-style.ts'
 
 type InputMode = 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
 

@@ -1,8 +1,11 @@
 import { hozoTextChildren } from '@hozo/behaviors'
+import {
+  activateHozoNavigation,
+  prefetchHozoNavigation,
+  useHozoNavigation,
+} from '@hozo/runtime/navigation'
 import { type ReactNode, useRef } from 'react'
 import { Linking, Pressable, type PressableProps } from 'react-native'
-import { activateHozoNavigation, prefetchHozoNavigation } from './navigation.ts'
-import { useHozoNavigation } from './navigation-context.tsx'
 
 export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
   href: string

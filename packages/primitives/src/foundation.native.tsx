@@ -1,4 +1,5 @@
-import { HozoLink, HozoTextSizeContext, hozoTextChildren } from '@hozo/runtime'
+import { hozoTextChildren } from '@hozo/behaviors'
+import { HozoTextSizeContext } from '@hozo/runtime'
 import React, { type ComponentType, type ReactNode } from 'react'
 import {
   type AccessibilityRole,
@@ -11,6 +12,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native'
+import { HozoLink } from './link.native.tsx'
 
 export type {
   HozoResponderEvent,

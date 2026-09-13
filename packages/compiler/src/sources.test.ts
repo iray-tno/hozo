@@ -114,7 +114,7 @@ export function Surface() {
   assert.ok(web)
   assert.match(web.code, /<HozoView[^>]*onLayout=\{measure\}/)
   assert.match(web.code, /onStartShouldSetResponder=\{\(\) => true\}/)
-  assert.match(web.code, /import \{ HozoView \} from '@hozo\/runtime'/)
+  assert.match(web.code, /import \{ HozoView \} from '@hozo\/primitives\/runtime'/)
 
   const native = compiler.compileNative(source)[0]
   assert.ok(native)

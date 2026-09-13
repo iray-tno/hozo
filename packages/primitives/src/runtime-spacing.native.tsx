@@ -7,7 +7,7 @@
 
 import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 
-import { spacingTargets } from './spacing.ts'
+import { spacingTargets } from './runtime-spacing.ts'
 
 interface Props {
   /**

@@ -1,4 +1,11 @@
 import {
+  type HozoDomStyle,
+  hozoDomStyle,
+  hozoInteractive,
+  type ResponderProps,
+  useResponderDomProps,
+} from '@hozo/runtime'
+import {
   createElement,
   forwardRef,
   type HTMLAttributes,
@@ -12,11 +19,7 @@ import {
   useRef,
   useState,
 } from 'react'
-
-import { type HozoDomStyle, hozoDomStyle } from './dom-style.ts'
-import { hozoInteractive } from './interactive.ts'
 import { HozoLink, type HozoLinkProps } from './link.ts'
-import { type ResponderProps, useResponderDomProps } from './responder.ts'
 import type { HozoLayoutEvent } from './view.ts'
 
 export interface HozoPressableState {
