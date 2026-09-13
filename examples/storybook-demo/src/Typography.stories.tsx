@@ -1,4 +1,4 @@
-import { View } from '@hozo/core'
+import { View } from '@hozo/primitives'
 import {
   Code,
   Emphasis,

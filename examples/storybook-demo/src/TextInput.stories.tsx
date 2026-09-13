@@ -1,4 +1,5 @@
-import { Button, Heading, Paragraph, TextInput, View } from '@hozo/core'
+import { Button, TextInput, View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
@@ -60,7 +61,7 @@ function TextInputGallery() {
 }
 
 const meta = {
-  title: 'Core/TextInput',
+  title: 'Primitives/TextInput',
   component: TextInputGallery,
 } satisfies Meta<typeof TextInputGallery>
 
