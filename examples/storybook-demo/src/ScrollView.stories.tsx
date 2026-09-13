@@ -13,7 +13,9 @@
 // something a person can look at rather than something recorded in an
 // issue nobody opens.
 
-import { Heading, Paragraph, ScrollView, Section, Text, View } from '@hozo/core'
+import { ScrollView, Text, View } from '@hozo/primitives'
+import { Section } from '@hozo/semantics'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 const ROWS = [
@@ -110,7 +112,7 @@ function ScrollViewGallery() {
 }
 
 const meta = {
-  title: 'Core/ScrollView',
+  title: 'Primitives/ScrollView',
   component: ScrollViewGallery,
 } satisfies Meta<typeof ScrollViewGallery>
 

@@ -11,7 +11,10 @@
 // and a `ref` it can focus. One object to spread is the whole of what an
 // author writes.
 
-import { Heading, Paragraph, Section, Text, Toolbar, View } from '@hozo/core'
+import { Toolbar } from '@hozo/patterns'
+import { Text, View } from '@hozo/primitives'
+import { Section } from '@hozo/semantics'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { Ref } from 'react'
 
@@ -105,7 +108,7 @@ function ToolbarGallery() {
 }
 
 const meta = {
-  title: 'Core/Toolbar',
+  title: 'Patterns/Toolbar',
   component: ToolbarGallery,
 } satisfies Meta<typeof ToolbarGallery>
 

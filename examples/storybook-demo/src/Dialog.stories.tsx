@@ -1,4 +1,6 @@
-import { Button, Dialog, Heading, Paragraph, View } from '@hozo/core'
+import { Dialog } from '@hozo/patterns'
+import { Button, View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
@@ -8,7 +10,7 @@ function DialogDemo() {
   return (
     <View className="max-w-xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
       <Heading level={2} className="text-xl font-bold text-slate-900">
-        Accessible Modal Dialog (@hozo/core)
+        Accessible Modal Dialog (@hozo/patterns)
       </Heading>
       <Paragraph className="text-sm text-slate-600">
         Native HTML &lt;dialog&gt; modal with focus trapping, keyboard Escape handling, and focus
@@ -56,6 +58,6 @@ function DialogDemo() {
   )
 }
 
-const meta = { title: 'Core/Dialog', component: DialogDemo } satisfies Meta<typeof DialogDemo>
+const meta = { title: 'Patterns/Dialog', component: DialogDemo } satisfies Meta<typeof DialogDemo>
 export default meta
 export const Default: StoryObj<typeof meta> = {}

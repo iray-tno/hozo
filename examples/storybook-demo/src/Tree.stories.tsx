@@ -10,7 +10,9 @@
 // or steps into it, Left closes it or steps out to the parent, and typing
 // a letter jumps to the next row starting with it.
 
-import { Heading, Paragraph, Text, Tree, type TreeNode, View } from '@hozo/core'
+import { Tree, type TreeNode } from '@hozo/patterns'
+import { Text, View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
@@ -45,10 +47,12 @@ const NODES: readonly TreeNode[] = [
     children: [
       { id: 'compiler', label: '@hozo/compiler' },
       { id: 'core', label: '@hozo/core' },
+      { id: 'primitives', label: '@hozo/primitives' },
+      { id: 'patterns', label: '@hozo/patterns' },
       { id: 'behaviors', label: '@hozo/behaviors' },
       // A row that is present, announced, and not a stop. The keyboard
       // skips it; a screen reader still counts it in `aria-setsize`,
-      // because a list of four that announces as three is a lie.
+      // because a list of six that announces as five is a lie.
       { id: 'legacy', label: '@hozo/legacy (unmaintained)', disabled: true },
     ],
   },
@@ -96,7 +100,7 @@ function TreeDemo() {
 }
 
 const meta = {
-  title: 'Core/Tree',
+  title: 'Patterns/Tree',
   component: TreeDemo,
 } satisfies Meta<typeof TreeDemo>
 

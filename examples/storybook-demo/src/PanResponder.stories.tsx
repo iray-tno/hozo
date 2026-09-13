@@ -11,7 +11,9 @@
 // gesture, `vx`/`vy` as velocity, `numberActiveTouches` for a pinch. Drag
 // the card below and watch them.
 
-import { Heading, PanResponder, Paragraph, Text, View } from '@hozo/core'
+import { PanResponder } from '@hozo/core'
+import { Text, View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useMemo, useRef, useState } from 'react'
 
@@ -110,7 +112,7 @@ function PanResponderGallery() {
 }
 
 const meta = {
-  title: 'Core/PanResponder',
+  title: 'Compatibility/PanResponder',
   component: PanResponderGallery,
 } satisfies Meta<typeof PanResponderGallery>
 

@@ -1,15 +1,6 @@
-import {
-  Article,
-  FlatList,
-  Heading,
-  List,
-  ListItem,
-  Nav,
-  Paragraph,
-  Section,
-  Text,
-  View,
-} from '@hozo/core'
+import { FlatList, Text, View } from '@hozo/primitives'
+import { Article, List, ListItem, Nav, Section } from '@hozo/semantics'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function LayoutGallery() {
@@ -76,7 +67,7 @@ function LayoutGallery() {
 }
 
 const meta = {
-  title: 'Core/Layout & Lists',
+  title: 'Primitives/Layout & Lists',
   component: LayoutGallery,
 } satisfies Meta<typeof LayoutGallery>
 

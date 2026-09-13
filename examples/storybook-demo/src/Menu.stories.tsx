@@ -1,4 +1,6 @@
-import { Heading, Menu, Paragraph, RadioGroup, Text, View } from '@hozo/core'
+import { Menu, RadioGroup } from '@hozo/patterns'
+import { Text, View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
@@ -20,7 +22,7 @@ function MenuDemo() {
     <View className="max-w-xl w-full space-y-8 rounded-2xl bg-white p-8 shadow-sm">
       <View className="space-y-3">
         <Heading level={2} className="text-xl font-bold text-slate-900">
-          Menu (@hozo/core)
+          Menu (@hozo/patterns)
         </Heading>
         <Paragraph className="text-sm text-slate-600">
           Accessible action menu popover with keyboard arrow navigation, Escape handling, and focus
@@ -56,6 +58,6 @@ function MenuDemo() {
   )
 }
 
-const meta = { title: 'Core/Menu & Radio', component: MenuDemo } satisfies Meta<typeof MenuDemo>
+const meta = { title: 'Patterns/Menu & Radio', component: MenuDemo } satisfies Meta<typeof MenuDemo>
 export default meta
 export const Default: StoryObj<typeof meta> = {}

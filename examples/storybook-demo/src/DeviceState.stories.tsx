@@ -14,7 +14,9 @@
 // the same through Chrome's emulation, which is what makes them evidence
 // rather than decoration.
 
-import { Heading, Paragraph, Pressable, Section, Text, View } from '@hozo/core'
+import { Pressable, Text, View } from '@hozo/primitives'
+import { Section } from '@hozo/semantics'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 const CARD = 'rounded-xl border border-slate-200 p-5 space-y-3'
@@ -116,7 +118,7 @@ function DeviceStateGallery() {
 }
 
 const meta = {
-  title: 'Core/Device State',
+  title: 'Compiler/Device State',
   component: DeviceStateGallery,
 } satisfies Meta<typeof DeviceStateGallery>
 

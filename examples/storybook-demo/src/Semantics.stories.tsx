@@ -1,4 +1,4 @@
-import { Text, View } from '@hozo/core'
+import { Text, View } from '@hozo/primitives'
 import {
   Address,
   Article,

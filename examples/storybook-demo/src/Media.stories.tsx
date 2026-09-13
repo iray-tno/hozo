@@ -1,4 +1,6 @@
-import { Heading, Image, Paragraph, Svg, View } from '@hozo/core'
+import { Svg } from '@hozo/core'
+import { Image, View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function MediaGallery() {
@@ -51,7 +53,7 @@ function MediaGallery() {
   )
 }
 
-const meta = { title: 'Core/Media & Svg', component: MediaGallery } satisfies Meta<
+const meta = { title: 'Media/Image & SVG', component: MediaGallery } satisfies Meta<
   typeof MediaGallery
 >
 export default meta

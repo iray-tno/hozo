@@ -11,7 +11,9 @@
 // than most preview panes -- use the responsive viewport and widen the
 // window, or read the indicator, which says which range is live.
 
-import { Heading, Paragraph, Section, Text, View } from '@hozo/core'
+import { Text, View } from '@hozo/primitives'
+import { Section } from '@hozo/semantics'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 const CARD = 'rounded-xl border border-slate-200 p-5 space-y-3'
@@ -142,7 +144,7 @@ function ResponsiveGallery() {
 }
 
 const meta = {
-  title: 'Core/Responsive',
+  title: 'Compiler/Responsive',
   component: ResponsiveGallery,
   parameters: {
     layout: 'fullscreen',

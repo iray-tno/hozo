@@ -1,4 +1,6 @@
-import { Combobox, Heading, Listbox, Paragraph, View } from '@hozo/core'
+import { Combobox, Listbox } from '@hozo/patterns'
+import { View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
@@ -16,7 +18,7 @@ function ComboboxDemo() {
     <View className="max-w-xl w-full space-y-8 rounded-2xl bg-white p-8 shadow-sm">
       <View className="space-y-3">
         <Heading level={2} className="text-xl font-bold text-slate-900">
-          Combobox (@hozo/core)
+          Combobox (@hozo/patterns)
         </Heading>
         <Paragraph className="text-sm text-slate-600">
           Accessible autocomplete dropdown where focus stays in the text field and active options
@@ -59,6 +61,8 @@ function ComboboxDemo() {
   )
 }
 
-const meta = { title: 'Core/Combobox', component: ComboboxDemo } satisfies Meta<typeof ComboboxDemo>
+const meta = { title: 'Patterns/Combobox', component: ComboboxDemo } satisfies Meta<
+  typeof ComboboxDemo
+>
 export default meta
 export const Default: StoryObj<typeof meta> = {}

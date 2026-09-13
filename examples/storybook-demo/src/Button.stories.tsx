@@ -1,4 +1,5 @@
-import { Button, Heading, Link, Paragraph, Pressable, Text, View } from '@hozo/core'
+import { Button, Link, Pressable, Text, View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function ButtonGallery() {
@@ -249,7 +250,7 @@ function InteractivePressablesDemo() {
 }
 
 const meta = {
-  title: 'Core/Button & Interactions',
+  title: 'Primitives/Button & Interactions',
   component: ButtonGallery,
 } satisfies Meta<typeof ButtonGallery>
 
