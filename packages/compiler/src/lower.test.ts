@@ -18,10 +18,17 @@ const compiler = createCompiler()
 
 test('generated components import from the package that owns them', () => {
   assert.equal(
-    generatedRuntimeImports(['HozoGrid', 'HozoFlatList', 'HozoDialog', 'HozoScrollView']),
+    generatedRuntimeImports([
+      'HozoGrid',
+      'HozoFlatList',
+      'HozoDialog',
+      'HozoScrollView',
+      'HozoModal',
+    ]),
     "import { HozoGrid } from '@hozo/runtime'\n" +
       "import { HozoFlatList, HozoScrollView } from '@hozo/primitives'\n" +
-      "import { HozoDialog } from '@hozo/patterns'\n",
+      "import { HozoDialog } from '@hozo/patterns'\n" +
+      "import { HozoModal } from '@hozo/rn-compat'\n",
   )
 })
 
@@ -102,7 +109,7 @@ export const Page = () => <View style={useMemo(() => styles.card, [])} />
   })!
   assert.match(lowered.code, /import \{ useMemo \} from 'react'/)
   assert.match(lowered.code, /import \{ type ViewStyle, View \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ StyleSheet as Sheet \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /import \{ StyleSheet as Sheet \} from '@hozo\/rn-compat'/)
   assert.match(lowered.code, /Sheet\.create/)
 })
 
@@ -113,7 +120,7 @@ export const flatten = StyleSheet.flatten
   const lowered = lowerModule(source, 'styles.ts', 'styles.ts', compiler, ROOT, undefined, {
     unloweredReactNativeJsx: 'error',
   })!
-  assert.match(lowered.code, /from '@hozo\/runtime'/)
+  assert.match(lowered.code, /from '@hozo\/rn-compat'/)
   assert.equal(lowered.css, '')
   assert.equal(lowered.needsClientBoundary, false)
 })
@@ -127,7 +134,7 @@ export const Page = () => <View onClick={() => Keyboard.dismiss()} style={styles
     unloweredReactNativeJsx: 'error',
   })!
   assert.match(lowered.code, /import \{ View \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ Keyboard, Platform, StyleSheet \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /import \{ Keyboard, Platform, StyleSheet \} from '@hozo\/rn-compat'/)
 })
 
 test('unloweredReactNativeJsx rehomes viewport values and preserves dimension types', () => {
@@ -141,7 +148,7 @@ export const useWidth = () => useSize().width
   assert.match(lowered.code, /import \{ type ScaledSize \} from 'react-native'/)
   assert.match(
     lowered.code,
-    /import \{ Dimensions, useWindowDimensions as useSize \} from '@hozo\/runtime'/,
+    /import \{ Dimensions, useWindowDimensions as useSize \} from '@hozo\/rn-compat'/,
   )
   assert.match(lowered.code, /Dimensions\.get\('window'\)/)
   assert.match(lowered.code, /useSize\(\)\.width/)
@@ -155,7 +162,7 @@ export const current: () => ColorSchemeName = useTheme
     unloweredReactNativeJsx: 'error',
   })!
   assert.match(lowered.code, /import \{ type ColorSchemeName \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ useColorScheme as useTheme \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /import \{ useColorScheme as useTheme \} from '@hozo\/rn-compat'/)
   assert.match(lowered.code, /current: \(\) => ColorSchemeName = useTheme/)
 })
 
@@ -168,8 +175,20 @@ export const reduced = AccessibilityInfo.isReduceMotionEnabled()
     unloweredReactNativeJsx: 'error',
   })!
   assert.match(lowered.code, /import \{ type AccessibilityChangeEvent \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ AccessibilityInfo \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /import \{ AccessibilityInfo \} from '@hozo\/rn-compat'/)
   assert.match(lowered.code, /AccessibilityInfo\.isReduceMotionEnabled\(\)/)
+})
+
+test('unloweredReactNativeJsx rehomes PanResponder outside the canonical facade', () => {
+  const source = `import { PanResponder, View } from 'react-native'
+const pan = PanResponder.create({ onMoveShouldSetPanResponder: () => true })
+export const Drag = () => <View {...pan.panHandlers} />
+`
+  const lowered = lowerModule(source, 'drag.tsx', 'drag.tsx', compiler, ROOT, undefined, {
+    unloweredReactNativeJsx: 'error',
+  })!
+  assert.match(lowered.code, /import \{ PanResponder \} from '@hozo\/rn-compat'/)
+  assert.match(lowered.code, /PanResponder\.create/)
 })
 
 test('unloweredReactNativeJsx rehomes a TextInput that remains a runtime component value', () => {
@@ -257,8 +276,6 @@ test('keeps the @hozo/core import when a primitive survived lowering', () => {
   // template literal turned `\b` into a backspace character, so the word
   // boundary matched nothing, `referencesHozoPrimitive` answered "no" for
   // every input, and the import was stripped out from under a
-  // `PanResponder` the compiler had deliberately carried through.
-  assert.ok(referencesHozoPrimitive('const pan = PanResponder.create({})'))
   assert.ok(referencesHozoPrimitive('const Label = Text\n'))
   assert.ok(!referencesHozoPrimitive('const x = 1\n'))
   // A word match, so a longer identifier that merely contains one is not
@@ -266,8 +283,8 @@ test('keeps the @hozo/core import when a primitive survived lowering', () => {
   assert.ok(!referencesHozoPrimitive('const ViewModel = 1\n'))
 
   const source =
-    `import { PanResponder, View } from '@hozo/core'\n` +
-    `const pan = PanResponder.create({})\n` +
+    `import { Text, View } from '@hozo/core'\n` +
+    `const Label = Text\n` +
     `export function Page() { return <View className="p-4">x</View> }\n`
   const lowered = lowerModule(source, file, file, compiler, ROOT)!
   assert.ok(lowered.code.includes('@hozo/core'), 'the import a survivor needs was stripped')

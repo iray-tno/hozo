@@ -18,6 +18,7 @@
     "@hozo/metro": "workspace:^",
     "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
+    "@hozo/rn-compat": "workspace:^",
     "@hozo/runtime": "workspace:^",
     "tailwindcss": "^4.3.3"
   },

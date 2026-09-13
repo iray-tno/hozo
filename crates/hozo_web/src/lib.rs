@@ -1971,7 +1971,8 @@ export function Login() {
     #[test]
     fn pan_responder_handler_spreads_select_the_web_bridge() {
         let source = r#"
-            import { View, PanResponder } from '@hozo/core'
+            import { View } from '@hozo/core'
+            import { PanResponder } from '@hozo/rn-compat'
             const pan = PanResponder.create({ onMoveShouldSetPanResponder: () => true })
             const el = <View className="p-4" {...pan.panHandlers} />
         "#;

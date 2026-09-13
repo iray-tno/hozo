@@ -1,4 +1,4 @@
-import { createStore } from './ambient.ts'
+import { createStore } from './store.ts'
 
 export type AccessibilityChangeEventName = 'reduceMotionChanged' | 'screenReaderChanged'
 export type AccessibilityChangeHandler = (enabled: boolean) => void

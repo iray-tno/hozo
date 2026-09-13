@@ -15,12 +15,8 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import test from 'node:test'
 import { HozoScrollView } from '@hozo/primitives'
-import {
-  HozoPressable,
-  HozoTouchableOpacity,
-  HozoTouchableWithoutFeedback,
-  HozoView,
-} from '@hozo/runtime'
+import { HozoTouchableOpacity, HozoTouchableWithoutFeedback } from '@hozo/rn-compat'
+import { HozoPressable, HozoView } from '@hozo/runtime'
 import { type ReactElement, type RefObject, useRef } from 'react'
 
 import { type ResponderProps, useResponderDomProps } from './responder.ts'

@@ -1,17 +1,8 @@
 // A bundle fixture and a device acceptance screen. Stable testIDs make
 // manual VoiceOver/TalkBack and layout results reproducible.
 
-import {
-  Dialog,
-  FlatList,
-  Image,
-  PanResponder,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from '@hozo/core'
+import { Dialog, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from '@hozo/core'
+import { PanResponder } from '@hozo/rn-compat'
 import { useRef, useState } from 'react'
 
 import Gallery from './Gallery.tsx'

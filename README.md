@@ -548,6 +548,7 @@ packages/
   next/                    Next.js integration for the Hozo compiler (Web lowering backend).
   patterns/                Accessible composite UI patterns for Hozo applications.
   primitives/              Canonical universal UI primitives for Hozo applications.
+  rn-compat/               Optional React Native compatibility APIs for incrementally migrating applications to Hozo.
   runtime/                 Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   semantics/               Universal landmarks, document sectioning, and semantic page structure primitives for Hozo.
   storybook/               Zero-config Storybook Vite preset for Hozo.

@@ -11,8 +11,8 @@
 // gesture, `vx`/`vy` as velocity, `numberActiveTouches` for a pinch. Drag
 // the card below and watch them.
 
-import { PanResponder } from '@hozo/core'
 import { Text, View } from '@hozo/primitives'
+import { PanResponder } from '@hozo/rn-compat'
 import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useMemo, useRef, useState } from 'react'

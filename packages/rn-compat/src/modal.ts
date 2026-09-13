@@ -1,6 +1,5 @@
+import { type HozoDomStyle, hozoDomStyle } from '@hozo/runtime'
 import { createElement, type ReactNode, useEffect, useRef } from 'react'
-
-import { type HozoDomStyle, hozoDomStyle } from './dom-style.ts'
 
 export interface HozoModalProps {
   visible?: boolean

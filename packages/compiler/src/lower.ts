@@ -27,18 +27,30 @@ export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
 const PRIMITIVE_RUNTIME_EXPORTS = new Set(['HozoFlatList', 'HozoRefreshControl', 'HozoScrollView'])
 const PATTERN_RUNTIME_EXPORTS = new Set(['HozoDialog'])
+const RN_COMPAT_RUNTIME_EXPORTS = new Set([
+  'HozoActivityIndicator',
+  'HozoAnimatedView',
+  'HozoModal',
+  'HozoTouchableOpacity',
+  'HozoTouchableWithoutFeedback',
+])
 
 /** Render generated component imports according to the package that owns their implementation. */
 export function generatedRuntimeImports(names: readonly string[]): string {
   const primitives = names.filter((name) => PRIMITIVE_RUNTIME_EXPORTS.has(name))
   const patterns = names.filter((name) => PATTERN_RUNTIME_EXPORTS.has(name))
+  const compat = names.filter((name) => RN_COMPAT_RUNTIME_EXPORTS.has(name))
   const runtime = names.filter(
-    (name) => !PRIMITIVE_RUNTIME_EXPORTS.has(name) && !PATTERN_RUNTIME_EXPORTS.has(name),
+    (name) =>
+      !PRIMITIVE_RUNTIME_EXPORTS.has(name) &&
+      !PATTERN_RUNTIME_EXPORTS.has(name) &&
+      !RN_COMPAT_RUNTIME_EXPORTS.has(name),
   )
   return [
     runtime.length > 0 ? `import { ${runtime.join(', ')} } from '@hozo/runtime'\n` : '',
     primitives.length > 0 ? `import { ${primitives.join(', ')} } from '@hozo/primitives'\n` : '',
     patterns.length > 0 ? `import { ${patterns.join(', ')} } from '@hozo/patterns'\n` : '',
+    compat.length > 0 ? `import { ${compat.join(', ')} } from '@hozo/rn-compat'\n` : '',
   ].join('')
 }
 
@@ -52,6 +64,7 @@ const RN_OWNED_RUNTIME_EXPORTS = new Set([
   'AccessibilityInfo',
   'Dimensions',
   'Keyboard',
+  'PanResponder',
   'Platform',
   'StyleSheet',
   'useColorScheme',
@@ -68,7 +81,11 @@ const RN_OWNED_COMPONENT_EXPORTS = new Set(['Pressable', 'TextInput'])
  * any React Native API dynamically, so splitting it would make an unsafe
  * promise about the whole namespace.
  */
-function rehomeReactNativeImports(code: string, owned: ReadonlySet<string>): string {
+function rehomeReactNativeImports(
+  code: string,
+  owned: ReadonlySet<string>,
+  destination: '@hozo/runtime' | '@hozo/rn-compat',
+): string {
   return code.replace(
     RN_NAMED_IMPORT_RE,
     (statement, importType: string | undefined, body: string, quote: string) => {
@@ -91,17 +108,17 @@ function rehomeReactNativeImports(code: string, owned: ReadonlySet<string>): str
       const original = remaining.some((part) => part.trim() !== '')
         ? `import { ${remaining.map((part) => part.trim()).join(', ')} } from ${quote}react-native${quote}\n`
         : ''
-      return `${original}import { ${moved.join(', ')} } from '@hozo/runtime'\n`
+      return `${original}import { ${moved.join(', ')} } from '${destination}'\n`
     },
   )
 }
 
 export function rehomeReactNativeRuntimeImports(code: string): string {
-  return rehomeReactNativeImports(code, RN_OWNED_RUNTIME_EXPORTS)
+  return rehomeReactNativeImports(code, RN_OWNED_RUNTIME_EXPORTS, '@hozo/rn-compat')
 }
 
 export function rehomeReactNativeComponentImports(code: string): string {
-  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS)
+  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS, '@hozo/runtime')
 }
 
 /** @deprecated Alias for internal backward-compat if needed */
@@ -140,7 +157,6 @@ const HOZO_PRIMITIVES = [
   'Image',
   'ScrollView',
   'FlatList',
-  'PanResponder',
   'Strong',
   'Emphasis',
   'Underline',
@@ -179,7 +195,7 @@ const HOZO_PRIMITIVES = [
  * unused-specifier elision, once lowering has left nothing referring to it
  * -- which is the same outcome by a route that cannot be wrong. This
  * remains as the check that would keep a *used* one, and it is the reason
- * `PanResponder.create(...)` beside a lowered tree still resolves.
+ * A value reference such as `const Label = Text` beside a lowered tree still resolves.
  */
 export function referencesHozoPrimitive(code: string): boolean {
   return HOZO_PRIMITIVES.some((name) => new RegExp(`\\b${name}\\b`).test(code))

@@ -25,18 +25,6 @@ import { importSpecifier } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
 const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
-/// Values the *author* imports from `@hozo/core` that resolve to
-/// `react-native` exports. Not components: those arrive through the
-/// compiler's own `nativeImports` now.
-///
-/// The component list that used to live here went missing a `TextInput`
-/// for a while, so a compiled TextInput referred to an identifier nothing
-/// imported. Metro bundles that happily -- an undefined identifier is only
-/// an error when it runs -- so the example built cleanly and would have
-/// crashed on first render. Nothing here can go stale that way again: the
-/// compiler reports what it emitted.
-const RN_VALUE_EXPORTS = ['PanResponder'] as const
-
 /// Renames this component's `hozoN`/`hozoN_suffix` style/JSX identifiers
 /// to be unique across every component in the file -- each `compileNative`
 /// call starts counting from `hozo0` independently per root, so two
@@ -166,22 +154,6 @@ export function transformHozoSource(
       )
     }
   })
-  // Values the author imported from `@hozo/core`, including aliases. The
-  // import is stripped below, so these specifiers move to `react-native`.
-  // Reading the module record also avoids the old whole-source regex, which
-  // could mistake a comment or unrelated identifier for an authored import.
-  const nativeValueImports = compiled.imports
-    .filter(
-      (entry) =>
-        entry.source === '@hozo/core' &&
-        RN_VALUE_EXPORTS.includes(entry.imported as (typeof RN_VALUE_EXPORTS)[number]),
-    )
-    .map((entry) => ({
-      local: entry.local,
-      specifier:
-        entry.imported === entry.local ? entry.imported : `${entry.imported} as ${entry.local}`,
-    }))
-
   // Every rewrite as an offset-keyed edit, applied back-to-front so
   // earlier offsets stay valid. Two kinds share the list: replacing a
   // component's JSX, and inserting its hook declarations at the top of the
@@ -299,10 +271,7 @@ export function transformHozoSource(
   const needed = [...usedTags, ...(hasStyles ? ['StyleSheet'] : [])].filter(
     (name) => !alreadyImported.has(name),
   )
-  const valueSpecifiers = nativeValueImports
-    .filter((entry) => !alreadyImported.has(entry.local))
-    .map((entry) => entry.specifier)
-  const nativeSpecifiers = [...needed, ...valueSpecifiers]
+  const nativeSpecifiers = needed
   const rnImport =
     nativeSpecifiers.length > 0
       ? `import { ${nativeSpecifiers.join(', ')} } from 'react-native'\n`
@@ -317,16 +286,7 @@ export function transformHozoSource(
   // so a name test would re-import every file's primitives and declare each
   // of them twice. What is left after subtracting the React Native bindings
   // is the set the compiler carried and nothing defines.
-  // Local names, not specifiers. `PanResponder as GestureResponder` is one
-  // specifier and binds `GestureResponder`, so a set of specifiers answers
-  // "is this name already defined" with no -- and the fallback import binds
-  // it a second time. An existing test caught that, which is what it was
-  // written for.
-  const providedByNative = new Set([
-    ...needed,
-    ...nativeValueImports.map((entry) => entry.local),
-    ...alreadyImported,
-  ])
+  const providedByNative = new Set([...needed, ...alreadyImported])
   const carried = declaredByAuthor.filter(
     (name) => !providedByNative.has(name) && new RegExp(`\\b${name}\\b`).test(next),
   )

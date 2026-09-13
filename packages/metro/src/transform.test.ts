@@ -51,10 +51,11 @@ test('strips the @hozo/core import and adds a react-native one', () => {
   assert.ok(!output!.includes('Button,') && !output!.includes(', Button'))
 })
 
-test('maps the cross-platform PanResponder value to React Native', () => {
+test('keeps PanResponder in its explicit compatibility package', () => {
   const output = transformHozoSource(
     `
-      import { View, PanResponder } from '@hozo/core'
+      import { View } from '@hozo/core'
+      import { PanResponder } from '@hozo/rn-compat'
       const pan = PanResponder.create({ onMoveShouldSetPanResponder: () => true })
       export function Drag() { return <View {...pan.panHandlers} /> }
     `,
@@ -63,23 +64,25 @@ test('maps the cross-platform PanResponder value to React Native', () => {
   assert.ok(output)
   // No `StyleSheet`: this component has no classes, so nothing generated a
   // style object for it to create.
-  assert.match(output, /import \{[^}]*View[^}]*PanResponder[^}]*\} from 'react-native'/)
+  assert.match(output, /import \{[^}]*View[^}]*\} from 'react-native'/)
+  assert.match(output, /import \{ PanResponder \} from '@hozo\/rn-compat'/)
   assert.ok(!output.includes('StyleSheet'), output)
   assert.match(output, /<View \{\.\.\.pan\.panHandlers\}/)
   assert.doesNotMatch(output, /@hozo\/core/)
 })
 
-test('moves an aliased PanResponder import without losing its local binding', () => {
+test('preserves an aliased compatibility import without losing its local binding', () => {
   const output = transformHozoSource(
     `
-      import { View, PanResponder as GestureResponder } from '@hozo/core'
+      import { View } from '@hozo/core'
+      import { PanResponder as GestureResponder } from '@hozo/rn-compat'
       const pan = GestureResponder.create({ onMoveShouldSetPanResponder: () => true })
       export function Drag() { return <View {...pan.panHandlers} /> }
     `,
     'Drag.tsx',
   )
   assert.ok(output)
-  assert.match(output, /import \{[^}]*PanResponder as GestureResponder[^}]*\} from 'react-native'/)
+  assert.match(output, /import \{ PanResponder as GestureResponder \} from '@hozo\/rn-compat'/)
   assert.match(output, /GestureResponder\.create/)
   assert.doesNotMatch(output, /@hozo\/core/)
 })
