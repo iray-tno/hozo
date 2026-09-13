@@ -1,4 +1,14 @@
 import {
+  type BasePlacement,
+  DismissableLayer,
+  FloatingPositioner,
+  type Placement,
+  Portal,
+  type TriggerProps,
+  type UseHoverTriggerOptions,
+  useHoverTrigger,
+} from '@hozo/behaviors'
+import {
   type CSSProperties,
   cloneElement,
   isValidElement,
@@ -8,15 +18,6 @@ import {
   type RefObject,
   useRef,
 } from 'react'
-import { DismissableLayer } from './dismissable-layer.tsx'
-import type { BasePlacement, Placement } from './floating-geometry.ts'
-import { FloatingPositioner } from './floating-positioner.tsx'
-import {
-  type TriggerProps,
-  type UseHoverTriggerOptions,
-  useHoverTrigger,
-} from './hover-trigger.tsx'
-import { Portal } from './portal.tsx'
 
 export interface TooltipProps
   extends Omit<UseHoverTriggerOptions, 'anchorRef' | 'floatingRef' | 'placement'> {

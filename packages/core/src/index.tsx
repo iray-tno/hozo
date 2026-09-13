@@ -454,65 +454,41 @@ export function Button({
   )
 }
 
-export {
-  HozoTextInput as TextInput,
-  type HozoTextInputProps as TextInputProps,
-} from '@hozo/runtime'
-// Keep the aggregation symmetric with the Native entry. Explicit exports
-// declared above win over names shared with these modules; everything else
-// follows automatically when semantics or typography grows.
-export * from '@hozo/semantics'
-export * from '@hozo/typography'
-// Composite accessible components powered by @hozo/behaviors.
+// Composite accessible components owned by @hozo/patterns.
 export {
   type Autocomplete,
+  Dialog,
+  type DialogProps,
   HozoCombobox as Combobox,
   HozoCombobox,
   type HozoComboboxOption as ComboboxOption,
   type HozoComboboxOption,
   type HozoComboboxProps as ComboboxProps,
   type HozoComboboxProps,
-} from './combobox.ts'
-export {
-  Dialog,
-  type DialogProps,
-} from './dialog.ts'
-export {
   HozoListbox as Listbox,
   HozoListbox,
   type HozoListboxOption as ListboxOption,
   type HozoListboxOption,
   type HozoListboxProps as ListboxProps,
   type HozoListboxProps,
-} from './listbox.ts'
-export {
   HozoMenu as Menu,
   HozoMenu,
   type HozoMenuItem as MenuItem,
   type HozoMenuItem,
   type HozoMenuProps as MenuProps,
   type HozoMenuProps,
-} from './menu.ts'
-export {
   HozoRadioGroup as RadioGroup,
   HozoRadioGroup,
   type HozoRadioGroupProps as RadioGroupProps,
   type HozoRadioGroupProps,
   type HozoRadioOption as RadioOption,
   type HozoRadioOption,
-} from './radio.ts'
-// SVG, as a namespace: `<Svg>` is the root and `<Svg.Rect>` its elements.
-// See `./svg.tsx` for why a namespace rather than an `Svg` prefix.
-export { Svg } from './svg.tsx'
-export {
   type HozoTab as Tab,
   type HozoTab,
   HozoTabs as Tabs,
   HozoTabs,
   type HozoTabsProps as TabsProps,
   type HozoTabsProps,
-} from './tabs.ts'
-export {
   HozoToolbar as Toolbar,
   HozoToolbar,
   type HozoToolbarItem as ToolbarItem,
@@ -523,11 +499,21 @@ export {
   type HozoToolbarItemProps,
   type HozoToolbarProps as ToolbarProps,
   type HozoToolbarProps,
-} from './toolbar.ts'
-export {
   HozoTree as Tree,
   HozoTree,
   type HozoTreeProps as TreeProps,
   type HozoTreeProps,
   type TreeNode,
-} from './tree.ts'
+} from '@hozo/patterns'
+export {
+  HozoTextInput as TextInput,
+  type HozoTextInputProps as TextInputProps,
+} from '@hozo/runtime'
+// Keep the aggregation symmetric with the Native entry. Explicit exports
+// declared above win over names shared with these modules; everything else
+// follows automatically when semantics or typography grows.
+export * from '@hozo/semantics'
+export * from '@hozo/typography'
+// SVG, as a namespace: `<Svg>` is the root and `<Svg.Rect>` its elements.
+// See `./svg.tsx` for why a namespace rather than an `Svg` prefix.
+export { Svg } from './svg.tsx'

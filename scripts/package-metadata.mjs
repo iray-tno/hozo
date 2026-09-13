@@ -76,6 +76,11 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'react', 'primitives', 'components', 'universal'],
   },
+  patterns: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'react', 'patterns', 'accessibility', 'components'],
+  },
   semantics: {
     exports: { '.': './dist/index.js' },
     // Absent until now, and `index.native.tsx` was unreachable because of
@@ -146,7 +151,8 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'navigation', 'router', 'deep-linking', 'universal'],
   },
   behaviors: {
-    exports: { '.': './dist/index.js' },
+    exports: { '.': './dist/index.js', './native': './dist/native.js' },
+    noNative: ['./native'],
     native: true,
     keywords: [
       'react-native',

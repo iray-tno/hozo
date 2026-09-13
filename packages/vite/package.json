@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@hozo/compiler": "workspace:^",
+    "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
     "@hozo/runtime": "workspace:^",
     "@hozo/tailwind": "workspace:^"

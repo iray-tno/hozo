@@ -1,10 +1,4 @@
 export {
-  Dialog,
-  type DialogProps,
-  HozoDialog,
-  type HozoDialogProps,
-} from './dialog.tsx'
-export {
   HozoDetails,
   type HozoDetailsProps,
   HozoSummary,
@@ -85,10 +79,6 @@ export {
   type HozoRubyTextProps,
 } from './ruby.tsx'
 export { hozoTextChildren } from './text-child.ts'
-export {
-  Tooltip,
-  type TooltipProps,
-} from './tooltip.tsx'
 export {
   isTypeaheadKey,
   nextSearch,

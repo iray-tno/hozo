@@ -6,7 +6,6 @@ import {
   type Placement,
   Portal,
   RovingFocusGroup,
-  Tooltip,
   TooltipGroupProvider,
   useAnnounce,
   useHoverTrigger,
@@ -14,6 +13,7 @@ import {
   useTypeahead,
 } from '@hozo/behaviors'
 import { Button, Heading, Paragraph, Text, View } from '@hozo/core'
+import { Tooltip } from '@hozo/patterns'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useRef, useState } from 'react'
 

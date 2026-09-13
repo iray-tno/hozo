@@ -197,6 +197,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/patterns':
+        specifier: workspace:*
+        version: link:../../packages/patterns
       '@hozo/primitives':
         specifier: workspace:*
         version: link:../../packages/primitives
@@ -295,6 +298,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/patterns':
+        specifier: workspace:*
+        version: link:../../packages/patterns
       '@hozo/primitives':
         specifier: workspace:*
         version: link:../../packages/primitives
@@ -444,9 +450,9 @@ importers:
 
   packages/core:
     dependencies:
-      '@hozo/behaviors':
+      '@hozo/patterns':
         specifier: workspace:^
-        version: link:../behaviors
+        version: link:../patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives
@@ -484,6 +490,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/patterns':
+        specifier: workspace:^
+        version: link:../patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives
@@ -534,6 +543,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/patterns':
+        specifier: workspace:^
+        version: link:../patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives
@@ -550,6 +562,28 @@ importers:
       next:
         specifier: ^16.3.3
         version: 16.3.4(@babel/core@7.29.7(supports-color@8.1.1))(@types/node@26.2.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+
+  packages/patterns:
+    dependencies:
+      '@hozo/behaviors':
+        specifier: workspace:^
+        version: link:../behaviors
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.5(@types/react@19.2.18)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      react-native:
+        specifier: ^0.87.0
+        version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
 
   packages/primitives:
     dependencies:
@@ -684,6 +718,9 @@ importers:
       '@hozo/metro':
         specifier: workspace:^
         version: link:../metro
+      '@hozo/patterns':
+        specifier: workspace:^
+        version: link:../patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives
@@ -776,6 +813,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/patterns':
+        specifier: workspace:^
+        version: link:../patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives

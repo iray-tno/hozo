@@ -1,4 +1,12 @@
 import {
+  FloatingPositioner,
+  type NativeTriggerProps,
+  type Placement,
+  Portal,
+  type UseHoverTriggerOptions,
+  useHoverTrigger,
+} from '@hozo/behaviors/native'
+import {
   type ComponentRef,
   cloneElement,
   isValidElement,
@@ -9,14 +17,6 @@ import {
   useRef,
 } from 'react'
 import type { StyleProp, View, ViewStyle } from 'react-native'
-import type { Placement } from './floating-geometry.ts'
-import { FloatingPositioner } from './floating-positioner.native.tsx'
-import {
-  type NativeTriggerProps,
-  type UseHoverTriggerOptions,
-  useHoverTrigger,
-} from './hover-trigger.native.tsx'
-import { Portal } from './portal.native.tsx'
 
 /**
  * What React Native hands back for a `<View>`.

@@ -13,6 +13,7 @@
   "dependencies": {
     "@hozo/behaviors": "workspace:*",
     "@hozo/core": "workspace:*",
+    "@hozo/patterns": "workspace:*",
     "@hozo/primitives": "workspace:*",
     "@hozo/runtime": "workspace:*",
     "@hozo/semantics": "workspace:*",

@@ -134,12 +134,8 @@ export function createClassResolver(
 }
 
 export {
-  Dialog,
-  type DialogProps,
   HozoDetails,
   type HozoDetailsProps,
-  HozoDialog,
-  type HozoDialogProps,
   HozoRuby,
   type HozoRubyProps,
   HozoRubyText,

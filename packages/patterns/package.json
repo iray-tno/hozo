@@ -1,21 +1,21 @@
 {
-  "name": "@hozo/core",
+  "name": "@hozo/patterns",
   "version": "0.1.0",
-  "description": "Canonical primitives and semantic components for new Hozo projects.",
+  "description": "Accessible composite UI patterns for Hozo applications.",
   "keywords": [
     "react-native",
     "react",
-    "components",
+    "patterns",
     "accessibility",
-    "universal"
+    "components"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iray-tno/hozo.git",
-    "directory": "packages/core"
+    "directory": "packages/patterns"
   },
-  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/core#readme",
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/patterns#readme",
   "bugs": {
     "url": "https://github.com/iray-tno/hozo/issues"
   },
@@ -51,11 +51,7 @@
     "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
   "dependencies": {
-    "@hozo/patterns": "workspace:^",
-    "@hozo/primitives": "workspace:^",
-    "@hozo/runtime": "workspace:^",
-    "@hozo/semantics": "workspace:^",
-    "@hozo/typography": "workspace:^"
+    "@hozo/behaviors": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -71,7 +67,6 @@
     "@types/react-dom": "^19.2.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-test-renderer": "^19.2.8",
     "react-native": "^0.87.0"
   }
 }
