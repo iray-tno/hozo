@@ -134,7 +134,7 @@ export function Lists() {
   assert.match(web.code, /refreshing=\{busy\} onRefresh=\{reload\}/)
   assert.match(
     web.code,
-    /import \{ HozoFlatList, HozoRefreshControl, HozoScrollView \} from '@hozo\/runtime'/,
+    /import \{ HozoFlatList, HozoRefreshControl, HozoScrollView \} from '@hozo\/primitives'/,
   )
 
   const native = compiler.compileNative(source)

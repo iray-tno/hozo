@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { HozoFlatList, HozoRefreshControl, HozoScrollView } from './list.ts'
+import { HozoFlatList, HozoRefreshControl, HozoScrollView } from './index.ts'
 
 test('ScrollView keeps its viewport and content styles separate', () => {
   const html = renderToStaticMarkup(

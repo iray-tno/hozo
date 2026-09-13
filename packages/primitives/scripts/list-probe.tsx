@@ -16,7 +16,7 @@
 import { createElement, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { HozoFlatList, type HozoFlatListHandle } from '../src/list.ts'
+import { HozoFlatList, type HozoFlatListHandle } from '../src/index.ts'
 
 interface Row {
   id: string

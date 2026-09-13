@@ -55,6 +55,7 @@ registerHooks({
       specifier === '@hozo/runtime' ||
       specifier === '@hozo/behaviors' ||
       specifier === '@hozo/core' ||
+      specifier === '@hozo/primitives' ||
       specifier === '@hozo/semantics' ||
       specifier === '@hozo/typography'
     ) {

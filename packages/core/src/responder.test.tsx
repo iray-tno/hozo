@@ -14,9 +14,9 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import test from 'node:test'
+import { HozoScrollView } from '@hozo/primitives'
 import {
   HozoPressable,
-  HozoScrollView,
   HozoTouchableOpacity,
   HozoTouchableWithoutFeedback,
   HozoView,

@@ -546,6 +546,7 @@ packages/
   migration-audit/         Measure how safely Hozo can lower a real React Native application.
   navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
   next/                    Next.js integration for the Hozo compiler (Web lowering backend).
+  primitives/              Canonical universal UI primitives for Hozo applications.
   runtime/                 Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   semantics/               Universal landmarks, document sectioning, and semantic page structure primitives for Hozo.
   storybook/               Zero-config Storybook Vite preset for Hozo.

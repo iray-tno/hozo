@@ -218,11 +218,11 @@ export function Rows() {
 `
   const output = transformHozoSource(source, 'Rows.tsx')
   assert.ok(output)
-  // `HozoFlatList` from `@hozo/runtime` rather than `FlatList` from
+  // `HozoFlatList` from `@hozo/primitives` rather than `FlatList` from
   // `react-native`: the list is React Native's, and what the wrapper around it
   // adds is the collection length Android needs to announce a windowed list
   // honestly. `Text` still comes straight from `react-native`.
-  assert.match(output!, /import \{[^}]*HozoFlatList[^}]*\} from '@hozo\/runtime'/)
+  assert.match(output!, /import \{[^}]*HozoFlatList[^}]*\} from '@hozo\/primitives'/)
   assert.doesNotMatch(output!, /import \{[^}]*FlatList[^}]*\} from 'react-native'/)
   assert.match(output!, /import \{[^}]*Text[^}]*\} from 'react-native'/)
   assert.match(

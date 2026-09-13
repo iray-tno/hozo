@@ -25,6 +25,18 @@ import type { StylexModuleCache } from './stylex-project.ts'
 
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
+const PRIMITIVE_RUNTIME_EXPORTS = new Set(['HozoFlatList', 'HozoRefreshControl', 'HozoScrollView'])
+
+/** Render generated component imports according to the package that owns their implementation. */
+export function generatedRuntimeImports(names: readonly string[]): string {
+  const primitives = names.filter((name) => PRIMITIVE_RUNTIME_EXPORTS.has(name))
+  const runtime = names.filter((name) => !PRIMITIVE_RUNTIME_EXPORTS.has(name))
+  return [
+    runtime.length > 0 ? `import { ${runtime.join(', ')} } from '@hozo/runtime'\n` : '',
+    primitives.length > 0 ? `import { ${primitives.join(', ')} } from '@hozo/primitives'\n` : '',
+  ].join('')
+}
+
 const HOZO_CORE_IMPORT_RE =
   /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/semantics|@hozo\/typography)['"]\s*\n?/g
 
@@ -584,8 +596,7 @@ export function lowerModule(
   // the Native backend's hooks; this is the Web half of that contract.
   const runtimeImports = [...new Set(components.flatMap((component) => component.runtimeImports))]
   if (runtimeImports.length > 0) {
-    next = `import { ${runtimeImports.sort().join(', ')} } from '@hozo/runtime'
-${next}`
+    next = `${generatedRuntimeImports(runtimeImports.sort())}${next}`
   }
 
   if (shouldRehome) next = rehomeReactNativeComponentImports(next)

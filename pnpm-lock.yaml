@@ -47,6 +47,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/primitives':
+        specifier: workspace:*
+        version: link:../../packages/primitives
       '@tailwindcss/vite':
         specifier: ^4.0.9
         version: 4.3.3(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0))
@@ -160,6 +163,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/primitives':
+        specifier: workspace:*
+        version: link:../../packages/primitives
       '@hozo/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -191,6 +197,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/primitives':
+        specifier: workspace:*
+        version: link:../../packages/primitives
       '@hozo/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -286,6 +295,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/primitives':
+        specifier: workspace:*
+        version: link:../../packages/primitives
       '@hozo/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -435,6 +447,9 @@ importers:
       '@hozo/behaviors':
         specifier: workspace:^
         version: link:../behaviors
+      '@hozo/primitives':
+        specifier: workspace:^
+        version: link:../primitives
       '@hozo/runtime':
         specifier: workspace:^
         version: link:../runtime
@@ -469,6 +484,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/primitives':
+        specifier: workspace:^
+        version: link:../primitives
       '@hozo/runtime':
         specifier: workspace:^
         version: link:../runtime
@@ -516,6 +534,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/primitives':
+        specifier: workspace:^
+        version: link:../primitives
       '@hozo/runtime':
         specifier: workspace:^
         version: link:../runtime
@@ -529,6 +550,34 @@ importers:
       next:
         specifier: ^16.3.3
         version: 16.3.4(@babel/core@7.29.7(supports-color@8.1.1))(@types/node@26.2.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+
+  packages/primitives:
+    dependencies:
+      '@hozo/runtime':
+        specifier: workspace:^
+        version: link:../runtime
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.5(@types/react@19.2.18)
+      axe-core:
+        specifier: 4.13.0
+        version: 4.13.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      react-native:
+        specifier: ^0.87.0
+        version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
 
   packages/runtime:
     dependencies:
@@ -635,6 +684,9 @@ importers:
       '@hozo/metro':
         specifier: workspace:^
         version: link:../metro
+      '@hozo/primitives':
+        specifier: workspace:^
+        version: link:../primitives
       '@hozo/runtime':
         specifier: workspace:^
         version: link:../runtime
@@ -724,6 +776,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/primitives':
+        specifier: workspace:^
+        version: link:../primitives
       '@hozo/runtime':
         specifier: workspace:^
         version: link:../runtime

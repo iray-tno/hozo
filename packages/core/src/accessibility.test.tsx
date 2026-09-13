@@ -87,7 +87,10 @@ function render(component: Primitive, props: Record<string, unknown>) {
   // `data`/`renderItem` keep FlatList renderable; an empty list never
   // calls the latter, and every assertion here is about the container.
   return renderToStaticMarkup(
-    createElement(renderable, { data: [], renderItem: () => null, ...props }),
+    createElement(renderable, {
+      ...(component === (FlatList as Primitive) ? { data: [], renderItem: () => null } : {}),
+      ...props,
+    }),
   )
 }
 

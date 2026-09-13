@@ -19,6 +19,7 @@ import path from 'node:path'
 import { type CompiledNativeComponent, type Compiler, createCompiler } from '@hozo/compiler'
 import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
+import { generatedRuntimeImports } from '@hozo/compiler/lower'
 import type { StylexModuleCache } from '@hozo/compiler/project'
 import { importSpecifier } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
@@ -344,7 +345,7 @@ export function transformHozoSource(
   const svg = [...runtimeImports].filter((name) => SVG_EXPORTS.has(name))
   const rest = [...runtimeImports].filter((name) => !SVG_EXPORTS.has(name))
   if (rest.length > 0) {
-    next = `import { ${rest.join(', ')} } from '@hozo/runtime'\n${next}`
+    next = `${generatedRuntimeImports(rest)}${next}`
   }
   if (svg.length > 0) {
     next = `import { ${svg.join(', ')} } from '@hozo/runtime/svg'\n${next}`
