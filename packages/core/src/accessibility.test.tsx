@@ -22,21 +22,7 @@ import test from 'node:test'
 import { type ComponentType, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import {
-  Article,
-  FlatList,
-  Heading,
-  List,
-  ListItem,
-  Nav,
-  Paragraph,
-  Pressable,
-  ScrollView,
-  Section,
-  Text,
-  View,
-  type ViewProps,
-} from './index.tsx'
+import { FlatList, Pressable, ScrollView, Text, View, type ViewProps } from './index.tsx'
 
 // This assignment is intentionally part of the test build. The compiler
 // carries both props and the fallback renders them, so the public contract
@@ -59,13 +45,6 @@ type Primitive = ComponentType<never>
 const PRIMITIVES: [string, Primitive][] = [
   ['View', View],
   ['Text', Text],
-  ['Paragraph', Paragraph],
-  ['Heading', Heading],
-  ['Section', Section],
-  ['Article', Article],
-  ['Nav', Nav],
-  ['List', List],
-  ['ListItem', ListItem],
   ['ScrollView', ScrollView],
   ['FlatList', FlatList],
   // Pressable was not in this list when the file was written, and writing

@@ -1,8 +1,8 @@
 // What every split Hozo package promises on one platform and not the other.
 //
 // Core's `index.tsx` and `index.native.ts` drifted first: `View`,
-// `Pressable`, `Image`, `ScrollView`, `FlatList`, `List`, `ListItem` and
-// `TextInput` were exported in a browser and absent on React Native.
+// `Pressable`, `Image`, `ScrollView`, `FlatList` and `TextInput` were
+// exported in a browser and absent on React Native.
 // Metro bundled those named imports as `undefined`, so the failure waited
 // for the first device render. Checking core alone then left every other
 // package with the same two-entry contract unguarded.

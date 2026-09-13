@@ -14,6 +14,8 @@ import {
   Footer,
   Header,
   Legend,
+  List,
+  ListItem,
   Main,
   Nav,
   Search,
@@ -88,6 +90,10 @@ test('structural form, disclosure, and term list primitives render HTML5 element
         <TermList.Term>License</TermList.Term>
         <TermList.Description>MIT</TermList.Description>
       </TermList>
+      <List ordered accessibilityLabel="Steps">
+        <ListItem>First</ListItem>
+        <ListItem>Second</ListItem>
+      </List>
     </div>,
   )
 
@@ -103,4 +109,6 @@ test('structural form, disclosure, and term list primitives render HTML5 element
   assert.ok(html.includes('<dd>A universal UI compiler</dd>'), 'Description rendered as dd')
   assert.ok(html.includes('<dt>License</dt>'), 'TermList.Term rendered as dt')
   assert.ok(html.includes('<dd>MIT</dd>'), 'TermList.Description rendered as dd')
+  assert.ok(html.includes('<ol aria-label="Steps">'), 'ordered List rendered as ol')
+  assert.ok(html.includes('<li>First</li>'), 'ListItem rendered as li')
 })

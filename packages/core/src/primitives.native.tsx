@@ -19,7 +19,6 @@ import type { ComponentType, ReactNode } from 'react'
 import {
   Pressable as RNPressable,
   type PressableProps as RNPressableProps,
-  View as RNView,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
@@ -70,53 +69,6 @@ export function Pressable({
   >
   return <Link href={href} external={external} replace={replace} prefetch={prefetch} {...props} />
 }
-
-export interface ListNativeProps {
-  /**
-   * Tailwind classes, the same prop the Web half takes.
-   *
-   * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
-   */
-  className?: string
-  children?: ReactNode
-  /** `<ol>` on the Web. Nothing visual here; the role is the same either way. */
-  ordered?: boolean
-  style?: StyleProp<ViewStyle>
-  testID?: string
-  accessibilityLabel?: string
-}
-
-/**
- * The two React Native has no component for, and needs a role for.
- *
- * `<ul>` and `<li>` carry their structure in the element on the Web. Here
- * the structure has to be said out loud, which is the whole reason these
- * are in `@hozo/core` rather than left to the caller: a list of rows that
- * never announces itself as a list is the commonest thing a native screen
- * reader is given.
- */
-export function List({ ordered: _ordered, children, ...props }: ListNativeProps) {
-  return (
-    <RNView role="list" {...props}>
-      {hozoTextChildren(children)}
-    </RNView>
-  )
-}
-
-export function ListItem({ children, ...props }: Omit<ListNativeProps, 'ordered'>) {
-  return (
-    <RNView role="listitem" {...props}>
-      {hozoTextChildren(children)}
-    </RNView>
-  )
-}
-
-/** The name the Web half publishes for the same prop set. */
-export type ListProps = ListNativeProps
 
 /**
  * A button, and a link when it is given an `href`.
