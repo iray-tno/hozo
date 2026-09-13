@@ -1,7 +1,6 @@
+import { externalLinkAttributes } from '@hozo/runtime'
 import type { MouseEventHandler, ReactNode, SVGProps } from 'react'
 import { createElement } from 'react'
-
-import { externalLinkAttributes } from './link.ts'
 
 export interface SvgLinkProps
   extends Omit<SVGProps<SVGAElement>, 'children' | 'href' | 'onClick' | 'rel' | 'target'> {

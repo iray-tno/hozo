@@ -43,7 +43,11 @@ import { foreignPrimitiveNames } from './index.ts'
  */
 export const DEFAULT_PRIMITIVE_SOURCES = [
   '@hozo/core',
+  '@hozo/patterns',
+  '@hozo/primitives',
+  '@hozo/rn-compat',
   '@hozo/semantics',
+  '@hozo/svg',
   '@hozo/typography',
   'react-native',
 ] as const

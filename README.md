@@ -552,6 +552,7 @@ packages/
   runtime/                 Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   semantics/               Universal landmarks, document sectioning, and semantic page structure primitives for Hozo.
   storybook/               Zero-config Storybook Vite preset for Hozo.
+  svg/                     Universal SVG primitives for Hozo, backed by browser SVG and react-native-svg.
   tailwind/                Tailwind integration for Hozo's Style IR.
   tailwind-conformance/    Differential test: compares Hozo's compiled CSS against the real Tailwind engine's output, per utility.
   test-reporter/           JUnit normalization and Allure 3 test report generator for Hozo

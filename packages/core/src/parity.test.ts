@@ -39,12 +39,6 @@ const packages = path.join(workspaceRoot(), 'packages')
  */
 const WEB_ONLY = new Map([
   [
-    '@hozo/core:Svg',
-    'A separate entry point on React Native (`@hozo/runtime/svg`), because ' +
-      '`export … from` in a barrel would load `react-native-svg` for every ' +
-      'project, and it is an optional peer.',
-  ],
-  [
     '@hozo/canvas:renderCanvas2D',
     'The Canvas 2D renderer is a browser implementation detail; Native renders through Skia.',
   ],

@@ -592,7 +592,7 @@ pub enum SvgElement {
     Pattern,
     /// A definition instantiated by `Use`, unlike `Defs` which only holds.
     Symbol,
-    /// A raster image. `Svg.Image` rather than `Image`: `@hozo/core` has a
+    /// A raster image. `Svg.Image` rather than `Image`: Hozo has a
     /// primitive of that name, and the namespace is what keeps the two
     /// from arguing.
     Image,

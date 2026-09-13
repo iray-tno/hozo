@@ -109,10 +109,23 @@ const SNIPPETS = {
 
 /** Everything a snippet might name, so one import line covers them all. */
 const NAMED = Object.keys(SNIPPETS)
-  // `Animated.View` is a member expression, not a name a barrel exports.
-  .filter((name) => name !== 'AnimatedView')
+  // Domain and compatibility packages are imported explicitly below.
+  .filter(
+    (name) =>
+      ![
+        'ActivityIndicator',
+        'AnimatedView',
+        'Modal',
+        'Svg',
+        'TouchableOpacity',
+        'TouchableWithoutFeedback',
+      ].includes(name),
+  )
   .join(', ')
-const IMPORTS = `import { ${NAMED} } from '@hozo/core'\nimport { Animated } from 'react-native'\n`
+const IMPORTS =
+  `import { ${NAMED} } from '@hozo/core'\n` +
+  `import { ActivityIndicator, Animated, Modal, TouchableOpacity, TouchableWithoutFeedback } from '@hozo/rn-compat'\n` +
+  `import { Svg } from '@hozo/svg'\n`
 
 /** The opening tag a backend emitted, attributes and all. */
 function openingTag(jsx) {

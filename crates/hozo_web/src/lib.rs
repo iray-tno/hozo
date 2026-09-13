@@ -1594,7 +1594,7 @@ export function Login() {
         // won and their `onPress` was dropped in silence -- the prop the
         // compiler models losing to the one it carries.
         let source = r#"
-            import { Svg } from '@hozo/core'
+            import { Svg } from '@hozo/svg'
             const el = <Svg><Svg.Rect onClick={f} onPress={g} /></Svg>
             "#;
         let parsed = hozo_parser::parse_tsx(source);
@@ -1618,7 +1618,7 @@ export function Login() {
         // and still wins. The Native backend guards its own props the
         // same way for the same reason.
         let source = r#"
-            import { Svg } from '@hozo/core'
+            import { Svg } from '@hozo/svg'
             const el = <Svg><Svg.Rect {...rest} onPress={g} /></Svg>
             "#;
         let parsed = hozo_parser::parse_tsx(source);
@@ -1666,7 +1666,7 @@ export function Login() {
     #[test]
     fn svg_link_is_a_semantic_router_aware_anchor() {
         let source = r#"
-            import { Svg } from '@hozo/core'
+            import { Svg } from '@hozo/svg'
             const el = <Svg><Svg.Link href="/detail" replace><Svg.Rect width={10} height={10} /></Svg.Link></Svg>
             "#;
         let parsed = hozo_parser::parse_tsx(source);

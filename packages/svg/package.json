@@ -1,29 +1,28 @@
 {
-  "name": "@hozo/runtime",
+  "name": "@hozo/svg",
   "version": "0.1.0",
-  "description": "Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.",
+  "description": "Universal SVG primitives for Hozo, backed by browser SVG and react-native-svg.",
   "keywords": [
     "react-native",
-    "runtime",
-    "styles",
-    "animation"
+    "react",
+    "svg",
+    "vector",
+    "graphics"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iray-tno/hozo.git",
-    "directory": "packages/runtime"
+    "directory": "packages/svg"
   },
-  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/runtime#readme",
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/svg#readme",
   "bugs": {
     "url": "https://github.com/iray-tno/hozo/issues"
   },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "sideEffects": [
-    "./dist/hooks.native.js"
-  ],
+  "sideEffects": false,
   "exports": {
     ".": {
       "react-native": {
@@ -32,22 +31,6 @@
       },
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./navigation": {
-      "react-native": {
-        "types": "./dist/navigation-entry.native.d.ts",
-        "default": "./dist/navigation-entry.native.js"
-      },
-      "types": "./dist/navigation-entry.d.ts",
-      "default": "./dist/navigation-entry.js"
-    },
-    "./project": {
-      "react-native": {
-        "types": "./dist/project.native.d.ts",
-        "default": "./dist/project.native.js"
-      },
-      "types": "./dist/project.d.ts",
-      "default": "./dist/project.js"
     },
     "./package.json": "./package.json"
   },
@@ -65,33 +48,30 @@
   "scripts": {
     "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node --test src/*.test.ts",
-    "test:performance": "node --test src/*.bench.ts"
+    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
   "dependencies": {
-    "@hozo/behaviors": "workspace:^"
+    "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-native": ">=0.76",
-    "react-native-safe-area-context": ">=4"
+    "react-native-svg": ">=15"
   },
   "peerDependenciesMeta": {
     "react-native": {
       "optional": true
     },
-    "react-native-safe-area-context": {
+    "react-native-svg": {
       "optional": true
     }
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "axe-core": "4.13.0",
-    "esbuild": "0.28.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-native": "^0.87.0",
-    "react-test-renderer": "^19.2.8"
+    "react-native-svg": "^15.15.5"
   }
 }

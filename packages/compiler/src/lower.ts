@@ -54,8 +54,8 @@ export function generatedRuntimeImports(names: readonly string[]): string {
   ].join('')
 }
 
-const HOZO_CORE_IMPORT_RE =
-  /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/semantics|@hozo\/typography)['"]\s*\n?/g
+const HOZO_AUTHORING_IMPORT_RE =
+  /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/patterns|@hozo\/primitives|@hozo\/semantics|@hozo\/svg|@hozo\/typography)['"]\s*\n?/g
 
 const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])react-native\3\s*;?/g
 
@@ -607,7 +607,7 @@ export function lowerModule(
   // is not one. The import then reaches the graph, `@hozo/core` is pulled
   // in, and Next's App Router rejects the page for calling `useState` in a
   // server component -- naming neither MDX nor the import.
-  const withoutImport = next.replace(HOZO_CORE_IMPORT_RE, '')
+  const withoutImport = next.replace(HOZO_AUTHORING_IMPORT_RE, '')
   if (!referencesHozoPrimitive(isTransformed ? withoutImport : next)) {
     next = withoutImport
   }

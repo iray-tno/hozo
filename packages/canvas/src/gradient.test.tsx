@@ -1,6 +1,6 @@
 // Gradients, which `@hozo/canvas` did not have and both platforms do.
 //
-// `@hozo/core`'s SVG namespace has had `LinearGradient` since it existed,
+// `@hozo/svg`'s namespace has had `LinearGradient` since it existed,
 // so the mode #154 designates for ten thousand points was the one that
 // could not fill an area chart. Nothing decided that; the paint props
 // were strings and stayed strings.

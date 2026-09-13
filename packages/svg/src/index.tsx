@@ -17,8 +17,10 @@
 // candidate stylesheet supplies its CSS, which is the same arrangement
 // every other primitive in this package has.
 
-import { SvgLink } from '@hozo/runtime/svg'
 import type { ReactNode, SVGProps } from 'react'
+import { SvgLink } from './svg-link.ts'
+
+export { SvgLink, type SvgLinkProps } from './svg-link.ts'
 
 type Passthrough<T> = SVGProps<T> & { children?: ReactNode }
 
@@ -53,6 +55,32 @@ function Tag({
 
 const Root = element<SVGSVGElement>('svg')
 
+// Named exports are the compiler ABI. Native lowering imports these names
+// directly; the namespace below is the author-facing API.
+export const G = element<SVGGElement>('g')
+export const Rect = element<SVGRectElement>('rect')
+export const Circle = element<SVGCircleElement>('circle')
+export const Ellipse = element<SVGEllipseElement>('ellipse')
+export const Line = element<SVGLineElement>('line')
+export const Path = element<SVGPathElement>('path')
+export const Polygon = element<SVGPolygonElement>('polygon')
+export const Polyline = element<SVGPolylineElement>('polyline')
+export const SvgText = element<SVGTextElement>('text')
+export const Defs = element<SVGDefsElement>('defs')
+export const LinearGradient = element<SVGLinearGradientElement>('linearGradient')
+export const RadialGradient = element<SVGRadialGradientElement>('radialGradient')
+export const Stop = element<SVGStopElement>('stop')
+export const ClipPath = element<SVGClipPathElement>('clipPath')
+export const Use = element<SVGUseElement>('use')
+export const TSpan = element<SVGTSpanElement>('tspan')
+export const TextPath = element<SVGTextPathElement>('textPath')
+export const ForeignObject = element<SVGForeignObjectElement>('foreignObject')
+export const Marker = element<SVGMarkerElement>('marker')
+export const Mask = element<SVGMaskElement>('mask')
+export const Pattern = element<SVGPatternElement>('pattern')
+export const SvgSymbol = element<SVGSymbolElement>('symbol')
+export const SvgImage = element<SVGImageElement>('image')
+
 /**
  * The SVG root, and the namespace its elements live under.
  *
@@ -65,36 +93,36 @@ const Root = element<SVGSVGElement>('svg')
 export const Svg = Object.assign(Root, {
   /** A destination-bearing group: an SVG anchor on Web and a pressable group on Native. */
   Link: SvgLink,
-  G: element<SVGGElement>('g'),
-  Rect: element<SVGRectElement>('rect'),
-  Circle: element<SVGCircleElement>('circle'),
-  Ellipse: element<SVGEllipseElement>('ellipse'),
-  Line: element<SVGLineElement>('line'),
-  Path: element<SVGPathElement>('path'),
-  Polygon: element<SVGPolygonElement>('polygon'),
-  Polyline: element<SVGPolylineElement>('polyline'),
-  Text: element<SVGTextElement>('text'),
-  Defs: element<SVGDefsElement>('defs'),
+  G,
+  Rect,
+  Circle,
+  Ellipse,
+  Line,
+  Path,
+  Polygon,
+  Polyline,
+  Text: SvgText,
+  Defs,
   // camelCase, and not because of a style preference: `linearGradient`
   // lowercased is an element that parses and never renders.
-  LinearGradient: element<SVGLinearGradientElement>('linearGradient'),
-  RadialGradient: element<SVGRadialGradientElement>('radialGradient'),
-  Stop: element<SVGStopElement>('stop'),
-  ClipPath: element<SVGClipPathElement>('clipPath'),
-  Use: element<SVGUseElement>('use'),
+  LinearGradient,
+  RadialGradient,
+  Stop,
+  ClipPath,
+  Use,
   // A run inside a `Text`, which is how a label gets a second line:
   // SVG has no wrapping of its own.
-  TSpan: element<SVGTSpanElement>('tspan'),
+  TSpan,
   // camelCase for the same reason `linearGradient` is, and the reason
   // is worth repeating because it is silent: lowercased, these parse
   // and never render.
-  TextPath: element<SVGTextPathElement>('textPath'),
-  ForeignObject: element<SVGForeignObjectElement>('foreignObject'),
-  Marker: element<SVGMarkerElement>('marker'),
-  Mask: element<SVGMaskElement>('mask'),
-  Pattern: element<SVGPatternElement>('pattern'),
-  Symbol: element<SVGSymbolElement>('symbol'),
+  TextPath,
+  ForeignObject,
+  Marker,
+  Mask,
+  Pattern,
+  Symbol: SvgSymbol,
   // `Svg.Image` and not `Image`: this package exports a primitive of
   // that name, and the namespace is what keeps the two from arguing.
-  Image: element<SVGImageElement>('image'),
+  Image: SvgImage,
 })

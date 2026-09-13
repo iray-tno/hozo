@@ -1,10 +1,15 @@
+import {
+  activateHozoNavigation,
+  prefetchHozoNavigation,
+  useHozoNavigation,
+} from '@hozo/runtime/navigation'
 import { type ComponentProps, type ReactNode, useRef } from 'react'
 import { type GestureResponderEvent, Linking } from 'react-native'
 import { G } from 'react-native-svg'
-import { activateHozoNavigation, prefetchHozoNavigation } from './navigation.ts'
-import { useHozoNavigation } from './navigation-context.tsx'
 
 export interface SvgLinkProps extends Omit<ComponentProps<typeof G>, 'children' | 'onPress'> {
+  /** Compile-time styling input consumed before this component renders. */
+  className?: string
   href: string
   children?: ReactNode
   onPress?: (event: GestureResponderEvent) => void

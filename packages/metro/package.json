@@ -58,6 +58,7 @@
     "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
     "@hozo/runtime": "workspace:^",
+    "@hozo/svg": "workspace:^",
     "@hozo/tailwind": "workspace:^"
   },
   "peerDependencies": {
