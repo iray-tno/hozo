@@ -39,19 +39,10 @@ export {
   type TextInputProps,
 } from 'react-native'
 export type { BreakpointName, Viewport } from './ambient.ts'
-export { HozoBackdropFilter, type HozoBackdropFilterProps } from './backdrop.native.tsx'
-export {
-  HozoContainer,
-  type HozoContainerProps,
-  HozoContainerQuery,
-  type HozoContainerWidths,
-} from './container.native.tsx'
 // `index.ts` names the Web implementation explicitly after TypeScript
 // emits it. Override that star export so Metro never sends DOM conversion
 // through a native render path.
 export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.native.ts'
-export { HozoGrid, HozoGridItem } from './grid.native.tsx'
-export type { GridTrack } from './grid.ts'
 export {
   type HozoAnimation,
   useHozoAnimation,
@@ -75,16 +66,4 @@ export {
   type HozoTransition,
 } from './pressable.native.tsx'
 export { type HozoSafeAreaInsets, useHozoSafeArea } from './safe-area.native.ts'
-export { HozoSpaced } from './spacing.native.tsx'
-export {
-  HozoRelativeText,
-  type HozoRelativeTextProps,
-  HozoTextSize,
-  type HozoTextSizeProps,
-} from './text-size.native.tsx'
-export {
-  HozoAnimated,
-  type HozoAnimatedProps,
-  type HozoTransitionSpec,
-} from './transition.native.tsx'
 export { HozoView, type HozoViewProps } from './view.native.ts'

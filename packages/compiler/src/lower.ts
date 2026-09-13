@@ -25,7 +25,18 @@ import type { StylexModuleCache } from './stylex-project.ts'
 
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
-const PRIMITIVE_RUNTIME_EXPORTS = new Set(['HozoFlatList', 'HozoRefreshControl', 'HozoScrollView'])
+const PRIMITIVE_EXPORTS = new Set(['HozoFlatList', 'HozoRefreshControl', 'HozoScrollView'])
+const PRIMITIVE_RUNTIME_EXPORTS = new Set([
+  'HozoAnimated',
+  'HozoBackdropFilter',
+  'HozoContainer',
+  'HozoContainerQuery',
+  'HozoGrid',
+  'HozoGridItem',
+  'HozoRelativeText',
+  'HozoSpaced',
+  'HozoTextSize',
+])
 const PATTERN_RUNTIME_EXPORTS = new Set(['HozoDialog'])
 const RN_COMPAT_RUNTIME_EXPORTS = new Set([
   'HozoActivityIndicator',
@@ -37,11 +48,13 @@ const RN_COMPAT_RUNTIME_EXPORTS = new Set([
 
 /** Render generated component imports according to the package that owns their implementation. */
 export function generatedRuntimeImports(names: readonly string[]): string {
-  const primitives = names.filter((name) => PRIMITIVE_RUNTIME_EXPORTS.has(name))
+  const primitives = names.filter((name) => PRIMITIVE_EXPORTS.has(name))
+  const primitiveRuntime = names.filter((name) => PRIMITIVE_RUNTIME_EXPORTS.has(name))
   const patterns = names.filter((name) => PATTERN_RUNTIME_EXPORTS.has(name))
   const compat = names.filter((name) => RN_COMPAT_RUNTIME_EXPORTS.has(name))
   const runtime = names.filter(
     (name) =>
+      !PRIMITIVE_EXPORTS.has(name) &&
       !PRIMITIVE_RUNTIME_EXPORTS.has(name) &&
       !PATTERN_RUNTIME_EXPORTS.has(name) &&
       !RN_COMPAT_RUNTIME_EXPORTS.has(name),
@@ -49,6 +62,9 @@ export function generatedRuntimeImports(names: readonly string[]): string {
   return [
     runtime.length > 0 ? `import { ${runtime.join(', ')} } from '@hozo/runtime'\n` : '',
     primitives.length > 0 ? `import { ${primitives.join(', ')} } from '@hozo/primitives'\n` : '',
+    primitiveRuntime.length > 0
+      ? `import { ${primitiveRuntime.join(', ')} } from '@hozo/primitives/runtime'\n`
+      : '',
     patterns.length > 0 ? `import { ${patterns.join(', ')} } from '@hozo/patterns'\n` : '',
     compat.length > 0 ? `import { ${compat.join(', ')} } from '@hozo/rn-compat'\n` : '',
   ].join('')

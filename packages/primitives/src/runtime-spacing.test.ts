@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { spacingTargets } from './spacing.ts'
+import { spacingTargets } from './runtime-spacing.ts'
 
 /// Stand-in for `React.isValidElement`: objects are elements, strings are
 /// text nodes. Enough to exercise the rule, and keeps the test react-free.

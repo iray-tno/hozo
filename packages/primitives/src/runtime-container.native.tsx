@@ -19,7 +19,7 @@
 import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
 import { type LayoutChangeEvent, View, type ViewProps } from 'react-native'
 
-import { keepIfSettled } from './measured.ts'
+import { keepIfSettled } from './runtime-measured.ts'
 
 /**
  * Container widths in scope, by name.

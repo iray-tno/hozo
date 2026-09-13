@@ -20,7 +20,7 @@
 import { type ReactNode, useContext } from 'react'
 import { type StyleProp, StyleSheet, Text, type TextProps, type TextStyle } from 'react-native'
 
-import { HozoTextSizeContext } from './text-size.ts'
+import { HozoTextSizeContext } from '@hozo/runtime'
 
 export interface HozoTextSizeProps extends Omit<TextProps, 'style'> {
   children?: ReactNode

@@ -8,7 +8,7 @@ import {
   gridRowSizes,
   gridRows,
   gridTrackSizes,
-} from './grid.ts'
+} from './runtime-grid.ts'
 
 const tracks: GridTrack[] = [
   { kind: 'points', value: 120 },
@@ -28,8 +28,8 @@ test('auto-placement fills rows and preserves empty final tracks', () => {
 })
 
 test('cell styles distinguish fixed space from proportional remainder', () => {
-  assert.deepEqual(gridCellStyle([tracks[0]]), { flexBasis: 120, flexGrow: 0, flexShrink: 0 })
-  assert.deepEqual(gridCellStyle([tracks[1]]), { flexBasis: 0, flexGrow: 2, flexShrink: 1 })
+  assert.deepEqual(gridCellStyle([tracks[0]!]), { flexBasis: 120, flexGrow: 0, flexShrink: 0 })
+  assert.deepEqual(gridCellStyle([tracks[1]!]), { flexBasis: 0, flexGrow: 2, flexShrink: 1 })
   assert.deepEqual(gridCellStyle(tracks.slice(0, 2), 16), {
     flexBasis: 136,
     flexGrow: 2,

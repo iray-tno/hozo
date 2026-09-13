@@ -40,6 +40,13 @@ registerHooks({
     if (specifier === 'react-native') {
       return { url: new URL('./react-native-stub.js', import.meta.url).href, shortCircuit: true }
     }
+    if (specifier === '@hozo/primitives/runtime') {
+      const root = path.dirname(require.resolve('@hozo/primitives/package.json'))
+      return {
+        url: pathToFileURL(path.join(root, 'src', 'runtime.native.tsx')).href,
+        shortCircuit: true,
+      }
+    }
     // Metro picks a `.native` entry ahead of the plain one; Node does not.
     //
     // `@hozo/core` and the two packages it re-exports are here so the

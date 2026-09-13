@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { performance } from 'node:perf_hooks'
 import test from 'node:test'
 
-import { gridLayout } from './grid.ts'
+import { gridLayout } from './runtime-grid.ts'
 
 test('ordinary grid auto-placement keeps a wide performance margin', () => {
   const items = Array.from({ length: 10_000 }, () => ({ span: 1 }))

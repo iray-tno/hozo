@@ -7,8 +7,8 @@ import {
   gridRowSizes,
   gridRows,
   gridTrackSizes,
-} from './grid.ts'
-import { keepIfSettled } from './measured.ts'
+} from './runtime-grid.ts'
+import { keepIfSettled } from './runtime-measured.ts'
 
 interface Props {
   tracks: readonly GridTrack[]

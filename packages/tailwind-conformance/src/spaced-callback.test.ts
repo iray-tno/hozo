@@ -35,7 +35,7 @@ const renderer = require('react-test-renderer') as {
   create: (element: unknown) => { toJSON: () => { props: Record<string, unknown> } }
   act: (callback: () => void) => void
 }
-const { HozoSpaced } = require('../../runtime/src/spacing.native.tsx') as {
+const { HozoSpaced } = require('../../primitives/src/runtime-spacing.native.tsx') as {
   HozoSpaced: unknown
 }
 

@@ -25,8 +25,8 @@ test('generated components import from the package that owns them', () => {
       'HozoScrollView',
       'HozoModal',
     ]),
-    "import { HozoGrid } from '@hozo/runtime'\n" +
-      "import { HozoFlatList, HozoScrollView } from '@hozo/primitives'\n" +
+    "import { HozoFlatList, HozoScrollView } from '@hozo/primitives'\n" +
+      "import { HozoGrid } from '@hozo/primitives/runtime'\n" +
       "import { HozoDialog } from '@hozo/patterns'\n" +
       "import { HozoModal } from '@hozo/rn-compat'\n",
   )

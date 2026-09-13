@@ -27,6 +27,7 @@ export {
   type ExpoBlurAdapterOptions,
   type HozoBackdropFilterAdapter,
   type HozoBackdropFilterAdapterProps,
+  hozoBackdropFilterAdapter,
 } from './backdrop.ts'
 export {
   type HozoResponderEvent,
