@@ -1,4 +1,8 @@
 import { Button, Heading, Link, Text, View } from '@hozo/core'
+import { createExpoRouterNavigationPrimitives } from '@hozo/navigation/expo-router/typed'
+import { Link as ExpoLink, type Href } from 'expo-router'
+
+const Typed = createExpoRouterNavigationPrimitives<Href>(ExpoLink.resolveHref)
 
 export default function Home() {
   return (
@@ -13,6 +17,9 @@ export default function Home() {
       <Button href="/details" replace prefetch>
         Replace with details
       </Button>
+      <Typed.Link href={{ pathname: '/posts/[postId]', params: { postId: '42' } }}>
+        Open typed post
+      </Typed.Link>
     </View>
   )
 }

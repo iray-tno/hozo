@@ -115,17 +115,27 @@ const PACKAGES = {
   navigation: {
     exports: {
       '.': './dist/index.js',
+      './typed': './dist/typed.js',
       './next': './dist/next.js',
       './expo-router': './dist/expo-router.js',
+      './expo-router/typed': './dist/expo-typed.js',
       './expo-config': './dist/expo-config.js',
       './tanstack-router': './dist/tanstack-router.js',
+      './tanstack-router/typed': './dist/tanstack-typed.js',
       './verification': './dist/verification.js',
       './verification/node': './dist/verification-node.js',
       './hozo-links.schema.json': './hozo-links.schema.json',
     },
     // Pure verification data can use the default build everywhere, while
     // the writer is deliberately Node-only. Neither has a `.native` peer.
-    noNative: ['./expo-config', './verification', './verification/node'],
+    noNative: [
+      './typed',
+      './expo-router/typed',
+      './expo-config',
+      './tanstack-router/typed',
+      './verification',
+      './verification/node',
+    ],
     files: ['dist', 'hozo-links.schema.json'],
     native: true,
     keywords: ['react-native', 'react', 'navigation', 'router', 'deep-linking', 'universal'],

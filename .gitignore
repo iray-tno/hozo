@@ -16,6 +16,7 @@ artifacts/
 # The bundler comparison builds into one of these per bundler, so that it
 # never shares a directory with the `build` script running beside it.
 .next-check-*/
+.expo/
 next-env.d.ts
 # Next 16 writes these into the app on dev startup.
 examples/*/AGENTS.md
