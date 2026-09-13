@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { createCompiler } from './index.ts'
 import {
   foldedPrimitiveCalls,
+  generatedRuntimeImports,
   lowerModule,
   namespaceHozoClasses,
   referencesHozoPrimitive,
@@ -14,6 +15,14 @@ const ROOT = ''
 
 const file = 'Page.tsx'
 const compiler = createCompiler()
+
+test('generated components import from the package that owns them', () => {
+  assert.equal(
+    generatedRuntimeImports(['HozoGrid', 'HozoFlatList', 'HozoScrollView']),
+    "import { HozoGrid } from '@hozo/runtime'\n" +
+      "import { HozoFlatList, HozoScrollView } from '@hozo/primitives'\n",
+  )
+})
 
 test('lowers a component and namespaces its classes', () => {
   const source =

@@ -71,6 +71,11 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'react', 'components', 'accessibility', 'universal'],
   },
+  primitives: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'react', 'primitives', 'components', 'universal'],
+  },
   semantics: {
     exports: { '.': './dist/index.js' },
     // Absent until now, and `index.native.tsx` was unreachable because of

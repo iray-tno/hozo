@@ -79,6 +79,9 @@ explicit diagnostics or official StyleX residuals.
 
 ## The Web `FlatList` is windowed
 
+The collection implementation and browser check described below now live in
+`@hozo/primitives`; this detail remains here temporarily while the package split is completed.
+
 `HozoFlatList` mounts the rows around the viewport and nothing else. Ten thousand rows are about seventy mounted subtrees at rest and a hundred and twenty while scrolling; the rest is padding on the row container, so a grid, a `gap` and a `contentContainerStyle` all keep working.
 
 The arithmetic is React Native's, ported from `@react-native/virtualized-lists`: `windowSize` is `(windowSize - 1)` viewports of overscan split half each way, and its default is React Native's own 21. `react-native-web` ships that same implementation, so a project moving off it gets the prop it already had rather than a narrower one wearing the same name.

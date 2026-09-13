@@ -1,4 +1,11 @@
 import {
+  type HozoDomStyle,
+  type HozoLayoutEvent,
+  hozoDomStyle,
+  type ResponderProps,
+  useResponderDomProps,
+} from '@hozo/runtime'
+import {
   createElement,
   forwardRef,
   type HTMLAttributes,
@@ -13,9 +20,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import { type HozoDomStyle, hozoDomStyle } from './dom-style.ts'
-import { type ResponderProps, useResponderDomProps } from './responder.ts'
-import type { HozoLayoutEvent } from './view.ts'
 import {
   type Anchor,
   anchorRow,

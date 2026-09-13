@@ -8,10 +8,8 @@
 import { type HozoDomStyle, HozoLink, hozoDomStyle } from '@hozo/runtime'
 import {
   type AriaRole,
-  type CSSProperties,
   type MouseEventHandler,
   type ReactNode,
-  type UIEventHandler,
   useEffect,
   useRef,
   useState,
@@ -163,27 +161,6 @@ function useLayoutRef<T extends HTMLElement>(onLayout?: (event: HozoLayoutEvent)
   }, [])
 
   return elementRef
-}
-
-function useScrollHandler<T extends HTMLElement>(
-  onScroll?: (event: HozoScrollEvent) => void,
-  scrollEventThrottle = 0,
-): UIEventHandler<T> | undefined {
-  const lastEmission = useRef(0)
-  if (!onScroll) return undefined
-  return (event) => {
-    const now = Date.now()
-    if (scrollEventThrottle > 0 && now - lastEmission.current < scrollEventThrottle) return
-    lastEmission.current = now
-    const target = event.currentTarget
-    onScroll({
-      nativeEvent: {
-        contentOffset: { x: target.scrollLeft, y: target.scrollTop },
-        contentSize: { width: target.scrollWidth, height: target.scrollHeight },
-        layoutMeasurement: { width: target.clientWidth, height: target.clientHeight },
-      },
-    })
-  }
 }
 
 export interface ViewProps extends UniversalProps, ResponderProps {
@@ -371,213 +348,14 @@ export function Image({
   )
 }
 
-export interface ScrollViewProps extends UniversalProps {
-  className?: string
-  children?: ReactNode
-  horizontal?: boolean
-  refreshing?: boolean
-  onRefresh?: () => void
-  keyboardShouldPersistTaps?: 'always' | 'never' | 'handled'
-  showsVerticalScrollIndicator?: boolean
-  showsHorizontalScrollIndicator?: boolean
-  accessibilityLabel?: string
-  accessibilityHint?: string
-  onScroll?: (event: HozoScrollEvent) => void
-  scrollEventThrottle?: number
-}
-
-export interface HozoScrollEvent {
-  nativeEvent: {
-    contentOffset: { x: number; y: number }
-    contentSize: { width: number; height: number }
-    layoutMeasurement: { width: number; height: number }
-  }
-}
-
-export function ScrollView({
-  className,
-  children,
-  horizontal,
-  refreshing,
-  onRefresh,
-  keyboardShouldPersistTaps: _keyboardShouldPersistTaps,
-  showsVerticalScrollIndicator = true,
-  showsHorizontalScrollIndicator = true,
-  accessibilityLabel,
-  accessibilityHint,
-  onScroll,
-  scrollEventThrottle,
-  onLayout,
-  ...universal
-}: ScrollViewProps) {
-  const containerRef = useLayoutRef<HTMLDivElement>(onLayout)
-  const handleScroll = useScrollHandler<HTMLDivElement>(onScroll, scrollEventThrottle)
-  const showIndicator = horizontal ? showsHorizontalScrollIndicator : showsVerticalScrollIndicator
-  const viewportStyle: CSSProperties = horizontal
-    ? { overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: showIndicator ? 'auto' : 'none' }
-    : { overflowX: 'hidden', overflowY: 'auto', scrollbarWidth: showIndicator ? 'auto' : 'none' }
-  return (
-    <div
-      ref={containerRef}
-      className={className}
-      // Spread before the three below rather than after: see the note on
-      // `universalDomProps`.
-      {...universalDomProps({
-        ...universal,
-        // React Native's last style wins. Keep the viewport defaults first
-        // so the author's explicit escape hatch has the same precedence.
-        style: { ...viewportStyle, ...universal.style },
-      })}
-      aria-label={accessibilityLabel}
-      aria-description={accessibilityHint}
-      aria-busy={refreshing || undefined}
-      onScroll={handleScroll}
-    >
-      {onRefresh ? (
-        <button type="button" onClick={onRefresh} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-      ) : null}
-      {children}
-    </div>
-  )
-}
-
-export interface FlatListRenderInfo<T> {
-  item: T
-  index: number
-}
-
-export interface FlatListProps<T> extends UniversalProps {
-  className?: string
-  data: readonly T[]
-  renderItem: (info: FlatListRenderInfo<T>) => ReactNode
-  keyExtractor?: (item: T, index: number) => string
-  ListHeaderComponent?: ReactNode
-  ListFooterComponent?: ReactNode
-  ListEmptyComponent?: ReactNode
-  accessibilityLabel?: string
-  accessibilityHint?: string
-  horizontal?: boolean
-  numColumns?: number
-  refreshing?: boolean
-  onRefresh?: () => void
-  onEndReached?: (info: { distanceFromEnd: number }) => void
-  onEndReachedThreshold?: number
-  keyboardShouldPersistTaps?: 'always' | 'never' | 'handled'
-  showsVerticalScrollIndicator?: boolean
-  showsHorizontalScrollIndicator?: boolean
-  onScroll?: (event: HozoScrollEvent) => void
-  scrollEventThrottle?: number
-}
-
-/** Web fallback; Native compilation replaces this with the virtualized RN FlatList. */
-export function FlatList<T>({
-  className,
-  data,
-  renderItem,
-  keyExtractor,
-  ListHeaderComponent,
-  ListFooterComponent,
-  ListEmptyComponent,
-  accessibilityLabel,
-  accessibilityHint,
-  horizontal,
-  numColumns = 1,
-  refreshing,
-  onRefresh,
-  onEndReached,
-  onEndReachedThreshold = 0,
-  keyboardShouldPersistTaps: _keyboardShouldPersistTaps,
-  showsVerticalScrollIndicator = true,
-  showsHorizontalScrollIndicator = true,
-  onScroll,
-  scrollEventThrottle,
-  onLayout,
-  ...universal
-}: FlatListProps<T>) {
-  const containerRef = useLayoutRef<HTMLDivElement>(onLayout)
-  const endRef = useRef<HTMLDivElement>(null)
-  const handleScroll = useScrollHandler<HTMLDivElement>(onScroll, scrollEventThrottle)
-  const showIndicator = horizontal ? showsHorizontalScrollIndicator : showsVerticalScrollIndicator
-  const viewportStyle: CSSProperties = horizontal
-    ? { overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: showIndicator ? 'auto' : 'none' }
-    : { overflowX: 'hidden', overflowY: 'auto', scrollbarWidth: showIndicator ? 'auto' : 'none' }
-
-  useEffect(() => {
-    const root = containerRef.current
-    const target = endRef.current
-    if (
-      !onEndReached ||
-      data.length === 0 ||
-      !root ||
-      !target ||
-      typeof IntersectionObserver === 'undefined'
-    ) {
-      return
-    }
-    let fired = false
-    const margin = `${Math.max(0, onEndReachedThreshold) * 100}%`
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting && !fired) {
-          fired = true
-          observer.disconnect()
-          onEndReached({ distanceFromEnd: 0 })
-        }
-      },
-      { root, rootMargin: horizontal ? `0px ${margin} 0px 0px` : `0px 0px ${margin} 0px` },
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [data.length, horizontal, onEndReached, onEndReachedThreshold, containerRef.current])
-
-  return (
-    <div
-      ref={containerRef}
-      className={className}
-      // Spread before the three below rather than after: see the note on
-      // `universalDomProps`.
-      {...universalDomProps({
-        ...universal,
-        style: { ...viewportStyle, ...universal.style },
-      })}
-      aria-label={accessibilityLabel}
-      aria-description={accessibilityHint}
-      aria-busy={refreshing || undefined}
-      onScroll={handleScroll}
-    >
-      {onRefresh ? (
-        <button type="button" onClick={onRefresh} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-      ) : null}
-      {ListHeaderComponent}
-      {data.length === 0 ? ListEmptyComponent : null}
-      {data.length > 0 ? (
-        <div
-          role="list"
-          style={
-            numColumns > 1
-              ? { display: 'grid', gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))` }
-              : horizontal
-                ? { display: 'flex', flexDirection: 'row' }
-                : undefined
-          }
-        >
-          {data.map((item, index) => (
-            <div key={keyExtractor?.(item, index) ?? index} role="listitem">
-              {renderItem({ item, index })}
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {ListFooterComponent}
-      <div ref={endRef} aria-hidden="true" />
-    </div>
-  )
-}
-
+export {
+  HozoFlatList as FlatList,
+  type HozoFlatListProps as FlatListProps,
+  type HozoFlatListRenderInfo as FlatListRenderInfo,
+  type HozoScrollEvent,
+  HozoScrollView as ScrollView,
+  type HozoScrollViewProps as ScrollViewProps,
+} from '@hozo/primitives'
 export {
   HozoPressable as Pressable,
   type HozoPressableProps as PressableProps,

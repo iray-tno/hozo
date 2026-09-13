@@ -1,6 +1,8 @@
 import { createElement, forwardRef, type ReactElement, type Ref, useMemo } from 'react'
 import * as ReactNative from 'react-native'
 
+export type { HozoFlatListLayout, HozoFlatListRenderInfo, HozoScrollEvent } from './index.ts'
+
 export type HozoScrollViewProps = ReactNative.ScrollViewProps
 export type HozoFlatListProps<T> = ReactNative.FlatListProps<T>
 export type HozoFlatListHandle<T = unknown> = ReactNative.FlatList<T>

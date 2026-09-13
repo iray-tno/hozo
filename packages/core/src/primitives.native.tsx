@@ -24,17 +24,19 @@ import {
   type ViewStyle,
 } from 'react-native'
 
+export {
+  HozoFlatList as FlatList,
+  type HozoFlatListProps as FlatListProps,
+  HozoScrollView as ScrollView,
+  type HozoScrollViewProps as ScrollViewProps,
+} from '@hozo/primitives'
 export type {
-  FlatListProps,
   ImageProps,
-  ScrollViewProps,
   TextInputProps,
   ViewProps,
 } from 'react-native'
 export {
-  FlatList,
   Image,
-  ScrollView,
   TextInput,
   View,
 } from 'react-native'

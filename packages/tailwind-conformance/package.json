@@ -16,6 +16,7 @@
     "@hozo/behaviors": "workspace:^",
     "@hozo/compiler": "workspace:*",
     "@hozo/metro": "workspace:^",
+    "@hozo/primitives": "workspace:^",
     "@hozo/runtime": "workspace:^",
     "tailwindcss": "^4.3.3"
   },
