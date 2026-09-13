@@ -30,6 +30,8 @@ import {
   withFocus,
 } from './windowing.ts'
 
+export * from './foundation.tsx'
+
 export interface HozoScrollEvent {
   nativeEvent: {
     contentOffset: { x: number; y: number }
@@ -1102,3 +1104,8 @@ function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<Hoz
 export const HozoFlatList = forwardRef(HozoFlatListInner) as <T>(
   props: HozoFlatListProps<T> & { ref?: Ref<HozoFlatListHandle> },
 ) => ReactElement
+
+export { HozoFlatList as FlatList, HozoScrollView as ScrollView }
+export type FlatListRenderInfo<T> = HozoFlatListRenderInfo<T>
+export type FlatListProps<T> = HozoFlatListProps<T>
+export type ScrollViewProps = HozoScrollViewProps

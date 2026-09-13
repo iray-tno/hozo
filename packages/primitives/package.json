@@ -48,7 +48,7 @@
   "scripts": {
     "build": "tsc -p .",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node --test src/*.test.ts",
+    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js",
     "test:browser": "node scripts/check-list.mjs"
   },
   "dependencies": {

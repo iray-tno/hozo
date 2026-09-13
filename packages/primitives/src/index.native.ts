@@ -1,6 +1,8 @@
 import { createElement, forwardRef, type ReactElement, type Ref, useMemo } from 'react'
 import * as ReactNative from 'react-native'
 
+export * from './foundation.native.tsx'
+
 export type { HozoFlatListLayout, HozoFlatListRenderInfo, HozoScrollEvent } from './index.ts'
 
 export type HozoScrollViewProps = ReactNative.ScrollViewProps
@@ -158,3 +160,8 @@ function HozoFlatListInner<T>(
 export const HozoFlatList = forwardRef(HozoFlatListInner) as <T>(
   props: HozoFlatListProps<T> & { ref?: Ref<ReactNative.FlatList<T>> },
 ) => ReactElement
+
+export type { HozoFlatListRenderInfo as FlatListRenderInfo } from './index.ts'
+export { HozoFlatList as FlatList, HozoScrollView as ScrollView }
+export type FlatListProps<T> = HozoFlatListProps<T>
+export type ScrollViewProps = HozoScrollViewProps

@@ -541,7 +541,7 @@ packages/
   behaviors/               Universal runtime behaviors substrate (LiveRegion, Portal, DismissableLayer, FocusScope, RovingFocus, FloatingPositioner) for Hozo.
   canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
   compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
-  core/                    Canonical primitives and semantic components for new Hozo projects.
+  core/                    Zero-setup facade over Hozo's canonical authoring packages.
   metro/                   Metro integration for the Hozo compiler (Native lowering backend).
   migration-audit/         Measure how safely Hozo can lower a real React Native application.
   navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
