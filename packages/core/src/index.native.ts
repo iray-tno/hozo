@@ -50,6 +50,10 @@ export {
   type TreeNode,
 } from '@hozo/patterns'
 export * from '@hozo/primitives'
+// Resolve the primitives/typography overlap at the facade boundary. Besides
+// making ownership explicit, this keeps a Text-only consumer out of the
+// typography module on bundlers that follow star re-exports conservatively.
+export { Link, type LinkProps, Text, type TextProps } from '@hozo/primitives'
 export * from '@hozo/semantics'
 export * from '@hozo/typography'
 export {

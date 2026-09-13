@@ -62,7 +62,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsc -p .",
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
     "typecheck": "tsc -p . --noEmit",
     "build:native": "node scripts/build-native.mjs",
     "build:native:release": "node scripts/build-native.mjs --release",
