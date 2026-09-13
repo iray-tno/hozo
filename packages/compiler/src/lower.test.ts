@@ -19,14 +19,19 @@ const compiler = createCompiler()
 test('generated components import from the package that owns them', () => {
   assert.equal(
     generatedRuntimeImports([
+      'HozoView',
       'HozoGrid',
       'HozoFlatList',
+      'HozoDetails',
+      'HozoRuby',
       'HozoDialog',
       'HozoScrollView',
       'HozoModal',
     ]),
     "import { HozoFlatList, HozoScrollView } from '@hozo/primitives'\n" +
-      "import { HozoGrid } from '@hozo/primitives/runtime'\n" +
+      "import { HozoView, HozoGrid } from '@hozo/primitives/runtime'\n" +
+      "import { HozoDetails } from '@hozo/semantics/runtime'\n" +
+      "import { HozoRuby } from '@hozo/typography/runtime'\n" +
       "import { HozoDialog } from '@hozo/patterns'\n" +
       "import { HozoModal } from '@hozo/rn-compat'\n",
   )
@@ -191,7 +196,7 @@ export const Drag = () => <View {...pan.panHandlers} />
   assert.match(lowered.code, /PanResponder\.create/)
 })
 
-test('unloweredReactNativeJsx rehomes a TextInput that remains a runtime component value', () => {
+test('unloweredReactNativeJsx rehomes a TextInput that remains a canonical component value', () => {
   const source = `import { TextInput, View } from 'react-native'
 const Field = makeField(TextInput)
 export const Page = () => <View><TextInput accessibilityLabel="Name" /><Field /></View>
@@ -200,13 +205,13 @@ export const Page = () => <View><TextInput accessibilityLabel="Name" /><Field />
     unloweredReactNativeJsx: 'error',
   })!
   assert.match(lowered.code, /import \{ View \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ TextInput \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /import \{ TextInput \} from '@hozo\/primitives'/)
   assert.match(lowered.code, /const Field = makeField\(TextInput\)/)
   assert.match(lowered.code, /<input aria-label=\{"Name"\}/)
   assert.equal(lowered.needsClientBoundary, false)
 })
 
-test('unloweredReactNativeJsx rehomes a Pressable wrapped as a runtime component value', () => {
+test('unloweredReactNativeJsx rehomes a Pressable wrapped as a canonical component value', () => {
   const source = `import { Pressable, View } from 'react-native'
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 export const Page = () => <View><Pressable onPress={save} /><AnimatedPressable /></View>
@@ -215,7 +220,7 @@ export const Page = () => <View><Pressable onPress={save} /><AnimatedPressable /
     unloweredReactNativeJsx: 'error',
   })!
   assert.match(lowered.code, /import \{ View \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ Pressable \} from '@hozo\/runtime'/)
+  assert.match(lowered.code, /import \{ Pressable \} from '@hozo\/primitives'/)
   assert.match(lowered.code, /createAnimatedComponent\(Pressable\)/)
   assert.doesNotMatch(lowered.code, /<Pressable\b/)
 })

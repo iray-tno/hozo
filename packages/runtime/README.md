@@ -13,7 +13,9 @@ platform adapter, because Hozo does not add a native module to every application
 
 **Contextual variants.** `dark:`, `sm:`/`md:`/`lg:`, and viewport-relative sizes are media queries on Web and subscriptions on Native. `useHozoDark`, `useHozoBreakpoint` and `useHozoViewport` are separate stores on purpose: a component using only `md:` must not re-render on every resize that does not cross a breakpoint.
 
-**Interaction state.** `HozoPressable` tracks pressed, hovered, focused and focus-visible, and provides them to descendants — which is how a `Text` inside a pressed button changes colour without the button knowing what is inside it. Focus-visible follows the input modality, so a tap does not draw a focus ring and a Tab key does.
+**Interaction state infrastructure.** The canonical `HozoPressable` in `@hozo/primitives` tracks
+pressed, hovered, focused and focus-visible state using the shared helpers owned here. Focus-visible
+follows the input modality, so a tap does not draw a focus ring and a Tab key does.
 
 **Web responder negotiation.** Canonical `View`, `Pressable`, and `ScrollView`, plus the optional
 touchables in `@hozo/rn-compat`, use one responder state machine. Pointer capture and

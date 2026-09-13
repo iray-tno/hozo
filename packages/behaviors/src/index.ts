@@ -1,10 +1,4 @@
 export {
-  HozoDetails,
-  type HozoDetailsProps,
-  HozoSummary,
-  type HozoSummaryProps,
-} from './disclosure.tsx'
-export {
   DismissableLayer,
   type DismissableLayerProps,
 } from './dismissable-layer.tsx'
@@ -72,12 +66,6 @@ export {
   tabStops,
   useRovingItem,
 } from './roving-focus.tsx'
-export {
-  HozoRuby,
-  type HozoRubyProps,
-  HozoRubyText,
-  type HozoRubyTextProps,
-} from './ruby.tsx'
 export { hozoTextChildren } from './text-child.ts'
 export {
   isTypeaheadKey,

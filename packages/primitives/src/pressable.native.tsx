@@ -1,3 +1,4 @@
+import { blendColor } from '@hozo/runtime'
 import {
   createContext,
   type ElementType,
@@ -27,8 +28,6 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native'
-
-import { blendColor } from './color-transition.ts'
 
 export interface HozoTransition {
   duration: number

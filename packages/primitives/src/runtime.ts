@@ -1,7 +1,15 @@
 /**
  * Compiler-only component ABI.
  *
- * The Web compiler lowers these layout effects to CSS, so this entry is
- * intentionally empty on Web. Metro selects `runtime.native.tsx`.
+ * These names are generated-code ABI, not the canonical authoring API.
+ * Web uses the lightweight DOM boundaries below; Metro selects
+ * `runtime.native.tsx` for the Native implementations.
  */
-export {}
+export { HozoLink, type HozoLinkProps } from './link.ts'
+export {
+  HozoPressable,
+  type HozoPressableProps,
+  type HozoPressableState,
+} from './pressable.ts'
+export { HozoTextInput, type HozoTextInputProps } from './text-input.ts'
+export { HozoView, type HozoViewProps } from './view.ts'

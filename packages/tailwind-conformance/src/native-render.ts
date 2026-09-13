@@ -47,6 +47,14 @@ registerHooks({
         shortCircuit: true,
       }
     }
+    if (specifier === '@hozo/semantics/runtime' || specifier === '@hozo/typography/runtime') {
+      const owner = specifier.slice(0, specifier.lastIndexOf('/'))
+      const root = path.dirname(require.resolve(`${owner}/package.json`))
+      return {
+        url: pathToFileURL(path.join(root, 'src', 'runtime.native.ts')).href,
+        shortCircuit: true,
+      }
+    }
     // Metro picks a `.native` entry ahead of the plain one; Node does not.
     //
     // `@hozo/core` and the two packages it re-exports are here so the

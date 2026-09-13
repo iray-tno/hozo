@@ -1,4 +1,4 @@
-import { HozoDetails, HozoSummary, hozoTextChildren } from '@hozo/runtime'
+import { hozoTextChildren } from '@hozo/behaviors'
 import { hozoPreflight } from '@hozo/runtime/project'
 import React, { type ComponentProps, type ReactNode } from 'react'
 // The components rather than their names. These files used to render
@@ -18,6 +18,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import { HozoDetails, HozoSummary } from './disclosure.native.tsx'
 
 export interface SemanticsNativeProps {
   /**
@@ -157,9 +158,9 @@ export interface DetailsNativeProps extends SemanticsNativeProps {
  * The disclosure the Native backend emits, under the names this package
  * publishes.
  *
- * One implementation rather than two. The pair in `@hozo/behaviors` is
- * what a compiled `<Details>` becomes, and this one used to be a second
- * disclosure beside it -- with the same bug the compiled path had, which
+ * One implementation rather than two. The package-owned pair below is
+ * what a compiled `<Details>` becomes; the old copy beside it had the same
+ * bug the compiled path had, which
  * is how a second implementation goes wrong: it rendered every child
  * whether it was open or not, so the body never actually hid.
  */
@@ -167,12 +168,11 @@ export interface DetailsNativeProps extends SemanticsNativeProps {
  * The one place a Native style has to be handed over as if it were a Web
  * one, and it is a resolver's limit rather than a claim about the value.
  *
- * A package resolves `@hozo/runtime`'s types through the Web entry
+ * A package resolves the component's Web types while checking both platform
+ * entries
  * whichever platform it is building for, because `exports` carries a
  * single `types` and this package compiles both halves in one `tsc` run.
- * So `HozoDetails` is seen with `style?: CSSProperties` here while the
- * module Metro loads takes `StyleProp<ViewStyle>` -- the same component,
- * read through the wrong declaration file.
+ * so the cast below is the boundary between CSS and Native style shapes.
  *
  * The alternative was a second disclosure in this file, which is what
  * used to be here: it rendered every child whether it was open or not, so

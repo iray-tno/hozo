@@ -26,11 +26,7 @@ These primitives provide the essential interaction mechanics — focus managemen
 ### 4. Floating Anchoring & Positioning
 - **`FloatingPositioner` / `useFloatingPosition`**: Zero-dependency floating positioning supporting 12 placements, auto-flip, shift overflow boundary constraints, arrow offset clamping, `matchAnchorWidth` for selects, and `referenceHidden` tracking.
 
-### 5. Disclosures & Reading Control
-- **`HozoDetails` / `HozoSummary`**: Headless disclosure logic coordinating open/collapsed expansion state, keyboard triggers (Enter / Space), and `aria-expanded` attributes.
-- **`HozoRuby` / `HozoRubyText`**: Phonetic CJK ruby pronunciation control ensuring visual furigana renders while preventing double-voicing on mobile screen readers (VoiceOver & TalkBack).
-
-### 6. Screen Reader Announcements
+### 5. Screen Reader Announcements
 - **`LiveRegion` / `useAnnounce`**: Universal polite and assertive screen reader live announcements with queued vocalization.
 
 ## Usage Example

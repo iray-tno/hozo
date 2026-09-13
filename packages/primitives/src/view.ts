@@ -1,4 +1,10 @@
 import {
+  type HozoDomStyle,
+  hozoDomStyle,
+  type ResponderProps,
+  useResponderDomProps,
+} from '@hozo/runtime'
+import {
   createElement,
   forwardRef,
   type HTMLAttributes,
@@ -8,9 +14,6 @@ import {
   useEffect,
   useRef,
 } from 'react'
-
-import { type HozoDomStyle, hozoDomStyle } from './dom-style.ts'
-import { type ResponderProps, useResponderDomProps } from './responder.ts'
 
 export interface HozoLayoutEvent {
   nativeEvent: { layout: { x: number; y: number; width: number; height: number } }

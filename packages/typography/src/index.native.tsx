@@ -1,5 +1,5 @@
 import { Link, Text } from '@hozo/primitives'
-import { HozoRuby, HozoRubyText, HozoTextSizeContext } from '@hozo/runtime'
+import { HozoTextSizeContext } from '@hozo/runtime'
 import { hozoPreflight } from '@hozo/runtime/project'
 import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // The components rather than their names. These files used to render
@@ -11,6 +11,7 @@ import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // nothing imported these files: the tests next to them render the Web
 // half through `react-dom/server`.
 import type { AccessibilityRole, StyleProp, TextStyle } from 'react-native'
+import { HozoRuby, HozoRubyText } from './ruby.native.tsx'
 import { BARE_TEXT_SIZE_RATIOS, TEXT_SIZE_RATIOS } from './text-size.ts'
 
 export { BARE_TEXT_SIZE_RATIOS, TEXT_SIZE_RATIOS } from './text-size.ts'

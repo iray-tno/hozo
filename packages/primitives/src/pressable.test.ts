@@ -7,17 +7,15 @@ import { HozoPressable } from './pressable.ts'
 
 test('value-level Pressable renders callback children and native-shaped props', () => {
   const html = renderToStaticMarkup(
-    createElement(
-      HozoPressable,
-      {
-        accessibilityLabel: 'Save draft',
-        accessibilityRole: 'button',
-        dataSet: { intent: 'save' },
-        onPress() {},
-        style: ({ pressed }) => [{ padding: 4 }, pressed && { opacity: 0.5 }],
-      },
-      ({ hovered, pressed }) => `${hovered}:${pressed}`,
-    ),
+    createElement(HozoPressable, {
+      accessibilityLabel: 'Save draft',
+      accessibilityRole: 'button',
+      dataSet: { intent: 'save' },
+      onPress() {},
+      style: ({ pressed }) => [{ padding: 4 }, pressed && { opacity: 0.5 }],
+      // biome-ignore lint/correctness/noChildrenProp: a render prop is not a ReactNode argument.
+      children: ({ hovered, pressed }) => `${hovered}:${pressed}`,
+    }),
   )
 
   assert.match(html, /^<div/)

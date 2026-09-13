@@ -68,9 +68,7 @@
     "test": "node --test src/*.test.ts",
     "test:performance": "node --test src/*.bench.ts"
   },
-  "dependencies": {
-    "@hozo/behaviors": "workspace:^"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "react": "^19.0.0",
     "react-native": ">=0.76",

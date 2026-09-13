@@ -1,4 +1,18 @@
 /** Compiler-generated Native layout and presentation boundaries. */
+
+export {
+  TextInput as HozoTextInput,
+  type TextInputProps as HozoTextInputProps,
+} from 'react-native'
+export { HozoLink, type HozoLinkProps } from './link.native.tsx'
+export {
+  HozoPressable,
+  type HozoPressableProps,
+  type HozoPressableState,
+  HozoText,
+  type HozoTextProps,
+  type HozoTransition,
+} from './pressable.native.tsx'
 export {
   HozoBackdropFilter,
   type HozoBackdropFilterProps,
@@ -23,3 +37,4 @@ export {
   type HozoAnimatedProps,
   type HozoTransitionSpec,
 } from './runtime-transition.native.tsx'
+export { HozoView, type HozoViewProps } from './view.native.ts'

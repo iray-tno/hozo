@@ -60,6 +60,7 @@
     "test:browser": "node scripts/check-list.mjs"
   },
   "dependencies": {
+    "@hozo/behaviors": "workspace:^",
     "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {

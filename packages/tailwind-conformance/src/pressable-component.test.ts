@@ -30,7 +30,7 @@ import test from 'node:test'
 import './native-render.ts'
 
 const require = createRequire(import.meta.url)
-const { pressableFor } = require('../../runtime/src/pressable.native.tsx') as {
+const { pressableFor } = require('../../primitives/src/pressable.native.tsx') as {
   pressableFor: (transition: unknown) => unknown
 }
 const { Pressable, Animated } = require('react-native') as {

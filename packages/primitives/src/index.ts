@@ -1,6 +1,5 @@
 import {
   type HozoDomStyle,
-  type HozoLayoutEvent,
   hozoDomStyle,
   type ResponderProps,
   useResponderDomProps,
@@ -20,6 +19,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import type { HozoLayoutEvent } from './foundation.tsx'
 import {
   type Anchor,
   anchorRow,
