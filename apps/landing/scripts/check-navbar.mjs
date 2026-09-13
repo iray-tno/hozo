@@ -70,6 +70,7 @@ const port = await new Promise((resolve) => {
 
 async function checkViewport(width, height) {
   const profile = mkdtempSync(path.join(tmpdir(), 'hozo-nav-check-'))
+  const pageUrl = `http://localhost:${port}/hozo/`
   const chrome = spawn(
     browser,
     [
@@ -79,7 +80,7 @@ async function checkViewport(width, height) {
       '--remote-debugging-port=0',
       `--user-data-dir=${profile}`,
       `--window-size=${width},${height}`,
-      `http://localhost:${port}/hozo/`,
+      pageUrl,
     ],
     { stdio: ['ignore', 'ignore', 'pipe'] },
   )
@@ -99,7 +100,9 @@ async function checkViewport(width, height) {
         const deadline = Date.now() + 10000
         while (Date.now() < deadline) {
           const listed = await fetch(`http://${host}/json/list`).then((r) => r.json())
-          target = listed.find((e) => e.type === 'page' && e.webSocketDebuggerUrl)
+          target = listed.find(
+            (e) => e.type === 'page' && e.url === pageUrl && e.webSocketDebuggerUrl,
+          )
           if (target) break
           await new Promise((r) => setTimeout(r, 100))
         }
@@ -145,20 +148,32 @@ async function checkViewport(width, height) {
           const start = Date.now();
           let header, container, trailing;
           while (Date.now() - start < 10000) {
-            header = document.querySelector('header, [role="banner"]');
+            header = document.querySelector('[role="banner"]');
             container = header ? header.firstElementChild : null;
             trailing = container && container.children.length > 0 ? container.children[container.children.length - 1] : null;
-            if (trailing) break;
+            if (
+              document.readyState === 'complete' &&
+              trailing &&
+              container.children.length >= 3 &&
+              getComputedStyle(container).flexDirection === 'row'
+            ) break;
             await new Promise((r) => setTimeout(r, 100));
           }
+          await document.fonts.ready;
           if (!trailing) return { error: 'trailing container not found' };
           const brand = container.firstElementChild;
           const brandRect = brand.getBoundingClientRect();
+          const headerRect = header.getBoundingClientRect();
           const rect = trailing.getBoundingClientRect();
           return {
             viewportWidth: window.innerWidth,
+            headerHeight: Math.round(headerRect.height),
+            childCount: container.children.length,
+            brandClass: brand.className,
+            trailingClass: trailing.className,
             brandLeft: Math.round(brandRect.left),
             brandRight: Math.round(brandRect.right),
+            trailingLeft: Math.round(rect.left),
             trailingRight: Math.round(rect.right),
             trailingWidth: Math.round(rect.width),
             visible:
@@ -213,13 +228,18 @@ const viewports = [320, 375, 390, 800, 1024, 1280, 1440]
 const failures = []
 
 for (const w of viewports) {
-  const res = await checkViewport(w, 900)
+  let res = await checkViewport(w, 900)
+  // Chrome can expose the target before navigation and styles have settled.
+  // Retry only an inconclusive sample; a stable layout failure still fails.
+  if (res.error) res = await checkViewport(w, 900)
   if (res.error) {
     failures.push(`at ${w}px: ${res.error}`)
   } else if (!res.visible) {
     failures.push(
-      `at ${w}px: navbar content clipped or overlapping (brand: ${res.brandLeft}-${res.brandRight}px, trailing right: ${res.trailingRight}px, viewport: ${res.viewportWidth}px)`,
+      `at ${w}px: navbar content clipped or overlapping (children: ${res.childCount}, brand: ${res.brandLeft}-${res.brandRight}px ${res.brandClass}, trailing: ${res.trailingLeft}-${res.trailingRight}px ${res.trailingClass}, viewport: ${res.viewportWidth}px)`,
     )
+  } else if (w < 640 && res.headerHeight > 50) {
+    failures.push(`at ${w}px: mobile navbar is ${res.headerHeight}px tall, expected at most 50px`)
   }
 }
 
