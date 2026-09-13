@@ -1158,10 +1158,9 @@ pub(super) fn render_node(
         // its own -- see `markup.rs`.
         runtime.need_component("HozoFlatList");
     }
-    // Re-exported by `@hozo/runtime` from `react-native-svg` rather than
-    // imported from there directly, so the one import channel the emitter
-    // already has keeps working -- and so the optional peer dependency is
-    // declared in one package instead of appearing in generated files.
+    // Imported from the dedicated `@hozo/svg` owner rather than from
+    // `react-native-svg` directly. The compiler keeps one import channel;
+    // the integration sorts these names into the optional domain package.
     if let Primitive::Svg(element) = node.primitive {
         runtime.need_component(element.runtime_name());
     }

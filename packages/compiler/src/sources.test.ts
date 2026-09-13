@@ -23,6 +23,19 @@ test('a plain React Native file compiles', () => {
   assert.match(lowered.css, /padding-top: 16px/)
 })
 
+test('the dedicated SVG owner is trusted on both backends', () => {
+  const source = `import { Svg } from '@hozo/svg'
+export function Mark() { return <Svg viewBox="0 0 8 8"><Svg.Rect width={8} height={8} /></Svg> }
+`
+  const web = lowerModule(source, 'Mark.tsx', 'Mark.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(web.code, /<svg[^>]*><rect/)
+
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.deepEqual(new Set(native.runtimeImports), new Set(['Svg', 'Rect']))
+})
+
 test('trusted aliases compile by their canonical React Native export', () => {
   const source = `import { View as Box, Text as RNText } from 'react-native'
 export function Card() { return <Box className="p-4"><RNText>Hi</RNText></Box> }

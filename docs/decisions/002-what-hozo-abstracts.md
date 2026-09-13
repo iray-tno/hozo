@@ -36,6 +36,8 @@ The two platforms' APIs already agree. Lowering `<Svg>/<Path>/<Circle>` to
 `<svg>/<path>/<circle>` on Web and to `react-native-svg` on Native is
 ordinary work, and it takes `react-native-svg` out of the Web bundle
 entirely, which is the same thing Hozo does for React Native for Web.
+The public namespace therefore lives in the optional `@hozo/svg` domain
+package rather than making the core facade depend on a Native SVG renderer.
 
 SVG also carries ARIA semantics of its own (`role="img"`, `<title>`,
 `<desc>`), so it is a Tier 2 citizen rather than an escape hatch.

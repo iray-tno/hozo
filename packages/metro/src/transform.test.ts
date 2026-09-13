@@ -40,6 +40,40 @@ export function Chart() {
   assert.ok(!output.includes('StyleSheet.create'))
 })
 
+test('imports every generated SVG element from its optional domain package', () => {
+  const source = `import { Svg } from '@hozo/svg'
+export function Graphic() {
+  return <Svg><Svg.Marker id="dot" /><Svg.ForeignObject /></Svg>
+}
+`
+  const output = transformHozoSource(source, 'Graphic.tsx')
+  assert.ok(output)
+  assert.match(output, /import \{ Svg, Marker, ForeignObject \} from '@hozo\/svg'/)
+  assert.doesNotMatch(output, /@hozo\/runtime\/svg/)
+})
+
+test('merges a carried SVG namespace with generated component imports', () => {
+  const source = `import { Svg } from '@hozo/svg'
+export function Graphic() { return <Svg><Svg.Custom /></Svg> }
+`
+  const output = transformHozoSource(source, 'Graphic.tsx')
+  assert.ok(output)
+  assert.equal(output.match(/from '@hozo\/svg'/g)?.length, 1)
+  assert.match(output, /<Svg\.Custom/)
+})
+
+test('direct owner imports keep non-component compatibility values while components lower', () => {
+  const source = `import { View } from '@hozo/primitives'
+import { Platform } from '@hozo/rn-compat'
+export function Card() { return <View testID={Platform.OS} /> }
+`
+  const output = transformHozoSource(source, 'Card.tsx')
+  assert.ok(output)
+  assert.match(output, /import \{ View \} from 'react-native'/)
+  assert.match(output, /import \{ Platform \} from '@hozo\/rn-compat'/)
+  assert.doesNotMatch(output, /@hozo\/primitives/)
+})
+
 test('strips the @hozo/core import and adds a react-native one', () => {
   const output = transformHozoSource(LOGIN_SOURCE, 'Login.tsx')
   assert.ok(output)

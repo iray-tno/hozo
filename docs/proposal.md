@@ -708,6 +708,10 @@ Dialog は、
     optional React Native migration APIs (Modal, ActivityIndicator, Animated.View)
     Platform, Dimensions, Keyboard, AccessibilityInfo, StyleSheet, PanResponder
 
+@hozo/svg
+    optional universal SVG namespace (browser SVG & react-native-svg)
+    owns Svg.Link and keeps react-native-svg out of non-SVG applications
+
 @hozo/behaviors
     headless accessibility behaviors (FocusScope, RovingFocus, Safe Polygon)
     floating positioning, live region, hover delay state machines

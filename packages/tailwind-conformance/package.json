@@ -20,6 +20,7 @@
     "@hozo/primitives": "workspace:^",
     "@hozo/rn-compat": "workspace:^",
     "@hozo/runtime": "workspace:^",
+    "@hozo/svg": "workspace:^",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {

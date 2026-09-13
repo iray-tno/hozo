@@ -965,7 +965,7 @@ mod svg_tests {
         // `fill-blue-500`, is a CSS declaration on Web and an attribute
         // here, because `react-native-svg` takes paint as props.
         let out = compile(
-            "import { Svg } from '@hozo/core'\n\
+            "import { Svg } from '@hozo/svg'\n\
              export const C = () => <Svg.Rect className=\"fill-blue-500 stroke-2\" />\n",
         );
         assert!(out.jsx.contains(r##"fill="#"##), "{}", out.jsx);
@@ -982,7 +982,7 @@ mod svg_tests {
         // to fix, and inserting one puts a text node where an SVG element
         // belongs -- the string vanishes rather than rendering.
         let out = compile(
-            "import { Svg } from '@hozo/core'\n\
+            "import { Svg } from '@hozo/svg'\n\
              export const C = () => <Svg.Text>hi</Svg.Text>\n",
         );
         assert!(out.jsx.contains("<SvgText>hi</SvgText>"), "{}", out.jsx);
@@ -995,7 +995,7 @@ mod svg_tests {
         // one name in a file neither of them wrote is not a collision
         // anyone could debug.
         let out = compile(
-            "import { Svg } from '@hozo/core'\n\
+            "import { Svg } from '@hozo/svg'\n\
              export const C = () => <Svg><Svg.Text>hi</Svg.Text></Svg>\n",
         );
         assert!(out.runtime_imports.contains(&"Svg"), "{:?}", out.runtime_imports);
@@ -1006,7 +1006,7 @@ mod svg_tests {
     #[test]
     fn svg_link_uses_the_router_aware_native_group() {
         let out = compile(
-            "import { Svg } from '@hozo/core'\n\
+            "import { Svg } from '@hozo/svg'\n\
              export const C = () => <Svg><Svg.Link href=\"/detail\" replace><Svg.Rect width={10} height={10} /></Svg.Link></Svg>\n",
         );
         assert!(out.runtime_imports.contains(&"SvgLink"), "{:?}", out.runtime_imports);

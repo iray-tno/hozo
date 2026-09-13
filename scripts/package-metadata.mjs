@@ -100,16 +100,10 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'typography', 'cjk', 'ruby', 'accessibility'],
   },
   runtime: {
-    // `./svg` is a separate entry because `react-native-svg` is an
-    // optional peer dependency, and a re-export from the main entry would
-    // load it on every import of this package -- an optional dependency
-    // that is always loaded is not optional. The compiler emits an import
-    // from here only for a file that uses an SVG element.
     exports: {
       '.': './dist/index.js',
       './navigation': './dist/navigation-entry.js',
       './project': './dist/project.js',
-      './svg': './dist/svg.js',
     },
     // Metro resolves `.native.js` by filename suffix only while a package
     // has no `exports`; once it does, conditions take over and the suffix
@@ -126,6 +120,11 @@ const PACKAGES = {
     exports: { '.': './dist/index.js' },
     native: true,
     keywords: ['react-native', 'compatibility', 'migration', 'react-native-web'],
+  },
+  svg: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'react', 'svg', 'vector', 'graphics'],
   },
   navigation: {
     exports: {
@@ -257,11 +256,7 @@ export function metadataFor(name) {
     // A resolver that doesn't set the condition falls through to exactly
     // the map that was here before.
     exportsField[subpath] = target.startsWith('./dist')
-      ? // Every subpath, not only the root. `@hozo/runtime/svg` has a
-        // `.native.js` of its own and was getting the plain map, so Metro
-        // resolved the Web file -- which re-exports nothing -- and the
-        // components the compiler imported from it did not exist.
-        spec.native && !spec.noNative?.includes(subpath)
+      ? spec.native && !spec.noNative?.includes(subpath)
         ? {
             'react-native': { types: native.replace(/\.js$/, '.d.ts'), default: native },
             types,

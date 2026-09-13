@@ -24,7 +24,8 @@ import type { StylexModuleCache } from '@hozo/compiler/project'
 import { importSpecifier } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
-const HOZO_CORE_IMPORT_RE = /import\s*\{[^}]*\}\s*from\s*['"]@hozo\/core['"]\s*\n?/
+const HOZO_AUTHOR_IMPORT_RE =
+  /import\s*\{([^}]*)\}\s*from\s*['"](@hozo\/(?:core|patterns|primitives|rn-compat|semantics|svg|typography))['"]\s*\n?/g
 /// Renames this component's `hozoN`/`hozoN_suffix` style/JSX identifiers
 /// to be unique across every component in the file -- each `compileNative`
 /// call starts counting from `hozo0` independently per root, so two
@@ -236,23 +237,18 @@ export function transformHozoSource(
   // names the bindings, so the survivors are whichever of those the
   // rewritten source still mentions. A hand-written list of primitives is
   // what let `Del` through in the first place.
-  const coreImport = HOZO_CORE_IMPORT_RE.exec(next)?.[0]
-  next = next.replace(HOZO_CORE_IMPORT_RE, '')
-  /** The names the author imported from `@hozo/core`, aliases resolved. */
-  const declaredByAuthor =
-    coreImport === undefined
-      ? []
-      : (/\{([^}]*)\}/.exec(coreImport)?.[1] ?? '')
-          .split(',')
-          .map((part) => part.trim().replace(/^type\s+/, ''))
-          .map(
-            (part) =>
-              part
-                .split(/\s+as\s+/)
-                .pop()
-                ?.trim() ?? '',
-          )
-          .filter(Boolean)
+  const declaredByAuthor = [...next.matchAll(HOZO_AUTHOR_IMPORT_RE)].flatMap((match) => {
+    const source = match[2] as `@hozo/${string}`
+    return (match[1] ?? '')
+      .split(',')
+      .map((part) => part.trim().replace(/^type\s+/, ''))
+      .filter(Boolean)
+      .map((part) => {
+        const [imported = '', local = imported] = part.split(/\s+as\s+/).map((name) => name.trim())
+        return { imported, local, source }
+      })
+  })
+  next = next.replace(HOZO_AUTHOR_IMPORT_RE, '')
 
   // Only the bindings the file does not already have. These came from the
   // same original module record as the compiled roots; none of the edits
@@ -288,27 +284,36 @@ export function transformHozoSource(
   // is the set the compiler carried and nothing defines.
   const providedByNative = new Set([...needed, ...alreadyImported])
   const carried = declaredByAuthor.filter(
-    (name) => !providedByNative.has(name) && new RegExp(`\\b${name}\\b`).test(next),
+    ({ local }) => !providedByNative.has(local) && new RegExp(`\\b${local}\\b`).test(next),
   )
-  const coreFallbackImport =
-    carried.length > 0 ? `import { ${carried.join(', ')} } from '@hozo/core'\n` : ''
+  const carriedImports = new Map<string, string[]>()
+  for (const { imported, local, source } of carried) {
+    if (source === '@hozo/svg') continue
+    const specifier = imported === local ? imported : `${imported} as ${local}`
+    carriedImports.set(source, [...(carriedImports.get(source) ?? []), specifier])
+  }
+  const fallbackImports = [...carriedImports]
+    .map(([source, specifiers]) => `import { ${specifiers.join(', ')} } from '${source}'\n`)
+    .join('')
   const styleDeclaration = hasStyles
     ? `const hozoStyles = StyleSheet.create(${mergedStyles})\n`
     : ''
-  next = `${rnImport}${coreFallbackImport}${styleDeclaration}${next}`
-  // SVG comes from a subpath rather than the main entry, and that is not
-  // tidiness. `react-native-svg` is an optional peer dependency, and a
-  // re-export from `@hozo/runtime`'s index would load it on every import
-  // of the package -- an optional dependency that is always loaded is not
-  // optional, and a project without it would fail on its first component.
-  // Splitting the import here is what keeps that promise true.
+  next = `${rnImport}${fallbackImports}${styleDeclaration}${next}`
+  // SVG has a domain owner because `react-native-svg` is needed only by
+  // projects that draw SVG on Native. Merge compiler-emitted names with a
+  // namespace binding the compiler carried so one file never declares the
+  // same `Svg` binding twice.
   const svg = [...runtimeImports].filter((name) => SVG_EXPORTS.has(name))
+  const carriedSvg = carried
+    .filter(({ source }) => source === '@hozo/svg')
+    .map(({ imported, local }) => (imported === local ? imported : `${imported} as ${local}`))
+  const svgSpecifiers = [...new Set([...svg, ...carriedSvg])]
   const rest = [...runtimeImports].filter((name) => !SVG_EXPORTS.has(name))
   if (rest.length > 0) {
     next = `${generatedRuntimeImports(rest)}${next}`
   }
-  if (svg.length > 0) {
-    next = `import { ${svg.join(', ')} } from '@hozo/runtime/svg'\n${next}`
+  if (svgSpecifiers.length > 0) {
+    next = `import { ${svgSpecifiers.join(', ')} } from '@hozo/svg'\n${next}`
   }
 
   // Only when something actually calls it. The candidate module is
@@ -330,7 +335,7 @@ export function transformHozoSource(
 }
 
 /**
- * The names `@hozo/runtime/svg` exports, so they can be told apart from
+ * The names `@hozo/svg` exports, so they can be told apart from
  * the ones on the main entry.
  *
  * Duplicated from that module rather than imported, because this runs in
@@ -356,4 +361,13 @@ const SVG_EXPORTS = new Set([
   'Stop',
   'ClipPath',
   'Use',
+  'TSpan',
+  'TextPath',
+  'Marker',
+  'Mask',
+  'Pattern',
+  'SvgSymbol',
+  'SvgImage',
+  'ForeignObject',
+  'SvgLink',
 ])

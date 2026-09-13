@@ -171,6 +171,14 @@ for (const name of PACKAGE_NAMES) {
       }
     }
   }
+  if (
+    name !== 'svg' &&
+    ['dependencies', 'optionalDependencies', 'peerDependencies'].some(
+      (field) => json[field]?.['react-native-svg'],
+    )
+  ) {
+    fail(name, 'declares react-native-svg outside its optional @hozo/svg owner')
+  }
 
   // Depending on something unpublishable produces a package that cannot
   // be installed from the registry at all.
@@ -218,13 +226,16 @@ const treeShakingProbes = [
   { owner: 'patterns', name: 'Tree', maxRaw: 5_000 },
   { owner: 'typography', name: 'Heading', maxRaw: 1_500 },
   { owner: 'semantics', name: 'Main', maxRaw: 1_500 },
+  // SVG is intentionally absent from core: importing the facade must not
+  // make a Native app install react-native-svg.
+  { owner: 'svg', name: 'Svg', maxRaw: 5_000, facade: false },
 ]
 const bundleSizes = []
 
 for (const probe of treeShakingProbes) {
   try {
     const direct = await bundleExport(probe.owner, probe.name)
-    const facade = await bundleExport('core', probe.name)
+    const facade = probe.facade === false ? undefined : await bundleExport('core', probe.name)
     bundleSizes.push({ ...probe, direct, facade })
     if (direct.raw > probe.maxRaw) {
       fail(
@@ -234,7 +245,7 @@ for (const probe of treeShakingProbes) {
     }
     // A facade re-export needs at most a few binding bytes. Anything larger
     // means an unrelated owner survived tree shaking.
-    if (facade.raw > direct.raw + 128 || facade.gzip > direct.gzip + 64) {
+    if (facade && (facade.raw > direct.raw + 128 || facade.gzip > direct.gzip + 64)) {
       fail(
         'core',
         `${probe.name} adds too much facade weight: direct ${direct.raw}/${direct.gzip} bytes raw/gzip, core ${facade.raw}/${facade.gzip}`,
@@ -255,11 +266,10 @@ for (const packed of packedPackages) {
   )
 }
 
-console.log('Web tree-shaking sizes (direct owner -> @hozo/core, raw / gzip)')
+console.log('Web tree-shaking sizes (direct owner -> @hozo/core when facaded, raw / gzip)')
 for (const probe of bundleSizes) {
-  console.log(
-    `  ${probe.name}: ${probe.direct.raw}/${probe.direct.gzip} -> ${probe.facade.raw}/${probe.facade.gzip} bytes`,
-  )
+  const facade = probe.facade ? ` -> ${probe.facade.raw}/${probe.facade.gzip}` : ' (domain-only)'
+  console.log(`  ${probe.name}: ${probe.direct.raw}/${probe.direct.gzip}${facade} bytes`)
 }
 
 if (problems.length > 0) {

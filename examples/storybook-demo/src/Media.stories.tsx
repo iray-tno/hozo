@@ -1,5 +1,5 @@
-import { Svg } from '@hozo/core'
 import { Image, View } from '@hozo/primitives'
+import { Svg } from '@hozo/svg'
 import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
