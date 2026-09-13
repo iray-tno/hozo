@@ -5,8 +5,8 @@
 // the viewport, clipped invisibly by overflow-x: hidden.
 //
 // This check runs headless Chrome, evaluates the geometry of the navbar
-// and its trailing action buttons at key responsive breakpoints (800, 1024, 1280, 1440),
-// and asserts that trailing buttons remain fully visible inside the viewport.
+// and its content at phone and desktop responsive breakpoints, and asserts
+// that the brand and trailing buttons remain visible without overlapping.
 
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -126,6 +126,18 @@ async function checkViewport(width, height) {
             socket.send(JSON.stringify({ id, method, params }))
           })
 
+        // Desktop Chrome may clamp --window-size below its minimum window width.
+        // Device metrics keep the CSS viewport exact for phone-size regressions.
+        await send('Emulation.setDeviceMetricsOverride', {
+          width,
+          height,
+          deviceScaleFactor: 1,
+          // We test responsive CSS geometry, not mobile user-agent behaviour.
+          // Enabling mobile mode after navigation can retain Chrome's wide
+          // pre-emulation layout viewport until the document is reloaded.
+          mobile: false,
+        })
+
         // Give fonts and CSS layout a moment to settle
         await new Promise((r) => setTimeout(r, 600))
 
@@ -140,12 +152,21 @@ async function checkViewport(width, height) {
             await new Promise((r) => setTimeout(r, 100));
           }
           if (!trailing) return { error: 'trailing container not found' };
+          const brand = container.firstElementChild;
+          const brandRect = brand.getBoundingClientRect();
           const rect = trailing.getBoundingClientRect();
           return {
             viewportWidth: window.innerWidth,
+            brandLeft: Math.round(brandRect.left),
+            brandRight: Math.round(brandRect.right),
             trailingRight: Math.round(rect.right),
             trailingWidth: Math.round(rect.width),
-            visible: rect.right <= window.innerWidth && rect.width > 0,
+            visible:
+              window.innerWidth === ${width} &&
+              brandRect.left >= 0 &&
+              rect.right <= window.innerWidth &&
+              rect.width > 0 &&
+              brandRect.right <= rect.left,
           };
         })()`
 
@@ -188,7 +209,7 @@ async function checkViewport(width, height) {
   return result
 }
 
-const viewports = [800, 1024, 1280, 1440]
+const viewports = [320, 375, 390, 800, 1024, 1280, 1440]
 const failures = []
 
 for (const w of viewports) {
@@ -197,7 +218,7 @@ for (const w of viewports) {
     failures.push(`at ${w}px: ${res.error}`)
   } else if (!res.visible) {
     failures.push(
-      `at ${w}px: trailing buttons clipped (right: ${res.trailingRight}px > viewport: ${res.viewportWidth}px)`,
+      `at ${w}px: navbar content clipped or overlapping (brand: ${res.brandLeft}-${res.brandRight}px, trailing right: ${res.trailingRight}px, viewport: ${res.viewportWidth}px)`,
     )
   }
 }

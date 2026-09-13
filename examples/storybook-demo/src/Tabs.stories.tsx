@@ -1,4 +1,6 @@
-import { Heading, Paragraph, Tabs, View } from '@hozo/core'
+import { Tabs } from '@hozo/patterns'
+import { View } from '@hozo/primitives'
+import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 function TabsDemo() {
@@ -33,7 +35,7 @@ function TabsDemo() {
   return (
     <View className="max-w-xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
       <Heading level={2} className="text-xl font-bold text-slate-900">
-        Tabs Pattern (@hozo/core)
+        Tabs Pattern (@hozo/patterns)
       </Heading>
       <Paragraph className="text-sm text-slate-600">
         WAI-ARIA compliant tab list with single tab stop and left/right arrow key roving tabindex
@@ -52,6 +54,6 @@ function TabsDemo() {
   )
 }
 
-const meta = { title: 'Core/Tabs', component: TabsDemo } satisfies Meta<typeof TabsDemo>
+const meta = { title: 'Patterns/Tabs', component: TabsDemo } satisfies Meta<typeof TabsDemo>
 export default meta
 export const Default: StoryObj<typeof meta> = {}
