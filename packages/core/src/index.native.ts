@@ -56,9 +56,3 @@ export * from '@hozo/primitives'
 export { Link, type LinkProps, Text, type TextProps } from '@hozo/primitives'
 export * from '@hozo/semantics'
 export * from '@hozo/typography'
-export {
-  PanResponder,
-  type PanResponderCallbacks,
-  type PanResponderGestureState,
-  type PanResponderInstance,
-} from './pan-responder.ts'

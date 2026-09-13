@@ -1,21 +1,20 @@
 {
-  "name": "@hozo/next",
+  "name": "@hozo/rn-compat",
   "version": "0.1.0",
-  "description": "Next.js integration for the Hozo compiler (Web lowering backend).",
+  "description": "Optional React Native compatibility APIs for incrementally migrating applications to Hozo.",
   "keywords": [
-    "nextjs",
-    "next",
-    "webpack",
-    "turbopack",
+    "react-native",
+    "compatibility",
+    "migration",
     "react-native-web"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iray-tno/hozo.git",
-    "directory": "packages/next"
+    "directory": "packages/rn-compat"
   },
-  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/next#readme",
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/rn-compat#readme",
   "bugs": {
     "url": "https://github.com/iray-tno/hozo/issues"
   },
@@ -25,15 +24,17 @@
   "sideEffects": false,
   "exports": {
     ".": {
+      "react-native": {
+        "types": "./dist/index.native.d.ts",
+        "default": "./dist/index.native.js"
+      },
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./loader": "./loader.js",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
-    "loader.js",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
@@ -49,18 +50,23 @@
     "test": "node --test src/*.test.ts"
   },
   "dependencies": {
-    "@hozo/compiler": "workspace:^",
-    "@hozo/patterns": "workspace:^",
-    "@hozo/primitives": "workspace:^",
-    "@hozo/rn-compat": "workspace:^",
-    "@hozo/runtime": "workspace:^",
-    "@hozo/tailwind": "workspace:^"
+    "@hozo/runtime": "workspace:^"
   },
   "peerDependencies": {
-    "next": ">=15"
+    "react": "^19.0.0",
+    "react-native": ">=0.76"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@types/node": "26.2.0",
-    "next": "^16.3.3"
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-native": "^0.87.0",
+    "react-test-renderer": "^19.2.8"
   }
 }

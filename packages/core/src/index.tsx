@@ -56,11 +56,4 @@ export * from '@hozo/primitives'
 export { Link, type LinkProps, Text, type TextProps } from '@hozo/primitives'
 export * from '@hozo/semantics'
 export * from '@hozo/typography'
-// Kept in the facade until the RN compatibility package owns this surface.
-export type {
-  PanResponderCallbacks,
-  PanResponderGestureState,
-  PanResponderInstance,
-} from './pan-responder.ts'
-export { PanResponder } from './pan-responder.ts'
 export { Svg } from './svg.tsx'

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { PanResponder, type PanResponderGestureState } from '../../core/src/pan-responder.ts'
+import { PanResponder, type PanResponderGestureState } from '../../rn-compat/src/pan-responder.ts'
 import {
   createResponderDomProps,
   type HozoResponderEvent,

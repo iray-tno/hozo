@@ -122,6 +122,11 @@ const PACKAGES = {
     sideEffects: ['./dist/hooks.native.js'],
     keywords: ['react-native', 'runtime', 'styles', 'animation'],
   },
+  'rn-compat': {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'compatibility', 'migration', 'react-native-web'],
+  },
   navigation: {
     exports: {
       '.': './dist/index.js',

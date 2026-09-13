@@ -33,22 +33,12 @@ export {
   hozoTextChildren,
 } from '@hozo/behaviors'
 export {
-  AccessibilityInfo,
-  Dimensions,
   TextInput as HozoTextInput,
   TextInput,
   type TextInputProps as HozoTextInputProps,
   type TextInputProps,
 } from 'react-native'
-export {
-  HozoActivityIndicator,
-  type HozoActivityIndicatorProps,
-} from './activity-indicator.native.ts'
 export type { BreakpointName, Viewport } from './ambient.ts'
-export {
-  HozoAnimatedView,
-  type HozoAnimatedViewProps,
-} from './animated-view.native.ts'
 export { HozoBackdropFilter, type HozoBackdropFilterProps } from './backdrop.native.tsx'
 export {
   HozoContainer,
@@ -64,19 +54,16 @@ export { HozoGrid, HozoGridItem } from './grid.native.tsx'
 export type { GridTrack } from './grid.ts'
 export {
   type HozoAnimation,
-  useColorScheme,
   useHozoAnimation,
   useHozoBreakpoint,
   useHozoDark,
   useHozoEnvironment,
   useHozoViewport,
   useHozoWidthAtLeast,
-  useWindowDimensions,
 } from './hooks.native.ts'
 export { hozoImageSource } from './image-source.native.ts'
 export * from './index.ts'
 export { HozoLink, type HozoLinkProps } from './link.native.tsx'
-export { HozoModal, type HozoModalProps } from './modal.native.ts'
 export {
   HozoPressable,
   HozoPressable as Pressable,
@@ -95,14 +82,6 @@ export {
   HozoTextSize,
   type HozoTextSizeProps,
 } from './text-size.native.tsx'
-export {
-  HozoTouchableOpacity,
-  type HozoTouchableOpacityProps,
-} from './touchable-opacity.native.ts'
-export {
-  HozoTouchableWithoutFeedback,
-  type HozoTouchableWithoutFeedbackProps,
-} from './touchable-without-feedback.native.ts'
 export {
   HozoAnimated,
   type HozoAnimatedProps,

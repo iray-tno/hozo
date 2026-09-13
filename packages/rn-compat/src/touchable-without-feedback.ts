@@ -1,3 +1,4 @@
+import { type ResponderProps, useResponderDomProps } from '@hozo/runtime'
 import {
   Children,
   cloneElement,
@@ -9,8 +10,6 @@ import {
   useCallback,
   useRef,
 } from 'react'
-
-import { type ResponderProps, useResponderDomProps } from './responder.ts'
 
 export interface HozoTouchableWithoutFeedbackProps
   extends Omit<HTMLAttributes<HTMLElement>, 'children'>,

@@ -1,4 +1,5 @@
-import { Image, PanResponder, ScrollView, Text, View } from '@hozo/core'
+import { Image, ScrollView, Text, View } from '@hozo/core'
+import { PanResponder } from '@hozo/rn-compat'
 
 const imageSource = {
   uri: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/%3E',

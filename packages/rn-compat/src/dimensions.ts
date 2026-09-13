@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
-import { createStore } from './ambient.ts'
+import { createStore } from './store.ts'
 
 export interface ScaledSize {
   width: number

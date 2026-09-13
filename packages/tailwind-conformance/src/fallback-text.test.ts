@@ -64,7 +64,6 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['Tabs', 'Driven by `tabs`, not children.'],
   ['Toolbar', 'Driven by `items`, not children.'],
   ['Tree', 'Driven by `nodes`, not children.'],
-  ['PanResponder', 'Not a component.'],
   ['View', "React Native's own, re-exported unchanged. Not Hozo's to wrap."],
   ['Pressable', "React Native's own, re-exported unchanged."],
   ['ScrollView', "React Native's own, re-exported unchanged."],

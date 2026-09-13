@@ -1,8 +1,6 @@
+import { type HozoDomStyle, HozoView, type HozoViewProps } from '@hozo/runtime'
 import { createElement, forwardRef, type Ref, useEffect, useReducer } from 'react'
-
 import { resolveAnimatedStyle, subscribeAnimatedStyle } from './animated-node.ts'
-import type { HozoDomStyle } from './dom-style.ts'
-import { HozoView, type HozoViewProps } from './view.ts'
 
 export interface HozoAnimatedViewProps extends Omit<HozoViewProps, 'style'> {
   style?: HozoDomStyle

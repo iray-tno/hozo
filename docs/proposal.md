@@ -688,8 +688,13 @@ Dialog は、
 
 ```
 @hozo/core
+    zero-setup facade over the canonical authoring packages
+
+@hozo/primitives
     canonical primitives (View, Text, Pressable, Link, FlatList)
-    universal compound components (Dialog, Popover, Menu, Tabs, Toolbar, Radio)
+
+@hozo/patterns
+    universal compound components (Dialog, Menu, Tabs, Toolbar, Radio)
 
 @hozo/compiler
     JS entry point over Rust compiler
@@ -698,6 +703,10 @@ Dialog は、
 @hozo/runtime
     dynamic styles, media query subscriptions
     interaction state, ambient animations, transitions
+
+@hozo/rn-compat
+    optional React Native migration APIs (Modal, ActivityIndicator, Animated.View)
+    Platform, Dimensions, Keyboard, AccessibilityInfo, StyleSheet, PanResponder
 
 @hozo/behaviors
     headless accessibility behaviors (FocusScope, RovingFocus, Safe Polygon)

@@ -1,6 +1,5 @@
+import { type HozoDomStyle, hozoDomStyle } from '@hozo/runtime'
 import { type ComponentPropsWithoutRef, createElement, forwardRef } from 'react'
-
-import { type HozoDomStyle, hozoDomStyle } from './dom-style.ts'
 
 export interface HozoActivityIndicatorProps
   extends Omit<ComponentPropsWithoutRef<'span'>, 'color' | 'style'> {
