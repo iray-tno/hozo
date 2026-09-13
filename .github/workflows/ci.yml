@@ -71,7 +71,7 @@ jobs:
       # scroll lands, which row is at the top -- and jsdom has no layout, so
       # an implementation that mounted every row would pass `pnpm
       # test:packages` unchanged.
-      - run: pnpm --filter @hozo/runtime run test:browser
+      - run: pnpm --filter @hozo/primitives run test:browser
       # The generated documentation: the primitives reference, from the
       # `Primitive` enum and from what the compiler emits, and the README
       # repository layout, from the directories that exist and what each
