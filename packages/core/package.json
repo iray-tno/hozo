@@ -1,7 +1,7 @@
 {
   "name": "@hozo/core",
   "version": "0.1.0",
-  "description": "Canonical primitives and semantic components for new Hozo projects.",
+  "description": "Zero-setup facade over Hozo's canonical authoring packages.",
   "keywords": [
     "react-native",
     "react",

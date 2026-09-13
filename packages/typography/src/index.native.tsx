@@ -1,4 +1,5 @@
-import { HozoLink, HozoRuby, HozoRubyText, HozoTextSizeContext } from '@hozo/runtime'
+import { Link, Text } from '@hozo/primitives'
+import { HozoRuby, HozoRubyText, HozoTextSizeContext } from '@hozo/runtime'
 import { hozoPreflight } from '@hozo/runtime/project'
 import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // The components rather than their names. These files used to render
@@ -9,16 +10,11 @@ import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // must be a function" on the first render. Nothing caught it because
 // nothing imported these files: the tests next to them render the Web
 // half through `react-dom/server`.
-import {
-  type AccessibilityRole,
-  Text as RNText,
-  type StyleProp,
-  StyleSheet,
-  type TextStyle,
-} from 'react-native'
+import type { AccessibilityRole, StyleProp, TextStyle } from 'react-native'
 import { BARE_TEXT_SIZE_RATIOS, TEXT_SIZE_RATIOS } from './text-size.ts'
 
 export { BARE_TEXT_SIZE_RATIOS, TEXT_SIZE_RATIOS } from './text-size.ts'
+export { Link, Text }
 
 export interface TypographyNativeProps {
   /**
@@ -62,6 +58,18 @@ export interface HeadingProps extends TypographyNativeProps {
   level?: 1 | 2 | 3 | 4 | 5 | 6
 }
 
+/** Native declaration for the Link value re-exported from primitives. */
+export interface LinkProps extends TypographyNativeProps {
+  href: string
+  external?: boolean
+  replace?: boolean
+  prefetch?: boolean
+  target?: string
+  rel?: string
+  download?: boolean | string
+  onPress?: (event: { defaultPrevented?: boolean }) => void
+}
+
 /**
  * The size the text around this is drawn at.
  *
@@ -81,23 +89,14 @@ export interface HeadingProps extends TypographyNativeProps {
  * 11, 11, 12 -- are exactly the ratios applied to it.
  */
 const TextSize = HozoTextSizeContext
+const NativeText = Text as unknown as React.ComponentType<TypographyNativeProps>
 
 function relative(ratio: number, base: number) {
   return Math.round(base * ratio)
 }
 
-// Minimal fallback helper when running uncompiled on Native
-export function Text({ children, style, ...props }: TextProps) {
-  const size = StyleSheet.flatten(style)?.fontSize
-  const text = React.createElement(RNText, { style, ...props }, children)
-  // Only when this one names a size. A `Text` that says nothing about it
-  // should hand on whatever it was given rather than reset the scale.
-  if (size === undefined) return text
-  return <TextSize.Provider value={size}>{text}</TextSize.Provider>
-}
-
 export function Paragraph(props: SemanticTextProps) {
-  return <Text {...props} />
+  return <NativeText {...props} />
 }
 
 export function Heading({
@@ -113,23 +112,25 @@ export function Heading({
   const defaultStyle = hozoPreflight
     ? undefined
     : { fontSize: relative(ratio, base), fontWeight: 'bold' as const }
-  return <Text accessibilityRole={accessibilityRole} style={[defaultStyle, style]} {...props} />
+  return (
+    <NativeText accessibilityRole={accessibilityRole} style={[defaultStyle, style]} {...props} />
+  )
 }
 
 export function Strong({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ fontWeight: 'bold' }, style]} {...props} />
+  return <NativeText style={[{ fontWeight: 'bold' }, style]} {...props} />
 }
 
 export function Emphasis({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ fontStyle: 'italic' }, style]} {...props} />
+  return <NativeText style={[{ fontStyle: 'italic' }, style]} {...props} />
 }
 
 export function Underline({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ textDecorationLine: 'underline' }, style]} {...props} />
+  return <NativeText style={[{ textDecorationLine: 'underline' }, style]} {...props} />
 }
 
 export function Strikethrough({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ textDecorationLine: 'line-through' }, style]} {...props} />
+  return <NativeText style={[{ textDecorationLine: 'line-through' }, style]} {...props} />
 }
 
 export const Del = Strikethrough
@@ -137,29 +138,32 @@ export const Del = Strikethrough
 export function Sub({ style, ...props }: TypographyNativeProps) {
   const base = useContext(TextSize)
   const ratios = hozoPreflight ? TEXT_SIZE_RATIOS : BARE_TEXT_SIZE_RATIOS
-  return <Text style={[{ fontSize: relative(ratios.sub, base) }, style]} {...props} />
+  return <NativeText style={[{ fontSize: relative(ratios.sub, base) }, style]} {...props} />
 }
 
 export function Sup({ style, ...props }: TypographyNativeProps) {
   const base = useContext(TextSize)
   const ratios = hozoPreflight ? TEXT_SIZE_RATIOS : BARE_TEXT_SIZE_RATIOS
-  return <Text style={[{ fontSize: relative(ratios.sup, base) }, style]} {...props} />
+  return <NativeText style={[{ fontSize: relative(ratios.sup, base) }, style]} {...props} />
 }
 
 export function Code({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ fontFamily: 'monospace' }, style]} {...props} />
+  return <NativeText style={[{ fontFamily: 'monospace' }, style]} {...props} />
 }
 
 export function Small({ style, ...props }: TypographyNativeProps) {
   const base = useContext(TextSize)
   const ratios = hozoPreflight ? TEXT_SIZE_RATIOS : BARE_TEXT_SIZE_RATIOS
   return (
-    <Text style={[{ fontSize: relative(ratios.small, base), opacity: 0.8 }, style]} {...props} />
+    <NativeText
+      style={[{ fontSize: relative(ratios.small, base), opacity: 0.8 }, style]}
+      {...props}
+    />
   )
 }
 
 export function Mark({ style, ...props }: TypographyNativeProps) {
-  return <Text style={[{ backgroundColor: '#fef08a' }, style]} {...props} />
+  return <NativeText style={[{ backgroundColor: '#fef08a' }, style]} {...props} />
 }
 
 /** Recursively replaces normal spaces with Unicode non-breaking spaces (\u00A0) */
@@ -182,7 +186,7 @@ function replaceSpacesWithNbsp(node: ReactNode): ReactNode {
 }
 
 export function NoBreak({ children, ...props }: TypographyNativeProps) {
-  return <Text {...props}>{replaceSpacesWithNbsp(children)}</Text>
+  return <NativeText {...props}>{replaceSpacesWithNbsp(children)}</NativeText>
 }
 
 /**
@@ -226,59 +230,6 @@ export function RubyText({ style, children, ...props }: TypographyNativeProps) {
     >
       {children}
     </HozoRubyText>
-  )
-}
-export interface LinkProps extends TypographyNativeProps {
-  href: string
-  external?: boolean
-  replace?: boolean
-  prefetch?: boolean
-  target?: string
-  rel?: string
-  download?: boolean | string
-  onPress?: (event: { defaultPrevented?: boolean }) => void
-}
-
-/**
- * A link, which on this platform is a Pressable that opens a URL.
- *
- * That was written out here and again in `@hozo/runtime` -- the second
- * being what the compiler emits for this very component, so the two
- * halves of one `<Link>` had separate implementations of opening a URL,
- * of respecting a handler that prevented it, and of wrapping a string
- * child so React Native does not throw on it. They had already drifted
- * on the role: this one let a caller's `accessibilityRole` win and the
- * other overwrote it, which was the bug in #289.
- *
- * `target`, `rel`, and `download` stay in the prop type and are dropped
- * here. `external` reaches HozoLink because it decides whether an installed
- * application router may handle the destination before platform fallback.
- */
-export function Link({
-  href,
-  onPress,
-  children,
-  external,
-  replace,
-  prefetch,
-  target: _target,
-  rel: _rel,
-  download: _download,
-  style,
-  ...props
-}: LinkProps) {
-  return (
-    <HozoLink
-      href={href}
-      external={external}
-      replace={replace}
-      prefetch={prefetch}
-      onPress={onPress}
-      style={asWeb(style)}
-      {...props}
-    >
-      {children}
-    </HozoLink>
   )
 }
 // Both spellings, the way `TermList` reads both. The member keeps the

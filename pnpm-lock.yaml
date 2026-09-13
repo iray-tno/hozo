@@ -788,6 +788,9 @@ importers:
 
   packages/typography:
     dependencies:
+      '@hozo/primitives':
+        specifier: workspace:^
+        version: link:../primitives
       '@hozo/runtime':
         specifier: workspace:^
         version: link:../runtime

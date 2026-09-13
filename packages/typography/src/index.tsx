@@ -1,5 +1,7 @@
-import { HozoLink } from '@hozo/runtime'
+import { Link, type LinkProps, Text, type TextProps } from '@hozo/primitives'
 import type { CSSProperties, ReactNode } from 'react'
+
+export { Link, type LinkProps, Text, type TextProps }
 
 export interface TypographyUniversalProps {
   className?: string
@@ -12,7 +14,6 @@ export interface TypographyUniversalProps {
   'aria-hidden'?: boolean
 }
 
-export type TextProps = TypographyUniversalProps
 export type SemanticTextProps = TypographyUniversalProps
 
 export interface HeadingProps extends TypographyUniversalProps {
@@ -27,14 +28,6 @@ function domProps(props: Omit<TypographyUniversalProps, 'style' | 'className' | 
     'aria-description': props.accessibilityHint,
     'aria-hidden': props['aria-hidden'],
   }
-}
-
-export function Text({ className, children, style, ...props }: TextProps) {
-  return (
-    <span className={className} style={style} {...domProps(props)}>
-      {children}
-    </span>
-  )
 }
 
 export function Paragraph({ className, children, style, ...props }: SemanticTextProps) {
@@ -149,61 +142,6 @@ export function RubyText({ className, children, style, ...props }: TypographyUni
     <rt className={className} style={style} {...domProps(props)}>
       {children}
     </rt>
-  )
-}
-
-export interface LinkProps extends TypographyUniversalProps {
-  href: string
-  target?: '_blank' | '_self' | '_parent' | '_top' | string
-  rel?: string
-  download?: boolean | string
-  external?: boolean
-  replace?: boolean
-  prefetch?: boolean
-  onPress?: (event: React.MouseEvent<HTMLAnchorElement>) => void
-}
-
-/**
- * An anchor, and the one place that decides what `external` means.
- *
- * The derivation used to live here and again in `@hozo/core`’s
- * `Button`, which renders the same element for `<Button href>`. Both
- * now go through `HozoLink`; see the note there.
- */
-export function Link({
-  href,
-  target,
-  rel,
-  download,
-  external,
-  replace,
-  prefetch,
-  className,
-  children,
-  style,
-  onPress,
-  ...props
-}: LinkProps) {
-  return (
-    <HozoLink
-      href={href}
-      target={target}
-      rel={rel}
-      download={download}
-      external={external}
-      replace={replace}
-      prefetch={prefetch}
-      onPress={onPress}
-      className={className}
-      style={style}
-      testID={props.testID}
-      nativeID={props.nativeID}
-      accessibilityLabel={props.accessibilityLabel}
-      accessibilityHint={props.accessibilityHint}
-      aria-hidden={props['aria-hidden']}
-    >
-      {children}
-    </HozoLink>
   )
 }
 
