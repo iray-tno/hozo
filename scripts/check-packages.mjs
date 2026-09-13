@@ -17,6 +17,7 @@ import { execSync } from 'node:child_process'
 import { globSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 
 import { build } from 'esbuild'
 
@@ -24,13 +25,14 @@ import { applyMetadata, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const problems = []
+const packedPackages = []
 
 function fail(pkg, message) {
   problems.push(`@hozo/${pkg}: ${message}`)
 }
 
 /** The paths `npm pack` would put in the tarball, relative and slash-separated. */
-function packedFiles(dir) {
+function packedPackage(dir) {
   // `execSync` with one command string rather than `execFileSync` with an
   // argument array. Node 25 refuses to spawn a `.cmd` without a shell, so
   // Windows needs one either way, and passing an array alongside `shell:
@@ -41,7 +43,12 @@ function packedFiles(dir) {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   })
-  return new Set(JSON.parse(output)[0].files.map((file) => file.path.replaceAll('\\', '/')))
+  const packed = JSON.parse(output)[0]
+  return {
+    files: new Set(packed.files.map((file) => file.path.replaceAll('\\', '/'))),
+    tarballBytes: packed.size,
+    unpackedBytes: packed.unpackedSize,
+  }
 }
 
 /** Every file path an `exports` map points at, at any depth. */
@@ -57,7 +64,9 @@ function exportTargets(node, found = []) {
 for (const name of PACKAGE_NAMES) {
   const dir = path.join(root, 'packages', name)
   const json = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'))
-  const files = packedFiles(dir)
+  const packed = packedPackage(dir)
+  const files = packed.files
+  packedPackages.push({ name, ...packed, fileCount: files.size })
 
   // The metadata is generated; a hand edit that drifts from the generator
   // is a difference nobody chose.
@@ -175,15 +184,17 @@ for (const name of PACKAGE_NAMES) {
 }
 
 // Metadata can look correct and still fail to shake at the package boundary.
-// Keep one real consumer-shaped bundle small enough that an accidentally
-// retained core/runtime surface is caught before publish. React remains a
-// peer and is deliberately excluded from the measured bytes.
-try {
+// These are real consumer-shaped Web bundles: React remains a peer and is
+// deliberately excluded from the measured bytes. Every canonical owner is
+// measured directly and through the zero-setup core facade. The comparison
+// catches a facade star export retaining a sibling package even when both
+// absolute bundles remain under a generous ceiling.
+async function bundleExport(packageName, exportName) {
   const result = await build({
     stdin: {
-      contents: "export { Text } from './packages/core/dist/index.js'",
+      contents: `export { ${exportName} } from './packages/${packageName}/dist/index.js'`,
       resolveDir: root,
-      sourcefile: 'package-tree-shaking-probe.mjs',
+      sourcefile: `${packageName}-${exportName}-tree-shaking-probe.mjs`,
     },
     bundle: true,
     minify: true,
@@ -193,20 +204,61 @@ try {
     external: ['react', 'react-dom', 'react-native'],
     logLevel: 'silent',
   })
-  const bytes = result.outputFiles[0].contents.byteLength
-  const limit = 7_000
-  if (bytes > limit) {
+  const contents = result.outputFiles[0].contents
+  return { raw: contents.byteLength, gzip: gzipSync(contents, { level: 9 }).length }
+}
+
+const treeShakingProbes = [
+  { owner: 'primitives', name: 'Text', maxRaw: 6_000 },
+  { owner: 'primitives', name: 'Link', maxRaw: 3_000 },
+  { owner: 'primitives', name: 'Button', maxRaw: 2_500 },
+  // Windowing is real functionality rather than accidental barrel weight.
+  { owner: 'primitives', name: 'FlatList', maxRaw: 24_000 },
+  { owner: 'patterns', name: 'Dialog', maxRaw: 2_000 },
+  { owner: 'patterns', name: 'Tree', maxRaw: 5_000 },
+  { owner: 'typography', name: 'Heading', maxRaw: 1_500 },
+  { owner: 'semantics', name: 'Main', maxRaw: 1_500 },
+]
+const bundleSizes = []
+
+for (const probe of treeShakingProbes) {
+  try {
+    const direct = await bundleExport(probe.owner, probe.name)
+    const facade = await bundleExport('core', probe.name)
+    bundleSizes.push({ ...probe, direct, facade })
+    if (direct.raw > probe.maxRaw) {
+      fail(
+        probe.owner,
+        `a bundled ${probe.name} export is ${direct.raw} bytes, above the ${probe.maxRaw}-byte tree-shaking limit`,
+      )
+    }
+    // A facade re-export needs at most a few binding bytes. Anything larger
+    // means an unrelated owner survived tree shaking.
+    if (facade.raw > direct.raw + 128 || facade.gzip > direct.gzip + 64) {
+      fail(
+        'core',
+        `${probe.name} adds too much facade weight: direct ${direct.raw}/${direct.gzip} bytes raw/gzip, core ${facade.raw}/${facade.gzip}`,
+      )
+    }
+  } catch (error) {
     fail(
-      'core',
-      `a bundled Text export is ${bytes} bytes, above the ${limit}-byte tree-shaking limit`,
+      probe.owner,
+      `${probe.name} tree-shaking probe could not bundle: ${error instanceof Error ? error.message : String(error)}`,
     )
-  } else {
-    console.log(`@hozo/core Text tree-shakes to ${bytes} bytes`)
   }
-} catch (error) {
-  fail(
-    'core',
-    `tree-shaking probe could not bundle: ${error instanceof Error ? error.message : String(error)}`,
+}
+
+console.log('npm package sizes (tarball / unpacked / files)')
+for (const packed of packedPackages) {
+  console.log(
+    `  @hozo/${packed.name}: ${packed.tarballBytes} / ${packed.unpackedBytes} bytes / ${packed.fileCount}`,
+  )
+}
+
+console.log('Web tree-shaking sizes (direct owner -> @hozo/core, raw / gzip)')
+for (const probe of bundleSizes) {
+  console.log(
+    `  ${probe.name}: ${probe.direct.raw}/${probe.direct.gzip} -> ${probe.facade.raw}/${probe.facade.gzip} bytes`,
   )
 }
 

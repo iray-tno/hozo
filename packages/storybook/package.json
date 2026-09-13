@@ -39,7 +39,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsc -p .",
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
     "typecheck": "tsc -p . --noEmit",
     "test": "node --test src/*.test.ts"
   },

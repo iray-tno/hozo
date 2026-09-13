@@ -46,7 +46,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsc -p .",
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
     "typecheck": "tsc -p . --noEmit",
     "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
