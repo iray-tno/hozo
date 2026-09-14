@@ -78,7 +78,7 @@ export function Accessibility() {
             </List>
           </View>
 
-          {/* Feature 2: @hozo/behaviors Primitives */}
+          {/* Feature 2: @hozo/patterns, built on @hozo/behaviors */}
           <View className="p-8 rounded-2xl timber-panel border border-wood flex flex-col justify-between">
             <View>
               <View className="w-10 h-10 rounded-xl bg-wood-subtle border border-wood-strong flex items-center justify-center text-hinoki mb-6">
@@ -98,22 +98,23 @@ export function Accessibility() {
                 </svg>
               </View>
               <Heading level={3} className="text-xl font-bold text-shikkui mb-3">
-                Accessible Behaviors (@hozo/behaviors)
+                Accessible Patterns (@hozo/patterns)
               </Heading>
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Smooth, dependable interaction mechanics across Web and Native: focus management,
-                keyboard navigation, roving tabindex, and collision-aware anchoring.
+                Stateful widgets with the WAI-ARIA keyboard contract built in, across Web and
+                Native, on the headless engines in @hozo/behaviors: focus scopes, roving tabindex,
+                typeahead, dismissal, and collision-aware anchoring.
               </Paragraph>
 
               <View className="grid grid-cols-2 gap-3 font-mono text-xs">
                 <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
-                  <View className="w-2 h-2 rounded-full bg-hinoki" /> Dialog & Modal
+                  <View className="w-2 h-2 rounded-full bg-hinoki" /> Dialog & Tooltip
                 </View>
                 <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-tatami-light" /> Combobox & Listbox
                 </View>
                 <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
-                  <View className="w-2 h-2 rounded-full bg-bengara" /> Tabs & Panels
+                  <View className="w-2 h-2 rounded-full bg-bengara" /> Tabs & RadioGroup
                 </View>
                 <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-hinoki-light" /> Menu & Toolbar

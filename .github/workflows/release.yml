@@ -1,9 +1,9 @@
-# Publishes everything: the nine `@hozo/*` packages, plus one package per
+# Publishes everything: every published `@hozo/*` package, plus one package per
 # platform carrying the native binding.
 #
 # Triggered by a tag, and only by a tag. `version.yml` keeps a "Version
-# Packages" pull request open; merging it bumps nine versions and writes
-# nine changelogs on `main` but publishes nothing. Pushing `v0.2.0` is the
+# Packages" pull request open; merging it bumps every version and writes
+# every changelog on `main` but publishes nothing. Pushing `v0.2.0` is the
 # separate, deliberate act that uploads. npm allows unpublishing for 72
 # hours and only while nothing depends on the package, so the step worth
 # making explicit is this one.
@@ -127,7 +127,7 @@ jobs:
       - run: node scripts/check-artifacts.mjs
         working-directory: packages/compiler
 
-      # The nine packages ship compiled JavaScript and declarations, and
+      # The packages ship compiled JavaScript and declarations, and
       # `dist/` is not in the repository. Publishing without this step
       # produces packages that install cleanly and import nothing.
       # Packages only: the examples' builds want the native addon, and
@@ -136,7 +136,7 @@ jobs:
 
       # Looks inside the tarballs rather than at the manifests describing
       # them: every entry point present, no tests, no addon, a README and
-      # a LICENSE in each, and all nine on one version. Runs before
+      # a LICENSE in each, and all of them on one version. Runs before
       # `prepare-publish`, which is allowed to rewrite one of them.
       - run: node scripts/check-packages.mjs
 
