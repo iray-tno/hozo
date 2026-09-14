@@ -3,9 +3,13 @@ name = "hozo_native"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
 description = "Hozo IR to React Native primitive/StyleSheet lowering (Native backend)."
+keywords = ["react-native", "stylesheet", "tailwind", "compiler", "mobile"]
+categories = ["compilers", "development-tools"]
 
 [dependencies]
-hozo_ir = { path = "../hozo_ir" }
-hozo_parser = { path = "../hozo_parser" }
+hozo_ir.workspace = true
+hozo_parser.workspace = true

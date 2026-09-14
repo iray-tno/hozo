@@ -260,6 +260,21 @@ for (const probe of treeShakingProbes) {
   }
 }
 
+// The crates release with the packages, under the same version. A tag that
+// published `@hozo/compiler@0.2.0` beside `hozo_parser 0.1.0` would be two
+// numbers for one compiler.
+try {
+  execSync(`node "${path.join(root, 'scripts', 'crate-metadata.mjs')}" --check`, {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+} catch (error) {
+  fail(
+    'compiler',
+    `crate version is out of step: ${error.stderr?.toString().trim() || error.message}`,
+  )
+}
+
 // The generated-code ABI is derived, and a derived file that nobody
 // regenerated is the same drift as a hand-edited `package.json`.
 try {

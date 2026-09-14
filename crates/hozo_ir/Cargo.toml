@@ -3,7 +3,11 @@ name = "hozo_ir"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
 description = "Platform-independent intermediate representation shared across the Hozo compiler pipeline."
+keywords = ["react-native", "compiler", "ui", "accessibility", "ir"]
+categories = ["compilers", "development-tools"]
 
 [dependencies]

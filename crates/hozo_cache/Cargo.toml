@@ -3,8 +3,12 @@ name = "hozo_cache"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
 description = "Build cache for Hozo's candidate-class scan, with a swappable backing store."
+keywords = ["react-native", "tailwind", "cache", "compiler", "build"]
+categories = ["development-tools::build-utils", "caching"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
