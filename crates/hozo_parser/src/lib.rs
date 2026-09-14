@@ -244,17 +244,75 @@ pub fn parse_tsx_with_stylex(
     registry: Option<&StylexModuleRegistry>,
     bindings: &[StylexExternalBinding],
 ) -> ParseOutput {
+    parse(source_text, sources, registry, bindings, ReactNativeCompat::Lower)
+}
+
+/// The package whose components stand in for React Native's own on the Web.
+const REACT_NATIVE_COMPAT_OWNER: &str = "@hozo/rn-compat";
+
+/// Whether a React Native compatibility component may be lowered.
+///
+/// `TouchableOpacity`, `TouchableWithoutFeedback`, `ActivityIndicator`,
+/// `Modal` and `Animated.View` have no DOM element to become. On the Web
+/// they lower to a component from `@hozo/rn-compat`, and that import lands
+/// in the application's source -- which, under strict pnpm, resolves only
+/// if the application declared the package. An application that wrote
+/// `import { Modal } from 'react-native'` and configured nothing declared
+/// no such thing, and had no reason to expect its imports rewritten.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReactNativeCompat {
+    /// Wherever it was imported from. What the Native backend wants -- on
+    /// device the component stays React Native's own and only its classes
+    /// lower -- and what a Web project that opted into rewriting asked for.
+    Lower,
+    /// Only when imported from `@hozo/rn-compat` itself, which the author
+    /// then declared. The same component from `react-native` is carried
+    /// as written, for React Native Web to resolve.
+    OnlyFromOwner,
+}
+
+/// Parses TSX for the Web backend, which decides whether React Native's
+/// compatibility components lower. See [`ReactNativeCompat`].
+pub fn parse_tsx_for_web(
+    source_text: &str,
+    sources: Option<&[String]>,
+    registry: Option<&StylexModuleRegistry>,
+    bindings: &[StylexExternalBinding],
+    compat: ReactNativeCompat,
+) -> ParseOutput {
+    parse(source_text, sources, registry, bindings, compat)
+}
+
+fn parse(
+    source_text: &str,
+    sources: Option<&[String]>,
+    registry: Option<&StylexModuleRegistry>,
+    bindings: &[StylexExternalBinding],
+    compat: ReactNativeCompat,
+) -> ParseOutput {
     let allocator = Allocator::default();
     let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
     let ret = Parser::new(&allocator, source_text, source_type).parse();
 
     let imports = import_bindings(&ret.module_record);
-    let foreign = match sources {
+    let mut foreign = match sources {
         None => std::collections::HashSet::new(),
         Some(sources) => foreign_primitives_from_imports(&imports, sources),
     };
     let primitive_aliases = primitive_aliases_from_imports(&imports, sources);
-    let animated_namespaces = animated_namespaces_from_imports(&imports, sources);
+    let mut animated_namespaces = animated_namespaces_from_imports(&imports, sources);
+    if compat == ReactNativeCompat::OnlyFromOwner {
+        // Foreign rather than a separate list of refusals: a foreign tag is
+        // already carried verbatim with the tree around it still compiled,
+        // which is exactly the treatment wanted here.
+        for entry in imports.iter().filter(|entry| entry.source != REACT_NATIVE_COMPAT_OWNER) {
+            if entry.imported == "Animated" {
+                animated_namespaces.remove(&entry.local);
+            } else if jsx::is_react_native_compat_name(&entry.imported) {
+                foreign.insert(entry.local.clone());
+            }
+        }
+    }
     let mut stylex = stylex::Frontend::collect(&ret.program, &ret.module_record);
     if let Some(registry) = registry {
         registry.attach(&mut stylex, &ret.module_record, bindings);
@@ -739,6 +797,49 @@ mod import_tests {
 
     fn trusted() -> Vec<String> {
         vec!["react-native".to_string(), "@hozo/core".to_string()]
+    }
+
+    #[test]
+    fn web_carries_react_natives_compat_components_unless_rewriting_was_asked_for() {
+        let sources = vec!["react-native".to_string(), "@hozo/rn-compat".to_string()];
+        let from_react_native = "import { TouchableOpacity, Animated, View } from 'react-native'
+export const A = () => <View><TouchableOpacity /><Animated.View /></View>
+";
+        let parse = |source, compat| parse_tsx_for_web(source, Some(&sources), None, &[], compat);
+
+        // Unconfigured: the wrapper lowers, the two compat components are
+        // carried as written for React Native Web to resolve.
+        let carried = parse(from_react_native, ReactNativeCompat::OnlyFromOwner);
+        assert_eq!(carried.roots[0].node.primitive, hozo_ir::Primitive::View);
+        assert!(carried.foreign_primitives.contains("TouchableOpacity"));
+        assert!(
+            carried.roots[0].node.children.iter().all(|child| !matches!(child, hozo_ir::Child::Node(_))),
+            "{:?}",
+            carried.roots[0].node.children
+        );
+
+        // Opted in: exactly what the Native backend has always seen.
+        let lowered = parse(from_react_native, ReactNativeCompat::Lower);
+        let primitives: Vec<_> = lowered.roots[0]
+            .node
+            .children
+            .iter()
+            .filter_map(|child| match child {
+                hozo_ir::Child::Node(node) => Some(node.primitive),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            primitives,
+            vec![hozo_ir::Primitive::TouchableOpacity, hozo_ir::Primitive::AnimatedView]
+        );
+
+        // Imported from the owner, the author declared it: lowered either way.
+        let from_owner = "import { TouchableOpacity } from '@hozo/rn-compat'
+export const B = () => <TouchableOpacity />
+";
+        let owned = parse(from_owner, ReactNativeCompat::OnlyFromOwner);
+        assert_eq!(owned.roots[0].node.primitive, hozo_ir::Primitive::TouchableOpacity);
     }
 
     #[test]

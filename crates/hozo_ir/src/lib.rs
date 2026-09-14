@@ -511,6 +511,23 @@ pub enum Primitive {
 }
 
 impl Primitive {
+    /// React Native components that have no DOM element to become, and on
+    /// the Web lower to a stand-in from `@hozo/rn-compat` instead.
+    ///
+    /// One definition, read by the parser to decide whether they may lower
+    /// at all (`hozo_parser::ReactNativeCompat`) -- the Web backend's
+    /// stand-in names are the other half of the same fact.
+    pub fn is_react_native_compat(self) -> bool {
+        matches!(
+            self,
+            Primitive::ActivityIndicator
+                | Primitive::TouchableOpacity
+                | Primitive::TouchableWithoutFeedback
+                | Primitive::Modal
+                | Primitive::AnimatedView
+        )
+    }
+
     /// Whether this primitive is one of React Native's boxes.
     ///
     /// Every one of these lowers to a React Native `View`, so every one is

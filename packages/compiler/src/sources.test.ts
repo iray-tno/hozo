@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { test } from 'node:test'
 
 import { createCompiler } from './index.ts'
@@ -11,6 +13,8 @@ const ROOT = ''
 const rn = "import { View, Text } from 'react-native'\n"
 const compiler = createCompiler()
 const card = 'export function Card() { return (<View className="p-4"><Text>Hi</Text></View>) }\n'
+/** A project that opted into rewriting React Native imports. */
+const REWRITE = { unloweredReactNativeJsx: 'warn' } as const
 
 test('a plain React Native file compiles', () => {
   // Proposal §2.1: existing source is the input, with no migration to a
@@ -52,7 +56,7 @@ test('ActivityIndicator lowers to an accessible Web spinner and stays native on 
   const source = `import { ActivityIndicator } from 'react-native'
 export function Loading() { return <ActivityIndicator size="large" color="white" /> }
 `
-  const web = lowerModule(source, 'Loading.tsx', 'Loading.tsx', compiler, ROOT)
+  const web = lowerModule(source, 'Loading.tsx', 'Loading.tsx', compiler, ROOT, undefined, REWRITE)
   assert.ok(web)
   assert.match(web.code, /<HozoActivityIndicator size="large" color="white"/)
   assert.match(
@@ -73,7 +77,7 @@ export function Save() {
   return <TouchableOpacity activeOpacity={0.4} accessibilityRole="button" onPress={save}>Save</TouchableOpacity>
 }
 `
-  const web = lowerModule(source, 'Save.tsx', 'Save.tsx', compiler, ROOT)
+  const web = lowerModule(source, 'Save.tsx', 'Save.tsx', compiler, ROOT, undefined, REWRITE)
   assert.ok(web)
   assert.match(web.code, /<HozoTouchableOpacity/)
   assert.match(web.code, /activeOpacity=\{0\.4\}/)
@@ -96,7 +100,7 @@ export function Learn() {
   return <TouchableWithoutFeedback accessibilityRole="button" onPress={open}><View>Learn</View></TouchableWithoutFeedback>
 }
 `
-  const web = lowerModule(source, 'Learn.tsx', 'Learn.tsx', compiler, ROOT)
+  const web = lowerModule(source, 'Learn.tsx', 'Learn.tsx', compiler, ROOT, undefined, REWRITE)
   assert.ok(web)
   assert.match(web.code, /<HozoTouchableWithoutFeedback/)
   assert.match(web.code, /\{\.\.\.hozoInteractive\(open\)\}/)
@@ -171,7 +175,7 @@ export function Sheet() {
   return <Modal visible={open} transparent animationType="fade" onRequestClose={close}><View>Body</View></Modal>
 }
 `
-  const web = lowerModule(source, 'Sheet.tsx', 'Sheet.tsx', compiler, ROOT)
+  const web = lowerModule(source, 'Sheet.tsx', 'Sheet.tsx', compiler, ROOT, undefined, REWRITE)
   assert.ok(web)
   assert.match(web.code, /<HozoModal[^>]*visible=\{open\} transparent animationType="fade"/)
   assert.match(web.code, /onRequestClose=\{close\}/)
@@ -188,7 +192,7 @@ test('trusted React Native Animated.View lowers through the animated style bridg
   const source = `import { Animated } from 'react-native'
 export function Reveal() { return <Animated.View style={{ opacity: value }} /> }
 `
-  const web = lowerModule(source, 'Reveal.tsx', 'Reveal.tsx', compiler, ROOT)
+  const web = lowerModule(source, 'Reveal.tsx', 'Reveal.tsx', compiler, ROOT, undefined, REWRITE)
   assert.ok(web)
   assert.match(web.code, /<HozoAnimatedView[^>]*style=\{\{ opacity: value \}\}/)
   assert.match(
@@ -306,4 +310,55 @@ test('Native module analysis returns bindings from the component parser pass', (
     ),
   )
   assert.deepEqual(result.foreignPrimitives, ['Text'])
+})
+
+test('an unconfigured project keeps React Native compatibility components as written', () => {
+  const source = `import { TouchableOpacity, View } from 'react-native'
+export function Save() { return <View><TouchableOpacity onPress={save}>Save</TouchableOpacity></View> }
+`
+  const web = lowerModule(source, 'Save.tsx', 'Save.tsx', compiler, ROOT)
+  assert.ok(web)
+  // The View around it still lowers; the component itself is carried for
+  // React Native Web, and nothing names a package the app did not declare.
+  assert.match(web.code, /<div/)
+  assert.match(web.code, /<TouchableOpacity onPress=\{save\}>Save<\/TouchableOpacity>/)
+  assert.doesNotMatch(web.code, /@hozo\/rn-compat/)
+
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.match(native.jsx, /<TouchableOpacity/)
+})
+
+test('a compatibility component imported from @hozo/rn-compat lowers without configuration', () => {
+  const source = `import { TouchableOpacity } from '@hozo/rn-compat'
+export function Save() { return <TouchableOpacity onPress={save}>Save</TouchableOpacity> }
+`
+  const web = lowerModule(source, 'Save.tsx', 'Save.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(
+    web.code,
+    /import \{ HozoTouchableOpacity \} from '@hozo\/rn-compat\/generated\/touchable-opacity'/,
+  )
+})
+
+test('rewriting warns when the module cannot resolve @hozo/rn-compat', () => {
+  const source = `import { Modal } from 'react-native'
+export function Sheet() { return <Modal visible={open} /> }
+`
+  const nowhere = path.join(tmpdir(), 'hozo-without-rn-compat', 'Sheet.tsx')
+  const missing = lowerModule(source, nowhere, nowhere, compiler, ROOT, undefined, REWRITE)
+  assert.ok(missing)
+  assert.deepEqual(
+    missing.diagnostics.map((diagnostic) => diagnostic.code),
+    ['RN_COMPAT_NOT_INSTALLED'],
+  )
+
+  // `@hozo/core` declares it, so a module there resolves it and hears nothing.
+  const declared = path.resolve(process.cwd(), '..', 'core', 'src', 'Sheet.tsx')
+  const found = lowerModule(source, declared, declared, compiler, ROOT, undefined, REWRITE)
+  assert.ok(found)
+  assert.deepEqual(
+    found.diagnostics.map((diagnostic) => diagnostic.code),
+    [],
+  )
 })

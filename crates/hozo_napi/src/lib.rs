@@ -307,7 +307,15 @@ fn parser_diagnostics_for(
 /// output. Returns one `CompiledComponent` per root found, in source order.
 #[napi]
 pub fn compile(source: String) -> Vec<CompiledComponent> {
-    lower_web(&source, &hozo_ir::Theme::default(), None, None)
+    // Trusts every module, and every compatibility component with it: this
+    // entry point is for tests and one-off inspection, not a project build.
+    lower_web(
+        &source,
+        &hozo_ir::Theme::default(),
+        None,
+        None,
+        hozo_parser::ReactNativeCompat::Lower,
+    )
 }
 
 fn lower_web(
@@ -315,13 +323,15 @@ fn lower_web(
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
     stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
+    compat: hozo_parser::ReactNativeCompat,
 ) -> Vec<CompiledComponent> {
-    let parsed = match stylex {
-        Some((registry, bindings)) => {
-            hozo_parser::parse_tsx_with_stylex(source, sources, Some(registry), bindings)
-        }
-        None => hozo_parser::parse_tsx_with(source, sources),
-    };
+    let parsed = hozo_parser::parse_tsx_for_web(
+        source,
+        sources,
+        stylex.map(|(registry, _)| registry),
+        stylex.map_or(&[][..], |(_, bindings)| bindings),
+        compat,
+    );
     let offsets = Utf16Offsets::new(source);
     parsed
         .roots
@@ -391,18 +401,29 @@ impl Compiler {
         Compiler { theme: to_theme(theme), sources, stylex: Default::default() }
     }
 
+    /// `rehome_react_native` is the project's `unloweredReactNativeJsx`
+    /// policy, reduced to the one thing the parse needs from it: whether
+    /// React Native's compatibility components may become `@hozo/rn-compat`
+    /// imports. Absent means no, which is what an unconfigured project gets.
     #[napi]
     pub fn compile(
         &self,
         source: String,
         bindings: Option<Vec<StylexExternalBinding>>,
+        rehome_react_native: Option<bool>,
     ) -> Vec<CompiledComponent> {
         let bindings = external_bindings(bindings);
+        let compat = if rehome_react_native.unwrap_or(false) {
+            hozo_parser::ReactNativeCompat::Lower
+        } else {
+            hozo_parser::ReactNativeCompat::OnlyFromOwner
+        };
         lower_web(
             &source,
             &self.theme,
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
+            compat,
         )
     }
 

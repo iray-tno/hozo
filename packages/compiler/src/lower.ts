@@ -12,6 +12,7 @@
 // Splitting it here rather than having Next import the Vite plugin keeps
 // the dependency honest: a Next.js project has no Vite in it.
 
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { lowerCanvasPaints } from './canvas.ts'
 import { GENERATED_ABI } from './generated-abi.ts'
@@ -518,6 +519,63 @@ export function lowerModule(
   stylexModules?: StylexModuleCache,
   options: LowerModuleOptions = {},
 ): LoweredModule | undefined {
+  const lowered = lowerModuleUnchecked(code, id, file, compiler, root, stylexModules, options)
+  const policy = options.unloweredReactNativeJsx
+  if (lowered && (policy === 'warn' || policy === 'error')) {
+    const missing = missingReactNativeCompat(lowered.code, root, file)
+    if (missing) lowered.diagnostics.push(missing)
+  }
+  return lowered
+}
+
+/** Directories `@hozo/rn-compat` is known to resolve from. */
+const reactNativeCompatFound = new Set<string>()
+
+/**
+ * A warning when rewriting put `@hozo/rn-compat` into a module that cannot
+ * resolve it.
+ *
+ * Rewriting is the project's choice; declaring the package it rewrites to
+ * is the part that is easy to miss, because the source never names it. A
+ * warning rather than an error: the bundler's own resolution failure is
+ * already fatal, and what it cannot say is why the import is there. Only
+ * a positive answer is cached, so installing the package mid-session
+ * clears the warning on the next build.
+ */
+function missingReactNativeCompat(
+  code: string,
+  root: string,
+  file: string,
+): CompileDiagnostic | undefined {
+  if (!code.includes('@hozo/rn-compat')) return undefined
+  const directory = path.dirname(path.resolve(root, file))
+  if (reactNativeCompatFound.has(directory)) return undefined
+  try {
+    createRequire(path.join(directory, 'hozo-resolve.js')).resolve('@hozo/rn-compat/package.json')
+    reactNativeCompatFound.add(directory)
+    return undefined
+  } catch {
+    return {
+      code: 'RN_COMPAT_NOT_INSTALLED',
+      severity: 'warning',
+      message:
+        `unloweredReactNativeJsx rewrote React Native imports to '@hozo/rn-compat', which ` +
+        `${file} cannot resolve. Add @hozo/rn-compat to the application's dependencies.`,
+      spanStart: 0,
+      spanEnd: 0,
+    }
+  }
+}
+
+function lowerModuleUnchecked(
+  code: string,
+  id: string,
+  file: string,
+  compiler: Compiler,
+  root: string,
+  stylexModules: StylexModuleCache | undefined,
+  options: LowerModuleOptions,
+): LoweredModule | undefined {
   // `.mdx` alongside `.tsx` because by the time this runs the MDX
   // transform has already turned the file into JSX; the extension is all
   // that still says where it came from. See `TRANSFORMABLE`.
@@ -565,7 +623,9 @@ export function lowerModule(
   const stylexBindings = canvas.code.includes('@stylexjs/stylex')
     ? stylexModules?.bindingsFor(path.resolve(file))
     : undefined
-  const components = hasSemanticCandidate ? compiler.compile(canvas.code, stylexBindings) : []
+  const components = hasSemanticCandidate
+    ? compiler.compile(canvas.code, stylexBindings, { rehomeReactNative: shouldRehome })
+    : []
   if (components.length === 0 && !canvas.touched) {
     const componentLowered = shouldRehome
       ? rehomeReactNativeComponentImports(canvas.code)
