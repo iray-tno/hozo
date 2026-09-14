@@ -1,2 +1,3 @@
-import { HozoPressable } from '@hozo/runtime'
-export const P = HozoPressable
+import { HozoText } from '@hozo/primitives/runtime'
+
+export const P = HozoText

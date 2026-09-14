@@ -114,8 +114,18 @@ done
 
 # Alive, and said so by the process list rather than by the absence of a
 # crash line. `launchctl list` inside the simulator names running apps
-# `UIKitApplication:<bundle id>`.
-if ! xcrun simctl spawn "$udid" launchctl list 2>/dev/null | grep -q "UIKitApplication:${bundle_id}"; then
+# `UIKitApplication:<bundle id>`. Registration can lag behind React Native's
+# first native log line on a freshly migrated simulator, so poll the fact we
+# need instead of sampling it once and calling a live app dead.
+alive=false
+for _ in $(seq 1 30); do
+  if xcrun simctl spawn "$udid" launchctl list 2>/dev/null | grep -q "UIKitApplication:${bundle_id}"; then
+    alive=true
+    break
+  fi
+  sleep 1
+done
+if ! "$alive"; then
   fail "${bundle_id} is not running: it launched and then died"
 fi
 

@@ -19,6 +19,8 @@
     "@hozo/primitives": "workspace:*",
     "@hozo/rn-compat": "workspace:*",
     "@hozo/runtime": "workspace:*",
+    "@hozo/semantics": "workspace:*",
+    "@hozo/typography": "workspace:*",
     "@shopify/react-native-skia": "^2.11.1",
     "react": "^19.2.0",
     "react-native": "^0.87.0",

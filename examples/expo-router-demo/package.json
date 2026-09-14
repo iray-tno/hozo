@@ -17,6 +17,7 @@
     "@expo/metro-runtime": "^57.0.15",
     "@hozo/core": "workspace:*",
     "@hozo/navigation": "workspace:*",
+    "@hozo/primitives": "workspace:*",
     "@hozo/runtime": "workspace:*",
     "@hozo/typography": "workspace:*",
     "expo": "^57.0.20",
