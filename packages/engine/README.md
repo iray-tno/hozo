@@ -1,4 +1,4 @@
-# @hozo/runtime
+# @hozo/engine
 
 The small amount that genuinely has to happen at runtime.
 
@@ -46,7 +46,7 @@ import { BlurView } from 'expo-blur'
 import {
   configureHozoBackdropFilter,
   createExpoBlurAdapter,
-} from '@hozo/runtime'
+} from '@hozo/engine'
 
 configureHozoBackdropFilter(
   createExpoBlurAdapter(BlurView, {

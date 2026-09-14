@@ -4,7 +4,7 @@ import {
   hozoInteractive,
   type ResponderProps,
   useResponderDomProps,
-} from '@hozo/runtime'
+} from '@hozo/engine'
 import {
   createElement,
   forwardRef,

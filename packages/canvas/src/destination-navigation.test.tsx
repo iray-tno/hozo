@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import test from 'node:test'
-import { HozoNavigationProvider, type HozoNavigationRequest } from '@hozo/runtime/navigation'
+import { HozoNavigationProvider, type HozoNavigationRequest } from '@hozo/engine/navigation'
 
 import { Canvas, type CanvasPressEvent } from './index.tsx'
 

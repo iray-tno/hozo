@@ -1,5 +1,5 @@
 import { hozoTextChildren } from '@hozo/behaviors'
-import { HozoTextSizeContext } from '@hozo/runtime'
+import { HozoTextSizeContext } from '@hozo/engine'
 import React, { type ComponentType, type ReactNode } from 'react'
 import {
   type AccessibilityRole,
@@ -20,7 +20,7 @@ export type {
   HozoTouchHistory,
   HozoTouchTrack,
   ResponderProps,
-} from '@hozo/runtime'
+} from '@hozo/engine'
 export type {
   ImageProps,
   TextInputProps,

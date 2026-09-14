@@ -26,7 +26,7 @@
 // does not recognise the extension at all. The native halves here are
 // `.tsx` and are never imported by a test that runs this way.
 
-import { externalLinkAttributes } from '@hozo/runtime'
+import { externalLinkAttributes } from '@hozo/engine'
 import type { AnchorHTMLAttributes, CSSProperties, MouseEventHandler, ReactNode, Ref } from 'react'
 import { createElement } from 'react'
 

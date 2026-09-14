@@ -1,4 +1,4 @@
-import { type ResponderProps, useResponderDomProps } from '@hozo/runtime'
+import { type ResponderProps, useResponderDomProps } from '@hozo/engine'
 import {
   Children,
   cloneElement,

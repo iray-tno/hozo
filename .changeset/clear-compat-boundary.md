@@ -1,7 +1,7 @@
 ---
 '@hozo/rn-compat': minor
 '@hozo/compiler': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 '@hozo/core': minor
 '@hozo/metro': patch
 '@hozo/vite': patch

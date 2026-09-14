@@ -73,7 +73,7 @@
   },
   "dependencies": {
     "@hozo/primitives": "workspace:^",
-    "@hozo/runtime": "workspace:^"
+    "@hozo/engine": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",

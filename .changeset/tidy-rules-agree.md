@@ -1,6 +1,6 @@
 ---
 '@hozo/metro': patch
-'@hozo/runtime': patch
+'@hozo/engine': patch
 '@hozo/semantics': patch
 '@hozo/typography': patch
 ---

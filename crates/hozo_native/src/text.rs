@@ -9,7 +9,7 @@ use super::*;
 /// `const CGFloat defaultFontSize = 14`.
 ///
 /// What a relative size scales against when nothing named one, which is
-/// most text. Mirrored by `HOZO_DEFAULT_FONT_SIZE` in `@hozo/runtime`,
+/// most text. Mirrored by `HOZO_DEFAULT_FONT_SIZE` in `@hozo/engine`,
 /// where the runtime half falls back to the same number.
 ///
 /// Two shapes it gets wrong, both of which were wrong before it existed

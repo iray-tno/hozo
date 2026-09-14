@@ -28,7 +28,7 @@ import { transformHozoSource } from '@hozo/metro'
 const require = createRequire(import.meta.url)
 
 // Redirects every `react-native` import in the graph -- the generated
-// module's, and `@hozo/runtime`'s and `@hozo/behaviors`'s own -- to the stub.
+// module's, and `@hozo/engine`'s and `@hozo/behaviors`'s own -- to the stub.
 // A `require` shim isn't enough: those packages are ESM and Node's loader
 // resolves their imports before any of this runs.
 // `act` warns without it, and the warning is noise rather than signal
@@ -61,12 +61,12 @@ registerHooks({
     // output. Those components are what a project gets for a file the
     // compiler could not lower, and nothing had ever run them.
     // This has to be a resolve hook rather than a `require` shim, because
-    // these packages import each other -- `@hozo/runtime` re-exports
+    // these packages import each other -- `@hozo/engine` re-exports
     // `HozoDialog` from `@hozo/behaviors` -- and those imports are resolved by
     // Node's loader, out of reach of anything the generated module is
     // handed. Without it the Web dialog loads and renders a `<dialog>`.
     if (
-      specifier === '@hozo/runtime' ||
+      specifier === '@hozo/engine' ||
       specifier === '@hozo/behaviors' ||
       specifier === '@hozo/core' ||
       specifier === '@hozo/patterns' ||
@@ -84,8 +84,8 @@ registerHooks({
       if (entry === undefined) throw new Error(`no native entry for ${specifier}`)
       return { url: pathToFileURL(entry).href, shortCircuit: true }
     }
-    if (specifier === '@hozo/runtime/project') {
-      const root = path.dirname(require.resolve('@hozo/runtime/package.json'))
+    if (specifier === '@hozo/engine/project') {
+      const root = path.dirname(require.resolve('@hozo/engine/package.json'))
       return {
         url: pathToFileURL(path.join(root, 'src', 'project.native.ts')).href,
         shortCircuit: true,
@@ -163,7 +163,7 @@ export interface NativeLayoutBox {
  *
  * Uses `transformHozoSource` rather than assembling the module here, so
  * what runs is what ships -- including the `StyleSheet.create` wrapper and
- * the `@hozo/runtime` imports, which are where a mistake would otherwise
+ * the `@hozo/engine` imports, which are where a mistake would otherwise
  * hide behind a hand-written approximation.
  */
 export function renderNative(

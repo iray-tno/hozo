@@ -6,7 +6,7 @@
 '@hozo/metro': minor
 '@hozo/vite': minor
 '@hozo/next': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 ---
 
 Add the patterns package for accessible composite components. Core now re-exports one canonical

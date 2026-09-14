@@ -1,5 +1,5 @@
 {
-  "name": "@hozo/runtime",
+  "name": "@hozo/engine",
   "version": "0.1.0",
   "description": "Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.",
   "keywords": [
@@ -12,9 +12,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iray-tno/hozo.git",
-    "directory": "packages/runtime"
+    "directory": "packages/engine"
   },
-  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/runtime#readme",
+  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/engine#readme",
   "bugs": {
     "url": "https://github.com/iray-tno/hozo/issues"
   },

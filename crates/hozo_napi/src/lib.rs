@@ -149,7 +149,7 @@ pub struct CompiledComponent {
     /// `Utf16Offsets` for what happens when they are not.
     pub jsx: String,
     pub css: String,
-    /// Named imports `jsx` needs from `@hozo/runtime`, which the caller
+    /// Named imports `jsx` needs from `@hozo/engine`, which the caller
     /// splices at the top of the module. Same contract as the Native
     /// backend's field of this name.
     pub runtime_imports: Vec<String>,
@@ -646,7 +646,7 @@ pub struct CompiledNativeComponent {
     /// Statements to splice at `hook_slot` for `jsx` to work. Empty unless
     /// a condition needed a React hook.
     pub prelude: Vec<String>,
-    /// Named imports `prelude` needs from `@hozo/runtime`.
+    /// Named imports `prelude` needs from `@hozo/engine`.
     pub runtime_imports: Vec<String>,
     pub native_imports: Vec<String>,
     /// Byte offset just inside the enclosing function's `{`, the only safe

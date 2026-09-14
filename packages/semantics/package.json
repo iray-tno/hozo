@@ -61,7 +61,7 @@
   },
   "dependencies": {
     "@hozo/behaviors": "workspace:^",
-    "@hozo/runtime": "workspace:^"
+    "@hozo/engine": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",

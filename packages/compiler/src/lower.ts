@@ -297,7 +297,7 @@ const HANDLER_PROP = /\son[A-Z]\w*=\{/
  * Three things make an answer of `true`, each read from what was actually
  * emitted:
  *
- *   - a `@hozo/runtime` import. `hozoInteractive`, `hozoScrollable` and
+ *   - a `@hozo/engine` import. `hozoInteractive`, `hozoScrollable` and
  *     `Dialog` are script by definition.
  *   - an event handler on a lowered element. `<Button onPress>` becomes
  *     `<button onClick={...}>`, and React refuses to pass a function from

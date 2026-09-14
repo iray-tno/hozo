@@ -10,7 +10,7 @@ use super::*;
 ///
 /// These are why `dark:` and `md:` work on Native without the reactive
 /// engine Hozo doesn't ship: the value isn't per-element, so
-/// `@hozo/runtime` keeps one subscription for the whole app and the hook
+/// `@hozo/engine` keeps one subscription for the whole app and the hook
 /// only exists to re-render *this* component when it changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RuntimeHook {
@@ -108,7 +108,7 @@ impl RuntimeHook {
     }
 }
 
-/// Tailwind's own names, which `@hozo/runtime`'s breakpoint table also
+/// Tailwind's own names, which `@hozo/engine`'s breakpoint table also
 /// uses. Distinct from `condition_suffix`, which needs an identifier-safe
 /// form (`xl2`) for the generated style key.
 fn breakpoint_name(bp: &Breakpoint) -> &'static str {

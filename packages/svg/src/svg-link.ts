@@ -1,4 +1,4 @@
-import { externalLinkAttributes } from '@hozo/runtime'
+import { externalLinkAttributes } from '@hozo/engine'
 import type { MouseEventHandler, ReactNode, SVGProps } from 'react'
 import { createElement } from 'react'
 

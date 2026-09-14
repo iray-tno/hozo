@@ -1,4 +1,4 @@
-import { blendColor } from '@hozo/runtime'
+import { blendColor } from '@hozo/engine'
 import {
   createContext,
   type ElementType,

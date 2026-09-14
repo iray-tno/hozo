@@ -8,7 +8,7 @@ import {
   hozoDomStyle,
   type ResponderProps,
   useResponderDomProps,
-} from '@hozo/runtime'
+} from '@hozo/engine'
 import {
   type AriaRole,
   type CSSProperties,
@@ -28,7 +28,7 @@ export type {
   HozoTouchHistory,
   HozoTouchTrack,
   ResponderProps,
-} from '@hozo/runtime'
+} from '@hozo/engine'
 
 export interface HozoLayoutRectangle {
   x: number

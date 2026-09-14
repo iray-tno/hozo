@@ -700,7 +700,7 @@ Dialog は、
     JS entry point over Rust compiler
     TSX analysis, Hozo IR, Web/Native lowering, diagnostics
 
-@hozo/runtime
+@hozo/engine
     dynamic styles, media query subscriptions
     interaction state, ambient animations, transitions
 

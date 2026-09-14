@@ -101,11 +101,11 @@ export function renderWeb(
     }
     const { createElement } = require('react') as { createElement: (c: unknown) => unknown }
 
-    // Everything `@hozo/runtime` exports, because the compiler decides
+    // Everything `@hozo/engine` exports, because the compiler decides
     // which of them the generated JSX calls and this has no business
     // keeping a second list. A caller's own scope still wins, since that
     // is where the module-level identifiers come from.
-    const runtime = require('@hozo/runtime') as Record<string, unknown>
+    const runtime = require('@hozo/engine') as Record<string, unknown>
     const full = { ...runtime, ...scope }
     const globals = globalThis as Record<string, unknown>
     const restore = Object.keys(full).map((key) => [key, globals[key]] as const)

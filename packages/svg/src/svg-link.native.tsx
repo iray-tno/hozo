@@ -2,7 +2,7 @@ import {
   activateHozoNavigation,
   prefetchHozoNavigation,
   useHozoNavigation,
-} from '@hozo/runtime/navigation'
+} from '@hozo/engine/navigation'
 import { type ComponentProps, type ReactNode, useRef } from 'react'
 import { type GestureResponderEvent, Linking } from 'react-native'
 import { G } from 'react-native-svg'

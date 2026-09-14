@@ -3,7 +3,7 @@ import type {
   HozoTouchHistory,
   HozoTouchTrack,
   ResponderProps,
-} from '@hozo/runtime'
+} from '@hozo/engine'
 
 export interface PanResponderGestureState {
   stateID: number

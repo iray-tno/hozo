@@ -65,11 +65,11 @@ const PREAMBLE = `import type { JSXElementConstructor } from 'react'
 
 // The augmentation that puts \`className\` on React Native's own prop
 // interfaces, loaded the way an app loads it -- by importing
-// \`@hozo/runtime\`'s native entry, which every native entry here does. By
+// \`@hozo/engine\`'s native entry, which every native entry here does. By
 // path rather than by package name because the export condition that
 // chooses that entry is the other half of what this file is guarding, and
 // a check should not depend on the thing it checks.
-import '../../runtime/src/class-name.native.ts'
+import '../../engine/src/class-name.native.ts'
 
 type PropsOf<T> = T extends JSXElementConstructor<infer P> ? P : never
 type HasClassName<T> = 'className' extends keyof T ? true : false

@@ -1,6 +1,6 @@
 ---
 '@hozo/compiler': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 '@hozo/core': patch
 ---
 

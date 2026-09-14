@@ -1,7 +1,7 @@
-// The React Native entry point for `@hozo/runtime`.
+// The React Native entry point for `@hozo/engine`.
 //
 // Metro resolves a platform extension ahead of the plain file, so an app
-// importing `@hozo/runtime` gets this on device and `./index.ts` on Web.
+// importing `@hozo/engine` gets this on device and `./index.ts` on Web.
 // That split is what lets the parts needing `react`/`react-native` be
 // exported at all: `./index.ts` is imported by the Web build too, where
 // those modules don't exist.

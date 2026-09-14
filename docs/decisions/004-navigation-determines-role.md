@@ -93,7 +93,7 @@ The compiled and fallback paths must agree:
 - `packages/core/src/primitives.native.tsx`: the Native fallback does not override it.
 - `packages/tailwind-conformance/src/link-role.test.ts`: verifies the rendered Native role.
 
-`packages/runtime/src/activate.ts` remains the correct implementation for a
+`packages/engine/src/activate.ts` remains the correct implementation for a
 different case: a `Pressable` lowered to `div role="button"`, where Hozo has
 synthesized a button and therefore must synthesize its Enter and Space
 behaviour too.

@@ -16,7 +16,7 @@
  * These are the numbers a project shipping Tailwind's preflight renders,
  * which is what `preflight: 'auto'` gives anything using Tailwind. The
  * bare user agent is a second set below. `@hozo/metro` carries the resolved
- * choice through `@hozo/runtime/project`, so the compiler and fallback
+ * choice through `@hozo/engine/project`, so the compiler and fallback
  * components select the same table (#336).
  *
  * `small` was 0.85 here and in the compiler, and 0.85 is neither number.

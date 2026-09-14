@@ -283,6 +283,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@hozo/patterns':
         specifier: workspace:*
         version: link:../../packages/patterns
@@ -292,9 +295,6 @@ importers:
       '@hozo/rn-compat':
         specifier: workspace:*
         version: link:../../packages/rn-compat
-      '@hozo/runtime':
-        specifier: workspace:*
-        version: link:../../packages/runtime
       '@hozo/semantics':
         specifier: workspace:*
         version: link:../../packages/semantics
@@ -397,9 +397,9 @@ importers:
 
   packages/canvas:
     dependencies:
-      '@hozo/runtime':
+      '@hozo/engine':
         specifier: workspace:^
-        version: link:../runtime
+        version: link:../engine
     devDependencies:
       '@shopify/react-native-skia':
         specifier: ^2.11.1
@@ -441,15 +441,15 @@ importers:
 
   packages/core:
     dependencies:
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../engine
       '@hozo/patterns':
         specifier: workspace:^
         version: link:../patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives
-      '@hozo/runtime':
-        specifier: workspace:^
-        version: link:../runtime
       '@hozo/semantics':
         specifier: workspace:^
         version: link:../semantics
@@ -479,20 +479,51 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
 
+  packages/engine:
+    dependencies:
+      react-native-safe-area-context:
+        specifier: '>=4'
+        version: 5.9.1(react-native@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.5(@types/react@19.2.18)
+      axe-core:
+        specifier: 4.13.0
+        version: 4.13.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      react-native:
+        specifier: ^0.87.0
+        version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
+      react-test-renderer:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+
   packages/metro:
     dependencies:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../engine
       '@hozo/patterns':
         specifier: workspace:^
         version: link:../patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives
-      '@hozo/runtime':
-        specifier: workspace:^
-        version: link:../runtime
       '@hozo/svg':
         specifier: workspace:^
         version: link:../svg
@@ -515,9 +546,9 @@ importers:
 
   packages/navigation:
     dependencies:
-      '@hozo/runtime':
+      '@hozo/engine':
         specifier: workspace:^
-        version: link:../runtime
+        version: link:../engine
     devDependencies:
       '@hozo/core':
         specifier: workspace:^
@@ -540,6 +571,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../engine
       '@hozo/patterns':
         specifier: workspace:^
         version: link:../patterns
@@ -549,9 +583,6 @@ importers:
       '@hozo/rn-compat':
         specifier: workspace:^
         version: link:../rn-compat
-      '@hozo/runtime':
-        specifier: workspace:^
-        version: link:../runtime
       '@hozo/tailwind':
         specifier: workspace:^
         version: link:../tailwind
@@ -590,9 +621,9 @@ importers:
       '@hozo/behaviors':
         specifier: workspace:^
         version: link:../behaviors
-      '@hozo/runtime':
+      '@hozo/engine':
         specifier: workspace:^
-        version: link:../runtime
+        version: link:../engine
     devDependencies:
       '@types/react':
         specifier: ^19.2.18
@@ -618,12 +649,12 @@ importers:
 
   packages/rn-compat:
     dependencies:
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../engine
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives
-      '@hozo/runtime':
-        specifier: workspace:^
-        version: link:../runtime
     devDependencies:
       '@types/react':
         specifier: ^19.2.18
@@ -631,37 +662,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.5(@types/react@19.2.18)
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      react-native:
-        specifier: ^0.87.0
-        version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
-      react-test-renderer:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-
-  packages/runtime:
-    dependencies:
-      react-native-safe-area-context:
-        specifier: '>=4'
-        version: 5.9.1(react-native@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8)
-    devDependencies:
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.5(@types/react@19.2.18)
-      axe-core:
-        specifier: 4.13.0
-        version: 4.13.0
-      esbuild:
-        specifier: 0.28.2
-        version: 0.28.2
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -680,9 +680,9 @@ importers:
       '@hozo/behaviors':
         specifier: workspace:^
         version: link:../behaviors
-      '@hozo/runtime':
+      '@hozo/engine':
         specifier: workspace:^
-        version: link:../runtime
+        version: link:../engine
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -718,9 +718,9 @@ importers:
 
   packages/svg:
     dependencies:
-      '@hozo/runtime':
+      '@hozo/engine':
         specifier: workspace:^
-        version: link:../runtime
+        version: link:../engine
     devDependencies:
       '@types/react':
         specifier: ^19.2.18
@@ -768,6 +768,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:*
         version: link:../compiler
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../engine
       '@hozo/metro':
         specifier: workspace:^
         version: link:../metro
@@ -780,9 +783,6 @@ importers:
       '@hozo/rn-compat':
         specifier: workspace:^
         version: link:../rn-compat
-      '@hozo/runtime':
-        specifier: workspace:^
-        version: link:../runtime
       '@hozo/svg':
         specifier: workspace:^
         version: link:../svg
@@ -847,12 +847,12 @@ importers:
 
   packages/typography:
     dependencies:
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../engine
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../primitives
-      '@hozo/runtime':
-        specifier: workspace:^
-        version: link:../runtime
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -875,6 +875,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../engine
       '@hozo/patterns':
         specifier: workspace:^
         version: link:../patterns
@@ -884,9 +887,6 @@ importers:
       '@hozo/rn-compat':
         specifier: workspace:^
         version: link:../rn-compat
-      '@hozo/runtime':
-        specifier: workspace:^
-        version: link:../runtime
       '@hozo/tailwind':
         specifier: workspace:^
         version: link:../tailwind

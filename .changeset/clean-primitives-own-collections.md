@@ -5,7 +5,7 @@
 '@hozo/metro': minor
 '@hozo/vite': minor
 '@hozo/next': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 ---
 
 Add the canonical primitives package and move ScrollView, FlatList, RefreshControl, and private

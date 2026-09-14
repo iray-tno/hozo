@@ -1,6 +1,6 @@
 ---
 '@hozo/core': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 ---
 
 Add universal `Svg.Link` destinations that compile to semantic SVG anchors on

@@ -1,5 +1,5 @@
+import type { HozoDomStyle } from '@hozo/engine'
 import { HozoView, type HozoViewProps } from '@hozo/primitives/generated/view'
-import type { HozoDomStyle } from '@hozo/runtime'
 import { createElement, forwardRef, type Ref, useEffect, useReducer } from 'react'
 import { resolveAnimatedStyle, subscribeAnimatedStyle } from './animated-node.ts'
 

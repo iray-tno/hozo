@@ -14,7 +14,7 @@ use hozo_ir::{Diagnostic, Node, Primitive, Theme};
 pub struct LowerOutput {
     pub jsx: String,
     pub css: String,
-    /// Named imports `jsx` needs from `@hozo/runtime`.
+    /// Named imports `jsx` needs from `@hozo/engine`.
     ///
     /// The Web backend's first, and it exists for one reason: a
     /// `<div role="button">` that Hozo put in the tab order has to be
@@ -24,7 +24,7 @@ pub struct LowerOutput {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-/// What a synthesized interactive element imports from `@hozo/runtime`.
+/// What a synthesized interactive element imports from `@hozo/engine`.
 ///
 /// Two module-level functions rather than one inline arrow per element:
 /// they close over nothing (`event.currentTarget.click()` is how they reach
@@ -1280,7 +1280,7 @@ fn render_node(
     // and uncompiled halves of one component disagreed about a security
     // property, silently, with no diagnostic (#290).
     //
-    // `externalLinkAttributes` in `@hozo/runtime` is the other
+    // `externalLinkAttributes` in `@hozo/engine` is the other
     // implementation of this; `external-link.test.ts` in the conformance
     // suite compares them, because a three-line rule in two languages
     // is a rule that will be changed in one of them.
@@ -1374,7 +1374,7 @@ fn render_node(
         // `target` and `rel` above. The authored `target` goes with it
         // when it did, because `external` means `_blank` and passthrough
         // props are emitted last -- left in place it would win, and
-        // `@hozo/runtime`'s half resolves the contradiction the other way.
+        // `@hozo/engine`'s half resolves the contradiction the other way.
         if tag == "a" {
             let name = prop.name.as_deref();
             if name == Some("external") || (external_target_consumed && name == Some("target")) {

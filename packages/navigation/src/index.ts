@@ -1,4 +1,4 @@
-export type { HozoNavigationAdapter, HozoNavigationRequest } from '@hozo/runtime/navigation'
+export type { HozoNavigationAdapter, HozoNavigationRequest } from '@hozo/engine/navigation'
 export {
   createNavigationAdapter,
   isLocalHref,

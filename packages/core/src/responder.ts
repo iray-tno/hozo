@@ -1,5 +1,5 @@
 // The responder state machine is shared by compiled React Native source and
-// @hozo/primitives' fallback View. Keep one implementation in @hozo/runtime.
+// @hozo/primitives' fallback View. Keep one implementation in @hozo/engine.
 export {
   type HozoResponderEvent,
   type HozoResponderTouch,
@@ -7,4 +7,4 @@ export {
   type HozoTouchTrack,
   type ResponderProps,
   useResponderDomProps,
-} from '@hozo/runtime'
+} from '@hozo/engine'

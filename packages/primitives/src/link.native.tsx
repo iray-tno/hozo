@@ -3,7 +3,7 @@ import {
   activateHozoNavigation,
   prefetchHozoNavigation,
   useHozoNavigation,
-} from '@hozo/runtime/navigation'
+} from '@hozo/engine/navigation'
 import { type ReactNode, useRef } from 'react'
 import { Linking, Pressable, type PressableProps } from 'react-native'
 

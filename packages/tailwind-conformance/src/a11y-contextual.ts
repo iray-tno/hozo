@@ -104,7 +104,7 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // state all come from one call. They are five things that have to
     // agree, and spelling them out separately is how they stopped:
     // `aria-disabled` went out while the handler still ran. See
-    // docs/decisions/001 and `@hozo/runtime`'s `interactive.ts`.
+    // docs/decisions/001 and `@hozo/engine`'s `interactive.ts`.
     web: ['<div', 'role="link"', 'aria-label={"Account"}', '{...hozoInteractive(go)}'],
     // `role`, not `accessibilityRole`: React Native has taken the ARIA
     // spelling since 0.71, so the two platforms now write the same word.
@@ -227,7 +227,7 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // windowed list has a length its accessibility tree does not, and the
     // prop that tells Android otherwise -- `accessibilityCollection` -- is
     // not something a list can set for itself from inside `renderItem`. So
-    // both sides go through `@hozo/runtime` now, and the role Native adds
+    // both sides go through `@hozo/engine` now, and the role Native adds
     // is still added.
     source:
       '<FlatList accessibilityLabel="Rows" data={rows} ' +

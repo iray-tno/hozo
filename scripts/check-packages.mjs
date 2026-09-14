@@ -85,7 +85,7 @@ for (const name of PACKAGE_NAMES) {
   // Tree shaking is part of the package contract. Native ambient hooks are
   // the sole exception: importing that module installs the shared platform
   // subscriptions even when no binding from it survives locally.
-  const expectedSideEffects = name === 'runtime' ? ['./dist/hooks.native.js'] : false
+  const expectedSideEffects = name === 'engine' ? ['./dist/hooks.native.js'] : false
   if (JSON.stringify(json.sideEffects) !== JSON.stringify(expectedSideEffects)) {
     fail(
       name,
