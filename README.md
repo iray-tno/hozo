@@ -45,7 +45,7 @@ palette gets wrong numbers and unresolved variables, not an error.
 
 ```sh
 npm install --save-dev @hozo/vite @hozo/compiler
-npm install @hozo/core @hozo/runtime
+npm install @hozo/core
 ```
 
 ```ts
@@ -68,7 +68,7 @@ Works with both bundlers — Turbopack (the default from Next 16) and
 
 ```sh
 npm install --save-dev @hozo/next @hozo/compiler
-npm install @hozo/core @hozo/runtime
+npm install @hozo/core
 ```
 
 ```ts
@@ -82,7 +82,7 @@ export default withHozo({ /* your Next config */ }, { css: 'src/theme.css' })
 
 ```sh
 npm install --save-dev @hozo/metro @hozo/compiler
-npm install @hozo/core @hozo/runtime
+npm install @hozo/core
 ```
 
 ```js

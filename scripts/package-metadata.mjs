@@ -20,6 +20,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { facadedOwners, generatedLeaves } from './generated-abi.mjs'
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /**
@@ -72,7 +74,7 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'components', 'accessibility', 'universal'],
   },
   primitives: {
-    exports: { '.': './dist/index.js', './runtime': './dist/runtime.js' },
+    exports: { '.': './dist/index.js' },
     native: true,
     keywords: ['react-native', 'react', 'primitives', 'components', 'universal'],
   },
@@ -82,7 +84,7 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'patterns', 'accessibility', 'components'],
   },
   semantics: {
-    exports: { '.': './dist/index.js', './runtime': './dist/runtime.js' },
+    exports: { '.': './dist/index.js' },
     // Absent until now, and `index.native.tsx` was unreachable because of
     // it: Metro resolved the DOM build and rendered <div> on a phone.
     native: true,
@@ -91,7 +93,6 @@ const PACKAGES = {
   typography: {
     exports: {
       '.': './dist/index.js',
-      './runtime': './dist/runtime.js',
       './fonts': './dist/fonts.js',
       './fonts/expo': './dist/fonts-expo.js',
       './fonts/native': './dist/fonts-native.js',
@@ -225,10 +226,37 @@ function shared(name) {
   }
 }
 
+/**
+ * A package's declared entry points plus its generated-code ABI leaves.
+ *
+ * Read off `src/generated/` by `generated-abi.mjs` rather than listed here:
+ * a leaf is a file, and a list beside the files is a second answer to the
+ * same question. An owner publishes `./generated/<leaf>`, with a Native
+ * condition when the leaf has a `.native.ts` twin. `@hozo/core` publishes
+ * the leaves of the owners it depends on, each a one-line forward with no
+ * Native twin of its own -- the owner's condition is one hop further in.
+ */
+function withGeneratedLeaves(name, spec) {
+  const facaded = facadedOwners()
+  const leaves = generatedLeaves().filter(({ owner }) =>
+    name === 'core' ? facaded.has(owner) : owner === name,
+  )
+  if (leaves.length === 0) return spec
+  const exports = { ...spec.exports }
+  const noNative = [...(spec.noNative ?? [])]
+  for (const { leaf, native } of leaves) {
+    const subpath = `./generated/${leaf}`
+    exports[subpath] = `./dist/generated/${leaf}.js`
+    if (name === 'core' || !native) noNative.push(subpath)
+  }
+  return { ...spec, exports, noNative }
+}
+
 /** The full metadata a package's `package.json` must carry. */
 export function metadataFor(name) {
-  const spec = PACKAGES[name]
-  if (!spec) throw new Error(`no metadata defined for packages/${name}`)
+  const declared = PACKAGES[name]
+  if (!declared) throw new Error(`no metadata defined for packages/${name}`)
+  const spec = withGeneratedLeaves(name, declared)
   const exportsField = {}
   for (const [subpath, target] of Object.entries(spec.exports)) {
     const types = target.replace(/\.js$/, '.d.ts')

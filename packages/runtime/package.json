@@ -49,6 +49,42 @@
       "types": "./dist/project.d.ts",
       "default": "./dist/project.js"
     },
+    "./generated/animation": {
+      "types": "./dist/generated/animation.d.ts",
+      "default": "./dist/generated/animation.js"
+    },
+    "./generated/class-resolver": {
+      "types": "./dist/generated/class-resolver.d.ts",
+      "default": "./dist/generated/class-resolver.js"
+    },
+    "./generated/dom-style": {
+      "react-native": {
+        "types": "./dist/generated/dom-style.native.d.ts",
+        "default": "./dist/generated/dom-style.native.js"
+      },
+      "types": "./dist/generated/dom-style.d.ts",
+      "default": "./dist/generated/dom-style.js"
+    },
+    "./generated/environment": {
+      "types": "./dist/generated/environment.d.ts",
+      "default": "./dist/generated/environment.js"
+    },
+    "./generated/image-source": {
+      "types": "./dist/generated/image-source.d.ts",
+      "default": "./dist/generated/image-source.js"
+    },
+    "./generated/interactive": {
+      "types": "./dist/generated/interactive.d.ts",
+      "default": "./dist/generated/interactive.js"
+    },
+    "./generated/safe-area": {
+      "types": "./dist/generated/safe-area.d.ts",
+      "default": "./dist/generated/safe-area.js"
+    },
+    "./generated/scrollable": {
+      "types": "./dist/generated/scrollable.d.ts",
+      "default": "./dist/generated/scrollable.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

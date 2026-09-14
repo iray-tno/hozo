@@ -31,6 +31,46 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./generated/activity-indicator": {
+      "react-native": {
+        "types": "./dist/generated/activity-indicator.native.d.ts",
+        "default": "./dist/generated/activity-indicator.native.js"
+      },
+      "types": "./dist/generated/activity-indicator.d.ts",
+      "default": "./dist/generated/activity-indicator.js"
+    },
+    "./generated/animated-view": {
+      "react-native": {
+        "types": "./dist/generated/animated-view.native.d.ts",
+        "default": "./dist/generated/animated-view.native.js"
+      },
+      "types": "./dist/generated/animated-view.d.ts",
+      "default": "./dist/generated/animated-view.js"
+    },
+    "./generated/modal": {
+      "react-native": {
+        "types": "./dist/generated/modal.native.d.ts",
+        "default": "./dist/generated/modal.native.js"
+      },
+      "types": "./dist/generated/modal.d.ts",
+      "default": "./dist/generated/modal.js"
+    },
+    "./generated/touchable-opacity": {
+      "react-native": {
+        "types": "./dist/generated/touchable-opacity.native.d.ts",
+        "default": "./dist/generated/touchable-opacity.native.js"
+      },
+      "types": "./dist/generated/touchable-opacity.d.ts",
+      "default": "./dist/generated/touchable-opacity.js"
+    },
+    "./generated/touchable-without-feedback": {
+      "react-native": {
+        "types": "./dist/generated/touchable-without-feedback.native.d.ts",
+        "default": "./dist/generated/touchable-without-feedback.native.js"
+      },
+      "types": "./dist/generated/touchable-without-feedback.d.ts",
+      "default": "./dist/generated/touchable-without-feedback.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

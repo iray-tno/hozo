@@ -6,9 +6,11 @@
 // exported at all: `./index.ts` is imported by the Web build too, where
 // those modules don't exist.
 //
-// Generated infrastructure imports such as `useHozoDark` remain reachable
-// here. Compiler-generated React components are owned by domain packages,
-// including `@hozo/primitives/runtime` for Native layout boundaries.
+// Generated infrastructure such as `useHozoDark` remains reachable here,
+// but compiled output imports it leaf by leaf from `./generated/*` (through
+// `@hozo/core/generated/*`). Compiler-generated React components are owned
+// by domain packages, including `@hozo/primitives/generated/*` for Native
+// layout boundaries.
 
 // The `className` prop, for TypeScript only. Imported for its side
 // effect: the file declares nothing at runtime and augments React

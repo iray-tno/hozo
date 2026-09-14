@@ -47,9 +47,6 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@hozo/primitives':
-        specifier: workspace:*
-        version: link:../../packages/primitives
       '@tailwindcss/vite':
         specifier: ^4.0.9
         version: 4.3.3(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0))
@@ -108,12 +105,6 @@ importers:
       '@hozo/navigation':
         specifier: workspace:*
         version: link:../../packages/navigation
-      '@hozo/primitives':
-        specifier: workspace:*
-        version: link:../../packages/primitives
-      '@hozo/runtime':
-        specifier: workspace:*
-        version: link:../../packages/runtime
       '@hozo/typography':
         specifier: workspace:*
         version: link:../../packages/typography
@@ -166,15 +157,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@hozo/primitives':
-        specifier: workspace:*
-        version: link:../../packages/primitives
       '@hozo/rn-compat':
         specifier: workspace:*
         version: link:../../packages/rn-compat
-      '@hozo/runtime':
-        specifier: workspace:*
-        version: link:../../packages/runtime
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -203,24 +188,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@hozo/patterns':
-        specifier: workspace:*
-        version: link:../../packages/patterns
-      '@hozo/primitives':
-        specifier: workspace:*
-        version: link:../../packages/primitives
       '@hozo/rn-compat':
         specifier: workspace:*
         version: link:../../packages/rn-compat
-      '@hozo/runtime':
-        specifier: workspace:*
-        version: link:../../packages/runtime
-      '@hozo/semantics':
-        specifier: workspace:*
-        version: link:../../packages/semantics
-      '@hozo/typography':
-        specifier: workspace:*
-        version: link:../../packages/typography
       '@shopify/react-native-skia':
         specifier: ^2.11.1
         version: 2.11.1(b7ad387d91fbabbef5b4c5e6cb6af320)
@@ -921,6 +891,9 @@ importers:
         specifier: workspace:^
         version: link:../tailwind
     devDependencies:
+      '@hozo/core':
+        specifier: workspace:^
+        version: link:../core
       '@mdx-js/rollup':
         specifier: ^3.1.1
         version: 3.1.1(rollup@4.62.5)(supports-color@8.1.1)

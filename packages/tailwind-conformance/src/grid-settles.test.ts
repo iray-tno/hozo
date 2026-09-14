@@ -43,7 +43,10 @@ const renderer = require('react-test-renderer') as {
   create: (element: unknown) => Root
   act: (callback: () => void) => void
 }
-const runtime = require('@hozo/primitives/runtime') as { HozoGrid: unknown; HozoGridItem: unknown }
+const runtime = require('@hozo/primitives/generated/grid') as {
+  HozoGrid: unknown
+  HozoGridItem: unknown
+}
 
 /** A grid that measures, which needs a row span or an explicit row track. */
 const measuringGrid = () =>
@@ -167,7 +170,7 @@ test('a width that really changed is still taken', () => {
 
 // --- the same hazard, one component over ------------------------------------
 
-const container = require('@hozo/primitives/runtime') as { HozoContainer: unknown }
+const container = require('@hozo/primitives/generated/container') as { HozoContainer: unknown }
 
 /** A container query, which stores a width and renders from it. */
 const mountedContainer = () =>

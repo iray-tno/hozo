@@ -32,13 +32,89 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./runtime": {
+    "./generated/animated": {
+      "types": "./dist/generated/animated.d.ts",
+      "default": "./dist/generated/animated.js"
+    },
+    "./generated/backdrop-filter": {
+      "types": "./dist/generated/backdrop-filter.d.ts",
+      "default": "./dist/generated/backdrop-filter.js"
+    },
+    "./generated/container": {
+      "types": "./dist/generated/container.d.ts",
+      "default": "./dist/generated/container.js"
+    },
+    "./generated/flat-list": {
       "react-native": {
-        "types": "./dist/runtime.native.d.ts",
-        "default": "./dist/runtime.native.js"
+        "types": "./dist/generated/flat-list.native.d.ts",
+        "default": "./dist/generated/flat-list.native.js"
       },
-      "types": "./dist/runtime.d.ts",
-      "default": "./dist/runtime.js"
+      "types": "./dist/generated/flat-list.d.ts",
+      "default": "./dist/generated/flat-list.js"
+    },
+    "./generated/grid": {
+      "types": "./dist/generated/grid.d.ts",
+      "default": "./dist/generated/grid.js"
+    },
+    "./generated/link": {
+      "react-native": {
+        "types": "./dist/generated/link.native.d.ts",
+        "default": "./dist/generated/link.native.js"
+      },
+      "types": "./dist/generated/link.d.ts",
+      "default": "./dist/generated/link.js"
+    },
+    "./generated/pressable": {
+      "react-native": {
+        "types": "./dist/generated/pressable.native.d.ts",
+        "default": "./dist/generated/pressable.native.js"
+      },
+      "types": "./dist/generated/pressable.d.ts",
+      "default": "./dist/generated/pressable.js"
+    },
+    "./generated/refresh-control": {
+      "react-native": {
+        "types": "./dist/generated/refresh-control.native.d.ts",
+        "default": "./dist/generated/refresh-control.native.js"
+      },
+      "types": "./dist/generated/refresh-control.d.ts",
+      "default": "./dist/generated/refresh-control.js"
+    },
+    "./generated/scroll-view": {
+      "react-native": {
+        "types": "./dist/generated/scroll-view.native.d.ts",
+        "default": "./dist/generated/scroll-view.native.js"
+      },
+      "types": "./dist/generated/scroll-view.d.ts",
+      "default": "./dist/generated/scroll-view.js"
+    },
+    "./generated/spaced": {
+      "types": "./dist/generated/spaced.d.ts",
+      "default": "./dist/generated/spaced.js"
+    },
+    "./generated/text": {
+      "types": "./dist/generated/text.d.ts",
+      "default": "./dist/generated/text.js"
+    },
+    "./generated/text-input": {
+      "react-native": {
+        "types": "./dist/generated/text-input.native.d.ts",
+        "default": "./dist/generated/text-input.native.js"
+      },
+      "types": "./dist/generated/text-input.d.ts",
+      "default": "./dist/generated/text-input.js"
+    },
+    "./generated/text-size": {
+      "types": "./dist/generated/text-size.d.ts",
+      "default": "./dist/generated/text-size.js"
+    },
+    "./generated/view": {
+      "react-native": {
+        "types": "./dist/generated/view.native.d.ts",
+        "default": "./dist/generated/view.native.js"
+      },
+      "types": "./dist/generated/view.d.ts",
+      "default": "./dist/generated/view.js"
     },
     "./package.json": "./package.json"
   },

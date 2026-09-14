@@ -13,8 +13,10 @@ have the same complexity and behavior.
 
 ## Compiler runtime
 
-`@hozo/primitives/runtime` is an internal generated-code ABI, not an authoring API. On Native it
-owns the component boundaries needed to emulate browser layout and presentation features that
-React Native does not provide: grid tracks, container queries, child spacing, relative text sizes,
-transitions, and configured backdrop blur. Its Web entry is empty because those features lower to
-CSS there.
+`@hozo/primitives/generated/*` is the generated-code ABI, not an authoring API: one module per
+leaf (`flat-list`, `view`, `grid`, ...), because Metro does not tree-shake and a compiled screen
+carries whatever module it imports. Compiled output reaches these through `@hozo/core/generated/*`,
+which the application already depends on. On Native the leaves include the component boundaries
+needed to emulate browser layout and presentation features that React Native does not provide:
+grid tracks, container queries, child spacing, relative text sizes, transitions, and configured
+backdrop blur. Those have no Web implementation to speak of, because they lower to CSS there.

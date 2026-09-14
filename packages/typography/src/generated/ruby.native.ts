@@ -3,4 +3,4 @@ export {
   type HozoRubyProps,
   HozoRubyText,
   type HozoRubyTextProps,
-} from './ruby.native.tsx'
+} from '../ruby.native.tsx'

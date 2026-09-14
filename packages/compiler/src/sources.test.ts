@@ -55,7 +55,10 @@ export function Loading() { return <ActivityIndicator size="large" color="white"
   const web = lowerModule(source, 'Loading.tsx', 'Loading.tsx', compiler, ROOT)
   assert.ok(web)
   assert.match(web.code, /<HozoActivityIndicator size="large" color="white"/)
-  assert.match(web.code, /import \{ HozoActivityIndicator \} from '@hozo\/rn-compat'/)
+  assert.match(
+    web.code,
+    /import \{ HozoActivityIndicator \} from '@hozo\/rn-compat\/generated\/activity-indicator'/,
+  )
   assert.match(web.css, /@keyframes hozo-activity-indicator-spin/)
 
   const native = compiler.compileNative(source)[0]
@@ -75,8 +78,11 @@ export function Save() {
   assert.match(web.code, /<HozoTouchableOpacity/)
   assert.match(web.code, /activeOpacity=\{0\.4\}/)
   assert.match(web.code, /\{\.\.\.hozoInteractive\(save\)\}/)
-  assert.match(web.code, /import \{ hozoInteractive \} from '@hozo\/runtime'/)
-  assert.match(web.code, /import \{ HozoTouchableOpacity \} from '@hozo\/rn-compat'/)
+  assert.match(web.code, /import \{ hozoInteractive \} from '@hozo\/core\/generated\/interactive'/)
+  assert.match(
+    web.code,
+    /import \{ HozoTouchableOpacity \} from '@hozo\/rn-compat\/generated\/touchable-opacity'/,
+  )
 
   const native = compiler.compileNative(source)[0]
   assert.ok(native)
@@ -95,8 +101,11 @@ export function Learn() {
   assert.match(web.code, /<HozoTouchableWithoutFeedback/)
   assert.match(web.code, /\{\.\.\.hozoInteractive\(open\)\}/)
   assert.match(web.code, /<div[^>]*>Learn<\/div><\/HozoTouchableWithoutFeedback>/)
-  assert.match(web.code, /import \{ hozoInteractive \} from '@hozo\/runtime'/)
-  assert.match(web.code, /import \{ HozoTouchableWithoutFeedback \} from '@hozo\/rn-compat'/)
+  assert.match(web.code, /import \{ hozoInteractive \} from '@hozo\/core\/generated\/interactive'/)
+  assert.match(
+    web.code,
+    /import \{ HozoTouchableWithoutFeedback \} from '@hozo\/rn-compat\/generated\/touchable-without-feedback'/,
+  )
 
   const native = compiler.compileNative(source)[0]
   assert.ok(native)
@@ -114,7 +123,7 @@ export function Surface() {
   assert.ok(web)
   assert.match(web.code, /<HozoView[^>]*onLayout=\{measure\}/)
   assert.match(web.code, /onStartShouldSetResponder=\{\(\) => true\}/)
-  assert.match(web.code, /import \{ HozoView \} from '@hozo\/primitives\/runtime'/)
+  assert.match(web.code, /import \{ HozoView \} from '@hozo\/core\/generated\/view'/)
 
   const native = compiler.compileNative(source)[0]
   assert.ok(native)
@@ -144,10 +153,12 @@ export function Lists() {
   assert.match(web.code, /<HozoScrollView[^>]*onScroll=\{track\}/)
   assert.match(web.code, /<HozoFlatList[^>]*refreshControl=\{<HozoRefreshControl/)
   assert.match(web.code, /refreshing=\{busy\} onRefresh=\{reload\}/)
+  assert.match(web.code, /import \{ HozoFlatList \} from '@hozo\/core\/generated\/flat-list'/)
   assert.match(
     web.code,
-    /import \{ HozoFlatList, HozoRefreshControl, HozoScrollView \} from '@hozo\/primitives'/,
+    /import \{ HozoRefreshControl \} from '@hozo\/core\/generated\/refresh-control'/,
   )
+  assert.match(web.code, /import \{ HozoScrollView \} from '@hozo\/core\/generated\/scroll-view'/)
 
   const native = compiler.compileNative(source)
   assert.match(native.map((part) => part.jsx).join(''), /<RefreshControl/)
@@ -164,7 +175,7 @@ export function Sheet() {
   assert.ok(web)
   assert.match(web.code, /<HozoModal[^>]*visible=\{open\} transparent animationType="fade"/)
   assert.match(web.code, /onRequestClose=\{close\}/)
-  assert.match(web.code, /import \{ HozoModal \} from '@hozo\/rn-compat'/)
+  assert.match(web.code, /import \{ HozoModal \} from '@hozo\/rn-compat\/generated\/modal'/)
   assert.match(web.css, /dialog\[data-hozo-modal\]/)
 
   const native = compiler.compileNative(source)[0]
@@ -180,7 +191,10 @@ export function Reveal() { return <Animated.View style={{ opacity: value }} /> }
   const web = lowerModule(source, 'Reveal.tsx', 'Reveal.tsx', compiler, ROOT)
   assert.ok(web)
   assert.match(web.code, /<HozoAnimatedView[^>]*style=\{\{ opacity: value \}\}/)
-  assert.match(web.code, /import \{ HozoAnimatedView \} from '@hozo\/rn-compat'/)
+  assert.match(
+    web.code,
+    /import \{ HozoAnimatedView \} from '@hozo\/rn-compat\/generated\/animated-view'/,
+  )
 
   const native = compiler.compileNative(source)[0]
   assert.ok(native)
