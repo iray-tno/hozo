@@ -5,8 +5,8 @@
 # publishes the moment that pull request merges, which means one click
 # stands between a typo and a version number that can never be reused --
 # npm allows unpublishing for 72 hours and only while nothing depends on
-# it, and crates.io not at all. Here, merging the pull request bumps nine
-# versions and writes nine changelogs on `main`, and a human then pushes a
+# it, and crates.io not at all. Here, merging the pull request bumps every
+# version and writes every changelog on `main`, and a human then pushes a
 # tag when they mean it. See `release.yml`.
 name: version
 

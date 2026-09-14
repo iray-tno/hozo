@@ -133,7 +133,7 @@ function generatedAliases(): Record<string, string> {
     Object.keys(manifest.exports)
       .filter((subpath) => subpath.startsWith('./generated/'))
       .map((subpath) => {
-        const specifier = '@hozo/core' + subpath.slice(1)
+        const specifier = `@hozo/core${subpath.slice(1)}`
         return [specifier, require.resolve(specifier)]
       }),
   )

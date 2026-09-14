@@ -477,8 +477,9 @@ static guarantees and minimizing runtime overhead:
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│ Layer 3: Universal Components (Compound Compositions)         │
-│   Dialog · Popover · Menu · Tabs · Toolbar · Radio · Tooltip  │
+│ Layer 3: Universal Patterns (@hozo/patterns)                  │
+│   Dialog · Tabs · Menu · Listbox · Combobox · RadioGroup      │
+│   Toolbar · Tree · Tooltip                                    │
 │   Composed from Layer 1 primitives + Layer 2 behaviors        │
 └───────────────────────────────────────────────────────────────┘
                                ▲
@@ -491,14 +492,15 @@ static guarantees and minimizing runtime overhead:
                                ▲
 ┌───────────────────────────────────────────────────────────────┐
 │ Layer 1: Universal Primitives (Zero Runtime / Static SSR Safe)│
-│   @hozo/core · @hozo/typography · @hozo/semantics             │
+│   @hozo/primitives · @hozo/typography · @hozo/semantics       │
 │   Named one by one in docs/primitives.md, which is generated  │
 └───────────────────────────────────────────────────────────────┘
 ```
 
 - **Layer 1 (Zero-Runtime Primitives)**: Lower directly to native HTML5 tags on Web and foundational primitives on React Native. Completely safe for static SSR / React Server Components (RSC) without `'use client'`.
 - **Layer 2 (Universal Behaviors)**: Minimal headless runtime behavior units. The compiler statically removes what is knowable at build time (e.g. static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
-- **Layer 3 (Universal Components)**: Accessible compound components composed strictly from Layer 1 and Layer 2.
+- **Layer 3 (Universal Patterns)**: Accessible stateful widgets composed strictly from Layer 1 and Layer 2.
+- **`@hozo/core`** re-exports all three layers for zero-setup authoring and owns no implementation of its own. React Native migration APIs (`@hozo/rn-compat`) and SVG (`@hozo/svg`) sit outside the layers as opt-in domains.
 
 ## Architecture
 
