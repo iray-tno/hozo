@@ -1,6 +1,6 @@
 {
   "name": "@hozo/rn-compat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Optional React Native compatibility APIs for incrementally migrating applications to Hozo.",
   "keywords": [
     "react-native",

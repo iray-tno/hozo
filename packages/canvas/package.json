@@ -1,6 +1,6 @@
 {
   "name": "@hozo/canvas",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.",
   "keywords": [
     "react-native",
