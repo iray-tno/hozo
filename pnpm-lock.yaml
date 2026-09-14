@@ -108,6 +108,9 @@ importers:
       '@hozo/navigation':
         specifier: workspace:*
         version: link:../../packages/navigation
+      '@hozo/primitives':
+        specifier: workspace:*
+        version: link:../../packages/primitives
       '@hozo/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
