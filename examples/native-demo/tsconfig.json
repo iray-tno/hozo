@@ -11,7 +11,7 @@
     // `index.native.js` -- behind a `react-native` export condition. Metro
     // sets that condition; TypeScript matches it only when it is named
     // here, and otherwise type-checks this app against the *Web*
-    // declarations, where a native-only export like `HozoPressable` does
+    // declarations, where a native-only export like `HozoText` does
     // not exist and every component with two halves is checked against
     // the wrong one.
     //
@@ -31,5 +31,12 @@
     "verbatimModuleSyntax": true,
     "types": ["react", "react-native"]
   },
-  "include": ["App.tsx", "Gallery.tsx", "CanvasBench.tsx", "HozoBench.tsx", "NativeBench.tsx"]
+  "include": [
+    "App.tsx",
+    "Gallery.tsx",
+    "CanvasBench.tsx",
+    "HozoBench.tsx",
+    "NativeBench.tsx",
+    "ProbeTypes.tsx"
+  ]
 }
