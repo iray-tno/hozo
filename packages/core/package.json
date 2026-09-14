@@ -32,6 +32,106 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./generated/animated": {
+      "types": "./dist/generated/animated.d.ts",
+      "default": "./dist/generated/animated.js"
+    },
+    "./generated/animation": {
+      "types": "./dist/generated/animation.d.ts",
+      "default": "./dist/generated/animation.js"
+    },
+    "./generated/backdrop-filter": {
+      "types": "./dist/generated/backdrop-filter.d.ts",
+      "default": "./dist/generated/backdrop-filter.js"
+    },
+    "./generated/class-resolver": {
+      "types": "./dist/generated/class-resolver.d.ts",
+      "default": "./dist/generated/class-resolver.js"
+    },
+    "./generated/container": {
+      "types": "./dist/generated/container.d.ts",
+      "default": "./dist/generated/container.js"
+    },
+    "./generated/dialog": {
+      "types": "./dist/generated/dialog.d.ts",
+      "default": "./dist/generated/dialog.js"
+    },
+    "./generated/disclosure": {
+      "types": "./dist/generated/disclosure.d.ts",
+      "default": "./dist/generated/disclosure.js"
+    },
+    "./generated/dom-style": {
+      "types": "./dist/generated/dom-style.d.ts",
+      "default": "./dist/generated/dom-style.js"
+    },
+    "./generated/environment": {
+      "types": "./dist/generated/environment.d.ts",
+      "default": "./dist/generated/environment.js"
+    },
+    "./generated/flat-list": {
+      "types": "./dist/generated/flat-list.d.ts",
+      "default": "./dist/generated/flat-list.js"
+    },
+    "./generated/grid": {
+      "types": "./dist/generated/grid.d.ts",
+      "default": "./dist/generated/grid.js"
+    },
+    "./generated/image-source": {
+      "types": "./dist/generated/image-source.d.ts",
+      "default": "./dist/generated/image-source.js"
+    },
+    "./generated/interactive": {
+      "types": "./dist/generated/interactive.d.ts",
+      "default": "./dist/generated/interactive.js"
+    },
+    "./generated/link": {
+      "types": "./dist/generated/link.d.ts",
+      "default": "./dist/generated/link.js"
+    },
+    "./generated/pressable": {
+      "types": "./dist/generated/pressable.d.ts",
+      "default": "./dist/generated/pressable.js"
+    },
+    "./generated/refresh-control": {
+      "types": "./dist/generated/refresh-control.d.ts",
+      "default": "./dist/generated/refresh-control.js"
+    },
+    "./generated/ruby": {
+      "types": "./dist/generated/ruby.d.ts",
+      "default": "./dist/generated/ruby.js"
+    },
+    "./generated/safe-area": {
+      "types": "./dist/generated/safe-area.d.ts",
+      "default": "./dist/generated/safe-area.js"
+    },
+    "./generated/scroll-view": {
+      "types": "./dist/generated/scroll-view.d.ts",
+      "default": "./dist/generated/scroll-view.js"
+    },
+    "./generated/scrollable": {
+      "types": "./dist/generated/scrollable.d.ts",
+      "default": "./dist/generated/scrollable.js"
+    },
+    "./generated/spaced": {
+      "types": "./dist/generated/spaced.d.ts",
+      "default": "./dist/generated/spaced.js"
+    },
+    "./generated/text": {
+      "types": "./dist/generated/text.d.ts",
+      "default": "./dist/generated/text.js"
+    },
+    "./generated/text-input": {
+      "types": "./dist/generated/text-input.d.ts",
+      "default": "./dist/generated/text-input.js"
+    },
+    "./generated/text-size": {
+      "types": "./dist/generated/text-size.d.ts",
+      "default": "./dist/generated/text-size.js"
+    },
+    "./generated/view": {
+      "types": "./dist/generated/view.d.ts",
+      "default": "./dist/generated/view.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

@@ -16,7 +16,7 @@ const ROOT = ''
 const file = 'Page.tsx'
 const compiler = createCompiler()
 
-test('generated components import from the package that owns them', () => {
+test('generated names import from one leaf each, through core unless the owner is opt-in', () => {
   assert.equal(
     generatedRuntimeImports([
       'HozoView',
@@ -28,12 +28,14 @@ test('generated components import from the package that owns them', () => {
       'HozoScrollView',
       'HozoModal',
     ]),
-    "import { HozoFlatList, HozoScrollView } from '@hozo/primitives'\n" +
-      "import { HozoView, HozoGrid } from '@hozo/primitives/runtime'\n" +
-      "import { HozoDetails } from '@hozo/semantics/runtime'\n" +
-      "import { HozoRuby } from '@hozo/typography/runtime'\n" +
-      "import { HozoDialog } from '@hozo/patterns'\n" +
-      "import { HozoModal } from '@hozo/rn-compat'\n",
+    "import { HozoDialog } from '@hozo/core/generated/dialog'\n" +
+      "import { HozoDetails } from '@hozo/core/generated/disclosure'\n" +
+      "import { HozoFlatList } from '@hozo/core/generated/flat-list'\n" +
+      "import { HozoGrid } from '@hozo/core/generated/grid'\n" +
+      "import { HozoRuby } from '@hozo/core/generated/ruby'\n" +
+      "import { HozoScrollView } from '@hozo/core/generated/scroll-view'\n" +
+      "import { HozoView } from '@hozo/core/generated/view'\n" +
+      "import { HozoModal } from '@hozo/rn-compat/generated/modal'\n",
   )
 })
 
@@ -205,7 +207,7 @@ export const Page = () => <View><TextInput accessibilityLabel="Name" /><Field />
     unloweredReactNativeJsx: 'error',
   })!
   assert.match(lowered.code, /import \{ View \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ TextInput \} from '@hozo\/primitives'/)
+  assert.match(lowered.code, /import \{ TextInput \} from '@hozo\/core'/)
   assert.match(lowered.code, /const Field = makeField\(TextInput\)/)
   assert.match(lowered.code, /<input aria-label=\{"Name"\}/)
   assert.equal(lowered.needsClientBoundary, false)
@@ -220,7 +222,7 @@ export const Page = () => <View><Pressable onPress={save} /><AnimatedPressable /
     unloweredReactNativeJsx: 'error',
   })!
   assert.match(lowered.code, /import \{ View \} from 'react-native'/)
-  assert.match(lowered.code, /import \{ Pressable \} from '@hozo\/primitives'/)
+  assert.match(lowered.code, /import \{ Pressable \} from '@hozo\/core'/)
   assert.match(lowered.code, /createAnimatedComponent\(Pressable\)/)
   assert.doesNotMatch(lowered.code, /<Pressable\b/)
 })
@@ -252,7 +254,10 @@ export function Page() {
     /style=\{hozoDomStyle\(\[\{ padding: 4 \}, false, \{ padding: 8 \}\]\)\}/,
   )
   assert.match(lowered.code, /\{\.\.\.hozoDomProps\(props\)\}/)
-  assert.match(lowered.code, /import \{ hozoDomProps, hozoDomStyle \} from '@hozo\/runtime'/)
+  assert.match(
+    lowered.code,
+    /import \{ hozoDomProps, hozoDomStyle \} from '@hozo\/core\/generated\/dom-style'/,
+  )
 })
 
 test('adds no DOM style runtime to an element without inline style or prop spreads', () => {

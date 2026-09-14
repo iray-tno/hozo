@@ -1,3 +1,3 @@
-import { HozoText } from '@hozo/primitives/runtime'
+import { HozoText } from '@hozo/core/generated/text'
 
 export const P = HozoText

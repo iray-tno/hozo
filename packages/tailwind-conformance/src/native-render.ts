@@ -40,20 +40,19 @@ registerHooks({
     if (specifier === 'react-native') {
       return { url: new URL('./react-native-stub.js', import.meta.url).href, shortCircuit: true }
     }
-    if (specifier === '@hozo/primitives/runtime') {
-      const root = path.dirname(require.resolve('@hozo/primitives/package.json'))
-      return {
-        url: pathToFileURL(path.join(root, 'src', 'runtime.native.tsx')).href,
-        shortCircuit: true,
-      }
-    }
-    if (specifier === '@hozo/semantics/runtime' || specifier === '@hozo/typography/runtime') {
-      const owner = specifier.slice(0, specifier.lastIndexOf('/'))
+    // A generated-code leaf, from whichever package publishes it: the
+    // `.native.ts` twin when there is one, as Metro would pick, and the
+    // single implementation otherwise. `@hozo/core`'s leaves are one-line
+    // forwards, so they land back here one hop later under the owner's name.
+    const leaf = /^(@hozo\/[a-z-]+)\/generated\/([a-z-]+)$/.exec(specifier)
+    if (leaf) {
+      const [, owner, name] = leaf
       const root = path.dirname(require.resolve(`${owner}/package.json`))
-      return {
-        url: pathToFileURL(path.join(root, 'src', 'runtime.native.ts')).href,
-        shortCircuit: true,
-      }
+      const entry = [`${name}.native.ts`, `${name}.ts`]
+        .map((file) => path.join(root, 'src', 'generated', file))
+        .find((candidate) => existsSync(candidate))
+      if (entry === undefined) throw new Error(`no generated leaf for ${specifier}`)
+      return { url: pathToFileURL(entry).href, shortCircuit: true }
     }
     // Metro picks a `.native` entry ahead of the plain one; Node does not.
     //

@@ -33,14 +33,6 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./runtime": {
-      "react-native": {
-        "types": "./dist/runtime.native.d.ts",
-        "default": "./dist/runtime.native.js"
-      },
-      "types": "./dist/runtime.d.ts",
-      "default": "./dist/runtime.js"
-    },
     "./fonts": {
       "types": "./dist/fonts.d.ts",
       "default": "./dist/fonts.js"
@@ -52,6 +44,14 @@
     "./fonts/native": {
       "types": "./dist/fonts-native.d.ts",
       "default": "./dist/fonts-native.js"
+    },
+    "./generated/ruby": {
+      "react-native": {
+        "types": "./dist/generated/ruby.native.d.ts",
+        "default": "./dist/generated/ruby.native.js"
+      },
+      "types": "./dist/generated/ruby.d.ts",
+      "default": "./dist/generated/ruby.js"
     },
     "./package.json": "./package.json"
   },

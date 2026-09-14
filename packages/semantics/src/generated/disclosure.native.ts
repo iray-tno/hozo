@@ -3,4 +3,4 @@ export {
   type HozoDetailsProps,
   HozoSummary,
   type HozoSummaryProps,
-} from './disclosure.native.tsx'
+} from '../disclosure.native.tsx'

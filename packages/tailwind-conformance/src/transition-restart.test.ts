@@ -39,7 +39,7 @@ const renderer = require('react-test-renderer') as {
   create: (element: unknown) => { update: (element: unknown) => void; unmount: () => void }
   act: (callback: () => void) => void
 }
-const { HozoAnimated } = require('@hozo/primitives/runtime') as {
+const { HozoAnimated } = require('@hozo/primitives/generated/animated') as {
   HozoAnimated: unknown
 }
 

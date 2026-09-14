@@ -107,7 +107,7 @@ async function serve(
       alias: {
         'react/jsx-dev-runtime': createRequire(import.meta.url).resolve('react/jsx-dev-runtime'),
         'react/jsx-runtime': createRequire(import.meta.url).resolve('react/jsx-runtime'),
-        '@hozo/runtime': createRequire(import.meta.url).resolve('@hozo/runtime'),
+        ...generatedAliases(),
         react: createRequire(import.meta.url).resolve('react'),
         ...aliases,
       },
@@ -117,6 +117,26 @@ async function serve(
   })
   servers.push(server)
   return server
+}
+
+/**
+ * What compiled output imports, resolved the way an application that
+ * installed `@hozo/core` resolves it. Read off core's own `exports` rather
+ * than listed, so a leaf added tomorrow is reachable here without an edit.
+ */
+function generatedAliases(): Record<string, string> {
+  const require = createRequire(import.meta.url)
+  const manifest = JSON.parse(readFileSync(require.resolve('@hozo/core/package.json'), 'utf8')) as {
+    exports: Record<string, unknown>
+  }
+  return Object.fromEntries(
+    Object.keys(manifest.exports)
+      .filter((subpath) => subpath.startsWith('./generated/'))
+      .map((subpath) => {
+        const specifier = '@hozo/core' + subpath.slice(1)
+        return [specifier, require.resolve(specifier)]
+      }),
+  )
 }
 
 const candidates = (root: string) =>

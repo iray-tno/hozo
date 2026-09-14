@@ -57,6 +57,7 @@
     "vite": ">=5"
   },
   "devDependencies": {
+    "@hozo/core": "workspace:^",
     "@mdx-js/rollup": "^3.1.1",
     "@types/node": "26.2.0",
     "@vitejs/plugin-react": "^6.0.5",

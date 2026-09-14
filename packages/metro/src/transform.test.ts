@@ -228,7 +228,7 @@ export function Logo() {
 `
   const output = transformHozoSource(source, 'Logo.tsx')
   assert.ok(output)
-  assert.match(output!, /import \{ hozoImageSource \} from '@hozo\/runtime'/)
+  assert.match(output!, /import \{ hozoImageSource \} from '@hozo\/core\/generated\/image-source'/)
   assert.match(output!, /source=\{hozoImageSource\(logo\)\}/)
   assert.match(output!, /onLoad=\{loaded\}/)
   assert.match(output!, /onError=\{failed\}/)
@@ -259,7 +259,7 @@ export function Rows() {
   // `react-native`: the list is React Native's, and what the wrapper around it
   // adds is the collection length Android needs to announce a windowed list
   // honestly. `Text` still comes straight from `react-native`.
-  assert.match(output!, /import \{[^}]*HozoFlatList[^}]*\} from '@hozo\/primitives'/)
+  assert.match(output!, /import \{ HozoFlatList \} from '@hozo\/core\/generated\/flat-list'/)
   assert.doesNotMatch(output!, /import \{[^}]*FlatList[^}]*\} from 'react-native'/)
   assert.match(output!, /import \{[^}]*Text[^}]*\} from 'react-native'/)
   assert.match(
@@ -353,7 +353,10 @@ export function Card() {
 `
   const output = transformHozoSource(source, '/app/src/Card.tsx', '/app')
   assert.ok(output)
-  assert.match(output!, /import \{[^}]*useHozoDark[^}]*\} from '@hozo\/runtime'/)
+  assert.match(
+    output!,
+    /import \{[^}]*useHozoDark[^}]*\} from '@hozo\/core\/generated\/environment'/,
+  )
   assert.match(output!, /export function Card\(\) \{\n {2}const __hozoDark = useHozoDark\(\)/)
   assert.match(output!, /const __hozoBp_md = useHozoBreakpoint\('md'\)/)
   // One declaration, though two elements guard on it -- a second `const`

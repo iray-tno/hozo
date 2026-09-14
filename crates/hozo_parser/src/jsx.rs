@@ -636,6 +636,12 @@ fn validate_focusable_disabled(
     });
 }
 
+/// Whether `name` exports a component whose Web lowering is a
+/// `@hozo/rn-compat` stand-in. See `ReactNativeCompat`.
+pub(crate) fn is_react_native_compat_name(name: &str) -> bool {
+    primitive_for_name(name).is_some_and(Primitive::is_react_native_compat)
+}
+
 fn primitive_for_name(name: &str) -> Option<Primitive> {
     match name {
         "View" => Some(Primitive::View),

@@ -51,6 +51,11 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm test:packages
+      # The packed packages, installed into an empty project under pnpm's
+      # strict layout. A workspace resolves every package from everywhere,
+      # so compiled output that imported packages an application never
+      # declared passed every other check here (#435).
+      - run: node scripts/check-strict-install.mjs
       # Every workspace, examples included -- and the examples are the
       # point. `pnpm test:packages` stops at `./packages/*`, so nothing in
       # CI had ever type-checked an app *against* the published entry

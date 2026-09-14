@@ -40,6 +40,8 @@ Every Hozo integration takes the same options.
 - `'warn'`: Emits a build warning listing any unlowered elements (e.g. `SectionList`), allowing progressive migration.
 - `'error'`: Fails the build if any direct React Native JSX survives lowering, naming the exact imported bindings that require fallback or lowering. Aliases and namespace JSX are tracked by the parser rather than guessed from source text.
 
+The same switch decides whether Hozo rewrites React Native imports at all. Under `'allow'`, `TouchableOpacity`, `TouchableWithoutFeedback`, `ActivityIndicator`, `Modal` and `Animated.View` imported from `react-native` are left exactly as written. Under `'warn'` and `'error'` they lower to components from `@hozo/rn-compat`, and `StyleSheet`, `Platform`, `Dimensions`, `Keyboard`, `AccessibilityInfo`, `PanResponder`, `useColorScheme` and `useWindowDimensions` move there too. Those imports land in your source, so the application has to depend on `@hozo/rn-compat`; Hozo warns (`RN_COMPAT_NOT_INSTALLED`) when it cannot resolve it. Importing a component from `@hozo/rn-compat` yourself lowers it under any policy.
+
 ## Two stylesheets
 
 Each lowered module gets a `<file>.hozo.css` companion written next to it and imported normally, rather than served through a virtual module.

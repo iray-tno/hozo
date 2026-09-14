@@ -21,6 +21,7 @@ import { gzipSync } from 'node:zlib'
 
 import { build } from 'esbuild'
 
+import { facadedOwners, generatedLeaves } from './generated-abi.mjs'
 import { applyMetadata, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -259,6 +260,67 @@ for (const probe of treeShakingProbes) {
   }
 }
 
+// The generated-code ABI is derived, and a derived file that nobody
+// regenerated is the same drift as a hand-edited `package.json`.
+try {
+  execSync(`node "${path.join(root, 'scripts', 'generated-abi.mjs')}" --check`, {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+} catch (error) {
+  fail('core', `generated ABI is out of date: ${error.stderr?.toString().trim() || error.message}`)
+}
+
+// A `@hozo/core/generated/*` leaf is a one-line forward, and has to cost
+// what the owner's leaf costs. It is the module compiled output imports, so
+// weight here lands in every application -- and on Native, where nothing
+// tree-shakes, all of it does. Native-only leaves bundle as well as any:
+// React Native stays external, and what is measured is Hozo's own code.
+async function bundleModule(file) {
+  const result = await build({
+    stdin: {
+      contents: `export * from './${path.relative(root, file).replaceAll('\\', '/')}'`,
+      resolveDir: root,
+      sourcefile: 'generated-leaf-probe.mjs',
+    },
+    bundle: true,
+    minify: true,
+    format: 'esm',
+    platform: 'browser',
+    write: false,
+    external: ['react', 'react-dom', 'react-native', 'react-native-*', 'expo-*', '@shopify/*'],
+    logLevel: 'silent',
+  })
+  const contents = result.outputFiles[0].contents
+  return { raw: contents.byteLength, gzip: gzipSync(contents, { level: 9 }).length }
+}
+
+const facaded = facadedOwners()
+let leafProbes = 0
+for (const { owner, leaf } of generatedLeaves()) {
+  if (!facaded.has(owner)) continue
+  try {
+    const direct = await bundleModule(
+      path.join(root, 'packages', owner, 'dist', 'generated', `${leaf}.js`),
+    )
+    const facade = await bundleModule(
+      path.join(root, 'packages', 'core', 'dist', 'generated', `${leaf}.js`),
+    )
+    leafProbes += 1
+    if (facade.raw > direct.raw + 128 || facade.gzip > direct.gzip + 64) {
+      fail(
+        'core',
+        `generated/${leaf} adds facade weight: @hozo/${owner} ${direct.raw}/${direct.gzip} bytes raw/gzip, core ${facade.raw}/${facade.gzip}`,
+      )
+    }
+  } catch (error) {
+    fail(
+      'core',
+      `generated/${leaf} probe could not bundle: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+}
+
 console.log('npm package sizes (tarball / unpacked / files)')
 for (const packed of packedPackages) {
   console.log(
@@ -271,6 +333,8 @@ for (const probe of bundleSizes) {
   const facade = probe.facade ? ` -> ${probe.facade.raw}/${probe.facade.gzip}` : ' (domain-only)'
   console.log(`  ${probe.name}: ${probe.direct.raw}/${probe.direct.gzip}${facade} bytes`)
 }
+
+console.log(`${leafProbes} @hozo/core/generated leaves cost what their owners' leaves cost`)
 
 if (problems.length > 0) {
   console.error(`${problems.length} problem(s) would reach the registry:\n`)

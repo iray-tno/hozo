@@ -242,8 +242,13 @@ function measure(options) {
     let loweredWebCode = source
     if (platform !== 'native') {
       try {
-        webComponents = compiler.compile(source)
-        loweredWebCode = lowerModule(source, absolute, absolute, compiler, root)?.code ?? source
+        // With rewriting on: the audit asks how far Hozo can take an app off
+        // React Native Web, which is what an app that opted in would get.
+        webComponents = compiler.compile(source, undefined, { rehomeReactNative: true })
+        loweredWebCode =
+          lowerModule(source, absolute, absolute, compiler, root, undefined, {
+            unloweredReactNativeJsx: 'warn',
+          })?.code ?? source
         if (webComponents.length > 0) report.lowering.filesLoweredForWeb += 1
         report.lowering.webComponents += webComponents.length
         diagnosticsFor(webComponents, 'web', file, report)

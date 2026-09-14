@@ -65,6 +65,11 @@ incremental-migration fallback. Set it to `'warn'` to identify remaining RN JSX 
 `'error'` once RNW is absent; both Turbopack and webpack then stop on any unsupported direct
 React Native JSX binding rather than failing later during module resolution.
 
+Only `'warn'` and `'error'` rewrite React Native imports to `@hozo/rn-compat` (its
+`TouchableOpacity`, `Modal`, `StyleSheet` and the rest); `'allow'` leaves them as written.
+Rewritten imports land in your source, so add `@hozo/rn-compat` to the application's
+dependencies -- Hozo warns with `RN_COMPAT_NOT_INSTALLED` when it cannot resolve it.
+
 ## Dev mode
 
 `next dev` runs the same loader the build does, verified against a running

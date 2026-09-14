@@ -198,7 +198,11 @@ interface NativeBinding {
 /// The napi class itself. It knows nothing about `sources` beyond having
 /// been handed them; `createCompiler` is what makes them readable back.
 interface NativeCompiler {
-  compile(source: string, bindings?: StylexExternalBinding[]): CompiledComponent[]
+  compile(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    rehomeReactNative?: boolean,
+  ): CompiledComponent[]
   compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
   compileNativeModule(source: string, bindings?: StylexExternalBinding[]): CompiledNativeModule
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
@@ -279,8 +283,24 @@ export interface UnfoldedModule {
   importSource?: string
 }
 
+/** Per-call Web compile options. */
+export interface CompileOptions {
+  /**
+   * Lower React Native's compatibility components (`TouchableOpacity`,
+   * `Modal`, ...) to `@hozo/rn-compat` stand-ins even when they were
+   * imported from `react-native`. Off unless the project opted into
+   * rewriting with `unloweredReactNativeJsx`; imported from
+   * `@hozo/rn-compat` itself they lower either way.
+   */
+  rehomeReactNative?: boolean
+}
+
 export interface Compiler {
-  compile(source: string, bindings?: StylexExternalBinding[]): CompiledComponent[]
+  compile(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    options?: CompileOptions,
+  ): CompiledComponent[]
   compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
   /**
    * Native lowering plus source imports and foreign primitive bindings from
@@ -327,8 +347,8 @@ export function createCompiler(
   const allowed = sources ? [...sources] : [...DEFAULT_PRIMITIVE_SOURCES]
   const inner = new (loadNative().Compiler)(theme, allowed)
   return {
-    compile: (source, bindings) =>
-      inner.compile(source, bindings).map((result) => ({
+    compile: (source, bindings, options) =>
+      inner.compile(source, bindings, options?.rehomeReactNative ?? false).map((result) => ({
         ...result,
         diagnostics: [
           ...result.diagnostics,

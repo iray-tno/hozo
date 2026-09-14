@@ -33,13 +33,13 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./runtime": {
+    "./generated/disclosure": {
       "react-native": {
-        "types": "./dist/runtime.native.d.ts",
-        "default": "./dist/runtime.native.js"
+        "types": "./dist/generated/disclosure.native.d.ts",
+        "default": "./dist/generated/disclosure.native.js"
       },
-      "types": "./dist/runtime.d.ts",
-      "default": "./dist/runtime.js"
+      "types": "./dist/generated/disclosure.d.ts",
+      "default": "./dist/generated/disclosure.js"
     },
     "./package.json": "./package.json"
   },

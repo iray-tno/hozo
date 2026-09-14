@@ -33,8 +33,9 @@ Pointer Events or the native input system.
 **Transitions.** `transition-*` utilities compile to `Animated` timings, including colour interpolation, with the blend point preserved when an interrupted transition restarts.
 
 **Generated-code infrastructure.** Project facts, style normalization, navigation protocol,
-responder state and optional adapter configuration live here. React components emitted only to
-reproduce browser layout on Native live behind `@hozo/primitives/runtime` instead.
+responder state and optional adapter configuration live here, and what compiled output calls is
+published leaf by leaf under `./generated/*`. React components emitted only to reproduce browser
+layout on Native live behind `@hozo/primitives/generated/*` instead.
 
 **Optional backdrop blur.** Static StyleX `backdropFilter: 'blur(Npx)'` on an ordinary `View`
 uses a configured Native component. Expo users can keep `expo-blur` in the application rather

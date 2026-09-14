@@ -12,8 +12,10 @@
 // Splitting it here rather than having Next import the Vite plugin keeps
 // the dependency honest: a Next.js project has no Vite in it.
 
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { lowerCanvasPaints } from './canvas.ts'
+import { GENERATED_ABI } from './generated-abi.ts'
 import type {
   CompileDiagnostic,
   CompiledNativeModule,
@@ -25,66 +27,38 @@ import type { StylexModuleCache } from './stylex-project.ts'
 
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
-const PRIMITIVE_EXPORTS = new Set(['HozoFlatList', 'HozoRefreshControl', 'HozoScrollView'])
-const PRIMITIVE_RUNTIME_EXPORTS = new Set([
-  'HozoAnimated',
-  'HozoBackdropFilter',
-  'HozoContainer',
-  'HozoContainerQuery',
-  'HozoGrid',
-  'HozoGridItem',
-  'HozoLink',
-  'HozoPressable',
-  'HozoRelativeText',
-  'HozoSpaced',
-  'HozoText',
-  'HozoTextInput',
-  'HozoTextSize',
-  'HozoView',
-])
-const SEMANTIC_RUNTIME_EXPORTS = new Set(['HozoDetails', 'HozoSummary'])
-const TYPOGRAPHY_RUNTIME_EXPORTS = new Set(['HozoRuby', 'HozoRubyText'])
-const PATTERN_RUNTIME_EXPORTS = new Set(['HozoDialog'])
-const RN_COMPAT_RUNTIME_EXPORTS = new Set([
-  'HozoActivityIndicator',
-  'HozoAnimatedView',
-  'HozoModal',
-  'HozoTouchableOpacity',
-  'HozoTouchableWithoutFeedback',
-])
-
-/** Render generated component imports according to the package that owns their implementation. */
+/**
+ * Render the imports compiled output needs, one statement per leaf module.
+ *
+ * The table is generated from the leaf modules themselves
+ * (`scripts/generated-abi.mjs`), so a name is importable exactly when some
+ * owner's `src/generated/` exports it. An unknown name throws rather than
+ * falling back to a package: a fallback is how an import the application
+ * cannot resolve reaches its source without anyone noticing.
+ */
 export function generatedRuntimeImports(names: readonly string[]): string {
-  const primitives = names.filter((name) => PRIMITIVE_EXPORTS.has(name))
-  const primitiveRuntime = names.filter((name) => PRIMITIVE_RUNTIME_EXPORTS.has(name))
-  const semantics = names.filter((name) => SEMANTIC_RUNTIME_EXPORTS.has(name))
-  const typography = names.filter((name) => TYPOGRAPHY_RUNTIME_EXPORTS.has(name))
-  const patterns = names.filter((name) => PATTERN_RUNTIME_EXPORTS.has(name))
-  const compat = names.filter((name) => RN_COMPAT_RUNTIME_EXPORTS.has(name))
-  const runtime = names.filter(
-    (name) =>
-      !PRIMITIVE_EXPORTS.has(name) &&
-      !PRIMITIVE_RUNTIME_EXPORTS.has(name) &&
-      !SEMANTIC_RUNTIME_EXPORTS.has(name) &&
-      !TYPOGRAPHY_RUNTIME_EXPORTS.has(name) &&
-      !PATTERN_RUNTIME_EXPORTS.has(name) &&
-      !RN_COMPAT_RUNTIME_EXPORTS.has(name),
+  const bySpecifier = new Map<string, string[]>()
+  for (const name of names) {
+    const specifier = GENERATED_ABI[name]
+    if (specifier === undefined) {
+      throw new Error(
+        `[hozo] compiled output needs ${name}, which no package's src/generated exports -- ` +
+          `add a leaf module and run node scripts/generated-abi.mjs`,
+      )
+    }
+    const bound = bySpecifier.get(specifier) ?? []
+    if (!bound.includes(name)) bound.push(name)
+    bySpecifier.set(specifier, bound)
+  }
+  return (
+    [...bySpecifier]
+      // Code-point order, not `localeCompare`: output must not depend on the
+      // locale of the machine that compiled it, or two builds of one source
+      // stop being byte-identical.
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([specifier, bound]) => `import { ${bound.join(', ')} } from '${specifier}'\n`)
+      .join('')
   )
-  return [
-    runtime.length > 0 ? `import { ${runtime.join(', ')} } from '@hozo/runtime'\n` : '',
-    primitives.length > 0 ? `import { ${primitives.join(', ')} } from '@hozo/primitives'\n` : '',
-    primitiveRuntime.length > 0
-      ? `import { ${primitiveRuntime.join(', ')} } from '@hozo/primitives/runtime'\n`
-      : '',
-    semantics.length > 0
-      ? `import { ${semantics.join(', ')} } from '@hozo/semantics/runtime'\n`
-      : '',
-    typography.length > 0
-      ? `import { ${typography.join(', ')} } from '@hozo/typography/runtime'\n`
-      : '',
-    patterns.length > 0 ? `import { ${patterns.join(', ')} } from '@hozo/patterns'\n` : '',
-    compat.length > 0 ? `import { ${compat.join(', ')} } from '@hozo/rn-compat'\n` : '',
-  ].join('')
 }
 
 const HOZO_AUTHORING_IMPORT_RE =
@@ -117,7 +91,7 @@ const RN_OWNED_COMPONENT_EXPORTS = new Set(['Pressable', 'TextInput'])
 function rehomeReactNativeImports(
   code: string,
   owned: ReadonlySet<string>,
-  destination: '@hozo/primitives' | '@hozo/rn-compat',
+  destination: '@hozo/core' | '@hozo/rn-compat',
 ): string {
   return code.replace(
     RN_NAMED_IMPORT_RE,
@@ -151,7 +125,9 @@ export function rehomeReactNativeRuntimeImports(code: string): string {
 }
 
 export function rehomeReactNativeComponentImports(code: string): string {
-  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS, '@hozo/primitives')
+  // `@hozo/core` rather than the owner, for the reason compiled imports go
+  // through it: the application declared core, not `@hozo/primitives`.
+  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS, '@hozo/core')
 }
 
 /** @deprecated Alias for internal backward-compat if needed */
@@ -543,6 +519,63 @@ export function lowerModule(
   stylexModules?: StylexModuleCache,
   options: LowerModuleOptions = {},
 ): LoweredModule | undefined {
+  const lowered = lowerModuleUnchecked(code, id, file, compiler, root, stylexModules, options)
+  const policy = options.unloweredReactNativeJsx
+  if (lowered && (policy === 'warn' || policy === 'error')) {
+    const missing = missingReactNativeCompat(lowered.code, root, file)
+    if (missing) lowered.diagnostics.push(missing)
+  }
+  return lowered
+}
+
+/** Directories `@hozo/rn-compat` is known to resolve from. */
+const reactNativeCompatFound = new Set<string>()
+
+/**
+ * A warning when rewriting put `@hozo/rn-compat` into a module that cannot
+ * resolve it.
+ *
+ * Rewriting is the project's choice; declaring the package it rewrites to
+ * is the part that is easy to miss, because the source never names it. A
+ * warning rather than an error: the bundler's own resolution failure is
+ * already fatal, and what it cannot say is why the import is there. Only
+ * a positive answer is cached, so installing the package mid-session
+ * clears the warning on the next build.
+ */
+function missingReactNativeCompat(
+  code: string,
+  root: string,
+  file: string,
+): CompileDiagnostic | undefined {
+  if (!code.includes('@hozo/rn-compat')) return undefined
+  const directory = path.dirname(path.resolve(root, file))
+  if (reactNativeCompatFound.has(directory)) return undefined
+  try {
+    createRequire(path.join(directory, 'hozo-resolve.js')).resolve('@hozo/rn-compat/package.json')
+    reactNativeCompatFound.add(directory)
+    return undefined
+  } catch {
+    return {
+      code: 'RN_COMPAT_NOT_INSTALLED',
+      severity: 'warning',
+      message:
+        `unloweredReactNativeJsx rewrote React Native imports to '@hozo/rn-compat', which ` +
+        `${file} cannot resolve. Add @hozo/rn-compat to the application's dependencies.`,
+      spanStart: 0,
+      spanEnd: 0,
+    }
+  }
+}
+
+function lowerModuleUnchecked(
+  code: string,
+  id: string,
+  file: string,
+  compiler: Compiler,
+  root: string,
+  stylexModules: StylexModuleCache | undefined,
+  options: LowerModuleOptions,
+): LoweredModule | undefined {
   // `.mdx` alongside `.tsx` because by the time this runs the MDX
   // transform has already turned the file into JSX; the extension is all
   // that still says where it came from. See `TRANSFORMABLE`.
@@ -590,7 +623,9 @@ export function lowerModule(
   const stylexBindings = canvas.code.includes('@stylexjs/stylex')
     ? stylexModules?.bindingsFor(path.resolve(file))
     : undefined
-  const components = hasSemanticCandidate ? compiler.compile(canvas.code, stylexBindings) : []
+  const components = hasSemanticCandidate
+    ? compiler.compile(canvas.code, stylexBindings, { rehomeReactNative: shouldRehome })
+    : []
   if (components.length === 0 && !canvas.touched) {
     const componentLowered = shouldRehome
       ? rehomeReactNativeComponentImports(canvas.code)
