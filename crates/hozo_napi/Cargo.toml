@@ -3,6 +3,10 @@ name = "hozo_napi"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+# Not a crate anyone depends on: a Node addon, delivered as `@hozo/compiler`
+# and its per-platform packages on npm.
 publish = false
 description = "Node native binding exposing the Hozo compiler to JS build tooling."
 
@@ -10,11 +14,11 @@ description = "Node native binding exposing the Hozo compiler to JS build toolin
 crate-type = ["cdylib"]
 
 [dependencies]
-hozo_cache = { path = "../hozo_cache" }
-hozo_ir = { path = "../hozo_ir" }
-hozo_native = { version = "0.0.0", path = "../hozo_native" }
-hozo_parser = { path = "../hozo_parser" }
-hozo_web = { path = "../hozo_web" }
+hozo_cache.workspace = true
+hozo_ir.workspace = true
+hozo_native.workspace = true
+hozo_parser.workspace = true
+hozo_web.workspace = true
 napi = "3.12.1"
 napi-derive = "3.6.3"
 

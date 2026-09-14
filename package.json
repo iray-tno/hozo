@@ -33,7 +33,7 @@
     "test:packages": "turbo run build --filter=./packages/* && turbo run test --filter=./packages/* && node scripts/check-packages.mjs",
     "test:performance": "turbo run test:performance --filter=@hozo/canvas --filter=@hozo/engine",
     "typecheck": "turbo run typecheck",
-    "version": "changeset version && node scripts/package-metadata.mjs && pnpm install --lockfile-only"
+    "version": "changeset version && node scripts/package-metadata.mjs && node scripts/crate-metadata.mjs && pnpm install --lockfile-only && cargo update --workspace"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",

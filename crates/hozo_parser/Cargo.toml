@@ -3,11 +3,15 @@ name = "hozo_parser"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
 description = "TSX analysis and Style IR construction."
+keywords = ["react-native", "tsx", "tailwind", "compiler", "parser"]
+categories = ["compilers", "parser-implementations"]
 
 [dependencies]
-hozo_ir = { path = "../hozo_ir" }
+hozo_ir.workspace = true
 oxc_allocator = "0.144.0"
 oxc_ast = "0.144.0"
 oxc_ast_visit = "0.144.0"

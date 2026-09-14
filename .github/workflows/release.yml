@@ -104,8 +104,16 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      # npm trusted publishing, so no long-lived token lives in this repo.
+      # npm trusted publishing, and the provenance attestation either way.
       id-token: write
+    env:
+      # The first release cannot use trusted publishing: npm lets a trusted
+      # publisher be configured only on a package that already exists
+      # (`npm trust`: "Package must exist"). So the first tag publishes with
+      # a token, and trusted publishers are configured on the packages it
+      # created. Once they are, delete the `NPM_TOKEN` secret -- with it
+      # absent, npm falls back to OIDC and no long-lived token lives here.
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -164,3 +172,40 @@ jobs:
       #
       # `--no-git-checks` because `prepare-publish` just modified a file.
       - run: pnpm publish -r --access public --no-git-checks
+
+  # The library crates, from the same tag and on the same version --
+  # `scripts/crate-metadata.mjs` holds the workspace to the npm version, and
+  # `check-packages.mjs` fails a release where they differ.
+  #
+  # After the npm packages rather than beside them: crates.io has no
+  # unpublish at all, only yank, so it goes last, once everything that can
+  # still fail has had its chance. `cargo publish --workspace` publishes in
+  # dependency order and skips the `publish = false` bindings.
+  #
+  # A token for the same reason as npm's above: crates.io creates a trusted
+  # publisher configuration "only after an initial manual publishing of a
+  # crate" (RFC 3691). After the first release, configure one per crate and
+  # replace this step's token with `rust-lang/crates-io-auth-action`.
+  crates:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo publish --workspace
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # The dry run for the above, on `workflow_dispatch`: packages every crate
+  # and builds each from its packaged sources alone, which is where a missing
+  # `version` on a path dependency or a file outside the package shows up.
+  crates-dry-run:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo publish --workspace --dry-run
