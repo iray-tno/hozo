@@ -195,7 +195,7 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // cannot set for itself: a windowed list has a length its
         // accessibility tree does not, and Android's
         // `accessibilityCollection` is what tells TalkBack the real one.
-        // See `@hozo/runtime`'s `list.native.ts` -- including why iOS gets
+        // See `@hozo/engine`'s `list.native.ts` -- including why iOS gets
         // nothing.
         Primitive::FlatList => {
             ("HozoFlatList", vec![("accessibilityRole", "list".to_string())])

@@ -103,8 +103,8 @@ test('the runtime hook the compiler names is one the runtime exports', () => {
   const { runtimeImports } = compileNative(source(CLASSES), 'Screen.tsx')[0] as {
     runtimeImports: string[]
   }
-  const runtime = require('../../runtime/src/safe-area.native.ts') as Record<string, unknown>
+  const runtime = require('../../engine/src/safe-area.native.ts') as Record<string, unknown>
   for (const name of runtimeImports) {
-    assert.equal(typeof runtime[name], 'function', `@hozo/runtime does not export ${name}`)
+    assert.equal(typeof runtime[name], 'function', `@hozo/engine does not export ${name}`)
   }
 })

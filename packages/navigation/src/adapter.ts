@@ -1,4 +1,4 @@
-import type { HozoNavigationAdapter, HozoNavigationRequest } from '@hozo/runtime/navigation'
+import type { HozoNavigationAdapter, HozoNavigationRequest } from '@hozo/engine/navigation'
 
 export type NavigationResult = boolean | undefined | Promise<boolean | undefined>
 export type NavigationPrefetch = (

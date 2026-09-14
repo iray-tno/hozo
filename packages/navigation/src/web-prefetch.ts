@@ -1,4 +1,4 @@
-import { type HozoNavigationAdapter, prefetchHozoNavigation } from '@hozo/runtime/navigation'
+import { type HozoNavigationAdapter, prefetchHozoNavigation } from '@hozo/engine/navigation'
 
 interface ClosestElement {
   closest(selectors: string): Element | null

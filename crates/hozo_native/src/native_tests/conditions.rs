@@ -160,7 +160,7 @@ fn no_variant_is_dropped_without_saying_so() {
 #[test]
 fn ambient_conditions_compile_to_a_hook_the_caller_must_splice() {
     // `dark:` and the breakpoints are the same value app-wide at any
-    // moment, so `@hozo/runtime` keeps one subscription for the whole
+    // moment, so `@hozo/engine` keeps one subscription for the whole
     // app; the hook exists only to re-render *this* component when it
     // changes. The declaration is returned rather than inlined into
     // the JSX -- a hook inside `style={[a, useHozoDark() && b]}`

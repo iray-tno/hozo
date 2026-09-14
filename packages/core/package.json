@@ -153,7 +153,7 @@
   "dependencies": {
     "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
-    "@hozo/runtime": "workspace:^",
+    "@hozo/engine": "workspace:^",
     "@hozo/semantics": "workspace:^",
     "@hozo/typography": "workspace:^"
   },

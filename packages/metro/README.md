@@ -35,7 +35,7 @@ Without it, an app is type-checked against the **Web** declarations: a native-on
 
 A `className` Hozo can't read statically — `<View className={getVariant()} />` — still has to produce styles. On Web that's free: the class string reaches the DOM and the browser matches it against a generated stylesheet. React Native has no CSS engine, so the string has to be resolved on device.
 
-`withHozo` scans the project for class-shaped strings and writes `node_modules/.hozo/candidates.native.js`: a class-name → style-object map plus a resolver bound to it (from `@hozo/core/generated/class-resolver`, so an app that installed only `@hozo/core` resolves it under strict pnpm). Files with an unreadable `className` import it; files without one don't. The same module carries the resolved `preflight` choice to Native fallback components, so an uncompiled `Heading`, `Separator`, `Small`, `Sub`, or `Sup` uses the same browser defaults as compiled code. Metro redirects `@hozo/runtime/project` automatically; no provider or application import is required. The lower-level `generateCandidateModule` API remains available from `@hozo/metro/project`.
+`withHozo` scans the project for class-shaped strings and writes `node_modules/.hozo/candidates.native.js`: a class-name → style-object map plus a resolver bound to it (from `@hozo/core/generated/class-resolver`, so an app that installed only `@hozo/core` resolves it under strict pnpm). Files with an unreadable `className` import it; files without one don't. The same module carries the resolved `preflight` choice to Native fallback components, so an uncompiled `Heading`, `Separator`, `Small`, `Sub`, or `Sup` uses the same browser defaults as compiled code. Metro redirects `@hozo/engine/project` automatically; no provider or application import is required. The lower-level `generateCandidateModule` API remains available from `@hozo/metro/project`.
 
 It runs at config load rather than inside the transformer because Metro transforms in `jest-worker` subprocesses. Scanning there would mean several processes writing one cache file; the config layer is ordinary main-process code, so there's exactly one writer.
 
@@ -45,7 +45,7 @@ It runs at config load rather than inside the transformer because Metro transfor
 
 ## `dark:` and breakpoints need a component function
 
-Written as a static `className`, `dark:` and `sm:`/`md:`/`lg:`/`xl:`/`2xl:` compile to a React hook from `@hozo/runtime`, spliced as a statement at the top of the enclosing component:
+Written as a static `className`, `dark:` and `sm:`/`md:`/`lg:`/`xl:`/`2xl:` compile to a React hook from `@hozo/engine`, spliced as a statement at the top of the enclosing component:
 
 ```jsx
 export function Card() {
@@ -56,7 +56,7 @@ export function Card() {
 
 The hook has to be a statement. Inlining the call into the JSX (`style={[a, useHozoDark() && b]}`) breaks the rules of hooks as soon as the element sits behind a conditional, so JSX at module scope or in a concise arrow body (`() => <View className="dark:..." />`) is a build error naming the fix.
 
-`@hozo/runtime` keeps **one** subscription per app, not one per component, and its snapshot is a coarse value — the breakpoint's name rather than the raw width. A resize that doesn't cross a breakpoint therefore re-renders nothing, and Android's keyboard-driven dimension events never reach it at all, since only width is an input.
+`@hozo/engine` keeps **one** subscription per app, not one per component, and its snapshot is a coarse value — the breakpoint's name rather than the raw width. A resize that doesn't cross a breakpoint therefore re-renders nothing, and Android's keyboard-driven dimension events never reach it at all, since only width is an input.
 
 ## Errors vs. warnings
 

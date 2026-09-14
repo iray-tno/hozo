@@ -17,7 +17,7 @@
 // The same pattern `HozoGrid` and `HozoSpaced` already follow: static
 // where the answer is knowable, a component where it is not.
 
-import { HozoTextSizeContext } from '@hozo/runtime'
+import { HozoTextSizeContext } from '@hozo/engine'
 import { type ReactNode, useContext } from 'react'
 import { type StyleProp, StyleSheet, Text, type TextProps, type TextStyle } from 'react-native'
 

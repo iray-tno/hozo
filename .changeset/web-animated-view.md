@@ -1,6 +1,6 @@
 ---
 '@hozo/compiler': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 ---
 
 Lower trusted React Native Animated.View JSX through a Web bridge that resolves

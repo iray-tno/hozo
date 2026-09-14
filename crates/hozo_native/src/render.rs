@@ -1153,7 +1153,7 @@ pub(super) fn render_node(
         runtime.need_component("HozoDialog");
     }
     if node.primitive == Primitive::FlatList {
-        // The list itself is React Native's. What `@hozo/runtime` adds is
+        // The list itself is React Native's. What `@hozo/engine` adds is
         // the collection information Android needs and nothing computes on
         // its own -- see `markup.rs`.
         runtime.need_component("HozoFlatList");

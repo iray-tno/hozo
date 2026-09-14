@@ -659,7 +659,7 @@ impl SvgElement {
     /// around any bare string, because a raw string outside a `Text` is a
     /// crash on that platform -- so an SVG `Text` imported beside it would
     /// be two bindings of one name in a file neither of them wrote.
-    /// `@hozo/runtime` re-exports it under this name for the same reason.
+    /// `@hozo/engine` re-exports it under this name for the same reason.
     pub fn runtime_name(self) -> &'static str {
         match self {
             SvgElement::Link => "SvgLink",
@@ -762,7 +762,7 @@ pub struct Node {
     pub children: Vec<Child>,
     /// Parts of a `className` expression that couldn't be statically
     /// decomposed into `style` (proposal §7's "truly dynamic" tier) --
-    /// threaded through to `@hozo/runtime`'s `cx()` at render time.
+    /// threaded through to `@hozo/engine`'s `cx()` at render time.
     /// Populated per-leaf, not per-node: a `cn(...)` call can contribute
     /// some declarations to `style` and some entries here in the same call.
     pub class_name_fallback: Vec<ExprRef>,

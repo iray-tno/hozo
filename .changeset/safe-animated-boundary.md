@@ -1,5 +1,5 @@
 ---
-'@hozo/runtime': patch
+'@hozo/engine': patch
 ---
 
 Harden the Web `Animated.View` compatibility boundary: isolate React Native's private node shape,

@@ -1,4 +1,4 @@
-import { activateHozoNavigation, useHozoNavigation } from '@hozo/runtime/navigation'
+import { activateHozoNavigation, useHozoNavigation } from '@hozo/engine/navigation'
 import {
   type DrawingNodeProps,
   FillType,

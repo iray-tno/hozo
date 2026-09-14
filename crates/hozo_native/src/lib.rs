@@ -29,7 +29,7 @@
 //!
 //! - `Responsive`/`Dark` are *wired*, through a React hook. They are
 //!   ambient -- one value for the whole app at any moment -- so
-//!   `@hozo/runtime` keeps a single subscription and the hook exists only
+//!   `@hozo/engine` keeps a single subscription and the hook exists only
 //!   to re-render this component. The declaration is returned in
 //!   `LowerOutput::prelude` for the caller to splice at
 //!   `hozo_parser::Root::hook_slot`, never inlined into the JSX: a hook
@@ -87,7 +87,7 @@ pub struct LowerOutput {
     /// `style={[a, useHozoDark() && b]}` reads fine and breaks the moment
     /// the element itself sits behind a conditional.
     pub prelude: Vec<String>,
-    /// Named imports `prelude` needs from `@hozo/runtime`.
+    /// Named imports `prelude` needs from `@hozo/engine`.
     pub runtime_imports: Vec<&'static str>,
     /// Components `jsx` needs from `react-native` itself.
     ///
@@ -102,7 +102,7 @@ pub struct LowerOutput {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-/// What the generated module will need from `@hozo/runtime`, accumulated
+/// What the generated module will need from `@hozo/engine`, accumulated
 /// as the tree is walked.
 ///
 /// Hooks and components are kept apart because only hooks constrain where
@@ -596,7 +596,7 @@ fn is_safe_area_inset(prop: &StyleProperty) -> bool {
 /// rotate a phone and the notch moves from the top to the side.
 ///
 /// The value comes from `react-native-safe-area-context`, wrapped by
-/// `useHozoSafeArea` in `@hozo/runtime`. Hozo does not ship native code and
+/// `useHozoSafeArea` in `@hozo/engine`. Hozo does not ship native code and
 /// this is the one place that decision is visible: reading the real inset
 /// needs `UIView.safeAreaInsets` and Android's `WindowInsets`, and React
 /// Native's core exposes neither to JavaScript -- only a deprecated

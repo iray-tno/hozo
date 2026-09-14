@@ -2,7 +2,7 @@
 '@hozo/svg': minor
 '@hozo/compiler': minor
 '@hozo/core': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 '@hozo/metro': minor
 ---
 

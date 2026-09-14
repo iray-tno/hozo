@@ -1,6 +1,6 @@
 ---
 '@hozo/compiler': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 ---
 
 Lower React Native `TouchableWithoutFeedback` on Web by attaching its behavior

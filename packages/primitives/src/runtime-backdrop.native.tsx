@@ -1,4 +1,4 @@
-import { hozoBackdropFilterAdapter } from '@hozo/runtime'
+import { hozoBackdropFilterAdapter } from '@hozo/engine'
 import { createElement, type ReactElement } from 'react'
 import type { ViewProps } from 'react-native'
 

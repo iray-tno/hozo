@@ -9,7 +9,7 @@ import App from './App.tsx'
 // `react-native-safe-area-context`'s -- Hozo ships no native code, and the
 // real inset is `UIView.safeAreaInsets` on iOS and `WindowInsets` on
 // Android. Without this provider the hook returns zeros, which is the
-// warning `@hozo/runtime` prints rather than a crash: content under a
+// warning `@hozo/engine` prints rather than a crash: content under a
 // notch is recoverable, a blank app is not.
 //
 // Here rather than inside `App` so the census screen gets it too --

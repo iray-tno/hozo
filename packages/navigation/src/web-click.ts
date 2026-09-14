@@ -2,7 +2,7 @@ import type {
   HozoNavigationAdapter,
   HozoNavigationFallback,
   HozoNavigationRequest,
-} from '@hozo/runtime/navigation'
+} from '@hozo/engine/navigation'
 
 type RoutableClick = Pick<
   MouseEvent,

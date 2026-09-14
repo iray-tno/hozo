@@ -58,7 +58,7 @@ export function typeCheckWeb(
     // React's `onKeyDown`, which is the only reason to emit it.
     const imports =
       runtimeImports.length > 0
-        ? `import { ${[...new Set(runtimeImports)].sort().join(', ')} } from '@hozo/runtime'\n`
+        ? `import { ${[...new Set(runtimeImports)].sort().join(', ')} } from '@hozo/engine'\n`
         : ''
     const source = `${imports}${declarations}\n${components
       .map(({ name, jsx }) => `export function ${name}() { return ${jsx}; }`)

@@ -27,7 +27,7 @@ const packages = [
   },
   { name: 'metro', dir: 'packages/metro', testPattern: 'src/*.test.ts' },
   { name: 'next', dir: 'packages/next', testPattern: 'src/*.test.ts' },
-  { name: 'runtime', dir: 'packages/runtime', testPattern: 'src/*.test.ts' },
+  { name: 'engine', dir: 'packages/engine', testPattern: 'src/*.test.ts' },
   {
     name: 'semantics',
     dir: 'packages/semantics',

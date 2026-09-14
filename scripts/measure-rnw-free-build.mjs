@@ -108,7 +108,7 @@ function prepare() {
   pnpm(['--filter', '@hozo/compiler', 'build:native'])
   pnpm(['--filter', '@hozo/compiler', 'build'])
   pnpm(['--filter', '@hozo/behaviors', 'build'])
-  pnpm(['--filter', '@hozo/runtime', 'build'])
+  pnpm(['--filter', '@hozo/engine', 'build'])
 }
 
 function flattenModules(modules, into = []) {
@@ -188,10 +188,10 @@ async function webpackConfig({ blockRnw = false, hozo = false }) {
         },
       },
     })
-    config.resolve.alias['@hozo/runtime$'] = path.join(
+    config.resolve.alias['@hozo/engine$'] = path.join(
       root,
       'packages',
-      'runtime',
+      'engine',
       'dist',
       'index.js',
     )

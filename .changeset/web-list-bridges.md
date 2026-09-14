@@ -1,6 +1,6 @@
 ---
 '@hozo/compiler': minor
-'@hozo/runtime': minor
+'@hozo/engine': minor
 ---
 
 Lower behaviorful ScrollView, FlatList, and nested RefreshControl JSX through

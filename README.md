@@ -542,6 +542,7 @@ packages/
   canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
   compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
   core/                    Zero-setup facade over Hozo's canonical authoring packages.
+  engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   metro/                   Metro integration for the Hozo compiler (Native lowering backend).
   migration-audit/         Measure how safely Hozo can lower a real React Native application.
   navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
@@ -549,7 +550,6 @@ packages/
   patterns/                Accessible composite UI patterns for Hozo applications.
   primitives/              Canonical universal UI primitives for Hozo applications.
   rn-compat/               Optional React Native compatibility APIs for incrementally migrating applications to Hozo.
-  runtime/                 Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   semantics/               Universal landmarks, document sectioning, and semantic page structure primitives for Hozo.
   storybook/               Zero-config Storybook Vite preset for Hozo.
   svg/                     Universal SVG primitives for Hozo, backed by browser SVG and react-native-svg.

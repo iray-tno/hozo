@@ -17,7 +17,7 @@ use super::*;
 ///
 /// This is deliberately the smallest thing that can: a flat
 /// name -> style-object map plus a split-and-look-up resolver
-/// (`@hozo/runtime`'s `createClassResolver`). What makes that enough,
+/// (`@hozo/engine`'s `createClassResolver`). What makes that enough,
 /// where `react-native-css` needs a full reactive engine with specificity
 /// sorting, is that Hozo only ever puts *single utility classes* in here.
 /// They're all the same specificity, so "later in the string wins" is the

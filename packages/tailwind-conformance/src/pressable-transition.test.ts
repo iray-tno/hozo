@@ -120,7 +120,7 @@ test('without a transition the callback is still the callback', () => {
 })
 
 test('the runtime component keeps the base style under an animated one', () => {
-  // Directly, rather than through the compiler: `@hozo/runtime` is a
+  // Directly, rather than through the compiler: `@hozo/engine` is a
   // published package and a hand-written `HozoPressable` has the same
   // contract. Two entries -- the resolved style and the animated
   // overrides -- and the resolved one still carries the colour.

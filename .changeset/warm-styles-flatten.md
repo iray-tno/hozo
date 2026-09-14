@@ -1,5 +1,5 @@
 ---
-'@hozo/runtime': minor
+'@hozo/engine': minor
 '@hozo/compiler': patch
 '@hozo/core': patch
 '@hozo/migration-audit': patch

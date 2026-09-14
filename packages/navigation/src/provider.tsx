@@ -1,4 +1,4 @@
-import { HozoNavigationProvider } from '@hozo/runtime/navigation'
+import { HozoNavigationProvider } from '@hozo/engine/navigation'
 import { type ReactNode, useEffect, useMemo } from 'react'
 
 import { createNavigationAdapter, type NavigationAdapterOptions } from './adapter.ts'

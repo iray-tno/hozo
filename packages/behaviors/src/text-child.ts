@@ -2,7 +2,7 @@
 //
 // A string inside a `<div>` is a text node and there is nothing to fix, so
 // this returns what it was given. It exists for the same reason
-// `disclosure.tsx` and `ruby.tsx` do: a package resolves `@hozo/runtime`'s
+// `disclosure.tsx` and `ruby.tsx` do: a package resolves `@hozo/engine`'s
 // types through the Web entry whichever platform it is building for, so a
 // name the native halves import has to be nameable here or `@hozo/core`
 // cannot compile.

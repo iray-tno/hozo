@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { PanResponder, type PanResponderGestureState } from '../../rn-compat/src/pan-responder.ts'
 import {
   createResponderDomProps,
   type HozoResponderEvent,
   type ResponderProps,
-} from '../../runtime/src/responder.ts'
+} from '../../engine/src/responder.ts'
+import { PanResponder, type PanResponderGestureState } from '../../rn-compat/src/pan-responder.ts'
 
 interface FakeElement {
   captured: Set<number>

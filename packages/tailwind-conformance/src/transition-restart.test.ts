@@ -20,7 +20,7 @@ import { createRequire } from 'node:module'
 import test from 'node:test'
 
 // Imported for its resolve hook: `react-native` has to be the stub before
-// anything below pulls `@hozo/runtime` in.
+// anything below pulls `@hozo/engine` in.
 import './native-render.ts'
 
 const require = createRequire(import.meta.url)

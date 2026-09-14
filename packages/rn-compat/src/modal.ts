@@ -1,4 +1,4 @@
-import { type HozoDomStyle, hozoDomStyle } from '@hozo/runtime'
+import { type HozoDomStyle, hozoDomStyle } from '@hozo/engine'
 import { createElement, type ReactNode, useEffect, useRef } from 'react'
 
 export interface HozoModalProps {

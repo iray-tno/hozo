@@ -53,7 +53,7 @@ test('withHozo preserves Metro settings and records the existing transformer', a
           throw new Error('the project runtime must not reach the upstream resolver')
         },
       },
-      '@hozo/runtime/project',
+      '@hozo/engine/project',
       'android',
     )
     assert.deepEqual(projectRuntime, {

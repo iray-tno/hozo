@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { HozoNavigationAdapter } from '@hozo/runtime/navigation'
+import type { HozoNavigationAdapter } from '@hozo/engine/navigation'
 import { navigationRequestForClick, routeNavigationClick } from './web-click.ts'
 
 function click(

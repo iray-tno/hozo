@@ -3,7 +3,7 @@
 // `external` is Hozo's own spelling, not the DOM's: it stands for a
 // `target="_blank"` and a `rel` that severs `window.opener`, so the page
 // that opens cannot navigate the one it came from. That derivation exists
-// twice -- in `@hozo/runtime`'s `externalLinkAttributes`, which is what
+// twice -- in `@hozo/engine`'s `externalLinkAttributes`, which is what
 // `@hozo/core`'s `Button` and `@hozo/typography`'s `Link` render through
 // when a project has not turned the compiler on, and in `hozo_web`, which
 // is what a project that has gets instead.
@@ -21,7 +21,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { compile } from '@hozo/compiler'
-import { externalLinkAttributes } from '@hozo/runtime'
+import { externalLinkAttributes } from '@hozo/engine'
 
 import { renderWeb } from './render.ts'
 

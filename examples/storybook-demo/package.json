@@ -16,7 +16,7 @@
     "@hozo/patterns": "workspace:*",
     "@hozo/primitives": "workspace:*",
     "@hozo/rn-compat": "workspace:*",
-    "@hozo/runtime": "workspace:*",
+    "@hozo/engine": "workspace:*",
     "@hozo/semantics": "workspace:*",
     "@hozo/svg": "workspace:*",
     "@hozo/typography": "workspace:*",

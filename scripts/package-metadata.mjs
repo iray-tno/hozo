@@ -101,7 +101,7 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'react', 'typography', 'cjk', 'ruby', 'accessibility'],
   },
-  runtime: {
+  engine: {
     exports: {
       '.': './dist/index.js',
       './navigation': './dist/navigation-entry.js',
@@ -276,7 +276,7 @@ export function metadataFor(name) {
     // with its own conditions and never looks at `types` at all.
     //
     // What it cost is in `@hozo/tailwind-conformance/src/class-name-parity.test.ts`
-    // and in `packages/runtime/src/class-name.native.ts`: a native-only
+    // and in `packages/engine/src/class-name.native.ts`: a native-only
     // export read as missing, and every native prop type went unchecked --
     // not one of them declared `className`, the prop the whole authoring
     // model is built on.

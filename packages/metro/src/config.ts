@@ -14,7 +14,7 @@ import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 
 import { candidateModulePath, generateCandidateModule } from './project.ts'
 
-const PROJECT_RUNTIME_MODULE = '@hozo/runtime/project'
+const PROJECT_RUNTIME_MODULE = '@hozo/engine/project'
 
 /**
  * The same options every Hozo integration takes, under this one's name.
@@ -224,7 +224,7 @@ export async function withHozo<T extends MetroConfigShape>(
   const configuredResolveRequest = config.resolver?.resolveRequest
   const resolvedPlatforms = new Set<string>()
   const resolveRequest: MetroResolveRequest = (context, moduleName, platform) => {
-    // `@hozo/runtime/project` has a useful common-case fallback in the
+    // `@hozo/engine/project` has a useful common-case fallback in the
     // published package. A configured Native build gets the exact value
     // generated for this project instead, without asking every app for a
     // provider at its root (#336).

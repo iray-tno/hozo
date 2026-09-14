@@ -4,7 +4,7 @@ import { Heading, Link, List, ListItem, Paragraph, Section, Text, View } from '@
  * Hozo's static subset, used from Astro with no `client:` directive.
  *
  * Eleven of the seventeen primitives lower to markup that needs nothing at
- * run time: no `@hozo/runtime` import, no handler, no ref. Those are the
+ * run time: no `@hozo/engine` import, no handler, no ref. Those are the
  * ones here. The other six -- `Pressable`, `Button`, `TextInput`,
  * `ScrollView`, `Dialog`, and `FlatList`, which the Web backend carries
  * rather than lowers -- each need a client boundary, and in Astro that

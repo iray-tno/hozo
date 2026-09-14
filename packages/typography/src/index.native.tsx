@@ -1,6 +1,6 @@
+import { HozoTextSizeContext } from '@hozo/engine'
+import { hozoPreflight } from '@hozo/engine/project'
 import { Link, Text } from '@hozo/primitives'
-import { HozoTextSizeContext } from '@hozo/runtime'
-import { hozoPreflight } from '@hozo/runtime/project'
 import React, { type ComponentProps, type ReactNode, useContext } from 'react'
 // The components rather than their names. These files used to render
 // `React.createElement('View')`, and React Native resolves a string tag
@@ -74,7 +74,7 @@ export interface LinkProps extends TypographyNativeProps {
 /**
  * The size the text around this is drawn at.
  *
- * `@hozo/runtime`'s, not one of this package's own. The compiler emits
+ * `@hozo/engine`'s, not one of this package's own. The compiler emits
  * `HozoTextSize` for an element whose size it could not read, and that
  * publishes into this context -- so a compiled ancestor and one of the
  * components below, rendered uncompiled, agree about the base. Two
@@ -194,7 +194,7 @@ export function NoBreak({ children, ...props }: TypographyNativeProps) {
  * A Native style handed over as if it were a Web one -- a resolver's
  * limit rather than a claim about the value.
  *
- * A package resolves `@hozo/runtime`'s types through the Web entry
+ * A package resolves `@hozo/engine`'s types through the Web entry
  * whichever platform it is building for, because `exports` carries a
  * single `types` and this package compiles both halves in one `tsc` run.
  * So these are seen with `style?: CSSProperties` here while the module
