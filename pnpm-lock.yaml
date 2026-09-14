@@ -215,6 +215,12 @@ importers:
       '@hozo/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@hozo/semantics':
+        specifier: workspace:*
+        version: link:../../packages/semantics
+      '@hozo/typography':
+        specifier: workspace:*
+        version: link:../../packages/typography
       '@shopify/react-native-skia':
         specifier: ^2.11.1
         version: 2.11.1(b7ad387d91fbabbef5b4c5e6cb6af320)
