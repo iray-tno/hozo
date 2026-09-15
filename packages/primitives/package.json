@@ -141,7 +141,7 @@
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-native": ">=0.76"
+    "react-native": ">=0.86"
   },
   "peerDependenciesMeta": {
     "react-native": {
@@ -155,6 +155,6 @@
     "esbuild": "0.28.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-native": "^0.87.0"
+    "react-native": "^0.87.1"
   }
 }
