@@ -60,7 +60,9 @@ jobs:
       # own checks build it.
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm turbo run build --filter=@hozo/example-storybook^...
-      - run: node scripts/build.mjs storybook-static-check
+      # Through pnpm, which puts the example's `storybook` binary on PATH;
+      # run with plain `node` the build script cannot find it.
+      - run: pnpm exec node scripts/build.mjs storybook-static-check
         working-directory: examples/storybook-demo
 
       # Permissions for automation (and, on macOS, screen recording), then
