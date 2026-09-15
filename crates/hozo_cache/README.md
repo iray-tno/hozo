@@ -2,7 +2,7 @@
 
 The build cache behind the Hozo compiler's project-wide scan for class names it cannot read statically. It tracks which files have changed and which classes each one references, and sits behind a swappable backing store.
 
-Part of [Hozo](https://github.com/iray-tno/hozo), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
+Part of [Hozo](https://iray-tno.github.io/hozo/) ([source](https://github.com/iray-tno/hozo)), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
 
 ## Stability
 

@@ -2,7 +2,7 @@
 
 The Web backend of the Hozo compiler. It lowers `hozo_ir` to semantic HTML, CSS and ARIA, so a static path needs no React Native Web and no runtime styling.
 
-Part of [Hozo](https://github.com/iray-tno/hozo), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
+Part of [Hozo](https://iray-tno.github.io/hozo/) ([source](https://github.com/iray-tno/hozo)), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
 
 ## Stability
 

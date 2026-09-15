@@ -2,7 +2,7 @@
 
 The intermediate representation shared by the Hozo compiler: primitives, style properties, accessibility semantics and diagnostics, with nothing specific to any one platform. `hozo_parser` builds it from TSX; `hozo_web` and `hozo_native` lower it.
 
-Part of [Hozo](https://github.com/iray-tno/hozo), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
+Part of [Hozo](https://iray-tno.github.io/hozo/) ([source](https://github.com/iray-tno/hozo)), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
 
 ## Stability
 

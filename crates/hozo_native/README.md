@@ -2,7 +2,7 @@
 
 The Native backend of the Hozo compiler. It lowers `hozo_ir` to React Native primitives and `StyleSheet` objects, and names the few runtime hooks a condition like `dark:` or `md:` needs on a device.
 
-Part of [Hozo](https://github.com/iray-tno/hozo), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
+Part of [Hozo](https://iray-tno.github.io/hozo/) ([source](https://github.com/iray-tno/hozo)), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
 
 ## Stability
 

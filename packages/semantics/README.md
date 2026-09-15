@@ -86,3 +86,11 @@ export function Layout({ children }) {
 - **Semantic HTML5 Web Output**: Direct compiler lowering to real HTML5 landmark and semantic elements, completely free of `react-native-web`.
 - **Accessible React Native Output**: Automatically injects canonical accessibility roles (`role="main"`, `role="banner"`, `role="contentinfo"`, `role="complementary"`, `role="search"`, `role="figure"`) and maps captions to accessible `<Text>`.
 - **Zero Runtime**: Direct compiler lowerings with working React component fallbacks when uncompiled.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->
