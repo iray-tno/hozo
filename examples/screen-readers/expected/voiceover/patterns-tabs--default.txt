@@ -1,5 +1,6 @@
 # Approved from screen-readers run 34951455002 (VoiceOver, Safari).
-heading level 2 Tabs Pattern
+# No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
+# item past it (the first attempt of run 35004579515 on Combobox did).
 Hozo documentation sections tab group
 Overview selected tab, 1 of 3
 Features tab, 2 of 3

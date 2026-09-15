@@ -1,6 +1,7 @@
 # Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+# No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
+# item past it (the first attempt of run 35004579515 on Combobox did).
 # Not approved: VoiceOver said "Repository table Row 4 of 12 selected" where
 # NVDA says "tree view". Whether the markup or WebKit's mapping is responsible
 # is an open question, and approving the phrase would lock it in.
-heading level 2 Tree
 hozo_web

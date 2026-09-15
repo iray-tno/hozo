@@ -1,5 +1,6 @@
 # Approved from screen-readers run 34951455002 (VoiceOver, Safari).
-heading level 2 Menu
+# No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
+# item past it (the first attempt of run 35004579515 on Combobox did).
 menu pop up button
 heading level 3 Radio Group
 Color Theme radio group

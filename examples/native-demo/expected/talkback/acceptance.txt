@@ -6,3 +6,9 @@ Edit box, Enter an address to review in the confirmation dialog
 Card one, Card two, Card three, Card four
 Review email address
 Show every primitive
+# Opening the dialog from Continue (native run 35004579548).
+Is this right?
+Confirm your address
+# Not approved: after Back, TalkBack announced the email field rather than
+# Continue, so focus did not return to the control that opened the dialog.
+# The script warns about it; approving what it said would approve the bug.

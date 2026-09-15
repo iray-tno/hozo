@@ -1,6 +1,7 @@
 # Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+# No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
+# item past it (the first attempt of run 35004579515 on Combobox did).
 # Only the groups: VoiceOver's next command announces a toolbar and does not
 # step into it without its interact command, which the run does not send.
-heading level 2 Toolbar
 Text formatting toolbar
 Alignment toolbar

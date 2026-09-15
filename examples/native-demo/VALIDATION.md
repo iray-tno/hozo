@@ -67,7 +67,7 @@ _Both jobs now keep a screenshot, and the compiled Continue button being invisib
 
 _The tree these announce from is machine-readable on both platforms now, and `native-tree.ts` asserts the Android one against the contract in #260; the iOS half of that comparison is the next change. What a screen reader says out loud stays here._
 
-_TalkBack's speech is captured weekly by the `talkback` job in `native.yml` (`scripts/android-talkback.sh`), which walks the screen with Tab. That reaches the input, the cards, Continue and Gallery, not the heading, the logo, the list announcement or the dialog, so every item below is still read by a person. VoiceOver on iOS has no capture._
+_TalkBack's speech is captured weekly by the `talkback` job in `native.yml` (`scripts/android-talkback.sh`), which walks the screen with Tab. That reaches the input, the cards, Continue and Gallery, and it opens and dismisses the dialog: opening announces "Confirm your address", and dismissing does **not** return focus to Continue -- TalkBack announces the email field instead. The heading, the logo and the list announcement are not reached, so every item below is still read by a person. VoiceOver on iOS has no capture._
 
 - VoiceOver and TalkBack announce the acceptance screen as a list and each virtual row once.
 - The logo is announced as “React Native logo”.
