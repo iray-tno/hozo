@@ -226,6 +226,47 @@ checks.push(
   [!llms.includes('@hozo/test-reporter'), 'llms.txt lists a private package'],
 )
 
+// The index page's code samples. They are written as JSX, where a `\n`
+// typed into text is two characters rather than a line break -- only a
+// `{'\n'}` expression is one. All three samples used the typed form at
+// their line ends, so the page showed a literal "\n" and ran every line
+// together, and nothing here looked at the text.
+{
+  const decode = (text) =>
+    text
+      .replace(/<[^>]+>/g, '')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#x27;', "'")
+      .replaceAll('&amp;', '&')
+  const samplesIn = (markup) =>
+    [...markup.matchAll(/<pre\b[^>]*>([\s\S]*?)<\/pre>/g)].map((match) => decode(match[1]))
+  const labelOf = (sample) => JSON.stringify(sample.trim().split('\n')[0].slice(0, 40))
+
+  // Every code block on the page: none may show a typed "\n".
+  for (const sample of samplesIn(html)) {
+    checks.push([
+      !sample.includes('\\n'),
+      `code sample ${labelOf(sample)} shows a literal "\\n" instead of a line break`,
+    ])
+  }
+
+  // The side-by-side section's three samples are whole components, so each
+  // has to be broken into lines. The integration snippets further down are
+  // two or three lines by design and are not held to this.
+  const start = html.indexOf('id="code-showcase"')
+  const showcase = start === -1 ? '' : html.slice(start, html.indexOf('</section>', start))
+  const samples = samplesIn(showcase)
+  checks.push([samples.length === 3, `expected 3 side-by-side samples, found ${samples.length}`])
+  for (const sample of samples) {
+    checks.push([
+      sample.trim().split('\n').length >= 8,
+      `side-by-side sample ${labelOf(sample)} is not broken into lines`,
+    ])
+  }
+}
+
 for (const [ok, message] of checks) {
   if (!ok) throw new Error(message)
 }
