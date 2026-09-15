@@ -20,6 +20,16 @@ interface Props {
 }
 
 const { title, description, noindex = false, jsonLd } = Astro.props
+
+// Google Analytics 4 and Microsoft Clarity. Production builds only, so
+// `astro dev` and local previews never report a visit. Every tag is marked
+// `data-analytics`: the build check exempts exactly those from its "this
+// page ships no JavaScript" assertions -- the claim is about Hozo's
+// components, not about the site's measurement -- and pins what they are,
+// so a script cannot ride in under the same mark.
+const GA_ID = 'G-5B728NQBSP'
+const CLARITY_ID = 'yihnef0iol'
+const analytics = import.meta.env.PROD
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 const canonical = new URL(Astro.url.pathname, Astro.site).href
 // Absolute: a crawler fetching the card resolves nothing against the page.
@@ -53,3 +63,25 @@ const imageAlt = 'Hozo: Write React Native. Ship Semantic Web & Native UI.'
 <meta name="twitter:image:alt" content={imageAlt} />
 <link rel="sitemap" href={`${base}/sitemap.xml`} />
 {jsonLd && <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+{
+  analytics && (
+    <>
+      <script
+        is:inline
+        async
+        data-analytics
+        src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+      />
+      <script
+        is:inline
+        data-analytics
+        set:html={`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(GA_ID)});`}
+      />
+      <script
+        is:inline
+        data-analytics
+        set:html={`(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script",${JSON.stringify(CLARITY_ID)});`}
+      />
+    </>
+  )
+}

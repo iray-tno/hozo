@@ -70,7 +70,7 @@ const checks = [
   // question is what the *page* loads, not what the directory contains.
   [!/<astro-island/.test(html), 'something hydrated: an island reached the page'],
   [
-    !/<script(?![^>]*type="application\/ld\+json")/.test(html),
+    !/<script(?![^>]*(?:type="application\/ld\+json"|data-analytics))/.test(html),
     'the page shipped JavaScript for a component that needs none',
   ],
 ]
@@ -111,7 +111,7 @@ checks.push(
   ],
   [!/<astro-island/.test(mdx), 'the MDX page hydrated something'],
   [
-    !/<script(?![^>]*type="application\/ld\+json")/.test(mdx),
+    !/<script(?![^>]*(?:type="application\/ld\+json"|data-analytics))/.test(mdx),
     'the MDX page shipped JavaScript for a component that needs none',
   ],
 )
@@ -133,7 +133,7 @@ checks.push(
   ],
   [!/<astro-island/.test(conformance), 'conformance page hydrated an island unexpectedly'],
   [
-    !/<script(?![^>]*type="application\/ld\+json")/.test(conformance),
+    !/<script(?![^>]*(?:type="application\/ld\+json"|data-analytics))/.test(conformance),
     'conformance page shipped JavaScript for static data',
   ],
 )
@@ -184,6 +184,27 @@ for (const page of sitePages) {
     ],
   )
 }
+// The site's measurement: Google Analytics and Microsoft Clarity, and
+// nothing else under the mark the no-JavaScript assertions above exempt.
+// Exactly three tags per page -- the gtag loader, its config, Clarity's
+// loader -- each naming only its own origin or ID. The MDX probe is a
+// fixture, not a page anyone visits, and carries none.
+const ANALYTICS_TAG = /<script\b[^>]*\bdata-analytics\b[^>]*>([\s\S]*?)<\/script>/g
+const allowedAnalytics = (tag) =>
+  /src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=G-5B728NQBSP"/.test(tag) ||
+  /gtag\('config',"G-5B728NQBSP"\)/.test(tag) ||
+  /https:\/\/www\.clarity\.ms\/tag\/"\+i[\s\S]*"yihnef0iol"/.test(tag)
+for (const page of sitePages) {
+  const document = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
+  const tags = [...document.matchAll(ANALYTICS_TAG)].map((match) => match[0])
+  const label = page === '' ? 'index' : page
+  checks.push(
+    [tags.length === 3, `${label}: expected 3 analytics tags, found ${tags.length}`],
+    [tags.every(allowedAnalytics), `${label}: an analytics-marked script is not GA or Clarity`],
+  )
+}
+checks.push([!/data-analytics/.test(mdx), 'the MDX probe page carries analytics'])
+
 checks.push(
   [/"@type":"SoftwareSourceCode"/.test(html), 'the index page carries no JSON-LD'],
   [/<meta name="robots" content="noindex"/.test(mdx), 'the MDX probe page is indexable'],
