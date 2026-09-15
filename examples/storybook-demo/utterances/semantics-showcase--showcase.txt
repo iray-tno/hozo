@@ -1,0 +1,86 @@
+banner
+heading, Hozo Semantic Showcase, level 1
+search
+Quick Search (Ctrl+K)
+end of search
+navigation
+Overview
+Landmarks
+Forms
+Term Lists
+end of navigation
+end of banner
+main
+heading, Article & Figures, level 2
+article
+Architecture Note
+time
+September 3, 2026
+end of time
+heading, Universal Document Semantics, level 3
+paragraph
+Semantic primitives lower directly to HTML5 structural landmarks on Web and accessible Views on React Native without runtime overhead.
+end of paragraph
+figure
+Style IR → Lowered Output
+caption
+Figure 1: Hozo compilation pipeline visualization
+end of caption
+end of figure
+end of article
+complementary
+heading, Complementary Note, level 4
+paragraph
+Lowered to <aside> on Web and role="complementary" on React Native.
+end of paragraph
+end of complementary
+heading, Form Grouping (Fieldset & Legend), level 2
+group, Notification Preferences
+Notification Preferences
+paragraph
+Fieldset groups related form inputs with an accessible caption.
+end of paragraph
+• Push Notifications: Enabled
+• Email Digest: Weekly
+end of group, Notification Preferences
+heading, Native Disclosure (Details & Summary), level 2
+group
+Click to toggle component architecture details
+paragraph
+On Web, this uses native zero-runtime <details> and <summary> elements.
+end of paragraph
+paragraph
+On React Native, it provides interactive toggle state via an accessible Pressable with expanded state.
+end of paragraph
+end of group
+heading, Term Lists (Metadata & Specifications), level 2
+term
+Project Engine
+end of term
+definition
+Rust (hozo_web / hozo_native)
+end of definition
+term
+Target Frameworks
+end of term
+definition
+React, Next.js, React Native
+end of definition
+term
+License
+end of term
+definition
+MIT
+end of definition
+heading, Progress & Indicators, level 2
+Compilation Status
+75%
+progressbar, Compilation status, 75, max value 100, min value 0, current value 75%
+end of main
+contentinfo
+© 2026 Hozo Framework Project
+group
+Contact:
+team@hozo.dev
+end of group
+end of contentinfo

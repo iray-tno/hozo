@@ -1,0 +1,17 @@
+heading, Form Controls, level 2
+paragraph
+Universal TextInput primitives compiling to accessible Web input tags or Fabric TextInput components.
+end of paragraph
+paragraph
+Email Address
+end of paragraph
+textbox, Email Address, placeholder you@example.com
+paragraph
+Search Query
+end of paragraph
+textbox, Search Query, placeholder Search documentation...
+paragraph
+Read-Only Field
+end of paragraph
+textbox, Read-Only Field, Read-only system value
+button, Sign In

@@ -1,0 +1,14 @@
+heading, Menu (@hozo/patterns), level 2
+paragraph
+Accessible action menu popover with keyboard arrow navigation, Escape handling, and focus restoration.
+end of paragraph
+button, Options Menu ↓, not expanded, has popup menu
+heading, Radio Group, level 3
+paragraph
+Single value group where selection follows keyboard focus.
+end of paragraph
+radiogroup, Color Theme, orientated vertically
+radio, Dark Mode (Default), checked, position 1, set size 3
+radio, Light Mode, not checked, position 2, set size 3
+radio, System Preference, not checked, position 3, set size 3
+end of radiogroup, Color Theme, orientated vertically

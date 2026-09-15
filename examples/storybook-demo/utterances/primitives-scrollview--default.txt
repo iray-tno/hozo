@@ -1,0 +1,61 @@
+heading, ScrollView, level 2
+paragraph
+A scrollable region, named so a screen reader can announce it and focusable so a keyboard can reach it. Tab to the box below and use the arrow keys — that is the part a plain overflow container does not give you.
+end of paragraph
+Vertical, named
+region, Compiler stages
+oxc
+paragraph
+parses the TSX
+end of paragraph
+Style IR
+paragraph
+utilities become properties
+end of paragraph
+Semantic IR
+paragraph
+primitives become roles
+end of paragraph
+hozo_web
+paragraph
+roles become HTML and CSS
+end of paragraph
+hozo_native
+paragraph
+roles become Fabric components
+end of paragraph
+hozo_cache
+paragraph
+the candidate scan, between builds
+end of paragraph
+@hozo/vite
+paragraph
+splices the compiled JSX back
+end of paragraph
+@hozo/metro
+paragraph
+the same, for React Native
+end of paragraph
+end of region, Compiler stages
+Horizontal
+region, Backends
+oxc
+Style IR
+Semantic IR
+hozo_web
+hozo_native
+hozo_cache
+@hozo/vite
+@hozo/metro
+end of region, Backends
+Unnamed — the compiler says so
+paragraph
+No
+role
+and no
+accessibilityLabel
+. A screen reader announces "scroll area" and nothing else.
+end of paragraph
+paragraph
+Reachable, scrollable, and anonymous.
+end of paragraph

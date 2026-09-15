@@ -1,0 +1,8 @@
+heading, Universal SVG Primitives, level 2
+paragraph
+Vector shapes using Hozo's canonical SVG namespace, compiling to native Web SVGs or React Native Svg on mobile.
+end of paragraph
+graphics-document
+graphics-document
+heading, Image with Accessible Fallbacks, level 3
+image, Abstract geometric art

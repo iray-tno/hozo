@@ -1,0 +1,57 @@
+heading, Inline Formatting Primitives, level 2
+<Strong>
+paragraph
+This sentence highlights
+strong
+critical safety information
+end of strong
+with semantic weight.
+end of paragraph
+<Emphasis>
+paragraph
+Authors use
+emphasis
+subtle vocal emphasis
+end of emphasis
+to convey tone.
+end of paragraph
+<Underline>
+paragraph
+Vocabulary words like
+onomatopoeia
+are underlined for glossary lookup.
+end of paragraph
+<Strikethrough>
+paragraph
+Original price:
+deletion
+$120.00
+end of deletion
+strong
+$79.00
+end of strong
+end of paragraph
+<Code>
+paragraph
+Run
+code
+cargo test
+end of code
+to verify lowering.
+end of paragraph
+<Mark>
+paragraph
+Search results match
+mark
+universal compiler
+end of mark
+within query docs.
+end of paragraph
+<NoBreak>
+paragraph
+Preserves quantities across line wrapping:
+1,024 MB
+or
+42 °C
+.
+end of paragraph

@@ -1,0 +1,8 @@
+heading, HoverCard with Safe Polygon, level 3
+paragraph
+Hover over the user tag. Move the pointer diagonally towards the card — the safe polygon keeps the card open, allowing you to interact with elements inside it.
+end of paragraph
+button, H @hozo_framework
+H
+@hozo_framework
+end of button, H @hozo_framework

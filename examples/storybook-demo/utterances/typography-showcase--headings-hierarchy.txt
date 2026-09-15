@@ -1,0 +1,24 @@
+heading, Heading Level 1 (32px / 2rem), level 1
+paragraph
+Main page title or primary headline
+end of paragraph
+heading, Heading Level 2 (24px / 1.5rem), level 2
+paragraph
+Major section title
+end of paragraph
+heading, Heading Level 3 (20px / 1.25rem), level 3
+paragraph
+Subsection or group header
+end of paragraph
+heading, Heading Level 4 (18px / 1.125rem), level 4
+paragraph
+Deep subsection or component title
+end of paragraph
+heading, Heading Level 5 (16px / 1rem), level 5
+paragraph
+Minor panel or card label
+end of paragraph
+heading, Heading Level 6 (14px / 0.875rem), level 6
+paragraph
+Eyebrow, category tag, or metadata header
+end of paragraph

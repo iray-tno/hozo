@@ -1,0 +1,90 @@
+heading, Heading Level 1, level 1
+heading, Heading Level 2, level 2
+heading, Heading Level 3, level 3
+heading, Heading Level 4, level 4
+heading, Paragraphs & Text Hierarchy, level 3
+paragraph
+Hozo lowers
+Paragraph
+and
+Heading
+to true semantic HTML tags (
+code
+<p>
+end of code
+,
+code
+<h1>-<h6>
+end of code
+) on Web, and to React Native
+code
+Text
+end of code
+with header roles on Native.
+end of paragraph
+paragraph
+Muted secondary description text rendered with native semantic document structure.
+end of paragraph
+heading, Inline Formatting & Semantics, level 3
+paragraph
+Universal text styling supports
+strong
+strong importance
+end of strong
+,
+emphasis
+emphasis
+end of emphasis
+,
+underlined
+, and
+deletion
+deleted text
+end of deletion
+.
+end of paragraph
+paragraph
+Inline code is rendered using
+code
+npm install @hozo/core
+end of code
+.
+end of paragraph
+paragraph
+Important terms can be highlighted with
+mark
+Mark
+end of mark
+, and numbers with units avoid wrapping via
+100 km/h
+.
+end of paragraph
+heading, Scripts, Annotations & Fine Print, level 3
+paragraph
+Formulas and subscripts: H
+subscript
+2
+end of subscript
+O, E = mc
+superscript
+2
+end of superscript
+, or reference notes
+superscript
+[1]
+end of superscript
+.
+end of paragraph
+paragraph
+Pronunciation guide with Ruby:
+枘
+ほぞ
+(Tenon / Hozo).
+end of paragraph
+paragraph
+Universal navigation:
+link, Visit Hozo on GitHub →
+end of paragraph
+paragraph
+Copyright © 2026 Hozo Universal UI. All rights reserved.
+end of paragraph

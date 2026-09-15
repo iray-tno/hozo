@@ -1,0 +1,60 @@
+heading, Scripts, Ruby & Annotations, level 2
+Subscripts & Superscripts (<Sub>, <Sup>)
+paragraph
+Chemical reactions: 2H
+subscript
+2
+end of subscript
++ O
+subscript
+2
+end of subscript
+→ 2H
+subscript
+2
+end of subscript
+O
+end of paragraph
+paragraph
+Mathematics and physics: a
+superscript
+2
+end of superscript
++ b
+superscript
+2
+end of superscript
+= c
+superscript
+2
+end of superscript
+, or E = mc
+superscript
+2
+end of superscript
+end of paragraph
+paragraph
+Citation references: The compiler removes runtime cost entirely
+superscript
+[42]
+end of superscript
+.
+end of paragraph
+East Asian Phonetic Guides (<Ruby>, <RubyText>)
+paragraph
+Japanese:
+東京
+とうきょう
+へようこそ。
+end of paragraph
+paragraph
+Universal term:
+枘
+ほぞ
+(Tenon / Hozo).
+end of paragraph
+Fine Print & Legal Notices (<Small>)
+paragraph
+* Actual performance may vary based on platform target, host machine hardware, and browser environment.
+© 2026 Hozo Framework Team. Licensed under the MIT License.
+end of paragraph

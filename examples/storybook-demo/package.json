@@ -6,17 +6,18 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check",
+    "test": "tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check",
+    "utterances:update": "node scripts/build.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check --update",
     "typecheck": "tsc --noEmit -p .",
     "check:a11y": "node scripts/check-a11y.mjs"
   },
   "dependencies": {
     "@hozo/behaviors": "workspace:*",
     "@hozo/core": "workspace:*",
+    "@hozo/engine": "workspace:*",
     "@hozo/patterns": "workspace:*",
     "@hozo/primitives": "workspace:*",
     "@hozo/rn-compat": "workspace:*",
-    "@hozo/engine": "workspace:*",
     "@hozo/semantics": "workspace:*",
     "@hozo/svg": "workspace:*",
     "@hozo/typography": "workspace:*",
@@ -24,6 +25,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@guidepup/virtual-screen-reader": "0.32.1",
     "@hozo/storybook": "workspace:*",
     "@storybook/addon-a11y": "10.5.9",
     "@storybook/react-vite": "^10.5.9",

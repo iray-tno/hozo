@@ -1,0 +1,5 @@
+heading, Nested Dismissable Layers (LIFO Stack), level 2
+paragraph
+When multiple layers are stacked, outside clicks and Escape key presses only dismiss the top-most layer, preventing nested dialogues from unexpectedly closing parent menus.
+end of paragraph
+button, Open Primary Popover

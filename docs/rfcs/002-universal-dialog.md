@@ -88,7 +88,12 @@ export function ConfirmModal() {
 
 | Target Platform | Semantic Output | Expected AT Behavior | Verified Status |
 |---|---|---|---|
-| Web / Chrome + NVDA | `<dialog>` / ARIA | Traps focus, announces title, Escape closes | Tested in CI (axe-core) |
-| Web / Safari + VoiceOver | Semantic DOM / ARIA | Traps focus, reads description, Escape closes | Tested in CI (axe-core) |
-| iOS + VoiceOver | RN Modal / AccessibilityView | Traps VoiceOver swipe cursor, announces role | Tested in CI |
-| Android + TalkBack | RN Modal / AccessibilityView | Traps explore-by-touch cursor, back button closes | Tested in CI |
+| Web / Chrome + NVDA | `<dialog>` / ARIA | Traps focus, announces title, Escape closes | ⬜ |
+| Web / Safari + VoiceOver | Semantic DOM / ARIA | Traps focus, reads description, Escape closes | ⬜ |
+| iOS + VoiceOver | RN Modal / AccessibilityView | Traps VoiceOver swipe cursor, announces role | ⬜ |
+| Android + TalkBack | RN Modal / AccessibilityView | Traps explore-by-touch cursor, back button closes | ⬜ |
+
+These rows said "Tested in CI (axe-core)" and "Tested in CI". Neither was true of the behavior in the column beside them. axe-core audits the markup of the Storybook story; it does not run a screen reader, trap focus or press Escape. `native.yml` reads the accessibility tree of the Native demo app, which contains no dialog. What runs today, and does not replace these rows:
+
+- **axe-core** on every Storybook story (`examples/storybook-demo/scripts/check-a11y.mjs`).
+- **A virtual screen reader** over every story's initial state, compared against checked-in reading order (`examples/storybook-demo/scripts/check-utterances.mjs`). It computes announcements from the ARIA and HTML-AAM specifications; it is not NVDA or VoiceOver.

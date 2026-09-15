@@ -1,0 +1,21 @@
+heading, Device State, level 2
+paragraph
+Five variants whose condition lives outside the page. Nothing here responds to a click — change the setting named under each heading.
+end of paragraph
+heading, Colour scheme, level 3
+prefers-color-scheme
+Light by default, slate-900 in dark mode.
+heading, Forced colours, level 3
+Windows High Contrast, forced-colors: active
+The indigo disappears; the border appears.
+Disabled — GrayText in forced colours
+heading, Reduced motion, level 3
+prefers-reduced-motion
+Hover fades over 500ms, or changes instantly when motion is reduced.
+heading, Increased contrast, level 3
+prefers-contrast — see issue #7
+Muted text darkens and the border thickens.
+heading, Print, level 3
+print stylesheet
+Body copy, forced to black on paper.
+This line is screen-only and is dropped from the printed page.

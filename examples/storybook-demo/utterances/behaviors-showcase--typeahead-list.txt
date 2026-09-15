@@ -1,0 +1,14 @@
+heading, Typeahead (Incremental Search & Single-Letter Cycle), level 2
+paragraph
+Click on the list to focus, then type letters (e.g. "b", "bl", or press "a" repeatedly) to jump through matching items.
+end of paragraph
+listbox, Fruit selection, orientated vertically
+option, Apple, selected, position 1, set size 8
+option, Apricot, not selected, position 2, set size 8
+option, Avocado, not selected, position 3, set size 8
+option, Banana, not selected, position 4, set size 8
+option, Blueberry, not selected, position 5, set size 8
+option, Cherry, not selected, position 6, set size 8
+option, Cranberry, not selected, position 7, set size 8
+option, Date, not selected, position 8, set size 8
+end of listbox, Fruit selection, orientated vertically

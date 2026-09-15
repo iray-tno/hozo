@@ -1,0 +1,9 @@
+heading, Tooltip Delay Grouping (Warmup State), level 3
+paragraph
+Hover over an icon — the first tooltip opens after a standard delay (700ms). Once warm, moving across neighboring icons opens subsequent tooltips instantly (0ms delay).
+end of paragraph
+button, B
+button, I
+button, U
+button, </>
+button, 🔗

@@ -1,0 +1,11 @@
+heading, LiveRegion & useAnnounce, level 2
+paragraph
+Informs screen reader users when content asynchronously updates without stealing focus.
+end of paragraph
+button, Trigger Polite Update
+button, Trigger Assertive Alert
+Current Status
+Idle
+status
+Idle
+end of status

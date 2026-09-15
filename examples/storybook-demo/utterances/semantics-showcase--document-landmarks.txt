@@ -1,0 +1,26 @@
+heading, HTML5 Document Structure & Landmarks, level 2
+paragraph
+Landmarks provide screen reader navigation points and semantic structure for layout regions.
+end of paragraph
+banner
+<Header> (Banner Landmark)
+navigation
+<Nav> Navigation Landmark
+end of navigation
+end of banner
+main
+<Main> (Main Content Landmark)
+<Section> Thematic Document Section
+article
+<Article> Self-contained syndicatable article block
+end of article
+end of main
+complementary
+<Aside> (Complementary Landmark / Sidebar)
+end of complementary
+contentinfo
+<Footer> (Contentinfo Landmark)
+group
+<Address> contact@hozo.dev
+end of group
+end of contentinfo

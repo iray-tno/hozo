@@ -88,9 +88,11 @@ The compiler statically removes runtime overhead from Layer 2:
 
 ## 4. Verification Matrix
 
-| Behavior | Web / Screen Reader | Native / Assistive Tech | Test Status |
+| Behavior | Web / Screen Reader | Native / Assistive Tech | What is automated |
 |---|---|---|---|
-| FocusScope | Traps Tab key; restores focus on unmount | Traps VoiceOver swipe cursor | Automated & tested |
-| DismissableLayer | Escape key and outside click dismiss topmost layer | Hardware back button and outside touch dismiss | Automated & tested |
-| FloatingPositioner | Flips at viewport edge; stays pinned on scroll | Computes window coordinates within safe area | Automated & tested |
-| Hover / Tooltip | Instant sibling switch; diagonal safe polygon | Responds to desktop hover and touch long-press | Automated & tested |
+| FocusScope | Traps Tab key; restores focus on unmount | Traps VoiceOver swipe cursor | Focus choice unit-tested (`initialFocusIndex`, `shouldRestoreFocus`). Not run with a screen reader on either platform. |
+| DismissableLayer | Escape key and outside click dismiss topmost layer | Hardware back button and outside touch dismiss | Renders only (`behaviors.test.ts`). Escape, outside press and the back button are not automated. |
+| FloatingPositioner | Flips at viewport edge; stays pinned on scroll | Computes window coordinates within safe area | Geometry unit-tested (flip, shift, arrow, hidden anchor). Native coordinates are not automated. |
+| Hover / Tooltip | Instant sibling switch; diagonal safe polygon | Responds to desktop hover and touch long-press | Safe polygon unit-tested; `Tooltip` renders open and closed. The delay group and long-press are not automated. |
+
+This column said "Automated & tested" on every row. What the tests exercise is the pure logic beside each behavior, not a screen reader or a device, and the column now says which.

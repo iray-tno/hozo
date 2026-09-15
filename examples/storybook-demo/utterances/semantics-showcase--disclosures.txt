@@ -1,0 +1,20 @@
+heading, Native Disclosures (<Details> & <Summary>), level 2
+paragraph
+Zero-runtime HTML5 disclosures on Web, interactive accessible pressable widgets on React Native.
+end of paragraph
+group
+What is zero-runtime lowering?
+paragraph
+Hozo analyzes components at build time and emits raw semantic HTML without bundling heavy disclosure component libraries.
+end of paragraph
+end of group
+group
+Expanded by default (open=true)
+paragraph
+This disclosure starts open to immediately reveal secondary settings or onboarding guides.
+end of paragraph
+paragraph
+On React Native, defaultOpen=
+initializes the component in the expanded state.
+end of paragraph
+end of group

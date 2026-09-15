@@ -1,0 +1,46 @@
+navigation
+Home
+/
+Documentation
+/
+Landmarks
+end of navigation
+article
+heading, Semantic Article Landmark, level 2
+paragraph
+Rendered inside a semantic <article> element with accessible landmark navigation roles automatically mapped on Native.
+end of paragraph
+end of article
+heading, Ordered & Unordered Lists, level 3
+list
+listitem, level 1, position 1, set size 3
+First item in an ordered sequence
+end of listitem, level 1, position 1, set size 3
+listitem, level 1, position 2, set size 3
+Second item with automatic semantic tagging
+end of listitem, level 1, position 2, set size 3
+listitem, level 1, position 3, set size 3
+Third item preserving React Native list structure
+end of listitem, level 1, position 3, set size 3
+end of list
+heading, FlatList Rendering, level 3
+list
+listitem, level 1, position 1, set size 3
+Compiler Pass 1
+paragraph
+TSX AST parsing with oxc
+end of paragraph
+end of listitem, level 1, position 1, set size 3
+listitem, level 1, position 2, set size 3
+Compiler Pass 2
+paragraph
+Style IR & Semantic IR synthesis
+end of paragraph
+end of listitem, level 1, position 2, set size 3
+listitem, level 1, position 3, set size 3
+Compiler Pass 3
+paragraph
+Target Lowering (DOM / Fabric)
+end of paragraph
+end of listitem, level 1, position 3, set size 3
+end of list
