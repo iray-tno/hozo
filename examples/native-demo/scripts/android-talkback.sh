@@ -8,9 +8,8 @@
 # the default engine, TalkBack is switched on through secure settings, and
 # its "next item" command is sent until it stops finding anything new.
 #
-# Needs an image that ships TalkBack -- the Google Play ones do, the plain
-# Google APIs ones do not -- and the release APK plus the speech-log APK
-# already built.
+# Needs an image that ships TalkBack -- API 36 does, API 34 does not -- and
+# the release APK plus the speech-log APK already built.
 #
 # Writes `talkback-speech.json` (every step and what it said) and a
 # screenshot at the start and the end. Fails when TalkBack said fewer than
@@ -54,7 +53,7 @@ adb shell settings put global hide_error_dialogs 1 > /dev/null 2>&1 || true
 if ! adb shell pm list packages "$talkback" | grep -q "$talkback"; then
   echo 'accessibility packages on this image:'
   adb shell pm list packages | grep -i -E 'access|talk|marvin' | sed 's/^/  /' || echo '  (none)'
-  fail "this image has no TalkBack; use a google_apis_playstore image"
+  fail "this image has no TalkBack (the API 34 one does not; 33, 35 and 36 do)"
 fi
 echo "TalkBack: $(adb shell dumpsys package "$talkback" | grep -m1 versionName | tr -d '\r' | xargs)"
 
