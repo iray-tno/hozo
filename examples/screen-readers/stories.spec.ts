@@ -25,6 +25,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { WindowsKeyCodes, WindowsModifiers } from '@guidepup/guidepup'
 import { screenReaderTest as test } from '@guidepup/playwright'
 import { macOSRecord, windowsRecord } from '@guidepup/record'
 
@@ -104,7 +105,34 @@ for (const id of stories) {
     try {
       await page.goto(`/iframe.html?id=${id}&viewMode=story`, { waitUntil: 'load' })
       await page.locator('#storybook-root > *').first().waitFor()
+
+      // On Windows, Guidepup enters the page by tabbing to its first
+      // focusable element. In Combobox, Menu and Tree that element is a widget
+      // that acts on keys, and NVDA ended up in Chrome's own tab search
+      // ("Tab Search, document", "list, Open Tabs") instead of the page. A
+      // plain button in front of the story gives that Tab somewhere inert to
+      // land; it is removed before anything is read, the log is cleared, and
+      // NVDA goes back to the top of the page.
+      const onWindows = process.platform === 'win32'
+      if (onWindows) {
+        await page.evaluate(() => {
+          const start = document.createElement('button')
+          start.id = 'hozo-screen-reader-start'
+          start.type = 'button'
+          start.textContent = 'Start'
+          start.style.cssText = 'position:fixed;top:0;left:0;opacity:0'
+          document.body.prepend(start)
+        })
+      }
       await screenReader.navigateToWebContent()
+      if (onWindows) {
+        await page.evaluate(() => document.getElementById('hozo-screen-reader-start')?.remove())
+        await screenReader.clearSpokenPhraseLog()
+        await screenReader.perform(
+          { keyCode: [WindowsKeyCodes.Home], modifiers: [WindowsModifiers.Control] },
+          { capture: 'initial' },
+        )
+      }
 
       // To the end of the story: a reader that has nowhere left to go says
       // the same thing again, and three of those in a row is the end.
