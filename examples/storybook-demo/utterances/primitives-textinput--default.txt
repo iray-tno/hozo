@@ -13,5 +13,5 @@ textbox, Search Query, placeholder Search documentation...
 paragraph
 Read-Only Field
 end of paragraph
-textbox, Read-Only Field, Read-only system value
+textbox, Read-Only Field, Read-only system value, read only
 button, Sign In

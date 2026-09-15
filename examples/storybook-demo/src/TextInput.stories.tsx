@@ -42,9 +42,13 @@ function TextInputGallery() {
 
         <View className="space-y-1.5">
           <Paragraph className="text-xs font-semibold text-slate-700">Read-Only Field</Paragraph>
+          {/* `editable={false}`, not only the look of one: the field was
+              styled read-only and was editable, so a screen reader announced
+              an ordinary textbox. It lowers to `readOnly` on the Web. */}
           <TextInput
             accessibilityLabel="Read-Only Field"
             className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600 cursor-not-allowed shadow-none"
+            editable={false}
             value="Read-only system value"
           />
         </View>
