@@ -32,6 +32,7 @@ MIN_SPOKEN=${MIN_SPOKEN:-3}
 
 fail() {
   echo "::error::$*"
+  adb exec-out screencap -p > ./talkback-failed.png 2>/dev/null || true
   echo '--- logcat (tail) ---'
   adb logcat -d -v brief | tail -150 || true
   exit 1
