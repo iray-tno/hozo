@@ -180,8 +180,7 @@ talkback_off && fail "TalkBack switched itself off during the run"
 # Counted from what the steps said, not from everything: TalkBack announces
 # the app and the screen on its own when it starts, so a reader that never
 # moved would still pass a count of the whole log.
-distinct=$(cut -f2 "$steps_file" | tr "|" "
-" | sort -u | grep -c . || true)
+distinct=$(cut -f2 "$steps_file" | tr "|" "\n" | sort -u | grep -c . || true)
 echo "TalkBack said $distinct distinct things while moving"
 [ "$distinct" -ge "$MIN_SPOKEN" ] || fail "TalkBack said only $distinct distinct things, so it did not read the screen"
 echo "ok"
