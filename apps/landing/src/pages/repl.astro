@@ -12,6 +12,7 @@
 // CodeJar and PrismJS provide instant syntax highlighting, tab indentation, and
 // clean caret handling with under 20KB footprint.
 import { Footer } from '../components/Footer.tsx'
+import SiteHead from '../components/SiteHead.astro'
 import { Navbar } from '../components/Navbar.tsx'
 import '../styles/global.css'
 
@@ -42,14 +43,9 @@ const PANES = [
 <!doctype html>
 <html lang="en" class="scroll-smooth">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href={`${baseUrl}/favicon.svg`} />
-    <meta name="generator" content={Astro.generator} />
-    <title>REPL — Hozo Universal UI Compiler</title>
-    <meta
-      name="description"
-      content="Compile TSX to Web and React Native output in the browser, with the diagnostics a build would report. The Hozo compiler, running as WebAssembly."
+    <SiteHead
+      title="REPL — Hozo Universal UI Compiler"
+      description="Compile TSX to Web and React Native output in the browser, with the diagnostics a build would report. The Hozo compiler, running as WebAssembly."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

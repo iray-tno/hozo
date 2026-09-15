@@ -11,7 +11,7 @@
 // direction that matters: adding one interactive primitive would still
 // build, still render, and quietly start shipping React.
 
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 // Which build to read, because there is more than one.
@@ -136,6 +136,52 @@ checks.push(
     !/<script(?![^>]*type="application\/ld\+json")/.test(conformance),
     'conformance page shipped JavaScript for static data',
   ],
+)
+
+// What a search engine or a link preview reads. The pages are found in the
+// build rather than named here, so a page added without `SiteHead` fails
+// instead of being skipped. The MDX probe is a test fixture, not a page for
+// readers, and is the one that must *not* be indexed.
+const sitePages = [
+  '',
+  ...readdirSync(dist, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== 'mdx-example')
+    .filter((entry) => existsSync(path.join(dist, entry.name, 'index.html')))
+    .map((entry) => `${entry.name}/`),
+]
+for (const page of sitePages) {
+  const head = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
+  const label = page === '' ? 'index' : page
+  checks.push(
+    [/<meta name="description" content="[^"]+"/.test(head), `${label}: no description`],
+    [
+      new RegExp(`<link rel="canonical" href="https://[^"]+/${page}"`).test(head),
+      `${label}: no absolute canonical URL for this page`,
+    ],
+    [/<meta property="og:title" content="[^"]+"/.test(head), `${label}: no og:title`],
+    [/<meta property="og:description" content="[^"]+"/.test(head), `${label}: no og:description`],
+    [/<meta name="twitter:card" content="summary"/.test(head), `${label}: no twitter card`],
+  )
+}
+checks.push(
+  [/"@type":"SoftwareSourceCode"/.test(html), 'the index page carries no JSON-LD'],
+  [/<meta name="robots" content="noindex"/.test(mdx), 'the MDX probe page is indexable'],
+)
+
+const sitemap = readFileSync(path.join(dist, 'sitemap.xml'), 'utf8')
+const llms = readFileSync(path.join(dist, 'llms.txt'), 'utf8')
+checks.push(
+  [
+    (sitemap.match(/<loc>/g) ?? []).length === sitePages.length,
+    `the sitemap lists ${(sitemap.match(/<loc>/g) ?? []).length} URLs for ${sitePages.length} pages`,
+  ],
+  [!sitemap.includes('mdx-example'), 'the sitemap lists the MDX probe'],
+  [llms.startsWith('# Hozo\n'), 'llms.txt does not start with its title'],
+  [
+    /- \[@hozo\/core\]\(https:\/\/www\.npmjs\.com\/package\/@hozo\/core\): \S/.test(llms),
+    'llms.txt does not describe @hozo/core',
+  ],
+  [!llms.includes('@hozo/test-reporter'), 'llms.txt lists a private package'],
 )
 
 for (const [ok, message] of checks) {
