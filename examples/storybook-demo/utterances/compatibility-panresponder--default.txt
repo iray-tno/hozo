@@ -1,0 +1,17 @@
+heading, PanResponder, level 2
+paragraph
+React Native's gesture responder, in a browser, with React Native's own callback names and gesture state. A component written against it on mobile runs here unedited.
+end of paragraph
+Drag me
+dx
+:
+0
+dy
+:
+0
+touches
+:
+0
+paragraph
+A gesture is a pointer interaction and has no keyboard equivalent, so anything reachable only by dragging needs a second route. This card is a demonstration rather than a control, and has none.
+end of paragraph

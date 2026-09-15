@@ -1,0 +1,28 @@
+heading, Responsive, level 2
+paragraph
+Resize the viewport. Every card below changes at a boundary, and the boundary is the part no string comparison can check.
+end of paragraph
+heading, Which range is live, level 3
+lg
+heading, Layout by breakpoint, level 3
+oxc parse
+Style IR
+Semantic IR
+Target lowering
+heading, Upper bounds and explicit ranges, level 3
+min-lg: 64rem and wider
+heading, Container queries, level 3
+paragraph
+The same component in two slots. It reads its container, not the viewport, so these differ from each other at any window width.
+end of paragraph
+Narrow
+stacks
+Wide
+sits in a row
+heading, Content that does not want to fit, level 3
+paragraph
+The complaint that started this: text leaving its card. An unbreakable string is the case a fixed-width story never produces.
+end of paragraph
+https://example.invalid/a/very/long/path/that/has/nowhere/to/wrap/because/it/contains/no/spaces/at/all
+heading, Pneumonoultramicroscopicsilicovolcanoconiosis, level 4
+cargo build --release -p hozo_napi && pnpm --filter @hozo/compiler build

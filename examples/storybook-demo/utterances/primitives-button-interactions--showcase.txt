@@ -1,0 +1,18 @@
+heading, Semantic Button Variants, level 2
+paragraph
+Hozo lowers <Button> into native <button type="button"> on Web and accessible Pressables on Native.
+end of paragraph
+button, Primary Action
+button, Secondary
+button, Disabled Button, disabled
+button, Destructive
+heading, Interactive Pressables & Links, level 3
+paragraph
+Cross-platform touch interactions with active pseudo-classes and universal navigation.
+end of paragraph
+button, Interactive Card → Supports responder gestures and focus rings
+Interactive Card →
+Supports responder gestures and focus rings
+end of button, Interactive Card → Supports responder gestures and focus rings
+link, External Link →
+link, Button as Link →

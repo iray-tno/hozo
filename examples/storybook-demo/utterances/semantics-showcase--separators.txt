@@ -1,0 +1,24 @@
+heading, Separators & Dividers (<Separator>), level 2
+paragraph
+Lowers directly to native semantic <hr> on Web and accessible separator View on React Native.
+end of paragraph
+heading, Standard Horizontal Separator, level 3
+paragraph
+Upper thematic content block.
+end of paragraph
+separator, orientated horizontally, max value 100, min value 0
+paragraph
+Lower thematic content block divided by semantic <hr>.
+end of paragraph
+heading, Vertical Inline Separator, level 3
+File
+separator, orientated vertically, max value 100, min value 0
+Edit
+separator, orientated vertically, max value 100, min value 0
+View
+separator, orientated vertically, max value 100, min value 0
+Help
+heading, Decorative Break (Hidden from Screen Readers), level 3
+paragraph
+Sets aria-hidden="true" and role="none" so assistive tech ignores purely visual lines.
+end of paragraph

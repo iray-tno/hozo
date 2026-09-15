@@ -1,0 +1,11 @@
+heading, FloatingPositioner (Popper / Floating UI Equivalent), level 2
+paragraph
+Positions floating overlays relative to an anchor element with automatic viewport collision detection (flip & shift) and arrow tracking.
+end of paragraph
+Placement:
+button, top
+button, bottom
+button, left
+button, right
+button, Match Anchor Width
+button, Click to Anchor Popover

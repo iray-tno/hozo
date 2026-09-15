@@ -1,0 +1,15 @@
+heading, Universal Links (<Link>), level 2
+paragraph
+Lowers directly to native semantic <a> on Web and accessible Linking.openURL on React Native.
+end of paragraph
+Standard Navigation Link
+paragraph
+Read more about
+link, getting started with Hozo
+in our developer guides.
+end of paragraph
+External Destination with Security Defaults
+paragraph
+The external prop automatically injects target="_blank" and rel="noreferrer noopener" on Web:
+end of paragraph
+link, GitHub Repository →

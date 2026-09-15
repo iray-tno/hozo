@@ -77,6 +77,13 @@ jobs:
       # an implementation that mounted every row would pass `pnpm
       # test:packages` unchanged.
       - run: pnpm --filter @hozo/primitives run test:browser
+      # The Storybook catalogue, in a real browser: axe-core over every
+      # story, and a virtual screen reader's reading order for every story
+      # compared against `examples/storybook-demo/utterances/`. Per pull
+      # request because a lost label or a changed role is cheapest to catch
+      # in the change that caused it; a new reading order is approved as a
+      # diff with `pnpm --filter @hozo/example-storybook utterances:update`.
+      - run: pnpm --filter @hozo/example-storybook test
       # The generated documentation: the primitives reference, from the
       # `Primitive` enum and from what the compiler emits, and the README
       # repository layout, from the directories that exist and what each

@@ -1,0 +1,14 @@
+heading, Form Grouping (<Fieldset> & <Legend>), level 2
+paragraph
+Fieldset associates a caption (Legend) with grouped input controls for assistive technologies.
+end of paragraph
+group, Notification Delivery
+Notification Delivery
+• In-app push notifications
+• Real-time webhook events
+end of group, Notification Delivery
+group, Security Authentication
+Security Authentication
+• Passkeys (FIDO2 WebAuthn)
+• Hardware security key required
+end of group, Security Authentication

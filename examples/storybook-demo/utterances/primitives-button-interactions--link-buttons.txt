@@ -1,0 +1,14 @@
+heading, Button as Link (<Button href="...">), level 2
+paragraph
+When a <Button> receives an `href` prop, Hozo lowers it to semantic <a role="button"> on Web and an accessible HozoLink on React Native.
+end of paragraph
+Internal Route Navigation
+paragraph
+Navigates within the application while keeping full button styling:
+end of paragraph
+link, Go to Dashboard →
+External Link with Security Defaults
+paragraph
+Adding external automatically sets target="_blank" and rel="noreferrer noopener":
+end of paragraph
+link, View on GitHub →

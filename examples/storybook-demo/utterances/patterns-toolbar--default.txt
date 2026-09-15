@@ -1,0 +1,37 @@
+heading, Toolbar, level 2
+paragraph
+One tab stop for the whole bar, arrow keys inside it. Press Tab to reach it, then Left and Right — and note that Strikethrough is skipped, because a disabled control is not a stop.
+end of paragraph
+Horizontal
+toolbar, Text formatting, orientated horizontally
+button, Bold
+B
+end of button, Bold
+button, Italic
+I
+end of button, Italic
+button, Underline
+U
+end of button, Underline
+button, Strikethrough, disabled
+S
+end of button, Strikethrough, disabled
+button, Quote
+“ ”
+end of button, Quote
+button, Code
+</>
+end of button, Code
+end of toolbar, Text formatting, orientated horizontally
+Vertical — Up and Down instead
+toolbar, Alignment, orientated vertically
+button, Align left
+Left
+end of button, Align left
+button, Align centre
+Center
+end of button, Align centre
+button, Align right
+Right
+end of button, Align right
+end of toolbar, Alignment, orientated vertically

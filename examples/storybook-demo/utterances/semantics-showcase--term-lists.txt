@@ -1,0 +1,30 @@
+heading, Term Lists (<TermList>, <Term>, <Description>), level 2
+paragraph
+Description lists for key-value pairs, specifications, and metadata (1-to-1 and 1-to-many).
+end of paragraph
+heading, 1-to-1 Metadata Pairs (Horizontal Flexbox), level 3
+term
+Compiler Core
+end of term
+definition
+Rust (hozo_web / hozo_native)
+end of definition
+term
+Module Target
+end of term
+definition
+ESNext / CommonJS
+end of definition
+heading, 1-to-Many Multi-Value List, level 3
+term
+Core Architecture Contributors
+end of term
+definition
+Component System Specification
+end of definition
+definition
+Style IR & Zero-Runtime Lowering Engine
+end of definition
+definition
+Universal React Native Accessibility Bridge
+end of definition

@@ -1,0 +1,48 @@
+heading, Tree, level 2
+paragraph
+Arrow keys move and open; typing a letter jumps. The indentation you can see is CSS — the depth a screen reader hears is
+aria-level
+, which this sets on every row.
+end of paragraph
+tree, Repository, orientated vertically
+treeitem, ▾ crates, expanded, level 1, position 1, not selected, set size 2
+▾
+crates
+end of treeitem, ▾ crates, expanded, level 1, position 1, not selected, set size 2
+treeitem, hozo_ir, level 2, position 1, not selected, set size 4
+hozo_ir
+end of treeitem, hozo_ir, level 2, position 1, not selected, set size 4
+treeitem, hozo_parser, level 2, position 2, not selected, set size 4
+hozo_parser
+end of treeitem, hozo_parser, level 2, position 2, not selected, set size 4
+treeitem, hozo_web, not expanded, level 2, position 3, selected, set size 4
+hozo_web
+end of treeitem, hozo_web, not expanded, level 2, position 3, selected, set size 4
+treeitem, hozo_native, level 2, position 4, not selected, set size 4
+hozo_native
+end of treeitem, hozo_native, level 2, position 4, not selected, set size 4
+treeitem, ▾ packages, expanded, level 1, position 2, not selected, set size 2
+▾
+packages
+end of treeitem, ▾ packages, expanded, level 1, position 2, not selected, set size 2
+treeitem, @hozo/compiler, level 2, position 1, not selected, set size 6
+@hozo/compiler
+end of treeitem, @hozo/compiler, level 2, position 1, not selected, set size 6
+treeitem, @hozo/core, level 2, position 2, not selected, set size 6
+@hozo/core
+end of treeitem, @hozo/core, level 2, position 2, not selected, set size 6
+treeitem, @hozo/primitives, level 2, position 3, not selected, set size 6
+@hozo/primitives
+end of treeitem, @hozo/primitives, level 2, position 3, not selected, set size 6
+treeitem, @hozo/patterns, level 2, position 4, not selected, set size 6
+@hozo/patterns
+end of treeitem, @hozo/patterns, level 2, position 4, not selected, set size 6
+treeitem, @hozo/behaviors, level 2, position 5, not selected, set size 6
+@hozo/behaviors
+end of treeitem, @hozo/behaviors, level 2, position 5, not selected, set size 6
+treeitem, @hozo/legacy (unmaintained), disabled, level 2, position 6, not selected, set size 6
+@hozo/legacy (unmaintained)
+end of treeitem, @hozo/legacy (unmaintained), disabled, level 2, position 6, not selected, set size 6
+end of tree, Repository, orientated vertically
+Selected:
+hozo_web

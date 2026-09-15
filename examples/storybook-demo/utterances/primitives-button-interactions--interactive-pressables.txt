@@ -1,0 +1,12 @@
+heading, Interactive Pressables (<Pressable>), level 2
+paragraph
+Universal touch feedback primitive compiling to active pseudo-classes on Web and native gesture handlers on React Native.
+end of paragraph
+button, Card Action 1 → Responds to hover and active states with scaling animation
+Card Action 1 →
+Responds to hover and active states with scaling animation
+end of button, Card Action 1 → Responds to hover and active states with scaling animation
+button, Card Action 2 → Accessible role="button" with full keyboard navigation
+Card Action 2 →
+Accessible role="button" with full keyboard navigation
+end of button, Card Action 2 → Accessible role="button" with full keyboard navigation

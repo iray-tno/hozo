@@ -1,0 +1,14 @@
+heading, RovingFocusGroup (Single Tab Stop & Arrow Navigation), level 2
+paragraph
+The entire toolbar is a single tab stop. Use Arrow Left/Right to navigate, and Home/End to jump to ends.
+end of paragraph
+button, Bold
+button, Italic
+button, Underline
+button, Strike
+button, Code
+Current Active Index:
+0
+(
+Bold
+)

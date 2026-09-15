@@ -1,0 +1,14 @@
+heading, Tabs Pattern (@hozo/patterns), level 2
+paragraph
+WAI-ARIA compliant tab list with single tab stop and left/right arrow key roving tabindex navigation.
+end of paragraph
+tablist, Hozo documentation sections, orientated horizontally
+tab, Overview, selected, 1 control, position 1, set size 3
+tab, Features, not selected, 1 control, position 2, set size 3
+tab, Performance, not selected, 1 control, position 3, set size 3
+end of tablist, Hozo documentation sections, orientated horizontally
+tabpanel, Overview
+paragraph
+Hozo is a universal UI compiler compiling React Native towards semantic HTML/CSS and Fabric.
+end of paragraph
+end of tabpanel, Overview

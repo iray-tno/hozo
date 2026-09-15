@@ -1,0 +1,5 @@
+heading, Accessible Modal Dialog (@hozo/patterns), level 2
+paragraph
+Native HTML <dialog> modal with focus trapping, keyboard Escape handling, and focus restoration to opener button.
+end of paragraph
+button, Open Confirmation Dialog

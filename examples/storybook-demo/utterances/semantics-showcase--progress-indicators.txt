@@ -1,0 +1,12 @@
+heading, Progress Indicators (<Progress>), level 2
+paragraph
+Lowers directly to native semantic <progress> on Web and accessible progressbar View on React Native.
+end of paragraph
+Download Progress
+45%
+progressbar, Download progress, 45, max value 100, min value 0, current value 45%
+Task Completed
+100%
+progressbar, Task completion progress, 100, max value 100, min value 0, current value 100%
+Indeterminate (Loading...)
+progressbar, Loading task status, 0, max value 100, min value 0

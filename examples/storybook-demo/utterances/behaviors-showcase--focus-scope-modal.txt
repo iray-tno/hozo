@@ -1,0 +1,5 @@
+heading, FocusScope (Focus Trapping & Restoration), level 2
+paragraph
+Traps Tab key navigation inside the modal container. Upon unmount, safely restores focus to the trigger element.
+end of paragraph
+button, Open Trapped Modal

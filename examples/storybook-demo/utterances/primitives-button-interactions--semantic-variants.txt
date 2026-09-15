@@ -1,0 +1,16 @@
+heading, Button Variants & States, level 2
+paragraph
+Buttons automatically compile to native semantic <button type="button"> preventing accidental form submissions.
+end of paragraph
+Primary Button
+Main call-to-action for the page or modal
+button, Submit
+Secondary Button
+Alternative or cancel action
+button, Cancel
+Destructive Button
+Irreversible action like deleting data
+button, Delete Item
+Disabled Button
+Inoperable and announced as disabled to screen readers
+button, Unavailable, disabled

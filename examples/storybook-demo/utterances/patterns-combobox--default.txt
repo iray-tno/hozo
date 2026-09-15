@@ -1,0 +1,20 @@
+heading, Combobox (@hozo/patterns), level 2
+paragraph
+Accessible autocomplete dropdown where focus stays in the text field and active options are announced via
+code
+aria-activedescendant
+end of code
+.
+end of paragraph
+combobox, Select bundler, Vite (@hozo/vite), has popup listbox, not expanded, autocomplete in list
+heading, Listbox, level 3
+paragraph
+Single and multiple selection with keyboard typeahead matching.
+end of paragraph
+listbox, Bundler options listbox, orientated vertically, not multi-selectable
+option, Vite (@hozo/vite), selected, position 1, set size 5
+option, Next.js (@hozo/next), not selected, position 2, set size 5
+option, Metro (@hozo/metro), not selected, position 3, set size 5
+option, Storybook (@hozo/storybook), not selected, position 4, set size 5
+option, TanStack Start, not selected, position 5, set size 5
+end of listbox, Bundler options listbox, orientated vertically, not multi-selectable

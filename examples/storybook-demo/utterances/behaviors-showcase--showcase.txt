@@ -1,0 +1,38 @@
+heading, Universal Behaviors (@hozo/behaviors), level 2
+paragraph
+Layer 2 runtime behavior primitives. Powers overlay, focus, and accessibility coordination across Web and React Native without duplicating DOM/Native logic.
+end of paragraph
+heading, 1. LiveRegion & useAnnounce, level 3
+paragraph
+Notifies assistive technologies (screen readers) of dynamic DOM/state changes.
+end of paragraph
+button, Announce Polite (Save)
+button, Announce Assertive (Alert)
+heading, 2. Portal (DOM Teleportation), level 3
+paragraph
+Renders children outside the parent container tree into document.body to bypass overflow clipping and stacking contexts.
+end of paragraph
+Parent container with overflow: hidden (Height: 80px)
+button, Open Portaled Toast
+heading, 3. DismissableLayer, level 3
+paragraph
+Detects Escape key press and outside clicks to dismiss floating cards or popovers.
+end of paragraph
+button, Open Dismissable Popover
+heading, Tooltip Delay Grouping (Warmup State), level 3
+paragraph
+Hover over an icon — the first tooltip opens after a standard delay (700ms). Once warm, moving across neighboring icons opens subsequent tooltips instantly (0ms delay).
+end of paragraph
+button, B
+button, I
+button, U
+button, </>
+button, 🔗
+heading, HoverCard with Safe Polygon, level 3
+paragraph
+Hover over the user tag. Move the pointer diagonally towards the card — the safe polygon keeps the card open, allowing you to interact with elements inside it.
+end of paragraph
+button, H @hozo_framework
+H
+@hozo_framework
+end of button, H @hozo_framework

@@ -1,0 +1,154 @@
+heading, Hozo Storybook, level 1
+Design System
+paragraph
+Zero-runtime universal UI framework named after traditional Japanese joinery
+枘
+ほぞ
+(mortise & tenon). Compiles JSX directly to native HTML5 semantic elements and React Native Fabric components with zero runtime overhead.
+end of paragraph
+link, GitHub Repository →
+link, Architecture Specification
+heading, Component Architecture & Domain Packages, level 2
+paragraph
+Hozo structures universal UI across clean, orthogonal package boundaries:
+end of paragraph
+@hozo/typography
+Layer 1
+heading, Universal Typography & Ruby, level 3
+paragraph
+Semantics-preserving text formatting (
+code
+Heading
+end of code
+,
+code
+Strong
+end of code
+,
+code
+Code
+end of code
+,
+code
+Mark
+end of code
+), universal
+code
+Link
+end of code
+, and CJK phonetic
+code
+Ruby
+end of code
+annotations.
+end of paragraph
+@hozo/semantics
+Layer 1
+heading, Document Structure & Indicators, level 3
+paragraph
+HTML5 landmarks (
+code
+Main
+end of code
+,
+code
+Header
+end of code
+,
+code
+Nav
+end of code
+),
+code
+Details
+end of code
+disclosures,
+code
+Separator
+end of code
+, and accessible
+code
+Progress
+end of code
+indicators.
+end of paragraph
+@hozo/core
+Layer 1 & 3
+heading, Primitives & Universal Components, level 3
+paragraph
+Zero-runtime foundation (
+code
+View
+end of code
+,
+code
+Text
+end of code
+,
+code
+Pressable
+end of code
+,
+code
+FlatList
+end of code
+) plus accessible compound components (
+code
+Dialog
+end of code
+,
+code
+Tabs
+end of code
+,
+code
+Menu
+end of code
+,
+code
+Toolbar
+end of code
+,
+code
+Popover
+end of code
+).
+end of paragraph
+@hozo/behaviors
+Layer 2
+heading, Headless Behaviors & Positioning, level 3
+paragraph
+Universal headless mechanics:
+code
+FocusScope
+end of code
+,
+code
+DismissableLayer
+end of code
+,
+code
+FloatingPositioner
+end of code
+,
+code
+LiveRegion
+end of code
+,
+code
+useHoverTrigger
+end of code
+with safe polygon bridges, and delay warmup
+code
+Tooltip
+end of code
+.
+end of paragraph
+separator, orientated horizontally, max value 100, min value 0
+heading, Catalog Quality Standards, level 2
+Automated a11y Audit (axe-core)
+0 Violations (39/39 Stories)
+progressbar, Automated accessibility audit pass rate, 100, max value 100, min value 0, current value 100%
+paragraph
+All 39 stories continuously pass axe-core in CI to prevent automated regressions in color contrast, ARIA role syntax, and missing labels. Complete accessibility conformance further requires ongoing empirical testing with screen readers (VoiceOver, TalkBack, NVDA).
+end of paragraph
