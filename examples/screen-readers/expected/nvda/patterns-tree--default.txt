@@ -1,0 +1,5 @@
+# Approved from screen-readers run 34951455002 (NVDA, Chrome).
+# "clickable" is left out: one run said it and an earlier one did not.
+heading, level 2, Tree
+Repository, tree view
+Selected: hozo web

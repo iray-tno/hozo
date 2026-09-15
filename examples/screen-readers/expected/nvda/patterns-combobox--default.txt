@@ -1,0 +1,6 @@
+# Approved from screen-readers run 34951455002 (NVDA, Chrome).
+# One phrase per thing NVDA said; each must come after the one before.
+heading, level 2, Combobox
+Select bundler, combo box, collapsed
+heading, level 3, Listbox
+Bundler options listbox, list

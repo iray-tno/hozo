@@ -141,18 +141,28 @@ fi
 # navigation.
 next() { adb shell input keyevent KEYCODE_TAB; }
 
+# What TalkBack has said since the last call, joined with `|`, in `$new`.
+collect() {
+  local now
+  now="$(spoken | wc -l)"
+  new="$(spoken | tail -n +$((said_before + 1)) | paste -sd '|' -)"
+  said_before=$now
+}
+# One Tab, and what it made TalkBack say.
+advance() {
+  next
+  sleep 2
+  settle
+  collect
+}
+
 settle
 said_before="$(spoken | wc -l)"
 steps_file="$(mktemp)"
 first=
 silent=0
 for step in $(seq 1 "$MAX_STEPS"); do
-  next
-  sleep 2
-  settle
-  now="$(spoken | wc -l)"
-  new="$(spoken | tail -n +$((said_before + 1)) | paste -sd '|' -)"
-  said_before=$now
+  advance
   # The first phrase of a step is the element; what follows is TalkBack's
   # hints and system chatter ("Showing English (US) (QWERTY)").
   element="${new%%|*}"
@@ -172,18 +182,79 @@ for step in $(seq 1 "$MAX_STEPS"); do
   fi
 done
 
+# --- the dialog -------------------------------------------------------------
+#
+# Continue opens it. Reached by Tab like everything else, opened with Enter --
+# DPAD_CENTER if Enter does nothing, since which one a focused Pressable
+# answers to is React Native's business -- then Tab a few times inside, then
+# Back. `VALIDATION.md` asks three things of it: that opening announces
+# "Confirm your address", that focus stays inside, and that dismissing
+# returns focus to Continue. The first is checked through the approved
+# phrases; the other two are reported as warnings until a run has shown
+# what this platform actually does.
+opener="Review email address"
+dialog_file="$(mktemp)"
+reached=
+for _ in $(seq 1 "$MAX_STEPS"); do
+  advance
+  if [ "${new%%|*}" = "$opener" ]; then reached=1; break; fi
+done
+[ -n "$reached" ] || fail "Tab never reached \"$opener\", so the dialog cannot be opened"
+
+opened=
+for key in KEYCODE_ENTER KEYCODE_DPAD_CENTER; do
+  adb shell input keyevent "$key"
+  sleep 2
+  settle
+  collect
+  if [ -n "$new" ]; then opened=$key; break; fi
+  echo "  $key on \"$opener\": TalkBack said nothing"
+done
+[ -n "$opened" ] || fail "neither Enter nor DPAD_CENTER on \"$opener\" made TalkBack say anything"
+printf 'open\t%s\n' "$new" >> "$dialog_file"
+echo "  opened with $opened: $new"
+
+lap_elements="$(cut -f2 "$steps_file" | sed 's/|.*//' | grep -v "^$opener\$" || true)"
+for i in 1 2 3; do
+  advance
+  printf 'inside\t%s\n' "$new" >> "$dialog_file"
+  echo "  inside $i: ${new:-(silent)}"
+  element="${new%%|*}"
+  if [ -n "$element" ] && printf '%s\n' "$lap_elements" | grep -qxF "$element"; then
+    echo "::warning::Tab left the dialog: it reached \"$element\", which is on the screen behind it"
+  fi
+done
+
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+settle
+collect
+printf 'dismissed\t%s\n' "$new" >> "$dialog_file"
+echo "  dismissed: ${new:-(silent)}"
+still_up="$(adb shell pidof "$package" | tr -d '\r')"
+[ -n "$still_up" ] || fail "Back closed the app rather than the dialog"
+case "|$new|" in
+  *"|$opener|"*) echo "  focus returned to \"$opener\"" ;;
+  *) echo "::warning::dismissing the dialog did not announce \"$opener\", so focus may not have returned to it" ;;
+esac
+
 adb exec-out screencap -p > ./talkback-end.png 2>/dev/null || true
 
 node --eval '
   const fs = require("node:fs")
-  const [steps, all] = process.argv.slice(1)
-  const rows = fs.readFileSync(steps, "utf8").split("\n").filter(Boolean).map((line) => {
+  const [steps, dialog, all] = process.argv.slice(1)
+  const rows = (file) => fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => {
     const [step, said] = line.split("\t")
-    return { step: Number(step), said: said ? said.split("|") : [] }
+    return { step, said: said ? said.split("|") : [] }
   })
-  const log = { method: "tab", utterances: all.split("\n").filter(Boolean), steps: rows }
+  const log = {
+    method: "tab",
+    utterances: all.split("\n").filter(Boolean),
+    steps: rows(steps).map((row) => ({ ...row, step: Number(row.step) })),
+    dialog: rows(dialog),
+  }
   fs.writeFileSync("talkback-speech.json", JSON.stringify(log, null, 2) + "\n")
-' "$steps_file" "$(spoken)"
+' "$steps_file" "$dialog_file" "$(spoken)"
 
 talkback_off && fail "TalkBack switched itself off during the run"
 # Counted from what the steps said, not from everything: TalkBack announces
@@ -195,9 +266,9 @@ echo "TalkBack said $distinct distinct things while moving"
 
 # Phrases a person approved, in order, as case- and whitespace-insensitive
 # substrings of what was said -- the same check `examples/screen-readers`
-# makes of NVDA and VoiceOver. No file is a warning rather than a failure:
-# approving is the human step, and `talkback-speech.json` is what to approve
-# from.
+# makes of NVDA and VoiceOver -- across the lap and then the dialog. No file
+# is a warning rather than a failure: approving is the human step, and
+# `talkback-speech.json` is what to approve from.
 expected="$here/../expected/talkback/acceptance.txt"
 if [ ! -f "$expected" ]; then
   echo "::warning::no approved phrases at examples/native-demo/expected/talkback/acceptance.txt; nothing was compared"
@@ -217,7 +288,7 @@ else
     }
     for (const phrase of missing) console.error(`::error::TalkBack did not say, in order: ${phrase}`)
     process.exit(missing.length ? 1 : 0)
-  ' "$expected" "$(cut -f2 "$steps_file" | tr "|" "\n")" || fail "TalkBack did not say what was approved"
+  ' "$expected" "$(cut -f2 "$steps_file" "$dialog_file" | tr "|" "\n")" || fail "TalkBack did not say what was approved"
 fi
 
 echo "ok"
