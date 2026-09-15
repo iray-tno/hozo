@@ -81,10 +81,16 @@ adb shell pm grant "$talkback" android.permission.POST_NOTIFICATIONS 2>/dev/null
 echo "switching TalkBack on"
 adb shell settings put secure enabled_accessibility_services "$talkback_service"
 adb shell settings put secure accessibility_enabled 1
-sleep 8
-if ! adb shell dumpsys accessibility | tr -d '\r' | grep -q 'TalkBackService'; then
-  fail "TalkBack is not bound after enabling it"
-fi
+# Polled rather than slept: binding took under eight seconds on one run and
+# over eight on the next.
+bound=
+for _ in $(seq 1 30); do
+  if adb shell dumpsys accessibility | tr -d '\r' | grep -q 'TalkBackService'; then bound=1; break; fi
+  sleep 1
+done
+[ -n "$bound" ] || fail "TalkBack is not bound thirty seconds after enabling it"
+# And a moment for its first announcements once it is.
+sleep 6
 adb exec-out screencap -p > ./talkback-start.png 2>/dev/null || true
 adb shell uiautomator dump /sdcard/talkback.xml > /dev/null 2>&1 && adb pull /sdcard/talkback.xml ./talkback-start.xml > /dev/null 2>&1 || true
 
