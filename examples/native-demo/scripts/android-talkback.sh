@@ -71,6 +71,12 @@ sleep 12
 
 # On after the app, so its first announcement is of this screen rather than
 # of the launcher.
+#
+# Notifications granted first: on its first start TalkBack asks for them,
+# and the permission dialog takes focus from the app -- the first run read
+# "Allow Android Accessibility Suite to send you notifications?" and then
+# could not move at all.
+adb shell pm grant "$talkback" android.permission.POST_NOTIFICATIONS 2>/dev/null || true
 echo "switching TalkBack on"
 adb shell settings put secure enabled_accessibility_services "$talkback_service"
 adb shell settings put secure accessibility_enabled 1
@@ -79,6 +85,7 @@ if ! adb shell dumpsys accessibility | tr -d '\r' | grep -q 'TalkBackService'; t
   fail "TalkBack is not bound after enabling it"
 fi
 adb exec-out screencap -p > ./talkback-start.png 2>/dev/null || true
+adb shell uiautomator dump /sdcard/talkback.xml > /dev/null 2>&1 && adb pull /sdcard/talkback.xml ./talkback-start.xml > /dev/null 2>&1 || true
 
 initial="$(spoken)"
 echo "said on start:"
@@ -87,27 +94,32 @@ if [ -z "$initial" ]; then
   echo "::warning::TalkBack said nothing on start; the engine may not be in use"
 fi
 
-# One step of "next item", sent the two ways TalkBack accepts one: its
-# keyboard shortcut (Alt+Right in the default keymap) and a swipe right,
-# which touch exploration reads as the same command. Whichever makes
-# TalkBack speak is kept for the rest of the run.
+# One step of "next item", sent every way TalkBack might accept one: its
+# keyboard shortcut (Alt+Right in the default keymap) from the default and
+# the keyboard input source, a swipe right at two speeds, which touch
+# exploration reads as the same command, and Tab, which moves input focus
+# and TalkBack follows. Whichever makes TalkBack speak is kept for the rest
+# of the run.
 next_by_key() { adb shell input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; }
+next_by_keyboard() { adb shell input keyboard keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; }
+next_by_tab() { adb shell input keyevent KEYCODE_TAB; }
 next_by_swipe() {
   local size w h
   size="$(adb shell wm size | tr -d '\r' | grep -o '[0-9]*x[0-9]*' | tail -1)"
   w="${size%x*}"; h="${size#*x}"
-  adb shell input swipe $((w / 4)) $((h / 2)) $((w * 3 / 4)) $((h / 2)) 120
+  adb shell input swipe $((w / 4)) $((h / 2)) $((w * 3 / 4)) $((h / 2)) ${1:-120}
 }
+next_by_slow_swipe() { next_by_swipe 300; }
 
 said_before="$(spoken | wc -l)"
 method=
-for candidate in key swipe; do
+for candidate in key keyboard swipe slow_swipe tab; do
   "next_by_$candidate"
-  sleep 2
+  sleep 3
   if [ "$(spoken | wc -l)" -gt "$said_before" ]; then method=$candidate; break; fi
   echo "next by $candidate: TalkBack said nothing"
 done
-[ -n "$method" ] || fail "neither Alt+Right nor a swipe made TalkBack move"
+[ -n "$method" ] || fail "nothing made TalkBack move: Alt+Right, a swipe and Tab were all silent"
 echo "moving with: $method"
 
 steps_file="$(mktemp)"
