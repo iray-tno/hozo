@@ -106,13 +106,17 @@ for (const id of stories) {
       await page.goto(`/iframe.html?id=${id}&viewMode=story`, { waitUntil: 'load' })
       await page.locator('#storybook-root > *').first().waitFor()
 
-      // On Windows, Guidepup enters the page by tabbing to its first
-      // focusable element. In Combobox, Menu and Tree that element is a widget
-      // that acts on keys, and NVDA ended up in Chrome's own tab search
-      // ("Tab Search, document", "list, Open Tabs") instead of the page. A
-      // plain button in front of the story gives that Tab somewhere inert to
-      // land; it is removed before anything is read, the log is cleared, and
-      // NVDA goes back to the top of the page.
+      // On Windows, Guidepup enters the page by clicking the middle of the
+      // body and pressing Tab. In Combobox, Menu and Tree the middle of the
+      // page is the listbox or the tree -- the last focusable thing in the
+      // story -- so that Tab left the document for Chrome's toolbar, and NVDA
+      // read Chrome's tab search ("Tab Search, document", "list, Open Tabs").
+      // The recording shows focus on the tab-search button three seconds in.
+      //
+      // So the click needs somewhere inert to land: a transparent button over
+      // the whole viewport, first in the document, so the Tab after it stays
+      // in the page. It is removed before anything is read, the log is
+      // cleared, and NVDA goes back to the top of the page.
       const onWindows = process.platform === 'win32'
       if (onWindows) {
         await page.evaluate(() => {
@@ -120,7 +124,7 @@ for (const id of stories) {
           start.id = 'hozo-screen-reader-start'
           start.type = 'button'
           start.textContent = 'Start'
-          start.style.cssText = 'position:fixed;top:0;left:0;opacity:0'
+          start.style.cssText = 'position:fixed;inset:0;opacity:0;z-index:2147483647'
           document.body.prepend(start)
         })
       }
@@ -142,12 +146,22 @@ for (const id of stories) {
       // "Alignment toolbar", "", "Alignment toolbar", "" -- comparing each
       // phrase with the one before never saw a repeat, and every such story
       // ran to the step limit.
+      //
+      // Nothing at all is the end too. After the last radio button VoiceOver
+      // went silent and every further `next` said "", so Menu ran to the
+      // step limit -- and Tabs, which ends the same way, ran long enough for
+      // VoiceOver itself to quit and the test to time out.
       let last = ''
       let repeats = 0
-      for (let step = 0; step < MAX_STEPS && repeats < 3; step++) {
+      let silent = 0
+      for (let step = 0; step < MAX_STEPS && repeats < 3 && silent < 5; step++) {
         await screenReader.next()
         const said = (await screenReader.lastSpokenPhrase()).trim()
-        if (said === '') continue
+        if (said === '') {
+          silent += 1
+          continue
+        }
+        silent = 0
         repeats = said === last ? repeats + 1 : 0
         last = said
       }
