@@ -11,6 +11,8 @@ dist-ssr/
 dist-check/
 storybook-static-check/
 storybook-static/
+# Screen reader runs: phrase logs and recordings are CI artifacts, never committed.
+examples/screen-readers/test-results/
 artifacts/
 .next/
 # The bundler comparison builds into one of these per bundler, so that it
