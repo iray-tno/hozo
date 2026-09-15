@@ -165,6 +165,33 @@ async function checkViewport(width, height) {
           const brandRect = brand.getBoundingClientRect();
           const headerRect = header.getBoundingClientRect();
           const rect = trailing.getBoundingClientRect();
+          // The links between the brand and the trailing buttons. Checked
+          // for overlap on both sides and for content wider than the box:
+          // a nowrap row that outgrows its container paints under the
+          // GitHub button while every box the old check measured still
+          // reported a clean layout.
+          const nav = container.querySelector('nav');
+          const navShown = nav && getComputedStyle(nav).display !== 'none';
+          const navRect = navShown ? nav.getBoundingClientRect() : null;
+          const navFits = !navShown || (
+            nav.scrollWidth <= nav.clientWidth + 1 &&
+            brandRect.right <= navRect.left &&
+            navRect.right <= rect.left
+          );
+          // And the row as a whole inside its own content box. This is the
+          // failure the header actually had on desktop: with every section
+          // link shown, the row was wider than the max-w-7xl container, so
+          // the GitHub button ran past the container's right edge. On a
+          // wide viewport that edge is well inside the window, so every
+          // check above -- all measured against the viewport -- still passed.
+          const containerRect = container.getBoundingClientRect();
+          const containerStyle = getComputedStyle(container);
+          const contentRight = containerRect.right - parseFloat(containerStyle.paddingRight);
+          const contentLeft = containerRect.left + parseFloat(containerStyle.paddingLeft);
+          const rowFits =
+            container.scrollWidth <= container.clientWidth + 1 &&
+            brandRect.left >= contentLeft - 1 &&
+            rect.right <= contentRight + 1;
           return {
             viewportWidth: window.innerWidth,
             headerHeight: Math.round(headerRect.height),
@@ -176,12 +203,20 @@ async function checkViewport(width, height) {
             trailingLeft: Math.round(rect.left),
             trailingRight: Math.round(rect.right),
             trailingWidth: Math.round(rect.width),
+            navShown: Boolean(navShown),
+            navLeft: navRect ? Math.round(navRect.left) : null,
+            navRight: navRect ? Math.round(navRect.right) : null,
+            navOverflow: navShown ? nav.scrollWidth - nav.clientWidth : 0,
+            contentRight: Math.round(contentRight),
+            rowOverflow: Math.round(Math.max(container.scrollWidth - container.clientWidth, rect.right - contentRight)),
             visible:
               window.innerWidth === ${width} &&
               brandRect.left >= 0 &&
               rect.right <= window.innerWidth &&
               rect.width > 0 &&
-              brandRect.right <= rect.left,
+              brandRect.right <= rect.left &&
+              navFits &&
+              rowFits,
           };
         })()`
 
@@ -224,7 +259,7 @@ async function checkViewport(width, height) {
   return result
 }
 
-const viewports = [320, 375, 390, 800, 1024, 1280, 1440]
+const viewports = [320, 375, 390, 768, 800, 1024, 1280, 1366, 1440, 1536, 1920]
 const failures = []
 
 for (const w of viewports) {
@@ -236,7 +271,7 @@ for (const w of viewports) {
     failures.push(`at ${w}px: ${res.error}`)
   } else if (!res.visible) {
     failures.push(
-      `at ${w}px: navbar content clipped or overlapping (children: ${res.childCount}, brand: ${res.brandLeft}-${res.brandRight}px ${res.brandClass}, trailing: ${res.trailingLeft}-${res.trailingRight}px ${res.trailingClass}, viewport: ${res.viewportWidth}px)`,
+      `at ${w}px: navbar content clipped or overlapping (children: ${res.childCount}, brand: ${res.brandLeft}-${res.brandRight}px, nav: ${res.navShown ? `${res.navLeft}-${res.navRight}px, ${res.navOverflow}px overflow` : 'hidden'}, trailing: ${res.trailingLeft}-${res.trailingRight}px, content edge: ${res.contentRight}px, row overflow: ${res.rowOverflow}px, viewport: ${res.viewportWidth}px)`,
     )
   } else if (w < 640 && res.headerHeight > 50) {
     failures.push(`at ${w}px: mobile navbar is ${res.headerHeight}px tall, expected at most 50px`)

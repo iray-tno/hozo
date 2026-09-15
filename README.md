@@ -1,12 +1,21 @@
 # Hozo
 
+[![npm](https://img.shields.io/npm/v/@hozo/core?label=npm&color=c8a882)](https://www.npmjs.com/package/@hozo/core)
+[![crates.io](https://img.shields.io/crates/v/hozo_parser?color=c8a882)](https://crates.io/crates/hozo_parser)
+[![CI](https://github.com/iray-tno/hozo/actions/workflows/ci.yml/badge.svg)](https://github.com/iray-tno/hozo/actions/workflows/ci.yml)
+[![Native](https://github.com/iray-tno/hozo/actions/workflows/native.yml/badge.svg)](https://github.com/iray-tno/hozo/actions/workflows/native.yml)
+[![Conformance](https://img.shields.io/badge/conformance-matrix-556348)](https://iray-tno.github.io/hozo/conformance/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-9e3d31)](LICENSE)
+
 > A Rust-powered universal UI compiler and accessibility-first layer for React Native.
 
-**Status: working prototype, not yet published.** The Rust compiler, five
+**Status: early, `0.x`.** Published to npm and crates.io. The Rust compiler, five
 bundler and framework integrations, both lowering backends, the runtime
 adapters and the conformance suite are implemented and tested. Public APIs
-and package boundaries may still change. See
+and package boundaries may still change in any minor release. See
 [docs/proposal.md](docs/proposal.md) for the design document (Japanese).
+
+[Website](https://iray-tno.github.io/hozo/) · [REPL](https://iray-tno.github.io/hozo/repl/) · [Storybook](https://iray-tno.github.io/hozo/storybook/) · [Releases](https://github.com/iray-tno/hozo/releases)
 
 ## What is Hozo
 
@@ -620,8 +629,6 @@ to check every entry point is actually in them.
 
 ## What Hozo does not do yet
 
-- **It is not published.** Nothing is on npm; the native addon is built
-  locally.
 - **Migration is manual.** An existing app adopting Hozo changes its
   imports at the boundary itself; there is no codemod.
 - **No physical-device validation.** The Native backend does run on an
