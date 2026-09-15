@@ -11,6 +11,8 @@ import 'prismjs/components/prism-jsx'
 import 'prismjs/components/prism-typescript'
 import 'prismjs/components/prism-tsx'
 
+import { formatJsx } from './format-jsx.ts'
+
 interface ReplDiagnostic {
   code: string
   severity: string
@@ -168,9 +170,13 @@ async function compile() {
     const web = JSON.parse(compileWeb(text)) as WebComponent[]
     const native = JSON.parse(compileNative(text)) as NativeComponent[]
 
-    const webJsxCode = joined(web.map((one) => one.jsx))
+    // Laid out for reading. The compiler writes each component as one line,
+    // which is right for a build and not for a person; see `format-jsx.ts`.
+    const webJsxCode = joined(web.map((one) => formatJsx(one.jsx)))
     const webCssCode = joined(web.map((one) => one.css))
-    const nativeJsxCode = joined(native.map((one) => [...one.prelude, one.jsx].join('\n')))
+    const nativeJsxCode = joined(
+      native.map((one) => [...one.prelude, formatJsx(one.jsx)].join('\n')),
+    )
     const nativeStylesCode = joined(
       native.map((one) => (one.styles.trim() === '' ? '' : `StyleSheet.create(${one.styles})`)),
     )

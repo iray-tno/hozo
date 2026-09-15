@@ -2272,9 +2272,23 @@ fn render_shape(
     // Nested innermost-last, so the first variant written is the outermost
     // wrapper -- `md:hover:` is a width query around a hover query, which
     // is how Tailwind writes it too.
+    //
+    // Each level indents what it wraps. Whitespace means nothing to a
+    // browser, but this text is what a person reads -- in the REPL, in a
+    // generated `.hozo.css` -- and a query around an unindented rule reads
+    // as two rules one after the other.
     at_rule.into_iter().rev().fold(rules.join("\n\n"), |rule, prelude| {
-        format!("{prelude} {{\n{rule}\n}}")
+        format!("{prelude} {{\n{}\n}}", indent_block(&rule))
     })
+}
+
+/// Two spaces in front of every non-empty line. A CSS string cannot hold a
+/// raw newline, so no line break here is inside a value.
+fn indent_block(text: &str) -> String {
+    text.lines()
+        .map(|line| if line.is_empty() { String::new() } else { format!("  {line}") })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Escapes a class name for use in a CSS selector. Tailwind class names
