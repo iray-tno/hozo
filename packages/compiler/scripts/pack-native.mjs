@@ -56,7 +56,19 @@ function detectLibc() {
   return process.report?.getReport()?.header?.glibcVersionRuntime ? 'gnu' : 'musl'
 }
 
-const { version } = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
+// `repository` too, not only the version. `--provenance` requires every
+// published package's `repository.url` to match the GitHub repository the
+// workflow runs in, and npm rejects the upload with a 422 otherwise -- which
+// is how the first `v0.1.0` stopped, on the first platform package, before
+// anything was published. Read from `@hozo/compiler`'s own manifest, which
+// `scripts/package-metadata.mjs` generates, so the platform packages cannot
+// name a different repository than the package that depends on them.
+const { version, repository } = JSON.parse(
+  readFileSync(path.join(packageDir, 'package.json'), 'utf8'),
+)
+if (!repository?.url) {
+  throw new Error('@hozo/compiler has no repository.url for the platform packages to inherit')
+}
 const outDir = path.resolve(argument('--out') ?? path.join(repoRoot, 'artifacts'))
 
 console.log(`building ${target.triple} -> ${target.packageName}@${version}`)
@@ -94,6 +106,7 @@ writeFileSync(
       version,
       description: `Compiled Hozo compiler binding for ${target.platform}/${target.arch}${target.libc ? ` (${target.libc})` : ''}.`,
       license: 'MIT',
+      repository,
       main: binary,
       files: [binary],
       os: [target.platform],

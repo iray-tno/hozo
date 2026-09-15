@@ -26,7 +26,24 @@ function argument(name) {
 }
 
 const artifacts = path.resolve(argument('--artifacts') ?? path.join(repoRoot, 'artifacts'))
-const { version } = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
+const { version, repository } = JSON.parse(
+  readFileSync(path.join(packageDir, 'package.json'), 'utf8'),
+)
+
+/**
+ * The repository every platform package has to name.
+ *
+ * npm's provenance attestation is refused (422) unless a package's
+ * `repository.url` matches the GitHub repository the workflow publishes
+ * from. The first `v0.1.0` found that out on its first upload: the platform
+ * manifests had no `repository` at all, and this check, which only asked
+ * whether the eight packages existed, had passed them. In Actions the
+ * expected value is the workflow's own repository, which is exactly what
+ * npm compares against; elsewhere it is `@hozo/compiler`'s.
+ */
+const expectedRepository = process.env.GITHUB_REPOSITORY
+  ? `git+https://github.com/${process.env.GITHUB_REPOSITORY}.git`
+  : repository?.url
 
 if (!existsSync(artifacts)) {
   throw new Error(`no artifacts directory at ${artifacts}`)
@@ -57,6 +74,18 @@ for (const target of NATIVE_TARGETS) {
   if (!existsSync(path.join(dir, manifest.main))) {
     problems.push(`${target.packageName}: ${manifest.main} is missing`)
   }
+  if (manifest.repository?.url !== expectedRepository) {
+    problems.push(
+      `${target.packageName}: repository.url is ${JSON.stringify(manifest.repository?.url)}, expected "${expectedRepository}" -- npm refuses a provenance publish whose repository does not match`,
+    )
+  }
+}
+// The same comparison for the package that lists the eight, so the check
+// cannot pass by agreeing with a wrong `@hozo/compiler`.
+if (repository?.url !== expectedRepository) {
+  problems.push(
+    `@hozo/compiler: repository.url is ${JSON.stringify(repository?.url)}, expected "${expectedRepository}"`,
+  )
 }
 
 const extra = existsSync(artifacts)

@@ -201,6 +201,31 @@ jobs:
   # The dry run for the above, on `workflow_dispatch`: packages every crate
   # and builds each from its packaged sources alone, which is where a missing
   # `version` on a path dependency or a file outside the package shows up.
+  # The eight platform packages the build produced, checked on the dry run
+  # too -- the same `check-artifacts.mjs` the publish job runs, but where a
+  # failure costs a re-run instead of a deleted tag. The first `v0.1.0`
+  # built all eight, and npm refused the first upload because none of them
+  # named its repository; a dispatch run had passed, because nothing looked
+  # at the manifests until publishing.
+  artifacts-dry-run:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - run: node scripts/check-artifacts.mjs
+        working-directory: packages/compiler
+
   crates-dry-run:
     if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
