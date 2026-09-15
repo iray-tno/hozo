@@ -1,0 +1,18 @@
+plugins {
+    // The version React Native 0.87's Gradle plugin uses, so the one
+    // Gradle wrapper in this repository serves both builds.
+    id 'com.android.application' version '9.2.1'
+}
+
+android {
+    namespace 'dev.hozo.speechlog'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'dev.hozo.speechlog'
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName '1.0'
+    }
+}

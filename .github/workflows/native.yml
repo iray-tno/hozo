@@ -166,6 +166,75 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # What TalkBack *says*, where `android` above reads what it reads from.
+  #
+  # A second job rather than a step there, because it needs a different
+  # image: the API 34 image that job boots has no TalkBack, while the
+  # API 33, 35 and 36 images -- Google APIs and Google Play alike -- ship it
+  # in `/product`. 36 because it is the newest, and Google APIs because the
+  # Play Store adds nothing this needs. `speech-log/` is the whole mechanism --
+  # a text-to-speech engine that logs instead of speaking -- and
+  # `android-talkback.sh` makes it the default engine, switches TalkBack on
+  # and walks the screen with Tab.
+  talkback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm turbo run build
+
+      - name: Build the release APK
+        working-directory: examples/native-demo/android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+
+      - name: Build the speech log
+        run: examples/native-demo/android/gradlew -p examples/native-demo/speech-log assembleDebug --no-daemon
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Listen to TalkBack
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
+          script: bash examples/native-demo/scripts/android-talkback.sh
+
+      - name: Keep what it heard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talkback-speech
+          path: |
+            talkback-speech.json
+            talkback-*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
   ios:
     runs-on: macos-15
     timeout-minutes: 60

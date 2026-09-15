@@ -476,8 +476,10 @@ management, keyboard handling, floating positioning, and hover delay groups.
 
 Every Storybook story is continuously checked against `axe-core` in CI,
 catching automated regressions in contrast, structural ARIA syntax, and roles
-with zero violations. Full accessibility conformance still requires manual
-screen reader testing (VoiceOver, TalkBack, NVDA).
+with zero violations. Real screen readers read part of it weekly: NVDA and
+VoiceOver over the Storybook patterns, and TalkBack over the Native demo app's
+controls. iOS VoiceOver is not automated. Full conformance still requires
+manual screen reader testing.
 
 ## Three-Layer Component Hierarchy
 
@@ -636,8 +638,10 @@ to check every entry point is actually in them.
   Android emulator and an iOS simulator — `.github/workflows/native.yml`
   boots both, drives the demo app, and compares the accessibility tree
   each platform actually produces against what the compiler said it
-  would. What is untested is real hardware, and every screen reader:
-  VoiceOver, TalkBack and NVDA are still read by hand.
+  would. What is untested is real hardware. Screen readers are partly
+  automated: NVDA and VoiceOver on the Web patterns and TalkBack on the
+  demo app's controls, weekly. iOS VoiceOver, and anything those runs do
+  not reach, is still read by hand.
 - **The Grid subset is partial**, and the Tailwind surface is wide but not
   complete — `@hozo/tailwind-conformance` reports exactly which utilities
   match the real engine. Its current numbers are committed at

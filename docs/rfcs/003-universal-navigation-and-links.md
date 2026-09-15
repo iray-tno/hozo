@@ -130,9 +130,11 @@ The wrapper avoids overloading `href` on `Svg.Image`, `Svg.Use`, and
 
 ## 6. Verification Matrix
 
-| Target Platform | Semantic Output | Expected AT Behavior | Verified |
-|---|---|---|---|
-| Web / Chrome + NVDA | `<a>` vs `<button>` | Reads "link" vs "button", uses Enter vs Enter/Space | ⬜ |
-| Web / Safari + VoiceOver | `<a>` vs `<button>` | Listed in Links rotor vs Buttons rotor | ⬜ |
-| iOS + VoiceOver | `<Text>` / `<Pressable>` link role | Announces role="link", double-tap navigates | ⬜ |
-| Android + TalkBack | `<Text>` / `<Pressable>` link role | Announces role="link", double-tap navigates | ⬜ |
+| Target Platform | Semantic Output | Expected AT Behavior | Automated speech | Verified |
+|---|---|---|---|---|
+| Web / Chrome + NVDA | `<a>` vs `<button>` | Reads "link" vs "button", uses Enter vs Enter/Space | Not covered | ⬜ |
+| Web / Safari + VoiceOver | `<a>` vs `<button>` | Listed in Links rotor vs Buttons rotor | Not covered | ⬜ |
+| iOS + VoiceOver | `<Text>` / `<Pressable>` link role | Announces role="link", double-tap navigates | — | ⬜ |
+| Android + TalkBack | `<Text>` / `<Pressable>` link role | Announces role="link", double-tap navigates | Not covered | ⬜ |
+
+Automated speech: NVDA and VoiceOver read the Storybook patterns weekly (`.github/workflows/screen-readers.yml`) and TalkBack reads the Native acceptance screen (`native.yml`), but neither contains a link, so this RFC is "Not covered" by them. iOS VoiceOver has no speech capture at all: "—". A row is ticked by a person reading it.

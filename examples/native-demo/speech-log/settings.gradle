@@ -1,0 +1,25 @@
+// A text-to-speech engine that says nothing and logs everything.
+//
+// Its own build rather than a module of `../android`, because that build
+// is React Native's: it resolves plugins through node, autolinks, and runs
+// Metro. This needs none of it and should build in seconds. It borrows
+// that build's Gradle wrapper instead of carrying a second one:
+//
+//     ../android/gradlew -p . assembleDebug
+
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'HozoSpeechLog'
