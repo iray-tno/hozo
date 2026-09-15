@@ -10,7 +10,7 @@
     "build": "node scripts/copy-wasm.mjs && astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "test:build": "node scripts/copy-wasm.mjs && astro build --outDir dist-check && node scripts/check-build.mjs dist-check && node scripts/check-static.mjs",
+    "test:build": "node --test scripts/format-jsx.test.ts && node scripts/copy-wasm.mjs && astro build --outDir dist-check && node scripts/check-build.mjs dist-check && node scripts/check-static.mjs",
     "test": "pnpm test:build && node scripts/check-repl.mjs dist-check && node scripts/check-navbar.mjs dist-check"
   },
   "dependencies": {

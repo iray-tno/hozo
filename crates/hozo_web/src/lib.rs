@@ -69,7 +69,10 @@ const ARIA_STATE_ATTRS: &[(&str, &str)] = &[
 /// The `[data-hozo-*]` bases below are deliberately *not* wrapped. Those
 /// are behaviour rather than defaults -- a disabled control has to look
 /// disabled in forced colours even if a component class says otherwise.
-const VIEW_BASE_CSS: &str = ":where(.hozo-view) { \
+// `{\n  \`, not `{ \`: a line-continuation backslash also swallows the
+// newline and the next line's indentation, so the first declaration used to
+// land on the brace line -- in every stylesheet that carried this base.
+const VIEW_BASE_CSS: &str = ":where(.hozo-view) {\n  \
     display: flex;\n  \
     flex-direction: column;\n  \
     flex-shrink: 0;\n  \
@@ -82,7 +85,7 @@ const VIEW_BASE_CSS: &str = ":where(.hozo-view) { \
 /// is. The two attribute-qualified rules below it are not: they answer a
 /// prop the author set, and `[data-hozo-horizontal]` has to beat the
 /// default it is written to replace.
-const SCROLL_VIEW_BASE_CSS: &str = ":where(.hozo-scroll-view) { \
+const SCROLL_VIEW_BASE_CSS: &str = ":where(.hozo-scroll-view) {\n  \
     overflow-x: hidden;\n  \
     overflow-y: auto;\n  \
     -webkit-overflow-scrolling: touch;\n\
@@ -130,7 +133,7 @@ dialog[data-hozo-modal][data-hozo-animation=\"slide\"] { animation: hozo-modal-s
 /// enabled one. Browsers avoid that by painting disabled *form controls*
 /// with the `GrayText` system colour -- which a `<div role="button">` is
 /// not, and never gets. Same value, so a real `<button>` is unaffected.
-const DISABLED_BASE_CSS: &str = "@media (forced-colors: active) { \
+const DISABLED_BASE_CSS: &str = "@media (forced-colors: active) {\n  \
     [data-hozo-disabled] { color: GrayText; }\n\
 }\n\n";
 
@@ -2054,6 +2057,23 @@ export function Login() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         lower(&parsed.roots[0].node, &source, &Theme::default()).css
+    }
+
+    #[test]
+    fn stylesheets_are_laid_out_for_reading() {
+        // What the REPL shows and what lands in a `.hozo.css`. The base rule
+        // used to open `:where(.hozo-view) { display: flex;` -- a Rust line
+        // continuation after `{ ` swallowed the newline -- and a query's
+        // rules sat at the query's own indentation.
+        let css = css_for("p-4 md:hover:p-8");
+        assert!(css.contains(":where(.hozo-view) {\n  display: flex;\n"), "{css}");
+        assert!(
+            css.contains(
+                "@media (width >= 768px) {\n  @media (hover: hover) {\n    .hozo-0:hover {\n      padding-top: 32px;\n"
+            ),
+            "{css}"
+        );
+        assert!(!css.contains("{ display"), "{css}");
     }
 
     #[test]
