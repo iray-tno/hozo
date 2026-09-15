@@ -38,6 +38,9 @@ const recordingsDir = path.join(here, 'test-results', 'recordings', reader)
 /** How many `next` commands one story may take before it is cut off. */
 const MAX_STEPS = 60
 
+/** Fewer non-empty phrases than this means the reader never read the page. */
+const MIN_SPOKEN = 3
+
 const index = JSON.parse(readFileSync(path.join(storybook, 'index.json'), 'utf8')) as {
   entries: Record<string, { id: string; type: string }>
 }
@@ -61,6 +64,33 @@ function missingInOrder(log: readonly string[], expected: readonly string[]): st
   return missing
 }
 
+// NVDA stays in browse mode when focus moves.
+//
+// Guidepup enters the page by tabbing to its first focusable element. In
+// five of the six patterns that element is a widget -- a combobox, a menu
+// button, a tab, a toolbar, a tree -- and NVDA's default is to switch to
+// focus mode there, where its `next` command is handed to the widget and says
+// nothing. The first run read only the Dialog story, whose first focusable
+// element is a plain button; the rest logged "", "expanded", "list".
+//
+// Written into `nvda.ini` by Guidepup (`[virtualBuffers]`). Windows only:
+// the same options reach VoiceOver through this fixture, where they would be
+// read as its preferences.
+test.use({
+  screenReaderStartOptions:
+    process.platform === 'win32'
+      ? {
+          capture: 'initial',
+          settings: {
+            virtualBuffers: {
+              autoPassThroughOnFocusChange: false,
+              autoFocusFocusableElements: false,
+            },
+          },
+        }
+      : { capture: 'initial' },
+})
+
 for (const id of stories) {
   test(id, async ({ page, screenReader }, testInfo) => {
     mkdirSync(phrasesDir, { recursive: true })
@@ -78,16 +108,37 @@ for (const id of stories) {
 
       // To the end of the story: a reader that has nowhere left to go says
       // the same thing again, and three of those in a row is the end.
+      //
+      // Empty phrases do not count either way. The first run showed
+      // VoiceOver at a listbox or toolbar it would not step past answering
+      // "Alignment toolbar", "", "Alignment toolbar", "" -- comparing each
+      // phrase with the one before never saw a repeat, and every such story
+      // ran to the step limit.
+      let last = ''
       let repeats = 0
       for (let step = 0; step < MAX_STEPS && repeats < 3; step++) {
-        const previous = await screenReader.lastSpokenPhrase()
         await screenReader.next()
-        repeats = (await screenReader.lastSpokenPhrase()) === previous ? repeats + 1 : 0
+        const said = (await screenReader.lastSpokenPhrase()).trim()
+        if (said === '') continue
+        repeats = said === last ? repeats + 1 : 0
+        last = said
       }
       log = await screenReader.spokenPhraseLog()
     } finally {
       stopRecording()
       writeFileSync(path.join(phrasesDir, `${id}.json`), `${JSON.stringify(log, null, 2)}\n`)
+    }
+
+    // A reader that said almost nothing did not read the story, and that is
+    // a failure of the run rather than of the story. The first NVDA run
+    // passed with logs of "", "expanded", "list": it had landed in focus
+    // mode inside a widget and never read the page, and with no approved
+    // phrases to compare, nothing noticed.
+    const spoken = log.filter((phrase) => phrase.trim() !== '')
+    if (spoken.length < MIN_SPOKEN) {
+      throw new Error(
+        `${reader} said ${spoken.length} phrase(s) for ${id}, so it did not read the story:\n${JSON.stringify(log)}`,
+      )
     }
 
     const expectedFile = path.join(expectedDir, `${id}.txt`)

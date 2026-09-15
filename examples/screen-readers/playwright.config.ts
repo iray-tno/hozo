@@ -17,7 +17,9 @@ export default {
   // A screen reader walking a story is slow, and a first run on a fresh
   // runner is slower still.
   timeout: 5 * 60 * 1000,
-  retries: process.env.CI ? 1 : 0,
+  // Two, because the first run lost a first attempt on each of two stories
+  // to `browser.newContext: Target … has been closed` while NVDA settled.
+  retries: process.env.CI ? 2 : 0,
   reportSlowTests: null,
   outputDir: 'test-results/playwright',
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
