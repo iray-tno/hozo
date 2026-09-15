@@ -221,6 +221,9 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
+          # A hardware keyboard, so a key sent through the emulator console
+          # arrives from a physical device.
+          enable-hw-keyboard: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: bash examples/native-demo/scripts/android-talkback.sh
 

@@ -50,6 +50,27 @@ spoken() {
 talkback_off() {
   spoken | grep -q '^TalkBack off$'
 }
+# Until the log has stopped growing for three seconds, up to twenty. TalkBack
+# announces the app and the screen on its own after it binds, and arrives
+# late enough that a method tried too soon is credited with speech it did
+# not cause -- one run said "moving with: key" on exactly that, and every
+# step after it was silent.
+settle() {
+  local last now quiet=0
+  last="$(spoken | wc -l)"
+  for _ in $(seq 1 20); do
+    sleep 1
+    now="$(spoken | wc -l)"
+    if [ "$now" = "$last" ]; then
+      quiet=$((quiet + 1))
+      [ "$quiet" -lt 3 ] || return 0
+    else
+      quiet=0
+      last=$now
+    fi
+  done
+}
+
 adb shell settings put global hide_error_dialogs 1 > /dev/null 2>&1 || true
 
 [ -f "$apk" ] || fail "no release APK at $apk"
@@ -96,8 +117,8 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 [ -n "$bound" ] || fail "TalkBack is not bound thirty seconds after enabling it"
-# And a moment for its first announcements once it is.
-sleep 6
+# And for its first announcements to finish.
+settle
 adb exec-out screencap -p > ./talkback-start.png 2>/dev/null || true
 
 initial="$(spoken)"
@@ -113,6 +134,13 @@ fi
 # exploration reads as the same command, and Tab, which moves input focus
 # and TalkBack follows. Whichever makes TalkBack speak is kept for the rest
 # of the run.
+# `emu_key` goes through the emulator console to its hardware keyboard, which
+# Android sees as a physical device; `input` injects from a virtual one, and
+# TalkBack may only take its shortcuts from the former.
+next_by_emu_key() {
+  adb emu event send EV_KEY:KEY_LEFTALT:1 EV_KEY:KEY_RIGHT:1 > /dev/null
+  adb emu event send EV_KEY:KEY_RIGHT:0 EV_KEY:KEY_LEFTALT:0 > /dev/null
+}
 next_by_key() { adb shell input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; }
 next_by_keyboard() { adb shell input keyboard keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; }
 next_by_tab() { adb shell input keyevent KEYCODE_TAB; }
@@ -126,7 +154,9 @@ next_by_slow_swipe() { next_by_swipe 300; }
 
 said_before="$(spoken | wc -l)"
 method=
-for candidate in key keyboard swipe slow_swipe tab; do
+for candidate in emu_key key keyboard swipe slow_swipe tab; do
+  settle
+  said_before="$(spoken | wc -l)"
   "next_by_$candidate"
   sleep 3
   talkback_off && fail "TalkBack switched itself off before it was asked to move"
