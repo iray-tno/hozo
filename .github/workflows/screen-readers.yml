@@ -1,0 +1,110 @@
+# Real screen readers reading the Storybook patterns: NVDA with Chrome on
+# Windows, VoiceOver with Safari on macOS, driven by Guidepup.
+#
+# Weekly and on demand, like native.yml, and not per pull request: a run is a
+# full Storybook build plus a headed browser and a screen reader walking each
+# story on a real desktop, and a screen reader is not deterministic enough to
+# gate every change on. The per-PR check is the virtual screen reader in
+# examples/storybook-demo. This one also runs on a pull request that changes
+# the harness itself, since that is the only way to see a change to it work
+# before it is on main.
+#
+# What each reader said and a screen recording are uploaded as artifacts,
+# kept for 14 days and never committed. A person approves a story by copying
+# the phrases that must be said into examples/screen-readers/expected/.
+name: screen-readers
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/screen-readers.yml'
+      - 'examples/screen-readers/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: screen-readers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  read:
+    name: ${{ matrix.reader }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - reader: nvda
+            os: windows-2025
+            browser: chromium
+          - reader: voiceover
+            os: macos-15
+            browser: webkit
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+
+      # The catalogue the readers read, built the way the Storybook example's
+      # own checks build it.
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm turbo run build --filter=@hozo/example-storybook^...
+      # Through pnpm, which puts the example's `storybook` binary on PATH;
+      # run with plain `node` the build script cannot find it.
+      - run: pnpm exec node scripts/build.mjs storybook-static-check
+        working-directory: examples/storybook-demo
+
+      # Permissions for automation (and, on macOS, screen recording), then
+      # the screen reader itself: a portable NVDA on Windows.
+      # Retried: on macOS this drives System Settings through osascript, and a
+      # run has already failed once on "Failed to enable 'Do not disturb'
+      # mode" where the same step passed the run before.
+      - shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            npx -y @guidepup/setup@0.25.3 setup --ci --macos-record && exit 0
+            echo "setup attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
+      # From the harness package: `install` resolves `@guidepup/guidepup` from
+      # the working directory to pick the matching screen reader build, and
+      # only examples/screen-readers depends on it.
+      - run: npx -y @guidepup/setup@0.25.3 install
+        working-directory: examples/screen-readers
+      - run: pnpm exec playwright install ${{ matrix.browser }}
+        working-directory: examples/screen-readers
+
+      # The Windows recorder calls ffmpeg-static, whose binary is fetched by
+      # an install script pnpm does not run for dependencies. Fetched here
+      # rather than allowed repository-wide, so no other job downloads it.
+      - if: matrix.reader == 'nvda'
+        shell: bash
+        working-directory: examples/screen-readers
+        run: |
+          dir=$(node -e "const p=require('node:path');console.log(p.dirname(require.resolve('ffmpeg-static/package.json',{paths:[p.dirname(require.resolve('@guidepup/record'))]})))")
+          (cd "$dir" && node install.js)
+
+      - run: pnpm run read
+        working-directory: examples/screen-readers
+        env:
+          CI: 'true'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screen-readers-${{ matrix.reader }}
+          path: examples/screen-readers/test-results/
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,0 +1,16 @@
+{
+  "name": "@hozo/example-screen-readers",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Real screen readers, NVDA and VoiceOver, reading the Storybook catalogue through Guidepup.",
+  "type": "module",
+  "scripts": {
+    "read": "playwright test --config playwright.config.ts"
+  },
+  "devDependencies": {
+    "@guidepup/guidepup": "0.34.0",
+    "@guidepup/playwright": "0.19.1",
+    "@guidepup/record": "0.1.0",
+    "@playwright/test": "1.63.0"
+  }
+}
