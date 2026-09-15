@@ -192,6 +192,61 @@ for (const name of PACKAGE_NAMES) {
   }
 }
 
+// A peer range is a claim to users about which React Native works. It said
+// `>=0.76` while every example -- and so every CI job, device run included --
+// ran 0.86 or 0.87. The floor is now read off the examples: the lowest
+// React Native minor any of them runs is the lowest one anything tested.
+{
+  const exampleMinors = globSync(path.join(root, 'examples', '*', 'package.json'))
+    .map((file) => JSON.parse(readFileSync(file, 'utf8')))
+    .map((json) => json.dependencies?.['react-native'] ?? json.devDependencies?.['react-native'])
+    .filter((range) => typeof range === 'string')
+    .map((range) => Number(/0\.(\d+)/.exec(range)?.[1]))
+    .filter((minor) => Number.isFinite(minor))
+  if (exampleMinors.length === 0) {
+    // Nothing to derive from would otherwise pass every range.
+    fail('core', 'no example depends on react-native, so the peer floor is checked against nothing')
+  } else {
+    const expected = `>=0.${Math.min(...exampleMinors)}`
+    const devRanges = new Map()
+    for (const name of PACKAGE_NAMES) {
+      const manifest = JSON.parse(
+        readFileSync(path.join(root, 'packages', name, 'package.json'), 'utf8'),
+      )
+      const range = manifest.peerDependencies?.['react-native']
+      if (range === undefined) continue
+      if (range !== expected) {
+        fail(
+          name,
+          `peerDependencies.react-native is "${range}", expected "${expected}" -- the lowest React Native an example runs`,
+        )
+      }
+      // A peer with no devDependency beside it is satisfied by whichever
+      // React Native the workspace happens to hold. Narrowing the floor to
+      // 0.86 let pnpm hand `@hozo/behaviors` the Expo example's 0.86.3 while
+      // every package built on it got 0.87 -- two copies of React Native's
+      // types, and `@hozo/patterns` stopped compiling against its own
+      // dependency. So every package that builds against React Native
+      // builds against the same one.
+      const dev = manifest.devDependencies?.['react-native']
+      if (dev === undefined) {
+        fail(
+          name,
+          'declares a react-native peer but no react-native devDependency to build against',
+        )
+      } else {
+        devRanges.set(name, dev)
+      }
+    }
+    if (new Set(devRanges.values()).size > 1) {
+      fail(
+        'core',
+        `packages build against different React Native versions: ${[...devRanges].map(([name, range]) => `${name} ${range}`).join(', ')}`,
+      )
+    }
+  }
+}
+
 // Metadata can look correct and still fail to shake at the package boundary.
 // These are real consumer-shaped Web bundles: React remains a peer and is
 // deliberately excluded from the measured bytes. Every canonical owner is

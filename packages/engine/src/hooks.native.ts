@@ -241,7 +241,7 @@ export function useHozoAnimation(name: HozoAnimation) {
               // A percentage, because Tailwind's bounce is -25% of the
               // element's own height and a pixel figure would be right at
               // one size only. React Native has taken percentages in
-              // `translateY` since 0.76, which is this package's floor.
+              // `translateY` since 0.76, below this package's floor of 0.86.
               //
               // The two halves are not symmetric: Tailwind eases the rise
               // with `cubic-bezier(.8,0,1,1)` and the fall with
