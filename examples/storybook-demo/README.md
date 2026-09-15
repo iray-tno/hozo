@@ -43,7 +43,7 @@ Hozo's Storybook showcases the entire universal component hierarchy across 5 cle
 Every story is automatically built and tested against **`axe-core`** in CI:
 - **39/39 stories passing** with **0 automated violations**.
 - Catches machine-testable issues: color contrast thresholds, missing labels, invalid ARIA roles/attributes, and duplicate IDs.
-- *Note*: Automated audits cover the rule-based subset of accessibility. Interactive keyboard trap behavior and real-world screen reader usability (VoiceOver, TalkBack, NVDA) require ongoing empirical testing.
+- *Note*: Automated audits cover the rule-based subset of accessibility. Real NVDA and VoiceOver read the `patterns-*` stories weekly (`examples/screen-readers`); interactive keyboard trap behavior and the rest of real-world screen reader usability still require manual testing.
 
 ## Development
 

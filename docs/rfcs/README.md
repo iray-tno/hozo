@@ -56,10 +56,12 @@ Exported components, props, hooks, and typescript types.
 ## 6. Accessibility Verification Matrix
 Empirical assistive technology (AT) verification plan for real devices:
 
-| Target Platform | Semantic Output | Expected AT Behavior | Verified (Human) |
-|---|---|---|---|
-| Web / Chrome + NVDA | `<role>` / ARIA | Expected announcement & keyboard flow | ⬜ |
-| Web / Safari + VoiceOver | Semantic DOM / ARIA | Expected rotor & swipe flow | ⬜ |
-| iOS + VoiceOver | RN Accessibility Props | Traps swipe focus, announces role | ⬜ |
-| Android + TalkBack | RN Accessibility Props | Traps touch cursor, modal flag | ⬜ |
+| Target Platform | Semantic Output | Expected AT Behavior | Automated speech | Verified (Human) |
+|---|---|---|---|---|
+| Web / Chrome + NVDA | `<role>` / ARIA | Expected announcement & keyboard flow | Which story `screen-readers.yml` reads, or Not covered | ⬜ |
+| Web / Safari + VoiceOver | Semantic DOM / ARIA | Expected rotor & swipe flow | Which story `screen-readers.yml` reads, or Not covered | ⬜ |
+| iOS + VoiceOver | RN Accessibility Props | Traps swipe focus, announces role | — | ⬜ |
+| Android + TalkBack | RN Accessibility Props | Traps touch cursor, modal flag | What `native.yml`'s `talkback` job reaches by Tab, or Not covered | ⬜ |
+
+Automated speech says which CI run hears this behavior, and how much of it. "Not covered" means a capture exists for the platform but reads nothing of this RFC; "—" means the platform has no speech capture at all, which is true of iOS VoiceOver. It never ticks the last column.
 ```
