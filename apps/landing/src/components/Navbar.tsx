@@ -1,9 +1,25 @@
 import { Link, Nav, Text, View } from '@hozo/core'
 
+// The published version, read from the package that carries it rather than
+// written here. The badge said "v0.0.0 prototype" through the first release,
+// because it was a string nobody had a reason to revisit.
+import { version } from '../../../../packages/core/package.json'
+
 export interface NavbarProps {
   baseUrl?: string
 }
 
+// The site's pages, and only those.
+//
+// Six in-page section anchors used to sit beside these, revealed at wider
+// breakpoints, and at common laptop widths the row outgrew its container:
+// `whitespace-nowrap` kept the links on one line and the overflow ran under
+// the GitHub button. The sections are one scroll away on the page they
+// belong to; the header holds what is not.
+//
+// Four links written out rather than mapped from a table: a class name
+// assembled in a template literal cannot be read at build time, and the
+// header would lose its compiled styles to the runtime candidate sheet.
 export function Navbar({ baseUrl = '' }: NavbarProps) {
   const cleanBase = baseUrl ? baseUrl.replace(/\/$/, '') : ''
   const homeUrl = cleanBase ? `${cleanBase}/` : '/'
@@ -13,8 +29,8 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
       role="banner"
       className="fixed top-0 left-0 right-0 z-50 border-b border-wood bg-yakisugi-header backdrop-blur-md"
     >
-      <View className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-12 sm:h-14 md:h-16 flex flex-row items-center justify-between">
-        <View className="flex flex-row items-center gap-3">
+      <View className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-12 sm:h-14 md:h-16 flex flex-row items-center justify-between gap-4">
+        <View className="flex flex-row items-center gap-3 shrink-0">
           <Link href={homeUrl} className="flex flex-row items-center gap-2 group">
             <View className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-hinoki-light via-hinoki to-kuri flex items-center justify-center p-0.5 shadow-md group-hover:scale-105 transition-transform">
               <View className="w-full h-full bg-yakisugi-950 rounded-[6px] flex items-center justify-center font-bold text-shikkui tracking-tighter text-xs sm:text-sm">
@@ -25,79 +41,43 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
               Hozo
             </Text>
             <Text className="hidden sm:inline-flex text-xs px-2 py-0.5 rounded-full bg-wood-subtle text-hinoki border border-wood font-medium">
-              v0.0.0 prototype
+              {`v${version}`}
             </Text>
           </Link>
         </View>
 
-        <Nav className="hidden md:flex md:flex-row items-center gap-4 lg:gap-5 xl:gap-3.5 2xl:gap-6 text-sm text-shikkui-muted font-medium whitespace-nowrap">
+        <Nav className="hidden md:flex md:flex-row items-center gap-5 lg:gap-7 min-w-0 text-sm font-semibold whitespace-nowrap">
           <Link
             href={`${cleanBase}/conformance/`}
-            className="text-hinoki hover:text-hinoki-light font-semibold flex flex-row items-center gap-1.5 transition-colors shrink-0"
+            className="text-hinoki hover:text-hinoki-light flex flex-row items-center gap-1.5 transition-colors shrink-0"
           >
             <View className="w-2 h-2 rounded-full bg-hinoki" />
             <Text>Conformance</Text>
           </Link>
           <Link
             href={`${cleanBase}/repl/`}
-            className="text-bengara hover:text-bengara-hover font-semibold flex flex-row items-center gap-1.5 transition-colors shrink-0"
+            className="text-bengara hover:text-bengara-hover flex flex-row items-center gap-1.5 transition-colors shrink-0"
           >
             <View className="w-2 h-2 rounded-full bg-bengara" />
             <Text>REPL</Text>
           </Link>
           <Link
             href={`${cleanBase}/storybook/`}
-            className="text-tatami-light hover:text-shikkui font-semibold flex flex-row items-center gap-1.5 transition-colors shrink-0"
+            className="text-tatami-light hover:text-shikkui flex flex-row items-center gap-1.5 transition-colors shrink-0"
           >
             <View className="w-2 h-2 rounded-full bg-tatami" />
             <Text>Storybook</Text>
           </Link>
           <Link
             href={`${cleanBase}/reports/`}
-            className="text-hinoki-light hover:text-shikkui font-semibold flex flex-row items-center gap-1.5 transition-colors shrink-0"
+            className="text-hinoki-light hover:text-shikkui flex flex-row items-center gap-1.5 transition-colors shrink-0"
           >
             <View className="w-2 h-2 rounded-full bg-hinoki-light" />
             <Text>Reports</Text>
           </Link>
-          <Link
-            href={`${homeUrl}#philosophy`}
-            className="hidden lg:inline-flex hover:text-shikkui transition-colors shrink-0"
-          >
-            <Text>Principles</Text>
-          </Link>
-          <Link
-            href={`${homeUrl}#tiered-styles`}
-            className="hidden xl:inline-flex hover:text-shikkui transition-colors shrink-0"
-          >
-            <Text>Tiered Styles</Text>
-          </Link>
-          <Link
-            href={`${homeUrl}#code-showcase`}
-            className="hidden 2xl:inline-flex hover:text-shikkui transition-colors shrink-0"
-          >
-            <Text>Code Comparison</Text>
-          </Link>
-          <Link
-            href={`${homeUrl}#accessibility`}
-            className="hidden xl:inline-flex hover:text-shikkui transition-colors shrink-0"
-          >
-            <Text>Accessibility</Text>
-          </Link>
-          <Link
-            href={`${homeUrl}#integrations`}
-            className="hidden 2xl:inline-flex hover:text-shikkui transition-colors shrink-0"
-          >
-            <Text>Integrations</Text>
-          </Link>
-          <Link
-            href={`${homeUrl}#architecture`}
-            className="hidden lg:inline-flex hover:text-shikkui transition-colors shrink-0"
-          >
-            <Text>Architecture</Text>
-          </Link>
         </Nav>
 
-        <View className="flex flex-row items-center gap-2 sm:gap-3">
+        <View className="flex flex-row items-center gap-2 sm:gap-3 shrink-0">
           <Link
             href={`${cleanBase}/repl/`}
             className="inline-flex flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-bengara hover:bg-bengara-hover text-shikkui shadow-sm transition-all md:hidden"
