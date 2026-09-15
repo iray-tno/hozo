@@ -43,6 +43,13 @@ spoken() {
   adb logcat -d -v raw -s HozoSpeech:I | tr -d '\r' | grep -v '^--------- ' || true
 }
 
+# `uiautomator` must not run while TalkBack is on. Its UiAutomation connection
+# suppresses every other accessibility service, so TalkBack says "TalkBack
+# off" and the rest of the run is silence -- which a dump added for
+# diagnosis did once, and a count of phrases then passed.
+talkback_off() {
+  spoken | grep -q '^TalkBack off$'
+}
 adb shell settings put global hide_error_dialogs 1 > /dev/null 2>&1 || true
 
 [ -f "$apk" ] || fail "no release APK at $apk"
@@ -92,7 +99,6 @@ done
 # And a moment for its first announcements once it is.
 sleep 6
 adb exec-out screencap -p > ./talkback-start.png 2>/dev/null || true
-adb shell uiautomator dump /sdcard/talkback.xml > /dev/null 2>&1 && adb pull /sdcard/talkback.xml ./talkback-start.xml > /dev/null 2>&1 || true
 
 initial="$(spoken)"
 echo "said on start:"
@@ -123,6 +129,7 @@ method=
 for candidate in key keyboard swipe slow_swipe tab; do
   "next_by_$candidate"
   sleep 3
+  talkback_off && fail "TalkBack switched itself off before it was asked to move"
   if [ "$(spoken | wc -l)" -gt "$said_before" ]; then method=$candidate; break; fi
   echo "next by $candidate: TalkBack said nothing"
 done
@@ -169,7 +176,12 @@ node --eval '
   fs.writeFileSync("talkback-speech.json", JSON.stringify(log, null, 2) + "\n")
 ' "$steps_file" "$method" "$(spoken)"
 
-distinct=$(spoken | sort -u | grep -c . || true)
-echo "TalkBack said $distinct distinct things"
+talkback_off && fail "TalkBack switched itself off during the run"
+# Counted from what the steps said, not from everything: TalkBack announces
+# the app and the screen on its own when it starts, so a reader that never
+# moved would still pass a count of the whole log.
+distinct=$(cut -f2 "$steps_file" | tr "|" "
+" | sort -u | grep -c . || true)
+echo "TalkBack said $distinct distinct things while moving"
 [ "$distinct" -ge "$MIN_SPOKEN" ] || fail "TalkBack said only $distinct distinct things, so it did not read the screen"
 echo "ok"

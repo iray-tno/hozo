@@ -232,7 +232,6 @@ jobs:
           path: |
             talkback-speech.json
             talkback-*.png
-            talkback-start.xml
           if-no-files-found: ignore
           retention-days: 14
 
