@@ -1,6 +1,7 @@
 ---
 import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
+import SiteHead from '../components/SiteHead.astro'
 import '../styles/global.css'
 import snapshot from '../../../../packages/tailwind-conformance/snapshot.json'
 
@@ -11,14 +12,9 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
 <!doctype html>
 <html lang="en" class="scroll-smooth">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/favicon.svg`} />
-    <meta name="generator" content={Astro.generator} />
-    <title>Conformance Matrix — Hozo Universal UI Compiler</title>
-    <meta
-      name="description"
-      content="Automated, differential cross-platform conformance matrix for Hozo. Verified directly in CI against Tailwind CSS, React Native Fabric, StyleX, and W3C ARIA specs."
+    <SiteHead
+      title="Conformance Matrix — Hozo Universal UI Compiler"
+      description="Automated, differential cross-platform conformance matrix for Hozo. Verified directly in CI against Tailwind CSS, React Native Fabric, StyleX, and W3C ARIA specs."
     />
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

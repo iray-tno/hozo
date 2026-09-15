@@ -11,7 +11,7 @@
 // direction that matters: adding one interactive primitive would still
 // build, still render, and quietly start shipping React.
 
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 // Which build to read, because there is more than one.
@@ -70,7 +70,7 @@ const checks = [
   // question is what the *page* loads, not what the directory contains.
   [!/<astro-island/.test(html), 'something hydrated: an island reached the page'],
   [
-    !/<script(?![^>]*type="application\/ld\+json")/.test(html),
+    !/<script(?![^>]*(?:type="application\/ld\+json"|data-analytics))/.test(html),
     'the page shipped JavaScript for a component that needs none',
   ],
 ]
@@ -111,7 +111,7 @@ checks.push(
   ],
   [!/<astro-island/.test(mdx), 'the MDX page hydrated something'],
   [
-    !/<script(?![^>]*type="application\/ld\+json")/.test(mdx),
+    !/<script(?![^>]*(?:type="application\/ld\+json"|data-analytics))/.test(mdx),
     'the MDX page shipped JavaScript for a component that needs none',
   ],
 )
@@ -133,9 +133,97 @@ checks.push(
   ],
   [!/<astro-island/.test(conformance), 'conformance page hydrated an island unexpectedly'],
   [
-    !/<script(?![^>]*type="application\/ld\+json")/.test(conformance),
+    !/<script(?![^>]*(?:type="application\/ld\+json"|data-analytics))/.test(conformance),
     'conformance page shipped JavaScript for static data',
   ],
+)
+
+// What a search engine or a link preview reads. The pages are found in the
+// build rather than named here, so a page added without `SiteHead` fails
+// instead of being skipped. The MDX probe is a test fixture, not a page for
+// readers, and is the one that must *not* be indexed.
+const sitePages = [
+  '',
+  ...readdirSync(dist, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== 'mdx-example')
+    .filter((entry) => existsSync(path.join(dist, entry.name, 'index.html')))
+    .map((entry) => `${entry.name}/`),
+]
+for (const page of sitePages) {
+  const head = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
+  const label = page === '' ? 'index' : page
+  checks.push(
+    [/<meta name="description" content="[^"]+"/.test(head), `${label}: no description`],
+    [
+      new RegExp(`<link rel="canonical" href="https://[^"]+/${page}"`).test(head),
+      `${label}: no absolute canonical URL for this page`,
+    ],
+    [/<meta property="og:title" content="[^"]+"/.test(head), `${label}: no og:title`],
+    [/<meta property="og:description" content="[^"]+"/.test(head), `${label}: no og:description`],
+    [
+      /<meta name="twitter:card" content="summary_large_image"/.test(head),
+      `${label}: no large-image twitter card`,
+    ],
+    [
+      /<meta property="og:image" content="https:\/\/[^"]+\/og-image\.png"/.test(head),
+      `${label}: no absolute og:image`,
+    ],
+  )
+}
+
+// The card the head points at has to be in the build, and be the size the
+// head claims: a 404 or a wrongly sized image is dropped by every preview.
+{
+  const card = readFileSync(path.join(dist, 'og-image.png'))
+  const isPng = card.subarray(1, 4).toString('ascii') === 'PNG'
+  checks.push(
+    [isPng, 'og-image.png is not a PNG'],
+    [
+      isPng && card.readUInt32BE(16) === 1200 && card.readUInt32BE(20) === 630,
+      `og-image.png is not 1200x630`,
+    ],
+  )
+}
+// The site's measurement: Google Analytics and Microsoft Clarity, and
+// nothing else under the mark the no-JavaScript assertions above exempt.
+// Exactly three tags per page -- the gtag loader, its config, Clarity's
+// loader -- each naming only its own origin or ID. The MDX probe is a
+// fixture, not a page anyone visits, and carries none.
+const ANALYTICS_TAG = /<script\b[^>]*\bdata-analytics\b[^>]*>([\s\S]*?)<\/script>/g
+const allowedAnalytics = (tag) =>
+  /src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=G-5B728NQBSP"/.test(tag) ||
+  /gtag\('config',"G-5B728NQBSP"\)/.test(tag) ||
+  /https:\/\/www\.clarity\.ms\/tag\/"\+i[\s\S]*"yihnef0iol"/.test(tag)
+for (const page of sitePages) {
+  const document = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
+  const tags = [...document.matchAll(ANALYTICS_TAG)].map((match) => match[0])
+  const label = page === '' ? 'index' : page
+  checks.push(
+    [tags.length === 3, `${label}: expected 3 analytics tags, found ${tags.length}`],
+    [tags.every(allowedAnalytics), `${label}: an analytics-marked script is not GA or Clarity`],
+  )
+}
+checks.push([!/data-analytics/.test(mdx), 'the MDX probe page carries analytics'])
+
+checks.push(
+  [/"@type":"SoftwareSourceCode"/.test(html), 'the index page carries no JSON-LD'],
+  [/<meta name="robots" content="noindex"/.test(mdx), 'the MDX probe page is indexable'],
+)
+
+const sitemap = readFileSync(path.join(dist, 'sitemap.xml'), 'utf8')
+const llms = readFileSync(path.join(dist, 'llms.txt'), 'utf8')
+checks.push(
+  [
+    (sitemap.match(/<loc>/g) ?? []).length === sitePages.length,
+    `the sitemap lists ${(sitemap.match(/<loc>/g) ?? []).length} URLs for ${sitePages.length} pages`,
+  ],
+  [!sitemap.includes('mdx-example'), 'the sitemap lists the MDX probe'],
+  [llms.startsWith('# Hozo\n'), 'llms.txt does not start with its title'],
+  [
+    /- \[@hozo\/core\]\(https:\/\/www\.npmjs\.com\/package\/@hozo\/core\): \S/.test(llms),
+    'llms.txt does not describe @hozo/core',
+  ],
+  [!llms.includes('@hozo/test-reporter'), 'llms.txt lists a private package'],
 )
 
 for (const [ok, message] of checks) {

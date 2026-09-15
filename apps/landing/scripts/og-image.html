@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  The Open Graph card, rendered to public/og-image.png by og-image.mjs.
+
+  The hero section, reduced to a 1200x630 card: the same palette, lattice,
+  glows and type as `src/components/Hero.tsx` and `src/styles/global.css`.
+  The copy is repeated here rather than read from the component, because a
+  card is a picture of the hero rather than the hero -- rerun the script
+  when that copy changes.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      body {
+        position: relative;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        /* --color-yakisugi-950, with global.css's .grid-background lattice */
+        background-color: #100f0e;
+        background-image:
+          linear-gradient(to right, rgba(200, 168, 130, 0.05) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(200, 168, 130, 0.05) 1px, transparent 1px);
+        background-size: 40px 40px;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* Hero.tsx's two ambient glows: hinoki behind the headline, bengara to its left */
+      .glow {
+        position: absolute;
+        border-radius: 9999px;
+        pointer-events: none;
+      }
+      .glow-hinoki {
+        left: 280px;
+        top: 90px;
+        width: 640px;
+        height: 360px;
+        background-color: rgba(200, 168, 130, 0.14);
+        filter: blur(140px);
+      }
+      .glow-bengara {
+        left: 120px;
+        top: 230px;
+        width: 420px;
+        height: 320px;
+        background-color: rgba(158, 61, 49, 0.16);
+        filter: blur(120px);
+      }
+      main {
+        position: relative;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 0 88px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 36px;
+        color: #c8a882; /* hinoki */
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 9999px;
+        background-color: #708260; /* tatami-light */
+      }
+      h1 {
+        margin: 0 0 34px;
+        color: #f7f5f0; /* shikkui */
+        /* Sized so the longer line fits the card's 1024px measure on one line:
+           at the hero's own ratio it wrapped and left "UI." alone on a third. */
+        font-size: 66px;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        line-height: 1.12;
+      }
+      /* global.css .gradient-text */
+      .gradient-text {
+        background: linear-gradient(135deg, #f7f5f0 0%, #dfc8ab 45%, #c8a882 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        white-space: nowrap;
+      }
+      .subtitle {
+        margin: 0;
+        color: #c8a882; /* hinoki */
+        font-size: 28px;
+        font-weight: 500;
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="glow glow-hinoki"></div>
+    <div class="glow glow-bengara"></div>
+    <main>
+      <div class="eyebrow"><span class="dot"></span>Rust-powered Universal UI Compiler</div>
+      <h1>
+        Write React Native.<br />
+        <span class="gradient-text">Ship Semantic Web &amp; Native UI.</span>
+      </h1>
+      <p class="subtitle">Static paths compile away. Only truly dynamic behavior remains at runtime.</p>
+    </main>
+  </body>
+</html>
