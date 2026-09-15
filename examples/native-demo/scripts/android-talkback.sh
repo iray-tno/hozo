@@ -6,7 +6,7 @@
 # reads *from*. This reads what it says: `speech-log/` is a text-to-speech
 # engine that logs every utterance under the `HozoSpeech` tag, it is made
 # the default engine, TalkBack is switched on through secure settings, and
-# its "next item" command is sent until it stops finding anything new.
+# Tab is sent until focus comes back round to where it started.
 #
 # Needs an image that ships TalkBack -- API 36 does, API 34 does not -- and
 # the release APK plus the speech-log APK already built.
@@ -128,52 +128,39 @@ if [ -z "$initial" ]; then
   echo "::warning::TalkBack said nothing on start; the engine may not be in use"
 fi
 
-# One step of "next item", sent every way TalkBack might accept one: its
-# keyboard shortcut (Alt+Right in the default keymap) from the default and
-# the keyboard input source, a swipe right at two speeds, which touch
-# exploration reads as the same command, and Tab, which moves input focus
-# and TalkBack follows. Whichever makes TalkBack speak is kept for the rest
-# of the run.
-# `emu_key` goes through the emulator console to its hardware keyboard, which
-# Android sees as a physical device; `input` injects from a virtual one, and
-# TalkBack may only take its shortcuts from the former.
-next_by_emu_key() {
-  adb emu event send EV_KEY:KEY_LEFTALT:1 EV_KEY:KEY_RIGHT:1 > /dev/null
-  adb emu event send EV_KEY:KEY_RIGHT:0 EV_KEY:KEY_LEFTALT:0 > /dev/null
-}
-next_by_key() { adb shell input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; }
-next_by_keyboard() { adb shell input keyboard keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; }
-next_by_tab() { adb shell input keyevent KEYCODE_TAB; }
-next_by_swipe() {
-  local size w h
-  size="$(adb shell wm size | tr -d '\r' | grep -o '[0-9]*x[0-9]*' | tail -1)"
-  w="${size%x*}"; h="${size#*x}"
-  adb shell input swipe $((w / 4)) $((h / 2)) $((w * 3 / 4)) $((h / 2)) ${1:-120}
-}
-next_by_slow_swipe() { next_by_swipe 300; }
+# Tab, because it is the only way of moving that reaches TalkBack from here.
+#
+# TalkBack's own "next item" was tried every way there is to send it, one
+# run each, after letting its start-up announcements finish: Alt+Right from
+# `input keycombination`, from the keyboard input source and from the
+# emulator's hardware keyboard through its console, and a swipe right at 120
+# and 300 ms. All five were silent. Tab moves *input* focus and TalkBack
+# follows it and speaks, so what this reads is every focusable element in
+# order -- the controls, not the heading or plain text between them. That
+# half stays in `VALIDATION.md` until something can drive TalkBack's linear
+# navigation.
+next() { adb shell input keyevent KEYCODE_TAB; }
 
+settle
 said_before="$(spoken | wc -l)"
-method=
-for candidate in emu_key key keyboard swipe slow_swipe tab; do
-  settle
-  said_before="$(spoken | wc -l)"
-  "next_by_$candidate"
-  sleep 3
-  talkback_off && fail "TalkBack switched itself off before it was asked to move"
-  if [ "$(spoken | wc -l)" -gt "$said_before" ]; then method=$candidate; break; fi
-  echo "next by $candidate: TalkBack said nothing"
-done
-[ -n "$method" ] || fail "nothing made TalkBack move: Alt+Right, a swipe and Tab were all silent"
-echo "moving with: $method"
-
 steps_file="$(mktemp)"
-previous=
-repeats=0
+first=
 silent=0
 for step in $(seq 1 "$MAX_STEPS"); do
+  next
+  sleep 2
+  settle
   now="$(spoken | wc -l)"
   new="$(spoken | tail -n +$((said_before + 1)) | paste -sd '|' -)"
   said_before=$now
+  # The first phrase of a step is the element; what follows is TalkBack's
+  # hints and system chatter ("Showing English (US) (QWERTY)").
+  element="${new%%|*}"
+  # Tab wraps, so a step naming the first element again is a full lap.
+  if [ -n "$first" ] && [ "$element" = "$first" ]; then
+    echo "  back at \"$first\" after $((step - 1)) steps"
+    break
+  fi
   printf '%s\t%s\n' "$step" "$new" >> "$steps_file"
   echo "  $step: ${new:-(silent)}"
   if [ -z "$new" ]; then
@@ -181,30 +168,22 @@ for step in $(seq 1 "$MAX_STEPS"); do
     [ "$silent" -lt 5 ] || break
   else
     silent=0
-    if [ "$new" = "$previous" ]; then
-      repeats=$((repeats + 1))
-      [ "$repeats" -lt 3 ] || break
-    else
-      repeats=0
-    fi
-    previous=$new
+    [ -n "$first" ] || first=$element
   fi
-  "next_by_$method"
-  sleep 2
 done
 
 adb exec-out screencap -p > ./talkback-end.png 2>/dev/null || true
 
 node --eval '
   const fs = require("node:fs")
-  const [steps, method, all] = process.argv.slice(1)
+  const [steps, all] = process.argv.slice(1)
   const rows = fs.readFileSync(steps, "utf8").split("\n").filter(Boolean).map((line) => {
     const [step, said] = line.split("\t")
     return { step: Number(step), said: said ? said.split("|") : [] }
   })
-  const log = { method, utterances: all.split("\n").filter(Boolean), steps: rows }
+  const log = { method: "tab", utterances: all.split("\n").filter(Boolean), steps: rows }
   fs.writeFileSync("talkback-speech.json", JSON.stringify(log, null, 2) + "\n")
-' "$steps_file" "$method" "$(spoken)"
+' "$steps_file" "$(spoken)"
 
 talkback_off && fail "TalkBack switched itself off during the run"
 # Counted from what the steps said, not from everything: TalkBack announces
@@ -213,4 +192,32 @@ talkback_off && fail "TalkBack switched itself off during the run"
 distinct=$(cut -f2 "$steps_file" | tr "|" "\n" | sort -u | grep -c . || true)
 echo "TalkBack said $distinct distinct things while moving"
 [ "$distinct" -ge "$MIN_SPOKEN" ] || fail "TalkBack said only $distinct distinct things, so it did not read the screen"
+
+# Phrases a person approved, in order, as case- and whitespace-insensitive
+# substrings of what was said -- the same check `examples/screen-readers`
+# makes of NVDA and VoiceOver. No file is a warning rather than a failure:
+# approving is the human step, and `talkback-speech.json` is what to approve
+# from.
+expected="$here/../expected/talkback/acceptance.txt"
+if [ ! -f "$expected" ]; then
+  echo "::warning::no approved phrases at examples/native-demo/expected/talkback/acceptance.txt; nothing was compared"
+else
+  node --eval '
+    const fs = require("node:fs")
+    const [expectedFile, log] = process.argv.slice(1)
+    const norm = (text) => text.toLowerCase().replace(/\s+/g, " ").trim()
+    const said = log.split("\n").map(norm).filter(Boolean)
+    const wanted = fs.readFileSync(expectedFile, "utf8").split("\n").map(norm).filter((line) => line && !line.startsWith("#"))
+    let at = 0
+    const missing = []
+    for (const phrase of wanted) {
+      const found = said.findIndex((line, index) => index >= at && line.includes(phrase))
+      if (found === -1) missing.push(phrase)
+      else at = found + 1
+    }
+    for (const phrase of missing) console.error(`::error::TalkBack did not say, in order: ${phrase}`)
+    process.exit(missing.length ? 1 : 0)
+  ' "$expected" "$(cut -f2 "$steps_file" | tr "|" "\n")" || fail "TalkBack did not say what was approved"
+fi
+
 echo "ok"
