@@ -68,7 +68,11 @@ jobs:
       # Permissions for automation (and, on macOS, screen recording), then
       # the screen reader itself: a portable NVDA on Windows.
       - run: npx -y @guidepup/setup@0.25.3 setup --ci --macos-record
+      # From the harness package: `install` resolves `@guidepup/guidepup` from
+      # the working directory to pick the matching screen reader build, and
+      # only examples/screen-readers depends on it.
       - run: npx -y @guidepup/setup@0.25.3 install
+        working-directory: examples/screen-readers
       - run: pnpm exec playwright install ${{ matrix.browser }}
         working-directory: examples/screen-readers
 
