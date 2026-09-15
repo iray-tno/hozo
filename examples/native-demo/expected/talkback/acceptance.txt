@@ -1,0 +1,8 @@
+# Approved from native run 34984933297 (TalkBack 16, API 36 emulator).
+# Tab reaches the focusable elements only; the heading, the logo and the list
+# announcement are not in this log and stay in VALIDATION.md.
+Email address
+Edit box, Enter an address to review in the confirmation dialog
+Card one, Card two, Card three, Card four
+Review email address
+Show every primitive

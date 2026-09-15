@@ -1,0 +1,6 @@
+# Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+# Only the groups: VoiceOver's next command announces a toolbar and does not
+# step into it without its interact command, which the run does not send.
+heading level 2 Toolbar
+Text formatting toolbar
+Alignment toolbar

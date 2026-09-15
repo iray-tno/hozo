@@ -1,0 +1,4 @@
+# Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+# The closed state only: the run never presses the button.
+heading level 2 Accessible Modal Dialog
+Open Confirmation Dialog button

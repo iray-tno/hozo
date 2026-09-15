@@ -1,0 +1,6 @@
+# Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+# One phrase per thing VoiceOver said; each must come after the one before.
+heading level 2 Combobox
+Select bundler list box pop up collapsed combo box
+heading level 3 Listbox
+Bundler options listbox list box

@@ -1,0 +1,9 @@
+# Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+heading level 2 Menu
+menu pop up button
+heading level 3 Radio Group
+Color Theme radio group
+Dark Mode (Default) selected radio button, 1 of 3
+Light Mode radio button, 2 of 3
+System Preference radio button, 3 of 3
+end of Color Theme radio group

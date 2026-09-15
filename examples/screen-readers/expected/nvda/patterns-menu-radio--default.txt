@@ -1,0 +1,7 @@
+# Approved from screen-readers run 34951455002 (NVDA, Chrome).
+heading, level 2, Menu
+menu button, collapsed, sub menu, Options Menu
+heading, level 3, Radio Group
+Color Theme, grouping, radio button, checked, Dark Mode (Default)
+radio button, not checked, Light Mode
+radio button, not checked, System Preference
