@@ -160,7 +160,28 @@ for (const page of sitePages) {
     ],
     [/<meta property="og:title" content="[^"]+"/.test(head), `${label}: no og:title`],
     [/<meta property="og:description" content="[^"]+"/.test(head), `${label}: no og:description`],
-    [/<meta name="twitter:card" content="summary"/.test(head), `${label}: no twitter card`],
+    [
+      /<meta name="twitter:card" content="summary_large_image"/.test(head),
+      `${label}: no large-image twitter card`,
+    ],
+    [
+      /<meta property="og:image" content="https:\/\/[^"]+\/og-image\.png"/.test(head),
+      `${label}: no absolute og:image`,
+    ],
+  )
+}
+
+// The card the head points at has to be in the build, and be the size the
+// head claims: a 404 or a wrongly sized image is dropped by every preview.
+{
+  const card = readFileSync(path.join(dist, 'og-image.png'))
+  const isPng = card.subarray(1, 4).toString('ascii') === 'PNG'
+  checks.push(
+    [isPng, 'og-image.png is not a PNG'],
+    [
+      isPng && card.readUInt32BE(16) === 1200 && card.readUInt32BE(20) === 630,
+      `og-image.png is not 1200x630`,
+    ],
   )
 }
 checks.push(
