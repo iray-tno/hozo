@@ -26,3 +26,11 @@ const theme = await loadProjectTheme(root, {
 ```
 
 Returns `undefined` when there is no entry stylesheet to read, which is the signal to fall back to Tailwind's defaults. A token that fails to resolve is reported through `warn` rather than dropped.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->

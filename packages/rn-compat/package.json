@@ -14,7 +14,7 @@
     "url": "git+https://github.com/iray-tno/hozo.git",
     "directory": "packages/rn-compat"
   },
-  "homepage": "https://github.com/iray-tno/hozo/tree/main/packages/rn-compat#readme",
+  "homepage": "https://iray-tno.github.io/hozo/",
   "bugs": {
     "url": "https://github.com/iray-tno/hozo/issues"
   },

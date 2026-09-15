@@ -81,3 +81,11 @@ The candidate stylesheet has an ordering to it that is worth knowing.
 has to exist before the first module imports it — and a theme cannot be
 read synchronously, so that first write has none. The loader rewrites it
 once the theme resolves, before compiling anything.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->

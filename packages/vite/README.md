@@ -63,3 +63,11 @@ That takes a step, because MDX does not hand this plugin JSX. Told `jsx: true` i
 So the calls are written back as JSX before the compiler reads them, and folded again at the end of the same transform — the step this plugin was already applying to its own output. They are folded back with the runtime they came from, which matters: Astro's MDX calls `astro/jsx-runtime`, and the same tree rebuilt by React's runtime renders as the string `[object Object]`.
 
 A call with no JSX spelling — a computed prop name, a spread child — is left folded rather than approximated, and named in a build warning. A fold's own output always has one, so in practice this is only reachable from a hand-written `_jsx()` call in an `.mdx` file's ESM block.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->

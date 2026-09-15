@@ -37,7 +37,10 @@ export const VERSION = JSON.parse(
   readFileSync(path.join(root, 'packages', 'compiler', 'package.json'), 'utf8'),
 ).version
 
-const REPOSITORY = 'https://github.com/iray-tno/hozo'
+export const REPOSITORY = 'https://github.com/iray-tno/hozo'
+
+/** The landing site, which is also where the conformance matrix and REPL live. */
+export const SITE = 'https://iray-tno.github.io/hozo/'
 
 /**
  * Per-package entry points and keywords.
@@ -220,7 +223,11 @@ function shared(name) {
     // pin means a project holding two Hozo packages one patch apart gets
     // two copies of the compiler, and so two native addons and two caches.
     repository: { type: 'git', url: `git+${REPOSITORY}.git`, directory: `packages/${name}` },
-    homepage: `${REPOSITORY}/tree/main/packages/${name}#readme`,
+    // The site rather than the package's directory on GitHub: npm already
+    // links `repository`, and a reader arriving from the registry wants to
+    // know what Hozo is before where its source lives. The crates point at
+    // the same page (`Cargo.toml`'s `homepage`).
+    homepage: SITE,
     bugs: { url: `${REPOSITORY}/issues` },
     publishConfig: { access: 'public', provenance: true },
   }

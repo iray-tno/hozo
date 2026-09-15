@@ -22,6 +22,17 @@ timing, interpolation, and events remain outside this compatibility package.
 - `Platform`, `Dimensions`, `Keyboard`, `AccessibilityInfo`, and `StyleSheet`
 - `PanResponder`, `useColorScheme`, and `useWindowDimensions`
 
-The compiler automatically rehomes these value imports when it lowers existing
-`react-native` source for the Web. On Native, the package's `react-native` export condition reaches
-React Native's implementations directly.
+Importing from `@hozo/rn-compat` works under any configuration. The compiler moves these imports
+out of existing `react-native` source for you only when the build sets `unloweredReactNativeJsx`
+to `'warn'` or `'error'`; the rewritten imports then land in your source, so the application needs
+`@hozo/rn-compat` in its own dependencies, and Hozo warns (`RN_COMPAT_NOT_INSTALLED`) when it cannot
+resolve it. On Native, the package's `react-native` export condition reaches React Native's
+implementations directly.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->

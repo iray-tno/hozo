@@ -29,3 +29,11 @@ reaches the browser in two HMR rounds. The companion stylesheet is written
 *during* the source module's transform, so the `.tsx` change triggers the
 first round, that transform writes the CSS, and the watcher seeing the new
 CSS triggers the second.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->

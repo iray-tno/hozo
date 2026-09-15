@@ -1,6 +1,8 @@
 # @hozo/core
 
-Hozo's canonical primitives. Import these instead of `react-native`, and the compiler lowers them to semantic DOM and CSS on Web, or to real React Native components and a `StyleSheet` on Native.
+The zero-setup entry point to Hozo. Import components from here instead of `react-native`, and the compiler lowers them to semantic DOM and CSS on Web, or to real React Native components and a `StyleSheet` on Native.
+
+`@hozo/core` owns no implementation. It re-exports the component packages listed [below](#what-it-re-exports), and compiled output imports through its `@hozo/core/generated/*` entry points, so an application needs this one dependency for all of them.
 
 ```tsx
 import { Section, Text, Heading, Pressable } from '@hozo/core'
@@ -36,18 +38,23 @@ The universal props follow React Native's names — `accessibilityLabel`, `acces
 
 `Pressable` takes them too. It did not until recently — its props extended only the responder set, so `testID` and `accessibilityState` were not part of its contract at all, which is a strange place for the gap to be: an interactive element is exactly where `aria-checked`, `aria-expanded` and `aria-selected` earn their keep.
 
-## Component Catalog
+## What it re-exports
 
-### Layer 1: Universal Primitives (Zero Runtime / Static SSR Safe)
-- **Layout & Structure**: `View`, `ScrollView`, `FlatList`, `Section`, `Article`, `Nav`, `List`, `ListItem`
-- **Text & Semantics**: `Text`, `Heading` (levels 1-6), `Paragraph`
-- **Interaction & Forms**: `Pressable`, `Link`, `Button`, `TextInput`, `Image`
+| Package | Provides |
+| --- | --- |
+| [`@hozo/primitives`](https://github.com/iray-tno/hozo/tree/main/packages/primitives) | `View`, `Text`, `Pressable`, `Button`, `Link`, `Image`, `TextInput`, `ScrollView`, `FlatList` |
+| [`@hozo/semantics`](https://github.com/iray-tno/hozo/tree/main/packages/semantics) | Landmarks and document structure: `Main`, `Header`, `Section`, `Article`, `Nav`, `List`, `Details`, and more |
+| [`@hozo/typography`](https://github.com/iray-tno/hozo/tree/main/packages/typography) | `Heading`, `Paragraph`, inline text semantics, and accessible CJK `Ruby` |
+| [`@hozo/patterns`](https://github.com/iray-tno/hozo/tree/main/packages/patterns) | `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`, `RadioGroup`, `Toolbar`, `Tree`, `Tooltip` |
 
-### Layer 3: Universal Components (Composed from Behaviors)
-- **`Dialog`**: Accessible modal with focus trapping, Escape dismissal, and return-focus. Lowers to HTML5 `<dialog>` on Web and `<Modal>` on Native.
-- **`Popover`**: Floating contextual overlay anchored to triggers with automatic collision flipping and outside press dismissal.
-- **`Menu`**: Dropdown menu with WAI-ARIA roving tabindex, keyboard arrow navigation, and shortcuts.
-- **`Tabs`**: Tablist with roving keyboard navigation and linked tab panels.
-- **`Toolbar`**: Accessible action toolbar maintaining single tab stop and arrow navigation across items.
-- **`RadioGroup`**: Single-select options with arrow-key switching and `aria-checked` states.
-- **`Slider` & `Switch`**: Accessible range and toggle controls with ARIA states.
+Every primitive, and what it compiles to on each platform, is generated into [docs/primitives.md](https://github.com/iray-tno/hozo/blob/main/docs/primitives.md).
+
+React Native migration APIs ([`@hozo/rn-compat`](https://github.com/iray-tno/hozo/tree/main/packages/rn-compat)) and SVG ([`@hozo/svg`](https://github.com/iray-tno/hozo/tree/main/packages/svg)) are not re-exported. They are opt-in, and an application that uses them depends on them directly.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->

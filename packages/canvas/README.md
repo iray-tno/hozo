@@ -142,3 +142,11 @@ npx expo install @shopify/react-native-skia
 The Native entry imports Skia directly and will fail at bundle time with a
 missing-module error until it is installed. It remains an app-level dependency
 so Web-only Hozo installations stay small.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->

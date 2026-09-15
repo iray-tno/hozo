@@ -68,3 +68,11 @@ explicit diagnostics or official StyleX residuals.
 `index.ts` is the Web build and `index.native.ts` the React Native one, selected by the
 `react-native` export condition. Platform-free infrastructure stays independently testable;
 rendering boundaries and their layout solvers are owned by `@hozo/primitives`.
+
+<!-- generated: package-footer -->
+
+---
+
+Part of [Hozo](https://iray-tno.github.io/hozo/), a Rust-powered universal UI compiler and accessibility-first layer for React Native. Most applications install [`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see [Getting started](https://github.com/iray-tno/hozo#getting-started). Source and issues: [github.com/iray-tno/hozo](https://github.com/iray-tno/hozo).
+
+<!-- /generated: package-footer -->
