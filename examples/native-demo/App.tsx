@@ -4,11 +4,10 @@
 import { Dialog, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from '@hozo/core'
 import { PanResponder } from '@hozo/rn-compat'
 import { useRef, useState } from 'react'
-// The instance type of the view a ref lands on, for the one ref here that
-// points at a control rather than at a value. `@hozo/core` re-exports React
-// Native's `View` on this platform, but the type is clearer taken from the
-// source.
-import type { View as NativeView } from 'react-native'
+// What a ref to a host component holds on this platform. React Native names
+// it, so it is taken from there rather than spelled again here: `View` is a
+// function component in these types, and its *instance* is this.
+import type { HostInstance } from 'react-native'
 
 import Gallery from './Gallery.tsx'
 
@@ -26,7 +25,7 @@ export default function App() {
   const [gesture, setGesture] = useState({ dx: 0, dy: 0, touches: 0 })
   // Where accessibility focus goes when the dialog closes. React Native
   // cannot be asked what holds it, so the dialog is told (#462).
-  const continueRef = useRef<NativeView | null>(null)
+  const continueRef = useRef<HostInstance | null>(null)
   const pan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_event, state) => Math.abs(state.dx) + Math.abs(state.dy) > 4,
