@@ -67,14 +67,56 @@ jobs:
 
       # Permissions for automation (and, on macOS, screen recording), then
       # the screen reader itself: a portable NVDA on Windows.
-      # Retried: on macOS this drives System Settings through osascript, and a
-      # run has already failed once on "Failed to enable 'Do not disturb'
-      # mode" where the same step passed the run before.
+      #
+      # Without `--ci`, and that is a workaround rather than a preference.
+      # The flag does two things: it makes a failed TCC database write fatal,
+      # and it enables "Do not disturb" -- and the second is what fails. On
+      # macOS 13 and newer the only implementation Guidepup has drives Control
+      # Center through `tell application "System Events"`, which needs
+      # Automation permission granted to whichever process TCC holds
+      # responsible for the call. Guidepup pre-writes those grants for a fixed
+      # list of client paths, and on some runners the responsible process is
+      # not one of them: one run failed all fifteen attempts (three here times
+      # five inside Guidepup) with "Not authorized to send Apple events to
+      # System Events", and the same commit passed on another machine with the
+      # identical image. Nothing this job needs is lost -- notifications do not
+      # interrupt a headless runner. See #454.
+      #
+      # Dropping the flag also stops a failed TCC write from failing the step,
+      # which is the one thing `--ci` was buying here. `verify` does that
+      # instead, and asks the environment the question the tests care about
+      # rather than trusting a command that exits 0 either way.
       - shell: bash
         run: |
+          verify() {
+            [ "$RUNNER_OS" = macOS ] || return 0
+            # VoiceOver's own AppleScript switch, which `setup` writes.
+            [ "$(defaults read com.apple.VoiceOver4/default SCREnableAppleScript 2>/dev/null)" = 1 ] \
+              || { echo 'SCREnableAppleScript is not 1'; return 1; }
+            # The marker file VoiceOver reads to accept AppleScript at all.
+            # Guidepup can only write it while SIP is off, which it is on
+            # GitHub's images -- said rather than assumed, because a runner
+            # image that turns SIP back on would fail here for a reason worth
+            # naming.
+            if ! csrutil status | grep -q disabled; then
+              echo 'note: SIP is enabled, so the VoiceOver AppleScript marker cannot be written'
+            elif [ ! -f /private/var/db/Accessibility/.VoiceOverAppleScriptEnabled ]; then
+              echo 'the VoiceOver AppleScript marker file is missing'
+              return 1
+            fi
+            # And the permission itself, asked for directly. This is what the
+            # reader needs; a grant in the database that TCC does not apply to
+            # this process tree would pass every check above and fail here.
+            osascript -e 'tell application "System Events" to count processes' > /dev/null \
+              || { echo 'osascript cannot drive System Events'; return 1; }
+          }
           for attempt in 1 2 3; do
-            npx -y @guidepup/setup@0.25.3 setup --ci --macos-record && exit 0
-            echo "setup attempt $attempt failed; retrying"
+            if npx -y @guidepup/setup@0.25.3 setup --macos-record; then
+              verify && exit 0
+            else
+              echo "setup attempt $attempt exited non-zero"
+            fi
+            echo "setup attempt $attempt did not leave a usable environment; retrying"
             sleep 10
           done
           exit 1
