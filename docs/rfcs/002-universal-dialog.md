@@ -92,14 +92,14 @@ export function ConfirmModal() {
 | Web / Chrome + NVDA | `<dialog>` / ARIA | Traps focus, announces title, Escape closes | Closed state only | ⬜ |
 | Web / Safari + VoiceOver | Semantic DOM / ARIA | Traps focus, reads description, Escape closes | Closed state only | ⬜ |
 | iOS + VoiceOver | RN Modal / AccessibilityView | Traps VoiceOver swipe cursor, announces role | — | ⬜ |
-| Android + TalkBack | RN Modal / AccessibilityView | Traps explore-by-touch cursor, back button closes | Opening and Back; focus return fails | ⬜ |
+| Android + TalkBack | RN Modal / AccessibilityView | Traps explore-by-touch cursor, back button closes | Opening, Back, and focus returning to the opener | ⬜ |
 
 These rows said "Tested in CI (axe-core)" and "Tested in CI". Neither was true of the behavior in the column beside them. axe-core audits the markup of the Storybook story; it does not run a screen reader, trap focus or press Escape. `native.yml` reads the accessibility tree of the Native demo app, which contains no dialog. What runs today, and does not replace these rows:
 
 - **axe-core** on every Storybook story (`examples/storybook-demo/scripts/check-a11y.mjs`).
 - **A virtual screen reader** over every story's initial state, compared against checked-in reading order (`examples/storybook-demo/scripts/check-utterances.mjs`). It computes announcements from the ARIA and HTML-AAM specifications; it is not NVDA or VoiceOver.
 - **NVDA and VoiceOver** read the Dialog story weekly (`.github/workflows/screen-readers.yml`). They reach the button that opens it and never press it, so the open dialog -- focus trap, title, Escape -- is not read. That is "Closed state only" above.
-- **TalkBack** reads the Native acceptance screen weekly (`native.yml`, `talkback` job) by pressing Tab, then opens the dialog from Continue and closes it with Back. Opening announces "Is this right?" and "Confirm your address", and Back closes the dialog rather than the app. After Back, though, TalkBack announces the email field, not Continue: focus does not return to the opener. The job warns about that rather than failing, and it is what "focus return fails" above means.
+- **TalkBack** reads the Native acceptance screen weekly (`native.yml`, `talkback` job) by pressing Tab, then opens the dialog from Continue and closes it with Back. Opening announces "Is this right?" and "Confirm your address", Back closes the dialog rather than the app, and focus returns to Continue. The last of those is new: until #463 nothing restored it and TalkBack announced the email field instead (#462), because React Native has no `document.activeElement` and the dialog had no way to know what to restore to. It is told now, through `restoreFocusTo`, and the job asserts the announcement rather than warning about it.
 - **iOS VoiceOver** has no automated speech at all. The iOS job reads the accessibility tree through XCUITest; nothing captures what VoiceOver says. "—".
 
 A row is ticked by a person reading it, never by one of these.
