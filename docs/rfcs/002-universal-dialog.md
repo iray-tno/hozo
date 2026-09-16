@@ -67,6 +67,7 @@ export function ConfirmModal() {
 - `onClose: () => void`: Callback triggered when dismissed via Escape key, backdrop click, or close action.
 - `accessibilityLabel?: string`: Accessible title for screen readers.
 - `accessibilityDescribedBy?: string`: Associated description text ID.
+- `restoreFocusTo?: RefObject`: The control to return focus to on close. Native needs it: React Native cannot be asked what holds accessibility focus, so without it TalkBack lands wherever Android's traversal order puts it (#462). Web treats it as an override of the element focused when the dialog opened.
 - `className?: string`: Scoped styles compiled via Hozo IR.
 
 ---

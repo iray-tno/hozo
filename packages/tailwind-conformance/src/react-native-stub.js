@@ -115,6 +115,36 @@ export const AccessibilityInfo = {
   isReduceMotionEnabled: async () => false,
   isInvertColorsEnabled: async () => false,
   addEventListener: () => ({ remove: () => {} }),
+  /**
+   * The tags focus was moved to, in order, so a test can read what a screen
+   * reader would have been pointed at. The platform has no way to ask what
+   * holds accessibility focus now, so recording the calls is the only way to
+   * check a component that moves it.
+   */
+  __hozoFocused: [],
+  __hozoResetFocus() {
+    this.__hozoFocused.length = 0
+  },
+  setAccessibilityFocus(reactTag) {
+    this.__hozoFocused.push(reactTag)
+  },
+}
+
+// A view's tag, which is the only thing `setAccessibilityFocus` accepts.
+//
+// On a device every view has one. Here the host components are strings and a
+// ref is whatever `createNodeMock` returned, so each of those objects is given
+// a stable number the first time it is asked about. Numbers pass through, as
+// they do on the platform, and nothing is given 0: React Native never issues
+// it, and a falsy tag reads as "no view" in any caller that checks.
+const handles = new WeakMap()
+let lastHandle = 0
+
+export function findNodeHandle(node) {
+  if (node === null || node === undefined) return null
+  if (typeof node === 'number') return node
+  if (!handles.has(node)) handles.set(node, ++lastHandle)
+  return handles.get(node)
 }
 
 // `ios`, arbitrarily but not silently: the stub renders one tree and the
