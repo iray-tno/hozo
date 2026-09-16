@@ -1,0 +1,14 @@
+# Approved from screen-readers run 34951455002 (NVDA, Chrome).
+# Strikethrough is read as unavailable; it is skipped by the arrow keys, not
+# hidden from the reader.
+heading, level 2, Toolbar
+Text formatting, tool bar, button, Bold
+button, Italic
+button, Underline
+button, unavailable, Strikethrough
+button, Quote
+button, Code
+out of tool bar
+Alignment, tool bar, button, Align left
+button, Align centre
+button, Align right

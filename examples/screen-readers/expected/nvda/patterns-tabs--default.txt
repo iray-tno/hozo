@@ -1,0 +1,6 @@
+# Approved from screen-readers run 34951455002 (NVDA, Chrome).
+heading, level 2, Tabs Pattern
+tab, selected, Overview
+tab, Features
+tab, Performance
+Hozo is a universal UI compiler

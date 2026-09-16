@@ -194,7 +194,9 @@ for (const id of stories) {
     const expected = readFileSync(expectedFile, 'utf8')
       .split('\n')
       .map((line) => line.trim())
-      .filter((line) => line !== '')
+      // `#` lines say why a phrase is or is not approved, which is the part a
+      // later reviewer needs and a list of phrases does not carry.
+      .filter((line) => line !== '' && !line.startsWith('#'))
     const missing = missingInOrder(log, expected)
     if (missing.length > 0) {
       throw new Error(
