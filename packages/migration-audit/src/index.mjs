@@ -32,9 +32,16 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index]
     if (key === '--') continue
+    // `npx @hozo/migration-audit .` is the first thing anyone types, and it
+    // failed with `Missing value for .` -- the `.` was read as a flag waiting
+    // for its value (#457). A bare token is the checkout.
+    if (!key?.startsWith('--')) {
+      if (options.root) usage(`Unexpected argument: ${key}`)
+      options.root = key
+      continue
+    }
     const value = argv[index + 1]
-    if (!key?.startsWith('--') || !value || value.startsWith('--'))
-      usage(`Missing value for ${key}`)
+    if (!value || value.startsWith('--')) usage(`Missing value for ${key}`)
     index += 1
     if (key === '--root') options.root = value
     else if (key === '--source') options.source = value
@@ -152,6 +159,7 @@ function measure(options) {
       aliasedDirectReactNativeJsxBindings: 0,
       filesWithForeignPrimitiveNames: 0,
       filesWithClassName: 0,
+      filesWithBareFlexClassName: 0,
       filesWithStyleProp: 0,
       filesWithStyleSheetCreate: 0,
       filesUsingAlfAtoms: 0,
@@ -196,6 +204,15 @@ function measure(options) {
     report.scope.sourceBytes += Buffer.byteLength(source)
     increment(report.scope.platformFiles, platform)
     if (/\bclassName\s*=/.test(source)) report.authoredSignals.filesWithClassName += 1
+    // `flex` on its own: a row in React DOM, a column once lowered for
+    // Native. `FLEX_DIRECTION_UNSAID` catches these at compile time (#398),
+    // but an audit meant to size a migration before starting one is where the
+    // number belongs -- it is the first mechanical edit a React DOM app has
+    // to make, and it is countable without running the compiler (#457).
+    // `flex-col`, `flex-1` and the rest say what they mean and are left out.
+    if (/\bclassName\s*=\s*(?:"|'|\{`)[^"'`]*\bflex(?![-\w])/.test(source)) {
+      report.authoredSignals.filesWithBareFlexClassName += 1
+    }
     if (/\bstyle\s*=/.test(source)) report.authoredSignals.filesWithStyleProp += 1
     if (/\bStyleSheet\s*\.\s*create\s*\(/.test(source)) {
       report.authoredSignals.filesWithStyleSheetCreate += 1
@@ -357,6 +374,17 @@ function markdown(report) {
   const sampleSections = Object.entries(report.samples)
     .map(([name, values]) => `### ${name}\n\n${values.map((value) => `- \`${value}\``).join('\n')}`)
     .join('\n\n')
+  // What the styling surface is, and no conclusion the numbers do not carry.
+  //
+  // This finding used to read "The app is not className-shaped" whenever ALF
+  // atoms were absent, and then concluded that inline-style compatibility was
+  // the first migration constraint rather than Tailwind coverage. Absence of
+  // ALF atoms says nothing about `className`, and the conclusion was drawn
+  // for a corpus where 62 of 110 files used `className` against 10 using
+  // `style` -- the opposite of what the README documents as the headline
+  // feature. It was believed over the README and had to be walked back
+  // (#457), which is the cost of a report that reasons instead of reporting.
+  const stylingFinding = `**Styling surface:** ${report.authoredSignals.filesWithClassName} of ${report.scope.tsxFiles} files use \`className\`, ${report.authoredSignals.filesWithStyleProp} use \`style\`, and ${report.authoredSignals.filesUsingAlfAtoms} use ALF atoms.${report.authoredSignals.filesWithBareFlexClassName > 0 ? ` ${report.authoredSignals.filesWithBareFlexClassName} write a bare \`flex\` class, which means a row in React DOM and lowers to a column on Native.` : ''}`
   const webStyleFinding = report.review.invalidDomStyleArrayOccurrences
     ? `**Unchanged Web output is not safe yet:** ${report.review.confirmedWrongOutputFiles} files contain ${report.review.invalidDomStyleArrayOccurrences.toLocaleString()} lowered DOM style arrays, a confirmed invalid React DOM shape.`
     : '**The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.'
@@ -380,7 +408,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 1. **The corpus parses cleanly:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.tsxFiles.toLocaleString()} TSX files.
 2. ${webStyleFinding}
 3. ${rnJsxFinding}
-4. **The app is not className-shaped:** ${report.authoredSignals.filesUsingAlfAtoms} files use ALF atoms while only ${report.authoredSignals.filesWithClassName} use \`className\`. Inline-style compatibility is therefore the first migration constraint, not Tailwind coverage.
+4. ${stylingFinding}
 
 ## Authored surface
 
@@ -397,6 +425,10 @@ Only direct imports from \`react-native\` are counted as direct React Native JSX
 ${table(Object.entries(report.lowering))}
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
+
+"Lowered" counts files the compiler produced components for. It does not mean migrated, and it is not a measure of progress.
+
+A tag is lowered only when its binding was imported from a module Hozo recognises: \`@hozo/core\`, the other \`@hozo/*\` packages, or \`react-native\`. A file importing none of them is carried verbatim and lowers nothing, however much \`className\` it contains. So a report whose authored surface shows none of those imports and whose lowering count is above zero is describing two things that cannot both be true — read the counts as suspect rather than as a result.
 
 ## Diagnostics
 
