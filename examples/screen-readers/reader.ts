@@ -58,6 +58,9 @@ export function startRecording(id: string): () => void {
     : windowsRecord(path.join(recordingsDir, `${id}.mp4`))
 }
 
+/** How many times entering the page may be attempted before giving up. */
+const ENTRY_ATTEMPTS = 3
+
 /**
  * Puts the reader at the top of the page's content, ready to be stepped.
  *
@@ -72,9 +75,30 @@ export function startRecording(id: string): () => void {
  * whole viewport, first in the document, so the Tab after it stays in the page.
  * It is removed before anything is read, the log is cleared, and NVDA goes back
  * to the top of the page.
+ *
+ * Entry can also miss the browser window altogether. One run entered the
+ * *desktop*: NVDA read "blank", "Pinned, list", "Windows Power Shell, 7 of 8"
+ * -- the taskbar -- and the test then failed on the approved phrases, which is
+ * a confusing way to be told the window was not in front (#460). So the window
+ * is raised first, and the page is then asked whether it really has focus; if
+ * it does not, entry is tried again rather than the story being read from
+ * wherever the reader happened to land.
+ *
+ * Asked only on Windows, where entry *is* input focus -- a click and a Tab.
+ * VoiceOver moves its own cursor, which can be in the content while the
+ * document holds no DOM focus, so the same question there would answer a
+ * different one.
+ *
+ * Anything a failed attempt produced is dropped. Those phrases came from
+ * outside the page, and the comparison must not see them.
  */
 export async function enterPage(page: Page, screenReader: IScreenReader): Promise<void> {
-  if (onWindows) {
+  for (let attempt = 1; attempt <= ENTRY_ATTEMPTS; attempt++) {
+    await page.bringToFront()
+    if (!onWindows) {
+      await screenReader.navigateToWebContent()
+      return
+    }
     await page.evaluate(() => {
       const start = document.createElement('button')
       start.id = 'hozo-screen-reader-start'
@@ -83,16 +107,24 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
       start.style.cssText = 'position:fixed;inset:0;opacity:0;z-index:2147483647'
       document.body.prepend(start)
     })
-  }
-  await screenReader.navigateToWebContent()
-  if (onWindows) {
+    await screenReader.navigateToWebContent()
     await page.evaluate(() => document.getElementById('hozo-screen-reader-start')?.remove())
+    // Before the keystroke rather than after it: a Ctrl+Home sent while another
+    // window has focus is typed into that window.
+    if (!(await page.evaluate(() => document.hasFocus()))) {
+      await screenReader.clearSpokenPhraseLog()
+      continue
+    }
     await screenReader.clearSpokenPhraseLog()
     await screenReader.perform(
       { keyCode: [WindowsKeyCodes.Home], modifiers: [WindowsModifiers.Control] },
       { capture: 'initial' },
     )
+    return
   }
+  throw new Error(
+    `the page still did not have focus after ${ENTRY_ATTEMPTS} attempts to enter it, so the reader was reading something other than the document`,
+  )
 }
 
 /**
