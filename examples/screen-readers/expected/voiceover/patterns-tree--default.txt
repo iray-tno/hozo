@@ -1,7 +1,20 @@
-# Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+# Approved from screen-readers run 34951455002 (VoiceOver, Safari), and
+# extended from run 35184735450.
 # No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
 # item past it (the first attempt of run 35004579515 on Combobox did).
-# Not approved: VoiceOver said "Repository table Row 4 of 12 selected" where
-# NVDA says "tree view". Whether the markup or WebKit's mapping is responsible
-# is an open question, and approving the phrase would lock it in.
+#
+# "table" where NVDA says "tree view" is WebKit's mapping, not this markup,
+# which is the answer to #458. fixtures/tree-shape.html puts the Authoring
+# Practices shape -- a branch owning its children in a role="group" -- and
+# ours, flat rows carrying aria-level, on one page: VoiceOver called both
+# "table Row 4 of 12 selected". In the nested one role="tree" has two DOM
+# children and it still said twelve, so it is flattening the tree to count
+# rows rather than reading our structure back. Approved with the reason,
+# because the alternative is leaving the pattern's only VoiceOver phrase
+# unapproved for something we cannot change.
+Repository table Row 4 of 12 selected
+# This matches the caption under the tree -- "Selected: hozo_web" -- and not
+# a row. VoiceOver announced the tree and never entered it (#459), so no row
+# was read at all. Kept because it is still what the story says, but it is
+# not evidence that the rows are reachable.
 hozo_web
