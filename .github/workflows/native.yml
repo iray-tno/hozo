@@ -349,3 +349,35 @@ jobs:
             ios-gallery-tree.json
           if-no-files-found: ignore
           retention-days: 14
+
+      # And, when something failed, the bundle that says what was on screen.
+      #
+      # Nothing above can answer why a UI test failed. `ios-screen.png` and
+      # `ios-app.log` come from `ios-smoke.sh`, which finishes minutes before
+      # the test starts. `ios-uitest.log` is XCUITest's own narration, which
+      # is enough to say that a tap was synthesized and that nothing appeared,
+      # and no more than that.
+      #
+      # What would answer it is collected and then thrown away. The narration
+      # says so itself:
+      #
+      #     t = 57.64s Collecting debug information to assist test failure triage
+      #     t = 57.64s     Requesting snapshot of accessibility hierarchy for app
+      #
+      # That snapshot and the automatic screenshots go into the `.xcresult`
+      # bundle under `-derivedDataPath`, which nothing uploaded -- so a gallery
+      # tap that did not fire (#471) was diagnosable only by re-running it
+      # until it happened again with somebody watching.
+      #
+      # On failure only, and for a week rather than a fortnight: the bundle
+      # carries every attachment the run produced and is far larger than the
+      # logs beside it, which is a price worth paying exactly when there is
+      # something in it to read.
+      - name: Keep the test bundle when it failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcresult
+          path: examples/native-demo/ios/build/Logs/Test/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
