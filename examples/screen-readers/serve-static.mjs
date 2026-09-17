@@ -13,6 +13,9 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(here, '..', 'storybook-demo', 'storybook-static-check')
+// Pages that are not stories: an experiment a reader is pointed at directly,
+// which a Storybook story would owe a committed golden. See fixtures/.
+const fixtures = path.resolve(here, 'fixtures')
 const port = Number(process.argv[2] ?? 6180)
 
 const TYPES = {
@@ -27,11 +30,11 @@ const TYPES = {
 
 createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
-  const file = path.join(
-    root,
-    url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname),
-  )
-  if (!file.startsWith(root)) {
+  const asFixture = url.pathname.startsWith('/fixtures/')
+  const base = asFixture ? fixtures : root
+  const within = asFixture ? url.pathname.slice('/fixtures'.length) : url.pathname
+  const file = path.join(base, within === '/' ? 'index.html' : decodeURIComponent(within))
+  if (!file.startsWith(base)) {
     response.writeHead(403).end()
     return
   }
