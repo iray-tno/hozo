@@ -9,6 +9,7 @@ Show every primitive
 # Opening the dialog from Continue (native run 35004579548).
 Is this right?
 Confirm your address
-# Not approved: after Back, TalkBack announced the email field rather than
-# Continue, so focus did not return to the control that opened the dialog.
-# The script warns about it; approving what it said would approve the bug.
+# And dismissing it with Back, which returns focus to the opener since #463
+# (native run 35100769638). Before that, TalkBack announced the email field
+# here instead, which is what #462 was.
+Review email address

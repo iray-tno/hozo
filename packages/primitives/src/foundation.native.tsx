@@ -1,8 +1,9 @@
 import { hozoTextChildren } from '@hozo/behaviors'
 import { HozoTextSizeContext } from '@hozo/engine'
-import React, { type ComponentType, type ReactNode } from 'react'
+import React, { type ComponentType, type ReactNode, type Ref } from 'react'
 import {
   type AccessibilityRole,
+  type HostInstance,
   Pressable as RNPressable,
   type PressableProps as RNPressableProps,
   Text as RNText,
@@ -46,6 +47,20 @@ export function Text({ children, style, ...props }: TextProps) {
 }
 
 export interface PressableProps extends RNPressableProps {
+  /**
+   * The view this press target lands on.
+   *
+   * Declared rather than inherited, because React Native's own
+   * `PressableProps` does not carry it: the `ref` is on the *component*
+   * (`(props: Omit<PressableProps, 'ref'> & { ref?: Ref<PressableInstance> })`),
+   * so a wrapper whose props are `PressableProps` rejects one. It is spread
+   * through to `RNPressable` below either way -- this only stops TypeScript
+   * refusing what already worked.
+   *
+   * A caller needs it to hand the control to something else: `Dialog`'s
+   * `restoreFocusTo` is where this came up (#462).
+   */
+  ref?: Ref<HostInstance>
   href?: string
   external?: boolean
   replace?: boolean

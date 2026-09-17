@@ -198,7 +198,10 @@ for _ in $(seq 1 30); do
   if [ -n "$(adb shell pidof "$package" | tr -d '\r')" ]; then break; fi
   sleep 1
 done
-pid="$(adb shell pidof "$package" | tr -d '\r')"
+# `|| true` for the reason spelled out at the next `pidof` below: without it
+# a process that never started kills the script here, and the message that
+# says so never prints.
+pid="$(adb shell pidof "$package" | tr -d '\r' || true)"
 [ -n "$pid" ] || fail "$package never started"
 echo "started as pid $pid"
 
@@ -208,7 +211,12 @@ echo "started as pid $pid"
 # this screen fetches a remote image, measures a grid, and settles a
 # transition before it is done.
 sleep 12
-still="$(adb shell pidof "$package" | tr -d '\r')"
+# `|| true` because `pidof` exits 1 when it finds nothing, and under
+# `set -e` that kills the script *at this assignment* -- before the message
+# below, before the logcat dump, before the screenshot. Run 35129707377 did
+# exactly that: the app was gone twelve seconds after launch and the log
+# said nothing at all beyond "started as pid".
+still="$(adb shell pidof "$package" | tr -d '\r' || true)"
 [ -n "$still" ] || fail "$package started and then died"
 
 # `FATAL EXCEPTION` covers a Java-side crash that took the process with it;
@@ -248,7 +256,10 @@ dismiss_system_dialog() {
   # it ships, and `com.google.android.apps.nexuslauncher` is true of this
   # one image rather than of Android.
   local home
-  home="$(adb shell cmd package resolve-activity -c android.intent.category.HOME --brief 2>/dev/null | tail -1 | tr -d '\r' | cut -d/ -f1)"
+  # `|| true` because `pipefail` carries a failing `adb` out of the pipeline,
+  # and this is a question the caller is allowed to get no answer to: the
+  # `[ -n "$home" ]` below is the handling.
+  home="$(adb shell cmd package resolve-activity -c android.intent.category.HOME --brief 2>/dev/null | tail -1 | tr -d '\r' | cut -d/ -f1 || true)"
   if [ -n "$home" ] && [ "$home" != "$package" ]; then
     echo "  stopping $home, which is the app that is not responding"
     adb shell am force-stop "$home" || true

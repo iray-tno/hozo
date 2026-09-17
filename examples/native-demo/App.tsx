@@ -4,6 +4,10 @@
 import { Dialog, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from '@hozo/core'
 import { PanResponder } from '@hozo/rn-compat'
 import { useRef, useState } from 'react'
+// What a ref to a host component holds on this platform. React Native names
+// it, so it is taken from there rather than spelled again here: `View` is a
+// function component in these types, and its *instance* is this.
+import type { HostInstance } from 'react-native'
 
 import Gallery from './Gallery.tsx'
 
@@ -19,6 +23,9 @@ export default function App() {
   const [showingGallery, setShowingGallery] = useState(false)
   const [gridWidth, setGridWidth] = useState(0)
   const [gesture, setGesture] = useState({ dx: 0, dy: 0, touches: 0 })
+  // Where accessibility focus goes when the dialog closes. React Native
+  // cannot be asked what holds it, so the dialog is told (#462).
+  const continueRef = useRef<HostInstance | null>(null)
   const pan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_event, state) => Math.abs(state.dx) + Math.abs(state.dy) > 4,
@@ -121,6 +128,7 @@ export default function App() {
             </View>
 
             <Pressable
+              ref={continueRef}
               className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
               accessibilityRole="button"
               accessibilityLabel="Review email address"
@@ -160,6 +168,7 @@ export default function App() {
         className="m-6 rounded-xl bg-white p-6"
         open={confirming}
         onClose={() => setConfirming(false)}
+        restoreFocusTo={continueRef}
         accessibilityLabel="Confirm your address"
         testID="smoke-dialog"
       >

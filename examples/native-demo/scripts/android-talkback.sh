@@ -231,11 +231,18 @@ settle
 collect
 printf 'dismissed\t%s\n' "$new" >> "$dialog_file"
 echo "  dismissed: ${new:-(silent)}"
-still_up="$(adb shell pidof "$package" | tr -d '\r')"
+# `|| true` so a dead app reaches the message below: `pidof` exits 1 when it
+# finds nothing, and `set -e` would otherwise end the run at this assignment
+# with no diagnosis at all -- which is how run 35129707377 ended in the smoke
+# script next door.
+still_up="$(adb shell pidof "$package" | tr -d '\r' || true)"
 [ -n "$still_up" ] || fail "Back closed the app rather than the dialog"
+# Asserted rather than warned about, since #463 made it work: run
+# 35100769638 announced "Review email address" on dismissal. A run that does
+# not is a regression in `Dialog`'s `restoreFocusTo`, not an open question.
 case "|$new|" in
   *"|$opener|"*) echo "  focus returned to \"$opener\"" ;;
-  *) echo "::warning::dismissing the dialog did not announce \"$opener\", so focus may not have returned to it" ;;
+  *) fail "dismissing the dialog did not announce \"$opener\", so focus did not return to it" ;;
 esac
 
 adb exec-out screencap -p > ./talkback-end.png 2>/dev/null || true

@@ -1,5 +1,5 @@
 import { shouldRestoreFocus } from '@hozo/behaviors'
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode, type RefObject, useEffect, useRef } from 'react'
 
 export interface DialogProps {
   /** Whether the dialog is showing. Render is driven by this, not by mounting. */
@@ -12,6 +12,16 @@ export interface DialogProps {
   /** The dialog's accessible name. */
   accessibilityLabel?: string
   accessibilityHint?: string
+  /**
+   * The control to return focus to when the dialog closes, when it should not
+   * be whatever had focus at the moment it opened.
+   *
+   * The native half cannot work this out for itself -- React Native has no
+   * `document.activeElement` -- so it takes this prop and restores nothing
+   * without it (#462). Here it is an override: given one it wins, left out
+   * the element focused when the dialog opened is restored as before.
+   */
+  restoreFocusTo?: RefObject<HTMLElement | null> | null
   className?: string
   /**
    * The same prop the native half was missing, for the same reason it
@@ -29,6 +39,7 @@ export function Dialog({
   onClose,
   accessibilityLabel,
   accessibilityHint,
+  restoreFocusTo,
   className,
   testID,
   children,
@@ -47,7 +58,7 @@ export function Dialog({
     }
     if (!open && dialog.open) {
       dialog.close()
-      const previous = opener.current
+      const previous = restoreFocusTo?.current ?? opener.current
       if (
         previous instanceof HTMLElement &&
         shouldRestoreFocus({
@@ -58,7 +69,7 @@ export function Dialog({
       }
       opener.current = null
     }
-  }, [open])
+  }, [open, restoreFocusTo])
 
   useEffect(() => {
     const dialog = ref.current

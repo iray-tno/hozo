@@ -1,5 +1,13 @@
-import type { ReactNode } from 'react'
-import { Modal, type StyleProp, View, type ViewStyle } from 'react-native'
+import { shouldRestoreFocus } from '@hozo/behaviors'
+import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
+import {
+  AccessibilityInfo,
+  findNodeHandle,
+  Modal,
+  type StyleProp,
+  View,
+  type ViewStyle,
+} from 'react-native'
 
 export interface DialogProps {
   /**
@@ -16,6 +24,20 @@ export interface DialogProps {
   onClose?: () => void
   accessibilityLabel?: string
   accessibilityHint?: string
+  /**
+   * The control to put accessibility focus back on when the dialog closes.
+   *
+   * Asked for rather than found, which is the difference between the two
+   * platforms. The Web half reads `document.activeElement` when the dialog
+   * opens and needs nothing from the caller; React Native has no equivalent
+   * -- nothing can be asked what holds accessibility focus -- so the opener
+   * has to be handed over.
+   *
+   * Without it TalkBack lands wherever Android's traversal order puts it once
+   * the modal closes. On the acceptance screen that was the email field above
+   * the button that had opened the dialog (#462).
+   */
+  restoreFocusTo?: RefObject<ComponentRef<typeof View> | null> | null
   style?: unknown
   /**
    * Dropped until a device said so.
@@ -35,10 +57,34 @@ export function Dialog({
   onClose,
   accessibilityLabel,
   accessibilityHint,
+  restoreFocusTo,
   style,
   testID,
   children,
 }: DialogProps) {
+  // The previous value of `open`, because the restore belongs to the
+  // transition and not to the state: an effect that only sees `open === false`
+  // also fires on the first render, when nothing was opened and nothing
+  // should move.
+  const wasOpen = useRef(false)
+
+  useEffect(() => {
+    const closing = wasOpen.current && !open
+    wasOpen.current = open
+    if (!closing) return
+
+    const opener = restoreFocusTo?.current
+    if (!opener) return
+
+    // `setAccessibilityFocus` takes a view tag and nothing else, so the ref
+    // has to be resolved to one. A ref to an unmounted view resolves to
+    // `null`, which is the native shape of the question `shouldRestoreFocus`
+    // answers on both platforms: restore only to something still there.
+    const handle = findNodeHandle(opener)
+    if (!shouldRestoreFocus({ focusable: handle !== null })) return
+    AccessibilityInfo.setAccessibilityFocus(handle as number)
+  }, [open, restoreFocusTo])
+
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
       <View
