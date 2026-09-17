@@ -3,15 +3,29 @@
 # No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
 # item past it (the first attempt of run 35004579515 on Combobox did).
 #
-# "table" where NVDA says "tree view" is WebKit's mapping, not this markup,
-# which is the answer to #458. fixtures/tree-shape.html puts the Authoring
+# "table" where NVDA says "tree view" is WebKit's, not this markup's, and it
+# is a known bug that is still open:
+#
+#   https://bugs.webkit.org/show_bug.cgi?id=215698
+#   "role=tree and role=treeitem are announced as 'table' and 'listbox'"
+#
+# It reports the Authoring Practices tree example itself being conveyed as a
+# table with "list boxes" for treeitems, and names the cause: AXTable where
+# AXOutline was wanted, "an artifact of AppKit trees being implemented as
+# single column tables". Filed out of w3c/aria#1311.
+#
+# fixtures/tree-shape.html says the same thing from here. The Authoring
 # Practices shape -- a branch owning its children in a role="group" -- and
 # ours, flat rows carrying aria-level, on one page: VoiceOver called both
 # "table Row 4 of 12 selected". In the nested one role="tree" has two DOM
 # children and it still said twelve, so it is flattening the tree to count
-# rows rather than reading our structure back. Approved with the reason,
-# because the alternative is leaving the pattern's only VoiceOver phrase
-# unapproved for something we cannot change.
+# rows rather than reading our structure back.
+#
+# Approved, then, for something no markup here can change -- and the
+# condition for unapproving it is written down rather than left to memory.
+# If 215698 is fixed, VoiceOver will say something else and this line will
+# start failing. That failure is the notification. Read the bug before
+# loosening it.
 Repository table Row 4 of 12 selected
 # This matches the caption under the tree -- "Selected: hozo_web" -- and not
 # a row. VoiceOver announced the tree and never entered it (#459), so no row
