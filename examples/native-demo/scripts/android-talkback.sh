@@ -91,7 +91,11 @@ adb install -r "$speech_apk"
 adb install -r "$apk"
 
 adb shell settings put secure tts_default_synth "$engine"
-echo "default engine: $(adb shell settings get secure tts_default_synth | tr -d '\r')"
+# Kept rather than only printed. If the start-up burst goes missing below,
+# this is what separates "the engine is not ours" from "the timing was bad",
+# and the old warning guessed between them.
+default_engine="$(adb shell settings get secure tts_default_synth | tr -d '\r')"
+echo "default engine: $default_engine"
 
 adb logcat -c
 adb shell am start -W -n "$activity" > /dev/null
@@ -117,15 +121,37 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 [ -n "$bound" ] || fail "TalkBack is not bound thirty seconds after enabling it"
-# And for its first announcements to finish.
+# For the first thing it says, and then for the rest of the burst.
+#
+# `settle` alone returns as soon as the log has been quiet for three seconds,
+# and on a slow boot that is satisfied *before* TalkBack has said anything at
+# all -- so the start-up burst was recorded as silence on runs where nothing
+# was wrong (#465). Waiting for the first line to arrive, on its own budget,
+# is what makes the quiet window mean "it has finished" rather than "it has
+# not started".
+for _ in $(seq 1 20); do
+  [ -z "$(spoken)" ] || break
+  sleep 1
+done
 settle
 adb exec-out screencap -p > ./talkback-start.png 2>/dev/null || true
 
 initial="$(spoken)"
 echo "said on start:"
 printf '%s\n' "$initial" | sed 's/^/  /'
+# Still nothing: say what is known instead of naming a cause on no evidence.
+#
+# The old message was "the engine may not be in use", which is the one thing
+# that would make the whole run worthless -- and it said so while the walk
+# that followed read the entire screen. A run where the engine really was not
+# in use looked identical, so the warning could not be acted on either way.
+#
+# The engine is not a guess: it was set and read back above.
 if [ -z "$initial" ]; then
-  echo "::warning::TalkBack said nothing on start; the engine may not be in use"
+  if [ "$default_engine" != "$engine" ]; then
+    fail "the default TTS engine is \"$default_engine\" rather than $engine, so nothing TalkBack says is being recorded"
+  fi
+  echo "::warning::TalkBack said nothing before the walk, though $engine is the default engine. Its start-up announcements were missed -- timing, not the engine. What the walk itself says is checked below."
 fi
 
 # Tab, because it is the only way of moving that reaches TalkBack from here.
