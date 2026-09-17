@@ -1,7 +1,17 @@
-# Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+# Approved from screen-readers run 34951455002, extended from run 35254756116
+# (VoiceOver, Safari) once the walk began entering containers (#459).
 # No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
 # item past it (the first attempt of run 35004579515 on Combobox did).
 # One phrase per thing VoiceOver said; each must come after the one before.
 Select bundler list box pop up collapsed combo box
 heading level 3 Listbox
 Bundler options listbox list box
+# Inside it, which needed the interact command. Selection and set size both
+# reach the reader: this is the half of the pattern's contract that no
+# VoiceOver run had ever checked.
+Vite (@hozo/vite) selected (1 of 5)
+Next.js (@hozo/next) (2 of 5)
+Metro (@hozo/metro) (3 of 5)
+Storybook (@hozo/storybook) (4 of 5)
+TanStack Start (5 of 5)
+Out of Bundler options listbox

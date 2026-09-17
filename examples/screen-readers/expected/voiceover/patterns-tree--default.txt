@@ -1,5 +1,5 @@
-# Approved from screen-readers run 34951455002 (VoiceOver, Safari), and
-# extended from run 35184735450.
+# Approved from screen-readers run 34951455002, extended from run 35254756116
+# (VoiceOver, Safari) once the walk began entering containers (#459).
 # No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
 # item past it (the first attempt of run 35004579515 on Combobox did).
 #
@@ -27,8 +27,23 @@
 # start failing. That failure is the notification. Read the bug before
 # loosening it.
 Repository table Row 4 of 12 selected
+# The rows, which this file used to say were never read at all. They were
+# not, until the walk started sending VoiceOver's interact command (#459):
+# the reader announced the tree and stepped past it. Inside, it reads each
+# row with its position and its state.
+hozo_native (4 of 4)
+@hozo/compiler
+# Disabled, and announced rather than hidden -- "dimmed" is VoiceOver's word
+# where NVDA says "unavailable". The keyboard skips this row; the reader
+# still finds it, which is what `aria-disabled` rather than removal buys.
+@hozo/legacy (unmaintained) dimmed (6 of 6)
+Out of Repository table
+# Not approved: VoiceOver says "level 1" for rows whose `aria-level` is 2
+# (`@hozo/compiler level 1 (1 of 6)` in run 35254756116). Whether that is the
+# same AXTable mapping as the "table" above or something else is unsettled,
+# so the level is left out of the phrases rather than pinned to a number
+# that may be wrong. See #475.
+#
 # This matches the caption under the tree -- "Selected: hozo_web" -- and not
-# a row. VoiceOver announced the tree and never entered it (#459), so no row
-# was read at all. Kept because it is still what the story says, but it is
-# not evidence that the rows are reachable.
+# a row.
 hozo_web
