@@ -128,6 +128,26 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
 }
 
 /**
+ * A container VoiceOver announces and then steps straight past.
+ *
+ * Its `next` reads "Text formatting toolbar" and moves to the next thing on
+ * the page; the buttons inside are never read, so the approved phrases for
+ * Toolbar and Combobox covered only the group names while NVDA read every
+ * item, disabled states included (#459). Getting in needs its interact
+ * command, which is what `screenReader.interact()` sends.
+ *
+ * Matched on what it actually said, from the phrases already approved:
+ * "Text formatting toolbar", "Bundler options listbox list box", and
+ * "Repository table Row 4 of 12 selected" -- the last being an ARIA tree,
+ * which WebKit exposes as a table (#475) and which VoiceOver does not enter
+ * either.
+ */
+const CONTAINER = /\b(toolbar|list ?box|table)\b/i
+
+/** How many steps one container may take before the walk moves on. */
+const INSIDE_STEPS = 20
+
+/**
  * Steps to the end of the page and returns everything the reader said.
  *
  * A reader that has nowhere left to go says the same thing again, and three of
@@ -142,14 +162,27 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
  * silent and every further `next` said "", so Menu ran to the step limit -- and
  * Tabs, which ends the same way, ran long enough for VoiceOver itself to quit
  * and the test to time out.
+ *
+ * On VoiceOver a container is entered, read and left again. Only there: NVDA
+ * reads the same content without being asked, and `interact` means something
+ * else to it, so sending one would disturb a walk that already works.
  */
 export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): Promise<string[]> {
+  const entered = new Set<string>()
+  let steps = 0
   let last = ''
   let repeats = 0
   let silent = 0
-  for (let step = 0; step < maxSteps && repeats < 3 && silent < 5; step++) {
+
+  /** One `next`, and what it made the reader say. Counts against the budget. */
+  const step = async (): Promise<string> => {
+    steps += 1
     await screenReader.next()
-    const said = (await screenReader.lastSpokenPhrase()).trim()
+    return (await screenReader.lastSpokenPhrase()).trim()
+  }
+
+  while (steps < maxSteps && repeats < 3 && silent < 5) {
+    const said = await step()
     if (said === '') {
       silent += 1
       continue
@@ -157,6 +190,32 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
     silent = 0
     repeats = said === last ? repeats + 1 : 0
     last = said
+
+    // Each container once. Re-entering one is how a walk stops going
+    // anywhere while still saying something every time.
+    if (reader !== 'voiceover' || !CONTAINER.test(said) || entered.has(said)) continue
+    entered.add(said)
+    await screenReader.interact()
+    let quiet = 0
+    let previous = ''
+    for (let inside = 0; inside < INSIDE_STEPS && steps < maxSteps; inside++) {
+      const item = await step()
+      if (item === '') {
+        quiet += 1
+        if (quiet >= 3) break
+        continue
+      }
+      quiet = 0
+      if (item === previous) break
+      previous = item
+    }
+    await screenReader.stopInteracting()
+    // Leaving one often re-announces it, which is a repeat of the phrase this
+    // step started on and would end the walk three containers early. The
+    // counters start again from outside the container.
+    last = ''
+    repeats = 0
+    silent = 0
   }
   return await screenReader.spokenPhraseLog()
 }
