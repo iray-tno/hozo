@@ -13,7 +13,7 @@ const onMac = process.platform === 'darwin'
 export default {
   ...screenReaderConfig,
   testDir: '.',
-  testMatch: 'stories.spec.ts',
+  testMatch: ['stories.spec.ts', 'tree-shape.spec.ts'],
   // A screen reader walking a story is slow, and a first run on a fresh
   // runner is slower still.
   timeout: 5 * 60 * 1000,

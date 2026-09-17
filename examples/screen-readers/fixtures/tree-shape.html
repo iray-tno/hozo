@@ -1,0 +1,81 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Tree shape: nested versus flat</title>
+<!--
+  Why this page exists (#458).
+
+  VoiceOver announces the Storybook Tree story as "Repository table Row 4 of
+  12 selected", where NVDA and the virtual reader both say "tree". Twelve is
+  the number of visible rows and four is hozo_web's index among them, so
+  VoiceOver is describing the flat row of DOM children rather than the tree.
+
+  Two explanations fit that, and they lead to opposite fixes:
+
+    1. WebKit maps an ARIA tree onto the macOS AXOutline/AXTable family, and
+       every ARIA tree is announced this way. Then the markup is correct and
+       the phrase should be approved with the reason recorded.
+    2. It is our structure. `packages/patterns/src/tree.tsx` emits every row
+       as a sibling and carries the depth in `aria-level` / `aria-posinset` /
+       `aria-setsize`, with no `role="group"` around a branch's children. The
+       Authoring Practices allow both, but only one of them is what VoiceOver
+       is usually shown.
+
+  So: the same twelve rows, the same labels, the same selection, written both
+  ways on one page, read by one reader in one pass. If only the flat tree is
+  called a table, the structure is ours to fix. If both are, it is WebKit's
+  mapping and there is nothing here to fix.
+
+  Deliberately static, and deliberately not a Storybook story: a story would
+  need a committed golden from the virtual reader, and this page is an
+  experiment that should be deletable the day #458 closes.
+
+  No decorations: the real story prefixes each label with a disclosure
+  triangle and indents it with CSS, and neither can change a role. What is
+  under test is the shape.
+-->
+
+<h1>Tree shape</h1>
+
+<h2>Nested</h2>
+<p>The Authoring Practices example: a branch owns its children in a <code>role="group"</code>.</p>
+<div role="tree" aria-label="Nested repository">
+  <div role="treeitem" aria-expanded="true" aria-selected="false" tabindex="-1">
+    <span>crates</span>
+    <div role="group">
+      <div role="treeitem" aria-selected="false" tabindex="-1">hozo_ir</div>
+      <div role="treeitem" aria-selected="false" tabindex="-1">hozo_parser</div>
+      <div role="treeitem" aria-expanded="false" aria-selected="true" tabindex="0">hozo_web</div>
+      <div role="treeitem" aria-selected="false" tabindex="-1">hozo_native</div>
+    </div>
+  </div>
+  <div role="treeitem" aria-expanded="true" aria-selected="false" tabindex="-1">
+    <span>packages</span>
+    <div role="group">
+      <div role="treeitem" aria-selected="false" tabindex="-1">@hozo/compiler</div>
+      <div role="treeitem" aria-selected="false" tabindex="-1">@hozo/core</div>
+      <div role="treeitem" aria-selected="false" tabindex="-1">@hozo/primitives</div>
+      <div role="treeitem" aria-selected="false" tabindex="-1">@hozo/patterns</div>
+      <div role="treeitem" aria-selected="false" tabindex="-1">@hozo/behaviors</div>
+      <div role="treeitem" aria-selected="false" aria-disabled="true" tabindex="-1">
+        @hozo/legacy (unmaintained)
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Flat</h2>
+<p>What <code>packages/patterns/src/tree.tsx</code> emits: siblings carrying their own depth.</p>
+<div role="tree" aria-label="Flat repository">
+  <div role="treeitem" aria-level="1" aria-posinset="1" aria-setsize="2" aria-expanded="true" aria-selected="false" tabindex="-1">crates</div>
+  <div role="treeitem" aria-level="2" aria-posinset="1" aria-setsize="4" aria-selected="false" tabindex="-1">hozo_ir</div>
+  <div role="treeitem" aria-level="2" aria-posinset="2" aria-setsize="4" aria-selected="false" tabindex="-1">hozo_parser</div>
+  <div role="treeitem" aria-level="2" aria-posinset="3" aria-setsize="4" aria-expanded="false" aria-selected="true" tabindex="0">hozo_web</div>
+  <div role="treeitem" aria-level="2" aria-posinset="4" aria-setsize="4" aria-selected="false" tabindex="-1">hozo_native</div>
+  <div role="treeitem" aria-level="1" aria-posinset="2" aria-setsize="2" aria-expanded="true" aria-selected="false" tabindex="-1">packages</div>
+  <div role="treeitem" aria-level="2" aria-posinset="1" aria-setsize="6" aria-selected="false" tabindex="-1">@hozo/compiler</div>
+  <div role="treeitem" aria-level="2" aria-posinset="2" aria-setsize="6" aria-selected="false" tabindex="-1">@hozo/core</div>
+  <div role="treeitem" aria-level="2" aria-posinset="3" aria-setsize="6" aria-selected="false" tabindex="-1">@hozo/primitives</div>
+  <div role="treeitem" aria-level="2" aria-posinset="4" aria-setsize="6" aria-selected="false" tabindex="-1">@hozo/patterns</div>
+  <div role="treeitem" aria-level="2" aria-posinset="5" aria-setsize="6" aria-selected="false" tabindex="-1">@hozo/behaviors</div>
+  <div role="treeitem" aria-level="2" aria-posinset="6" aria-setsize="6" aria-selected="false" aria-disabled="true" tabindex="-1">@hozo/legacy (unmaintained)</div>
+</div>
