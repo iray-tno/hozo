@@ -52,6 +52,11 @@ palette gets wrong numbers and unresolved variables, not an error.
 
 ### Vite
 
+Requires **Vite 8 or newer**. The plugin calls Vite's own `transformWithOxc`,
+which Vite 6 and 7 do not export -- on those the build fails at config load
+with `does not provide an export named 'transformWithOxc'`, naming neither
+Vite nor its version.
+
 ```sh
 npm install --save-dev @hozo/vite @hozo/compiler
 npm install @hozo/core
@@ -106,7 +111,8 @@ module.exports = withHozo(getDefaultConfig(__dirname), { css: 'src/theme.css' })
 
 ### Storybook
 
-Zero configuration beyond the addon — it wraps `@hozo/vite`.
+Zero configuration beyond the addon — it wraps `@hozo/vite`. It inherits that
+plugin's floor: **Vite 8 or newer**.
 
 ```sh
 npm install --save-dev @hozo/storybook
