@@ -49,7 +49,20 @@ public class SpeechLogService extends TextToSpeechService {
         CharSequence text = request.getCharSequenceText();
         // One line per utterance: a newline inside one would split it into
         // two log entries and two phrases.
-        Log.i(TAG, text == null ? "" : text.toString().replace('\n', ' '));
+        //
+        // Prefixed with the UID that asked for it, because TalkBack is not
+        // the only thing on the device that speaks through the default
+        // engine. One run had Android's own "Service, Messages is restoring
+        // backed up message content and data" arrive in the middle of the
+        // walk, where it was credited to a step and counted towards the total
+        // that is supposed to mean TalkBack read the screen (#470). No
+        // wording tells that apart from something the app under test said --
+        // the caller does.
+        Log.i(
+                TAG,
+                request.getCallerUid()
+                        + ":"
+                        + (text == null ? "" : text.toString().replace('\n', ' ')));
         // Started and finished with no audio, so the utterance completes at
         // once and TalkBack moves on rather than waiting for playback.
         callback.start(16000, AudioFormat.ENCODING_PCM_16BIT, 1);

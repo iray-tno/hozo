@@ -38,9 +38,23 @@ fail() {
   exit 1
 }
 
-# Every utterance so far, one per line, in order.
+# Every utterance TalkBack has made so far, one per line, in order.
+#
+# The engine prefixes each line with the UID that asked for it, because
+# TalkBack is not the only thing that speaks through the default engine.
+# Android's own "Service, Messages is restoring backed up message content and
+# data" arrived mid-walk on one run, was credited to a step, and counted
+# towards the `distinct` total below -- the one that exists to say TalkBack
+# read the *screen* (#470). Wording cannot separate those; the caller can.
+#
+# An unset `talkback_uid` means the lookup failed, and then nothing is
+# filtered. A filter that matched nothing would empty this log, which looks
+# exactly like a reader that never spoke -- the failure this script exists to
+# catch, arriving as a false alarm.
 spoken() {
-  adb logcat -d -v raw -s HozoSpeech:I | tr -d '\r' | grep -v '^--------- ' || true
+  adb logcat -d -v raw -s HozoSpeech:I | tr -d '\r' | grep -v '^--------- ' |
+    { if [ -n "${talkback_uid:-}" ]; then grep "^${talkback_uid}:" || true; else cat; fi; } |
+    sed 's/^[0-9][0-9]*://' || true
 }
 
 # `uiautomator` must not run while TalkBack is on. Its UiAutomation connection
@@ -85,6 +99,17 @@ if ! adb shell pm list packages "$talkback" | grep -q "$talkback"; then
   fail "this image has no TalkBack (the API 34 one does not; 33, 35 and 36 do)"
 fi
 echo "TalkBack: $(adb shell dumpsys package "$talkback" | grep -m1 versionName | tr -d '\r' | xargs)"
+
+# The UID TalkBack speaks as, so `spoken` can keep its utterances and drop
+# whatever else the device says through the same engine (#470). Read before
+# anything is spoken, since every later call depends on it.
+talkback_uid="$(adb shell dumpsys package "$talkback" | tr -d '\r' |
+  grep -m1 -o 'userId=[0-9]*' | cut -d= -f2 || true)"
+if [ -n "$talkback_uid" ]; then
+  echo "TalkBack uid: $talkback_uid"
+else
+  echo "::warning::could not read TalkBack's uid, so every utterance is kept and system speech may be credited to a step (#470)"
+fi
 
 echo "installing the speech log and the app"
 adb install -r "$speech_apk"
