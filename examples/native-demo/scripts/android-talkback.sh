@@ -141,11 +141,43 @@ fi
 # navigation.
 next() { adb shell input keyevent KEYCODE_TAB; }
 
+# Android's own keyboard announcements, which are not the app speaking.
+#
+# TalkBack says "Showing Password keyboard", "Showing English (US) (QWERTY)"
+# and "keyboard hidden" as the emulator's IME appears, switches or goes away.
+# #461 asked whether the first of those meant the email field was being
+# treated as a password field. It is not:
+#
+#   - the demo has one TextInput and it sets no `keyboardType`,
+#     `secureTextEntry` or `textContentType`;
+#   - the Native `TextInput` is React Native's own, re-exported unchanged by
+#     `@hozo/primitives` (`foundation.native.tsx`);
+#   - the compiler emits those props only when an author writes them
+#     (`crates/hozo_parser/src/jsx.rs` captures, `hozo_native/src/render.rs`
+#     renders);
+#   - and TalkBack calls the field "Edit box" throughout. A secure field it
+#     would call a password.
+#
+# What settles it is native run 35134881739, whose two laps disagree about
+# the same field: the first said "Showing Password keyboard" on the Tab that
+# *left* it, and the second said "Showing English (US) (QWERTY)" on the Tab
+# that entered it. A field's type does not change between laps; an IME being
+# torn down and brought back does.
+#
+# Dropped here rather than in `spoken`, so `talkback-speech.json` still holds
+# every utterance -- that is the material a person approves from. It matters
+# beyond tidiness: the steps feed the `distinct` count below, which exists to
+# say that TalkBack read the *screen*, and system chatter was counting
+# towards it.
+without_ime() {
+  grep -v -i -E '^(showing .*(keyboard|qwerty).*|keyboard hidden)$' || true
+}
+
 # What TalkBack has said since the last call, joined with `|`, in `$new`.
 collect() {
   local now
   now="$(spoken | wc -l)"
-  new="$(spoken | tail -n +$((said_before + 1)) | paste -sd '|' -)"
+  new="$(spoken | tail -n +$((said_before + 1)) | without_ime | paste -sd '|' -)"
   said_before=$now
 }
 # One Tab, and what it made TalkBack say.
@@ -164,7 +196,8 @@ silent=0
 for step in $(seq 1 "$MAX_STEPS"); do
   advance
   # The first phrase of a step is the element; what follows is TalkBack's
-  # hints and system chatter ("Showing English (US) (QWERTY)").
+  # own hints ("Double-tap and hold to long press"). The IME's chatter is
+  # already gone, dropped in `collect` above.
   element="${new%%|*}"
   # Tab wraps, so a step naming the first element again is a full lap.
   if [ -n "$first" ] && [ "$element" = "$first" ]; then
