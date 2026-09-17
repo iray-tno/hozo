@@ -1,7 +1,24 @@
-# Approved from screen-readers run 34951455002 (VoiceOver, Safari).
+# Approved from screen-readers run 34951455002, extended from run 35254756116
+# (VoiceOver, Safari) once the walk began entering containers (#459).
 # No level-2 heading: VoiceOver sometimes starts on Guidepup's marker, one
 # item past it (the first attempt of run 35004579515 on Combobox did).
-# Only the groups: VoiceOver's next command announces a toolbar and does not
-# step into it without its interact command, which the run does not send.
+#
+# The items are what this pattern is for. VoiceOver used to announce the bar
+# and step past it, so only the two group names were approved; it now
+# interacts, reads the buttons, and stops interacting.
 Text formatting toolbar
+Bold button
+Italic button
+Underline button
+# The one worth the whole exercise. A disabled control is announced, not
+# hidden: "dimmed" is VoiceOver's word where NVDA says "unavailable". The
+# arrow keys skip it and the reader still finds it.
+Strikethrough dimmed button
+Quote button
+Code button
+Out of Text formatting toolbar
 Alignment toolbar
+Align left button
+# British spelling, as VoiceOver says it.
+Align centre button
+Align right button
