@@ -51,9 +51,35 @@ fail() {
   exit 1
 }
 
-# Every utterance so far, one per line, in order.
-spoken() {
+# Every utterance so far, one per line, in order, each still carrying the UID
+# of whoever asked for it.
+spoken_raw() {
   adb logcat -d -v raw -s HozoSpeech:I | tr -d '\r' | grep -v '^--------- ' || true
+}
+
+# The same, as plain text. Everything the device said, TalkBack's or not.
+#
+# What `settle` waits on, what `talkback_off` searches, and what goes into
+# `talkback-speech.json`: the artifact holds every utterance, because that is
+# the material a person approves from -- and because the device's own speech
+# in it is exactly what made #470 diagnosable.
+spoken() {
+  spoken_raw | sed 's/^[0-9][0-9]*://'
+}
+
+# Of those, the ones TalkBack asked for, with the prefix removed.
+#
+# Used on the steps and nowhere else, beside `without_ime` and for the same
+# reason. An unset `talkback_uid` means the lookup failed, and then nothing is
+# dropped: a filter matching nothing would empty the steps, which reads as a
+# reader that never spoke -- the failure this script exists to catch, arriving
+# as a false alarm.
+from_talkback() {
+  if [ -n "${talkback_uid:-}" ]; then
+    sed -n "s/^${talkback_uid}://p"
+  else
+    sed 's/^[0-9][0-9]*://'
+  fi
 }
 
 # `uiautomator` must not run while TalkBack is on. Its UiAutomation connection
@@ -133,6 +159,28 @@ if ! adb shell pm list packages "$talkback" | grep -q "$talkback"; then
   fail "this image has no TalkBack (the API 34 one does not; 33, 35 and 36 do)"
 fi
 echo "TalkBack: $(adb shell dumpsys package "$talkback" | grep -m1 versionName | tr -d '\r' | xargs)"
+
+# Which UID TalkBack speaks as, so the steps can keep its utterances and drop
+# whatever else the device says through the same engine (#470).
+#
+# Measured before it was used, in #482: `pm list packages -U` prints
+# `package:<name> uid:<n>` and gave 10160 on the API 36 image, while
+# `dumpsys package | grep userId=` -- what an earlier attempt filtered on --
+# returned nothing at all, because the field there is `uid=`. That attempt
+# failed open and the warning was the only sign.
+#
+# Matched on the whole package name, not a substring: `pm list packages -U
+# com.google.android.marvin.talkback` also returns `…talkbackoverlay uid:10092`,
+# and taking the first line would filter every real utterance away.
+talkback_uid="$(adb shell pm list packages -U | tr -d '\r' |
+  grep -m1 "^package:${talkback} uid:" | sed 's/.*uid://' || true)"
+[ -n "$talkback_uid" ] || talkback_uid="$(adb shell dumpsys package "$talkback" |
+  tr -d '\r' | grep -m1 -o 'uid=[0-9]*' | cut -d= -f2 || true)"
+if [ -n "$talkback_uid" ]; then
+  echo "TalkBack uid: $talkback_uid"
+else
+  echo "::warning::could not read TalkBack's uid, so the steps keep every utterance and the device's own speech may be credited to one (#470)"
+fi
 
 echo "installing the speech log and the app"
 adb install -r "$speech_apk"
@@ -262,13 +310,16 @@ without_ime() {
 # wants can land on something that does not shift underneath it.
 collect() {
   local log
-  log="$(spoken)"
+  log="$(spoken_raw)"
   if [ -z "$log" ]; then
     new=
     said_before=0
     return
   fi
-  new="$(printf '%s\n' "$log" | tail -n +$((said_before + 1)) | without_ime | paste -sd '|' -)"
+  # Sliced by position first, then filtered. The offset counts every line the
+  # device produced, so dropping some before the slice would move the boundary
+  # under the next step.
+  new="$(printf '%s\n' "$log" | tail -n +$((said_before + 1)) | from_talkback | without_ime | paste -sd '|' -)"
   # Counted from the same text rather than from a second reading. The empty
   # case is handled above because `printf` would turn it into one blank line
   # and count it as 1.
