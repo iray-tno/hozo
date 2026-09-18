@@ -49,6 +49,19 @@ export function Syntax() { return <><Animated.View /><SectionList /></> }
     assert.equal(report.lowering.directReactNativeJsxBindingsResidueOnWeb, 1)
     assert.deepEqual(report.reactNativeJsxResidueImports, { SectionList: 1 })
 
+    // Every lowered file, named, beside what the compiler recognised in it.
+    //
+    // #457's report claimed six lowered files for a corpus whose authored
+    // surface imported nothing lowerable, and gave no way to check that from
+    // outside: two totals that disagreed, and not one filename between them.
+    const loweredBy = report.samples.loweredBy ?? []
+    assert.equal(loweredBy.length, report.lowering.filesLowered)
+    assert.ok(loweredBy.some((entry) => /^Shared\.tsx: .*react-native/.test(entry)))
+    // A file that lowered with nothing recognised in it would read as
+    // `(none)`, which is that contradiction with somewhere to go and look.
+    // These all have a reason, so none of them say it.
+    assert.ok(!loweredBy.some((entry) => entry.endsWith('(none)')))
+
     const markdown = renderRealAppMarkdown(report)
     assert.match(markdown, /Real-app measurement: fixture/)
     assert.match(markdown, /DOM style-array invariant holds/)
@@ -126,6 +139,9 @@ test('a className-only corpus with no React Native lowers nothing', () => {
     assert.equal(report.lowering.filesLoweredForWeb, 0)
     assert.equal(report.lowering.webComponents, 0)
     assert.equal(report.lowering.filesLowered, 0)
+    // And nothing is listed as having lowered. The sample is there to name
+    // files, not to be there.
+    assert.equal(report.samples.loweredBy, undefined)
 
     const markdown = renderRealAppMarkdown(report)
     assert.match(markdown, /\*\*Styling surface:\*\* 2 of 2 files use `className`/)

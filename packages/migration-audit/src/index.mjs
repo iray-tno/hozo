@@ -290,7 +290,25 @@ function measure(options) {
     report.lowering.nativeComponents += nativeComponents.length
     diagnosticsFor(nativeComponents, 'native', file, report)
 
-    if (webComponents.length > 0 || nativeComponents.length > 0) report.lowering.filesLowered += 1
+    if (webComponents.length > 0 || nativeComponents.length > 0) {
+      report.lowering.filesLowered += 1
+      // Which file, and what in it the compiler recognised.
+      //
+      // #457 reported six lowered files for a corpus whose authored surface
+      // imported nothing lowerable, and the report gave no way to check that
+      // from outside: two totals that disagreed and nothing naming a file.
+      // Reading the compiler's own rule settled what *should* lower -- a tag
+      // whose binding came from one of `compiler.sources` -- but not what did,
+      // because the numbers were the only evidence and they are just numbers.
+      //
+      // So each lowered file is listed with its recognised imports. A file
+      // here with `(none)` beside it is that contradiction, per file, with a
+      // name to go and look at.
+      const recognised = (nativeModule?.imports ?? [])
+        .filter((item) => compiler.sources.includes(item.source))
+        .map((item) => `${item.imported} from ${item.source}`)
+      pushSample(report.samples, 'loweredBy', `${file}: ${recognised.join(', ') || '(none)'}`)
+    }
     if (platform !== 'native' && directBindings.length > 0 && webComponents.length === 0) {
       report.lowering.directReactNativeJsxPassedThroughOnWeb += 1
       const names = rnImports
