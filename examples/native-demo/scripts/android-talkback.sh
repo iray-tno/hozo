@@ -378,6 +378,25 @@ talkback_off && fail "TalkBack switched itself off during the run"
 # Counted from what the steps said, not from everything: TalkBack announces
 # the app and the screen on its own when it starts, so a reader that never
 # moved would still pass a count of the whole log.
+#
+# A floor on "something was read", not a claim that every phrase came from the
+# app. The device speaks through TalkBack too -- "Service, Messages is
+# restoring backed up message content and data" has landed in a step four
+# times -- and those phrases are counted here alongside the screen's.
+#
+# Left that way on purpose (#470). Separating them is not available: the
+# caller UID says which app asked the engine to speak, and for a notification
+# that app *is* TalkBack, because reading notifications aloud is what an
+# accessibility service does. Two attempts went that way and neither could
+# work. What is left -- matching wording, quietening the device, counting only
+# each step's first phrase -- either eats real announcements or weakens this
+# check, and the check is worth more than the tidiness.
+#
+# The arithmetic says the risk is small. Chatter adds about one to a count
+# whose floor is three, so being fooled needs TalkBack to read nothing *and*
+# the device to say three distinct things in the same run. A silent reader
+# with a busy device is the one case this would miss, and nothing has ever
+# produced it.
 distinct=$(cut -f2 "$steps_file" | tr "|" "\n" | sort -u | grep -c . || true)
 echo "TalkBack said $distinct distinct things while moving"
 [ "$distinct" -ge "$MIN_SPOKEN" ] || fail "TalkBack said only $distinct distinct things, so it did not read the screen"
