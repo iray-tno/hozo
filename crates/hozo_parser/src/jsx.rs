@@ -121,6 +121,13 @@ pub(crate) struct Scope<'r, 'a> {
     /// `Text as RNText` therefore builds the same IR as `Text`, while the
     /// source-facing local name remains available for import bookkeeping.
     pub primitive_aliases: &'r std::collections::HashMap<String, String>,
+    /// Whether a primitive-shaped local may lower without a trusted import.
+    ///
+    /// The unconstrained parser keeps this for low-level callers and compact
+    /// fixtures. A project compiler always supplies its trusted source list;
+    /// there, a same-file `function Text()` is application code rather than
+    /// evidence that the author meant Hozo's `Text`.
+    pub allow_unbound_primitives: bool,
     /// Trusted local bindings for React Native's `Animated` namespace.
     pub animated_namespaces: &'r std::collections::HashSet<String>,
     /// Static same-file StyleX definitions available to JSX spreads.
@@ -132,7 +139,11 @@ impl Scope<'_, '_> {
         if self.foreign.contains(local) {
             return None;
         }
-        let canonical = self.primitive_aliases.get(local).map_or(local, String::as_str);
+        let canonical = match self.primitive_aliases.get(local) {
+            Some(canonical) => canonical.as_str(),
+            None if self.allow_unbound_primitives => local,
+            None => return None,
+        };
         primitive_for_name(canonical)
     }
 }
@@ -267,55 +278,10 @@ fn clean_jsx_text(raw: &str) -> String {
 
 /// Whether a name is one the compiler lowers when it appears as a tag.
 pub fn is_primitive_name(name: &str) -> bool {
-    primitive_name(name).is_some()
-}
-
-fn primitive_name(name: &str) -> Option<&'static str> {
-    match name {
-        "View" => Some("View"),
-        "Text" => Some("Text"),
-        "Paragraph" => Some("Paragraph"),
-        "Heading" => Some("Heading"),
-        "Section" => Some("Section"),
-        "Article" => Some("Article"),
-        "Nav" => Some("Nav"),
-        "List" => Some("List"),
-        "ListItem" => Some("ListItem"),
-        "ActivityIndicator" => Some("ActivityIndicator"),
-        "Pressable" => Some("Pressable"),
-        "TouchableOpacity" => Some("TouchableOpacity"),
-        "TouchableWithoutFeedback" => Some("TouchableWithoutFeedback"),
-        "Button" => Some("Button"),
-        "Link" => Some("Link"),
-        "TextInput" => Some("TextInput"),
-        "Dialog" => Some("Dialog"),
-        "Image" => Some("Image"),
-        "ScrollView" => Some("ScrollView"),
-        "FlatList" => Some("FlatList"),
-        "Svg" => Some("Svg"),
-        "Main" => Some("Main"),
-        "Header" => Some("Header"),
-        "Footer" => Some("Footer"),
-        "Aside" => Some("Aside"),
-        "Search" => Some("Search"),
-        "Figure" => Some("Figure"),
-        "Figcaption" => Some("Figcaption"),
-        "Time" => Some("Time"),
-        "Address" => Some("Address"),
-        "Strong" => Some("Strong"),
-        "Emphasis" => Some("Emphasis"),
-        "Underline" => Some("Underline"),
-        "Strikethrough" => Some("Strikethrough"),
-        "Sub" => Some("Sub"),
-        "Sup" => Some("Sup"),
-        "Code" => Some("Code"),
-        "Small" => Some("Small"),
-        "Mark" => Some("Mark"),
-        "NoBreak" => Some("NoBreak"),
-        "Ruby" => Some("Ruby"),
-        "RubyText" => Some("RubyText"),
-        _ => None,
-    }
+    // One table decides both import recognition and lowering. Keeping a
+    // second list here once left Modal, RefreshControl, Separator and other
+    // supported components dependent on the unsafe bare-name fallback.
+    primitive_for_name(name).is_some()
 }
 
 /// Builds a `Child::Verbatim` for a child the compiler carries rather than

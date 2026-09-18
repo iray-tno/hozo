@@ -220,8 +220,11 @@ pub fn summarize_stylex_module(source_text: &str) -> StylexModuleSummary {
 
 /// Parses TSX, lowering only primitives imported from `sources`.
 ///
-/// `None` trusts every module, which is what a caller with no project
-/// configuration to consult wants -- and what `parse_tsx` has always done.
+/// `None` is the unconstrained low-level mode: it trusts every module and
+/// retains the historical bare-name shorthand used by compact parser
+/// fixtures. Supplying a source list requires a matching trusted import. That
+/// distinction prevents an application's own same-file `function Text()`
+/// from being mistaken for Hozo's `Text` merely because the names coincide.
 ///
 /// The list is per *tag*, not per file. A real Expo app has
 /// `<View className="p-4">` from `react-native` and `<Button label="Save">`
@@ -322,6 +325,7 @@ fn parse(
         module_record: &ret.module_record,
         foreign: &foreign,
         primitive_aliases: &primitive_aliases,
+        allow_unbound_primitives: sources.is_none(),
         animated_namespaces: &animated_namespaces,
         stylex,
     };
@@ -876,6 +880,29 @@ export const Card = () => <NativePressable><RNText>Hello</RNText></NativePressab
         assert!(output.foreign_primitives.is_empty());
 
         assert_eq!(parse_tsx(source).roots.len(), 1, "the trust-all parser must agree");
+    }
+
+    #[test]
+    fn a_configured_parser_does_not_lower_a_same_file_primitive_name() {
+        let source = "function Text({ children }) {
+  return <span className=\"font-bold\">{children}</span>
+}
+export function Panel() {
+  return <Text>hello</Text>
+}
+";
+
+        let configured = parse_tsx_with(source, Some(&trusted()));
+        assert!(
+            configured.roots.is_empty(),
+            "a local Text declaration is not a trusted primitive import"
+        );
+
+        // Keep the intentionally unconstrained low-level parser useful for
+        // compact fixtures that spell primitives without import boilerplate.
+        let unconstrained = parse_tsx(source);
+        assert_eq!(unconstrained.roots.len(), 1);
+        assert_eq!(unconstrained.roots[0].node.primitive, hozo_ir::Primitive::Text);
     }
 
     #[test]

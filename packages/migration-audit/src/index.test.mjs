@@ -140,18 +140,10 @@ test('a className-only corpus with no React Native lowers nothing', () => {
     assert.equal(report.authoredSignals.filesWithClassName, 2)
     // `flex` alone, not `flex-col`: one file, not two.
     assert.equal(report.authoredSignals.filesWithBareFlexClassName, 1)
-    // Nothing lowers, and that is the point.
-    //
-    // A tag is lowered only when its binding was imported from one of
-    // `DEFAULT_PRIMITIVE_SOURCES` -- the seven `@hozo/*` packages and
-    // `react-native`. `parse` builds its primitive aliases from the import
-    // record against that list, so a `<div className="...">` in an app that
-    // imports none of them is carried verbatim.
-    //
-    // Which is what makes the report #457 was filed about contradictory: it
-    // showed six lowered files and twenty-four components for a corpus whose
-    // authored surface imported nothing lowerable. This pins the floor, so
-    // that the contradiction stays visible rather than being explained away.
+    // Nothing lowers, and that is the point. A project compiler receives its
+    // trusted source list, so a tag lowers only when its binding was imported
+    // from one of those sources. Bare local names are application components,
+    // even when they happen to be spelled like a Hozo primitive.
     assert.equal(report.lowering.filesLoweredForWeb, 0)
     assert.equal(report.lowering.webComponents, 0)
     assert.equal(report.lowering.filesLowered, 0)
@@ -166,6 +158,49 @@ test('a className-only corpus with no React Native lowers nothing', () => {
     // className-shaped" and put inline styles first.
     assert.doesNotMatch(markdown, /not className-shaped/)
     assert.doesNotMatch(markdown, /Inline-style compatibility is therefore/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// Regression for #457. A same-file component used to bypass import-source
+// checking because only imported foreign names were tracked; the parser then
+// fell back from a missing alias to the bare name `Text` and lowered it.
+test('a locally declared component named like a primitive does not lower', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-local-'))
+  try {
+    const source = path.join(root, 'src')
+    mkdirSync(source)
+    writeFileSync(
+      path.join(source, 'Local.tsx'),
+      `function Text({ children }) {
+  return <span className="font-bold">{children}</span>
+}
+export function Panel() {
+  return <Text>hello</Text>
+}
+`,
+    )
+    execFileSync('git', ['init', '--quiet'], { cwd: root })
+    execFileSync('git', ['config', 'user.name', 'Hozo Test'], { cwd: root })
+    execFileSync('git', ['config', 'user.email', 'test@hozo.invalid'], { cwd: root })
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
+
+    const report = measureRealApp({ root, source: 'src', name: 'local-primitive' })
+    // Nothing is imported at all, so every authored signal that could explain
+    // a lowering count reads zero -- including the foreign one, which only
+    // sees imports.
+    assert.equal(report.authoredSignals.filesImportingReactNative, 0)
+    assert.equal(report.authoredSignals.filesWithDirectReactNativeJsx, 0)
+    assert.equal(report.authoredSignals.filesWithForeignPrimitiveNames, 0)
+
+    assert.equal(report.lowering.filesLowered, 0)
+    assert.equal(report.lowering.filesLoweredForWeb, 0)
+    assert.equal(report.lowering.filesLoweredForNative, 0)
+    assert.equal(report.lowering.webComponents, 0)
+    assert.equal(report.lowering.nativeComponents, 0)
+    assert.deepEqual(report.samples.loweredBy ?? [], [])
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
