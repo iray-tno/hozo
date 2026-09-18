@@ -3,6 +3,7 @@ import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } 
 import {
   AccessibilityInfo,
   findNodeHandle,
+  InteractionManager,
   Modal,
   type StyleProp,
   View,
@@ -108,6 +109,31 @@ export function Dialog({
     }
     AccessibilityInfo.announceForAccessibility('hozo probe: requesting focus')
     AccessibilityInfo.setAccessibilityFocus(handle as number)
+
+    // And again once the dismissal has finished, because the first request
+    // does not always survive it.
+    //
+    // The probe in #484 caught both halves of this. Every run asks -- the
+    // marker above appears whether the run passes or fails -- and the failing
+    // ones announce the window and then the field above the opener straight
+    // afterwards, which is the `Modal` going away and accessibility focus
+    // being re-seeded by traversal order. So the call is not missing; it is
+    // being overtaken.
+    //
+    // Asked twice rather than moved: the synchronous call already works about
+    // half the time, and a request that only ran after the animation would
+    // give that up to fix the other half. `runAfterInteractions` is React
+    // Native's "once the animations are done" hook, which is exactly the race
+    // being lost.
+    const retry = InteractionManager.runAfterInteractions(() => {
+      // The opener can go away between the two: a dialog closing because the
+      // screen it sat on is unmounting takes the button with it, and a stale
+      // tag would point at nothing.
+      if (findNodeHandle(opener) === null) return
+      AccessibilityInfo.announceForAccessibility('hozo probe: requesting focus again')
+      AccessibilityInfo.setAccessibilityFocus(handle as number)
+    })
+    return () => retry.cancel()
   }, [open, restoreFocusTo])
 
   return (

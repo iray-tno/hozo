@@ -73,7 +73,20 @@ test('closing the dialog moves accessibility focus to the opener', () => {
       }),
     )
   })
+  // Twice, and the second one is the point.
+  //
+  // The first request is synchronous, on the closing edge. It wins about half
+  // the time on a device: the probe in #484 shows every run asking, and the
+  // failing ones losing accessibility focus to the window announcement as the
+  // modal goes away. The second goes through `runAfterInteractions`, which is
+  // after that has finished.
+  //
+  // The stub runs it immediately, so both land in one `act` and this reads as
+  // a pair. What it establishes is that the dialog asks twice for the same
+  // view; whether the platform honours either is the emulator's half, and
+  // `examples/native-demo/scripts/android-talkback.sh` reads that out loud.
   assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
+    stub.findNodeHandle(continueButton.current),
     stub.findNodeHandle(continueButton.current),
   ])
   root?.unmount()
