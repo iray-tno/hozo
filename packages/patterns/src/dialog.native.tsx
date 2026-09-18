@@ -3,12 +3,20 @@ import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } 
 import {
   AccessibilityInfo,
   findNodeHandle,
-  InteractionManager,
   Modal,
   type StyleProp,
   View,
   type ViewStyle,
 } from 'react-native'
+
+/**
+ * How long after the dismissal to ask for focus a second time.
+ *
+ * The delay `@hozo/behaviors`' `useAnnounce` uses to let assistive technology
+ * notice a change, borrowed because it works there. Not derived from how long
+ * a fade takes, and worth moving if the runs say it lands too early.
+ */
+const RESTORE_RETRY_MS = 50
 
 export interface DialogProps {
   /**
@@ -121,19 +129,33 @@ export function Dialog({
     // being overtaken.
     //
     // Asked twice rather than moved: the synchronous call already works about
-    // half the time, and a request that only ran after the animation would
-    // give that up to fix the other half. `runAfterInteractions` is React
-    // Native's "once the animations are done" hook, which is exactly the race
-    // being lost.
-    const retry = InteractionManager.runAfterInteractions(() => {
-      // The opener can go away between the two: a dialog closing because the
-      // screen it sat on is unmounting takes the button with it, and a stale
-      // tag would point at nothing.
+    // half the time, and a request that only ran later would give that up to
+    // fix the other half.
+    //
+    // A timer, and not the two things that look more principled.
+    // `InteractionManager.runAfterInteractions` was React Native's "once the
+    // animations are done" hook and is the obvious fit, but 0.87 removed it
+    // from core -- reaching for it throws, and the core's own advice points at
+    // `requestIdleCallback`, which promises idle time rather than a finished
+    // dismissal. `requestAnimationFrame` is worse: `packages/primitives`
+    // records it failing here twice, because a frame callback waits on the
+    // compositor producing frames and under a headless time budget it never
+    // ran at all.
+    //
+    // So: the delay `@hozo/behaviors`' `useAnnounce` already uses to let
+    // assistive technology notice a change. Chosen because it works there
+    // rather than from any theory about how long a fade takes, which is worth
+    // being honest about -- if the distribution says it is too early, the
+    // number is the thing to move.
+    const retry = setTimeout(() => {
+      // The opener can go away in between: a dialog closing because the screen
+      // it sat on is unmounting takes the button with it, and a stale tag
+      // would point at nothing.
       if (findNodeHandle(opener) === null) return
       AccessibilityInfo.announceForAccessibility('hozo probe: requesting focus again')
       AccessibilityInfo.setAccessibilityFocus(handle as number)
-    })
-    return () => retry.cancel()
+    }, RESTORE_RETRY_MS)
+    return () => clearTimeout(retry)
   }, [open, restoreFocusTo])
 
   return (

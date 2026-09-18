@@ -130,20 +130,6 @@ export const AccessibilityInfo = {
   },
 }
 
-// Run now, not after anything.
-//
-// On a device this defers until animations and gestures have settled, which
-// is why `Dialog` uses it to ask for focus a second time once a modal has
-// finished going away. There is nothing to wait for here, and a test that had
-// to flush a queue to see a synchronous decision would be testing the queue.
-// `cancel` exists because the caller returns it as an effect cleanup.
-export const InteractionManager = {
-  runAfterInteractions: (callback) => {
-    callback()
-    return { cancel: () => {} }
-  },
-}
-
 // A view's tag, which is the only thing `setAccessibilityFocus` accepts.
 //
 // On a device every view has one. Here the host components are strings and a

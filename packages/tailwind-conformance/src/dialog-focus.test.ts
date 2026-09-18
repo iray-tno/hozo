@@ -46,7 +46,7 @@ const { HozoDialog } = require('@hozo/patterns/generated/dialog') as {
 /** A stand-in for the control that opened the dialog. */
 const opener = () => ({ current: {} })
 
-test('closing the dialog moves accessibility focus to the opener', () => {
+test('closing the dialog moves accessibility focus to the opener', async () => {
   stub.AccessibilityInfo.__hozoResetFocus()
   const continueButton = opener()
 
@@ -73,18 +73,21 @@ test('closing the dialog moves accessibility focus to the opener', () => {
       }),
     )
   })
-  // Twice, and the second one is the point.
+  // The synchronous request, on the closing edge. This one already worked.
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
+    stub.findNodeHandle(continueButton.current),
+  ])
+
+  // And the second one, after the retry delay.
   //
-  // The first request is synchronous, on the closing edge. It wins about half
-  // the time on a device: the probe in #484 shows every run asking, and the
-  // failing ones losing accessibility focus to the window announcement as the
-  // modal goes away. The second goes through `runAfterInteractions`, which is
-  // after that has finished.
+  // It is the point of the change: the probe in #484 shows every run asking,
+  // and the failing half losing accessibility focus to the window
+  // announcement as the modal goes away. Asking again once that has settled
+  // is what this establishes -- the same view, twice.
   //
-  // The stub runs it immediately, so both land in one `act` and this reads as
-  // a pair. What it establishes is that the dialog asks twice for the same
-  // view; whether the platform honours either is the emulator's half, and
+  // Whether the platform honours either request is the emulator's half, and
   // `examples/native-demo/scripts/android-talkback.sh` reads that out loud.
+  await new Promise((resolve) => setTimeout(resolve, 120))
   assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
     stub.findNodeHandle(continueButton.current),
     stub.findNodeHandle(continueButton.current),
