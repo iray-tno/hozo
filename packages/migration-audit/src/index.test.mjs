@@ -140,18 +140,19 @@ test('a className-only corpus with no React Native lowers nothing', () => {
     assert.equal(report.authoredSignals.filesWithClassName, 2)
     // `flex` alone, not `flex-col`: one file, not two.
     assert.equal(report.authoredSignals.filesWithBareFlexClassName, 1)
-    // Nothing lowers, and that is the point.
+    // Nothing lowers here, because nothing in these files is *named* like a
+    // primitive.
     //
-    // A tag is lowered only when its binding was imported from one of
-    // `DEFAULT_PRIMITIVE_SOURCES` -- the seven `@hozo/*` packages and
-    // `react-native`. `parse` builds its primitive aliases from the import
-    // record against that list, so a `<div className="...">` in an app that
-    // imports none of them is carried verbatim.
+    // This comment used to say a tag lowers only when its binding came from
+    // one of `DEFAULT_PRIMITIVE_SOURCES`. That is not the rule.
+    // `primitive_for_local` checks the foreign set, then falls back to the
+    // bare local name -- `primitive_aliases.get(local).map_or(local, ...)` --
+    // so a primitive *name* can lower with no import behind it at all. The
+    // test below this one is that case, and it is the mechanism #457 was
+    // asking about.
     //
-    // Which is what makes the report #457 was filed about contradictory: it
-    // showed six lowered files and twenty-four components for a corpus whose
-    // authored surface imported nothing lowerable. This pins the floor, so
-    // that the contradiction stays visible rather than being explained away.
+    // `div` and `span` are not primitive names, so this corpus is still the
+    // floor it was written to be.
     assert.equal(report.lowering.filesLoweredForWeb, 0)
     assert.equal(report.lowering.webComponents, 0)
     assert.equal(report.lowering.filesLowered, 0)
@@ -166,6 +167,71 @@ test('a className-only corpus with no React Native lowers nothing', () => {
     // className-shaped" and put inline styles first.
     assert.doesNotMatch(markdown, /not className-shaped/)
     assert.doesNotMatch(markdown, /Inline-style compatibility is therefore/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// The mechanism behind #457, reproduced.
+//
+// `primitive_for_local` asks the foreign set first and then falls back to the
+// bare local name:
+//
+//     if self.foreign.contains(local) { return None; }
+//     let canonical = self.primitive_aliases.get(local).map_or(local, ...);
+//     primitive_for_name(canonical)
+//
+// and `foreign` is built from *imports* -- `foreign_primitives_from_imports`
+// iterates the import record. A component declared in the file that uses it is
+// not an import, so it never reaches that set, the fallback matches it by
+// name, and it lowers with nothing in the authored surface to account for it.
+//
+// Which is the shape of the report #457 was filed about: every authored signal
+// zero, six files lowered, twenty-four components. Its 21 files flagged under
+// `foreignPrimitiveNames` import their own `Text` and `Button` from their own
+// modules, and those are correctly left alone. The ones that *declare* theirs
+// were never counted anywhere.
+test('a locally declared component named like a primitive still lowers', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-local-'))
+  try {
+    const source = path.join(root, 'src')
+    mkdirSync(source)
+    writeFileSync(
+      path.join(source, 'Local.tsx'),
+      `function Text({ children }) {
+  return <span className="font-bold">{children}</span>
+}
+export function Panel() {
+  return <Text>hello</Text>
+}
+`,
+    )
+    execFileSync('git', ['init', '--quiet'], { cwd: root })
+    execFileSync('git', ['config', 'user.name', 'Hozo Test'], { cwd: root })
+    execFileSync('git', ['config', 'user.email', 'test@hozo.invalid'], { cwd: root })
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
+
+    const report = measureRealApp({ root, source: 'src', name: 'local-primitive' })
+    // Nothing is imported at all, so every authored signal that could explain
+    // a lowering count reads zero -- including the foreign one, which only
+    // sees imports.
+    assert.equal(report.authoredSignals.filesImportingReactNative, 0)
+    assert.equal(report.authoredSignals.filesWithDirectReactNativeJsx, 0)
+    assert.equal(report.authoredSignals.filesWithForeignPrimitiveNames, 0)
+
+    const loweredBy = report.samples.loweredBy ?? []
+    const listed = JSON.stringify(loweredBy)
+    assert.ok(
+      report.lowering.filesLowered > 0,
+      `a local component named Text did not lower, so #457's mechanism is not this: ${listed}`,
+    )
+    // And the report says so in the one place that names files: recognised
+    // imports, of which there are none.
+    assert.ok(
+      loweredBy.some((entry) => entry.endsWith('(none)')),
+      `a file lowered but none of them report "(none)": ${listed}`,
+    )
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
