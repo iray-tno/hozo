@@ -248,11 +248,31 @@ without_ime() {
 }
 
 # What TalkBack has said since the last call, joined with `|`, in `$new`.
+#
+# Read once, with both answers taken from that one reading. It used to read the
+# log twice -- once to count it, once to slice it -- and TalkBack goes on
+# speaking between those two `adb` calls. A line arriving in the gap is in the
+# slice but not in the count, so the next step starts before it and says it
+# again: a duplicated "Confirm your address" in the dialog step is what that
+# looks like from the outside.
+#
+# The race is not new and is not #479's doing. That branch put two more
+# processes inside each reading and so widened the window, but the window was
+# always there. Removed rather than narrowed, so that the caller filtering #470
+# wants can land on something that does not shift underneath it.
 collect() {
-  local now
-  now="$(spoken | wc -l)"
-  new="$(spoken | tail -n +$((said_before + 1)) | without_ime | paste -sd '|' -)"
-  said_before=$now
+  local log
+  log="$(spoken)"
+  if [ -z "$log" ]; then
+    new=
+    said_before=0
+    return
+  fi
+  new="$(printf '%s\n' "$log" | tail -n +$((said_before + 1)) | without_ime | paste -sd '|' -)"
+  # Counted from the same text rather than from a second reading. The empty
+  # case is handled above because `printf` would turn it into one blank line
+  # and count it as 1.
+  said_before="$(printf '%s\n' "$log" | wc -l)"
 }
 # One Tab, and what it made TalkBack say.
 advance() {
