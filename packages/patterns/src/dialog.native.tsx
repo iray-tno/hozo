@@ -73,15 +73,40 @@ export function Dialog({
     wasOpen.current = open
     if (!closing) return
 
+    // TEMPORARY, AND NOT FOR MERGING. Investigation for #484.
+    //
+    // Focus returns to the opener about half the time; the other half TalkBack
+    // lands on the email field above it, exactly as it did before #463. The
+    // speech log says the opener is never announced on dismissal, so it is not
+    // the harness mis-reading a phrase -- but `setAccessibilityFocus` returns
+    // nothing, so "we asked and were overruled" and "we never asked" look
+    // identical from outside.
+    //
+    // These markers go through TalkBack and land in `talkback-speech.json` in
+    // order, beside the dialog's own utterances, which is the one channel that
+    // is already recorded. Each exit gets its own, so a missing marker means
+    // the effect did not run rather than that it bailed somewhere.
+    //
+    // It can still come up empty: `announceForAccessibility` is spoken by
+    // TalkBack too, so a teardown that swallows the focus request may swallow
+    // the marker with it. That outcome is informative as well, and would say
+    // the next instrument has to sit below TalkBack.
     const opener = restoreFocusTo?.current
-    if (!opener) return
+    if (!opener) {
+      AccessibilityInfo.announceForAccessibility('hozo probe: no opener')
+      return
+    }
 
     // `setAccessibilityFocus` takes a view tag and nothing else, so the ref
     // has to be resolved to one. A ref to an unmounted view resolves to
     // `null`, which is the native shape of the question `shouldRestoreFocus`
     // answers on both platforms: restore only to something still there.
     const handle = findNodeHandle(opener)
-    if (!shouldRestoreFocus({ focusable: handle !== null })) return
+    if (!shouldRestoreFocus({ focusable: handle !== null })) {
+      AccessibilityInfo.announceForAccessibility('hozo probe: opener not focusable')
+      return
+    }
+    AccessibilityInfo.announceForAccessibility('hozo probe: requesting focus')
     AccessibilityInfo.setAccessibilityFocus(handle as number)
   }, [open, restoreFocusTo])
 
