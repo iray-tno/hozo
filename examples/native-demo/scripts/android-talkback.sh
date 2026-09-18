@@ -134,6 +134,27 @@ if ! adb shell pm list packages "$talkback" | grep -q "$talkback"; then
 fi
 echo "TalkBack: $(adb shell dumpsys package "$talkback" | grep -m1 versionName | tr -d '\r' | xargs)"
 
+# Which UID TalkBack speaks as. Printed, and nothing more.
+#
+# #470 wants the device's own speech separated from TalkBack's, and the only
+# thing that tells them apart without guessing at wording is the caller:
+# `SynthesisRequest.getCallerUid()`, which `speech-log/` is able to log.
+#
+# #479 tried to add the logging and the filtering in one change. The lookup it
+# used -- `dumpsys package | grep userId=` -- returned nothing on this image,
+# so the filter was never active on either attempt and the change was all
+# cost. Filtering on a value nobody had ever seen was the mistake.
+#
+# So this asks the question and stops. Two ways, both printed, neither used
+# for anything: one run says which works and what the answer is, and the
+# filter is written against that rather than against a guess.
+echo '--- TalkBack uid, asked two ways (#470) ---'
+echo "  pm list packages -U: $(adb shell pm list packages -U "$talkback" | tr -d '\r' | head -3 | tr '\n' ' ' || true)"
+echo "  dumpsys userId=:     $(adb shell dumpsys package "$talkback" | tr -d '\r' | grep -m1 -o 'userId=[0-9]*' || true)"
+# And if both come back empty, the first uid-ish line there is, so the next
+# attempt is not another guess about which field name this image uses.
+echo "  first uid-ish line:  $(adb shell dumpsys package "$talkback" | tr -d '\r' | grep -m1 -E 'userId|appId|uid=' | xargs || echo '(none)')"
+
 echo "installing the speech log and the app"
 adb install -r "$speech_apk"
 adb install -r "$apk"
