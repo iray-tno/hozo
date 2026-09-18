@@ -12,9 +12,10 @@
 # the release APK plus the speech-log APK already built.
 #
 # Writes `talkback-speech.json` (every step and what it said) and a
-# screenshot at the start and the end. Fails when TalkBack said fewer than
-# MIN_SPOKEN distinct things, because a silent reader is the failure a green
-# run hides.
+# screenshot at the start and the end. The log is written on the way out
+# whichever way the run ends, because a failure is when it is worth reading.
+# Fails when TalkBack said fewer than MIN_SPOKEN distinct things, because a
+# silent reader is the failure a green run hides.
 
 set -euo pipefail
 
@@ -30,11 +31,23 @@ talkback_service="$talkback/com.google.android.marvin.talkback.TalkBackService"
 MAX_STEPS=${MAX_STEPS:-40}
 MIN_SPOKEN=${MIN_SPOKEN:-3}
 
+# What went wrong, and then what TalkBack had been saying when it did.
+#
+# The speech first, because that is what this script is about. It used to
+# print 150 unfiltered logcat lines, and at failure time those were whatever
+# the emulator happened to be doing -- `WifiScoreCard`, `InetDiagMessage`,
+# `HwcComposer`. The utterances are tagged and were minutes old by then, so
+# not one of them survived in the tail. A run once needed exactly those lines
+# and the dump carried none (#480).
 fail() {
   echo "::error::$*"
   adb exec-out screencap -p > ./talkback-failed.png 2>/dev/null || true
+  echo '--- what TalkBack said (last 50) ---'
+  spoken | tail -50 | sed 's/^/  /' || true
+  # Still some, for the failures that are not about speech at all: a crashed
+  # app, a dead emulator, an install that did not take.
   echo '--- logcat (tail) ---'
-  adb logcat -d -v brief | tail -150 || true
+  adb logcat -d -v brief | tail -40 || true
   exit 1
 }
 
@@ -70,6 +83,41 @@ settle() {
     fi
   done
 }
+
+# `talkback-speech.json`, on the way out, whichever way that is.
+#
+# It used to be written after the dialog assertions, so any assertion that
+# failed skipped it: the artifact of a failed run held two screenshots and no
+# speech at all, and the run that most needs the log was the only kind that
+# never produced one (#480).
+#
+# From an EXIT trap instead, so the walk's own record survives a failure
+# anywhere after it -- and before it too, since `fail` is reachable while
+# there is still no APK, no app and no TalkBack. Missing files read as empty
+# rather than as an error, and the whole thing is swallowed: a diagnostic
+# that fails must not replace the exit code that says what actually went
+# wrong.
+write_speech_log() {
+  node --eval '
+    const fs = require("node:fs")
+    const [steps, dialog, all] = process.argv.slice(1)
+    const rows = (file) => {
+      if (!file || !fs.existsSync(file)) return []
+      return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => {
+        const [step, said] = line.split("\t")
+        return { step, said: said ? said.split("|") : [] }
+      })
+    }
+    const log = {
+      method: "tab",
+      utterances: all.split("\n").filter(Boolean),
+      steps: rows(steps).map((row) => ({ ...row, step: Number(row.step) })),
+      dialog: rows(dialog),
+    }
+    fs.writeFileSync("talkback-speech.json", JSON.stringify(log, null, 2) + "\n")
+  ' "${steps_file:-}" "${dialog_file:-}" "$(spoken)" || true
+}
+trap write_speech_log EXIT
 
 adb shell settings put global hide_error_dialogs 1 > /dev/null 2>&1 || true
 
@@ -305,22 +353,6 @@ case "|$new|" in
 esac
 
 adb exec-out screencap -p > ./talkback-end.png 2>/dev/null || true
-
-node --eval '
-  const fs = require("node:fs")
-  const [steps, dialog, all] = process.argv.slice(1)
-  const rows = (file) => fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => {
-    const [step, said] = line.split("\t")
-    return { step, said: said ? said.split("|") : [] }
-  })
-  const log = {
-    method: "tab",
-    utterances: all.split("\n").filter(Boolean),
-    steps: rows(steps).map((row) => ({ ...row, step: Number(row.step) })),
-    dialog: rows(dialog),
-  }
-  fs.writeFileSync("talkback-speech.json", JSON.stringify(log, null, 2) + "\n")
-' "$steps_file" "$dialog_file" "$(spoken)"
 
 talkback_off && fail "TalkBack switched itself off during the run"
 # Counted from what the steps said, not from everything: TalkBack announces
