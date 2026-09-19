@@ -564,6 +564,7 @@ packages/
   engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   metro/                   Metro integration for the Hozo compiler (Native lowering backend).
   migration-audit/         Measure how safely Hozo can lower a real React Native application.
+  native/                  Optional native code for the few accessibility capabilities React Native's JavaScript cannot reach.
   navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
   next/                    Next.js integration for the Hozo compiler (Web lowering backend).
   patterns/                Accessible composite UI patterns for Hozo applications.

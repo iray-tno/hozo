@@ -1,0 +1,48 @@
+// No `buildscript` block, unlike most library templates.
+//
+// Autolinking includes this as a subproject of the app, so the Android and
+// Kotlin plugins are already on the root project's classpath -- and the app
+// declares them without versions, leaving those to the React Native Gradle
+// plugin. Repeating the classpath here with no version fails, and repeating it
+// with one pins a second, different answer. Standalone builds of this
+// directory are not something anyone needs.
+
+apply plugin: 'com.android.library'
+// Explicit, because the app sets `android.builtInKotlin=false`.
+apply plugin: 'kotlin-android'
+// Runs codegen over `codegenConfig` in this package's `package.json`.
+apply plugin: 'com.facebook.react'
+
+android {
+    namespace "dev.hozo.nativemodules"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+    }
+
+    sourceSets.main {
+        java.srcDirs += "${project.buildDir}/generated/source/codegen/java"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    // Versionless on purpose: the React Native Gradle plugin resolves it to
+    // the version the app is building against, which is the only one that can
+    // be right.
+    implementation "com.facebook.react:react-android"
+}

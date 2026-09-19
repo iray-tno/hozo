@@ -1,0 +1,61 @@
+{
+  "name": "@hozo/native",
+  "version": "0.1.0",
+  "description": "Optional native code for the few accessibility capabilities React Native's JavaScript cannot reach.",
+  "keywords": [
+    "react-native",
+    "accessibility",
+    "turbomodule"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iray-tno/hozo.git",
+    "directory": "packages/native"
+  },
+  "homepage": "https://iray-tno.github.io/hozo/",
+  "bugs": {
+    "url": "https://github.com/iray-tno/hozo/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "android"
+  ],
+  "codegenConfig": {
+    "name": "hozonative",
+    "type": "modules",
+    "jsSrcsDir": "./src/specs",
+    "android": {
+      "javaPackageName": "dev.hozo.nativemodules"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-native": ">=0.86"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "react": "^19.2.0",
+    "react-native": "^0.87.1"
+  }
+}
