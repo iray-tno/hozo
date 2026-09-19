@@ -29,7 +29,8 @@ import './native-render.ts'
 const require = createRequire(import.meta.url)
 
 const stub = require('./react-native-stub.js') as {
-  AccessibilityInfo: { __hozoFocused: number[]; __hozoResetFocus: () => void }
+  AccessibilityInfo: { __hozoFocused: unknown[]; __hozoResetFocus: () => void }
+  AppState: { __hozoWindowFocus: () => void }
   findNodeHandle: (node: unknown) => number | null
 }
 const react = require('react') as {
@@ -46,7 +47,7 @@ const { HozoDialog } = require('@hozo/patterns/generated/dialog') as {
 /** A stand-in for the control that opened the dialog. */
 const opener = () => ({ current: {} })
 
-test('closing the dialog moves accessibility focus to the opener', () => {
+test('closing the dialog moves accessibility focus to the opener', async () => {
   stub.AccessibilityInfo.__hozoResetFocus()
   const continueButton = opener()
 
@@ -73,8 +74,40 @@ test('closing the dialog moves accessibility focus to the opener', () => {
       }),
     )
   })
+  // The request on the closing edge, which is the whole mechanism on iOS. The
+  // host instance, not a tag: `sendAccessibilityEvent` takes the former, and
+  // `setAccessibilityFocus` -- which took the latter -- is deprecated.
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+
+  // And again when the window comes back, which is the Android half.
+  //
+  // On that platform the modal is its own window and the first request is
+  // refused while it is still up; the probe in #484 showed two asks 50ms apart
+  // both ignored. `AppState`'s `focus` carries `onWindowFocusChange(true)`, so
+  // it arrives once that window has gone.
+  //
+  // Driven here rather than waited for: the stub emits the event a device
+  // would, which is only possible because the component has no `Platform.OS`
+  // branch around the listener.
+  renderer.act(() => {
+    stub.AppState.__hozoWindowFocus()
+  })
+  await new Promise((resolve) => setTimeout(resolve, 10))
   assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
-    stub.findNodeHandle(continueButton.current),
+    continueButton.current,
+    continueButton.current,
+  ])
+
+  // And only for our own dismissal. A window coming back for any other reason
+  // -- a notification shade, a task switch -- must not move focus, or it takes
+  // it from wherever the user actually was.
+  renderer.act(() => {
+    stub.AppState.__hozoWindowFocus()
+  })
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
+    continueButton.current,
+    continueButton.current,
   ])
   root?.unmount()
 })
