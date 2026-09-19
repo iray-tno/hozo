@@ -65,13 +65,23 @@ export interface DialogProps {
  * signal is necessary but not sufficient, and the thing worth measuring is the
  * lag between the two.
  *
- * Bunched at the low end deliberately: a frame, two frames, then coarser. A
- * clean threshold supports the lag reading. Still failing at 500ms does not,
- * and would point instead at TalkBack ignoring `TYPE_VIEW_FOCUSED` according to
- * its own state -- which is what this sends, an event rather than
- * `ACTION_ACCESSIBILITY_FOCUS`: a notification, not a command.
+ * The first sweep found a clean step: 0, 16, 32, 50, 100 and 150ms all failed;
+ * 200, 300 and 500ms all succeeded; no inversion anywhere. That is the shape the
+ * lag predicts, so this pass stops widening and starts confirming. Every cell
+ * was a single observation, and one observation per cell cannot tell a threshold
+ * from a coincidence.
+ *
+ * Six delays over twelve rounds, so each is drawn twice, interleaved rather than
+ * blocked -- a drift over the session must not line up with one delay. The `0`
+ * is a control: it failed in the first sweep, and if it starts passing here the
+ * change is in the harness rather than in the platform.
+ *
+ * 500ms is dropped deliberately. It worked, and round 9 showed why it is still
+ * the wrong answer: the email field was announced first and the opener only
+ * after, so a user hears the wrong element and then a correction. 200 and 300ms
+ * put the opener first with nothing ahead of it.
  */
-const PROBE_DELAYS = [0, 16, 32, 50, 100, 150, 200, 300, 500]
+const PROBE_DELAYS = [0, 150, 175, 200, 225, 250]
 let probeAttempt = 0
 
 export function Dialog({
