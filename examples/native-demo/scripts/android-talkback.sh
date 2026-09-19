@@ -325,58 +325,103 @@ done
 # returns focus to Continue. The first is checked through the approved
 # phrases; the other two are reported as warnings until a run has shown
 # what this platform actually does.
+# Once by default, `DIALOG_ROUNDS` times when a run is asked to measure.
+#
+# The restore is intermittent (#484): roughly one dismissal in two lands on the
+# opener and the rest land on the field above it. At one round per run a single
+# sample costs a whole boot, and `native.yml`'s concurrency group cancels
+# in-progress runs on the same ref, so samples cannot be gathered in parallel
+# either -- which is what made the rate expensive to establish.
+#
+# The assertion changes with the count, deliberately:
+#
+#   DIALOG_ROUNDS=1  (default) -- exactly what it has always been. A dismissal
+#                     that does not announce the opener fails the job, which is
+#                     the guarantee #463 added and this keeps gating.
+#   DIALOG_ROUNDS>1  -- a measurement, not a gate. Every round is counted and
+#                     only a clean sweep of failures is fatal, because an
+#                     intermittent behaviour tried five times will fail
+#                     sometimes by definition and a red job would say nothing.
+#
+# Said here rather than left to be discovered: a green run in the second mode
+# has tolerated failures, and anyone reading one needs to know that.
 opener="Review email address"
 dialog_file="$(mktemp)"
-reached=
-for _ in $(seq 1 "$MAX_STEPS"); do
-  advance
-  if [ "${new%%|*}" = "$opener" ]; then reached=1; break; fi
-done
-[ -n "$reached" ] || fail "Tab never reached \"$opener\", so the dialog cannot be opened"
+DIALOG_ROUNDS=${DIALOG_ROUNDS:-1}
+restored=0
+lost=0
+# From the lap, which does not change between rounds.
+lap_elements="$(cut -f2 "$steps_file" | sed 's/|.*//' | grep -v "^$opener\$" || true)"
 
-opened=
-for key in KEYCODE_ENTER KEYCODE_DPAD_CENTER; do
-  adb shell input keyevent "$key"
+for round in $(seq 1 "$DIALOG_ROUNDS"); do
+  # Found again every round rather than assumed. A round that failed leaves
+  # focus on the email field, and Enter there types into it instead of opening
+  # anything -- so the position has to be re-established from whatever the
+  # previous dismissal did.
+  reached=
+  for _ in $(seq 1 "$MAX_STEPS"); do
+    advance
+    if [ "${new%%|*}" = "$opener" ]; then reached=1; break; fi
+  done
+  [ -n "$reached" ] || fail "Tab never reached \"$opener\" in round $round, so the dialog cannot be opened"
+
+  opened=
+  for key in KEYCODE_ENTER KEYCODE_DPAD_CENTER; do
+    adb shell input keyevent "$key"
+    sleep 2
+    settle
+    collect
+    if [ -n "$new" ]; then opened=$key; break; fi
+    echo "  $key on \"$opener\": TalkBack said nothing"
+  done
+  [ -n "$opened" ] || fail "neither Enter nor DPAD_CENTER on \"$opener\" made TalkBack say anything"
+  printf 'open %s\t%s\n' "$round" "$new" >> "$dialog_file"
+  echo "  round $round opened with $opened: $new"
+
+  for i in 1 2 3; do
+    advance
+    printf 'inside %s\t%s\n' "$round" "$new" >> "$dialog_file"
+    echo "  round $round inside $i: ${new:-(silent)}"
+    element="${new%%|*}"
+    if [ -n "$element" ] && printf '%s\n' "$lap_elements" | grep -qxF "$element"; then
+      echo "::warning::Tab left the dialog in round $round: it reached \"$element\", which is behind it"
+    fi
+  done
+
+  adb shell input keyevent KEYCODE_BACK
   sleep 2
   settle
   collect
-  if [ -n "$new" ]; then opened=$key; break; fi
-  echo "  $key on \"$opener\": TalkBack said nothing"
+  printf 'dismissed %s\t%s\n' "$round" "$new" >> "$dialog_file"
+  echo "  round $round dismissed: ${new:-(silent)}"
+  # `|| true` so a dead app reaches the message below: `pidof` exits 1 when it
+  # finds nothing, and `set -e` would otherwise end the run at this assignment
+  # with no diagnosis at all -- which is how run 35129707377 ended in the smoke
+  # script next door.
+  still_up="$(adb shell pidof "$package" | tr -d '\r' || true)"
+  [ -n "$still_up" ] || fail "Back closed the app rather than the dialog in round $round"
+  case "|$new|" in
+    *"|$opener|"*)
+      restored=$((restored + 1))
+      echo "  round $round: focus returned to \"$opener\""
+      ;;
+    *)
+      lost=$((lost + 1))
+      echo "  round $round: focus did NOT return to \"$opener\""
+      ;;
+  esac
 done
-[ -n "$opened" ] || fail "neither Enter nor DPAD_CENTER on \"$opener\" made TalkBack say anything"
-printf 'open\t%s\n' "$new" >> "$dialog_file"
-echo "  opened with $opened: $new"
 
-lap_elements="$(cut -f2 "$steps_file" | sed 's/|.*//' | grep -v "^$opener\$" || true)"
-for i in 1 2 3; do
-  advance
-  printf 'inside\t%s\n' "$new" >> "$dialog_file"
-  echo "  inside $i: ${new:-(silent)}"
-  element="${new%%|*}"
-  if [ -n "$element" ] && printf '%s\n' "$lap_elements" | grep -qxF "$element"; then
-    echo "::warning::Tab left the dialog: it reached \"$element\", which is on the screen behind it"
-  fi
-done
-
-adb shell input keyevent KEYCODE_BACK
-sleep 2
-settle
-collect
-printf 'dismissed\t%s\n' "$new" >> "$dialog_file"
-echo "  dismissed: ${new:-(silent)}"
-# `|| true` so a dead app reaches the message below: `pidof` exits 1 when it
-# finds nothing, and `set -e` would otherwise end the run at this assignment
-# with no diagnosis at all -- which is how run 35129707377 ended in the smoke
-# script next door.
-still_up="$(adb shell pidof "$package" | tr -d '\r' || true)"
-[ -n "$still_up" ] || fail "Back closed the app rather than the dialog"
+echo "focus returned in $restored of $((restored + lost)) dismissals"
 # Asserted rather than warned about, since #463 made it work: run
 # 35100769638 announced "Review email address" on dismissal. A run that does
 # not is a regression in `Dialog`'s `restoreFocusTo`, not an open question.
-case "|$new|" in
-  *"|$opener|"*) echo "  focus returned to \"$opener\"" ;;
-  *) fail "dismissing the dialog did not announce \"$opener\", so focus did not return to it" ;;
-esac
+if [ "$DIALOG_ROUNDS" -le 1 ]; then
+  [ "$lost" -eq 0 ] || fail "dismissing the dialog did not announce \"$opener\", so focus did not return to it"
+else
+  [ "$restored" -gt 0 ] ||
+    fail "focus never returned to \"$opener\" in $DIALOG_ROUNDS dismissals, so the restore is not intermittent -- it is gone"
+fi
 
 adb exec-out screencap -p > ./talkback-end.png 2>/dev/null || true
 
