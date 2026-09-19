@@ -2,21 +2,13 @@ import { shouldRestoreFocus } from '@hozo/behaviors'
 import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
 import {
   AccessibilityInfo,
+  AppState,
   findNodeHandle,
   Modal,
   type StyleProp,
   View,
   type ViewStyle,
 } from 'react-native'
-
-/**
- * How long after the dismissal to ask for focus a second time.
- *
- * The delay `@hozo/behaviors`' `useAnnounce` uses to let assistive technology
- * notice a change, borrowed because it works there. Not derived from how long
- * a fade takes, and worth moving if the runs say it lands too early.
- */
-const RESTORE_RETRY_MS = 50
 
 export interface DialogProps {
   /**
@@ -76,6 +68,10 @@ export function Dialog({
   // also fires on the first render, when nothing was opened and nothing
   // should move.
   const wasOpen = useRef(false)
+  // Set by a dismissal that asked for focus back, and cleared by the window
+  // coming back. Android refuses the request while the modal's own window is
+  // still up, so the one that matters is sent from the listener below.
+  const awaitingWindow = useRef(false)
 
   useEffect(() => {
     const closing = wasOpen.current && !open
@@ -105,58 +101,76 @@ export function Dialog({
       AccessibilityInfo.announceForAccessibility('hozo probe: no opener')
       return
     }
-
-    // `setAccessibilityFocus` takes a view tag and nothing else, so the ref
-    // has to be resolved to one. A ref to an unmounted view resolves to
-    // `null`, which is the native shape of the question `shouldRestoreFocus`
-    // answers on both platforms: restore only to something still there.
-    const handle = findNodeHandle(opener)
-    if (!shouldRestoreFocus({ focusable: handle !== null })) {
+    // Resolved to a tag only to ask whether the view is still there: a ref to
+    // an unmounted one gives `null`, which is the native shape of the question
+    // `shouldRestoreFocus` answers on both platforms.
+    if (!shouldRestoreFocus({ focusable: findNodeHandle(opener) !== null })) {
       AccessibilityInfo.announceForAccessibility('hozo probe: opener not focusable')
       return
     }
+    // Armed after the guard, not before it. A dismissal that has nothing to
+    // restore to must not leave the listener waiting: the window comes back
+    // for its own reasons -- a notification shade, a task switch -- and the
+    // next one would then aim a request at a view this code already decided
+    // against.
+    awaitingWindow.current = true
+    // `sendAccessibilityEvent` rather than `setAccessibilityFocus`, which is
+    // deprecated in 0.87 in favour of it and forwards to the legacy path. It
+    // takes the host instance rather than a tag.
+    //
+    // This one is for iOS, where it is the whole mechanism. On Android it is
+    // refused while the modal's window is still up -- see the listener below,
+    // which is where that platform actually restores focus.
     AccessibilityInfo.announceForAccessibility('hozo probe: requesting focus')
-    AccessibilityInfo.setAccessibilityFocus(handle as number)
-
-    // And again once the dismissal has finished, because the first request
-    // does not always survive it.
-    //
-    // The probe in #484 caught both halves of this. Every run asks -- the
-    // marker above appears whether the run passes or fails -- and the failing
-    // ones announce the window and then the field above the opener straight
-    // afterwards, which is the `Modal` going away and accessibility focus
-    // being re-seeded by traversal order. So the call is not missing; it is
-    // being overtaken.
-    //
-    // Asked twice rather than moved: the synchronous call already works about
-    // half the time, and a request that only ran later would give that up to
-    // fix the other half.
-    //
-    // A timer, and not the two things that look more principled.
-    // `InteractionManager.runAfterInteractions` was React Native's "once the
-    // animations are done" hook and is the obvious fit, but 0.87 removed it
-    // from core -- reaching for it throws, and the core's own advice points at
-    // `requestIdleCallback`, which promises idle time rather than a finished
-    // dismissal. `requestAnimationFrame` is worse: `packages/primitives`
-    // records it failing here twice, because a frame callback waits on the
-    // compositor producing frames and under a headless time budget it never
-    // ran at all.
-    //
-    // So: the delay `@hozo/behaviors`' `useAnnounce` already uses to let
-    // assistive technology notice a change. Chosen because it works there
-    // rather than from any theory about how long a fade takes, which is worth
-    // being honest about -- if the distribution says it is too early, the
-    // number is the thing to move.
-    const retry = setTimeout(() => {
-      // The opener can go away in between: a dialog closing because the screen
-      // it sat on is unmounting takes the button with it, and a stale tag
-      // would point at nothing.
-      if (findNodeHandle(opener) === null) return
-      AccessibilityInfo.announceForAccessibility('hozo probe: requesting focus again')
-      AccessibilityInfo.setAccessibilityFocus(handle as number)
-    }, RESTORE_RETRY_MS)
-    return () => clearTimeout(retry)
+    AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
   }, [open, restoreFocusTo])
+
+  /**
+   * Asks again when the window comes back, which is when Android will listen.
+   *
+   * On Android a `Modal` is a separate window, and it is still up through the
+   * dismissal. Accessibility focus belongs to that window, so a request aimed
+   * at a view in the one underneath is refused rather than lost. The probe in
+   * #484 is what settled that: the failing runs ask twice, 50ms apart, and are
+   * ignored both times, while the passing ones differ only in whether the
+   * first ask happened to land after the window had gone.
+   *
+   * `AppState`'s `focus` is that moment. It carries Android's
+   * `onWindowFocusChange(true)` -- the activity's window becoming focusable
+   * again -- so it arrives once the modal's window is out of the way. A signal
+   * rather than a guess, which is what both timer attempts were.
+   *
+   * No platform branch. `focus` and `blur` are documented Android-only, and on
+   * iOS nothing emits `appStateFocusChange`, so the listener is inert there
+   * rather than wrong -- and a `Platform.OS` check would have made this path
+   * untestable, since the stub reports `ios`.
+   *
+   * `awaitingWindow` keeps it to our own dismissals. The window also returns
+   * from a notification shade or a task switch, and moving focus then would
+   * take it from wherever the user actually was.
+   */
+  useEffect(() => {
+    let soon: ReturnType<typeof setTimeout> | undefined
+    const subscription = AppState.addEventListener('focus', () => {
+      if (!awaitingWindow.current) return
+      awaitingWindow.current = false
+      const opener = restoreFocusTo?.current
+      // Gone with its screen: a dialog can close because the whole route is
+      // unmounting, and the button went with it.
+      if (!opener || findNodeHandle(opener) === null) return
+      // One turn after the event rather than inside it, so the request is not
+      // made while the platform is still settling the window it handed back. A
+      // turn, not a duration -- the waiting was the native event.
+      soon = setTimeout(() => {
+        AccessibilityInfo.announceForAccessibility('hozo probe: window back, asking again')
+        AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
+      }, 0)
+    })
+    return () => {
+      subscription.remove()
+      if (soon !== undefined) clearTimeout(soon)
+    }
+  }, [restoreFocusTo])
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>

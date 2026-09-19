@@ -128,6 +128,40 @@ export const AccessibilityInfo = {
   setAccessibilityFocus(reactTag) {
     this.__hozoFocused.push(reactTag)
   },
+  /**
+   * What `setAccessibilityFocus` is deprecated in favour of, and what takes a
+   * host instance rather than a tag. Only `focus` is recorded: the other event
+   * types are not about where a screen reader is looking.
+   */
+  sendAccessibilityEvent(handle, eventType) {
+    if (eventType === 'focus') this.__hozoFocused.push(handle)
+  },
+}
+
+const windowFocusListeners = []
+
+// Android's window focus, which is how `Dialog` knows a modal's own window has
+// gone and the one underneath can take accessibility focus again.
+//
+// `focus` and `blur` are Android-only on the platform: subscribing on iOS is
+// allowed and simply never fires, because nothing emits the native event. The
+// same is true here until a test says otherwise through `__hozoWindowFocus`.
+export const AppState = {
+  currentState: 'active',
+  addEventListener: (type, handler) => {
+    if (type !== 'focus') return { remove: () => {} }
+    windowFocusListeners.push(handler)
+    return {
+      remove: () => {
+        const at = windowFocusListeners.indexOf(handler)
+        if (at !== -1) windowFocusListeners.splice(at, 1)
+      },
+    }
+  },
+  /** The activity window becoming focusable again, as a test can trigger it. */
+  __hozoWindowFocus() {
+    for (const listener of [...windowFocusListeners]) listener()
+  },
 }
 
 // A view's tag, which is the only thing `setAccessibilityFocus` accepts.
