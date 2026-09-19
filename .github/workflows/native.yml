@@ -222,7 +222,7 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
-          script: DIALOG_ROUNDS=5 bash examples/native-demo/scripts/android-talkback.sh
+          script: DIALOG_ROUNDS=9 bash examples/native-demo/scripts/android-talkback.sh
 
       - name: Keep what it heard
         if: always()

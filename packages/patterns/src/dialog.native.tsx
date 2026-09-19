@@ -5,6 +5,7 @@ import {
   AppState,
   findNodeHandle,
   Modal,
+  Platform,
   type StyleProp,
   View,
   type ViewStyle,
@@ -52,6 +53,26 @@ export interface DialogProps {
   testID?: string
   children?: ReactNode
 }
+
+/**
+ * The delays the probe sweeps, in milliseconds. TEMPORARY, for #484.
+ *
+ * Not a hunt for a number that happens to work. `AppState`'s `focus` carries
+ * Android's `onWindowFocusChanged(true)`, which says the activity's ordinary
+ * window focus came back -- and that is managed separately from the
+ * accessibility window state TalkBack reads, which `AccessibilityWindowManager`
+ * updates when WindowManager notifies it that the window list changed. So the
+ * signal is necessary but not sufficient, and the thing worth measuring is the
+ * lag between the two.
+ *
+ * Bunched at the low end deliberately: a frame, two frames, then coarser. A
+ * clean threshold supports the lag reading. Still failing at 500ms does not,
+ * and would point instead at TalkBack ignoring `TYPE_VIEW_FOCUSED` according to
+ * its own state -- which is what this sends, an event rather than
+ * `ACTION_ACCESSIBILITY_FOCUS`: a notification, not a command.
+ */
+const PROBE_DELAYS = [0, 16, 32, 50, 100, 150, 200, 300, 500]
+let probeAttempt = 0
 
 export function Dialog({
   open = false,
@@ -118,11 +139,20 @@ export function Dialog({
     // deprecated in 0.87 in favour of it and forwards to the legacy path. It
     // takes the host instance rather than a tag.
     //
-    // This one is for iOS, where it is the whole mechanism. On Android it is
-    // refused while the modal's window is still up -- see the listener below,
-    // which is where that platform actually restores focus.
-    AccessibilityInfo.announceForAccessibility('hozo probe: requesting focus')
-    AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
+    // Suppressed on Android for the sweep, which is the only way the sweep
+    // measures anything. Of five rounds, four had this synchronous ask win and
+    // the delayed one arrive irrelevant; a delay is observable only on a round
+    // where this one was ignored, and that was one round in five. Nine delays
+    // against one observation is not an experiment. With this gone on Android,
+    // every round is the case under test.
+    //
+    // iOS keeps it, where it is the whole mechanism and lands every time.
+    if (Platform.OS === 'android') {
+      AccessibilityInfo.announceForAccessibility('hozo probe: deferring to window')
+    } else {
+      AccessibilityInfo.announceForAccessibility('hozo probe: requesting focus')
+      AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
+    }
   }, [open, restoreFocusTo])
 
   /**
@@ -158,13 +188,16 @@ export function Dialog({
       // Gone with its screen: a dialog can close because the whole route is
       // unmounting, and the button went with it.
       if (!opener || findNodeHandle(opener) === null) return
-      // One turn after the event rather than inside it, so the request is not
-      // made while the platform is still settling the window it handed back. A
-      // turn, not a duration -- the waiting was the native event.
+      // A different delay every dismissal, so one boot measures the lag
+      // instead of testing one guess at it. The marker carries the number, so
+      // the speech log ties a delay to whether the opener was announced after
+      // it.
+      const delay = PROBE_DELAYS[probeAttempt % PROBE_DELAYS.length] ?? 0
+      probeAttempt += 1
       soon = setTimeout(() => {
-        AccessibilityInfo.announceForAccessibility('hozo probe: window back, asking again')
+        AccessibilityInfo.announceForAccessibility(`hozo probe: asking ${delay}ms after window`)
         AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
-      }, 0)
+      }, delay)
     })
     return () => {
       subscription.remove()
