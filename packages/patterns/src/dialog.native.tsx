@@ -2,12 +2,26 @@ import { shouldRestoreFocus } from '@hozo/behaviors'
 import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
 import {
   AccessibilityInfo,
+  AppState,
   findNodeHandle,
   Modal,
+  Platform,
   type StyleProp,
   View,
   type ViewStyle,
 } from 'react-native'
+
+// TalkBack acceptance sweeps on the reference emulator failed through 175ms
+// after Android's window-focus signal and succeeded from 200ms. This is an
+// empirical compatibility boundary, not a claim about TalkBack internals.
+const WINDOW_RESTORE_DELAY_MS = 250
+// One measured dismissal emitted no window-focus signal. Keep a later fallback
+// for that case; a real signal replaces it before it fires.
+const CLOSE_RESTORE_FALLBACK_MS = 500
+
+function attemptRestore(opener: ComponentRef<typeof View>): void {
+  AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
+}
 
 export interface DialogProps {
   /**
@@ -67,23 +81,65 @@ export function Dialog({
   // also fires on the first render, when nothing was opened and nothing
   // should move.
   const wasOpen = useRef(false)
+  const awaitingWindow = useRef(false)
+  const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const closing = wasOpen.current && !open
     wasOpen.current = open
+    if (open) {
+      awaitingWindow.current = false
+      if (restoreTimer.current !== null) {
+        clearTimeout(restoreTimer.current)
+        restoreTimer.current = null
+      }
+    }
     if (!closing) return
 
     const opener = restoreFocusTo?.current
     if (!opener) return
 
-    // `setAccessibilityFocus` takes a view tag and nothing else, so the ref
-    // has to be resolved to one. A ref to an unmounted view resolves to
-    // `null`, which is the native shape of the question `shouldRestoreFocus`
-    // answers on both platforms: restore only to something still there.
     const handle = findNodeHandle(opener)
     if (!shouldRestoreFocus({ focusable: handle !== null })) return
-    AccessibilityInfo.setAccessibilityFocus(handle as number)
+
+    // iOS has no second modal window-focus signal and restores on this edge.
+    // Android must wait: sending here as well as after the window settles made
+    // TalkBack announce the opener repeatedly when both requests landed.
+    if (Platform.OS !== 'android') {
+      attemptRestore(opener)
+      return
+    }
+
+    awaitingWindow.current = true
+    restoreTimer.current = setTimeout(() => {
+      restoreTimer.current = null
+      awaitingWindow.current = false
+      const fallbackOpener = restoreFocusTo?.current
+      if (wasOpen.current || !fallbackOpener || findNodeHandle(fallbackOpener) === null) return
+      attemptRestore(fallbackOpener)
+    }, CLOSE_RESTORE_FALLBACK_MS)
   }, [open, restoreFocusTo])
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('focus', () => {
+      if (!awaitingWindow.current) return
+      awaitingWindow.current = false
+      if (restoreTimer.current !== null) clearTimeout(restoreTimer.current)
+      restoreTimer.current = setTimeout(() => {
+        restoreTimer.current = null
+        const opener = restoreFocusTo?.current
+        if (wasOpen.current || !opener || findNodeHandle(opener) === null) return
+        attemptRestore(opener)
+      }, WINDOW_RESTORE_DELAY_MS)
+    })
+    return () => {
+      subscription.remove()
+      if (restoreTimer.current !== null) {
+        clearTimeout(restoreTimer.current)
+        restoreTimer.current = null
+      }
+    }
+  }, [restoreFocusTo])
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
