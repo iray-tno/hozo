@@ -64,7 +64,7 @@ export default function App() {
   // Probe-only switch. Keeping the acceptance app reachable in the source
   // prevents this branch from changing any of its fixtures while the device
   // runs the deliberately minimal React Native control case.
-  const modalBaselineProbe = true
+  const modalBaselineProbe = false
   return modalBaselineProbe ? <ModalBaselineProbe /> : <AcceptanceApp />
 }
 
@@ -219,7 +219,6 @@ function AcceptanceApp() {
         className="m-6 rounded-xl bg-white p-6"
         open={confirming}
         onClose={() => setConfirming(false)}
-        restoreFocusTo={continueRef}
         accessibilityLabel="Confirm your address"
         testID="smoke-dialog"
       >
