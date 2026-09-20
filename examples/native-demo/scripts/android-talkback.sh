@@ -306,6 +306,10 @@ for step in $(seq 1 "$MAX_STEPS"); do
   fi
   printf '%s\t%s\n' "$step" "$new" >> "$steps_file"
   echo "  $step: ${new:-(silent)}"
+  # Probe-only: the tall fixture can put the next control outside FlatList's
+  # keyboard traversal and Tab then escapes to the launcher instead of
+  # wrapping. The dialog measurement only needs the opener, so stop there.
+  if [ "$element" = "Review email address" ]; then break; fi
   if [ -z "$new" ]; then
     silent=$((silent + 1))
     [ "$silent" -lt 5 ] || break
@@ -346,6 +350,7 @@ done
 # Said here rather than left to be discovered: a green run in the second mode
 # has tolerated failures, and anyone reading one needs to know that.
 opener="Review email address"
+current_element="${element:-}"
 dialog_file="$(mktemp)"
 DIALOG_ROUNDS=${DIALOG_ROUNDS:-4}
 restored=0
@@ -383,10 +388,15 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   # anything -- so the position has to be re-established from whatever the
   # previous dismissal did.
   reached=
-  for _ in $(seq 1 "$MAX_STEPS"); do
-    advance
-    if [ "${new%%|*}" = "$opener" ]; then reached=1; break; fi
-  done
+  if [ "$current_element" = "$opener" ]; then
+    reached=1
+  else
+    for _ in $(seq 1 "$MAX_STEPS"); do
+      advance
+      current_element="${new%%|*}"
+      if [ "$current_element" = "$opener" ]; then reached=1; break; fi
+    done
+  fi
   [ -n "$reached" ] || fail "Tab never reached \"$opener\" in round $round, so the dialog cannot be opened"
 
   opened=
@@ -416,6 +426,7 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   sleep 2
   settle
   collect
+  current_element="${new%%|*}"
   printf 'dismissed scale=%s round=%s\t%s\n' "$animation_scale" "$round" "$new" >> "$dialog_file"
   echo "  round $round dismissed: ${new:-(silent)}"
   # `|| true` so a dead app reaches the message below: `pidof` exits 1 when it
