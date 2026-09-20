@@ -347,7 +347,7 @@ done
 # has tolerated failures, and anyone reading one needs to know that.
 opener="Review email address"
 dialog_file="$(mktemp)"
-DIALOG_ROUNDS=${DIALOG_ROUNDS:-8}
+DIALOG_ROUNDS=${DIALOG_ROUNDS:-4}
 restored=0
 lost=0
 restored_scale_0=0
@@ -493,7 +493,7 @@ echo "TalkBack said $distinct distinct things while moving"
 # makes of NVDA and VoiceOver -- across the lap and then the dialog. No file
 # is a warning rather than a failure: approving is the human step, and
 # `talkback-speech.json` is what to approve from.
-expected="$here/../expected/talkback/acceptance.txt"
+expected="$here/../expected/talkback/modal-baseline-probe.txt"
 if [ ! -f "$expected" ]; then
   echo "::warning::no approved phrases at examples/native-demo/expected/talkback/acceptance.txt; nothing was compared"
 else

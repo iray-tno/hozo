@@ -10,7 +10,6 @@ import { useRef, useState } from 'react'
 import {
   type HostInstance,
   Modal as ReactNativeModal,
-  Pressable as ReactNativePressable,
   Text as ReactNativeText,
   TextInput as ReactNativeTextInput,
   View as ReactNativeView,
@@ -34,14 +33,14 @@ function ModalBaselineProbe() {
         accessibilityHint="Enter an address to review in the confirmation dialog"
         placeholder="you@example.com"
       />
-      <ReactNativePressable
-        accessible
+      <Pressable
+        className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
         accessibilityRole="button"
         accessibilityLabel="Review email address"
         onPress={() => setOpen(true)}
       >
-        <ReactNativeText>Continue</ReactNativeText>
-      </ReactNativePressable>
+        <Text className="text-center font-bold text-white">Continue</Text>
+      </Pressable>
       <ReactNativeModal
         visible={open}
         transparent
@@ -64,7 +63,7 @@ export default function App() {
   // Probe-only switch. Keeping the acceptance app reachable in the source
   // prevents this branch from changing any of its fixtures while the device
   // runs the deliberately minimal React Native control case.
-  const modalBaselineProbe = false
+  const modalBaselineProbe = true
   return modalBaselineProbe ? <ModalBaselineProbe /> : <AcceptanceApp />
 }
 
