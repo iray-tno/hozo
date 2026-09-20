@@ -1,7 +1,7 @@
 // A bundle fixture and a device acceptance screen. Stable testIDs make
 // manual VoiceOver/TalkBack and layout results reproducible.
 
-import { Dialog, FlatList, Image, Pressable, Text, TextInput, View } from '@hozo/core'
+import { Dialog, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from '@hozo/core'
 import { useRef, useState } from 'react'
 // What a ref to a host component holds on this platform. React Native names
 // it, so it is taken from there rather than spelled again here: `View` is a
@@ -113,6 +113,23 @@ function AcceptanceApp() {
               onChangeText={setEmail}
               testID="smoke-input"
             />
+
+            <ScrollView horizontal className="h-20" testID="smoke-horizontal-scroll">
+              <View className="flex-row gap-2">
+                <View className="w-32 rounded-lg bg-white p-3">
+                  <Text>Card one</Text>
+                </View>
+                <View className="w-32 rounded-lg bg-white p-3">
+                  <Text>Card two</Text>
+                </View>
+                <View className="w-32 rounded-lg bg-white p-3">
+                  <Text>Card three</Text>
+                </View>
+                <View className="w-32 rounded-lg bg-white p-3">
+                  <Text>Card four</Text>
+                </View>
+              </View>
+            </ScrollView>
 
             <Pressable
               ref={continueRef}
