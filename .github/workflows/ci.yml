@@ -51,6 +51,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm test:packages
+      - run: pnpm test:publishing
       # The packed packages, installed into an empty project under pnpm's
       # strict layout. A workspace resolves every package from everywhere,
       # so compiled output that imported packages an application never

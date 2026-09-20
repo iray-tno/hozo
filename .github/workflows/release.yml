@@ -1,5 +1,7 @@
 # Publishes everything: every published `@hozo/*` package, plus one package per
-# platform carrying the native binding.
+# platform carrying the native binding. Every registry operation authenticates
+# through the trust configured for this workflow; no long-lived publishing
+# credential is part of the normal release path.
 #
 # Triggered by a tag, and only by a tag. `version.yml` keeps a "Version
 # Packages" pull request open; merging it bumps every version and writes
@@ -106,14 +108,7 @@ jobs:
     permissions:
       # npm trusted publishing, and the provenance attestation either way.
       id-token: write
-    env:
-      # The first release cannot use trusted publishing: npm lets a trusted
-      # publisher be configured only on a package that already exists
-      # (`npm trust`: "Package must exist"). So the first tag publishes with
-      # a token, and trusted publishers are configured on the packages it
-      # created. Once they are, delete the `NPM_TOKEN` secret -- with it
-      # absent, npm falls back to OIDC and no long-lived token lives here.
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -123,6 +118,10 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Trusted Publishing requires npm >=11.5.1. Node 25 currently carries a
+      # newer CLI; keeping the assertion here makes a future runner change fail
+      # before it reaches the first irreversible upload.
+      - run: node -e "const v=require('node:child_process').execFileSync('npm',['--version'],{encoding:'utf8'}).trim().split('.').map(Number); if(v[0]<11||(v[0]===11&&v[1]<5)) process.exit(1)"
 
       - uses: actions/download-artifact@v4
         with:
@@ -158,20 +157,15 @@ jobs:
       - run: node scripts/prepare-publish.mjs
         working-directory: packages/compiler
 
-      # `pnpm publish`, not `npm publish`: these packages depend on each
-      # other through pnpm's `workspace:^` protocol, and only pnpm knows to
-      # replace it with the real range on the way out -- npm would upload
-      # the literal string. Verified against a real tarball:
-      # `"@hozo/compiler": "workspace:^"` leaves as `"^0.1.0"`. `-r` also
-      # puts them in dependency order.
-      #
-      # No `--provenance` flag: `pnpm publish --help` does not list one,
-      # and pnpm accepts it without complaint either way, which is the
-      # worst of both. Each package carries `publishConfig.provenance`
-      # instead, which is declarative and belongs with the package.
-      #
-      # `--no-git-checks` because `prepare-publish` just modified a file.
-      - run: pnpm publish -r --access public --no-git-checks
+      # pnpm turns every `workspace:^` dependency into the real semver range
+      # while packing. npm then uploads those immutable tarballs itself: OIDC
+      # authentication is an npm CLI feature, so the upload deliberately goes
+      # through npm itself.
+      - run: node scripts/pack-npm.mjs
+      - run: |
+          while read -r tarball; do
+            npm publish "$tarball" --access public --provenance
+          done < artifacts/npm/order.txt
 
   # The library crates, from the same tag and on the same version --
   # `scripts/crate-metadata.mjs` holds the workspace to the npm version, and
@@ -190,23 +184,30 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: publish
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+      # Cargo reads the temporary credential from its normal local store. The
+      # action revokes it in its post step when this ephemeral runner exits.
+      - run: cargo login "${{ steps.auth.outputs.token }}"
       - run: cargo publish --workspace
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   # The dry run for the above, on `workflow_dispatch`: packages every crate
   # and builds each from its packaged sources alone, which is where a missing
   # `version` on a path dependency or a file outside the package shows up.
-  # The eight platform packages the build produced, checked on the dry run
-  # too -- the same `check-artifacts.mjs` the publish job runs, but where a
-  # failure costs a re-run instead of a deleted tag. The first `v0.1.0`
-  # built all eight, and npm refused the first upload because none of them
-  # named its repository; a dispatch run had passed, because nothing looked
-  # at the manifests until publishing.
+  # The npm half is packed too, through the same pnpm-to-npm handoff as a real
+  # release. The eight platform packages the build produced are checked with
+  # the same `check-artifacts.mjs` the publish job runs, but where a failure
+  # costs a re-run instead of a deleted tag. The first `v0.1.0` built all
+  # eight, and npm refused the first upload because none of them named its
+  # repository; a dispatch run had passed, because nothing looked at the
+  # manifests until publishing.
   artifacts-dry-run:
     if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     needs: build
@@ -225,6 +226,11 @@ jobs:
           merge-multiple: true
       - run: node scripts/check-artifacts.mjs
         working-directory: packages/compiler
+      - run: pnpm turbo run build --filter='./packages/*'
+      - run: node scripts/check-packages.mjs
+      - run: node scripts/prepare-publish.mjs
+        working-directory: packages/compiler
+      - run: node scripts/pack-npm.mjs
 
   crates-dry-run:
     if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
