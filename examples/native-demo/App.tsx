@@ -9,6 +9,7 @@ import { useRef, useState } from 'react'
 // function component in these types, and its *instance* is this.
 import {
   type HostInstance,
+  Modal as ReactNativeModal,
   Text as ReactNativeText,
   TextInput as ReactNativeTextInput,
   View as ReactNativeView,
@@ -60,7 +61,7 @@ export default function App() {
   // Probe-only switch. Keeping the acceptance app reachable in the source
   // prevents this branch from changing any of its fixtures while the device
   // runs the deliberately minimal React Native control case.
-  const modalBaselineProbe = true
+  const modalBaselineProbe = false
   return modalBaselineProbe ? <ModalBaselineProbe /> : <AcceptanceApp />
 }
 
@@ -211,16 +212,24 @@ function AcceptanceApp() {
         testID="smoke-list"
       />
 
-      <Dialog
-        className="m-6 rounded-xl bg-white p-6"
-        open={confirming}
-        onClose={() => setConfirming(false)}
-        accessibilityLabel="Confirm your address"
-        testID="smoke-dialog"
+      <ReactNativeModal
+        visible={confirming}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirming(false)}
       >
-        <Text className="text-lg font-bold">Is this right?</Text>
-        <Text className="text-slate-600">{email}</Text>
-      </Dialog>
+        <View
+          className="m-6 rounded-xl bg-white p-6"
+          accessible
+          accessibilityViewIsModal
+          accessibilityRole="none"
+          accessibilityLabel="Confirm your address"
+          testID="smoke-dialog"
+        >
+          <Text className="text-lg font-bold">Is this right?</Text>
+          <Text className="text-slate-600">{email}</Text>
+        </View>
+      </ReactNativeModal>
     </View>
   )
 }
