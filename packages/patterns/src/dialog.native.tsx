@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 
 /** Moves accessibility focus to a view, reporting whether it could. */
-type FocusMover = (view: object) => boolean
+type FocusMover = (view: ComponentRef<typeof View>) => boolean
 
 /**
  * The native module's focus move, or a function that admits it cannot.
@@ -54,9 +54,11 @@ const moveFocusNatively = resolveFocusMover()
  * that was never attempted. It comes out together with the `HozoA11y` logging in
  * `@hozo/native` once #484 is settled.
  */
-function attemptRestore(opener: object, when: 'now' | 'window'): void {
+function attemptRestore(opener: ComponentRef<typeof View>, when: 'now' | 'window'): void {
   const native = moveFocusNatively(opener)
-  AccessibilityInfo.announceForAccessibility(`hozo probe: ${when} ${native ? 'native' : 'fallback'}`)
+  AccessibilityInfo.announceForAccessibility(
+    `hozo probe: ${when} ${native ? 'native' : 'fallback'}`,
+  )
   if (native) return
   // `sendAccessibilityEvent` rather than `setAccessibilityFocus`, which is
   // deprecated in 0.87 in favour of it and takes a tag where this takes the
