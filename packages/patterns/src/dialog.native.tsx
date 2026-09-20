@@ -125,7 +125,17 @@ export function Dialog({
     // one emulator, reproduced twelve rounds out of twelve. A number measured
     // on one machine is not a fix, so `@hozo/native` performs
     // `ACTION_ACCESSIBILITY_FOCUS` instead, which is the action.
-    if (moveFocusNatively(opener)) return
+    // TEMPORARY, NOT FOR MERGING. Which branch ran, spoken so a device can say.
+    //
+    // The seam is silent by design -- it returns false and falls back -- so a
+    // failed restore cannot be told apart from the module never being reached.
+    // The first device round showed the old failure shape exactly, which is what
+    // both explanations predict.
+    const movedNatively = moveFocusNatively(opener)
+    AccessibilityInfo.announceForAccessibility(
+      movedNatively ? 'hozo probe: native' : 'hozo probe: fallback',
+    )
+    if (movedNatively) return
 
     // Without that package, what shipped before it. Right about half the time
     // on Android, and right every time on iOS, where this reaches
