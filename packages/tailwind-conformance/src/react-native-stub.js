@@ -119,7 +119,7 @@ export const AccessibilityInfo = {
    * The tags focus was moved to, in order, so a test can read what a screen
    * reader would have been pointed at. The platform has no way to ask what
    * holds accessibility focus now, so recording the calls is the only way to
-   * check a component that moves it.
+   * check a component that requests it.
    */
   __hozoFocused: [],
   __hozoResetFocus() {
@@ -127,6 +127,28 @@ export const AccessibilityInfo = {
   },
   setAccessibilityFocus(reactTag) {
     this.__hozoFocused.push(reactTag)
+  },
+  sendAccessibilityEvent(handle, eventType) {
+    if (eventType === 'focus') this.__hozoFocused.push(handle)
+  },
+}
+
+const windowFocusListeners = []
+
+export const AppState = {
+  currentState: 'active',
+  addEventListener: (type, handler) => {
+    if (type !== 'focus') return { remove: () => {} }
+    windowFocusListeners.push(handler)
+    return {
+      remove: () => {
+        const at = windowFocusListeners.indexOf(handler)
+        if (at !== -1) windowFocusListeners.splice(at, 1)
+      },
+    }
+  },
+  __hozoWindowFocus() {
+    for (const listener of [...windowFocusListeners]) listener()
   },
 }
 

@@ -13,10 +13,9 @@
 // The ref is a plain object rather than a mounted view. `react-test-renderer`
 // gives host components no instances, so a real ref would be `null` here and
 // the test would pass while asserting nothing. What this establishes is that
-// the dialog resolves the ref it was given and moves focus exactly on the
-// closing edge; that the platform then puts focus on that view is the
-// emulator's half, and `examples/native-demo/scripts/android-talkback.sh`
-// reads it out loud.
+// the dialog resolves the ref it was given, requests focus on the closing edge,
+// and retries after Android's window signal; whether TalkBack then announces
+// that view is the emulator's half, which `android-talkback.sh` records.
 
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -29,7 +28,8 @@ import './native-render.ts'
 const require = createRequire(import.meta.url)
 
 const stub = require('./react-native-stub.js') as {
-  AccessibilityInfo: { __hozoFocused: number[]; __hozoResetFocus: () => void }
+  AccessibilityInfo: { __hozoFocused: unknown[]; __hozoResetFocus: () => void }
+  AppState: { __hozoWindowFocus: () => void }
   findNodeHandle: (node: unknown) => number | null
 }
 const react = require('react') as {
@@ -46,7 +46,7 @@ const { HozoDialog } = require('@hozo/patterns/generated/dialog') as {
 /** A stand-in for the control that opened the dialog. */
 const opener = () => ({ current: {} })
 
-test('closing the dialog moves accessibility focus to the opener', () => {
+test('closing the dialog retries focus after the window settles', async () => {
   stub.AccessibilityInfo.__hozoResetFocus()
   const continueButton = opener()
 
@@ -73,8 +73,90 @@ test('closing the dialog moves accessibility focus to the opener', () => {
       }),
     )
   })
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+
+  renderer.act(() => {
+    stub.AppState.__hozoWindowFocus()
+  })
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  await new Promise((resolve) => setTimeout(resolve, 275))
   assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
-    stub.findNodeHandle(continueButton.current),
+    continueButton.current,
+    continueButton.current,
+  ])
+  root?.unmount()
+})
+
+test('reopening cancels a pending delayed restore', async () => {
+  stub.AccessibilityInfo.__hozoResetFocus()
+  const continueButton = opener()
+
+  let root: { update: (element: unknown) => void; unmount: () => void } | undefined
+  renderer.act(() => {
+    root = renderer.create(
+      react.createElement(HozoDialog, {
+        open: true,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+  renderer.act(() => {
+    root?.update(
+      react.createElement(HozoDialog, {
+        open: false,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+  renderer.act(() => {
+    stub.AppState.__hozoWindowFocus()
+  })
+  renderer.act(() => {
+    root?.update(
+      react.createElement(HozoDialog, {
+        open: true,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+
+  await new Promise((resolve) => setTimeout(resolve, 275))
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  root?.unmount()
+})
+
+test('a missing window signal uses the close-edge fallback', async () => {
+  stub.AccessibilityInfo.__hozoResetFocus()
+  const continueButton = opener()
+
+  let root: { update: (element: unknown) => void; unmount: () => void } | undefined
+  renderer.act(() => {
+    root = renderer.create(
+      react.createElement(HozoDialog, {
+        open: true,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+  renderer.act(() => {
+    root?.update(
+      react.createElement(HozoDialog, {
+        open: false,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  await new Promise((resolve) => setTimeout(resolve, 525))
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
+    continueButton.current,
+    continueButton.current,
   ])
   root?.unmount()
 })
