@@ -27,20 +27,29 @@ function ModalBaselineProbe() {
   const [open, setOpen] = useState(false)
 
   return (
-    <ReactNativeView style={{ flex: 1, padding: 24 }}>
-      <ReactNativeTextInput
-        accessibilityLabel="Email address"
-        accessibilityHint="Enter an address to review in the confirmation dialog"
-        placeholder="you@example.com"
+    <ReactNativeView style={{ flex: 1 }}>
+      <FlatList
+        data={[{ id: 'one', title: 'One row' }]}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <ReactNativeView style={{ padding: 24 }}>
+            <ReactNativeTextInput
+              accessibilityLabel="Email address"
+              accessibilityHint="Enter an address to review in the confirmation dialog"
+              placeholder="you@example.com"
+            />
+            <Pressable
+              className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
+              accessibilityRole="button"
+              accessibilityLabel="Review email address"
+              onPress={() => setOpen(true)}
+            >
+              <Text className="text-center font-bold text-white">Continue</Text>
+            </Pressable>
+          </ReactNativeView>
+        }
+        renderItem={({ item }) => <ReactNativeText>{item.title}</ReactNativeText>}
       />
-      <Pressable
-        className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
-        accessibilityRole="button"
-        accessibilityLabel="Review email address"
-        onPress={() => setOpen(true)}
-      >
-        <Text className="text-center font-bold text-white">Continue</Text>
-      </Pressable>
       <ReactNativeModal
         visible={open}
         transparent
