@@ -347,13 +347,37 @@ done
 # has tolerated failures, and anyone reading one needs to know that.
 opener="Review email address"
 dialog_file="$(mktemp)"
-DIALOG_ROUNDS=${DIALOG_ROUNDS:-1}
+DIALOG_ROUNDS=${DIALOG_ROUNDS:-8}
 restored=0
 lost=0
+restored_scale_0=0
+lost_scale_0=0
+restored_scale_1=0
+lost_scale_1=0
 # From the lap, which does not change between rounds.
 lap_elements="$(cut -f2 "$steps_file" | sed 's/|.*//' | grep -v "^$opener\$" || true)"
+echo "animation scales before the probe: window=$(adb shell settings get global window_animation_scale | tr -d '\r') transition=$(adb shell settings get global transition_animation_scale | tr -d '\r') animator=$(adb shell settings get global animator_duration_scale | tr -d '\r')"
 
 for round in $(seq 1 "$DIALOG_ROUNDS"); do
+  # Probe #484's suspiciously exact boundary. React Native's fade-out uses
+  # Android's config_shortAnimTime, which is 200ms on this image -- the same
+  # number at which the delay sweep starts succeeding. Alternate the scale in
+  # one boot so TalkBack version, app build and emulator load are held fixed.
+  # The runner asks for disabled animations, but the setting is read back here
+  # rather than trusted, then deliberately overridden for each round.
+  if [ $((round % 2)) -eq 1 ]; then
+    animation_scale=1
+  else
+    animation_scale=0
+  fi
+  adb shell settings put global window_animation_scale "$animation_scale"
+  adb shell settings put global transition_animation_scale "$animation_scale"
+  adb shell settings put global animator_duration_scale "$animation_scale"
+  actual_window_scale="$(adb shell settings get global window_animation_scale | tr -d '\r')"
+  actual_transition_scale="$(adb shell settings get global transition_animation_scale | tr -d '\r')"
+  actual_animator_scale="$(adb shell settings get global animator_duration_scale | tr -d '\r')"
+  echo "  round $round animation scales: window=$actual_window_scale transition=$actual_transition_scale animator=$actual_animator_scale"
+
   # Found again every round rather than assumed. A round that failed leaves
   # focus on the email field, and Enter there types into it instead of opening
   # anything -- so the position has to be re-established from whatever the
@@ -375,12 +399,12 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
     echo "  $key on \"$opener\": TalkBack said nothing"
   done
   [ -n "$opened" ] || fail "neither Enter nor DPAD_CENTER on \"$opener\" made TalkBack say anything"
-  printf 'open %s\t%s\n' "$round" "$new" >> "$dialog_file"
+  printf 'open scale=%s round=%s\t%s\n' "$animation_scale" "$round" "$new" >> "$dialog_file"
   echo "  round $round opened with $opened: $new"
 
   for i in 1 2 3; do
     advance
-    printf 'inside %s\t%s\n' "$round" "$new" >> "$dialog_file"
+    printf 'inside scale=%s round=%s\t%s\n' "$animation_scale" "$round" "$new" >> "$dialog_file"
     echo "  round $round inside $i: ${new:-(silent)}"
     element="${new%%|*}"
     if [ -n "$element" ] && printf '%s\n' "$lap_elements" | grep -qxF "$element"; then
@@ -392,7 +416,7 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   sleep 2
   settle
   collect
-  printf 'dismissed %s\t%s\n' "$round" "$new" >> "$dialog_file"
+  printf 'dismissed scale=%s round=%s\t%s\n' "$animation_scale" "$round" "$new" >> "$dialog_file"
   echo "  round $round dismissed: ${new:-(silent)}"
   # `|| true` so a dead app reaches the message below: `pidof` exits 1 when it
   # finds nothing, and `set -e` would otherwise end the run at this assignment
@@ -403,16 +427,28 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   case "|$new|" in
     *"|$opener|"*)
       restored=$((restored + 1))
+      if [ "$animation_scale" -eq 0 ]; then
+        restored_scale_0=$((restored_scale_0 + 1))
+      else
+        restored_scale_1=$((restored_scale_1 + 1))
+      fi
       echo "  round $round: focus returned to \"$opener\""
       ;;
     *)
       lost=$((lost + 1))
+      if [ "$animation_scale" -eq 0 ]; then
+        lost_scale_0=$((lost_scale_0 + 1))
+      else
+        lost_scale_1=$((lost_scale_1 + 1))
+      fi
       echo "  round $round: focus did NOT return to \"$opener\""
       ;;
   esac
 done
 
 echo "focus returned in $restored of $((restored + lost)) dismissals"
+echo "animation scale 0: $restored_scale_0 restored, $lost_scale_0 lost"
+echo "animation scale 1: $restored_scale_1 restored, $lost_scale_1 lost"
 # Asserted rather than warned about, since #463 made it work: run
 # 35100769638 announced "Review email address" on dismissal. A run that does
 # not is a regression in `Dialog`'s `restoreFocusTo`, not an open question.
