@@ -145,6 +145,32 @@ export const AccessibilityInfo = {
 // a stable number the first time it is asked about. Numbers pass through, as
 // they do on the platform, and nothing is given 0: React Native never issues
 // it, and a falsy tag reads as "no view" in any caller that checks.
+const windowFocusListeners = []
+
+// Android's window focus, which is how `Dialog` knows a modal's own window has
+// gone and the view underneath can take accessibility focus again.
+//
+// `focus` and `blur` are Android-only on the platform: subscribing on iOS is
+// allowed and simply never fires, because nothing emits the native event. The
+// same is true here until a test says otherwise through `__hozoWindowFocus`.
+export const AppState = {
+  currentState: 'active',
+  addEventListener: (type, handler) => {
+    if (type !== 'focus') return { remove: () => {} }
+    windowFocusListeners.push(handler)
+    return {
+      remove: () => {
+        const at = windowFocusListeners.indexOf(handler)
+        if (at !== -1) windowFocusListeners.splice(at, 1)
+      },
+    }
+  },
+  /** The activity window becoming focusable again, as a test can trigger it. */
+  __hozoWindowFocus() {
+    for (const listener of [...windowFocusListeners]) listener()
+  },
+}
+
 const handles = new WeakMap()
 let lastHandle = 0
 

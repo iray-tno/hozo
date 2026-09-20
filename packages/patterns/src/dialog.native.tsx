@@ -2,6 +2,7 @@ import { shouldRestoreFocus } from '@hozo/behaviors'
 import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
 import {
   AccessibilityInfo,
+  AppState,
   findNodeHandle,
   Modal,
   type StyleProp,
@@ -16,17 +17,18 @@ type FocusMover = (view: object) => boolean
  * The native module's focus move, or a function that admits it cannot.
  *
  * The same seam `@hozo/engine`'s `safe-area.native.ts` uses, and for the same
- * reason: an optional package is resolved once at module load, so the choice
- * is made before anything renders and never inside a branch afterwards.
+ * reason: an optional package is resolved once at module load, so the choice is
+ * made before anything renders and never inside a branch afterwards.
  *
  * What differs is the fallback's quality. Safe areas fall back to zeros, which
  * is a wrong answer. This falls back to `sendAccessibilityEvent`, which is what
- * shipped before `@hozo/native` existed and restores focus roughly half the
- * time on Android. Absence is a degradation here, not a break.
+ * shipped before `@hozo/native` existed.
  *
  * `require` inside `try`, deliberately, rather than a static import: the point
  * is to work when the package is not installed, and a static import of a
- * missing package is a resolution error before any of this runs.
+ * missing package is a resolution error before any of this runs. It does resolve
+ * on a device -- `@hozo/engine` has done the same since safe areas shipped, and
+ * #493 confirmed it reaches the module from inside a Metro bundle.
  */
 function resolveFocusMover(): FocusMover {
   try {
@@ -41,6 +43,26 @@ function resolveFocusMover(): FocusMover {
 }
 
 const moveFocusNatively = resolveFocusMover()
+
+/**
+ * One restore attempt: the native action if the package is there, the event if
+ * it is not.
+ *
+ * TEMPORARY, the announcement. It says which attempt ran and which mechanism it
+ * used, through the channel `talkback-speech.json` already records, because the
+ * seam is otherwise silent and a failed restore looks identical to a restore
+ * that was never attempted. It comes out together with the `HozoA11y` logging in
+ * `@hozo/native` once #484 is settled.
+ */
+function attemptRestore(opener: object, when: 'now' | 'window'): void {
+  const native = moveFocusNatively(opener)
+  AccessibilityInfo.announceForAccessibility(`hozo probe: ${when} ${native ? 'native' : 'fallback'}`)
+  if (native) return
+  // `sendAccessibilityEvent` rather than `setAccessibilityFocus`, which is
+  // deprecated in 0.87 in favour of it and takes a tag where this takes the
+  // host instance.
+  AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
+}
 
 export interface DialogProps {
   /**
@@ -100,6 +122,11 @@ export function Dialog({
   // also fires on the first render, when nothing was opened and nothing
   // should move.
   const wasOpen = useRef(false)
+  // Set by a dismissal that wants focus back, and cleared by the window coming
+  // back. It keeps the listener to our own dismissals: the window also returns
+  // from a notification shade or a task switch, and moving focus then would take
+  // it from wherever the user actually was.
+  const awaitingWindow = useRef(false)
 
   useEffect(() => {
     const closing = wasOpen.current && !open
@@ -108,44 +135,59 @@ export function Dialog({
 
     const opener = restoreFocusTo?.current
     if (!opener) return
-
     // Resolved to a tag only to ask whether the view is still there: a ref to
     // an unmounted one gives `null`, which is the native shape of the question
     // `shouldRestoreFocus` answers on both platforms.
     if (!shouldRestoreFocus({ focusable: findNodeHandle(opener) !== null })) return
 
-    // The native action first, because it is the only one that works.
-    //
-    // #484 measured what the JavaScript route can do here. Every path from
-    // `sendAccessibilityEvent` ends at `View.sendAccessibilityEvent` with
-    // `TYPE_VIEW_FOCUSED` -- an event announcing that focus moved, not an
-    // instruction to move it. On Android a closing `Modal` leaves a window
-    // whose accessibility state has not caught up, and an event sent into that
-    // gap is dropped: a delay sweep put the boundary between 175 and 200ms on
-    // one emulator, reproduced twelve rounds out of twelve. A number measured
-    // on one machine is not a fix, so `@hozo/native` performs
-    // `ACTION_ACCESSIBILITY_FOCUS` instead, which is the action.
-    // TEMPORARY, NOT FOR MERGING. Which branch ran, spoken so a device can say.
-    //
-    // The seam is silent by design -- it returns false and falls back -- so a
-    // failed restore cannot be told apart from the module never being reached.
-    // The first device round showed the old failure shape exactly, which is what
-    // both explanations predict.
-    const movedNatively = moveFocusNatively(opener)
-    AccessibilityInfo.announceForAccessibility(
-      movedNatively ? 'hozo probe: native' : 'hozo probe: fallback',
-    )
-    if (movedNatively) return
+    // Armed after the guard, not before it: a dismissal with nothing to restore
+    // to must not leave the listener waiting for the next unrelated window.
+    awaitingWindow.current = true
 
-    // Without that package, what shipped before it. Right about half the time
-    // on Android, and right every time on iOS, where this reaches
-    // `UIAccessibility` and there is no second window in the way.
+    // Asked now as well as later, and both are needed.
     //
-    // `sendAccessibilityEvent` rather than `setAccessibilityFocus`, which is
-    // deprecated in 0.87 in favour of it and takes a tag where this takes the
-    // host instance.
-    AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
+    // Now, because iOS has no second window and lands every time, and because
+    // Android does not always send the window event -- one dismissal in five in
+    // the #484 sweep never got it. Without this, those dismissals would be worse
+    // than what shipped before.
+    //
+    // Later, because now is too early on Android whatever mechanism is used. The
+    // sweep measured an event being dropped until 175-200ms after the window came
+    // back, and #493 then measured `ACTION_ACCESSIBILITY_FOCUS` returning `true`
+    // on the right view at this moment -- twice, on two independent runs -- with
+    // focus still not moving. The action is not a stronger lever at the wrong
+    // time; it is the same lever.
+    attemptRestore(opener, 'now')
   }, [open, restoreFocusTo])
+
+  /**
+   * Asks again when the window comes back, which is when Android will listen.
+   *
+   * `AppState`'s `focus` carries Android's `onWindowFocusChanged(true)` -- the
+   * activity's window becoming focusable again -- so it arrives once the modal's
+   * window is out of the way. A signal rather than a number, which is the whole
+   * reason for preferring it: the 175-200ms threshold the sweep found is a
+   * property of that emulator, and nothing says it holds on a loaded device.
+   *
+   * No platform branch. `focus` and `blur` are documented Android-only and
+   * nothing emits them on iOS, so the listener is inert there rather than wrong
+   * -- and a `Platform.OS` check would make this path untestable, since the stub
+   * reports `ios`.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener('focus', () => {
+      if (!awaitingWindow.current) return
+      awaitingWindow.current = false
+      const opener = restoreFocusTo?.current
+      // Gone with its screen: a dialog can close because the whole route is
+      // unmounting, and the button went with it.
+      if (!opener || findNodeHandle(opener) === null) return
+      attemptRestore(opener, 'window')
+    })
+    return () => {
+      subscription.remove()
+    }
+  }, [restoreFocusTo])
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>

@@ -30,6 +30,7 @@ const require = createRequire(import.meta.url)
 
 const stub = require('./react-native-stub.js') as {
   AccessibilityInfo: { __hozoFocused: unknown[]; __hozoResetFocus: () => void }
+  AppState: { __hozoWindowFocus: () => void }
   findNodeHandle: (node: unknown) => number | null
 }
 const react = require('react') as {
@@ -46,7 +47,7 @@ const { HozoDialog } = require('@hozo/patterns/generated/dialog') as {
 /** A stand-in for the control that opened the dialog. */
 const opener = () => ({ current: {} })
 
-test('closing the dialog moves accessibility focus to the opener', () => {
+test('closing the dialog moves accessibility focus to the opener', async () => {
   stub.AccessibilityInfo.__hozoResetFocus()
   const continueButton = opener()
 
@@ -83,6 +84,35 @@ test('closing the dialog moves accessibility focus to the opener', () => {
   // the native action lands is a question only a device answers, and
   // `examples/native-demo/scripts/android-talkback.sh` is what asks it.
   assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+
+  // And again when the window comes back, which is the Android half.
+  //
+  // On that platform the modal is its own window, and a restore aimed at the
+  // view underneath does not stick while it is still the active accessibility
+  // window. #493 measured that directly: ACTION_ACCESSIBILITY_FOCUS returned
+  // true on the right view and focus stayed where it was, twice. So the attempt
+  // is made a second time once AppState reports the window back.
+  //
+  // Driven here rather than waited for: the stub emits the event a device would,
+  // which is only possible because the component has no Platform.OS branch
+  // around the listener.
+  renderer.act(() => {
+    stub.AppState.__hozoWindowFocus()
+  })
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
+    continueButton.current,
+    continueButton.current,
+  ])
+
+  // And only for our own dismissal. A window coming back for any other reason
+  // must not move focus, or it takes it from wherever the user actually was.
+  renderer.act(() => {
+    stub.AppState.__hozoWindowFocus()
+  })
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
+    continueButton.current,
+    continueButton.current,
+  ])
   root?.unmount()
 })
 
