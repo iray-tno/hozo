@@ -115,5 +115,22 @@ period. `git log` is the house style guide.
 Keep unrelated repairs in their own commits. A formatting sweep mixed into a
 behavioural change makes the behavioural change unreviewable.
 
+## Publishing
+
+Normal releases are deliberately credentialless. After the version pull
+request is merged, a `v*` tag runs `.github/workflows/release.yml`; npm and
+crates.io authenticate that workflow with short-lived OIDC credentials. Every
+published npm package and crate must therefore trust `iray-tno/hozo` and the
+workflow filename `release.yml` in its registry settings.
+
+A registry cannot trust a name that does not exist yet. When the repository
+adds a new public package, platform binding, or crate, run the manual
+`bootstrap-publish` workflow for that exact name. It refuses existing, unknown,
+and private targets and publishes only the requested identity using
+`NPM_BOOTSTRAP_TOKEN` or `CARGO_BOOTSTRAP_TOKEN`. Configure `release.yml` as its
+Trusted Publisher immediately afterwards, delete the GitHub secret, and revoke
+the temporary registry token. Bootstrap is never a fallback for a broken normal
+release: tokens bootstrap identities; OIDC publishes releases.
+
 In the pull request, say what you measured. A claim that something works is
 worth as much as the command that showed it.

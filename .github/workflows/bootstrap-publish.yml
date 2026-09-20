@@ -1,0 +1,147 @@
+# Creates one registry identity so Trusted Publishing can be configured for
+# it. This is deliberately not a release workflow: it has no automatic trigger,
+# accepts one explicit target, refuses names that already exist, and uses the
+# temporary credential only for that one first upload.
+name: bootstrap-publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: Registry identity to create
+        required: true
+        type: choice
+        options: [npm, crate]
+      target:
+        description: Exact package or crate name
+        required: true
+        type: string
+
+concurrency:
+  group: bootstrap-publish-${{ inputs.registry }}-${{ inputs.target }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      registry: ${{ steps.plan.outputs.registry }}
+      kind: ${{ steps.plan.outputs.kind }}
+      name: ${{ steps.plan.outputs.name }}
+      version: ${{ steps.plan.outputs.version }}
+      path: ${{ steps.plan.outputs.path }}
+      triple: ${{ steps.plan.outputs.triple }}
+      runner: ${{ steps.plan.outputs.runner }}
+      artifact: ${{ steps.plan.outputs.artifact }}
+      musl: ${{ steps.plan.outputs.musl }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+      - uses: dtolnay/rust-toolchain@stable
+      - id: plan
+        env:
+          REGISTRY: ${{ inputs.registry }}
+          TARGET: ${{ inputs.target }}
+        run: node scripts/bootstrap-publish.mjs "$REGISTRY" "$TARGET" --github-output "$GITHUB_OUTPUT"
+
+  npm-workspace:
+    if: needs.validate.outputs.kind == 'workspace'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - env:
+          TARGET: ${{ needs.validate.outputs.name }}
+        run: pnpm turbo run build --filter="$TARGET..."
+      - if: needs.validate.outputs.name == '@hozo/compiler'
+        run: node packages/compiler/scripts/prepare-publish.mjs
+      - env:
+          TARGET: ${{ needs.validate.outputs.name }}
+        run: node scripts/pack-npm.mjs --target "$TARGET"
+      - env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: npm publish artifacts/npm/*.tgz --access public --provenance
+      - env:
+          TARGET: ${{ needs.validate.outputs.name }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          $TARGET@$VERSION was published for the first time.
+
+          Configure its npm Trusted Publisher for iray-tno/hozo and release.yml,
+          then delete NPM_BOOTSTRAP_TOKEN from GitHub and revoke it on npmjs.com.
+          EOF
+
+  npm-native:
+    if: needs.validate.outputs.kind == 'native'
+    needs: validate
+    runs-on: ${{ needs.validate.outputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ needs.validate.outputs.triple }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bootstrap-${{ needs.validate.outputs.triple }}
+      - if: needs.validate.outputs.musl == 'true'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node packages/compiler/scripts/pack-native.mjs --target "${{ needs.validate.outputs.triple }}"
+        env:
+          RUSTFLAGS: ${{ needs.validate.outputs.musl == 'true' && '-C target-feature=-crt-static' || '' }}
+      - env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: npm publish "artifacts/${{ needs.validate.outputs.artifact }}" --access public --provenance
+      - env:
+          TARGET: ${{ needs.validate.outputs.name }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          $TARGET@$VERSION was published for the first time.
+
+          Configure its npm Trusted Publisher for iray-tno/hozo and release.yml,
+          then delete NPM_BOOTSTRAP_TOKEN from GitHub and revoke it on npmjs.com.
+          EOF
+        shell: bash
+
+  crate:
+    if: needs.validate.outputs.kind == 'crate'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_BOOTSTRAP_TOKEN }}
+          TARGET: ${{ needs.validate.outputs.name }}
+        run: cargo publish -p "$TARGET"
+      - env:
+          TARGET: ${{ needs.validate.outputs.name }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          $TARGET@$VERSION was published for the first time.
+
+          Configure its crates.io Trusted Publisher for iray-tno/hozo and release.yml,
+          then delete CARGO_BOOTSTRAP_TOKEN from GitHub and revoke it on crates.io.
+          EOF
