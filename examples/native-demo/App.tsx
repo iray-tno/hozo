@@ -9,7 +9,6 @@ import { useRef, useState } from 'react'
 // function component in these types, and its *instance* is this.
 import {
   type HostInstance,
-  Modal as ReactNativeModal,
   Text as ReactNativeText,
   TextInput as ReactNativeTextInput,
   View as ReactNativeView,
@@ -50,20 +49,9 @@ function ModalBaselineProbe() {
         }
         renderItem={({ item }) => <ReactNativeText>{item.title}</ReactNativeText>}
       />
-      <ReactNativeModal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
-        <ReactNativeView
-          accessible
-          accessibilityRole="none"
-          accessibilityLabel="Confirm your address"
-        >
-          <ReactNativeText>Is this right?</ReactNativeText>
-        </ReactNativeView>
-      </ReactNativeModal>
+      <Dialog open={open} onClose={() => setOpen(false)} accessibilityLabel="Confirm your address">
+        <ReactNativeText>Is this right?</ReactNativeText>
+      </Dialog>
     </ReactNativeView>
   )
 }
