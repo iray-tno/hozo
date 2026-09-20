@@ -5,6 +5,7 @@ import {
   AppState,
   findNodeHandle,
   Modal,
+  Platform,
   type StyleProp,
   View,
   type ViewStyle,
@@ -101,8 +102,15 @@ export function Dialog({
     const handle = findNodeHandle(opener)
     if (!shouldRestoreFocus({ focusable: handle !== null })) return
 
+    // iOS has no second modal window-focus signal and restores on this edge.
+    // Android must wait: sending here as well as after the window settles made
+    // TalkBack announce the opener repeatedly when both requests landed.
+    if (Platform.OS !== 'android') {
+      attemptRestore(opener)
+      return
+    }
+
     awaitingWindow.current = true
-    attemptRestore(opener)
     restoreTimer.current = setTimeout(() => {
       restoreTimer.current = null
       awaitingWindow.current = false

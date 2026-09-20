@@ -30,8 +30,10 @@ const require = createRequire(import.meta.url)
 const stub = require('./react-native-stub.js') as {
   AccessibilityInfo: { __hozoFocused: unknown[]; __hozoResetFocus: () => void }
   AppState: { __hozoWindowFocus: () => void }
+  Platform: { OS: string }
   findNodeHandle: (node: unknown) => number | null
 }
+stub.Platform.OS = 'android'
 const react = require('react') as {
   createElement: (type: unknown, props?: unknown, ...children: unknown[]) => unknown
 }
@@ -73,17 +75,14 @@ test('closing the dialog retries focus after the window settles', async () => {
       }),
     )
   })
-  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [])
 
   renderer.act(() => {
     stub.AppState.__hozoWindowFocus()
   })
-  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [])
   await new Promise((resolve) => setTimeout(resolve, 275))
-  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
-    continueButton.current,
-    continueButton.current,
-  ])
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
   root?.unmount()
 })
 
@@ -124,7 +123,7 @@ test('reopening cancels a pending delayed restore', async () => {
   })
 
   await new Promise((resolve) => setTimeout(resolve, 275))
-  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [])
   root?.unmount()
 })
 
@@ -152,13 +151,42 @@ test('a missing window signal uses the close-edge fallback', async () => {
     )
   })
 
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [])
+  await new Promise((resolve) => setTimeout(resolve, 525))
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  root?.unmount()
+})
+
+test('iOS restores once on the closing edge', async () => {
+  stub.AccessibilityInfo.__hozoResetFocus()
+  stub.Platform.OS = 'ios'
+  const continueButton = opener()
+
+  let root: { update: (element: unknown) => void; unmount: () => void } | undefined
+  renderer.act(() => {
+    root = renderer.create(
+      react.createElement(HozoDialog, {
+        open: true,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+  renderer.act(() => {
+    root?.update(
+      react.createElement(HozoDialog, {
+        open: false,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+
   assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
   await new Promise((resolve) => setTimeout(resolve, 525))
-  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
-    continueButton.current,
-    continueButton.current,
-  ])
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
   root?.unmount()
+  stub.Platform.OS = 'android'
 })
 
 test('a dialog that was never open restores nothing', () => {
