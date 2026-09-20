@@ -99,6 +99,10 @@ test('closing the dialog moves accessibility focus to the opener', async () => {
   renderer.act(() => {
     stub.AppState.__hozoWindowFocus()
   })
+  // Window focus is earlier than accessibility-window readiness on Android,
+  // so the second attempt must not run synchronously with this signal.
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  await new Promise((resolve) => setTimeout(resolve, 275))
   assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
     continueButton.current,
     continueButton.current,
@@ -113,6 +117,47 @@ test('closing the dialog moves accessibility focus to the opener', async () => {
     continueButton.current,
     continueButton.current,
   ])
+  root?.unmount()
+})
+
+test('reopening cancels a pending delayed restore', async () => {
+  stub.AccessibilityInfo.__hozoResetFocus()
+  const continueButton = opener()
+
+  let root: { update: (element: unknown) => void; unmount: () => void } | undefined
+  renderer.act(() => {
+    root = renderer.create(
+      react.createElement(HozoDialog, {
+        open: true,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+  renderer.act(() => {
+    root?.update(
+      react.createElement(HozoDialog, {
+        open: false,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+  renderer.act(() => {
+    stub.AppState.__hozoWindowFocus()
+  })
+  renderer.act(() => {
+    root?.update(
+      react.createElement(HozoDialog, {
+        open: true,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+
+  await new Promise((resolve) => setTimeout(resolve, 275))
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
   root?.unmount()
 })
 

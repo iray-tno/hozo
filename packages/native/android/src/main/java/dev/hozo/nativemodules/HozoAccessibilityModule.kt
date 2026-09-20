@@ -1,6 +1,5 @@
 package dev.hozo.nativemodules
 
-import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.UiThreadUtil
@@ -34,28 +33,12 @@ class HozoAccessibilityModule(reactContext: ReactApplicationContext) :
       val view = UIManagerHelper.getUIManagerForReactTag(context, tag)?.resolveView(tag)
       // Gone with its screen. A dialog can close because the whole route is
       // unmounting, and the view it would restore to went with it.
-      if (view == null) {
-        // TEMPORARY, NOT FOR MERGING. Investigation for #484.
-        //
-        // The JS side returns `true` the moment it calls this method -- the
-        // work is on the UI thread and this returns nothing -- so "the module
-        // ran" and "the action was performed on a real view" are the same
-        // observation from JavaScript. They are not the same thing, and the
-        // device probe could not tell them apart.
-        Log.w(TAG, "probe: no view for tag $tag")
-        return@runOnUiThread
-      }
-      val performed =
-          view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-      // The return value the first version of this discarded. `false` means the
-      // framework declined the action, which is a different finding from the
-      // action being taken and TalkBack staying where it was.
-      Log.w(TAG, "probe: action on tag $tag returned $performed")
+      if (view == null) return@runOnUiThread
+      view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
     }
   }
 
   companion object {
     const val NAME = "HozoAccessibility"
-    private const val TAG = "HozoA11y"
   }
 }

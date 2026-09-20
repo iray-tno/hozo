@@ -44,22 +44,19 @@ function resolveFocusMover(): FocusMover {
 
 const moveFocusNatively = resolveFocusMover()
 
+// A TalkBack acceptance sweep found that retries made 175ms or less after
+// Android's `AppState` focus signal did not announce the opener, while retries
+// at 200ms or more did. Leave one scheduling margin above that observed edge;
+// this retry is only armed for a Dialog dismissal with an explicit opener. The
+// measurement establishes timing, not which Android subsystem creates the gap.
+const WINDOW_RESTORE_DELAY_MS = 250
+
 /**
- * One restore attempt: the native action if the package is there, the event if
- * it is not.
- *
- * TEMPORARY, the announcement. It says which attempt ran and which mechanism it
- * used, through the channel `talkback-speech.json` already records, because the
- * seam is otherwise silent and a failed restore looks identical to a restore
- * that was never attempted. It comes out together with the `HozoA11y` logging in
- * `@hozo/native` once #484 is settled.
+ * One restore attempt: the native action if the package is there, the React
+ * Native event used before that package existed if it is not.
  */
-function attemptRestore(opener: ComponentRef<typeof View>, when: 'now' | 'window'): void {
-  const native = when === 'now' && moveFocusNatively(opener)
-  AccessibilityInfo.announceForAccessibility(
-    `hozo probe: ${when} ${native ? 'native' : 'fallback'}`,
-  )
-  if (native) return
+function attemptRestore(opener: ComponentRef<typeof View>): void {
+  if (moveFocusNatively(opener)) return
   // `sendAccessibilityEvent` rather than `setAccessibilityFocus`, which is
   // deprecated in 0.87 in favour of it and takes a tag where this takes the
   // host instance.
@@ -129,10 +126,18 @@ export function Dialog({
   // from a notification shade or a task switch, and moving focus then would take
   // it from wherever the user actually was.
   const awaitingWindow = useRef(false)
+  const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const closing = wasOpen.current && !open
     wasOpen.current = open
+    if (open) {
+      awaitingWindow.current = false
+      if (restoreTimer.current !== null) {
+        clearTimeout(restoreTimer.current)
+        restoreTimer.current = null
+      }
+    }
     if (!closing) return
 
     const opener = restoreFocusTo?.current
@@ -159,17 +164,19 @@ export function Dialog({
     // on the right view at this moment -- twice, on two independent runs -- with
     // focus still not moving. The action is not a stronger lever at the wrong
     // time; it is the same lever.
-    attemptRestore(opener, 'now')
+    attemptRestore(opener)
   }, [open, restoreFocusTo])
 
   /**
-   * Asks again when the window comes back, which is when Android will listen.
+   * Arms a delayed retry when the window comes back.
    *
    * `AppState`'s `focus` carries Android's `onWindowFocusChanged(true)` -- the
-   * activity's window becoming focusable again -- so it arrives once the modal's
-   * window is out of the way. A signal rather than a number, which is the whole
-   * reason for preferring it: the 175-200ms threshold the sweep found is a
-   * property of that emulator, and nothing says it holds on a loaded device.
+   * activity's window becoming focusable again -- but device probes established
+   * that retrying at that exact moment is too early. An immediate native action
+   * returned true without the opener being announced; retries started 200ms
+   * later were the first to land consistently. The delay is therefore measured
+   * compatibility policy, not an animation duration or a claim about TalkBack's
+   * internal cursor implementation.
    *
    * No platform branch. `focus` and `blur` are documented Android-only and
    * nothing emits them on iOS, so the listener is inert there rather than wrong
@@ -180,14 +187,22 @@ export function Dialog({
     const subscription = AppState.addEventListener('focus', () => {
       if (!awaitingWindow.current) return
       awaitingWindow.current = false
-      const opener = restoreFocusTo?.current
-      // Gone with its screen: a dialog can close because the whole route is
-      // unmounting, and the button went with it.
-      if (!opener || findNodeHandle(opener) === null) return
-      attemptRestore(opener, 'window')
+      if (restoreTimer.current !== null) clearTimeout(restoreTimer.current)
+      restoreTimer.current = setTimeout(() => {
+        restoreTimer.current = null
+        const opener = restoreFocusTo?.current
+        // Gone with its screen, or reopened before the retry: neither case may
+        // move focus back to a stale control.
+        if (wasOpen.current || !opener || findNodeHandle(opener) === null) return
+        attemptRestore(opener)
+      }, WINDOW_RESTORE_DELAY_MS)
     })
     return () => {
       subscription.remove()
+      if (restoreTimer.current !== null) {
+        clearTimeout(restoreTimer.current)
+        restoreTimer.current = null
+      }
     }
   }, [restoreFocusTo])
 

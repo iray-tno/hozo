@@ -4,11 +4,11 @@
 // `AccessibilityEvent.TYPE_VIEW_FOCUSED` -- traced through the Fabric path in
 // 0.87, it ends at `View.sendAccessibilityEvent(...)` in
 // `SurfaceMountingManager`. That is a notification to the accessibility
-// framework, and TalkBack acts on it or does not. On Android it does not, when
-// a `Modal` has just closed: the activity's ordinary window focus comes back
-// before the accessibility window state does, and an event sent into that gap
-// is dropped. Measured in #484 -- the boundary sat between 175 and 200ms on
-// one emulator, reproduced twelve rounds out of twelve.
+// framework, and TalkBack acts on it or does not. After an Android `Modal`
+// closes, #484 observed cases where that event did not announce the requested
+// opener. The exact Android/TalkBack mechanism remains intentionally unstated;
+// the package only supplies the stronger platform action that React Native's
+// JavaScript API cannot express.
 //
 // `AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS` is the action that moves
 // focus rather than announcing that it moved, and React Native exposes it
