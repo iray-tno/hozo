@@ -161,6 +161,39 @@ test('reopening cancels a pending delayed restore', async () => {
   root?.unmount()
 })
 
+test('a missing window signal uses the close-edge fallback', async () => {
+  stub.AccessibilityInfo.__hozoResetFocus()
+  const continueButton = opener()
+
+  let root: { update: (element: unknown) => void; unmount: () => void } | undefined
+  renderer.act(() => {
+    root = renderer.create(
+      react.createElement(HozoDialog, {
+        open: true,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+  renderer.act(() => {
+    root?.update(
+      react.createElement(HozoDialog, {
+        open: false,
+        restoreFocusTo: continueButton,
+        accessibilityLabel: 'Confirm',
+      }),
+    )
+  })
+
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
+  await new Promise((resolve) => setTimeout(resolve, 525))
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
+    continueButton.current,
+    continueButton.current,
+  ])
+  root?.unmount()
+})
+
 test('a dialog that was never open restores nothing', () => {
   stub.AccessibilityInfo.__hozoResetFocus()
   const continueButton = opener()

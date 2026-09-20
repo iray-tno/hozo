@@ -50,6 +50,9 @@ const moveFocusNatively = resolveFocusMover()
 // this retry is only armed for a Dialog dismissal with an explicit opener. The
 // measurement establishes timing, not which Android subsystem creates the gap.
 const WINDOW_RESTORE_DELAY_MS = 250
+// `AppState` focus was absent in one measured dismissal. Keep a later close-edge
+// fallback for that case; a real window signal replaces it before it fires.
+const CLOSE_RESTORE_FALLBACK_MS = 500
 
 /**
  * One restore attempt: the native action if the package is there, the React
@@ -165,6 +168,17 @@ export function Dialog({
     // focus still not moving. The action is not a stronger lever at the wrong
     // time; it is the same lever.
     attemptRestore(opener)
+
+    // Most Android dismissals replace this with the window-relative retry
+    // below. If no window event arrives, do not silently lose the only attempt
+    // that runs after the modal has had time to leave.
+    restoreTimer.current = setTimeout(() => {
+      restoreTimer.current = null
+      awaitingWindow.current = false
+      const fallbackOpener = restoreFocusTo?.current
+      if (wasOpen.current || !fallbackOpener || findNodeHandle(fallbackOpener) === null) return
+      attemptRestore(fallbackOpener)
+    }, CLOSE_RESTORE_FALLBACK_MS)
   }, [open, restoreFocusTo])
 
   /**
