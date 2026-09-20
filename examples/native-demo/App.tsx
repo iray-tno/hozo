@@ -129,6 +129,8 @@ function AcceptanceApp() {
               testID="smoke-input"
             />
 
+            <View className="h-20" testID="focus-distance-spacer" />
+
             <View
               className="grid grid-cols-2 gap-2"
               onLayout={({ nativeEvent }) => setGridWidth(Math.round(nativeEvent.layout.width))}
