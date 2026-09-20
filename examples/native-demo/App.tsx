@@ -1,8 +1,7 @@
 // A bundle fixture and a device acceptance screen. Stable testIDs make
 // manual VoiceOver/TalkBack and layout results reproducible.
 
-import { Dialog, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from '@hozo/core'
-import { PanResponder } from '@hozo/rn-compat'
+import { Dialog, FlatList, Image, Pressable, Text, TextInput, View } from '@hozo/core'
 import { useRef, useState } from 'react'
 // What a ref to a host component holds on this platform. React Native names
 // it, so it is taken from there rather than spelled again here: `View` is a
@@ -69,23 +68,9 @@ function AcceptanceApp() {
   const [email, setEmail] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [showingGallery, setShowingGallery] = useState(false)
-  const [gridWidth, setGridWidth] = useState(0)
-  const [gesture, setGesture] = useState({ dx: 0, dy: 0, touches: 0 })
   // Where accessibility focus goes when the dialog closes. React Native
   // cannot be asked what holds it, so the dialog is told (#462).
   const continueRef = useRef<HostInstance | null>(null)
-  const pan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_event, state) => Math.abs(state.dx) + Math.abs(state.dy) > 4,
-      onPanResponderMove: (_event, state) => {
-        setGesture({
-          dx: Math.round(state.dx),
-          dy: Math.round(state.dy),
-          touches: state.numberActiveTouches,
-        })
-      },
-    }),
-  ).current
 
   // A second screen rather than a second registered component: an
   // activity launches one root, and the smoke script already knows how
@@ -128,52 +113,6 @@ function AcceptanceApp() {
               onChangeText={setEmail}
               testID="smoke-input"
             />
-
-            <ScrollView horizontal className="h-20" testID="smoke-horizontal-scroll">
-              <View className="flex-row gap-2">
-                <View className="w-32 rounded-lg bg-white p-3">
-                  <Text>Card one</Text>
-                </View>
-                <View className="w-32 rounded-lg bg-white p-3">
-                  <Text>Card two</Text>
-                </View>
-                <View className="w-32 rounded-lg bg-white p-3">
-                  <Text>Card three</Text>
-                </View>
-                <View className="w-32 rounded-lg bg-white p-3">
-                  <Text>Card four</Text>
-                </View>
-              </View>
-            </ScrollView>
-
-            <View
-              className="grid grid-cols-2 gap-2"
-              onLayout={({ nativeEvent }) => setGridWidth(Math.round(nativeEvent.layout.width))}
-              testID="smoke-grid"
-            >
-              <View className="row-span-2 rounded-lg bg-white p-3">
-                <Text>Tall</Text>
-              </View>
-              <View className="rounded-lg bg-white p-3">
-                <Text>Top</Text>
-              </View>
-              <View className="rounded-lg bg-white p-3">
-                <Text>Bottom</Text>
-              </View>
-            </View>
-            <Text accessibilityLabel={`Measured grid width ${gridWidth}`}>
-              Grid width: {gridWidth}px
-            </Text>
-
-            <View
-              {...pan.panHandlers}
-              className="rounded-lg border border-slate-300 bg-white p-3"
-              testID="smoke-pan-responder"
-            >
-              <Text>
-                Gesture: {gesture.dx}, {gesture.dy} ({gesture.touches} touches)
-              </Text>
-            </View>
 
             <Pressable
               ref={continueRef}
