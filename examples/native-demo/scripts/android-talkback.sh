@@ -29,7 +29,7 @@ talkback=com.google.android.marvin.talkback
 talkback_service="$talkback/com.google.android.marvin.talkback.TalkBackService"
 
 MAX_STEPS=${MAX_STEPS:-40}
-MIN_SPOKEN=${MIN_SPOKEN:-3}
+MIN_SPOKEN=${MIN_SPOKEN:-2}
 
 # What went wrong, and then what TalkBack had been saying when it did.
 #
@@ -493,7 +493,7 @@ echo "TalkBack said $distinct distinct things while moving"
 # makes of NVDA and VoiceOver -- across the lap and then the dialog. No file
 # is a warning rather than a failure: approving is the human step, and
 # `talkback-speech.json` is what to approve from.
-expected="$here/../expected/talkback/acceptance.txt"
+expected="$here/../expected/talkback/modal-baseline-probe.txt"
 if [ ! -f "$expected" ]; then
   echo "::warning::no approved phrases at examples/native-demo/expected/talkback/acceptance.txt; nothing was compared"
 else

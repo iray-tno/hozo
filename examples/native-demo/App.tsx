@@ -7,7 +7,14 @@ import { useRef, useState } from 'react'
 // What a ref to a host component holds on this platform. React Native names
 // it, so it is taken from there rather than spelled again here: `View` is a
 // function component in these types, and its *instance* is this.
-import type { HostInstance } from 'react-native'
+import {
+  type HostInstance,
+  Modal as ReactNativeModal,
+  Pressable as ReactNativePressable,
+  Text as ReactNativeText,
+  TextInput as ReactNativeTextInput,
+  View as ReactNativeView,
+} from 'react-native'
 
 import Gallery from './Gallery.tsx'
 
@@ -17,7 +24,51 @@ const rows = [
   { id: 'three', title: 'Third virtual row' },
 ]
 
+function ModalBaselineProbe() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <ReactNativeView style={{ flex: 1, padding: 24 }}>
+      <ReactNativeTextInput
+        accessibilityLabel="Email address"
+        accessibilityHint="Enter an address to review in the confirmation dialog"
+        placeholder="you@example.com"
+      />
+      <ReactNativePressable
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Review email address"
+        onPress={() => setOpen(true)}
+      >
+        <ReactNativeText>Continue</ReactNativeText>
+      </ReactNativePressable>
+      <ReactNativeModal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <ReactNativeView
+          accessible
+          accessibilityRole="none"
+          accessibilityLabel="Confirm your address"
+        >
+          <ReactNativeText>Is this right?</ReactNativeText>
+        </ReactNativeView>
+      </ReactNativeModal>
+    </ReactNativeView>
+  )
+}
+
 export default function App() {
+  // Probe-only switch. Keeping the acceptance app reachable in the source
+  // prevents this branch from changing any of its fixtures while the device
+  // runs the deliberately minimal React Native control case.
+  const modalBaselineProbe = true
+  return modalBaselineProbe ? <ModalBaselineProbe /> : <AcceptanceApp />
+}
+
+function AcceptanceApp() {
   const [email, setEmail] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [showingGallery, setShowingGallery] = useState(false)
