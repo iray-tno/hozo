@@ -29,7 +29,7 @@ import './native-render.ts'
 const require = createRequire(import.meta.url)
 
 const stub = require('./react-native-stub.js') as {
-  AccessibilityInfo: { __hozoFocused: number[]; __hozoResetFocus: () => void }
+  AccessibilityInfo: { __hozoFocused: unknown[]; __hozoResetFocus: () => void }
   findNodeHandle: (node: unknown) => number | null
 }
 const react = require('react') as {
@@ -73,9 +73,16 @@ test('closing the dialog moves accessibility focus to the opener', () => {
       }),
     )
   })
-  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [
-    stub.findNodeHandle(continueButton.current),
-  ])
+  // The host instance, not a tag. The fallback sends `sendAccessibilityEvent`,
+  // which takes the former; `setAccessibilityFocus`, which took the latter, is
+  // deprecated in 0.87 and is gone from the Dialog.
+  //
+  // And it is the fallback that runs here: `@hozo/native` is reached through
+  // `require` inside a `try`, which this harness has no `require` for, so the
+  // seam resolves to the function that admits it cannot move focus. Whether
+  // the native action lands is a question only a device answers, and
+  // `examples/native-demo/scripts/android-talkback.sh` is what asks it.
+  assert.deepEqual(stub.AccessibilityInfo.__hozoFocused, [continueButton.current])
   root?.unmount()
 })
 
