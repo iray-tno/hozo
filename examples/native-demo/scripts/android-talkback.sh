@@ -46,6 +46,12 @@ fail() {
   spoken | tail -50 | sed 's/^/  /' || true
   # Still some, for the failures that are not about speech at all: a crashed
   # app, a dead emulator, an install that did not take.
+  # The module's own report, which the tail below will not contain. logcat on
+  # this emulator is a firehose -- `resolv`, `Icing`, `Bugle` -- and these lines
+  # are written at dismissal, many screenfuls of chatter ago. Filtered by tag
+  # rather than searched for, because `-s` is the one way to be sure.
+  echo '--- what @hozo/native said ---'
+  adb logcat -d -v brief -s HozoA11y | tail -20 || true
   echo '--- logcat (tail) ---'
   adb logcat -d -v brief | tail -40 || true
   exit 1
