@@ -55,7 +55,7 @@ const moveFocusNatively = resolveFocusMover()
  * `@hozo/native` once #484 is settled.
  */
 function attemptRestore(opener: ComponentRef<typeof View>, when: 'now' | 'window'): void {
-  const native = moveFocusNatively(opener)
+  const native = when === 'now' && moveFocusNatively(opener)
   AccessibilityInfo.announceForAccessibility(
     `hozo probe: ${when} ${native ? 'native' : 'fallback'}`,
   )
