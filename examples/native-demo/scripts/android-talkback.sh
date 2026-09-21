@@ -56,6 +56,18 @@ spoken() {
   adb logcat -d -v raw -s HozoSpeech:I | tr -d '\r' | grep -v '^--------- ' || true
 }
 
+# Acceptance-app markers with logcat timestamps. These are deliberately not
+# screen-reader announcements: announcing the measurement would itself move
+# or interrupt TalkBack's cursor. The app records the Dialog close edge and
+# Android's subsequent window-focus signal; their presence and spacing tell
+# us which restore path ran without changing that path.
+focus_trace() {
+  adb logcat -d -v epoch -s ReactNativeJS:I \
+    | tr -d '\r' \
+    | grep '\[hozo-dialog-focus\]' \
+    || true
+}
+
 # `uiautomator` must not run while TalkBack is on. Its UiAutomation connection
 # suppresses every other accessibility service, so TalkBack says "TalkBack
 # off" and the rest of the run is silence -- which a dump added for
@@ -100,7 +112,7 @@ settle() {
 write_speech_log() {
   node --eval '
     const fs = require("node:fs")
-    const [steps, dialog, all] = process.argv.slice(1)
+    const [steps, dialog, trace, all] = process.argv.slice(1)
     const rows = (file) => {
       if (!file || !fs.existsSync(file)) return []
       return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => {
@@ -113,9 +125,10 @@ write_speech_log() {
       utterances: all.split("\n").filter(Boolean),
       steps: rows(steps).map((row) => ({ ...row, step: Number(row.step) })),
       dialog: rows(dialog),
+      focusTrace: rows(trace),
     }
     fs.writeFileSync("talkback-speech.json", JSON.stringify(log, null, 2) + "\n")
-  ' "${steps_file:-}" "${dialog_file:-}" "$(spoken)" || true
+  ' "${steps_file:-}" "${dialog_file:-}" "${trace_file:-}" "$(spoken)" || true
 }
 trap write_speech_log EXIT
 
@@ -319,28 +332,29 @@ done
 # returns focus to Continue. The first is checked through the approved
 # phrases; the other two are reported as warnings until a run has shown
 # what this platform actually does.
-# Once by default, `DIALOG_ROUNDS` times when a run is asked to measure.
+# Once by default, `DIALOG_ROUNDS` times when a run is asked to diagnose.
 #
 # The restore is intermittent (#484): roughly one dismissal in two lands on the
-# opener and the rest land on the field above it. At one round per run a single
-# sample costs a whole boot, and `native.yml`'s concurrency group cancels
-# in-progress runs on the same ref, so samples cannot be gathered in parallel
-# either -- which is what made the rate expensive to establish.
+# opener and the rest land on the field above it. Rounds within one emulator
+# boot are correlated: the 9-round runs in #484 varied from 8/9 to 4/9. They
+# expose within-boot behavior but do not estimate a stable rate. Independent
+# boots are the sampling unit, selected by `dialog_boots` in `native.yml`.
 #
 # The assertion changes with the count, deliberately:
 #
 #   DIALOG_ROUNDS=1  (default) -- exactly what it has always been. A dismissal
 #                     that does not announce the opener fails the job, which is
 #                     the guarantee #463 added and this keeps gating.
-#   DIALOG_ROUNDS>1  -- a measurement, not a gate. Every round is counted and
+#   DIALOG_ROUNDS>1  -- a diagnostic, not a gate. Every round is counted and
 #                     only a clean sweep of failures is fatal, because an
 #                     intermittent behaviour tried five times will fail
 #                     sometimes by definition and a red job would say nothing.
 #
 # Said here rather than left to be discovered: a green run in the second mode
-# has tolerated failures, and anyone reading one needs to know that.
+# has tolerated failures, and its rounds are not independent samples.
 opener="Review email address"
 dialog_file="$(mktemp)"
+trace_file="$(mktemp)"
 DIALOG_ROUNDS=${DIALOG_ROUNDS:-1}
 restored=0
 lost=0
@@ -382,10 +396,14 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
     fi
   done
 
+  trace_before="$(focus_trace | wc -l)"
   adb shell input keyevent KEYCODE_BACK
   sleep 2
   settle
   collect
+  trace_new="$(focus_trace | tail -n "+$((trace_before + 1))" | paste -sd '|' -)"
+  printf 'trace %s\t%s\n' "$round" "$trace_new" >> "$trace_file"
+  echo "  round $round focus trace: ${trace_new:-(none)}"
   printf 'dismissed %s\t%s\n' "$round" "$new" >> "$dialog_file"
   echo "  round $round dismissed: ${new:-(silent)}"
   # `|| true` so a dead app reaches the message below: `pidof` exits 1 when it

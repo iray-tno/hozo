@@ -3,11 +3,11 @@
 
 import { Dialog, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from '@hozo/core'
 import { PanResponder } from '@hozo/rn-compat'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 // What a ref to a host component holds on this platform. React Native names
 // it, so it is taken from there rather than spelled again here: `View` is a
 // function component in these types, and its *instance* is this.
-import type { HostInstance } from 'react-native'
+import { AppState, type HostInstance } from 'react-native'
 
 import Gallery from './Gallery.tsx'
 
@@ -38,6 +38,27 @@ export default function App() {
       },
     }),
   ).current
+
+  // Device-only evidence for #484. The TalkBack harness reads these lines
+  // from logcat after each dismissal, which distinguishes a missing Android
+  // window-focus signal from a restore request that arrived and was ignored.
+  // Console output is intentionally confined to the acceptance app; Dialog's
+  // public API and production packages gain no diagnostic-only surface.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('focus', () => {
+      console.info('[hozo-dialog-focus] window-focus')
+    })
+    return () => subscription.remove()
+  }, [])
+
+  const openConfirmation = () => {
+    console.info('[hozo-dialog-focus] open')
+    setConfirming(true)
+  }
+  const closeConfirmation = () => {
+    console.info('[hozo-dialog-focus] close')
+    setConfirming(false)
+  }
 
   // A second screen rather than a second registered component: an
   // activity launches one root, and the smoke script already knows how
@@ -132,7 +153,7 @@ export default function App() {
               className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
               accessibilityRole="button"
               accessibilityLabel="Review email address"
-              onPress={() => setConfirming(true)}
+              onPress={openConfirmation}
               testID="smoke-interaction"
             >
               <Text className="text-center font-bold text-white">Continue</Text>
@@ -167,7 +188,7 @@ export default function App() {
       <Dialog
         className="m-6 rounded-xl bg-white p-6"
         open={confirming}
-        onClose={() => setConfirming(false)}
+        onClose={closeConfirmation}
         restoreFocusTo={continueRef}
         accessibilityLabel="Confirm your address"
         testID="smoke-dialog"
