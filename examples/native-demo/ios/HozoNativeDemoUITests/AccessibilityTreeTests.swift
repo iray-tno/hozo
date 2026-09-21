@@ -60,14 +60,53 @@ final class AccessibilityTreeTests: XCTestCase {
     dumpTree(app, named: "acceptance")
 
     // The census screen, reached the way the Android script reaches it.
+    //
+    // Existence is not enough to tap, which is what #471 was. The button is
+    // on screen -- the acceptance dump puts it at y 555 with a height of 36,
+    // well inside every simulator this runs on -- so it is never a scrolling
+    // problem. What it is, five failures in one day say, is that the press
+    // registers and the screen never follows: either the element is not yet
+    // hittable when the tap is delivered, or the tap arrives while the JS
+    // thread is still settling the acceptance screen, which starts a
+    // PanResponder, a Skia canvas and an image load at once.
+    //
+    // Those two cannot be told apart from outside the process, so this closes
+    // both: wait until the element reports itself hittable, then tap with a
+    // bounded retry, checking for the destination between attempts. A retry is
+    // honest here rather than a papered-over race -- the thing being tested is
+    // the accessibility tree of the census screen, not how many taps it takes
+    // to get there, and the Android script already reaches the same screen
+    // with its own retry.
     let gallery = app.descendants(matching: .any).matching(identifier: "smoke-gallery").firstMatch
     XCTAssertTrue(gallery.waitForExistence(timeout: 10), "the Gallery button is not in the tree")
-    gallery.tap()
+
+    let hittable = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "isHittable == true"),
+      object: gallery
+    )
+    let becameHittable = XCTWaiter.wait(for: [hittable], timeout: 15) == .completed
 
     let heading = app.descendants(matching: .any).matching(identifier: "gallery-Heading").firstMatch
+    var attempts = 0
+    while attempts < 4 && !heading.exists {
+      attempts += 1
+      if gallery.isHittable {
+        gallery.tap()
+      } else {
+        // Still not hittable after the wait above. Tapping the coordinate is
+        // what is left, and it is what a person would do.
+        gallery.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+      }
+      _ = heading.waitForExistence(timeout: 8)
+    }
+
     XCTAssertTrue(
-      heading.waitForExistence(timeout: 20),
-      "the gallery did not open: pressing smoke-gallery reached no census screen"
+      heading.exists,
+      """
+      the gallery did not open: pressing smoke-gallery reached no census screen \
+      after \(attempts) attempts (became hittable: \(becameHittable), \
+      hittable now: \(gallery.isHittable), enabled: \(gallery.isEnabled))
+      """
     )
 
     dumpTree(app, named: "gallery")
