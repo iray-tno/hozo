@@ -29,6 +29,7 @@ function attemptRestore(opener: ComponentRef<typeof View>): void {
 
 type DialogHostMethods = {
   mount: (id: string, node: ReactNode) => void
+  restoreAfterUnmount: (opener: ComponentRef<typeof View>) => void
   update: (id: string, node: ReactNode) => void
   unmount: (id: string) => void
 }
@@ -51,9 +52,15 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       return next
     })
   }, [])
+  const restoreAfterUnmount = useCallback((opener: ComponentRef<typeof View>) => {
+    // Portal cleanup and the background accessibility update are React state
+    // work. Queue the focus request after that commit instead of sending it
+    // while the opener is still under no-hide-descendants.
+    setTimeout(() => attemptRestore(opener), 0)
+  }, [])
   const host = useMemo(
-    () => ({ mount: setDialog, update: setDialog, unmount }),
-    [setDialog, unmount],
+    () => ({ mount: setDialog, restoreAfterUnmount, update: setDialog, unmount }),
+    [restoreAfterUnmount, setDialog, unmount],
   )
   const hasDialog = dialogs.size > 0
 
@@ -158,6 +165,7 @@ export function Dialog({
   // should move.
   const wasOpen = useRef(false)
   const dialogRef = useRef<ComponentRef<typeof View> | null>(null)
+  const dialogHost = useContext(DialogHostContext)
 
   useEffect(() => {
     const closing = wasOpen.current && !open
@@ -170,11 +178,15 @@ export function Dialog({
     const handle = findNodeHandle(opener)
     if (!shouldRestoreFocus({ focusable: handle !== null })) return
 
-    // The Android overlay stays in the activity window, so there is no second
-    // accessibility-window transition to race. iOS also restores on this
-    // edge.
+    if (Platform.OS === 'android' && dialogHost) {
+      dialogHost.restoreAfterUnmount(opener)
+      return
+    }
+
+    // iOS restores on the closing edge. An Android Dialog without a provider
+    // also degrades to the immediate same-window request.
     attemptRestore(opener)
-  }, [open, restoreFocusTo])
+  }, [dialogHost, open, restoreFocusTo])
 
   useEffect(() => {
     if (!open || Platform.OS !== 'android') return
