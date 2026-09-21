@@ -23,7 +23,23 @@ import {
   type ViewStyle,
 } from 'react-native'
 
+type FocusMover = (view: object) => boolean
+
+function resolveFocusMover(): FocusMover {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const module = require('@hozo/native') as { moveAccessibilityFocus?: FocusMover }
+    if (typeof module.moveAccessibilityFocus === 'function') return module.moveAccessibilityFocus
+  } catch {
+    // Optional package: retain React Native's event as the fallback.
+  }
+  return () => false
+}
+
+const moveFocusNatively = resolveFocusMover()
+
 function attemptRestore(opener: ComponentRef<typeof View>): void {
+  if (moveFocusNatively(opener)) return
   AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
 }
 
