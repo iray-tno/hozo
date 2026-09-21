@@ -14,7 +14,7 @@ import {
 // TalkBack acceptance sweeps on the reference emulator failed through 175ms
 // after Android's window-focus signal and succeeded from 200ms. This is an
 // empirical compatibility boundary, not a claim about TalkBack internals.
-const WINDOW_RESTORE_DELAY_MS = 250
+const WINDOW_RESTORE_DELAY_MS = 200
 // One measured dismissal emitted no window-focus signal. Keep a later fallback
 // for that case; a real signal replaces it before it fires.
 const CLOSE_RESTORE_FALLBACK_MS = 500
