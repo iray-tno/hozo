@@ -70,9 +70,9 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   }, [])
   const restoreAfterUnmount = useCallback((opener: ComponentRef<typeof View>) => {
     // Portal cleanup and the background accessibility update are React state
-    // work. Queue the focus request after that commit instead of sending it
-    // while the opener is still under no-hide-descendants.
-    setTimeout(() => attemptRestore(opener), 0)
+    // work. Wait for the next UI frame after that commit instead of sending
+    // while the opener is still under no-hide-descendants in Android's tree.
+    requestAnimationFrame(() => attemptRestore(opener))
   }, [])
   const host = useMemo(
     () => ({ mount: setDialog, restoreAfterUnmount, update: setDialog, unmount }),
