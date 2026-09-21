@@ -33,6 +33,12 @@ class HozoAccessibilityModule(reactContext: ReactApplicationContext) :
       // Gone with its screen. A dialog can close because the whole route is
       // unmounting, and the view it would restore to went with it.
       if (view == null) return@runOnUiThread
+      // Android may still consider this view accessibility-focused after the
+      // Modal window disappears even though TalkBack has moved its cursor to
+      // another node. Clear that stale framework state before requesting the
+      // focus again; otherwise ACTION_ACCESSIBILITY_FOCUS can be accepted as
+      // a no-op.
+      view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS, null)
       view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
     }
   }

@@ -11,6 +11,24 @@ import {
   type ViewStyle,
 } from 'react-native'
 
+type FocusMover = (view: object) => boolean
+
+function resolveFocusMover(): FocusMover {
+  try {
+    // Optional native support: keep the JavaScript event path available to
+    // apps that do not install the Android module.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const module = require('@hozo/native') as { moveAccessibilityFocus?: FocusMover }
+    if (typeof module.moveAccessibilityFocus === 'function') return module.moveAccessibilityFocus
+  } catch {
+    // Missing package (or an environment without require) uses the existing
+    // React Native event below.
+  }
+  return () => false
+}
+
+const moveFocusNatively = resolveFocusMover()
+
 // TalkBack acceptance sweeps on the reference emulator failed through 175ms
 // after Android's window-focus signal and succeeded from 200ms. This is an
 // empirical compatibility boundary, not a claim about TalkBack internals.
@@ -20,6 +38,7 @@ const WINDOW_RESTORE_DELAY_MS = 250
 const CLOSE_RESTORE_FALLBACK_MS = 500
 
 function attemptRestore(opener: ComponentRef<typeof View>): void {
+  if (moveFocusNatively(opener)) return
   AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
 }
 
