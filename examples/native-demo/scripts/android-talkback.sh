@@ -412,8 +412,13 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   # script next door.
   still_up="$(adb shell pidof "$package" | tr -d '\r' || true)"
   [ -n "$still_up" ] || fail "Back closed the app rather than the dialog in round $round"
+  # The label alone is not proof of the final destination. On a failed
+  # dismissal TalkBack can announce the opener briefly and then move its
+  # cursor to the email field; those runs contain both "Review email address"
+  # and "Edit box". Require the opener's control role as well, which is the
+  # announcement emitted when the button actually owns the cursor.
   case "|$new|" in
-    *"|$opener|"*)
+    *"|$opener|Button"*)
       restored=$((restored + 1))
       echo "  round $round: focus returned to \"$opener\""
       ;;
@@ -429,7 +434,7 @@ echo "focus returned in $restored of $((restored + lost)) dismissals"
 # 35100769638 announced "Review email address" on dismissal. A run that does
 # not is a regression in `Dialog`'s `restoreFocusTo`, not an open question.
 if [ "$DIALOG_ROUNDS" -le 1 ]; then
-  [ "$lost" -eq 0 ] || fail "dismissing the dialog did not announce \"$opener\", so focus did not return to it"
+  [ "$lost" -eq 0 ] || fail "dismissing the dialog did not announce \"$opener\" as a Button, so focus did not return to it"
 else
   [ "$restored" -gt 0 ] ||
     fail "focus never returned to \"$opener\" in $DIALOG_ROUNDS dismissals, so the restore is not intermittent -- it is gone"
