@@ -7,7 +7,13 @@ export {
   type HozoComboboxProps,
 } from './combobox.native.tsx'
 export type { Autocomplete } from './combobox-rules.ts'
-export { Dialog, type DialogProps, HozoDialog, type HozoDialogProps } from './dialog.native.tsx'
+export {
+  Dialog,
+  type DialogProps,
+  DialogProvider,
+  HozoDialog,
+  type HozoDialogProps,
+} from './dialog.native.tsx'
 export {
   HozoListbox as Listbox,
   HozoListbox,

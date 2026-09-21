@@ -5,6 +5,7 @@ export {
   type Autocomplete,
   Dialog,
   type DialogProps,
+  DialogProvider,
   HozoCombobox as Combobox,
   HozoCombobox,
   type HozoComboboxOption as ComboboxOption,

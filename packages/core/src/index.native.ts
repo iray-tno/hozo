@@ -5,6 +5,7 @@ export type { Autocomplete } from '@hozo/patterns'
 export {
   Dialog,
   type DialogProps,
+  DialogProvider,
   HozoCombobox as Combobox,
   HozoCombobox,
   type HozoComboboxOption as ComboboxOption,

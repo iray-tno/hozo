@@ -1,18 +1,102 @@
 import { DismissableLayer, shouldRestoreFocus } from '@hozo/behaviors'
-import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
+import {
+  type ComponentRef,
+  createContext,
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   AccessibilityInfo,
   findNodeHandle,
   Modal,
   Platform,
-  StyleSheet,
   type StyleProp,
+  StyleSheet,
   View,
   type ViewStyle,
 } from 'react-native'
 
 function attemptRestore(opener: ComponentRef<typeof View>): void {
   AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
+}
+
+type DialogHostMethods = {
+  mount: (id: string, node: ReactNode) => void
+  update: (id: string, node: ReactNode) => void
+  unmount: (id: string) => void
+}
+
+const DialogHostContext = createContext<DialogHostMethods | null>(null)
+
+export function DialogProvider({ children }: { children: ReactNode }) {
+  const [dialogs, setDialogs] = useState<Map<string, ReactNode>>(() => new Map())
+  const setDialog = useCallback((id: string, node: ReactNode) => {
+    setDialogs((current) => {
+      const next = new Map(current)
+      next.set(id, node)
+      return next
+    })
+  }, [])
+  const unmount = useCallback((id: string) => {
+    setDialogs((current) => {
+      const next = new Map(current)
+      next.delete(id)
+      return next
+    })
+  }, [])
+  const host = useMemo(
+    () => ({ mount: setDialog, update: setDialog, unmount }),
+    [setDialog, unmount],
+  )
+  const hasDialog = dialogs.size > 0
+
+  return (
+    <DialogHostContext.Provider value={host}>
+      <View
+        style={{ flex: 1 }}
+        importantForAccessibility={hasDialog ? 'no-hide-descendants' : 'auto'}
+      >
+        {children}
+      </View>
+      {hasDialog ? (
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          {Array.from(dialogs.entries()).map(([id, dialog]) => (
+            <View key={id} style={StyleSheet.absoluteFill} importantForAccessibility="yes">
+              {dialog}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </DialogHostContext.Provider>
+  )
+}
+
+function HostedDialog({ open, children }: { open: boolean; children: ReactNode }) {
+  const host = useContext(DialogHostContext)
+  const id = useId()
+
+  // `children` changes update the existing host entry in the next effect;
+  // adding it here would unmount and remount the modal for every render.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: split mount/update lifecycle
+  useEffect(() => {
+    if (!open || !host) return
+    host.mount(id, children)
+    return () => host.unmount(id)
+  }, [open, host, id])
+
+  useEffect(() => {
+    if (open && host) host.update(id, children)
+  }, [open, host, id, children])
+
+  if (!host) return open ? children : null
+  return null
 }
 
 export interface DialogProps {
@@ -102,25 +186,23 @@ export function Dialog({
   }, [open])
 
   if (Platform.OS === 'android') {
-    if (!open) return null
     return (
-      <DismissableLayer
-        onDismiss={onClose}
-        style={StyleSheet.absoluteFill as never}
-      >
-        <View
-          ref={dialogRef}
-          style={style as StyleProp<ViewStyle>}
-          accessible
-          accessibilityViewIsModal
-          accessibilityRole="none"
-          accessibilityLabel={accessibilityLabel}
-          accessibilityHint={accessibilityHint}
-          testID={testID}
-        >
-          {children}
-        </View>
-      </DismissableLayer>
+      <HostedDialog open={open}>
+        <DismissableLayer onDismiss={onClose} style={StyleSheet.absoluteFill as never}>
+          <View
+            ref={dialogRef}
+            style={style as StyleProp<ViewStyle>}
+            accessible
+            accessibilityViewIsModal
+            accessibilityRole="none"
+            accessibilityLabel={accessibilityLabel}
+            accessibilityHint={accessibilityHint}
+            testID={testID}
+          >
+            {children}
+          </View>
+        </DismissableLayer>
+      </HostedDialog>
     )
   }
 

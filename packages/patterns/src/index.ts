@@ -7,7 +7,13 @@ export {
   type HozoComboboxProps as ComboboxProps,
   type HozoComboboxProps,
 } from './combobox.tsx'
-export { Dialog, type DialogProps, HozoDialog, type HozoDialogProps } from './dialog.tsx'
+export {
+  Dialog,
+  type DialogProps,
+  DialogProvider,
+  HozoDialog,
+  type HozoDialogProps,
+} from './dialog.tsx'
 export {
   HozoListbox as Listbox,
   HozoListbox,

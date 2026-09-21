@@ -1,6 +1,11 @@
 import { shouldRestoreFocus } from '@hozo/behaviors'
 import { type ReactNode, type RefObject, useEffect, useRef } from 'react'
 
+/** Web dialogs already portal into the top layer; no host wrapper is needed. */
+export function DialogProvider({ children }: { children: ReactNode }) {
+  return children
+}
+
 export interface DialogProps {
   /** Whether the dialog is showing. Render is driven by this, not by mounting. */
   open?: boolean
