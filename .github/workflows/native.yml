@@ -46,7 +46,7 @@ on:
   workflow_dispatch:
     inputs:
       dialog_rounds:
-        description: 'Dialog dismissals within each boot. 1 is the gate; above 1 is correlated diagnostic sampling.'
+        description: 'Dialog dismissals within each boot. Results are diagnostic because restore remains intermittent.'
         default: '1'
         required: false
       dialog_boots:
