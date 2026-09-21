@@ -186,6 +186,10 @@ jobs:
   # `android-talkback.sh` makes it the default engine, switches TalkBack on
   # and walks the screen with Tab.
   talkback:
+    # Keep the established required-check name for ordinary one-boot runs.
+    # A dispatched matrix names the independent boots so their evidence is
+    # distinguishable in both the checks list and the artifacts.
+    name: ${{ inputs.dialog_boots && inputs.dialog_boots != '[1]' && format('talkback (boot {0})', matrix.boot) || 'talkback' }}
     strategy:
       fail-fast: false
       matrix:
