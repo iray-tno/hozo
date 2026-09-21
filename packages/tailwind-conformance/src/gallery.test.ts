@@ -66,6 +66,14 @@ const NOT_ON_THE_SCREEN = new Map([
   ['HozoToolbar', 'The same component under its other published name.'],
   ['HozoTree', 'The same component under its other published name.'],
   [
+    'FlatList',
+    'A virtualised list that renders from `data` and `renderItem`. It was ' +
+      'invisible to this census until #498: `forwardRef` made it an object ' +
+      'rather than a function, and the collector only looks at functions. ' +
+      'Rendering one here is a change to the screen rather than to this list.',
+  ],
+  ['HozoFlatList', 'The same component under its other published name.'],
+  [
     'Dialog',
     'On the acceptance screen instead, where the round trip that opens and ' +
       'dismisses it lives. A modal on a census screen would cover the census.',

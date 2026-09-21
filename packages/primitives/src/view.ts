@@ -6,7 +6,6 @@ import {
 } from '@hozo/engine'
 import {
   createElement,
-  forwardRef,
   type HTMLAttributes,
   type ReactNode,
   type Ref,
@@ -42,6 +41,15 @@ export interface HozoViewProps
   onLayout?: (event: HozoLayoutEvent) => void
   collapsable?: boolean
   'data-hozo-disabled'?: string
+  /**
+   * Declared here rather than supplied by `forwardRef`'s return type.
+   *
+   * React 19 takes `ref` as an ordinary prop, so the component is a plain
+   * function and nothing adds `ref` to its props on the way out. A caller's
+   * `ref` is accepted because this line says so, which is also why it has to
+   * be destructured below: `...props` would otherwise carry it to the `div`.
+   */
+  ref?: Ref<HTMLDivElement>
 }
 
 function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
@@ -50,40 +58,38 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
 }
 
 /** A measured/responder-aware View for the Web paths that cannot be a plain div. */
-export const HozoView = forwardRef<HTMLDivElement, HozoViewProps>(function HozoView(
-  {
-    children,
-    style,
-    testID,
-    nativeID,
-    pointerEvents,
-    accessibilityLabel,
-    accessibilityHint,
-    accessibilityRole,
-    accessibilityState,
-    accessibilityValue,
-    accessibilityLiveRegion,
-    onLayout,
-    collapsable: _collapsable,
-    role,
-    'aria-disabled': ariaDisabled,
-    'data-hozo-disabled': dataHozoDisabled,
-    onStartShouldSetResponder,
-    onStartShouldSetResponderCapture,
-    onMoveShouldSetResponder,
-    onMoveShouldSetResponderCapture,
-    onResponderGrant,
-    onResponderStart,
-    onResponderMove,
-    onResponderEnd,
-    onResponderRelease,
-    onResponderReject,
-    onResponderTerminate,
-    onResponderTerminationRequest,
-    ...props
-  },
-  forwardedRef,
-) {
+export function HozoView({
+  ref: forwardedRef,
+  children,
+  style,
+  testID,
+  nativeID,
+  pointerEvents,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityRole,
+  accessibilityState,
+  accessibilityValue,
+  accessibilityLiveRegion,
+  onLayout,
+  collapsable: _collapsable,
+  role,
+  'aria-disabled': ariaDisabled,
+  'data-hozo-disabled': dataHozoDisabled,
+  onStartShouldSetResponder,
+  onStartShouldSetResponderCapture,
+  onMoveShouldSetResponder,
+  onMoveShouldSetResponderCapture,
+  onResponderGrant,
+  onResponderStart,
+  onResponderMove,
+  onResponderEnd,
+  onResponderRelease,
+  onResponderReject,
+  onResponderTerminate,
+  onResponderTerminationRequest,
+  ...props
+}: HozoViewProps) {
   const elementRef = useRef<HTMLDivElement>(null)
   const layoutCallback = useRef(onLayout)
   layoutCallback.current = onLayout
@@ -162,4 +168,4 @@ export const HozoView = forwardRef<HTMLDivElement, HozoViewProps>(function HozoV
     },
     children,
   )
-})
+}

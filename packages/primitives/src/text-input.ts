@@ -3,10 +3,10 @@ import {
   type ChangeEvent,
   type ChangeEventHandler,
   createElement,
-  forwardRef,
   type InputHTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
+  type Ref,
 } from 'react'
 
 type InputMode = 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
@@ -27,6 +27,8 @@ type DomInputProps = Omit<
 >
 
 export interface HozoTextInputProps extends DomInputProps {
+  /** Declared here, because React 19 takes `ref` as an ordinary prop. */
+  ref?: Ref<HTMLInputElement | HTMLTextAreaElement>
   children?: ReactNode
   value?: string
   style?: HozoDomStyle
@@ -56,74 +58,70 @@ export interface HozoTextInputProps extends DomInputProps {
 }
 
 /** A value-level TextInput for factories and other code the JSX compiler cannot rewrite. */
-export const HozoTextInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, HozoTextInputProps>(
-  function HozoTextInput(
-    {
-      accessibilityHint,
-      accessibilityLabel,
-      accessibilityLabelledBy,
-      blurOnSubmit,
-      cursorColor,
-      editable,
-      hitSlop: _hitSlop,
-      inputMode,
-      keyboardAppearance: _keyboardAppearance,
-      keyboardType,
-      multiline,
-      nativeID,
-      numberOfLines,
-      onChange,
-      onChangeText,
-      onKeyPress,
-      onSubmitEditing,
-      placeholderTextColor: _placeholderTextColor,
-      readOnly,
-      returnKeyType,
-      secureTextEntry,
-      selectionColor,
-      style,
-      testID,
-      value,
-      ...props
-    },
+export function HozoTextInput({
+  ref,
+  accessibilityHint,
+  accessibilityLabel,
+  accessibilityLabelledBy,
+  blurOnSubmit,
+  cursorColor,
+  editable,
+  hitSlop: _hitSlop,
+  inputMode,
+  keyboardAppearance: _keyboardAppearance,
+  keyboardType,
+  multiline,
+  nativeID,
+  numberOfLines,
+  onChange,
+  onChangeText,
+  onKeyPress,
+  onSubmitEditing,
+  placeholderTextColor: _placeholderTextColor,
+  readOnly,
+  returnKeyType,
+  secureTextEntry,
+  selectionColor,
+  style,
+  testID,
+  value,
+  ...props
+}: HozoTextInputProps) {
+  const change = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    onChange?.(event)
+    onChangeText?.(event.currentTarget.value)
+  }
+  const keyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    onKeyPress?.(event)
+    if (event.key !== 'Enter' || !onSubmitEditing) return
+    if (!multiline || blurOnSubmit) {
+      onSubmitEditing({ nativeEvent: { text: event.currentTarget.value } })
+      if (blurOnSubmit) event.currentTarget.blur()
+    }
+  }
+  const resolvedStyle = hozoDomStyle([
+    style,
+    cursorColor || selectionColor ? { caretColor: cursorColor ?? selectionColor } : undefined,
+  ])
+  const shared = {
+    ...props,
+    id: nativeID,
+    value,
+    readOnly: readOnly ?? (editable === undefined ? undefined : !editable),
+    inputMode: inputMode ?? (keyboardType ? INPUT_MODES[keyboardType] : undefined),
+    enterKeyHint: returnKeyType as InputHTMLAttributes<HTMLInputElement>['enterKeyHint'],
+    style: resolvedStyle,
+    'aria-label': accessibilityLabel,
+    'aria-description': accessibilityHint,
+    'aria-labelledby': accessibilityLabelledBy,
+    'data-testid': testID,
+    onChange: change,
+    onKeyDown: keyDown,
+  }
+  return createElement(multiline ? 'textarea' : 'input', {
+    ...shared,
     ref,
-  ) {
-    const change = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      onChange?.(event)
-      onChangeText?.(event.currentTarget.value)
-    }
-    const keyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      onKeyPress?.(event)
-      if (event.key !== 'Enter' || !onSubmitEditing) return
-      if (!multiline || blurOnSubmit) {
-        onSubmitEditing({ nativeEvent: { text: event.currentTarget.value } })
-        if (blurOnSubmit) event.currentTarget.blur()
-      }
-    }
-    const resolvedStyle = hozoDomStyle([
-      style,
-      cursorColor || selectionColor ? { caretColor: cursorColor ?? selectionColor } : undefined,
-    ])
-    const shared = {
-      ...props,
-      id: nativeID,
-      value,
-      readOnly: readOnly ?? (editable === undefined ? undefined : !editable),
-      inputMode: inputMode ?? (keyboardType ? INPUT_MODES[keyboardType] : undefined),
-      enterKeyHint: returnKeyType as InputHTMLAttributes<HTMLInputElement>['enterKeyHint'],
-      style: resolvedStyle,
-      'aria-label': accessibilityLabel,
-      'aria-description': accessibilityHint,
-      'aria-labelledby': accessibilityLabelledBy,
-      'data-testid': testID,
-      onChange: change,
-      onKeyDown: keyDown,
-    }
-    return createElement(multiline ? 'textarea' : 'input', {
-      ...shared,
-      ref,
-      rows: multiline ? numberOfLines : undefined,
-      type: multiline ? undefined : secureTextEntry ? 'password' : props.type,
-    })
-  },
-)
+    rows: multiline ? numberOfLines : undefined,
+    type: multiline ? undefined : secureTextEntry ? 'password' : props.type,
+  })
+}

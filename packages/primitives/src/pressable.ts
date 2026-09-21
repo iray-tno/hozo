@@ -7,7 +7,6 @@ import {
 } from '@hozo/engine'
 import {
   createElement,
-  forwardRef,
   type HTMLAttributes,
   type KeyboardEvent,
   type MouseEvent,
@@ -43,6 +42,12 @@ type DivProps = Omit<
 >
 
 export interface HozoPressableProps extends DivProps, ResponderProps {
+  /**
+   * Declared here rather than supplied by `forwardRef`. React 19 takes `ref`
+   * as an ordinary prop, so a plain function gets it only if its props say so
+   * -- and it must be destructured, or `...props` would carry it onward.
+   */
+  ref?: Ref<HTMLElement>
   children?: ReactNode | ((state: HozoPressableState) => ReactNode)
   style?: HozoDomStyle | ((state: HozoPressableState) => HozoDomStyle)
   onPress?: (event: MouseEvent<HTMLElement>) => void
@@ -102,67 +107,65 @@ function dataAttributes(dataSet: HozoPressableProps['dataSet']) {
 }
 
 /** A value-level Pressable for component props and animation wrappers. */
-export const HozoPressable = forwardRef<HTMLElement, HozoPressableProps>(function HozoPressable(
-  {
-    accessibilityActions: _accessibilityActions,
-    accessibilityHint,
-    accessibilityLabel,
-    accessibilityLiveRegion,
-    accessibilityRole,
-    accessibilityState,
-    accessibilityValue,
-    accessible: _accessible,
-    android_ripple: _androidRipple,
-    children,
-    dataSet,
-    disabled,
-    download,
-    external,
-    hitSlop: _hitSlop,
-    href,
-    nativeID,
-    onAccessibilityAction: _onAccessibilityAction,
-    onBlur,
-    onClick,
-    onFocus,
-    onHoverIn,
-    onHoverOut,
-    onPointerCancel,
-    onPointerDown,
-    onPointerEnter,
-    onPointerLeave,
-    onPointerUp,
-    onPress,
-    onPressIn,
-    onPressOut,
-    onKeyDown,
-    onKeyUp,
-    onLostPointerCapture,
-    onLayout,
-    onMoveShouldSetResponder,
-    onMoveShouldSetResponderCapture,
-    onResponderEnd,
-    onResponderGrant,
-    onResponderMove,
-    onResponderReject,
-    onResponderRelease,
-    onResponderStart,
-    onResponderTerminate,
-    onResponderTerminationRequest,
-    onStartShouldSetResponder,
-    onStartShouldSetResponderCapture,
-    pointerEvents,
-    prefetch,
-    rel,
-    replace,
-    role,
-    style,
-    target,
-    testID,
-    ...props
-  },
-  forwardedRef,
-) {
+export function HozoPressable({
+  ref: forwardedRef,
+  accessibilityActions: _accessibilityActions,
+  accessibilityHint,
+  accessibilityLabel,
+  accessibilityLiveRegion,
+  accessibilityRole,
+  accessibilityState,
+  accessibilityValue,
+  accessible: _accessible,
+  android_ripple: _androidRipple,
+  children,
+  dataSet,
+  disabled,
+  download,
+  external,
+  hitSlop: _hitSlop,
+  href,
+  nativeID,
+  onAccessibilityAction: _onAccessibilityAction,
+  onBlur,
+  onClick,
+  onFocus,
+  onHoverIn,
+  onHoverOut,
+  onPointerCancel,
+  onPointerDown,
+  onPointerEnter,
+  onPointerLeave,
+  onPointerUp,
+  onPress,
+  onPressIn,
+  onPressOut,
+  onKeyDown,
+  onKeyUp,
+  onLostPointerCapture,
+  onLayout,
+  onMoveShouldSetResponder,
+  onMoveShouldSetResponderCapture,
+  onResponderEnd,
+  onResponderGrant,
+  onResponderMove,
+  onResponderReject,
+  onResponderRelease,
+  onResponderStart,
+  onResponderTerminate,
+  onResponderTerminationRequest,
+  onStartShouldSetResponder,
+  onStartShouldSetResponderCapture,
+  pointerEvents,
+  prefetch,
+  rel,
+  replace,
+  role,
+  style,
+  target,
+  testID,
+  ...props
+}: HozoPressableProps) {
   const elementRef = useRef<HTMLElement>(null)
   const layoutCallback = useRef(onLayout)
   layoutCallback.current = onLayout
@@ -355,4 +358,4 @@ export const HozoPressable = forwardRef<HTMLElement, HozoPressableProps>(functio
     } as unknown as HTMLAttributes<HTMLDivElement>,
     resolvedChildren,
   )
-})
+}
