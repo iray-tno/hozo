@@ -2,7 +2,6 @@ import { type ResponderProps, useResponderDomProps } from '@hozo/engine'
 import {
   Children,
   cloneElement,
-  forwardRef,
   type HTMLAttributes,
   type PointerEvent,
   type ReactElement,
@@ -14,6 +13,8 @@ import {
 export interface HozoTouchableWithoutFeedbackProps
   extends Omit<HTMLAttributes<HTMLElement>, 'children'>,
     ResponderProps {
+  /** Declared here, because React 19 takes `ref` as an ordinary prop. */
+  ref?: Ref<HTMLElement>
   children: ReactElement
   testID?: string
   nativeID?: string
@@ -43,49 +44,44 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
  * Adds interaction to one existing child, matching React Native's deliberate
  * no-layout-wrapper contract.
  */
-export const HozoTouchableWithoutFeedback = forwardRef<
-  HTMLElement,
-  HozoTouchableWithoutFeedbackProps
->(function HozoTouchableWithoutFeedback(
-  {
-    children,
-    testID,
-    nativeID,
-    pointerEvents,
-    accessibilityLabel,
-    accessibilityHint,
-    accessibilityRole,
-    accessibilityState,
-    accessibilityValue,
-    accessibilityLiveRegion,
-    disabled = false,
-    role,
-    'aria-disabled': ariaDisabled,
-    'data-hozo-disabled': dataHozoDisabled,
-    onClick,
-    onPointerDown,
-    onPointerDownCapture,
-    onPointerMove,
-    onPointerMoveCapture,
-    onPointerUp,
-    onPointerCancel,
-    onLostPointerCapture,
-    onStartShouldSetResponder,
-    onStartShouldSetResponderCapture,
-    onMoveShouldSetResponder,
-    onMoveShouldSetResponderCapture,
-    onResponderGrant,
-    onResponderStart,
-    onResponderMove,
-    onResponderEnd,
-    onResponderRelease,
-    onResponderReject,
-    onResponderTerminate,
-    onResponderTerminationRequest,
-    ...props
-  },
-  forwardedRef,
-) {
+export function HozoTouchableWithoutFeedback({
+  ref: forwardedRef,
+  children,
+  testID,
+  nativeID,
+  pointerEvents,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityRole,
+  accessibilityState,
+  accessibilityValue,
+  accessibilityLiveRegion,
+  disabled = false,
+  role,
+  'aria-disabled': ariaDisabled,
+  'data-hozo-disabled': dataHozoDisabled,
+  onClick,
+  onPointerDown,
+  onPointerDownCapture,
+  onPointerMove,
+  onPointerMoveCapture,
+  onPointerUp,
+  onPointerCancel,
+  onLostPointerCapture,
+  onStartShouldSetResponder,
+  onStartShouldSetResponderCapture,
+  onMoveShouldSetResponder,
+  onMoveShouldSetResponderCapture,
+  onResponderGrant,
+  onResponderStart,
+  onResponderMove,
+  onResponderEnd,
+  onResponderRelease,
+  onResponderReject,
+  onResponderTerminate,
+  onResponderTerminationRequest,
+  ...props
+}: HozoTouchableWithoutFeedbackProps) {
   const child = Children.only(children) as ReactElement<Record<string, unknown>>
   const elementRef = useRef<HTMLElement>(null)
   const childRef = child.props.ref as Ref<HTMLElement> | undefined
@@ -178,4 +174,4 @@ export const HozoTouchableWithoutFeedback = forwardRef<
   }
   clonedProps.ref = setRef
   return cloneElement(child, clonedProps)
-})
+}

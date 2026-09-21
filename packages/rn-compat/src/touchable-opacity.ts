@@ -6,7 +6,6 @@ import {
 } from '@hozo/engine'
 import {
   createElement,
-  forwardRef,
   type HTMLAttributes,
   type KeyboardEvent,
   type PointerEvent,
@@ -20,6 +19,8 @@ import {
 export interface HozoTouchableOpacityProps
   extends Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'style'>,
     ResponderProps {
+  /** Declared here, because React 19 takes `ref` as an ordinary prop. */
+  ref?: Ref<HTMLDivElement>
   activeOpacity?: number
   children?: ReactNode
   style?: HozoDomStyle
@@ -48,37 +49,64 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
 }
 
 /** React Native TouchableOpacity feedback without retaining React Native Web. */
-export const HozoTouchableOpacity = forwardRef<HTMLDivElement, HozoTouchableOpacityProps>(
-  function HozoTouchableOpacity(
+export function HozoTouchableOpacity({
+  ref: forwardedRef,
+  activeOpacity = 0.2,
+  children,
+  style,
+  testID,
+  nativeID,
+  pointerEvents,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityRole,
+  accessibilityState,
+  accessibilityValue,
+  accessibilityLiveRegion,
+  disabled = false,
+  role,
+  'aria-disabled': ariaDisabled,
+  'data-hozo-disabled': dataHozoDisabled,
+  onClick,
+  onPointerDown,
+  onPointerUp,
+  onPointerCancel,
+  onPointerDownCapture,
+  onPointerLeave,
+  onPointerMove,
+  onPointerMoveCapture,
+  onKeyDown,
+  onKeyUp,
+  onBlur,
+  onLostPointerCapture,
+  onStartShouldSetResponder,
+  onStartShouldSetResponderCapture,
+  onMoveShouldSetResponder,
+  onMoveShouldSetResponderCapture,
+  onResponderGrant,
+  onResponderStart,
+  onResponderMove,
+  onResponderEnd,
+  onResponderRelease,
+  onResponderReject,
+  onResponderTerminate,
+  onResponderTerminationRequest,
+  ...props
+}: HozoTouchableOpacityProps) {
+  const elementRef = useRef<HTMLDivElement>(null)
+  const setRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      elementRef.current = element
+      assignRef(forwardedRef, element)
+    },
+    [forwardedRef],
+  )
+  const [pressed, setPressed] = useState(false)
+  const unavailable = disabled || accessibilityState?.disabled === true
+  const value = accessibilityValue
+  const responder = useResponderDomProps(
+    elementRef,
     {
-      activeOpacity = 0.2,
-      children,
-      style,
-      testID,
-      nativeID,
-      pointerEvents,
-      accessibilityLabel,
-      accessibilityHint,
-      accessibilityRole,
-      accessibilityState,
-      accessibilityValue,
-      accessibilityLiveRegion,
-      disabled = false,
-      role,
-      'aria-disabled': ariaDisabled,
-      'data-hozo-disabled': dataHozoDisabled,
-      onClick,
-      onPointerDown,
-      onPointerUp,
-      onPointerCancel,
-      onPointerDownCapture,
-      onPointerLeave,
-      onPointerMove,
-      onPointerMoveCapture,
-      onKeyDown,
-      onKeyUp,
-      onBlur,
-      onLostPointerCapture,
       onStartShouldSetResponder,
       onStartShouldSetResponderCapture,
       onMoveShouldSetResponder,
@@ -91,127 +119,96 @@ export const HozoTouchableOpacity = forwardRef<HTMLDivElement, HozoTouchableOpac
       onResponderReject,
       onResponderTerminate,
       onResponderTerminationRequest,
-      ...props
     },
-    forwardedRef,
-  ) {
-    const elementRef = useRef<HTMLDivElement>(null)
-    const setRef = useCallback(
-      (element: HTMLDivElement | null) => {
-        elementRef.current = element
-        assignRef(forwardedRef, element)
-      },
-      [forwardedRef],
-    )
-    const [pressed, setPressed] = useState(false)
-    const unavailable = disabled || accessibilityState?.disabled === true
-    const value = accessibilityValue
-    const responder = useResponderDomProps(
-      elementRef,
-      {
-        onStartShouldSetResponder,
-        onStartShouldSetResponderCapture,
-        onMoveShouldSetResponder,
-        onMoveShouldSetResponderCapture,
-        onResponderGrant,
-        onResponderStart,
-        onResponderMove,
-        onResponderEnd,
-        onResponderRelease,
-        onResponderReject,
-        onResponderTerminate,
-        onResponderTerminationRequest,
-      },
-      !unavailable,
-    )
+    !unavailable,
+  )
 
-    const pressIn = (event: PointerEvent<HTMLDivElement>) => {
-      if (!unavailable && event.isPrimary) setPressed(true)
-      onPointerDown?.(event)
-    }
-    const pressOut = (event: PointerEvent<HTMLDivElement>) => {
-      setPressed(false)
-      onPointerUp?.(event)
-    }
-    const cancel = (event: PointerEvent<HTMLDivElement>) => {
-      setPressed(false)
-      onPointerCancel?.(event)
-    }
-    const leave = (event: PointerEvent<HTMLDivElement>) => {
-      setPressed(false)
-      onPointerLeave?.(event)
-    }
-    const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-      if (!unavailable && (event.key === 'Enter' || event.key === ' ')) setPressed(true)
-      onKeyDown?.(event)
-    }
-    const keyUp = (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'Enter' || event.key === ' ') setPressed(false)
-      onKeyUp?.(event)
-    }
+  const pressIn = (event: PointerEvent<HTMLDivElement>) => {
+    if (!unavailable && event.isPrimary) setPressed(true)
+    onPointerDown?.(event)
+  }
+  const pressOut = (event: PointerEvent<HTMLDivElement>) => {
+    setPressed(false)
+    onPointerUp?.(event)
+  }
+  const cancel = (event: PointerEvent<HTMLDivElement>) => {
+    setPressed(false)
+    onPointerCancel?.(event)
+  }
+  const leave = (event: PointerEvent<HTMLDivElement>) => {
+    setPressed(false)
+    onPointerLeave?.(event)
+  }
+  const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!unavailable && (event.key === 'Enter' || event.key === ' ')) setPressed(true)
+    onKeyDown?.(event)
+  }
+  const keyUp = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') setPressed(false)
+    onKeyUp?.(event)
+  }
 
-    return createElement(
-      'div',
-      {
-        ...props,
-        ref: setRef,
-        role: accessibilityRole ?? role,
-        style: hozoDomStyle([style, pressed ? { opacity: activeOpacity } : undefined]),
-        'data-testid': testID,
-        id: nativeID,
-        'data-hozo-pointer-events': pointerEvents,
-        'data-hozo-disabled': unavailable ? '' : dataHozoDisabled,
-        'aria-disabled': unavailable ? true : ariaDisabled,
-        'aria-selected': accessibilityState?.selected,
-        'aria-checked': accessibilityState?.checked,
-        'aria-busy': accessibilityState?.busy,
-        'aria-expanded': accessibilityState?.expanded,
-        'aria-valuemin': value?.min,
-        'aria-valuemax': value?.max,
-        'aria-valuenow': value?.now,
-        'aria-valuetext': value?.text,
-        'aria-live': accessibilityLiveRegion === 'none' ? undefined : accessibilityLiveRegion,
-        'aria-label': accessibilityLabel,
-        'aria-description': accessibilityHint,
-        onClick: unavailable ? undefined : onClick,
-        onPointerDown: (event) => {
-          pressIn(event)
-          responder.onPointerDown?.(event)
-        },
-        onPointerDownCapture: (event) => {
-          responder.onPointerDownCapture?.(event)
-          onPointerDownCapture?.(event)
-        },
-        onPointerMove: (event) => {
-          responder.onPointerMove?.(event)
-          onPointerMove?.(event)
-        },
-        onPointerMoveCapture: (event) => {
-          responder.onPointerMoveCapture?.(event)
-          onPointerMoveCapture?.(event)
-        },
-        onPointerUp: (event) => {
-          pressOut(event)
-          responder.onPointerUp?.(event)
-        },
-        onPointerCancel: (event) => {
-          cancel(event)
-          responder.onPointerCancel?.(event)
-        },
-        onPointerLeave: leave,
-        onLostPointerCapture: (event) => {
-          setPressed(false)
-          responder.onLostPointerCapture?.(event)
-          onLostPointerCapture?.(event)
-        },
-        onKeyDown: keyDown,
-        onKeyUp: keyUp,
-        onBlur: (event) => {
-          setPressed(false)
-          onBlur?.(event)
-        },
+  return createElement(
+    'div',
+    {
+      ...props,
+      ref: setRef,
+      role: accessibilityRole ?? role,
+      style: hozoDomStyle([style, pressed ? { opacity: activeOpacity } : undefined]),
+      'data-testid': testID,
+      id: nativeID,
+      'data-hozo-pointer-events': pointerEvents,
+      'data-hozo-disabled': unavailable ? '' : dataHozoDisabled,
+      'aria-disabled': unavailable ? true : ariaDisabled,
+      'aria-selected': accessibilityState?.selected,
+      'aria-checked': accessibilityState?.checked,
+      'aria-busy': accessibilityState?.busy,
+      'aria-expanded': accessibilityState?.expanded,
+      'aria-valuemin': value?.min,
+      'aria-valuemax': value?.max,
+      'aria-valuenow': value?.now,
+      'aria-valuetext': value?.text,
+      'aria-live': accessibilityLiveRegion === 'none' ? undefined : accessibilityLiveRegion,
+      'aria-label': accessibilityLabel,
+      'aria-description': accessibilityHint,
+      onClick: unavailable ? undefined : onClick,
+      onPointerDown: (event) => {
+        pressIn(event)
+        responder.onPointerDown?.(event)
       },
-      children,
-    )
-  },
-)
+      onPointerDownCapture: (event) => {
+        responder.onPointerDownCapture?.(event)
+        onPointerDownCapture?.(event)
+      },
+      onPointerMove: (event) => {
+        responder.onPointerMove?.(event)
+        onPointerMove?.(event)
+      },
+      onPointerMoveCapture: (event) => {
+        responder.onPointerMoveCapture?.(event)
+        onPointerMoveCapture?.(event)
+      },
+      onPointerUp: (event) => {
+        pressOut(event)
+        responder.onPointerUp?.(event)
+      },
+      onPointerCancel: (event) => {
+        cancel(event)
+        responder.onPointerCancel?.(event)
+      },
+      onPointerLeave: leave,
+      onLostPointerCapture: (event) => {
+        setPressed(false)
+        responder.onLostPointerCapture?.(event)
+        onLostPointerCapture?.(event)
+      },
+      onKeyDown: keyDown,
+      onKeyUp: keyUp,
+      onBlur: (event) => {
+        setPressed(false)
+        onBlur?.(event)
+      },
+    },
+    children,
+  )
+}

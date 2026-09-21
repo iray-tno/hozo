@@ -6,7 +6,6 @@ import {
 } from '@hozo/engine'
 import {
   createElement,
-  forwardRef,
   type HTMLAttributes,
   isValidElement,
   type ReactElement,
@@ -183,223 +182,216 @@ function useMeasurements(
   }, [rootRef, contentRef])
 }
 
-export interface HozoScrollViewProps extends SharedScrollableProps {}
+export interface HozoScrollViewProps extends SharedScrollableProps {
+  /** Declared here, because React 19 takes `ref` as an ordinary prop. */
+  ref?: Ref<HTMLDivElement>
+}
 
-export const HozoScrollView = forwardRef<HTMLDivElement, HozoScrollViewProps>(
-  function HozoScrollView(
-    {
-      children,
-      className,
-      style,
-      contentContainerStyle,
-      horizontal,
-      refreshing,
-      onRefresh,
-      refreshControl,
-      showsVerticalScrollIndicator = true,
-      showsHorizontalScrollIndicator = true,
-      onScroll,
-      scrollEventThrottle = 0,
-      onScrollBeginDrag,
-      onScrollEndDrag,
-      onMomentumScrollEnd,
-      onContentSizeChange,
-      onLayout,
-      testID,
-      nativeID,
-      pointerEvents,
-      accessibilityLabel,
-      accessibilityHint,
-      accessibilityRole,
-      accessibilityState,
-      accessibilityValue,
-      accessibilityLiveRegion,
-      keyboardShouldPersistTaps: _keyboardShouldPersistTaps,
-      stickyHeaderIndices: _stickyHeaderIndices,
-      contentInsetAdjustmentBehavior: _contentInsetAdjustmentBehavior,
-      automaticallyAdjustKeyboardInsets: _automaticallyAdjustKeyboardInsets,
-      bounces: _bounces,
-      pagingEnabled: _pagingEnabled,
-      directionalLockEnabled: _directionalLockEnabled,
-      nestedScrollEnabled: _nestedScrollEnabled,
-      alwaysBounceVertical: _alwaysBounceVertical,
-      overScrollMode: _overScrollMode,
-      snapToOffsets: _snapToOffsets,
-      snapToEnd: _snapToEnd,
-      onPointerDown,
-      onPointerDownCapture,
-      onPointerMove,
-      onPointerMoveCapture,
-      onPointerUp,
-      onPointerCancel,
-      onLostPointerCapture,
-      onStartShouldSetResponder,
-      onStartShouldSetResponderCapture,
-      onMoveShouldSetResponder,
-      onMoveShouldSetResponderCapture,
-      onResponderGrant,
-      onResponderStart,
-      onResponderMove,
-      onResponderEnd,
-      onResponderRelease,
-      onResponderReject,
-      onResponderTerminate,
-      onResponderTerminationRequest,
-      ...domProps
+export function HozoScrollView({
+  ref: forwardedRef,
+  children,
+  className,
+  style,
+  contentContainerStyle,
+  horizontal,
+  refreshing,
+  onRefresh,
+  refreshControl,
+  showsVerticalScrollIndicator = true,
+  showsHorizontalScrollIndicator = true,
+  onScroll,
+  scrollEventThrottle = 0,
+  onScrollBeginDrag,
+  onScrollEndDrag,
+  onMomentumScrollEnd,
+  onContentSizeChange,
+  onLayout,
+  testID,
+  nativeID,
+  pointerEvents,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityRole,
+  accessibilityState,
+  accessibilityValue,
+  accessibilityLiveRegion,
+  keyboardShouldPersistTaps: _keyboardShouldPersistTaps,
+  stickyHeaderIndices: _stickyHeaderIndices,
+  contentInsetAdjustmentBehavior: _contentInsetAdjustmentBehavior,
+  automaticallyAdjustKeyboardInsets: _automaticallyAdjustKeyboardInsets,
+  bounces: _bounces,
+  pagingEnabled: _pagingEnabled,
+  directionalLockEnabled: _directionalLockEnabled,
+  nestedScrollEnabled: _nestedScrollEnabled,
+  alwaysBounceVertical: _alwaysBounceVertical,
+  overScrollMode: _overScrollMode,
+  snapToOffsets: _snapToOffsets,
+  snapToEnd: _snapToEnd,
+  onPointerDown,
+  onPointerDownCapture,
+  onPointerMove,
+  onPointerMoveCapture,
+  onPointerUp,
+  onPointerCancel,
+  onLostPointerCapture,
+  onStartShouldSetResponder,
+  onStartShouldSetResponderCapture,
+  onMoveShouldSetResponder,
+  onMoveShouldSetResponderCapture,
+  onResponderGrant,
+  onResponderStart,
+  onResponderMove,
+  onResponderEnd,
+  onResponderRelease,
+  onResponderReject,
+  onResponderTerminate,
+  onResponderTerminationRequest,
+  ...domProps
+}: HozoScrollViewProps): ReactElement {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const lastScroll = useRef(0)
+  const setRoot = useCallback(
+    (element: HTMLDivElement | null) => {
+      rootRef.current = element
+      assignRef(forwardedRef, element)
     },
-    forwardedRef,
-  ) {
-    const rootRef = useRef<HTMLDivElement>(null)
-    const contentRef = useRef<HTMLDivElement>(null)
-    const lastScroll = useRef(0)
-    const setRoot = useCallback(
-      (element: HTMLDivElement | null) => {
-        rootRef.current = element
-        assignRef(forwardedRef, element)
-      },
-      [forwardedRef],
-    )
-    useMeasurements(rootRef, contentRef, onLayout, onContentSizeChange)
-    const responderProps = {
-      onStartShouldSetResponder,
-      onStartShouldSetResponderCapture,
-      onMoveShouldSetResponder,
-      onMoveShouldSetResponderCapture,
-      onResponderGrant,
-      onResponderStart,
-      onResponderMove,
-      onResponderEnd,
-      onResponderRelease,
-      onResponderReject,
-      onResponderTerminate,
-      onResponderTerminationRequest,
-    }
-    const hasResponderContract = Object.values(responderProps).some(Boolean)
-    const responder = useResponderDomProps(
-      rootRef,
-      responderProps,
-      hasResponderContract && accessibilityState?.disabled !== true,
-    )
-    const nestedRefresh = refreshProps(refreshControl)
-    const activeRefreshing = refreshing ?? nestedRefresh?.refreshing ?? false
-    const activeRefresh = onRefresh ?? nestedRefresh?.onRefresh
-    const hideScrollbar = horizontal
-      ? !showsHorizontalScrollIndicator
-      : !showsVerticalScrollIndicator
-    const viewport = horizontal
-      ? { overflowX: 'auto' as const, overflowY: 'hidden' as const }
-      : { overflowX: 'hidden' as const, overflowY: 'auto' as const }
-    const emitScroll = () => (rootRef.current ? nativeScrollEvent(rootRef.current) : undefined)
-    const emitTo = (callback: ((event: HozoScrollEvent) => void) | undefined) => {
-      const event = emitScroll()
-      if (event) callback?.(event)
-    }
+    [forwardedRef],
+  )
+  useMeasurements(rootRef, contentRef, onLayout, onContentSizeChange)
+  const responderProps = {
+    onStartShouldSetResponder,
+    onStartShouldSetResponderCapture,
+    onMoveShouldSetResponder,
+    onMoveShouldSetResponderCapture,
+    onResponderGrant,
+    onResponderStart,
+    onResponderMove,
+    onResponderEnd,
+    onResponderRelease,
+    onResponderReject,
+    onResponderTerminate,
+    onResponderTerminationRequest,
+  }
+  const hasResponderContract = Object.values(responderProps).some(Boolean)
+  const responder = useResponderDomProps(
+    rootRef,
+    responderProps,
+    hasResponderContract && accessibilityState?.disabled !== true,
+  )
+  const nestedRefresh = refreshProps(refreshControl)
+  const activeRefreshing = refreshing ?? nestedRefresh?.refreshing ?? false
+  const activeRefresh = onRefresh ?? nestedRefresh?.onRefresh
+  const hideScrollbar = horizontal ? !showsHorizontalScrollIndicator : !showsVerticalScrollIndicator
+  const viewport = horizontal
+    ? { overflowX: 'auto' as const, overflowY: 'hidden' as const }
+    : { overflowX: 'hidden' as const, overflowY: 'auto' as const }
+  const emitScroll = () => (rootRef.current ? nativeScrollEvent(rootRef.current) : undefined)
+  const emitTo = (callback: ((event: HozoScrollEvent) => void) | undefined) => {
+    const event = emitScroll()
+    if (event) callback?.(event)
+  }
 
-    return createElement(
-      'div',
-      {
-        ...domProps,
-        ref: setRoot,
-        className,
-        id: nativeID,
-        'data-testid': testID,
-        role: accessibilityRole ?? domProps.role,
-        'data-hozo-pointer-events': pointerEvents,
-        'data-hozo-disabled': accessibilityState?.disabled ? '' : undefined,
-        'data-hozo-horizontal': horizontal ? '' : undefined,
-        'data-hozo-hide-scrollbar': hideScrollbar ? '' : undefined,
-        'aria-label': accessibilityLabel,
-        'aria-description': accessibilityHint,
-        'aria-disabled': accessibilityState?.disabled,
-        'aria-selected': accessibilityState?.selected,
-        'aria-checked': accessibilityState?.checked,
-        'aria-busy': accessibilityState?.busy || activeRefreshing || undefined,
-        'aria-expanded': accessibilityState?.expanded,
-        'aria-valuemin': accessibilityValue?.min,
-        'aria-valuemax': accessibilityValue?.max,
-        'aria-valuenow': accessibilityValue?.now,
-        'aria-valuetext': accessibilityValue?.text,
-        'aria-live': accessibilityLiveRegion === 'none' ? undefined : accessibilityLiveRegion,
-        style: { ...viewport, ...hozoDomStyle(style) },
-        onPointerDown:
-          onScrollBeginDrag || responder.onPointerDown || onPointerDown
-            ? (event) => {
-                emitTo(onScrollBeginDrag)
-                responder.onPointerDown?.(event)
-                onPointerDown?.(event)
-              }
-            : undefined,
-        onPointerDownCapture:
-          responder.onPointerDownCapture || onPointerDownCapture
-            ? (event) => {
-                responder.onPointerDownCapture?.(event)
-                onPointerDownCapture?.(event)
-              }
-            : undefined,
-        onPointerMove:
-          responder.onPointerMove || onPointerMove
-            ? (event) => {
-                responder.onPointerMove?.(event)
-                onPointerMove?.(event)
-              }
-            : undefined,
-        onPointerMoveCapture:
-          responder.onPointerMoveCapture || onPointerMoveCapture
-            ? (event) => {
-                responder.onPointerMoveCapture?.(event)
-                onPointerMoveCapture?.(event)
-              }
-            : undefined,
-        onPointerUp:
-          onScrollEndDrag || responder.onPointerUp || onPointerUp
-            ? (event) => {
-                emitTo(onScrollEndDrag)
-                responder.onPointerUp?.(event)
-                onPointerUp?.(event)
-              }
-            : undefined,
-        onPointerCancel:
-          responder.onPointerCancel || onPointerCancel
-            ? (event) => {
-                responder.onPointerCancel?.(event)
-                onPointerCancel?.(event)
-              }
-            : undefined,
-        onLostPointerCapture:
-          responder.onLostPointerCapture || onLostPointerCapture
-            ? (event) => {
-                responder.onLostPointerCapture?.(event)
-                onLostPointerCapture?.(event)
-              }
-            : undefined,
-        onScroll: () => {
-          const now = Date.now()
-          const event = emitScroll()
-          if (!event) return
-          if (
-            onScroll &&
-            (scrollEventThrottle <= 0 || now - lastScroll.current >= scrollEventThrottle)
-          ) {
-            lastScroll.current = now
-            onScroll(event)
-          }
-        },
-        onScrollEnd: onMomentumScrollEnd ? () => emitTo(onMomentumScrollEnd) : undefined,
+  return createElement(
+    'div',
+    {
+      ...domProps,
+      ref: setRoot,
+      className,
+      id: nativeID,
+      'data-testid': testID,
+      role: accessibilityRole ?? domProps.role,
+      'data-hozo-pointer-events': pointerEvents,
+      'data-hozo-disabled': accessibilityState?.disabled ? '' : undefined,
+      'data-hozo-horizontal': horizontal ? '' : undefined,
+      'data-hozo-hide-scrollbar': hideScrollbar ? '' : undefined,
+      'aria-label': accessibilityLabel,
+      'aria-description': accessibilityHint,
+      'aria-disabled': accessibilityState?.disabled,
+      'aria-selected': accessibilityState?.selected,
+      'aria-checked': accessibilityState?.checked,
+      'aria-busy': accessibilityState?.busy || activeRefreshing || undefined,
+      'aria-expanded': accessibilityState?.expanded,
+      'aria-valuemin': accessibilityValue?.min,
+      'aria-valuemax': accessibilityValue?.max,
+      'aria-valuenow': accessibilityValue?.now,
+      'aria-valuetext': accessibilityValue?.text,
+      'aria-live': accessibilityLiveRegion === 'none' ? undefined : accessibilityLiveRegion,
+      style: { ...viewport, ...hozoDomStyle(style) },
+      onPointerDown:
+        onScrollBeginDrag || responder.onPointerDown || onPointerDown
+          ? (event) => {
+              emitTo(onScrollBeginDrag)
+              responder.onPointerDown?.(event)
+              onPointerDown?.(event)
+            }
+          : undefined,
+      onPointerDownCapture:
+        responder.onPointerDownCapture || onPointerDownCapture
+          ? (event) => {
+              responder.onPointerDownCapture?.(event)
+              onPointerDownCapture?.(event)
+            }
+          : undefined,
+      onPointerMove:
+        responder.onPointerMove || onPointerMove
+          ? (event) => {
+              responder.onPointerMove?.(event)
+              onPointerMove?.(event)
+            }
+          : undefined,
+      onPointerMoveCapture:
+        responder.onPointerMoveCapture || onPointerMoveCapture
+          ? (event) => {
+              responder.onPointerMoveCapture?.(event)
+              onPointerMoveCapture?.(event)
+            }
+          : undefined,
+      onPointerUp:
+        onScrollEndDrag || responder.onPointerUp || onPointerUp
+          ? (event) => {
+              emitTo(onScrollEndDrag)
+              responder.onPointerUp?.(event)
+              onPointerUp?.(event)
+            }
+          : undefined,
+      onPointerCancel:
+        responder.onPointerCancel || onPointerCancel
+          ? (event) => {
+              responder.onPointerCancel?.(event)
+              onPointerCancel?.(event)
+            }
+          : undefined,
+      onLostPointerCapture:
+        responder.onLostPointerCapture || onLostPointerCapture
+          ? (event) => {
+              responder.onLostPointerCapture?.(event)
+              onLostPointerCapture?.(event)
+            }
+          : undefined,
+      onScroll: () => {
+        const now = Date.now()
+        const event = emitScroll()
+        if (!event) return
+        if (
+          onScroll &&
+          (scrollEventThrottle <= 0 || now - lastScroll.current >= scrollEventThrottle)
+        ) {
+          lastScroll.current = now
+          onScroll(event)
+        }
       },
-      activeRefresh
-        ? createElement(HozoRefreshControl, {
-            refreshing: activeRefreshing,
-            onRefresh: activeRefresh,
-          })
-        : null,
-      createElement(
-        'div',
-        { ref: contentRef, style: hozoDomStyle(contentContainerStyle) },
-        children,
-      ),
-    )
-  },
-)
+      onScrollEnd: onMomentumScrollEnd ? () => emitTo(onMomentumScrollEnd) : undefined,
+    },
+    activeRefresh
+      ? createElement(HozoRefreshControl, {
+          refreshing: activeRefreshing,
+          onRefresh: activeRefresh,
+        })
+      : null,
+    createElement('div', { ref: contentRef, style: hozoDomStyle(contentContainerStyle) }, children),
+  )
+}
 
 export interface HozoFlatListRenderInfo<T> {
   item: T
@@ -489,8 +481,9 @@ function invertedTransform(horizontal: boolean | undefined) {
   return horizontal ? [{ scaleX: -1 }] : [{ scaleY: -1 }]
 }
 
-function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<HozoFlatListHandle>) {
+export function HozoFlatList<T>(props: HozoFlatListProps<T> & { ref?: Ref<HozoFlatListHandle> }) {
   const {
+    ref: forwardedRef,
     data = [],
     renderItem,
     keyExtractor,
@@ -1100,10 +1093,6 @@ function HozoFlatListInner<T>(props: HozoFlatListProps<T>, forwardedRef: Ref<Hoz
     createElement('div', { ref: endRef, 'aria-hidden': true }),
   )
 }
-
-export const HozoFlatList = forwardRef(HozoFlatListInner) as <T>(
-  props: HozoFlatListProps<T> & { ref?: Ref<HozoFlatListHandle> },
-) => ReactElement
 
 export { HozoFlatList as FlatList, HozoScrollView as ScrollView }
 export type FlatListRenderInfo<T> = HozoFlatListRenderInfo<T>

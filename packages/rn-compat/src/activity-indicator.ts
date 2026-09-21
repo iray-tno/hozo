@@ -1,5 +1,5 @@
 import { type HozoDomStyle, hozoDomStyle } from '@hozo/engine'
-import { type ComponentPropsWithoutRef, createElement, forwardRef } from 'react'
+import { type ComponentPropsWithoutRef, createElement, type Ref } from 'react'
 
 export interface HozoActivityIndicatorProps
   extends Omit<ComponentPropsWithoutRef<'span'>, 'color' | 'style'> {
@@ -8,6 +8,8 @@ export interface HozoActivityIndicatorProps
   hidesWhenStopped?: boolean
   size?: 'small' | 'large' | number
   style?: HozoDomStyle
+  /** Declared here, because React 19 takes `ref` as an ordinary prop. */
+  ref?: Ref<HTMLSpanElement>
 }
 
 const circle = (color: string | null, active: boolean) =>
@@ -24,51 +26,47 @@ const circle = (color: string | null, active: boolean) =>
   })
 
 /** React Native ActivityIndicator semantics without retaining React Native Web. */
-export const HozoActivityIndicator = forwardRef<HTMLSpanElement, HozoActivityIndicatorProps>(
-  function HozoActivityIndicator(
+export function HozoActivityIndicator({
+  ref,
+  animating = true,
+  color = '#1976D2',
+  hidesWhenStopped = true,
+  size = 'small',
+  style,
+  ...props
+}: HozoActivityIndicatorProps) {
+  const pixels = typeof size === 'number' ? size : size === 'large' ? 36 : 20
+  return createElement(
+    'span',
     {
-      animating = true,
-      color = '#1976D2',
-      hidesWhenStopped = true,
-      size = 'small',
-      style,
-      ...props
+      ...props,
+      'aria-valuemax': 1,
+      'aria-valuemin': 0,
+      ref,
+      role: 'progressbar',
+      style: hozoDomStyle([
+        { alignItems: 'center', display: 'inline-flex', justifyContent: 'center' },
+        style,
+      ]),
     },
-    ref,
-  ) {
-    const pixels = typeof size === 'number' ? size : size === 'large' ? 36 : 20
-    return createElement(
-      'span',
+    createElement(
+      'svg',
       {
-        ...props,
-        'aria-valuemax': 1,
-        'aria-valuemin': 0,
-        ref,
-        role: 'progressbar',
-        style: hozoDomStyle([
-          { alignItems: 'center', display: 'inline-flex', justifyContent: 'center' },
-          style,
-        ]),
-      },
-      createElement(
-        'svg',
-        {
-          'aria-hidden': true,
-          height: pixels,
-          style: {
-            animationDuration: '0.75s',
-            animationIterationCount: 'infinite',
-            animationName: 'hozo-activity-indicator-spin',
-            animationPlayState: animating ? 'running' : 'paused',
-            animationTimingFunction: 'linear',
-            visibility: !animating && hidesWhenStopped ? 'hidden' : 'visible',
-          },
-          viewBox: '0 0 32 32',
-          width: pixels,
+        'aria-hidden': true,
+        height: pixels,
+        style: {
+          animationDuration: '0.75s',
+          animationIterationCount: 'infinite',
+          animationName: 'hozo-activity-indicator-spin',
+          animationPlayState: animating ? 'running' : 'paused',
+          animationTimingFunction: 'linear',
+          visibility: !animating && hidesWhenStopped ? 'hidden' : 'visible',
         },
-        circle(color, false),
-        circle(color, true),
-      ),
-    )
-  },
-)
+        viewBox: '0 0 32 32',
+        width: pixels,
+      },
+      circle(color, false),
+      circle(color, true),
+    ),
+  )
+}

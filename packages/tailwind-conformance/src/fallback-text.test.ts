@@ -67,6 +67,7 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['View', "React Native's own, re-exported unchanged. Not Hozo's to wrap."],
   ['Pressable', "React Native's own, re-exported unchanged."],
   ['ScrollView', "React Native's own, re-exported unchanged."],
+  ['HozoFlatList', 'The same component under its other published name.'],
   ['HozoCombobox', 'The same component under its other published name.'],
   ['HozoListbox', 'The same component under its other published name.'],
   ['HozoMenu', 'The same component under its other published name.'],

@@ -1,4 +1,4 @@
-import { createElement, forwardRef, type ReactElement, type Ref, useMemo } from 'react'
+import { createElement, type ReactElement, type Ref, useMemo } from 'react'
 import * as ReactNative from 'react-native'
 
 // Its own module rather than part of the index, because the index starts
@@ -104,11 +104,19 @@ function collectionCell(columns: number) {
   }
 }
 
-function HozoFlatListInner<T>(
-  props: HozoFlatListProps<T>,
-  forwardedRef: Ref<ReactNative.FlatList<T>>,
+/**
+ * React Native's `FlatList`, told how long it is.
+ *
+ * A windowed list has a length its accessibility tree does not: only the
+ * rows near the viewport exist as views, so TalkBack counts those and
+ * announces them. On the Web the answer is `aria-setsize`; here it is
+ * `accessibilityCollection`, and neither is something an app should have to
+ * write itself when the list already knows.
+ */
+export function HozoFlatList<T>(
+  props: HozoFlatListProps<T> & { ref?: Ref<ReactNative.FlatList<T>> },
 ): ReactElement {
-  const { data, numColumns, CellRendererComponent, ...rest } = props
+  const { data, numColumns, CellRendererComponent, ref: forwardedRef, ...rest } = props
   const android = isAndroid()
   const columns = Math.max(1, Math.floor(numColumns ?? 1))
   const count = data?.length ?? 0
@@ -143,16 +151,3 @@ function HozoFlatListInner<T>(
     } as never,
   )
 }
-
-/**
- * React Native's `FlatList`, told how long it is.
- *
- * A windowed list has a length its accessibility tree does not: only the
- * rows near the viewport exist as views, so TalkBack counts those and
- * announces them. On the Web the answer is `aria-setsize`; here it is
- * `accessibilityCollection`, and neither is something an app should have to
- * write itself when the list already knows.
- */
-export const HozoFlatList = forwardRef(HozoFlatListInner) as <T>(
-  props: HozoFlatListProps<T> & { ref?: Ref<ReactNative.FlatList<T>> },
-) => ReactElement
