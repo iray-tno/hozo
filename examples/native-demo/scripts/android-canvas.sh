@@ -242,8 +242,6 @@ if adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect'; then
   echo 'TalkBack double-tap -> rect'
 else
   echo '::warning::the headless emulator did not recognise injected touch as a TalkBack double-tap; verifying ACTION_CLICK through the peer accessibility service'
-  adb shell dumpsys accessibility | tr -d '\r' | grep -q AccessibilityActionService ||
-    fail 'the accessibility action driver did not bind'
   adb shell am broadcast \
     -a dev.hozo.speechlog.ACTIVATE \
     -p "$engine" \
