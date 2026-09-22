@@ -223,8 +223,9 @@ done
 [ -n "$focused" ] || fail 'TalkBack could not refocus the Rect control for activation'
 
 adb logcat -c
-adb shell input tap 500 500
-adb shell input tap 500 500
+# Keep both taps in one device-side shell. Two host-side `adb shell` calls can
+# spend longer than TalkBack's double-tap window between their input events.
+adb shell 'input touchscreen tap 500 500; sleep 0.08; input touchscreen tap 500 500'
 sleep 2
 adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect' ||
   fail 'TalkBack double-tap did not activate the Rect control'
