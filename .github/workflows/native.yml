@@ -66,6 +66,69 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  canvas-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm turbo run build
+
+      # A second entry keeps optional Skia out of the ordinary acceptance
+      # bundle while producing a normal release APK that executes it.
+      - name: Build the Canvas release APK
+        working-directory: examples/native-demo/android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 -PhozoEntryFile=canvas.js --no-daemon
+
+      - name: Build the speech log
+        run: examples/native-demo/android/gradlew -p examples/native-demo/speech-log assembleDebug --no-daemon
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Exercise Canvas with touch, mouse and TalkBack
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
+          script: bash examples/native-demo/scripts/android-canvas.sh
+
+      - name: Keep what it saw and heard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canvas-android
+          path: |
+            canvas-*.xml
+            canvas-talkback.txt
+            canvas-android*.png
+            examples/native-demo/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
+          retention-days: 14
+
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 60

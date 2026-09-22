@@ -63,6 +63,15 @@ react {
     // this stays one string for every platform.
     hermesCommand = "${gradle.ext.hermesCompilerDir}/hermesc/%OS-BIN%/hermesc"
 
+    // The Canvas acceptance app is deliberately a second entry. Skia is an
+    // optional renderer and including it in the ordinary demo would turn that
+    // demo's bundle-size measurement into a measurement of Skia. CI selects
+    // this entry with `-PhozoEntryFile=canvas.js`; normal builds keep React
+    // Native's `index.js` default.
+    if (project.hasProperty("hozoEntryFile")) {
+        entryFile = file("../../${project.property("hozoEntryFile")}")
+    }
+
     /* Autolinking */
     autolinkLibrariesWithApp()
 }

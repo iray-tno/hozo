@@ -6,7 +6,19 @@
 // a number that stops meaning anything once an optional renderer most
 // apps never install is inside it.
 import { AppRegistry } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { CanvasBench } from './CanvasBench.tsx'
 
-AppRegistry.registerComponent('HozoCanvasDemo', () => CanvasBench)
+function Root() {
+  return (
+    <SafeAreaProvider>
+      <CanvasBench />
+    </SafeAreaProvider>
+  )
+}
+
+// MainActivity intentionally stays identical to the ordinary acceptance app.
+// The Gradle entry-file switch changes the scene, not the Android shell around
+// it, which keeps this check about Canvas rather than a second app template.
+AppRegistry.registerComponent('HozoNativeDemo', () => Root)
