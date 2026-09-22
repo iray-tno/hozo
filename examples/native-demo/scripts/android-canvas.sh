@@ -17,6 +17,7 @@ speech_apk="$here/../speech-log/build/outputs/apk/debug/speech-log-debug.apk"
 engine=dev.hozo.speechlog
 talkback=com.google.android.marvin.talkback
 talkback_service="$talkback/com.google.android.marvin.talkback.TalkBackService"
+driver_service="$engine/.AccessibilityActionService"
 
 fail() {
   echo "::error::$*"
@@ -169,7 +170,7 @@ adb shell pm grant "$talkback" android.permission.POST_NOTIFICATIONS 2>/dev/null
 adb logcat -c
 bound=
 for attempt in 1 2; do
-  adb shell settings put secure enabled_accessibility_services "$talkback_service"
+  adb shell settings put secure enabled_accessibility_services "$talkback_service:$driver_service"
   adb shell settings put secure accessibility_enabled 1
   for _ in $(seq 1 30); do
     if adb shell dumpsys accessibility | tr -d '\r' | grep -q TalkBackService; then bound=1; break 2; fi
@@ -231,19 +232,19 @@ sleep 2
 if adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect'; then
   echo 'TalkBack double-tap -> rect'
 else
-  echo '::warning::the headless emulator did not recognise injected touch as a TalkBack double-tap; verifying the focused semantic action with the TalkBack keyboard shortcut'
-  # Google documents TalkBack-key + Enter for the default keymap and
-  # TalkBack-key + Space for the enhanced keymap. Alt is the default
-  # TalkBack key. `keycombination` keeps the modifier held on the device.
-  adb shell input keycombination ALT_LEFT ENTER
+  echo '::warning::the headless emulator did not recognise injected touch as a TalkBack double-tap; verifying ACTION_CLICK through the peer accessibility service'
+  adb shell dumpsys accessibility | tr -d '\r' | grep -q AccessibilityActionService ||
+    fail 'the accessibility action driver did not bind'
+  adb shell am broadcast \
+    -a dev.hozo.speechlog.ACTIVATE \
+    -p "$engine" \
+    --es label 'January revenue' >/dev/null
   sleep 2
-  if ! adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect'; then
-    adb shell input keycombination ALT_LEFT SPACE
-    sleep 2
-  fi
+  adb logcat -d -v raw -s HozoA11yDriver:I | grep -q 'activated January revenue returned true' ||
+    fail 'Android rejected ACTION_CLICK for the Canvas Rect control'
   adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect' ||
-    fail 'the TalkBack-focused Rect control did not activate'
-  echo 'TalkBack keyboard click -> rect'
+    fail 'ACTION_CLICK did not reach the Canvas Rect handler'
+  echo 'Android accessibility ACTION_CLICK -> rect'
 fi
 
 adb exec-out screencap -p > ./canvas-android.png 2>/dev/null || true
