@@ -618,6 +618,7 @@ function Root({
     () => canvasControls(scene, interactions, (message) => console.warn(`[hozo] ${message}`)),
     [scene, interactions, interactionRevision],
   )
+  const hasControls = controls.length > 0
   const pointFor = (id: string) =>
     canvasNodePoint(scene, id, {
       width: layout.width,
@@ -636,9 +637,11 @@ function Root({
         style,
       ]}
       onLayout={onLayout}
-      accessible={accessibilityMode === 'label'}
-      accessibilityRole={accessibilityMode === 'label' ? 'image' : undefined}
-      accessibilityLabel={accessibilityMode === 'label' ? accessibilityLabel : undefined}
+      accessible={accessibilityMode === 'label' && !hasControls}
+      accessibilityRole={accessibilityMode === 'label' && !hasControls ? 'image' : undefined}
+      accessibilityLabel={
+        accessibilityMode === 'label' && !hasControls ? accessibilityLabel : undefined
+      }
       testID={testID}
       onStartShouldSetResponder={onStartShouldSetResponder}
       onResponderRelease={onResponderRelease}
@@ -672,8 +675,17 @@ function Root({
         with no size is still an accessibility element, and one that is
         hidden is not.
       */}
-      {controls.length > 0 ? (
+      {hasControls ? (
         <View style={styles.accessibleFallback}>
+          {/*
+            An accessible parent groups its descendants into one native
+            accessibility element. Keep a labelled interactive Canvas as a
+            non-accessible container, then expose its image description and
+            controls as siblings so TalkBack and VoiceOver can reach both.
+          */}
+          {accessibilityMode === 'label' ? (
+            <View accessible accessibilityRole="image" accessibilityLabel={accessibilityLabel} />
+          ) : null}
           {controls.map((control) => (
             <View
               key={control.id}
