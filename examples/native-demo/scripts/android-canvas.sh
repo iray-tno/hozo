@@ -167,22 +167,31 @@ fi
 # its UiAutomation connection suppresses TalkBack.
 adb shell settings put secure tts_default_synth "$engine"
 adb shell pm grant "$talkback" android.permission.POST_NOTIFICATIONS 2>/dev/null || true
+# Android 13+ protects sideloaded accessibility services behind a restricted
+# setting. This APK is a CI-only driver installed by adb, so grant that app-op
+# explicitly before asking AccessibilityManager to bind it.
+adb shell appops set "$engine" ACCESS_RESTRICTED_SETTINGS allow 2>/dev/null || true
 adb logcat -c
 bound=
 for attempt in 1 2; do
   adb shell settings put secure enabled_accessibility_services "$talkback_service:$driver_service"
   adb shell settings put secure accessibility_enabled 1
   for _ in $(seq 1 30); do
-    if adb shell dumpsys accessibility | tr -d '\r' | grep -q TalkBackService; then bound=1; break 2; fi
+    services="$(adb shell dumpsys accessibility | tr -d '\r')"
+    if printf '%s' "$services" | grep -q TalkBackService &&
+      printf '%s' "$services" | grep -q AccessibilityActionService; then
+      bound=1
+      break 2
+    fi
     sleep 1
   done
-  echo "TalkBack did not bind on attempt $attempt; toggling the service"
+  echo "TalkBack and the action driver did not both bind on attempt $attempt; toggling the services"
   adb shell settings put secure accessibility_enabled 0
   adb shell settings delete secure enabled_accessibility_services >/dev/null 2>&1 || true
   adb shell am force-stop "$talkback" >/dev/null 2>&1 || true
   sleep 2
 done
-[ -n "$bound" ] || fail "TalkBack did not bind after two attempts"
+[ -n "$bound" ] || fail "TalkBack and the action driver did not bind after two attempts"
 for _ in $(seq 1 20); do
   [ -n "$(spoken)" ] && break
   sleep 1
