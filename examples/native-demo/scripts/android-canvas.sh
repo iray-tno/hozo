@@ -231,12 +231,19 @@ sleep 2
 if adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect'; then
   echo 'TalkBack double-tap -> rect'
 else
-  echo '::warning::the headless emulator did not recognise injected touch as a TalkBack double-tap; verifying the focused semantic action with Enter'
-  adb shell input keyevent KEYCODE_ENTER
+  echo '::warning::the headless emulator did not recognise injected touch as a TalkBack double-tap; verifying the focused semantic action with the TalkBack keyboard shortcut'
+  # Google documents TalkBack-key + Enter for the default keymap and
+  # TalkBack-key + Space for the enhanced keymap. Alt is the default
+  # TalkBack key. `keycombination` keeps the modifier held on the device.
+  adb shell input keycombination ALT_LEFT ENTER
   sleep 2
+  if ! adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect'; then
+    adb shell input keycombination ALT_LEFT SPACE
+    sleep 2
+  fi
   adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect' ||
     fail 'the TalkBack-focused Rect control did not activate'
-  echo 'TalkBack-focused Enter -> rect'
+  echo 'TalkBack keyboard click -> rect'
 fi
 
 adb exec-out screencap -p > ./canvas-android.png 2>/dev/null || true
