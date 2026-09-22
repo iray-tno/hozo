@@ -23,6 +23,7 @@ import {
   type LayoutChangeEvent,
   Linking,
   type PointerEvent,
+  Pressable,
   type StyleProp,
   StyleSheet,
   Text,
@@ -626,6 +627,13 @@ function Root({
       viewBox,
       fit,
     }) ?? { point: { x: 0, y: 0 }, surfacePoint: { x: 0, y: 0 } }
+  const accessibilityControlStyle = (id: string): ViewStyle => {
+    const { surfacePoint } = pointFor(id)
+    return {
+      left: surfacePoint.x - 22,
+      top: surfacePoint.y - 22,
+    }
+  }
 
   return (
     <View
@@ -666,17 +674,14 @@ function Root({
         platform reads: an accessibility element per named interactive
         shape, with the destination/action role and the shape's name.
 
-        A screen reader focusing one activates it the way keyboard focus
-        does on the Web, so a tooltip driven by `onActiveChange` appears
-        for VoiceOver and TalkBack too. `onAccessibilityTap` is the
-        double-tap that follows.
-
-        Zero-sized and clipped rather than `display: none`: an element
-        with no size is still an accessibility element, and one that is
-        hidden is not.
+        The controls have real, minimum-sized native bounds centred on their
+        shapes. Android omits clipped, empty descendants from its semantic
+        tree. The layer ignores pointer input so these larger accessibility
+        targets cannot change the Canvas hit-test contract; a screen-reader
+        activation reaches the Pressable's native click action instead.
       */}
       {hasControls ? (
-        <View style={styles.accessibleFallback}>
+        <View style={styles.accessibilityLayer} pointerEvents="none">
           {/*
             An accessible parent groups its descendants into one native
             accessibility element. Keep a labelled interactive Canvas as a
@@ -684,15 +689,21 @@ function Root({
             controls as siblings so TalkBack and VoiceOver can reach both.
           */}
           {accessibilityMode === 'label' ? (
-            <View accessible accessibilityRole="image" accessibilityLabel={accessibilityLabel} />
+            <View
+              style={styles.accessibilityDescription}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={accessibilityLabel}
+            />
           ) : null}
           {controls.map((control) => (
-            <View
+            <Pressable
               key={control.id}
+              style={[styles.accessibilityControl, accessibilityControlStyle(control.id)]}
               accessible
               accessibilityRole={control.destination ? 'link' : 'button'}
               accessibilityLabel={control.label}
-              onAccessibilityTap={() => {
+              onPress={() => {
                 const point = pointFor(control.id)
                 const destination = press(
                   control.id,
@@ -719,6 +730,23 @@ function Root({
 
 const styles = StyleSheet.create({
   root: { position: 'relative', overflow: 'hidden' },
+  accessibilityLayer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  accessibilityDescription: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+  },
+  accessibilityControl: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+  },
   accessibleFallback: {
     position: 'absolute',
     width: 1,
