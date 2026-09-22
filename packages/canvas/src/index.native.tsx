@@ -23,7 +23,6 @@ import {
   type LayoutChangeEvent,
   Linking,
   type PointerEvent,
-  Pressable,
   type StyleProp,
   StyleSheet,
   Text,
@@ -634,6 +633,13 @@ function Root({
       top: surfacePoint.y - 22,
     }
   }
+  const activateControl = (id: string) => {
+    const point = pointFor(id)
+    const destination = press(id, canvasPressEvent(point.point, point.surfacePoint))
+    if (destination) {
+      void activateHozoNavigation(navigation, destination, Linking.openURL)
+    }
+  }
 
   return (
     <View
@@ -678,10 +684,10 @@ function Root({
         shapes. Android omits clipped, empty descendants from its semantic
         tree. The layer ignores pointer input so these larger accessibility
         targets cannot change the Canvas hit-test contract; a screen-reader
-        activation reaches the Pressable's native click action instead.
+        activation reaches the standard native `activate` action instead.
       */}
       {hasControls ? (
-        <View style={styles.accessibilityLayer} pointerEvents="none">
+        <View style={styles.accessibilityLayer} pointerEvents="box-none">
           {/*
             An accessible parent groups its descendants into one native
             accessibility element. Keep a labelled interactive Canvas as a
@@ -697,21 +703,16 @@ function Root({
             />
           ) : null}
           {controls.map((control) => (
-            <Pressable
+            <View
               key={control.id}
               style={[styles.accessibilityControl, accessibilityControlStyle(control.id)]}
+              pointerEvents="box-none"
               accessible
               accessibilityRole={control.destination ? 'link' : 'button'}
               accessibilityLabel={control.label}
-              onPress={() => {
-                const point = pointFor(control.id)
-                const destination = press(
-                  control.id,
-                  canvasPressEvent(point.point, point.surfacePoint),
-                )
-                if (destination) {
-                  void activateHozoNavigation(navigation, destination, Linking.openURL)
-                }
+              accessibilityActions={[{ name: 'activate' }]}
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === 'activate') activateControl(control.id)
               }}
               onAccessibilityEscape={() => activate(undefined, undefined)}
             />
