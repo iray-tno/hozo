@@ -46,8 +46,12 @@ on:
   workflow_dispatch:
     inputs:
       dialog_rounds:
-        description: 'Dialog dismissals to measure in one boot. 1 is the gate; above 1 measures a rate.'
+        description: 'Dialog dismissals within each boot. Results are diagnostic because restore remains intermittent.'
         default: '1'
+        required: false
+      dialog_boots:
+        description: 'JSON array of independent TalkBack boots, for example [1,2,3]. Defaults to one.'
+        default: '[1]'
         required: false
   # A pull request that edits this machinery runs it. Narrowly the wrong
   # shape -- the rest of the reasoning above rejects paths filters -- and
@@ -182,6 +186,14 @@ jobs:
   # `android-talkback.sh` makes it the default engine, switches TalkBack on
   # and walks the screen with Tab.
   talkback:
+    # Keep the established required-check name for ordinary one-boot runs.
+    # A dispatched matrix names the independent boots so their evidence is
+    # distinguishable in both the checks list and the artifacts.
+    name: ${{ inputs.dialog_boots && inputs.dialog_boots != '[1]' && format('talkback (boot {0})', matrix.boot) || 'talkback' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        boot: ${{ fromJSON(inputs.dialog_boots || '[1]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -233,7 +245,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: talkback-speech
+          name: talkback-speech-${{ matrix.boot }}
           path: |
             talkback-speech.json
             talkback-*.png
