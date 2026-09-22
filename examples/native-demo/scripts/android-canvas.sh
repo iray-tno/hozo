@@ -144,14 +144,14 @@ assert_pressed line 50 56
 # above used locationX/locationY. A successful state change establishes that
 # both point derivations address the same physical Rect on this runtime.
 read -r hover_x hover_y <<< "$(at_viewbox_point $surface_bounds 15 30)"
-if adb shell input mouse motionevent HOVER_MOVE "$hover_x" "$hover_y" >/dev/null 2>&1; then
+if adb shell input mouse motionevent MOVE "$hover_x" "$hover_y" >/dev/null 2>&1; then
   sleep 1
   dump canvas-hover.xml
   tree_has_text canvas-hover.xml 'indicated: rect' ||
     fail "mouse hover and touch disagreed about the Rect coordinates"
   echo 'mouse hover -> rect'
 else
-  fail "this Android image cannot inject the mouse HOVER_MOVE needed by the Canvas contract"
+  fail "this Android image cannot inject the mouse MOVE needed by the Canvas contract"
 fi
 
 # Now validate the semantic surface with the actual TalkBack service and a
