@@ -144,14 +144,19 @@ assert_pressed line 50 56
 # above used locationX/locationY. A successful state change establishes that
 # both point derivations address the same physical Rect on this runtime.
 read -r hover_x hover_y <<< "$(at_viewbox_point $surface_bounds 15 30)"
-if adb shell input mouse motionevent MOVE "$hover_x" "$hover_y" >/dev/null 2>&1; then
+# Android's shell `input mouse motionevent MOVE` constructs ACTION_MOVE, not
+# the no-button HOVER_MOVE a physical mouse produces. The emulator console's
+# EV_REL device is its external-mouse path. Clamp it to the top-left with a
+# large negative delta, then move to the absolute screen point we want.
+if adb emu event send EV_REL:REL_X:-10000 EV_REL:REL_Y:-10000 EV_SYN:0:0 >/dev/null 2>&1 &&
+  adb emu event send "EV_REL:REL_X:$hover_x" "EV_REL:REL_Y:$hover_y" EV_SYN:0:0 >/dev/null 2>&1; then
   sleep 1
   dump canvas-hover.xml
   tree_has_text canvas-hover.xml 'indicated: rect' ||
     fail "mouse hover and touch disagreed about the Rect coordinates"
   echo 'mouse hover -> rect'
 else
-  fail "this Android image cannot inject the mouse MOVE needed by the Canvas contract"
+  fail "this Android image cannot inject the external-mouse movement needed by the Canvas contract"
 fi
 
 # Now validate the semantic surface with the actual TalkBack service and a
