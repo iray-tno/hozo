@@ -31,5 +31,12 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service" />
         </service>
+        <receiver
+            android:name=".AccessibilityActionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.hozo.speechlog.ACTIVATE" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
