@@ -118,6 +118,15 @@ export interface CanvasInteractionProps {
    * says so in development rather than being silently pointer-only.
    */
   accessibilityLabel?: string
+  /**
+   * Groups several painted shapes into one semantic control.
+   *
+   * A data point or projected 3D object can be made from many paths while
+   * still being one thing to a keyboard or screen reader. Shapes sharing
+   * this id remain independently hit-testable, but produce one hidden
+   * button or link in scene order.
+   */
+  accessibilityControlId?: string
   disabled?: boolean
 }
 
@@ -423,6 +432,7 @@ class CanvasInteractionStore {
   readonly #handlers = new Map<string, (event: CanvasPressEvent) => void>()
   readonly #labels = new Map<string, string>()
   readonly #destinations = new Map<string, CanvasDestination>()
+  readonly #controlIds = new Map<string, string>()
   readonly #listeners = new Set<() => void>()
   #version = 0
 
@@ -442,22 +452,27 @@ class CanvasInteractionStore {
     handler: ((event: CanvasPressEvent) => void) | undefined,
     label: string | undefined,
     destination: CanvasDestination | undefined,
+    controlId: string | undefined,
   ) {
     const previousHas = this.has(id)
     const previousLabel = this.#labels.get(id)
     const previousDestination = this.#destinations.get(id)
+    const previousControlId = this.#controlIds.get(id)
     if (handler === undefined) this.#handlers.delete(id)
     else this.#handlers.set(id, handler)
     if (label === undefined) this.#labels.delete(id)
     else this.#labels.set(id, label)
     if (destination === undefined) this.#destinations.delete(id)
     else this.#destinations.set(id, destination)
+    if (controlId === undefined) this.#controlIds.delete(id)
+    else this.#controlIds.set(id, controlId)
     if (
       previousHas !== this.has(id) ||
       previousLabel !== label ||
       previousDestination?.href !== destination?.href ||
       previousDestination?.external !== destination?.external ||
-      previousDestination?.replace !== destination?.replace
+      previousDestination?.replace !== destination?.replace ||
+      previousControlId !== controlId
     ) {
       this.#emit()
     }
@@ -467,11 +482,16 @@ class CanvasInteractionStore {
     return this.#labels.get(id)
   }
 
+  controlId(id: string) {
+    return this.#controlIds.get(id) ?? id
+  }
+
   remove(id: string) {
     const hadInteraction = this.has(id)
     this.#handlers.delete(id)
     this.#labels.delete(id)
     this.#destinations.delete(id)
+    this.#controlIds.delete(id)
     if (hadInteraction) this.#emit()
   }
 
@@ -685,6 +705,7 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
     onPress,
     onActiveChange,
     accessibilityLabel,
+    accessibilityControlId,
     disabled,
     href,
     external,
@@ -706,6 +727,7 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
         onPress,
         accessibilityLabel,
         href === undefined ? undefined : { href, external, replace },
+        accessibilityControlId,
       )
       return () => context.interactions.remove(context.id)
     }, [
@@ -713,6 +735,7 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
       context.id,
       onPress,
       accessibilityLabel,
+      accessibilityControlId,
       disabled,
       href,
       external,
@@ -879,9 +902,13 @@ export function canvasControls(
   warn?: (message: string) => void,
 ): CanvasControl[] {
   const found: CanvasControl[] = []
+  const represented = new Set<string>()
   const walk = (nodes: CanvasScene) => {
     for (const node of nodes) {
       if (node.id !== undefined && interactions.has(node.id)) {
+        const controlId = interactions.controlId(node.id)
+        if (represented.has(controlId)) continue
+        represented.add(controlId)
         const label = interactions.label(node.id)
         if (label === undefined) {
           // Once per shape, not once per render: `useId` is stable for
