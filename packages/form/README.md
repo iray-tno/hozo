@@ -46,9 +46,23 @@ moveFocus({ year: 2026, month: 9, day: 29 }, 'ArrowDown') // 2026-10-06
 
 Month and weekday *names* are a different matter: `Intl.DateTimeFormat` does exist on both, so nothing here hand-rolls those.
 
+## `DatePicker`
+
+A button that opens the grid in a dialog, composed from pieces that already existed: `FloatingPositioner` anchors the panel and flips it when there is no room, `DismissableLayer` closes it on Escape and on a press outside, and `FocusScope` traps Tab and hands focus back to the button afterwards.
+
+```tsx
+import { DatePicker } from '@hozo/form'
+
+<DatePicker value={departure} onChange={setDeparture} accessibilityLabel="Departure date" />
+```
+
+`FocusScope`'s own `autoFocus` is off and the grid's is on. The scope would focus the first tabbable thing in the dialog -- the previous-month button -- and APG puts the opening focus on the day being shown.
+
+On React Native it is a `Modal` rather than an anchored panel. A date grid anchored to a button is most of a phone screen anyway, and `Modal` is what takes the window, routes Android's back button to `onRequestClose`, and lets `accessibilityViewIsModal` tell VoiceOver to stop offering what is behind it.
+
 ## Status
 
-Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `DatePicker`, `TimePicker` and `DateRangePicker` come next, composing this grid with [`@hozo/behaviors`](https://www.npmjs.com/package/@hozo/behaviors) for the popover, the focus scope and the dismissal.
+Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `TimePicker` and `DateRangePicker` come next.
 
 Two things `Calendar` deliberately does not do yet. The shown month is not controllable from outside — `defaultMonth` sets it and `onMonthChange` reports it, but there is no `month` prop — and the platform-native variants (`<input type="date">` on the Web, `UIDatePicker` and Material's `DatePickerDialog` on Native) are not built. Both are additive.
 

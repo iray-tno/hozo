@@ -64,6 +64,16 @@ export interface HozoCalendarProps {
    */
   today?: CalendarDate
   weeks?: number
+  /**
+   * Put DOM focus on the focused day as soon as the grid mounts.
+   *
+   * Off by default: a calendar sitting in a page has no business taking
+   * focus from whatever the reader was on. `DatePicker` turns it on, because
+   * a grid opened in a dialog is what the user asked for -- and it focuses
+   * the day rather than the first button in the dialog, which is where
+   * `FocusScope`'s own `autoFocus` would land.
+   */
+  autoFocus?: boolean
   accessibilityLabel?: string
   /**
    * The chrome's words, because Hozo does not own a message catalogue.
@@ -123,6 +133,7 @@ export function HozoCalendar({
   firstDayOfWeek,
   today,
   weeks,
+  autoFocus,
   accessibilityLabel,
   previousMonthLabel = 'Previous month',
   nextMonthLabel = 'Next month',
@@ -136,7 +147,10 @@ export function HozoCalendar({
   )
   const [focused, setFocused] = useState<CalendarDate>(opening)
   const cells = useRef(new Map<string, HTMLTableCellElement | null>())
-  const takeFocus = useRef(false)
+  // Seeded from `autoFocus` so the mount-time run of the effect below moves
+  // focus the same way a key press does, rather than through a second path
+  // that would have to agree with it.
+  const takeFocus = useRef(autoFocus === true)
   const headingId = useId()
 
   // Only after a key moved it, so mounting the grid does not pull focus out

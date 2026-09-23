@@ -73,6 +73,16 @@ export interface HozoCalendarProps {
    */
   today?: CalendarDate
   weeks?: number
+  /**
+   * Carried and ignored, like `className`.
+   *
+   * On the Web this puts DOM focus on the focused day when the grid mounts.
+   * React Native has no DOM focus to move and no tab order to move it
+   * within, so the prop has nothing to do here -- but the type still has to
+   * accept it, or one piece of universal source would stop compiling on one
+   * of the two platforms.
+   */
+  autoFocus?: boolean
   accessibilityLabel?: string
   /**
    * The chrome's words, because Hozo does not own a message catalogue.

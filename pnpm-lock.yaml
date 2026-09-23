@@ -528,6 +528,10 @@ importers:
         version: 19.2.8(react@19.2.8)
 
   packages/form:
+    dependencies:
+      '@hozo/behaviors':
+        specifier: workspace:^
+        version: link:../behaviors
     devDependencies:
       '@types/node':
         specifier: 26.2.0
