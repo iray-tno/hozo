@@ -164,33 +164,42 @@ export function ThreeCanvas({
   return (
     <Canvas {...canvasProps} width={width} height={height} viewBox={[0, 0, width, height]}>
       {projection.scene.map((node, index) => {
-        // The portable 3D subset currently projects triangles only. Keeping
-        // this boundary explicit makes adding lines or labels a local change.
-        if (node.kind !== 'path') return null
         const object = projection.objects[index]
         if (!object) return null
         const accessibilityLabel =
           getAccessibilityLabel?.(object) ?? (object.name.trim() || undefined)
-        return (
-          <Canvas.Path
-            // biome-ignore lint/suspicious/noArrayIndexKey: projected triangles have no durable Three identity, and every Canvas.Path is a stateless scene registration
-            key={`${index}:${node.props.path}`}
-            {...node.props}
-            accessibilityControlId={object.uuid}
-            accessibilityLabel={accessibilityLabel}
-            onActiveChange={
-              onObjectActiveChange
-                ? (event) =>
-                    onObjectActiveChange(
-                      event === undefined ? undefined : objectEvent(object, event),
-                    )
-                : undefined
-            }
-            onPress={
-              onObjectPress ? (event) => onObjectPress(objectEvent(object, event)) : undefined
-            }
-          />
-        )
+        const interaction = {
+          accessibilityControlId: object.uuid,
+          accessibilityLabel,
+          onActiveChange: onObjectActiveChange
+            ? (event: CanvasPressEvent | undefined) =>
+                onObjectActiveChange(event === undefined ? undefined : objectEvent(object, event))
+            : undefined,
+          onPress: onObjectPress
+            ? (event: CanvasPressEvent) => onObjectPress(objectEvent(object, event))
+            : undefined,
+        }
+        if (node.kind === 'path') {
+          return (
+            <Canvas.Path
+              // biome-ignore lint/suspicious/noArrayIndexKey: projected primitives have no durable Three identity, and every Canvas shape is a stateless scene registration
+              key={`${index}:path`}
+              {...node.props}
+              {...interaction}
+            />
+          )
+        }
+        if (node.kind === 'line') {
+          return (
+            <Canvas.Line
+              // biome-ignore lint/suspicious/noArrayIndexKey: projected primitives have no durable Three identity, and every Canvas shape is a stateless scene registration
+              key={`${index}:line`}
+              {...node.props}
+              {...interaction}
+            />
+          )
+        }
+        return null
       })}
     </Canvas>
   )

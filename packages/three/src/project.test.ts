@@ -7,6 +7,11 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   Group,
+  Line,
+  LineBasicMaterial,
+  LineDashedMaterial,
+  LineLoop,
+  LineSegments,
   Mesh,
   MeshBasicMaterial,
   OrthographicCamera,
@@ -33,6 +38,14 @@ function projectedPaths(result: ReturnType<typeof projectThreeScene>) {
   return result.scene.map((node) => {
     assert.equal(node.kind, 'path')
     if (node.kind !== 'path') throw new Error('projection emitted a non-path node')
+    return node.props
+  })
+}
+
+function projectedLines(result: ReturnType<typeof projectThreeScene>) {
+  return result.scene.map((node) => {
+    assert.equal(node.kind, 'line')
+    if (node.kind !== 'line') throw new Error('projection emitted a non-line node')
     return node.props
   })
 }
@@ -138,6 +151,96 @@ test('far triangles are painted before near triangles', () => {
   ).map((path) => path.fill)
 
   assert.deepEqual(fills, ['#0000ff', '#ff0000'])
+})
+
+test('LineSegments become independent Canvas lines with material colour and width', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute(
+    'position',
+    new Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 0, -1, 0, 0, 1, 0], 3),
+  )
+  const scene = new Scene()
+  scene.add(new LineSegments(geometry, new LineBasicMaterial({ color: '#7c3aed', linewidth: 3 })))
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedLines(result), [
+    { x1: 40, y1: 50, x2: 60, y2: 50, stroke: '#7c3aed', strokeWidth: 3 },
+    { x1: 50, y1: 60, x2: 50, y2: 40, stroke: '#7c3aed', strokeWidth: 3 },
+  ])
+})
+
+test('Line connects adjacent vertices and honours indexed draw ranges', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute(
+    'position',
+    new Float32BufferAttribute([-2, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0], 3),
+  )
+  geometry.setIndex(new Uint16BufferAttribute([0, 1, 2, 3], 1))
+  geometry.setDrawRange(1, 3)
+  const scene = new Scene()
+  scene.add(new Line(geometry, new LineBasicMaterial()))
+
+  const lines = projectedLines(projectThreeScene(scene, perspective(), { width: 100, height: 100 }))
+
+  assert.equal(lines.length, 2)
+  assert.deepEqual(
+    lines.map(({ x1, x2 }) => [x1, x2]),
+    [
+      [40, 50],
+      [50, 60],
+    ],
+  )
+})
+
+test('LineLoop closes its final vertex back to its first', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 0, 1, 0], 3))
+  const scene = new Scene()
+  scene.add(new LineLoop(geometry, new LineBasicMaterial()))
+
+  const lines = projectedLines(projectThreeScene(scene, perspective(), { width: 100, height: 100 }))
+
+  assert.equal(lines.length, 3)
+  assert.deepEqual(lines.at(-1), {
+    x1: 50,
+    y1: 40,
+    x2: 40,
+    y2: 50,
+    stroke: '#ffffff',
+    strokeWidth: 1,
+  })
+})
+
+test('a line crossing the near plane is clipped to finite viewport coordinates', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([-0.25, 0, -0.5, 1, 0, -2], 3))
+  const scene = new Scene()
+  scene.add(new Line(geometry, new LineBasicMaterial()))
+  const camera = new PerspectiveCamera(90, 1, 1, 10)
+
+  const lines = projectedLines(projectThreeScene(scene, camera, { width: 100, height: 100 }))
+
+  assert.equal(lines.length, 1)
+  assert.ok(
+    [lines[0]?.x1, lines[0]?.y1, lines[0]?.x2, lines[0]?.y2].every(
+      (coordinate) => coordinate !== undefined && Number.isFinite(coordinate),
+    ),
+  )
+})
+
+test('unsupported dashed line materials are omitted with a diagnostic', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3))
+  const scene = new Scene()
+  scene.add(new Line(geometry, new LineDashedMaterial()))
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  assert.match(result.diagnostics[0]?.message ?? '', /dashed/)
 })
 
 test('an invisible material emits neither geometry nor a diagnostic', () => {
