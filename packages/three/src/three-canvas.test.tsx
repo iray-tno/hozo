@@ -4,6 +4,7 @@ import test from 'node:test'
 
 import { createRef } from 'react'
 import {
+  BoxGeometry,
   BufferGeometry,
   Float32BufferAttribute,
   Mesh,
@@ -20,7 +21,13 @@ const testRenderer = require('react-test-renderer') as {
   create(
     node: React.ReactNode,
     options: { createNodeMock(element: { type: unknown }): unknown },
-  ): { unmount(): void }
+  ): {
+    root: {
+      findAllByType(type: string): { props: Record<string, unknown> }[]
+      findByType(type: string): { props: Record<string, unknown> }
+    }
+    unmount(): void
+  }
 }
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -43,16 +50,21 @@ function recordingSurface(paths: string[]) {
     }
   }
   ;(globalThis as { Path2D?: typeof Path2D }).Path2D = RecordedPath as unknown as typeof Path2D
-  const context = new Proxy({ globalAlpha: 1, lineWidth: 1 } as Record<string, unknown>, {
-    get: (target, property) => (property in target ? target[property as string] : () => undefined),
-    set: (target, property, value) => {
-      target[property as string] = value
-      return true
+  const context = new Proxy(
+    { globalAlpha: 1, lineWidth: 1, isPointInPath: () => true } as Record<string, unknown>,
+    {
+      get: (target, property) =>
+        property in target ? target[property as string] : () => undefined,
+      set: (target, property, value) => {
+        target[property as string] = value
+        return true
+      },
     },
-  }) as unknown as CanvasRenderingContext2D
+  ) as unknown as CanvasRenderingContext2D
   return {
     getContext: () => context,
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+    setPointerCapture: () => undefined,
   }
 }
 
@@ -81,6 +93,59 @@ test('ThreeCanvas draws a projected Three scene and invalidates imperative mutat
   await testRenderer.act(async () => handle.current?.invalidate())
   assert.equal(paths.at(-1), 'M 50 60 L 70 60 L 60 40 Z')
 
+  await testRenderer.act(async () => renderer?.unmount())
+})
+
+test('projected triangles raycast as one named Three object', async () => {
+  const scene = new Scene()
+  const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial({ color: '#2563eb' }))
+  mesh.name = 'Cube'
+  scene.add(mesh)
+  const camera = new PerspectiveCamera(90, 1, 1, 10)
+  camera.position.z = 5
+  const paths: string[] = []
+  const events: { object: unknown; intersection?: unknown }[] = []
+  const surface = recordingSurface(paths)
+  let renderer: ReturnType<typeof testRenderer.create> | undefined
+
+  await testRenderer.act(async () => {
+    renderer = testRenderer.create(
+      <ThreeCanvas
+        accessibilityLabel="Cube scene"
+        scene={scene}
+        camera={camera}
+        width={100}
+        height={100}
+        onObjectPress={(event) => events.push(event)}
+      />,
+      { createNodeMock: (element) => (element.type === 'canvas' ? surface : null) },
+    )
+  })
+
+  const buttons = renderer?.root.findAllByType('button') ?? []
+  assert.equal(buttons.length, 1, 'one mesh produced one control per triangle')
+  assert.equal(buttons[0]?.props.children, 'Cube')
+
+  const canvas = renderer?.root.findByType('canvas')
+  assert.ok(canvas)
+  const pointer = {
+    button: 0,
+    clientX: 50,
+    clientY: 50,
+    currentTarget: surface,
+    ctrlKey: false,
+    isPrimary: true,
+    metaKey: false,
+    pointerId: 1,
+    pointerType: 'mouse',
+    shiftKey: false,
+  }
+  ;(canvas.props.onPointerDown as (event: typeof pointer) => void)(pointer)
+  ;(canvas.props.onPointerUp as (event: typeof pointer) => void)(pointer)
+
+  assert.equal(events.length, 1)
+  assert.equal(events[0]?.object, mesh)
+  assert.ok(events[0]?.intersection, 'the centre activation did not carry a Three intersection')
   await testRenderer.act(async () => renderer?.unmount())
 })
 

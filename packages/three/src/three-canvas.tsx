@@ -1,4 +1,4 @@
-import { Canvas, type CanvasProps } from '@hozo/canvas'
+import { Canvas, type CanvasPressEvent, type CanvasProps } from '@hozo/canvas'
 import {
   type Ref,
   useCallback,
@@ -8,19 +8,39 @@ import {
   useReducer,
   useRef,
 } from 'react'
-import type { Object3D, Scene } from 'three'
+import {
+  type Intersection,
+  type Object3D,
+  type OrthographicCamera,
+  type PerspectiveCamera,
+  Raycaster,
+  type Scene,
+  Vector2,
+} from 'three'
 
 import { projectThreeScene, type ThreeProjectionDiagnostic } from './project.ts'
 
 export type ThreeCanvasFrameloop = 'demand' | 'always'
 
 export interface ThreeCanvasFrame {
-  camera: Object3D
+  camera: ThreeCanvasCamera
   /** Seconds since the preceding frame. Zero on the first frame. */
   delta: number
   /** Seconds since this animation loop started. */
   elapsed: number
   scene: Scene
+}
+
+export type ThreeCanvasCamera = PerspectiveCamera | OrthographicCamera
+
+export interface ThreeCanvasObjectEvent {
+  /** The 2D activation that reached the projected object. */
+  canvasEvent: CanvasPressEvent
+  /** The nearest Three.js intersection for this object, when one exists. */
+  intersection?: Intersection<Object3D>
+  /** All intersections with this object, nearest first. */
+  intersections: readonly Intersection<Object3D>[]
+  object: Object3D
 }
 
 export interface ThreeCanvasHandle {
@@ -30,16 +50,22 @@ export interface ThreeCanvasHandle {
 
 type CanvasSurfaceProps = CanvasProps extends infer Variant
   ? Variant extends CanvasProps
-    ? Omit<Variant, 'children' | 'height' | 'width'>
+    ? Omit<Variant, 'children' | 'fit' | 'height' | 'viewBox' | 'width'>
     : never
   : never
 
 export type ThreeCanvasProps = CanvasSurfaceProps & {
-  camera: Object3D
+  camera: ThreeCanvasCamera
   frameloop?: ThreeCanvasFrameloop
   height: number
   onDiagnostic?: (diagnostic: ThreeProjectionDiagnostic) => void
   onFrame?: (frame: ThreeCanvasFrame) => void
+  /** Name an interactive Three object for its single keyboard control. */
+  getAccessibilityLabel?: (object: Object3D) => string | undefined
+  /** Activated after the projected path identifies an object. */
+  onObjectPress?: (event: ThreeCanvasObjectEvent) => void
+  /** Optional configured raycaster; a package-owned instance is used otherwise. */
+  raycaster?: Raycaster
   ref?: Ref<ThreeCanvasHandle>
   /**
    * An application-owned value that invalidates demand rendering when it
@@ -60,9 +86,12 @@ export type ThreeCanvasProps = CanvasSurfaceProps & {
 export function ThreeCanvas({
   camera,
   frameloop = 'demand',
+  getAccessibilityLabel,
   height,
   onDiagnostic,
   onFrame,
+  onObjectPress,
+  raycaster: providedRaycaster,
   ref,
   revision,
   scene,
@@ -72,6 +101,7 @@ export function ThreeCanvas({
   const [frameRevision, invalidateReducer] = useReducer((value: number) => value + 1, 0)
   const invalidate = useCallback(() => invalidateReducer(), [])
   const frameCallback = useRef(onFrame)
+  const raycasterRef = useRef<Raycaster | null>(null)
   frameCallback.current = onFrame
 
   useImperativeHandle(ref, () => ({ invalidate }), [invalidate])
@@ -110,14 +140,45 @@ export function ThreeCanvas({
     for (const diagnostic of projection.diagnostics) onDiagnostic(diagnostic)
   }, [onDiagnostic, projection])
 
+  const pressObject = useCallback(
+    (object: Object3D, canvasEvent: CanvasPressEvent) => {
+      if (!onObjectPress) return
+      const raycaster = providedRaycaster ?? (raycasterRef.current ??= new Raycaster())
+      raycaster.setFromCamera(
+        new Vector2((canvasEvent.point.x / width) * 2 - 1, 1 - (canvasEvent.point.y / height) * 2),
+        camera,
+      )
+      const intersections = raycaster.intersectObject(object, false)
+      onObjectPress({
+        canvasEvent,
+        intersection: intersections[0],
+        intersections,
+        object,
+      })
+    },
+    [camera, height, onObjectPress, providedRaycaster, width],
+  )
+
   return (
-    <Canvas {...canvasProps} width={width} height={height}>
+    <Canvas {...canvasProps} width={width} height={height} viewBox={[0, 0, width, height]}>
       {projection.scene.map((node, index) => {
         // The portable 3D subset currently projects triangles only. Keeping
         // this boundary explicit makes adding lines or labels a local change.
         if (node.kind !== 'path') return null
-        // biome-ignore lint/suspicious/noArrayIndexKey: projected triangles have no durable Three identity, and every Canvas.Path is a stateless scene registration
-        return <Canvas.Path key={`${index}:${node.props.path}`} {...node.props} />
+        const object = projection.objects[index]
+        if (!object) return null
+        const accessibilityLabel =
+          getAccessibilityLabel?.(object) ?? (object.name.trim() || undefined)
+        return (
+          <Canvas.Path
+            // biome-ignore lint/suspicious/noArrayIndexKey: projected triangles have no durable Three identity, and every Canvas.Path is a stateless scene registration
+            key={`${index}:${node.props.path}`}
+            {...node.props}
+            accessibilityControlId={object.uuid}
+            accessibilityLabel={accessibilityLabel}
+            onPress={onObjectPress ? (event) => pressObject(object, event) : undefined}
+          />
+        )
       })}
     </Canvas>
   )

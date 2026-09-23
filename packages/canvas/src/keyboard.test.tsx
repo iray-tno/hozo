@@ -175,6 +175,41 @@ test('shapes become controls in the order they were drawn', async () => {
   )
 })
 
+test('several painted shapes can represent one semantic control', async () => {
+  let presses = 0
+  const buttons = await mount(
+    <>
+      <Canvas.Rect
+        x={0}
+        y={0}
+        width={20}
+        height={20}
+        accessibilityLabel="Projected cube"
+        accessibilityControlId="cube"
+        onPress={() => {
+          presses += 1
+        }}
+      />
+      <Canvas.Rect
+        x={20}
+        y={0}
+        width={20}
+        height={20}
+        accessibilityLabel="Projected cube"
+        accessibilityControlId="cube"
+        onPress={() => {
+          presses += 1
+        }}
+      />
+    </>,
+  )
+
+  assert.equal(buttons.length, 1)
+  assert.equal(buttons[0]?.props.children, 'Projected cube')
+  ;(buttons[0]?.props.onClick as (() => void) | undefined)?.()
+  assert.equal(presses, 1)
+})
+
 test('a shape with no handler is not a control', async () => {
   const buttons = await mount(
     <Canvas.Rect x={0} y={0} width={10} height={10} accessibilityLabel="decoration" />,

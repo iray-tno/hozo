@@ -35,6 +35,11 @@ Rendering is demand-driven by default. Change the `revision` prop or call
 `invalidate()` through a ref after imperative scene mutations. Animated scenes
 can opt into `frameloop="always"` and mutate their Three objects in `onFrame`.
 
+Pass `onObjectPress` to receive the projected Three object and its raycast
+intersections. Set `object.name`, or provide `getAccessibilityLabel`, to expose
+one keyboard and screen-reader control per object even when it projects into
+many triangles.
+
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,

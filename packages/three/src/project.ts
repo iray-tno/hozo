@@ -33,11 +33,14 @@ export interface ThreeProjectionOptions {
 
 export interface ThreeProjection {
   scene: CanvasScene
+  /** Source object for each scene node at the same index. */
+  objects: readonly Object3D[]
   diagnostics: readonly ThreeProjectionDiagnostic[]
 }
 
 interface ProjectedTriangle {
   depth: number
+  object: Object3D
   order: number
   node: CanvasSceneNode
 }
@@ -160,7 +163,7 @@ export function projectThreeScene(
       code: 'INVALID_VIEWPORT',
       message: `Three projection needs a positive viewport; received ${options.width} x ${options.height}.`,
     })
-    return { scene: [], diagnostics }
+    return { scene: [], objects: [], diagnostics }
   }
   if (!isSupportedCamera(camera)) {
     diagnostic(diagnostics, options, {
@@ -168,7 +171,7 @@ export function projectThreeScene(
       message: 'Only Three.js PerspectiveCamera and OrthographicCamera are portable.',
       object: camera,
     })
-    return { scene: [], diagnostics }
+    return { scene: [], objects: [], diagnostics }
   }
 
   scene.updateMatrixWorld(true)
@@ -285,6 +288,7 @@ export function projectThreeScene(
         const path = `M ${printable(projected[0]?.x ?? 0)} ${printable(projected[0]?.y ?? 0)} L ${printable(projected[1]?.x ?? 0)} ${printable(projected[1]?.y ?? 0)} L ${printable(projected[2]?.x ?? 0)} ${printable(projected[2]?.y ?? 0)} Z`
         triangles.push({
           depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
+          object,
           order: order++,
           node: { kind: 'path', props: { path, fill } },
         })
@@ -293,5 +297,9 @@ export function projectThreeScene(
   })
 
   triangles.sort((left, right) => right.depth - left.depth || left.order - right.order)
-  return { scene: triangles.map((triangle) => triangle.node), diagnostics }
+  return {
+    scene: triangles.map((triangle) => triangle.node),
+    objects: triangles.map((triangle) => triangle.object),
+    diagnostics,
+  }
 }
