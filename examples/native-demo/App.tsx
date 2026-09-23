@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 // What a ref to a host component holds on this platform. React Native names
 // it, so it is taken from there rather than spelled again here: `View` is a
 // function component in these types, and its *instance* is this.
-import { AppState, type HostInstance } from 'react-native'
+import { AppState, type HostInstance, Modal } from 'react-native'
 
 import CalendarScreen from './CalendarScreen.tsx'
 import Gallery from './Gallery.tsx'
@@ -68,8 +68,6 @@ export default function App() {
   // contract needs -- every primitive at once, rather than the eight
   // this screen happens to arrange.
   if (showingGallery) return <Gallery />
-  // After the gallery, so a run that wanted the census still gets it.
-  if (showingCalendar) return <CalendarScreen />
 
   return (
     // The insets a notch and a home indicator take out of the window.
@@ -216,6 +214,29 @@ export default function App() {
         <Text className="text-lg font-bold">Is this right?</Text>
         <Text className="text-slate-600">{email}</Text>
       </Dialog>
+
+      {/* A `Modal` over this screen rather than a replacement for it, which
+          is how the Gallery button works and which cannot be used here.
+
+          Replacing the screen unmounts this `FlatList`, and with TalkBack on
+          that crashes React Native 0.87.1. Android clears accessibility
+          focus as the focused view is removed, the event walks up to the
+          `ScrollView`'s accessibility delegate, and
+          `ReactScrollViewAccessibilityDelegate.kt:74` casts a null tag with
+          `as ReadableMap` instead of `as?` -- while the comment two lines
+          below it says the value is expected to be null sometimes.
+
+          The Gallery button has the same shape and has never hit this,
+          because the harness only presses it with TalkBack off. Measured in
+          this PR's first device run: the app went away and TalkBack read the
+          launcher. */}
+      <Modal
+        visible={showingCalendar}
+        animationType="fade"
+        onRequestClose={() => setShowingCalendar(false)}
+      >
+        <CalendarScreen />
+      </Modal>
     </View>
   )
 }

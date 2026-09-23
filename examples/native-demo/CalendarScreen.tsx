@@ -1,6 +1,6 @@
 // A `Calendar` on its own screen, so a device can be asked what it says.
 //
-// Its own screen rather than a corner of `App.tsx`, for a reason that is
+// Its own surface rather than a corner of `App.tsx`, for a reason that is
 // about the harness rather than about layout. `android-talkback.sh` walks
 // the acceptance screen with Tab until it laps, and gates the run on what
 // was said and on reaching the dialog's opener within `MAX_STEPS`. A
@@ -8,6 +8,12 @@
 // lengthen, the opener would move, and a measurement would have taken a
 // gate hostage. Here the grid is somewhere the existing assertions have
 // already finished with.
+//
+// Reached through a `Modal` rather than by replacing the screen, which is
+// what the Gallery button does. Replacing it unmounts the acceptance
+// screen's `FlatList`, and with TalkBack on that crashes React Native
+// 0.87.1 -- see the note at the `Modal` in `App.tsx`. This file was written
+// as a replacement screen first, and the device said otherwise.
 //
 // Nothing in `packages/tailwind-conformance` reads this file, which is the
 // other half of the same care. `announcedByCompiler` is pointed at
