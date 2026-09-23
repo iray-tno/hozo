@@ -47,7 +47,9 @@ one object does not emit a false leave and re-entry.
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,
-and flat opaque `MeshBasicMaterial` colours are supported.
+and flat opaque `MeshBasicMaterial` colours are supported. `Line`,
+`LineSegments`, and `LineLoop` with opaque `LineBasicMaterial` are projected
+with their declared colour and width.
 
 This is deliberately not a software WebGL implementation. Textures, lighting,
 blending, shaders, skinning, instancing, post-processing, and XR need a GPU
