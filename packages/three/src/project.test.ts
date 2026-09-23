@@ -164,6 +164,65 @@ test('far triangles are painted before near triangles', () => {
   assert.deepEqual(fills, ['#0000ff', '#ff0000'])
 })
 
+test('wireframe MeshBasicMaterial becomes three Canvas lines per triangle', () => {
+  const scene = new Scene()
+  scene.add(
+    new Mesh(
+      triangleGeometry(),
+      new MeshBasicMaterial({ color: '#16a34a', wireframe: true, wireframeLinewidth: 3 }),
+    ),
+  )
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedLines(result), [
+    { x1: 40, y1: 60, x2: 60, y2: 60, stroke: '#16a34a', strokeWidth: 3 },
+    { x1: 60, y1: 60, x2: 50, y2: 40, stroke: '#16a34a', strokeWidth: 3 },
+    { x1: 50, y1: 40, x2: 40, y2: 60, stroke: '#16a34a', strokeWidth: 3 },
+  ])
+})
+
+test('wireframe projection applies the same doubled draw range as Three.js', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute(
+    'position',
+    new Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
+  )
+  geometry.setIndex(new Uint16BufferAttribute([0, 1, 2, 0, 2, 3], 1))
+  geometry.setDrawRange(3, 3)
+  const scene = new Scene()
+  scene.add(new Mesh(geometry, new MeshBasicMaterial({ wireframe: true })))
+
+  const lines = projectedLines(projectThreeScene(scene, perspective(), { width: 100, height: 100 }))
+
+  assert.equal(lines.length, 3)
+  assert.deepEqual(lines[0], {
+    x1: 40,
+    y1: 60,
+    x2: 60,
+    y2: 40,
+    stroke: '#ffffff',
+    strokeWidth: 1,
+  })
+})
+
+test('wireframe clips original edges without inventing a clip-plane edge', () => {
+  const scene = new Scene()
+  scene.add(
+    new Mesh(
+      triangleGeometry([-1, -1, -2, 1, -1, -2, 0, 1, -0.5]),
+      new MeshBasicMaterial({ wireframe: true }),
+    ),
+  )
+  const camera = new PerspectiveCamera(90, 1, 1, 10)
+
+  const lines = projectedLines(projectThreeScene(scene, camera, { width: 100, height: 100 }))
+
+  assert.equal(lines.length, 3)
+  assert.ok(lines.every(({ x1, y1, x2, y2 }) => [x1, y1, x2, y2].every(Number.isFinite)))
+})
+
 test('LineSegments become independent Canvas lines with material colour and width', () => {
   const geometry = new BufferGeometry()
   geometry.setAttribute(

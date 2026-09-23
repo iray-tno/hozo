@@ -126,7 +126,6 @@ function signedArea(points: readonly { x: number; y: number }[]) {
 }
 
 function materialReason(material: MeshBasicMaterial): string | undefined {
-  if (material.wireframe) return 'wireframe MeshBasicMaterial is not in the flat-fill subset'
   if (material.vertexColors) return 'vertex colours are not in the flat-fill subset'
   if (material.transparent || material.opacity !== 1) {
     return 'transparent materials need depth-aware compositing and are not projected'
@@ -476,16 +475,55 @@ export function projectThreeScene(
     const requested = mesh.geometry.drawRange.count
     const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
     const matrix = new Matrix4().multiplyMatrices(viewProjection, mesh.matrixWorld)
-    const vertex = (offset: number) => {
-      const vertexIndex = index ? index.getX(offset) : offset
-      return new Vector4(
+    const vertexAt = (vertexIndex: number) =>
+      new Vector4(
         position.getX(vertexIndex),
         position.getY(vertexIndex),
         position.getZ(vertexIndex),
         1,
       ).applyMatrix4(matrix)
+    const vertex = (offset: number) => {
+      const vertexIndex = index ? index.getX(offset) : offset
+      return vertexAt(vertexIndex)
     }
     const fill = `#${(material as MeshBasicMaterial).color.getHexString()}`
+
+    if ((material as MeshBasicMaterial).wireframe) {
+      const strokeWidth = Math.max(0, (material as MeshBasicMaterial).wireframeLinewidth)
+      if (strokeWidth === 0) return
+      const wireframeIndices: number[] = []
+      for (let offset = 0; offset + 2 < available; offset += 3) {
+        const a = index ? index.getX(offset) : offset
+        const b = index ? index.getX(offset + 1) : offset + 1
+        const c = index ? index.getX(offset + 2) : offset + 2
+        wireframeIndices.push(a, b, b, c, c, a)
+      }
+      const wireStart = start * 2
+      const wireEnd = Math.min(
+        wireframeIndices.length,
+        Number.isFinite(requested) ? wireStart + Math.max(0, Math.floor(requested * 2)) : Infinity,
+      )
+      for (let offset = wireStart; offset + 1 < wireEnd; offset += 2) {
+        const fromIndex = wireframeIndices[offset]
+        const toIndex = wireframeIndices[offset + 1]
+        if (fromIndex === undefined || toIndex === undefined) continue
+        const clipped = clippedSegment(vertexAt(fromIndex), vertexAt(toIndex))
+        if (!clipped) continue
+        const from = projectedPoint(clipped[0], options.width, options.height)
+        const to = projectedPoint(clipped[1], options.width, options.height)
+        if (!from || !to || (from.x === to.x && from.y === to.y)) continue
+        primitives.push({
+          depth: (from.z + to.z) / 2,
+          object,
+          order: order++,
+          node: {
+            kind: 'line',
+            props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: fill, strokeWidth },
+          },
+        })
+      }
+      return
+    }
 
     for (let offset = start; offset + 2 < end; offset += 3) {
       const polygon = clippedPolygon([vertex(offset), vertex(offset + 1), vertex(offset + 2)])
