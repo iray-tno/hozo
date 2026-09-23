@@ -244,7 +244,6 @@ else
   echo '::warning::the headless emulator did not recognise injected touch as a TalkBack double-tap; verifying ACTION_CLICK through the peer accessibility service'
   adb shell am broadcast \
     -a dev.hozo.speechlog.ACTIVATE \
-    -p "$engine" \
     --es label 'January revenue' >/dev/null
   sleep 2
   adb logcat -d -v raw -s HozoA11yDriver:I | grep -q 'activated January revenue returned true' ||
