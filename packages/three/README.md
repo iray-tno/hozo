@@ -49,7 +49,9 @@ projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,
 and flat opaque `MeshBasicMaterial` colours are supported. `Line`,
 `LineSegments`, and `LineLoop` with opaque `LineBasicMaterial` are projected
-with their declared colour and width.
+with their declared colour and width. `Points` with opaque, untextured
+`PointsMaterial` are projected as circles, including perspective size
+attenuation.
 
 This is deliberately not a software WebGL implementation. Textures, lighting,
 blending, shaders, skinning, instancing, post-processing, and XR need a GPU

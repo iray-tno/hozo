@@ -16,7 +16,10 @@ import {
   MeshBasicMaterial,
   OrthographicCamera,
   PerspectiveCamera,
+  Points,
+  PointsMaterial,
   Scene,
+  Texture,
   Uint16BufferAttribute,
 } from 'three'
 
@@ -46,6 +49,14 @@ function projectedLines(result: ReturnType<typeof projectThreeScene>) {
   return result.scene.map((node) => {
     assert.equal(node.kind, 'line')
     if (node.kind !== 'line') throw new Error('projection emitted a non-line node')
+    return node.props
+  })
+}
+
+function projectedCircles(result: ReturnType<typeof projectThreeScene>) {
+  return result.scene.map((node) => {
+    assert.equal(node.kind, 'circle')
+    if (node.kind !== 'circle') throw new Error('projection emitted a non-circle node')
     return node.props
   })
 }
@@ -241,6 +252,64 @@ test('unsupported dashed line materials are omitted with a diagnostic', () => {
   assert.deepEqual(result.scene, [])
   assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
   assert.match(result.diagnostics[0]?.message ?? '', /dashed/)
+})
+
+test('Points become Canvas circles with indexed draw ranges and perspective attenuation', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([-2, 0, 0, -1, 0, 0, 1, 0, 0], 3))
+  geometry.setIndex(new Uint16BufferAttribute([0, 1, 2], 1))
+  geometry.setDrawRange(1, 2)
+  const scene = new Scene()
+  scene.add(new Points(geometry, new PointsMaterial({ color: '#0891b2', size: 2 })))
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedCircles(result), [
+    { cx: 40, cy: 50, radius: 10, fill: '#0891b2' },
+    { cx: 60, cy: 50, radius: 10, fill: '#0891b2' },
+  ])
+})
+
+test('PointsMaterial can keep a fixed screen-space size', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([0, 0, 0, 0, 0, -4], 3))
+  const scene = new Scene()
+  scene.add(new Points(geometry, new PointsMaterial({ size: 4, sizeAttenuation: false })))
+
+  const circles = projectedCircles(
+    projectThreeScene(scene, perspective(), { width: 100, height: 100 }),
+  )
+
+  assert.equal(circles.length, 2)
+  assert.ok(circles.every(({ radius }) => radius === 2))
+})
+
+test('points outside the homogeneous clip volume are omitted', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([0, 0, -2, 0, 0, 1], 3))
+  const scene = new Scene()
+  scene.add(new Points(geometry, new PointsMaterial()))
+  const camera = new PerspectiveCamera(90, 1, 1, 10)
+
+  const circles = projectedCircles(projectThreeScene(scene, camera, { width: 100, height: 100 }))
+
+  assert.equal(circles.length, 1)
+  assert.equal(circles[0]?.cx, 50)
+  assert.equal(circles[0]?.cy, 50)
+})
+
+test('textured points are omitted with a diagnostic', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([0, 0, 0], 3))
+  const scene = new Scene()
+  scene.add(new Points(geometry, new PointsMaterial({ map: new Texture() })))
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  assert.match(result.diagnostics[0]?.message ?? '', /textured/)
 })
 
 test('an invisible material emits neither geometry nor a diagnostic', () => {

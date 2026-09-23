@@ -9,6 +9,8 @@ import {
   type Object3D,
   type OrthographicCamera,
   type PerspectiveCamera,
+  type Points,
+  type PointsMaterial,
   type Scene,
   type Line as ThreeLine,
   Vector4,
@@ -159,6 +161,18 @@ function lineMaterialReason(material: LineBasicMaterial): string | undefined {
   return undefined
 }
 
+function pointsMaterialReason(material: PointsMaterial): string | undefined {
+  if (material.vertexColors) return 'vertex-coloured points are not projected yet'
+  if (material.transparent || material.opacity !== 1) {
+    return 'transparent points need depth-aware compositing and are not projected'
+  }
+  if (material.map || material.alphaMap) return 'textured points are not projected yet'
+  if (material.clippingPlanes && material.clippingPlanes.length > 0) {
+    return 'material clipping planes are not projected'
+  }
+  return undefined
+}
+
 function isSupportedCamera(object: Object3D): object is SupportedCamera {
   const candidate = object as Partial<PerspectiveCamera & OrthographicCamera>
   return candidate.isPerspectiveCamera === true || candidate.isOrthographicCamera === true
@@ -215,7 +229,7 @@ export function projectThreeScene(
   let order = 0
 
   scene.traverseVisible((object) => {
-    const candidate = object as Partial<Mesh & ThreeLine>
+    const candidate = object as Partial<Mesh & Points & ThreeLine>
     if (candidate.isLine === true) {
       const line = object as ThreeLine
       if (Array.isArray(line.material)) {
@@ -298,6 +312,94 @@ export function projectThreeScene(
           node: {
             kind: 'line',
             props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke, strokeWidth },
+          },
+        })
+      }
+      return
+    }
+    if (candidate.isPoints === true) {
+      const points = object as Points
+      if (Array.isArray(points.material)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: 'Material arrays and geometry groups are not projected yet.',
+          object,
+        })
+        return
+      }
+      const material = points.material as Partial<PointsMaterial>
+      if (material.isPointsMaterial !== true) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: 'The portable point subset currently accepts PointsMaterial only.',
+          object,
+        })
+        return
+      }
+      if (material.visible === false) return
+      const reason = pointsMaterialReason(material as PointsMaterial)
+      if (reason) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: reason,
+          object,
+        })
+        return
+      }
+      if (points.morphTargetInfluences?.some((influence) => influence !== 0)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message: 'Active point morph targets are not projected yet.',
+          object,
+        })
+        return
+      }
+      const position = points.geometry.getAttribute('position')
+      if (!position || position.itemSize < 3) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message: 'BufferGeometry needs a position attribute with three components.',
+          object,
+        })
+        return
+      }
+      const index = points.geometry.getIndex()
+      const available = index?.count ?? position.count
+      const start = Math.max(0, Math.floor(points.geometry.drawRange.start))
+      const requested = points.geometry.drawRange.count
+      const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
+      const modelView = new Matrix4().multiplyMatrices(
+        camera.matrixWorldInverse,
+        points.matrixWorld,
+      )
+      const pointMaterial = material as PointsMaterial
+      const fill = `#${pointMaterial.color.getHexString()}`
+      for (let offset = start; offset < end; offset += 1) {
+        const vertexIndex = index ? index.getX(offset) : offset
+        const view = new Vector4(
+          position.getX(vertexIndex),
+          position.getY(vertexIndex),
+          position.getZ(vertexIndex),
+          1,
+        ).applyMatrix4(modelView)
+        const clip = view.clone().applyMatrix4(camera.projectionMatrix)
+        if (!clipPlanes.every((distance) => distance(clip) >= 0)) continue
+        const projected = projectedPoint(clip, options.width, options.height)
+        if (!projected) continue
+        const diameter =
+          (camera as Partial<PerspectiveCamera>).isPerspectiveCamera === true &&
+          pointMaterial.sizeAttenuation
+            ? (pointMaterial.size * options.height) / 2 / -view.z
+            : pointMaterial.size
+        const radius = diameter / 2
+        if (!(radius > 0) || !Number.isFinite(radius)) continue
+        primitives.push({
+          depth: projected.z,
+          object,
+          order: order++,
+          node: {
+            kind: 'circle',
+            props: { cx: projected.x, cy: projected.y, radius, fill },
           },
         })
       }
