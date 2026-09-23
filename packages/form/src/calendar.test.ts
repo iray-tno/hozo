@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import { dayLabel, dayNumber, monthLabel, weekdayLabels } from './calendar-format.ts'
 import {
   addDays,
   addMonths,
@@ -15,8 +16,22 @@ import {
   isWithin,
   monthGrid,
   moveFocus,
+  toTimestamp,
   weekdayOf,
 } from './calendar-rules.ts'
+
+// A zone behind UTC. `node --test` gives each file its own process, so this
+// does not reach the other suites, and the formatters in `calendar-format`
+// are built per call rather than at import, so a change here still reaches
+// them.
+//
+// It guards one specific regression: a formatter built without
+// `timeZone: 'UTC'` reads UTC midnight back as the previous evening, so the
+// 24th prints as the 23rd. In UTC -- which is what CI runs in -- that bug is
+// invisible, which is why the guard cannot be left to CI's own zone.
+// Best-effort: where a runtime ignores a late `TZ` change the assertions
+// below still pass, they just stop proving anything.
+process.env.TZ = 'America/Los_Angeles'
 
 const date = (year: number, month: number, day: number): CalendarDate => ({ year, month, day })
 
@@ -218,5 +233,61 @@ test('a key the grid does not own is left alone, which is not the same as a refu
     iso(moveFocus(date(2026, 9, 1), 'ArrowLeft', { min: date(2026, 9, 1) })),
     '2026-09-01',
     'a refused move is a date, not null',
+  )
+})
+
+test('a civil date becomes UTC midnight, which is what a formatter needs', () => {
+  assert.equal(new Date(toTimestamp(date(2026, 9, 24))).toISOString(), '2026-09-24T00:00:00.000Z')
+  assert.equal(new Date(toTimestamp(date(2024, 2, 29))).toISOString(), '2024-02-29T00:00:00.000Z')
+})
+
+test('the month label carries the month and the year', () => {
+  const english = monthLabel({ year: 2026, month: 9 }, 'en-US')
+  assert.match(english, /September/)
+  assert.match(english, /2026/)
+  const japanese = monthLabel({ year: 2026, month: 9 }, 'ja-JP')
+  assert.match(japanese, /2026/)
+  assert.match(japanese, /9/)
+})
+
+test('the seven day names start on the day the week starts on', () => {
+  const monday = weekdayLabels(1, 'en-US')
+  assert.equal(monday.length, 7)
+  assert.equal(monday[0]?.long, 'Monday')
+  assert.equal(monday[6]?.long, 'Sunday')
+  assert.equal(weekdayLabels(0, 'en-US')[0]?.long, 'Sunday')
+  assert.equal(weekdayLabels(6, 'en-US')[0]?.long, 'Saturday')
+})
+
+test('every day name is distinct and non-empty, in each of the three widths', () => {
+  const labels = weekdayLabels(1, 'en-US')
+  for (const width of ['short', 'long', 'narrow'] as const) {
+    const values = labels.map((label) => label[width])
+    assert.ok(
+      values.every((value) => value.length > 0),
+      `${width} labels are all present`,
+    )
+    // Narrow names repeat in English -- Tuesday and Thursday are both "T" --
+    // so only the two wider forms have to be unique.
+    if (width !== 'narrow') assert.equal(new Set(values).size, 7, `${width} labels are distinct`)
+  }
+})
+
+test("a cell's spoken name is the whole date, weekday included", () => {
+  const label = dayLabel(date(2026, 9, 24), 'en-US')
+  assert.match(label, /Thursday/, 'the weekday, because arrow keys skip the column header')
+  assert.match(label, /September/)
+  assert.match(label, /\b24\b/, 'the day the date is, not the day before it in another zone')
+  assert.match(label, /2026/)
+})
+
+test("a cell's text is the day number, formatted rather than concatenated", () => {
+  assert.equal(dayNumber(date(2026, 9, 24), 'en-US'), '24')
+  assert.equal(dayNumber(date(2026, 9, 1), 'en-US'), '1')
+  assert.equal(dayNumber(date(2026, 9, 24), 'en-US-u-nu-latn'), '24')
+  assert.notEqual(
+    dayNumber(date(2026, 9, 24), 'en-US-u-nu-arab'),
+    '24',
+    'an explicit numbering system reaches the digits, which `String(day)` would not',
   )
 })
