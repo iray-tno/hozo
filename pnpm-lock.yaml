@@ -874,9 +874,18 @@ importers:
         specifier: workspace:^
         version: link:../canvas
     devDependencies:
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
       '@types/three':
         specifier: ^0.180.0
         version: 0.180.0
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-test-renderer:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       three:
         specifier: ^0.180.0
         version: 0.180.0
