@@ -576,6 +576,7 @@ packages/
   tailwind/                Tailwind integration for Hozo's Style IR.
   tailwind-conformance/    Differential test: compares Hozo's compiled CSS against the real Tailwind engine's output, per utility.
   test-reporter/           JUnit normalization and Allure 3 test report generator for Hozo
+  three/                   Projects Three.js scenes into portable Hozo Canvas scenes.
   typography/              Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.
   vite/                    Vite integration for the Hozo compiler (Web lowering backend).
 
