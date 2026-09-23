@@ -6,7 +6,25 @@ A separate package rather than part of [`@hozo/patterns`](https://www.npmjs.com/
 
 ## What is here today
 
-The date arithmetic a calendar grid is built out of, with no `Date` in its types and no rendering yet:
+`Calendar`, a month grid that works the same way on both platforms:
+
+```tsx
+import { Calendar } from '@hozo/form'
+
+<Calendar
+  value={departure}
+  onChange={setDeparture}
+  min={{ year: 2026, month: 9, day: 1 }}
+  locale="ja-JP"
+  accessibilityLabel="Departure date"
+/>
+```
+
+On the Web it is a `role="grid"` table whose cells are reached with the arrow keys, Home and End, and PageUp/PageDown — a month, or a year with Shift. Each cell's accessible name is the whole date, weekday included, because a user arriving by arrow key never passes through the column header; the header row is hidden from the accessibility tree for the same reason.
+
+On React Native each day is a `Pressable` inside an `accessibilityRole="grid"`. There is no keyboard half, and that is the platform rather than an omission: React Native has no tab order to rove within, so the grid is walked by TalkBack and VoiceOver and pressed with a finger.
+
+The arithmetic underneath is exported too, and has no `Date` in its types:
 
 ```ts
 import { firstDayOfWeek, monthGrid, moveFocus } from '@hozo/form'
@@ -30,7 +48,9 @@ Month and weekday *names* are a different matter: `Intl.DateTimeFormat` does exi
 
 ## Status
 
-Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). The rendered `Calendar`, `DatePicker`, `TimePicker` and `DateRangePicker` compose [`@hozo/behaviors`](https://www.npmjs.com/package/@hozo/behaviors) and land on top of this module.
+Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `DatePicker`, `TimePicker` and `DateRangePicker` come next, composing this grid with [`@hozo/behaviors`](https://www.npmjs.com/package/@hozo/behaviors) for the popover, the focus scope and the dismissal.
+
+Two things `Calendar` deliberately does not do yet. The shown month is not controllable from outside — `defaultMonth` sets it and `onMonthChange` reports it, but there is no `month` prop — and the platform-native variants (`<input type="date">` on the Web, `UIDatePicker` and Material's `DatePickerDialog` on Native) are not built. Both are additive.
 
 <!-- generated: package-footer -->
 

@@ -5,7 +5,7 @@ export {
   type HozoCalendarDay,
   type HozoCalendarProps as CalendarProps,
   type HozoCalendarProps,
-} from './calendar.tsx'
+} from './calendar.native.tsx'
 export {
   dayLabel,
   dayNumber,

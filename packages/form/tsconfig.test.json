@@ -3,7 +3,7 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./.test-build",
-    "types": ["node"],
+    "types": ["react", "node"],
     "declaration": false,
     "declarationMap": false
   },

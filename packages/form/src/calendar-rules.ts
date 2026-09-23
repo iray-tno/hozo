@@ -33,6 +33,13 @@ export interface CalendarDate {
   day: number
 }
 
+/** A month on its own, which is what a grid is asked for and shows. */
+export interface CalendarMonth {
+  year: number
+  /** 1-12. */
+  month: number
+}
+
 export interface CalendarCell {
   date: CalendarDate
   /** From the month before or after the one the grid was asked for. */
@@ -52,7 +59,15 @@ export type CalendarKey =
   | 'PageUp'
   | 'PageDown'
 
-function toUtc(date: CalendarDate): number {
+/**
+ * The UTC midnight instant for a civil date.
+ *
+ * Exported for the one job that genuinely needs an instant:
+ * `Intl.DateTimeFormat` formats instants, not dates. Pair it with
+ * `timeZone: 'UTC'` there, or the formatter reads it back in the viewer's
+ * zone and prints the day before for everyone west of Greenwich.
+ */
+export function toTimestamp(date: CalendarDate): number {
   const ms = Date.UTC(date.year, date.month - 1, date.day)
   // `Date.UTC` maps years 0-99 onto 1900-1999. Undone rather than
   // documented as a limit, because a grid that silently moves the year 50
@@ -80,11 +95,11 @@ export function daysInMonth(year: number, month: number): number {
 }
 
 export function weekdayOf(date: CalendarDate): Weekday {
-  return new Date(toUtc(date)).getUTCDay() as Weekday
+  return new Date(toTimestamp(date)).getUTCDay() as Weekday
 }
 
 export function addDays(date: CalendarDate, days: number): CalendarDate {
-  return fromUtc(toUtc(date) + days * MS_PER_DAY)
+  return fromUtc(toTimestamp(date) + days * MS_PER_DAY)
 }
 
 /**
@@ -121,6 +136,21 @@ export function isWithin(
   if (bounds.min && compareDates(date, bounds.min) < 0) return false
   if (bounds.max && compareDates(date, bounds.max) > 0) return false
   return true
+}
+
+/**
+ * Today where the viewer is, which is the only function here that reads a
+ * clock.
+ *
+ * Local parts rather than UTC ones, deliberately: "today" is a civil date
+ * in the viewer's own zone, and a calendar that marked the UTC day would
+ * highlight tomorrow all evening in Tokyo and yesterday all morning in
+ * Los Angeles. Every component takes a `today` prop that overrides this,
+ * so a test never has to depend on when it ran.
+ */
+export function todayLocal(): CalendarDate {
+  const now = new Date()
+  return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() }
 }
 
 /**
