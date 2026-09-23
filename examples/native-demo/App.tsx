@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 // function component in these types, and its *instance* is this.
 import { AppState, type HostInstance } from 'react-native'
 
+import CalendarScreen from './CalendarScreen.tsx'
 import Gallery from './Gallery.tsx'
 
 const rows = [
@@ -21,6 +22,7 @@ export default function App() {
   const [email, setEmail] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [showingGallery, setShowingGallery] = useState(false)
+  const [showingCalendar, setShowingCalendar] = useState(false)
   const [gridWidth, setGridWidth] = useState(0)
   const [gesture, setGesture] = useState({ dx: 0, dy: 0, touches: 0 })
   // Where accessibility focus goes when the dialog closes. React Native
@@ -66,6 +68,8 @@ export default function App() {
   // contract needs -- every primitive at once, rather than the eight
   // this screen happens to arrange.
   if (showingGallery) return <Gallery />
+  // After the gallery, so a run that wanted the census still gets it.
+  if (showingCalendar) return <CalendarScreen />
 
   return (
     // The insets a notch and a home indicator take out of the window.
@@ -173,6 +177,22 @@ export default function App() {
               testID="smoke-gallery"
             >
               <Text className="text-center">Gallery</Text>
+            </Pressable>
+
+            {/* No `testID`, deliberately, where its neighbour has one.
+                `announcedByCompiler` reads this file by name and
+                `missingOnDevice` fails on any `testID` here that is absent
+                from the dump checked into `fixtures/` -- so adding one is a
+                fixture regeneration, which needs a device run of its own.
+                The TalkBack script finds this button the way it finds the
+                dialog's opener: by what TalkBack says about it. */}
+            <Pressable
+              className="mt-2 rounded-lg bg-slate-200 p-3"
+              accessibilityRole="button"
+              accessibilityLabel="Show the calendar"
+              onPress={() => setShowingCalendar(true)}
+            >
+              <Text className="text-center">Calendar</Text>
             </Pressable>
           </View>
         }

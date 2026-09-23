@@ -188,6 +188,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/form':
+        specifier: workspace:*
+        version: link:../../packages/form
       '@hozo/rn-compat':
         specifier: workspace:*
         version: link:../../packages/rn-compat

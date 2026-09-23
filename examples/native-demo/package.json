@@ -15,6 +15,7 @@
     "@babel/runtime": "^8.0.0",
     "@hozo/canvas": "workspace:*",
     "@hozo/core": "workspace:*",
+    "@hozo/form": "workspace:*",
     "@hozo/rn-compat": "workspace:*",
     "@shopify/react-native-skia": "^2.11.1",
     "react": "^19.2.0",

@@ -112,7 +112,7 @@ settle() {
 write_speech_log() {
   node --eval '
     const fs = require("node:fs")
-    const [steps, dialog, trace, all] = process.argv.slice(1)
+    const [steps, dialog, trace, calendar, all] = process.argv.slice(1)
     const rows = (file) => {
       if (!file || !fs.existsSync(file)) return []
       return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => {
@@ -126,9 +126,10 @@ write_speech_log() {
       steps: rows(steps).map((row) => ({ ...row, step: Number(row.step) })),
       dialog: rows(dialog),
       focusTrace: rows(trace),
+      calendar: rows(calendar),
     }
     fs.writeFileSync("talkback-speech.json", JSON.stringify(log, null, 2) + "\n")
-  ' "${steps_file:-}" "${dialog_file:-}" "${trace_file:-}" "$(spoken)" || true
+  ' "${steps_file:-}" "${dialog_file:-}" "${trace_file:-}" "${calendar_file:-}" "$(spoken)" || true
 }
 trap write_speech_log EXIT
 
@@ -495,6 +496,93 @@ else
     for (const phrase of missing) console.error(`::error::TalkBack did not say, in order: ${phrase}`)
     process.exit(missing.length ? 1 : 0)
   ' "$expected" "$(cut -f2 "$steps_file" "$dialog_file" | tr "|" "\n")" || fail "TalkBack did not say what was approved"
+fi
+
+# What TalkBack says about `@hozo/form`'s Calendar -- reported, never gated.
+#
+# Last, and after every assertion above has already passed, so a measurement
+# cannot take a gate hostage. `::warning::` throughout and `|| true` on
+# everything: nothing in this section can fail the job.
+#
+# It is here because the grid's accessibility design has never met a screen
+# reader. Three claims are written into the component's own comments -- that
+# a cell's accessible name carries the whole date, that "selected" is spoken,
+# and that changing the month announces the new one -- and turning any of
+# them into a gate on the first run that produces them would be approving
+# them by assertion.
+#
+# One thing is predicted rather than measured, and predicted to be absent. A
+# day outside `min`/`max` is a `Pressable` with `disabled`, which React
+# Native routes to `View.setEnabled(false)` -- so Android drops it from input
+# focus and Tab cannot land on it. Whether such a day announces itself as
+# unavailable is a question about TalkBack's *linear* navigation, which this
+# harness cannot drive (see `next` above, and `VALIDATION.md`). That is
+# `docs/decisions/001`'s subject appearing in Hozo's own grid.
+calendar_button="Show the calendar"
+calendar_file="$(mktemp)"
+calendar_reached=
+for _ in $(seq 1 "$MAX_STEPS"); do
+  advance || true
+  if [ "${new%%|*}" = "$calendar_button" ]; then calendar_reached=1; break; fi
+done
+
+if [ -z "$calendar_reached" ]; then
+  echo "::warning::Tab never reached \"$calendar_button\", so the calendar was not read"
+else
+  calendar_opened=
+  for key in KEYCODE_ENTER KEYCODE_DPAD_CENTER; do
+    adb shell input keyevent "$key" || true
+    sleep 2
+    settle || true
+    collect || true
+    if [ -n "$new" ]; then calendar_opened=$key; break; fi
+  done
+  if [ -z "$calendar_opened" ]; then
+    echo "::warning::neither Enter nor DPAD_CENTER opened the calendar screen"
+  else
+    printf 'open\t%s\n' "$new" >> "$calendar_file"
+    echo "  calendar opened with $calendar_opened: $new"
+
+    # Twenty, not forty-two. The cells repeat one shape, and each Tab costs
+    # two seconds of settling; twenty reaches past the selected day, which is
+    # the one cell that should sound different from its neighbours.
+    for i in $(seq 1 20); do
+      advance || true
+      printf 'day %s\t%s\n' "$i" "$new" >> "$calendar_file"
+      echo "  calendar $i: ${new:-(silent)}"
+    done
+
+    # The month is a live region, so it is announced when it changes rather
+    # than when anything focuses it -- which means pressing the button is the
+    # only way to ask whether it works.
+    for _ in $(seq 1 "$MAX_STEPS"); do
+      advance || true
+      if [ "${new%%|*}" = "Next month" ]; then break; fi
+    done
+    if [ "${new%%|*}" = "Next month" ]; then
+      adb shell input keyevent KEYCODE_ENTER || true
+      sleep 2
+      settle || true
+      collect || true
+      printf 'paged\t%s\n' "$new" >> "$calendar_file"
+      echo "  calendar paged: ${new:-(silent)}"
+    else
+      echo "::warning::Tab never reached the calendar's next-month button"
+    fi
+
+    calendar_said="$(cut -f2 "$calendar_file" | tr '|' '\n' | grep -v '^$' || true)"
+    heard() {
+      if printf '%s\n' "$calendar_said" | grep -qi -- "$2"; then
+        echo "  heard: $1"
+      else
+        echo "::warning::the calendar never said $1 -- read talkback-speech.json"
+      fi
+    }
+    heard 'a whole date on a cell' 'september [0-9]*, 2026'
+    heard 'the grid label' 'departure date'
+    heard 'that a day is selected' 'selected'
+    heard 'the month it paged to' 'october 2026'
+  fi
 fi
 
 echo "ok"
