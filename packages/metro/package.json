@@ -1,6 +1,6 @@
 {
   "name": "@hozo/metro",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Metro integration for the Hozo compiler (Native lowering backend).",
   "keywords": [
     "metro",

@@ -1,6 +1,6 @@
 {
   "name": "@hozo/typography",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.",
   "keywords": [
     "react-native",

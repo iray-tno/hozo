@@ -1,6 +1,6 @@
 {
   "name": "@hozo/three",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Projects Three.js scenes into portable Hozo Canvas scenes.",
   "keywords": [
     "react-native",

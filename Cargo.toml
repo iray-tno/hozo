@@ -15,7 +15,7 @@ members = [
 # from one tag, and two version numbers for one compiler is a support
 # question with no good answer.
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/iray-tno/hozo"
@@ -25,11 +25,11 @@ homepage = "https://iray-tno.github.io/hozo/"
 # path. One place for it rather than one per dependent, which is the same
 # argument as the version above.
 [workspace.dependencies]
-hozo_cache = { path = "crates/hozo_cache", version = "0.1.0" }
-hozo_ir = { path = "crates/hozo_ir", version = "0.1.0" }
-hozo_native = { path = "crates/hozo_native", version = "0.1.0" }
-hozo_parser = { path = "crates/hozo_parser", version = "0.1.0" }
-hozo_web = { path = "crates/hozo_web", version = "0.1.0" }
+hozo_cache = { path = "crates/hozo_cache", version = "0.2.0" }
+hozo_ir = { path = "crates/hozo_ir", version = "0.2.0" }
+hozo_native = { path = "crates/hozo_native", version = "0.2.0" }
+hozo_parser = { path = "crates/hozo_parser", version = "0.2.0" }
+hozo_web = { path = "crates/hozo_web", version = "0.2.0" }
 
 # The compiler has to cross a network before it can answer anything, which
 # is true of no other build in this workspace -- so the trade is different
