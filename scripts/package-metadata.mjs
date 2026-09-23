@@ -86,6 +86,11 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'react', 'patterns', 'accessibility', 'components'],
   },
+  form: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'react', 'form', 'date-picker', 'calendar', 'accessibility'],
+  },
   semantics: {
     exports: { '.': './dist/index.js' },
     // Absent until now, and `index.native.tsx` was unreachable because of

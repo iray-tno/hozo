@@ -562,6 +562,7 @@ packages/
   compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
   core/                    Zero-setup facade over Hozo's canonical authoring packages.
   engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
+  form/                    Accessible universal form and date-selection components for Hozo applications.
   metro/                   Metro integration for the Hozo compiler (Native lowering backend).
   migration-audit/         Measure how safely Hozo can lower a real React Native application.
   navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
