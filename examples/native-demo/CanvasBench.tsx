@@ -21,6 +21,13 @@ const VIEW_BOX = [0, 0, 100, 60] as const
 export function CanvasBench() {
   const [indicated, setIndicated] = useState<string>('none')
   const [pressed, setPressed] = useState<string>('none')
+  const markPressed = (shape: string) => {
+    // The Android acceptance run reads this after a TalkBack double-tap.
+    // Unlike the visible state it does not require suppressing TalkBack with
+    // UiAutomation merely to inspect the result.
+    console.info(`[hozo-canvas] pressed ${shape}`)
+    setPressed(shape)
+  }
 
   return (
     <View className="gap-2 p-4" testID="canvas-bench">
@@ -40,7 +47,7 @@ export function CanvasBench() {
             height={44}
             className="fill-blue-500"
             accessibilityLabel="January revenue"
-            onPress={() => setPressed('rect')}
+            onPress={() => markPressed('rect')}
             onActiveChange={(event) => setIndicated(event ? 'rect' : 'none')}
           />
           <Canvas.RoundedRect
@@ -51,7 +58,7 @@ export function CanvasBench() {
             radius={4}
             className="fill-emerald-500"
             accessibilityLabel="February revenue"
-            onPress={() => setPressed('rounded-rect')}
+            onPress={() => markPressed('rounded-rect')}
           />
           <Canvas.Circle
             cx={60}
@@ -59,7 +66,7 @@ export function CanvasBench() {
             radius={12}
             className="fill-amber-500"
             accessibilityLabel="March revenue"
-            onPress={() => setPressed('circle')}
+            onPress={() => markPressed('circle')}
           />
           {/* A gradient, which this package had no way to express until
               now and `Svg.LinearGradient` always did. Skia takes it as a
@@ -91,7 +98,7 @@ export function CanvasBench() {
             strokeWidth={2}
             lineCap="round"
             accessibilityLabel="Target line"
-            onPress={() => setPressed('line')}
+            onPress={() => markPressed('line')}
             onActiveChange={(event) => setIndicated(event ? 'line' : 'none')}
           />
         </Canvas.Clip>
@@ -99,15 +106,19 @@ export function CanvasBench() {
           path="M4 4 L96 4 L96 8 L4 8 Z"
           className="fill-slate-400"
           accessibilityLabel="Baseline"
-          onPress={() => setPressed('path')}
+          onPress={() => markPressed('path')}
         />
         {/* An axis label, which is what text exists for. Skia resolves the
             face through `matchFont` and has no alignment of its own, so
             this is also the only shape whose Native branch measures. */}
         <Canvas.Text text="Jan" x={50} y={52} fontSize={6} textAlign="center" fill="black" />
       </Canvas>
-      <Text testID="canvas-indicated">{`indicated: ${indicated}`}</Text>
-      <Text testID="canvas-pressed">{`pressed: ${pressed}`}</Text>
+      <Text testID="canvas-indicated" accessibilityLiveRegion="polite">
+        {`indicated: ${indicated}`}
+      </Text>
+      <Text testID="canvas-pressed" accessibilityLiveRegion="polite">
+        {`pressed: ${pressed}`}
+      </Text>
     </View>
   )
 }

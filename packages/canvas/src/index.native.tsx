@@ -23,6 +23,7 @@ import {
   type LayoutChangeEvent,
   Linking,
   type PointerEvent,
+  Pressable,
   type StyleProp,
   StyleSheet,
   Text,
@@ -618,6 +619,7 @@ function Root({
     () => canvasControls(scene, interactions, (message) => console.warn(`[hozo] ${message}`)),
     [scene, interactions, interactionRevision],
   )
+  const hasControls = controls.length > 0
   const pointFor = (id: string) =>
     canvasNodePoint(scene, id, {
       width: layout.width,
@@ -625,6 +627,20 @@ function Root({
       viewBox,
       fit,
     }) ?? { point: { x: 0, y: 0 }, surfacePoint: { x: 0, y: 0 } }
+  const accessibilityControlStyle = (id: string): ViewStyle => {
+    const { surfacePoint } = pointFor(id)
+    return {
+      left: surfacePoint.x - 22,
+      top: surfacePoint.y - 22,
+    }
+  }
+  const activateControl = (id: string) => {
+    const point = pointFor(id)
+    const destination = press(id, canvasPressEvent(point.point, point.surfacePoint))
+    if (destination) {
+      void activateHozoNavigation(navigation, destination, Linking.openURL)
+    }
+  }
 
   return (
     <View
@@ -636,9 +652,11 @@ function Root({
         style,
       ]}
       onLayout={onLayout}
-      accessible={accessibilityMode === 'label'}
-      accessibilityRole={accessibilityMode === 'label' ? 'image' : undefined}
-      accessibilityLabel={accessibilityMode === 'label' ? accessibilityLabel : undefined}
+      accessible={accessibilityMode === 'label' && !hasControls}
+      accessibilityRole={accessibilityMode === 'label' && !hasControls ? 'image' : undefined}
+      accessibilityLabel={
+        accessibilityMode === 'label' && !hasControls ? accessibilityLabel : undefined
+      }
       testID={testID}
       onStartShouldSetResponder={onStartShouldSetResponder}
       onResponderRelease={onResponderRelease}
@@ -663,33 +681,37 @@ function Root({
         platform reads: an accessibility element per named interactive
         shape, with the destination/action role and the shape's name.
 
-        A screen reader focusing one activates it the way keyboard focus
-        does on the Web, so a tooltip driven by `onActiveChange` appears
-        for VoiceOver and TalkBack too. `onAccessibilityTap` is the
-        double-tap that follows.
-
-        Zero-sized and clipped rather than `display: none`: an element
-        with no size is still an accessibility element, and one that is
-        hidden is not.
+        The controls have real, minimum-sized native bounds centred on their
+        shapes. Android omits clipped, empty descendants from its semantic
+        tree. The layer ignores pointer input so these larger accessibility
+        targets cannot change the Canvas hit-test contract; a screen-reader
+        activation reaches the standard native `activate` action instead.
       */}
-      {controls.length > 0 ? (
-        <View style={styles.accessibleFallback}>
-          {controls.map((control) => (
+      {hasControls ? (
+        <View style={styles.accessibilityLayer} pointerEvents="box-none">
+          {/*
+            An accessible parent groups its descendants into one native
+            accessibility element. Keep a labelled interactive Canvas as a
+            non-accessible container, then expose its image description and
+            controls as siblings so TalkBack and VoiceOver can reach both.
+          */}
+          {accessibilityMode === 'label' ? (
             <View
+              style={styles.accessibilityDescription}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={accessibilityLabel}
+            />
+          ) : null}
+          {controls.map((control) => (
+            <Pressable
               key={control.id}
+              style={[styles.accessibilityControl, accessibilityControlStyle(control.id)]}
+              pointerEvents="box-none"
               accessible
               accessibilityRole={control.destination ? 'link' : 'button'}
               accessibilityLabel={control.label}
-              onAccessibilityTap={() => {
-                const point = pointFor(control.id)
-                const destination = press(
-                  control.id,
-                  canvasPressEvent(point.point, point.surfacePoint),
-                )
-                if (destination) {
-                  void activateHozoNavigation(navigation, destination, Linking.openURL)
-                }
-              }}
+              onPress={() => activateControl(control.id)}
               onAccessibilityEscape={() => activate(undefined, undefined)}
             />
           ))}
@@ -707,6 +729,23 @@ function Root({
 
 const styles = StyleSheet.create({
   root: { position: 'relative', overflow: 'hidden' },
+  accessibilityLayer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  accessibilityDescription: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+  },
+  accessibilityControl: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+  },
   accessibleFallback: {
     position: 'absolute',
     width: 1,
