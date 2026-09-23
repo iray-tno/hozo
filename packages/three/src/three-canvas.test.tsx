@@ -105,6 +105,7 @@ test('projected triangles raycast as one named Three object', async () => {
   camera.position.z = 5
   const paths: string[] = []
   const events: { object: unknown; intersection?: unknown }[] = []
+  const active: ({ object: unknown; intersection?: unknown } | undefined)[] = []
   const surface = recordingSurface(paths)
   let renderer: ReturnType<typeof testRenderer.create> | undefined
 
@@ -116,6 +117,7 @@ test('projected triangles raycast as one named Three object', async () => {
         camera={camera}
         width={100}
         height={100}
+        onObjectActiveChange={(event) => active.push(event)}
         onObjectPress={(event) => events.push(event)}
       />,
       { createNodeMock: (element) => (element.type === 'canvas' ? surface : null) },
@@ -140,6 +142,12 @@ test('projected triangles raycast as one named Three object', async () => {
     pointerType: 'mouse',
     shiftKey: false,
   }
+  ;(canvas.props.onPointerMove as (event: typeof pointer) => void)(pointer)
+  assert.equal(active[0]?.object, mesh)
+  assert.ok(active[0]?.intersection)
+  ;(canvas.props.onPointerLeave as () => void)()
+  assert.equal(active[1], undefined)
+
   ;(canvas.props.onPointerDown as (event: typeof pointer) => void)(pointer)
   ;(canvas.props.onPointerUp as (event: typeof pointer) => void)(pointer)
 

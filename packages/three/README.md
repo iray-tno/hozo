@@ -40,6 +40,10 @@ intersections. Set `object.name`, or provide `getAccessibilityLabel`, to expose
 one keyboard and screen-reader control per object even when it projects into
 many triangles.
 
+`onObjectActiveChange` reports the same object-level state for mouse or pen
+hover, keyboard focus, and touch hold. Moving across triangle boundaries inside
+one object does not emit a false leave and re-entry.
+
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,
