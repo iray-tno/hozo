@@ -64,6 +64,8 @@ export type ThreeCanvasProps = CanvasSurfaceProps & {
   getAccessibilityLabel?: (object: Object3D) => string | undefined
   /** Activated after the projected path identifies an object. */
   onObjectPress?: (event: ThreeCanvasObjectEvent) => void
+  /** Reports hover, focus, and touch-hold as one object-level state. */
+  onObjectActiveChange?: (event: ThreeCanvasObjectEvent | undefined) => void
   /** Optional configured raycaster; a package-owned instance is used otherwise. */
   raycaster?: Raycaster
   ref?: Ref<ThreeCanvasHandle>
@@ -90,6 +92,7 @@ export function ThreeCanvas({
   height,
   onDiagnostic,
   onFrame,
+  onObjectActiveChange,
   onObjectPress,
   raycaster: providedRaycaster,
   ref,
@@ -140,23 +143,22 @@ export function ThreeCanvas({
     for (const diagnostic of projection.diagnostics) onDiagnostic(diagnostic)
   }, [onDiagnostic, projection])
 
-  const pressObject = useCallback(
-    (object: Object3D, canvasEvent: CanvasPressEvent) => {
-      if (!onObjectPress) return
+  const objectEvent = useCallback(
+    (object: Object3D, canvasEvent: CanvasPressEvent): ThreeCanvasObjectEvent => {
       const raycaster = providedRaycaster ?? (raycasterRef.current ??= new Raycaster())
       raycaster.setFromCamera(
         new Vector2((canvasEvent.point.x / width) * 2 - 1, 1 - (canvasEvent.point.y / height) * 2),
         camera,
       )
       const intersections = raycaster.intersectObject(object, false)
-      onObjectPress({
+      return {
         canvasEvent,
         intersection: intersections[0],
         intersections,
         object,
-      })
+      }
     },
-    [camera, height, onObjectPress, providedRaycaster, width],
+    [camera, height, providedRaycaster, width],
   )
 
   return (
@@ -176,7 +178,17 @@ export function ThreeCanvas({
             {...node.props}
             accessibilityControlId={object.uuid}
             accessibilityLabel={accessibilityLabel}
-            onPress={onObjectPress ? (event) => pressObject(object, event) : undefined}
+            onActiveChange={
+              onObjectActiveChange
+                ? (event) =>
+                    onObjectActiveChange(
+                      event === undefined ? undefined : objectEvent(object, event),
+                    )
+                : undefined
+            }
+            onPress={
+              onObjectPress ? (event) => onObjectPress(objectEvent(object, event)) : undefined
+            }
           />
         )
       })}

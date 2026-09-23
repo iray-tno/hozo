@@ -100,6 +100,48 @@ async function mount(changes: [string, CanvasPressEvent | undefined][]) {
   }
 }
 
+async function mountGrouped(changes: (CanvasPressEvent | undefined)[]) {
+  const canvasNode = surface()
+  let renderer: ReturnType<typeof testRenderer.create> | undefined
+  const onActiveChange = (event: CanvasPressEvent | undefined) => changes.push(event)
+  await testRenderer.act(async () => {
+    renderer = testRenderer.create(
+      <Canvas width={100} height={100} accessibilityLabel="Chart">
+        <Canvas.Rect
+          x={0}
+          y={0}
+          width={50}
+          height={100}
+          accessibilityControlId="one-object"
+          onActiveChange={onActiveChange}
+        />
+        <Canvas.Rect
+          x={50}
+          y={0}
+          width={50}
+          height={100}
+          accessibilityControlId="one-object"
+          onActiveChange={onActiveChange}
+        />
+      </Canvas>,
+      { createNodeMock: (element) => (element.type === 'canvas' ? canvasNode : null) },
+    )
+  })
+  const canvas = renderer?.root.findByType('canvas')
+  assert.ok(canvas)
+  const move = (x: number) =>
+    (canvas.props.onPointerMove as (event: PointerLike) => void)({
+      button: 0,
+      clientX: x,
+      clientY: 50,
+      currentTarget: canvasNode,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: 'mouse',
+    })
+  return { move, leave: () => (canvas.props.onPointerLeave as () => void)() }
+}
+
 test('a mouse indicates by hovering, and stops when it leaves', async () => {
   const changes: [string, CanvasPressEvent | undefined][] = []
   const surface = await mount(changes)
@@ -121,6 +163,18 @@ test('moving within one shape reports once, not once per pixel', async () => {
   surface.move(20, 50)
   surface.move(30, 50)
   assert.equal(changes.length, 1)
+})
+
+test('moving between shapes in one semantic control stays active', async () => {
+  const changes: (CanvasPressEvent | undefined)[] = []
+  const surface = await mountGrouped(changes)
+
+  surface.move(25)
+  surface.move(75)
+  assert.equal(changes.length, 1)
+  surface.leave()
+  assert.equal(changes.length, 2)
+  assert.equal(changes[1], undefined)
 })
 
 test('crossing to another shape tells the one that lost it first', async () => {

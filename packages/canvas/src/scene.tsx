@@ -523,14 +523,18 @@ class CanvasInteractionStore {
  */
 class CanvasActiveStore {
   readonly #handlers = new Map<string, (event: CanvasPressEvent | undefined) => void>()
+  readonly #controlIds = new Map<string, string>()
   #activeId: string | undefined
 
-  set(id: string, handler: (event: CanvasPressEvent | undefined) => void) {
+  set(id: string, handler: (event: CanvasPressEvent | undefined) => void, controlId?: string) {
     this.#handlers.set(id, handler)
+    if (controlId === undefined) this.#controlIds.delete(id)
+    else this.#controlIds.set(id, controlId)
   }
 
   remove(id: string) {
     this.#handlers.delete(id)
+    this.#controlIds.delete(id)
     // A shape that unmounts while indicated leaves nothing to be
     // indicated, and the handler it would have been told through is the
     // one that just went away.
@@ -556,7 +560,14 @@ class CanvasActiveStore {
   activate(id: string | undefined, event: CanvasPressEvent | undefined) {
     if (this.#activeId === id) return
     const previous = this.#activeId
+    const previousControl =
+      previous === undefined ? undefined : (this.#controlIds.get(previous) ?? previous)
+    const nextControl = id === undefined ? undefined : (this.#controlIds.get(id) ?? id)
     this.#activeId = id
+    // The pointer crossed a paint boundary inside one semantic object. Keep
+    // the current handler aligned with the topmost shape, but do not report a
+    // leave and re-entry for a transition the user cannot perceive.
+    if (previousControl === nextControl) return
     if (previous !== undefined) this.#handlers.get(previous)?.(undefined)
     if (id !== undefined && event !== undefined) this.#handlers.get(id)?.(event)
   }
@@ -746,9 +757,9 @@ function interactiveLeaf<P extends CanvasInteractionProps>(
         context.active.remove(context.id)
         return
       }
-      context.active.set(context.id, onActiveChange)
+      context.active.set(context.id, onActiveChange, accessibilityControlId)
       return () => context.active.remove(context.id)
-    }, [context.active, context.id, onActiveChange, disabled])
+    }, [context.active, context.id, onActiveChange, accessibilityControlId, disabled])
     return null
   }
   Component.displayName = `Canvas.${kind}`
