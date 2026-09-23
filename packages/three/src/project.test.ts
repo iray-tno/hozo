@@ -14,6 +14,7 @@ import {
   LineSegments,
   Mesh,
   MeshBasicMaterial,
+  MeshNormalMaterial,
   OrthographicCamera,
   PerspectiveCamera,
   Points,
@@ -35,6 +36,18 @@ function perspective() {
   const camera = new PerspectiveCamera(90, 1, 1, 10)
   camera.position.z = 5
   return camera
+}
+
+function groupedSquareGeometry() {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute(
+    'position',
+    new Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
+  )
+  geometry.setIndex(new Uint16BufferAttribute([0, 1, 2, 0, 2, 3], 1))
+  geometry.addGroup(0, 3, 0)
+  geometry.addGroup(3, 3, 1)
+  return geometry
 }
 
 function projectedPaths(result: ReturnType<typeof projectThreeScene>) {
@@ -90,6 +103,97 @@ test('indexed geometry emits each triangle', () => {
 
   assert.equal(result.scene.length, 2)
   assert.ok(projectedPaths(result).every((path) => path.fill === '#ff0000'))
+})
+
+test('material arrays preserve BufferGeometry group colours', () => {
+  const scene = new Scene()
+  scene.add(
+    new Mesh(groupedSquareGeometry(), [
+      new MeshBasicMaterial({ color: '#ef4444' }),
+      new MeshBasicMaterial({ color: '#3b82f6' }),
+    ]),
+  )
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(
+    projectedPaths(result).map(({ fill }) => fill),
+    ['#ef4444', '#3b82f6'],
+  )
+})
+
+test('material groups intersect the geometry draw range', () => {
+  const geometry = groupedSquareGeometry()
+  geometry.setDrawRange(3, 3)
+  const scene = new Scene()
+  scene.add(
+    new Mesh(geometry, [
+      new MeshBasicMaterial({ color: '#ef4444' }),
+      new MeshBasicMaterial({ color: '#3b82f6' }),
+    ]),
+  )
+
+  const paths = projectedPaths(projectThreeScene(scene, perspective(), { width: 100, height: 100 }))
+
+  assert.equal(paths.length, 1)
+  assert.equal(paths[0]?.fill, '#3b82f6')
+})
+
+test('groups can mix solid and wireframe MeshBasicMaterial', () => {
+  const scene = new Scene()
+  scene.add(
+    new Mesh(groupedSquareGeometry(), [
+      new MeshBasicMaterial({ color: '#ef4444' }),
+      new MeshBasicMaterial({ color: '#3b82f6', wireframe: true }),
+    ]),
+  )
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(
+    result.scene.map((node) => [
+      node.kind,
+      node.kind === 'path' ? node.props.fill : node.kind === 'line' ? node.props.stroke : undefined,
+    ]),
+    [
+      ['path', '#ef4444'],
+      ['line', '#3b82f6'],
+      ['line', '#3b82f6'],
+      ['line', '#3b82f6'],
+    ],
+  )
+})
+
+test('unsupported group materials are diagnosed without hiding supported groups', () => {
+  const scene = new Scene()
+  scene.add(
+    new Mesh(groupedSquareGeometry(), [
+      new MeshBasicMaterial({ color: '#ef4444' }),
+      new MeshNormalMaterial(),
+    ]),
+  )
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.equal(result.scene.length, 1)
+  assert.equal(result.diagnostics.length, 1)
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+})
+
+test('a material array without geometry groups renders nothing, as in Three.js', () => {
+  const scene = new Scene()
+  scene.add(
+    new Mesh(triangleGeometry(), [
+      new MeshBasicMaterial({ color: '#ef4444' }),
+      new MeshBasicMaterial({ color: '#3b82f6' }),
+    ]),
+  )
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.deepEqual(result.diagnostics, [])
 })
 
 test('world transforms under groups are baked into the projected path', () => {

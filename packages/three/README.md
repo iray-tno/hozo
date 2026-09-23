@@ -52,7 +52,9 @@ and flat opaque `MeshBasicMaterial` colours are supported. `Line`,
 with their declared colour and width. `Points` with opaque, untextured
 `PointsMaterial` are projected as circles, including perspective size
 attenuation. Wireframe `MeshBasicMaterial` is projected through the same line
-pipeline, including its colour and `wireframeLinewidth`.
+pipeline, including its colour and `wireframeLinewidth`. Mesh material arrays
+and `BufferGeometry` groups preserve each group's material and intersect with
+the geometry's draw range just as they do in Three.js.
 
 This is deliberately not a software WebGL implementation. Textures, lighting,
 blending, shaders, skinning, instancing, post-processing, and XR need a GPU
