@@ -1,0 +1,53 @@
+{
+  "name": "@hozo/form",
+  "version": "0.1.0",
+  "description": "Accessible universal form and date-selection components for Hozo applications.",
+  "keywords": [
+    "react-native",
+    "react",
+    "form",
+    "date-picker",
+    "calendar",
+    "accessibility"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iray-tno/hozo.git",
+    "directory": "packages/form"
+  },
+  "homepage": "https://iray-tno.github.io/hozo/",
+  "bugs": {
+    "url": "https://github.com/iray-tno/hozo/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/*.bench.ts"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0"
+  }
+}

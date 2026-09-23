@@ -86,6 +86,13 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'react', 'patterns', 'accessibility', 'components'],
   },
+  form: {
+    exports: { '.': './dist/index.js' },
+    // No `native: true` yet, and no `.native` source to reach through it.
+    // What is here is date arithmetic on plain records, identical on both
+    // platforms; the condition arrives with the components that differ.
+    keywords: ['react-native', 'react', 'form', 'date-picker', 'calendar', 'accessibility'],
+  },
   semantics: {
     exports: { '.': './dist/index.js' },
     // Absent until now, and `index.native.tsx` was unreachable because of
