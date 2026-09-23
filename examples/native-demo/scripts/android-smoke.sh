@@ -46,6 +46,14 @@ expect_id=smoke-list
 
 fail() {
   echo "::error::$*"
+  # The crash buffer first, and unfiltered. The tail of the main buffer is
+  # whatever the emulator happened to be doing, which for a dead app is
+  # `StrictMode` and `SemanticLocation` and nothing about the app at all --
+  # run 35933647784 failed with "started and then died" and its two hundred
+  # lines named the process once, in the line that said it had started. The
+  # same shape #480 fixed in `android-talkback.sh`; this half kept it.
+  echo '--- logcat, crash buffer ---'
+  adb logcat -d -b crash -v brief | tail -80 || true
   echo '--- logcat ---'
   adb logcat -d -v brief | tail -200 || true
   exit 1
@@ -66,6 +74,10 @@ still_alive() {
   if [ -z "$(adb shell pidof "$package" | tr -d '')" ]; then
     echo '--- the exception ---'
     adb logcat -d | grep -A 30 'FATAL EXCEPTION' | tail -40 || true
+    # A native crash leaves no FATAL EXCEPTION at all, only a tombstone in
+    # the crash buffer, so both are asked for.
+    echo '--- logcat, crash buffer ---'
+    adb logcat -d -b crash -v brief | tail -80 || true
     fail "$package died $what"
   fi
 }
@@ -216,8 +228,12 @@ sleep 12
 # below, before the logcat dump, before the screenshot. Run 35129707377 did
 # exactly that: the app was gone twelve seconds after launch and the log
 # said nothing at all beyond "started as pid".
-still="$(adb shell pidof "$package" | tr -d '\r' || true)"
-[ -n "$still" ] || fail "$package started and then died"
+#
+# Through `still_alive` rather than a bare `fail`, which is the difference
+# between a dump and a diagnosis: that function greps the exception out
+# first, and this call site -- the one place the app is most likely to be
+# gone -- was the one not using it.
+still_alive "twelve seconds after launch"
 
 # `FATAL EXCEPTION` covers a Java-side crash that took the process with it;
 # the process check above would catch that too, but the message is the
