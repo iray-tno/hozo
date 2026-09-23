@@ -18,13 +18,13 @@ import {
   type CalendarMonth,
   compareDates,
   daysInMonth,
-  firstDayOfWeek as weekStartFor,
   isSameDay,
   isWithin,
   monthGrid,
   moveFocus,
   todayLocal,
   type Weekday,
+  firstDayOfWeek as weekStartFor,
 } from './calendar-rules.ts'
 
 export interface HozoCalendarDay {

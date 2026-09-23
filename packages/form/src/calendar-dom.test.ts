@@ -3,10 +3,17 @@ import { test } from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import type { CalendarDate } from './calendar-rules.ts'
 import { HozoCalendar, type HozoCalendarProps } from './calendar.tsx'
 
-const date = (year: number, month: number, day: number): CalendarDate => ({ year, month, day })
+/**
+ * Returned unannotated on purpose.
+ *
+ * A `CalendarDate` is three numbers, so the inferred type is already
+ * assignable wherever one is wanted -- and importing the type would mean a
+ * type-only import statement, which Biome sorts into its own place and which
+ * `verbatimModuleSyntax` would leave as an empty runtime import.
+ */
+const date = (year: number, month: number, day: number) => ({ year, month, day })
 
 /**
  * September 2026, pinned.
