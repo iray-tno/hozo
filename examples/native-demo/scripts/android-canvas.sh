@@ -214,10 +214,11 @@ printf '%s\n' "$walk" | grep -qi 'Baseline' || fail 'TalkBack did not reach the 
 printf '%s\n' "$walk" | grep -qi 'Target line' || fail 'TalkBack did not reach the Line control'
 printf '%s\n' "$walk" | grep -qi 'Button' || fail 'TalkBack did not announce Canvas actions as buttons'
 
-# Finish on a known semantic control, then use TalkBack's global double-tap
-# gesture. The control is a clipped accessibility element rather than a
-# touchable pixel, so this exercises onAccessibilityTap rather than the
-# responder path already tested above.
+# Finish on a known semantic control. The peer service observes the same
+# accessibility-focus event TalkBack uses and invokes Android's ACTION_CLICK
+# on that event's source. ADB cannot inject a trusted TalkBack double-tap into
+# this headless image, but this still crosses the platform accessibility
+# action boundary rather than calling the React handler directly.
 focused=
 for _ in $(seq 1 12); do
   count="$(spoken | wc -l)"
@@ -231,28 +232,11 @@ for _ in $(seq 1 12); do
   fi
 done
 [ -n "$focused" ] || fail 'TalkBack could not refocus the Rect control for activation'
-
-adb logcat -c
-# Keep the whole gesture in one device-side shell and give each tap a human
-# duration. Zero-duration shell taps are not recognised by TalkBack on every
-# headless emulator image.
-adb shell 'input touchscreen motionevent DOWN 500 500; sleep 0.05; input touchscreen motionevent UP 500 500; sleep 0.08; input touchscreen motionevent DOWN 500 500; sleep 0.05; input touchscreen motionevent UP 500 500'
-sleep 2
-if adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect'; then
-  echo 'TalkBack double-tap -> rect'
-else
-  echo '::warning::the headless emulator did not recognise injected touch as a TalkBack double-tap; verifying ACTION_CLICK through the peer accessibility service'
-  adb shell am broadcast \
-    -a dev.hozo.speechlog.ACTIVATE \
-    -n "$engine/.AccessibilityActionReceiver" \
-    --es label 'January revenue' >/dev/null
-  sleep 2
-  adb logcat -d -v raw -s HozoA11yDriver:I | grep -q 'activated January revenue returned true' ||
-    fail 'Android rejected ACTION_CLICK for the Canvas Rect control'
-  adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect' ||
-    fail 'ACTION_CLICK did not reach the Canvas Rect handler'
-  echo 'Android accessibility ACTION_CLICK -> rect'
-fi
+adb logcat -d -v raw -s HozoA11yDriver:I | grep -q 'activated January revenue returned true' ||
+  fail 'Android rejected ACTION_CLICK for the Canvas Rect control'
+adb logcat -d -v raw | grep -q '\[hozo-canvas\] pressed rect' ||
+  fail 'ACTION_CLICK did not reach the Canvas Rect handler'
+echo 'TalkBack focus -> Android accessibility ACTION_CLICK -> rect'
 
 adb exec-out screencap -p > ./canvas-android.png 2>/dev/null || true
 echo 'Canvas touch, pointer and TalkBack acceptance passed'
