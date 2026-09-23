@@ -17,6 +17,24 @@ camera.position.z = 4
 const projected = projectThreeScene(scene, camera, { width: 320, height: 180 })
 ```
 
+For React, the same boundary is available as a universal Canvas component:
+
+```tsx
+import { ThreeCanvas } from '@hozo/three'
+
+<ThreeCanvas
+  decorative
+  scene={scene}
+  camera={camera}
+  width={320}
+  height={180}
+/>
+```
+
+Rendering is demand-driven by default. Change the `revision` prop or call
+`invalidate()` through a ref after imperative scene mutations. Animated scenes
+can opt into `frameloop="always"` and mutate their Three objects in `onFrame`.
+
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,
