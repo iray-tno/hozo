@@ -51,7 +51,8 @@ and flat opaque `MeshBasicMaterial` colours are supported. `Line`,
 `LineSegments`, and `LineLoop` with opaque `LineBasicMaterial` are projected
 with their declared colour and width. `Points` with opaque, untextured
 `PointsMaterial` are projected as circles, including perspective size
-attenuation.
+attenuation. Wireframe `MeshBasicMaterial` is projected through the same line
+pipeline, including its colour and `wireframeLinewidth`.
 
 This is deliberately not a software WebGL implementation. Textures, lighting,
 blending, shaders, skinning, instancing, post-processing, and XR need a GPU
