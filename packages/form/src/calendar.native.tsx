@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 
 import { dayLabel, dayNumber, monthLabel, weekdayLabels } from './calendar-format.ts'
@@ -58,6 +58,19 @@ export interface HozoCalendarProps {
   onChange?: (date: CalendarDate) => void
   /** The month shown first. Defaults to `value`'s month, else `today`'s. */
   defaultMonth?: CalendarMonth
+  /**
+   * The month shown, when the caller wants to own it.
+   *
+   * Controlled in the ordinary React sense: while this is set the grid shows
+   * what it says and nothing else moves it, so a month that should change on
+   * its own has to change through `onMonthChange`. A caller that hands over a
+   * `month` and ignores `onMonthChange` gets paging buttons that appear to do
+   * nothing -- the same bargain a controlled `<input>` makes.
+   *
+   * Wins over `defaultMonth`, which is then the initial value of state
+   * nothing reads.
+   */
+  month?: CalendarMonth
   onMonthChange?: (month: CalendarMonth) => void
   min?: CalendarDate
   max?: CalendarDate
@@ -138,6 +151,7 @@ export function HozoCalendar({
   value,
   onChange,
   defaultMonth,
+  month,
   onMonthChange,
   min,
   max,
@@ -153,20 +167,20 @@ export function HozoCalendar({
   const currentDay = today ?? todayLocal()
   const weekStart = firstDayOfWeek ?? weekStartFor(locale)
   const opening = value ?? currentDay
-  const [shown, setShown] = useState<CalendarMonth>(
+  const [ownMonth, setOwnMonth] = useState<CalendarMonth>(
     () => defaultMonth ?? { year: opening.year, month: opening.month },
   )
+  const controlled = month !== undefined
+  const shown = month ?? ownMonth
 
-  const page = useCallback(
-    (months: number) => {
-      setShown((previous) => {
-        const next = monthStep(previous, months)
-        onMonthChange?.(next)
-        return next
-      })
-    },
-    [onMonthChange],
-  )
+  // Not inside a `setOwnMonth` updater, where it used to be. An updater has
+  // to be pure -- React is free to run it twice -- and a listener called from
+  // inside one is called twice with it.
+  const page = (months: number) => {
+    const next = monthStep(shown, months)
+    if (!controlled) setOwnMonth(next)
+    onMonthChange?.(next)
+  }
 
   const labels = weekdayLabels(weekStart, locale)
   const grid = monthGrid({ year: shown.year, month: shown.month, firstDayOfWeek: weekStart, weeks })

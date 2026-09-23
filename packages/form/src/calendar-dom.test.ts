@@ -151,3 +151,28 @@ test('renderDay replaces the contents and is told what the day is', () => {
   assert.equal(count(html, 'PICKED'), 1)
   assert.equal(count(html, 'TODAY'), 1)
 })
+
+test('a month prop is what the grid shows, and it outranks defaultMonth', () => {
+  assert.match(render({ month: { year: 2026, month: 10 } }), /October 2026/)
+  assert.match(
+    render({ defaultMonth: { year: 2026, month: 9 }, month: { year: 2027, month: 2 } }),
+    /February 2027/,
+  )
+})
+
+test('a controlled month still bounds its own paging buttons', () => {
+  // The reachability of the neighbouring months is read off the month being
+  // shown, so it follows the prop rather than the state the prop replaced.
+  const html = render({ month: { year: 2026, month: 10 }, min: date(2026, 10, 1) })
+  assert.equal(disabledButtons(html), 1, 'September is entirely before the minimum')
+})
+
+test('a controlled month does not change which day is today or selected', () => {
+  const html = render({ month: { year: 2026, month: 10 }, value: date(2026, 9, 10) })
+  assert.equal(count(html, 'aria-current="date"'), 0, 'September 24th is not in this grid')
+  assert.equal(
+    attributes(html, 'aria-selected').filter((value) => value === 'true').length,
+    0,
+    'and neither is the 10th',
+  )
+})

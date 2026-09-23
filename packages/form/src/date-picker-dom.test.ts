@@ -91,3 +91,8 @@ test('the grid inside is the one that was configured', () => {
   assert.equal(count(html, 'aria-current="date"'), 1)
   assert.match(html, /September 2026/)
 })
+
+test('the picker forwards a controlled month to the grid', () => {
+  const html = render({ defaultOpen: true, month: { year: 2027, month: 2 } })
+  assert.match(html, /February 2027/)
+})

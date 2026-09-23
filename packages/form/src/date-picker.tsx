@@ -17,6 +17,9 @@ export interface HozoDatePickerProps {
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
   defaultMonth?: CalendarMonth
+  /** The month the grid shows, when the caller wants to own it. */
+  month?: CalendarMonth
+  onMonthChange?: (month: CalendarMonth) => void
   min?: CalendarDate
   max?: CalendarDate
   /** A BCP 47 tag for the month, weekday and day names. */
@@ -75,6 +78,8 @@ export function HozoDatePicker({
   defaultOpen = false,
   onOpenChange,
   defaultMonth,
+  month,
+  onMonthChange,
   min,
   max,
   locale,
@@ -150,6 +155,8 @@ export function HozoDatePicker({
                     value={value}
                     onChange={choose}
                     defaultMonth={defaultMonth}
+                    month={month}
+                    onMonthChange={onMonthChange}
                     min={min}
                     max={max}
                     locale={locale}
