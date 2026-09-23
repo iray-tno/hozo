@@ -233,7 +233,17 @@ export function HozoCalendar({
           {'›'}
         </button>
       </div>
-      <table role="grid" aria-labelledby={headingId}>
+      {/*
+        A real table, because a grid is one. The rule below reads `grid` as an
+        interactive role landing on a non-interactive element, which is true
+        of most elements and false of this one: `grid` is defined in terms of
+        rows and cells, and APG's own date picker is `<table role="grid">`.
+      */}
+      <table
+        // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: a grid is a table
+        role="grid"
+        aria-labelledby={headingId}
+      >
         <thead aria-hidden="true">
           <tr>
             {labels.map((label) => (
@@ -261,6 +271,10 @@ export function HozoCalendar({
                     ref={(node) => {
                       cells.current.set(cellKey(cell.date), node)
                     }}
+                    // Same rule, same reason as the table above: a gridcell
+                    // is what a `<td>` inside a grid is, and this one is
+                    // focusable because the pattern says the cells are.
+                    // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: grid cell
                     role="gridcell"
                     aria-label={dayLabel(cell.date, locale)}
                     aria-selected={day.selected}

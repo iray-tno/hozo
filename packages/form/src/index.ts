@@ -1,4 +1,12 @@
 export {
+  HozoCalendar as Calendar,
+  HozoCalendar,
+  type HozoCalendarDay as CalendarDay,
+  type HozoCalendarDay,
+  type HozoCalendarProps as CalendarProps,
+  type HozoCalendarProps,
+} from './calendar.tsx'
+export {
   dayLabel,
   dayNumber,
   monthLabel,
@@ -23,16 +31,8 @@ export {
   type MonthGridOptions,
   monthGrid,
   moveFocus,
-  toTimestamp,
   todayLocal,
+  toTimestamp,
   type Weekday,
   weekdayOf,
 } from './calendar-rules.ts'
-export {
-  HozoCalendar as Calendar,
-  HozoCalendar,
-  type HozoCalendarDay as CalendarDay,
-  type HozoCalendarDay,
-  type HozoCalendarProps as CalendarProps,
-  type HozoCalendarProps,
-} from './calendar.tsx'
