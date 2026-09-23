@@ -36,3 +36,9 @@ export {
   type Weekday,
   weekdayOf,
 } from './calendar-rules.ts'
+export {
+  HozoDatePicker as DatePicker,
+  HozoDatePicker,
+  type HozoDatePickerProps as DatePickerProps,
+  type HozoDatePickerProps,
+} from './date-picker.tsx'

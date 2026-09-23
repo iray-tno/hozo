@@ -51,6 +51,9 @@
     "typecheck": "tsc -p . --noEmit",
     "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
+  "dependencies": {
+    "@hozo/behaviors": "workspace:^"
+  },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-native": ">=0.86"
