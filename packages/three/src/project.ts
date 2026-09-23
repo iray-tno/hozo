@@ -430,36 +430,6 @@ export function projectThreeScene(
       })
       return
     }
-    if (Array.isArray(mesh.material)) {
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_MATERIAL',
-        message: 'Material arrays and geometry groups are not projected yet.',
-        object,
-      })
-      return
-    }
-    const material = mesh.material as Partial<MeshBasicMaterial>
-    if (material.isMeshBasicMaterial !== true) {
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_MATERIAL',
-        message: 'The portable subset currently accepts MeshBasicMaterial only.',
-        object,
-      })
-      return
-    }
-    // Three treats an invisible material like an invisible draw call. This is
-    // intentional scene state, not an unsupported feature worth reporting.
-    if (material.visible === false) return
-    const reason = materialReason(material as MeshBasicMaterial)
-    if (reason) {
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_MATERIAL',
-        message: reason,
-        object,
-      })
-      return
-    }
-
     const position = mesh.geometry.getAttribute('position')
     if (!position || position.itemSize < 3) {
       diagnostic(diagnostics, options, {
@@ -473,7 +443,56 @@ export function projectThreeScene(
     const available = index?.count ?? position.count
     const start = Math.max(0, Math.floor(mesh.geometry.drawRange.start))
     const requested = mesh.geometry.drawRange.count
-    const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
+    const end = Math.min(
+      available,
+      Number.isFinite(requested) ? Math.floor(start + requested) : available,
+    )
+    const ranges: { end: number; material: MeshBasicMaterial; start: number }[] = []
+    const reportedMaterials = new Set<unknown>()
+    const appendRange = (source: unknown, groupStart = start, groupCount = end - start) => {
+      if (!source || typeof source !== 'object') return
+      const material = source as Partial<MeshBasicMaterial>
+      // Three does not enqueue invisible group materials at all. This is
+      // intentional scene state, not an unsupported feature worth reporting.
+      if (material.visible === false) return
+      if (material.isMeshBasicMaterial !== true) {
+        if (!reportedMaterials.has(source)) {
+          reportedMaterials.add(source)
+          diagnostic(diagnostics, options, {
+            code: 'UNSUPPORTED_MATERIAL',
+            message: 'The portable subset currently accepts MeshBasicMaterial only.',
+            object,
+          })
+        }
+        return
+      }
+      const reason = materialReason(material as MeshBasicMaterial)
+      if (reason) {
+        if (!reportedMaterials.has(source)) {
+          reportedMaterials.add(source)
+          diagnostic(diagnostics, options, {
+            code: 'UNSUPPORTED_MATERIAL',
+            message: reason,
+            object,
+          })
+        }
+        return
+      }
+      const groupEnd = Number.isFinite(groupCount) ? Math.floor(groupStart + groupCount) : available
+      const rangeStart = Math.max(start, 0, Math.floor(groupStart))
+      const rangeEnd = Math.min(end, available, groupEnd)
+      if (rangeEnd <= rangeStart) return
+      ranges.push({ start: rangeStart, end: rangeEnd, material: material as MeshBasicMaterial })
+    }
+    if (Array.isArray(mesh.material)) {
+      for (const group of mesh.geometry.groups) {
+        appendRange(mesh.material[group.materialIndex ?? 0], group.start, group.count)
+      }
+    } else {
+      appendRange(mesh.material)
+    }
+    if (ranges.length === 0) return
+
     const matrix = new Matrix4().multiplyMatrices(viewProjection, mesh.matrixWorld)
     const vertexAt = (vertexIndex: number) =>
       new Vector4(
@@ -486,70 +505,71 @@ export function projectThreeScene(
       const vertexIndex = index ? index.getX(offset) : offset
       return vertexAt(vertexIndex)
     }
-    const fill = `#${(material as MeshBasicMaterial).color.getHexString()}`
-
-    if ((material as MeshBasicMaterial).wireframe) {
-      const strokeWidth = Math.max(0, (material as MeshBasicMaterial).wireframeLinewidth)
-      if (strokeWidth === 0) return
-      const wireframeIndices: number[] = []
-      for (let offset = 0; offset + 2 < available; offset += 3) {
-        const a = index ? index.getX(offset) : offset
-        const b = index ? index.getX(offset + 1) : offset + 1
-        const c = index ? index.getX(offset + 2) : offset + 2
-        wireframeIndices.push(a, b, b, c, c, a)
+    let wireframeIndices: number[] | undefined
+    for (const range of ranges) {
+      const fill = `#${range.material.color.getHexString()}`
+      if (range.material.wireframe) {
+        const strokeWidth = Math.max(0, range.material.wireframeLinewidth)
+        if (strokeWidth === 0) continue
+        if (!wireframeIndices) {
+          wireframeIndices = []
+          for (let offset = 0; offset + 2 < available; offset += 3) {
+            const a = index ? index.getX(offset) : offset
+            const b = index ? index.getX(offset + 1) : offset + 1
+            const c = index ? index.getX(offset + 2) : offset + 2
+            wireframeIndices.push(a, b, b, c, c, a)
+          }
+        }
+        const wireStart = range.start * 2
+        const wireEnd = Math.min(wireframeIndices.length, range.end * 2)
+        for (let offset = wireStart; offset + 1 < wireEnd; offset += 2) {
+          const fromIndex = wireframeIndices[offset]
+          const toIndex = wireframeIndices[offset + 1]
+          if (fromIndex === undefined || toIndex === undefined) continue
+          const clipped = clippedSegment(vertexAt(fromIndex), vertexAt(toIndex))
+          if (!clipped) continue
+          const from = projectedPoint(clipped[0], options.width, options.height)
+          const to = projectedPoint(clipped[1], options.width, options.height)
+          if (!from || !to || (from.x === to.x && from.y === to.y)) continue
+          primitives.push({
+            depth: (from.z + to.z) / 2,
+            object,
+            order: order++,
+            node: {
+              kind: 'line',
+              props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: fill, strokeWidth },
+            },
+          })
+        }
+        continue
       }
-      const wireStart = start * 2
-      const wireEnd = Math.min(
-        wireframeIndices.length,
-        Number.isFinite(requested) ? wireStart + Math.max(0, Math.floor(requested * 2)) : Infinity,
-      )
-      for (let offset = wireStart; offset + 1 < wireEnd; offset += 2) {
-        const fromIndex = wireframeIndices[offset]
-        const toIndex = wireframeIndices[offset + 1]
-        if (fromIndex === undefined || toIndex === undefined) continue
-        const clipped = clippedSegment(vertexAt(fromIndex), vertexAt(toIndex))
-        if (!clipped) continue
-        const from = projectedPoint(clipped[0], options.width, options.height)
-        const to = projectedPoint(clipped[1], options.width, options.height)
-        if (!from || !to || (from.x === to.x && from.y === to.y)) continue
-        primitives.push({
-          depth: (from.z + to.z) / 2,
-          object,
-          order: order++,
-          node: {
-            kind: 'line',
-            props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: fill, strokeWidth },
-          },
-        })
-      }
-      return
-    }
 
-    for (let offset = start; offset + 2 < end; offset += 3) {
-      const polygon = clippedPolygon([vertex(offset), vertex(offset + 1), vertex(offset + 2)])
-      if (polygon.length < 3) continue
-      for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
-        const first = polygon[0]
-        const second = polygon[fan]
-        const third = polygon[fan + 1]
-        if (!first || !second || !third) continue
-        const clipTriangle = [first, second, third] as const
-        const points = clipTriangle.map((point) =>
-          projectedPoint(point, options.width, options.height),
-        )
-        if (points.some((point) => point === undefined)) continue
-        const projected = points as { x: number; y: number; z: number }[]
-        const area = signedArea(projected)
-        if (area === 0) continue
-        const side = (material as MeshBasicMaterial).side
-        if (side !== DoubleSide && (side === BackSide ? area < 0 : area > 0)) continue
-        const path = `M ${printable(projected[0]?.x ?? 0)} ${printable(projected[0]?.y ?? 0)} L ${printable(projected[1]?.x ?? 0)} ${printable(projected[1]?.y ?? 0)} L ${printable(projected[2]?.x ?? 0)} ${printable(projected[2]?.y ?? 0)} Z`
-        primitives.push({
-          depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
-          object,
-          order: order++,
-          node: { kind: 'path', props: { path, fill } },
-        })
+      for (let offset = range.start; offset + 2 < range.end; offset += 3) {
+        const polygon = clippedPolygon([vertex(offset), vertex(offset + 1), vertex(offset + 2)])
+        if (polygon.length < 3) continue
+        for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
+          const first = polygon[0]
+          const second = polygon[fan]
+          const third = polygon[fan + 1]
+          if (!first || !second || !third) continue
+          const clipTriangle = [first, second, third] as const
+          const points = clipTriangle.map((point) =>
+            projectedPoint(point, options.width, options.height),
+          )
+          if (points.some((point) => point === undefined)) continue
+          const projected = points as { x: number; y: number; z: number }[]
+          const area = signedArea(projected)
+          if (area === 0) continue
+          const side = range.material.side
+          if (side !== DoubleSide && (side === BackSide ? area < 0 : area > 0)) continue
+          const path = `M ${printable(projected[0]?.x ?? 0)} ${printable(projected[0]?.y ?? 0)} L ${printable(projected[1]?.x ?? 0)} ${printable(projected[1]?.y ?? 0)} L ${printable(projected[2]?.x ?? 0)} ${printable(projected[2]?.y ?? 0)} Z`
+          primitives.push({
+            depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
+            object,
+            order: order++,
+            node: { kind: 'path', props: { path, fill } },
+          })
+        }
       }
     }
   })
