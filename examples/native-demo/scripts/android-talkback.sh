@@ -511,14 +511,30 @@ fi
 # them into a gate on the first run that produces them would be approving
 # them by assertion.
 #
-# One thing is predicted rather than measured, and predicted to be absent. A
-# day outside `min`/`max` is a `Pressable` with `disabled`, which React
+# Two of the claims cannot be reached from here at all, and saying so is
+# better than a check that reports their absence as a defect.
+#
+# A day outside `min`/`max` is a `Pressable` with `disabled`, which React
 # Native routes to `View.setEnabled(false)` -- so Android drops it from input
 # focus and Tab cannot land on it. Whether such a day announces itself as
 # unavailable is a question about TalkBack's *linear* navigation, which this
 # harness cannot drive (see `next` above, and `VALIDATION.md`). That is
 # `docs/decisions/001`'s subject appearing in Hozo's own grid.
+#
+# The grid's own `accessibilityLabel` is the other. Tab visits focusable
+# leaves, and a container is not one, so the label is recorded when it turns
+# up and not called missing when it does not.
+#
+# What the first run did establish: a cell is announced as its whole date
+# followed by "Button" -- "Friday, September 4, 2026, Button, Double-tap to
+# activate" -- so the date carries and the cell reads as something operable.
+# Paging said "October 2026", so the live region works. And the order was
+# the Friday column, then the Saturday column, rather than along the weeks:
+# not the order the rows are built in, and not yet explained.
 calendar_button="Show the calendar"
+# The day `CalendarScreen.tsx` pins as the selected one, spelled the way
+# `Intl` spells it, so the two files can be read against each other.
+calendar_selected="thursday, september 10, 2026"
 calendar_file="$(mktemp)"
 calendar_reached=
 for _ in $(seq 1 "$MAX_STEPS"); do
@@ -562,10 +578,12 @@ else
       adb logcat -d -v brief '*:E' 2>/dev/null |
         grep -iE 'reactnative|hermes|hozo' | tail -40 | sed 's/^/  error: /' || true
     else
-      # Twenty, not forty-two. The cells repeat one shape, and each Tab costs
-      # two seconds of settling; twenty reaches past the selected day, which
-      # is the one cell that should sound different from its neighbours.
-      for i in $(seq 1 20); do
+      # The whole grid, forty-two cells. Twenty was the first guess and it
+      # was wrong for a reason worth keeping: the order Tab uses is not the
+      # order the rows are built in, so "far enough to reach the interesting
+      # cell" cannot be reasoned about from the layout. Forty-two is about
+      # two minutes more and leaves nothing to reason about.
+      for i in $(seq 1 42); do
         advance || true
         printf 'day %s\t%s\n' "$i" "$new" >> "$calendar_file"
         echo "  calendar $i: ${new:-(silent)}"
@@ -598,9 +616,38 @@ else
         fi
       }
       heard 'a whole date on a cell' 'september [0-9]*, 2026'
-      heard 'the grid label' 'departure date'
-      heard 'that a day is selected' 'selected'
       heard 'the month it paged to' 'october 2026'
+
+      # Three answers, not two. The first run of this section warned that the
+      # grid never called a day selected, which was true and misleading: the
+      # walk had not reached the selected day at all -- twenty Tabs had gone
+      # down the Friday column and the 10th is a Thursday. "Focused and not
+      # announced" and "never focused" are different findings and now read
+      # differently.
+      selected_step="$(grep -i -- "$calendar_selected" "$calendar_file" || true)"
+      if [ -z "$selected_step" ]; then
+        echo "::warning::the walk never focused $calendar_selected, so selected was not measured"
+      elif printf '%s\n' "$selected_step" | grep -qi 'selected'; then
+        echo "  heard: that a day is selected"
+      else
+        echo "::warning::$calendar_selected was focused and TalkBack did not call it selected"
+      fi
+
+      # Recorded, not asserted. Tab moves between focusable leaves, so the
+      # grid container is never focused and its own label is not something
+      # this harness can ask about -- the same limit as the disabled days.
+      if printf '%s\n' "$calendar_said" | grep -qi 'departure date'; then
+        echo "  heard: the grid label, which Tab was not expected to reach"
+      else
+        echo "  not measurable by Tab: the grid's label, since only leaves are focused"
+      fi
+
+      # The order they came in, so a reader can see it without the log. The
+      # first run went down the Friday column and then the Saturday column
+      # rather than along the weeks, which is not the order the rows are
+      # built in and is not yet explained.
+      echo '  --- the order Tab visited them ---'
+      cut -f2 "$calendar_file" | sed 's/|.*//' | sed 's/^/    /'
     fi
   fi
 fi
