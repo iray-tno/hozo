@@ -543,45 +543,65 @@ else
     printf 'open\t%s\n' "$new" >> "$calendar_file"
     echo "  calendar opened with $calendar_opened: $new"
 
-    # Twenty, not forty-two. The cells repeat one shape, and each Tab costs
-    # two seconds of settling; twenty reaches past the selected day, which is
-    # the one cell that should sound different from its neighbours.
-    for i in $(seq 1 20); do
-      advance || true
-      printf 'day %s\t%s\n' "$i" "$new" >> "$calendar_file"
-      echo "  calendar $i: ${new:-(silent)}"
-    done
-
-    # The month is a live region, so it is announced when it changes rather
-    # than when anything focuses it -- which means pressing the button is the
-    # only way to ask whether it works.
-    for _ in $(seq 1 "$MAX_STEPS"); do
-      advance || true
-      if [ "${new%%|*}" = "Next month" ]; then break; fi
-    done
-    if [ "${new%%|*}" = "Next month" ]; then
-      adb shell input keyevent KEYCODE_ENTER || true
-      sleep 2
-      settle || true
-      collect || true
-      printf 'paged\t%s\n' "$new" >> "$calendar_file"
-      echo "  calendar paged: ${new:-(silent)}"
+    # Whether the app survived opening the screen, asked before anything is
+    # read from it.
+    #
+    # The first run of this section needed it. TalkBack answered with the
+    # launcher -- "Home", "At a glance", "Gmail", "Google Lens" -- from the
+    # step after the button was pressed, and every check below then reported
+    # that the calendar had not said its own name. Which was true, and told
+    # nobody anything: a release build has no red box, so a JavaScript error
+    # while a screen mounts takes the process with it and leaves the reader
+    # on whatever is behind.
+    #
+    # So the difference between "the grid said the wrong thing" and "there
+    # was no grid" is worth one `pidof` and the crash buffer.
+    if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+      echo "::warning::the app was gone after opening the calendar, so nothing below was measured"
+      adb logcat -d -b crash -v brief 2>/dev/null | tail -40 | sed 's/^/  crash: /' || true
+      adb logcat -d -v brief '*:E' 2>/dev/null |
+        grep -iE 'reactnative|hermes|hozo' | tail -40 | sed 's/^/  error: /' || true
     else
-      echo "::warning::Tab never reached the calendar's next-month button"
-    fi
+      # Twenty, not forty-two. The cells repeat one shape, and each Tab costs
+      # two seconds of settling; twenty reaches past the selected day, which
+      # is the one cell that should sound different from its neighbours.
+      for i in $(seq 1 20); do
+        advance || true
+        printf 'day %s\t%s\n' "$i" "$new" >> "$calendar_file"
+        echo "  calendar $i: ${new:-(silent)}"
+      done
 
-    calendar_said="$(cut -f2 "$calendar_file" | tr '|' '\n' | grep -v '^$' || true)"
-    heard() {
-      if printf '%s\n' "$calendar_said" | grep -qi -- "$2"; then
-        echo "  heard: $1"
+      # The month is a live region, so it is announced when it changes rather
+      # than when anything focuses it -- which means pressing the button is the
+      # only way to ask whether it works.
+      for _ in $(seq 1 "$MAX_STEPS"); do
+        advance || true
+        if [ "${new%%|*}" = "Next month" ]; then break; fi
+      done
+      if [ "${new%%|*}" = "Next month" ]; then
+        adb shell input keyevent KEYCODE_ENTER || true
+        sleep 2
+        settle || true
+        collect || true
+        printf 'paged\t%s\n' "$new" >> "$calendar_file"
+        echo "  calendar paged: ${new:-(silent)}"
       else
-        echo "::warning::the calendar never said $1 -- read talkback-speech.json"
+        echo "::warning::Tab never reached the calendar's next-month button"
       fi
-    }
-    heard 'a whole date on a cell' 'september [0-9]*, 2026'
-    heard 'the grid label' 'departure date'
-    heard 'that a day is selected' 'selected'
-    heard 'the month it paged to' 'october 2026'
+
+      calendar_said="$(cut -f2 "$calendar_file" | tr '|' '\n' | grep -v '^$' || true)"
+      heard() {
+        if printf '%s\n' "$calendar_said" | grep -qi -- "$2"; then
+          echo "  heard: $1"
+        else
+          echo "::warning::the calendar never said $1 -- read talkback-speech.json"
+        fi
+      }
+      heard 'a whole date on a cell' 'september [0-9]*, 2026'
+      heard 'the grid label' 'departure date'
+      heard 'that a day is selected' 'selected'
+      heard 'the month it paged to' 'october 2026'
+    fi
   fi
 fi
 
