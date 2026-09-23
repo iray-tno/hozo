@@ -22,6 +22,16 @@ public final class AccessibilityActionService extends AccessibilityService {
                     String label = intent.getStringExtra("label");
                     AccessibilityNodeInfo root = getRootInActiveWindow();
                     AccessibilityNodeInfo target = findByLabel(root, label);
+                    if (target != null) {
+                        Log.i(
+                                TAG,
+                                "target "
+                                        + label
+                                        + " clickable="
+                                        + target.isClickable()
+                                        + " actions="
+                                        + target.getActionList());
+                    }
                     boolean activated =
                             target != null
                                     && target.performAction(AccessibilityNodeInfo.ACTION_CLICK);

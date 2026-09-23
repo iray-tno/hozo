@@ -23,6 +23,7 @@ import {
   type LayoutChangeEvent,
   Linking,
   type PointerEvent,
+  Pressable,
   type StyleProp,
   StyleSheet,
   Text,
@@ -703,17 +704,14 @@ function Root({
             />
           ) : null}
           {controls.map((control) => (
-            <View
+            <Pressable
               key={control.id}
               style={[styles.accessibilityControl, accessibilityControlStyle(control.id)]}
               pointerEvents="box-none"
               accessible
               accessibilityRole={control.destination ? 'link' : 'button'}
               accessibilityLabel={control.label}
-              accessibilityActions={[{ name: 'activate' }]}
-              onAccessibilityAction={(event) => {
-                if (event.nativeEvent.actionName === 'activate') activateControl(control.id)
-              }}
+              onPress={() => activateControl(control.id)}
               onAccessibilityEscape={() => activate(undefined, undefined)}
             />
           ))}
