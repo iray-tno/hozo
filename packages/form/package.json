@@ -26,10 +26,6 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "react-native": {
-        "types": "./dist/index.native.d.ts",
-        "default": "./dist/index.native.js"
-      },
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },

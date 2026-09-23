@@ -88,7 +88,9 @@ const PACKAGES = {
   },
   form: {
     exports: { '.': './dist/index.js' },
-    native: true,
+    // No `native: true` yet, and no `.native` source to reach through it.
+    // What is here is date arithmetic on plain records, identical on both
+    // platforms; the condition arrives with the components that differ.
     keywords: ['react-native', 'react', 'form', 'date-picker', 'calendar', 'accessibility'],
   },
   semantics: {
