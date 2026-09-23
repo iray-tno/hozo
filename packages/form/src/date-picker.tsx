@@ -126,13 +126,7 @@ export function HozoDatePicker({
         {value ? formatValue(value, locale) : placeholder}
       </button>
       {open ? (
-        <FloatingPositioner
-          anchorRef={triggerRef}
-          placement="bottom-start"
-          offset={4}
-          flip
-          shift
-        >
+        <FloatingPositioner anchorRef={triggerRef} placement="bottom-start" offset={4} flip shift>
           {() => (
             <DismissableLayer onDismiss={() => change(false)}>
               {/*

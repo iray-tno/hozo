@@ -28,11 +28,7 @@ test('closed, it is a button that says it opens a dialog', () => {
   assert.match(html, /aria-haspopup="dialog"/)
   assert.match(html, /aria-expanded="false"/)
   assert.doesNotMatch(html, /role="dialog"/)
-  assert.doesNotMatch(
-    html,
-    /aria-controls=/,
-    'nothing to point at while the dialog does not exist',
-  )
+  assert.doesNotMatch(html, /aria-controls=/, 'nothing to point at while the dialog does not exist')
 })
 
 test('open, the button points at the dialog and the dialog says it is one', () => {
