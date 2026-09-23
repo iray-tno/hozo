@@ -49,6 +49,21 @@ export interface HozoCalendarProps {
   onChange?: (date: CalendarDate) => void
   /** The month shown first. Defaults to `value`'s month, else `today`'s. */
   defaultMonth?: CalendarMonth
+  /**
+   * The month shown, when the caller wants to own it.
+   *
+   * Controlled in the ordinary React sense: while this is set the grid shows
+   * what it says and nothing else moves it, so a month that should change on
+   * its own has to change through `onMonthChange`. A caller that hands over a
+   * `month` and ignores `onMonthChange` gets a grid whose paging buttons and
+   * month-crossing arrow keys appear to do nothing -- the same bargain a
+   * controlled `<input>` makes, and worth saying out loud because here the
+   * keys that stop working are in the middle of the widget.
+   *
+   * Wins over `defaultMonth`, which is then the initial value of state
+   * nothing reads.
+   */
+  month?: CalendarMonth
   onMonthChange?: (month: CalendarMonth) => void
   min?: CalendarDate
   max?: CalendarDate
@@ -126,6 +141,7 @@ export function HozoCalendar({
   value,
   onChange,
   defaultMonth,
+  month,
   onMonthChange,
   min,
   max,
@@ -142,9 +158,11 @@ export function HozoCalendar({
   const currentDay = today ?? todayLocal()
   const weekStart = firstDayOfWeek ?? weekStartFor(locale)
   const opening = value ?? currentDay
-  const [shown, setShown] = useState<CalendarMonth>(
+  const [ownMonth, setOwnMonth] = useState<CalendarMonth>(
     () => defaultMonth ?? { year: opening.year, month: opening.month },
   )
+  const controlled = month !== undefined
+  const shown = month ?? ownMonth
   const [focused, setFocused] = useState<CalendarDate>(opening)
   const cells = useRef(new Map<string, HTMLTableCellElement | null>())
   // Seeded from `autoFocus` so the mount-time run of the effect below moves
@@ -165,11 +183,11 @@ export function HozoCalendar({
   }, [focused])
 
   const show = useCallback(
-    (month: CalendarMonth) => {
-      setShown(month)
-      onMonthChange?.(month)
+    (next: CalendarMonth) => {
+      if (!controlled) setOwnMonth(next)
+      onMonthChange?.(next)
     },
-    [onMonthChange],
+    [controlled, onMonthChange],
   )
 
   const moveTo = (date: CalendarDate) => {

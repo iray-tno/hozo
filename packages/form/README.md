@@ -64,7 +64,9 @@ On React Native it is a `Modal` rather than an anchored panel. A date grid ancho
 
 Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `TimePicker` and `DateRangePicker` come next.
 
-Two things `Calendar` deliberately does not do yet. The shown month is not controllable from outside — `defaultMonth` sets it and `onMonthChange` reports it, but there is no `month` prop — and the platform-native variants (`<input type="date">` on the Web, `UIDatePicker` and Material's `DatePickerDialog` on Native) are not built. Both are additive.
+The shown month is controllable: `defaultMonth` for the uncontrolled case, `month` plus `onMonthChange` when the caller wants to own it. Handing over a `month` and ignoring `onMonthChange` gives a grid whose paging buttons and month-crossing arrow keys appear to do nothing -- the bargain every controlled component makes, mentioned here because the keys that stop working are in the middle of the widget.
+
+The platform-native variants (`<input type="date">` on the Web, `UIDatePicker` and Material's `DatePickerDialog` on Native) are not built. That stays additive.
 
 <!-- generated: package-footer -->
 
