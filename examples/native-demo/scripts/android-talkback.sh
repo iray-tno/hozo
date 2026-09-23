@@ -525,12 +525,30 @@ fi
 # leaves, and a container is not one, so the label is recorded when it turns
 # up and not called missing when it does not.
 #
-# What the first run did establish: a cell is announced as its whole date
-# followed by "Button" -- "Friday, September 4, 2026, Button, Double-tap to
-# activate" -- so the date carries and the cell reads as something operable.
-# Paging said "October 2026", so the live region works. And the order was
-# the Friday column, then the Saturday column, rather than along the weeks:
-# not the order the rows are built in, and not yet explained.
+# What the runs have established, so the next reader starts from it:
+#
+#   - a cell announces as its whole date and then "Button" -- "Friday,
+#     September 4, 2026, Button, Double-tap to activate". The date carries,
+#     and the cell reads as something operable, which was the least certain
+#     of the design decisions.
+#   - "selected" reaches the announcement, once the walk is long enough to
+#     arrive at the selected day.
+#   - paging says "October 2026", so the live region works.
+#
+# And two facts about the order, which the forty-two step walk settles.
+#
+# Tab goes down a column and then across: the Friday column top to bottom,
+# then Saturday, Sunday, Monday, Tuesday, Wednesday, Thursday. Left to right
+# by column, entering at whichever column focus arrived in. The view
+# hierarchy is six week rows of seven cells, so this is Android's focus
+# sorting rather than child order, and a calendar wants weeks -- a real
+# finding, and the cause is not established here.
+#
+# Thirty-nine cells, not forty-two. The three missing are the 31st of August
+# and the 1st and 2nd of September: below `min`, so `disabled`, so
+# `View.setEnabled(false)`, so not in the input focus order at all. The
+# per-column counts say it exactly -- Monday, Tuesday and Wednesday have
+# five where the other four have six. `docs/decisions/001` measured.
 calendar_button="Show the calendar"
 # The day `CalendarScreen.tsx` pins as the selected one, spelled the way
 # `Intl` spells it, so the two files can be read against each other.
