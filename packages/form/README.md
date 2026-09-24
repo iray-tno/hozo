@@ -70,6 +70,34 @@ It reaches the announcement through `accessibilityValue.text` rather than throug
 
 The prop is accepted and ignored on the Web, where a word would announce the same fact twice.
 
+## Times
+
+`CalendarTime` is a plain `{ hour, minute }` record with an optional `second`, for the reason `CalendarDate` is one: half past nine is not an instant, and making it one means choosing a day and a zone nobody asked for. Everything goes through seconds since midnight, so stepping wraps at midnight in one place and comparing is integer arithmetic.
+
+A minimum above a maximum is an empty range rather than one that crosses midnight. A clock is cyclic; an interval on it is not, and supporting 22:00 to 02:00 would mean every comparison asking which kind of interval it had been given.
+
+The list half of time selection is a builder rather than a component:
+
+```tsx
+import { Listbox } from '@hozo/core'
+import { timeOptions } from '@hozo/form'
+
+<Listbox
+  options={timeOptions({
+    from: { hour: 9, minute: 0 },
+    to: { hour: 17, minute: 0 },
+    step: 30,
+    locale: 'en-US',
+    disabled: (at) => taken.has(at.hour * 60 + at.minute),
+  })}
+  value={arrival}
+  onValueChange={setArrival}
+  accessibilityLabel="Arrival time"
+/>
+```
+
+A spinbutton expresses a continuum and cannot disable 09:37 on its own; a list expresses a set the caller owns and can. Those are different capabilities, so they stay different things, and `CalendarTime` is what makes them interchangeable. Wrapping `Listbox` instead would add a second Native half to maintain and no new behaviour. See [#148](https://github.com/iray-tno/hozo/issues/148).
+
 ## Status
 
 Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `TimePicker` and `DateRangePicker` come next.
