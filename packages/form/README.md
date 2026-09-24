@@ -76,7 +76,9 @@ Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `Time
 
 The shown month is controllable: `defaultMonth` for the uncontrolled case, `month` plus `onMonthChange` when the caller wants to own it. Handing over a `month` and ignoring `onMonthChange` gives a grid whose paging buttons and month-crossing arrow keys appear to do nothing -- the bargain every controlled component makes, mentioned here because the keys that stop working are in the middle of the widget.
 
-The platform-native variants (`<input type="date">` on the Web, `UIDatePicker` and Material's `DatePickerDialog` on Native) are not built. That stays additive.
+The platform-native variants -- `<input type="date">` on the Web, `UIDatePicker` and Material's `DatePickerDialog` on Native -- are set aside rather than pending. An operating system's picker cannot be styled, which puts it against the premise the library rests on: one `className`, the same result on both platforms. [#148](https://github.com/iray-tno/hozo/issues/148) says so about the Web in its own opening paragraph, and the same reasoning had never been written down for Native.
+
+So the grid is not the fallback for a platform picker. It is the answer. A user asking for the system picker specifically is what would reopen it.
 
 <!-- generated: package-footer -->
 
