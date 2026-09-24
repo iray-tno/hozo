@@ -30,7 +30,7 @@ const defaults: HozoCalendarProps = {
 }
 
 const render = (props: Partial<HozoCalendarProps> = {}) =>
-  renderToStaticMarkup(createElement(HozoCalendar, { ...defaults, ...props }))
+  renderToStaticMarkup(createElement(HozoCalendar, { ...defaults, ...props } as HozoCalendarProps))
 
 function attributes(html: string, name: string): string[] {
   return [...html.matchAll(new RegExp(`${name}="([^"]*)"`, 'g'))].map((match) => match[1] ?? '')
@@ -183,4 +183,63 @@ test('the Web half marks today with aria-current and takes no word for it', () =
   // a word would be the same fact announced twice, once in one language.
   assert.equal(render({ todayLabel: 'today' }), render(), 'the prop changes nothing on this side')
   assert.equal(count(render(), 'aria-current="date"'), 1)
+})
+
+test('a range grid says it selects more than one, and a single grid does not', () => {
+  const ranged = render({
+    range: true,
+    value: { start: date(2026, 9, 10), end: date(2026, 9, 12) },
+  })
+  assert.match(ranged, /aria-multiselectable="true"/)
+  assert.doesNotMatch(render(), /aria-multiselectable/)
+})
+
+test('every day in the range is selected, including both ends', () => {
+  const html = render({
+    range: true,
+    value: { start: date(2026, 9, 10), end: date(2026, 9, 12) },
+  })
+  assert.equal(attributes(html, 'aria-selected').filter((value) => value === 'true').length, 3)
+  assert.equal(count(html, 'data-hozo-range-start=""'), 1)
+  assert.equal(count(html, 'data-hozo-range-end=""'), 1)
+  assert.equal(count(html, 'data-hozo-in-range=""'), 1, 'the 11th, and nothing else')
+})
+
+test('the ends say which end they are, because aria-selected cannot', () => {
+  const html = render({
+    range: true,
+    value: { start: date(2026, 9, 10), end: date(2026, 9, 12) },
+  })
+  assert.match(html, /aria-label="Thursday, September 10, 2026, start of range"/)
+  assert.match(html, /aria-label="Saturday, September 12, 2026, end of range"/)
+  assert.match(html, /aria-label="Friday, September 11, 2026"/, 'and the middle just says itself')
+})
+
+test('the words for the ends come from the caller', () => {
+  const html = render({
+    range: true,
+    value: { start: date(2026, 9, 10), end: date(2026, 9, 12) },
+    rangeStartLabel: 'from',
+    rangeEndLabel: 'to',
+  })
+  assert.match(html, /September 10, 2026, from"/)
+  assert.match(html, /September 12, 2026, to"/)
+})
+
+test('a single-day range is its own start, which is what a pending pick looks like', () => {
+  const html = render({
+    range: true,
+    value: { start: date(2026, 9, 10), end: date(2026, 9, 10) },
+  })
+  assert.equal(attributes(html, 'aria-selected').filter((value) => value === 'true').length, 1)
+  assert.equal(count(html, 'data-hozo-in-range=""'), 0, 'nothing is between one day and itself')
+  assert.match(html, /September 10, 2026, start of range"/, 'the start wins when it is both')
+})
+
+test('single mode marks no range at all', () => {
+  const html = render({ value: date(2026, 9, 10) })
+  assert.equal(attributes(html, 'aria-selected').filter((value) => value === 'true').length, 1)
+  assert.equal(count(html, 'data-hozo-range-start=""'), 0, 'the range selectors stay out of it')
+  assert.equal(count(html, 'data-hozo-in-range=""'), 0)
+  assert.doesNotMatch(html, /start of range/, 'no word, because there is no range to be an end of')
 })

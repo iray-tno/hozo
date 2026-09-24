@@ -40,6 +40,22 @@ moveFocus({ year: 2026, month: 9, day: 29 }, 'ArrowDown') // 2026-10-06
 
 `moveFocus` returns `null` for a key the grid does not own and the date unchanged for a move it refuses, so a component can tell "let the event through" apart from "handled, and `preventDefault` is still owed".
 
+### Ranges
+
+`range` turns the same grid into a range picker, and changes the shape of `value` and `onChange` with it:
+
+```tsx
+<Calendar range value={stay} onChange={setStay} accessibilityLabel="Dates of stay" />
+```
+
+`value` is then a `CalendarRange`, `{ start, end }`, and `onChange` is given one. The props are a discriminated union, so a `range` calendar handed a single `CalendarDate` does not typecheck, and neither does a single one handed a handler that expects a range — the same arrangement `Listbox` uses for `multiple`.
+
+The half-chosen start is the component's, not the caller's. A first press is held internally and `onChange` fires only with a range that has both ends, so nothing downstream has to model a start with no end; Escape abandons it. Either end may be picked first — `orderRange` sorts the pair — because which of two dates someone clicks second is not something they should have to think about.
+
+On the Web the grid carries `aria-multiselectable="true"` and *every* day in the range is `aria-selected="true"`, which is what the attribute means. The two ends say which end they are in their accessible name — "Thursday, September 10, 2026, start of range" — because `aria-selected` is one bit and cannot. `rangeStartLabel` and `rangeEndLabel` are those words, since Hozo owns no message catalogue ([#157](https://github.com/iray-tno/hozo/issues/157)). On React Native the same words arrive through `accessibilityValue.text`, joined here because React Native gives them one slot.
+
+For styling, cells carry `data-hozo-range-start`, `data-hozo-range-end` and `data-hozo-in-range`, and `renderDay` receives `rangeStart`, `rangeEnd` and `inRange` on each day. None of them appear in single mode, so a stylesheet's end caps cannot leak onto a lone selected day.
+
 ## Why the week data is a table
 
 `Intl.Locale.prototype.getWeekInfo` would say which day a locale's week starts on. It is a later addition to ECMA-402, and Hermes ships only `Collator`, `DateTimeFormat` and `NumberFormat` — the same wall [`@hozo/canvas`](https://www.npmjs.com/package/@hozo/canvas) met with `Intl.Segmenter`. A lookup that worked on the Web and guessed on a phone would mean the same month drawn two ways, so `firstDayOfWeek` is a deterministic table instead, identical on both platforms, with a prop to override it.
