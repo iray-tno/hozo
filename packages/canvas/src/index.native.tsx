@@ -15,6 +15,7 @@ import {
   Rect as SkiaRect,
   RoundedRect as SkiaRoundedRect,
   Text as SkiaText,
+  Vertices as SkiaVertices,
   type Transforms3d,
 } from '@shopify/react-native-skia'
 import { type ComponentType, type ReactNode, useMemo, useRef, useState } from 'react'
@@ -63,7 +64,9 @@ import {
   RoundedRect,
   reportUnreadableText,
   type TextProps,
+  TriangleMesh,
   textFontSpec,
+  triangleMeshIndices,
   unhandledShape,
   useCanvasScene,
 } from './scene.tsx'
@@ -96,6 +99,7 @@ export type {
   PathProps,
   RectProps,
   RoundedRectProps,
+  TriangleMeshProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
 export type { CanvasViewport } from './viewport.ts'
@@ -441,6 +445,22 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
         },
         node.props,
       )
+    case 'triangle-mesh': {
+      const indices = triangleMeshIndices(node.props)
+      if (indices.length === 0 || node.props.fill === 'none') return null
+      return (
+        <SkiaVertices
+          key={key}
+          mode="triangles"
+          vertices={[...node.props.vertices]}
+          indices={indices}
+          color={colorFor(node.props.fill, 'black')}
+          opacity={node.props.opacity}
+        >
+          {gradientShader(node.props.fill as CanvasPaint)}
+        </SkiaVertices>
+      )
+    }
     default:
       return unhandledShape(node, 'the Skia renderer')
   }
@@ -769,4 +789,5 @@ export const Canvas = Object.assign(Root, {
   Ellipse,
   Line,
   Path,
+  TriangleMesh,
 })

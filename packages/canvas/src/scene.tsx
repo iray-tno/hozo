@@ -383,6 +383,58 @@ export interface PathProps extends CanvasPaintProps, CanvasInteractionProps {
   fillRule?: 'nonzero' | 'evenodd'
 }
 
+/**
+ * Indexed triangles in the Canvas coordinate system.
+ *
+ * This is deliberately triangles rather than a generic polygon mesh: Web
+ * Canvas 2D and Skia already agree on that topology, and Three.js can hand
+ * projected geometry across without serialising it into SVG path strings.
+ * An omitted index array means consecutive triples. Incomplete and invalid
+ * triples draw nothing as a unit, so the two renderers cannot disagree by
+ * repairing malformed geometry differently.
+ *
+ * The first portable slice is fill-only. Per-vertex colours and texture
+ * coordinates belong on this same primitive, but become part of the contract
+ * only when both renderers have an implementation.
+ */
+export interface TriangleMeshProps extends CanvasInteractionProps {
+  /** Compiler input. Runtime drawing uses the explicit fill below. */
+  className?: string
+  vertices: readonly CanvasPoint[]
+  indices?: readonly number[]
+  fill?: CanvasPaint
+  opacity?: number
+}
+
+/** The complete, valid triangle index stream shared by rendering and hit testing. */
+export function triangleMeshIndices(props: TriangleMeshProps): number[] {
+  const source = props.indices ?? props.vertices.map((_, index) => index)
+  const result: number[] = []
+  for (let offset = 0; offset + 2 < source.length; offset += 3) {
+    const a = source[offset]
+    const b = source[offset + 1]
+    const c = source[offset + 2]
+    if (
+      a === undefined ||
+      b === undefined ||
+      c === undefined ||
+      !Number.isInteger(a) ||
+      !Number.isInteger(b) ||
+      !Number.isInteger(c) ||
+      a < 0 ||
+      b < 0 ||
+      c < 0 ||
+      a >= props.vertices.length ||
+      b >= props.vertices.length ||
+      c >= props.vertices.length
+    ) {
+      continue
+    }
+    result.push(a, b, c)
+  }
+  return result
+}
+
 export type ClipProps = (
   | { path: string; x?: never; y?: never; width?: never; height?: never }
   | { path?: never; x?: number; y?: number; width: number; height: number }
@@ -398,6 +450,7 @@ export type CanvasLeafNode =
   | { id?: string; kind: 'line'; props: SceneProps<LineProps> }
   | { id?: string; kind: 'text'; props: SceneProps<TextProps> }
   | { id?: string; kind: 'path'; props: SceneProps<PathProps> }
+  | { id?: string; kind: 'triangle-mesh'; props: SceneProps<TriangleMeshProps> }
 
 export type CanvasSceneNode =
   | CanvasLeafNode
@@ -776,6 +829,7 @@ export const Line = interactiveLeaf<LineProps>('line')
 // surface answers for its own -- see `CanvasPathHitTest`.
 export const Text = interactiveLeaf<TextProps>('text')
 export const Path = interactiveLeaf<PathProps>('path')
+export const TriangleMesh = interactiveLeaf<TriangleMeshProps>('triangle-mesh')
 
 export function Group({ children, ...props }: GroupProps) {
   // A rest object is new on every render; see `interactiveLeaf`.

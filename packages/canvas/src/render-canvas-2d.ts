@@ -9,6 +9,7 @@ import {
   isGradient,
   paintFills,
   paintStrokes,
+  triangleMeshIndices,
   unhandledShape,
 } from './scene.tsx'
 import type { CanvasViewport } from './viewport.ts'
@@ -211,6 +212,24 @@ function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
         const hasStroke = node.props.stroke !== undefined && node.props.stroke !== 'none'
         if (hasFill) context.fill(path, node.props.fillRule)
         if (hasStroke) context.stroke(path)
+        return
+      }
+      case 'triangle-mesh': {
+        const indices = triangleMeshIndices(node.props)
+        if (indices.length === 0 || node.props.fill === 'none') return
+        applyPaint(context, node.props)
+        for (let offset = 0; offset < indices.length; offset += 3) {
+          const a = node.props.vertices[indices[offset] as number]
+          const b = node.props.vertices[indices[offset + 1] as number]
+          const c = node.props.vertices[indices[offset + 2] as number]
+          if (!a || !b || !c) continue
+          context.beginPath()
+          context.moveTo(a.x, a.y)
+          context.lineTo(b.x, b.y)
+          context.lineTo(c.x, c.y)
+          context.closePath()
+          context.fill()
+        }
         return
       }
       default:
