@@ -15,7 +15,7 @@ import {
   type LOD,
   type Material,
   Matrix4,
-  type Mesh,
+  Mesh,
   type MeshBasicMaterial,
   NormalBlending,
   type Object3D,
@@ -805,14 +805,6 @@ function projectThreeSceneInternal(
     const instancedMesh = (mesh as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh
       ? (mesh as InstancedMesh)
       : undefined
-    if (instancedMesh?.instanceColor || instancedMesh?.morphTexture) {
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_MESH',
-        message: 'Per-instance colours and morph weights are not projected yet.',
-        object,
-      })
-      return
-    }
     if ((mesh as Mesh & { isSkinnedMesh?: boolean }).isSkinnedMesh) {
       diagnostic(diagnostics, options, {
         code: 'UNSUPPORTED_MESH',
@@ -903,6 +895,7 @@ function projectThreeSceneInternal(
 
     interface MeshProjectionInstance {
       color?: Color
+      morph?: PositionMorphState
       ranges: MaterialRange[]
       worldMatrix: Matrix4
     }
@@ -962,9 +955,22 @@ function projectThreeSceneInternal(
       const ranges = rangesFor(drawStart, drawEnd)
       if (ranges.length === 0) return
       const instanceMatrix = new Matrix4()
+      const morphTarget = instancedMesh.morphTexture ? new Mesh(mesh.geometry) : undefined
       for (let instance = 0; instance < instancedMesh.count; instance += 1) {
         instancedMesh.getMatrixAt(instance, instanceMatrix)
+        let color: Color | undefined
+        if (instancedMesh.instanceColor) {
+          color = new Color()
+          instancedMesh.getColorAt(instance, color)
+        }
+        let morph: PositionMorphState | undefined
+        if (morphTarget?.morphTargetInfluences) {
+          instancedMesh.getMorphAt(instance, morphTarget)
+          morph = positionMorphState(mesh.geometry, [...morphTarget.morphTargetInfluences])
+        }
         projectionInstances.push({
+          color,
+          morph,
           ranges,
           worldMatrix: new Matrix4().multiplyMatrices(mesh.matrixWorld, instanceMatrix),
         })
@@ -972,12 +978,15 @@ function projectThreeSceneInternal(
     } else {
       const ranges = rangesFor(drawStart, drawEnd)
       if (ranges.length === 0) return
-      projectionInstances.push({ ranges, worldMatrix: mesh.matrixWorld })
+      projectionInstances.push({
+        morph: positionMorphState(mesh.geometry, mesh.morphTargetInfluences),
+        ranges,
+        worldMatrix: mesh.matrixWorld,
+      })
     }
     let wireframeIndices: number[] | undefined
-    const morph = positionMorphState(mesh.geometry, mesh.morphTargetInfluences)
     const fillColor = new Color()
-    for (const { color, ranges, worldMatrix } of projectionInstances) {
+    for (const { color, morph, ranges, worldMatrix } of projectionInstances) {
       const matrix = new Matrix4().multiplyMatrices(viewProjection, worldMatrix)
       const mirrored = worldMatrix.determinant() < 0
       const vertexAt = (vertexIndex: number) =>

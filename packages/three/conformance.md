@@ -17,13 +17,13 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Category | Exact | Usable | Safe | Silent | Out of scope |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
-| object | 9/11 (81.8%) | 10/11 (90.9%) | 11/11 (100.0%) | 0 | 2 |
+| object | 10/11 (90.9%) | 10/11 (90.9%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 3/4 (75.0%) | 3/4 (75.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 9/13 (69.2%) | 10/13 (76.9%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **29/58 (50.0%)** | **38/58 (65.5%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **30/58 (51.7%)** | **38/58 (65.5%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -44,7 +44,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | BatchedMesh | full | Sparse instance IDs, geometry ranges, visibility, transforms, and colours are projected. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
 | Bone | out-of-scope | A Bone has no independent render primitive. | — |
 | Group | full | Visibility and nested world transforms are traversed. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
-| InstancedMesh | partial | Instance transforms project independently; instance colours and morph weights are diagnosed. | [test](src/project.test.ts) `InstancedMesh applies each instance transform and preserves object identity`<br>[test](src/project.test.ts) `InstancedMesh diagnoses per-instance colours before losing them` |
+| InstancedMesh | full | Instance transforms, colours, and morph weights project independently. | [test](src/project.test.ts) `InstancedMesh applies each instance transform and preserves object identity`<br>[test](src/project.test.ts) `InstancedMesh applies per-instance colours and morph weights` |
 | Line | full | Line strips project through the portable line pipeline. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
 | LineLoop | full | Closed line strips project through the line pipeline. | [test](src/project.test.ts) `LineLoop closes its final vertex back to its first` |
 | LineSegments | full | Independent line pairs project through the line pipeline. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |

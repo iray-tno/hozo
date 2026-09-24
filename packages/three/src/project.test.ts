@@ -662,16 +662,31 @@ test('InstancedMesh applies each instance transform and preserves object identit
   assert.equal(projectThreeScene(scene, perspective(), { width: 100, height: 100 }).scene.length, 1)
 })
 
-test('InstancedMesh diagnoses per-instance colours before losing them', () => {
-  const mesh = new THREE.InstancedMesh(triangleGeometry(), new MeshBasicMaterial(), 1)
+test('InstancedMesh applies per-instance colours and morph weights', () => {
+  const geometry = triangleGeometry()
+  geometry.morphAttributes.position = [new Float32BufferAttribute([-1, 1, 0, 1, 1, 0, 0, 3, 0], 3)]
+  const mesh = new THREE.InstancedMesh(geometry, new MeshBasicMaterial(), 2)
+  mesh.setMatrixAt(0, new THREE.Matrix4().makeTranslation(-1, 0, 0))
+  mesh.setMatrixAt(1, new THREE.Matrix4().makeTranslation(1, 0, 0))
   mesh.setColorAt(0, new THREE.Color('#ff0000'))
+  mesh.setColorAt(1, new THREE.Color('#0000ff'))
+  const morphTarget = new Mesh(geometry)
+  if (!morphTarget.morphTargetInfluences)
+    throw new Error('mesh did not initialise morph influences')
+  morphTarget.morphTargetInfluences[0] = 0
+  mesh.setMorphAt(0, morphTarget)
+  morphTarget.morphTargetInfluences[0] = 1
+  mesh.setMorphAt(1, morphTarget)
   const scene = new Scene()
   scene.add(mesh)
 
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
-  assert.deepEqual(result.scene, [])
-  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedPaths(result), [
+    { path: 'M 30 60 L 50 60 L 40 40 Z', fill: '#ff0000' },
+    { path: 'M 50 40 L 70 40 L 60 20 Z', fill: '#0000ff' },
+  ])
 })
 
 test('mirrored mesh transforms preserve Three.js front-face semantics', () => {
