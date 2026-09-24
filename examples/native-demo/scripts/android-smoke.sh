@@ -437,6 +437,17 @@ echo "the gallery tree names $found primitives"
 # from. Counting distinct tops and lefts is the whole test: six tops and
 # seven lefts means the rows are rows.
 #
+# Answered, the first time this ran: six tops, seven lefts, and the topmost
+# band is Monday the 31st of August through Sunday the 6th of September in
+# order. The second reading. Kept rather than deleted, because it is the only
+# thing that would notice the styles breaking later -- a transposed grid would
+# show up here as seven tops and six lefts.
+#
+# One cell short of forty-two, which is not explained. A dump reports what is
+# on screen and the last row sits near the bottom edge, so a clipped cell is
+# the likely answer; it is not the answer this was asked for and is not
+# treated as one.
+#
 # Reported, never asserted, and last. The gallery above replaced the screen,
 # so the app is restarted to get the opener back, and nothing after this
 # needs it.
