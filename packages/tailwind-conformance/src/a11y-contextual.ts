@@ -229,6 +229,9 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // not something a list can set for itself from inside `renderItem`. So
     // both sides go through `@hozo/engine` now, and the role Native adds
     // is still added.
+    //
+    // That prop is no longer set -- it crashes the app (#512) -- and the
+    // wrapper stays for the per-cell half, which is the same argument.
     source:
       '<FlatList accessibilityLabel="Rows" data={rows} ' +
       'renderItem={({ item }) => <Text>{item}</Text>} />',

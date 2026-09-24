@@ -670,4 +670,53 @@ else
   fi
 fi
 
+# Replacing the screen while TalkBack is on, which used to take the process
+# with it (#512).
+#
+# The Gallery button has always done this -- `if (showingGallery) return
+# <Gallery />` unmounts the acceptance screen's `FlatList` -- and has never
+# crashed here, because this script reads that button and `android-smoke.sh`
+# presses it with TalkBack off. Neither half pressed it with a screen reader
+# running, so the crash lived in the gap between them for as long as the
+# button has existed.
+#
+# A gate rather than a warning, unlike everything above it. "The app is still
+# there" is not a judgement about what a screen reader said, and it does not
+# depend on timing: press, wait, ask for the pid.
+#
+# Restarted first rather than navigated back to. Whatever the calendar section
+# left behind -- a modal open, focus inside it, nothing at all if it never got
+# there -- is not a state this wants to reason about, and Back on the
+# acceptance screen leaves the app rather than the screen.
+echo "restarting the app to replace its screen with TalkBack on"
+adb shell am force-stop "$package" || true
+adb shell am start -W -n "$activity" > /dev/null
+sleep 12
+[ -n "$(adb shell pidof "$package" | tr -d '\r')" ] || fail "$package did not come back up"
+settle
+said_before="$(spoken | wc -l)"
+
+gallery_button="Show every primitive"
+gallery_reached=
+for _ in $(seq 1 "$MAX_STEPS"); do
+  advance
+  if [ "${new%%|*}" = "$gallery_button" ]; then gallery_reached=1; break; fi
+done
+
+if [ -z "$gallery_reached" ]; then
+  echo "::warning::Tab never reached \"$gallery_button\", so the teardown was not exercised"
+else
+  adb shell input keyevent KEYCODE_ENTER
+  sleep 3
+  settle
+  collect
+  echo "  gallery opened: ${new:-(silent)}"
+  if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+    echo '--- logcat, crash buffer ---'
+    adb logcat -d -b crash -v brief | tail -60 || true
+    fail "the app died replacing its screen while TalkBack was on -- #512 again"
+  fi
+  echo "  the app survived replacing its screen"
+fi
+
 echo "ok"
