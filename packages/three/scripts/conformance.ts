@@ -89,13 +89,13 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'object',
     'InstancedMesh',
-    'partial',
-    'Instance transforms project independently; instance colours and morph weights are diagnosed.',
+    'full',
+    'Instance transforms, colours, and morph weights project independently.',
     {
       upstream: upstream('object', 'InstancedMesh'),
       tests: [
         project('InstancedMesh applies each instance transform and preserves object identity'),
-        project('InstancedMesh diagnoses per-instance colours before losing them'),
+        project('InstancedMesh applies per-instance colours and morph weights'),
       ],
     },
   ),
