@@ -936,7 +936,10 @@ test('unsupported MeshBasicMaterial features emit diagnostics', () => {
   const materials = [
     new MeshBasicMaterial({ vertexColors: true }),
     new MeshBasicMaterial({ map: new Texture() }),
-    new MeshBasicMaterial({ clippingPlanes: [new THREE.Plane()] }),
+    new MeshBasicMaterial({
+      clipIntersection: true,
+      clippingPlanes: [new THREE.Plane(), new THREE.Plane()],
+    }),
   ]
 
   for (const material of materials) {
@@ -946,6 +949,48 @@ test('unsupported MeshBasicMaterial features emit diagnostics', () => {
     assert.deepEqual(result.scene, [])
     assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
   }
+})
+
+test('material clipping planes cut meshes and lines and discard points in world space', () => {
+  const plane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)
+  const mesh = new Mesh(triangleGeometry(), new MeshBasicMaterial({ clippingPlanes: [plane] }))
+  const line = new Line(
+    new BufferGeometry().setAttribute(
+      'position',
+      new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3),
+    ),
+    new LineBasicMaterial({ clippingPlanes: [plane] }),
+  )
+  line.position.x = 1
+  const points = new Points(
+    new BufferGeometry().setAttribute(
+      'position',
+      new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3),
+    ),
+    new PointsMaterial({ clippingPlanes: [plane], size: 2, sizeAttenuation: false }),
+  )
+
+  const meshResult = projectThreeScene(new Scene().add(mesh), perspective(), {
+    width: 100,
+    height: 100,
+  })
+  const lineResult = projectThreeScene(new Scene().add(line), perspective(), {
+    width: 100,
+    height: 100,
+  })
+  const pointResult = projectThreeScene(new Scene().add(points), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(meshResult.diagnostics, [])
+  assert.deepEqual(projectedPaths(meshResult), [
+    { path: 'M 50 40 L 50 60 L 60 60 Z', fill: '#ffffff' },
+  ])
+  assert.deepEqual(projectedLines(lineResult), [
+    { x1: 50, y1: 50, x2: 70, y2: 50, stroke: '#ffffff', strokeWidth: 1 },
+  ])
+  assert.deepEqual(projectedCircles(pointResult), [{ cx: 60, cy: 50, radius: 1, fill: '#ffffff' }])
 })
 
 test('normal transparent materials project opacity across portable primitives', () => {

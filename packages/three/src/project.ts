@@ -21,6 +21,7 @@ import {
   type Object3D,
   type OrthographicCamera,
   type PerspectiveCamera,
+  type Plane,
   type Points,
   type PointsMaterial,
   type Scene,
@@ -117,6 +118,57 @@ function clippedSegment(from: Vector4, to: Vector4): readonly [Vector4, Vector4]
   for (const distance of clipPlanes) {
     const startDistance = distance(start)
     const endDistance = distance(end)
+    if (startDistance < 0 && endDistance < 0) return undefined
+    if (startDistance >= 0 && endDistance >= 0) continue
+    const crossing = start.clone().lerp(end, startDistance / (startDistance - endDistance))
+    if (startDistance < 0) start = crossing
+    else end = crossing
+  }
+  return [start, end]
+}
+
+function planeDistance(plane: Plane, point: Vector4): number {
+  return (
+    plane.normal.x * point.x + plane.normal.y * point.y + plane.normal.z * point.z + plane.constant
+  )
+}
+
+function clippedMaterialPolygon(source: readonly Vector4[], planes: readonly Plane[]): Vector4[] {
+  let polygon = source.map((point) => point.clone())
+  for (const plane of planes) {
+    if (polygon.length === 0) return polygon
+    const clipped: Vector4[] = []
+    let previous = polygon.at(-1) as Vector4
+    let previousDistance = planeDistance(plane, previous)
+    for (const current of polygon) {
+      const currentDistance = planeDistance(plane, current)
+      const previousInside = previousDistance >= 0
+      const currentInside = currentDistance >= 0
+      if (previousInside !== currentInside) {
+        const denominator = previousDistance - currentDistance
+        if (denominator !== 0) {
+          clipped.push(previous.clone().lerp(current, previousDistance / denominator))
+        }
+      }
+      if (currentInside) clipped.push(current.clone())
+      previous = current
+      previousDistance = currentDistance
+    }
+    polygon = clipped
+  }
+  return polygon
+}
+
+function clippedMaterialSegment(
+  from: Vector4,
+  to: Vector4,
+  planes: readonly Plane[],
+): readonly [Vector4, Vector4] | undefined {
+  let start = from.clone()
+  let end = to.clone()
+  for (const plane of planes) {
+    const startDistance = planeDistance(plane, start)
+    const endDistance = planeDistance(plane, end)
     if (startDistance < 0 && endDistance < 0) return undefined
     if (startDistance >= 0 && endDistance >= 0) continue
     const crossing = start.clone().lerp(end, startDistance / (startDistance - endDistance))
@@ -277,8 +329,8 @@ function materialReason(material: MeshBasicMaterial): string | undefined {
   ) {
     return 'textured MeshBasicMaterial is not in the flat-fill subset'
   }
-  if (material.clippingPlanes && material.clippingPlanes.length > 0) {
-    return 'material clipping planes are not projected'
+  if (material.clippingPlanes && material.clippingPlanes.length > 0 && material.clipIntersection) {
+    return 'intersecting material clipping planes are not projected'
   }
   return undefined
 }
@@ -299,8 +351,8 @@ function lineMaterialReason(material: LineBasicMaterial): string | undefined {
   }
   if (material.vertexColors) return 'vertex-coloured lines are not projected yet'
   if (!Number.isFinite(material.opacity)) return 'line opacity must be finite'
-  if (material.clippingPlanes && material.clippingPlanes.length > 0) {
-    return 'material clipping planes are not projected'
+  if (material.clippingPlanes && material.clippingPlanes.length > 0 && material.clipIntersection) {
+    return 'intersecting material clipping planes are not projected'
   }
   return undefined
 }
@@ -310,8 +362,8 @@ function pointsMaterialReason(material: PointsMaterial): string | undefined {
   if (baseReason) return baseReason
   if (!Number.isFinite(material.opacity)) return 'point opacity must be finite'
   if (material.map || material.alphaMap) return 'textured points are not projected yet'
-  if (material.clippingPlanes && material.clippingPlanes.length > 0) {
-    return 'material clipping planes are not projected'
+  if (material.clippingPlanes && material.clippingPlanes.length > 0 && material.clipIntersection) {
+    return 'intersecting material clipping planes are not projected'
   }
   return undefined
 }
@@ -639,7 +691,6 @@ function projectThreeSceneInternal(
       const start = Math.max(0, Math.floor(line.geometry.drawRange.start))
       const requested = line.geometry.drawRange.count
       const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
-      const matrix = new Matrix4().multiplyMatrices(viewProjection, line.matrixWorld)
       const morph = positionMorphState(line.geometry, line.morphTargetInfluences)
       const lineDistance = line.geometry.getAttribute('lineDistance')
       const dashedMaterial = (material as LineDashedMaterial).isLineDashedMaterial
@@ -647,7 +698,7 @@ function projectThreeSceneInternal(
         : undefined
       const vertex = (offset: number) => {
         const vertexIndex = index ? index.getX(offset) : offset
-        return localPosition(position, vertexIndex, morph).applyMatrix4(matrix)
+        return localPosition(position, vertexIndex, morph).applyMatrix4(line.matrixWorld)
       }
       const distance = (offset: number) => {
         const vertexIndex = index ? index.getX(offset) : offset
@@ -692,7 +743,16 @@ function projectThreeSceneInternal(
           return
         }
         for (const piece of pieces) {
-          const clipped = clippedSegment(piece[0], piece[1])
+          const materialClipped = clippedMaterialSegment(
+            piece[0],
+            piece[1],
+            (material.clippingPlanes ?? []) as readonly Plane[],
+          )
+          if (!materialClipped) continue
+          const clipped = clippedSegment(
+            materialClipped[0].clone().applyMatrix4(viewProjection),
+            materialClipped[1].clone().applyMatrix4(viewProjection),
+          )
           if (!clipped) continue
           const from = projectedPoint(clipped[0], options.width, options.height)
           const to = projectedPoint(clipped[1], options.width, options.height)
@@ -774,15 +834,19 @@ function projectThreeSceneInternal(
         })
         return
       }
-      const modelView = new Matrix4().multiplyMatrices(
-        camera.matrixWorldInverse,
-        points.matrixWorld,
-      )
       const morph = positionMorphState(points.geometry, points.morphTargetInfluences)
       const fillColor = new Color()
       for (let offset = start; offset < end; offset += 1) {
         const vertexIndex = index ? index.getX(offset) : offset
-        const view = localPosition(position, vertexIndex, morph).applyMatrix4(modelView)
+        const world = localPosition(position, vertexIndex, morph).applyMatrix4(points.matrixWorld)
+        if (
+          !((pointMaterial.clippingPlanes ?? []) as readonly Plane[]).every(
+            (plane) => planeDistance(plane, world) >= 0,
+          )
+        ) {
+          continue
+        }
+        const view = world.clone().applyMatrix4(camera.matrixWorldInverse)
         const clip = view.clone().applyMatrix4(camera.projectionMatrix)
         if (!clipPlanes.every((distance) => distance(clip) >= 0)) continue
         const projected = projectedPoint(clip, options.width, options.height)
@@ -1007,7 +1071,6 @@ function projectThreeSceneInternal(
     const fillColor = new Color()
     const skinnedPosition = new Vector3()
     for (const { color, morph, ranges, worldMatrix } of projectionInstances) {
-      const matrix = new Matrix4().multiplyMatrices(viewProjection, worldMatrix)
       const mirrored = worldMatrix.determinant() < 0
       const vertexAt = (vertexIndex: number) => {
         if (skinnedMesh) {
@@ -1017,9 +1080,9 @@ function projectThreeSceneInternal(
             skinnedPosition.y,
             skinnedPosition.z,
             1,
-          ).applyMatrix4(matrix)
+          ).applyMatrix4(worldMatrix)
         }
-        return localPosition(position, vertexIndex, morph).applyMatrix4(matrix)
+        return localPosition(position, vertexIndex, morph).applyMatrix4(worldMatrix)
       }
       const vertex = (offset: number) => {
         const vertexIndex = index ? index.getX(offset) : offset
@@ -1047,7 +1110,16 @@ function projectThreeSceneInternal(
             const fromIndex = wireframeIndices[offset]
             const toIndex = wireframeIndices[offset + 1]
             if (fromIndex === undefined || toIndex === undefined) continue
-            const clipped = clippedSegment(vertexAt(fromIndex), vertexAt(toIndex))
+            const materialClipped = clippedMaterialSegment(
+              vertexAt(fromIndex),
+              vertexAt(toIndex),
+              (range.material.clippingPlanes ?? []) as readonly Plane[],
+            )
+            if (!materialClipped) continue
+            const clipped = clippedSegment(
+              materialClipped[0].clone().applyMatrix4(viewProjection),
+              materialClipped[1].clone().applyMatrix4(viewProjection),
+            )
             if (!clipped) continue
             const from = projectedPoint(clipped[0], options.width, options.height)
             const to = projectedPoint(clipped[1], options.width, options.height)
@@ -1077,7 +1149,13 @@ function projectThreeSceneInternal(
         }
 
         for (let offset = range.start; offset + 2 < range.end; offset += 3) {
-          const polygon = clippedPolygon([vertex(offset), vertex(offset + 1), vertex(offset + 2)])
+          const materialPolygon = clippedMaterialPolygon(
+            [vertex(offset), vertex(offset + 1), vertex(offset + 2)],
+            (range.material.clippingPlanes ?? []) as readonly Plane[],
+          )
+          const polygon = clippedPolygon(
+            materialPolygon.map((point) => point.applyMatrix4(viewProjection)),
+          )
           if (polygon.length < 3) continue
           for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
             const first = polygon[0]
