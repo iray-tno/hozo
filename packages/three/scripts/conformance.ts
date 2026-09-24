@@ -407,13 +407,13 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'geometry',
     'material clipping planes',
-    'partial',
-    'World-space intersection and union clipping cut meshes and lines and discard points; Sprite clipping remains diagnosed.',
+    'full',
+    'World-space intersection and union clipping cut meshes, lines, and billboards, and discard points.',
     {
       tests: [
         project('material clipping planes cut meshes and lines and discard points in world space'),
         project('clipIntersection retains the disjoint union of material half-spaces'),
-        project('unsupported SpriteMaterial features are omitted with diagnostics'),
+        project('Sprite clipping planes cut billboards and preserve disjoint union regions'),
       ],
     },
   ),

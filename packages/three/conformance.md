@@ -20,10 +20,10 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | object | 11/11 (100.0%) | 11/11 (100.0%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 3/4 (75.0%) | 3/4 (75.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
-| geometry | 9/13 (69.2%) | 12/13 (92.3%) | 13/13 (100.0%) | 0 | 0 |
+| geometry | 10/13 (76.9%) | 12/13 (92.3%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 6/8 (75.0%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **31/58 (53.4%)** | **42/58 (72.4%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **32/58 (55.2%)** | **42/58 (72.4%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -105,7 +105,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | vertex colours | partial | Per-point RGB and solid or dashed line gradients work; interpolated mesh colours remain diagnosed. | [test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `LineBasicMaterial projects clipped RGB vertex colours as a portable gradient`<br>[test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
 | textures and UV sampling | diagnostic | Texture sampling requires a GPU backend. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
 | transparency and blending | partial | Normal alpha transparency maps to Canvas opacity after opaque primitives; custom blending is diagnosed. | [test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `transparent primitives paint after opaque primitives`<br>[test](src/project.test.ts) `non-default depth, stencil, write, offset, and blending state emit diagnostics` |
-| material clipping planes | partial | World-space intersection and union clipping cut meshes and lines and discard points; Sprite clipping remains diagnosed. | [test](src/project.test.ts) `material clipping planes cut meshes and lines and discard points in world space`<br>[test](src/project.test.ts) `clipIntersection retains the disjoint union of material half-spaces`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
+| material clipping planes | full | World-space intersection and union clipping cut meshes, lines, and billboards, and discard points. | [test](src/project.test.ts) `material clipping planes cut meshes and lines and discard points in world space`<br>[test](src/project.test.ts) `clipIntersection retains the disjoint union of material half-spaces`<br>[test](src/project.test.ts) `Sprite clipping planes cut billboards and preserve disjoint union regions` |
 
 ### scene
 
