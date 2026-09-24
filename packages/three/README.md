@@ -54,7 +54,9 @@ with their declared colour and width. `Points` with opaque, untextured
 attenuation. Wireframe `MeshBasicMaterial` is projected through the same line
 pipeline, including its colour and `wireframeLinewidth`. Mesh material arrays
 and `BufferGeometry` groups preserve each group's material and intersect with
-the geometry's draw range just as they do in Three.js.
+the geometry's draw range just as they do in Three.js. `LOD` selects its active
+level from the camera distance, and untextured solid-colour `SpriteMaterial`
+billboards preserve their centre, rotation, scale, and size attenuation.
 
 This is deliberately not a software WebGL implementation. Textures, lighting,
 blending, shaders, skinning, instancing, post-processing, and XR need a GPU

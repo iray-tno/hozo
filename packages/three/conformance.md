@@ -17,13 +17,13 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Category | Exact | Usable | Safe | Silent | Out of scope |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
-| object | 7/11 (63.6%) | 7/11 (63.6%) | 11/11 (100.0%) | 0 | 2 |
+| object | 8/11 (72.7%) | 8/11 (72.7%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
-| material | 0/17 (0.0%) | 3/17 (17.6%) | 17/17 (100.0%) | 0 | 1 |
+| material | 0/17 (0.0%) | 4/17 (23.5%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 7/13 (53.8%) | 7/13 (53.8%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **24/58 (41.4%)** | **29/58 (50.0%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **25/58 (43.1%)** | **31/58 (53.4%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -41,7 +41,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| BatchedMesh | diagnostic | Rejected before batch transforms can be lost. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics` |
+| BatchedMesh | diagnostic | Rejected before batch transforms can be lost. | [test](src/project.test.ts) `BatchedMesh emits a diagnostic before losing per-instance state` |
 | Bone | out-of-scope | A Bone has no independent render primitive. | — |
 | Group | full | Visibility and nested world transforms are traversed. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
 | InstancedMesh | diagnostic | Rejected with UNSUPPORTED_MESH. | [test](src/project.test.ts) `unsupported mesh variants emit diagnostics` |
@@ -53,7 +53,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Points | full | Point vertices project through the circle pipeline. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
 | Skeleton | out-of-scope | A Skeleton is data consumed by SkinnedMesh. | — |
 | SkinnedMesh | diagnostic | Rejected with UNSUPPORTED_MESH. | [test](src/project.test.ts) `unsupported mesh variants emit diagnostics` |
-| Sprite | diagnostic | Rejected until camera-facing quad projection is implemented. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics` |
+| Sprite | full | Camera-facing quads preserve centre, rotation, scale, and size attenuation. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
 
 ### camera
 
@@ -87,7 +87,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | PointsMaterial | partial | Opaque untextured colour, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
-| SpriteMaterial | diagnostic | Rejected with the owning Sprite. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics` |
+| SpriteMaterial | partial | Solid opaque colour works; texture and translucent features are diagnosed. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
 
 ### geometry
 

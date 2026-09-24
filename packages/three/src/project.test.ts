@@ -637,23 +637,66 @@ test('LOD selects the camera-distance level and honours manual visibility', () =
   )
 })
 
-test('unsupported scene object families emit diagnostics', () => {
-  const cases = [
-    {
-      code: 'UNSUPPORTED_MESH',
-      object: new THREE.BatchedMesh(1, 3, 3, new MeshBasicMaterial()),
-    },
-    { code: 'UNSUPPORTED_OBJECT', object: new THREE.Sprite(new THREE.SpriteMaterial()) },
-  ] as const
+test('Sprite projects its billboard centre, rotation, and perspective attenuation', () => {
+  const material = new THREE.SpriteMaterial({ color: '#16a34a' })
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(2, 2, 1)
+  const scene = new Scene()
+  scene.add(sprite)
+  const camera = perspective()
+  const path = () =>
+    projectedPaths(projectThreeScene(scene, camera, { width: 100, height: 100 }))[0]?.path
 
-  for (const item of cases) {
+  assert.equal(path(), 'M 40 60 L 60 60 L 60 40 L 40 40 Z')
+
+  material.rotation = Math.PI / 2
+  assert.equal(path(), 'M 60 60 L 60 40 L 40 40 L 40 60 Z')
+
+  material.rotation = 0
+  sprite.center.set(0, 0)
+  assert.equal(path(), 'M 50 50 L 70 50 L 70 30 L 50 30 Z')
+
+  sprite.center.set(0.5, 0.5)
+  material.sizeAttenuation = false
+  assert.equal(path(), 'M 0 0 L 0 100 L 100 100 L 100 0 Z')
+
+  sprite.count = 0
+  assert.equal(projectThreeScene(scene, camera, { width: 100, height: 100 }).scene.length, 0)
+})
+
+test('unsupported SpriteMaterial features are omitted with diagnostics', () => {
+  const materials = [
+    new THREE.SpriteMaterial({ map: new Texture() }),
+    new THREE.SpriteMaterial({ opacity: 0.5 }),
+    new THREE.SpriteMaterial({ depthTest: false }),
+  ]
+
+  for (const material of materials) {
     const scene = new Scene()
-    scene.add(item.object)
+    scene.add(new THREE.Sprite(material))
     const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
     assert.deepEqual(result.scene, [])
-    assert.equal(result.diagnostics.length, 1)
-    assert.equal(result.diagnostics[0]?.code, item.code)
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
   }
+
+  const sprite = new THREE.Sprite()
+  sprite.material = new MeshBasicMaterial() as unknown as THREE.SpriteMaterial
+  const scene = new Scene()
+  scene.add(sprite)
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+})
+
+test('BatchedMesh emits a diagnostic before losing per-instance state', () => {
+  const scene = new Scene()
+  scene.add(new THREE.BatchedMesh(1, 3, 3, new MeshBasicMaterial()))
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics.length, 1)
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
 })
 
 test('ArrayCamera emits a diagnostic instead of using its inherited perspective matrix', () => {

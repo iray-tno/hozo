@@ -17,6 +17,8 @@ import {
   type Points,
   type PointsMaterial,
   type Scene,
+  type Sprite,
+  type SpriteMaterial,
   type Line as ThreeLine,
   Vector4,
 } from 'three'
@@ -206,6 +208,19 @@ function pointsMaterialReason(material: PointsMaterial): string | undefined {
   return undefined
 }
 
+function spriteMaterialReason(material: SpriteMaterial): string | undefined {
+  const baseReason = baseMaterialReason(material)
+  if (baseReason) return baseReason
+  if (material.opacity !== 1) {
+    return 'translucent sprites need depth-aware compositing and are not projected'
+  }
+  if (material.map || material.alphaMap) return 'textured sprites are not projected yet'
+  if (material.clippingPlanes && material.clippingPlanes.length > 0) {
+    return 'material clipping planes are not projected'
+  }
+  return undefined
+}
+
 function isSupportedCamera(object: Object3D): object is SupportedCamera {
   const candidate = object as Partial<PerspectiveCamera & OrthographicCamera>
   return candidate.isPerspectiveCamera === true || candidate.isOrthographicCamera === true
@@ -340,10 +355,85 @@ export function projectThreeScene(
     if (!object.layers.test(camera.layers)) return
     const groupOrder = inheritedGroupOrder(object, camera)
     if (candidate.isSprite === true) {
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_OBJECT',
-        message: 'Sprite needs camera-facing quad projection and is not projected yet.',
+      const sprite = object as Sprite
+      if (sprite.count <= 0) return
+      const material = sprite.material as Partial<SpriteMaterial>
+      if (material.isSpriteMaterial !== true) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: 'The portable sprite subset currently accepts SpriteMaterial only.',
+          object,
+        })
+        return
+      }
+      if (material.visible === false) return
+      const reason = spriteMaterialReason(material as SpriteMaterial)
+      if (reason) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: reason,
+          object,
+        })
+        return
+      }
+
+      const spriteMaterial = material as SpriteMaterial
+      const modelView = new Matrix4().multiplyMatrices(
+        camera.matrixWorldInverse,
+        sprite.matrixWorld,
+      )
+      const world = sprite.matrixWorld.elements
+      let scaleX = Math.hypot(world[0] ?? 0, world[1] ?? 0, world[2] ?? 0)
+      let scaleY = Math.hypot(world[4] ?? 0, world[5] ?? 0, world[6] ?? 0)
+      const viewX = modelView.elements[12] ?? 0
+      const viewY = modelView.elements[13] ?? 0
+      const viewZ = modelView.elements[14] ?? 0
+      if (
+        (camera as Partial<PerspectiveCamera>).isPerspectiveCamera === true &&
+        !spriteMaterial.sizeAttenuation
+      ) {
+        scaleX *= -viewZ
+        scaleY *= -viewZ
+      }
+      const cosine = Math.cos(spriteMaterial.rotation)
+      const sine = Math.sin(spriteMaterial.rotation)
+      const corners = [
+        [-0.5, -0.5],
+        [0.5, -0.5],
+        [0.5, 0.5],
+        [-0.5, 0.5],
+      ] as const
+      const polygon = clippedPolygon(
+        corners.map(([x, y]) => {
+          const alignedX = (x - (sprite.center.x - 0.5)) * scaleX
+          const alignedY = (y - (sprite.center.y - 0.5)) * scaleY
+          return new Vector4(
+            viewX + cosine * alignedX - sine * alignedY,
+            viewY + sine * alignedX + cosine * alignedY,
+            viewZ,
+            1,
+          ).applyMatrix4(camera.projectionMatrix)
+        }),
+      )
+      if (polygon.length < 3) return
+      const projected = polygon.map((point) => projectedPoint(point, options.width, options.height))
+      if (projected.some((point) => point === undefined)) return
+      const points = projected as { x: number; y: number; z: number }[]
+      const [first, ...rest] = points
+      if (!first) return
+      const path = `M ${printable(first.x)} ${printable(first.y)} ${rest
+        .map((point) => `L ${printable(point.x)} ${printable(point.y)}`)
+        .join(' ')} Z`
+      primitives.push({
+        depth: points.reduce((sum, point) => sum + point.z, 0) / points.length,
+        groupOrder,
         object,
+        order: order++,
+        renderOrder: object.renderOrder,
+        node: {
+          kind: 'path',
+          props: { path, fill: `#${spriteMaterial.color.getHexString()}` },
+        },
       })
       return
     }
