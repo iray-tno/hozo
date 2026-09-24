@@ -18,12 +18,12 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | --- | ---: | ---: | ---: | ---: | ---: |
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
 | object | 9/11 (81.8%) | 10/11 (90.9%) | 11/11 (100.0%) | 0 | 2 |
-| camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
+| camera | 3/4 (75.0%) | 3/4 (75.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 9/13 (69.2%) | 10/13 (76.9%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **28/58 (48.3%)** | **37/58 (63.8%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **29/58 (50.0%)** | **38/58 (65.5%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -59,7 +59,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| ArrayCamera | diagnostic | Rejected until child camera viewports are supported. | [test](src/project.test.ts) `ArrayCamera emits a diagnostic instead of using its inherited perspective matrix` |
+| ArrayCamera | full | Each child camera projects into its bottom-left viewport in declared order. | [test](src/project.test.ts) `ArrayCamera projects each sub-camera into its bottom-left viewport`<br>[test](src/project.test.ts) `ArrayCamera diagnoses sub-cameras without a viewport` |
 | Camera | diagnostic | A base camera has no usable projection and is rejected. | [test](src/project.test.ts) `unsupported inputs are omitted with actionable diagnostics` |
 | CubeCamera | out-of-scope | Environment capture needs a GPU renderer. | — |
 | OrthographicCamera | full | Its public projection matrix is honoured. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
