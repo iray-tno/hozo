@@ -269,6 +269,103 @@ test('far triangles are painted before near triangles', () => {
   assert.deepEqual(fills, ['#0000ff', '#ff0000'])
 })
 
+test('renderOrder overrides painter depth while preserving stable object order', () => {
+  const scene = new Scene()
+  const near = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#ff0000' }))
+  const far = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#0000ff' }))
+  far.position.z = -1
+  far.renderOrder = 1
+  scene.add(near, far)
+
+  const fills = projectedPaths(
+    projectThreeScene(scene, perspective(), { width: 100, height: 100 }),
+  ).map((path) => path.fill)
+
+  assert.deepEqual(fills, ['#ff0000', '#0000ff'])
+})
+
+test('Group renderOrder applies to its projected descendants', () => {
+  const scene = new Scene()
+  const lateGroup = new Group()
+  lateGroup.renderOrder = 1
+  lateGroup.add(new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#0000ff' })))
+  const lateChild = lateGroup.children[0]
+  assert.ok(lateChild)
+  lateChild.position.z = -1
+  scene.add(lateGroup, new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#ff0000' })))
+
+  const fills = projectedPaths(
+    projectThreeScene(scene, perspective(), { width: 100, height: 100 }),
+  ).map((path) => path.fill)
+
+  assert.deepEqual(fills, ['#ff0000', '#0000ff'])
+})
+
+test('camera layers filter objects without hiding matching descendants', () => {
+  const scene = new Scene()
+  const hiddenParent = new Group()
+  hiddenParent.layers.set(1)
+  hiddenParent.add(new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#ff0000' })))
+  const hiddenMesh = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#0000ff' }))
+  hiddenMesh.layers.set(1)
+  scene.add(hiddenParent, hiddenMesh)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(
+    projectedPaths(result).map((path) => path.fill),
+    ['#ff0000'],
+  )
+})
+
+test('solid scene backgrounds become non-interactive Canvas rectangles', () => {
+  const scene = new Scene()
+  scene.background = new THREE.Color('#123456')
+
+  const result = projectThreeScene(scene, perspective(), { width: 120, height: 80 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(result.scene, [
+    {
+      kind: 'rect',
+      props: { x: 0, y: 0, width: 120, height: 80, fill: '#123456' },
+    },
+  ])
+  assert.deepEqual(result.objects, [undefined])
+})
+
+test('texture backgrounds are diagnosed while otherwise portable geometry remains visible', () => {
+  const scene = new Scene()
+  scene.background = new Texture()
+  scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.equal(result.scene.length, 1)
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
+})
+
+test('scene-wide material overrides and fog diagnose and omit affected geometry', () => {
+  for (const configure of [
+    (scene: Scene) => {
+      scene.overrideMaterial = new MeshBasicMaterial()
+    },
+    (scene: Scene) => {
+      scene.fog = new THREE.Fog('#ffffff', 1, 10)
+    },
+  ]) {
+    const scene = new Scene()
+    scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
+    configure(scene)
+
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
+  }
+})
+
 test('wireframe MeshBasicMaterial becomes three Canvas lines per triangle', () => {
   const scene = new Scene()
   scene.add(
@@ -586,6 +683,37 @@ test('unsupported MeshBasicMaterial features emit diagnostics', () => {
   for (const material of materials) {
     const scene = new Scene()
     scene.add(new Mesh(triangleGeometry(), material))
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  }
+})
+
+test('non-default depth, stencil, write, offset, and blending state emit diagnostics', () => {
+  const materials = [
+    new MeshBasicMaterial({ depthTest: false }),
+    new MeshBasicMaterial({ depthWrite: false }),
+    new MeshBasicMaterial({ depthFunc: THREE.AlwaysDepth }),
+    new MeshBasicMaterial({ stencilWrite: true }),
+    new MeshBasicMaterial({ colorWrite: false }),
+    new MeshBasicMaterial({ polygonOffset: true }),
+    new MeshBasicMaterial({ blending: THREE.AdditiveBlending }),
+  ]
+
+  for (const material of materials) {
+    const scene = new Scene()
+    scene.add(new Mesh(triangleGeometry(), material))
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  }
+
+  for (const object of [
+    new Line(triangleGeometry(), new LineBasicMaterial({ depthTest: false })),
+    new Points(triangleGeometry(), new PointsMaterial({ depthTest: false })),
+  ]) {
+    const scene = new Scene()
+    scene.add(object)
     const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
     assert.deepEqual(result.scene, [])
     assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')

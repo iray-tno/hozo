@@ -6,6 +6,7 @@ import { createRef } from 'react'
 import {
   BoxGeometry,
   BufferGeometry,
+  Color,
   Float32BufferAttribute,
   Mesh,
   MeshBasicMaterial,
@@ -43,7 +44,7 @@ function triangleScene() {
   return { camera, mesh, scene }
 }
 
-function recordingSurface(paths: string[]) {
+function recordingSurface(paths: string[], rectangles: number[][] = []) {
   class RecordedPath {
     constructor(path: string) {
       paths.push(path)
@@ -51,7 +52,13 @@ function recordingSurface(paths: string[]) {
   }
   ;(globalThis as { Path2D?: typeof Path2D }).Path2D = RecordedPath as unknown as typeof Path2D
   const context = new Proxy(
-    { globalAlpha: 1, lineWidth: 1, isPointInPath: () => true } as Record<string, unknown>,
+    {
+      globalAlpha: 1,
+      lineWidth: 1,
+      isPointInPath: () => true,
+      rect: (x: number, y: number, width: number, height: number) =>
+        rectangles.push([x, y, width, height]),
+    } as Record<string, unknown>,
     {
       get: (target, property) =>
         property in target ? target[property as string] : () => undefined,
@@ -67,6 +74,36 @@ function recordingSurface(paths: string[]) {
     setPointerCapture: () => undefined,
   }
 }
+
+test('ThreeCanvas paints scene backgrounds without creating an object control', async () => {
+  const scene = new Scene()
+  scene.background = new Color('#123456')
+  const camera = new PerspectiveCamera(90, 1, 1, 10)
+  camera.position.z = 5
+  const rectangles: number[][] = []
+  let renderer: ReturnType<typeof testRenderer.create> | undefined
+
+  await testRenderer.act(async () => {
+    renderer = testRenderer.create(
+      <ThreeCanvas
+        accessibilityLabel="Background scene"
+        scene={scene}
+        camera={camera}
+        width={100}
+        height={80}
+        onObjectPress={() => undefined}
+      />,
+      {
+        createNodeMock: (element) =>
+          element.type === 'canvas' ? recordingSurface([], rectangles) : null,
+      },
+    )
+  })
+
+  assert.deepEqual(rectangles.at(-1), [0, 0, 100, 80])
+  assert.equal(renderer?.root.findAllByType('button').length, 0)
+  await testRenderer.act(async () => renderer?.unmount())
+})
 
 test('ThreeCanvas draws a projected Three scene and invalidates imperative mutations', async () => {
   const { camera, mesh, scene } = triangleScene()

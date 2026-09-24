@@ -1,11 +1,15 @@
 import type { CanvasScene, CanvasSceneNode } from '@hozo/canvas'
 import {
   BackSide,
+  type Color,
   DoubleSide,
+  LessEqualDepth,
   type LineBasicMaterial,
+  type Material,
   Matrix4,
   type Mesh,
   type MeshBasicMaterial,
+  NormalBlending,
   type Object3D,
   type OrthographicCamera,
   type PerspectiveCamera,
@@ -23,6 +27,7 @@ export type ThreeProjectionDiagnosticCode =
   | 'UNSUPPORTED_MATERIAL'
   | 'UNSUPPORTED_MESH'
   | 'UNSUPPORTED_OBJECT'
+  | 'UNSUPPORTED_SCENE'
 
 export interface ThreeProjectionDiagnostic {
   code: ThreeProjectionDiagnosticCode
@@ -38,19 +43,25 @@ export interface ThreeProjectionOptions {
 
 export interface ThreeProjection {
   scene: CanvasScene
-  /** Source object for each scene node at the same index. */
-  objects: readonly Object3D[]
+  /** Source object for each scene node at the same index, absent for scene decoration. */
+  objects: readonly (Object3D | undefined)[]
   diagnostics: readonly ThreeProjectionDiagnostic[]
 }
 
 interface ProjectedPrimitive {
   depth: number
+  groupOrder: number
   object: Object3D
   order: number
+  renderOrder: number
   node: CanvasSceneNode
 }
 
 type SupportedCamera = PerspectiveCamera | OrthographicCamera
+
+function isColorBackground(background: Scene['background']): background is Color {
+  return background !== null && (background as Color).isColor === true
+}
 
 const clipPlanes = [
   (point: Vector4) => point.w + point.x,
@@ -126,7 +137,24 @@ function signedArea(points: readonly { x: number; y: number }[]) {
   return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
 }
 
+function baseMaterialReason(material: Material): string | undefined {
+  if (material.blending !== NormalBlending) return 'non-default blending is not projected'
+  if (
+    material.depthTest !== true ||
+    material.depthWrite !== true ||
+    material.depthFunc !== LessEqualDepth
+  ) {
+    return 'non-default depth material state is not projected'
+  }
+  if (material.stencilWrite) return 'stencil-writing materials are not projected'
+  if (!material.colorWrite) return 'materials with colorWrite disabled are not projected'
+  if (material.polygonOffset) return 'polygon-offset material state is not projected'
+  return undefined
+}
+
 function materialReason(material: MeshBasicMaterial): string | undefined {
+  const baseReason = baseMaterialReason(material)
+  if (baseReason) return baseReason
   if (material.vertexColors) return 'vertex colours are not in the flat-fill subset'
   if (material.transparent || material.opacity !== 1) {
     return 'transparent materials need depth-aware compositing and are not projected'
@@ -148,6 +176,8 @@ function materialReason(material: MeshBasicMaterial): string | undefined {
 }
 
 function lineMaterialReason(material: LineBasicMaterial): string | undefined {
+  const baseReason = baseMaterialReason(material)
+  if (baseReason) return baseReason
   if ((material as LineBasicMaterial & { isLineDashedMaterial?: boolean }).isLineDashedMaterial) {
     return 'dashed line materials are not projected yet'
   }
@@ -162,6 +192,8 @@ function lineMaterialReason(material: LineBasicMaterial): string | undefined {
 }
 
 function pointsMaterialReason(material: PointsMaterial): string | undefined {
+  const baseReason = baseMaterialReason(material)
+  if (baseReason) return baseReason
   if (material.vertexColors) return 'vertex-coloured points are not projected yet'
   if (material.transparent || material.opacity !== 1) {
     return 'transparent points need depth-aware compositing and are not projected'
@@ -176,6 +208,20 @@ function pointsMaterialReason(material: PointsMaterial): string | undefined {
 function isSupportedCamera(object: Object3D): object is SupportedCamera {
   const candidate = object as Partial<PerspectiveCamera & OrthographicCamera>
   return candidate.isPerspectiveCamera === true || candidate.isOrthographicCamera === true
+}
+
+function inheritedGroupOrder(object: Object3D, camera: SupportedCamera): number {
+  let ancestor = object.parent
+  while (ancestor) {
+    if (
+      (ancestor as Object3D & { isGroup?: boolean }).isGroup === true &&
+      ancestor.layers.test(camera.layers)
+    ) {
+      return ancestor.renderOrder
+    }
+    ancestor = ancestor.parent
+  }
+  return 0
 }
 
 function diagnostic(
@@ -227,6 +273,49 @@ export function projectThreeScene(
     return { scene: [], objects: [], diagnostics }
   }
 
+  const decoration: CanvasSceneNode[] = []
+  const decorationObjects: undefined[] = []
+  if (isColorBackground(scene.background)) {
+    decoration.push({
+      kind: 'rect',
+      props: {
+        x: 0,
+        y: 0,
+        width: options.width,
+        height: options.height,
+        fill: `#${scene.background.getHexString()}`,
+      },
+    })
+    decorationObjects.push(undefined)
+  } else if (scene.background !== null) {
+    diagnostic(diagnostics, options, {
+      code: 'UNSUPPORTED_SCENE',
+      message: 'Texture and cube-texture scene backgrounds are not projected yet.',
+      object: scene,
+    })
+  }
+
+  let rejectSceneGeometry = false
+  if (scene.overrideMaterial !== null) {
+    diagnostic(diagnostics, options, {
+      code: 'UNSUPPORTED_SCENE',
+      message: 'Scene.overrideMaterial is not projected; affected geometry was omitted.',
+      object: scene,
+    })
+    rejectSceneGeometry = true
+  }
+  if (scene.fog !== null) {
+    diagnostic(diagnostics, options, {
+      code: 'UNSUPPORTED_SCENE',
+      message: 'Scene fog is not projected; affected geometry was omitted.',
+      object: scene,
+    })
+    rejectSceneGeometry = true
+  }
+  if (rejectSceneGeometry) {
+    return { scene: decoration, objects: decorationObjects, diagnostics }
+  }
+
   scene.updateMatrixWorld(true)
   camera.updateMatrixWorld(true)
   const viewProjection = new Matrix4().multiplyMatrices(
@@ -249,13 +338,17 @@ export function projectThreeScene(
     }
     if (candidate.isLOD === true) {
       rejectedSubtrees.add(object)
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_OBJECT',
-        message: 'LOD needs camera-distance level selection and is not projected yet.',
-        object,
-      })
+      if (object.layers.test(camera.layers)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_OBJECT',
+          message: 'LOD needs camera-distance level selection and is not projected yet.',
+          object,
+        })
+      }
       return
     }
+    if (!object.layers.test(camera.layers)) return
+    const groupOrder = inheritedGroupOrder(object, camera)
     if (candidate.isSprite === true) {
       diagnostic(diagnostics, options, {
         code: 'UNSUPPORTED_OBJECT',
@@ -349,8 +442,10 @@ export function projectThreeScene(
         if (!from || !to || (from.x === to.x && from.y === to.y)) continue
         primitives.push({
           depth: (from.z + to.z) / 2,
+          groupOrder,
           object,
           order: order++,
+          renderOrder: object.renderOrder,
           node: {
             kind: 'line',
             props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke, strokeWidth },
@@ -437,8 +532,10 @@ export function projectThreeScene(
         if (!(radius > 0) || !Number.isFinite(radius)) continue
         primitives.push({
           depth: projected.z,
+          groupOrder,
           object,
           order: order++,
+          renderOrder: object.renderOrder,
           node: {
             kind: 'circle',
             props: { cx: projected.x, cy: projected.y, radius, fill },
@@ -585,8 +682,10 @@ export function projectThreeScene(
           if (!from || !to || (from.x === to.x && from.y === to.y)) continue
           primitives.push({
             depth: (from.z + to.z) / 2,
+            groupOrder,
             object,
             order: order++,
+            renderOrder: object.renderOrder,
             node: {
               kind: 'line',
               props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: fill, strokeWidth },
@@ -617,8 +716,10 @@ export function projectThreeScene(
           const path = `M ${printable(projected[0]?.x ?? 0)} ${printable(projected[0]?.y ?? 0)} L ${printable(projected[1]?.x ?? 0)} ${printable(projected[1]?.y ?? 0)} L ${printable(projected[2]?.x ?? 0)} ${printable(projected[2]?.y ?? 0)} Z`
           primitives.push({
             depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
+            groupOrder,
             object,
             order: order++,
+            renderOrder: object.renderOrder,
             node: { kind: 'path', props: { path, fill } },
           })
         }
@@ -626,10 +727,16 @@ export function projectThreeScene(
     }
   })
 
-  primitives.sort((left, right) => right.depth - left.depth || left.order - right.order)
+  primitives.sort(
+    (left, right) =>
+      left.groupOrder - right.groupOrder ||
+      left.renderOrder - right.renderOrder ||
+      right.depth - left.depth ||
+      left.order - right.order,
+  )
   return {
-    scene: primitives.map((primitive) => primitive.node),
-    objects: primitives.map((primitive) => primitive.object),
+    scene: [...decoration, ...primitives.map((primitive) => primitive.node)],
+    objects: [...decorationObjects, ...primitives.map((primitive) => primitive.object)],
     diagnostics,
   }
 }
