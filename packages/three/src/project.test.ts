@@ -540,10 +540,48 @@ test('LineBasicMaterial projects clipped RGB vertex colours as a portable gradie
     },
   ])
 
-  line.material = new LineDashedMaterial({ vertexColors: true })
+  geometry.setAttribute('lineDistance', new Float32BufferAttribute([0, 2], 1))
+  line.material = new LineDashedMaterial({
+    dashSize: 0.5,
+    gapSize: 0.5,
+    vertexColors: true,
+  })
   const dashed = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
-  assert.deepEqual(dashed.scene, [])
-  assert.equal(dashed.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  assert.deepEqual(dashed.diagnostics, [])
+  assert.deepEqual(projectedLines(dashed), [
+    {
+      x1: 40,
+      y1: 50,
+      x2: 45,
+      y2: 50,
+      stroke: {
+        kind: 'linear',
+        from: { x: 40, y: 50 },
+        to: { x: 45, y: 50 },
+        stops: [
+          { offset: 0, color: '#ff0000' },
+          { offset: 1, color: '#e10089' },
+        ],
+      },
+      strokeWidth: 1,
+    },
+    {
+      x1: 50,
+      y1: 50,
+      x2: 55.00000000000001,
+      y2: 50,
+      stroke: {
+        kind: 'linear',
+        from: { x: 50, y: 50 },
+        to: { x: 55.00000000000001, y: 50 },
+        stops: [
+          { offset: 0, color: '#bc00bc' },
+          { offset: 1, color: '#8900e1' },
+        ],
+      },
+      strokeWidth: 1,
+    },
+  ])
 })
 
 test('a line crossing the near plane is clipped to finite viewport coordinates', () => {
