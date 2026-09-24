@@ -71,6 +71,8 @@ interface ProjectedPrimitive {
   node: CanvasSceneNode
 }
 
+type CanvasStroke = Extract<CanvasSceneNode, { kind: 'line' }>['props']['stroke']
+
 type SupportedCamera = PerspectiveCamera | OrthographicCamera
 
 function isColorBackground(background: Scene['background']): background is Color {
@@ -176,6 +178,26 @@ function clippedMaterialSegment(
     else end = crossing
   }
   return [start, end]
+}
+
+function segmentRatio(point: Vector4, from: Vector4, to: Vector4): number {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const dz = to.z - from.z
+  const dw = to.w - from.w
+  const denominator = dx * dx + dy * dy + dz * dz + dw * dw
+  if (denominator === 0) return 0
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - from.x) * dx +
+        (point.y - from.y) * dy +
+        (point.z - from.z) * dz +
+        (point.w - from.w) * dw) /
+        denominator,
+    ),
+  )
 }
 
 function positiveModulo(value: number, divisor: number): number {
@@ -349,7 +371,9 @@ function lineMaterialReason(material: LineBasicMaterial): string | undefined {
       return 'dashed line sizes and scale must be finite and non-negative'
     }
   }
-  if (material.vertexColors) return 'vertex-coloured lines are not projected yet'
+  if (material.vertexColors && (material as LineDashedMaterial).isLineDashedMaterial) {
+    return 'vertex-coloured dashed lines are not projected yet'
+  }
   if (!Number.isFinite(material.opacity)) return 'line opacity must be finite'
   if (material.clippingPlanes && material.clippingPlanes.length > 0 && material.clipIntersection) {
     return 'intersecting material clipping planes are not projected'
@@ -698,6 +722,15 @@ function projectThreeSceneInternal(
       const dashedMaterial = (material as LineDashedMaterial).isLineDashedMaterial
         ? (material as LineDashedMaterial)
         : undefined
+      const color = material.vertexColors ? line.geometry.getAttribute('color') : undefined
+      if (color && color.itemSize < 3) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message: 'Line colour attributes need at least RGB components.',
+          object,
+        })
+        return
+      }
       const vertex = (offset: number) => {
         const vertexIndex = index ? index.getX(offset) : offset
         return localPosition(position, vertexIndex, morph).applyMatrix4(line.matrixWorld)
@@ -726,6 +759,8 @@ function projectThreeSceneInternal(
       for (const [fromOffset, toOffset] of segments) {
         const fromVertex = vertex(fromOffset)
         const toVertex = vertex(toOffset)
+        const fromClip = fromVertex.clone().applyMatrix4(viewProjection)
+        const toClip = toVertex.clone().applyMatrix4(viewProjection)
         const pieces = dashedMaterial
           ? dashedSegments(
               fromVertex,
@@ -759,6 +794,36 @@ function projectThreeSceneInternal(
           const from = projectedPoint(clipped[0], options.width, options.height)
           const to = projectedPoint(clipped[1], options.width, options.height)
           if (!from || !to || (from.x === to.x && from.y === to.y)) continue
+          let projectedStroke: CanvasStroke = stroke
+          if (color) {
+            const fromIndex = index ? index.getX(fromOffset) : fromOffset
+            const toIndex = index ? index.getX(toOffset) : toOffset
+            const fromColor = new Color(
+              color.getX(fromIndex),
+              color.getY(fromIndex),
+              color.getZ(fromIndex),
+            ).multiply((material as LineBasicMaterial).color)
+            const toColor = new Color(
+              color.getX(toIndex),
+              color.getY(toIndex),
+              color.getZ(toIndex),
+            ).multiply((material as LineBasicMaterial).color)
+            const clippedFromColor = fromColor
+              .clone()
+              .lerp(toColor, segmentRatio(clipped[0], fromClip, toClip))
+            const clippedToColor = fromColor
+              .clone()
+              .lerp(toColor, segmentRatio(clipped[1], fromClip, toClip))
+            projectedStroke = {
+              kind: 'linear',
+              from: { x: from.x, y: from.y },
+              to: { x: to.x, y: to.y },
+              stops: [
+                { offset: 0, color: `#${clippedFromColor.getHexString()}` },
+                { offset: 1, color: `#${clippedToColor.getHexString()}` },
+              ],
+            }
+          }
           primitives.push({
             depth: (from.z + to.z) / 2,
             groupOrder,
@@ -773,7 +838,7 @@ function projectThreeSceneInternal(
                 y1: from.y,
                 x2: to.x,
                 y2: to.y,
-                stroke,
+                stroke: projectedStroke,
                 strokeWidth,
                 ...projectedOpacityProps(material as LineBasicMaterial),
               },

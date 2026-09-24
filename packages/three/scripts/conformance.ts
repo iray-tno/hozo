@@ -199,11 +199,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'LineBasicMaterial',
     'partial',
-    'Colour, width, and normal alpha transparency work; advanced base material state does not.',
+    'Colour, width, RGB vertex gradients, and normal alpha transparency work; advanced base material state does not.',
     {
       upstream: upstream('material', 'LineBasicMaterial'),
       tests: [
         project('LineSegments become independent Canvas lines with material colour and width'),
+        project('LineBasicMaterial projects clipped RGB vertex colours as a portable gradient'),
         project('normal transparent materials project opacity across portable primitives'),
       ],
     },
@@ -369,10 +370,11 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'vertex colours',
     'partial',
-    'Per-point RGB works; interpolated mesh and line colours remain diagnosed.',
+    'Per-point RGB and solid-line gradients work; mesh colours and dashed-line colour gradients remain diagnosed.',
     {
       tests: [
         project('PointsMaterial multiplies per-point RGB colours'),
+        project('LineBasicMaterial projects clipped RGB vertex colours as a portable gradient'),
         project('unsupported MeshBasicMaterial features emit diagnostics'),
       ],
     },
