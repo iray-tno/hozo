@@ -1,6 +1,7 @@
 import type { CanvasScene, CanvasSceneNode } from '@hozo/canvas'
 import {
   BackSide,
+  type BatchedMesh,
   type BufferAttribute,
   type BufferGeometry,
   Color,
@@ -762,15 +763,7 @@ export function projectThreeScene(
     }
     if (candidate.isMesh !== true) return
     const mesh = object as Mesh
-    if (candidate.isBatchedMesh === true) {
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_MESH',
-        message:
-          'BatchedMesh needs per-instance transforms and visibility and is not projected yet.',
-        object,
-      })
-      return
-    }
+    const batchedMesh = candidate.isBatchedMesh === true ? (mesh as BatchedMesh) : undefined
     const instancedMesh = (mesh as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh
       ? (mesh as InstancedMesh)
       : undefined
@@ -801,15 +794,22 @@ export function projectThreeScene(
     }
     const index = mesh.geometry.getIndex()
     const available = index?.count ?? position.count
-    const start = Math.max(0, Math.floor(mesh.geometry.drawRange.start))
+    const drawStart = Math.max(0, Math.floor(mesh.geometry.drawRange.start))
     const requested = mesh.geometry.drawRange.count
-    const end = Math.min(
+    const drawEnd = Math.min(
       available,
-      Number.isFinite(requested) ? Math.floor(start + requested) : available,
+      Number.isFinite(requested) ? Math.floor(drawStart + requested) : available,
     )
-    const ranges: { end: number; material: MeshBasicMaterial; start: number }[] = []
+    type MaterialRange = { end: number; material: MeshBasicMaterial; start: number }
     const reportedMaterials = new Set<unknown>()
-    const appendRange = (source: unknown, groupStart = start, groupCount = end - start) => {
+    const appendRange = (
+      ranges: MaterialRange[],
+      source: unknown,
+      start: number,
+      end: number,
+      groupStart = start,
+      groupCount = end - start,
+    ) => {
       if (!source || typeof source !== 'object') return
       const material = source as Partial<MeshBasicMaterial>
       // Three does not enqueue invisible group materials at all. This is
@@ -844,28 +844,102 @@ export function projectThreeScene(
       if (rangeEnd <= rangeStart) return
       ranges.push({ start: rangeStart, end: rangeEnd, material: material as MeshBasicMaterial })
     }
-    if (Array.isArray(mesh.material)) {
-      for (const group of mesh.geometry.groups) {
-        appendRange(mesh.material[group.materialIndex ?? 0], group.start, group.count)
+    const rangesFor = (start: number, end: number): MaterialRange[] => {
+      const ranges: MaterialRange[] = []
+      if (Array.isArray(mesh.material)) {
+        for (const group of mesh.geometry.groups) {
+          appendRange(
+            ranges,
+            mesh.material[group.materialIndex ?? 0],
+            start,
+            end,
+            group.start,
+            group.count,
+          )
+        }
+      } else {
+        appendRange(ranges, mesh.material, start, end)
       }
-    } else {
-      appendRange(mesh.material)
+      return ranges
     }
-    if (ranges.length === 0) return
 
-    const worldMatrices: Matrix4[] = []
-    if (instancedMesh) {
+    interface MeshProjectionInstance {
+      color?: Color
+      ranges: MaterialRange[]
+      worldMatrix: Matrix4
+    }
+    const projectionInstances: MeshProjectionInstance[] = []
+    if (batchedMesh) {
+      if (Array.isArray(mesh.material)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: 'BatchedMesh material arrays cannot be matched to source geometry groups.',
+          object,
+        })
+        return
+      }
+      const instanceMatrix = new Matrix4()
+      let colorsAvailable: boolean | undefined
+      let found = 0
+      for (
+        let instance = 0;
+        instance < batchedMesh.maxInstanceCount && found < batchedMesh.instanceCount;
+        instance += 1
+      ) {
+        let visible: boolean
+        try {
+          visible = batchedMesh.getVisibleAt(instance)
+        } catch {
+          continue
+        }
+        found += 1
+        if (!visible) continue
+        const geometryId = batchedMesh.getGeometryIdAt(instance)
+        const range = batchedMesh.getGeometryRangeAt(geometryId)
+        if (!range) continue
+        const rangeStart = Math.max(0, Math.floor(range.start))
+        const rangeEnd = Math.min(available, Math.floor(range.start + range.count))
+        const ranges = rangesFor(rangeStart, rangeEnd)
+        if (ranges.length === 0) continue
+        batchedMesh.getMatrixAt(instance, instanceMatrix)
+        let color: Color | undefined
+        if (colorsAvailable !== false) {
+          try {
+            const instanceColor = new Color()
+            batchedMesh.getColorAt(instance, instanceColor)
+            colorsAvailable = true
+            color = instanceColor
+          } catch {
+            // Three does not allocate the optional colour texture until setColorAt is used.
+            colorsAvailable = false
+          }
+        }
+        projectionInstances.push({
+          color,
+          ranges,
+          worldMatrix: new Matrix4().multiplyMatrices(mesh.matrixWorld, instanceMatrix),
+        })
+      }
+    } else if (instancedMesh) {
+      const ranges = rangesFor(drawStart, drawEnd)
+      if (ranges.length === 0) return
       const instanceMatrix = new Matrix4()
       for (let instance = 0; instance < instancedMesh.count; instance += 1) {
         instancedMesh.getMatrixAt(instance, instanceMatrix)
-        worldMatrices.push(new Matrix4().multiplyMatrices(mesh.matrixWorld, instanceMatrix))
+        projectionInstances.push({
+          ranges,
+          worldMatrix: new Matrix4().multiplyMatrices(mesh.matrixWorld, instanceMatrix),
+        })
       }
     } else {
-      worldMatrices.push(mesh.matrixWorld)
+      const ranges = rangesFor(drawStart, drawEnd)
+      if (ranges.length === 0) return
+      projectionInstances.push({ ranges, worldMatrix: mesh.matrixWorld })
     }
     let wireframeIndices: number[] | undefined
     const morph = positionMorphState(mesh.geometry, mesh.morphTargetInfluences)
-    for (const worldMatrix of worldMatrices) {
+    const fillColor = new Color()
+    for (const { color, ranges, worldMatrix } of projectionInstances) {
       const matrix = new Matrix4().multiplyMatrices(viewProjection, worldMatrix)
       const mirrored = worldMatrix.determinant() < 0
       const vertexAt = (vertexIndex: number) =>
@@ -875,7 +949,9 @@ export function projectThreeScene(
         return vertexAt(vertexIndex)
       }
       for (const range of ranges) {
-        const fill = `#${range.material.color.getHexString()}`
+        fillColor.copy(range.material.color)
+        if (color) fillColor.multiply(color)
+        const fill = `#${fillColor.getHexString()}`
         if (range.material.wireframe) {
           const strokeWidth = Math.max(0, range.material.wireframeLinewidth)
           if (strokeWidth === 0) continue
