@@ -20,10 +20,10 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | object | 10/11 (90.9%) | 10/11 (90.9%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 3/4 (75.0%) | 3/4 (75.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
-| geometry | 9/13 (69.2%) | 10/13 (76.9%) | 13/13 (100.0%) | 0 | 0 |
+| geometry | 9/13 (69.2%) | 11/13 (84.6%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **30/58 (51.7%)** | **38/58 (65.5%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **30/58 (51.7%)** | **39/58 (67.2%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -70,10 +70,10 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| LineBasicMaterial | partial | Opaque colour and width work; advanced base material state does not. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
+| LineBasicMaterial | partial | Colour, width, and normal alpha transparency work; advanced base material state does not. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
 | LineDashedMaterial | partial | Finite dash and gap intervals split into portable solid segments before projection. | [test](src/project.test.ts) `LineDashedMaterial projects line-distance dash and gap intervals`<br>[test](src/project.test.ts) `invalid or excessive dashed line intervals emit diagnostics` |
 | Material | out-of-scope | The abstract material base has no renderable appearance. | — |
-| MeshBasicMaterial | partial | Opaque flat colour, sides, groups, and wireframe work. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates`<br>[test](src/project.test.ts) `groups can mix solid and wireframe MeshBasicMaterial` |
+| MeshBasicMaterial | partial | Flat colour, normal alpha transparency, sides, groups, and wireframe work. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates`<br>[test](src/project.test.ts) `groups can mix solid and wireframe MeshBasicMaterial`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
 | MeshDepthMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshDistanceMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshLambertMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
@@ -86,8 +86,8 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | RawShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
-| PointsMaterial | partial | Opaque untextured material and per-point RGB colours, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
-| SpriteMaterial | partial | Solid opaque colour works; texture and translucent features are diagnosed. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
+| PointsMaterial | partial | Untextured colour, normal alpha transparency, per-point RGB, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
+| SpriteMaterial | partial | Solid colour and normal alpha transparency work; textures are diagnosed. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
 
 ### geometry
 
@@ -104,7 +104,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | line morph targets | full | Position morphs deform line vertices. | [test](src/project.test.ts) `line morph targets deform projected segments` |
 | vertex colours | partial | Per-point RGB works; interpolated mesh and line colours remain diagnosed. | [test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
 | textures and UV sampling | diagnostic | Texture sampling requires a GPU backend. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
-| transparency and blending | diagnostic | Non-opaque materials are rejected. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
+| transparency and blending | partial | Normal alpha transparency maps to Canvas opacity after opaque primitives; custom blending is diagnosed. | [test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `transparent primitives paint after opaque primitives`<br>[test](src/project.test.ts) `non-default depth, stencil, write, offset, and blending state emit diagnostics` |
 | material clipping planes | diagnostic | Per-material clipping planes are rejected. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
 
 ### scene

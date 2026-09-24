@@ -199,11 +199,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'LineBasicMaterial',
     'partial',
-    'Opaque colour and width work; advanced base material state does not.',
+    'Colour, width, and normal alpha transparency work; advanced base material state does not.',
     {
       upstream: upstream('material', 'LineBasicMaterial'),
       tests: [
         project('LineSegments become independent Canvas lines with material colour and width'),
+        project('normal transparent materials project opacity across portable primitives'),
       ],
     },
   ),
@@ -233,10 +234,14 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'MeshBasicMaterial',
     'partial',
-    'Opaque flat colour, sides, groups, and wireframe work.',
+    'Flat colour, normal alpha transparency, sides, groups, and wireframe work.',
     {
       upstream: upstream('material', 'MeshBasicMaterial'),
-      tests: [triangle, project('groups can mix solid and wireframe MeshBasicMaterial')],
+      tests: [
+        triangle,
+        project('groups can mix solid and wireframe MeshBasicMaterial'),
+        project('normal transparent materials project opacity across portable primitives'),
+      ],
     },
   ),
   ...[
@@ -268,12 +273,13 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'PointsMaterial',
     'partial',
-    'Opaque untextured material and per-point RGB colours, size, and attenuation work.',
+    'Untextured colour, normal alpha transparency, per-point RGB, size, and attenuation work.',
     {
       upstream: upstream('material', 'PointsMaterial'),
       tests: [
         points,
         project('PointsMaterial multiplies per-point RGB colours'),
+        project('normal transparent materials project opacity across portable primitives'),
         project('textured points are omitted with a diagnostic'),
       ],
     },
@@ -282,11 +288,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'SpriteMaterial',
     'partial',
-    'Solid opaque colour works; texture and translucent features are diagnosed.',
+    'Solid colour and normal alpha transparency work; textures are diagnosed.',
     {
       upstream: upstream('material', 'SpriteMaterial'),
       tests: [
         project('Sprite projects its billboard centre, rotation, and perspective attenuation'),
+        project('normal transparent materials project opacity across portable primitives'),
         project('unsupported SpriteMaterial features are omitted with diagnostics'),
       ],
     },
@@ -382,9 +389,19 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
       ],
     },
   ),
-  row('geometry', 'transparency and blending', 'diagnostic', 'Non-opaque materials are rejected.', {
-    tests: [project('unsupported MeshBasicMaterial features emit diagnostics')],
-  }),
+  row(
+    'geometry',
+    'transparency and blending',
+    'partial',
+    'Normal alpha transparency maps to Canvas opacity after opaque primitives; custom blending is diagnosed.',
+    {
+      tests: [
+        project('normal transparent materials project opacity across portable primitives'),
+        project('transparent primitives paint after opaque primitives'),
+        project('non-default depth, stencil, write, offset, and blending state emit diagnostics'),
+      ],
+    },
+  ),
   row(
     'geometry',
     'material clipping planes',

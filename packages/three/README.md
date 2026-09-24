@@ -47,12 +47,13 @@ one object does not emit a false leave and re-entry.
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,
-and flat opaque `MeshBasicMaterial` colours are supported. `ArrayCamera`
+and flat `MeshBasicMaterial` colours are supported. Normal alpha transparency
+maps to Canvas opacity and paints after opaque primitives. `ArrayCamera`
 projects each child camera into its declared bottom-left viewport. `Line`,
-`LineSegments`, and `LineLoop` with opaque `LineBasicMaterial` are projected
+`LineSegments`, and `LineLoop` with `LineBasicMaterial` are projected
 with their declared colour and width. `LineDashedMaterial` uses Three's
 `lineDistance`, dash size, gap size, and scale to emit portable segments before
-projection. `Points` with opaque, untextured
+projection. `Points` with untextured
 `PointsMaterial` are projected as circles, including perspective size
 attenuation and per-point RGB colours. Wireframe `MeshBasicMaterial` is
 projected through the same line pipeline, including its colour and
@@ -68,7 +69,7 @@ morph targets are evaluated for meshes, points, and lines, including relative
 morph geometry.
 
 This is deliberately not a software WebGL implementation. Textures, lighting,
-blending, shaders, skinning, instancing, post-processing, and XR need a GPU
+custom blending, shaders, skinning, post-processing, and XR need a GPU
 backend. Unsupported inputs are omitted and returned as diagnostics rather
 than rendered misleadingly.
 
