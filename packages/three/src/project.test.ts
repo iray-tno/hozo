@@ -506,6 +506,46 @@ test('LineLoop closes its final vertex back to its first', () => {
   })
 })
 
+test('LineBasicMaterial projects clipped RGB vertex colours as a portable gradient', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3))
+  geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 0, 1], 3))
+  const material = new LineBasicMaterial({
+    clippingPlanes: [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)],
+    vertexColors: true,
+  })
+  const scene = new Scene()
+  const line = new Line(geometry, material)
+  scene.add(line)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedLines(result), [
+    {
+      x1: 50,
+      y1: 50,
+      x2: 60,
+      y2: 50,
+      stroke: {
+        kind: 'linear',
+        from: { x: 50, y: 50 },
+        to: { x: 60, y: 50 },
+        stops: [
+          { offset: 0, color: '#bc00bc' },
+          { offset: 1, color: '#0000ff' },
+        ],
+      },
+      strokeWidth: 1,
+    },
+  ])
+
+  line.material = new LineDashedMaterial({ vertexColors: true })
+  const dashed = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+  assert.deepEqual(dashed.scene, [])
+  assert.equal(dashed.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+})
+
 test('a line crossing the near plane is clipped to finite viewport coordinates', () => {
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new Float32BufferAttribute([-0.25, 0, -0.5, 1, 0, -2], 3))
