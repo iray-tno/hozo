@@ -17,13 +17,13 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Category | Exact | Usable | Safe | Silent | Out of scope |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
-| object | 8/11 (72.7%) | 8/11 (72.7%) | 11/11 (100.0%) | 0 | 2 |
+| object | 8/11 (72.7%) | 9/11 (81.8%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 4/17 (23.5%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 7/13 (53.8%) | 7/13 (53.8%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **25/58 (43.1%)** | **31/58 (53.4%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **25/58 (43.1%)** | **32/58 (55.2%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -44,7 +44,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | BatchedMesh | diagnostic | Rejected before batch transforms can be lost. | [test](src/project.test.ts) `BatchedMesh emits a diagnostic before losing per-instance state` |
 | Bone | out-of-scope | A Bone has no independent render primitive. | — |
 | Group | full | Visibility and nested world transforms are traversed. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
-| InstancedMesh | diagnostic | Rejected with UNSUPPORTED_MESH. | [test](src/project.test.ts) `unsupported mesh variants emit diagnostics` |
+| InstancedMesh | partial | Instance transforms project independently; instance colours and morph weights are diagnosed. | [test](src/project.test.ts) `InstancedMesh applies each instance transform and preserves object identity`<br>[test](src/project.test.ts) `InstancedMesh diagnoses per-instance colours before losing them` |
 | Line | full | Line strips project through the portable line pipeline. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
 | LineLoop | full | Closed line strips project through the line pipeline. | [test](src/project.test.ts) `LineLoop closes its final vertex back to its first` |
 | LineSegments | full | Independent line pairs project through the line pipeline. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
@@ -97,7 +97,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | indexed BufferGeometry | full | Index buffers drive triangle, line, and point lookup. | [test](src/project.test.ts) `indexed geometry emits each triangle` |
 | drawRange | full | Ranges intersect topology and material groups. | [test](src/project.test.ts) `material groups intersect the geometry draw range` |
 | geometry groups | full | Material arrays preserve group ranges and colours. | [test](src/project.test.ts) `material arrays preserve BufferGeometry group colours` |
-| world transforms | full | Nested object matrices are applied before projection. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
+| world transforms | full | Nested object matrices are applied before projection. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path`<br>[test](src/project.test.ts) `mirrored mesh transforms preserve Three.js front-face semantics` |
 | homogeneous frustum clipping | full | Triangles and lines clip against all six planes. | [test](src/project.test.ts) `the homogeneous clip volume cuts a near-plane crossing instead of exploding it`<br>[test](src/project.test.ts) `a line crossing the near plane is clipped to finite viewport coordinates` |
 | front, back, and double side | full | Face winding and material side are honoured. | [test](src/project.test.ts) `face side is respected after the viewport y-axis is flipped` |
 | mesh and point morph targets | diagnostic | Active mesh and point morph targets are rejected. | [test](src/project.test.ts) `active mesh and point morph targets emit diagnostics` |

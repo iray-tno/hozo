@@ -80,10 +80,19 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     upstream: upstream('object', 'Group'),
     tests: [project('world transforms under groups are baked into the projected path')],
   }),
-  row('object', 'InstancedMesh', 'diagnostic', 'Rejected with UNSUPPORTED_MESH.', {
-    upstream: upstream('object', 'InstancedMesh'),
-    tests: [project('unsupported mesh variants emit diagnostics')],
-  }),
+  row(
+    'object',
+    'InstancedMesh',
+    'partial',
+    'Instance transforms project independently; instance colours and morph weights are diagnosed.',
+    {
+      upstream: upstream('object', 'InstancedMesh'),
+      tests: [
+        project('InstancedMesh applies each instance transform and preserves object identity'),
+        project('InstancedMesh diagnoses per-instance colours before losing them'),
+      ],
+    },
+  ),
   row('object', 'Line', 'full', 'Line strips project through the portable line pipeline.', {
     upstream: upstream('object', 'Line'),
     tests: [line],
@@ -287,7 +296,10 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'full',
     'Nested object matrices are applied before projection.',
     {
-      tests: [project('world transforms under groups are baked into the projected path')],
+      tests: [
+        project('world transforms under groups are baked into the projected path'),
+        project('mirrored mesh transforms preserve Three.js front-face semantics'),
+      ],
     },
   ),
   row(
