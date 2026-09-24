@@ -20,10 +20,10 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | object | 8/11 (72.7%) | 9/11 (81.8%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 4/17 (23.5%) | 17/17 (100.0%) | 0 | 1 |
-| geometry | 9/13 (69.2%) | 9/13 (69.2%) | 13/13 (100.0%) | 0 | 0 |
+| geometry | 9/13 (69.2%) | 10/13 (76.9%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **27/58 (46.6%)** | **34/58 (58.6%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **27/58 (46.6%)** | **35/58 (60.3%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -86,7 +86,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | RawShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
-| PointsMaterial | partial | Opaque untextured colour, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
+| PointsMaterial | partial | Opaque untextured material and per-point RGB colours, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
 | SpriteMaterial | partial | Solid opaque colour works; texture and translucent features are diagnosed. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
 
 ### geometry
@@ -102,7 +102,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | front, back, and double side | full | Face winding and material side are honoured. | [test](src/project.test.ts) `face side is respected after the viewport y-axis is flipped` |
 | mesh and point morph targets | full | Absolute and relative position morphs are evaluated before projection. | [test](src/project.test.ts) `absolute and relative mesh morph targets deform projected triangles`<br>[test](src/project.test.ts) `point morph targets move projected points` |
 | line morph targets | full | Position morphs deform line vertices. | [test](src/project.test.ts) `line morph targets deform projected segments` |
-| vertex colours | diagnostic | Interpolation is unavailable in the flat Canvas backend. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
+| vertex colours | partial | Per-point RGB works; interpolated mesh and line colours remain diagnosed. | [test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
 | textures and UV sampling | diagnostic | Texture sampling requires a GPU backend. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
 | transparency and blending | diagnostic | Non-opaque materials are rejected. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
 | material clipping planes | diagnostic | Per-material clipping planes are rejected. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |

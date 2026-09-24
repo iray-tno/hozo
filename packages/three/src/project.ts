@@ -3,7 +3,7 @@ import {
   BackSide,
   type BufferAttribute,
   type BufferGeometry,
-  type Color,
+  Color,
   DoubleSide,
   type InstancedMesh,
   type InterleavedBufferAttribute,
@@ -248,7 +248,6 @@ function lineMaterialReason(material: LineBasicMaterial): string | undefined {
 function pointsMaterialReason(material: PointsMaterial): string | undefined {
   const baseReason = baseMaterialReason(material)
   if (baseReason) return baseReason
-  if (material.vertexColors) return 'vertex-coloured points are not projected yet'
   if (material.transparent || material.opacity !== 1) {
     return 'transparent points need depth-aware compositing and are not projected'
   }
@@ -616,13 +615,22 @@ export function projectThreeScene(
       const start = Math.max(0, Math.floor(points.geometry.drawRange.start))
       const requested = points.geometry.drawRange.count
       const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
+      const pointMaterial = material as PointsMaterial
+      const color = pointMaterial.vertexColors ? points.geometry.getAttribute('color') : undefined
+      if (color && color.itemSize < 3) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message: 'Point colour attributes need at least RGB components.',
+          object,
+        })
+        return
+      }
       const modelView = new Matrix4().multiplyMatrices(
         camera.matrixWorldInverse,
         points.matrixWorld,
       )
-      const pointMaterial = material as PointsMaterial
-      const fill = `#${pointMaterial.color.getHexString()}`
       const morph = positionMorphState(points.geometry, points.morphTargetInfluences)
+      const fillColor = new Color()
       for (let offset = start; offset < end; offset += 1) {
         const vertexIndex = index ? index.getX(offset) : offset
         const view = localPosition(position, vertexIndex, morph).applyMatrix4(modelView)
@@ -637,6 +645,12 @@ export function projectThreeScene(
             : pointMaterial.size
         const radius = diameter / 2
         if (!(radius > 0) || !Number.isFinite(radius)) continue
+        fillColor.copy(pointMaterial.color)
+        if (color) {
+          fillColor.r *= color.getX(vertexIndex)
+          fillColor.g *= color.getY(vertexIndex)
+          fillColor.b *= color.getZ(vertexIndex)
+        }
         primitives.push({
           depth: projected.z,
           groupOrder,
@@ -645,7 +659,12 @@ export function projectThreeScene(
           renderOrder: object.renderOrder,
           node: {
             kind: 'circle',
-            props: { cx: projected.x, cy: projected.y, radius, fill },
+            props: {
+              cx: projected.x,
+              cy: projected.y,
+              radius,
+              fill: `#${fillColor.getHexString()}`,
+            },
           },
         })
       }
