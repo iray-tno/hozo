@@ -71,7 +71,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
 
   row('object', 'BatchedMesh', 'diagnostic', 'Rejected before batch transforms can be lost.', {
     upstream: upstream('object', 'BatchedMesh'),
-    tests: [project('unsupported scene object families emit diagnostics')],
+    tests: [project('BatchedMesh emits a diagnostic before losing per-instance state')],
   }),
   row('object', 'Bone', 'out-of-scope', 'A Bone has no independent render primitive.', {
     upstream: upstream('object', 'Bone'),
@@ -132,11 +132,13 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'object',
     'Sprite',
-    'diagnostic',
-    'Rejected until camera-facing quad projection is implemented.',
+    'full',
+    'Camera-facing quads preserve centre, rotation, scale, and size attenuation.',
     {
       upstream: upstream('object', 'Sprite'),
-      tests: [project('unsupported scene object families emit diagnostics')],
+      tests: [
+        project('Sprite projects its billboard centre, rotation, and perspective attenuation'),
+      ],
     },
   ),
 
@@ -247,10 +249,19 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
       tests: [points, project('textured points are omitted with a diagnostic')],
     },
   ),
-  row('material', 'SpriteMaterial', 'diagnostic', 'Rejected with the owning Sprite.', {
-    upstream: upstream('material', 'SpriteMaterial'),
-    tests: [project('unsupported scene object families emit diagnostics')],
-  }),
+  row(
+    'material',
+    'SpriteMaterial',
+    'partial',
+    'Solid opaque colour works; texture and translucent features are diagnosed.',
+    {
+      upstream: upstream('material', 'SpriteMaterial'),
+      tests: [
+        project('Sprite projects its billboard centre, rotation, and perspective attenuation'),
+        project('unsupported SpriteMaterial features are omitted with diagnostics'),
+      ],
+    },
+  ),
 
   row('geometry', 'non-indexed BufferGeometry', 'full', 'Position triples render directly.', {
     tests: [triangle],
