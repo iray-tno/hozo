@@ -176,3 +176,11 @@ test('a controlled month does not change which day is today or selected', () => 
     'and neither is the 10th',
   )
 })
+
+test('the Web half marks today with aria-current and takes no word for it', () => {
+  // `todayLabel` exists for the Native half, which has no `aria-current` and
+  // no reachable state description, so text is the only channel it has. Here
+  // a word would be the same fact announced twice, once in one language.
+  assert.equal(render({ todayLabel: 'today' }), render(), 'the prop changes nothing on this side')
+  assert.equal(count(render(), 'aria-current="date"'), 1)
+})
