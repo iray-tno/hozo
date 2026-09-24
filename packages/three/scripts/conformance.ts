@@ -69,10 +69,16 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     },
   ),
 
-  row('object', 'BatchedMesh', 'diagnostic', 'Rejected before batch transforms can be lost.', {
-    upstream: upstream('object', 'BatchedMesh'),
-    tests: [project('BatchedMesh emits a diagnostic before losing per-instance state')],
-  }),
+  row(
+    'object',
+    'BatchedMesh',
+    'full',
+    'Sparse instance IDs, geometry ranges, visibility, transforms, and colours are projected.',
+    {
+      upstream: upstream('object', 'BatchedMesh'),
+      tests: [project('BatchedMesh projects sparse visible instances with transforms and colours')],
+    },
+  ),
   row('object', 'Bone', 'out-of-scope', 'A Bone has no independent render primitive.', {
     upstream: upstream('object', 'Bone'),
   }),

@@ -17,13 +17,13 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Category | Exact | Usable | Safe | Silent | Out of scope |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
-| object | 8/11 (72.7%) | 9/11 (81.8%) | 11/11 (100.0%) | 0 | 2 |
+| object | 9/11 (81.8%) | 10/11 (90.9%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 9/13 (69.2%) | 10/13 (76.9%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **27/58 (46.6%)** | **36/58 (62.1%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **28/58 (48.3%)** | **37/58 (63.8%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -41,7 +41,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| BatchedMesh | diagnostic | Rejected before batch transforms can be lost. | [test](src/project.test.ts) `BatchedMesh emits a diagnostic before losing per-instance state` |
+| BatchedMesh | full | Sparse instance IDs, geometry ranges, visibility, transforms, and colours are projected. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
 | Bone | out-of-scope | A Bone has no independent render primitive. | — |
 | Group | full | Visibility and nested world transforms are traversed. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
 | InstancedMesh | partial | Instance transforms project independently; instance colours and morph weights are diagnosed. | [test](src/project.test.ts) `InstancedMesh applies each instance transform and preserves object identity`<br>[test](src/project.test.ts) `InstancedMesh diagnoses per-instance colours before losing them` |

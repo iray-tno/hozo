@@ -785,15 +785,33 @@ test('unsupported SpriteMaterial features are omitted with diagnostics', () => {
   assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
 })
 
-test('BatchedMesh emits a diagnostic before losing per-instance state', () => {
+test('BatchedMesh projects sparse visible instances with transforms and colours', () => {
+  const batch = new THREE.BatchedMesh(4, 3, 6, new MeshBasicMaterial({ color: '#ffffff' }))
+  const geometry = batch.addGeometry(triangleGeometry())
+  const left = batch.addInstance(geometry)
+  const deleted = batch.addInstance(geometry)
+  const right = batch.addInstance(geometry)
+  batch.setMatrixAt(left, new THREE.Matrix4().makeTranslation(-1, 0, 0))
+  batch.setMatrixAt(right, new THREE.Matrix4().makeTranslation(1, 0, 0))
+  batch.setColorAt(right, new THREE.Color('#ff0000'))
+  batch.deleteInstance(deleted)
   const scene = new Scene()
-  scene.add(new THREE.BatchedMesh(1, 3, 3, new MeshBasicMaterial()))
+  scene.add(batch)
 
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
-  assert.deepEqual(result.scene, [])
-  assert.equal(result.diagnostics.length, 1)
-  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedPaths(result), [
+    { path: 'M 30 60 L 50 60 L 40 40 Z', fill: '#ffffff' },
+    { path: 'M 50 60 L 70 60 L 60 40 Z', fill: '#ff0000' },
+  ])
+  assert.deepEqual(result.objects, [batch, batch])
+
+  batch.setVisibleAt(left, false)
+  assert.deepEqual(
+    projectedPaths(projectThreeScene(scene, perspective(), { width: 100, height: 100 })),
+    [{ path: 'M 50 60 L 70 60 L 60 40 Z', fill: '#ff0000' }],
+  )
 })
 
 test('ArrayCamera emits a diagnostic instead of using its inherited perspective matrix', () => {
