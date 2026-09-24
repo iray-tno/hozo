@@ -408,11 +408,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'material clipping planes',
     'partial',
-    'Default world-space clipping cuts meshes and lines and discards points; clipIntersection remains diagnosed.',
+    'World-space intersection and union clipping cut meshes and lines and discard points; Sprite clipping remains diagnosed.',
     {
       tests: [
         project('material clipping planes cut meshes and lines and discard points in world space'),
-        project('unsupported MeshBasicMaterial features emit diagnostics'),
+        project('clipIntersection retains the disjoint union of material half-spaces'),
+        project('unsupported SpriteMaterial features are omitted with diagnostics'),
       ],
     },
   ),

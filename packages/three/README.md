@@ -60,7 +60,8 @@ projection. `Points` with untextured
 attenuation and per-point RGB colours. Wireframe `MeshBasicMaterial` is
 projected through the same line pipeline, including its colour and
 `wireframeLinewidth`. Default world-space material clipping planes cut meshes
-and lines and discard clipped points; `clipIntersection` remains diagnosed.
+and lines and discard clipped points. `clipIntersection` preserves the union of
+material half-spaces for meshes, lines, and points; Sprite clipping remains diagnosed.
 Mesh material arrays
 and `BufferGeometry` groups preserve each group's material and intersect with
 the geometry's draw range just as they do in Three.js. `Scene.overrideMaterial`
