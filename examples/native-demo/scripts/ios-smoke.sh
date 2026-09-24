@@ -72,6 +72,14 @@ if [ -z "$udid" ]; then
 fi
 echo "using ${device_name} (${udid})"
 
+# Handed to the workflow, so `xcodebuild test` can ask for this device by id
+# rather than resolving the name again. A runner with two runtimes installed
+# can have two devices called "iPhone 16", and the reports behind #530 name a
+# destination resolved by name as a cause of the runner never initialising.
+if [ -n "${GITHUB_ENV:-}" ]; then
+  echo "IOS_UDID=${udid}" >> "$GITHUB_ENV"
+fi
+
 xcrun simctl boot "$udid" || true
 # Waits for the boot to finish rather than sleeping at it. Without this the
 # install below races the springboard and fails with a device-not-booted
@@ -152,3 +160,16 @@ if ! "$drew"; then
 fi
 
 echo 'the app booted, initialised React Native and drew'
+
+# Left running, until now.
+#
+# `xcodebuild test` follows this step on the same simulator, and it installs
+# its runner and this app and then waits for an accessibility handshake. With
+# the app already up from the `simctl launch` above, it was waiting on a
+# process it had not started -- which is the shape of #530, where the runner
+# times out "waiting for AX loaded notification" before any test runs.
+#
+# A guess with a cheap test: this costs one line and cannot affect the checks
+# above, which have all finished by here. If #530 keeps happening it was the
+# wrong guess and the line can stay anyway.
+xcrun simctl terminate "$udid" "$bundle_id" 2>/dev/null || true

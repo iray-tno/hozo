@@ -390,8 +390,12 @@ jobs:
       # skips it -- so the app would come up looking for a Metro server
       # that is not there.
       #
-      # The simulator `ios-smoke.sh` booted is reused: `xcodebuild` takes
-      # the one that is already up rather than starting a second.
+      # The simulator `ios-smoke.sh` booted is reused, and now by id rather
+      # than by name. The script resolves the UDID itself and writes it to
+      # `GITHUB_ENV`; asking for the name again means asking a question with
+      # more than one answer on a runner carrying two runtimes, and the
+      # reports behind #530 name exactly that as a cause of the runner timing
+      # out before any test runs.
       - name: Read the accessibility tree
         run: |
           set -o pipefail
@@ -400,7 +404,7 @@ jobs:
             -scheme HozoNativeDemo \
             -configuration Release \
             -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=${IOS_DEVICE_NAME:-iPhone 16}" \
+            -destination "platform=iOS Simulator,id=${IOS_UDID}" \
             -derivedDataPath examples/native-demo/ios/build \
             CODE_SIGNING_ALLOWED=NO \
             | tee ios-uitest.log
