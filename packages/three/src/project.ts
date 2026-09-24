@@ -3,6 +3,7 @@ import {
   BackSide,
   type Color,
   DoubleSide,
+  type InstancedMesh,
   LessEqualDepth,
   type LineBasicMaterial,
   type LOD,
@@ -635,10 +636,13 @@ export function projectThreeScene(
       })
       return
     }
-    if ((mesh as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh) {
+    const instancedMesh = (mesh as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh
+      ? (mesh as InstancedMesh)
+      : undefined
+    if (instancedMesh?.instanceColor || instancedMesh?.morphTexture) {
       diagnostic(diagnostics, options, {
         code: 'UNSUPPORTED_MESH',
-        message: 'InstancedMesh needs per-instance transforms and is not projected yet.',
+        message: 'Per-instance colours and morph weights are not projected yet.',
         object,
       })
       return
@@ -722,86 +726,99 @@ export function projectThreeScene(
     }
     if (ranges.length === 0) return
 
-    const matrix = new Matrix4().multiplyMatrices(viewProjection, mesh.matrixWorld)
-    const vertexAt = (vertexIndex: number) =>
-      new Vector4(
-        position.getX(vertexIndex),
-        position.getY(vertexIndex),
-        position.getZ(vertexIndex),
-        1,
-      ).applyMatrix4(matrix)
-    const vertex = (offset: number) => {
-      const vertexIndex = index ? index.getX(offset) : offset
-      return vertexAt(vertexIndex)
+    const worldMatrices: Matrix4[] = []
+    if (instancedMesh) {
+      const instanceMatrix = new Matrix4()
+      for (let instance = 0; instance < instancedMesh.count; instance += 1) {
+        instancedMesh.getMatrixAt(instance, instanceMatrix)
+        worldMatrices.push(new Matrix4().multiplyMatrices(mesh.matrixWorld, instanceMatrix))
+      }
+    } else {
+      worldMatrices.push(mesh.matrixWorld)
     }
     let wireframeIndices: number[] | undefined
-    for (const range of ranges) {
-      const fill = `#${range.material.color.getHexString()}`
-      if (range.material.wireframe) {
-        const strokeWidth = Math.max(0, range.material.wireframeLinewidth)
-        if (strokeWidth === 0) continue
-        if (!wireframeIndices) {
-          wireframeIndices = []
-          for (let offset = 0; offset + 2 < available; offset += 3) {
-            const a = index ? index.getX(offset) : offset
-            const b = index ? index.getX(offset + 1) : offset + 1
-            const c = index ? index.getX(offset + 2) : offset + 2
-            wireframeIndices.push(a, b, b, c, c, a)
-          }
-        }
-        const wireStart = range.start * 2
-        const wireEnd = Math.min(wireframeIndices.length, range.end * 2)
-        for (let offset = wireStart; offset + 1 < wireEnd; offset += 2) {
-          const fromIndex = wireframeIndices[offset]
-          const toIndex = wireframeIndices[offset + 1]
-          if (fromIndex === undefined || toIndex === undefined) continue
-          const clipped = clippedSegment(vertexAt(fromIndex), vertexAt(toIndex))
-          if (!clipped) continue
-          const from = projectedPoint(clipped[0], options.width, options.height)
-          const to = projectedPoint(clipped[1], options.width, options.height)
-          if (!from || !to || (from.x === to.x && from.y === to.y)) continue
-          primitives.push({
-            depth: (from.z + to.z) / 2,
-            groupOrder,
-            object,
-            order: order++,
-            renderOrder: object.renderOrder,
-            node: {
-              kind: 'line',
-              props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: fill, strokeWidth },
-            },
-          })
-        }
-        continue
+    for (const worldMatrix of worldMatrices) {
+      const matrix = new Matrix4().multiplyMatrices(viewProjection, worldMatrix)
+      const mirrored = worldMatrix.determinant() < 0
+      const vertexAt = (vertexIndex: number) =>
+        new Vector4(
+          position.getX(vertexIndex),
+          position.getY(vertexIndex),
+          position.getZ(vertexIndex),
+          1,
+        ).applyMatrix4(matrix)
+      const vertex = (offset: number) => {
+        const vertexIndex = index ? index.getX(offset) : offset
+        return vertexAt(vertexIndex)
       }
+      for (const range of ranges) {
+        const fill = `#${range.material.color.getHexString()}`
+        if (range.material.wireframe) {
+          const strokeWidth = Math.max(0, range.material.wireframeLinewidth)
+          if (strokeWidth === 0) continue
+          if (!wireframeIndices) {
+            wireframeIndices = []
+            for (let offset = 0; offset + 2 < available; offset += 3) {
+              const a = index ? index.getX(offset) : offset
+              const b = index ? index.getX(offset + 1) : offset + 1
+              const c = index ? index.getX(offset + 2) : offset + 2
+              wireframeIndices.push(a, b, b, c, c, a)
+            }
+          }
+          const wireStart = range.start * 2
+          const wireEnd = Math.min(wireframeIndices.length, range.end * 2)
+          for (let offset = wireStart; offset + 1 < wireEnd; offset += 2) {
+            const fromIndex = wireframeIndices[offset]
+            const toIndex = wireframeIndices[offset + 1]
+            if (fromIndex === undefined || toIndex === undefined) continue
+            const clipped = clippedSegment(vertexAt(fromIndex), vertexAt(toIndex))
+            if (!clipped) continue
+            const from = projectedPoint(clipped[0], options.width, options.height)
+            const to = projectedPoint(clipped[1], options.width, options.height)
+            if (!from || !to || (from.x === to.x && from.y === to.y)) continue
+            primitives.push({
+              depth: (from.z + to.z) / 2,
+              groupOrder,
+              object,
+              order: order++,
+              renderOrder: object.renderOrder,
+              node: {
+                kind: 'line',
+                props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: fill, strokeWidth },
+              },
+            })
+          }
+          continue
+        }
 
-      for (let offset = range.start; offset + 2 < range.end; offset += 3) {
-        const polygon = clippedPolygon([vertex(offset), vertex(offset + 1), vertex(offset + 2)])
-        if (polygon.length < 3) continue
-        for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
-          const first = polygon[0]
-          const second = polygon[fan]
-          const third = polygon[fan + 1]
-          if (!first || !second || !third) continue
-          const clipTriangle = [first, second, third] as const
-          const points = clipTriangle.map((point) =>
-            projectedPoint(point, options.width, options.height),
-          )
-          if (points.some((point) => point === undefined)) continue
-          const projected = points as { x: number; y: number; z: number }[]
-          const area = signedArea(projected)
-          if (area === 0) continue
-          const side = range.material.side
-          if (side !== DoubleSide && (side === BackSide ? area < 0 : area > 0)) continue
-          const path = `M ${printable(projected[0]?.x ?? 0)} ${printable(projected[0]?.y ?? 0)} L ${printable(projected[1]?.x ?? 0)} ${printable(projected[1]?.y ?? 0)} L ${printable(projected[2]?.x ?? 0)} ${printable(projected[2]?.y ?? 0)} Z`
-          primitives.push({
-            depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
-            groupOrder,
-            object,
-            order: order++,
-            renderOrder: object.renderOrder,
-            node: { kind: 'path', props: { path, fill } },
-          })
+        for (let offset = range.start; offset + 2 < range.end; offset += 3) {
+          const polygon = clippedPolygon([vertex(offset), vertex(offset + 1), vertex(offset + 2)])
+          if (polygon.length < 3) continue
+          for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
+            const first = polygon[0]
+            const second = polygon[fan]
+            const third = polygon[fan + 1]
+            if (!first || !second || !third) continue
+            const clipTriangle = [first, second, third] as const
+            const points = clipTriangle.map((point) =>
+              projectedPoint(point, options.width, options.height),
+            )
+            if (points.some((point) => point === undefined)) continue
+            const projected = points as { x: number; y: number; z: number }[]
+            const area = signedArea(projected) * (mirrored ? -1 : 1)
+            if (area === 0) continue
+            const side = range.material.side
+            if (side !== DoubleSide && (side === BackSide ? area < 0 : area > 0)) continue
+            const path = `M ${printable(projected[0]?.x ?? 0)} ${printable(projected[0]?.y ?? 0)} L ${printable(projected[1]?.x ?? 0)} ${printable(projected[1]?.y ?? 0)} L ${printable(projected[2]?.x ?? 0)} ${printable(projected[2]?.y ?? 0)} Z`
+            primitives.push({
+              depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
+              groupOrder,
+              object,
+              order: order++,
+              renderOrder: object.renderOrder,
+              node: { kind: 'path', props: { path, fill } },
+            })
+          }
         }
       }
     }

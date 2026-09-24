@@ -585,12 +585,56 @@ test('an invisible material emits neither geometry nor a diagnostic', () => {
   assert.deepEqual(result.diagnostics, [])
 })
 
+test('InstancedMesh applies each instance transform and preserves object identity', () => {
+  const mesh = new THREE.InstancedMesh(
+    triangleGeometry(),
+    new MeshBasicMaterial({ color: '#2563eb' }),
+    2,
+  )
+  mesh.setMatrixAt(0, new THREE.Matrix4().makeTranslation(-1, 0, 0))
+  mesh.setMatrixAt(1, new THREE.Matrix4().makeTranslation(1, 0, 0))
+  const scene = new Scene()
+  scene.add(mesh)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(
+    projectedPaths(result).map(({ path }) => path),
+    ['M 30 60 L 50 60 L 40 40 Z', 'M 50 60 L 70 60 L 60 40 Z'],
+  )
+  assert.deepEqual(result.objects, [mesh, mesh])
+
+  mesh.count = 1
+  assert.equal(projectThreeScene(scene, perspective(), { width: 100, height: 100 }).scene.length, 1)
+})
+
+test('InstancedMesh diagnoses per-instance colours before losing them', () => {
+  const mesh = new THREE.InstancedMesh(triangleGeometry(), new MeshBasicMaterial(), 1)
+  mesh.setColorAt(0, new THREE.Color('#ff0000'))
+  const scene = new Scene()
+  scene.add(mesh)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
+})
+
+test('mirrored mesh transforms preserve Three.js front-face semantics', () => {
+  const mesh = new Mesh(triangleGeometry(), new MeshBasicMaterial())
+  mesh.scale.x = -1
+  const scene = new Scene()
+  scene.add(mesh)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.equal(result.scene.length, 1)
+})
+
 test('unsupported mesh variants emit diagnostics', () => {
   const material = new MeshBasicMaterial()
-  const objects = [
-    new THREE.InstancedMesh(triangleGeometry(), material, 1),
-    new THREE.SkinnedMesh(triangleGeometry(), material),
-  ]
+  const objects = [new THREE.SkinnedMesh(triangleGeometry(), material)]
 
   for (const object of objects) {
     const scene = new Scene()
