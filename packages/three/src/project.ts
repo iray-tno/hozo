@@ -64,6 +64,7 @@ interface ProjectedPrimitive {
   object: Object3D
   order: number
   renderOrder: number
+  transparent: boolean
   node: CanvasSceneNode
 }
 
@@ -263,9 +264,7 @@ function materialReason(material: MeshBasicMaterial): string | undefined {
   const baseReason = baseMaterialReason(material)
   if (baseReason) return baseReason
   if (material.vertexColors) return 'vertex colours are not in the flat-fill subset'
-  if (material.transparent || material.opacity !== 1) {
-    return 'transparent materials need depth-aware compositing and are not projected'
-  }
+  if (!Number.isFinite(material.opacity)) return 'material opacity must be finite'
   if (
     material.map ||
     material.alphaMap ||
@@ -297,9 +296,7 @@ function lineMaterialReason(material: LineBasicMaterial): string | undefined {
     }
   }
   if (material.vertexColors) return 'vertex-coloured lines are not projected yet'
-  if (material.transparent || material.opacity !== 1) {
-    return 'transparent lines need depth-aware compositing and are not projected'
-  }
+  if (!Number.isFinite(material.opacity)) return 'line opacity must be finite'
   if (material.clippingPlanes && material.clippingPlanes.length > 0) {
     return 'material clipping planes are not projected'
   }
@@ -309,9 +306,7 @@ function lineMaterialReason(material: LineBasicMaterial): string | undefined {
 function pointsMaterialReason(material: PointsMaterial): string | undefined {
   const baseReason = baseMaterialReason(material)
   if (baseReason) return baseReason
-  if (material.transparent || material.opacity !== 1) {
-    return 'transparent points need depth-aware compositing and are not projected'
-  }
+  if (!Number.isFinite(material.opacity)) return 'point opacity must be finite'
   if (material.map || material.alphaMap) return 'textured points are not projected yet'
   if (material.clippingPlanes && material.clippingPlanes.length > 0) {
     return 'material clipping planes are not projected'
@@ -322,14 +317,23 @@ function pointsMaterialReason(material: PointsMaterial): string | undefined {
 function spriteMaterialReason(material: SpriteMaterial): string | undefined {
   const baseReason = baseMaterialReason(material)
   if (baseReason) return baseReason
-  if (material.opacity !== 1) {
-    return 'translucent sprites need depth-aware compositing and are not projected'
-  }
+  if (!Number.isFinite(material.opacity)) return 'sprite opacity must be finite'
   if (material.map || material.alphaMap) return 'textured sprites are not projected yet'
   if (material.clippingPlanes && material.clippingPlanes.length > 0) {
     return 'material clipping planes are not projected'
   }
   return undefined
+}
+
+function projectedOpacity(material: Material): number | undefined {
+  if (!material.transparent) return undefined
+  const opacity = Math.max(0, Math.min(1, material.opacity))
+  return opacity === 1 ? undefined : opacity
+}
+
+function projectedOpacityProps(material: Material): { opacity?: number } {
+  const opacity = projectedOpacity(material)
+  return opacity === undefined ? {} : { opacity }
 }
 
 function isSupportedCamera(object: Object3D): object is SupportedCamera {
@@ -578,9 +582,14 @@ function projectThreeSceneInternal(
         object,
         order: order++,
         renderOrder: object.renderOrder,
+        transparent: spriteMaterial.transparent,
         node: {
           kind: 'path',
-          props: { path, fill: `#${spriteMaterial.color.getHexString()}` },
+          props: {
+            path,
+            fill: `#${spriteMaterial.color.getHexString()}`,
+            ...projectedOpacityProps(spriteMaterial),
+          },
         },
       })
       return
@@ -692,9 +701,18 @@ function projectThreeSceneInternal(
             object,
             order: order++,
             renderOrder: object.renderOrder,
+            transparent: material.transparent ?? false,
             node: {
               kind: 'line',
-              props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke, strokeWidth },
+              props: {
+                x1: from.x,
+                y1: from.y,
+                x2: to.x,
+                y2: to.y,
+                stroke,
+                strokeWidth,
+                ...projectedOpacityProps(material as LineBasicMaterial),
+              },
             },
           })
         }
@@ -786,6 +804,7 @@ function projectThreeSceneInternal(
           object,
           order: order++,
           renderOrder: object.renderOrder,
+          transparent: pointMaterial.transparent,
           node: {
             kind: 'circle',
             props: {
@@ -793,6 +812,7 @@ function projectThreeSceneInternal(
               cy: projected.y,
               radius,
               fill: `#${fillColor.getHexString()}`,
+              ...projectedOpacityProps(pointMaterial),
             },
           },
         })
@@ -1028,9 +1048,18 @@ function projectThreeSceneInternal(
               object,
               order: order++,
               renderOrder: object.renderOrder,
+              transparent: range.material.transparent,
               node: {
                 kind: 'line',
-                props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: fill, strokeWidth },
+                props: {
+                  x1: from.x,
+                  y1: from.y,
+                  x2: to.x,
+                  y2: to.y,
+                  stroke: fill,
+                  strokeWidth,
+                  ...projectedOpacityProps(range.material),
+                },
               },
             })
           }
@@ -1062,7 +1091,11 @@ function projectThreeSceneInternal(
               object,
               order: order++,
               renderOrder: object.renderOrder,
-              node: { kind: 'path', props: { path, fill } },
+              transparent: range.material.transparent,
+              node: {
+                kind: 'path',
+                props: { path, fill, ...projectedOpacityProps(range.material) },
+              },
             })
           }
         }
@@ -1072,6 +1105,7 @@ function projectThreeSceneInternal(
 
   primitives.sort(
     (left, right) =>
+      Number(left.transparent) - Number(right.transparent) ||
       left.groupOrder - right.groupOrder ||
       left.renderOrder - right.renderOrder ||
       right.depth - left.depth ||

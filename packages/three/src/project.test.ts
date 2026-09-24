@@ -779,7 +779,6 @@ test('Sprite projects its billboard centre, rotation, and perspective attenuatio
 test('unsupported SpriteMaterial features are omitted with diagnostics', () => {
   const materials = [
     new THREE.SpriteMaterial({ map: new Texture() }),
-    new THREE.SpriteMaterial({ opacity: 0.5 }),
     new THREE.SpriteMaterial({ depthTest: false }),
   ]
 
@@ -921,7 +920,6 @@ test('unsupported MeshBasicMaterial features emit diagnostics', () => {
   const materials = [
     new MeshBasicMaterial({ vertexColors: true }),
     new MeshBasicMaterial({ map: new Texture() }),
-    new MeshBasicMaterial({ opacity: 0.5, transparent: true }),
     new MeshBasicMaterial({ clippingPlanes: [new THREE.Plane()] }),
   ]
 
@@ -932,6 +930,55 @@ test('unsupported MeshBasicMaterial features emit diagnostics', () => {
     assert.deepEqual(result.scene, [])
     assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
   }
+})
+
+test('normal transparent materials project opacity across portable primitives', () => {
+  const scene = new Scene()
+  scene.add(
+    new Mesh(
+      triangleGeometry(),
+      new MeshBasicMaterial({ color: '#ff0000', opacity: 0.25, transparent: true }),
+    ),
+    new Line(
+      new BufferGeometry().setAttribute(
+        'position',
+        new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3),
+      ),
+      new LineBasicMaterial({ opacity: 0.5, transparent: true }),
+    ),
+    new Points(
+      new BufferGeometry().setAttribute('position', new Float32BufferAttribute([0, 0, 0], 3)),
+      new PointsMaterial({ opacity: 0.75, size: 2, sizeAttenuation: false, transparent: true }),
+    ),
+    new THREE.Sprite(new THREE.SpriteMaterial({ opacity: 0.4 })),
+  )
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(
+    result.scene.map((node) => ('opacity' in node.props ? node.props.opacity : undefined)),
+    [0.25, 0.5, 0.75, 0.4],
+  )
+})
+
+test('transparent primitives paint after opaque primitives', () => {
+  const scene = new Scene()
+  const transparentFar = new Mesh(
+    triangleGeometry(),
+    new MeshBasicMaterial({ color: '#ff0000', opacity: 0.5, transparent: true }),
+  )
+  transparentFar.position.z = -1
+  const opaqueNear = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#0000ff' }))
+  opaqueNear.position.z = 1
+  scene.add(transparentFar, opaqueNear)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(
+    projectedPaths(result).map(({ fill }) => fill),
+    ['#0000ff', '#ff0000'],
+  )
 })
 
 test('non-default depth, stencil, write, offset, and blending state emit diagnostics', () => {
@@ -1005,7 +1052,7 @@ test('point morph targets move projected points', () => {
 
 test('unsupported inputs are omitted with actionable diagnostics', () => {
   const scene = new Scene()
-  const material = new MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5 })
+  const material = new MeshBasicMaterial({ color: '#ffffff', map: new Texture() })
   scene.add(new Mesh(triangleGeometry(), material))
   const reported: string[] = []
 
