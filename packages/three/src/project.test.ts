@@ -601,17 +601,49 @@ test('unsupported mesh variants emit diagnostics', () => {
   }
 })
 
-test('unsupported scene object families emit diagnostics without projecting LOD children', () => {
+test('LOD selects the camera-distance level and honours manual visibility', () => {
+  const near = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#ff0000' }))
+  const far = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#0000ff' }))
   const lod = new THREE.LOD()
-  lod.addLevel(new Mesh(triangleGeometry(), new MeshBasicMaterial()), 0)
-  lod.addLevel(new Mesh(triangleGeometry(), new MeshBasicMaterial()), 10)
+  lod.addLevel(near, 0)
+  lod.addLevel(far, 6)
+  const scene = new Scene()
+  scene.add(lod)
+  const camera = perspective()
+
+  assert.deepEqual(
+    projectedPaths(projectThreeScene(scene, camera, { width: 100, height: 100 })).map(
+      ({ fill }) => fill,
+    ),
+    ['#ff0000'],
+  )
+
+  camera.position.z = 7
+  assert.deepEqual(
+    projectedPaths(projectThreeScene(scene, camera, { width: 100, height: 100 })).map(
+      ({ fill }) => fill,
+    ),
+    ['#0000ff'],
+  )
+
+  lod.autoUpdate = false
+  near.visible = true
+  far.visible = false
+  assert.deepEqual(
+    projectedPaths(projectThreeScene(scene, camera, { width: 100, height: 100 })).map(
+      ({ fill }) => fill,
+    ),
+    ['#ff0000'],
+  )
+})
+
+test('unsupported scene object families emit diagnostics', () => {
   const cases = [
     {
       code: 'UNSUPPORTED_MESH',
       object: new THREE.BatchedMesh(1, 3, 3, new MeshBasicMaterial()),
     },
     { code: 'UNSUPPORTED_OBJECT', object: new THREE.Sprite(new THREE.SpriteMaterial()) },
-    { code: 'UNSUPPORTED_OBJECT', object: lod },
   ] as const
 
   for (const item of cases) {
