@@ -139,6 +139,33 @@ export function isWithin(
 }
 
 /**
+ * Two days and everything between them.
+ *
+ * `start` is never after `end` -- `orderRange` is how one is made, and the
+ * type cannot say so, which is why nothing else in this file constructs one.
+ */
+export interface CalendarRange {
+  start: CalendarDate
+  end: CalendarDate
+}
+
+/**
+ * A range from two days in either order.
+ *
+ * Whichever day is clicked second is as likely to be the earlier one, and a
+ * range that had to be picked forwards would be a rule the user has to learn
+ * rather than one the component keeps.
+ */
+export function orderRange(one: CalendarDate, other: CalendarDate): CalendarRange {
+  return compareDates(one, other) <= 0 ? { start: one, end: other } : { start: other, end: one }
+}
+
+/** Inclusive of both ends, which is what a calendar's highlight shows. */
+export function isWithinRange(date: CalendarDate, range: CalendarRange): boolean {
+  return compareDates(date, range.start) >= 0 && compareDates(date, range.end) <= 0
+}
+
+/**
  * Today where the viewer is, which is the only function here that reads a
  * clock.
  *

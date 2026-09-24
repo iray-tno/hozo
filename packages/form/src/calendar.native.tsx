@@ -7,11 +7,14 @@ import {
   type CalendarCell,
   type CalendarDate,
   type CalendarMonth,
+  type CalendarRange,
   compareDates,
   daysInMonth,
   isSameDay,
   isWithin,
+  isWithinRange,
   monthGrid,
+  orderRange,
   todayLocal,
   type Weekday,
   firstDayOfWeek as weekStartFor,
@@ -21,7 +24,14 @@ export interface HozoCalendarDay {
   date: CalendarDate
   /** From a neighbouring month, drawn so the weeks are whole. */
   outside: boolean
+  /** Chosen, which for a range means anywhere in it including both ends. */
   selected: boolean
+  /** The first day of a range, and false in single mode. */
+  rangeStart: boolean
+  /** The last day of a range, and false in single mode. */
+  rangeEnd: boolean
+  /** Between the ends rather than at one, so a style can fill the middle. */
+  inRange: boolean
   /** Today where the viewer is, or whatever `today` was set to. */
   today: boolean
   /** Outside `min`/`max`, so it cannot be chosen. */
@@ -36,7 +46,7 @@ export interface HozoCalendarDay {
   focused: boolean
 }
 
-export interface HozoCalendarProps {
+interface Shared {
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
@@ -54,8 +64,6 @@ export interface HozoCalendarProps {
   weekStyle?: StyleProp<ViewStyle>
   dayStyle?: StyleProp<ViewStyle>
   dayTextStyle?: StyleProp<TextStyle>
-  value?: CalendarDate | null
-  onChange?: (date: CalendarDate) => void
   /** The month shown first. Defaults to `value`'s month, else `today`'s. */
   defaultMonth?: CalendarMonth
   /**
@@ -125,7 +133,102 @@ export interface HozoCalendarProps {
   renderDay?: (day: HozoCalendarDay) => ReactNode
 }
 
+/** One day at a time. */
+export interface HozoCalendarSingleProps extends Shared {
+  range?: false
+  value?: CalendarDate | null
+  onChange?: (date: CalendarDate) => void
+}
+
+/**
+ * Two days and everything between them.
+ *
+ * Discriminated props rather than a second component, following
+ * `@hozo/patterns`' `Listbox`. `onChange` fires with a complete range and
+ * never with half of one: the first press is held internally, so a caller is
+ * never handed a start with no end.
+ */
+export interface HozoCalendarRangeProps extends Shared {
+  range: true
+  value?: CalendarRange | null
+  onChange?: (range: CalendarRange) => void
+  /**
+   * The words the ends are announced with, on top of their dates.
+   *
+   * `accessibilityState.selected` says a day is in the range and cannot say
+   * which end it is. So the ends say it in text, joined onto `todayLabel`'s
+   * channel -- `accessibilityValue.text` -- because that is the one slot React
+   * Native gives a view for something that is neither its name nor a state it
+   * knows the word for (#526).
+   */
+  rangeStartLabel?: string
+  rangeEndLabel?: string
+}
+
+export type HozoCalendarProps = HozoCalendarSingleProps | HozoCalendarRangeProps
+
 const cellKey = (date: CalendarDate) => `${date.year}-${date.month}-${date.day}`
+
+/** The selection as a range, whichever shape it arrived in. */
+function chosenRange(props: HozoCalendarProps): CalendarRange | null {
+  if (props.range === true) return props.value ?? null
+  if (!props.value) return null
+  return { start: props.value, end: props.value }
+}
+
+/**
+ * Everything a cell is. A pending start counts as a range of one day, so the
+ * person who has just pressed it hears that they chose something.
+ */
+function dayState(
+  cell: CalendarCell,
+  at: {
+    ranged: boolean
+    chosen: CalendarRange | null
+    pending: CalendarDate | null
+    today: CalendarDate
+    bounds: { min?: CalendarDate; max?: CalendarDate }
+  },
+): HozoCalendarDay {
+  const range = at.pending ? { start: at.pending, end: at.pending } : at.chosen
+  const selected = range ? isWithinRange(cell.date, range) : false
+  // Only in range mode, so a single grid's one selected day does not also
+  // answer to the range selectors and pick up an end cap in someone's CSS.
+  const ends = at.ranged ? range : null
+  const rangeStart = ends !== null && isSameDay(cell.date, ends.start)
+  const rangeEnd = ends !== null && isSameDay(cell.date, ends.end)
+  return {
+    date: cell.date,
+    outside: cell.outside,
+    selected,
+    rangeStart,
+    rangeEnd,
+    inRange: ends !== null && selected && !rangeStart && !rangeEnd,
+    today: isSameDay(cell.date, at.today),
+    disabled: !isWithin(cell.date, at.bounds),
+    focused: false,
+  }
+}
+
+/**
+ * The words that go in `accessibilityValue.text`, joined here rather than by
+ * React Native.
+ *
+ * `BaseViewManager` joins the label, the state descriptions and this into one
+ * `contentDescription`, but it is one slot -- so a day that is both today and
+ * the start of a range has to arrive already joined. Comma and a space, the
+ * same separator React Native would have used.
+ */
+function spokenExtras(
+  day: HozoCalendarDay,
+  words: { todayLabel?: string; rangeStartLabel?: string; rangeEndLabel?: string },
+): string {
+  const said: string[] = []
+  if (day.rangeStart && words.rangeStartLabel) said.push(words.rangeStartLabel)
+  else if (day.rangeEnd && words.rangeEndLabel) said.push(words.rangeEndLabel)
+  if (day.today && words.todayLabel) said.push(words.todayLabel)
+  return said.join(', ')
+}
 
 const weekKey = (week: readonly CalendarCell[]) => {
   const opening = week[0]
@@ -159,32 +262,57 @@ function monthStep(month: CalendarMonth, months: number): CalendarMonth {
  * the Web half. The weekday header is a row of plain text kept out of the
  * accessibility tree, since the names already say which day they are.
  */
-export function HozoCalendar({
-  style,
-  headerStyle,
-  weekStyle,
-  dayStyle,
-  dayTextStyle,
-  value,
-  onChange,
-  defaultMonth,
-  month,
-  onMonthChange,
-  min,
-  max,
-  locale,
-  firstDayOfWeek,
-  today,
-  weeks,
-  accessibilityLabel,
-  previousMonthLabel = 'Previous month',
-  nextMonthLabel = 'Next month',
-  todayLabel = 'today',
-  renderDay,
-}: HozoCalendarProps) {
+export function HozoCalendar(props: HozoCalendarProps) {
+  const {
+    style,
+    headerStyle,
+    weekStyle,
+    dayStyle,
+    dayTextStyle,
+    defaultMonth,
+    month,
+    onMonthChange,
+    min,
+    max,
+    locale,
+    firstDayOfWeek,
+    today,
+    weeks,
+    accessibilityLabel,
+    previousMonthLabel = 'Previous month',
+    nextMonthLabel = 'Next month',
+    todayLabel = 'today',
+    renderDay,
+  } = props
+
   const currentDay = today ?? todayLocal()
   const weekStart = firstDayOfWeek ?? weekStartFor(locale)
-  const opening = value ?? currentDay
+
+  // Held as a range on both paths, the way the Web half does and for the same
+  // reason: a single selection is a range whose ends are the same day, so
+  // every question about a cell has one answer to read.
+  const ranged = props.range === true
+  const chosen = chosenRange(props)
+  const [pending, setPending] = useState<CalendarDate | null>(null)
+  const rangeStartLabel =
+    props.range === true ? (props.rangeStartLabel ?? 'start of range') : undefined
+  const rangeEndLabel = props.range === true ? (props.rangeEndLabel ?? 'end of range') : undefined
+
+  const choose = (date: CalendarDate) => {
+    if (!isWithin(date, { min, max })) return
+    if (props.range !== true) {
+      props.onChange?.(date)
+      return
+    }
+    if (pending === null) {
+      setPending(date)
+      return
+    }
+    setPending(null)
+    props.onChange?.(orderRange(pending, date))
+  }
+
+  const opening = chosen?.start ?? currentDay
   const [ownMonth, setOwnMonth] = useState<CalendarMonth>(
     () => defaultMonth ?? { year: opening.year, month: opening.month },
   )
@@ -240,24 +368,24 @@ export function HozoCalendar({
       {grid.map((week) => (
         <View key={weekKey(week)} style={weekStyle}>
           {week.map((cell) => {
-            const day: HozoCalendarDay = {
-              date: cell.date,
-              outside: cell.outside,
-              selected: value ? isSameDay(cell.date, value) : false,
-              today: isSameDay(cell.date, currentDay),
-              disabled: !isWithin(cell.date, { min, max }),
-              focused: false,
-            }
+            const day = dayState(cell, {
+              ranged,
+              chosen,
+              pending,
+              today: currentDay,
+              bounds: { min, max },
+            })
+            const said = spokenExtras(day, { todayLabel, rangeStartLabel, rangeEndLabel })
             return (
               <Pressable
                 key={cellKey(cell.date)}
                 accessibilityRole="button"
                 accessibilityLabel={dayLabel(cell.date, locale)}
                 accessibilityState={{ selected: day.selected, disabled: day.disabled }}
-                accessibilityValue={day.today && todayLabel ? { text: todayLabel } : undefined}
+                accessibilityValue={said ? { text: said } : undefined}
                 disabled={day.disabled}
                 style={dayStyle}
-                onPress={() => onChange?.(cell.date)}
+                onPress={() => choose(cell.date)}
               >
                 {renderDay ? (
                   renderDay(day)

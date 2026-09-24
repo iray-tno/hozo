@@ -14,8 +14,10 @@ import {
   isLeapYear,
   isSameDay,
   isWithin,
+  isWithinRange,
   monthGrid,
   moveFocus,
+  orderRange,
   toTimestamp,
   weekdayOf,
 } from './calendar-rules.ts'
@@ -290,4 +292,31 @@ test("a cell's text is the day number, formatted rather than concatenated", () =
     '24',
     'an explicit numbering system reaches the digits, which `String(day)` would not',
   )
+})
+
+test('a range comes out ordered, whichever end was named first', () => {
+  const forwards = orderRange(date(2026, 9, 10), date(2026, 9, 20))
+  assert.equal(iso(forwards.start), '2026-09-10')
+  assert.equal(iso(forwards.end), '2026-09-20')
+  // Whichever day is clicked second is as likely to be the earlier one, so a
+  // range that had to be picked forwards would be a rule the user learns.
+  const backwards = orderRange(date(2026, 9, 20), date(2026, 9, 10))
+  assert.equal(iso(backwards.start), '2026-09-10')
+  assert.equal(iso(backwards.end), '2026-09-20')
+  const single = orderRange(date(2026, 9, 10), date(2026, 9, 10))
+  assert.equal(iso(single.start), iso(single.end))
+})
+
+test('a range holds both its ends and everything between', () => {
+  const range = orderRange(date(2026, 9, 10), date(2026, 9, 12))
+  assert.equal(isWithinRange(date(2026, 9, 10), range), true, 'the start is in it')
+  assert.equal(isWithinRange(date(2026, 9, 11), range), true)
+  assert.equal(isWithinRange(date(2026, 9, 12), range), true, 'and so is the end')
+  assert.equal(isWithinRange(date(2026, 9, 9), range), false)
+  assert.equal(isWithinRange(date(2026, 9, 13), range), false)
+  // A month boundary is nothing to the arithmetic, which reads three numbers.
+  const across = orderRange(date(2026, 9, 28), date(2026, 10, 3))
+  assert.equal(isWithinRange(date(2026, 9, 30), across), true)
+  assert.equal(isWithinRange(date(2026, 10, 1), across), true)
+  assert.equal(isWithinRange(date(2026, 8, 31), across), false)
 })
