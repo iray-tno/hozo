@@ -168,7 +168,6 @@ export function HozoDatePicker({
                     weeks={weeks}
                     previousMonthLabel={previousMonthLabel}
                     nextMonthLabel={nextMonthLabel}
-
                     todayLabel={todayLabel}
                     renderDay={renderDay}
                   />
