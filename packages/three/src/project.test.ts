@@ -1035,10 +1035,6 @@ test('unsupported MeshBasicMaterial features emit diagnostics', () => {
   const materials = [
     new MeshBasicMaterial({ vertexColors: true }),
     new MeshBasicMaterial({ map: new Texture() }),
-    new MeshBasicMaterial({
-      clipIntersection: true,
-      clippingPlanes: [new THREE.Plane(), new THREE.Plane()],
-    }),
   ]
 
   for (const material of materials) {
@@ -1081,7 +1077,6 @@ test('material clipping planes cut meshes and lines and discard points in world 
     width: 100,
     height: 100,
   })
-
   assert.deepEqual(meshResult.diagnostics, [])
   assert.deepEqual(projectedPaths(meshResult), [
     { path: 'M 50 40 L 50 60 L 60 60 Z', fill: '#ffffff' },
@@ -1090,6 +1085,73 @@ test('material clipping planes cut meshes and lines and discard points in world 
     { x1: 50, y1: 50, x2: 70, y2: 50, stroke: '#ffffff', strokeWidth: 1 },
   ])
   assert.deepEqual(projectedCircles(pointResult), [{ cx: 60, cy: 50, radius: 1, fill: '#ffffff' }])
+})
+
+test('clipIntersection retains the disjoint union of material half-spaces', () => {
+  const planes = [
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), -0.5),
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), -0.5),
+  ]
+  const mesh = new Mesh(
+    triangleGeometry(),
+    new MeshBasicMaterial({ clipIntersection: true, clippingPlanes: planes }),
+  )
+  const line = new Line(
+    new BufferGeometry().setAttribute(
+      'position',
+      new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3),
+    ),
+    new LineBasicMaterial({ clipIntersection: true, clippingPlanes: planes }),
+  )
+  const points = new Points(
+    new BufferGeometry().setAttribute(
+      'position',
+      new Float32BufferAttribute([-1, 0, 0, 0, 0, 0, 1, 0, 0], 3),
+    ),
+    new PointsMaterial({
+      clipIntersection: true,
+      clippingPlanes: planes,
+      size: 2,
+      sizeAttenuation: false,
+    }),
+  )
+
+  const meshResult = projectThreeScene(new Scene().add(mesh), perspective(), {
+    width: 100,
+    height: 100,
+  })
+  const lineResult = projectThreeScene(new Scene().add(line), perspective(), {
+    width: 100,
+    height: 100,
+  })
+  const pointResult = projectThreeScene(new Scene().add(points), perspective(), {
+    width: 100,
+    height: 100,
+  })
+  const emptyPlaneResult = projectThreeScene(
+    new Scene().add(
+      new Mesh(triangleGeometry(), new MeshBasicMaterial({ clipIntersection: true })),
+    ),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+
+  assert.deepEqual(meshResult.diagnostics, [])
+  assert.deepEqual(projectedPaths(meshResult), [
+    { path: 'M 55 60 L 60 60 L 55 50 Z', fill: '#ffffff' },
+    { path: 'M 45 50 L 40 60 L 45 60 Z', fill: '#ffffff' },
+  ])
+  assert.deepEqual(projectedLines(lineResult), [
+    { x1: 55.00000000000001, y1: 50, x2: 60, y2: 50, stroke: '#ffffff', strokeWidth: 1 },
+    { x1: 40, y1: 50, x2: 45, y2: 50, stroke: '#ffffff', strokeWidth: 1 },
+  ])
+  assert.deepEqual(projectedCircles(pointResult), [
+    { cx: 40, cy: 50, radius: 1, fill: '#ffffff' },
+    { cx: 60, cy: 50, radius: 1, fill: '#ffffff' },
+  ])
+  assert.deepEqual(projectedPaths(emptyPlaneResult), [
+    { path: 'M 40 60 L 60 60 L 50 40 Z', fill: '#ffffff' },
+  ])
 })
 
 test('normal transparent materials project opacity across portable primitives', () => {
