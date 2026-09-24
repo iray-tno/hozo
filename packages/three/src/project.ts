@@ -9,6 +9,7 @@ import {
   type InterleavedBufferAttribute,
   LessEqualDepth,
   type LineBasicMaterial,
+  type LineDashedMaterial,
   type LOD,
   type Material,
   Matrix4,
@@ -118,6 +119,56 @@ function clippedSegment(from: Vector4, to: Vector4): readonly [Vector4, Vector4]
     else end = crossing
   }
   return [start, end]
+}
+
+function positiveModulo(value: number, divisor: number): number {
+  return value - divisor * Math.floor(value / divisor)
+}
+
+function dashedSegments(
+  from: Vector4,
+  to: Vector4,
+  fromDistance: number,
+  toDistance: number,
+  material: LineDashedMaterial,
+): readonly (readonly [Vector4, Vector4])[] | undefined {
+  const dashSize = material.dashSize
+  const gapSize = material.gapSize
+  const period = dashSize + gapSize
+  if (dashSize === 0) return []
+  if (gapSize === 0 || material.scale === 0 || fromDistance === toDistance) {
+    const phase = positiveModulo(material.scale * fromDistance, period)
+    return phase <= dashSize ? [[from, to]] : []
+  }
+
+  const scaledFrom = material.scale * fromDistance
+  const scaledTo = material.scale * toDistance
+  if (!Number.isFinite(scaledFrom) || !Number.isFinite(scaledTo)) return undefined
+  const low = Math.min(scaledFrom, scaledTo)
+  const high = Math.max(scaledFrom, scaledTo)
+  const boundaries = [0, 1]
+  const firstPeriod = Math.floor(low / period) - 1
+  const lastPeriod = Math.ceil(high / period) + 1
+  if (lastPeriod - firstPeriod > 10_000) return undefined
+  for (let cycle = firstPeriod; cycle <= lastPeriod; cycle += 1) {
+    for (const boundary of [cycle * period, cycle * period + dashSize]) {
+      const ratio = (boundary - scaledFrom) / (scaledTo - scaledFrom)
+      if (ratio > 0 && ratio < 1) boundaries.push(ratio)
+    }
+  }
+  boundaries.sort((left, right) => left - right)
+
+  const segments: [Vector4, Vector4][] = []
+  for (let index = 0; index + 1 < boundaries.length; index += 1) {
+    const start = boundaries[index]
+    const end = boundaries[index + 1]
+    if (start === undefined || end === undefined || end <= start) continue
+    const midpoint = (start + end) / 2
+    const distance = scaledFrom + (scaledTo - scaledFrom) * midpoint
+    if (positiveModulo(distance, period) > dashSize) continue
+    segments.push([from.clone().lerp(to, start), from.clone().lerp(to, end)])
+  }
+  return segments
 }
 
 function printable(value: number): string {
@@ -232,8 +283,16 @@ function materialReason(material: MeshBasicMaterial): string | undefined {
 function lineMaterialReason(material: LineBasicMaterial): string | undefined {
   const baseReason = baseMaterialReason(material)
   if (baseReason) return baseReason
-  if ((material as LineBasicMaterial & { isLineDashedMaterial?: boolean }).isLineDashedMaterial) {
-    return 'dashed line materials are not projected yet'
+  if ((material as LineDashedMaterial).isLineDashedMaterial) {
+    const dashed = material as LineDashedMaterial
+    if (
+      ![dashed.scale, dashed.dashSize, dashed.gapSize].every(Number.isFinite) ||
+      dashed.dashSize < 0 ||
+      dashed.gapSize < 0 ||
+      dashed.dashSize + dashed.gapSize <= 0
+    ) {
+      return 'dashed line sizes and scale must be finite and non-negative'
+    }
   }
   if (material.vertexColors) return 'vertex-coloured lines are not projected yet'
   if (material.transparent || material.opacity !== 1) {
@@ -532,14 +591,23 @@ export function projectThreeScene(
       const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
       const matrix = new Matrix4().multiplyMatrices(viewProjection, line.matrixWorld)
       const morph = positionMorphState(line.geometry, line.morphTargetInfluences)
+      const lineDistance = line.geometry.getAttribute('lineDistance')
+      const dashedMaterial = (material as LineDashedMaterial).isLineDashedMaterial
+        ? (material as LineDashedMaterial)
+        : undefined
       const vertex = (offset: number) => {
         const vertexIndex = index ? index.getX(offset) : offset
         return localPosition(position, vertexIndex, morph).applyMatrix4(matrix)
+      }
+      const distance = (offset: number) => {
+        const vertexIndex = index ? index.getX(offset) : offset
+        return lineDistance?.getX(vertexIndex) ?? 0
       }
       const stroke = `#${(material as LineBasicMaterial).color.getHexString()}`
       const strokeWidth = Math.max(0, (material as LineBasicMaterial).linewidth)
       if (strokeWidth === 0) return
       const segments: [number, number][] = []
+      const primitiveStart = primitives.length
       if ((line as ThreeLine & { isLineSegments?: boolean }).isLineSegments) {
         for (let offset = start; offset + 1 < end; offset += 2) {
           segments.push([offset, offset + 1])
@@ -553,22 +621,44 @@ export function projectThreeScene(
         }
       }
       for (const [fromOffset, toOffset] of segments) {
-        const clipped = clippedSegment(vertex(fromOffset), vertex(toOffset))
-        if (!clipped) continue
-        const from = projectedPoint(clipped[0], options.width, options.height)
-        const to = projectedPoint(clipped[1], options.width, options.height)
-        if (!from || !to || (from.x === to.x && from.y === to.y)) continue
-        primitives.push({
-          depth: (from.z + to.z) / 2,
-          groupOrder,
-          object,
-          order: order++,
-          renderOrder: object.renderOrder,
-          node: {
-            kind: 'line',
-            props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke, strokeWidth },
-          },
-        })
+        const fromVertex = vertex(fromOffset)
+        const toVertex = vertex(toOffset)
+        const pieces = dashedMaterial
+          ? dashedSegments(
+              fromVertex,
+              toVertex,
+              distance(fromOffset),
+              distance(toOffset),
+              dashedMaterial,
+            )
+          : ([[fromVertex, toVertex]] as const)
+        if (!pieces) {
+          primitives.splice(primitiveStart)
+          diagnostic(diagnostics, options, {
+            code: 'UNSUPPORTED_GEOMETRY',
+            message: 'Dashed line expansion exceeds the portable 10,000-interval limit.',
+            object,
+          })
+          return
+        }
+        for (const piece of pieces) {
+          const clipped = clippedSegment(piece[0], piece[1])
+          if (!clipped) continue
+          const from = projectedPoint(clipped[0], options.width, options.height)
+          const to = projectedPoint(clipped[1], options.width, options.height)
+          if (!from || !to || (from.x === to.x && from.y === to.y)) continue
+          primitives.push({
+            depth: (from.z + to.z) / 2,
+            groupOrder,
+            object,
+            order: order++,
+            renderOrder: object.renderOrder,
+            node: {
+              kind: 'line',
+              props: { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke, strokeWidth },
+            },
+          })
+        }
       }
       return
     }

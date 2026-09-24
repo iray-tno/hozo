@@ -200,10 +200,19 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
       ],
     },
   ),
-  row('material', 'LineDashedMaterial', 'diagnostic', 'Dashed lines are rejected explicitly.', {
-    upstream: upstream('material', 'LineDashedMaterial'),
-    tests: [project('unsupported dashed line materials are omitted with a diagnostic')],
-  }),
+  row(
+    'material',
+    'LineDashedMaterial',
+    'partial',
+    'Finite dash and gap intervals split into portable solid segments before projection.',
+    {
+      upstream: upstream('material', 'LineDashedMaterial'),
+      tests: [
+        project('LineDashedMaterial projects line-distance dash and gap intervals'),
+        project('invalid or excessive dashed line intervals emit diagnostics'),
+      ],
+    },
+  ),
   row(
     'material',
     'Material',
