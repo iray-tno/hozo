@@ -43,8 +43,9 @@
   },
   "scripts": {
     "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
+    "report": "node scripts/report-conformance.ts",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
+    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js && node --test scripts/conformance.test.ts && node scripts/report-conformance.ts --check"
   },
   "dependencies": {
     "@hozo/canvas": "workspace:^"

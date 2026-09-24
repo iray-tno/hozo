@@ -61,6 +61,10 @@ blending, shaders, skinning, instancing, post-processing, and XR need a GPU
 backend. Unsupported inputs are omitted and returned as diagnostics rather
 than rendered misleadingly.
 
+The version-pinned [Three.js conformance report](./conformance.md) separates
+exact and partial support from explicit diagnostics and known silent gaps. Its
+rows link back to the tests behind each compatibility claim.
+
 <!-- generated: package-footer -->
 
 ---

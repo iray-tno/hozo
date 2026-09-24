@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import * as THREE from 'three'
 import {
   BufferGeometry,
   Camera,
@@ -485,6 +486,83 @@ test('an invisible material emits neither geometry nor a diagnostic', () => {
 
   assert.deepEqual(result.scene, [])
   assert.deepEqual(result.diagnostics, [])
+})
+
+test('unsupported mesh variants emit diagnostics', () => {
+  const material = new MeshBasicMaterial()
+  const objects = [
+    new THREE.InstancedMesh(triangleGeometry(), material, 1),
+    new THREE.SkinnedMesh(triangleGeometry(), material),
+  ]
+
+  for (const object of objects) {
+    const scene = new Scene()
+    scene.add(object)
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
+  }
+})
+
+test('unsupported mesh material classes emit diagnostics', () => {
+  const materials = [
+    new THREE.MeshDepthMaterial(),
+    new THREE.MeshDistanceMaterial(),
+    new THREE.MeshLambertMaterial(),
+    new THREE.MeshMatcapMaterial(),
+    new THREE.MeshNormalMaterial(),
+    new THREE.MeshPhongMaterial(),
+    new THREE.MeshPhysicalMaterial(),
+    new THREE.MeshStandardMaterial(),
+    new THREE.MeshToonMaterial(),
+    new THREE.RawShaderMaterial(),
+    new THREE.ShaderMaterial(),
+    new THREE.ShadowMaterial(),
+  ]
+
+  for (const material of materials) {
+    const scene = new Scene()
+    scene.add(new Mesh(triangleGeometry(), material))
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL', material.type)
+  }
+})
+
+test('unsupported MeshBasicMaterial features emit diagnostics', () => {
+  const materials = [
+    new MeshBasicMaterial({ vertexColors: true }),
+    new MeshBasicMaterial({ map: new Texture() }),
+    new MeshBasicMaterial({ opacity: 0.5, transparent: true }),
+    new MeshBasicMaterial({ clippingPlanes: [new THREE.Plane()] }),
+  ]
+
+  for (const material of materials) {
+    const scene = new Scene()
+    scene.add(new Mesh(triangleGeometry(), material))
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  }
+})
+
+test('active mesh and point morph targets emit diagnostics', () => {
+  const objects = [
+    new Mesh(triangleGeometry(), new MeshBasicMaterial()),
+    new Points(triangleGeometry(), new PointsMaterial()),
+  ]
+  for (const object of objects) object.morphTargetInfluences = [1]
+
+  for (const object of objects) {
+    const scene = new Scene()
+    scene.add(object)
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+    assert.deepEqual(result.scene, [])
+    assert.ok(
+      result.diagnostics[0]?.code === 'UNSUPPORTED_MESH' ||
+        result.diagnostics[0]?.code === 'UNSUPPORTED_GEOMETRY',
+    )
+  }
 })
 
 test('unsupported inputs are omitted with actionable diagnostics', () => {
