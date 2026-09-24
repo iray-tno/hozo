@@ -69,8 +69,11 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     },
   ),
 
-  row('object', 'BatchedMesh', 'silent', 'Batch transforms and visibility are not evaluated.', {
+  row('object', 'BatchedMesh', 'diagnostic', 'Rejected before batch transforms can be lost.', {
     upstream: upstream('object', 'BatchedMesh'),
+    tests: [
+      project('unsupported scene object families emit diagnostics without projecting LOD children'),
+    ],
   }),
   row('object', 'Bone', 'out-of-scope', 'A Bone has no independent render primitive.', {
     upstream: upstream('object', 'Bone'),
@@ -106,10 +109,15 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'object',
     'LOD',
-    'silent',
-    'All visible levels are traversed instead of selecting one by distance.',
+    'diagnostic',
+    'Rejected as a subtree until camera-distance level selection is implemented.',
     {
       upstream: upstream('object', 'LOD'),
+      tests: [
+        project(
+          'unsupported scene object families emit diagnostics without projecting LOD children',
+        ),
+      ],
     },
   ),
   row('object', 'Mesh', 'full', 'Triangle meshes use the supported material subset.', {
@@ -127,13 +135,33 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     upstream: upstream('object', 'SkinnedMesh'),
     tests: [project('unsupported mesh variants emit diagnostics')],
   }),
-  row('object', 'Sprite', 'silent', 'Sprites currently disappear without a diagnostic.', {
-    upstream: upstream('object', 'Sprite'),
-  }),
+  row(
+    'object',
+    'Sprite',
+    'diagnostic',
+    'Rejected until camera-facing quad projection is implemented.',
+    {
+      upstream: upstream('object', 'Sprite'),
+      tests: [
+        project(
+          'unsupported scene object families emit diagnostics without projecting LOD children',
+        ),
+      ],
+    },
+  ),
 
-  row('camera', 'ArrayCamera', 'silent', 'Its child cameras and viewports are ignored.', {
-    upstream: upstream('camera', 'ArrayCamera'),
-  }),
+  row(
+    'camera',
+    'ArrayCamera',
+    'diagnostic',
+    'Rejected until child camera viewports are supported.',
+    {
+      upstream: upstream('camera', 'ArrayCamera'),
+      tests: [
+        project('ArrayCamera emits a diagnostic instead of using its inherited perspective matrix'),
+      ],
+    },
+  ),
   row('camera', 'Camera', 'diagnostic', 'A base camera has no usable projection and is rejected.', {
     upstream: upstream('camera', 'Camera'),
     tests: [project('unsupported inputs are omitted with actionable diagnostics')],
@@ -229,15 +257,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
       tests: [points, project('textured points are omitted with a diagnostic')],
     },
   ),
-  row(
-    'material',
-    'SpriteMaterial',
-    'silent',
-    'The owning Sprite disappears without a diagnostic.',
-    {
-      upstream: upstream('material', 'SpriteMaterial'),
-    },
-  ),
+  row('material', 'SpriteMaterial', 'diagnostic', 'Rejected with the owning Sprite.', {
+    upstream: upstream('material', 'SpriteMaterial'),
+    tests: [
+      project('unsupported scene object families emit diagnostics without projecting LOD children'),
+    ],
+  }),
 
   row('geometry', 'non-indexed BufferGeometry', 'full', 'Position triples render directly.', {
     tests: [triangle],
@@ -296,7 +321,9 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
       tests: [project('active mesh and point morph targets emit diagnostics')],
     },
   ),
-  row('geometry', 'line morph targets', 'silent', 'Active line morph targets are ignored.'),
+  row('geometry', 'line morph targets', 'diagnostic', 'Active line morph targets are rejected.', {
+    tests: [project('active line morph targets emit a diagnostic')],
+  }),
   row(
     'geometry',
     'vertex colours',

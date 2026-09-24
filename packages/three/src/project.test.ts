@@ -504,6 +504,52 @@ test('unsupported mesh variants emit diagnostics', () => {
   }
 })
 
+test('unsupported scene object families emit diagnostics without projecting LOD children', () => {
+  const lod = new THREE.LOD()
+  lod.addLevel(new Mesh(triangleGeometry(), new MeshBasicMaterial()), 0)
+  lod.addLevel(new Mesh(triangleGeometry(), new MeshBasicMaterial()), 10)
+  const cases = [
+    {
+      code: 'UNSUPPORTED_MESH',
+      object: new THREE.BatchedMesh(1, 3, 3, new MeshBasicMaterial()),
+    },
+    { code: 'UNSUPPORTED_OBJECT', object: new THREE.Sprite(new THREE.SpriteMaterial()) },
+    { code: 'UNSUPPORTED_OBJECT', object: lod },
+  ] as const
+
+  for (const item of cases) {
+    const scene = new Scene()
+    scene.add(item.object)
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics.length, 1)
+    assert.equal(result.diagnostics[0]?.code, item.code)
+  }
+})
+
+test('ArrayCamera emits a diagnostic instead of using its inherited perspective matrix', () => {
+  const scene = new Scene()
+  scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
+  const camera = new THREE.ArrayCamera([perspective()])
+
+  const result = projectThreeScene(scene, camera, { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_CAMERA')
+})
+
+test('active line morph targets emit a diagnostic', () => {
+  const line = new Line(triangleGeometry(), new LineBasicMaterial())
+  line.morphTargetInfluences = [1]
+  const scene = new Scene()
+  scene.add(line)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_GEOMETRY')
+})
+
 test('unsupported mesh material classes emit diagnostics', () => {
   const materials = [
     new THREE.MeshDepthMaterial(),
