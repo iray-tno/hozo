@@ -457,10 +457,10 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'scene',
     'Scene.overrideMaterial',
-    'diagnostic',
-    'Affected geometry is omitted with UNSUPPORTED_SCENE rather than using original materials.',
+    'partial',
+    'Supported overrides replace eligible render-list materials while preserving visibility and allowOverride.',
     {
-      tests: [project('scene-wide material overrides and fog diagnose and omit affected geometry')],
+      tests: [project('Scene.overrideMaterial preserves render-list visibility and allowOverride')],
     },
   ),
   row(
@@ -484,7 +484,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'diagnostic',
     'Fog-affected geometry is omitted with UNSUPPORTED_SCENE.',
     {
-      tests: [project('scene-wide material overrides and fog diagnose and omit affected geometry')],
+      tests: [project('scene fog diagnoses and omits affected geometry')],
     },
   ),
   row(

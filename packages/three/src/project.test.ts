@@ -346,24 +346,45 @@ test('texture backgrounds are diagnosed while otherwise portable geometry remain
   assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
 })
 
-test('scene-wide material overrides and fog diagnose and omit affected geometry', () => {
-  for (const configure of [
-    (scene: Scene) => {
-      scene.overrideMaterial = new MeshBasicMaterial()
-    },
-    (scene: Scene) => {
-      scene.fog = new THREE.Fog('#ffffff', 1, 10)
-    },
-  ]) {
-    const scene = new Scene()
-    scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
-    configure(scene)
+test('Scene.overrideMaterial preserves render-list visibility and allowOverride', () => {
+  const visible = new MeshBasicMaterial({ color: '#ff0000' })
+  const hidden = new MeshBasicMaterial({ color: '#0000ff' })
+  hidden.visible = false
+  const grouped = new Mesh(groupedSquareGeometry(), [visible, hidden])
+  const protectedMaterial = new MeshBasicMaterial({ color: '#f59e0b' })
+  protectedMaterial.allowOverride = false
+  const protectedMesh = new Mesh(triangleGeometry(), protectedMaterial)
+  protectedMesh.position.x = 3
+  const scene = new Scene()
+  scene.overrideMaterial = new MeshBasicMaterial({ color: '#16a34a' })
+  scene.add(grouped, protectedMesh)
 
-    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
-    assert.deepEqual(result.scene, [])
-    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
-  }
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(
+    projectedPaths(result).map(({ fill }) => fill),
+    ['#16a34a', '#f59e0b'],
+  )
+
+  scene.overrideMaterial = new THREE.MeshNormalMaterial()
+  const unsupported = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+  assert.equal(unsupported.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  assert.deepEqual(
+    projectedPaths(unsupported).map(({ fill }) => fill),
+    ['#f59e0b'],
+  )
+})
+
+test('scene fog diagnoses and omits affected geometry', () => {
+  const scene = new Scene()
+  scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
+  scene.fog = new THREE.Fog('#ffffff', 1, 10)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
 })
 
 test('wireframe MeshBasicMaterial becomes three Canvas lines per triangle', () => {
