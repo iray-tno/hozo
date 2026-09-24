@@ -98,9 +98,27 @@ import { timeOptions } from '@hozo/form'
 
 A spinbutton expresses a continuum and cannot disable 09:37 on its own; a list expresses a set the caller owns and can. Those are different capabilities, so they stay different things, and `CalendarTime` is what makes them interchangeable. Wrapping `Listbox` instead would add a second Native half to maintain and no new behaviour. See [#148](https://github.com/iray-tno/hozo/issues/148).
 
+## `TimePicker`
+
+Two spinbuttons, and a period on a twelve-hour clock.
+
+```tsx
+import { TimePicker } from '@hozo/form'
+
+<TimePicker value={arrival} onChange={setArrival} step={15} accessibilityLabel="Arrival time" />
+```
+
+`role="spinbutton"` on a field that can be typed as well as stepped, which is what ARIA's spinbutton is and what `<input type="time">` behaves like. A stepper that can only be stepped is the version people find unusable -- twenty-nine presses to reach half past.
+
+Each field's `aria-valuetext` is the **whole** time rather than its own digits. A reader moving the hour wants to hear where that put the time; "14" is the one thing they already knew.
+
+The period is a `button` rather than a third spinbutton, because a spinbutton carries `aria-valuenow` and a number for "am" is a number nobody can read. The arrows still work on it.
+
+On React Native the fields step through a pair of buttons instead. There is no editable field there without a `TextInput`, and a `TextInput` per segment raises a keyboard over the control it is meant to be operating -- so the value moves the way a phone's own pickers move it, and each field says the whole time through `accessibilityValue.text`.
+
 ## Status
 
-Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `TimePicker` and `DateRangePicker` come next.
+Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `DateTimePicker` and `DateRangePicker` come next.
 
 The shown month is controllable: `defaultMonth` for the uncontrolled case, `month` plus `onMonthChange` when the caller wants to own it. Handing over a `month` and ignoring `onMonthChange` gives a grid whose paging buttons and month-crossing arrow keys appear to do nothing -- the bargain every controlled component makes, mentioned here because the keys that stop working are in the middle of the widget.
 
