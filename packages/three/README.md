@@ -66,10 +66,11 @@ billboards preserve their centre, rotation, scale, and size attenuation.
 `BatchedMesh` projects its geometry ranges, sparse instance IDs, visibility,
 transforms, and optional instance colours through public Three.js APIs. Position
 morph targets are evaluated for meshes, points, and lines, including relative
-morph geometry.
+morph geometry. `SkinnedMesh` uses Three's public CPU vertex evaluation so morphs,
+bind matrices, bone weights, and the current skeleton pose remain aligned.
 
 This is deliberately not a software WebGL implementation. Textures, lighting,
-custom blending, shaders, skinning, post-processing, and XR need a GPU
+custom blending, shaders, post-processing, and XR need a GPU
 backend. Unsupported inputs are omitted and returned as diagnostics rather
 than rendered misleadingly.
 

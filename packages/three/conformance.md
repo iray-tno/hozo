@@ -17,13 +17,13 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Category | Exact | Usable | Safe | Silent | Out of scope |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
-| object | 10/11 (90.9%) | 10/11 (90.9%) | 11/11 (100.0%) | 0 | 2 |
+| object | 11/11 (100.0%) | 11/11 (100.0%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 3/4 (75.0%) | 3/4 (75.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 9/13 (69.2%) | 11/13 (84.6%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **30/58 (51.7%)** | **39/58 (67.2%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **31/58 (53.4%)** | **40/58 (69.0%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -52,7 +52,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Mesh | full | Triangle meshes use the supported material subset. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
 | Points | full | Point vertices project through the circle pipeline. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
 | Skeleton | out-of-scope | A Skeleton is data consumed by SkinnedMesh. | — |
-| SkinnedMesh | diagnostic | Rejected with UNSUPPORTED_MESH. | [test](src/project.test.ts) `unsupported mesh variants emit diagnostics` |
+| SkinnedMesh | full | Public CPU morph and bone transforms are evaluated. | [test](src/project.test.ts) `SkinnedMesh evaluates morph targets before public CPU bone transforms` |
 | Sprite | full | Camera-facing quads preserve centre, rotation, scale, and size attenuation. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
 
 ### camera

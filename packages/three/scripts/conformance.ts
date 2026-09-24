@@ -140,9 +140,9 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row('object', 'Skeleton', 'out-of-scope', 'A Skeleton is data consumed by SkinnedMesh.', {
     upstream: upstream('object', 'Skeleton'),
   }),
-  row('object', 'SkinnedMesh', 'diagnostic', 'Rejected with UNSUPPORTED_MESH.', {
+  row('object', 'SkinnedMesh', 'full', 'Public CPU morph and bone transforms are evaluated.', {
     upstream: upstream('object', 'SkinnedMesh'),
-    tests: [project('unsupported mesh variants emit diagnostics')],
+    tests: [project('SkinnedMesh evaluates morph targets before public CPU bone transforms')],
   }),
   row(
     'object',
