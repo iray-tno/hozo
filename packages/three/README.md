@@ -58,7 +58,8 @@ the geometry's draw range just as they do in Three.js. `LOD` selects its active
 level from the camera distance, and untextured solid-colour `SpriteMaterial`
 billboards preserve their centre, rotation, scale, and size attenuation.
 `InstancedMesh` applies each instance transform; per-instance colours and morph
-weights remain explicitly diagnosed.
+weights remain explicitly diagnosed. Position morph targets are evaluated for
+meshes, points, and lines, including relative morph geometry.
 
 This is deliberately not a software WebGL implementation. Textures, lighting,
 blending, shaders, skinning, instancing, post-processing, and XR need a GPU
