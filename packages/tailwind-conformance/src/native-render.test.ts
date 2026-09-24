@@ -388,22 +388,22 @@ test('focus-visible installs modality events only on an interaction that asks fo
   assert.equal(typeof tree?.props.style, 'function')
 })
 
-test('a compiled list tells Android how long it is', () => {
+test('a compiled list says where each cell sits, and deliberately not how long it is', () => {
   // A windowed list has a length its accessibility tree does not. React
   // Native mounts the rows near the viewport and TalkBack counts those, so a
   // ten-thousand-row feed announces however many cells happen to exist.
   //
-  // `accessibilityCollection` is what says otherwise, and it is real but
-  // undocumented: `BaseViewConfig.android.js` registers it as a native prop,
-  // `BaseViewManager` stores it as a tag, and
-  // `ReactScrollViewAccessibilityDelegate` reads it back into
-  // `AccessibilityNodeInfo.setCollectionInfo` -- while React Native's own
-  // `.d.ts` files mention it nowhere. So it is checked rather than trusted: a
-  // prop nothing types is a prop that can be renamed without anything
-  // noticing.
+  // `accessibilityCollection` said otherwise, and a device heard it: "In list
+  // Hozo native acceptance screen, 3 items". It is not set any more, because
+  // setting it crashes the app (#512) -- and the crash rather than the
+  // announcement is what this now pins, since a prop nothing types is a prop
+  // that can come back by accident.
+  //
+  // `accessibilityCollectionItem` on the cells stays. It is read by a
+  // different delegate, with a safe cast, and is not part of the crash.
   //
   // Rendered as Android, because the props only exist there and the stub
-  // reports `ios`. Without this the assertions below would all be about
+  // reports `ios`. Without this the cell assertions below would be about
   // `undefined` -- which is how a test comes to compare nothing at all.
   const platform = require('react-native').Platform as { OS: string }
   const was = platform.OS
@@ -424,13 +424,17 @@ test('a compiled list tells Android how long it is', () => {
     assert.equal(tree?.type, 'FlatList')
     assert.equal(tree?.props.accessibilityRole, 'list')
     assert.deepEqual(tree?.props.data, ['One', 'Two', 'Three'])
-    assert.deepEqual(tree?.props.accessibilityCollection, {
-      itemCount: 3,
-      // Two columns, three items: two rows, the second half full.
-      rowCount: 2,
-      columnCount: 2,
-      hierarchical: false,
-    })
+    // Not set, and this is the assertion that keeps it that way.
+    //
+    // `ReactScrollViewAccessibilityDelegate.kt:74` casts a child's
+    // `accessibility_collection_item` with `as` rather than `as?` -- the only
+    // one of four reads in that file that does -- so any child without the
+    // tag throws. `VirtualizedList`'s own windowing spacers are such
+    // children, and so are a header, a footer and an empty component, which
+    // is why this cannot be narrowed to some lists. Line 56 returns early
+    // when the collection tag is absent, so absent is the fix until React
+    // Native ships `as?`.
+    assert.equal(tree?.props.accessibilityCollection, undefined)
 
     // And each cell says where it sits, through React Native's own
     // `CellRendererComponent` rather than a second view nested inside one.
@@ -457,11 +461,15 @@ test('a compiled list tells Android how long it is', () => {
   }
 })
 
-test('and says nothing of the sort on iOS, because there is nothing to say it to', () => {
+test('and no cell renderer on iOS, because there is nothing to say it to', () => {
   // `BaseViewConfig.ios.js` registers neither prop and `React/Views` has no
   // implementation of either, so sending them would be sending them nowhere.
   // Asserted rather than assumed: a prop that is merely ignored today is a
   // prop that starts meaning something tomorrow.
+  //
+  // The collection prop is absent on both platforms now, for two unrelated
+  // reasons -- nothing to send it to here, #512 there -- so the cell renderer
+  // is what this one is actually about.
   const tree = renderNative(
     `
     import { FlatList, Text } from '@hozo/core'

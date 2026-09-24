@@ -29,8 +29,13 @@ export function Inbox({ messages, onOpen }) {
 ```
 
 The browser `FlatList` windows its rows itself, so compiled and uncompiled paths behave the same,
-and it reports the list's full length to assistive technology -- `aria-setsize`/`aria-posinset` on
-the Web, Android's collection info on device.
+and it reports the list's full length to assistive technology with `aria-setsize`/`aria-posinset`.
+
+On Android each cell still reports where it sits, but the list no longer reports how long it is.
+Android's collection info is set through an undocumented prop whose reader crashes the app on a
+child that does not carry the matching per-item tag — which `VirtualizedList`'s own windowing
+spacers do not. See [#512](https://github.com/iray-tno/hozo/issues/512); it comes back when React
+Native stops casting that tag with `as` instead of `as?`.
 
 What each primitive compiles to on both platforms is generated into
 [docs/primitives.md](https://github.com/iray-tno/hozo/blob/main/docs/primitives.md).

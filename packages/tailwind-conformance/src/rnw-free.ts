@@ -75,9 +75,13 @@ export const RNW_FREE_CASES: RnwFreeCase[] = [
     jsx: '<FlatList data={rows} renderItem={({ item }) => <Text className="p-2">{item}</Text>} />',
     webMarker: '<HozoFlatList',
     // Both sides now. React Native's list is still what renders; the wrapper
-    // is there for `accessibilityCollection`, which a windowed list cannot set
-    // for itself and which is the only thing that tells TalkBack how long the
-    // list really is.
+    // is there to give each cell an `accessibilityCollectionItem`, which is
+    // not something a cell can work out from inside `renderItem` -- it needs
+    // the column count and its own index.
+    //
+    // It was there for `accessibilityCollection` as well, the list-level
+    // length TalkBack has no other way to learn. That prop is gone: setting
+    // it crashes the app on Android (#512).
     nativeMarker: '<HozoFlatList',
   },
   {
