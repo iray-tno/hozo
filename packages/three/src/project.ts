@@ -22,6 +22,7 @@ export type ThreeProjectionDiagnosticCode =
   | 'UNSUPPORTED_GEOMETRY'
   | 'UNSUPPORTED_MATERIAL'
   | 'UNSUPPORTED_MESH'
+  | 'UNSUPPORTED_OBJECT'
 
 export interface ThreeProjectionDiagnostic {
   code: ThreeProjectionDiagnosticCode
@@ -209,6 +210,14 @@ export function projectThreeScene(
     })
     return { scene: [], objects: [], diagnostics }
   }
+  if ((camera as Object3D & { isArrayCamera?: boolean }).isArrayCamera === true) {
+    diagnostic(diagnostics, options, {
+      code: 'UNSUPPORTED_CAMERA',
+      message: 'ArrayCamera needs per-camera viewports and is not projected yet.',
+      object: camera,
+    })
+    return { scene: [], objects: [], diagnostics }
+  }
   if (!isSupportedCamera(camera)) {
     diagnostic(diagnostics, options, {
       code: 'UNSUPPORTED_CAMERA',
@@ -225,12 +234,46 @@ export function projectThreeScene(
     camera.matrixWorldInverse,
   )
   const primitives: ProjectedPrimitive[] = []
+  const rejectedSubtrees = new WeakSet<Object3D>()
   let order = 0
 
   scene.traverseVisible((object) => {
-    const candidate = object as Partial<Mesh & Points & ThreeLine>
+    if (object.parent && rejectedSubtrees.has(object.parent)) {
+      rejectedSubtrees.add(object)
+      return
+    }
+    const candidate = object as Partial<Mesh & Points & ThreeLine> & {
+      isBatchedMesh?: boolean
+      isLOD?: boolean
+      isSprite?: boolean
+    }
+    if (candidate.isLOD === true) {
+      rejectedSubtrees.add(object)
+      diagnostic(diagnostics, options, {
+        code: 'UNSUPPORTED_OBJECT',
+        message: 'LOD needs camera-distance level selection and is not projected yet.',
+        object,
+      })
+      return
+    }
+    if (candidate.isSprite === true) {
+      diagnostic(diagnostics, options, {
+        code: 'UNSUPPORTED_OBJECT',
+        message: 'Sprite needs camera-facing quad projection and is not projected yet.',
+        object,
+      })
+      return
+    }
     if (candidate.isLine === true) {
       const line = object as ThreeLine
+      if (line.morphTargetInfluences?.some((influence) => influence !== 0)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message: 'Active line morph targets are not projected yet.',
+          object,
+        })
+        return
+      }
       if (Array.isArray(line.material)) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_MATERIAL',
@@ -406,6 +449,15 @@ export function projectThreeScene(
     }
     if (candidate.isMesh !== true) return
     const mesh = object as Mesh
+    if (candidate.isBatchedMesh === true) {
+      diagnostic(diagnostics, options, {
+        code: 'UNSUPPORTED_MESH',
+        message:
+          'BatchedMesh needs per-instance transforms and visibility and is not projected yet.',
+        object,
+      })
+      return
+    }
     if ((mesh as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh) {
       diagnostic(diagnostics, options, {
         code: 'UNSUPPORTED_MESH',

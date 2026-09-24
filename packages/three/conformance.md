@@ -17,13 +17,13 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Category | Exact | Usable | Safe | Silent | Out of scope |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
-| object | 6/11 (54.5%) | 6/11 (54.5%) | 8/11 (72.7%) | 3 | 2 |
-| camera | 2/4 (50.0%) | 2/4 (50.0%) | 3/4 (75.0%) | 1 | 2 |
-| material | 0/17 (0.0%) | 3/17 (17.6%) | 16/17 (94.1%) | 1 | 1 |
-| geometry | 7/13 (53.8%) | 7/13 (53.8%) | 12/13 (92.3%) | 1 | 0 |
+| object | 6/11 (54.5%) | 6/11 (54.5%) | 11/11 (100.0%) | 0 | 2 |
+| camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
+| material | 0/17 (0.0%) | 3/17 (17.6%) | 17/17 (100.0%) | 0 | 1 |
+| geometry | 7/13 (53.8%) | 7/13 (53.8%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 1/8 (12.5%) | 2/8 (25.0%) | 2/8 (25.0%) | 6 | 0 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **21/58 (36.2%)** | **25/58 (43.1%)** | **46/58 (79.3%)** | **12** | **5** |
+| **Three.js surface** | **21/58 (36.2%)** | **25/58 (43.1%)** | **52/58 (89.7%)** | **6** | **5** |
 
 ## Detailed surface
 
@@ -41,25 +41,25 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| BatchedMesh | silent | Batch transforms and visibility are not evaluated. | — |
+| BatchedMesh | diagnostic | Rejected before batch transforms can be lost. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics without projecting LOD children` |
 | Bone | out-of-scope | A Bone has no independent render primitive. | — |
 | Group | full | Visibility and nested world transforms are traversed. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
 | InstancedMesh | diagnostic | Rejected with UNSUPPORTED_MESH. | [test](src/project.test.ts) `unsupported mesh variants emit diagnostics` |
 | Line | full | Line strips project through the portable line pipeline. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
 | LineLoop | full | Closed line strips project through the line pipeline. | [test](src/project.test.ts) `LineLoop closes its final vertex back to its first` |
 | LineSegments | full | Independent line pairs project through the line pipeline. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
-| LOD | silent | All visible levels are traversed instead of selecting one by distance. | — |
+| LOD | diagnostic | Rejected as a subtree until camera-distance level selection is implemented. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics without projecting LOD children` |
 | Mesh | full | Triangle meshes use the supported material subset. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
 | Points | full | Point vertices project through the circle pipeline. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
 | Skeleton | out-of-scope | A Skeleton is data consumed by SkinnedMesh. | — |
 | SkinnedMesh | diagnostic | Rejected with UNSUPPORTED_MESH. | [test](src/project.test.ts) `unsupported mesh variants emit diagnostics` |
-| Sprite | silent | Sprites currently disappear without a diagnostic. | — |
+| Sprite | diagnostic | Rejected until camera-facing quad projection is implemented. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics without projecting LOD children` |
 
 ### camera
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| ArrayCamera | silent | Its child cameras and viewports are ignored. | — |
+| ArrayCamera | diagnostic | Rejected until child camera viewports are supported. | [test](src/project.test.ts) `ArrayCamera emits a diagnostic instead of using its inherited perspective matrix` |
 | Camera | diagnostic | A base camera has no usable projection and is rejected. | [test](src/project.test.ts) `unsupported inputs are omitted with actionable diagnostics` |
 | CubeCamera | out-of-scope | Environment capture needs a GPU renderer. | — |
 | OrthographicCamera | full | Its public projection matrix is honoured. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
@@ -87,7 +87,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | PointsMaterial | partial | Opaque untextured colour, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
-| SpriteMaterial | silent | The owning Sprite disappears without a diagnostic. | — |
+| SpriteMaterial | diagnostic | Rejected with the owning Sprite. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics without projecting LOD children` |
 
 ### geometry
 
@@ -101,7 +101,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | homogeneous frustum clipping | full | Triangles and lines clip against all six planes. | [test](src/project.test.ts) `the homogeneous clip volume cuts a near-plane crossing instead of exploding it`<br>[test](src/project.test.ts) `a line crossing the near plane is clipped to finite viewport coordinates` |
 | front, back, and double side | full | Face winding and material side are honoured. | [test](src/project.test.ts) `face side is respected after the viewport y-axis is flipped` |
 | mesh and point morph targets | diagnostic | Active mesh and point morph targets are rejected. | [test](src/project.test.ts) `active mesh and point morph targets emit diagnostics` |
-| line morph targets | silent | Active line morph targets are ignored. | — |
+| line morph targets | diagnostic | Active line morph targets are rejected. | [test](src/project.test.ts) `active line morph targets emit a diagnostic` |
 | vertex colours | diagnostic | Interpolation is unavailable in the flat Canvas backend. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
 | textures and UV sampling | diagnostic | Texture sampling requires a GPU backend. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
 | transparency and blending | diagnostic | Non-opaque materials are rejected. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
