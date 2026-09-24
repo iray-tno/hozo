@@ -21,9 +21,9 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | camera | 3/4 (75.0%) | 3/4 (75.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 9/13 (69.2%) | 12/13 (92.3%) | 13/13 (100.0%) | 0 | 0 |
-| scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
+| scene | 3/8 (37.5%) | 6/8 (75.0%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **31/58 (53.4%)** | **41/58 (70.7%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **31/58 (53.4%)** | **42/58 (72.4%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -115,9 +115,9 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | depth ordering | partial | Primitives use painter ordering, not a per-pixel depth buffer. | [test](src/project.test.ts) `far triangles are painted before near triangles` |
 | Object3D.renderOrder | full | Explicit object render order groups override the portable painter depth order. | [test](src/project.test.ts) `renderOrder overrides painter depth while preserving stable object order`<br>[test](src/project.test.ts) `Group renderOrder applies to its projected descendants` |
 | camera layers | full | Camera and object layer masks filter renderable objects without pruning descendants. | [test](src/project.test.ts) `camera layers filter objects without hiding matching descendants` |
-| Scene.overrideMaterial | diagnostic | Affected geometry is omitted with UNSUPPORTED_SCENE rather than using original materials. | [test](src/project.test.ts) `scene-wide material overrides and fog diagnose and omit affected geometry` |
+| Scene.overrideMaterial | partial | Supported overrides replace eligible render-list materials while preserving visibility and allowOverride. | [test](src/project.test.ts) `Scene.overrideMaterial preserves render-list visibility and allowOverride` |
 | Scene.background | partial | Solid colours become non-interactive Canvas rectangles; textures are diagnosed. | [test](src/project.test.ts) `solid scene backgrounds become non-interactive Canvas rectangles`<br>[test](src/three-canvas.test.tsx) `ThreeCanvas paints scene backgrounds without creating an object control`<br>[test](src/project.test.ts) `texture backgrounds are diagnosed while otherwise portable geometry remains visible` |
-| scene fog | diagnostic | Fog-affected geometry is omitted with UNSUPPORTED_SCENE. | [test](src/project.test.ts) `scene-wide material overrides and fog diagnose and omit affected geometry` |
+| scene fog | diagnostic | Fog-affected geometry is omitted with UNSUPPORTED_SCENE. | [test](src/project.test.ts) `scene fog diagnoses and omits affected geometry` |
 | renderer tone mapping | out-of-scope | The portable Canvas contract fixes NoToneMapping and has no renderer tone-mapping option. | — |
 | depth and stencil material state | diagnostic | Non-default depth, stencil, colour-write, polygon-offset, and blending state is rejected. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, and blending state emit diagnostics` |
 

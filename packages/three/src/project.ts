@@ -390,6 +390,10 @@ function projectedOpacityProps(material: Material): { opacity?: number } {
   return opacity === undefined ? {} : { opacity }
 }
 
+function effectiveMaterial(original: Material, override: Material | null): Material {
+  return override && original.allowOverride ? override : original
+}
+
 function isSupportedCamera(object: Object3D): object is SupportedCamera {
   const candidate = object as Partial<PerspectiveCamera & OrthographicCamera>
   return candidate.isPerspectiveCamera === true || candidate.isOrthographicCamera === true
@@ -478,14 +482,6 @@ function projectThreeSceneInternal(
   }
 
   let rejectSceneGeometry = false
-  if (includeSceneState && scene.overrideMaterial !== null) {
-    diagnostic(diagnostics, options, {
-      code: 'UNSUPPORTED_SCENE',
-      message: 'Scene.overrideMaterial is not projected; affected geometry was omitted.',
-      object: scene,
-    })
-    rejectSceneGeometry = true
-  }
   if (includeSceneState && scene.fog !== null) {
     diagnostic(diagnostics, options, {
       code: 'UNSUPPORTED_SCENE',
@@ -563,7 +559,11 @@ function projectThreeSceneInternal(
     if (candidate.isSprite === true) {
       const sprite = object as Sprite
       if (sprite.count <= 0) return
-      const material = sprite.material as Partial<SpriteMaterial>
+      if (sprite.material.visible === false) return
+      const material = effectiveMaterial(
+        sprite.material,
+        scene.overrideMaterial,
+      ) as Partial<SpriteMaterial>
       if (material.isSpriteMaterial !== true) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_MATERIAL',
@@ -572,7 +572,6 @@ function projectThreeSceneInternal(
         })
         return
       }
-      if (material.visible === false) return
       const reason = spriteMaterialReason(material as SpriteMaterial)
       if (reason) {
         diagnostic(diagnostics, options, {
@@ -658,7 +657,11 @@ function projectThreeSceneInternal(
         })
         return
       }
-      const material = line.material as Partial<LineBasicMaterial>
+      if (line.material.visible === false) return
+      const material = effectiveMaterial(
+        line.material,
+        scene.overrideMaterial,
+      ) as Partial<LineBasicMaterial>
       if (material.isLineBasicMaterial !== true) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_MATERIAL',
@@ -667,7 +670,6 @@ function projectThreeSceneInternal(
         })
         return
       }
-      if (material.visible === false) return
       const reason = lineMaterialReason(material as LineBasicMaterial)
       if (reason) {
         diagnostic(diagnostics, options, {
@@ -791,7 +793,11 @@ function projectThreeSceneInternal(
         })
         return
       }
-      const material = points.material as Partial<PointsMaterial>
+      if (points.material.visible === false) return
+      const material = effectiveMaterial(
+        points.material,
+        scene.overrideMaterial,
+      ) as Partial<PointsMaterial>
       if (material.isPointsMaterial !== true) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_MATERIAL',
@@ -800,7 +806,6 @@ function projectThreeSceneInternal(
         })
         return
       }
-      if (material.visible === false) return
       const reason = pointsMaterialReason(material as PointsMaterial)
       if (reason) {
         diagnostic(diagnostics, options, {
@@ -923,9 +928,6 @@ function projectThreeSceneInternal(
     ) => {
       if (!source || typeof source !== 'object') return
       const material = source as Partial<MeshBasicMaterial>
-      // Three does not enqueue invisible group materials at all. This is
-      // intentional scene state, not an unsupported feature worth reporting.
-      if (material.visible === false) return
       if (material.isMeshBasicMaterial !== true) {
         if (!reportedMaterials.has(source)) {
           reportedMaterials.add(source)
@@ -959,9 +961,11 @@ function projectThreeSceneInternal(
       const ranges: MaterialRange[] = []
       if (Array.isArray(mesh.material)) {
         for (const group of mesh.geometry.groups) {
+          const original = mesh.material[group.materialIndex ?? 0]
+          if (!original || original.visible === false) continue
           appendRange(
             ranges,
-            mesh.material[group.materialIndex ?? 0],
+            effectiveMaterial(original, scene.overrideMaterial),
             start,
             end,
             group.start,
@@ -969,7 +973,9 @@ function projectThreeSceneInternal(
           )
         }
       } else {
-        appendRange(ranges, mesh.material, start, end)
+        if (mesh.material.visible !== false) {
+          appendRange(ranges, effectiveMaterial(mesh.material, scene.overrideMaterial), start, end)
+        }
       }
       return ranges
     }
