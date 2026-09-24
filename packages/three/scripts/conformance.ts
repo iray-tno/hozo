@@ -252,10 +252,14 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'PointsMaterial',
     'partial',
-    'Opaque untextured colour, size, and attenuation work.',
+    'Opaque untextured material and per-point RGB colours, size, and attenuation work.',
     {
       upstream: upstream('material', 'PointsMaterial'),
-      tests: [points, project('textured points are omitted with a diagnostic')],
+      tests: [
+        points,
+        project('PointsMaterial multiplies per-point RGB colours'),
+        project('textured points are omitted with a diagnostic'),
+      ],
     },
   ),
   row(
@@ -341,10 +345,13 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'geometry',
     'vertex colours',
-    'diagnostic',
-    'Interpolation is unavailable in the flat Canvas backend.',
+    'partial',
+    'Per-point RGB works; interpolated mesh and line colours remain diagnosed.',
     {
-      tests: [project('unsupported MeshBasicMaterial features emit diagnostics')],
+      tests: [
+        project('PointsMaterial multiplies per-point RGB colours'),
+        project('unsupported MeshBasicMaterial features emit diagnostics'),
+      ],
     },
   ),
   row(

@@ -51,8 +51,9 @@ and flat opaque `MeshBasicMaterial` colours are supported. `Line`,
 `LineSegments`, and `LineLoop` with opaque `LineBasicMaterial` are projected
 with their declared colour and width. `Points` with opaque, untextured
 `PointsMaterial` are projected as circles, including perspective size
-attenuation. Wireframe `MeshBasicMaterial` is projected through the same line
-pipeline, including its colour and `wireframeLinewidth`. Mesh material arrays
+attenuation and per-point RGB colours. Wireframe `MeshBasicMaterial` is
+projected through the same line pipeline, including its colour and
+`wireframeLinewidth`. Mesh material arrays
 and `BufferGeometry` groups preserve each group's material and intersect with
 the geometry's draw range just as they do in Three.js. `LOD` selects its active
 level from the camera distance, and untextured solid-colour `SpriteMaterial`

@@ -560,6 +560,27 @@ test('points outside the homogeneous clip volume are omitted', () => {
   assert.equal(circles[0]?.cy, 50)
 })
 
+test('PointsMaterial multiplies per-point RGB colours', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3))
+  geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 0, 1], 3))
+  const scene = new Scene()
+  scene.add(
+    new Points(
+      geometry,
+      new PointsMaterial({ color: '#ffffff', size: 2, sizeAttenuation: false, vertexColors: true }),
+    ),
+  )
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(
+    projectedCircles(result).map(({ fill }) => fill),
+    ['#ff0000', '#0000ff'],
+  )
+})
+
 test('textured points are omitted with a diagnostic', () => {
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new Float32BufferAttribute([0, 0, 0], 3))
