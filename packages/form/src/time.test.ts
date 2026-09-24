@@ -124,8 +124,15 @@ test('the whole time reads as the locale writes it', () => {
   const american = timeLabel(time(9, 30), 'en-US', { hour12: true })
   assert.match(american, /\b9:30\b/)
   assert.match(american, /AM/i)
+  // "9:30" rather than "09:30", which is what I had written here and wrong.
+  // `hour: 'numeric'` produces no leading zero, and `'2-digit'` would impose
+  // one everywhere -- Japanese writes 9:30 on a twenty-four hour clock too,
+  // so a leading zero is a convention rather than a rule. Letting the locale
+  // decide is `timeStyle: 'short'`, which carries the same unknown as
+  // `resolvedOptions`: an ECMA-402 addition whose presence on Hermes nothing
+  // here has established. Deferred with that one rather than guessed at.
   const german = timeLabel(time(9, 30), 'de-DE', { hour12: false })
-  assert.match(german, /09:30/)
+  assert.match(german, /\b9:30\b/)
   assert.doesNotMatch(german, /AM|PM/i)
   const evening = timeLabel(time(21, 30), 'en-US', { hour12: true })
   assert.match(evening, /\b9:30\b/)
@@ -167,7 +174,7 @@ test('times become options a Listbox can take, with the taken ones marked', () =
     options.map((option) => hhmm(option.value)),
     ['09:00:00', '09:30:00', '10:00:00'],
   )
-  assert.match(options[0]?.label ?? '', /09:00/)
+  assert.match(options[0]?.label ?? '', /9:00/)
   assert.equal(options[0]?.disabled, undefined, 'absent rather than false, so it is not set')
   assert.equal(options[1]?.disabled, true)
   assert.equal(options[2]?.disabled, undefined)

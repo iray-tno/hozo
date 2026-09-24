@@ -45,10 +45,10 @@ export {
 export {
   hourLabel,
   minuteLabel,
-  timeLabel,
-  timeOptions,
   type TimeOptionsInput,
   type TimeTextOptions,
+  timeLabel,
+  timeOptions,
   usesTwelveHour,
 } from './time-format.ts'
 export {
