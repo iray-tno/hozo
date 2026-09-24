@@ -57,7 +57,9 @@ projection. `Points` with untextured
 `PointsMaterial` are projected as circles, including perspective size
 attenuation and per-point RGB colours. Wireframe `MeshBasicMaterial` is
 projected through the same line pipeline, including its colour and
-`wireframeLinewidth`. Mesh material arrays
+`wireframeLinewidth`. Default world-space material clipping planes cut meshes
+and lines and discard clipped points; `clipIntersection` remains diagnosed.
+Mesh material arrays
 and `BufferGeometry` groups preserve each group's material and intersect with
 the geometry's draw range just as they do in Three.js. `LOD` selects its active
 level from the camera distance, and untextured solid-colour `SpriteMaterial`

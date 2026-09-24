@@ -405,10 +405,13 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'geometry',
     'material clipping planes',
-    'diagnostic',
-    'Per-material clipping planes are rejected.',
+    'partial',
+    'Default world-space clipping cuts meshes and lines and discards points; clipIntersection remains diagnosed.',
     {
-      tests: [project('unsupported MeshBasicMaterial features emit diagnostics')],
+      tests: [
+        project('material clipping planes cut meshes and lines and discard points in world space'),
+        project('unsupported MeshBasicMaterial features emit diagnostics'),
+      ],
     },
   ),
 
