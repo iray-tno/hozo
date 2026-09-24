@@ -24,9 +24,11 @@ import {
   type Points,
   type PointsMaterial,
   type Scene,
+  type SkinnedMesh,
   type Sprite,
   type SpriteMaterial,
   type Line as ThreeLine,
+  Vector3,
   Vector4,
 } from 'three'
 
@@ -825,14 +827,9 @@ function projectThreeSceneInternal(
     const instancedMesh = (mesh as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh
       ? (mesh as InstancedMesh)
       : undefined
-    if ((mesh as Mesh & { isSkinnedMesh?: boolean }).isSkinnedMesh) {
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_MESH',
-        message: 'SkinnedMesh needs evaluated bone transforms and is not projected yet.',
-        object,
-      })
-      return
-    }
+    const skinnedMesh = (mesh as Mesh & { isSkinnedMesh?: boolean }).isSkinnedMesh
+      ? (mesh as SkinnedMesh)
+      : undefined
     const position = mesh.geometry.getAttribute('position')
     if (!position || position.itemSize < 3) {
       diagnostic(diagnostics, options, {
@@ -999,18 +996,31 @@ function projectThreeSceneInternal(
       const ranges = rangesFor(drawStart, drawEnd)
       if (ranges.length === 0) return
       projectionInstances.push({
-        morph: positionMorphState(mesh.geometry, mesh.morphTargetInfluences),
+        morph: skinnedMesh
+          ? undefined
+          : positionMorphState(mesh.geometry, mesh.morphTargetInfluences),
         ranges,
         worldMatrix: mesh.matrixWorld,
       })
     }
     let wireframeIndices: number[] | undefined
     const fillColor = new Color()
+    const skinnedPosition = new Vector3()
     for (const { color, morph, ranges, worldMatrix } of projectionInstances) {
       const matrix = new Matrix4().multiplyMatrices(viewProjection, worldMatrix)
       const mirrored = worldMatrix.determinant() < 0
-      const vertexAt = (vertexIndex: number) =>
-        localPosition(position, vertexIndex, morph).applyMatrix4(matrix)
+      const vertexAt = (vertexIndex: number) => {
+        if (skinnedMesh) {
+          skinnedMesh.getVertexPosition(vertexIndex, skinnedPosition)
+          return new Vector4(
+            skinnedPosition.x,
+            skinnedPosition.y,
+            skinnedPosition.z,
+            1,
+          ).applyMatrix4(matrix)
+        }
+        return localPosition(position, vertexIndex, morph).applyMatrix4(matrix)
+      }
       const vertex = (offset: number) => {
         const vertexIndex = index ? index.getX(offset) : offset
         return vertexAt(vertexIndex)

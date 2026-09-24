@@ -700,17 +700,33 @@ test('mirrored mesh transforms preserve Three.js front-face semantics', () => {
   assert.equal(result.scene.length, 1)
 })
 
-test('unsupported mesh variants emit diagnostics', () => {
-  const material = new MeshBasicMaterial()
-  const objects = [new THREE.SkinnedMesh(triangleGeometry(), material)]
+test('SkinnedMesh evaluates morph targets before public CPU bone transforms', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute(
+    'skinIndex',
+    new Uint16BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 4),
+  )
+  geometry.setAttribute(
+    'skinWeight',
+    new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 4),
+  )
+  geometry.morphTargetsRelative = true
+  geometry.morphAttributes.position = [new Float32BufferAttribute([0, 2, 0, 0, 2, 0, 0, 2, 0], 3)]
+  const mesh = new THREE.SkinnedMesh(geometry, new MeshBasicMaterial())
+  const bone = new THREE.Bone()
+  mesh.add(bone)
+  mesh.bind(new THREE.Skeleton([bone]))
+  if (!mesh.morphTargetInfluences) throw new Error('skinned mesh did not initialise morphs')
+  mesh.morphTargetInfluences[0] = 0.5
+  bone.position.x = 1
+  const scene = new Scene()
+  scene.add(mesh)
 
-  for (const object of objects) {
-    const scene = new Scene()
-    scene.add(object)
-    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
-    assert.deepEqual(result.scene, [])
-    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
-  }
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedPaths(result), [{ path: 'M 50 50 L 70 50 L 60 30 Z', fill: '#ffffff' }])
+  assert.deepEqual(result.objects, [mesh])
 })
 
 test('LOD selects the camera-distance level and honours manual visibility', () => {
