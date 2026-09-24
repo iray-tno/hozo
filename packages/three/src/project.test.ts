@@ -754,16 +754,22 @@ test('ArrayCamera emits a diagnostic instead of using its inherited perspective 
   assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_CAMERA')
 })
 
-test('active line morph targets emit a diagnostic', () => {
-  const line = new Line(triangleGeometry(), new LineBasicMaterial())
-  line.morphTargetInfluences = [1]
+test('line morph targets deform projected segments', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3))
+  geometry.morphAttributes.position = [new Float32BufferAttribute([-1, 2, 0, 1, 2, 0], 3)]
+  const line = new Line(geometry, new LineBasicMaterial())
+  if (!line.morphTargetInfluences) throw new Error('line did not initialise morph influences')
+  line.morphTargetInfluences[0] = 0.5
   const scene = new Scene()
   scene.add(line)
 
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
-  assert.deepEqual(result.scene, [])
-  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_GEOMETRY')
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedLines(result), [
+    { x1: 40, y1: 40, x2: 60, y2: 40, stroke: '#ffffff', strokeWidth: 1 },
+  ])
 })
 
 test('unsupported mesh material classes emit diagnostics', () => {
@@ -839,23 +845,42 @@ test('non-default depth, stencil, write, offset, and blending state emit diagnos
   }
 })
 
-test('active mesh and point morph targets emit diagnostics', () => {
-  const objects = [
-    new Mesh(triangleGeometry(), new MeshBasicMaterial()),
-    new Points(triangleGeometry(), new PointsMaterial()),
-  ]
-  for (const object of objects) object.morphTargetInfluences = [1]
-
-  for (const object of objects) {
+test('absolute and relative mesh morph targets deform projected triangles', () => {
+  for (const relative of [false, true]) {
+    const geometry = triangleGeometry()
+    geometry.morphTargetsRelative = relative
+    geometry.morphAttributes.position = [
+      new Float32BufferAttribute(
+        relative ? [2, 0, 0, 2, 0, 0, 2, 0, 0] : [1, -1, 0, 3, -1, 0, 2, 1, 0],
+        3,
+      ),
+    ]
+    const mesh = new Mesh(geometry, new MeshBasicMaterial())
+    if (!mesh.morphTargetInfluences) throw new Error('mesh did not initialise morph influences')
+    mesh.morphTargetInfluences[0] = 0.5
     const scene = new Scene()
-    scene.add(object)
+    scene.add(mesh)
     const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
-    assert.deepEqual(result.scene, [])
-    assert.ok(
-      result.diagnostics[0]?.code === 'UNSUPPORTED_MESH' ||
-        result.diagnostics[0]?.code === 'UNSUPPORTED_GEOMETRY',
-    )
+
+    assert.deepEqual(result.diagnostics, [])
+    assert.equal(projectedPaths(result)[0]?.path, 'M 50 60 L 70 60 L 60 40 Z')
   }
+})
+
+test('point morph targets move projected points', () => {
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute([0, 0, 0], 3))
+  geometry.morphAttributes.position = [new Float32BufferAttribute([2, 0, 0], 3)]
+  const points = new Points(geometry, new PointsMaterial({ size: 2, sizeAttenuation: false }))
+  if (!points.morphTargetInfluences) throw new Error('points did not initialise morph influences')
+  points.morphTargetInfluences[0] = 0.5
+  const scene = new Scene()
+  scene.add(points)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.equal(projectedCircles(result)[0]?.cx, 60)
 })
 
 test('unsupported inputs are omitted with actionable diagnostics', () => {

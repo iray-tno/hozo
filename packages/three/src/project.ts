@@ -1,9 +1,12 @@
 import type { CanvasScene, CanvasSceneNode } from '@hozo/canvas'
 import {
   BackSide,
+  type BufferAttribute,
+  type BufferGeometry,
   type Color,
   DoubleSide,
   type InstancedMesh,
+  type InterleavedBufferAttribute,
   LessEqualDepth,
   type LineBasicMaterial,
   type LOD,
@@ -133,6 +136,53 @@ function projectedPoint(point: Vector4, width: number, height: number) {
     y: ((1 - y) * height) / 2,
     z,
   }
+}
+
+type PositionAttribute = BufferAttribute | InterleavedBufferAttribute
+
+interface PositionMorphState {
+  attributes: readonly PositionAttribute[]
+  baseInfluence: number
+  influences: readonly number[]
+}
+
+function positionMorphState(
+  geometry: BufferGeometry,
+  influences: readonly number[] | undefined,
+): PositionMorphState | undefined {
+  const attributes = geometry.morphAttributes.position
+  if (!influences || !attributes || attributes.length === 0) return undefined
+  return {
+    attributes,
+    baseInfluence: geometry.morphTargetsRelative
+      ? 1
+      : 1 - influences.reduce((sum, influence) => sum + influence, 0),
+    influences,
+  }
+}
+
+function localPosition(
+  position: PositionAttribute,
+  vertexIndex: number,
+  morph: PositionMorphState | undefined,
+): Vector4 {
+  const baseX = position.getX(vertexIndex)
+  const baseY = position.getY(vertexIndex)
+  const baseZ = position.getZ(vertexIndex)
+  if (!morph) return new Vector4(baseX, baseY, baseZ, 1)
+
+  let x = baseX * morph.baseInfluence
+  let y = baseY * morph.baseInfluence
+  let z = baseZ * morph.baseInfluence
+  for (let index = 0; index < morph.attributes.length; index += 1) {
+    const influence = morph.influences[index] ?? 0
+    const attribute = morph.attributes[index]
+    if (influence === 0 || !attribute) continue
+    x += attribute.getX(vertexIndex) * influence
+    y += attribute.getY(vertexIndex) * influence
+    z += attribute.getZ(vertexIndex) * influence
+  }
+  return new Vector4(x, y, z, 1)
 }
 
 function signedArea(points: readonly { x: number; y: number }[]) {
@@ -440,14 +490,6 @@ export function projectThreeScene(
     }
     if (candidate.isLine === true) {
       const line = object as ThreeLine
-      if (line.morphTargetInfluences?.some((influence) => influence !== 0)) {
-        diagnostic(diagnostics, options, {
-          code: 'UNSUPPORTED_GEOMETRY',
-          message: 'Active line morph targets are not projected yet.',
-          object,
-        })
-        return
-      }
       if (Array.isArray(line.material)) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_MATERIAL',
@@ -490,14 +532,10 @@ export function projectThreeScene(
       const requested = line.geometry.drawRange.count
       const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
       const matrix = new Matrix4().multiplyMatrices(viewProjection, line.matrixWorld)
+      const morph = positionMorphState(line.geometry, line.morphTargetInfluences)
       const vertex = (offset: number) => {
         const vertexIndex = index ? index.getX(offset) : offset
-        return new Vector4(
-          position.getX(vertexIndex),
-          position.getY(vertexIndex),
-          position.getZ(vertexIndex),
-          1,
-        ).applyMatrix4(matrix)
+        return localPosition(position, vertexIndex, morph).applyMatrix4(matrix)
       }
       const stroke = `#${(material as LineBasicMaterial).color.getHexString()}`
       const strokeWidth = Math.max(0, (material as LineBasicMaterial).linewidth)
@@ -564,14 +602,6 @@ export function projectThreeScene(
         })
         return
       }
-      if (points.morphTargetInfluences?.some((influence) => influence !== 0)) {
-        diagnostic(diagnostics, options, {
-          code: 'UNSUPPORTED_GEOMETRY',
-          message: 'Active point morph targets are not projected yet.',
-          object,
-        })
-        return
-      }
       const position = points.geometry.getAttribute('position')
       if (!position || position.itemSize < 3) {
         diagnostic(diagnostics, options, {
@@ -592,14 +622,10 @@ export function projectThreeScene(
       )
       const pointMaterial = material as PointsMaterial
       const fill = `#${pointMaterial.color.getHexString()}`
+      const morph = positionMorphState(points.geometry, points.morphTargetInfluences)
       for (let offset = start; offset < end; offset += 1) {
         const vertexIndex = index ? index.getX(offset) : offset
-        const view = new Vector4(
-          position.getX(vertexIndex),
-          position.getY(vertexIndex),
-          position.getZ(vertexIndex),
-          1,
-        ).applyMatrix4(modelView)
+        const view = localPosition(position, vertexIndex, morph).applyMatrix4(modelView)
         const clip = view.clone().applyMatrix4(camera.projectionMatrix)
         if (!clipPlanes.every((distance) => distance(clip) >= 0)) continue
         const projected = projectedPoint(clip, options.width, options.height)
@@ -651,14 +677,6 @@ export function projectThreeScene(
       diagnostic(diagnostics, options, {
         code: 'UNSUPPORTED_MESH',
         message: 'SkinnedMesh needs evaluated bone transforms and is not projected yet.',
-        object,
-      })
-      return
-    }
-    if (mesh.morphTargetInfluences?.some((influence) => influence !== 0)) {
-      diagnostic(diagnostics, options, {
-        code: 'UNSUPPORTED_MESH',
-        message: 'Active morph targets are not projected yet.',
         object,
       })
       return
@@ -737,16 +755,12 @@ export function projectThreeScene(
       worldMatrices.push(mesh.matrixWorld)
     }
     let wireframeIndices: number[] | undefined
+    const morph = positionMorphState(mesh.geometry, mesh.morphTargetInfluences)
     for (const worldMatrix of worldMatrices) {
       const matrix = new Matrix4().multiplyMatrices(viewProjection, worldMatrix)
       const mirrored = worldMatrix.determinant() < 0
       const vertexAt = (vertexIndex: number) =>
-        new Vector4(
-          position.getX(vertexIndex),
-          position.getY(vertexIndex),
-          position.getZ(vertexIndex),
-          1,
-        ).applyMatrix4(matrix)
+        localPosition(position, vertexIndex, morph).applyMatrix4(matrix)
       const vertex = (offset: number) => {
         const vertexIndex = index ? index.getX(offset) : offset
         return vertexAt(vertexIndex)

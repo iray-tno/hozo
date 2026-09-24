@@ -326,14 +326,17 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'geometry',
     'mesh and point morph targets',
-    'diagnostic',
-    'Active mesh and point morph targets are rejected.',
+    'full',
+    'Absolute and relative position morphs are evaluated before projection.',
     {
-      tests: [project('active mesh and point morph targets emit diagnostics')],
+      tests: [
+        project('absolute and relative mesh morph targets deform projected triangles'),
+        project('point morph targets move projected points'),
+      ],
     },
   ),
-  row('geometry', 'line morph targets', 'diagnostic', 'Active line morph targets are rejected.', {
-    tests: [project('active line morph targets emit a diagnostic')],
+  row('geometry', 'line morph targets', 'full', 'Position morphs deform line vertices.', {
+    tests: [project('line morph targets deform projected segments')],
   }),
   row(
     'geometry',

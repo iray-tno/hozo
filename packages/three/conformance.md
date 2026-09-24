@@ -20,10 +20,10 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | object | 8/11 (72.7%) | 9/11 (81.8%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 4/17 (23.5%) | 17/17 (100.0%) | 0 | 1 |
-| geometry | 7/13 (53.8%) | 7/13 (53.8%) | 13/13 (100.0%) | 0 | 0 |
+| geometry | 9/13 (69.2%) | 9/13 (69.2%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **25/58 (43.1%)** | **32/58 (55.2%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **27/58 (46.6%)** | **34/58 (58.6%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -100,8 +100,8 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | world transforms | full | Nested object matrices are applied before projection. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path`<br>[test](src/project.test.ts) `mirrored mesh transforms preserve Three.js front-face semantics` |
 | homogeneous frustum clipping | full | Triangles and lines clip against all six planes. | [test](src/project.test.ts) `the homogeneous clip volume cuts a near-plane crossing instead of exploding it`<br>[test](src/project.test.ts) `a line crossing the near plane is clipped to finite viewport coordinates` |
 | front, back, and double side | full | Face winding and material side are honoured. | [test](src/project.test.ts) `face side is respected after the viewport y-axis is flipped` |
-| mesh and point morph targets | diagnostic | Active mesh and point morph targets are rejected. | [test](src/project.test.ts) `active mesh and point morph targets emit diagnostics` |
-| line morph targets | diagnostic | Active line morph targets are rejected. | [test](src/project.test.ts) `active line morph targets emit a diagnostic` |
+| mesh and point morph targets | full | Absolute and relative position morphs are evaluated before projection. | [test](src/project.test.ts) `absolute and relative mesh morph targets deform projected triangles`<br>[test](src/project.test.ts) `point morph targets move projected points` |
+| line morph targets | full | Position morphs deform line vertices. | [test](src/project.test.ts) `line morph targets deform projected segments` |
 | vertex colours | diagnostic | Interpolation is unavailable in the flat Canvas backend. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
 | textures and UV sampling | diagnostic | Texture sampling requires a GPU backend. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
 | transparency and blending | diagnostic | Non-opaque materials are rejected. | [test](src/project.test.ts) `unsupported MeshBasicMaterial features emit diagnostics` |
