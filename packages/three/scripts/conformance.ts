@@ -71,9 +71,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
 
   row('object', 'BatchedMesh', 'diagnostic', 'Rejected before batch transforms can be lost.', {
     upstream: upstream('object', 'BatchedMesh'),
-    tests: [
-      project('unsupported scene object families emit diagnostics without projecting LOD children'),
-    ],
+    tests: [project('unsupported scene object families emit diagnostics')],
   }),
   row('object', 'Bone', 'out-of-scope', 'A Bone has no independent render primitive.', {
     upstream: upstream('object', 'Bone'),
@@ -109,15 +107,11 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'object',
     'LOD',
-    'diagnostic',
-    'Rejected as a subtree until camera-distance level selection is implemented.',
+    'full',
+    'The camera-distance level is selected automatically, or manual visibility is preserved.',
     {
       upstream: upstream('object', 'LOD'),
-      tests: [
-        project(
-          'unsupported scene object families emit diagnostics without projecting LOD children',
-        ),
-      ],
+      tests: [project('LOD selects the camera-distance level and honours manual visibility')],
     },
   ),
   row('object', 'Mesh', 'full', 'Triangle meshes use the supported material subset.', {
@@ -142,11 +136,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'Rejected until camera-facing quad projection is implemented.',
     {
       upstream: upstream('object', 'Sprite'),
-      tests: [
-        project(
-          'unsupported scene object families emit diagnostics without projecting LOD children',
-        ),
-      ],
+      tests: [project('unsupported scene object families emit diagnostics')],
     },
   ),
 
@@ -259,9 +249,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   ),
   row('material', 'SpriteMaterial', 'diagnostic', 'Rejected with the owning Sprite.', {
     upstream: upstream('material', 'SpriteMaterial'),
-    tests: [
-      project('unsupported scene object families emit diagnostics without projecting LOD children'),
-    ],
+    tests: [project('unsupported scene object families emit diagnostics')],
   }),
 
   row('geometry', 'non-indexed BufferGeometry', 'full', 'Position triples render directly.', {

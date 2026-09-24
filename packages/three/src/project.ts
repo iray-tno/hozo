@@ -5,6 +5,7 @@ import {
   DoubleSide,
   LessEqualDepth,
   type LineBasicMaterial,
+  type LOD,
   type Material,
   Matrix4,
   type Mesh,
@@ -323,28 +324,17 @@ export function projectThreeScene(
     camera.matrixWorldInverse,
   )
   const primitives: ProjectedPrimitive[] = []
-  const rejectedSubtrees = new WeakSet<Object3D>()
   let order = 0
 
   scene.traverseVisible((object) => {
-    if (object.parent && rejectedSubtrees.has(object.parent)) {
-      rejectedSubtrees.add(object)
-      return
-    }
     const candidate = object as Partial<Mesh & Points & ThreeLine> & {
       isBatchedMesh?: boolean
       isLOD?: boolean
       isSprite?: boolean
     }
     if (candidate.isLOD === true) {
-      rejectedSubtrees.add(object)
-      if (object.layers.test(camera.layers)) {
-        diagnostic(diagnostics, options, {
-          code: 'UNSUPPORTED_OBJECT',
-          message: 'LOD needs camera-distance level selection and is not projected yet.',
-          object,
-        })
-      }
+      const lod = object as LOD
+      if (lod.layers.test(camera.layers) && lod.autoUpdate) lod.update(camera)
       return
     }
     if (!object.layers.test(camera.layers)) return

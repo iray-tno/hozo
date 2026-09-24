@@ -17,13 +17,13 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Category | Exact | Usable | Safe | Silent | Out of scope |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
-| object | 6/11 (54.5%) | 6/11 (54.5%) | 11/11 (100.0%) | 0 | 2 |
+| object | 7/11 (63.6%) | 7/11 (63.6%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 3/17 (17.6%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 7/13 (53.8%) | 7/13 (53.8%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **23/58 (39.7%)** | **28/58 (48.3%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **24/58 (41.4%)** | **29/58 (50.0%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -41,19 +41,19 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| BatchedMesh | diagnostic | Rejected before batch transforms can be lost. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics without projecting LOD children` |
+| BatchedMesh | diagnostic | Rejected before batch transforms can be lost. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics` |
 | Bone | out-of-scope | A Bone has no independent render primitive. | — |
 | Group | full | Visibility and nested world transforms are traversed. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
 | InstancedMesh | diagnostic | Rejected with UNSUPPORTED_MESH. | [test](src/project.test.ts) `unsupported mesh variants emit diagnostics` |
 | Line | full | Line strips project through the portable line pipeline. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
 | LineLoop | full | Closed line strips project through the line pipeline. | [test](src/project.test.ts) `LineLoop closes its final vertex back to its first` |
 | LineSegments | full | Independent line pairs project through the line pipeline. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
-| LOD | diagnostic | Rejected as a subtree until camera-distance level selection is implemented. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics without projecting LOD children` |
+| LOD | full | The camera-distance level is selected automatically, or manual visibility is preserved. | [test](src/project.test.ts) `LOD selects the camera-distance level and honours manual visibility` |
 | Mesh | full | Triangle meshes use the supported material subset. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
 | Points | full | Point vertices project through the circle pipeline. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
 | Skeleton | out-of-scope | A Skeleton is data consumed by SkinnedMesh. | — |
 | SkinnedMesh | diagnostic | Rejected with UNSUPPORTED_MESH. | [test](src/project.test.ts) `unsupported mesh variants emit diagnostics` |
-| Sprite | diagnostic | Rejected until camera-facing quad projection is implemented. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics without projecting LOD children` |
+| Sprite | diagnostic | Rejected until camera-facing quad projection is implemented. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics` |
 
 ### camera
 
@@ -87,7 +87,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | PointsMaterial | partial | Opaque untextured colour, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
-| SpriteMaterial | diagnostic | Rejected with the owning Sprite. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics without projecting LOD children` |
+| SpriteMaterial | diagnostic | Rejected with the owning Sprite. | [test](src/project.test.ts) `unsupported scene object families emit diagnostics` |
 
 ### geometry
 
