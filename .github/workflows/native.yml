@@ -393,20 +393,46 @@ jobs:
       # skips it -- so the app would come up looking for a Metro server
       # that is not there.
       #
-      # The simulator `ios-smoke.sh` booted is reused: `xcodebuild` takes
-      # the one that is already up rather than starting a second.
+      # The simulator `ios-smoke.sh` booted is reused, and now by id rather
+      # than by name. The script resolves the UDID itself and writes it to
+      # `GITHUB_ENV`; asking for the name again means asking a question with
+      # more than one answer on a runner carrying two runtimes, and the
+      # reports behind #530 name exactly that as a cause of the runner timing
+      # out before any test runs.
+      #
+      # Retried once, and only for #530: the runner intermittently never
+      # initialises and no test runs at all. The same two-attempts-with-a-
+      # warning shape the pod install above uses, and the warning is the
+      # point -- #530 counts occurrences, and a silent retry would stop it
+      # counting while looking like the flake had been fixed.
+      #
+      # Gated on the message rather than on failure. A real test failure is
+      # deterministic, so retrying it would spend seven more minutes to fail
+      # again; this way the flake costs a retry and a broken tree costs one
+      # attempt.
+      #
+      # Not `-retry-tests-on-failure`, which retries *tests*. Nothing here
+      # gets as far as a test.
       - name: Read the accessibility tree
         run: |
           set -o pipefail
-          xcodebuild test \
-            -workspace examples/native-demo/ios/HozoNativeDemo.xcworkspace \
-            -scheme HozoNativeDemo \
-            -configuration Release \
-            -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=${IOS_DEVICE_NAME:-iPhone 16}" \
-            -derivedDataPath examples/native-demo/ios/build \
-            CODE_SIGNING_ALLOWED=NO \
-            | tee ios-uitest.log
+          attempt() {
+            xcodebuild test \
+              -workspace examples/native-demo/ios/HozoNativeDemo.xcworkspace \
+              -scheme HozoNativeDemo \
+              -configuration Release \
+              -sdk iphonesimulator \
+              -destination "platform=iOS Simulator,id=${IOS_UDID}" \
+              -derivedDataPath examples/native-demo/ios/build \
+              CODE_SIGNING_ALLOWED=NO \
+              | tee ios-uitest.log
+          }
+          if ! attempt; then
+            grep -q 'Timed out waiting for AX loaded notification' ios-uitest.log \
+              || exit 1
+            echo "::warning::the XCUITest runner did not initialise; retrying once -- #530"
+            attempt
+          fi
           node examples/native-demo/scripts/extract-trees.mjs ios-uitest.log
 
       # The same comparison as the Android job runs, through the other
