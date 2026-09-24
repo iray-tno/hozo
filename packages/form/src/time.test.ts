@@ -1,13 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import {
-  hourLabel,
-  minuteLabel,
-  timeLabel,
-  timeOptions,
-  usesTwelveHour,
-} from './time-format.ts'
+import { hourLabel, minuteLabel, timeLabel, timeOptions, usesTwelveHour } from './time-format.ts'
 import {
   addHours,
   addMinutes,

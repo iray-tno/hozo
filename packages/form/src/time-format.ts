@@ -16,12 +16,7 @@
  * digits are the only thing a spinbutton's own text needs.
  */
 
-import {
-  type CalendarTime,
-  secondsOfDay,
-  timesBetween,
-  twelveHour,
-} from './time-rules.ts'
+import { type CalendarTime, secondsOfDay, timesBetween, twelveHour } from './time-rules.ts'
 
 /**
  * A day to hang the time on. Any day would do; a fixed one keeps the output
