@@ -502,17 +502,49 @@ test('a line crossing the near plane is clipped to finite viewport coordinates',
   )
 })
 
-test('unsupported dashed line materials are omitted with a diagnostic', () => {
+test('LineDashedMaterial projects line-distance dash and gap intervals', () => {
   const geometry = new BufferGeometry()
-  geometry.setAttribute('position', new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3))
+  geometry.setAttribute('position', new Float32BufferAttribute([-2, 0, 0, 2, 0, 0], 3))
+  const line = new Line(
+    geometry,
+    new LineDashedMaterial({ color: '#16a34a', dashSize: 1, gapSize: 1 }),
+  )
+  line.computeLineDistances()
   const scene = new Scene()
-  scene.add(new Line(geometry, new LineDashedMaterial()))
+  scene.add(line)
 
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
-  assert.deepEqual(result.scene, [])
-  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
-  assert.match(result.diagnostics[0]?.message ?? '', /dashed/)
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(
+    projectedLines(result).map(({ x1, x2, stroke }) => [Math.round(x1), Math.round(x2), stroke]),
+    [
+      [30, 40, '#16a34a'],
+      [50, 60, '#16a34a'],
+    ],
+  )
+})
+
+test('invalid or excessive dashed line intervals emit diagnostics', () => {
+  for (const material of [
+    new LineDashedMaterial({ dashSize: -1 }),
+    new LineDashedMaterial({ dashSize: 1, gapSize: 1, scale: 1_000_000 }),
+  ]) {
+    const geometry = new BufferGeometry()
+    geometry.setAttribute('position', new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3))
+    const line = new Line(geometry, material)
+    line.computeLineDistances()
+    const scene = new Scene()
+    scene.add(line)
+
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+    assert.deepEqual(result.scene, [])
+    assert.ok(
+      result.diagnostics[0]?.code === 'UNSUPPORTED_MATERIAL' ||
+        result.diagnostics[0]?.code === 'UNSUPPORTED_GEOMETRY',
+    )
+  }
 })
 
 test('Points become Canvas circles with indexed draw ranges and perspective attenuation', () => {

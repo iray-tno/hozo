@@ -19,11 +19,11 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
 | object | 8/11 (72.7%) | 9/11 (81.8%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
-| material | 0/17 (0.0%) | 4/17 (23.5%) | 17/17 (100.0%) | 0 | 1 |
+| material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 9/13 (69.2%) | 10/13 (76.9%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **27/58 (46.6%)** | **35/58 (60.3%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **27/58 (46.6%)** | **36/58 (62.1%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -71,7 +71,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
 | LineBasicMaterial | partial | Opaque colour and width work; advanced base material state does not. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
-| LineDashedMaterial | diagnostic | Dashed lines are rejected explicitly. | [test](src/project.test.ts) `unsupported dashed line materials are omitted with a diagnostic` |
+| LineDashedMaterial | partial | Finite dash and gap intervals split into portable solid segments before projection. | [test](src/project.test.ts) `LineDashedMaterial projects line-distance dash and gap intervals`<br>[test](src/project.test.ts) `invalid or excessive dashed line intervals emit diagnostics` |
 | Material | out-of-scope | The abstract material base has no renderable appearance. | — |
 | MeshBasicMaterial | partial | Opaque flat colour, sides, groups, and wireframe work. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates`<br>[test](src/project.test.ts) `groups can mix solid and wireframe MeshBasicMaterial` |
 | MeshDepthMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |

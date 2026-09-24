@@ -49,7 +49,9 @@ projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,
 and flat opaque `MeshBasicMaterial` colours are supported. `Line`,
 `LineSegments`, and `LineLoop` with opaque `LineBasicMaterial` are projected
-with their declared colour and width. `Points` with opaque, untextured
+with their declared colour and width. `LineDashedMaterial` uses Three's
+`lineDistance`, dash size, gap size, and scale to emit portable segments before
+projection. `Points` with opaque, untextured
 `PointsMaterial` are projected as circles, including perspective size
 attenuation and per-point RGB colours. Wireframe `MeshBasicMaterial` is
 projected through the same line pipeline, including its colour and
