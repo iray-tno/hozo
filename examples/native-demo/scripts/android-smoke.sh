@@ -150,12 +150,18 @@ dump() {
 # opening anything and the next dump was of the launcher. A press that
 # lands on the navigation bar is not a press this can make, and saying so
 # is better than reporting whatever the home screen happens to contain.
+#
+# The attribute is an argument because not everything on this screen has a
+# `testID`. The calendar's opener deliberately has none -- a new `testID` in
+# `App.tsx` has to appear in the dump checked into `fixtures/` or
+# `missingOnDevice` fails -- so it is found by `content-desc`, which is what
+# its `accessibilityLabel` becomes.
 centre_of() {
   node --eval '
-    const [file, wanted] = process.argv.slice(1)
+    const [file, wanted, attr = "resource-id"] = process.argv.slice(1)
     const xml = require("node:fs").readFileSync(file, "utf8")
     for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
-      if (!node[0].includes(`resource-id="${wanted}"`)) continue
+      if (!node[0].includes(`${attr}="${wanted}"`)) continue
       const box = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0])
       if (!box) continue
       const [left, top, right, bottom] = box.slice(1).map(Number)
@@ -169,7 +175,7 @@ centre_of() {
       process.exit(0)
     }
     process.exit(1)
-  ' "$1" "$2"
+  ' "$1" "$2" "${3:-resource-id}"
 }
 
 # No system error dialogs, because the ones that appear here belong to
@@ -413,5 +419,88 @@ node --eval '
 found=$(grep -o 'resource-id="gallery-[A-Za-z]*"' gallery_dump.xml | sort -u | wc -l)
 echo "the gallery tree names $found primitives"
 [ "$found" -ge 10 ] || fail "only $found primitives reached the tree, which is not a census"
+
+# Where the calendar's cells actually are.
+#
+# `android-talkback.sh` measured the order Tab visits them: down the Friday
+# column, then Saturday, then Sunday, rather than along the weeks (#514). The
+# view hierarchy is six week rows of seven cells each, so child order would
+# be row-major and Android produced something else. Two readings, and only
+# one of them is ours:
+#
+#   - the rows are not laid out as rows, and the grid is transposed or
+#     collapsed in a way the styles did not intend;
+#   - or Android's focus sorting does this to a grid of nested rows, in which
+#     case every React Native grid has it and it is not ours to fix.
+#
+# `bounds` tells them apart, and this dump is the only place bounds come
+# from. Counting distinct tops and lefts is the whole test: six tops and
+# seven lefts means the rows are rows.
+#
+# Answered, the first time this ran: six tops, seven lefts, and the topmost
+# band is Monday the 31st of August through Sunday the 6th of September in
+# order. The second reading. Kept rather than deleted, because it is the only
+# thing that would notice the styles breaking later -- a transposed grid would
+# show up here as seven tops and six lefts.
+#
+# One cell short of forty-two, which is not explained. A dump reports what is
+# on screen and the last row sits near the bottom edge, so a clipped cell is
+# the likely answer; it is not the answer this was asked for and is not
+# treated as one.
+#
+# Reported, never asserted, and last. The gallery above replaced the screen,
+# so the app is restarted to get the opener back, and nothing after this
+# needs it.
+echo "restarting to read the calendar's geometry"
+adb shell am force-stop "$package" || true
+adb shell am start -W -n "$activity" > /dev/null
+sleep 8
+if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+  echo "::warning::the app did not come back, so the calendar's geometry was not read"
+else
+  adb shell uiautomator dump /sdcard/dump.xml > /dev/null 2>&1 || true
+  adb pull /sdcard/dump.xml ./calendar_opener_dump.xml > /dev/null 2>&1 || true
+  if opener="$(centre_of calendar_opener_dump.xml 'Show the calendar' content-desc)"; then
+    # shellcheck disable=SC2086 -- two words, deliberately unquoted
+    adb shell input tap $opener
+    sleep 3
+    adb shell uiautomator dump /sdcard/dump.xml > /dev/null 2>&1 || true
+    adb pull /sdcard/dump.xml ./calendar_dump.xml > /dev/null 2>&1 || true
+    adb exec-out screencap -p > ./calendar.png 2>/dev/null || true
+    node --eval '
+      const fs = require("node:fs")
+      const file = process.argv[1]
+      if (!fs.existsSync(file)) {
+        console.log("::warning::no calendar dump, so no geometry")
+        process.exit(0)
+      }
+      const xml = fs.readFileSync(file, "utf8")
+      const cells = []
+      for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+        const name = /content-desc="([A-Za-z]+day, [A-Za-z]+ \d+, \d+)"/.exec(node[0])
+        const box = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0])
+        if (!name || !box) continue
+        const [left, top, right, bottom] = box.slice(1).map(Number)
+        cells.push({ name: name[1], left, top, right, bottom })
+      }
+      if (cells.length === 0) {
+        console.log("::warning::the calendar dump names no day cells")
+        process.exit(0)
+      }
+      const tops = new Set(cells.map((cell) => cell.top))
+      const lefts = new Set(cells.map((cell) => cell.left))
+      console.log(`  ${cells.length} day cells, ${tops.size} distinct tops, ${lefts.size} distinct lefts`)
+      // Six rows of seven is what the styles ask for. Anything else is the
+      // first of the two readings above, and the numbers say which.
+      const asBuilt = tops.size === 6 && lefts.size === 7
+      console.log(`  laid out as ${asBuilt ? "rows, so the order is Android\x27s doing" : "something other than six rows of seven"}`)
+      const firstTop = Math.min(...tops)
+      const firstRow = cells.filter((cell) => cell.top === firstTop).sort((a, b) => a.left - b.left)
+      console.log(`  the topmost band, left to right: ${firstRow.map((cell) => cell.name).join(" | ")}`)
+    ' ./calendar_dump.xml || true
+  else
+    echo "::warning::could not find the calendar opener in the tree, so no geometry"
+  fi
+fi
 
 echo "ok: $package is up, its tree contains $expect_id, the dialog opens and closes, and the gallery renders $found primitives"

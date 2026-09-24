@@ -234,6 +234,9 @@ jobs:
             dismissed_dump.xml
             gallery_dump.xml
             gallery.png
+            calendar_opener_dump.xml
+            calendar_dump.xml
+            calendar.png
             examples/native-demo/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 14

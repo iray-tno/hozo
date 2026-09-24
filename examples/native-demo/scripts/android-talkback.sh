@@ -539,10 +539,17 @@ fi
 #
 # Tab goes down a column and then across: the Friday column top to bottom,
 # then Saturday, Sunday, Monday, Tuesday, Wednesday, Thursday. Left to right
-# by column, entering at whichever column focus arrived in. The view
-# hierarchy is six week rows of seven cells, so this is Android's focus
-# sorting rather than child order, and a calendar wants weeks -- a real
-# finding, and the cause is not established here.
+# by column, entering at whichever column focus arrived in. A calendar wants
+# weeks, so this is a real finding.
+#
+# It is not a layout bug, and that was worth measuring rather than assuming.
+# `android-smoke.sh` reads the cells' `bounds` off a dump and counts them:
+# six distinct tops, seven distinct lefts, and the topmost band is a week
+# from Monday to Sunday in order. The grid is laid out exactly as the styles
+# ask. So the order is Android's focus sorting, not child order and not ours,
+# and it belongs to any React Native grid of nested rows rather than to this
+# one. What Android is sorting by is still not established; `nextFocusForward`
+# is the prop that would override it, and nobody has tried.
 #
 # Thirty-nine cells, not forty-two. The three missing are the 31st of August
 # and the 1st and 2nd of September: below `min`, so `disabled`, so
