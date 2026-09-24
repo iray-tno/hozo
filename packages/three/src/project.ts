@@ -1,5 +1,6 @@
 import type { CanvasScene, CanvasSceneNode } from '@hozo/canvas'
 import {
+  type ArrayCamera,
   BackSide,
   type BatchedMesh,
   type BufferAttribute,
@@ -369,10 +370,11 @@ function diagnostic(
  * answer needs a GPU -- textures, blending, skinning and instancing among
  * them -- are omitted with a diagnostic rather than drawn approximately.
  */
-export function projectThreeScene(
+function projectThreeSceneInternal(
   scene: Scene,
   camera: Object3D,
   options: ThreeProjectionOptions,
+  includeSceneState: boolean,
 ): ThreeProjection {
   const diagnostics: ThreeProjectionDiagnostic[] = []
   if (!(options.width > 0) || !(options.height > 0)) {
@@ -382,15 +384,11 @@ export function projectThreeScene(
     })
     return { scene: [], objects: [], diagnostics }
   }
-  if ((camera as Object3D & { isArrayCamera?: boolean }).isArrayCamera === true) {
-    diagnostic(diagnostics, options, {
-      code: 'UNSUPPORTED_CAMERA',
-      message: 'ArrayCamera needs per-camera viewports and is not projected yet.',
-      object: camera,
-    })
-    return { scene: [], objects: [], diagnostics }
-  }
-  if (!isSupportedCamera(camera)) {
+  const arrayCamera =
+    (camera as Object3D & { isArrayCamera?: boolean }).isArrayCamera === true
+      ? (camera as ArrayCamera)
+      : undefined
+  if (!arrayCamera && !isSupportedCamera(camera)) {
     diagnostic(diagnostics, options, {
       code: 'UNSUPPORTED_CAMERA',
       message: 'Only Three.js PerspectiveCamera and OrthographicCamera are portable.',
@@ -400,8 +398,8 @@ export function projectThreeScene(
   }
 
   const decoration: CanvasSceneNode[] = []
-  const decorationObjects: undefined[] = []
-  if (isColorBackground(scene.background)) {
+  const decorationObjects: (Object3D | undefined)[] = []
+  if (includeSceneState && isColorBackground(scene.background)) {
     decoration.push({
       kind: 'rect',
       props: {
@@ -413,7 +411,7 @@ export function projectThreeScene(
       },
     })
     decorationObjects.push(undefined)
-  } else if (scene.background !== null) {
+  } else if (includeSceneState && scene.background !== null) {
     diagnostic(diagnostics, options, {
       code: 'UNSUPPORTED_SCENE',
       message: 'Texture and cube-texture scene backgrounds are not projected yet.',
@@ -422,7 +420,7 @@ export function projectThreeScene(
   }
 
   let rejectSceneGeometry = false
-  if (scene.overrideMaterial !== null) {
+  if (includeSceneState && scene.overrideMaterial !== null) {
     diagnostic(diagnostics, options, {
       code: 'UNSUPPORTED_SCENE',
       message: 'Scene.overrideMaterial is not projected; affected geometry was omitted.',
@@ -430,7 +428,7 @@ export function projectThreeScene(
     })
     rejectSceneGeometry = true
   }
-  if (scene.fog !== null) {
+  if (includeSceneState && scene.fog !== null) {
     diagnostic(diagnostics, options, {
       code: 'UNSUPPORTED_SCENE',
       message: 'Scene fog is not projected; affected geometry was omitted.',
@@ -441,6 +439,46 @@ export function projectThreeScene(
   if (rejectSceneGeometry) {
     return { scene: decoration, objects: decorationObjects, diagnostics }
   }
+
+  if (arrayCamera) {
+    for (const subCamera of arrayCamera.cameras) {
+      const viewport = (subCamera as PerspectiveCamera & { viewport?: Vector4 }).viewport
+      if (!viewport) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_CAMERA',
+          message: 'Every ArrayCamera sub-camera needs a viewport.',
+          object: subCamera,
+        })
+        continue
+      }
+      const projected = projectThreeSceneInternal(
+        scene,
+        subCamera,
+        {
+          width: viewport.z,
+          height: viewport.w,
+          onDiagnostic: options.onDiagnostic,
+        },
+        false,
+      )
+      diagnostics.push(...projected.diagnostics)
+      const translateX = viewport.x
+      const translateY = options.height - viewport.y - viewport.w
+      for (let index = 0; index < projected.scene.length; index += 1) {
+        const node = projected.scene[index]
+        if (!node) continue
+        decoration.push({
+          kind: 'group',
+          props: { transform: { translateX, translateY } },
+          children: [node],
+        })
+        decorationObjects.push(projected.objects[index])
+      }
+    }
+    return { scene: decoration, objects: decorationObjects, diagnostics }
+  }
+  if (!isSupportedCamera(camera))
+    return { scene: decoration, objects: decorationObjects, diagnostics }
 
   scene.updateMatrixWorld(true)
   camera.updateMatrixWorld(true)
@@ -1035,4 +1073,12 @@ export function projectThreeScene(
     objects: [...decorationObjects, ...primitives.map((primitive) => primitive.object)],
     diagnostics,
   }
+}
+
+export function projectThreeScene(
+  scene: Scene,
+  camera: Object3D,
+  options: ThreeProjectionOptions,
+): ThreeProjection {
+  return projectThreeSceneInternal(scene, camera, options, true)
 }

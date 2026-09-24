@@ -160,12 +160,13 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'camera',
     'ArrayCamera',
-    'diagnostic',
-    'Rejected until child camera viewports are supported.',
+    'full',
+    'Each child camera projects into its bottom-left viewport in declared order.',
     {
       upstream: upstream('camera', 'ArrayCamera'),
       tests: [
-        project('ArrayCamera emits a diagnostic instead of using its inherited perspective matrix'),
+        project('ArrayCamera projects each sub-camera into its bottom-left viewport'),
+        project('ArrayCamera diagnoses sub-cameras without a viewport'),
       ],
     },
   ),

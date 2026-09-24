@@ -814,12 +814,46 @@ test('BatchedMesh projects sparse visible instances with transforms and colours'
   )
 })
 
-test('ArrayCamera emits a diagnostic instead of using its inherited perspective matrix', () => {
+test('ArrayCamera projects each sub-camera into its bottom-left viewport', () => {
   const scene = new Scene()
-  scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
-  const camera = new THREE.ArrayCamera([perspective()])
+  scene.background = new THREE.Color('#123456')
+  const mesh = new Mesh(triangleGeometry(), new MeshBasicMaterial())
+  scene.add(mesh)
+  const bottomLeft = perspective()
+  bottomLeft.viewport = new THREE.Vector4(0, 0, 50, 50)
+  const topRight = perspective()
+  topRight.viewport = new THREE.Vector4(50, 50, 50, 50)
+  const camera = new THREE.ArrayCamera([bottomLeft, topRight])
 
   const result = projectThreeScene(scene, camera, { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(result.scene, [
+    {
+      kind: 'rect',
+      props: { x: 0, y: 0, width: 100, height: 100, fill: '#123456' },
+    },
+    {
+      kind: 'group',
+      props: { transform: { translateX: 0, translateY: 50 } },
+      children: [{ kind: 'path', props: { path: 'M 20 30 L 30 30 L 25 20 Z', fill: '#ffffff' } }],
+    },
+    {
+      kind: 'group',
+      props: { transform: { translateX: 50, translateY: 0 } },
+      children: [{ kind: 'path', props: { path: 'M 20 30 L 30 30 L 25 20 Z', fill: '#ffffff' } }],
+    },
+  ])
+  assert.deepEqual(result.objects, [undefined, mesh, mesh])
+})
+
+test('ArrayCamera diagnoses sub-cameras without a viewport', () => {
+  const scene = new Scene()
+  scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
+  const result = projectThreeScene(scene, new THREE.ArrayCamera([perspective()]), {
+    width: 100,
+    height: 100,
+  })
 
   assert.deepEqual(result.scene, [])
   assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_CAMERA')

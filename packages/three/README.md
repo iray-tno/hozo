@@ -47,7 +47,8 @@ one object does not emit a false leave and re-entry.
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,
-and flat opaque `MeshBasicMaterial` colours are supported. `Line`,
+and flat opaque `MeshBasicMaterial` colours are supported. `ArrayCamera`
+projects each child camera into its declared bottom-left viewport. `Line`,
 `LineSegments`, and `LineLoop` with opaque `LineBasicMaterial` are projected
 with their declared colour and width. `LineDashedMaterial` uses Three's
 `lineDistance`, dash size, gap size, and scale to emit portable segments before
