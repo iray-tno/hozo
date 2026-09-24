@@ -891,6 +891,40 @@ test('Sprite projects its billboard centre, rotation, and perspective attenuatio
   assert.equal(projectThreeScene(scene, camera, { width: 100, height: 100 }).scene.length, 0)
 })
 
+test('Sprite clipping planes cut billboards and preserve disjoint union regions', () => {
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      clippingPlanes: [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)],
+      color: '#16a34a',
+    }),
+  )
+  sprite.scale.set(2, 2, 1)
+
+  const clipped = projectThreeScene(new Scene().add(sprite), perspective(), {
+    width: 100,
+    height: 100,
+  })
+  assert.deepEqual(clipped.diagnostics, [])
+  assert.deepEqual(projectedPaths(clipped), [
+    { path: 'M 50 60 L 60 60 L 60 40 L 50 40 Z', fill: '#16a34a' },
+  ])
+
+  sprite.material.clippingPlanes = [
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), -0.5),
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), -0.5),
+  ]
+  sprite.material.clipIntersection = true
+  const union = projectThreeScene(new Scene().add(sprite), perspective(), {
+    width: 100,
+    height: 100,
+  })
+  assert.deepEqual(union.diagnostics, [])
+  assert.deepEqual(projectedPaths(union), [
+    { path: 'M 55 60 L 60 60 L 60 40 L 55 40 Z', fill: '#16a34a' },
+    { path: 'M 40 60 L 45 60 L 45 40 L 40 40 Z', fill: '#16a34a' },
+  ])
+})
+
 test('unsupported SpriteMaterial features are omitted with diagnostics', () => {
   const materials = [
     new THREE.SpriteMaterial({ map: new Texture() }),

@@ -432,9 +432,6 @@ function spriteMaterialReason(material: SpriteMaterial): string | undefined {
   if (baseReason) return baseReason
   if (!Number.isFinite(material.opacity)) return 'sprite opacity must be finite'
   if (material.map || material.alphaMap) return 'textured sprites are not projected yet'
-  if (material.clippingPlanes && material.clippingPlanes.length > 0) {
-    return 'material clipping planes are not projected'
-  }
   return undefined
 }
 
@@ -667,43 +664,53 @@ function projectThreeSceneInternal(
         [0.5, 0.5],
         [-0.5, 0.5],
       ] as const
-      const polygon = clippedPolygon(
-        corners.map(([x, y]) => {
-          const alignedX = (x - (sprite.center.x - 0.5)) * scaleX
-          const alignedY = (y - (sprite.center.y - 0.5)) * scaleY
-          return new Vector4(
-            viewX + cosine * alignedX - sine * alignedY,
-            viewY + sine * alignedX + cosine * alignedY,
-            viewZ,
-            1,
-          ).applyMatrix4(camera.projectionMatrix)
-        }),
-      )
-      if (polygon.length < 3) return
-      const projected = polygon.map((point) => projectedPoint(point, options.width, options.height))
-      if (projected.some((point) => point === undefined)) return
-      const points = projected as { x: number; y: number; z: number }[]
-      const [first, ...rest] = points
-      if (!first) return
-      const path = `M ${printable(first.x)} ${printable(first.y)} ${rest
-        .map((point) => `L ${printable(point.x)} ${printable(point.y)}`)
-        .join(' ')} Z`
-      primitives.push({
-        depth: points.reduce((sum, point) => sum + point.z, 0) / points.length,
-        groupOrder,
-        object,
-        order: order++,
-        renderOrder: object.renderOrder,
-        transparent: spriteMaterial.transparent,
-        node: {
-          kind: 'path',
-          props: {
-            path,
-            fill: `#${spriteMaterial.color.getHexString()}`,
-            ...projectedOpacityProps(spriteMaterial),
-          },
-        },
+      const worldCorners = corners.map(([x, y]) => {
+        const alignedX = (x - (sprite.center.x - 0.5)) * scaleX
+        const alignedY = (y - (sprite.center.y - 0.5)) * scaleY
+        return new Vector4(
+          viewX + cosine * alignedX - sine * alignedY,
+          viewY + sine * alignedX + cosine * alignedY,
+          viewZ,
+          1,
+        ).applyMatrix4(camera.matrixWorld)
       })
+      const materialPolygons = clippedMaterialPolygons(
+        worldCorners,
+        (spriteMaterial.clippingPlanes ?? []) as readonly Plane[],
+        spriteMaterial.clipIntersection,
+      )
+      for (const materialPolygon of materialPolygons) {
+        const polygon = clippedPolygon(
+          materialPolygon.map((point) => point.applyMatrix4(viewProjection)),
+        )
+        if (polygon.length < 3) continue
+        const projected = polygon.map((point) =>
+          projectedPoint(point, options.width, options.height),
+        )
+        if (projected.some((point) => point === undefined)) continue
+        const points = projected as { x: number; y: number; z: number }[]
+        const [first, ...rest] = points
+        if (!first) continue
+        const path = `M ${printable(first.x)} ${printable(first.y)} ${rest
+          .map((point) => `L ${printable(point.x)} ${printable(point.y)}`)
+          .join(' ')} Z`
+        primitives.push({
+          depth: points.reduce((sum, point) => sum + point.z, 0) / points.length,
+          groupOrder,
+          object,
+          order: order++,
+          renderOrder: object.renderOrder,
+          transparent: spriteMaterial.transparent,
+          node: {
+            kind: 'path',
+            props: {
+              path,
+              fill: `#${spriteMaterial.color.getHexString()}`,
+              ...projectedOpacityProps(spriteMaterial),
+            },
+          },
+        })
+      }
       return
     }
     if (candidate.isLine === true) {
