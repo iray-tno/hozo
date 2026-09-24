@@ -165,20 +165,22 @@ export function ThreeCanvas({
     <Canvas {...canvasProps} width={width} height={height} viewBox={[0, 0, width, height]}>
       {projection.scene.map((node, index) => {
         const object = projection.objects[index]
-        if (!object) return null
-        const accessibilityLabel =
-          getAccessibilityLabel?.(object) ?? (object.name.trim() || undefined)
-        const interaction = {
-          accessibilityControlId: object.uuid,
-          accessibilityLabel,
-          onActiveChange: onObjectActiveChange
-            ? (event: CanvasPressEvent | undefined) =>
-                onObjectActiveChange(event === undefined ? undefined : objectEvent(object, event))
-            : undefined,
-          onPress: onObjectPress
-            ? (event: CanvasPressEvent) => onObjectPress(objectEvent(object, event))
-            : undefined,
-        }
+        const interaction = object
+          ? {
+              accessibilityControlId: object.uuid,
+              accessibilityLabel:
+                getAccessibilityLabel?.(object) ?? (object.name.trim() || undefined),
+              onActiveChange: onObjectActiveChange
+                ? (event: CanvasPressEvent | undefined) =>
+                    onObjectActiveChange(
+                      event === undefined ? undefined : objectEvent(object, event),
+                    )
+                : undefined,
+              onPress: onObjectPress
+                ? (event: CanvasPressEvent) => onObjectPress(objectEvent(object, event))
+                : undefined,
+            }
+          : {}
         if (node.kind === 'path') {
           return (
             <Canvas.Path
@@ -204,6 +206,16 @@ export function ThreeCanvas({
             <Canvas.Circle
               // biome-ignore lint/suspicious/noArrayIndexKey: projected primitives have no durable Three identity, and every Canvas shape is a stateless scene registration
               key={`${index}:circle`}
+              {...node.props}
+              {...interaction}
+            />
+          )
+        }
+        if (node.kind === 'rect') {
+          return (
+            <Canvas.Rect
+              // biome-ignore lint/suspicious/noArrayIndexKey: projected primitives have no durable Three identity, and every Canvas shape is a stateless scene registration
+              key={`${index}:rect`}
               {...node.props}
               {...interaction}
             />

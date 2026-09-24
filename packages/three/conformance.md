@@ -21,9 +21,9 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | camera | 2/4 (50.0%) | 2/4 (50.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 3/17 (17.6%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 7/13 (53.8%) | 7/13 (53.8%) | 13/13 (100.0%) | 0 | 0 |
-| scene | 1/8 (12.5%) | 2/8 (25.0%) | 2/8 (25.0%) | 6 | 0 |
+| scene | 3/8 (37.5%) | 5/8 (62.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **21/58 (36.2%)** | **25/58 (43.1%)** | **52/58 (89.7%)** | **6** | **5** |
+| **Three.js surface** | **23/58 (39.7%)** | **28/58 (48.3%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -113,12 +113,13 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | --- | --- | --- | --- |
 | object and material visibility | full | Invisible objects and draw calls remain absent. | [test](src/project.test.ts) `an invisible material emits neither geometry nor a diagnostic` |
 | depth ordering | partial | Primitives use painter ordering, not a per-pixel depth buffer. | [test](src/project.test.ts) `far triangles are painted before near triangles` |
-| Object3D.renderOrder | silent | Explicit Three.js render order is currently ignored. | — |
-| camera layers | silent | Camera and object layer masks are currently ignored. | — |
-| Scene.overrideMaterial | silent | The override material is currently ignored. | — |
-| Scene.background | silent | Scene background colour and textures are not projected. | — |
-| fog and tone mapping | silent | Accepted flat materials do not apply scene fog or tone mapping. | — |
-| depth and stencil material state | silent | depthTest, depthWrite, and stencil state are ignored. | — |
+| Object3D.renderOrder | full | Explicit object render order groups override the portable painter depth order. | [test](src/project.test.ts) `renderOrder overrides painter depth while preserving stable object order`<br>[test](src/project.test.ts) `Group renderOrder applies to its projected descendants` |
+| camera layers | full | Camera and object layer masks filter renderable objects without pruning descendants. | [test](src/project.test.ts) `camera layers filter objects without hiding matching descendants` |
+| Scene.overrideMaterial | diagnostic | Affected geometry is omitted with UNSUPPORTED_SCENE rather than using original materials. | [test](src/project.test.ts) `scene-wide material overrides and fog diagnose and omit affected geometry` |
+| Scene.background | partial | Solid colours become non-interactive Canvas rectangles; textures are diagnosed. | [test](src/project.test.ts) `solid scene backgrounds become non-interactive Canvas rectangles`<br>[test](src/three-canvas.test.tsx) `ThreeCanvas paints scene backgrounds without creating an object control`<br>[test](src/project.test.ts) `texture backgrounds are diagnosed while otherwise portable geometry remains visible` |
+| scene fog | diagnostic | Fog-affected geometry is omitted with UNSUPPORTED_SCENE. | [test](src/project.test.ts) `scene-wide material overrides and fog diagnose and omit affected geometry` |
+| renderer tone mapping | out-of-scope | The portable Canvas contract fixes NoToneMapping and has no renderer tone-mapping option. | — |
+| depth and stencil material state | diagnostic | Non-default depth, stencil, colour-write, polygon-offset, and blending state is rejected. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, and blending state emit diagnostics` |
 
 ### interaction
 

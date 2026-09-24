@@ -379,28 +379,73 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'scene',
     'Object3D.renderOrder',
-    'silent',
-    'Explicit Three.js render order is currently ignored.',
+    'full',
+    'Explicit object render order groups override the portable painter depth order.',
+    {
+      tests: [
+        project('renderOrder overrides painter depth while preserving stable object order'),
+        project('Group renderOrder applies to its projected descendants'),
+      ],
+    },
   ),
-  row('scene', 'camera layers', 'silent', 'Camera and object layer masks are currently ignored.'),
-  row('scene', 'Scene.overrideMaterial', 'silent', 'The override material is currently ignored.'),
+  row(
+    'scene',
+    'camera layers',
+    'full',
+    'Camera and object layer masks filter renderable objects without pruning descendants.',
+    {
+      tests: [project('camera layers filter objects without hiding matching descendants')],
+    },
+  ),
+  row(
+    'scene',
+    'Scene.overrideMaterial',
+    'diagnostic',
+    'Affected geometry is omitted with UNSUPPORTED_SCENE rather than using original materials.',
+    {
+      tests: [project('scene-wide material overrides and fog diagnose and omit affected geometry')],
+    },
+  ),
   row(
     'scene',
     'Scene.background',
-    'silent',
-    'Scene background colour and textures are not projected.',
+    'partial',
+    'Solid colours become non-interactive Canvas rectangles; textures are diagnosed.',
+    {
+      tests: [
+        project('solid scene backgrounds become non-interactive Canvas rectangles'),
+        canvas('ThreeCanvas paints scene backgrounds without creating an object control'),
+        project(
+          'texture backgrounds are diagnosed while otherwise portable geometry remains visible',
+        ),
+      ],
+    },
   ),
   row(
     'scene',
-    'fog and tone mapping',
-    'silent',
-    'Accepted flat materials do not apply scene fog or tone mapping.',
+    'scene fog',
+    'diagnostic',
+    'Fog-affected geometry is omitted with UNSUPPORTED_SCENE.',
+    {
+      tests: [project('scene-wide material overrides and fog diagnose and omit affected geometry')],
+    },
+  ),
+  row(
+    'scene',
+    'renderer tone mapping',
+    'out-of-scope',
+    'The portable Canvas contract fixes NoToneMapping and has no renderer tone-mapping option.',
   ),
   row(
     'scene',
     'depth and stencil material state',
-    'silent',
-    'depthTest, depthWrite, and stencil state are ignored.',
+    'diagnostic',
+    'Non-default depth, stencil, colour-write, polygon-offset, and blending state is rejected.',
+    {
+      tests: [
+        project('non-default depth, stencil, write, offset, and blending state emit diagnostics'),
+      ],
+    },
   ),
 
   row(
