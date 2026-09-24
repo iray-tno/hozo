@@ -371,9 +371,6 @@ function lineMaterialReason(material: LineBasicMaterial): string | undefined {
       return 'dashed line sizes and scale must be finite and non-negative'
     }
   }
-  if (material.vertexColors && (material as LineDashedMaterial).isLineDashedMaterial) {
-    return 'vertex-coloured dashed lines are not projected yet'
-  }
   if (!Number.isFinite(material.opacity)) return 'line opacity must be finite'
   if (material.clippingPlanes && material.clippingPlanes.length > 0 && material.clipIntersection) {
     return 'intersecting material clipping planes are not projected'

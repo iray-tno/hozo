@@ -370,7 +370,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'vertex colours',
     'partial',
-    'Per-point RGB and solid-line gradients work; mesh colours and dashed-line colour gradients remain diagnosed.',
+    'Per-point RGB and solid or dashed line gradients work; interpolated mesh colours remain diagnosed.',
     {
       tests: [
         project('PointsMaterial multiplies per-point RGB colours'),

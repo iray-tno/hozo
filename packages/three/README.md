@@ -51,8 +51,8 @@ and flat `MeshBasicMaterial` colours are supported. Normal alpha transparency
 maps to Canvas opacity and paints after opaque primitives. `ArrayCamera`
 projects each child camera into its declared bottom-left viewport. `Line`,
 `LineSegments`, and `LineLoop` with `LineBasicMaterial` are projected
-with their declared colour and width. Solid lines interpolate RGB vertex
-colours through portable Canvas gradients, including clipped endpoints.
+with their declared colour and width. Solid and dashed lines interpolate RGB
+vertex colours through portable Canvas gradients, including clipped endpoints.
 `LineDashedMaterial` uses Three's
 `lineDistance`, dash size, gap size, and scale to emit portable segments before
 projection. `Points` with untextured
