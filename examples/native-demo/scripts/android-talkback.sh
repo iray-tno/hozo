@@ -635,6 +635,11 @@ else
       }
       heard 'a whole date on a cell' 'september [0-9]*, 2026'
       heard 'the month it paged to' 'october 2026'
+      # `todayLabel` reaches the announcement through `accessibilityValue.text`,
+      # which `BaseViewManager` joins onto the label with ", " -- so the shape
+      # to look for is the date and then the word, not the word alone. Today is
+      # pinned to the 24th in `CalendarScreen.tsx`.
+      heard 'that a day is today' 'september 24, 2026, today'
 
       # Three answers, not two. The first run of this section warned that the
       # grid never called a day selected, which was true and misleading: the

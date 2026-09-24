@@ -105,6 +105,23 @@ export interface HozoCalendarProps {
    */
   previousMonthLabel?: string
   nextMonthLabel?: string
+  /**
+   * The word that marks today, because nothing else can.
+   *
+   * The Web half says `aria-current="date"` and a screen reader supplies the
+   * wording in its own language. React Native has no equivalent: there is no
+   * `current` in `accessibilityState`, and `setStateDescription` -- which
+   * would be the semantic home for it -- is not reachable from JavaScript
+   * (`docs/decisions/001`). So the only channel is text, and text needs a
+   * word, and a word has to be the application's.
+   *
+   * It goes through `accessibilityValue.text` rather than into
+   * `accessibilityLabel`. `BaseViewManager` joins label, state descriptions
+   * and value text with ", " into one `contentDescription`, so React Native
+   * composes "Thursday, September 24, 2026, today" and the label stays the
+   * date. Empty opts out.
+   */
+  todayLabel?: string
   renderDay?: (day: HozoCalendarDay) => ReactNode
 }
 
@@ -162,6 +179,7 @@ export function HozoCalendar({
   accessibilityLabel,
   previousMonthLabel = 'Previous month',
   nextMonthLabel = 'Next month',
+  todayLabel = 'today',
   renderDay,
 }: HozoCalendarProps) {
   const currentDay = today ?? todayLocal()
@@ -236,6 +254,7 @@ export function HozoCalendar({
                 accessibilityRole="button"
                 accessibilityLabel={dayLabel(cell.date, locale)}
                 accessibilityState={{ selected: day.selected, disabled: day.disabled }}
+                accessibilityValue={day.today && todayLabel ? { text: todayLabel } : undefined}
                 disabled={day.disabled}
                 style={dayStyle}
                 onPress={() => onChange?.(cell.date)}

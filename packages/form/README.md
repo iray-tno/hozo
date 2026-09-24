@@ -60,6 +60,16 @@ import { DatePicker } from '@hozo/form'
 
 On React Native it is a `Modal` rather than an anchored panel. A date grid anchored to a button is most of a phone screen anyway, and `Modal` is what takes the window, routes Android's back button to `onRequestClose`, and lets `accessibilityViewIsModal` tell VoiceOver to stop offering what is behind it.
 
+## Marking today
+
+The two platforms say it differently, and only one of them can say it without a word.
+
+On the Web the grid sets `aria-current="date"` and the screen reader supplies the wording in its own language. React Native has no `aria-current`, no `current` in `accessibilityState`, and no reachable `setStateDescription` ([`docs/decisions/001`](https://github.com/iray-tno/hozo/blob/main/docs/decisions/001-disabled-and-focus.md) covers why that last one is closed), so text is the only channel left -- and text needs a word. `todayLabel` is that word, defaulting to `"today"` and opting out when empty.
+
+It reaches the announcement through `accessibilityValue.text` rather than through `accessibilityLabel`, because `BaseViewManager` joins label, state descriptions and value text with `", "` into one `contentDescription`. So React Native composes "Thursday, September 24, 2026, today" and the label stays the date.
+
+The prop is accepted and ignored on the Web, where a word would announce the same fact twice.
+
 ## Status
 
 Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `TimePicker` and `DateRangePicker` come next.

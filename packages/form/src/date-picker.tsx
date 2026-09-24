@@ -48,6 +48,8 @@ export interface HozoDatePickerProps {
   dialogLabel?: string
   previousMonthLabel?: string
   nextMonthLabel?: string
+  /** The word that marks today on Native; see `Calendar`. */
+  todayLabel?: string
   /** Names the button when the caller wants something other than its text. */
   accessibilityLabel?: string
   renderDay?: (day: HozoCalendarDay) => ReactNode
@@ -92,6 +94,7 @@ export function HozoDatePicker({
   dialogLabel = 'Choose a date',
   previousMonthLabel,
   nextMonthLabel,
+  todayLabel,
   accessibilityLabel,
   renderDay,
 }: HozoDatePickerProps) {
@@ -165,6 +168,8 @@ export function HozoDatePicker({
                     weeks={weeks}
                     previousMonthLabel={previousMonthLabel}
                     nextMonthLabel={nextMonthLabel}
+
+                    todayLabel={todayLabel}
                     renderDay={renderDay}
                   />
                 </div>

@@ -98,6 +98,20 @@ export interface HozoCalendarProps {
    */
   previousMonthLabel?: string
   nextMonthLabel?: string
+  /**
+   * Carried and ignored, like `autoFocus` is on the Native half.
+   *
+   * Today is marked with `aria-current="date"` here, and a screen reader
+   * supplies the wording in its own language -- so a word from the caller
+   * would be a second announcement of the same fact, in one language.
+   *
+   * React Native has no `aria-current`, no `current` in
+   * `accessibilityState`, and no reachable `setStateDescription`
+   * (`docs/decisions/001`), so text is the only channel it has and the word
+   * has to come from somewhere. The prop exists for that half and is
+   * accepted here so one piece of source compiles on both.
+   */
+  todayLabel?: string
   renderDay?: (day: HozoCalendarDay) => ReactNode
 }
 
