@@ -125,6 +125,105 @@ test('mesh vertex colours become a portable interpolated triangle', () => {
   ])
 })
 
+test('MeshBasicMaterial map and UVs become a portable textured triangle', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('uv', new Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2))
+  const texture = new Texture()
+  texture.source.data = { uri: '/checkerboard.png' }
+  texture.colorSpace = THREE.SRGBColorSpace
+  const mesh = new Mesh(geometry, new MeshBasicMaterial({ map: texture }))
+
+  const result = projectThreeScene(new Scene().add(mesh), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedMeshes(result), [
+    {
+      texture: {
+        source: { uri: '/checkerboard.png' },
+        coordinates: [
+          { x: 0, y: 1 },
+          { x: 1, y: 1 },
+          { x: 0.5, y: 0 },
+        ],
+        filter: 'linear',
+      },
+      vertices: [
+        { x: 40, y: 60 },
+        { x: 60, y: 60 },
+        { x: 50, y: 40 },
+      ],
+    },
+  ])
+})
+
+test('mesh clipping interpolates texture coordinates at generated edges', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('uv', new Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2))
+  const texture = new Texture()
+  texture.source.data = '/checkerboard.png'
+  texture.colorSpace = THREE.SRGBColorSpace
+  const material = new MeshBasicMaterial({
+    clippingPlanes: [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)],
+    map: texture,
+  })
+
+  const result = projectThreeScene(new Scene().add(new Mesh(geometry, material)), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(result.diagnostics, [])
+  const [triangle] = projectedMeshes(result)
+  assert.deepEqual(triangle?.vertices, [
+    { x: 50, y: 40 },
+    { x: 50, y: 60 },
+    { x: 60, y: 60 },
+  ])
+  assert.deepEqual(triangle?.texture?.coordinates, [
+    { x: 0.5, y: 0 },
+    { x: 0.5, y: 1 },
+    { x: 1, y: 1 },
+  ])
+})
+
+test('non-portable texture sampling is refused with an actionable diagnostic', () => {
+  const texture = new Texture()
+  texture.source.data = '/checkerboard.png'
+  texture.colorSpace = THREE.SRGBColorSpace
+
+  const missingUvs = projectThreeScene(
+    new Scene().add(new Mesh(triangleGeometry(), new MeshBasicMaterial({ map: texture }))),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+  assert.equal(missingUvs.diagnostics[0]?.code, 'UNSUPPORTED_GEOMETRY')
+  assert.match(missingUvs.diagnostics[0]?.message ?? '', /two-component uv/)
+
+  const repeatedGeometry = triangleGeometry()
+  repeatedGeometry.setAttribute('uv', new Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2))
+  texture.wrapS = THREE.RepeatWrapping
+  const repeated = projectThreeScene(
+    new Scene().add(new Mesh(repeatedGeometry, new MeshBasicMaterial({ map: texture }))),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+  assert.equal(repeated.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  assert.match(repeated.diagnostics[0]?.message ?? '', /repeating texture seams/)
+
+  texture.wrapS = THREE.ClampToEdgeWrapping
+  texture.offset.x = 0.5
+  const transformedOutside = projectThreeScene(
+    new Scene().add(new Mesh(repeatedGeometry, new MeshBasicMaterial({ map: texture }))),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+  assert.equal(transformedOutside.diagnostics[0]?.code, 'UNSUPPORTED_GEOMETRY')
+  assert.match(transformedOutside.diagnostics[0]?.message ?? '', /inside 0\.\.1/)
+})
+
 test('mesh clipping interpolates vertex colours at generated edges', () => {
   const geometry = triangleGeometry()
   geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1], 3))

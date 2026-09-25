@@ -56,6 +56,12 @@ vertex colours through portable Canvas gradients, including clipped endpoints.
 Solid meshes likewise preserve RGB vertex attributes and interpolate colours
 across clipped triangles. The portable mesh interpolation is screen-space;
 perspective-correct interpolation remains a GPU-backend concern.
+Primary `MeshBasicMaterial.map` colour textures also project when they use
+`SRGBColorSpace`, clamp wrapping, a URL/URI or Native asset source, and complete
+two-component UVs. Texture transforms and `flipY` are preserved, including UVs
+created by clipping. Sampling is affine in screen space and has no mipmaps;
+repeat seams, tint/vertex-colour/fog modulation, and per-pixel alpha tests stay
+diagnostic instead of being silently approximated.
 `Fog` and `FogExp2` blend supported meshes, wireframes, lines, points, and
 sprites in the same working colour space as Three.js, while respecting each
 material's `fog` opt-out. Constant-depth shapes and individual points match
@@ -88,8 +94,8 @@ morph targets are evaluated for meshes, points, and lines, including relative
 morph geometry. `SkinnedMesh` uses Three's public CPU vertex evaluation so morphs,
 bind matrices, bone weights, and the current skeleton pose remain aligned.
 
-This is deliberately not a software WebGL implementation. Textures, lighting,
-custom blending, shaders, post-processing, and XR need a GPU
+This is deliberately not a software WebGL implementation. General GPU texture
+sampling, lighting, custom blending, shaders, post-processing, and XR need a GPU
 backend. Unsupported inputs are omitted and returned as diagnostics rather
 than rendered misleadingly.
 

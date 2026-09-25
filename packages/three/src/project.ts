@@ -1,10 +1,11 @@
-import type { CanvasScene, CanvasSceneNode } from '@hozo/canvas'
+import type { CanvasScene, CanvasSceneNode, CanvasTextureSource } from '@hozo/canvas'
 import {
   type ArrayCamera,
   BackSide,
   type BatchedMesh,
   type BufferAttribute,
   type BufferGeometry,
+  ClampToEdgeWrapping,
   Color,
   DoubleSide,
   type InstancedMesh,
@@ -17,6 +18,7 @@ import {
   Matrix4,
   Mesh,
   type MeshBasicMaterial,
+  NearestFilter,
   NormalBlending,
   type Object3D,
   type OrthographicCamera,
@@ -29,7 +31,10 @@ import {
   type Sprite,
   type SpriteMaterial,
   SRGBColorSpace,
+  type Texture,
   type Line as ThreeLine,
+  UVMapping,
+  Vector2,
   Vector3,
   Vector4,
 } from 'three'
@@ -212,6 +217,52 @@ function clippedColouredPolygon(triangle: readonly ColouredVertex[]): ColouredVe
   return polygon
 }
 
+interface TexturedVertex {
+  position: Vector4
+  texture: Vector2
+}
+
+function cloneTexturedVertex(vertex: TexturedVertex): TexturedVertex {
+  return { position: vertex.position.clone(), texture: vertex.texture.clone() }
+}
+
+function interpolateTexturedVertex(
+  from: TexturedVertex,
+  to: TexturedVertex,
+  ratio: number,
+): TexturedVertex {
+  return {
+    position: from.position.clone().lerp(to.position, ratio),
+    texture: from.texture.clone().lerp(to.texture, ratio),
+  }
+}
+
+function clippedTexturedPolygon(triangle: readonly TexturedVertex[]): TexturedVertex[] {
+  let polygon = triangle.map(cloneTexturedVertex)
+  for (const distance of clipPlanes) {
+    if (polygon.length === 0) return polygon
+    const clipped: TexturedVertex[] = []
+    let previous = polygon.at(-1) as TexturedVertex
+    let previousDistance = distance(previous.position)
+    for (const current of polygon) {
+      const currentDistance = distance(current.position)
+      const previousInside = previousDistance >= 0
+      const currentInside = currentDistance >= 0
+      if (previousInside !== currentInside) {
+        const denominator = previousDistance - currentDistance
+        if (denominator !== 0) {
+          clipped.push(interpolateTexturedVertex(previous, current, previousDistance / denominator))
+        }
+      }
+      if (currentInside) clipped.push(cloneTexturedVertex(current))
+      previous = current
+      previousDistance = currentDistance
+    }
+    polygon = clipped
+  }
+  return polygon
+}
+
 function clippedSegment(from: Vector4, to: Vector4): readonly [Vector4, Vector4] | undefined {
   let start = from.clone()
   let end = to.clone()
@@ -340,6 +391,57 @@ function clippedMaterialColouredPolygons(
     const inside = clippedMaterialColouredPolygonSide(remaining, plane, true)
     if (inside.length >= 3) retained.push(inside)
     remaining = clippedMaterialColouredPolygonSide(remaining, plane, false)
+    if (remaining.length < 3) break
+  }
+  return retained
+}
+
+function clippedMaterialTexturedPolygonSide(
+  source: readonly TexturedVertex[],
+  plane: Plane,
+  keepInside: boolean,
+): TexturedVertex[] {
+  if (source.length === 0) return []
+  const clipped: TexturedVertex[] = []
+  let previous = source.at(-1) as TexturedVertex
+  let previousDistance = planeDistance(plane, previous.position)
+  for (const current of source) {
+    const currentDistance = planeDistance(plane, current.position)
+    const previousInside = keepInside ? previousDistance >= 0 : previousDistance < 0
+    const currentInside = keepInside ? currentDistance >= 0 : currentDistance < 0
+    if (previousInside !== currentInside) {
+      const denominator = previousDistance - currentDistance
+      if (denominator !== 0) {
+        clipped.push(interpolateTexturedVertex(previous, current, previousDistance / denominator))
+      }
+    }
+    if (currentInside) clipped.push(cloneTexturedVertex(current))
+    previous = current
+    previousDistance = currentDistance
+  }
+  return clipped
+}
+
+function clippedMaterialTexturedPolygons(
+  source: readonly TexturedVertex[],
+  planes: readonly Plane[],
+  clipIntersection: boolean,
+): readonly TexturedVertex[][] {
+  if (planes.length === 0) return [source.map(cloneTexturedVertex)]
+  if (!clipIntersection) {
+    let polygon = source.map(cloneTexturedVertex)
+    for (const plane of planes) {
+      polygon = clippedMaterialTexturedPolygonSide(polygon, plane, true)
+    }
+    return polygon.length >= 3 ? [polygon] : []
+  }
+
+  let remaining = source.map(cloneTexturedVertex)
+  const retained: TexturedVertex[][] = []
+  for (const plane of planes) {
+    const inside = clippedMaterialTexturedPolygonSide(remaining, plane, true)
+    if (inside.length >= 3) retained.push(inside)
+    remaining = clippedMaterialTexturedPolygonSide(remaining, plane, false)
     if (remaining.length < 3) break
   }
   return retained
@@ -560,16 +662,77 @@ function materialReason(material: MeshBasicMaterial): string | undefined {
   }
   if (!Number.isFinite(material.opacity)) return 'material opacity must be finite'
   if (
-    material.map ||
     material.alphaMap ||
     material.aoMap ||
     material.envMap ||
     material.lightMap ||
     material.specularMap
   ) {
-    return 'textured MeshBasicMaterial is not in the flat-fill subset'
+    return 'only the primary MeshBasicMaterial map is projected'
+  }
+  if (material.map) {
+    if (material.vertexColors) return 'texture and vertex-colour modulation is not projected yet'
+    if (material.wireframe) return 'textured wireframes are not projected'
+    if (material.color.getHex() !== 0xffffff) {
+      return 'texture and material-colour modulation is not projected yet'
+    }
+    if (material.alphaTest > 0) return 'textured alphaTest needs per-pixel sampling'
   }
   return undefined
+}
+
+function textureSource(texture: Texture): CanvasTextureSource | undefined {
+  const source = texture.source.data as unknown
+  if (typeof source === 'string' || typeof source === 'number') return source
+  if (!source || typeof source !== 'object') return undefined
+  const candidate = source as { default?: unknown; src?: unknown; uri?: unknown }
+  if (typeof candidate.uri === 'string') return { uri: candidate.uri }
+  if (typeof candidate.src === 'string' && candidate.src.length > 0) return candidate.src
+  if (typeof candidate.default === 'string') return { default: candidate.default }
+  return undefined
+}
+
+function textureReason(texture: Texture): string | undefined {
+  if (texture.mapping !== UVMapping) return 'MeshBasicMaterial.map needs UVMapping'
+  if (!Number.isInteger(texture.channel) || texture.channel < 0 || texture.channel > 3) {
+    return 'texture channel must select uv, uv1, uv2, or uv3'
+  }
+  if (texture.wrapS !== ClampToEdgeWrapping || texture.wrapT !== ClampToEdgeWrapping) {
+    return 'repeating texture seams are not projected by the affine portable backend'
+  }
+  if (texture.colorSpace !== SRGBColorSpace) {
+    return 'colour textures need SRGBColorSpace for portable Canvas sampling'
+  }
+  if (texture.premultiplyAlpha) return 'premultiplied texture alpha is not projected'
+  if (!textureSource(texture)) return 'texture source needs a URL, URI, or Native asset ID'
+  return undefined
+}
+
+function textureAttributeName(texture: Texture): `uv${string}` {
+  return texture.channel === 0 ? 'uv' : `uv${texture.channel}`
+}
+
+function portableTextureCoordinate(
+  texture: Texture,
+  attribute: BufferAttribute | InterleavedBufferAttribute,
+  vertexIndex: number,
+): Vector2 | undefined {
+  const coordinate = new Vector2(
+    attribute.getX(vertexIndex),
+    attribute.getY(vertexIndex),
+  ).applyMatrix3(texture.matrix)
+  if (
+    !Number.isFinite(coordinate.x) ||
+    !Number.isFinite(coordinate.y) ||
+    coordinate.x < 0 ||
+    coordinate.x > 1 ||
+    coordinate.y < 0 ||
+    coordinate.y > 1
+  ) {
+    return undefined
+  }
+  if (texture.flipY) coordinate.y = 1 - coordinate.y
+  return coordinate
 }
 
 function canvasVertexColor(color: Color) {
@@ -662,7 +825,7 @@ function diagnostic(
  * This is not a software WebGL renderer. It accepts ordinary public Three.js
  * scene objects and preserves their world transforms, camera projection,
  * clip volume, face side and back-to-front order. Features whose correct
- * answer needs a GPU -- textures, blending, skinning and instancing among
+ * answer needs a GPU -- general texture sampling, blending and shaders among
  * them -- are omitted with a diagnostic rather than drawn approximately.
  */
 function projectThreeSceneInternal(
@@ -1273,6 +1436,58 @@ function projectThreeSceneInternal(
         }
         return
       }
+      const map = material.map
+      if (map) {
+        const mapReason = textureReason(map)
+        if (mapReason) {
+          if (!reportedMaterials.has(source)) {
+            reportedMaterials.add(source)
+            diagnostic(diagnostics, options, {
+              code: 'UNSUPPORTED_MATERIAL',
+              message: mapReason,
+              object,
+            })
+          }
+          return
+        }
+        if (material.fog && scene.fog) {
+          if (!reportedMaterials.has(source)) {
+            reportedMaterials.add(source)
+            diagnostic(diagnostics, options, {
+              code: 'UNSUPPORTED_MATERIAL',
+              message: 'texture and fog modulation is not projected yet',
+              object,
+            })
+          }
+          return
+        }
+        const textureCoordinate = mesh.geometry.getAttribute(textureAttributeName(map))
+        if (textureCoordinate?.itemSize !== 2 || textureCoordinate.count < position.count) {
+          if (!reportedMaterials.has(source)) {
+            reportedMaterials.add(source)
+            diagnostic(diagnostics, options, {
+              code: 'UNSUPPORTED_GEOMETRY',
+              message: `MeshBasicMaterial.map needs one two-component ${textureAttributeName(map)} value per vertex.`,
+              object,
+            })
+          }
+          return
+        }
+        if (map.matrixAutoUpdate) map.updateMatrix()
+        for (let vertexIndex = 0; vertexIndex < position.count; vertexIndex += 1) {
+          if (portableTextureCoordinate(map, textureCoordinate, vertexIndex)) continue
+          if (!reportedMaterials.has(source)) {
+            reportedMaterials.add(source)
+            diagnostic(diagnostics, options, {
+              code: 'UNSUPPORTED_GEOMETRY',
+              message:
+                'texture coordinates must remain finite and inside 0..1 after the texture transform',
+              object,
+            })
+          }
+          return
+        }
+      }
       if (!passesUniformAlphaTest(material as MeshBasicMaterial)) return
       if (
         material.vertexColors &&
@@ -1433,6 +1648,22 @@ function projectThreeSceneInternal(
         return vertexAt(vertexIndex)
       }
       for (const range of ranges) {
+        const map = range.material.map
+        if (map?.matrixAutoUpdate) map.updateMatrix()
+        const textureCoordinate = map
+          ? mesh.geometry.getAttribute(textureAttributeName(map))
+          : undefined
+        if (map && color && color.getHex() !== 0xffffff) {
+          if (!reportedMaterials.has(range.material)) {
+            reportedMaterials.add(range.material)
+            diagnostic(diagnostics, options, {
+              code: 'UNSUPPORTED_MATERIAL',
+              message: 'texture and instance-colour modulation is not projected yet',
+              object,
+            })
+          }
+          continue
+        }
         fillColor.copy(range.material.color)
         if (color) fillColor.multiply(color)
         const fill = `#${fillColor.getHexString()}`
@@ -1527,48 +1758,75 @@ function projectThreeSceneInternal(
         for (let offset = range.start; offset + 2 < range.end; offset += 3) {
           const sourceVertices = [vertex(offset), vertex(offset + 1), vertex(offset + 2)]
           const coloured = (range.material.vertexColors && vertexColor) || rangeFog
-          const materialPolygons = coloured
-            ? clippedMaterialColouredPolygons(
+          const textured = map && textureCoordinate
+          const materialPolygons = textured
+            ? clippedMaterialTexturedPolygons(
                 sourceVertices.map((position, indexInTriangle) => {
                   const sourceOffset = offset + indexInTriangle
                   const vertexIndex = index ? index.getX(sourceOffset) : sourceOffset
-                  const vertexFill = range.material.vertexColors
-                    ? new Color()
-                        .setRGB(
-                          vertexColor?.getX(vertexIndex) ?? 0,
-                          vertexColor?.getY(vertexIndex) ?? 0,
-                          vertexColor?.getZ(vertexIndex) ?? 0,
-                        )
-                        .multiply(fillColor)
-                    : fillColor
                   return {
-                    color: vertexFill.clone(),
                     position,
+                    texture: portableTextureCoordinate(
+                      map,
+                      textureCoordinate,
+                      vertexIndex,
+                    ) as Vector2,
                   }
                 }),
                 (range.material.clippingPlanes ?? []) as readonly Plane[],
                 range.material.clipIntersection,
               )
-            : clippedMaterialPolygons(
-                sourceVertices,
-                (range.material.clippingPlanes ?? []) as readonly Plane[],
-                range.material.clipIntersection,
-              )
-          for (const materialPolygon of materialPolygons) {
-            const polygon = coloured
-              ? clippedColouredPolygon(
-                  (materialPolygon as ColouredVertex[]).map(({ color, position }) => {
-                    const viewDepth = -position.clone().applyMatrix4(camera.matrixWorldInverse).z
+            : coloured
+              ? clippedMaterialColouredPolygons(
+                  sourceVertices.map((position, indexInTriangle) => {
+                    const sourceOffset = offset + indexInTriangle
+                    const vertexIndex = index ? index.getX(sourceOffset) : sourceOffset
+                    const vertexFill = range.material.vertexColors
+                      ? new Color()
+                          .setRGB(
+                            vertexColor?.getX(vertexIndex) ?? 0,
+                            vertexColor?.getY(vertexIndex) ?? 0,
+                            vertexColor?.getZ(vertexIndex) ?? 0,
+                          )
+                          .multiply(fillColor)
+                      : fillColor
                     return {
-                      color,
-                      position: position.clone().applyMatrix4(viewProjection),
-                      viewDepth,
+                      color: vertexFill.clone(),
+                      position,
                     }
                   }),
+                  (range.material.clippingPlanes ?? []) as readonly Plane[],
+                  range.material.clipIntersection,
                 )
-              : clippedPolygon(
-                  (materialPolygon as Vector4[]).map((point) => point.applyMatrix4(viewProjection)),
+              : clippedMaterialPolygons(
+                  sourceVertices,
+                  (range.material.clippingPlanes ?? []) as readonly Plane[],
+                  range.material.clipIntersection,
                 )
+          for (const materialPolygon of materialPolygons) {
+            const polygon = textured
+              ? clippedTexturedPolygon(
+                  (materialPolygon as TexturedVertex[]).map(({ position, texture }) => ({
+                    position: position.clone().applyMatrix4(viewProjection),
+                    texture,
+                  })),
+                )
+              : coloured
+                ? clippedColouredPolygon(
+                    (materialPolygon as ColouredVertex[]).map(({ color, position }) => {
+                      const viewDepth = -position.clone().applyMatrix4(camera.matrixWorldInverse).z
+                      return {
+                        color,
+                        position: position.clone().applyMatrix4(viewProjection),
+                        viewDepth,
+                      }
+                    }),
+                  )
+                : clippedPolygon(
+                    (materialPolygon as Vector4[]).map((point) =>
+                      point.applyMatrix4(viewProjection),
+                    ),
+                  )
             if (polygon.length < 3) continue
             for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
               const first = polygon[0]
@@ -1578,7 +1836,9 @@ function projectThreeSceneInternal(
               const clipTriangle = [first, second, third] as const
               const points = clipTriangle.map((point) =>
                 projectedPoint(
-                  coloured ? (point as ColouredVertex).position : (point as Vector4),
+                  textured || coloured
+                    ? (point as TexturedVertex | ColouredVertex).position
+                    : (point as Vector4),
                   options.width,
                   options.height,
                 ),
@@ -1597,27 +1857,43 @@ function projectThreeSceneInternal(
                 order: order++,
                 renderOrder: object.renderOrder,
                 transparent: range.material.transparent,
-                node: coloured
+                node: textured
                   ? {
                       kind: 'triangle-mesh',
                       props: {
-                        colors: clipTriangle.map((point) =>
-                          canvasVertexColor(
-                            foggedColorAtDepth(
-                              (point as ColouredVertex).color,
-                              rangeFog,
-                              (point as ColouredVertex).viewDepth ?? 0,
-                            ),
-                          ),
-                        ),
+                        texture: {
+                          source: textureSource(map) as CanvasTextureSource,
+                          coordinates: clipTriangle.map((point) => {
+                            const coordinate = (point as TexturedVertex).texture
+                            return { x: coordinate.x, y: coordinate.y }
+                          }),
+                          filter: map.magFilter === NearestFilter ? 'nearest' : 'linear',
+                        },
                         vertices: projected.map(({ x, y }) => ({ x, y })),
                         ...projectedOpacityProps(range.material),
                       },
                     }
-                  : {
-                      kind: 'path',
-                      props: { path, fill, ...projectedOpacityProps(range.material) },
-                    },
+                  : coloured
+                    ? {
+                        kind: 'triangle-mesh',
+                        props: {
+                          colors: clipTriangle.map((point) =>
+                            canvasVertexColor(
+                              foggedColorAtDepth(
+                                (point as ColouredVertex).color,
+                                rangeFog,
+                                (point as ColouredVertex).viewDepth ?? 0,
+                              ),
+                            ),
+                          ),
+                          vertices: projected.map(({ x, y }) => ({ x, y })),
+                          ...projectedOpacityProps(range.material),
+                        },
+                      }
+                    : {
+                        kind: 'path',
+                        props: { path, fill, ...projectedOpacityProps(range.material) },
+                      },
               })
             }
           }
