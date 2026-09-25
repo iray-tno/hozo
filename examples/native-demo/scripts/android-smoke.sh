@@ -558,29 +558,46 @@ else
           process.exit(0)
         }
         const xml = fs.readFileSync(file, "utf8")
+        // Both attributes, because only one of them is a description. A
+        // `content-desc` is what a screen reader says; a bare `text` is drawn
+        // and not described. Reading only the first cannot tell "the field is
+        // not in the tree" from "the field is in the tree with nothing said
+        // about it", and those are different bugs with different fixes.
         const described = []
+        const drawn = []
         for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
           const desc = /content-desc="([^"]+)"/.exec(node[0])
           if (desc) described.push(desc[1])
+          const text = /\stext="([^"]+)"/.exec(node[0])
+          if (text && !desc) drawn.push(text[1])
         }
-        if (described.length === 0) {
+        if (described.length === 0 && drawn.length === 0) {
           console.log("::warning::the pickers dump names nothing at all")
           process.exit(0)
         }
         console.log(`  ${described.length} described nodes:`)
         for (const one of described) console.log(`    ${one}`)
-        // Reported one line each rather than as a pass or a fail: this is the
-        // first look, and a name that is nearly right is the interesting
-        // answer. Naming what was looked for is what makes the list above
-        // readable by someone who was not here.
+        console.log(`  ${drawn.length} drawn but undescribed:`)
+        for (const one of drawn) console.log(`    ${one}`)
+        // Reported one line each rather than as a pass or a fail: this is a
+        // measurement, and a name that is nearly right is the interesting
+        // answer. The patterns are deliberately exact -- the first version
+        // asked for "hour" and was answered by "Increase Hour", so it reported
+        // the fields as described while looking at their buttons.
         const has = (what) => described.some((one) => one.toLowerCase().includes(what))
         const note = (what, found) =>
           console.log(`  ${found ? "said" : "did not say"} ${what}`)
-        note("the time fields", has("hour") && has("minute"))
-        note("the whole time in a field, not just its digits", has("9:30"))
-        note("a period, so the twelve-hour clock resolved", has("am") || has("pm"))
+        note("the hour steppers", has("increase hour"))
+        note("the minute steppers", has("increase minute"))
+        note("the period, with the whole time on it", has("am or pm, 9:30"))
         note("the DateTimePicker trigger", has("departure"))
         note("the DateRangePicker trigger", has("dates of stay"))
+        // The fields as opposed to their buttons. Nothing matched this on the
+        // first run: the value a reader is changing is not described anywhere.
+        note(
+          "the hour and minute fields themselves",
+          described.some((one) => /^(hour|minute)\b/i.test(one)),
+        )
       ' ./pickers_dump.xml || true
     fi
   else

@@ -722,6 +722,25 @@ fi
 # measurement rather than a contract, and nothing here is a fact the project
 # has committed to yet. The gate that follows is about the app surviving.
 #
+# What the first run established, so the next reader starts from it. The lap is
+# seven items, twice over inside sixteen steps:
+#
+#   Increase Hour, Decrease Hour, Increase Minute, Decrease Minute,
+#   "AM or PM, 9:30 AM", "Departure" (collapsed), "Dates of stay" (collapsed)
+#
+# Both triggers name themselves and say they are closed, which is this
+# platform's answer to the Web half's "not expanded". The period button carries
+# the whole time, so `accessibilityValue.text` does reach Android's single
+# `contentDescription` slot.
+#
+# And the hour and minute *fields* are not on the lap at all. A reader can
+# press "Increase Hour" and has no way to hear what the hour became -- the only
+# thing that says the time is the period button, which is an accident of which
+# element happened to carry the value rather than a design. The Web half makes
+# each field a `role="spinbutton"` that owns its value; this side has no
+# equivalent yet, and `accessibilityRole="adjustable"` with
+# `onAccessibilityAction` is the shape that would.
+#
 # Restarted first. The calendar section leaves a modal open, and Back on this
 # screen leaves the app rather than the modal.
 echo "restarting to read the pickers screen"
@@ -779,15 +798,31 @@ else
           echo "::warning::the pickers never said $1 -- read talkback-speech.json"
         fi
       }
-      pickers_heard 'the hour field' 'hour'
-      pickers_heard 'the minute field' 'minute'
-      # The whole time in a field rather than that field's own digits, which
-      # is the design and the one thing Android's single `contentDescription`
-      # slot makes easy to get wrong.
-      pickers_heard 'the whole time, not just one field' '9:30'
-      pickers_heard 'a period, so the twelve-hour clock resolved' 'am'
+      pickers_heard 'the hour steppers' 'increase hour'
+      pickers_heard 'the minute steppers' 'increase minute'
+      # The period carries the whole time rather than its own two letters,
+      # which is `accessibilityValue.text` reaching Android's single
+      # `contentDescription` slot. Matched together, because "am" on its own
+      # matched this line and was reported as the clock resolving.
+      pickers_heard 'the period, with the whole time on it' 'am or pm, 9:30'
       pickers_heard "the DateTimePicker's trigger" 'departure'
       pickers_heard "the DateRangePicker's trigger" 'dates of stay'
+      # Whether the expanded state reaches TalkBack, which is this platform's
+      # answer to the Web half's "not expanded".
+      pickers_heard 'that the pickers are closed' 'collapsed'
+
+      # The fields themselves, as opposed to the buttons that change them.
+      #
+      # This is the finding. A stepper says "Increase Hour"; a field would say
+      # "Hour" and its value, and nothing on the lap does. The first version of
+      # this check looked for "hour" and passed on "Increase Hour" -- so it
+      # reported that the fields were announced while measuring their buttons,
+      # which is the one mistake this section exists to avoid making.
+      if printf '%s\n' "$pickers_said" | grep -qiE '^(hour|minute)\b'; then
+        echo "  heard the hour and minute fields themselves"
+      else
+        echo "::warning::the value fields are never announced, only their steppers -- a reader can change the time and cannot hear it"
+      fi
 
       echo '  what the pickers screen said, in order:'
       cut -f2 "$pickers_file" | sed 's/|.*//' | sed 's/^/    /'
