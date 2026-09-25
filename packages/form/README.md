@@ -188,9 +188,23 @@ Moving the day under a time that is already set can put the value outside the bo
 
 `DatePicker` closes when a day is pressed. Here that would close before the clock had been touched, so the dialog stays open and carries an explicit Done. Escape and a press outside still dismiss it, and every change has been reported by then — Done confirms nothing, it only closes, which is why there is no Cancel beside it to imply otherwise.
 
+## `DateRangePicker`
+
+`DatePicker`'s shape over the range `Calendar`.
+
+```tsx
+import { DateRangePicker } from '@hozo/form'
+
+<DateRangePicker value={stay} onChange={setStay} accessibilityLabel="Dates of stay" />
+```
+
+It closes when the range arrives, and needs no Done button to do it. A range `Calendar` reports only a range that has both ends, so the press that fires `onChange` is the press that finished the job — `DateTimePicker` has to ask because its two halves complete independently. The half-chosen start lives inside the `Calendar`, so dismissing the dialog discards it by unmounting; no partial range is ever handed out.
+
+`rangeLabel` writes the button's text, which is also its accessible name. `Intl.DateTimeFormat.prototype.formatRange` is what collapses the parts the two ends share — "September 10 – 12, 2026" rather than the month and year twice — and it is an ES2021 addition, the same kind of unknown as `resolvedOptions`. So it is attempted, and the answer degrades to both dates in full joined by `rangeSeparator`, which the caller owns because an en dash is English and a wave dash is Japanese. The degraded form is longer rather than shorter: dropping the shared year by hand would put a locale's ordering rules in Hozo, which is the job `formatRange` exists to do.
+
 ## Status
 
-Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `DateRangePicker` comes next, over the range `Calendar`.
+Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). All four components #148 lists are here. What is left is a device: no Native half of `TimePicker`, `DateTimePicker` or `DateRangePicker` has been run on a phone, and the verification matrix in #148 is still unticked.
 
 The shown month is controllable: `defaultMonth` for the uncontrolled case, `month` plus `onMonthChange` when the caller wants to own it. Handing over a `month` and ignoring `onMonthChange` gives a grid whose paging buttons and month-crossing arrow keys appear to do nothing -- the bargain every controlled component makes, mentioned here because the keys that stop working are in the middle of the widget.
 

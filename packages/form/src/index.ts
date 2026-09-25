@@ -14,6 +14,8 @@ export {
   dayLabel,
   dayNumber,
   monthLabel,
+  type RangeTextOptions,
+  rangeLabel,
   type WeekdayLabel,
   weekdayLabels,
 } from './calendar-format.ts'
@@ -49,6 +51,12 @@ export {
   type HozoDatePickerProps as DatePickerProps,
   type HozoDatePickerProps,
 } from './date-picker.tsx'
+export {
+  HozoDateRangePicker as DateRangePicker,
+  HozoDateRangePicker,
+  type HozoDateRangePickerProps as DateRangePickerProps,
+  type HozoDateRangePickerProps,
+} from './date-range-picker.tsx'
 export { dateTimeLabel } from './date-time-format.ts'
 export {
   type HozoDateTimeHalf as DateTimeHalf,

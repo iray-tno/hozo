@@ -95,3 +95,45 @@ export function dayLabel(date: CalendarDate, locale?: string): string {
 export function dayNumber(date: CalendarDate, locale?: string): string {
   return formatter(locale, { day: 'numeric' }).format(toTimestamp(date))
 }
+
+export interface RangeTextOptions {
+  /**
+   * What goes between the two dates when they have to be printed in full.
+   *
+   * Chrome, so it is the caller's under #157: an en dash in English, a wave
+   * dash in Japanese, and no default that is right everywhere. Unused when
+   * `Intl` writes the range itself, which it does better than a separator can.
+   */
+  separator?: string
+}
+
+/**
+ * Two dates as one phrase: "September 10 - 12, 2026".
+ *
+ * `Intl.DateTimeFormat.prototype.formatRange` is what collapses the parts the
+ * two ends share, and it is an ES2021 addition -- the same kind of unknown as
+ * `resolvedOptions` in `time-format.ts`, because `@hozo/canvas` established
+ * only that Hermes ships the three constructors, not which of their methods.
+ * So it is attempted and the answer degrades to both dates in full, joined by
+ * a separator the caller owns.
+ *
+ * The degraded form is longer rather than shorter. Dropping the shared year
+ * or month by hand would put a locale's ordering rules in this file, which is
+ * the job `formatRange` exists to do.
+ */
+export function rangeLabel(
+  range: { start: CalendarDate; end: CalendarDate },
+  locale?: string,
+  options?: RangeTextOptions,
+): string {
+  const parts = { year: 'numeric', month: 'long', day: 'numeric' } as const
+  const from = toTimestamp(range.start)
+  const to = toTimestamp(range.end)
+  const shape = formatter(locale, parts)
+  try {
+    if (typeof shape.formatRange === 'function') return shape.formatRange(from, to)
+  } catch {
+    // Falls through to the two full dates.
+  }
+  return `${shape.format(from)}${options?.separator ?? ' - '}${shape.format(to)}`
+}
