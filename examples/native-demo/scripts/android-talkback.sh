@@ -741,6 +741,12 @@ fi
 # equivalent yet, and `accessibilityRole="adjustable"` with
 # `onAccessibilityAction` is the shape that would.
 #
+# They are not missing from the tree, which is the part that says what to fix.
+# `android-smoke.sh` lists "9" and "30" among the nodes that are drawn and
+# undescribed: the elements exist and carry their digits as `text`, so Android
+# has nothing to announce and no reason to make them focusable. What is absent
+# is a description, not an element.
+#
 # Restarted first. The calendar section leaves a modal open, and Back on this
 # screen leaves the app rather than the modal.
 echo "restarting to read the pickers screen"

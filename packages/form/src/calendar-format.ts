@@ -111,11 +111,23 @@ export interface RangeTextOptions {
  * Two dates as one phrase: "September 10 - 12, 2026".
  *
  * `Intl.DateTimeFormat.prototype.formatRange` is what collapses the parts the
- * two ends share, and it is an ES2021 addition -- the same kind of unknown as
- * `resolvedOptions` in `time-format.ts`, because `@hozo/canvas` established
- * only that Hermes ships the three constructors, not which of their methods.
- * So it is attempted and the answer degrades to both dates in full, joined by
- * a separator the caller owns.
+ * two ends share, and it is an ES2021 addition. So it is attempted and the
+ * answer degrades to both dates in full, joined by a separator the caller
+ * owns.
+ *
+ * Measured, and the fallback is the path a phone takes. A `DateRangePicker`
+ * on an API 36 emulator read "September 10, 2026 - September 12, 2026" off
+ * its trigger, which is this template and not `formatRange`'s "September 10 -
+ * 12, 2026" -- so Hermes either does not implement the method or throws from
+ * it, and those two are not told apart here. `separator` is therefore
+ * load-bearing rather than defensive: it is what a Japanese application will
+ * actually be read, and an en dash is the wrong default there.
+ *
+ * `dateTimeLabel` does work on the same engine -- the other trigger read
+ * "Thursday, September 24, 2026 at 9:30 AM", the locale's own joining word
+ * included -- so this is about the method rather than about the options.
+ * `resolvedOptions` stays unknown: that screen passes `hour12` explicitly, so
+ * `usesTwelveHour` was never reached.
  *
  * The degraded form is longer rather than shorter. Dropping the shared year
  * or month by hand would put a locale's ordering rules in this file, which is
