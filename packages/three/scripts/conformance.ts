@@ -370,13 +370,14 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'vertex colours',
     'partial',
-    'Mesh, line, and point RGB attributes work through portable interpolation, including clipped vertices. Mesh interpolation is screen-space rather than perspective-correct, and vertex-coloured wireframes remain diagnosed.',
+    'Mesh, line, and point RGB attributes work through portable interpolation, including clipped vertices. Mesh interpolation is screen-space rather than perspective-correct; RGBA attributes and vertex-coloured wireframes remain diagnosed.',
     {
       tests: [
         project('mesh vertex colours become a portable interpolated triangle'),
         project('mesh clipping interpolates vertex colours at generated edges'),
         project('PointsMaterial multiplies per-point RGB colours'),
         project('LineBasicMaterial projects clipped RGB vertex colours as a portable gradient'),
+        project('RGBA vertex attributes diagnose instead of silently dropping alpha'),
       ],
     },
   ),
@@ -396,12 +397,15 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'transparency and blending',
     'partial',
-    'Normal alpha transparency maps to Canvas opacity after opaque primitives; custom blending is diagnosed.',
+    'Normal alpha transparency maps to Canvas opacity after opaque primitives, and uniform alphaTest discards whole primitives. Per-fragment alpha hash, MSAA alpha-to-coverage, dithering, and custom blending are diagnosed.',
     {
       tests: [
         project('normal transparent materials project opacity across portable primitives'),
+        project('uniform alphaTest omits every supported primitive only below its threshold'),
         project('transparent primitives paint after opaque primitives'),
-        project('non-default depth, stencil, write, offset, and blending state emit diagnostics'),
+        project(
+          'non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics',
+        ),
       ],
     },
   ),
@@ -509,7 +513,9 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'Non-default depth, stencil, colour-write, polygon-offset, and blending state is rejected.',
     {
       tests: [
-        project('non-default depth, stencil, write, offset, and blending state emit diagnostics'),
+        project(
+          'non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics',
+        ),
       ],
     },
   ),
