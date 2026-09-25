@@ -53,6 +53,9 @@ projects each child camera into its declared bottom-left viewport. `Line`,
 `LineSegments`, and `LineLoop` with `LineBasicMaterial` are projected
 with their declared colour and width. Solid and dashed lines interpolate RGB
 vertex colours through portable Canvas gradients, including clipped endpoints.
+Solid meshes likewise preserve RGB vertex attributes and interpolate colours
+across clipped triangles. The portable mesh interpolation is screen-space;
+perspective-correct interpolation remains a GPU-backend concern.
 `LineDashedMaterial` uses Three's
 `lineDistance`, dash size, gap size, and scale to emit portable segments before
 projection. `Points` with untextured

@@ -370,12 +370,13 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'vertex colours',
     'partial',
-    'Per-point RGB and solid or dashed line gradients work; interpolated mesh colours remain diagnosed.',
+    'Mesh, line, and point RGB attributes work through portable interpolation, including clipped vertices. Mesh interpolation is screen-space rather than perspective-correct, and vertex-coloured wireframes remain diagnosed.',
     {
       tests: [
+        project('mesh vertex colours become a portable interpolated triangle'),
+        project('mesh clipping interpolates vertex colours at generated edges'),
         project('PointsMaterial multiplies per-point RGB colours'),
         project('LineBasicMaterial projects clipped RGB vertex colours as a portable gradient'),
-        project('unsupported MeshBasicMaterial features emit diagnostics'),
       ],
     },
   ),

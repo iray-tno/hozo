@@ -44,7 +44,11 @@ function triangleScene() {
   return { camera, mesh, scene }
 }
 
-function recordingSurface(paths: string[], rectangles: number[][] = []) {
+function recordingSurface(
+  paths: string[],
+  rectangles: number[][] = [],
+  gradientStops: string[] = [],
+) {
   class RecordedPath {
     constructor(path: string) {
       paths.push(path)
@@ -55,6 +59,9 @@ function recordingSurface(paths: string[], rectangles: number[][] = []) {
     {
       globalAlpha: 1,
       lineWidth: 1,
+      createLinearGradient: () => ({
+        addColorStop: (_offset: number, color: string) => gradientStops.push(color),
+      }),
       isPointInPath: () => true,
       rect: (x: number, y: number, width: number, height: number) =>
         rectangles.push([x, y, width, height]),
@@ -74,6 +81,31 @@ function recordingSurface(paths: string[], rectangles: number[][] = []) {
     setPointerCapture: () => undefined,
   }
 }
+
+test('ThreeCanvas draws projected mesh vertex colours through the portable mesh', async () => {
+  const { camera, mesh, scene } = triangleScene()
+  mesh.geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1], 3))
+  mesh.material.color.set('#ffffff')
+  mesh.material.vertexColors = true
+  const gradientStops: string[] = []
+  let renderer: ReturnType<typeof testRenderer.create> | undefined
+
+  await testRenderer.act(async () => {
+    renderer = testRenderer.create(
+      <ThreeCanvas decorative scene={scene} camera={camera} width={100} height={100} />,
+      {
+        createNodeMock: (element) =>
+          element.type === 'canvas' ? recordingSurface([], [], gradientStops) : null,
+      },
+    )
+  })
+
+  assert.equal(gradientStops.length, 6)
+  assert.ok(gradientStops.some((color) => color.startsWith('rgba(255, 0, 0,')))
+  assert.ok(gradientStops.some((color) => color.startsWith('rgba(0, 255, 0,')))
+  assert.ok(gradientStops.some((color) => color.startsWith('rgba(0, 0, 255,')))
+  await testRenderer.act(async () => renderer?.unmount())
+})
 
 test('ThreeCanvas paints scene backgrounds without creating an object control', async () => {
   const scene = new Scene()
