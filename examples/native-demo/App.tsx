@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AppState, type HostInstance, Modal } from 'react-native'
 
 import CalendarScreen from './CalendarScreen.tsx'
+import FormScreen from './FormScreen.tsx'
 import Gallery from './Gallery.tsx'
 
 const rows = [
@@ -23,6 +24,7 @@ export default function App() {
   const [confirming, setConfirming] = useState(false)
   const [showingGallery, setShowingGallery] = useState(false)
   const [showingCalendar, setShowingCalendar] = useState(false)
+  const [showingPickers, setShowingPickers] = useState(false)
   const [gridWidth, setGridWidth] = useState(0)
   const [gesture, setGesture] = useState({ dx: 0, dy: 0, touches: 0 })
   // Where accessibility focus goes when the dialog closes. React Native
@@ -177,21 +179,38 @@ export default function App() {
               <Text className="text-center">Gallery</Text>
             </Pressable>
 
-            {/* No `testID`, deliberately, where its neighbour has one.
-                `announcedByCompiler` reads this file by name and
-                `missingOnDevice` fails on any `testID` here that is absent
-                from the dump checked into `fixtures/` -- so adding one is a
-                fixture regeneration, which needs a device run of its own.
-                The TalkBack script finds this button the way it finds the
-                dialog's opener: by what TalkBack says about it. */}
-            <Pressable
-              className="mt-2 rounded-lg bg-slate-200 p-3"
-              accessibilityRole="button"
-              accessibilityLabel="Show the calendar"
-              onPress={() => setShowingCalendar(true)}
-            >
-              <Text className="text-center">Calendar</Text>
-            </Pressable>
+            {/* Side by side rather than stacked, and the row is the point.
+                Stacked, the second opener sat at y=2126 of 2400 -- inside the
+                system gesture area, which `centre_of` in `android-smoke.sh`
+                refuses to tap, so the screen it opens was measured by nothing.
+                A row keeps the header the height it was, which also keeps the
+                calendar opener where the existing sections found it.
+
+                Neither has a `testID`, deliberately, where their neighbours
+                have them: `announcedByCompiler` is keyed by `testID` and
+                `missingOnDevice` fails on one here that is absent from the
+                checked-in dump, so adding one is a fixture regeneration that
+                needs a device run of its own. Both scripts find these buttons
+                the way they find the dialog's opener: by what they say. */}
+            <View className="mt-2 flex-row gap-2">
+              <Pressable
+                className="flex-1 rounded-lg bg-slate-200 p-3"
+                accessibilityRole="button"
+                accessibilityLabel="Show the calendar"
+                onPress={() => setShowingCalendar(true)}
+              >
+                <Text className="text-center">Calendar</Text>
+              </Pressable>
+
+              <Pressable
+                className="flex-1 rounded-lg bg-slate-200 p-3"
+                accessibilityRole="button"
+                accessibilityLabel="Show the pickers"
+                onPress={() => setShowingPickers(true)}
+              >
+                <Text className="text-center">Pickers</Text>
+              </Pressable>
+            </View>
           </View>
         }
         renderItem={({ item }) => (
@@ -236,6 +255,19 @@ export default function App() {
         onRequestClose={() => setShowingCalendar(false)}
       >
         <CalendarScreen />
+      </Modal>
+
+      {/* A second `Modal` rather than one screen switched between two
+          contents, so that neither measurement can move the other: the
+          calendar's forty-two step walk and the pickers' short one are read
+          in separate sections, and a screen that held both would put the
+          pickers inside the grid's Tab lap. */}
+      <Modal
+        visible={showingPickers}
+        animationType="fade"
+        onRequestClose={() => setShowingPickers(false)}
+      >
+        <FormScreen />
       </Modal>
     </View>
   )
