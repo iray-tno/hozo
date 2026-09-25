@@ -28,7 +28,10 @@ engine=dev.hozo.speechlog
 talkback=com.google.android.marvin.talkback
 talkback_service="$talkback/com.google.android.marvin.talkback.TalkBackService"
 
-MAX_STEPS=${MAX_STEPS:-40}
+# Four more than it was. `App.tsx` gained a second modal opener, so the lap is
+# one step longer -- and this number is the budget for the lap-detection loop
+# and for every search-by-name below it, so it has to grow with the screen.
+MAX_STEPS=${MAX_STEPS:-44}
 MIN_SPOKEN=${MIN_SPOKEN:-3}
 
 # What went wrong, and then what TalkBack had been saying when it did.
@@ -112,7 +115,7 @@ settle() {
 write_speech_log() {
   node --eval '
     const fs = require("node:fs")
-    const [steps, dialog, trace, calendar, all] = process.argv.slice(1)
+    const [steps, dialog, trace, calendar, pickers, all] = process.argv.slice(1)
     const rows = (file) => {
       if (!file || !fs.existsSync(file)) return []
       return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line) => {
@@ -127,9 +130,11 @@ write_speech_log() {
       dialog: rows(dialog),
       focusTrace: rows(trace),
       calendar: rows(calendar),
+      pickers: rows(pickers),
     }
     fs.writeFileSync("talkback-speech.json", JSON.stringify(log, null, 2) + "\n")
-  ' "${steps_file:-}" "${dialog_file:-}" "${trace_file:-}" "${calendar_file:-}" "$(spoken)" || true
+  ' "${steps_file:-}" "${dialog_file:-}" "${trace_file:-}" "${calendar_file:-}" \
+    "${pickers_file:-}" "$(spoken)" || true
 }
 trap write_speech_log EXIT
 
@@ -700,6 +705,99 @@ fi
 # left behind -- a modal open, focus inside it, nothing at all if it never got
 # there -- is not a state this wants to reason about, and Back on the
 # acceptance screen leaves the app rather than the screen.
+
+# What TalkBack says about `TimePicker` and the two picker triggers.
+#
+# The Web halves are goldened phrase by phrase (#554), and what that rig said
+# about them is the thing to check this against:
+#
+#   spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+#   button, Departure, not expanded, has popup dialog
+#
+# Neither line can be true here, and the interesting part is how they differ.
+# React Native has no `spinbutton`; the fields are `Pressable` steppers with
+# `accessibilityValue.text`, and Android joins label, state and value into one
+# `contentDescription` -- so the whole time has to arrive already joined, which
+# is the thing `spokenExtras` does for the calendar and `TimePicker` does for
+# itself. If TalkBack reads "Hour" and stops, the join is not happening.
+#
+# Warning-only, like the calendar section and for the same reason: this is a
+# measurement rather than a contract, and nothing here is a fact the project
+# has committed to yet. The gate that follows is about the app surviving.
+#
+# Restarted first. The calendar section leaves a modal open, and Back on this
+# screen leaves the app rather than the modal.
+echo "restarting to read the pickers screen"
+adb shell am force-stop "$package" || true
+adb shell am start -W -n "$activity" > /dev/null
+sleep 12
+if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+  echo "::warning::the app did not come back, so the pickers were not read"
+else
+  settle || true
+  pickers_button="Show the pickers"
+  pickers_file="$(mktemp)"
+  pickers_reached=
+  for _ in $(seq 1 "$MAX_STEPS"); do
+    advance || true
+    if [ "${new%%|*}" = "$pickers_button" ]; then pickers_reached=1; break; fi
+  done
+
+  if [ -z "$pickers_reached" ]; then
+    echo "::warning::Tab never reached \"$pickers_button\", so the pickers were not read"
+  else
+    adb shell input keyevent KEYCODE_ENTER || true
+    sleep 2
+    settle || true
+    collect || true
+    printf 'open\t%s\n' "$new" >> "$pickers_file"
+    echo "  pickers opened: ${new:-(silent)}"
+
+    # Before anything is read from it, for the reason the calendar section
+    # gives: a release build has no red box, so a throw while a screen mounts
+    # takes the process with it and leaves the reader on the launcher -- and
+    # every check below would then report that the pickers said nothing, which
+    # is true and tells nobody anything.
+    if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+      echo "::warning::the app was gone after opening the pickers, so nothing below was measured"
+      adb logcat -d -b crash -v brief 2>/dev/null | tail -40 | sed 's/^/  crash: /' || true
+      adb logcat -d -v brief '*:E' 2>/dev/null |
+        grep -iE 'reactnative|hermes|hozo' | tail -40 | sed 's/^/  error: /' || true
+    else
+      # Sixteen, for a screen with a header, three labels, four stepper
+      # buttons, two fields, a period and two triggers. Enough to lap it
+      # twice if Android's order is kind, which is the point: a short screen
+      # read twice is better evidence than a long one read once.
+      for i in $(seq 1 16); do
+        advance || true
+        printf 'step %s\t%s\n' "$i" "$new" >> "$pickers_file"
+        echo "  pickers $i: ${new:-(silent)}"
+      done
+
+      pickers_said="$(cut -f2 "$pickers_file" | tr '|' '\n' | grep -v '^$' || true)"
+      pickers_heard() {
+        if printf '%s\n' "$pickers_said" | grep -qi -- "$2"; then
+          echo "  heard $1"
+        else
+          echo "::warning::the pickers never said $1 -- read talkback-speech.json"
+        fi
+      }
+      pickers_heard 'the hour field' 'hour'
+      pickers_heard 'the minute field' 'minute'
+      # The whole time in a field rather than that field's own digits, which
+      # is the design and the one thing Android's single `contentDescription`
+      # slot makes easy to get wrong.
+      pickers_heard 'the whole time, not just one field' '9:30'
+      pickers_heard 'a period, so the twelve-hour clock resolved' 'am'
+      pickers_heard "the DateTimePicker's trigger" 'departure'
+      pickers_heard "the DateRangePicker's trigger" 'dates of stay'
+
+      echo '  what the pickers screen said, in order:'
+      cut -f2 "$pickers_file" | sed 's/|.*//' | sed 's/^/    /'
+    fi
+  fi
+fi
+
 echo "restarting the app to replace its screen with TalkBack on"
 adb shell am force-stop "$package" || true
 adb shell am start -W -n "$activity" > /dev/null

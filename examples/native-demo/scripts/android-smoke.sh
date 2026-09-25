@@ -503,4 +503,88 @@ else
   fi
 fi
 
+
+# What the pickers screen puts in the accessibility tree.
+#
+# `TimePicker`, `DateTimePicker` and `DateRangePicker` have Native halves that
+# had never been executed anywhere when this was written -- the Web halves are
+# covered by the Storybook goldens (#554) and the Node suites, and neither of
+# those runs a `Pressable`. So the first question is not what TalkBack says
+# about them, it is whether they render at all.
+#
+# A dump answers that, and answers two more things a browser cannot:
+#
+#   - whether `accessibilityValue.text` reaches `content-desc`. The fields are
+#     supposed to say the whole time rather than their own digits, and Android
+#     joins label, state and value into one `contentDescription` -- so "9:30"
+#     appearing beside "Hour" is the join working, and "Hour" alone is it not.
+#   - which clock the fields are on. `hour12` is passed explicitly, so a field
+#     reading 9 with a period button beside it says `withPeriod` and
+#     `twelveHour` behave on Hermes; the period button missing would say they
+#     do not.
+#
+# Reported, never asserted, and after the calendar geometry. The app is
+# restarted because that section left a modal open, and nothing after this
+# needs the screen.
+echo "restarting to read the pickers screen"
+adb shell am force-stop "$package" || true
+adb shell am start -W -n "$activity" > /dev/null
+sleep 8
+if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+  echo "::warning::the app did not come back, so the pickers were not read"
+else
+  adb shell uiautomator dump /sdcard/dump.xml > /dev/null 2>&1 || true
+  adb pull /sdcard/dump.xml ./pickers_opener_dump.xml > /dev/null 2>&1 || true
+  if opener="$(centre_of pickers_opener_dump.xml 'Show the pickers' content-desc)"; then
+    # shellcheck disable=SC2086 -- two words, deliberately unquoted
+    adb shell input tap $opener
+    sleep 3
+    # Asked before the dump, so that "the tree named nothing" and "there was
+    # no process" cannot be confused. A release build has no red box, so a
+    # throw while a screen mounts takes the process with it -- which is what
+    # the calendar section learned the hard way.
+    if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+      echo "::warning::the app died opening the pickers screen"
+      adb logcat -d -b crash -v brief 2>/dev/null | tail -40 | sed 's/^/  crash: /' || true
+    else
+      adb shell uiautomator dump /sdcard/dump.xml > /dev/null 2>&1 || true
+      adb pull /sdcard/dump.xml ./pickers_dump.xml > /dev/null 2>&1 || true
+      adb exec-out screencap -p > ./pickers.png 2>/dev/null || true
+      node --eval '
+        const fs = require("node:fs")
+        const file = process.argv[1]
+        if (!fs.existsSync(file)) {
+          console.log("::warning::no pickers dump, so nothing was read")
+          process.exit(0)
+        }
+        const xml = fs.readFileSync(file, "utf8")
+        const described = []
+        for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+          const desc = /content-desc="([^"]+)"/.exec(node[0])
+          if (desc) described.push(desc[1])
+        }
+        if (described.length === 0) {
+          console.log("::warning::the pickers dump names nothing at all")
+          process.exit(0)
+        }
+        console.log(`  ${described.length} described nodes:`)
+        for (const one of described) console.log(`    ${one}`)
+        // Reported one line each rather than as a pass or a fail: this is the
+        // first look, and a name that is nearly right is the interesting
+        // answer. Naming what was looked for is what makes the list above
+        // readable by someone who was not here.
+        const has = (what) => described.some((one) => one.toLowerCase().includes(what))
+        const note = (what, found) =>
+          console.log(`  ${found ? "said" : "did not say"} ${what}`)
+        note("the time fields", has("hour") && has("minute"))
+        note("the whole time in a field, not just its digits", has("9:30"))
+        note("a period, so the twelve-hour clock resolved", has("am") || has("pm"))
+        note("the DateTimePicker trigger", has("departure"))
+        note("the DateRangePicker trigger", has("dates of stay"))
+      ' ./pickers_dump.xml || true
+    fi
+  else
+    echo "::warning::could not find the pickers opener in the tree, so nothing was read"
+  fi
+fi
 echo "ok: $package is up, its tree contains $expect_id, the dialog opens and closes, and the gallery renders $found primitives"

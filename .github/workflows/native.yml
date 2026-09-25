@@ -237,6 +237,9 @@ jobs:
             calendar_opener_dump.xml
             calendar_dump.xml
             calendar.png
+            pickers_opener_dump.xml
+            pickers_dump.xml
+            pickers.png
             examples/native-demo/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 14

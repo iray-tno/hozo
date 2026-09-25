@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AppState, type HostInstance, Modal } from 'react-native'
 
 import CalendarScreen from './CalendarScreen.tsx'
+import FormScreen from './FormScreen.tsx'
 import Gallery from './Gallery.tsx'
 
 const rows = [
@@ -23,6 +24,7 @@ export default function App() {
   const [confirming, setConfirming] = useState(false)
   const [showingGallery, setShowingGallery] = useState(false)
   const [showingCalendar, setShowingCalendar] = useState(false)
+  const [showingPickers, setShowingPickers] = useState(false)
   const [gridWidth, setGridWidth] = useState(0)
   const [gesture, setGesture] = useState({ dx: 0, dy: 0, touches: 0 })
   // Where accessibility focus goes when the dialog closes. React Native
@@ -192,6 +194,19 @@ export default function App() {
             >
               <Text className="text-center">Calendar</Text>
             </Pressable>
+
+            {/* The same shape and the same class list as its neighbour, so
+                `announcedByCompiler` sees no class it did not already see and
+                this stays out of the fixtures. It costs the TalkBack walk one
+                step, which is why `MAX_STEPS` there went up by four. */}
+            <Pressable
+              className="mt-2 rounded-lg bg-slate-200 p-3"
+              accessibilityRole="button"
+              accessibilityLabel="Show the pickers"
+              onPress={() => setShowingPickers(true)}
+            >
+              <Text className="text-center">Pickers</Text>
+            </Pressable>
           </View>
         }
         renderItem={({ item }) => (
@@ -236,6 +251,19 @@ export default function App() {
         onRequestClose={() => setShowingCalendar(false)}
       >
         <CalendarScreen />
+      </Modal>
+
+      {/* A second `Modal` rather than one screen switched between two
+          contents, so that neither measurement can move the other: the
+          calendar's forty-two step walk and the pickers' short one are read
+          in separate sections, and a screen that held both would put the
+          pickers inside the grid's Tab lap. */}
+      <Modal
+        visible={showingPickers}
+        animationType="fade"
+        onRequestClose={() => setShowingPickers(false)}
+      >
+        <FormScreen />
       </Modal>
     </View>
   )
