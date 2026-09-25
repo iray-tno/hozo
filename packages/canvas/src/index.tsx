@@ -54,7 +54,7 @@ export {
   type CanvasTextMetrics,
   hitTestCanvas,
 } from './hit-test.ts'
-export { type CanvasTextureImage, type CanvasViewport, renderCanvas2D } from './render-canvas-2d.ts'
+export { type CanvasViewport, renderCanvas2D } from './render-canvas-2d.ts'
 export type {
   CanvasDestination,
   CanvasInteractionProps,

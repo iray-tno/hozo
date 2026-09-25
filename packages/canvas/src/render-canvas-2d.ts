@@ -21,7 +21,7 @@ import { textLines } from './wrap-text.ts'
 
 export type { CanvasViewport } from './viewport.ts'
 
-export type CanvasTextureImage = (source: CanvasTextureSource) => CanvasImageSource | undefined
+type CanvasTextureImage = (source: CanvasTextureSource) => CanvasImageSource | undefined
 
 function applyTransform(context: CanvasRenderingContext2D, transform?: CanvasTransform) {
   if (!transform) return
