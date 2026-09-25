@@ -23,6 +23,16 @@ const checkAccessibilityTypes = () => {
   // A label is pressable now that each surface measures its own ink,
   // which is the box both renderers have reported all along.
   const interactiveText = <Canvas.Text text="Jan" x={0} y={0} fontSize={12} onPress={() => {}} />
+  const interactiveMesh = (
+    <Canvas.TriangleMesh
+      vertices={[
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 0, y: 10 },
+      ]}
+      onPress={() => {}}
+    />
+  )
   return [
     missingMode,
     decorativeFallback,
@@ -31,6 +41,7 @@ const checkAccessibilityTypes = () => {
     interactiveLine,
     interactivePath,
     interactiveText,
+    interactiveMesh,
   ]
 }
 void checkAccessibilityTypes

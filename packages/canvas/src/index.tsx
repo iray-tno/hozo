@@ -35,6 +35,7 @@ import {
   reportUnreadableText,
   Text,
   type TextProps,
+  TriangleMesh,
   useCanvasScene,
 } from './scene.tsx'
 import { wrapText } from './wrap-text.ts'
@@ -67,6 +68,7 @@ export type {
   PathProps,
   RectProps,
   RoundedRectProps,
+  TriangleMeshProps,
 } from './scene.tsx'
 export { CanvasSceneStore } from './scene.tsx'
 // The rule on its own, for a caller with a measurement of its own --
@@ -507,4 +509,5 @@ export const Canvas = Object.assign(Root, {
   Line,
 
   Path,
+  TriangleMesh,
 })

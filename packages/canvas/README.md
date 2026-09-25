@@ -26,6 +26,25 @@ export function Sparkline() {
 }
 ```
 
+Indexed triangle meshes avoid turning already-projected geometry into SVG path
+strings. Consecutive vertex triples are used when `indices` is omitted; an
+incomplete or invalid triple is skipped as one unit on both renderers.
+
+```tsx
+<Canvas.TriangleMesh
+  vertices={[
+    { x: 10, y: 10 },
+    { x: 90, y: 10 },
+    { x: 50, y: 70 },
+  ]}
+  fill="#2563eb"
+/>
+```
+
+The initial portable contract is fill-only. Vertex colours and texture
+coordinates will extend this primitive once both Canvas 2D and Skia can honour
+the same declared result.
+
 ## Interaction
 
 Every Canvas leaf supports portable `onPress` and destination-bearing `href`.

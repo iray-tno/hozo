@@ -6,6 +6,8 @@ import {
   type LineProps,
   paintStrokes,
   type TextProps,
+  type TriangleMeshProps,
+  triangleMeshIndices,
   unhandledShape,
 } from './scene.tsx'
 import { textLines } from './wrap-text.ts'
@@ -215,6 +217,36 @@ function pointInLine(point: CanvasPoint, props: LineProps): boolean {
   return perpendicular <= half * Math.sqrt(lengthSquared)
 }
 
+function triangleArea(a: CanvasPoint, b: CanvasPoint, c: CanvasPoint): number {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+}
+
+/** Includes triangle edges and rejects a zero-area triple that paints no pixels. */
+function pointInTriangle(
+  point: CanvasPoint,
+  a: CanvasPoint,
+  b: CanvasPoint,
+  c: CanvasPoint,
+): boolean {
+  if (triangleArea(a, b, c) === 0) return false
+  const ab = triangleArea(a, b, point)
+  const bc = triangleArea(b, c, point)
+  const ca = triangleArea(c, a, point)
+  return !((ab < 0 || bc < 0 || ca < 0) && (ab > 0 || bc > 0 || ca > 0))
+}
+
+function pointInTriangleMesh(point: CanvasPoint, props: TriangleMeshProps): boolean {
+  if (props.fill === 'none') return false
+  const indices = triangleMeshIndices(props)
+  for (let offset = 0; offset < indices.length; offset += 3) {
+    const a = props.vertices[indices[offset] as number]
+    const b = props.vertices[indices[offset + 1] as number]
+    const c = props.vertices[indices[offset + 2] as number]
+    if (a && b && c && pointInTriangle(point, a, b, c)) return true
+  }
+  return false
+}
+
 function pointInNode(node: CanvasSceneNode, point: CanvasPoint, queries?: CanvasRendererQueries) {
   switch (node.kind) {
     case 'rect':
@@ -253,6 +285,8 @@ function pointInNode(node: CanvasSceneNode, point: CanvasPoint, queries?: Canvas
       return (
         queries?.pathContains?.(node.props.path, node.props.fillRule ?? 'nonzero', point) ?? false
       )
+    case 'triangle-mesh':
+      return pointInTriangleMesh(point, node.props)
     case 'text': {
       const measure = queries?.measureText
       if (!measure) return false
@@ -395,6 +429,17 @@ function localCentre(node: CanvasSceneNode): CanvasPoint | undefined {
       return { x: (node.props.x1 + node.props.x2) / 2, y: (node.props.y1 + node.props.y2) / 2 }
     case 'text':
       return { x: node.props.x, y: node.props.y }
+    case 'triangle-mesh': {
+      const indices = triangleMeshIndices(node.props)
+      for (let offset = 0; offset < indices.length; offset += 3) {
+        const a = node.props.vertices[indices[offset] as number]
+        const b = node.props.vertices[indices[offset + 1] as number]
+        const c = node.props.vertices[indices[offset + 2] as number]
+        if (!a || !b || !c || triangleArea(a, b, c) === 0) continue
+        return { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 }
+      }
+      return undefined
+    }
     default:
       return undefined
   }
@@ -451,9 +496,9 @@ export function canvasNodePoint(
 /**
  * Finds the topmost interactive geometry at a logical surface point.
  *
- * Rectangle clips, the four closed primitive shapes, and lines are
- * portable today. Paths and path clips deliberately refuse hits until both
- * renderers can implement the same contract.
+ * Rectangle clips, closed primitive shapes, triangle meshes, and lines are
+ * answered from shared geometry. Paths and text ask the renderer that drew
+ * them, so their containment agrees with visible pixels.
  */
 export function hitTestCanvas(
   scene: CanvasScene,
