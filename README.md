@@ -40,9 +40,6 @@ is verified against canonical WAI-ARIA and platform accessibility models.
 
 ## Getting started
 
-> Nothing below is on npm yet. These are the commands the first release
-> will carry, and what the examples in this repository already run.
-
 Every integration takes the same options, and the only one most projects
 need is `css` — the path to the Tailwind entry stylesheet that defines the
 project's design tokens. Left out, Hozo looks for the usual filenames and
@@ -176,7 +173,7 @@ entry stylesheet by running Tailwind's resolver, rather than by parsing a
 config file — the same discipline the conformance suite uses when it asks
 Tailwind for its own class list instead of keeping a copy.
 
-### StyleX frontend (experimental)
+### StyleX frontend
 
 Hozo can also read a static same-file StyleX sheet into the same IR. This
 works alongside Tailwind on one element and lowers through the ordinary Web
@@ -517,7 +514,7 @@ static guarantees and minimizing runtime overhead:
 - **Layer 1 (Zero-Runtime Primitives)**: Lower directly to native HTML5 tags on Web and foundational primitives on React Native. Completely safe for static SSR / React Server Components (RSC) without `'use client'`.
 - **Layer 2 (Universal Behaviors)**: Minimal headless runtime behavior units. The compiler statically removes what is knowable at build time (e.g. static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
 - **Layer 3 (Universal Patterns)**: Accessible stateful widgets composed strictly from Layer 1 and Layer 2.
-- **`@hozo/core`** re-exports all three layers for zero-setup authoring and owns no implementation of its own. React Native migration APIs (`@hozo/rn-compat`) and SVG (`@hozo/svg`) sit outside the layers as opt-in domains.
+- **`@hozo/core`** re-exports all three layers for zero-setup authoring and owns no implementation of its own. Domain-specific and migration packages (`@hozo/form`, `@hozo/three`, `@hozo/canvas`, `@hozo/svg`, `@hozo/rn-compat`) sit alongside the layers as opt-in packages.
 
 ## Architecture
 
