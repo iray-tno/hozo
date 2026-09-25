@@ -156,13 +156,17 @@ test('the gestures move the value, and are not a declaration on their own', () =
     ['increment', 'decrement'],
   )
 
+  // `second: 0` because the arithmetic goes through `fromSecondsOfDay`, which
+  // reports all three fields. Asserted rather than trimmed away: it is the
+  // shape a caller's `onChange` actually receives, on both platforms, and a
+  // test that hid it would let the two halves drift apart quietly.
   hour.onAccessibilityAction?.({ nativeEvent: { actionName: 'increment' } })
-  assert.deepEqual(changes.at(-1), { hour: 10, minute: 30 })
+  assert.deepEqual(changes.at(-1), { hour: 10, minute: 30, second: 0 })
   hour.onAccessibilityAction?.({ nativeEvent: { actionName: 'decrement' } })
-  assert.deepEqual(changes.at(-1), { hour: 8, minute: 30 })
+  assert.deepEqual(changes.at(-1), { hour: 8, minute: 30, second: 0 })
   // The hour steps an hour and keeps the minutes, which is `addHours`.
   minute.onAccessibilityAction?.({ nativeEvent: { actionName: 'increment' } })
-  assert.deepEqual(changes.at(-1), { hour: 9, minute: 31 })
+  assert.deepEqual(changes.at(-1), { hour: 9, minute: 31, second: 0 })
 })
 
 test('a disabled picker does not move on a gesture it still advertises', () => {
