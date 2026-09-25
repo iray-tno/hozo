@@ -18,7 +18,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
         <View className="text-center max-w-4xl mx-auto flex flex-col items-center">
           {/* Architectural eyebrow tagline (Text-only) */}
           <View className="inline-flex flex-row items-center gap-2 mb-8">
-            <View className="flex h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
+            <View className="h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
             <Text className="text-xs sm:text-sm font-bold uppercase tracking-widest text-hinoki">
               Rust-powered Universal UI Compiler
             </Text>
@@ -74,7 +74,9 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           {/* Quick Command Snippet */}
           <View className="inline-flex flex-row items-center gap-3 px-4 py-2.5 rounded-xl bg-yakisugi-950 border border-wood text-xs text-shikkui-muted shadow-2xl backdrop-blur-md">
             <Text className="text-hinoki font-bold select-none">$</Text>
-            <Text className="text-shikkui font-medium">pnpm add -D @hozo/vite @hozo/compiler</Text>
+            <Text className="text-shikkui font-medium">
+              pnpm add @hozo/core -D @hozo/vite @hozo/compiler
+            </Text>
             <Text className="text-stone-600">|</Text>
             <Text className="text-stone-400">Zero config fallback</Text>
           </View>

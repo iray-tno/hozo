@@ -41,7 +41,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-hinoki flex items-center justify-center font-mono text-xs font-bold border border-wood-strong">
+                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-hinoki inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-wood-strong">
                     V
                   </Text>
                   <Text>Vite</Text>
@@ -84,7 +84,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-shikkui flex items-center justify-center font-mono text-xs font-bold border border-wood">
+                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-shikkui inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-wood">
                     N
                   </Text>
                   <Text>Next.js</Text>
@@ -123,7 +123,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-tatami-subtle text-tatami-light flex items-center justify-center font-mono text-xs font-bold border border-tatami-subtle">
+                  <Text className="w-7 h-7 rounded-lg bg-tatami-subtle text-tatami-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-tatami-subtle">
                     M
                   </Text>
                   <Text>Metro / Expo</Text>
@@ -160,7 +160,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-bengara-subtle text-bengara flex items-center justify-center font-mono text-xs font-bold border border-bengara-subtle">
+                  <Text className="w-7 h-7 rounded-lg bg-bengara-subtle text-bengara inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-bengara-subtle">
                     S
                   </Text>
                   <Text>Storybook</Text>
@@ -202,7 +202,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-hinoki-light flex items-center justify-center font-mono text-xs font-bold border border-wood">
+                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-hinoki-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-wood">
                     T
                   </Text>
                   <Text>TanStack Start</Text>
@@ -240,7 +240,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-tatami-subtle text-tatami-light flex items-center justify-center font-mono text-xs font-bold border border-tatami-subtle">
+                  <Text className="w-7 h-7 rounded-lg bg-tatami-subtle text-tatami-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-tatami-subtle">
                     C
                   </Text>
                   <Text>Conformance</Text>

@@ -28,7 +28,7 @@ export function Accessibility() {
           {/* Feature 1: Compile-time Diagnostics */}
           <View className="p-8 rounded-2xl timber-panel border border-wood flex flex-col justify-between">
             <View>
-              <View className="w-10 h-10 rounded-xl bg-bengara-subtle border border-bengara-subtle flex items-center justify-center text-bengara mb-6">
+              <View className="w-10 h-10 rounded-xl bg-bengara-subtle border border-bengara-subtle items-center justify-center text-bengara mb-6">
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -81,7 +81,7 @@ export function Accessibility() {
           {/* Feature 2: @hozo/patterns, built on @hozo/behaviors */}
           <View className="p-8 rounded-2xl timber-panel border border-wood flex flex-col justify-between">
             <View>
-              <View className="w-10 h-10 rounded-xl bg-wood-subtle border border-wood-strong flex items-center justify-center text-hinoki mb-6">
+              <View className="w-10 h-10 rounded-xl bg-wood-subtle border border-wood-strong items-center justify-center text-hinoki mb-6">
                 <svg
                   className="w-5 h-5"
                   fill="none"

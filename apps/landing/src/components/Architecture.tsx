@@ -39,7 +39,7 @@ export function Architecture() {
               </Text>
             </View>
 
-            <View className="flex justify-center text-hinoki items-center">
+            <View className="flex flex-col items-center justify-center text-hinoki">
               <svg
                 className="w-6 h-6 animate-bounce"
                 fill="none"
@@ -89,7 +89,7 @@ export function Architecture() {
               </View>
             </View>
 
-            <View className="flex justify-center text-hinoki items-center">
+            <View className="flex flex-col items-center justify-center text-hinoki">
               <svg
                 className="w-6 h-6 animate-bounce"
                 fill="none"
