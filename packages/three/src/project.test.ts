@@ -75,6 +75,14 @@ function projectedCircles(result: ReturnType<typeof projectThreeScene>) {
   })
 }
 
+function projectedMeshes(result: ReturnType<typeof projectThreeScene>) {
+  return result.scene.map((node) => {
+    assert.equal(node.kind, 'triangle-mesh')
+    if (node.kind !== 'triangle-mesh') throw new Error('projection emitted a non-mesh node')
+    return node.props
+  })
+}
+
 test('a Three.js triangle becomes a Canvas path in viewport coordinates', () => {
   const scene = new Scene()
   scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#2563eb' })))
@@ -88,6 +96,62 @@ test('a Three.js triangle becomes a Canvas path in viewport coordinates', () => 
       fill: '#2563eb',
     },
   ])
+})
+
+test('mesh vertex colours become a portable interpolated triangle', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1], 3))
+  const mesh = new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true }))
+
+  const result = projectThreeScene(new Scene().add(mesh), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedMeshes(result), [
+    {
+      colors: [
+        { r: 0.9999999999999999, g: 0, b: 0 },
+        { r: 0, g: 0.9999999999999999, b: 0 },
+        { r: 0, g: 0, b: 0.9999999999999999 },
+      ],
+      vertices: [
+        { x: 40, y: 60 },
+        { x: 60, y: 60 },
+        { x: 50, y: 40 },
+      ],
+    },
+  ])
+})
+
+test('mesh clipping interpolates vertex colours at generated edges', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1], 3))
+  const material = new MeshBasicMaterial({
+    clippingPlanes: [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)],
+    vertexColors: true,
+  })
+
+  const result = projectThreeScene(new Scene().add(new Mesh(geometry, material)), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(result.diagnostics, [])
+  const [triangle] = projectedMeshes(result)
+  assert.deepEqual(triangle?.vertices, [
+    { x: 50, y: 40 },
+    { x: 50, y: 60 },
+    { x: 60, y: 60 },
+  ])
+  assert.deepEqual(triangle?.colors?.[0], { r: 0, g: 0, b: 0.9999999999999999 })
+  assert.deepEqual(triangle?.colors?.[2], { r: 0, g: 0.9999999999999999, b: 0 })
+  const clippedRed = triangle?.colors?.[1]?.r ?? 0
+  const clippedGreen = triangle?.colors?.[1]?.g ?? 0
+  assert.ok(clippedRed > 0.73 && clippedRed < 0.74)
+  assert.equal(clippedGreen, clippedRed)
+  assert.equal(triangle?.colors?.[1]?.b, 0)
 })
 
 test('indexed geometry emits each triangle', () => {
@@ -1067,8 +1131,8 @@ test('unsupported mesh material classes emit diagnostics', () => {
 
 test('unsupported MeshBasicMaterial features emit diagnostics', () => {
   const materials = [
-    new MeshBasicMaterial({ vertexColors: true }),
     new MeshBasicMaterial({ map: new Texture() }),
+    new MeshBasicMaterial({ vertexColors: true, wireframe: true }),
   ]
 
   for (const material of materials) {
@@ -1078,6 +1142,14 @@ test('unsupported MeshBasicMaterial features emit diagnostics', () => {
     assert.deepEqual(result.scene, [])
     assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
   }
+
+  const missingColors = projectThreeScene(
+    new Scene().add(new Mesh(triangleGeometry(), new MeshBasicMaterial({ vertexColors: true }))),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+  assert.deepEqual(missingColors.scene, [])
+  assert.equal(missingColors.diagnostics[0]?.code, 'UNSUPPORTED_GEOMETRY')
 })
 
 test('material clipping planes cut meshes and lines and discard points in world space', () => {

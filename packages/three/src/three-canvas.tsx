@@ -201,6 +201,16 @@ export function ThreeCanvas({
             />
           )
         }
+        if (node.kind === 'triangle-mesh') {
+          return (
+            <Canvas.TriangleMesh
+              // biome-ignore lint/suspicious/noArrayIndexKey: projected primitives have no durable Three identity, and every Canvas shape is a stateless scene registration
+              key={`${index}:triangle-mesh`}
+              {...node.props}
+              {...interaction}
+            />
+          )
+        }
         if (node.kind === 'circle') {
           return (
             <Canvas.Circle
