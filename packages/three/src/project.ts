@@ -75,9 +75,49 @@ interface ProjectedPrimitive {
 type CanvasStroke = Extract<CanvasSceneNode, { kind: 'line' }>['props']['stroke']
 
 type SupportedCamera = PerspectiveCamera | OrthographicCamera
+type SupportedFog = NonNullable<Scene['fog']>
 
 function isColorBackground(background: Scene['background']): background is Color {
   return background !== null && (background as Color).isColor === true
+}
+
+function fogReason(fog: SupportedFog): string | undefined {
+  if ((fog as SupportedFog & { isFogExp2?: boolean }).isFogExp2 === true) {
+    const density = (fog as SupportedFog & { density: number }).density
+    if (!Number.isFinite(density) || density < 0) {
+      return 'FogExp2 density must be finite and non-negative.'
+    }
+    return undefined
+  }
+  const linear = fog as SupportedFog & { far: number; near: number }
+  if (![linear.near, linear.far].every(Number.isFinite) || linear.far <= linear.near) {
+    return 'Fog near and far must be finite, with far greater than near.'
+  }
+  return undefined
+}
+
+function fogFactor(fog: SupportedFog, viewDepth: number): number {
+  if ((fog as SupportedFog & { isFogExp2?: boolean }).isFogExp2 === true) {
+    const density = (fog as SupportedFog & { density: number }).density
+    return Math.max(0, Math.min(1, 1 - Math.exp(-(density * density * viewDepth * viewDepth))))
+  }
+  const { near, far } = fog as SupportedFog & { far: number; near: number }
+  const normalized = Math.max(0, Math.min(1, (viewDepth - near) / (far - near)))
+  return normalized * normalized * (3 - 2 * normalized)
+}
+
+function foggedColorAtDepth(color: Color, fog: SupportedFog | null, viewDepth: number): Color {
+  return fog ? color.clone().lerp(fog.color, fogFactor(fog, viewDepth)) : color.clone()
+}
+
+function foggedColorAtWorld(
+  color: Color,
+  fog: SupportedFog | null,
+  world: Vector4,
+  viewMatrix: Matrix4,
+): Color {
+  if (!fog) return color.clone()
+  return foggedColorAtDepth(color, fog, -world.clone().applyMatrix4(viewMatrix).z)
 }
 
 const clipPlanes = [
@@ -118,6 +158,7 @@ function clippedPolygon(triangle: readonly Vector4[]): Vector4[] {
 interface ColouredVertex {
   color: Color
   position: Vector4
+  viewDepth?: number
 }
 
 function interpolateColouredVertex(
@@ -128,13 +169,18 @@ function interpolateColouredVertex(
   return {
     color: from.color.clone().lerp(to.color, ratio),
     position: from.position.clone().lerp(to.position, ratio),
+    viewDepth:
+      from.viewDepth === undefined || to.viewDepth === undefined
+        ? undefined
+        : from.viewDepth + (to.viewDepth - from.viewDepth) * ratio,
   }
 }
 
 function clippedColouredPolygon(triangle: readonly ColouredVertex[]): ColouredVertex[] {
-  let polygon = triangle.map(({ color, position }) => ({
+  let polygon: ColouredVertex[] = triangle.map(({ color, position, viewDepth }) => ({
     color: color.clone(),
     position: position.clone(),
+    viewDepth,
   }))
   for (const distance of clipPlanes) {
     if (polygon.length === 0) return polygon
@@ -152,7 +198,11 @@ function clippedColouredPolygon(triangle: readonly ColouredVertex[]): ColouredVe
         }
       }
       if (currentInside) {
-        clipped.push({ color: current.color.clone(), position: current.position.clone() })
+        clipped.push({
+          color: current.color.clone(),
+          position: current.position.clone(),
+          viewDepth: current.viewDepth,
+        })
       }
       previous = current
       previousDistance = currentDistance
@@ -252,7 +302,11 @@ function clippedMaterialColouredPolygonSide(
       }
     }
     if (currentInside) {
-      clipped.push({ color: current.color.clone(), position: current.position.clone() })
+      clipped.push({
+        color: current.color.clone(),
+        position: current.position.clone(),
+        viewDepth: current.viewDepth,
+      })
     }
     previous = current
     previousDistance = currentDistance
@@ -265,10 +319,11 @@ function clippedMaterialColouredPolygons(
   planes: readonly Plane[],
   clipIntersection: boolean,
 ): readonly ColouredVertex[][] {
-  const clone = (vertices: readonly ColouredVertex[]) =>
-    vertices.map(({ color, position }) => ({
+  const clone = (vertices: readonly ColouredVertex[]): ColouredVertex[] =>
+    vertices.map(({ color, position, viewDepth }) => ({
       color: color.clone(),
       position: position.clone(),
+      viewDepth,
     }))
   if (planes.length === 0) return [clone(source)]
   if (!clipIntersection) {
@@ -651,17 +706,16 @@ function projectThreeSceneInternal(
     })
   }
 
-  let rejectSceneGeometry = false
   if (includeSceneState && scene.fog !== null) {
-    diagnostic(diagnostics, options, {
-      code: 'UNSUPPORTED_SCENE',
-      message: 'Scene fog is not projected; affected geometry was omitted.',
-      object: scene,
-    })
-    rejectSceneGeometry = true
-  }
-  if (rejectSceneGeometry) {
-    return { scene: decoration, objects: decorationObjects, diagnostics }
+    const reason = fogReason(scene.fog)
+    if (reason) {
+      diagnostic(diagnostics, options, {
+        code: 'UNSUPPORTED_SCENE',
+        message: reason,
+        object: scene,
+      })
+      return { scene: decoration, objects: decorationObjects, diagnostics }
+    }
   }
 
   if (arrayCamera) {
@@ -763,6 +817,11 @@ function projectThreeSceneInternal(
       const viewX = modelView.elements[12] ?? 0
       const viewY = modelView.elements[13] ?? 0
       const viewZ = modelView.elements[14] ?? 0
+      const spriteColor = foggedColorAtDepth(
+        spriteMaterial.color,
+        spriteMaterial.fog ? scene.fog : null,
+        -viewZ,
+      )
       if (
         (camera as Partial<PerspectiveCamera>).isPerspectiveCamera === true &&
         !spriteMaterial.sizeAttenuation
@@ -819,7 +878,7 @@ function projectThreeSceneInternal(
             kind: 'path',
             props: {
               path,
-              fill: `#${spriteMaterial.color.getHexString()}`,
+              fill: `#${spriteColor.getHexString()}`,
               ...projectedOpacityProps(spriteMaterial),
             },
           },
@@ -915,8 +974,28 @@ function projectThreeSceneInternal(
       for (const [fromOffset, toOffset] of segments) {
         const fromVertex = vertex(fromOffset)
         const toVertex = vertex(toOffset)
-        const fromClip = fromVertex.clone().applyMatrix4(viewProjection)
-        const toClip = toVertex.clone().applyMatrix4(viewProjection)
+        const materialColor = (material as LineBasicMaterial).color
+        const fromIndex = index ? index.getX(fromOffset) : fromOffset
+        const toIndex = index ? index.getX(toOffset) : toOffset
+        const fromColor = color
+          ? new Color(color.getX(fromIndex), color.getY(fromIndex), color.getZ(fromIndex)).multiply(
+              materialColor,
+            )
+          : materialColor
+        const toColor = color
+          ? new Color(color.getX(toIndex), color.getY(toIndex), color.getZ(toIndex)).multiply(
+              materialColor,
+            )
+          : materialColor
+        const colorAt = (world: Vector4) => {
+          const base = fromColor.clone().lerp(toColor, segmentRatio(world, fromVertex, toVertex))
+          return foggedColorAtWorld(
+            base,
+            (material as LineBasicMaterial).fog ? scene.fog : null,
+            world,
+            camera.matrixWorldInverse,
+          )
+        }
         const pieces = dashedMaterial
           ? dashedSegments(
               fromVertex,
@@ -943,34 +1022,29 @@ function projectThreeSceneInternal(
             material.clipIntersection ?? false,
           )
           for (const materialClipped of materialClippedSegments) {
-            const clipped = clippedSegment(
-              materialClipped[0].clone().applyMatrix4(viewProjection),
-              materialClipped[1].clone().applyMatrix4(viewProjection),
-            )
+            const materialFromClip = materialClipped[0].clone().applyMatrix4(viewProjection)
+            const materialToClip = materialClipped[1].clone().applyMatrix4(viewProjection)
+            const clipped = clippedSegment(materialFromClip, materialToClip)
             if (!clipped) continue
             const from = projectedPoint(clipped[0], options.width, options.height)
             const to = projectedPoint(clipped[1], options.width, options.height)
             if (!from || !to || (from.x === to.x && from.y === to.y)) continue
             let projectedStroke: CanvasStroke = stroke
-            if (color) {
-              const fromIndex = index ? index.getX(fromOffset) : fromOffset
-              const toIndex = index ? index.getX(toOffset) : toOffset
-              const fromColor = new Color(
-                color.getX(fromIndex),
-                color.getY(fromIndex),
-                color.getZ(fromIndex),
-              ).multiply((material as LineBasicMaterial).color)
-              const toColor = new Color(
-                color.getX(toIndex),
-                color.getY(toIndex),
-                color.getZ(toIndex),
-              ).multiply((material as LineBasicMaterial).color)
-              const clippedFromColor = fromColor
+            if (color || ((material as LineBasicMaterial).fog && scene.fog)) {
+              const clippedFromWorld = materialClipped[0]
                 .clone()
-                .lerp(toColor, segmentRatio(clipped[0], fromClip, toClip))
-              const clippedToColor = fromColor
+                .lerp(
+                  materialClipped[1],
+                  segmentRatio(clipped[0], materialFromClip, materialToClip),
+                )
+              const clippedToWorld = materialClipped[0]
                 .clone()
-                .lerp(toColor, segmentRatio(clipped[1], fromClip, toClip))
+                .lerp(
+                  materialClipped[1],
+                  segmentRatio(clipped[1], materialFromClip, materialToClip),
+                )
+              const clippedFromColor = colorAt(clippedFromWorld)
+              const clippedToColor = colorAt(clippedToWorld)
               projectedStroke = {
                 kind: 'linear',
                 from: { x: from.x, y: from.y },
@@ -1093,6 +1167,11 @@ function projectThreeSceneInternal(
           fillColor.g *= color.getY(vertexIndex)
           fillColor.b *= color.getZ(vertexIndex)
         }
+        const projectedFill = foggedColorAtDepth(
+          fillColor,
+          pointMaterial.fog ? scene.fog : null,
+          -view.z,
+        )
         primitives.push({
           depth: projected.z,
           groupOrder,
@@ -1106,7 +1185,7 @@ function projectThreeSceneInternal(
               cx: projected.x,
               cy: projected.y,
               radius,
-              fill: `#${fillColor.getHexString()}`,
+              fill: `#${projectedFill.getHexString()}`,
               ...projectedOpacityProps(pointMaterial),
             },
           },
@@ -1338,6 +1417,7 @@ function projectThreeSceneInternal(
         fillColor.copy(range.material.color)
         if (color) fillColor.multiply(color)
         const fill = `#${fillColor.getHexString()}`
+        const rangeFog = range.material.fog ? scene.fog : null
         if (range.material.wireframe) {
           const strokeWidth = Math.max(0, range.material.wireframeLinewidth)
           if (strokeWidth === 0) continue
@@ -1363,14 +1443,43 @@ function projectThreeSceneInternal(
               range.material.clipIntersection,
             )
             for (const materialClipped of materialClippedSegments) {
-              const clipped = clippedSegment(
-                materialClipped[0].clone().applyMatrix4(viewProjection),
-                materialClipped[1].clone().applyMatrix4(viewProjection),
-              )
+              const materialFromClip = materialClipped[0].clone().applyMatrix4(viewProjection)
+              const materialToClip = materialClipped[1].clone().applyMatrix4(viewProjection)
+              const clipped = clippedSegment(materialFromClip, materialToClip)
               if (!clipped) continue
               const from = projectedPoint(clipped[0], options.width, options.height)
               const to = projectedPoint(clipped[1], options.width, options.height)
               if (!from || !to || (from.x === to.x && from.y === to.y)) continue
+              let projectedStroke: CanvasStroke = fill
+              if (rangeFog) {
+                const clippedFromWorld = materialClipped[0]
+                  .clone()
+                  .lerp(
+                    materialClipped[1],
+                    segmentRatio(clipped[0], materialFromClip, materialToClip),
+                  )
+                const clippedToWorld = materialClipped[0]
+                  .clone()
+                  .lerp(
+                    materialClipped[1],
+                    segmentRatio(clipped[1], materialFromClip, materialToClip),
+                  )
+                projectedStroke = {
+                  kind: 'linear',
+                  from: { x: from.x, y: from.y },
+                  to: { x: to.x, y: to.y },
+                  stops: [
+                    {
+                      offset: 0,
+                      color: `#${foggedColorAtWorld(fillColor, rangeFog, clippedFromWorld, camera.matrixWorldInverse).getHexString()}`,
+                    },
+                    {
+                      offset: 1,
+                      color: `#${foggedColorAtWorld(fillColor, rangeFog, clippedToWorld, camera.matrixWorldInverse).getHexString()}`,
+                    },
+                  ],
+                }
+              }
               primitives.push({
                 depth: (from.z + to.z) / 2,
                 groupOrder,
@@ -1385,7 +1494,7 @@ function projectThreeSceneInternal(
                     y1: from.y,
                     x2: to.x,
                     y2: to.y,
-                    stroke: fill,
+                    stroke: projectedStroke,
                     strokeWidth,
                     ...projectedOpacityProps(range.material),
                   },
@@ -1398,20 +1507,23 @@ function projectThreeSceneInternal(
 
         for (let offset = range.start; offset + 2 < range.end; offset += 3) {
           const sourceVertices = [vertex(offset), vertex(offset + 1), vertex(offset + 2)]
-          const coloured = range.material.vertexColors && vertexColor
+          const coloured = (range.material.vertexColors && vertexColor) || rangeFog
           const materialPolygons = coloured
             ? clippedMaterialColouredPolygons(
                 sourceVertices.map((position, indexInTriangle) => {
                   const sourceOffset = offset + indexInTriangle
                   const vertexIndex = index ? index.getX(sourceOffset) : sourceOffset
+                  const vertexFill = range.material.vertexColors
+                    ? new Color()
+                        .setRGB(
+                          vertexColor?.getX(vertexIndex) ?? 0,
+                          vertexColor?.getY(vertexIndex) ?? 0,
+                          vertexColor?.getZ(vertexIndex) ?? 0,
+                        )
+                        .multiply(fillColor)
+                    : fillColor
                   return {
-                    color: new Color()
-                      .setRGB(
-                        vertexColor.getX(vertexIndex),
-                        vertexColor.getY(vertexIndex),
-                        vertexColor.getZ(vertexIndex),
-                      )
-                      .multiply(fillColor),
+                    color: vertexFill.clone(),
                     position,
                   }
                 }),
@@ -1426,10 +1538,14 @@ function projectThreeSceneInternal(
           for (const materialPolygon of materialPolygons) {
             const polygon = coloured
               ? clippedColouredPolygon(
-                  (materialPolygon as ColouredVertex[]).map(({ color, position }) => ({
-                    color,
-                    position: position.applyMatrix4(viewProjection),
-                  })),
+                  (materialPolygon as ColouredVertex[]).map(({ color, position }) => {
+                    const viewDepth = -position.clone().applyMatrix4(camera.matrixWorldInverse).z
+                    return {
+                      color,
+                      position: position.clone().applyMatrix4(viewProjection),
+                      viewDepth,
+                    }
+                  }),
                 )
               : clippedPolygon(
                   (materialPolygon as Vector4[]).map((point) => point.applyMatrix4(viewProjection)),
@@ -1467,7 +1583,13 @@ function projectThreeSceneInternal(
                       kind: 'triangle-mesh',
                       props: {
                         colors: clipTriangle.map((point) =>
-                          canvasVertexColor((point as ColouredVertex).color),
+                          canvasVertexColor(
+                            foggedColorAtDepth(
+                              (point as ColouredVertex).color,
+                              rangeFog,
+                              (point as ColouredVertex).viewDepth ?? 0,
+                            ),
+                          ),
                         ),
                         vertices: projected.map(({ x, y }) => ({ x, y })),
                         ...projectedOpacityProps(range.material),

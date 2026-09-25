@@ -56,6 +56,11 @@ vertex colours through portable Canvas gradients, including clipped endpoints.
 Solid meshes likewise preserve RGB vertex attributes and interpolate colours
 across clipped triangles. The portable mesh interpolation is screen-space;
 perspective-correct interpolation remains a GPU-backend concern.
+`Fog` and `FogExp2` blend supported meshes, wireframes, lines, points, and
+sprites in the same working colour space as Three.js, while respecting each
+material's `fog` opt-out. Constant-depth shapes and individual points match
+the shader formula; varying-depth portable gradients evaluate fog at their
+vertices or endpoints rather than per fragment.
 `LineDashedMaterial` uses Three's
 `lineDistance`, dash size, gap size, and scale to emit portable segments before
 projection. `Points` with untextured

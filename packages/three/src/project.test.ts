@@ -440,10 +440,115 @@ test('Scene.overrideMaterial preserves render-list visibility and allowOverride'
   )
 })
 
-test('scene fog diagnoses and omits affected geometry', () => {
+test('linear fog blends mesh vertices and honours material fog opt-out', () => {
   const scene = new Scene()
+  const material = new MeshBasicMaterial({ color: '#000000' })
+  scene.add(new Mesh(triangleGeometry(), material))
+  scene.fog = new THREE.Fog('#ffffff', 0, 10)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  const [triangle] = projectedMeshes(result)
+  assert.equal(triangle?.colors?.length, 3)
+  for (const color of triangle?.colors ?? []) {
+    assert.ok(color.r > 0.73 && color.r < 0.74)
+    assert.equal(color.g, color.r)
+    assert.equal(color.b, color.r)
+  }
+
+  material.fog = false
+  const optedOut = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+  assert.deepEqual(optedOut.diagnostics, [])
+  assert.deepEqual(projectedPaths(optedOut), [
+    { path: 'M 40 60 L 60 60 L 50 40 Z', fill: '#000000' },
+  ])
+})
+
+test('fog is evaluated at vertices created by homogeneous clipping', () => {
+  const scene = new Scene()
+  scene.fog = new THREE.Fog('#ffffff', 0, 10)
+  scene.add(
+    new Mesh(
+      triangleGeometry([-1, -1, -2, 1, -1, -2, 0, 1, -0.5]),
+      new MeshBasicMaterial({ color: '#000000', side: DoubleSide }),
+    ),
+  )
+  const camera = new PerspectiveCamera(90, 1, 1, 10)
+
+  const triangles = projectedMeshes(projectThreeScene(scene, camera, { width: 100, height: 100 }))
+
+  assert.equal(triangles.length, 2)
+  const channels = triangles.flatMap(({ colors }) => colors?.map(({ r }) => r) ?? [])
+  // The two near-plane intersections have view depth 1. Their smoothstep
+  // fog factor is 0.028, encoded to sRGB as roughly 0.183.
+  assert.ok(channels.filter((channel) => channel > 0.18 && channel < 0.19).length >= 2)
+  assert.ok(channels.every(Number.isFinite))
+})
+
+test('fog follows lines, points, sprites, and exponential density', () => {
+  const camera = perspective()
+  const linearFog = new THREE.Fog('#ffffff', 0, 10)
+  const lineGeometry = new BufferGeometry().setAttribute(
+    'position',
+    new Float32BufferAttribute([-1, 0, 0, 1, 0, -4], 3),
+  )
+  const lineScene = new Scene()
+  lineScene.fog = linearFog
+  lineScene.add(new Line(lineGeometry, new LineBasicMaterial({ color: '#000000' })))
+  const [line] = projectedLines(projectThreeScene(lineScene, camera, { width: 100, height: 100 }))
+  assert.equal(typeof line?.stroke, 'object')
+  if (!line?.stroke || typeof line.stroke === 'string')
+    throw new Error('fog did not make a gradient')
+  assert.deepEqual(
+    line.stroke.stops.map(({ color }) => color),
+    ['#bcbcbc', '#fcfcfc'],
+  )
+
+  const wireframeScene = new Scene()
+  wireframeScene.fog = linearFog
+  wireframeScene.add(
+    new Mesh(
+      triangleGeometry([-1, -1, 0, 1, -1, -4, 0, 1, 0]),
+      new MeshBasicMaterial({ color: '#000000', wireframe: true }),
+    ),
+  )
+  const wireframe = projectedLines(
+    projectThreeScene(wireframeScene, camera, { width: 100, height: 100 }),
+  )
+  assert.equal(wireframe.length, 3)
+  assert.ok(wireframe.every(({ stroke }) => typeof stroke === 'object'))
+
+  const expScene = new Scene()
+  expScene.fog = new THREE.FogExp2('#ffffff', 0.2)
+  expScene.add(
+    new Points(
+      new BufferGeometry().setAttribute('position', new Float32BufferAttribute([0, 0, 0], 3)),
+      new PointsMaterial({ color: '#000000', size: 2, sizeAttenuation: false }),
+    ),
+  )
+  const expFactor = 1 - Math.exp(-1)
+  const expectedExp = `#${new THREE.Color('#000000').lerp(new THREE.Color('#ffffff'), expFactor).getHexString()}`
+  assert.equal(
+    projectedCircles(projectThreeScene(expScene, camera, { width: 100, height: 100 }))[0]?.fill,
+    expectedExp,
+  )
+
+  const spriteScene = new Scene()
+  spriteScene.fog = linearFog
+  spriteScene.add(new THREE.Sprite(new THREE.SpriteMaterial({ color: '#000000' })))
+  assert.equal(
+    projectedPaths(projectThreeScene(spriteScene, camera, { width: 100, height: 100 }))[0]?.fill,
+    '#bcbcbc',
+  )
+})
+
+test('invalid fog ranges are diagnosed instead of producing non-finite colours', () => {
+  const scene = new Scene()
+  const fog = new THREE.Fog('#ffffff', 1, 10)
+  fog.far = 1
+  scene.fog = fog
   scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
-  scene.fog = new THREE.Fog('#ffffff', 1, 10)
 
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
