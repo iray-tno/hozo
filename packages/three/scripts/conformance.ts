@@ -235,11 +235,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'MeshBasicMaterial',
     'partial',
-    'Flat and RGB vertex colours, fog, normal alpha transparency, sides, groups, and wireframe work.',
+    'Flat and RGB vertex colours, a constrained affine colour map, fog, normal alpha transparency, sides, groups, and wireframe work.',
     {
       upstream: upstream('material', 'MeshBasicMaterial'),
       tests: [
         triangle,
+        project('MeshBasicMaterial map and UVs become a portable textured triangle'),
         project('groups can mix solid and wireframe MeshBasicMaterial'),
         project('normal transparent materials project opacity across portable primitives'),
       ],
@@ -384,10 +385,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'geometry',
     'textures and UV sampling',
-    'diagnostic',
-    'Texture sampling requires a GPU backend.',
+    'partial',
+    'A clamped sRGB MeshBasicMaterial colour map with complete UVs uses affine Canvas sampling; repeat seams, modulation, mipmaps, and other texture roles stay diagnostic.',
     {
       tests: [
+        project('MeshBasicMaterial map and UVs become a portable textured triangle'),
+        project('mesh clipping interpolates texture coordinates at generated edges'),
         project('unsupported MeshBasicMaterial features emit diagnostics'),
         project('textured points are omitted with a diagnostic'),
       ],

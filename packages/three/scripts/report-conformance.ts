@@ -74,7 +74,7 @@ ${categories
 
 ## Interpretation
 
-Topology coverage can be complete while general Three.js compatibility remains low. The portable backend handles every core primitive topology, but GPU materials, textures, lighting, skinning, instancing, and per-pixel depth remain separate work. The silent count is intentionally visible: raising the usable percentage must not hide accepted input whose semantics are lost.
+Topology coverage can be complete while general Three.js compatibility remains low. The portable backend handles every core primitive topology and a deliberately constrained affine colour map, but general GPU materials, texture sampling, lighting, and per-pixel depth remain separate work. The silent count is intentionally visible: raising the usable percentage must not hide accepted input whose semantics are lost.
 `
 
 if (!check && process.env.CI) {
