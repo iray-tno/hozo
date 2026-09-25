@@ -2,11 +2,13 @@ import { activateHozoNavigation, useHozoNavigation } from '@hozo/engine/navigati
 import {
   type DrawingNodeProps,
   FillType,
+  FilterMode,
   matchFont,
   Skia,
   Canvas as SkiaCanvas,
   Circle as SkiaCircle,
   Group as SkiaGroup,
+  ImageShader as SkiaImageShader,
   Line as SkiaLine,
   LinearGradient as SkiaLinearGradient,
   Oval as SkiaOval,
@@ -17,6 +19,7 @@ import {
   Text as SkiaText,
   Vertices as SkiaVertices,
   type Transforms3d,
+  useImage,
 } from '@shopify/react-native-skia'
 import { type ComponentType, type ReactNode, useMemo, useRef, useState } from 'react'
 import {
@@ -69,6 +72,7 @@ import {
   triangleMeshColor,
   triangleMeshColorCss,
   triangleMeshIndices,
+  triangleMeshTextureCoordinate,
   unhandledShape,
   useCanvasScene,
 } from './scene.tsx'
@@ -88,10 +92,12 @@ export {
 export type {
   CanvasDestination,
   CanvasInteractionProps,
+  CanvasMeshTexture,
   CanvasPaintProps,
   CanvasPressEvent,
   CanvasScene,
   CanvasSceneNode,
+  CanvasTextureSource,
   CanvasTransform,
   CircleProps,
   ClipProps,
@@ -133,6 +139,60 @@ function transformFor(transform?: CanvasTransform): Transforms3d | undefined {
   if (transform.scaleX !== undefined) result.push({ scaleX: transform.scaleX })
   if (transform.scaleY !== undefined) result.push({ scaleY: transform.scaleY })
   return result
+}
+
+type TriangleMeshNode = Extract<CanvasSceneNode, { kind: 'triangle-mesh' }>
+
+function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
+  const texture = node.props.texture
+  const source = texture?.source
+  const nativeSource =
+    typeof source === 'string' || typeof source === 'number'
+      ? source
+      : typeof source?.uri === 'string'
+        ? source.uri
+        : source?.default
+  const image = useImage(nativeSource)
+  const indices = triangleMeshIndices(node.props)
+  if (indices.length === 0 || node.props.fill === 'none' || (texture && !image)) return null
+  const colors = node.props.colors?.map((color) => {
+    const normalized = triangleMeshColor(color)
+    return normalized ? triangleMeshColorCss(normalized) : 'rgba(0, 0, 0, 0)'
+  })
+  const textures =
+    texture && image
+      ? texture.coordinates.map((coordinate) => {
+          const normalized = triangleMeshTextureCoordinate(coordinate)
+          return normalized
+            ? { x: normalized.x * image.width(), y: normalized.y * image.height() }
+            : { x: 0, y: 0 }
+        })
+      : undefined
+  return (
+    <SkiaVertices
+      mode="triangles"
+      vertices={[...node.props.vertices]}
+      indices={indices}
+      textures={textures}
+      colors={colors}
+      color={colors || texture ? undefined : colorFor(node.props.fill, 'black')}
+      opacity={node.props.opacity}
+    >
+      {texture && image ? (
+        <SkiaImageShader
+          image={image}
+          fit="none"
+          tx="clamp"
+          ty="clamp"
+          sampling={{
+            filter: texture.filter === 'nearest' ? FilterMode.Nearest : FilterMode.Linear,
+          }}
+        />
+      ) : colors ? null : (
+        gradientShader(node.props.fill as CanvasPaint)
+      )}
+    </SkiaVertices>
+  )
 }
 
 /**
@@ -448,25 +508,7 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
         node.props,
       )
     case 'triangle-mesh': {
-      const indices = triangleMeshIndices(node.props)
-      if (indices.length === 0 || node.props.fill === 'none') return null
-      const colors = node.props.colors?.map((color) => {
-        const normalized = triangleMeshColor(color)
-        return normalized ? triangleMeshColorCss(normalized) : 'rgba(0, 0, 0, 0)'
-      })
-      return (
-        <SkiaVertices
-          key={key}
-          mode="triangles"
-          vertices={[...node.props.vertices]}
-          indices={indices}
-          colors={colors}
-          color={colors ? undefined : colorFor(node.props.fill, 'black')}
-          opacity={node.props.opacity}
-        >
-          {colors ? null : gradientShader(node.props.fill as CanvasPaint)}
-        </SkiaVertices>
-      )
+      return <NativeTriangleMesh key={key} node={node} />
     }
     default:
       return unhandledShape(node, 'the Skia renderer')

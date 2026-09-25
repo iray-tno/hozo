@@ -3,6 +3,7 @@ import {
   type CanvasPaintProps,
   type CanvasScene,
   type CanvasSceneNode,
+  type CanvasTextureSource,
   type CanvasTransform,
   type ClipProps,
   cssFontShorthand,
@@ -12,12 +13,15 @@ import {
   triangleMeshColor,
   triangleMeshColorCss,
   triangleMeshIndices,
+  triangleMeshTextureCoordinate,
   unhandledShape,
 } from './scene.tsx'
 import type { CanvasViewport } from './viewport.ts'
 import { textLines } from './wrap-text.ts'
 
 export type { CanvasViewport } from './viewport.ts'
+
+export type CanvasTextureImage = (source: CanvasTextureSource) => CanvasImageSource | undefined
 
 function applyTransform(context: CanvasRenderingContext2D, transform?: CanvasTransform) {
   if (!transform) return
@@ -176,18 +180,96 @@ function fillColoredTriangle(
   context.restore()
 }
 
-function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
+function imageDimensions(image: CanvasImageSource): { width: number; height: number } | undefined {
+  const value = image as unknown as {
+    naturalHeight?: number
+    naturalWidth?: number
+    videoHeight?: number
+    videoWidth?: number
+    height?: number
+    width?: number
+  }
+  const width = value.naturalWidth || value.videoWidth || value.width
+  const height = value.naturalHeight || value.videoHeight || value.height
+  return width && height && width > 0 && height > 0 ? { width, height } : undefined
+}
+
+function fillTexturedTriangle(
+  context: CanvasRenderingContext2D,
+  vertices: readonly [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }],
+  coordinates: readonly [
+    { x: number; y: number },
+    { x: number; y: number },
+    { x: number; y: number },
+  ],
+  image: CanvasImageSource,
+  filter: 'linear' | 'nearest',
+) {
+  const dimensions = imageDimensions(image)
+  if (!dimensions) return
+  const [a, b, c] = vertices
+  const [ta, tb, tc] = coordinates.map(({ x, y }) => ({
+    x: x * dimensions.width,
+    y: y * dimensions.height,
+  })) as [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }]
+  const denominator = ta.x * (tb.y - tc.y) + tb.x * (tc.y - ta.y) + tc.x * (ta.y - tb.y)
+  if (denominator === 0) return
+  const x = [a.x, b.x, c.x]
+  const y = [a.y, b.y, c.y]
+  const u = [ta.x, tb.x, tc.x]
+  const v = [ta.y, tb.y, tc.y]
+  const affine = (values: number[]) => ({
+    first:
+      ((values[0] ?? 0) * (v[1]! - v[2]!) +
+        (values[1] ?? 0) * (v[2]! - v[0]!) +
+        (values[2] ?? 0) * (v[0]! - v[1]!)) /
+      denominator,
+    second:
+      ((values[0] ?? 0) * (u[2]! - u[1]!) +
+        (values[1] ?? 0) * (u[0]! - u[2]!) +
+        (values[2] ?? 0) * (u[1]! - u[0]!)) /
+      denominator,
+    offset:
+      ((values[0] ?? 0) * (u[1]! * v[2]! - u[2]! * v[1]!) +
+        (values[1] ?? 0) * (u[2]! * v[0]! - u[0]! * v[2]!) +
+        (values[2] ?? 0) * (u[0]! * v[1]! - u[1]! * v[0]!)) /
+      denominator,
+  })
+  const horizontal = affine(x)
+  const vertical = affine(y)
+
+  context.save()
+  trianglePath(context, a, b, c)
+  context.clip()
+  context.imageSmoothingEnabled = filter === 'linear'
+  context.transform(
+    horizontal.first,
+    vertical.first,
+    horizontal.second,
+    vertical.second,
+    horizontal.offset,
+    vertical.offset,
+  )
+  context.drawImage(image, 0, 0, dimensions.width, dimensions.height)
+  context.restore()
+}
+
+function drawNode(
+  context: CanvasRenderingContext2D,
+  node: CanvasSceneNode,
+  textureImage?: CanvasTextureImage,
+) {
   context.save()
   try {
     switch (node.kind) {
       case 'group':
         context.globalAlpha *= node.props.opacity ?? 1
         applyTransform(context, node.props.transform)
-        for (const child of node.children) drawNode(context, child)
+        for (const child of node.children) drawNode(context, child, textureImage)
         return
       case 'clip':
         pathForClip(context, node.props)
-        for (const child of node.children) drawNode(context, child)
+        for (const child of node.children) drawNode(context, child, textureImage)
         return
       case 'rect': {
         applyPaint(context, node.props)
@@ -302,12 +384,33 @@ function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
         const indices = triangleMeshIndices(node.props)
         if (indices.length === 0 || node.props.fill === 'none') return
         applyPaint(context, node.props)
+        const texture = node.props.texture
+        const image = texture ? textureImage?.(texture.source) : undefined
+        if (texture && !image) return
         for (let offset = 0; offset < indices.length; offset += 3) {
           const a = node.props.vertices[indices[offset] as number]
           const b = node.props.vertices[indices[offset + 1] as number]
           const c = node.props.vertices[indices[offset + 2] as number]
           if (!a || !b || !c) continue
-          if (node.props.colors) {
+          if (texture && image) {
+            const textureA = triangleMeshTextureCoordinate(
+              texture.coordinates[indices[offset] as number],
+            )
+            const textureB = triangleMeshTextureCoordinate(
+              texture.coordinates[indices[offset + 1] as number],
+            )
+            const textureC = triangleMeshTextureCoordinate(
+              texture.coordinates[indices[offset + 2] as number],
+            )
+            if (!textureA || !textureB || !textureC) continue
+            fillTexturedTriangle(
+              context,
+              [a, b, c],
+              [textureA, textureB, textureC],
+              image,
+              texture.filter ?? 'linear',
+            )
+          } else if (node.props.colors) {
             const colorA = triangleMeshColor(node.props.colors[indices[offset] as number])
             const colorB = triangleMeshColor(node.props.colors[indices[offset + 1] as number])
             const colorC = triangleMeshColor(node.props.colors[indices[offset + 2] as number])
@@ -333,6 +436,7 @@ export function renderCanvas2D(
   context: CanvasRenderingContext2D,
   scene: CanvasScene,
   viewport: CanvasViewport,
+  textureImage?: CanvasTextureImage,
 ) {
   const pixelRatio = Math.max(1, viewport.pixelRatio || 1)
   context.setTransform(1, 0, 0, 1, 0, 0)
@@ -359,7 +463,7 @@ export function renderCanvas2D(
         context.translate(-viewBox[0], -viewBox[1])
       }
     }
-    for (const node of scene) drawNode(context, node)
+    for (const node of scene) drawNode(context, node, textureImage)
   } finally {
     context.restore()
   }

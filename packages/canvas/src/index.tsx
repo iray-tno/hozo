@@ -3,6 +3,7 @@ import {
   type CSSProperties,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -20,10 +21,12 @@ import {
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
   BoundedCache,
+  type CanvasScene,
   Circle,
   Clip,
   canvasControls,
   canvasPressEvent,
+  canvasTextureUri,
   canvasUnreadableText,
   cssFontShorthand,
   Ellipse,
@@ -51,14 +54,16 @@ export {
   type CanvasTextMetrics,
   hitTestCanvas,
 } from './hit-test.ts'
-export { type CanvasViewport, renderCanvas2D } from './render-canvas-2d.ts'
+export { type CanvasTextureImage, type CanvasViewport, renderCanvas2D } from './render-canvas-2d.ts'
 export type {
   CanvasDestination,
   CanvasInteractionProps,
+  CanvasMeshTexture,
   CanvasPaintProps,
   CanvasPressEvent,
   CanvasScene,
   CanvasSceneNode,
+  CanvasTextureSource,
   CanvasTransform,
   CircleProps,
   ClipProps,
@@ -191,6 +196,48 @@ function Root({
     height: height ?? viewBox?.[3] ?? 150,
     pixelRatio: 1,
   }))
+  const textureImages = useRef(new Map<string, HTMLImageElement>())
+  const textureMounted = useRef(false)
+  const [textureRevision, setTextureRevision] = useState(0)
+
+  useEffect(() => {
+    textureMounted.current = true
+    return () => {
+      textureMounted.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof Image === 'undefined') return
+    const visit = (nodes: CanvasScene) => {
+      for (const node of nodes) {
+        if (node.kind === 'triangle-mesh' && node.props.texture) {
+          const uri = canvasTextureUri(node.props.texture.source)
+          if (!uri || textureImages.current.has(uri)) continue
+          const image = new Image()
+          textureImages.current.set(uri, image)
+          image.onload = () => {
+            if (textureMounted.current) setTextureRevision((revision) => revision + 1)
+          }
+          image.onerror = () => {
+            textureImages.current.delete(uri)
+            if (textureMounted.current) setTextureRevision((revision) => revision + 1)
+          }
+          image.src = uri
+        } else if (node.kind === 'group' || node.kind === 'clip') {
+          visit(node.children)
+        }
+      }
+    }
+    visit(scene)
+  }, [scene])
+
+  const textureImage = useCallback((source: Parameters<typeof canvasTextureUri>[0]) => {
+    const uri = canvasTextureUri(source)
+    if (!uri) return undefined
+    const image = textureImages.current.get(uri)
+    return image?.complete && image.naturalWidth > 0 ? image : undefined
+  }, [])
 
   useIsoLayoutEffect(() => {
     const canvas = canvasRef.current
@@ -220,8 +267,8 @@ function Root({
   useIsoLayoutEffect(() => {
     const context = canvasRef.current?.getContext('2d')
     if (!context) return
-    renderCanvas2D(context, scene, { ...size, viewBox, fit })
-  }, [scene, size, viewBox, fit])
+    renderCanvas2D(context, scene, { ...size, viewBox, fit }, textureImage)
+  }, [scene, size, viewBox, fit, textureImage, textureRevision])
 
   const rootStyle: CSSProperties = {
     ...style,
