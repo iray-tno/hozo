@@ -179,34 +179,38 @@ export default function App() {
               <Text className="text-center">Gallery</Text>
             </Pressable>
 
-            {/* No `testID`, deliberately, where its neighbour has one.
-                `announcedByCompiler` reads this file by name and
-                `missingOnDevice` fails on any `testID` here that is absent
-                from the dump checked into `fixtures/` -- so adding one is a
-                fixture regeneration, which needs a device run of its own.
-                The TalkBack script finds this button the way it finds the
-                dialog's opener: by what TalkBack says about it. */}
-            <Pressable
-              className="mt-2 rounded-lg bg-slate-200 p-3"
-              accessibilityRole="button"
-              accessibilityLabel="Show the calendar"
-              onPress={() => setShowingCalendar(true)}
-            >
-              <Text className="text-center">Calendar</Text>
-            </Pressable>
+            {/* Side by side rather than stacked, and the row is the point.
+                Stacked, the second opener sat at y=2126 of 2400 -- inside the
+                system gesture area, which `centre_of` in `android-smoke.sh`
+                refuses to tap, so the screen it opens was measured by nothing.
+                A row keeps the header the height it was, which also keeps the
+                calendar opener where the existing sections found it.
 
-            {/* The same shape and the same class list as its neighbour, so
-                `announcedByCompiler` sees no class it did not already see and
-                this stays out of the fixtures. It costs the TalkBack walk one
-                step, which is why `MAX_STEPS` there went up by four. */}
-            <Pressable
-              className="mt-2 rounded-lg bg-slate-200 p-3"
-              accessibilityRole="button"
-              accessibilityLabel="Show the pickers"
-              onPress={() => setShowingPickers(true)}
-            >
-              <Text className="text-center">Pickers</Text>
-            </Pressable>
+                Neither has a `testID`, deliberately, where their neighbours
+                have them: `announcedByCompiler` is keyed by `testID` and
+                `missingOnDevice` fails on one here that is absent from the
+                checked-in dump, so adding one is a fixture regeneration that
+                needs a device run of its own. Both scripts find these buttons
+                the way they find the dialog's opener: by what they say. */}
+            <View className="mt-2 flex-row gap-2">
+              <Pressable
+                className="flex-1 rounded-lg bg-slate-200 p-3"
+                accessibilityRole="button"
+                accessibilityLabel="Show the calendar"
+                onPress={() => setShowingCalendar(true)}
+              >
+                <Text className="text-center">Calendar</Text>
+              </Pressable>
+
+              <Pressable
+                className="flex-1 rounded-lg bg-slate-200 p-3"
+                accessibilityRole="button"
+                accessibilityLabel="Show the pickers"
+                onPress={() => setShowingPickers(true)}
+              >
+                <Text className="text-center">Pickers</Text>
+              </Pressable>
+            </View>
           </View>
         }
         renderItem={({ item }) => (

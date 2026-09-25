@@ -28,10 +28,7 @@ engine=dev.hozo.speechlog
 talkback=com.google.android.marvin.talkback
 talkback_service="$talkback/com.google.android.marvin.talkback.TalkBackService"
 
-# Four more than it was. `App.tsx` gained a second modal opener, so the lap is
-# one step longer -- and this number is the budget for the lap-detection loop
-# and for every search-by-name below it, so it has to grow with the screen.
-MAX_STEPS=${MAX_STEPS:-44}
+MAX_STEPS=${MAX_STEPS:-40}
 MIN_SPOKEN=${MIN_SPOKEN:-3}
 
 # What went wrong, and then what TalkBack had been saying when it did.
