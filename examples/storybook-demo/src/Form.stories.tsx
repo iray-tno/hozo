@@ -23,6 +23,20 @@ import { useState } from 'react'
 const TODAY: CalendarDate = { year: 2026, month: 9, day: 24 }
 const SEPTEMBER = { year: 2026, month: 9 }
 
+/*
+ * The two dialogs are closed, like every other overlay in this suite.
+ *
+ * Opening one on mount was the first attempt, so that the golden would cover
+ * the dialog's reading order rather than stopping at a button. It does not
+ * terminate: `check-utterances.mjs` decides a story has ended when the cursor
+ * wraps back to the node it started on, and with `aria-modal="true"` the
+ * traversal never leaves the dialog to reach that node again. The 325-phrase
+ * showcase finishes inside the 400-step budget, so this was never about size.
+ *
+ * Nothing is lost by closing them: the dialog's contents are the `Calendar`
+ * and `TimePicker` that the three stories above golden directly.
+ */
+
 const panel = 'max-w-xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm'
 const title = 'text-xl font-bold text-slate-900'
 const prose = 'text-sm text-slate-600'
@@ -153,11 +167,10 @@ function DateAndTimeDemo() {
         DateTimePicker
       </Heading>
       <Paragraph className={prose}>
-        Open on mount, so the reading order below covers the dialog. It closes on Done rather than
-        on a day press, because a day press happens before the clock has been touched.
+        A button that opens a grid and a clock in one dialog. It closes on Done rather than on a day
+        press, because a day press happens before the clock has been touched.
       </Paragraph>
       <DateTimePicker
-        defaultOpen
         value={departure}
         onChange={setDeparture}
         today={TODAY}
@@ -185,12 +198,11 @@ function DateRangeDemo() {
         DateRangePicker
       </Heading>
       <Paragraph className={prose}>
-        Open on mount, and with nothing chosen yet, so the trigger reads its placeholder. There is
-        no Done button: the grid reports only a range with both ends, so the press that completes it
-        is the press that finished the job.
+        Nothing chosen yet, so the trigger reads its placeholder. There is no Done button: the grid
+        reports only a range with both ends, so the press that completes it is the press that
+        finished the job.
       </Paragraph>
       <DateRangePicker
-        defaultOpen
         value={stay}
         onChange={setStay}
         today={TODAY}
