@@ -304,6 +304,9 @@ importers:
       '@hozo/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@hozo/form':
+        specifier: workspace:*
+        version: link:../../packages/form
       '@hozo/patterns':
         specifier: workspace:*
         version: link:../../packages/patterns

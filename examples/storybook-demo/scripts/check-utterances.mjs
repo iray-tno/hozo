@@ -222,6 +222,14 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
 const goldenPath = (id) => path.join(GOLDENS, `${id}.txt`)
 const toText = (log) => `${log.join('\n')}\n`
 
+/** Lined up under a problem, which the reporter already indents by two. */
+const quoted = (text) =>
+  text
+    .trimEnd()
+    .split('\n')
+    .map((line) => `      ${line}`)
+    .join('\n')
+
 function compare(results) {
   const problems = []
   for (const id of ids) {
@@ -245,7 +253,13 @@ function compare(results) {
       continue
     }
     if (!existsSync(file)) {
-      problems.push(`${id}: no golden -- run with --update and review utterances/${id}.txt`)
+      // The reading order itself, not just the fact that it is unapproved.
+      // A golden is an approval, so the thing being approved belongs in
+      // front of whoever reads the failure -- and `--update` cannot be run
+      // where the failure happens, which is every CI run.
+      problems.push(
+        `${id}: no golden -- review this and save it as utterances/${id}.txt\n${quoted(actual)}`,
+      )
       continue
     }
     const expected = readFileSync(file, 'utf8')
