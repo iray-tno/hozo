@@ -66,6 +66,8 @@ import {
   type TextProps,
   TriangleMesh,
   textFontSpec,
+  triangleMeshColor,
+  triangleMeshColorCss,
   triangleMeshIndices,
   unhandledShape,
   useCanvasScene,
@@ -448,16 +450,21 @@ function renderNode(node: CanvasSceneNode, key: string): ReactNode {
     case 'triangle-mesh': {
       const indices = triangleMeshIndices(node.props)
       if (indices.length === 0 || node.props.fill === 'none') return null
+      const colors = node.props.colors?.map((color) => {
+        const normalized = triangleMeshColor(color)
+        return normalized ? triangleMeshColorCss(normalized) : 'rgba(0, 0, 0, 0)'
+      })
       return (
         <SkiaVertices
           key={key}
           mode="triangles"
           vertices={[...node.props.vertices]}
           indices={indices}
-          color={colorFor(node.props.fill, 'black')}
+          colors={colors}
+          color={colors ? undefined : colorFor(node.props.fill, 'black')}
           opacity={node.props.opacity}
         >
-          {gradientShader(node.props.fill as CanvasPaint)}
+          {colors ? null : gradientShader(node.props.fill as CanvasPaint)}
         </SkiaVertices>
       )
     }

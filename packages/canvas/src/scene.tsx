@@ -393,17 +393,46 @@ export interface PathProps extends CanvasPaintProps, CanvasInteractionProps {
  * triples draw nothing as a unit, so the two renderers cannot disagree by
  * repairing malformed geometry differently.
  *
- * The first portable slice is fill-only. Per-vertex colours and texture
- * coordinates belong on this same primitive, but become part of the contract
- * only when both renderers have an implementation.
+ * Per-vertex colours are normalized sRGB channels. A numeric representation
+ * keeps interpolation independent of whichever CSS colour parser happens to
+ * be present, and lets a projected renderer pass colour data without turning
+ * every vertex into a string. Texture coordinates remain a later extension.
  */
+export interface CanvasVertexColor {
+  /** Normalized sRGB red channel. Values outside 0..1 are clamped. */
+  r: number
+  /** Normalized sRGB green channel. Values outside 0..1 are clamped. */
+  g: number
+  /** Normalized sRGB blue channel. Values outside 0..1 are clamped. */
+  b: number
+}
+
 export interface TriangleMeshProps extends CanvasInteractionProps {
   /** Compiler input. Runtime drawing uses the explicit fill below. */
   className?: string
   vertices: readonly CanvasPoint[]
   indices?: readonly number[]
+  /** One colour per vertex. When present, these replace the uniform fill. */
+  colors?: readonly CanvasVertexColor[]
   fill?: CanvasPaint
   opacity?: number
+}
+
+/** Finite normalized channels, or no colour when a renderer must skip that face. */
+export function triangleMeshColor(
+  color: CanvasVertexColor | undefined,
+): CanvasVertexColor | undefined {
+  if (!color || ![color.r, color.g, color.b].every(Number.isFinite)) return undefined
+  return {
+    r: Math.max(0, Math.min(1, color.r)),
+    g: Math.max(0, Math.min(1, color.g)),
+    b: Math.max(0, Math.min(1, color.b)),
+  }
+}
+
+/** A normalized vertex colour in the syntax Canvas 2D and Skia both accept. */
+export function triangleMeshColorCss(color: CanvasVertexColor, alpha = 1): string {
+  return `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${alpha})`
 }
 
 /** The complete, valid triangle index stream shared by rendering and hit testing. */
@@ -427,6 +456,14 @@ export function triangleMeshIndices(props: TriangleMeshProps): number[] {
       a >= props.vertices.length ||
       b >= props.vertices.length ||
       c >= props.vertices.length
+    ) {
+      continue
+    }
+    if (
+      props.colors &&
+      (!triangleMeshColor(props.colors[a]) ||
+        !triangleMeshColor(props.colors[b]) ||
+        !triangleMeshColor(props.colors[c]))
     ) {
       continue
     }
