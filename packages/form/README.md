@@ -132,9 +132,65 @@ The period is a `button` rather than a third spinbutton, because a spinbutton ca
 
 On React Native the fields step through a pair of buttons instead. There is no editable field there without a `TextInput`, and a `TextInput` per segment raises a keyboard over the control it is meant to be operating -- so the value moves the way a phone's own pickers move it, and each field says the whole time through `accessibilityValue.text`.
 
+## `DateTimePicker`
+
+A button that opens a `Calendar` and a clock in one dialog.
+
+```tsx
+import { DateTimePicker } from '@hozo/form'
+
+<DateTimePicker
+  value={departure}
+  onChange={setDeparture}
+  min={{ year: 2026, month: 9, day: 24, hour: 9, minute: 0 }}
+  accessibilityLabel="Departure"
+/>
+```
+
+`CalendarDateTime` is `CalendarDate & CalendarTime` — one flat record, not a `{ date, time }` pair. The intersection is the point: a value of that type is assignable wherever a `CalendarDate` or a `CalendarTime` is wanted, so both halves take it unchanged and only `onChange` has anything to merge.
+
+### The time half is the caller's
+
+`children` is a render prop, given everything the clock needs. Left out, it is a `TimePicker`:
+
+```tsx
+// The clock, with a step
+<DateTimePicker value={departure} onChange={setDeparture}>
+  {(time) => <TimePicker {...time} step={15} />}
+</DateTimePicker>
+
+// Or a set of slots, with the taken ones out
+<DateTimePicker value={departure} onChange={setDeparture}>
+  {(time) => (
+    <Listbox
+      options={timeOptions({ from, to, step: 30, disabled: taken })}
+      value={time.value}
+      onValueChange={time.onChange}
+    />
+  )}
+</DateTimePicker>
+```
+
+Not an element with props cloned into it. [#148](https://github.com/iray-tno/hozo/issues/148) records why the two are different capabilities rather than two looks, and injection would quietly overwrite props the caller wrote — and could not reach a `Listbox` at all, whose value is an option rather than a `CalendarTime`. Forwarding the union of both controls' props through `DateTimePicker` instead is the `variant` shape [`docs/decisions/001`](https://github.com/iray-tno/hozo/blob/main/docs/decisions/001-disabled-and-focus.md) rejected: each mode carrying props the other ignores.
+
+### One bound, two questions
+
+`min` and `max` are whole values, so a bound can name an hour on a day. That is one fact the two halves have to read differently:
+
+- The **grid** is bounded by the day. A minimum of 09:00 on the 24th leaves the 24th open, because its afternoon is allowed, and greying the cell out would say otherwise.
+- The **clock** is bounded only on the days a bound names: 09:00 is a floor on the 24th and says nothing about the 25th.
+
+`dateBounds` and `timeBoundsOn` are those two readings, exported because a caller assembling the same pair by hand would have to get the distinction right themselves.
+
+Moving the day under a time that is already set can put the value outside the bounds — 08:00 showing, and the 24th pressed. The time is raised to the bound and the day is kept, because the day is what was just asked for and a cell that refuses a press looks broken.
+
+### Done is a real control
+
+`DatePicker` closes when a day is pressed. Here that would close before the clock had been touched, so the dialog stays open and carries an explicit Done. Escape and a press outside still dismiss it, and every change has been reported by then — Done confirms nothing, it only closes, which is why there is no Cancel beside it to imply otherwise.
+
 ## Status
 
-Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `DateTimePicker` and `DateRangePicker` come next.
+Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). `DateRangePicker` comes next, over the range `Calendar`.
 
 The shown month is controllable: `defaultMonth` for the uncontrolled case, `month` plus `onMonthChange` when the caller wants to own it. Handing over a `month` and ignoring `onMonthChange` gives a grid whose paging buttons and month-crossing arrow keys appear to do nothing -- the bargain every controlled component makes, mentioned here because the keys that stop working are in the middle of the widget.
 
