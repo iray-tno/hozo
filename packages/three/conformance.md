@@ -21,9 +21,9 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | camera | 3/4 (75.0%) | 3/4 (75.0%) | 4/4 (100.0%) | 0 | 2 |
 | material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 10/13 (76.9%) | 12/13 (92.3%) | 13/13 (100.0%) | 0 | 0 |
-| scene | 3/8 (37.5%) | 6/8 (75.0%) | 8/8 (100.0%) | 0 | 1 |
+| scene | 3/8 (37.5%) | 7/8 (87.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **32/58 (55.2%)** | **42/58 (72.4%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **32/58 (55.2%)** | **43/58 (74.1%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -70,10 +70,10 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| LineBasicMaterial | partial | Colour, width, RGB vertex gradients, and normal alpha transparency work; advanced base material state does not. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width`<br>[test](src/project.test.ts) `LineBasicMaterial projects clipped RGB vertex colours as a portable gradient`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
+| LineBasicMaterial | partial | Colour, width, RGB vertex gradients, fog, and normal alpha transparency work; advanced base material state does not. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width`<br>[test](src/project.test.ts) `LineBasicMaterial projects clipped RGB vertex colours as a portable gradient`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
 | LineDashedMaterial | partial | Finite dash and gap intervals split into portable solid segments before projection. | [test](src/project.test.ts) `LineDashedMaterial projects line-distance dash and gap intervals`<br>[test](src/project.test.ts) `invalid or excessive dashed line intervals emit diagnostics` |
 | Material | out-of-scope | The abstract material base has no renderable appearance. | — |
-| MeshBasicMaterial | partial | Flat colour, normal alpha transparency, sides, groups, and wireframe work. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates`<br>[test](src/project.test.ts) `groups can mix solid and wireframe MeshBasicMaterial`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
+| MeshBasicMaterial | partial | Flat and RGB vertex colours, fog, normal alpha transparency, sides, groups, and wireframe work. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates`<br>[test](src/project.test.ts) `groups can mix solid and wireframe MeshBasicMaterial`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
 | MeshDepthMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshDistanceMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshLambertMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
@@ -86,8 +86,8 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | RawShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
-| PointsMaterial | partial | Untextured colour, normal alpha transparency, per-point RGB, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
-| SpriteMaterial | partial | Solid colour and normal alpha transparency work; textures are diagnosed. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
+| PointsMaterial | partial | Untextured colour, normal alpha transparency, per-point RGB, fog, size, and attenuation work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `textured points are omitted with a diagnostic` |
+| SpriteMaterial | partial | Solid colour, fog, and normal alpha transparency work; textures are diagnosed. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
 
 ### geometry
 
@@ -117,7 +117,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | camera layers | full | Camera and object layer masks filter renderable objects without pruning descendants. | [test](src/project.test.ts) `camera layers filter objects without hiding matching descendants` |
 | Scene.overrideMaterial | partial | Supported overrides replace eligible render-list materials while preserving visibility and allowOverride. | [test](src/project.test.ts) `Scene.overrideMaterial preserves render-list visibility and allowOverride` |
 | Scene.background | partial | Solid colours become non-interactive Canvas rectangles; textures are diagnosed. | [test](src/project.test.ts) `solid scene backgrounds become non-interactive Canvas rectangles`<br>[test](src/three-canvas.test.tsx) `ThreeCanvas paints scene backgrounds without creating an object control`<br>[test](src/project.test.ts) `texture backgrounds are diagnosed while otherwise portable geometry remains visible` |
-| scene fog | diagnostic | Fog-affected geometry is omitted with UNSUPPORTED_SCENE. | [test](src/project.test.ts) `scene fog diagnoses and omits affected geometry` |
+| scene fog | partial | Fog and FogExp2 blend meshes, wireframes, lines, points, and sprites. Point and constant-depth output is exact; varying-depth gradients approximate the fragment shader at portable vertices and endpoints. | [test](src/project.test.ts) `linear fog blends mesh vertices and honours material fog opt-out`<br>[test](src/project.test.ts) `fog is evaluated at vertices created by homogeneous clipping`<br>[test](src/project.test.ts) `fog follows lines, points, sprites, and exponential density`<br>[test](src/project.test.ts) `invalid fog ranges are diagnosed instead of producing non-finite colours` |
 | renderer tone mapping | out-of-scope | The portable Canvas contract fixes NoToneMapping and has no renderer tone-mapping option. | — |
 | depth and stencil material state | diagnostic | Non-default depth, stencil, colour-write, polygon-offset, and blending state is rejected. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, and blending state emit diagnostics` |
 

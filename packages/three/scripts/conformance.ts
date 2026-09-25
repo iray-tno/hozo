@@ -199,7 +199,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'LineBasicMaterial',
     'partial',
-    'Colour, width, RGB vertex gradients, and normal alpha transparency work; advanced base material state does not.',
+    'Colour, width, RGB vertex gradients, fog, and normal alpha transparency work; advanced base material state does not.',
     {
       upstream: upstream('material', 'LineBasicMaterial'),
       tests: [
@@ -235,7 +235,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'MeshBasicMaterial',
     'partial',
-    'Flat colour, normal alpha transparency, sides, groups, and wireframe work.',
+    'Flat and RGB vertex colours, fog, normal alpha transparency, sides, groups, and wireframe work.',
     {
       upstream: upstream('material', 'MeshBasicMaterial'),
       tests: [
@@ -274,7 +274,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'PointsMaterial',
     'partial',
-    'Untextured colour, normal alpha transparency, per-point RGB, size, and attenuation work.',
+    'Untextured colour, normal alpha transparency, per-point RGB, fog, size, and attenuation work.',
     {
       upstream: upstream('material', 'PointsMaterial'),
       tests: [
@@ -289,7 +289,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'SpriteMaterial',
     'partial',
-    'Solid colour and normal alpha transparency work; textures are diagnosed.',
+    'Solid colour, fog, and normal alpha transparency work; textures are diagnosed.',
     {
       upstream: upstream('material', 'SpriteMaterial'),
       tests: [
@@ -485,10 +485,15 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   row(
     'scene',
     'scene fog',
-    'diagnostic',
-    'Fog-affected geometry is omitted with UNSUPPORTED_SCENE.',
+    'partial',
+    'Fog and FogExp2 blend meshes, wireframes, lines, points, and sprites. Point and constant-depth output is exact; varying-depth gradients approximate the fragment shader at portable vertices and endpoints.',
     {
-      tests: [project('scene fog diagnoses and omits affected geometry')],
+      tests: [
+        project('linear fog blends mesh vertices and honours material fog opt-out'),
+        project('fog is evaluated at vertices created by homogeneous clipping'),
+        project('fog follows lines, points, sprites, and exponential density'),
+        project('invalid fog ranges are diagnosed instead of producing non-finite colours'),
+      ],
     },
   ),
   row(
