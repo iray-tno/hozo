@@ -396,7 +396,9 @@ export interface PathProps extends CanvasPaintProps, CanvasInteractionProps {
  * Per-vertex colours are normalized sRGB channels. A numeric representation
  * keeps interpolation independent of whichever CSS colour parser happens to
  * be present, and lets a projected renderer pass colour data without turning
- * every vertex into a string. Texture coordinates remain a later extension.
+ * every vertex into a string. Texture coordinates use normalized, top-left
+ * image space so neither backend leaks its decoded image dimensions into the
+ * retained scene.
  */
 export interface CanvasVertexColor {
   /** Normalized sRGB red channel. Values outside 0..1 are clamped. */
@@ -407,6 +409,15 @@ export interface CanvasVertexColor {
   b: number
 }
 
+export type CanvasTextureSource = string | number | { uri?: string; default?: string }
+
+export interface CanvasMeshTexture {
+  source: CanvasTextureSource
+  /** One normalized top-left coordinate per vertex. */
+  coordinates: readonly CanvasPoint[]
+  filter?: 'linear' | 'nearest'
+}
+
 export interface TriangleMeshProps extends CanvasInteractionProps {
   /** Compiler input. Runtime drawing uses the explicit fill below. */
   className?: string
@@ -414,6 +425,8 @@ export interface TriangleMeshProps extends CanvasInteractionProps {
   indices?: readonly number[]
   /** One colour per vertex. When present, these replace the uniform fill. */
   colors?: readonly CanvasVertexColor[]
+  /** An affine image texture. Vertex colours and textures are not combined yet. */
+  texture?: CanvasMeshTexture
   fill?: CanvasPaint
   opacity?: number
 }
@@ -435,8 +448,38 @@ export function triangleMeshColorCss(color: CanvasVertexColor, alpha = 1): strin
   return `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${alpha})`
 }
 
+/** A finite normalized top-left texture coordinate. */
+export function triangleMeshTextureCoordinate(
+  coordinate: CanvasPoint | undefined,
+): CanvasPoint | undefined {
+  if (
+    !coordinate ||
+    !Number.isFinite(coordinate.x) ||
+    !Number.isFinite(coordinate.y) ||
+    coordinate.x < 0 ||
+    coordinate.x > 1 ||
+    coordinate.y < 0 ||
+    coordinate.y > 1
+  ) {
+    return undefined
+  }
+  return coordinate
+}
+
+/** The URI a browser can load, absent for a Native-only numeric asset ID. */
+export function canvasTextureUri(source: CanvasTextureSource): string | undefined {
+  if (typeof source === 'string') return source
+  if (typeof source === 'number') return undefined
+  return typeof source.uri === 'string'
+    ? source.uri
+    : typeof source.default === 'string'
+      ? source.default
+      : undefined
+}
+
 /** The complete, valid triangle index stream shared by rendering and hit testing. */
 export function triangleMeshIndices(props: TriangleMeshProps): number[] {
+  if (props.colors && props.texture) return []
   const source = props.indices ?? props.vertices.map((_, index) => index)
   const result: number[] = []
   for (let offset = 0; offset + 2 < source.length; offset += 3) {
@@ -464,6 +507,14 @@ export function triangleMeshIndices(props: TriangleMeshProps): number[] {
       (!triangleMeshColor(props.colors[a]) ||
         !triangleMeshColor(props.colors[b]) ||
         !triangleMeshColor(props.colors[c]))
+    ) {
+      continue
+    }
+    if (
+      props.texture &&
+      (!triangleMeshTextureCoordinate(props.texture.coordinates[a]) ||
+        !triangleMeshTextureCoordinate(props.texture.coordinates[b]) ||
+        !triangleMeshTextureCoordinate(props.texture.coordinates[c]))
     ) {
       continue
     }

@@ -47,8 +47,32 @@ incomplete or invalid triple is skipped as one unit on both renderers.
 
 Vertex colours use normalized sRGB channels and replace the uniform `fill`.
 Skia interpolates them through `Vertices`; Canvas 2D composes three bounded
-barycentric ramps per face, avoiding contrast-dependent tessellation. Texture
-coordinates remain a later extension.
+barycentric ramps per face, avoiding contrast-dependent tessellation.
+
+Meshes can instead map an image with one normalized, top-left texture
+coordinate per vertex. Web loads a URL; Native accepts the same URI form or a
+local asset ID. The initial portable contract clamps at image edges and uses
+affine interpolation per triangle. It does not yet combine a texture with
+vertex colours or provide perspective-correct sampling.
+
+```tsx
+<Canvas.TriangleMesh
+  vertices={[
+    { x: 10, y: 10 },
+    { x: 90, y: 10 },
+    { x: 50, y: 70 },
+  ]}
+  texture={{
+    source: '/checkerboard.png',
+    coordinates: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0.5, y: 1 },
+    ],
+    filter: 'linear',
+  }}
+/>
+```
 
 ## Interaction
 

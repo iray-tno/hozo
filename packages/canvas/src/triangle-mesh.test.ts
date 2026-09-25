@@ -5,6 +5,7 @@ import { canvasNodePoint, hitTestCanvas } from './hit-test.ts'
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
   type CanvasScene,
+  canvasTextureUri,
   triangleMeshColor,
   triangleMeshColorCss,
   triangleMeshIndices,
@@ -18,6 +19,16 @@ const vertices = [
   { x: 30, y: 0 },
   { x: 20, y: 10 },
 ] as const
+
+test('browser texture sources do not invent URLs for Native asset IDs', () => {
+  assert.equal(canvasTextureUri('/texture.png'), '/texture.png')
+  assert.equal(
+    canvasTextureUri({ uri: 'https://example.com/texture.png' }),
+    'https://example.com/texture.png',
+  )
+  assert.equal(canvasTextureUri({ default: '/bundled-texture.png' }), '/bundled-texture.png')
+  assert.equal(canvasTextureUri(42), undefined)
+})
 
 test('triangle meshes share one validation rule for indexed and consecutive triples', () => {
   assert.deepEqual(triangleMeshIndices({ vertices }), [0, 1, 2, 3, 4, 5])
@@ -41,6 +52,42 @@ test('triangle meshes share one validation rule for indexed and consecutive trip
       ],
     }),
     [0, 1, 2],
+  )
+  assert.deepEqual(
+    triangleMeshIndices({
+      vertices,
+      texture: {
+        source: '/texture.png',
+        coordinates: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+          { x: 2, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 1 },
+        ],
+      },
+    }),
+    [0, 1, 2],
+  )
+  assert.deepEqual(
+    triangleMeshIndices({
+      vertices: vertices.slice(0, 3),
+      colors: [
+        { r: 1, g: 0, b: 0 },
+        { r: 0, g: 1, b: 0 },
+        { r: 0, g: 0, b: 1 },
+      ],
+      texture: {
+        source: '/texture.png',
+        coordinates: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+        ],
+      },
+    }),
+    [],
   )
 })
 
@@ -176,6 +223,51 @@ test('Canvas 2D builds three bounded barycentric colour contributions per face',
     calls.some((call) => call[0] === 'set:globalCompositeOperation' && call[1] === 'lighter'),
   )
   assert.ok(calls.some((call) => call[0] === 'set:globalAlpha' && call[1] === 0.5))
+})
+
+test('Canvas 2D maps a decoded texture affinely into each triangle', () => {
+  const calls: Array<readonly unknown[]> = []
+  const context = new Proxy({ globalAlpha: 1 } as Record<string, unknown>, {
+    get(target, property) {
+      if (property in target) return target[property as string]
+      return (...args: unknown[]) => calls.push([property, ...args])
+    },
+    set(target, property, value) {
+      target[property as string] = value
+      calls.push([`set:${String(property)}`, value])
+      return true
+    },
+  }) as unknown as CanvasRenderingContext2D
+  const image = { width: 100, height: 50 } as unknown as CanvasImageSource
+  const scene: CanvasScene = [
+    {
+      kind: 'triangle-mesh',
+      props: {
+        vertices: vertices.slice(0, 3),
+        opacity: 0.5,
+        texture: {
+          source: '/texture.png',
+          filter: 'nearest',
+          coordinates: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+            { x: 0, y: 1 },
+          ],
+        },
+      },
+    },
+  ]
+
+  renderCanvas2D(context, scene, { width: 20, height: 20, pixelRatio: 1 }, (source) =>
+    source === '/texture.png' ? image : undefined,
+  )
+
+  assert.ok(calls.some((call) => call[0] === 'set:globalAlpha' && call[1] === 0.5))
+  assert.ok(calls.some((call) => call[0] === 'set:imageSmoothingEnabled' && call[1] === false))
+  assert.deepEqual(calls.find((call) => call[0] === 'transform')?.slice(1), [0.1, 0, 0, 0.2, 0, 0])
+  const drawImage = calls.find((call) => call[0] === 'drawImage')
+  assert.equal(drawImage?.[1], image)
+  assert.deepEqual(drawImage?.slice(2), [0, 0, 100, 50])
 })
 
 test('triangle mesh hit testing follows faces rather than their combined bounds', () => {
