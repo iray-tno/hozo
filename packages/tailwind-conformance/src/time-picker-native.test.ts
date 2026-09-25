@@ -68,11 +68,18 @@ function nodes(props: Record<string, unknown> = {}) {
     hour12: true,
     ...props,
   })
-  let tree: Node | Node[] | null = null
+  // `toJSON` after the callback, never inside it. React 19 does not flush
+  // outside `act`, and within it the commit has not happened -- so the answer
+  // is `null`, which is indistinguishable from a component that rendered
+  // nothing. `native-render.ts` carries the same warning and this test was
+  // written past it: the first run found no fields and said so exactly as it
+  // would have if the fix under test had not worked.
+  let root: { toJSON: () => Node | Node[] | null } | null = null
   renderer.act(() => {
-    tree = renderer.create(element).toJSON()
+    root = renderer.create(element)
   })
-  return flatten(tree)
+  if (root === null) return []
+  return flatten((root as { toJSON: () => Node | Node[] | null }).toJSON())
 }
 
 const adjustables = (props: Record<string, unknown> = {}) =>
