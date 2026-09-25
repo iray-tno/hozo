@@ -531,6 +531,9 @@ function signedArea(points: readonly { x: number; y: number }[]) {
 
 function baseMaterialReason(material: Material): string | undefined {
   if (material.blending !== NormalBlending) return 'non-default blending is not projected'
+  if (!Number.isFinite(material.alphaTest)) return 'alphaTest must be finite'
+  if (material.alphaHash) return 'alpha-hashed transparency needs per-fragment sampling'
+  if (material.alphaToCoverage) return 'alpha-to-coverage needs an MSAA renderer'
   if (
     material.depthTest !== true ||
     material.depthWrite !== true ||
@@ -541,7 +544,12 @@ function baseMaterialReason(material: Material): string | undefined {
   if (material.stencilWrite) return 'stencil-writing materials are not projected'
   if (!material.colorWrite) return 'materials with colorWrite disabled are not projected'
   if (material.polygonOffset) return 'polygon-offset material state is not projected'
+  if (material.dithering) return 'material dithering needs per-fragment sampling'
   return undefined
+}
+
+function passesUniformAlphaTest(material: Material): boolean {
+  return material.alphaTest <= 0 || material.opacity >= material.alphaTest
 }
 
 function materialReason(material: MeshBasicMaterial): string | undefined {
@@ -805,6 +813,7 @@ function projectThreeSceneInternal(
         })
         return
       }
+      if (!passesUniformAlphaTest(material as SpriteMaterial)) return
 
       const spriteMaterial = material as SpriteMaterial
       const modelView = new Matrix4().multiplyMatrices(
@@ -918,6 +927,12 @@ function projectThreeSceneInternal(
         })
         return
       }
+      if (
+        !(material as LineDashedMaterial).isLineDashedMaterial &&
+        !passesUniformAlphaTest(material as LineBasicMaterial)
+      ) {
+        return
+      }
       const position = line.geometry.getAttribute('position')
       if (!position || position.itemSize < 3) {
         diagnostic(diagnostics, options, {
@@ -938,10 +953,11 @@ function projectThreeSceneInternal(
         ? (material as LineDashedMaterial)
         : undefined
       const color = material.vertexColors ? line.geometry.getAttribute('color') : undefined
-      if (color && color.itemSize < 3) {
+      if (color && color.itemSize !== 3) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_GEOMETRY',
-          message: 'Line colour attributes need at least RGB components.',
+          message:
+            'Portable line colour attributes must be RGB; per-vertex alpha is not projected.',
           object,
         })
         return
@@ -1112,6 +1128,7 @@ function projectThreeSceneInternal(
         })
         return
       }
+      if (!passesUniformAlphaTest(material as PointsMaterial)) return
       const position = points.geometry.getAttribute('position')
       if (!position || position.itemSize < 3) {
         diagnostic(diagnostics, options, {
@@ -1128,10 +1145,11 @@ function projectThreeSceneInternal(
       const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
       const pointMaterial = material as PointsMaterial
       const color = pointMaterial.vertexColors ? points.geometry.getAttribute('color') : undefined
-      if (color && color.itemSize < 3) {
+      if (color && color.itemSize !== 3) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_GEOMETRY',
-          message: 'Point colour attributes need at least RGB components.',
+          message:
+            'Portable point colour attributes must be RGB; per-vertex alpha is not projected.',
           object,
         })
         return
@@ -1255,16 +1273,17 @@ function projectThreeSceneInternal(
         }
         return
       }
+      if (!passesUniformAlphaTest(material as MeshBasicMaterial)) return
       if (
         material.vertexColors &&
-        (!vertexColor || vertexColor.itemSize < 3 || vertexColor.count < position.count)
+        (vertexColor?.itemSize !== 3 || vertexColor.count < position.count)
       ) {
         if (!reportedMaterials.has(source)) {
           reportedMaterials.add(source)
           diagnostic(diagnostics, options, {
             code: 'UNSUPPORTED_GEOMETRY',
             message:
-              'MeshBasicMaterial.vertexColors needs one three-component color value per vertex.',
+              'MeshBasicMaterial.vertexColors needs one RGB value per vertex; per-vertex alpha is not projected.',
             object,
           })
         }

@@ -1395,6 +1395,62 @@ test('normal transparent materials project opacity across portable primitives', 
   )
 })
 
+test('uniform alphaTest omits every supported primitive only below its threshold', () => {
+  const projectedCount = (opacity: number, alphaTest: number) => {
+    const scene = new Scene()
+    scene.add(
+      new Mesh(
+        triangleGeometry(),
+        new MeshBasicMaterial({ alphaTest, opacity, transparent: true }),
+      ),
+      new Line(
+        new BufferGeometry().setAttribute(
+          'position',
+          new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3),
+        ),
+        new LineBasicMaterial({ alphaTest, opacity, transparent: true }),
+      ),
+      new Points(
+        new BufferGeometry().setAttribute('position', new Float32BufferAttribute([0, 0, 0], 3)),
+        new PointsMaterial({ alphaTest, opacity, size: 2, sizeAttenuation: false }),
+      ),
+      new THREE.Sprite(new THREE.SpriteMaterial({ alphaTest, opacity })),
+    )
+    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+    assert.deepEqual(result.diagnostics, [])
+    return result.scene.length
+  }
+
+  assert.equal(projectedCount(0.49, 0.5), 0)
+  assert.equal(projectedCount(0.5, 0.5), 4, 'Three.js discards below, not at, alphaTest')
+})
+
+test('RGBA vertex attributes diagnose instead of silently dropping alpha', () => {
+  const rgbaGeometry = () => {
+    const geometry = triangleGeometry()
+    geometry.setAttribute(
+      'color',
+      new Float32BufferAttribute([1, 0, 0, 0.25, 0, 1, 0, 0.5, 0, 0, 1, 0.75], 4),
+    )
+    return geometry
+  }
+  const objects = [
+    new Mesh(rgbaGeometry(), new MeshBasicMaterial({ vertexColors: true })),
+    new Line(rgbaGeometry(), new LineBasicMaterial({ vertexColors: true })),
+    new Points(rgbaGeometry(), new PointsMaterial({ vertexColors: true })),
+  ]
+
+  for (const object of objects) {
+    const result = projectThreeScene(new Scene().add(object), perspective(), {
+      width: 100,
+      height: 100,
+    })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_GEOMETRY')
+    assert.match(result.diagnostics[0]?.message ?? '', /alpha/)
+  }
+})
+
 test('transparent primitives paint after opaque primitives', () => {
   const scene = new Scene()
   const transparentFar = new Mesh(
@@ -1414,7 +1470,7 @@ test('transparent primitives paint after opaque primitives', () => {
   )
 })
 
-test('non-default depth, stencil, write, offset, and blending state emit diagnostics', () => {
+test('non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics', () => {
   const materials = [
     new MeshBasicMaterial({ depthTest: false }),
     new MeshBasicMaterial({ depthWrite: false }),
@@ -1423,7 +1479,13 @@ test('non-default depth, stencil, write, offset, and blending state emit diagnos
     new MeshBasicMaterial({ colorWrite: false }),
     new MeshBasicMaterial({ polygonOffset: true }),
     new MeshBasicMaterial({ blending: THREE.AdditiveBlending }),
+    new MeshBasicMaterial({ alphaHash: true }),
+    new MeshBasicMaterial({ alphaToCoverage: true }),
+    new MeshBasicMaterial({ dithering: true }),
   ]
+  const invalidAlphaTest = new MeshBasicMaterial()
+  invalidAlphaTest.alphaTest = Number.NaN
+  materials.push(invalidAlphaTest)
 
   for (const material of materials) {
     const scene = new Scene()

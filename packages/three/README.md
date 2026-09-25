@@ -61,6 +61,10 @@ sprites in the same working colour space as Three.js, while respecting each
 material's `fog` opt-out. Constant-depth shapes and individual points match
 the shader formula; varying-depth portable gradients evaluate fog at their
 vertices or endpoints rather than per fragment.
+Uniform `alphaTest` is preserved for the untextured subset by omitting a whole
+primitive when its material opacity is below the threshold. Per-vertex alpha,
+alpha hashing, MSAA alpha-to-coverage, and dithering are diagnosed rather than
+silently flattened into ordinary opacity.
 `LineDashedMaterial` uses Three's
 `lineDistance`, dash size, gap size, and scale to emit portable segments before
 projection. `Points` with untextured
