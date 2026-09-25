@@ -9,6 +9,8 @@ import {
   isGradient,
   paintFills,
   paintStrokes,
+  triangleMeshColor,
+  triangleMeshColorCss,
   triangleMeshIndices,
   unhandledShape,
 } from './scene.tsx'
@@ -90,6 +92,88 @@ function pathForClip(context: CanvasRenderingContext2D, props: Omit<ClipProps, '
   context.beginPath()
   context.rect(props.x ?? 0, props.y ?? 0, props.width ?? 0, props.height ?? 0)
   context.clip()
+}
+
+function trianglePath(
+  context: CanvasRenderingContext2D,
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  c: { x: number; y: number },
+) {
+  context.beginPath()
+  context.moveTo(a.x, a.y)
+  context.lineTo(b.x, b.y)
+  context.lineTo(c.x, c.y)
+  context.closePath()
+}
+
+/**
+ * The linear ramp whose alpha is one barycentric coordinate.
+ *
+ * That coordinate is zero on the edge opposite `vertex`, one at the
+ * vertex, and linear between them. Three such premultiplied contributions
+ * add to the same Gouraud colour Skia's Vertices computes. This is four
+ * bounded fills per face (one clear plus three contributions), not an
+ * accuracy-dependent tessellation that can explode with colour contrast.
+ */
+function vertexContribution(
+  context: CanvasRenderingContext2D,
+  vertex: { x: number; y: number },
+  edgeA: { x: number; y: number },
+  edgeB: { x: number; y: number },
+  color: { r: number; g: number; b: number },
+) {
+  const edgeX = edgeB.x - edgeA.x
+  const edgeY = edgeB.y - edgeA.y
+  const edgeLengthSquared = edgeX * edgeX + edgeY * edgeY
+  const alongEdge =
+    ((vertex.x - edgeA.x) * edgeX + (vertex.y - edgeA.y) * edgeY) / edgeLengthSquared
+  const footX = edgeA.x + alongEdge * edgeX
+  const footY = edgeA.y + alongEdge * edgeY
+  const gradient = context.createLinearGradient(footX, footY, vertex.x, vertex.y)
+  // Keep the RGB endpoints equal. Whichever interpolation space the host
+  // uses, alpha alone becomes the barycentric weight; transparent black
+  // would darken on implementations that interpolate unpremultiplied RGB.
+  gradient.addColorStop(0, triangleMeshColorCss(color, 0))
+  gradient.addColorStop(1, triangleMeshColorCss(color))
+  return gradient
+}
+
+function fillColoredTriangle(
+  context: CanvasRenderingContext2D,
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  c: { x: number; y: number },
+  colors: readonly [
+    { r: number; g: number; b: number },
+    { r: number; g: number; b: number },
+    { r: number; g: number; b: number },
+  ],
+) {
+  if ((b.x - a.x) * (c.y - a.y) === (b.y - a.y) * (c.x - a.x)) return
+  const left = Math.min(a.x, b.x, c.x)
+  const top = Math.min(a.y, b.y, c.y)
+  const width = Math.max(a.x, b.x, c.x) - left
+  const height = Math.max(a.y, b.y, c.y) - top
+  if (width === 0 || height === 0) return
+
+  context.save()
+  trianglePath(context, a, b, c)
+  context.clip()
+  context.globalCompositeOperation = 'destination-out'
+  context.fillStyle = 'black'
+  context.fillRect(left, top, width, height)
+  context.globalCompositeOperation = 'lighter'
+  const contributions = [
+    vertexContribution(context, a, b, c, colors[0]),
+    vertexContribution(context, b, c, a, colors[1]),
+    vertexContribution(context, c, a, b, colors[2]),
+  ]
+  for (const contribution of contributions) {
+    context.fillStyle = contribution
+    context.fillRect(left, top, width, height)
+  }
+  context.restore()
 }
 
 function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
@@ -223,12 +307,16 @@ function drawNode(context: CanvasRenderingContext2D, node: CanvasSceneNode) {
           const b = node.props.vertices[indices[offset + 1] as number]
           const c = node.props.vertices[indices[offset + 2] as number]
           if (!a || !b || !c) continue
-          context.beginPath()
-          context.moveTo(a.x, a.y)
-          context.lineTo(b.x, b.y)
-          context.lineTo(c.x, c.y)
-          context.closePath()
-          context.fill()
+          if (node.props.colors) {
+            const colorA = triangleMeshColor(node.props.colors[indices[offset] as number])
+            const colorB = triangleMeshColor(node.props.colors[indices[offset + 1] as number])
+            const colorC = triangleMeshColor(node.props.colors[indices[offset + 2] as number])
+            if (!colorA || !colorB || !colorC) continue
+            fillColoredTriangle(context, a, b, c, [colorA, colorB, colorC])
+          } else {
+            trianglePath(context, a, b, c)
+            context.fill()
+          }
         }
         return
       }

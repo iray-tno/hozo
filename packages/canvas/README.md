@@ -37,13 +37,18 @@ incomplete or invalid triple is skipped as one unit on both renderers.
     { x: 90, y: 10 },
     { x: 50, y: 70 },
   ]}
-  fill="#2563eb"
+  colors={[
+    { r: 1, g: 0, b: 0 },
+    { r: 0, g: 1, b: 0 },
+    { r: 0, g: 0, b: 1 },
+  ]}
 />
 ```
 
-The initial portable contract is fill-only. Vertex colours and texture
-coordinates will extend this primitive once both Canvas 2D and Skia can honour
-the same declared result.
+Vertex colours use normalized sRGB channels and replace the uniform `fill`.
+Skia interpolates them through `Vertices`; Canvas 2D composes three bounded
+barycentric ramps per face, avoiding contrast-dependent tessellation. Texture
+coordinates remain a later extension.
 
 ## Interaction
 
