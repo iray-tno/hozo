@@ -1,0 +1,325 @@
+heading, Calendar (@hozo/form), level 2
+paragraph
+A grid of days reached with the arrow keys, Home and End, and PageUp or PageDown -- a month, or a year with Shift. Each cell is named with the whole date, because a user arriving by arrow key never passes through the column header.
+end of paragraph
+group, Departure date
+button, Previous month, disabled
+‹
+end of button, Previous month, disabled
+September 2026
+button, Next month
+›
+end of button, Next month
+grid, September 2026
+rowgroup
+row, Monday, August 31, 2026 Tuesday, September 1, 2026 Wednesday, September 2, 2026 Thursday, September 3, 2026 Friday, September 4, 2026 Saturday, September 5, 2026 Sunday, September 6, 2026
+gridcell, Monday, August 31, 2026, disabled, not selected
+31
+end of gridcell, Monday, August 31, 2026, disabled, not selected
+gridcell, Tuesday, September 1, 2026, disabled, not selected
+1
+end of gridcell, Tuesday, September 1, 2026, disabled, not selected
+gridcell, Wednesday, September 2, 2026, disabled, not selected
+2
+end of gridcell, Wednesday, September 2, 2026, disabled, not selected
+gridcell, Thursday, September 3, 2026, not selected
+3
+end of gridcell, Thursday, September 3, 2026, not selected
+gridcell, Friday, September 4, 2026, not selected
+4
+end of gridcell, Friday, September 4, 2026, not selected
+gridcell, Saturday, September 5, 2026, not selected
+5
+end of gridcell, Saturday, September 5, 2026, not selected
+gridcell, Sunday, September 6, 2026, not selected
+6
+end of gridcell, Sunday, September 6, 2026, not selected
+end of row, Monday, August 31, 2026 Tuesday, September 1, 2026 Wednesday, September 2, 2026 Thursday, September 3, 2026 Friday, September 4, 2026 Saturday, September 5, 2026 Sunday, September 6, 2026
+row, Monday, September 7, 2026 Tuesday, September 8, 2026 Wednesday, September 9, 2026 Thursday, September 10, 2026 Friday, September 11, 2026 Saturday, September 12, 2026 Sunday, September 13, 2026
+gridcell, Monday, September 7, 2026, not selected
+7
+end of gridcell, Monday, September 7, 2026, not selected
+gridcell, Tuesday, September 8, 2026, not selected
+8
+end of gridcell, Tuesday, September 8, 2026, not selected
+gridcell, Wednesday, September 9, 2026, not selected
+9
+end of gridcell, Wednesday, September 9, 2026, not selected
+gridcell, Thursday, September 10, 2026, selected
+10
+end of gridcell, Thursday, September 10, 2026, selected
+gridcell, Friday, September 11, 2026, not selected
+11
+end of gridcell, Friday, September 11, 2026, not selected
+gridcell, Saturday, September 12, 2026, not selected
+12
+end of gridcell, Saturday, September 12, 2026, not selected
+gridcell, Sunday, September 13, 2026, not selected
+13
+end of gridcell, Sunday, September 13, 2026, not selected
+end of row, Monday, September 7, 2026 Tuesday, September 8, 2026 Wednesday, September 9, 2026 Thursday, September 10, 2026 Friday, September 11, 2026 Saturday, September 12, 2026 Sunday, September 13, 2026
+row, Monday, September 14, 2026 Tuesday, September 15, 2026 Wednesday, September 16, 2026 Thursday, September 17, 2026 Friday, September 18, 2026 Saturday, September 19, 2026 Sunday, September 20, 2026
+gridcell, Monday, September 14, 2026, not selected
+14
+end of gridcell, Monday, September 14, 2026, not selected
+gridcell, Tuesday, September 15, 2026, not selected
+15
+end of gridcell, Tuesday, September 15, 2026, not selected
+gridcell, Wednesday, September 16, 2026, not selected
+16
+end of gridcell, Wednesday, September 16, 2026, not selected
+gridcell, Thursday, September 17, 2026, not selected
+17
+end of gridcell, Thursday, September 17, 2026, not selected
+gridcell, Friday, September 18, 2026, not selected
+18
+end of gridcell, Friday, September 18, 2026, not selected
+gridcell, Saturday, September 19, 2026, not selected
+19
+end of gridcell, Saturday, September 19, 2026, not selected
+gridcell, Sunday, September 20, 2026, not selected
+20
+end of gridcell, Sunday, September 20, 2026, not selected
+end of row, Monday, September 14, 2026 Tuesday, September 15, 2026 Wednesday, September 16, 2026 Thursday, September 17, 2026 Friday, September 18, 2026 Saturday, September 19, 2026 Sunday, September 20, 2026
+row, Monday, September 21, 2026 Tuesday, September 22, 2026 Wednesday, September 23, 2026 Thursday, September 24, 2026 Friday, September 25, 2026 Saturday, September 26, 2026 Sunday, September 27, 2026
+gridcell, Monday, September 21, 2026, not selected
+21
+end of gridcell, Monday, September 21, 2026, not selected
+gridcell, Tuesday, September 22, 2026, not selected
+22
+end of gridcell, Tuesday, September 22, 2026, not selected
+gridcell, Wednesday, September 23, 2026, not selected
+23
+end of gridcell, Wednesday, September 23, 2026, not selected
+gridcell, Thursday, September 24, 2026, current date, not selected
+24
+end of gridcell, Thursday, September 24, 2026, current date, not selected
+gridcell, Friday, September 25, 2026, not selected
+25
+end of gridcell, Friday, September 25, 2026, not selected
+gridcell, Saturday, September 26, 2026, not selected
+26
+end of gridcell, Saturday, September 26, 2026, not selected
+gridcell, Sunday, September 27, 2026, not selected
+27
+end of gridcell, Sunday, September 27, 2026, not selected
+end of row, Monday, September 21, 2026 Tuesday, September 22, 2026 Wednesday, September 23, 2026 Thursday, September 24, 2026 Friday, September 25, 2026 Saturday, September 26, 2026 Sunday, September 27, 2026
+row, Monday, September 28, 2026 Tuesday, September 29, 2026 Wednesday, September 30, 2026 Thursday, October 1, 2026 Friday, October 2, 2026 Saturday, October 3, 2026 Sunday, October 4, 2026
+gridcell, Monday, September 28, 2026, not selected
+28
+end of gridcell, Monday, September 28, 2026, not selected
+gridcell, Tuesday, September 29, 2026, not selected
+29
+end of gridcell, Tuesday, September 29, 2026, not selected
+gridcell, Wednesday, September 30, 2026, not selected
+30
+end of gridcell, Wednesday, September 30, 2026, not selected
+gridcell, Thursday, October 1, 2026, not selected
+1
+end of gridcell, Thursday, October 1, 2026, not selected
+gridcell, Friday, October 2, 2026, not selected
+2
+end of gridcell, Friday, October 2, 2026, not selected
+gridcell, Saturday, October 3, 2026, not selected
+3
+end of gridcell, Saturday, October 3, 2026, not selected
+gridcell, Sunday, October 4, 2026, not selected
+4
+end of gridcell, Sunday, October 4, 2026, not selected
+end of row, Monday, September 28, 2026 Tuesday, September 29, 2026 Wednesday, September 30, 2026 Thursday, October 1, 2026 Friday, October 2, 2026 Saturday, October 3, 2026 Sunday, October 4, 2026
+row, Monday, October 5, 2026 Tuesday, October 6, 2026 Wednesday, October 7, 2026 Thursday, October 8, 2026 Friday, October 9, 2026 Saturday, October 10, 2026 Sunday, October 11, 2026
+gridcell, Monday, October 5, 2026, not selected
+5
+end of gridcell, Monday, October 5, 2026, not selected
+gridcell, Tuesday, October 6, 2026, not selected
+6
+end of gridcell, Tuesday, October 6, 2026, not selected
+gridcell, Wednesday, October 7, 2026, not selected
+7
+end of gridcell, Wednesday, October 7, 2026, not selected
+gridcell, Thursday, October 8, 2026, not selected
+8
+end of gridcell, Thursday, October 8, 2026, not selected
+gridcell, Friday, October 9, 2026, not selected
+9
+end of gridcell, Friday, October 9, 2026, not selected
+gridcell, Saturday, October 10, 2026, not selected
+10
+end of gridcell, Saturday, October 10, 2026, not selected
+gridcell, Sunday, October 11, 2026, not selected
+11
+end of gridcell, Sunday, October 11, 2026, not selected
+end of row, Monday, October 5, 2026 Tuesday, October 6, 2026 Wednesday, October 7, 2026 Thursday, October 8, 2026 Friday, October 9, 2026 Saturday, October 10, 2026 Sunday, October 11, 2026
+end of rowgroup
+end of grid, September 2026
+end of group, Departure date
+heading, Calendar, range mode, level 2
+paragraph
+The grid says it selects more than one day, and every day in the range is selected. The two ends say which end they are in their own name, because a selected flag is one bit and cannot.
+end of paragraph
+group, Dates of stay
+button, Previous month
+‹
+end of button, Previous month
+September 2026
+button, Next month
+›
+end of button, Next month
+grid, September 2026, multi-selectable
+rowgroup
+row, Monday, August 31, 2026 Tuesday, September 1, 2026 Wednesday, September 2, 2026 Thursday, September 3, 2026 Friday, September 4, 2026 Saturday, September 5, 2026 Sunday, September 6, 2026
+gridcell, Monday, August 31, 2026, not selected
+31
+end of gridcell, Monday, August 31, 2026, not selected
+gridcell, Tuesday, September 1, 2026, not selected
+1
+end of gridcell, Tuesday, September 1, 2026, not selected
+gridcell, Wednesday, September 2, 2026, not selected
+2
+end of gridcell, Wednesday, September 2, 2026, not selected
+gridcell, Thursday, September 3, 2026, not selected
+3
+end of gridcell, Thursday, September 3, 2026, not selected
+gridcell, Friday, September 4, 2026, not selected
+4
+end of gridcell, Friday, September 4, 2026, not selected
+gridcell, Saturday, September 5, 2026, not selected
+5
+end of gridcell, Saturday, September 5, 2026, not selected
+gridcell, Sunday, September 6, 2026, not selected
+6
+end of gridcell, Sunday, September 6, 2026, not selected
+end of row, Monday, August 31, 2026 Tuesday, September 1, 2026 Wednesday, September 2, 2026 Thursday, September 3, 2026 Friday, September 4, 2026 Saturday, September 5, 2026 Sunday, September 6, 2026
+row, Monday, September 7, 2026 Tuesday, September 8, 2026 Wednesday, September 9, 2026 Thursday, September 10, 2026, start of range Friday, September 11, 2026 Saturday, September 12, 2026, end of range Sunday, September 13, 2026
+gridcell, Monday, September 7, 2026, not selected
+7
+end of gridcell, Monday, September 7, 2026, not selected
+gridcell, Tuesday, September 8, 2026, not selected
+8
+end of gridcell, Tuesday, September 8, 2026, not selected
+gridcell, Wednesday, September 9, 2026, not selected
+9
+end of gridcell, Wednesday, September 9, 2026, not selected
+gridcell, Thursday, September 10, 2026, start of range, selected
+10
+end of gridcell, Thursday, September 10, 2026, start of range, selected
+gridcell, Friday, September 11, 2026, selected
+11
+end of gridcell, Friday, September 11, 2026, selected
+gridcell, Saturday, September 12, 2026, end of range, selected
+12
+end of gridcell, Saturday, September 12, 2026, end of range, selected
+gridcell, Sunday, September 13, 2026, not selected
+13
+end of gridcell, Sunday, September 13, 2026, not selected
+end of row, Monday, September 7, 2026 Tuesday, September 8, 2026 Wednesday, September 9, 2026 Thursday, September 10, 2026, start of range Friday, September 11, 2026 Saturday, September 12, 2026, end of range Sunday, September 13, 2026
+row, Monday, September 14, 2026 Tuesday, September 15, 2026 Wednesday, September 16, 2026 Thursday, September 17, 2026 Friday, September 18, 2026 Saturday, September 19, 2026 Sunday, September 20, 2026
+gridcell, Monday, September 14, 2026, not selected
+14
+end of gridcell, Monday, September 14, 2026, not selected
+gridcell, Tuesday, September 15, 2026, not selected
+15
+end of gridcell, Tuesday, September 15, 2026, not selected
+gridcell, Wednesday, September 16, 2026, not selected
+16
+end of gridcell, Wednesday, September 16, 2026, not selected
+gridcell, Thursday, September 17, 2026, not selected
+17
+end of gridcell, Thursday, September 17, 2026, not selected
+gridcell, Friday, September 18, 2026, not selected
+18
+end of gridcell, Friday, September 18, 2026, not selected
+gridcell, Saturday, September 19, 2026, not selected
+19
+end of gridcell, Saturday, September 19, 2026, not selected
+gridcell, Sunday, September 20, 2026, not selected
+20
+end of gridcell, Sunday, September 20, 2026, not selected
+end of row, Monday, September 14, 2026 Tuesday, September 15, 2026 Wednesday, September 16, 2026 Thursday, September 17, 2026 Friday, September 18, 2026 Saturday, September 19, 2026 Sunday, September 20, 2026
+row, Monday, September 21, 2026 Tuesday, September 22, 2026 Wednesday, September 23, 2026 Thursday, September 24, 2026 Friday, September 25, 2026 Saturday, September 26, 2026 Sunday, September 27, 2026
+gridcell, Monday, September 21, 2026, not selected
+21
+end of gridcell, Monday, September 21, 2026, not selected
+gridcell, Tuesday, September 22, 2026, not selected
+22
+end of gridcell, Tuesday, September 22, 2026, not selected
+gridcell, Wednesday, September 23, 2026, not selected
+23
+end of gridcell, Wednesday, September 23, 2026, not selected
+gridcell, Thursday, September 24, 2026, current date, not selected
+24
+end of gridcell, Thursday, September 24, 2026, current date, not selected
+gridcell, Friday, September 25, 2026, not selected
+25
+end of gridcell, Friday, September 25, 2026, not selected
+gridcell, Saturday, September 26, 2026, not selected
+26
+end of gridcell, Saturday, September 26, 2026, not selected
+gridcell, Sunday, September 27, 2026, not selected
+27
+end of gridcell, Sunday, September 27, 2026, not selected
+end of row, Monday, September 21, 2026 Tuesday, September 22, 2026 Wednesday, September 23, 2026 Thursday, September 24, 2026 Friday, September 25, 2026 Saturday, September 26, 2026 Sunday, September 27, 2026
+row, Monday, September 28, 2026 Tuesday, September 29, 2026 Wednesday, September 30, 2026 Thursday, October 1, 2026 Friday, October 2, 2026 Saturday, October 3, 2026 Sunday, October 4, 2026
+gridcell, Monday, September 28, 2026, not selected
+28
+end of gridcell, Monday, September 28, 2026, not selected
+gridcell, Tuesday, September 29, 2026, not selected
+29
+end of gridcell, Tuesday, September 29, 2026, not selected
+gridcell, Wednesday, September 30, 2026, not selected
+30
+end of gridcell, Wednesday, September 30, 2026, not selected
+gridcell, Thursday, October 1, 2026, not selected
+1
+end of gridcell, Thursday, October 1, 2026, not selected
+gridcell, Friday, October 2, 2026, not selected
+2
+end of gridcell, Friday, October 2, 2026, not selected
+gridcell, Saturday, October 3, 2026, not selected
+3
+end of gridcell, Saturday, October 3, 2026, not selected
+gridcell, Sunday, October 4, 2026, not selected
+4
+end of gridcell, Sunday, October 4, 2026, not selected
+end of row, Monday, September 28, 2026 Tuesday, September 29, 2026 Wednesday, September 30, 2026 Thursday, October 1, 2026 Friday, October 2, 2026 Saturday, October 3, 2026 Sunday, October 4, 2026
+row, Monday, October 5, 2026 Tuesday, October 6, 2026 Wednesday, October 7, 2026 Thursday, October 8, 2026 Friday, October 9, 2026 Saturday, October 10, 2026 Sunday, October 11, 2026
+gridcell, Monday, October 5, 2026, not selected
+5
+end of gridcell, Monday, October 5, 2026, not selected
+gridcell, Tuesday, October 6, 2026, not selected
+6
+end of gridcell, Tuesday, October 6, 2026, not selected
+gridcell, Wednesday, October 7, 2026, not selected
+7
+end of gridcell, Wednesday, October 7, 2026, not selected
+gridcell, Thursday, October 8, 2026, not selected
+8
+end of gridcell, Thursday, October 8, 2026, not selected
+gridcell, Friday, October 9, 2026, not selected
+9
+end of gridcell, Friday, October 9, 2026, not selected
+gridcell, Saturday, October 10, 2026, not selected
+10
+end of gridcell, Saturday, October 10, 2026, not selected
+gridcell, Sunday, October 11, 2026, not selected
+11
+end of gridcell, Sunday, October 11, 2026, not selected
+end of row, Monday, October 5, 2026 Tuesday, October 6, 2026 Wednesday, October 7, 2026 Thursday, October 8, 2026 Friday, October 9, 2026 Saturday, October 10, 2026 Sunday, October 11, 2026
+end of rowgroup
+end of grid, September 2026, multi-selectable
+end of group, Dates of stay
+heading, TimePicker, level 2
+paragraph
+Spinbuttons that can be typed as well as stepped. Each field announces the whole time rather than its own digits, because a reader moving the hour wants to hear where that put the time.
+end of paragraph
+group, Arrival time
+spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+9
+end of spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+30
+end of spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+button, AM or PM
+AM
+end of button, AM or PM
+end of group, Arrival time

@@ -1,0 +1,15 @@
+heading, TimePicker, level 2
+paragraph
+Spinbuttons that can be typed as well as stepped. Each field announces the whole time rather than its own digits, because a reader moving the hour wants to hear where that put the time.
+end of paragraph
+group, Arrival time
+spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+9
+end of spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+30
+end of spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+button, AM or PM
+AM
+end of button, AM or PM
+end of group, Arrival time

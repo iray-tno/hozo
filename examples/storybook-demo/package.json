@@ -15,6 +15,7 @@
     "@hozo/behaviors": "workspace:*",
     "@hozo/core": "workspace:*",
     "@hozo/engine": "workspace:*",
+    "@hozo/form": "workspace:*",
     "@hozo/patterns": "workspace:*",
     "@hozo/primitives": "workspace:*",
     "@hozo/rn-compat": "workspace:*",

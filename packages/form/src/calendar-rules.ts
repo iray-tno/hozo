@@ -13,8 +13,11 @@
  * by `count`, and a calendar's arrows leave the rendered month: pressing
  * Down on the 29th of September lands on the 6th of October, which is not
  * in the list. The domain is unbounded, so the arithmetic is date
- * arithmetic. `RovingFocus` still owns the tab-stop bookkeeping for the
- * cells that *are* rendered.
+ * arithmetic, and the grid keeps its own single tab stop rather than
+ * borrowing `RovingFocus`'s -- the state that would be borrowed is indexed
+ * by position in a list the days do not form. #148's composition diagram
+ * lists `RovingFocus` and this comment used to agree with it; both were
+ * wrong, and the RFC has been corrected.
  */
 
 /** Days are 86400000ms apart in UTC, where no offset ever changes. */
