@@ -26,6 +26,7 @@ import {
   type Plane,
   type Points,
   type PointsMaterial,
+  RepeatWrapping,
   type Scene,
   type SkinnedMesh,
   type Sprite,
@@ -704,8 +705,8 @@ function textureReason(texture: Texture, usesGeometryChannel = false): string | 
   ) {
     return 'texture channel must select uv, uv1, uv2, or uv3'
   }
-  if (texture.wrapS !== ClampToEdgeWrapping || texture.wrapT !== ClampToEdgeWrapping) {
-    return 'repeating texture seams are not projected by the affine portable backend'
+  if (!textureWrap(texture)) {
+    return 'texture wrapping must clamp or repeat on both axes; mixed and mirrored wrapping are not projected'
   }
   if (texture.colorSpace !== SRGBColorSpace) {
     return 'colour textures need SRGBColorSpace for portable Canvas sampling'
@@ -713,6 +714,18 @@ function textureReason(texture: Texture, usesGeometryChannel = false): string | 
   if (texture.premultiplyAlpha) return 'premultiplied texture alpha is not projected'
   if (!textureSource(texture)) return 'texture source needs a URL, URI, or Native asset ID'
   return undefined
+}
+
+function textureWrap(texture: Texture): 'clamp' | 'repeat' | undefined {
+  if (texture.wrapS === ClampToEdgeWrapping && texture.wrapT === ClampToEdgeWrapping) {
+    return 'clamp'
+  }
+  if (texture.wrapS === RepeatWrapping && texture.wrapT === RepeatWrapping) return 'repeat'
+  return undefined
+}
+
+function textureWrapProps(texture: Texture): { wrap?: 'repeat' } {
+  return textureWrap(texture) === 'repeat' ? { wrap: 'repeat' } : {}
 }
 
 function textureAttributeName(texture: Texture): `uv${string}` {
@@ -724,10 +737,8 @@ function portableTexturePoint(texture: Texture, x: number, y: number): Vector2 |
   if (
     !Number.isFinite(coordinate.x) ||
     !Number.isFinite(coordinate.y) ||
-    coordinate.x < 0 ||
-    coordinate.x > 1 ||
-    coordinate.y < 0 ||
-    coordinate.y > 1
+    (textureWrap(texture) === 'clamp' &&
+      (coordinate.x < 0 || coordinate.x > 1 || coordinate.y < 0 || coordinate.y > 1))
   ) {
     return undefined
   }
@@ -740,10 +751,8 @@ function portablePointTexturePoint(texture: Texture, x: number, y: number): Vect
   if (
     !Number.isFinite(coordinate.x) ||
     !Number.isFinite(coordinate.y) ||
-    coordinate.x < 0 ||
-    coordinate.x > 1 ||
-    coordinate.y < 0 ||
-    coordinate.y > 1
+    (textureWrap(texture) === 'clamp' &&
+      (coordinate.x < 0 || coordinate.x > 1 || coordinate.y < 0 || coordinate.y > 1))
   ) {
     return undefined
   }
@@ -950,6 +959,7 @@ function projectThreeSceneInternal(
               y: (coordinate as Vector2).y,
             })),
             filter: background.magFilter === NearestFilter ? 'nearest' : 'linear',
+            ...textureWrapProps(background),
           },
           vertices: [
             { x: 0, y: 0 },
@@ -1202,6 +1212,7 @@ function projectThreeSceneInternal(
                         y: texture.y,
                       })),
                       filter: spriteMap.magFilter === NearestFilter ? 'nearest' : 'linear',
+                      ...textureWrapProps(spriteMap),
                     },
                     vertices: points.map(({ x, y }) => ({ x, y })),
                     ...projectedOpacityProps(spriteMaterial),
@@ -1570,6 +1581,7 @@ function projectThreeSceneInternal(
                         y: (coordinate as Vector2).y,
                       })),
                       filter: pointMap.magFilter === NearestFilter ? 'nearest' : 'linear',
+                      ...textureWrapProps(pointMap),
                     },
                     vertices: [
                       { x: projected.x - radius, y: projected.y - radius },
@@ -2088,6 +2100,7 @@ function projectThreeSceneInternal(
                             return { x: coordinate.x, y: coordinate.y }
                           }),
                           filter: map.magFilter === NearestFilter ? 'nearest' : 'linear',
+                          ...textureWrapProps(map),
                         },
                         vertices: projected.map(({ x, y }) => ({ x, y })),
                         ...projectedOpacityProps(range.material),

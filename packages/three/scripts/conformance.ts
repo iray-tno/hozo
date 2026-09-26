@@ -387,10 +387,11 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'textures and UV sampling',
     'partial',
-    'Clamped sRGB mesh, sprite, and point-sprite colour maps use affine Canvas sampling; repeat seams, modulation, mipmaps, and other texture roles stay diagnostic.',
+    'Clamped or two-axis repeated sRGB mesh, sprite, point-sprite, and 2D background colour maps use affine Canvas sampling; mixed/mirrored wrapping, modulation, mipmaps, and other texture roles stay diagnostic.',
     {
       tests: [
         project('MeshBasicMaterial map and UVs become a portable textured triangle'),
+        project('RepeatWrapping preserves out-of-range UVs for portable tiling'),
         project('mesh clipping interpolates texture coordinates at generated edges'),
         project('SpriteMaterial map preserves billboard UVs through clipping'),
         project('unsupported MeshBasicMaterial features emit diagnostics'),
