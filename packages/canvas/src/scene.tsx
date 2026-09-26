@@ -413,9 +413,10 @@ export type CanvasTextureSource = string | number | { uri?: string; default?: st
 
 export interface CanvasMeshTexture {
   source: CanvasTextureSource
-  /** One normalized top-left coordinate per vertex. */
+  /** One top-left coordinate per vertex. One unit is one image tile. */
   coordinates: readonly CanvasPoint[]
   filter?: 'linear' | 'nearest'
+  wrap?: 'clamp' | 'repeat'
 }
 
 export interface TriangleMeshProps extends CanvasInteractionProps {
@@ -448,18 +449,17 @@ export function triangleMeshColorCss(color: CanvasVertexColor, alpha = 1): strin
   return `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${alpha})`
 }
 
-/** A finite normalized top-left texture coordinate. */
+/** A finite top-left texture coordinate, bounded to one tile when clamped. */
 export function triangleMeshTextureCoordinate(
   coordinate: CanvasPoint | undefined,
+  wrap: CanvasMeshTexture['wrap'] = 'clamp',
 ): CanvasPoint | undefined {
   if (
     !coordinate ||
     !Number.isFinite(coordinate.x) ||
     !Number.isFinite(coordinate.y) ||
-    coordinate.x < 0 ||
-    coordinate.x > 1 ||
-    coordinate.y < 0 ||
-    coordinate.y > 1
+    (wrap === 'clamp' &&
+      (coordinate.x < 0 || coordinate.x > 1 || coordinate.y < 0 || coordinate.y > 1))
   ) {
     return undefined
   }
@@ -512,9 +512,9 @@ export function triangleMeshIndices(props: TriangleMeshProps): number[] {
     }
     if (
       props.texture &&
-      (!triangleMeshTextureCoordinate(props.texture.coordinates[a]) ||
-        !triangleMeshTextureCoordinate(props.texture.coordinates[b]) ||
-        !triangleMeshTextureCoordinate(props.texture.coordinates[c]))
+      (!triangleMeshTextureCoordinate(props.texture.coordinates[a], props.texture.wrap) ||
+        !triangleMeshTextureCoordinate(props.texture.coordinates[b], props.texture.wrap) ||
+        !triangleMeshTextureCoordinate(props.texture.coordinates[c], props.texture.wrap))
     ) {
       continue
     }

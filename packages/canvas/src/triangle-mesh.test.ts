@@ -58,6 +58,24 @@ test('triangle meshes share one validation rule for indexed and consecutive trip
       vertices,
       texture: {
         source: '/texture.png',
+        wrap: 'repeat',
+        coordinates: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+          { x: 2, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 1 },
+        ],
+      },
+    }),
+    [0, 1, 2, 3, 4, 5],
+  )
+  assert.deepEqual(
+    triangleMeshIndices({
+      vertices,
+      texture: {
+        source: '/texture.png',
         coordinates: [
           { x: 0, y: 0 },
           { x: 1, y: 0 },
@@ -268,6 +286,62 @@ test('Canvas 2D maps a decoded texture affinely into each triangle', () => {
   const drawImage = calls.find((call) => call[0] === 'drawImage')
   assert.equal(drawImage?.[1], image)
   assert.deepEqual(drawImage?.slice(2), [0, 0, 100, 50])
+})
+
+test('Canvas 2D repeats a texture pattern for coordinates outside one tile', () => {
+  const calls: Array<readonly unknown[]> = []
+  const pattern = {} as CanvasPattern
+  const context = new Proxy(
+    {
+      globalAlpha: 1,
+      createPattern(image: CanvasImageSource, repetition: string) {
+        calls.push(['createPattern', image, repetition])
+        return pattern
+      },
+    } as Record<string, unknown>,
+    {
+      get(target, property) {
+        if (property in target) return target[property as string]
+        return (...args: unknown[]) => calls.push([property, ...args])
+      },
+      set(target, property, value) {
+        target[property as string] = value
+        calls.push([`set:${String(property)}`, value])
+        return true
+      },
+    },
+  ) as unknown as CanvasRenderingContext2D
+  const image = { width: 100, height: 50 } as unknown as CanvasImageSource
+  const scene: CanvasScene = [
+    {
+      kind: 'triangle-mesh',
+      props: {
+        vertices: vertices.slice(0, 3),
+        texture: {
+          source: '/tiles.png',
+          wrap: 'repeat',
+          coordinates: [
+            { x: -1, y: 0 },
+            { x: 2, y: 0 },
+            { x: -1, y: 1 },
+          ],
+        },
+      },
+    },
+  ]
+
+  renderCanvas2D(context, scene, { width: 20, height: 20, pixelRatio: 1 }, () => image)
+
+  assert.deepEqual(
+    calls.find((call) => call[0] === 'createPattern'),
+    ['createPattern', image, 'repeat'],
+  )
+  assert.ok(calls.some((call) => call[0] === 'set:fillStyle' && call[1] === pattern))
+  assert.ok(calls.some((call) => call[0] === 'fill'))
+  assert.equal(
+    calls.some((call) => call[0] === 'drawImage'),
+    false,
+  )
 })
 
 test('triangle mesh hit testing follows faces rather than their combined bounds', () => {

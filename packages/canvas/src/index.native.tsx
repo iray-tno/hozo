@@ -162,7 +162,7 @@ function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
   const textures =
     texture && image
       ? texture.coordinates.map((coordinate) => {
-          const normalized = triangleMeshTextureCoordinate(coordinate)
+          const normalized = triangleMeshTextureCoordinate(coordinate, texture.wrap)
           return normalized
             ? { x: normalized.x * image.width(), y: normalized.y * image.height() }
             : { x: 0, y: 0 }
@@ -182,8 +182,8 @@ function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
         <SkiaImageShader
           image={image}
           fit="none"
-          tx="clamp"
-          ty="clamp"
+          tx={texture.wrap ?? 'clamp'}
+          ty={texture.wrap ?? 'clamp'}
           sampling={{
             filter: texture.filter === 'nearest' ? FilterMode.Nearest : FilterMode.Linear,
           }}
