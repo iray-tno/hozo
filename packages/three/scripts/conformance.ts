@@ -252,7 +252,6 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'MeshDistanceMaterial',
     'MeshLambertMaterial',
     'MeshMatcapMaterial',
-    'MeshNormalMaterial',
     'MeshPhongMaterial',
     'MeshPhysicalMaterial',
     'MeshStandardMaterial',
@@ -271,6 +270,19 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
         tests: [project('unsupported mesh material classes emit diagnostics')],
       },
     ),
+  ),
+  row(
+    'material',
+    'MeshNormalMaterial',
+    'partial',
+    'Smooth and flat view-space normals become portable vertex colours for ordinary meshes; normal/bump/displacement maps, wireframe, skinning, instancing, and active morphs stay diagnostic.',
+    {
+      upstream: upstream('material', 'MeshNormalMaterial'),
+      tests: [
+        project('MeshNormalMaterial projects smooth and flat view-space normals'),
+        project('non-portable MeshNormalMaterial features stay diagnostic'),
+      ],
+    },
   ),
   row(
     'material',

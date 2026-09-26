@@ -21,9 +21,11 @@ import {
   type LineDashedMaterial,
   type LOD,
   type Material,
+  Matrix3,
   Matrix4,
   Mesh,
   type MeshBasicMaterial,
+  type MeshNormalMaterial,
   NearestFilter,
   NormalBlending,
   type Object3D,
@@ -698,6 +700,17 @@ function materialReason(material: MeshBasicMaterial): string | undefined {
   return undefined
 }
 
+function normalMaterialReason(material: MeshNormalMaterial): string | undefined {
+  const baseReason = baseMaterialReason(material)
+  if (baseReason) return baseReason
+  if (!Number.isFinite(material.opacity)) return 'material opacity must be finite'
+  if (material.bumpMap || material.normalMap || material.displacementMap) {
+    return 'MeshNormalMaterial texture perturbation needs per-fragment sampling'
+  }
+  if (material.wireframe) return 'MeshNormalMaterial wireframe is not projected yet'
+  return undefined
+}
+
 function textureSource(texture: Texture): CanvasTextureSource | undefined {
   const source = texture.source.data as unknown
   if (typeof source === 'string' || typeof source === 'number') return source
@@ -796,6 +809,20 @@ function canvasVertexColor(color: Color, alpha?: number) {
   const value = { r: 0, g: 0, b: 0 }
   color.getRGB(value, SRGBColorSpace)
   return alpha === undefined ? value : { ...value, a: alpha }
+}
+
+function packedNormalColor(normal: Vector3, flipped = false): Color {
+  const direction = normal.clone().normalize()
+  if (flipped) direction.negate()
+  return new Color().setRGB(
+    direction.x * 0.5 + 0.5,
+    direction.y * 0.5 + 0.5,
+    direction.z * 0.5 + 0.5,
+  )
+}
+
+function flipPackedNormalColor(color: Color): Color {
+  return new Color().setRGB(1 - color.r, 1 - color.g, 1 - color.b)
 }
 
 function canvasColorCss(color: Color, alpha?: number): string {
@@ -1710,6 +1737,151 @@ function projectThreeSceneInternal(
         message: 'BufferGeometry needs a position attribute with three components.',
         object,
       })
+      return
+    }
+    const directMaterial = Array.isArray(mesh.material)
+      ? undefined
+      : effectiveMaterial(mesh.material, scene.overrideMaterial)
+    if (
+      (directMaterial as Partial<MeshNormalMaterial> | undefined)?.isMeshNormalMaterial === true
+    ) {
+      const material = directMaterial as MeshNormalMaterial
+      const reason = normalMaterialReason(material)
+      if (reason) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: reason,
+          object,
+        })
+        return
+      }
+      if (!passesUniformAlphaTest(material)) return
+      if (
+        batchedMesh ||
+        instancedMesh ||
+        skinnedMesh ||
+        mesh.morphTargetInfluences?.some((influence) => influence !== 0)
+      ) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MESH',
+          message:
+            'Portable MeshNormalMaterial currently accepts non-instanced, non-skinned meshes without active morphs.',
+          object,
+        })
+        return
+      }
+      const normal = mesh.geometry.getAttribute('normal')
+      if (
+        !material.flatShading &&
+        (!normal || normal.itemSize < 3 || normal.count < position.count)
+      ) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message: 'Smooth MeshNormalMaterial needs one three-component normal per vertex.',
+          object,
+        })
+        return
+      }
+      const index = mesh.geometry.getIndex()
+      const available = index?.count ?? position.count
+      const start = Math.max(0, Math.floor(mesh.geometry.drawRange.start))
+      const requested = mesh.geometry.drawRange.count
+      const end = Math.min(
+        available,
+        Number.isFinite(requested) ? Math.floor(start + requested) : available,
+      )
+      const modelView = new Matrix4().multiplyMatrices(camera.matrixWorldInverse, mesh.matrixWorld)
+      const normalMatrix = new Matrix3().getNormalMatrix(modelView)
+      const materialPlanes = (material.clippingPlanes ?? []) as readonly Plane[]
+      for (let offset = start; offset + 2 < end; offset += 3) {
+        const vertexIndices = [
+          index ? index.getX(offset) : offset,
+          index ? index.getX(offset + 1) : offset + 1,
+          index ? index.getX(offset + 2) : offset + 2,
+        ] as const
+        const worldPositions = vertexIndices.map((vertexIndex) =>
+          localPosition(position, vertexIndex, undefined).applyMatrix4(mesh.matrixWorld),
+        ) as unknown as readonly [Vector4, Vector4, Vector4]
+        let sourceColors: readonly [Color, Color, Color]
+        if (material.flatShading) {
+          const viewPositions = worldPositions.map((point) =>
+            new Vector3(point.x, point.y, point.z).applyMatrix4(camera.matrixWorldInverse),
+          )
+          const edgeA = (viewPositions[1] as Vector3).clone().sub(viewPositions[0] as Vector3)
+          const edgeB = (viewPositions[2] as Vector3).clone().sub(viewPositions[0] as Vector3)
+          const faceNormal = edgeA.cross(edgeB)
+          if (faceNormal.lengthSq() === 0) continue
+          const color = packedNormalColor(faceNormal, material.side === BackSide)
+          sourceColors = [color, color, color]
+        } else {
+          sourceColors = vertexIndices.map((vertexIndex) => {
+            const transformed = new Vector3(
+              normal?.getX(vertexIndex) ?? 0,
+              normal?.getY(vertexIndex) ?? 0,
+              normal?.getZ(vertexIndex) ?? 0,
+            ).applyMatrix3(normalMatrix)
+            return packedNormalColor(transformed, material.side === BackSide)
+          }) as unknown as readonly [Color, Color, Color]
+        }
+        const materialPolygons = clippedMaterialColouredPolygons(
+          worldPositions.map((position, indexInTriangle) => ({
+            color: (sourceColors[indexInTriangle] as Color).clone(),
+            position,
+          })),
+          materialPlanes,
+          material.clipIntersection,
+        )
+        for (const materialPolygon of materialPolygons) {
+          const polygon = clippedColouredPolygon(
+            materialPolygon.map(({ color, position }) => ({
+              color,
+              position: position.clone().applyMatrix4(viewProjection),
+            })),
+          )
+          if (polygon.length < 3) continue
+          for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
+            const first = polygon[0]
+            const second = polygon[fan]
+            const third = polygon[fan + 1]
+            if (!first || !second || !third) continue
+            const clipTriangle = [first, second, third] as const
+            const points = clipTriangle.map(({ position }) =>
+              projectedPoint(position, options.width, options.height),
+            )
+            if (points.some((point) => point === undefined)) continue
+            const projected = points as { x: number; y: number; z: number }[]
+            const area = signedArea(projected) * (mesh.matrixWorld.determinant() < 0 ? -1 : 1)
+            if (area === 0) continue
+            if (
+              material.side !== DoubleSide &&
+              (material.side === BackSide ? area < 0 : area > 0)
+            ) {
+              continue
+            }
+            const flipDoubleSidedBackFace = material.side === DoubleSide && area > 0
+            primitives.push({
+              depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
+              groupOrder,
+              object,
+              order: order++,
+              renderOrder: object.renderOrder,
+              transparent: material.transparent,
+              node: {
+                kind: 'triangle-mesh',
+                props: {
+                  colors: clipTriangle.map(({ color }) =>
+                    canvasVertexColor(
+                      flipDoubleSidedBackFace ? flipPackedNormalColor(color) : color,
+                    ),
+                  ),
+                  vertices: projected.map(({ x, y }) => ({ x, y })),
+                  ...projectedOpacityProps(material),
+                },
+              },
+            })
+          }
+        }
+      }
       return
     }
     const vertexColor = mesh.geometry.getAttribute('color')
