@@ -1,0 +1,14 @@
+heading, Accessible Modal Dialog (@hozo/patterns), level 2
+paragraph
+Native HTML <dialog> modal with focus trapping, keyboard Escape handling, and focus restoration to opener button.
+end of paragraph
+button, Open Confirmation Dialog
+dialog, Confirm Deployment
+dialog, Confirm Deployment
+heading, Confirm Operation, level 3
+paragraph
+Are you sure you want to deploy the universal Hozo UI compiler to production?
+end of paragraph
+button, Cancel
+button, Confirm
+end of dialog, Confirm Deployment

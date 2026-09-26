@@ -100,8 +100,17 @@ const ids = Object.values(index.entries)
 // another realm would walk nothing.
 const bundle = await build({
   stdin: {
-    contents:
-      "import { virtual } from '@guidepup/virtual-screen-reader/browser.js'\nwindow.__hozoVirtual = virtual\n",
+    // The walk goes in with the reader, so the rule that decides when a story
+    // has ended lives in a file Node can import and test rather than inside
+    // the template literal below. Both land on the frame's own window,
+    // because that is where the script is injected.
+    contents: [
+      "import { virtual } from '@guidepup/virtual-screen-reader/browser.js'",
+      "import { walk } from './utterance-walk.mjs'",
+      'window.__hozoVirtual = virtual',
+      'window.__hozoWalk = walk',
+      '',
+    ].join('\n'),
     resolveDir: here,
     sourcefile: 'virtual-screen-reader-entry.mjs',
   },
@@ -141,27 +150,14 @@ async function read(frame) {
     container: doc.getElementById('storybook-root') || doc.body,
     window: frame.contentWindow,
   })
-  const first = reader.activeNode
-  const opening = (await reader.spokenPhraseLog())[0]
-  let finished = false
-  for (let steps = 0; steps < MAX_STEPS; steps++) {
-    const before = (await reader.spokenPhraseLog()).length
-    await reader.next()
-    const log = await reader.spokenPhraseLog()
-    // Inside a container rather than a whole document there is no closing
-    // "end of document": the cursor wraps to the first item and says it
-    // again. Back on the first node, saying the first phrase, is the end --
-    // and that repeat is not part of the reading order.
-    if (reader.activeNode === first && log[log.length - 1] === opening && log.length > 1) {
-      finished = true
-      await reader.stop()
-      return { log: log.slice(0, before), finished }
-    }
-    if (log.length === before) { finished = true; break }
-  }
-  const log = await reader.spokenPhraseLog()
+  // The rule for when a story has ended is in \`utterance-walk.mjs\`, tested
+  // there against a fake reader. In short: stop when a node says the same
+  // thing twice, because there is no closing "end of document" and the cycle
+  // does not have to close where it opened -- an open \`aria-modal\` dialog
+  // confines the cursor and it never returns to the start at all.
+  const result = await frame.contentWindow.__hozoWalk(reader, MAX_STEPS)
   await reader.stop()
-  return { log, finished }
+  return result
 }
 async function run() {
   const frame = document.getElementById('f')
