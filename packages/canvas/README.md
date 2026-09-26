@@ -49,11 +49,12 @@ Vertex colours use normalized sRGB channels and replace the uniform `fill`.
 Skia interpolates them through `Vertices`; Canvas 2D composes three bounded
 barycentric ramps per face, avoiding contrast-dependent tessellation.
 
-Meshes can instead map an image with one normalized, top-left texture
-coordinate per vertex. Web loads a URL; Native accepts the same URI form or a
-local asset ID. The initial portable contract clamps at image edges and uses
-affine interpolation per triangle. It does not yet combine a texture with
-vertex colours or provide perspective-correct sampling.
+Meshes can instead map an image with one top-left texture coordinate per
+vertex, where one unit spans one image tile. Web loads a URL; Native accepts
+the same URI form or a local asset ID. Sampling clamps at image edges by
+default; `wrap: 'repeat'` tiles on both axes and permits coordinates outside
+0..1. Both modes use affine interpolation per triangle. Textures do not yet
+combine with vertex colours or provide perspective-correct sampling.
 
 ```tsx
 <Canvas.TriangleMesh

@@ -204,6 +204,7 @@ function fillTexturedTriangle(
   ],
   image: CanvasImageSource,
   filter: 'linear' | 'nearest',
+  wrap: 'clamp' | 'repeat',
 ) {
   const dimensions = imageDimensions(image)
   if (!dimensions) return
@@ -250,7 +251,16 @@ function fillTexturedTriangle(
     horizontal.offset,
     vertical.offset,
   )
-  context.drawImage(image, 0, 0, dimensions.width, dimensions.height)
+  if (wrap === 'repeat') {
+    const pattern = context.createPattern(image, 'repeat')
+    if (pattern) {
+      context.fillStyle = pattern
+      trianglePath(context, ta, tb, tc)
+      context.fill()
+    }
+  } else {
+    context.drawImage(image, 0, 0, dimensions.width, dimensions.height)
+  }
   context.restore()
 }
 
@@ -395,12 +405,15 @@ function drawNode(
           if (texture && image) {
             const textureA = triangleMeshTextureCoordinate(
               texture.coordinates[indices[offset] as number],
+              texture.wrap,
             )
             const textureB = triangleMeshTextureCoordinate(
               texture.coordinates[indices[offset + 1] as number],
+              texture.wrap,
             )
             const textureC = triangleMeshTextureCoordinate(
               texture.coordinates[indices[offset + 2] as number],
+              texture.wrap,
             )
             if (!textureA || !textureB || !textureC) continue
             fillTexturedTriangle(
@@ -409,6 +422,7 @@ function drawNode(
               [textureA, textureB, textureC],
               image,
               texture.filter ?? 'linear',
+              texture.wrap ?? 'clamp',
             )
           } else if (node.props.colors) {
             const colorA = triangleMeshColor(node.props.colors[indices[offset] as number])
