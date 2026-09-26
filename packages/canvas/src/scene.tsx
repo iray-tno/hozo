@@ -410,13 +410,19 @@ export interface CanvasVertexColor {
 }
 
 export type CanvasTextureSource = string | number | { uri?: string; default?: string }
+export type CanvasTextureWrap = 'clamp' | 'repeat'
 
 export interface CanvasMeshTexture {
   source: CanvasTextureSource
   /** One top-left coordinate per vertex. One unit is one image tile. */
   coordinates: readonly CanvasPoint[]
   filter?: 'linear' | 'nearest'
-  wrap?: 'clamp' | 'repeat'
+  /** Default wrapping for both axes. */
+  wrap?: CanvasTextureWrap
+  /** Horizontal override, matching texture S/U coordinates. */
+  wrapX?: CanvasTextureWrap
+  /** Vertical override, matching texture T/V coordinates. */
+  wrapY?: CanvasTextureWrap
 }
 
 export interface TriangleMeshProps extends CanvasInteractionProps {
@@ -452,18 +458,26 @@ export function triangleMeshColorCss(color: CanvasVertexColor, alpha = 1): strin
 /** A finite top-left texture coordinate, bounded to one tile when clamped. */
 export function triangleMeshTextureCoordinate(
   coordinate: CanvasPoint | undefined,
-  wrap: CanvasMeshTexture['wrap'] = 'clamp',
+  wrapX: CanvasTextureWrap = 'clamp',
+  wrapY: CanvasTextureWrap = wrapX,
 ): CanvasPoint | undefined {
   if (
     !coordinate ||
     !Number.isFinite(coordinate.x) ||
     !Number.isFinite(coordinate.y) ||
-    (wrap === 'clamp' &&
-      (coordinate.x < 0 || coordinate.x > 1 || coordinate.y < 0 || coordinate.y > 1))
+    (wrapX === 'clamp' && (coordinate.x < 0 || coordinate.x > 1)) ||
+    (wrapY === 'clamp' && (coordinate.y < 0 || coordinate.y > 1))
   ) {
     return undefined
   }
   return coordinate
+}
+
+/** The resolved per-axis wrapping used by both renderers. */
+export function canvasMeshTextureWrap(
+  texture: CanvasMeshTexture,
+): readonly [CanvasTextureWrap, CanvasTextureWrap] {
+  return [texture.wrapX ?? texture.wrap ?? 'clamp', texture.wrapY ?? texture.wrap ?? 'clamp']
 }
 
 /** The URI a browser can load, absent for a Native-only numeric asset ID. */
@@ -510,13 +524,15 @@ export function triangleMeshIndices(props: TriangleMeshProps): number[] {
     ) {
       continue
     }
-    if (
-      props.texture &&
-      (!triangleMeshTextureCoordinate(props.texture.coordinates[a], props.texture.wrap) ||
-        !triangleMeshTextureCoordinate(props.texture.coordinates[b], props.texture.wrap) ||
-        !triangleMeshTextureCoordinate(props.texture.coordinates[c], props.texture.wrap))
-    ) {
-      continue
+    if (props.texture) {
+      const [wrapX, wrapY] = canvasMeshTextureWrap(props.texture)
+      if (
+        !triangleMeshTextureCoordinate(props.texture.coordinates[a], wrapX, wrapY) ||
+        !triangleMeshTextureCoordinate(props.texture.coordinates[b], wrapX, wrapY) ||
+        !triangleMeshTextureCoordinate(props.texture.coordinates[c], wrapX, wrapY)
+      ) {
+        continue
+      }
     }
     result.push(a, b, c)
   }

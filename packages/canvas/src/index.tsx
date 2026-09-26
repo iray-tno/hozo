@@ -64,6 +64,7 @@ export type {
   CanvasScene,
   CanvasSceneNode,
   CanvasTextureSource,
+  CanvasTextureWrap,
   CanvasTransform,
   CircleProps,
   ClipProps,

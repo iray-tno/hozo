@@ -76,6 +76,24 @@ test('triangle meshes share one validation rule for indexed and consecutive trip
       vertices,
       texture: {
         source: '/texture.png',
+        wrapX: 'repeat',
+        coordinates: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+          { x: 2, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 1 },
+        ],
+      },
+    }),
+    [0, 1, 2, 3, 4, 5],
+  )
+  assert.deepEqual(
+    triangleMeshIndices({
+      vertices,
+      texture: {
+        source: '/texture.png',
         coordinates: [
           { x: 0, y: 0 },
           { x: 1, y: 0 },
@@ -341,6 +359,54 @@ test('Canvas 2D repeats a texture pattern for coordinates outside one tile', () 
   assert.equal(
     calls.some((call) => call[0] === 'drawImage'),
     false,
+  )
+})
+
+test('Canvas 2D repeats only the requested texture axis', () => {
+  const calls: Array<readonly unknown[]> = []
+  const context = new Proxy(
+    {
+      globalAlpha: 1,
+      createPattern(image: CanvasImageSource, repetition: string) {
+        calls.push(['createPattern', image, repetition])
+        return {} as CanvasPattern
+      },
+    } as Record<string, unknown>,
+    {
+      get(target, property) {
+        if (property in target) return target[property as string]
+        return (...args: unknown[]) => calls.push([property, ...args])
+      },
+      set(target, property, value) {
+        target[property as string] = value
+        return true
+      },
+    },
+  ) as unknown as CanvasRenderingContext2D
+  const image = { width: 100, height: 50 } as unknown as CanvasImageSource
+  const scene: CanvasScene = [
+    {
+      kind: 'triangle-mesh',
+      props: {
+        vertices: vertices.slice(0, 3),
+        texture: {
+          source: '/tiles.png',
+          wrapX: 'repeat',
+          coordinates: [
+            { x: -1, y: 0 },
+            { x: 2, y: 0 },
+            { x: -1, y: 1 },
+          ],
+        },
+      },
+    },
+  ]
+
+  renderCanvas2D(context, scene, { width: 20, height: 20, pixelRatio: 1 }, () => image)
+
+  assert.deepEqual(
+    calls.find((call) => call[0] === 'createPattern'),
+    ['createPattern', image, 'repeat-x'],
   )
 })
 

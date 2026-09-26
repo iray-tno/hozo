@@ -49,11 +49,13 @@ import {
   type CanvasScene,
   type CanvasSceneNode,
   Text as CanvasText,
+  type CanvasTextureWrap,
   type CanvasTransform,
   Circle,
   Clip,
   type ClipProps,
   canvasControls,
+  canvasMeshTextureWrap,
   canvasPressEvent,
   canvasUnreadableText,
   Ellipse,
@@ -98,6 +100,7 @@ export type {
   CanvasScene,
   CanvasSceneNode,
   CanvasTextureSource,
+  CanvasTextureWrap,
   CanvasTransform,
   CircleProps,
   ClipProps,
@@ -145,6 +148,9 @@ type TriangleMeshNode = Extract<CanvasSceneNode, { kind: 'triangle-mesh' }>
 
 function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
   const texture = node.props.texture
+  const [wrapX, wrapY]: readonly [CanvasTextureWrap, CanvasTextureWrap] = texture
+    ? canvasMeshTextureWrap(texture)
+    : ['clamp', 'clamp']
   const source = texture?.source
   const nativeSource =
     typeof source === 'string' || typeof source === 'number'
@@ -162,7 +168,7 @@ function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
   const textures =
     texture && image
       ? texture.coordinates.map((coordinate) => {
-          const normalized = triangleMeshTextureCoordinate(coordinate, texture.wrap)
+          const normalized = triangleMeshTextureCoordinate(coordinate, wrapX, wrapY)
           return normalized
             ? { x: normalized.x * image.width(), y: normalized.y * image.height() }
             : { x: 0, y: 0 }
@@ -182,8 +188,8 @@ function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
         <SkiaImageShader
           image={image}
           fit="none"
-          tx={texture.wrap ?? 'clamp'}
-          ty={texture.wrap ?? 'clamp'}
+          tx={wrapX}
+          ty={wrapY}
           sampling={{
             filter: texture.filter === 'nearest' ? FilterMode.Nearest : FilterMode.Linear,
           }}

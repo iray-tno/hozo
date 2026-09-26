@@ -52,8 +52,9 @@ barycentric ramps per face, avoiding contrast-dependent tessellation.
 Meshes can instead map an image with one top-left texture coordinate per
 vertex, where one unit spans one image tile. Web loads a URL; Native accepts
 the same URI form or a local asset ID. Sampling clamps at image edges by
-default; `wrap: 'repeat'` tiles on both axes and permits coordinates outside
-0..1. Both modes use affine interpolation per triangle. Textures do not yet
+default; `wrap: 'repeat'` tiles on both axes, while `wrapX` and `wrapY` can
+override either axis independently. Repeated axes permit coordinates outside
+0..1. All modes use affine interpolation per triangle. Textures do not yet
 combine with vertex colours or provide perspective-correct sampling.
 
 ```tsx
