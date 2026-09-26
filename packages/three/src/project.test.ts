@@ -1727,7 +1727,7 @@ test('uniform alphaTest omits every supported primitive only below its threshold
   assert.equal(projectedCount(0.5, 0.5), 4, 'Three.js discards below, not at, alphaTest')
 })
 
-test('RGBA vertex attributes diagnose instead of silently dropping alpha', () => {
+test('transparent RGBA vertex attributes preserve alpha across portable primitives', () => {
   const rgbaGeometry = () => {
     const geometry = triangleGeometry()
     geometry.setAttribute(
@@ -1736,10 +1736,89 @@ test('RGBA vertex attributes diagnose instead of silently dropping alpha', () =>
     )
     return geometry
   }
+
+  const meshResult = projectThreeScene(
+    new Scene().add(
+      new Mesh(rgbaGeometry(), new MeshBasicMaterial({ transparent: true, vertexColors: true })),
+    ),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+  assert.deepEqual(meshResult.diagnostics, [])
+  assert.deepEqual(
+    projectedMeshes(meshResult)[0]?.colors?.map(({ a }) => a),
+    [0.25, 0.5, 0.75],
+  )
+
+  const wireframeResult = projectThreeScene(
+    new Scene().add(
+      new Mesh(
+        rgbaGeometry(),
+        new MeshBasicMaterial({ transparent: true, vertexColors: true, wireframe: true }),
+      ),
+    ),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+  assert.deepEqual(wireframeResult.diagnostics, [])
+  const wireframeStroke = projectedLines(wireframeResult)[0]?.stroke
+  assert.equal(typeof wireframeStroke, 'object')
+  if (!wireframeStroke || typeof wireframeStroke === 'string') {
+    throw new Error('RGBA wireframe lost its gradient')
+  }
+  assert.deepEqual(
+    wireframeStroke.stops.map(({ color }) => color),
+    ['rgba(255, 0, 0, 0.25)', 'rgba(0, 255, 0, 0.5)'],
+  )
+
+  const lineResult = projectThreeScene(
+    new Scene().add(
+      new Line(rgbaGeometry(), new LineBasicMaterial({ transparent: true, vertexColors: true })),
+    ),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+  assert.deepEqual(lineResult.diagnostics, [])
+  const lineStroke = projectedLines(lineResult)[0]?.stroke
+  assert.equal(typeof lineStroke, 'object')
+  if (!lineStroke || typeof lineStroke === 'string') throw new Error('RGBA line lost its gradient')
+  assert.deepEqual(
+    lineStroke.stops.map(({ color }) => color),
+    ['rgba(255, 0, 0, 0.25)', 'rgba(0, 255, 0, 0.5)'],
+  )
+
+  const pointResult = projectThreeScene(
+    new Scene().add(
+      new Points(
+        rgbaGeometry(),
+        new PointsMaterial({
+          size: 2,
+          sizeAttenuation: false,
+          transparent: true,
+          vertexColors: true,
+        }),
+      ),
+    ),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+  assert.deepEqual(pointResult.diagnostics, [])
+  assert.deepEqual(
+    projectedCircles(pointResult).map(({ fill }) => fill),
+    ['rgba(255, 0, 0, 0.25)', 'rgba(0, 255, 0, 0.5)', 'rgba(0, 0, 255, 0.75)'],
+  )
+})
+
+test('opaque RGBA vertex attributes diagnose instead of changing blend semantics', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute(
+    'color',
+    new Float32BufferAttribute([1, 0, 0, 0.25, 0, 1, 0, 0.5, 0, 0, 1, 0.75], 4),
+  )
   const objects = [
-    new Mesh(rgbaGeometry(), new MeshBasicMaterial({ vertexColors: true })),
-    new Line(rgbaGeometry(), new LineBasicMaterial({ vertexColors: true })),
-    new Points(rgbaGeometry(), new PointsMaterial({ vertexColors: true })),
+    new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true })),
+    new Line(geometry, new LineBasicMaterial({ vertexColors: true })),
+    new Points(geometry, new PointsMaterial({ vertexColors: true })),
   ]
 
   for (const object of objects) {
@@ -1748,8 +1827,8 @@ test('RGBA vertex attributes diagnose instead of silently dropping alpha', () =>
       height: 100,
     })
     assert.deepEqual(result.scene, [])
-    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_GEOMETRY')
-    assert.match(result.diagnostics[0]?.message ?? '', /alpha/)
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+    assert.match(result.diagnostics[0]?.message ?? '', /transparent/)
   }
 })
 

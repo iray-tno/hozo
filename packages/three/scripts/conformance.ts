@@ -373,7 +373,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'vertex colours',
     'partial',
-    'Mesh, wireframe, line, and point RGB attributes work through portable interpolation, including clipped vertices. Filled mesh interpolation is screen-space rather than perspective-correct; RGBA attributes remain diagnosed.',
+    'Mesh, wireframe, line, and point RGB attributes work through portable interpolation, including clipped vertices. Transparent RGBA attributes also preserve vertex alpha; opaque RGBA and alpha-tested gradients stay diagnostic. Filled mesh interpolation is screen-space rather than perspective-correct.',
     {
       tests: [
         project('mesh vertex colours become a portable interpolated triangle'),
@@ -381,7 +381,8 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
         project('wireframe MeshBasicMaterial preserves RGB vertex colours as edge gradients'),
         project('PointsMaterial multiplies per-point RGB colours'),
         project('LineBasicMaterial projects clipped RGB vertex colours as a portable gradient'),
-        project('RGBA vertex attributes diagnose instead of silently dropping alpha'),
+        project('transparent RGBA vertex attributes preserve alpha across portable primitives'),
+        project('opaque RGBA vertex attributes diagnose instead of changing blend semantics'),
       ],
     },
   ),
