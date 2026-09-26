@@ -693,7 +693,7 @@ function textureSource(texture: Texture): CanvasTextureSource | undefined {
 }
 
 function textureReason(texture: Texture): string | undefined {
-  if (texture.mapping !== UVMapping) return 'MeshBasicMaterial.map needs UVMapping'
+  if (texture.mapping !== UVMapping) return 'portable colour textures need UVMapping'
   if (!Number.isInteger(texture.channel) || texture.channel < 0 || texture.channel > 3) {
     return 'texture channel must select uv, uv1, uv2, or uv3'
   }
@@ -712,15 +712,8 @@ function textureAttributeName(texture: Texture): `uv${string}` {
   return texture.channel === 0 ? 'uv' : `uv${texture.channel}`
 }
 
-function portableTextureCoordinate(
-  texture: Texture,
-  attribute: BufferAttribute | InterleavedBufferAttribute,
-  vertexIndex: number,
-): Vector2 | undefined {
-  const coordinate = new Vector2(
-    attribute.getX(vertexIndex),
-    attribute.getY(vertexIndex),
-  ).applyMatrix3(texture.matrix)
+function portableTexturePoint(texture: Texture, x: number, y: number): Vector2 | undefined {
+  const coordinate = new Vector2(x, y).applyMatrix3(texture.matrix)
   if (
     !Number.isFinite(coordinate.x) ||
     !Number.isFinite(coordinate.y) ||
@@ -733,6 +726,14 @@ function portableTextureCoordinate(
   }
   if (texture.flipY) coordinate.y = 1 - coordinate.y
   return coordinate
+}
+
+function portableTextureCoordinate(
+  texture: Texture,
+  attribute: BufferAttribute | InterleavedBufferAttribute,
+  vertexIndex: number,
+): Vector2 | undefined {
+  return portableTexturePoint(texture, attribute.getX(vertexIndex), attribute.getY(vertexIndex))
 }
 
 function canvasVertexColor(color: Color) {
@@ -771,7 +772,15 @@ function spriteMaterialReason(material: SpriteMaterial): string | undefined {
   const baseReason = baseMaterialReason(material)
   if (baseReason) return baseReason
   if (!Number.isFinite(material.opacity)) return 'sprite opacity must be finite'
-  if (material.map || material.alphaMap) return 'textured sprites are not projected yet'
+  if (material.alphaMap) return 'SpriteMaterial alphaMap needs per-pixel sampling'
+  if (material.map) {
+    const mapReason = textureReason(material.map)
+    if (mapReason) return mapReason
+    if (material.color.getHex() !== 0xffffff) {
+      return 'texture and sprite-colour modulation is not projected yet'
+    }
+    if (material.alphaTest > 0) return 'textured alphaTest needs per-pixel sampling'
+  }
   return undefined
 }
 
@@ -979,6 +988,16 @@ function projectThreeSceneInternal(
       if (!passesUniformAlphaTest(material as SpriteMaterial)) return
 
       const spriteMaterial = material as SpriteMaterial
+      const spriteMap = spriteMaterial.map
+      if (spriteMap && spriteMaterial.fog && scene.fog) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: 'texture and sprite fog modulation is not projected yet',
+          object,
+        })
+        return
+      }
+      if (spriteMap?.matrixAutoUpdate) spriteMap.updateMatrix()
       const modelView = new Matrix4().multiplyMatrices(
         camera.matrixWorldInverse,
         sprite.matrixWorld,
@@ -1009,6 +1028,23 @@ function projectThreeSceneInternal(
         [0.5, 0.5],
         [-0.5, 0.5],
       ] as const
+      const spriteTexture = spriteMap
+        ? [
+            portableTexturePoint(spriteMap, 0, 0),
+            portableTexturePoint(spriteMap, 1, 0),
+            portableTexturePoint(spriteMap, 1, 1),
+            portableTexturePoint(spriteMap, 0, 1),
+          ]
+        : undefined
+      if (spriteTexture?.some((coordinate) => coordinate === undefined)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message:
+            'sprite texture coordinates must remain finite and inside 0..1 after the texture transform',
+          object,
+        })
+        return
+      }
       const worldCorners = corners.map(([x, y]) => {
         const alignedX = (x - (sprite.center.x - 0.5)) * scaleX
         const alignedY = (y - (sprite.center.y - 0.5)) * scaleY
@@ -1019,26 +1055,50 @@ function projectThreeSceneInternal(
           1,
         ).applyMatrix4(camera.matrixWorld)
       })
-      const materialPolygons = clippedMaterialPolygons(
-        worldCorners,
-        (spriteMaterial.clippingPlanes ?? []) as readonly Plane[],
-        spriteMaterial.clipIntersection,
-      )
+      const materialPolygons = spriteTexture
+        ? clippedMaterialTexturedPolygons(
+            worldCorners.map((position, index) => ({
+              position,
+              texture: spriteTexture[index] as Vector2,
+            })),
+            (spriteMaterial.clippingPlanes ?? []) as readonly Plane[],
+            spriteMaterial.clipIntersection,
+          )
+        : clippedMaterialPolygons(
+            worldCorners,
+            (spriteMaterial.clippingPlanes ?? []) as readonly Plane[],
+            spriteMaterial.clipIntersection,
+          )
       for (const materialPolygon of materialPolygons) {
-        const polygon = clippedPolygon(
-          materialPolygon.map((point) => point.applyMatrix4(viewProjection)),
-        )
+        const polygon = spriteTexture
+          ? clippedTexturedPolygon(
+              (materialPolygon as TexturedVertex[]).map(({ position, texture }) => ({
+                position: position.clone().applyMatrix4(viewProjection),
+                texture,
+              })),
+            )
+          : clippedPolygon(
+              (materialPolygon as Vector4[]).map((point) => point.applyMatrix4(viewProjection)),
+            )
         if (polygon.length < 3) continue
         const projected = polygon.map((point) =>
-          projectedPoint(point, options.width, options.height),
+          projectedPoint(
+            spriteTexture ? (point as TexturedVertex).position : (point as Vector4),
+            options.width,
+            options.height,
+          ),
         )
         if (projected.some((point) => point === undefined)) continue
         const points = projected as { x: number; y: number; z: number }[]
         const [first, ...rest] = points
         if (!first) continue
-        const path = `M ${printable(first.x)} ${printable(first.y)} ${rest
-          .map((point) => `L ${printable(point.x)} ${printable(point.y)}`)
-          .join(' ')} Z`
+        const path = spriteTexture
+          ? undefined
+          : `M ${printable(first.x)} ${printable(first.y)} ${rest
+              .map((point) => `L ${printable(point.x)} ${printable(point.y)}`)
+              .join(' ')} Z`
+        const indices: number[] = []
+        for (let fan = 1; fan + 1 < points.length; fan += 1) indices.push(0, fan, fan + 1)
         primitives.push({
           depth: points.reduce((sum, point) => sum + point.z, 0) / points.length,
           groupOrder,
@@ -1046,14 +1106,32 @@ function projectThreeSceneInternal(
           order: order++,
           renderOrder: object.renderOrder,
           transparent: spriteMaterial.transparent,
-          node: {
-            kind: 'path',
-            props: {
-              path,
-              fill: `#${spriteColor.getHexString()}`,
-              ...projectedOpacityProps(spriteMaterial),
-            },
-          },
+          node:
+            spriteTexture && spriteMap
+              ? {
+                  kind: 'triangle-mesh',
+                  props: {
+                    indices,
+                    texture: {
+                      source: textureSource(spriteMap) as CanvasTextureSource,
+                      coordinates: (polygon as TexturedVertex[]).map(({ texture }) => ({
+                        x: texture.x,
+                        y: texture.y,
+                      })),
+                      filter: spriteMap.magFilter === NearestFilter ? 'nearest' : 'linear',
+                    },
+                    vertices: points.map(({ x, y }) => ({ x, y })),
+                    ...projectedOpacityProps(spriteMaterial),
+                  },
+                }
+              : {
+                  kind: 'path',
+                  props: {
+                    path: path as string,
+                    fill: `#${spriteColor.getHexString()}`,
+                    ...projectedOpacityProps(spriteMaterial),
+                  },
+                },
         })
       }
       return

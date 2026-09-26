@@ -290,11 +290,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'SpriteMaterial',
     'partial',
-    'Solid colour, fog, and normal alpha transparency work; textures are diagnosed.',
+    'Solid colour, fog, normal alpha transparency, and the constrained affine colour-map subset work.',
     {
       upstream: upstream('material', 'SpriteMaterial'),
       tests: [
         project('Sprite projects its billboard centre, rotation, and perspective attenuation'),
+        project('SpriteMaterial map preserves billboard UVs through clipping'),
         project('normal transparent materials project opacity across portable primitives'),
         project('unsupported SpriteMaterial features are omitted with diagnostics'),
       ],
@@ -386,11 +387,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'textures and UV sampling',
     'partial',
-    'A clamped sRGB MeshBasicMaterial colour map with complete UVs uses affine Canvas sampling; repeat seams, modulation, mipmaps, and other texture roles stay diagnostic.',
+    'Clamped sRGB MeshBasicMaterial and SpriteMaterial colour maps use affine Canvas sampling; repeat seams, modulation, mipmaps, and other texture roles stay diagnostic.',
     {
       tests: [
         project('MeshBasicMaterial map and UVs become a portable textured triangle'),
         project('mesh clipping interpolates texture coordinates at generated edges'),
+        project('SpriteMaterial map preserves billboard UVs through clipping'),
         project('unsupported MeshBasicMaterial features emit diagnostics'),
         project('textured points are omitted with a diagnostic'),
       ],
