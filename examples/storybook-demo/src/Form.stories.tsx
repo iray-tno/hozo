@@ -24,17 +24,22 @@ const TODAY: CalendarDate = { year: 2026, month: 9, day: 24 }
 const SEPTEMBER = { year: 2026, month: 9 }
 
 /*
- * The two dialogs are closed, like every other overlay in this suite.
+ * Each picker has a closed story and an open one.
  *
- * Opening one on mount was the first attempt, so that the golden would cover
- * the dialog's reading order rather than stopping at a button. It does not
- * terminate: `check-utterances.mjs` decides a story has ended when the cursor
- * wraps back to the node it started on, and with `aria-modal="true"` the
- * traversal never leaves the dialog to reach that node again. The 325-phrase
- * showcase finishes inside the 400-step budget, so this was never about size.
+ * Opening one on mount used not to work. `check-utterances.mjs` decided a
+ * story had ended when the cursor wrapped back to the node it started on, and
+ * with `aria-modal="true"` the traversal never leaves the dialog to reach that
+ * node again -- so the walk burned its whole budget and the story was reported
+ * as never finishing. Size was never the problem: the 325-phrase showcase
+ * finished inside the same 400 steps.
  *
- * Nothing is lost by closing them: the dialog's contents are the `Calendar`
- * and `TimePicker` that the three stories above golden directly.
+ * `utterance-walk.mjs` now stops when a node says the same thing twice, which
+ * a confined cycle does wherever it closes. So the open stories exist, and
+ * they are what #560 asked for: a golden for what a reader hears *inside* an
+ * overlay rather than up to the button that opens it.
+ *
+ * Both, not either. The closed reading order is what a reader meets first and
+ * is worth keeping approved on its own.
  */
 
 const panel = 'max-w-xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm'
@@ -153,7 +158,7 @@ function ClockDemo() {
   )
 }
 
-function DateAndTimeDemo() {
+function DateAndTimeDemo({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const [departure, setDeparture] = useState<CalendarDateTime | null>({
     year: 2026,
     month: 9,
@@ -171,6 +176,7 @@ function DateAndTimeDemo() {
         press, because a day press happens before the clock has been touched.
       </Paragraph>
       <DateTimePicker
+        defaultOpen={initiallyOpen}
         value={departure}
         onChange={setDeparture}
         today={TODAY}
@@ -190,7 +196,7 @@ function DateAndTimeDemo() {
   )
 }
 
-function DateRangeDemo() {
+function DateRangeDemo({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const [stay, setStay] = useState<CalendarRange | null>(null)
   return (
     <View className={panel}>
@@ -203,6 +209,7 @@ function DateRangeDemo() {
         finished the job.
       </Paragraph>
       <DateRangePicker
+        defaultOpen={initiallyOpen}
         value={stay}
         onChange={setStay}
         today={TODAY}
@@ -241,3 +248,9 @@ export const Range: StoryObj<typeof meta> = { render: () => <RangeGridDemo /> }
 export const Clock: StoryObj<typeof meta> = { render: () => <ClockDemo /> }
 export const DateAndTime: StoryObj<typeof meta> = { render: () => <DateAndTimeDemo /> }
 export const DateRange: StoryObj<typeof meta> = { render: () => <DateRangeDemo /> }
+export const DateAndTimeOpen: StoryObj<typeof meta> = {
+  render: () => <DateAndTimeDemo initiallyOpen />,
+}
+export const DateRangeOpen: StoryObj<typeof meta> = {
+  render: () => <DateRangeDemo initiallyOpen />,
+}

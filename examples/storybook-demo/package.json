@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check",
+    "test": "node --test scripts/utterance-walk.test.mjs && tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check",
     "utterances:update": "node scripts/build.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check --update",
     "typecheck": "tsc --noEmit -p .",
     "check:a11y": "node scripts/check-a11y.mjs"
