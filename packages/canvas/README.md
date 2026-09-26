@@ -45,7 +45,8 @@ incomplete or invalid triple is skipped as one unit on both renderers.
 />
 ```
 
-Vertex colours use normalized sRGB channels and replace the uniform `fill`.
+Vertex colours use normalized sRGB channels with optional per-vertex alpha and
+replace the uniform `fill`.
 Skia interpolates them through `Vertices`; Canvas 2D composes three bounded
 barycentric ramps per face, avoiding contrast-dependent tessellation.
 
