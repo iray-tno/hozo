@@ -172,6 +172,7 @@ function clippedPolygon(triangle: readonly Vector4[]): Vector4[] {
 }
 
 interface ColouredVertex {
+  alpha?: number
   color: Color
   position: Vector4
   viewDepth?: number
@@ -183,6 +184,10 @@ function interpolateColouredVertex(
   ratio: number,
 ): ColouredVertex {
   return {
+    alpha:
+      from.alpha === undefined && to.alpha === undefined
+        ? undefined
+        : (from.alpha ?? 1) + ((to.alpha ?? 1) - (from.alpha ?? 1)) * ratio,
     color: from.color.clone().lerp(to.color, ratio),
     position: from.position.clone().lerp(to.position, ratio),
     viewDepth:
@@ -193,7 +198,8 @@ function interpolateColouredVertex(
 }
 
 function clippedColouredPolygon(triangle: readonly ColouredVertex[]): ColouredVertex[] {
-  let polygon: ColouredVertex[] = triangle.map(({ color, position, viewDepth }) => ({
+  let polygon: ColouredVertex[] = triangle.map(({ alpha, color, position, viewDepth }) => ({
+    alpha,
     color: color.clone(),
     position: position.clone(),
     viewDepth,
@@ -215,6 +221,7 @@ function clippedColouredPolygon(triangle: readonly ColouredVertex[]): ColouredVe
       }
       if (currentInside) {
         clipped.push({
+          alpha: current.alpha,
           color: current.color.clone(),
           position: current.position.clone(),
           viewDepth: current.viewDepth,
@@ -365,6 +372,7 @@ function clippedMaterialColouredPolygonSide(
     }
     if (currentInside) {
       clipped.push({
+        alpha: current.alpha,
         color: current.color.clone(),
         position: current.position.clone(),
         viewDepth: current.viewDepth,
@@ -382,7 +390,8 @@ function clippedMaterialColouredPolygons(
   clipIntersection: boolean,
 ): readonly ColouredVertex[][] {
   const clone = (vertices: readonly ColouredVertex[]): ColouredVertex[] =>
-    vertices.map(({ color, position, viewDepth }) => ({
+    vertices.map(({ alpha, color, position, viewDepth }) => ({
+      alpha,
       color: color.clone(),
       position: position.clone(),
       viewDepth,
@@ -783,10 +792,34 @@ function portableTextureCoordinate(
   return portableTexturePoint(texture, attribute.getX(vertexIndex), attribute.getY(vertexIndex))
 }
 
-function canvasVertexColor(color: Color) {
+function canvasVertexColor(color: Color, alpha?: number) {
   const value = { r: 0, g: 0, b: 0 }
   color.getRGB(value, SRGBColorSpace)
-  return value
+  return alpha === undefined ? value : { ...value, a: alpha }
+}
+
+function canvasColorCss(color: Color, alpha?: number): string {
+  if (alpha === undefined || alpha >= 1) return `#${color.getHexString()}`
+  const { r, g, b } = canvasVertexColor(color)
+  return `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${Math.max(0, Math.min(1, alpha))})`
+}
+
+function portableVertexAlpha(
+  attribute: BufferAttribute | InterleavedBufferAttribute,
+  index: number,
+): number | undefined {
+  const alpha = attribute.getW(index)
+  return Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : undefined
+}
+
+function hasPortableVertexAlphas(
+  attribute: BufferAttribute | InterleavedBufferAttribute,
+  count = attribute.count,
+): boolean {
+  for (let index = 0; index < count; index += 1) {
+    if (portableVertexAlpha(attribute, index) === undefined) return false
+  }
+  return true
 }
 
 function lineMaterialReason(material: LineBasicMaterial): string | undefined {
@@ -1301,11 +1334,27 @@ function projectThreeSceneInternal(
         ? (material as LineDashedMaterial)
         : undefined
       const color = material.vertexColors ? line.geometry.getAttribute('color') : undefined
-      if (color && color.itemSize !== 3) {
+      if (color && color.itemSize !== 3 && color.itemSize !== 4) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_GEOMETRY',
+          message: 'Portable line colour attributes must be RGB or RGBA.',
+          object,
+        })
+        return
+      }
+      if (color?.itemSize === 4 && (!material.transparent || (material.alphaTest ?? 0) > 0)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
           message:
-            'Portable line colour attributes must be RGB; per-vertex alpha is not projected.',
+            'RGBA line colours need transparent: true and alphaTest: 0 for portable blending.',
+          object,
+        })
+        return
+      }
+      if (color?.itemSize === 4 && !hasPortableVertexAlphas(color)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message: 'RGBA line alpha values must be finite.',
           object,
         })
         return
@@ -1351,6 +1400,8 @@ function projectThreeSceneInternal(
               materialColor,
             )
           : materialColor
+        const fromAlpha = color?.itemSize === 4 ? portableVertexAlpha(color, fromIndex) : undefined
+        const toAlpha = color?.itemSize === 4 ? portableVertexAlpha(color, toIndex) : undefined
         const colorAt = (world: Vector4) => {
           const base = fromColor.clone().lerp(toColor, segmentRatio(world, fromVertex, toVertex))
           return foggedColorAtWorld(
@@ -1360,6 +1411,10 @@ function projectThreeSceneInternal(
             camera.matrixWorldInverse,
           )
         }
+        const alphaAt = (world: Vector4) =>
+          fromAlpha === undefined || toAlpha === undefined
+            ? undefined
+            : fromAlpha + (toAlpha - fromAlpha) * segmentRatio(world, fromVertex, toVertex)
         const pieces = dashedMaterial
           ? dashedSegments(
               fromVertex,
@@ -1409,13 +1464,15 @@ function projectThreeSceneInternal(
                 )
               const clippedFromColor = colorAt(clippedFromWorld)
               const clippedToColor = colorAt(clippedToWorld)
+              const clippedFromAlpha = alphaAt(clippedFromWorld)
+              const clippedToAlpha = alphaAt(clippedToWorld)
               projectedStroke = {
                 kind: 'linear',
                 from: { x: from.x, y: from.y },
                 to: { x: to.x, y: to.y },
                 stops: [
-                  { offset: 0, color: `#${clippedFromColor.getHexString()}` },
-                  { offset: 1, color: `#${clippedToColor.getHexString()}` },
+                  { offset: 0, color: canvasColorCss(clippedFromColor, clippedFromAlpha) },
+                  { offset: 1, color: canvasColorCss(clippedToColor, clippedToAlpha) },
                 ],
               }
             }
@@ -1529,11 +1586,27 @@ function projectThreeSceneInternal(
         return
       }
       const color = pointMaterial.vertexColors ? points.geometry.getAttribute('color') : undefined
-      if (color && color.itemSize !== 3) {
+      if (color && color.itemSize !== 3 && color.itemSize !== 4) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_GEOMETRY',
+          message: 'Portable point colour attributes must be RGB or RGBA.',
+          object,
+        })
+        return
+      }
+      if (color?.itemSize === 4 && (!pointMaterial.transparent || pointMaterial.alphaTest > 0)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
           message:
-            'Portable point colour attributes must be RGB; per-vertex alpha is not projected.',
+            'RGBA point colours need transparent: true and alphaTest: 0 for portable blending.',
+          object,
+        })
+        return
+      }
+      if (color?.itemSize === 4 && !hasPortableVertexAlphas(color)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message: 'RGBA point alpha values must be finite.',
           object,
         })
         return
@@ -1574,6 +1647,8 @@ function projectThreeSceneInternal(
           pointMaterial.fog ? scene.fog : null,
           -view.z,
         )
+        const vertexAlpha =
+          color?.itemSize === 4 ? portableVertexAlpha(color, vertexIndex) : undefined
         primitives.push({
           depth: projected.z,
           groupOrder,
@@ -1611,7 +1686,7 @@ function projectThreeSceneInternal(
                     cx: projected.x,
                     cy: projected.y,
                     radius,
-                    fill: `#${projectedFill.getHexString()}`,
+                    fill: canvasColorCss(projectedFill, vertexAlpha),
                     ...projectedOpacityProps(pointMaterial),
                   },
                 },
@@ -1736,14 +1811,45 @@ function projectThreeSceneInternal(
       if (!passesUniformAlphaTest(material as MeshBasicMaterial)) return
       if (
         material.vertexColors &&
-        (vertexColor?.itemSize !== 3 || vertexColor.count < position.count)
+        ((vertexColor?.itemSize !== 3 && vertexColor?.itemSize !== 4) ||
+          vertexColor.count < position.count)
       ) {
         if (!reportedMaterials.has(source)) {
           reportedMaterials.add(source)
           diagnostic(diagnostics, options, {
             code: 'UNSUPPORTED_GEOMETRY',
+            message: 'MeshBasicMaterial.vertexColors needs one RGB or RGBA value per vertex.',
+            object,
+          })
+        }
+        return
+      }
+      if (
+        material.vertexColors &&
+        vertexColor?.itemSize === 4 &&
+        !hasPortableVertexAlphas(vertexColor, position.count)
+      ) {
+        if (!reportedMaterials.has(source)) {
+          reportedMaterials.add(source)
+          diagnostic(diagnostics, options, {
+            code: 'UNSUPPORTED_GEOMETRY',
+            message: 'RGBA mesh alpha values must be finite.',
+            object,
+          })
+        }
+        return
+      }
+      if (
+        material.vertexColors &&
+        vertexColor?.itemSize === 4 &&
+        (!material.transparent || (material.alphaTest ?? 0) > 0)
+      ) {
+        if (!reportedMaterials.has(source)) {
+          reportedMaterials.add(source)
+          diagnostic(diagnostics, options, {
+            code: 'UNSUPPORTED_MATERIAL',
             message:
-              'MeshBasicMaterial.vertexColors needs one RGB value per vertex; per-vertex alpha is not projected.',
+              'RGBA mesh colours need transparent: true and alphaTest: 0 for portable blending.',
             object,
           })
         }
@@ -1947,10 +2053,22 @@ function projectThreeSceneInternal(
                   vertexColor?.getZ(toIndex) ?? 0,
                 ).multiply(fillColor)
               : fillColor
+            const fromAlpha =
+              range.material.vertexColors && vertexColor?.itemSize === 4
+                ? portableVertexAlpha(vertexColor, fromIndex)
+                : undefined
+            const toAlpha =
+              range.material.vertexColors && vertexColor?.itemSize === 4
+                ? portableVertexAlpha(vertexColor, toIndex)
+                : undefined
             const colorAt = (world: Vector4) => {
               const base = fromColor.clone().lerp(toColor, segmentRatio(world, wireFrom, wireTo))
               return foggedColorAtWorld(base, rangeFog, world, camera.matrixWorldInverse)
             }
+            const alphaAt = (world: Vector4) =>
+              fromAlpha === undefined || toAlpha === undefined
+                ? undefined
+                : fromAlpha + (toAlpha - fromAlpha) * segmentRatio(world, wireFrom, wireTo)
             const materialClippedSegments = clippedMaterialSegments(
               wireFrom,
               wireTo,
@@ -1981,6 +2099,8 @@ function projectThreeSceneInternal(
                   )
                 const clippedFromColor = colorAt(clippedFromWorld)
                 const clippedToColor = colorAt(clippedToWorld)
+                const clippedFromAlpha = alphaAt(clippedFromWorld)
+                const clippedToAlpha = alphaAt(clippedToWorld)
                 projectedStroke = {
                   kind: 'linear',
                   from: { x: from.x, y: from.y },
@@ -1988,11 +2108,11 @@ function projectThreeSceneInternal(
                   stops: [
                     {
                       offset: 0,
-                      color: `#${clippedFromColor.getHexString()}`,
+                      color: canvasColorCss(clippedFromColor, clippedFromAlpha),
                     },
                     {
                       offset: 1,
-                      color: `#${clippedToColor.getHexString()}`,
+                      color: canvasColorCss(clippedToColor, clippedToAlpha),
                     },
                   ],
                 }
@@ -2058,6 +2178,10 @@ function projectThreeSceneInternal(
                           .multiply(fillColor)
                       : fillColor
                     return {
+                      alpha:
+                        range.material.vertexColors && vertexColor?.itemSize === 4
+                          ? portableVertexAlpha(vertexColor, vertexIndex)
+                          : undefined,
                       color: vertexFill.clone(),
                       position,
                     }
@@ -2080,9 +2204,10 @@ function projectThreeSceneInternal(
                 )
               : coloured
                 ? clippedColouredPolygon(
-                    (materialPolygon as ColouredVertex[]).map(({ color, position }) => {
+                    (materialPolygon as ColouredVertex[]).map(({ alpha, color, position }) => {
                       const viewDepth = -position.clone().applyMatrix4(camera.matrixWorldInverse).z
                       return {
+                        alpha,
                         color,
                         position: position.clone().applyMatrix4(viewProjection),
                         viewDepth,
@@ -2152,6 +2277,7 @@ function projectThreeSceneInternal(
                                 rangeFog,
                                 (point as ColouredVertex).viewDepth ?? 0,
                               ),
+                              (point as ColouredVertex).alpha,
                             ),
                           ),
                           vertices: projected.map(({ x, y }) => ({ x, y })),

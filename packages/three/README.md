@@ -54,8 +54,11 @@ projects each child camera into its declared bottom-left viewport. `Line`,
 with their declared colour and width. Solid and dashed lines interpolate RGB
 vertex colours through portable Canvas gradients, including clipped endpoints.
 Solid meshes likewise preserve RGB vertex attributes and interpolate colours
-across clipped triangles. The portable mesh interpolation is screen-space;
-perspective-correct interpolation remains a GPU-backend concern.
+across clipped triangles. RGBA attributes also preserve per-vertex alpha when
+the material opts into transparency; opaque RGBA and alpha-tested gradients
+remain diagnostic because Canvas source-over would change WebGL blend
+semantics. The portable mesh interpolation is screen-space; perspective-correct
+interpolation remains a GPU-backend concern.
 Primary `MeshBasicMaterial.map` colour textures also project when they use
 `SRGBColorSpace`, clamp or repeat wrapping on either axis, a URL/URI or Native
 asset source, and complete two-component UVs. Texture transforms and `flipY`
