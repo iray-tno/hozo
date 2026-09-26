@@ -100,9 +100,16 @@ export interface RangeTextOptions {
   /**
    * What goes between the two dates when they have to be printed in full.
    *
-   * Chrome, so it is the caller's under #157: an en dash in English, a wave
-   * dash in Japanese, and no default that is right everywhere. Unused when
-   * `Intl` writes the range itself, which it does better than a separator can.
+   * Chrome, so it is the caller's under #157. The default is `" - "`, a
+   * spaced ASCII hyphen, and it is deliberately not right anywhere: English
+   * typography wants an en dash and usually no spaces between numerals,
+   * Japanese and Chinese want `〜` with nothing around it. Neutral rather
+   * than correct, because picking per locale would mean a table, and a
+   * two-entry table is the shape `usesTwelveHour` refused for CLDR's
+   * `timeData`.
+   *
+   * Unused when `Intl` writes the range itself -- which it does better than
+   * any separator can, and which React Native never does; see below.
    */
   separator?: string
 }

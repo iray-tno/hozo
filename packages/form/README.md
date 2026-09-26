@@ -200,7 +200,21 @@ import { DateRangePicker } from '@hozo/form'
 
 It closes when the range arrives, and needs no Done button to do it. A range `Calendar` reports only a range that has both ends, so the press that fires `onChange` is the press that finished the job — `DateTimePicker` has to ask because its two halves complete independently. The half-chosen start lives inside the `Calendar`, so dismissing the dialog discards it by unmounting; no partial range is ever handed out.
 
-`rangeLabel` writes the button's text, which is also its accessible name. `Intl.DateTimeFormat.prototype.formatRange` is what collapses the parts the two ends share — "September 10 – 12, 2026" rather than the month and year twice — and it is an ES2021 addition, the same kind of unknown as `resolvedOptions`. So it is attempted, and the answer degrades to both dates in full joined by `rangeSeparator`, which the caller owns because an en dash is English and a wave dash is Japanese. The degraded form is longer rather than shorter: dropping the shared year by hand would put a locale's ordering rules in Hozo, which is the job `formatRange` exists to do.
+`rangeLabel` writes the button's text, which is also its accessible name. `Intl.DateTimeFormat.prototype.formatRange` is what collapses the parts the two ends share — "September 10 – 12, 2026" rather than the month and year twice — and it is an ES2021 addition. So it is attempted, and the answer degrades to both dates in full joined by `rangeSeparator`.
+
+**On React Native the degraded path is the only path.** Measured on an API 36 emulator: a `DateRangePicker` trigger read "September 10, 2026 - September 12, 2026", which is Hozo's template and not `formatRange`'s. Hermes either does not implement the method or throws from it, and the measurement does not tell those apart. So `rangeSeparator` is load-bearing rather than defensive.
+
+The default is `" - "`, a spaced ASCII hyphen, and it is deliberately not right anywhere. English typography wants an en dash, usually unspaced between numerals; Japanese and Chinese want a wave dash, `〜`, with nothing around it. A Japanese application should pass one:
+
+```tsx
+<DateRangePicker value={stay} onChange={setStay} rangeSeparator="〜" />
+```
+
+Hozo does not pick it per locale, for the reason `usesTwelveHour` does not carry CLDR's `timeData`: a two-entry table is a guess dressed as data, and the line between two entries and fifty is not one this package can hold. A separator is chrome, and chrome is the caller's under [#157](https://github.com/iray-tno/hozo/issues/157).
+
+The degraded form is longer rather than shorter, and the dash is the smaller half of that: "2026年9月10日 - 2026年9月12日" says the year twice whichever character joins it. Dropping the shared year by hand would put a locale's ordering rules in Hozo, which is the job `formatRange` exists to do.
+
+`dateTimeLabel` does work on the same engine — the `DateTimePicker` trigger beside it read "Thursday, September 24, 2026 at 9:30 AM", the locale's own joining word included — so this is about one method rather than about `Intl` on Hermes generally. `resolvedOptions` remains untested: that screen passes `hour12` explicitly.
 
 ## Status
 
