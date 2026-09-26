@@ -63,7 +63,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'topology',
     'points',
     'full',
-    'Points become circles with optional perspective attenuation.',
+    'Points become circles or textured point-sprite quads with optional perspective attenuation.',
     {
       tests: [points],
     },
@@ -133,7 +133,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     upstream: upstream('object', 'Mesh'),
     tests: [triangle],
   }),
-  row('object', 'Points', 'full', 'Point vertices project through the circle pipeline.', {
+  row('object', 'Points', 'full', 'Point vertices project through the portable point pipeline.', {
     upstream: upstream('object', 'Points'),
     tests: [points],
   }),
@@ -275,14 +275,14 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'PointsMaterial',
     'partial',
-    'Untextured colour, normal alpha transparency, per-point RGB, fog, size, and attenuation work.',
+    'Colour, normal alpha transparency, per-point RGB, fog, size, attenuation, and the constrained point-sprite colour-map subset work.',
     {
       upstream: upstream('material', 'PointsMaterial'),
       tests: [
         points,
         project('PointsMaterial multiplies per-point RGB colours'),
         project('normal transparent materials project opacity across portable primitives'),
-        project('textured points are omitted with a diagnostic'),
+        project('PointsMaterial map becomes a portable point-sprite texture'),
       ],
     },
   ),
@@ -387,14 +387,14 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'textures and UV sampling',
     'partial',
-    'Clamped sRGB MeshBasicMaterial and SpriteMaterial colour maps use affine Canvas sampling; repeat seams, modulation, mipmaps, and other texture roles stay diagnostic.',
+    'Clamped sRGB mesh, sprite, and point-sprite colour maps use affine Canvas sampling; repeat seams, modulation, mipmaps, and other texture roles stay diagnostic.',
     {
       tests: [
         project('MeshBasicMaterial map and UVs become a portable textured triangle'),
         project('mesh clipping interpolates texture coordinates at generated edges'),
         project('SpriteMaterial map preserves billboard UVs through clipping'),
         project('unsupported MeshBasicMaterial features emit diagnostics'),
-        project('textured points are omitted with a diagnostic'),
+        project('PointsMaterial map becomes a portable point-sprite texture'),
       ],
     },
   ),
