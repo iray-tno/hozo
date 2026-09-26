@@ -85,8 +85,9 @@ and `BufferGeometry` groups preserve each group's material and intersect with
 the geometry's draw range just as they do in Three.js. `Scene.overrideMaterial`
 replaces supported render-list materials while preserving source visibility and
 `allowOverride`. `LOD` selects its active
-level from the camera distance, and untextured solid-colour `SpriteMaterial`
-billboards preserve their centre, rotation, scale, and size attenuation.
+level from the camera distance. `SpriteMaterial` billboards preserve their
+centre, rotation, scale, and size attenuation for solid colours and the same
+constrained affine colour-map subset as meshes.
 `InstancedMesh` applies each instance transform, colour, and morph weight.
 `BatchedMesh` projects its geometry ranges, sparse instance IDs, visibility,
 transforms, and optional instance colours through public Three.js APIs. Position

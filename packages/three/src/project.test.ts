@@ -1159,6 +1159,47 @@ test('Sprite projects its billboard centre, rotation, and perspective attenuatio
   assert.equal(projectThreeScene(scene, camera, { width: 100, height: 100 }).scene.length, 0)
 })
 
+test('SpriteMaterial map preserves billboard UVs through clipping', () => {
+  const texture = new Texture()
+  texture.source.data = '/sprite.png'
+  texture.colorSpace = THREE.SRGBColorSpace
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      clippingPlanes: [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)],
+      map: texture,
+    }),
+  )
+  sprite.scale.set(2, 2, 1)
+
+  const result = projectThreeScene(new Scene().add(sprite), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedMeshes(result), [
+    {
+      indices: [0, 1, 2, 0, 2, 3],
+      texture: {
+        source: '/sprite.png',
+        coordinates: [
+          { x: 0.5, y: 1 },
+          { x: 1, y: 1 },
+          { x: 1, y: 0 },
+          { x: 0.5, y: 0 },
+        ],
+        filter: 'linear',
+      },
+      vertices: [
+        { x: 50, y: 60 },
+        { x: 60, y: 60 },
+        { x: 60, y: 40 },
+        { x: 50, y: 40 },
+      ],
+    },
+  ])
+})
+
 test('Sprite clipping planes cut billboards and preserve disjoint union regions', () => {
   const sprite = new THREE.Sprite(
     new THREE.SpriteMaterial({
