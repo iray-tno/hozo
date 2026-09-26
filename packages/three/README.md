@@ -57,11 +57,12 @@ Solid meshes likewise preserve RGB vertex attributes and interpolate colours
 across clipped triangles. The portable mesh interpolation is screen-space;
 perspective-correct interpolation remains a GPU-backend concern.
 Primary `MeshBasicMaterial.map` colour textures also project when they use
-`SRGBColorSpace`, clamp wrapping, a URL/URI or Native asset source, and complete
-two-component UVs. Texture transforms and `flipY` are preserved, including UVs
-created by clipping. Sampling is affine in screen space and has no mipmaps;
-repeat seams, tint/vertex-colour/fog modulation, and per-pixel alpha tests stay
-diagnostic instead of being silently approximated.
+`SRGBColorSpace`, matching clamp or repeat wrapping on both axes, a URL/URI or
+Native asset source, and complete two-component UVs. Texture transforms and
+`flipY` are preserved, including UVs created by clipping. Sampling is affine in
+screen space and has no mipmaps; mixed-axis or mirrored wrapping,
+tint/vertex-colour/fog modulation, and per-pixel alpha tests stay diagnostic
+instead of being silently approximated.
 Solid `Scene.background` colours and constrained 2D colour textures fill the
 portable viewport without creating an interactive object. Cube/equirectangular
 environment backgrounds, blur, and intensity modulation remain diagnostic.

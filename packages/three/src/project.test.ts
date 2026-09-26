@@ -159,6 +159,34 @@ test('MeshBasicMaterial map and UVs become a portable textured triangle', () => 
   ])
 })
 
+test('RepeatWrapping preserves out-of-range UVs for portable tiling', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('uv', new Float32BufferAttribute([0, 0, 2, 0, 0, 2], 2))
+  const texture = new Texture()
+  texture.source.data = '/tiles.png'
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+
+  const result = projectThreeScene(
+    new Scene().add(new Mesh(geometry, new MeshBasicMaterial({ map: texture }))),
+    perspective(),
+    { width: 100, height: 100 },
+  )
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedMeshes(result)[0]?.texture, {
+    source: '/tiles.png',
+    coordinates: [
+      { x: 0, y: 1 },
+      { x: 2, y: 1 },
+      { x: 0, y: -1 },
+    ],
+    filter: 'linear',
+    wrap: 'repeat',
+  })
+})
+
 test('mesh clipping interpolates texture coordinates at generated edges', () => {
   const geometry = triangleGeometry()
   geometry.setAttribute('uv', new Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2))
@@ -211,7 +239,7 @@ test('non-portable texture sampling is refused with an actionable diagnostic', (
     { width: 100, height: 100 },
   )
   assert.equal(repeated.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
-  assert.match(repeated.diagnostics[0]?.message ?? '', /repeating texture seams/)
+  assert.match(repeated.diagnostics[0]?.message ?? '', /mixed and mirrored wrapping/)
 
   texture.wrapS = THREE.ClampToEdgeWrapping
   texture.offset.x = 0.5
