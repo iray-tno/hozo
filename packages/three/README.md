@@ -81,8 +81,8 @@ projection. `PointsMaterial` projects untextured points as circles and the
 constrained colour-map subset as screen-aligned point-sprite quads, including
 perspective size attenuation. Per-point RGB colours remain available for the
 untextured path. Wireframe `MeshBasicMaterial` is
-projected through the same line pipeline, including its colour and
-`wireframeLinewidth`. Default world-space material clipping planes cut meshes
+projected through the same line pipeline, including uniform or per-vertex RGB
+colour and `wireframeLinewidth`. Default world-space material clipping planes cut meshes
 and lines and discard clipped points. `clipIntersection` preserves the union of
 material half-spaces for meshes, lines, points, and sprites.
 Mesh material arrays

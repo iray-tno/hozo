@@ -767,6 +767,51 @@ test('wireframe MeshBasicMaterial becomes three Canvas lines per triangle', () =
   ])
 })
 
+test('wireframe MeshBasicMaterial preserves RGB vertex colours as edge gradients', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1], 3))
+  const material = new MeshBasicMaterial({ vertexColors: true, wireframe: true })
+
+  const result = projectThreeScene(new Scene().add(new Mesh(geometry, material)), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(
+    projectedLines(result).map(({ stroke }) => stroke),
+    [
+      {
+        kind: 'linear',
+        from: { x: 40, y: 60 },
+        to: { x: 60, y: 60 },
+        stops: [
+          { offset: 0, color: '#ff0000' },
+          { offset: 1, color: '#00ff00' },
+        ],
+      },
+      {
+        kind: 'linear',
+        from: { x: 60, y: 60 },
+        to: { x: 50, y: 40 },
+        stops: [
+          { offset: 0, color: '#00ff00' },
+          { offset: 1, color: '#0000ff' },
+        ],
+      },
+      {
+        kind: 'linear',
+        from: { x: 50, y: 40 },
+        to: { x: 40, y: 60 },
+        stops: [
+          { offset: 0, color: '#0000ff' },
+          { offset: 1, color: '#ff0000' },
+        ],
+      },
+    ],
+  )
+})
+
 test('wireframe projection applies the same doubled draw range as Three.js', () => {
   const geometry = new BufferGeometry()
   geometry.setAttribute(
@@ -1495,10 +1540,7 @@ test('unsupported mesh material classes emit diagnostics', () => {
 })
 
 test('unsupported MeshBasicMaterial features emit diagnostics', () => {
-  const materials = [
-    new MeshBasicMaterial({ map: new Texture() }),
-    new MeshBasicMaterial({ vertexColors: true, wireframe: true }),
-  ]
+  const materials = [new MeshBasicMaterial({ map: new Texture() })]
 
   for (const material of materials) {
     const scene = new Scene()

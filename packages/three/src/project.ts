@@ -668,9 +668,6 @@ function passesUniformAlphaTest(material: Material): boolean {
 function materialReason(material: MeshBasicMaterial): string | undefined {
   const baseReason = baseMaterialReason(material)
   if (baseReason) return baseReason
-  if (material.vertexColors && material.wireframe) {
-    return 'vertex-coloured MeshBasicMaterial wireframes are not projected yet'
-  }
   if (!Number.isFinite(material.opacity)) return 'material opacity must be finite'
   if (
     material.alphaMap ||
@@ -1934,9 +1931,29 @@ function projectThreeSceneInternal(
             const fromIndex = wireframeIndices[offset]
             const toIndex = wireframeIndices[offset + 1]
             if (fromIndex === undefined || toIndex === undefined) continue
+            const wireFrom = vertexAt(fromIndex)
+            const wireTo = vertexAt(toIndex)
+            const fromColor = range.material.vertexColors
+              ? new Color(
+                  vertexColor?.getX(fromIndex) ?? 0,
+                  vertexColor?.getY(fromIndex) ?? 0,
+                  vertexColor?.getZ(fromIndex) ?? 0,
+                ).multiply(fillColor)
+              : fillColor
+            const toColor = range.material.vertexColors
+              ? new Color(
+                  vertexColor?.getX(toIndex) ?? 0,
+                  vertexColor?.getY(toIndex) ?? 0,
+                  vertexColor?.getZ(toIndex) ?? 0,
+                ).multiply(fillColor)
+              : fillColor
+            const colorAt = (world: Vector4) => {
+              const base = fromColor.clone().lerp(toColor, segmentRatio(world, wireFrom, wireTo))
+              return foggedColorAtWorld(base, rangeFog, world, camera.matrixWorldInverse)
+            }
             const materialClippedSegments = clippedMaterialSegments(
-              vertexAt(fromIndex),
-              vertexAt(toIndex),
+              wireFrom,
+              wireTo,
               (range.material.clippingPlanes ?? []) as readonly Plane[],
               range.material.clipIntersection,
             )
@@ -1949,7 +1966,7 @@ function projectThreeSceneInternal(
               const to = projectedPoint(clipped[1], options.width, options.height)
               if (!from || !to || (from.x === to.x && from.y === to.y)) continue
               let projectedStroke: CanvasStroke = fill
-              if (rangeFog) {
+              if (range.material.vertexColors || rangeFog) {
                 const clippedFromWorld = materialClipped[0]
                   .clone()
                   .lerp(
@@ -1962,6 +1979,8 @@ function projectThreeSceneInternal(
                     materialClipped[1],
                     segmentRatio(clipped[1], materialFromClip, materialToClip),
                   )
+                const clippedFromColor = colorAt(clippedFromWorld)
+                const clippedToColor = colorAt(clippedToWorld)
                 projectedStroke = {
                   kind: 'linear',
                   from: { x: from.x, y: from.y },
@@ -1969,11 +1988,11 @@ function projectThreeSceneInternal(
                   stops: [
                     {
                       offset: 0,
-                      color: `#${foggedColorAtWorld(fillColor, rangeFog, clippedFromWorld, camera.matrixWorldInverse).getHexString()}`,
+                      color: `#${clippedFromColor.getHexString()}`,
                     },
                     {
                       offset: 1,
-                      color: `#${foggedColorAtWorld(fillColor, rangeFog, clippedToWorld, camera.matrixWorldInverse).getHexString()}`,
+                      color: `#${clippedToColor.getHexString()}`,
                     },
                   ],
                 }
