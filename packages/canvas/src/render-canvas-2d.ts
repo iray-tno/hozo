@@ -4,8 +4,10 @@ import {
   type CanvasScene,
   type CanvasSceneNode,
   type CanvasTextureSource,
+  type CanvasTextureWrap,
   type CanvasTransform,
   type ClipProps,
+  canvasMeshTextureWrap,
   cssFontShorthand,
   isGradient,
   paintFills,
@@ -204,7 +206,8 @@ function fillTexturedTriangle(
   ],
   image: CanvasImageSource,
   filter: 'linear' | 'nearest',
-  wrap: 'clamp' | 'repeat',
+  wrapX: CanvasTextureWrap,
+  wrapY: CanvasTextureWrap,
 ) {
   const dimensions = imageDimensions(image)
   if (!dimensions) return
@@ -251,8 +254,10 @@ function fillTexturedTriangle(
     horizontal.offset,
     vertical.offset,
   )
-  if (wrap === 'repeat') {
-    const pattern = context.createPattern(image, 'repeat')
+  if (wrapX === 'repeat' || wrapY === 'repeat') {
+    const repetition =
+      wrapX === 'repeat' ? (wrapY === 'repeat' ? 'repeat' : 'repeat-x') : 'repeat-y'
+    const pattern = context.createPattern(image, repetition)
     if (pattern) {
       context.fillStyle = pattern
       trianglePath(context, ta, tb, tc)
@@ -403,17 +408,21 @@ function drawNode(
           const c = node.props.vertices[indices[offset + 2] as number]
           if (!a || !b || !c) continue
           if (texture && image) {
+            const [wrapX, wrapY] = canvasMeshTextureWrap(texture)
             const textureA = triangleMeshTextureCoordinate(
               texture.coordinates[indices[offset] as number],
-              texture.wrap,
+              wrapX,
+              wrapY,
             )
             const textureB = triangleMeshTextureCoordinate(
               texture.coordinates[indices[offset + 1] as number],
-              texture.wrap,
+              wrapX,
+              wrapY,
             )
             const textureC = triangleMeshTextureCoordinate(
               texture.coordinates[indices[offset + 2] as number],
-              texture.wrap,
+              wrapX,
+              wrapY,
             )
             if (!textureA || !textureB || !textureC) continue
             fillTexturedTriangle(
@@ -422,7 +431,8 @@ function drawNode(
               [textureA, textureB, textureC],
               image,
               texture.filter ?? 'linear',
-              texture.wrap ?? 'clamp',
+              wrapX,
+              wrapY,
             )
           } else if (node.props.colors) {
             const colorA = triangleMeshColor(node.props.colors[indices[offset] as number])
