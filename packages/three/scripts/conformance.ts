@@ -235,13 +235,14 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'MeshBasicMaterial',
     'partial',
-    'Flat and RGB vertex colours, a constrained affine colour map, fog, normal alpha transparency, sides, groups, and wireframe work.',
+    'Flat and RGB vertex colours, including wireframe edge gradients, a constrained affine colour map, fog, normal alpha transparency, sides, groups, and wireframe work.',
     {
       upstream: upstream('material', 'MeshBasicMaterial'),
       tests: [
         triangle,
         project('MeshBasicMaterial map and UVs become a portable textured triangle'),
         project('groups can mix solid and wireframe MeshBasicMaterial'),
+        project('wireframe MeshBasicMaterial preserves RGB vertex colours as edge gradients'),
         project('normal transparent materials project opacity across portable primitives'),
       ],
     },
@@ -372,11 +373,12 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'geometry',
     'vertex colours',
     'partial',
-    'Mesh, line, and point RGB attributes work through portable interpolation, including clipped vertices. Mesh interpolation is screen-space rather than perspective-correct; RGBA attributes and vertex-coloured wireframes remain diagnosed.',
+    'Mesh, wireframe, line, and point RGB attributes work through portable interpolation, including clipped vertices. Filled mesh interpolation is screen-space rather than perspective-correct; RGBA attributes remain diagnosed.',
     {
       tests: [
         project('mesh vertex colours become a portable interpolated triangle'),
         project('mesh clipping interpolates vertex colours at generated edges'),
+        project('wireframe MeshBasicMaterial preserves RGB vertex colours as edge gradients'),
         project('PointsMaterial multiplies per-point RGB colours'),
         project('LineBasicMaterial projects clipped RGB vertex colours as a portable gradient'),
         project('RGBA vertex attributes diagnose instead of silently dropping alpha'),
