@@ -108,6 +108,11 @@ sampling, lighting, custom blending, shaders, post-processing, and XR need a GPU
 backend. Unsupported inputs are omitted and returned as diagnostics rather
 than rendered misleadingly.
 
+`MeshNormalMaterial` is the first non-basic portable mesh material: smooth and
+flat view-space normals become Canvas vertex colours for ordinary meshes.
+Texture-perturbed normals, wireframe, skinning, instancing, and active morphs
+remain diagnostic rather than receiving an inaccurate approximation.
+
 The version-pinned [Three.js conformance report](./conformance.md) separates
 exact and partial support from explicit diagnostics and known silent gaps. Its
 rows link back to the tests behind each compatibility claim.

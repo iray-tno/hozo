@@ -1520,7 +1520,6 @@ test('unsupported mesh material classes emit diagnostics', () => {
     new THREE.MeshDistanceMaterial(),
     new THREE.MeshLambertMaterial(),
     new THREE.MeshMatcapMaterial(),
-    new THREE.MeshNormalMaterial(),
     new THREE.MeshPhongMaterial(),
     new THREE.MeshPhysicalMaterial(),
     new THREE.MeshStandardMaterial(),
@@ -1536,6 +1535,40 @@ test('unsupported mesh material classes emit diagnostics', () => {
     const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
     assert.deepEqual(result.scene, [])
     assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL', material.type)
+  }
+})
+
+test('MeshNormalMaterial projects smooth and flat view-space normals', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('normal', new Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3))
+
+  for (const material of [
+    new MeshNormalMaterial(),
+    new MeshNormalMaterial({ flatShading: true }),
+  ]) {
+    const result = projectThreeScene(new Scene().add(new Mesh(geometry, material)), perspective(), {
+      width: 100,
+      height: 100,
+    })
+    assert.deepEqual(result.diagnostics, [])
+    const colors = projectedMeshes(result)[0]?.colors
+    assert.equal(colors?.length, 3)
+    assert.ok(colors?.every(({ r, g, b }) => r === g && b > r))
+  }
+})
+
+test('non-portable MeshNormalMaterial features stay diagnostic', () => {
+  for (const material of [
+    new MeshNormalMaterial({ normalMap: new Texture() }),
+    new MeshNormalMaterial({ wireframe: true }),
+  ]) {
+    const result = projectThreeScene(
+      new Scene().add(new Mesh(triangleGeometry(), material)),
+      perspective(),
+      { width: 100, height: 100 },
+    )
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
   }
 })
 

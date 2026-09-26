@@ -19,11 +19,11 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | topology | 5/5 (100.0%) | 5/5 (100.0%) | 5/5 (100.0%) | 0 | 0 |
 | object | 11/11 (100.0%) | 11/11 (100.0%) | 11/11 (100.0%) | 0 | 2 |
 | camera | 3/4 (75.0%) | 3/4 (75.0%) | 4/4 (100.0%) | 0 | 2 |
-| material | 0/17 (0.0%) | 5/17 (29.4%) | 17/17 (100.0%) | 0 | 1 |
+| material | 0/17 (0.0%) | 6/17 (35.3%) | 17/17 (100.0%) | 0 | 1 |
 | geometry | 10/13 (76.9%) | 13/13 (100.0%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 7/8 (87.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **32/58 (55.2%)** | **44/58 (75.9%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Three.js surface** | **32/58 (55.2%)** | **45/58 (77.6%)** | **58/58 (100.0%)** | **0** | **6** |
 
 ## Detailed surface
 
@@ -78,7 +78,6 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | MeshDistanceMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshLambertMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshMatcapMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
-| MeshNormalMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshPhongMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshPhysicalMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshStandardMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
@@ -86,6 +85,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | RawShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
+| MeshNormalMaterial | partial | Smooth and flat view-space normals become portable vertex colours for ordinary meshes; normal/bump/displacement maps, wireframe, skinning, instancing, and active morphs stay diagnostic. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals`<br>[test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic` |
 | PointsMaterial | partial | Colour, normal alpha transparency, per-point RGB, fog, size, attenuation, and the constrained point-sprite colour-map subset work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `PointsMaterial map becomes a portable point-sprite texture` |
 | SpriteMaterial | partial | Solid colour, fog, normal alpha transparency, and the constrained affine colour-map subset work. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `SpriteMaterial map preserves billboard UVs through clipping`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
 
