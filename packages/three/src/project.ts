@@ -1,4 +1,10 @@
-import type { CanvasScene, CanvasSceneNode, CanvasTextureSource } from '@hozo/canvas'
+import type {
+  CanvasMeshTexture,
+  CanvasScene,
+  CanvasSceneNode,
+  CanvasTextureSource,
+  CanvasTextureWrap,
+} from '@hozo/canvas'
 import {
   type ArrayCamera,
   BackSide,
@@ -706,7 +712,7 @@ function textureReason(texture: Texture, usesGeometryChannel = false): string | 
     return 'texture channel must select uv, uv1, uv2, or uv3'
   }
   if (!textureWrap(texture)) {
-    return 'texture wrapping must clamp or repeat on both axes; mixed and mirrored wrapping are not projected'
+    return 'texture wrapping must clamp or repeat; mirrored wrapping is not projected'
   }
   if (texture.colorSpace !== SRGBColorSpace) {
     return 'colour textures need SRGBColorSpace for portable Canvas sampling'
@@ -716,16 +722,24 @@ function textureReason(texture: Texture, usesGeometryChannel = false): string | 
   return undefined
 }
 
-function textureWrap(texture: Texture): 'clamp' | 'repeat' | undefined {
-  if (texture.wrapS === ClampToEdgeWrapping && texture.wrapT === ClampToEdgeWrapping) {
-    return 'clamp'
-  }
-  if (texture.wrapS === RepeatWrapping && texture.wrapT === RepeatWrapping) return 'repeat'
+function textureWrapAxis(wrap: number): CanvasTextureWrap | undefined {
+  if (wrap === ClampToEdgeWrapping) return 'clamp'
+  if (wrap === RepeatWrapping) return 'repeat'
   return undefined
 }
 
-function textureWrapProps(texture: Texture): { wrap?: 'repeat' } {
-  return textureWrap(texture) === 'repeat' ? { wrap: 'repeat' } : {}
+function textureWrap(
+  texture: Texture,
+): readonly [CanvasTextureWrap, CanvasTextureWrap] | undefined {
+  const wrapX = textureWrapAxis(texture.wrapS)
+  const wrapY = textureWrapAxis(texture.wrapT)
+  return wrapX && wrapY ? [wrapX, wrapY] : undefined
+}
+
+function textureWrapProps(texture: Texture): Pick<CanvasMeshTexture, 'wrap' | 'wrapX' | 'wrapY'> {
+  const [wrapX, wrapY] = textureWrap(texture) ?? ['clamp', 'clamp']
+  if (wrapX === wrapY) return wrapX === 'repeat' ? { wrap: 'repeat' } : {}
+  return { wrapX, wrapY }
 }
 
 function textureAttributeName(texture: Texture): `uv${string}` {
@@ -734,11 +748,12 @@ function textureAttributeName(texture: Texture): `uv${string}` {
 
 function portableTexturePoint(texture: Texture, x: number, y: number): Vector2 | undefined {
   const coordinate = new Vector2(x, y).applyMatrix3(texture.matrix)
+  const [wrapX, wrapY] = textureWrap(texture) ?? ['clamp', 'clamp']
   if (
     !Number.isFinite(coordinate.x) ||
     !Number.isFinite(coordinate.y) ||
-    (textureWrap(texture) === 'clamp' &&
-      (coordinate.x < 0 || coordinate.x > 1 || coordinate.y < 0 || coordinate.y > 1))
+    (wrapX === 'clamp' && (coordinate.x < 0 || coordinate.x > 1)) ||
+    (wrapY === 'clamp' && (coordinate.y < 0 || coordinate.y > 1))
   ) {
     return undefined
   }
@@ -748,11 +763,12 @@ function portableTexturePoint(texture: Texture, x: number, y: number): Vector2 |
 
 function portablePointTexturePoint(texture: Texture, x: number, y: number): Vector2 | undefined {
   const coordinate = new Vector2(x, y).applyMatrix3(texture.matrix)
+  const [wrapX, wrapY] = textureWrap(texture) ?? ['clamp', 'clamp']
   if (
     !Number.isFinite(coordinate.x) ||
     !Number.isFinite(coordinate.y) ||
-    (textureWrap(texture) === 'clamp' &&
-      (coordinate.x < 0 || coordinate.x > 1 || coordinate.y < 0 || coordinate.y > 1))
+    (wrapX === 'clamp' && (coordinate.x < 0 || coordinate.x > 1)) ||
+    (wrapY === 'clamp' && (coordinate.y < 0 || coordinate.y > 1))
   ) {
     return undefined
   }
