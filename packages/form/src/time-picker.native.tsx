@@ -70,19 +70,37 @@ export interface HozoTimePickerProps {
 const MIDNIGHT: CalendarTime = { hour: 0, minute: 0 }
 
 /**
+ * The two actions a `SeekBar` offers, which is what TalkBack turns into swipe
+ * up and swipe down once the role is `adjustable`.
+ *
+ * A module constant rather than a fresh array per field per render: the prop
+ * crosses the bridge, and two identical arrays rebuilt on every keystroke are
+ * two messages that say nothing new.
+ */
+const INCREMENT_DECREMENT = [{ name: 'increment' }, { name: 'decrement' }] as const
+
+/**
  * The same two fields, stepped by buttons rather than by arrow keys.
  *
- * `accessibilityRole="spinbutton"` on each field, which React Native does
- * have -- it is in `ViewAccessibility`'s role union and reaches Android's
- * node info. What it cannot have is the typing: there is no editable field
- * here without a `TextInput`, and a `TextInput` per segment brings a keyboard
- * up over the control it is meant to be operating. So the value moves through
- * a pair of buttons per field, which is what a phone's own pickers do.
+ * `accessibilityRole="adjustable"` on each field, which is Android's nearest
+ * thing to the Web half's `role="spinbutton"`: the node becomes a `SeekBar`,
+ * so TalkBack announces it as a range and offers swipe up and swipe down
+ * against `accessibilityActions`. What no role here can have is the typing --
+ * there is no editable field without a `TextInput`, and a `TextInput` per
+ * segment brings a keyboard up over the control it is meant to be operating.
+ * So the value also moves through a pair of buttons per field, which is what
+ * a phone's own pickers do and what a reader has if the gestures do not
+ * arrive.
  *
  * Each field says the whole time through `accessibilityValue.text` rather
  * than its own digits, matching the Web half's `aria-valuetext`:
  * `BaseViewManager` joins the label and the value text with ", ", so TalkBack
  * reads "Hour, 9:30 AM" and the reader hears where the step landed.
+ *
+ * All of which was already written here and none of which was happening. The
+ * fields carried the role, the label and the value and were not accessibility
+ * elements at all, because a `View` is only one when it says `accessible` --
+ * see the comment at that prop for what the device found.
  */
 export function HozoTimePicker({
   style,
@@ -146,6 +164,22 @@ export function HozoTimePicker({
     return twelveHour(current).period === 'am' ? periodLabels.am : periodLabels.pm
   }
 
+  /**
+   * The range the swipe gestures move within.
+   *
+   * `now` is left out when nothing is chosen: a range with no current value is
+   * what an empty field is, and inventing one -- midnight, or the minimum --
+   * would announce a time the picker does not hold.
+   */
+  const rangeOf = (name: 'hour' | 'minute') => {
+    const low = name === 'minute' ? 0 : twelve ? 1 : 0
+    const high = name === 'minute' ? 59 : twelve ? 12 : 23
+    if (current === null) return { max: high, min: low }
+    const now =
+      name === 'minute' ? current.minute : twelve ? twelveHour(current).hour : current.hour
+    return { max: high, min: low, now }
+  }
+
   const fieldName = (field: 'hour' | 'minute' | 'period'): string => {
     if (field === 'hour') return hourFieldLabel
     if (field === 'minute') return minuteFieldLabel
@@ -169,13 +203,50 @@ export function HozoTimePicker({
     <View style={fieldStyle}>
       {stepper(name, 1, '▲')}
       <View
-        accessibilityRole="spinbutton"
+        // The line this whole control turned on, and it was missing.
+        //
+        // A `View` is not an accessibility element unless it says so: without
+        // `accessible`, the role, the label and the value below it reached
+        // nobody. Measured on an API 36 emulator -- TalkBack's walk of this
+        // screen was seven items, the four steppers, the period and the two
+        // triggers, and the fields were on it nowhere. `android-smoke.sh`
+        // listed "9" and "30" among the nodes that are *drawn and
+        // undescribed*, which is what a `Text` inside an inert `View` is. So a
+        // reader could press Increase Hour and had no way to hear the hour.
+        accessible
+        // `adjustable` rather than `spinbutton`, which was here and is not
+        // what failed. Android has no spinbutton; `adjustable` is the role
+        // that becomes a `SeekBar` in the node info, which is what makes
+        // TalkBack offer swipe up and down -- so the value becomes reachable
+        // *and* adjustable from where it is announced, instead of only from
+        // two buttons beside it. The Web half's `role="spinbutton"` is the
+        // same idea in the vocabulary that has one.
+        accessibilityRole="adjustable"
         accessibilityLabel={label}
-        accessibilityValue={{ text: spoken }}
+        // `text` is what TalkBack reads, and it is the whole time rather than
+        // this field's digits -- the Web half's `aria-valuetext`, for its
+        // reason: a reader moving the hour wants to hear where that put the
+        // time. `min`, `max` and `now` are underneath it so the node is a
+        // range rather than a label with a number in it, which is what the
+        // swipe gestures act on.
+        accessibilityValue={{ ...rangeOf(name), text: spoken }}
+        accessibilityActions={INCREMENT_DECREMENT}
+        onAccessibilityAction={({ nativeEvent }) => {
+          if (disabled) return
+          if (nativeEvent.actionName === 'increment') stepBy(name, 1)
+          else if (nativeEvent.actionName === 'decrement') stepBy(name, -1)
+        }}
         accessibilityState={{ disabled }}
       >
         <Text style={fieldTextStyle}>{textOf(name)}</Text>
       </View>
+      {/*
+        The steppers stay on the walk rather than being hidden behind the
+        gestures they duplicate. Whether `adjustable`'s swipes arrive at all is
+        not established on this platform, and hiding the only other way to
+        change the value on the strength of an untested one would trade a
+        control a reader cannot hear for a control it cannot reach.
+      */}
       {stepper(name, -1, '▼')}
     </View>
   )
