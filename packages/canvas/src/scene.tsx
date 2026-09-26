@@ -407,6 +407,8 @@ export interface CanvasVertexColor {
   g: number
   /** Normalized sRGB blue channel. Values outside 0..1 are clamped. */
   b: number
+  /** Optional normalized alpha channel. Values outside 0..1 are clamped. */
+  a?: number
 }
 
 export type CanvasTextureSource = string | number | { uri?: string; default?: string }
@@ -442,16 +444,23 @@ export interface TriangleMeshProps extends CanvasInteractionProps {
 export function triangleMeshColor(
   color: CanvasVertexColor | undefined,
 ): CanvasVertexColor | undefined {
-  if (!color || ![color.r, color.g, color.b].every(Number.isFinite)) return undefined
+  if (
+    !color ||
+    ![color.r, color.g, color.b].every(Number.isFinite) ||
+    (color.a !== undefined && !Number.isFinite(color.a))
+  ) {
+    return undefined
+  }
   return {
     r: Math.max(0, Math.min(1, color.r)),
     g: Math.max(0, Math.min(1, color.g)),
     b: Math.max(0, Math.min(1, color.b)),
+    ...(color.a === undefined ? {} : { a: Math.max(0, Math.min(1, color.a)) }),
   }
 }
 
 /** A normalized vertex colour in the syntax Canvas 2D and Skia both accept. */
-export function triangleMeshColorCss(color: CanvasVertexColor, alpha = 1): string {
+export function triangleMeshColorCss(color: CanvasVertexColor, alpha = color.a ?? 1): string {
   return `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${alpha})`
 }
 

@@ -127,7 +127,7 @@ function vertexContribution(
   vertex: { x: number; y: number },
   edgeA: { x: number; y: number },
   edgeB: { x: number; y: number },
-  color: { r: number; g: number; b: number },
+  color: { r: number; g: number; b: number; a?: number },
 ) {
   const edgeX = edgeB.x - edgeA.x
   const edgeY = edgeB.y - edgeA.y
@@ -151,9 +151,9 @@ function fillColoredTriangle(
   b: { x: number; y: number },
   c: { x: number; y: number },
   colors: readonly [
-    { r: number; g: number; b: number },
-    { r: number; g: number; b: number },
-    { r: number; g: number; b: number },
+    { r: number; g: number; b: number; a?: number },
+    { r: number; g: number; b: number; a?: number },
+    { r: number; g: number; b: number; a?: number },
   ],
 ) {
   if ((b.x - a.x) * (c.y - a.y) === (b.y - a.y) * (c.x - a.x)) return

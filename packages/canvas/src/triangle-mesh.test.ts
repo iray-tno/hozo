@@ -129,8 +129,71 @@ test('triangle meshes share one validation rule for indexed and consecutive trip
 
 test('vertex colours clamp normalized channels before reaching either renderer', () => {
   assert.deepEqual(triangleMeshColor({ r: 2, g: -1, b: 0.5 }), { r: 1, g: 0, b: 0.5 })
+  assert.deepEqual(triangleMeshColor({ r: 1, g: 0, b: 0.5, a: 2 }), {
+    r: 1,
+    g: 0,
+    b: 0.5,
+    a: 1,
+  })
   assert.equal(triangleMeshColorCss({ r: 1, g: 0, b: 0.5 }), 'rgba(255, 0, 128, 1)')
+  assert.equal(triangleMeshColorCss({ r: 1, g: 0, b: 0.5, a: 0.25 }), 'rgba(255, 0, 128, 0.25)')
   assert.equal(triangleMeshColor({ r: Number.NaN, g: 0, b: 0 }), undefined)
+  assert.equal(triangleMeshColor({ r: 0, g: 0, b: 0, a: Number.NaN }), undefined)
+})
+
+test('Canvas 2D multiplies each barycentric colour contribution by vertex alpha', () => {
+  const stops: Array<readonly [number, string]> = []
+  const context = new Proxy(
+    {
+      globalAlpha: 1,
+      globalCompositeOperation: 'source-over',
+      fillStyle: '',
+      createLinearGradient() {
+        return {
+          addColorStop(offset: number, color: string) {
+            stops.push([offset, color])
+          },
+        }
+      },
+    } as Record<string, unknown>,
+    {
+      get(target, property) {
+        if (property in target) return target[property as string]
+        return () => undefined
+      },
+      set(target, property, value) {
+        target[property as string] = value
+        return true
+      },
+    },
+  ) as unknown as CanvasRenderingContext2D
+
+  renderCanvas2D(
+    context,
+    [
+      {
+        kind: 'triangle-mesh',
+        props: {
+          vertices: vertices.slice(0, 3),
+          colors: [
+            { r: 1, g: 0, b: 0, a: 0.25 },
+            { r: 0, g: 1, b: 0, a: 0.5 },
+            { r: 0, g: 0, b: 1, a: 0.75 },
+          ],
+        },
+      },
+    ],
+    { width: 20, height: 20, pixelRatio: 1 },
+  )
+
+  assert.deepEqual(stops, [
+    [0, 'rgba(255, 0, 0, 0)'],
+    [1, 'rgba(255, 0, 0, 0.25)'],
+    [0, 'rgba(0, 255, 0, 0)'],
+    [1, 'rgba(0, 255, 0, 0.5)'],
+    [0, 'rgba(0, 0, 255, 0)'],
+    [1, 'rgba(0, 0, 255, 0.75)'],
+  ])
 })
 
 test('Canvas 2D paints every valid triangle as its own closed face', () => {
