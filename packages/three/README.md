@@ -73,9 +73,10 @@ alpha hashing, MSAA alpha-to-coverage, and dithering are diagnosed rather than
 silently flattened into ordinary opacity.
 `LineDashedMaterial` uses Three's
 `lineDistance`, dash size, gap size, and scale to emit portable segments before
-projection. `Points` with untextured
-`PointsMaterial` are projected as circles, including perspective size
-attenuation and per-point RGB colours. Wireframe `MeshBasicMaterial` is
+projection. `PointsMaterial` projects untextured points as circles and the
+constrained colour-map subset as screen-aligned point-sprite quads, including
+perspective size attenuation. Per-point RGB colours remain available for the
+untextured path. Wireframe `MeshBasicMaterial` is
 projected through the same line pipeline, including its colour and
 `wireframeLinewidth`. Default world-space material clipping planes cut meshes
 and lines and discard clipped points. `clipIntersection` preserves the union of

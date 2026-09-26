@@ -980,17 +980,44 @@ test('PointsMaterial multiplies per-point RGB colours', () => {
   )
 })
 
-test('textured points are omitted with a diagnostic', () => {
+test('PointsMaterial map becomes a portable point-sprite texture', () => {
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new Float32BufferAttribute([0, 0, 0], 3))
+  const texture = new Texture()
+  texture.source.data = '/particle.png'
+  texture.colorSpace = THREE.SRGBColorSpace
   const scene = new Scene()
-  scene.add(new Points(geometry, new PointsMaterial({ map: new Texture() })))
+  scene.add(
+    new Points(
+      geometry,
+      new PointsMaterial({ map: texture, size: 4, sizeAttenuation: false, transparent: true }),
+    ),
+  )
 
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
-  assert.deepEqual(result.scene, [])
-  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
-  assert.match(result.diagnostics[0]?.message ?? '', /textured/)
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedMeshes(result), [
+    {
+      indices: [0, 1, 2, 0, 2, 3],
+      texture: {
+        source: '/particle.png',
+        coordinates: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 1, y: 1 },
+          { x: 0, y: 1 },
+        ],
+        filter: 'linear',
+      },
+      vertices: [
+        { x: 48, y: 48 },
+        { x: 52, y: 48 },
+        { x: 52, y: 52 },
+        { x: 48, y: 52 },
+      ],
+    },
+  ])
 })
 
 test('an invisible material emits neither geometry nor a diagnostic', () => {

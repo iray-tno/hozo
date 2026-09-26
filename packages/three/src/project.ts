@@ -728,6 +728,24 @@ function portableTexturePoint(texture: Texture, x: number, y: number): Vector2 |
   return coordinate
 }
 
+function portablePointTexturePoint(texture: Texture, x: number, y: number): Vector2 | undefined {
+  const coordinate = new Vector2(x, y).applyMatrix3(texture.matrix)
+  if (
+    !Number.isFinite(coordinate.x) ||
+    !Number.isFinite(coordinate.y) ||
+    coordinate.x < 0 ||
+    coordinate.x > 1 ||
+    coordinate.y < 0 ||
+    coordinate.y > 1
+  ) {
+    return undefined
+  }
+  // Three's point shader already turns gl_PointCoord into top-left image space.
+  // Only an upload that opts out of Three's usual flip needs reversing here.
+  if (!texture.flipY) coordinate.y = 1 - coordinate.y
+  return coordinate
+}
+
 function portableTextureCoordinate(
   texture: Texture,
   attribute: BufferAttribute | InterleavedBufferAttribute,
@@ -764,7 +782,16 @@ function pointsMaterialReason(material: PointsMaterial): string | undefined {
   const baseReason = baseMaterialReason(material)
   if (baseReason) return baseReason
   if (!Number.isFinite(material.opacity)) return 'point opacity must be finite'
-  if (material.map || material.alphaMap) return 'textured points are not projected yet'
+  if (material.alphaMap) return 'PointsMaterial alphaMap needs per-pixel sampling'
+  if (material.map) {
+    const mapReason = textureReason(material.map)
+    if (mapReason) return mapReason
+    if (material.vertexColors) return 'texture and per-point colour modulation is not projected yet'
+    if (material.color.getHex() !== 0xffffff) {
+      return 'texture and point-colour modulation is not projected yet'
+    }
+    if (material.alphaTest > 0) return 'textured alphaTest needs per-pixel sampling'
+  }
   return undefined
 }
 
@@ -1385,6 +1412,42 @@ function projectThreeSceneInternal(
       const requested = points.geometry.drawRange.count
       const end = Math.min(available, Number.isFinite(requested) ? start + requested : available)
       const pointMaterial = material as PointsMaterial
+      const pointMap = pointMaterial.map
+      if (pointMap && pointMaterial.fog && scene.fog) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message: 'texture and point fog modulation is not projected yet',
+          object,
+        })
+        return
+      }
+      if (pointMap && points.geometry.getAttribute('uv')) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message:
+            'Points geometry UVs sample one texel per point; the portable backend supports point-sprite map coordinates only.',
+          object,
+        })
+        return
+      }
+      if (pointMap?.matrixAutoUpdate) pointMap.updateMatrix()
+      const pointTexture = pointMap
+        ? [
+            portablePointTexturePoint(pointMap, 0, 0),
+            portablePointTexturePoint(pointMap, 1, 0),
+            portablePointTexturePoint(pointMap, 1, 1),
+            portablePointTexturePoint(pointMap, 0, 1),
+          ]
+        : undefined
+      if (pointTexture?.some((coordinate) => coordinate === undefined)) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_MATERIAL',
+          message:
+            'point texture coordinates must remain finite and inside 0..1 after the texture transform',
+          object,
+        })
+        return
+      }
       const color = pointMaterial.vertexColors ? points.geometry.getAttribute('color') : undefined
       if (color && color.itemSize !== 3) {
         diagnostic(diagnostics, options, {
@@ -1438,16 +1501,39 @@ function projectThreeSceneInternal(
           order: order++,
           renderOrder: object.renderOrder,
           transparent: pointMaterial.transparent,
-          node: {
-            kind: 'circle',
-            props: {
-              cx: projected.x,
-              cy: projected.y,
-              radius,
-              fill: `#${projectedFill.getHexString()}`,
-              ...projectedOpacityProps(pointMaterial),
-            },
-          },
+          node:
+            pointTexture && pointMap
+              ? {
+                  kind: 'triangle-mesh',
+                  props: {
+                    indices: [0, 1, 2, 0, 2, 3],
+                    texture: {
+                      source: textureSource(pointMap) as CanvasTextureSource,
+                      coordinates: pointTexture.map((coordinate) => ({
+                        x: (coordinate as Vector2).x,
+                        y: (coordinate as Vector2).y,
+                      })),
+                      filter: pointMap.magFilter === NearestFilter ? 'nearest' : 'linear',
+                    },
+                    vertices: [
+                      { x: projected.x - radius, y: projected.y - radius },
+                      { x: projected.x + radius, y: projected.y - radius },
+                      { x: projected.x + radius, y: projected.y + radius },
+                      { x: projected.x - radius, y: projected.y + radius },
+                    ],
+                    ...projectedOpacityProps(pointMaterial),
+                  },
+                }
+              : {
+                  kind: 'circle',
+                  props: {
+                    cx: projected.x,
+                    cy: projected.y,
+                    radius,
+                    fill: `#${projectedFill.getHexString()}`,
+                    ...projectedOpacityProps(pointMaterial),
+                  },
+                },
         })
       }
       return
