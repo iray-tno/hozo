@@ -62,6 +62,9 @@ two-component UVs. Texture transforms and `flipY` are preserved, including UVs
 created by clipping. Sampling is affine in screen space and has no mipmaps;
 repeat seams, tint/vertex-colour/fog modulation, and per-pixel alpha tests stay
 diagnostic instead of being silently approximated.
+Solid `Scene.background` colours and constrained 2D colour textures fill the
+portable viewport without creating an interactive object. Cube/equirectangular
+environment backgrounds, blur, and intensity modulation remain diagnostic.
 `Fog` and `FogExp2` blend supported meshes, wireframes, lines, points, and
 sprites in the same working colour space as Three.js, while respecting each
 material's `fog` opt-out. Constant-depth shapes and individual points match

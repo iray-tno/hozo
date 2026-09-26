@@ -498,9 +498,46 @@ test('solid scene backgrounds become non-interactive Canvas rectangles', () => {
   assert.deepEqual(result.objects, [undefined])
 })
 
-test('texture backgrounds are diagnosed while otherwise portable geometry remains visible', () => {
+test('a 2D texture background becomes a viewport-sized portable mesh', () => {
   const scene = new Scene()
-  scene.background = new Texture()
+  const background = new Texture()
+  background.source.data = '/background.png'
+  background.colorSpace = THREE.SRGBColorSpace
+  scene.background = background
+
+  const result = projectThreeScene(scene, perspective(), { width: 120, height: 80 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(result.objects, [undefined])
+  assert.deepEqual(result.scene, [
+    {
+      kind: 'triangle-mesh',
+      props: {
+        indices: [0, 1, 2, 0, 2, 3],
+        texture: {
+          source: '/background.png',
+          coordinates: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+            { x: 1, y: 1 },
+            { x: 0, y: 1 },
+          ],
+          filter: 'linear',
+        },
+        vertices: [
+          { x: 0, y: 0 },
+          { x: 120, y: 0 },
+          { x: 120, y: 80 },
+          { x: 0, y: 80 },
+        ],
+      },
+    },
+  ])
+})
+
+test('environment backgrounds are diagnosed while portable geometry remains visible', () => {
+  const scene = new Scene()
+  scene.background = new THREE.CubeTexture()
   scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
 
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })

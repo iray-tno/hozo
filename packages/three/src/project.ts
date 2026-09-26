@@ -86,6 +86,10 @@ function isColorBackground(background: Scene['background']): background is Color
   return background !== null && (background as Color).isColor === true
 }
 
+function isTextureBackground(background: Scene['background']): background is Texture {
+  return background !== null && (background as Texture).isTexture === true
+}
+
 function fogReason(fog: SupportedFog): string | undefined {
   if ((fog as SupportedFog & { isFogExp2?: boolean }).isFogExp2 === true) {
     const density = (fog as SupportedFog & { density: number }).density
@@ -692,9 +696,12 @@ function textureSource(texture: Texture): CanvasTextureSource | undefined {
   return undefined
 }
 
-function textureReason(texture: Texture): string | undefined {
+function textureReason(texture: Texture, usesGeometryChannel = false): string | undefined {
   if (texture.mapping !== UVMapping) return 'portable colour textures need UVMapping'
-  if (!Number.isInteger(texture.channel) || texture.channel < 0 || texture.channel > 3) {
+  if (
+    usesGeometryChannel &&
+    (!Number.isInteger(texture.channel) || texture.channel < 0 || texture.channel > 3)
+  ) {
     return 'texture channel must select uv, uv1, uv2, or uv3'
   }
   if (texture.wrapS !== ClampToEdgeWrapping || texture.wrapT !== ClampToEdgeWrapping) {
@@ -905,10 +912,59 @@ function projectThreeSceneInternal(
       },
     })
     decorationObjects.push(undefined)
+  } else if (includeSceneState && isTextureBackground(scene.background)) {
+    const background = scene.background
+    let reason = textureReason(background)
+    if (!reason && scene.backgroundBlurriness !== 0) {
+      reason = 'blurred scene backgrounds need environment-map sampling'
+    }
+    if (!reason && scene.backgroundIntensity !== 1) {
+      reason = 'scene backgroundIntensity needs per-pixel colour modulation'
+    }
+    if (background.matrixAutoUpdate) background.updateMatrix()
+    const coordinates = [
+      portableTexturePoint(background, 0, 1),
+      portableTexturePoint(background, 1, 1),
+      portableTexturePoint(background, 1, 0),
+      portableTexturePoint(background, 0, 0),
+    ]
+    if (!reason && coordinates.some((coordinate) => coordinate === undefined)) {
+      reason =
+        'scene background texture coordinates must remain finite and inside 0..1 after the texture transform'
+    }
+    if (reason) {
+      diagnostic(diagnostics, options, {
+        code: 'UNSUPPORTED_SCENE',
+        message: reason,
+        object: scene,
+      })
+    } else {
+      decoration.push({
+        kind: 'triangle-mesh',
+        props: {
+          indices: [0, 1, 2, 0, 2, 3],
+          texture: {
+            source: textureSource(background) as CanvasTextureSource,
+            coordinates: coordinates.map((coordinate) => ({
+              x: (coordinate as Vector2).x,
+              y: (coordinate as Vector2).y,
+            })),
+            filter: background.magFilter === NearestFilter ? 'nearest' : 'linear',
+          },
+          vertices: [
+            { x: 0, y: 0 },
+            { x: options.width, y: 0 },
+            { x: options.width, y: options.height },
+            { x: 0, y: options.height },
+          ],
+        },
+      })
+      decorationObjects.push(undefined)
+    }
   } else if (includeSceneState && scene.background !== null) {
     diagnostic(diagnostics, options, {
       code: 'UNSUPPORTED_SCENE',
-      message: 'Texture and cube-texture scene backgrounds are not projected yet.',
+      message: 'This scene background type is not projected yet.',
       object: scene,
     })
   }
@@ -1602,7 +1658,7 @@ function projectThreeSceneInternal(
       }
       const map = material.map
       if (map) {
-        const mapReason = textureReason(map)
+        const mapReason = textureReason(map, true)
         if (mapReason) {
           if (!reportedMaterials.has(source)) {
             reportedMaterials.add(source)
