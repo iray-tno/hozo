@@ -22,11 +22,15 @@ async function bundledInputs(entry: string) {
 }
 
 test('renderer entry points do not retain the other Three.js renderer family', async () => {
-  const [classic, modern] = await Promise.all([
+  const [portable, classic, modern, r3f] = await Promise.all([
+    bundledInputs('index.ts'),
     bundledInputs('webgl-renderer.tsx'),
     bundledInputs('webgpu.tsx'),
+    bundledInputs('r3f.tsx'),
   ])
 
+  assert.ok(!portable.some((input) => input.includes('/@react-three/fiber/')))
+  assert.ok(r3f.some((input) => input.includes('/@react-three/fiber/')))
   assert.ok(classic.some((input) => input.endsWith('/three/build/three.module.js')))
   assert.ok(!classic.some((input) => input.endsWith('/three/build/three.webgpu.js')))
   assert.ok(modern.some((input) => input.endsWith('/three/build/three.webgpu.js')))
