@@ -1,0 +1,6 @@
+# Approved from screen-readers run 36299473387 (NVDA, Chrome).
+#
+# partial: the same as the file beside this one -- the trigger and the dialog's
+# name, nothing inside. See #580 and #585.
+button, expanded, opens dialog, Dates of stay
+dialog, Choose a range of dates
