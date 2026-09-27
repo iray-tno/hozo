@@ -22,6 +22,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [001](001-universal-behaviors.md) | Universal Runtime Behaviors & Floating Positioning | Layer 2 (`@hozo/behaviors`) | **Implemented** | #156, #158, #211 |
 | [002](002-universal-dialog.md) | Universal Dialog Component | Layer 3 (`@hozo/patterns`) | **Implemented** | #156, #167, #203 |
 | [003](003-universal-navigation-and-links.md) | Universal Navigation, Links, Pressables & Router Adapters | Layer 1 & 2 (`@hozo/core`, `@hozo/navigation`, `@hozo/canvas`) | **Implemented** | #185 |
+| [004](004-three-renderer-families.md) | Three.js Renderer Families | `@hozo/three` | **Accepted** | #574 |
 
 ---
 
