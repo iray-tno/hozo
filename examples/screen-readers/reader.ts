@@ -160,6 +160,22 @@ const CONTAINER = /\b(toolbar|list ?box|table|web ?dialog)\b/i
 const INSIDE_STEPS = 20
 
 /**
+ * NVDA's word for an empty line, which is silence with a name on it.
+ *
+ * It is why the Dialog story stopped where it did. NVDA said "blank" four times
+ * running, `walk` counted them as four ordinary phrases, three in a row was a
+ * repeat, and the walk ended -- seven steps in, with the dialog's contents on
+ * the far side of those blanks. The exit reason said "a repeated phrase" rather
+ * than "silence", which is what separated this from a step budget that needed
+ * raising.
+ *
+ * Matched whole rather than as a substring, so a control actually labelled
+ * "Blank" would still be read. VoiceOver says `""` for the same thing and is
+ * unaffected.
+ */
+const BLANK = /^blank$/i
+
+/**
  * Steps to the end of the page and returns everything the reader said.
  *
  * A reader that has nowhere left to go says the same thing again, and three of
@@ -195,7 +211,7 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
 
   while (steps < maxSteps && repeats < 3 && silent < 5) {
     const said = await step()
-    if (said === '') {
+    if (said === '' || BLANK.test(said)) {
       silent += 1
       continue
     }
