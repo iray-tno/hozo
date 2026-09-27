@@ -6,10 +6,12 @@ export {
   type ThreeProjectionOptions,
 } from './project.ts'
 export type {
+  ThreeSurfaceCameraResize,
   ThreeSurfaceFrame,
   ThreeSurfaceFrameloop,
   ThreeSurfaceHandle,
   ThreeSurfaceProps,
+  ThreeSurfaceSize,
 } from './surface.ts'
 export {
   ThreeCanvas,

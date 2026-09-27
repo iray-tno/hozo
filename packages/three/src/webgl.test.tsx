@@ -78,6 +78,103 @@ test('classic WebGL surface owns renderer lifecycle and demand invalidation', as
   assert.equal(calls.at(-1), 'dispose')
 })
 
+test('classic WebGL follows its layout size, DPR, and perspective-camera aspect', async () => {
+  const originalObserver = globalThis.ResizeObserver
+  const originalRatio = globalThis.devicePixelRatio
+  let notifyResize: (() => void) | undefined
+  class TestResizeObserver {
+    constructor(callback: ResizeObserverCallback) {
+      notifyResize = () => callback([], this as unknown as ResizeObserver)
+    }
+    observe() {}
+    disconnect() {}
+    unobserve() {}
+  }
+  globalThis.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver
+  Object.defineProperty(globalThis, 'devicePixelRatio', { configurable: true, value: 2 })
+  const scene = new Scene()
+  const camera = new PerspectiveCamera(60, 1)
+  const bounds = { width: 320, height: 180 }
+  const surface = {
+    getBoundingClientRect: () => ({ left: 0, top: 0, ...bounds }),
+  }
+  const sizes: string[] = []
+  const observed: string[] = []
+  const renderer = {
+    dispose: () => undefined,
+    render: () => undefined,
+    setPixelRatio: (ratio: number) => sizes.push(`ratio:${ratio}`),
+    setSize: (width: number, height: number) => sizes.push(`${width}x${height}`),
+  } as unknown as WebGLRenderer
+  let root: ReturnType<typeof testRenderer.create> | undefined
+
+  try {
+    await testRenderer.act(async () => {
+      root = testRenderer.create(
+        <ThreeCanvas
+          decorative
+          scene={scene}
+          camera={camera}
+          style={{ width: '100%', height: '100%' }}
+          createRenderer={() => renderer}
+          onResize={({ width, height, pixelRatio }) =>
+            observed.push(`${width}x${height}@${pixelRatio}`)
+          }
+        />,
+        { createNodeMock: (element) => (element.type === 'canvas' ? surface : null) },
+      )
+    })
+    assert.ok(sizes.includes('320x180'))
+    assert.ok(sizes.includes('ratio:2'))
+    assert.equal(camera.aspect, 320 / 180)
+    assert.equal(observed.at(-1), '320x180@2')
+
+    bounds.width = 600
+    bounds.height = 300
+    await testRenderer.act(async () => notifyResize?.())
+    assert.equal(sizes.at(-1), '600x300')
+    assert.equal(camera.aspect, 2)
+    assert.equal(observed.at(-1), '600x300@2')
+  } finally {
+    await testRenderer.act(async () => root?.unmount())
+    globalThis.ResizeObserver = originalObserver
+    if (originalRatio === undefined) Reflect.deleteProperty(globalThis, 'devicePixelRatio')
+    else
+      Object.defineProperty(globalThis, 'devicePixelRatio', {
+        configurable: true,
+        value: originalRatio,
+      })
+  }
+})
+
+test('manual camera resize preserves an application-owned projection', async () => {
+  const scene = new Scene()
+  const camera = new PerspectiveCamera(60, 3)
+  const renderer = {
+    dispose: () => undefined,
+    render: () => undefined,
+    setPixelRatio: () => undefined,
+    setSize: () => undefined,
+  } as unknown as WebGLRenderer
+  let root: ReturnType<typeof testRenderer.create> | undefined
+  await testRenderer.act(async () => {
+    root = testRenderer.create(
+      <ThreeCanvas
+        decorative
+        scene={scene}
+        camera={camera}
+        cameraResize="manual"
+        width={320}
+        height={180}
+        createRenderer={() => renderer}
+      />,
+      { createNodeMock: () => ({}) },
+    )
+  })
+  assert.equal(camera.aspect, 3)
+  await testRenderer.act(async () => root?.unmount())
+})
+
 test('classic WebGL surface preserves labelled, decorative, and fallback semantics', async () => {
   const scene = new Scene()
   const camera = new PerspectiveCamera()
