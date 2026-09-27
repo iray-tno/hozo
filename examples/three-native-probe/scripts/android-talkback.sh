@@ -42,10 +42,12 @@ adb shell settings put secure enabled_accessibility_services "$talkback_service"
 adb shell settings put secure accessibility_enabled 1
 
 for _ in $(seq 1 30); do
-  if adb shell dumpsys accessibility | tr -d '\r' | grep -q 'TalkBackService'; then break; fi
+  # Do not use grep -q in this pipe: under pipefail, its early exit can give
+  # dumpsys SIGPIPE (141) after TalkBack was found successfully.
+  if adb shell dumpsys accessibility | tr -d '\r' | grep 'TalkBackService' >/dev/null; then break; fi
   sleep 1
 done
-adb shell dumpsys accessibility | tr -d '\r' | grep -q 'TalkBackService'
+adb shell dumpsys accessibility | tr -d '\r' | grep 'TalkBackService' >/dev/null
 
 for _ in $(seq 1 20); do
   [ -z "$(spoken)" ] || break

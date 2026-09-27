@@ -1,6 +1,7 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber/native'
+import type { ExpoWebGLRenderingContext } from 'expo-gl'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Mesh } from 'three'
 
 const moduleStartedAt = performance.now()
@@ -15,6 +16,8 @@ type ProbeEvent = {
   p95FrameMs?: number
   objectId?: string
   source?: 'canvas' | 'semantic-control'
+  contextId?: number
+  resumeEpoch?: number
 }
 
 function emit(event: ProbeEvent) {
@@ -27,18 +30,28 @@ function percentile(samples: readonly number[], fraction: number) {
   return sorted[index] ?? 0
 }
 
-function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
+function ProbeScene({
+  onComplete,
+  resumeEpoch,
+}: {
+  onComplete: (object: Mesh) => void
+  resumeEpoch: number
+}) {
   const meshRef = useRef<Mesh>(null)
   const frameTimes = useRef<number[]>([])
+  const firstFrameEmitted = useRef(false)
   const completed = useRef(false)
   const touched = useRef(false)
+  const observedResumeEpoch = useRef(0)
   const { gl } = useThree()
+  const contextId = (gl.getContext() as ExpoWebGLRenderingContext).contextId
 
   useEffect(() => {
     emit({
       event: 'renderer_ready',
       host: 'expo-gl',
       elapsedMs: performance.now() - moduleStartedAt,
+      contextId,
     })
     return () => {
       gl.dispose()
@@ -48,7 +61,7 @@ function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
         elapsedMs: performance.now() - moduleStartedAt,
       })
     }
-  }, [gl])
+  }, [contextId, gl])
 
   useFrame((_, delta) => {
     const mesh = meshRef.current
@@ -56,9 +69,24 @@ function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
 
     mesh.rotation.x += delta * 0.4
     mesh.rotation.y += delta * 0.7
+
+    if (resumeEpoch > observedResumeEpoch.current) {
+      observedResumeEpoch.current = resumeEpoch
+      frameTimes.current = []
+      emit({
+        event: 'frame_after_resume',
+        host: 'expo-gl',
+        elapsedMs: performance.now() - moduleStartedAt,
+        objectId: mesh.uuid,
+        contextId,
+        resumeEpoch,
+      })
+    }
+
     if (frameTimes.current.length < sampleFrameCount) frameTimes.current.push(delta * 1_000)
 
-    if (frameTimes.current.length === 1) {
+    if (!firstFrameEmitted.current) {
+      firstFrameEmitted.current = true
       emit({
         event: 'first_frame',
         host: 'expo-gl',
@@ -67,7 +95,11 @@ function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
       })
     }
 
-    if (frameTimes.current.length === sampleFrameCount && touched.current) {
+    if (
+      frameTimes.current.length === sampleFrameCount &&
+      touched.current &&
+      observedResumeEpoch.current > 0
+    ) {
       completed.current = true
       emit({
         event: 'steady_sample',
@@ -154,6 +186,35 @@ function AccessibilityModes() {
 export default function App() {
   const [mounted, setMounted] = useState(true)
   const [sampledObject, setSampledObject] = useState<Mesh | null>(null)
+  const [resumeEpoch, setResumeEpoch] = useState(0)
+  const backgrounded = useRef(false)
+  const resumeCount = useRef(0)
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        if (backgrounded.current) return
+        backgrounded.current = true
+        emit({
+          event: 'app_backgrounded',
+          host: 'expo-gl',
+          elapsedMs: performance.now() - moduleStartedAt,
+        })
+        return
+      }
+      if (state !== 'active' || !backgrounded.current) return
+      backgrounded.current = false
+      resumeCount.current += 1
+      emit({
+        event: 'app_resumed',
+        host: 'expo-gl',
+        elapsedMs: performance.now() - moduleStartedAt,
+        resumeEpoch: resumeCount.current,
+      })
+      setResumeEpoch(resumeCount.current)
+    })
+    return () => subscription.remove()
+  }, [])
 
   const complete = useCallback((object: Mesh) => {
     setSampledObject(object)
@@ -179,7 +240,7 @@ export default function App() {
         {mounted ? (
           <Canvas camera={{ position: [0, 0, 3] }}>
             <ambientLight intensity={0.4} />
-            <ProbeScene onComplete={complete} />
+            <ProbeScene onComplete={complete} resumeEpoch={resumeEpoch} />
           </Canvas>
         ) : (
           <View style={styles.complete}>
