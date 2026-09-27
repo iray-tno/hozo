@@ -905,9 +905,15 @@ importers:
       '@types/three':
         specifier: ^0.180.0
         version: 0.180.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       react:
         specifier: ^19.2.8
         version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       react-test-renderer:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)

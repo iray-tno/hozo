@@ -1,0 +1,47 @@
+# Driver-backed renderer checks are deliberately outside the pull-request gate.
+# The report records fallback as data: lack of WebGPU is not the same result as
+# a broken modern renderer, and should not turn runner availability into flake.
+name: three-gpu
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/three-gpu.yml'
+      - 'packages/three/**'
+  pull_request:
+    paths:
+      - '.github/workflows/three-gpu.yml'
+      - 'packages/three/scripts/check-gpu.mjs'
+      - 'packages/three/scripts/gpu-conformance-probe.tsx'
+  schedule:
+    - cron: '30 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: three-gpu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @hozo/three...
+      - run: pnpm turbo run build --filter=@hozo/three^...
+      - run: pnpm --filter @hozo/three test:gpu -- --output ../../artifacts/three-gpu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: three-gpu-conformance
+          path: artifacts/three-gpu
+          retention-days: 30
