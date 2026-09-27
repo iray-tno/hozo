@@ -244,6 +244,7 @@ test('classic WebGL raycasts pointer activation and exposes one semantic control
   } as unknown as WebGLRenderer
   const surface = {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+    setPointerCapture: () => undefined,
   }
   let root: ReturnType<typeof testRenderer.create> | undefined
 
@@ -272,15 +273,90 @@ test('classic WebGL raycasts pointer activation and exposes one semantic control
     clientX: 50,
     clientY: 50,
     currentTarget: surface,
+    button: 0,
+    isPrimary: true,
     pointerId: 1,
+    pointerType: 'mouse',
   }
   ;(canvas.props.onPointerMove as (event: typeof pointer) => void)(pointer)
   assert.equal((active[0] as { object: unknown }).object, mesh)
+  ;(button.props.onFocus as () => void)()
+  ;(canvas.props.onPointerLeave as (event: typeof pointer) => void)(pointer)
+  assert.equal(active.length, 1, 'pointer leave cleared focus-owned active state')
+  ;(button.props.onBlur as () => void)()
+  assert.equal(active[1], undefined)
   ;(canvas.props.onPointerDown as (event: typeof pointer) => void)(pointer)
   ;(canvas.props.onPointerUp as (event: typeof pointer) => void)(pointer)
   assert.equal((events[0] as { object: unknown }).object, mesh)
 
   ;(button.props.onClick as () => void)()
   assert.equal((events[1] as { object: unknown }).object, mesh)
+  await testRenderer.act(async () => root?.unmount())
+})
+
+test('classic WebGL touch indicates while held and clears on release', async () => {
+  const scene = new Scene()
+  const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial())
+  mesh.name = 'Cube'
+  scene.add(mesh)
+  const camera = new PerspectiveCamera(90, 1, 1, 10)
+  camera.position.z = 5
+  scene.updateMatrixWorld(true)
+  camera.updateMatrixWorld(true)
+  const active: unknown[] = []
+  const pressed: unknown[] = []
+  const captures: number[] = []
+  const renderer = {
+    dispose: () => undefined,
+    render: () => undefined,
+    setPixelRatio: () => undefined,
+    setSize: () => undefined,
+  } as unknown as WebGLRenderer
+  const surface = {
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+    setPointerCapture: (pointerId: number) => captures.push(pointerId),
+  }
+  let root: ReturnType<typeof testRenderer.create> | undefined
+
+  await testRenderer.act(async () => {
+    root = testRenderer.create(
+      <ThreeCanvas
+        accessibilityLabel="Cube scene"
+        scene={scene}
+        camera={camera}
+        width={100}
+        height={100}
+        createRenderer={() => renderer}
+        onObjectPress={(event) => pressed.push(event)}
+        onObjectActiveChange={(event) => active.push(event)}
+      />,
+      { createNodeMock: (element) => (element.type === 'canvas' ? surface : null) },
+    )
+  })
+
+  const canvas = root?.root.findByType('canvas')
+  assert.ok(canvas)
+  const pointer = {
+    button: 0,
+    clientX: 50,
+    clientY: 50,
+    currentTarget: surface,
+    isPrimary: true,
+    pointerId: 7,
+    pointerType: 'touch',
+  }
+  ;(canvas.props.onPointerDown as (event: typeof pointer) => void)(pointer)
+  assert.equal((active[0] as { object: unknown }).object, mesh)
+  assert.deepEqual(captures, [7])
+  ;(canvas.props.onPointerMove as (event: typeof pointer) => void)(pointer)
+  assert.equal(active.length, 1, 'touch pointermove was mistaken for hover')
+  ;(canvas.props.onPointerUp as (event: typeof pointer) => void)(pointer)
+  assert.equal(active[1], undefined)
+  assert.equal((pressed[0] as { object: unknown }).object, mesh)
+
+  const secondary = { ...pointer, button: 2, pointerId: 8, pointerType: 'mouse' }
+  ;(canvas.props.onPointerDown as (event: typeof secondary) => void)(secondary)
+  ;(canvas.props.onPointerUp as (event: typeof secondary) => void)(secondary)
+  assert.equal(pressed.length, 1, 'secondary button activated the object')
   await testRenderer.act(async () => root?.unmount())
 })
