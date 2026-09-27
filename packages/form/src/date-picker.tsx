@@ -10,6 +10,9 @@ export interface HozoDatePickerProps {
   triggerClassName?: string
   dialogClassName?: string
   calendarClassName?: string
+  /** On the `Calendar`'s month header and its grid; see `Calendar`. */
+  headerClassName?: string
+  gridClassName?: string
   dayClassName?: string
   value?: CalendarDate | null
   onChange?: (date: CalendarDate) => void
@@ -74,6 +77,8 @@ export function HozoDatePicker({
   triggerClassName,
   dialogClassName,
   calendarClassName,
+  headerClassName,
+  gridClassName,
   dayClassName,
   value,
   onChange,
@@ -154,6 +159,8 @@ export function HozoDatePicker({
                   <HozoCalendar
                     autoFocus
                     className={calendarClassName}
+                    headerClassName={headerClassName}
+                    gridClassName={gridClassName}
                     dayClassName={dayClassName}
                     value={value}
                     onChange={choose}

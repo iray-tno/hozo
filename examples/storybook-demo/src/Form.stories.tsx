@@ -49,6 +49,29 @@ const prose = 'text-sm text-slate-600'
 const grid = 'w-full border-collapse text-sm'
 
 /**
+ * The month header, and the reason it is here rather than defaulted.
+ *
+ * The header is a button, a `div` holding the month, and a button. A `div` is
+ * block, so with no class on the row the month breaks the line and the two
+ * chevrons end up above and below it -- which is what Storybook showed. Hozo
+ * ships no CSS, so there is no default that could have prevented it; the row
+ * has to be asked for.
+ */
+const header = 'flex flex-row items-center justify-between gap-4 mb-2'
+
+/**
+ * The clock, spelled out rather than left to the default.
+ *
+ * `DateTimePicker` renders a `TimePicker` when `children` is left out, and it
+ * forwards no classes to it -- deliberately, since forwarding both controls'
+ * props through one component is the `variant` shape #148 rejected. So the
+ * default one is unstyled, and unstyled means three block `div`s in a column.
+ * That is what Storybook showed inside the dialog, and the render prop is the
+ * answer the component is built around.
+ */
+const clock = 'flex flex-row items-center gap-2'
+
+/**
  * Every colour here clears 4.5:1, because `check-a11y.mjs` runs axe with no
  * rule filtering and three of the first five findings it ever made were about
  * computed colour. So a greyed-out day is `slate-500` struck through rather
@@ -94,7 +117,9 @@ function MonthGridDemo() {
         locale="en-US"
         firstDayOfWeek={1}
         accessibilityLabel="Departure date"
-        className={grid}
+        className="w-full"
+        headerClassName={header}
+        gridClassName={grid}
         dayClassName={cell}
       />
     </View>
@@ -125,7 +150,9 @@ function RangeGridDemo() {
         locale="en-US"
         firstDayOfWeek={1}
         accessibilityLabel="Dates of stay"
-        className={grid}
+        className="w-full"
+        headerClassName={header}
+        gridClassName={grid}
         dayClassName={rangeCell}
       />
     </View>
@@ -150,7 +177,7 @@ function ClockDemo() {
         locale="en-US"
         hour12
         accessibilityLabel="Arrival time"
-        className="flex flex-row items-center gap-2"
+        className={clock}
         fieldClassName={field}
         periodClassName={`${field} cursor-pointer`}
       />
@@ -188,10 +215,21 @@ function DateAndTimeDemo({ initiallyOpen = false }: { initiallyOpen?: boolean })
         accessibilityLabel="Departure"
         triggerClassName={trigger}
         dialogClassName={dialog}
-        calendarClassName={grid}
+        calendarClassName="w-full"
+        headerClassName={header}
+        gridClassName={grid}
         dayClassName={cell}
         doneClassName={trigger}
-      />
+      >
+        {(time) => (
+          <TimePicker
+            {...time}
+            className={clock}
+            fieldClassName={field}
+            periodClassName={`${field} cursor-pointer`}
+          />
+        )}
+      </DateTimePicker>
     </View>
   )
 }
@@ -219,7 +257,9 @@ function DateRangeDemo({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
         accessibilityLabel="Dates of stay"
         triggerClassName={trigger}
         dialogClassName={dialog}
-        calendarClassName={grid}
+        calendarClassName="w-full"
+        headerClassName={header}
+        gridClassName={grid}
         dayClassName={rangeCell}
       />
     </View>
