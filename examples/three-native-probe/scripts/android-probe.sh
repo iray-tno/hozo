@@ -61,10 +61,11 @@ grep -q "package=\"$package\"" "$artifacts/accessibility.xml"
 grep -q 'probe-complete' "$artifacts/accessibility.xml"
 grep -q 'Labelled GPU cube' "$artifacts/accessibility.xml"
 grep -q 'Inspect fallback cube data' "$artifacts/accessibility.xml"
-if grep -q 'Decorative GPU cube sentinel' "$artifacts/accessibility.xml"; then
-  echo 'decorative GPU content reached the Android accessibility tree' >&2
-  exit 1
-fi
+# A hierarchy dump includes non-focusable native descendants that TalkBack
+# filters while navigating. It is useful for proving that positive semantic
+# endpoints exist, but not for proving that decorative content is silent.
+# The following TalkBack pass makes that negative assertion from actual TTS
+# output instead.
 read -r control_x control_y < <(
   node "$root/scripts/control-centre.mjs" \
     "$artifacts/accessibility.xml" \
