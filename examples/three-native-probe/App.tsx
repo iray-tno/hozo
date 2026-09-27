@@ -134,7 +134,17 @@ function AccessibilityModes() {
         style={styles.mode}
         testID="decorative-gpu-scene"
       >
-        <Text style={styles.modeText}>Decorative GPU cube sentinel</Text>
+        {/* Deliberately focusable: the hidden parent must suppress an otherwise
+            reachable native accessibility node, not merely static text. */}
+        <Text
+          accessibilityLabel="Decorative GPU cube sentinel"
+          accessibilityRole="image"
+          accessible
+          focusable
+          style={styles.modeText}
+        >
+          Decorative scene
+        </Text>
       </View>
     </View>
   )
