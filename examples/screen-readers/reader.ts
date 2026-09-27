@@ -277,6 +277,80 @@ const INSIDE_STEPS = 20
  */
 const BLANK = /^blank$/i
 
+const SETTLE_MS = 3000
+const QUIET_MS = 700
+
+/** Everything the reader actually said, with its silences dropped. */
+export function meaningful(log: readonly string[]): string[] {
+  return log.map((phrase) => phrase.trim()).filter((phrase) => phrase !== '' && !BLANK.test(phrase))
+}
+
+/**
+ * What the reader says in response to one action.
+ *
+ * The other half of this file walks a page and takes everything; this takes
+ * one action's worth, which is what a scenario is. The log is cleared first so
+ * the phrases returned are caused by `act` and not left over from arriving.
+ *
+ * Two waits rather than one. The first is for speech to begin, because a key
+ * press reaches the page over CDP and the reader speaks a moment later; the
+ * second is for it to finish, because an announcement is often several phrases
+ * ("Thursday, September 11, 2026", "selected") and returning after the first
+ * would approve half a sentence. Both are generous: a scenario runs a handful
+ * of steps, so seconds here cost a run nothing, and a flaky approval costs it
+ * a week.
+ *
+ * Returning nothing is a result rather than a failure. "Nothing was said" is
+ * exactly what a key at the edge of a range should produce, and a scenario
+ * that wants to assert it needs it to come back empty rather than to throw.
+ */
+export async function spokenAfter(
+  screenReader: IScreenReader,
+  act: () => Promise<void>,
+): Promise<string[]> {
+  await screenReader.clearSpokenPhraseLog()
+  await act()
+  const deadline = Date.now() + SETTLE_MS
+  while (Date.now() < deadline) {
+    if (meaningful(await screenReader.spokenPhraseLog()).length > 0) break
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  }
+  await new Promise((resolve) => setTimeout(resolve, QUIET_MS))
+  return meaningful(await screenReader.spokenPhraseLog())
+}
+
+/** Phrases compared the way this suite compares them: case and spacing do not count. */
+export const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim()
+
+/**
+ * The expected phrases not found in `log`, each searched for after the last
+ * one found.
+ *
+ * A subset in order rather than an equality, for the reason the top of
+ * `stories.spec.ts` gives: phrase boundaries move with timing and a reader
+ * update rewords things, so what a person approves is the phrases that must be
+ * said and not the transcript around them.
+ */
+export function missingInOrder(log: readonly string[], expected: readonly string[]): string[] {
+  const said = log.map(normalize)
+  const missing: string[] = []
+  let from = 0
+  for (const phrase of expected) {
+    const at = said.findIndex((line, index) => index >= from && line.includes(normalize(phrase)))
+    if (at === -1) missing.push(phrase)
+    else from = at + 1
+  }
+  return missing
+}
+
+/** The phrases an approved file requires, with its comment lines dropped. */
+export function approvedPhrases(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'))
+}
+
 /**
  * Steps to the end of the page and returns everything the reader said.
  *
