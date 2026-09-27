@@ -127,7 +127,9 @@ function AccessibilityModes() {
         </Pressable>
       </View>
       <View
+        aria-hidden
         accessible={false}
+        accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         style={styles.mode}
         testID="decorative-gpu-scene"
