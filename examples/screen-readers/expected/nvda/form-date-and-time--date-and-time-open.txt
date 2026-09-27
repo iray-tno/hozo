@@ -1,0 +1,12 @@
+# Approved from screen-readers run 36299473387 (NVDA, Chrome).
+#
+# partial: the trigger and the dialog's name, and nothing inside it. The grid,
+# the clock and Done are not read -- unlike the native `<dialog>` in
+# patterns-dialog--open, whose contents are. The difference between the two is a
+# positioned `div` with `aria-modal` against the browser's top layer, and why
+# that changes what NVDA buffers is not established. See #580 and #585.
+#
+# Worth approving at two lines anyway: "expanded" read as "collapsed" until
+# #598, and the dialog's name was not said at all. These pin both.
+button, expanded, opens dialog, Departure
+dialog, Choose a date and time

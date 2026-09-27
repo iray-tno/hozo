@@ -1,0 +1,15 @@
+# Approved from screen-readers run 36299473387 (NVDA, Chrome).
+# The walk starts *inside* the dialog. `showModal()` makes the rest of the
+# document inert, NVDA restricts its buffer to the dialog, and the Ctrl+Home
+# that entry ends with lands on the dialog's first child -- so the level-2
+# heading and the opener behind it are absent, and correctly so.
+# The dialog's own name is absent too, which is where this differs from the
+# VoiceOver file beside it ("Confirm Deployment web dialog"). NVDA announces a
+# container on entering it by other means, not on this walk.
+# Reached only because entry stopped sending an Escape (#598). Before that this
+# story and the closed one produced identical phrases -- the dialog was shut
+# before NVDA looked, which #580 spent three explanations getting to.
+heading, level 3, Confirm Operation
+Are you sure you want to deploy the universal Hozo UI compiler to production?
+button, Cancel
+button, Confirm
