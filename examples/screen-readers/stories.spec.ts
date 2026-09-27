@@ -59,6 +59,7 @@ import {
   reader,
   startOptions,
   startRecording,
+  type Walk,
   walk,
 } from './reader.ts'
 
@@ -118,21 +119,55 @@ function missingInOrder(log: readonly string[], expected: readonly string[]): st
   return missing
 }
 
+/**
+ * What an approved file declares about its own completeness.
+ *
+ * Two directives, because there are two kinds of partial coverage and only one
+ * of them can be checked.
+ *
+ * `# partial: <why>` is a statement to a reader: this approval does not cover
+ * the whole story. It is counted and printed and never verified, because the
+ * reason can be something no code here can see -- NVDA simply not buffering a
+ * popover's contents, for instance.
+ *
+ * `# truncates: <container>` is a claim the harness *can* test. VoiceOver enters
+ * a container and leaves after `INSIDE_STEPS`, and `walk` reports which
+ * containers it left with items still in them. So a file naming one is checked
+ * both ways: still truncated is the approval holding, no longer truncated is a
+ * ceiling that has lifted since a person looked, and a truncation nobody
+ * declared is an approval quietly covering a fifth of a grid. All three are
+ * things a list of phrases cannot say (#585).
+ */
+function declarations(text: string): { partial: string[]; truncates: string[] } {
+  const directive = (name: string) =>
+    text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.toLowerCase().startsWith(`# ${name}:`))
+      .map((line) => line.slice(`# ${name}:`.length).trim())
+      .filter((line) => line !== '')
+  return { partial: directive('partial'), truncates: directive('truncates') }
+}
+
 test.use({ screenReaderStartOptions: startOptions })
 
 for (const id of stories) {
   test(id, async ({ page, screenReader }, testInfo) => {
     const stopRecording = startRecording(id)
-    let log: string[] = []
+    let read: Walk = { ended: 'nothing', phrases: [], steps: 0, truncated: [] }
     try {
       await page.goto(`/iframe.html?id=${id}&viewMode=story`, { waitUntil: 'load' })
       await page.locator('#storybook-root > *').first().waitFor()
       await enterPage(page, screenReader)
-      log = await walk(screenReader)
+      read = await walk(screenReader)
     } finally {
       stopRecording()
-      writeFileSync(path.join(phrasesDir, `${id}.json`), `${JSON.stringify(log, null, 2)}\n`)
+      // The whole walk rather than only its phrases. Which limit ended it and
+      // what it cut short are the difference between a story read whole and one
+      // read to a ceiling, and the artifact is what a person approves from.
+      writeFileSync(path.join(phrasesDir, `${id}.json`), `${JSON.stringify(read, null, 2)}\n`)
     }
+    const log = read.phrases
 
     // A reader that said almost nothing did not read the story, and that is
     // a failure of the run rather than of the story. The first NVDA run
@@ -152,13 +187,24 @@ for (const id of stories) {
         type: 'warning',
         description: `no approved ${reader} phrases for ${id}: review test-results/phrases/${reader}/${id}.json and add expected/${reader}/${id}.txt`,
       })
+      // Said even with nothing approved, because a truncated walk with no
+      // approved file is the state most likely to be approved as-is by someone
+      // who cannot see that it stopped early.
+      for (const container of read.truncated) {
+        testInfo.annotations.push({
+          type: 'warning',
+          description: `${id}: the walk left "${container}" with items still in it -- if you approve this, declare it with "# truncates: ${container}"`,
+        })
+      }
       return
     }
-    const expected = readFileSync(expectedFile, 'utf8')
+    const approved = readFileSync(expectedFile, 'utf8')
+    const expected = approved
       .split('\n')
       .map((line) => line.trim())
       // `#` lines say why a phrase is or is not approved, which is the part a
-      // later reviewer needs and a list of phrases does not carry.
+      // later reviewer needs and a list of phrases does not carry. Two of them
+      // are read rather than skipped; see `declarations`.
       .filter((line) => line !== '' && !line.startsWith('#'))
     const missing = missingInOrder(log, expected)
     if (missing.length > 0) {
@@ -166,5 +212,39 @@ for (const id of stories) {
         `${reader} did not say, in this order:\n- ${missing.join('\n- ')}\n\nWhat it said:\n${log.join('\n')}`,
       )
     }
+
+    const declared = declarations(approved)
+    const said = (text: string) => normalize(text)
+
+    // A ceiling that has lifted. The approval says the walk stops inside this
+    // container; it no longer does, so there is more to approve than a person
+    // has looked at -- which is the quiet direction of a partial approval going
+    // stale.
+    for (const container of declared.truncates) {
+      if (!read.truncated.some((left) => said(left).includes(said(container)))) {
+        testInfo.annotations.push({
+          type: 'warning',
+          description: `${id}: declares "# truncates: ${container}" and the walk no longer truncates it -- there may be more to approve now`,
+        })
+      }
+    }
+
+    // And a truncation nobody declared, which is an approval covering part of a
+    // story while reading like the whole of it.
+    for (const container of read.truncated) {
+      if (!declared.truncates.some((named) => said(container).includes(said(named)))) {
+        testInfo.annotations.push({
+          type: 'warning',
+          description: `${id}: the walk left "${container}" with items still in it, and the approved file does not say so -- add "# truncates: ${container}"`,
+        })
+      }
+    }
+
+    // One line per story, so a run's output says how much of each was read
+    // rather than only that each passed.
+    const state = declared.partial.length > 0 ? `partial (${declared.partial.join('; ')})` : 'whole'
+    console.log(
+      `[approved] ${id}: ${expected.length} phrase(s), ${state}, ended on ${read.ended} after ${read.steps} steps`,
+    )
   })
 }

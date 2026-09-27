@@ -297,8 +297,27 @@ const BLANK = /^blank$/i
  * reads the same content without being asked, and `interact` means something
  * else to it, so sending one would disturb a walk that already works.
  */
-export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): Promise<string[]> {
+/** What one walk of a story produced, and how much of the story that was. */
+export interface Walk {
+  phrases: string[]
+  /** Which limit ended it: a repeated phrase, silence, or the step budget. */
+  ended: string
+  steps: number
+  /**
+   * Containers the walk left before running out of items in them.
+   *
+   * The one kind of partial coverage this harness can *detect*. A story whose
+   * approved file does not admit to it is a story whose approval quietly covers
+   * a fifth of a grid, and a story that admits to a container it no longer
+   * truncates has a ceiling that has lifted since someone approved it. Both are
+   * changes to review; neither is visible in a list of phrases (#585).
+   */
+  truncated: string[]
+}
+
+export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): Promise<Walk> {
   const entered = new Set<string>()
+  const truncated: string[] = []
   let steps = 0
   let last = ''
   let repeats = 0
@@ -328,17 +347,30 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
     await screenReader.interact()
     let quiet = 0
     let previous = ''
+    // Whether the loop below stopped because the container ran out or because
+    // the budget did. `INSIDE_STEPS` reached is the second, and it is the
+    // difference between "that is all the container says" and "that is all we
+    // listened to" -- which a phrase log cannot express and an approved file
+    // has to declare.
+    let spent = true
     for (let inside = 0; inside < INSIDE_STEPS && steps < maxSteps; inside++) {
       const item = await step()
       if (item === '') {
         quiet += 1
-        if (quiet >= 3) break
+        if (quiet >= 3) {
+          spent = false
+          break
+        }
         continue
       }
       quiet = 0
-      if (item === previous) break
+      if (item === previous) {
+        spent = false
+        break
+      }
       previous = item
     }
+    if (spent) truncated.push(said)
     await screenReader.stopInteracting()
     // Leaving one often re-announces it, which is a repeat of the phrase this
     // step started on and would end the walk three containers early. The
@@ -359,7 +391,8 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
   // at all. One line costs nothing and answers it next time.
   const ended =
     repeats >= 3 ? 'a repeated phrase' : silent >= 5 ? 'silence' : `the ${maxSteps}-step budget`
-  console.log(`[walk] ${reader} ended on ${ended} after ${steps} steps`)
+  const cut = truncated.length > 0 ? `, truncating ${truncated.length}` : ''
+  console.log(`[walk] ${reader} ended on ${ended} after ${steps} steps${cut}`)
 
-  return await screenReader.spokenPhraseLog()
+  return { ended, phrases: await screenReader.spokenPhraseLog(), steps, truncated }
 }
