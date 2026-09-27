@@ -28,6 +28,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./webgl": {
+      "react-native": {
+        "types": "./dist/webgl-react-native.d.ts",
+        "default": "./dist/webgl-react-native.js"
+      },
+      "types": "./dist/webgl.d.ts",
+      "default": "./dist/webgl.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

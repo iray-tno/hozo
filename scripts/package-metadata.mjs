@@ -61,7 +61,11 @@ const PACKAGES = {
     keywords: ['react-native', 'canvas', 'graphics', 'skia', 'charts'],
   },
   three: {
-    exports: { '.': './dist/index.js' },
+    exports: { '.': './dist/index.js', './webgl': './dist/webgl.js' },
+    // The package root is already portable. Only this explicit WebGL entry
+    // point needs a Native rejection module, so it must not make the whole
+    // package claim a React Native implementation or peer dependency.
+    nativeTargets: { './webgl': './dist/webgl-react-native.js' },
     keywords: ['react-native', 'three.js', '3d', 'canvas', 'graphics'],
   },
   compiler: {
@@ -276,7 +280,10 @@ export function metadataFor(name) {
   const exportsField = {}
   for (const [subpath, target] of Object.entries(spec.exports)) {
     const types = target.replace(/\.js$/, '.d.ts')
-    const native = target.replace(/\.js$/, '.native.js')
+    const native = spec.nativeTargets?.[subpath] ?? target.replace(/\.js$/, '.native.js')
+    const hasNativeTarget =
+      spec.nativeTargets?.[subpath] !== undefined ||
+      (spec.native && !spec.noNative?.includes(subpath))
     // The resolver takes the first matching condition, so order is the
     // whole meaning of this map.
     //
@@ -301,7 +308,7 @@ export function metadataFor(name) {
     // A resolver that doesn't set the condition falls through to exactly
     // the map that was here before.
     exportsField[subpath] = target.startsWith('./dist')
-      ? spec.native && !spec.noNative?.includes(subpath)
+      ? hasNativeTarget
         ? {
             'react-native': { types: native.replace(/\.js$/, '.d.ts'), default: native },
             types,

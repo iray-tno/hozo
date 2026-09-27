@@ -154,8 +154,9 @@ for (const name of PACKAGE_NAMES) {
       fail(name, `exports["${subpath}"]["react-native"] has no "types" of its own`)
       continue
     }
-    if (!condition.types?.endsWith('.native.d.ts')) {
-      fail(name, `exports["${subpath}"]["react-native"].types is not a .native.d.ts`)
+    const nativeTypes = condition.default?.replace(/\.js$/, '.d.ts')
+    if (!nativeTypes || condition.types !== nativeTypes) {
+      fail(name, `exports["${subpath}"]["react-native"].types does not match its default target`)
     }
     const order = Object.keys(entry)
     if (order.indexOf('react-native') > order.indexOf('types')) {
