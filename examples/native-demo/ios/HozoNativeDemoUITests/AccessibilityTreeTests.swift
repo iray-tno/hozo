@@ -112,9 +112,97 @@ final class AccessibilityTreeTests: XCTestCase {
     dumpTree(app, named: "gallery")
   }
 
+  /// What iOS exposes for `@hozo/form`'s pickers.
+  ///
+  /// Its own test rather than more of the one above, because it needs the app
+  /// back on the acceptance screen: the gallery replaces that screen, and the
+  /// opener for this one is on it. A second `XCUIApplication().launch()` is
+  /// what XCUITest gives for "start again", and a separate test method is how
+  /// the failure of one is kept out of the other.
+  ///
+  /// Nothing here asserts what is announced. The Android job found real defects
+  /// in exactly this area -- `TimePicker`'s fields were not accessibility
+  /// elements at all until #559, and its value now arrives through
+  /// `accessibilityValue.text` -- and whether the same wiring reaches VoiceOver
+  /// is genuinely unknown: `adjustable` becomes `UIAccessibilityTraitAdjustable`
+  /// here rather than a `SeekBar`, through a different path. So the tree is
+  /// printed and the findings are printed, and turning any of them into an
+  /// assertion on the first run that produces them would be approving them by
+  /// assertion. Only arriving on the screen is required.
+  func testPickersTree() throws {
+    let app = XCUIApplication()
+    app.launch()
+
+    let list = app.descendants(matching: .any).matching(identifier: "smoke-list").firstMatch
+    XCTAssertTrue(list.waitForExistence(timeout: 30), "smoke-list never appeared")
+
+    // By label, because this opener deliberately has no `testID`:
+    // `missingOnDevice` in `packages/tailwind-conformance` fails on one that is
+    // absent from the checked-in dumps, so adding it is a fixture regeneration.
+    // The Android scripts find the same button the same way.
+    let opener = app.buttons["Show the pickers"]
+    XCTAssertTrue(opener.waitForExistence(timeout: 10), "the Pickers button is not in the tree")
+
+    // The hittable-then-retry shape the gallery needs, for its reasons: a press
+    // can register while the JS thread is still settling the acceptance screen.
+    let hittable = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "isHittable == true"),
+      object: opener
+    )
+    _ = XCTWaiter.wait(for: [hittable], timeout: 15)
+
+    let stepper = app.buttons["Increase Hour"]
+    var attempts = 0
+    while attempts < 4 && !stepper.exists {
+      attempts += 1
+      if opener.isHittable {
+        opener.tap()
+      } else {
+        opener.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+      }
+      _ = stepper.waitForExistence(timeout: 8)
+    }
+
+    XCTAssertTrue(
+      stepper.exists,
+      "the pickers screen did not open after \(attempts) attempts"
+    )
+
+    dumpTree(app, named: "pickers", byLabel: true)
+    reportPickers(app)
+  }
+
+  /// The four questions Android has answers to, asked of this platform.
+  private func reportPickers(_ app: XCUIApplication) {
+    let hour = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Hour"))
+      .firstMatch
+    let said = hour.exists ? (hour.value as? String ?? "") : ""
+
+    // Whether the field is an element at all. On Android it was not until a
+    // `View` was told `accessible`, and nothing but a device said so.
+    print("HOZO_PICKERS hourFieldExists=\(hour.exists)")
+    // Whether `accessibilityValue.text` reaches iOS's `accessibilityValue`.
+    // "9:30" rather than "9" is the design: a reader moving the hour should
+    // hear where that put the time.
+    print("HOZO_PICKERS hourValue=\(said)")
+    print("HOZO_PICKERS hourSaysWholeTime=\(said.contains("9:30"))")
+    // Whether the period survived as a button, and the two triggers as buttons
+    // that say what they open.
+    print("HOZO_PICKERS periodExists=\(app.buttons["AM or PM"].exists)")
+    print("HOZO_PICKERS departureExists=\(app.buttons["Departure"].exists)")
+    print("HOZO_PICKERS datesOfStayExists=\(app.buttons["Dates of stay"].exists)")
+  }
+
   /// Every element the accessibility hierarchy exposes, as JSON between
   /// markers the workflow can cut on.
-  private func dumpTree(_ app: XCUIApplication, named name: String) {
+  /// - Parameter byLabel: key each element by its accessible name instead of
+  ///   its `testID`. For a screen that has no `testID`s at all, which the
+  ///   pickers screen deliberately does not -- `missingOnDevice` fails on one
+  ///   absent from the checked-in fixtures, so adding them is a fixture
+  ///   regeneration and a device run of its own. Keeping this a parameter
+  ///   rather than a second function keeps `acceptance` and `gallery` producing
+  ///   exactly the bytes `ios-tree.test.ts` compares against.
+  private func dumpTree(_ app: XCUIApplication, named name: String, byLabel: Bool = false) {
     var elements: [Element] = []
     for element in app.descendants(matching: .any).allElementsBoundByIndex {
       // Only what the source named. A simulator screen is full of elements
@@ -122,7 +210,7 @@ final class AccessibilityTreeTests: XCTestCase {
       // scaffolding -- and reporting them as unmatched would make the
       // comparison mostly noise. The Android reader drops Android's
       // furniture for the same reason.
-      let identifier = element.identifier
+      let identifier = byLabel ? element.label : element.identifier
       if identifier.isEmpty { continue }
       let frame = element.frame
       elements.append(

@@ -461,6 +461,7 @@ jobs:
             ios-uitest.log
             ios-acceptance-tree.json
             ios-gallery-tree.json
+            ios-pickers-tree.json
           if-no-files-found: ignore
           retention-days: 14
 
