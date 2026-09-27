@@ -20,18 +20,18 @@
 //
 // ## What this suite does not cover, said here so it is not inferred
 //
-// **NVDA does not enter a modal dialog.** `walk` steps with the reader's own
-// `next` from the top of the document, and a native `<dialog>` shown with
-// `showModal()` is not reachable that way: NVDA reads the inert page behind it
-// and then the end of it. Measured twice on `patterns-dialog--open`, whose
-// phrases were byte-identical to the closed story's, and not a budget or a
-// tolerance -- both were tried (#580).
+// **An overlay open at load is closed before NVDA reads it.** Entry sends an
+// Escape -- `layerState` in `reader.ts` measured it -- so every story that opens
+// a dialog or a popover at load is read in its closed state on Windows. The
+// trigger reads `collapsed` and the panel is not there, which is NVDA reporting
+// a page the story was knocked out of rather than failing to enter one (#580).
 //
-// So for any story whose content sits behind a modal, `expected/nvda/` can
-// hold the trigger and nothing else, and its absence is a gap rather than a
-// pass. VoiceOver reaches those, since `CONTAINER` sends it an interact
-// command, so the two readers' approved files are not comparable in size and
-// should not be read as if they were.
+// So for those stories `expected/nvda/` can hold the trigger and nothing else,
+// and its absence is a gap rather than a pass. VoiceOver takes `enterPage`'s
+// early return -- it moves its own cursor, no click and no Escape -- so it
+// reads the overlay and its approved file is much longer. **The two readers'
+// approved files are not comparable in size, and the difference is the harness
+// rather than the readers.**
 //
 // And an approved file cannot say how much of a story was read, which is the
 // same gap one level up: a walk that stops a third of the way in is approved
