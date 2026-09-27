@@ -141,8 +141,33 @@ import { ThreeCanvas } from '@hozo/three/r3f'
 `@react-three/fiber` is an optional peer and is retained only by this entry
 point. Native R3F hosting remains explicitly unavailable until the GPU-host
 evaluation in issue #596 chooses and verifies a backend. Object-level keyboard
-activation also remains separate from this first envelope: Hozo does not read
-R3F's private instance metadata or synthesize its pointer events.
+activation uses an explicit list rather than R3F's private instance metadata:
+
+```tsx
+const product = useRef<THREE.Mesh>(null)
+
+<ThreeCanvas
+  accessibilityLabel="Product preview"
+  accessibleObjects={[
+    {
+      id: 'product',
+      label: 'Inspect product',
+      object: product,
+      onPress: () => openInspector(),
+    },
+  ]}
+>
+  <mesh ref={product} onClick={() => openInspector()}>
+    <boxGeometry />
+    <meshStandardMaterial color="orange" />
+  </mesh>
+</ThreeCanvas>
+```
+
+The hidden native button handles keyboard and screen-reader activation. The
+mesh keeps its ordinary R3F pointer handler, so Hozo does not synthesize or
+double-dispatch pointer events. A registered object with `href` becomes a real
+anchor instead, preserving modifier-click and application-router integration.
 
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
