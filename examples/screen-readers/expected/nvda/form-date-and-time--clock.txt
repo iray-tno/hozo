@@ -1,10 +1,30 @@
-# Approved from screen-readers run 36294264902 (NVDA, Chrome).
-# The first real-reader evidence for anything in @hozo/form, and it confirms
-# the claim the component's own comment makes: each field's `aria-valuetext`
-# is the whole time rather than that field's digits, so a reader moving the
-# hour hears where the time landed. "spin button, 9:30 AM" is that.
-# The group's name comes with the first field rather than on its own, which is
-# NVDA joining them; approved as one phrase because that is what is said.
-Arrival time, grouping, Hour, spin button, 9:30 AM
+# Approved from screen-readers run 36322247095 (NVDA, Chrome), which
+# re-measured what run 36294264902 approved. The fact that file recorded is
+# unchanged and is the first line below: each field's `aria-valuetext` is the
+# whole time rather than that field's digits, so a reader moving the hour
+# hears where the time landed. "spin button, 9:30 AM" is that.
+# What changed is the group's name. NVDA joins it to the first thing inside
+# the group, and the first thing inside is now the up arrow -- so the old
+# phrase "Arrival time, grouping, Hour, spin button, 9:30 AM" is gone, and it
+# is gone for a reason rather than by drift. Approved as one phrase because
+# that is what is said.
+# The four arrows are read though they are `tabIndex={-1}`. That is browse
+# mode doing its job, and it is the reason they are named rather than hidden:
+# a reader who reaches one should hear which field it steps.
+# The second picker is the same component with two different class names, and
+# it reads identically under its own name. Both are approved, because "these
+# two layouts are one markup" is the claim the story exists to make.
+Arrival time, grouping, button, Increase Hour
+Hour, spin button, 9:30 AM
+button, Decrease Hour
+button, Increase Minute
 Minute, spin button, 9:30 AM
+button, Decrease Minute
+button, AM or PM
+Arrival time, stacked arrows, grouping, button, Increase Hour
+Hour, spin button, 9:30 AM
+button, Decrease Hour
+button, Increase Minute
+Minute, spin button, 9:30 AM
+button, Decrease Minute
 button, AM or PM

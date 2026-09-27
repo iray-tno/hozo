@@ -1,10 +1,29 @@
-# Approved from screen-readers run 36294264902 (VoiceOver, Safari).
-# The same fact NVDA's file records, in this reader's words: the value read
-# out is the whole time, not the field's own digits.
+# Approved from screen-readers run 36322247095 (VoiceOver, Safari), which
+# re-measured what run 36294264902 approved. The fact that file recorded is
+# unchanged: the value read out is the whole time, not the field's own digits.
 # "stepper" rather than "spin button" is VoiceOver's name for the role, and
 # the period stays a button -- which is the design: a spinbutton carries
 # `aria-valuenow`, and a number for "am" is a number nobody can read.
+# The four arrows are read though they are `tabIndex={-1}`, which is why they
+# are named rather than hidden: a reader who reaches one should hear which
+# field it steps. This reader keeps the group's name on a line of its own,
+# so unlike NVDA's file nothing here had to change to accommodate them.
+# The second picker is the same component with two different class names and
+# reads identically under its own name. Both are approved, because "these two
+# layouts are one markup" is the claim the story exists to make.
 Arrival time group
+Increase Hour button
 9:30 AM Hour stepper
+Decrease Hour button
+Increase Minute button
 9:30 AM Minute stepper
+Decrease Minute button
+AM or PM button
+Arrival time, stacked arrows group
+Increase Hour button
+9:30 AM Hour stepper
+Decrease Hour button
+Increase Minute button
+9:30 AM Minute stepper
+Decrease Minute button
 AM or PM button
