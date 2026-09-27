@@ -4,8 +4,12 @@ import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
-function DialogDemo() {
-  const [open, setOpen] = useState(false)
+function DialogDemo({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
+  // A prop rather than a second copy of the dialog. #560 wants a golden for
+  // what a reader hears *inside* an open overlay, and every overlay story in
+  // this suite is closed at load -- so the two stories below share one
+  // implementation and differ only in where they start.
+  const [open, setOpen] = useState(initiallyOpen)
 
   return (
     <View className="max-w-xl w-full space-y-6 rounded-2xl bg-white p-8 shadow-sm">
@@ -61,3 +65,11 @@ function DialogDemo() {
 const meta = { title: 'Patterns/Dialog', component: DialogDemo } satisfies Meta<typeof DialogDemo>
 export default meta
 export const Default: StoryObj<typeof meta> = {}
+/**
+ * Open on mount, so the golden covers the dialog rather than stopping at the
+ * button that opens it.
+ *
+ * A separate story rather than a change to the one above: the closed reading
+ * order is approved and is what a reader meets first.
+ */
+export const Open: StoryObj<typeof meta> = { render: () => <DialogDemo initiallyOpen /> }
