@@ -1,4 +1,10 @@
 # Approved from screen-readers run 36294264902 (VoiceOver, Safari).
+# The trigger phrase is loosened, not approved shorter. #612 put the chosen
+# value into the button's name -- `aria-labelledby` over a hidden label and the
+# value, because a button has one name and no value and VoiceOver was reading
+# only the label. What the readers now say in full has not been read yet, so
+# this asserts the part that cannot change until it has been, and the next run
+# is what tightens it.
 # truncates: September 2026 table
 #
 # partial: VoiceOver enters the month grid as a table and leaves after
@@ -14,7 +20,7 @@
 # "dimmed" is VoiceOver's word for disabled. `min` is the 24th at 09:00, so
 # the 3rd being dimmed is right, and so is the previous-month button -- there
 # is no allowed month before this one.
-Departure dialog pop up button
+dialog pop up button
 Choose a date and time web dialog
 Previous month dimmed button
 September 2026

@@ -1,4 +1,10 @@
 # Approved from screen-readers run 36299473387 (NVDA, Chrome).
+# The trigger phrase is loosened, not approved shorter. #612 put the chosen
+# value into the button's name -- `aria-labelledby` over a hidden label and the
+# value, because a button has one name and no value and VoiceOver was reading
+# only the label. What the readers now say in full has not been read yet, so
+# this asserts the part that cannot change until it has been, and the next run
+# is what tightens it.
 #
 # partial: the trigger and the dialog's name, and nothing inside it. The grid,
 # the clock and Done are not read -- unlike the native `<dialog>` in
@@ -8,5 +14,5 @@
 #
 # Worth approving at two lines anyway: "expanded" read as "collapsed" until
 # #598, and the dialog's name was not said at all. These pin both.
-button, expanded, opens dialog, Departure
+expanded, opens dialog
 dialog, Choose a date and time

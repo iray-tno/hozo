@@ -1,4 +1,10 @@
 # Approved from screen-readers run 36294264902 (VoiceOver, Safari).
+# The trigger phrase is loosened, not approved shorter. #612 put the chosen
+# value into the button's name -- `aria-labelledby` over a hidden label and the
+# value, because a button has one name and no value and VoiceOver was reading
+# only the label. What the readers now say in full has not been read yet, so
+# this asserts the part that cannot change until it has been, and the next run
+# is what tightens it.
 # truncates: September 2026 table
 #
 # partial: the same 18-of-42 cut as the file beside this one. Nothing is
@@ -12,7 +18,7 @@
 # one. Two files, one prop apart.
 # No Done button, deliberately: a range Calendar reports only a range with
 # both ends, so the press that completes it is the press that finished.
-Dates of stay dialog pop up button
+dialog pop up button
 Choose a range of dates web dialog
 Previous month button
 September 2026

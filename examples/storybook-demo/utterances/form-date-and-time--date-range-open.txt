@@ -2,9 +2,9 @@ heading, DateRangePicker, level 2
 paragraph
 Nothing chosen yet, so the trigger reads its placeholder. There is no Done button: the grid reports only a range with both ends, so the press that completes it is the press that finished the job.
 end of paragraph
-button, Dates of stay, 1 control, expanded, has popup dialog
+button, Dates of stay Select dates, 1 control, expanded, has popup dialog
 Select dates
-end of button, Dates of stay, 1 control, expanded, has popup dialog
+end of button, Dates of stay Select dates, 1 control, expanded, has popup dialog
 dialog, Choose a range of dates, modal
 dialog, Choose a range of dates, modal
 group
