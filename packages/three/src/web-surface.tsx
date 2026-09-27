@@ -249,12 +249,20 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
 
   useEffect(() => {
     if (!renderer) return
-    // Explicit invalidation tokens: their values do not enter the draw.
-    void frameRevision
-    void revision
     resizeThreeCamera(camera, size, cameraResize)
     renderer.setPixelRatio(size.pixelRatio)
     renderer.setSize(size.width, size.height, false)
+  }, [camera, cameraResize, renderer, size])
+
+  useEffect(() => {
+    if (!renderer) return
+    // Explicit invalidation tokens: their values do not enter the draw.
+    // Size and camera policy are applied by the preceding effect, but their
+    // changes still require one draw into the resized buffer.
+    void cameraResize
+    void frameRevision
+    void revision
+    void size
     try {
       Promise.resolve(renderer.render(scene, camera)).catch((error: unknown) => {
         errorCallback.current?.(error)

@@ -73,6 +73,8 @@ test('classic WebGL surface owns renderer lifecycle and demand invalidation', as
   assert.deepEqual(calls.slice(0, 4), ['create', 'ratio:2', 'size:320x180:false', 'render'])
   await testRenderer.act(async () => handle.current?.invalidate())
   assert.equal(calls.filter((call) => call === 'render').length, 2)
+  assert.equal(calls.filter((call) => call.startsWith('ratio:')).length, 1)
+  assert.equal(calls.filter((call) => call.startsWith('size:')).length, 1)
 
   await testRenderer.act(async () => root?.unmount())
   assert.equal(calls.at(-1), 'dispose')
