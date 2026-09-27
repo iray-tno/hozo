@@ -31,6 +31,10 @@ test('renderer entry points do not retain the other Three.js renderer family', a
 
   assert.ok(!portable.some((input) => input.includes('/@react-three/fiber/')))
   assert.ok(r3f.some((input) => input.includes('/@react-three/fiber/')))
+  assert.ok(
+    !r3f.some((input) => input.endsWith('/three/build/three.webgpu.js')),
+    'the default R3F adapter eagerly retained the opt-in WebGPU renderer',
+  )
   assert.ok(classic.some((input) => input.endsWith('/three/build/three.module.js')))
   assert.ok(!classic.some((input) => input.endsWith('/three/build/three.webgpu.js')))
   assert.ok(modern.some((input) => input.endsWith('/three/build/three.webgpu.js')))

@@ -8,6 +8,12 @@ type R3FCanvasProps = Omit<
   'aria-hidden' | 'aria-label' | 'children' | 'className' | 'role' | 'style'
 >
 
+type FunctionMember<T> = T extends (...args: never[]) => unknown ? T : never
+
+/** The sync or async renderer factory accepted by R3F's public `gl` prop. */
+export type R3FRendererFactory = FunctionMember<NonNullable<FiberCanvasProps['gl']>>
+export type R3FRendererFactoryProps = Parameters<R3FRendererFactory>[0]
+
 export type R3FAccessibleObjectTarget = Object3D | RefObject<Object3D | null>
 
 interface R3FAccessibleObjectBase {
