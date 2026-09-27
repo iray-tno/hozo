@@ -5,6 +5,12 @@ export {
   type ThreeProjectionDiagnosticCode,
   type ThreeProjectionOptions,
 } from './project.ts'
+export type {
+  ThreeSurfaceFrame,
+  ThreeSurfaceFrameloop,
+  ThreeSurfaceHandle,
+  ThreeSurfaceProps,
+} from './surface.ts'
 export {
   ThreeCanvas,
   type ThreeCanvasCamera,
