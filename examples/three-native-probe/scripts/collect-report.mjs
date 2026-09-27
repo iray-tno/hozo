@@ -10,19 +10,46 @@ export function collectReport(logText, apkBytes) {
     events.push(JSON.parse(line.slice(marker + '[hozo-three-native] '.length)))
   }
 
-  for (const required of ['renderer_ready', 'first_frame', 'steady_sample', 'renderer_unmounted']) {
+  for (const required of [
+    'renderer_ready',
+    'first_frame',
+    'app_backgrounded',
+    'app_resumed',
+    'frame_after_resume',
+    'steady_sample',
+    'renderer_unmounted',
+  ]) {
     if (!events.some((entry) => entry.event === required)) {
       throw new Error(`Native GPU probe did not emit ${required}`)
     }
   }
 
-  const sampled = events.find((entry) => entry.event === 'steady_sample')
+  const indexOf = (name) => events.findIndex((entry) => entry.event === name)
+  const backgroundedAt = indexOf('app_backgrounded')
+  const resumedAt = indexOf('app_resumed')
+  const resumedFrameAt = indexOf('frame_after_resume')
+  if (!(backgroundedAt < resumedAt && resumedAt < resumedFrameAt)) {
+    throw new Error('Native GPU probe did not render after an ordered background/resume cycle')
+  }
+
+  const sampled = events.find(
+    (entry, index) => index > resumedFrameAt && entry.event === 'steady_sample',
+  )
   const canvasActivation = events.find(
-    (entry) => entry.event === 'object_activated' && entry.source === 'canvas',
+    (entry, index) =>
+      index > resumedFrameAt && entry.event === 'object_activated' && entry.source === 'canvas',
   )
   const semanticActivation = events.find(
-    (entry) => entry.event === 'object_activated' && entry.source === 'semantic-control',
+    (entry, index) =>
+      index > resumedFrameAt &&
+      entry.event === 'object_activated' &&
+      entry.source === 'semantic-control',
   )
+  const initialRenderer = events.find((entry) => entry.event === 'renderer_ready')
+  const resumedFrame = events[resumedFrameAt]
+  if (!sampled) {
+    throw new Error('Native GPU probe did not sample frames after returning active')
+  }
   if (!canvasActivation) {
     throw new Error('Native GPU probe did not raycast the measured object from a device touch')
   }
@@ -32,6 +59,7 @@ export function collectReport(logText, apkBytes) {
     )
   }
   if (
+    sampled.objectId !== resumedFrame.objectId ||
     sampled.objectId !== canvasActivation.objectId ||
     sampled.objectId !== semanticActivation.objectId
   ) {
@@ -39,9 +67,14 @@ export function collectReport(logText, apkBytes) {
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     host: 'expo-gl',
     apkBytes,
+    lifecycle: {
+      contextBeforeBackground: initialRenderer.contextId,
+      contextAfterResume: resumedFrame.contextId,
+      contextPreserved: initialRenderer.contextId === resumedFrame.contextId,
+    },
     events,
   }
 }

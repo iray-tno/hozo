@@ -2,8 +2,10 @@
 
 This private example measures candidate Native GPU hosts without adding them to `@hozo/three`.
 The first fixture uses React Three Fiber's established Native entry over Expo GL. It records cold
-renderer initialization, first frame, a 120-frame timing sample, release APK size, and renderer
-teardown. The Android job retains the JSON report, logcat, screenshot, and accessibility tree.
+renderer initialization, first frame, a real background/resume cycle, a 120-frame timing sample,
+release APK size, and renderer teardown. The Android job retains the JSON report, logcat,
+screenshot, and accessibility tree. The lifecycle report records whether Expo GL preserved or
+replaced its context and only passes after R3F produces a post-resume frame.
 It also drives an actual device tap through R3F raycasting, then records TalkBack reading labelled
 and fallback semantics while proving that decorative content stays silent.
 
@@ -24,5 +26,6 @@ Fiber remain dependencies of this private example only.
 | Bare React Native | Not yet claimed | Expo modules must first be installed and configured in the host app. |
 | iOS | Not yet measured | This first spike deliberately proves one Android host before widening the matrix. |
 
-Context loss and restoration are also still unmeasured. A clean renderer disposal is recorded, but
-that is not evidence that a driver- or OS-initiated context loss restores correctly.
+Android Activity background/resume is measured. Forced driver- or OS-initiated context loss remains
+unmeasured; a successful Activity resume must not be described as proof of arbitrary context-loss
+recovery.

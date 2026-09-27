@@ -26,6 +26,30 @@ for _ in $(seq 1 90); do
   sleep 1
 done
 
+# Exercise the real Android Activity lifecycle before accepting the frame
+# sample. AppState alone is not evidence of GPU recovery: the fixture also
+# requires R3F to render a frame after the Activity becomes active again.
+adb shell input keyevent KEYCODE_HOME
+for _ in $(seq 1 30); do
+  adb logcat -d -v brief > "$artifacts/logcat.txt"
+  if grep -q '\[hozo-three-native\].*"event":"app_backgrounded"' "$artifacts/logcat.txt"; then
+    break
+  fi
+  sleep 1
+done
+grep -q '\[hozo-three-native\].*"event":"app_backgrounded"' "$artifacts/logcat.txt"
+sleep 2
+adb shell am start -W -n "$activity"
+for _ in $(seq 1 45); do
+  adb logcat -d -v brief > "$artifacts/logcat.txt"
+  if grep -q '\[hozo-three-native\].*"event":"frame_after_resume"' "$artifacts/logcat.txt"; then
+    break
+  fi
+  sleep 1
+done
+grep -q '\[hozo-three-native\].*"event":"app_resumed"' "$artifacts/logcat.txt"
+grep -q '\[hozo-three-native\].*"event":"frame_after_resume"' "$artifacts/logcat.txt"
+
 # The R3F Native event manager owns this touch. The scene does not unmount
 # until the tap raycasts the cube, so a missing event cannot be hidden by a
 # successful frame sample. Avoid uiautomator while the GPU surface is drawing
