@@ -104,17 +104,25 @@ async function layerState(page: Page): Promise<string> {
 /**
  * Puts the reader at the top of the page's content, ready to be stepped.
  *
- * On Windows, Guidepup enters the page by clicking the middle of the body and
- * pressing Tab. In Combobox, Menu and Tree the middle of the page is the
- * listbox or the tree -- the last focusable thing there -- so that Tab left the
- * document for Chrome's toolbar, and NVDA read Chrome's tab search ("Tab
- * Search, document", "list, Open Tabs"). The recording shows focus on the
- * tab-search button three seconds in.
+ * On Windows this used to be Guidepup's `navigateToWebContent`, which clicks
+ * the middle of the body and presses Tab. In Combobox, Menu and Tree the middle
+ * of the page is the listbox or the tree -- the last focusable thing there --
+ * so that Tab left the document for Chrome's toolbar, and NVDA read Chrome's
+ * tab search ("Tab Search, document", "list, Open Tabs"). The recording shows
+ * focus on the tab-search button three seconds in.
  *
- * So the click needs somewhere inert to land: a transparent button over the
- * whole viewport, first in the document, so the Tab after it stays in the page.
+ * So the click needed somewhere inert to land: a transparent button over the
+ * whole viewport, first in the document, so the Tab after it stayed in the page.
  * It is removed before anything is read, the log is cleared, and NVDA goes back
  * to the top of the page.
+ *
+ * The button is now *focused* rather than clicked, and `navigateToWebContent`
+ * is not called here at all, because it sends an Escape and that Escape closed
+ * every overlay a story had open -- see `layerState`. Playwright can put input
+ * focus in the page without sending anything to it, and input focus inside the
+ * page is the part of `navigateToWebContent` this harness was using. The
+ * browse-mode half is handled by `startOptions` writing
+ * `autoPassThroughOnFocusChange: false` into `nvda.ini`.
  *
  * The button swallows the press rather than letting it bubble. That is hygiene
  * and not a fix for anything measured: `DismissableLayer` does close on a
@@ -176,8 +184,24 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
       }
       document.body.prepend(start)
     })
-    await screenReader.navigateToWebContent()
-    console.log(`[enter] after click   ${await layerState(page)}`)
+    // Focused rather than navigated to, so nothing is sent to the page.
+    //
+    // `navigateToWebContent` is what sends the Escape that `layerState` caught
+    // closing every overlay opened at load. What it is for is getting NVDA out
+    // of wherever it was and into the document, and the part of that this
+    // harness needs is input focus inside the page -- which Playwright can set
+    // without a keystroke.
+    //
+    // The browse-mode half of the problem `navigateToWebContent` also helps
+    // with is already handled elsewhere: `startOptions` writes
+    // `autoPassThroughOnFocusChange: false` into `nvda.ini`, which is why
+    // focusing a widget no longer hands `next` to it. The transparent button
+    // stays because it is what gives focus somewhere inert to land.
+    //
+    // If this turns out not to put NVDA in the document, the log says so
+    // loudly: `MIN_SPOKEN` fails the run rather than passing a silent one.
+    await page.locator('#hozo-screen-reader-start').focus()
+    console.log(`[enter] after focus   ${await layerState(page)}`)
     await page.evaluate(() => document.getElementById('hozo-screen-reader-start')?.remove())
     // Before the keystroke rather than after it: a Ctrl+Home sent while another
     // window has focus is typed into that window.
