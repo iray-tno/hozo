@@ -162,12 +162,19 @@ const INSIDE_STEPS = 20
 /**
  * NVDA's word for an empty line, which is silence with a name on it.
  *
- * It is why the Dialog story stopped where it did. NVDA said "blank" four times
- * running, `walk` counted them as four ordinary phrases, three in a row was a
- * repeat, and the walk ended -- seven steps in, with the dialog's contents on
- * the far side of those blanks. The exit reason said "a repeated phrase" rather
- * than "silence", which is what separated this from a step budget that needed
- * raising.
+ * Counting it as a phrase made every story end for the wrong reason. NVDA says
+ * "blank" for the empty space after the last control, `walk` counted those as
+ * ordinary phrases, three in a row was a repeat, and seven of the eight
+ * stories were reported as ending on a repeat when they had simply run out of
+ * page. They now end on silence, which is what happened.
+ *
+ * It did **not** reach the Dialog story's dialog, and that was the hope. With
+ * the blanks counted as silence the walk goes one step further and stops on
+ * the fifth of them: there is nothing past them. So a modal dialog's subtree is
+ * not reachable by `next` from the top of the page at all, which is a different
+ * problem from a tolerance and needs a different entry -- NVDA's focus mode, or
+ * navigating to the focused element -- rather than a larger budget. Left alone
+ * here; see #560.
  *
  * Matched whole rather than as a substring, so a control actually labelled
  * "Blank" would still be read. VoiceOver says `""` for the same thing and is
