@@ -26,3 +26,4 @@ smaller questions that came up on the way, and their answers.
 | [002](002-what-hozo-abstracts.md) | What Hozo abstracts, and what it carries |
 | [003](003-which-variants-hozo-compiles.md) | Which Tailwind variants Hozo compiles |
 | [004](004-navigation-determines-role.md) | Navigation determines the role, not the component name |
+| [005](005-a-value-is-not-content.md) | A control's value goes in the value channel, not in its content |
