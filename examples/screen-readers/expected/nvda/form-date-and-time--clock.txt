@@ -1,0 +1,10 @@
+# Approved from screen-readers run 36294264902 (NVDA, Chrome).
+# The first real-reader evidence for anything in @hozo/form, and it confirms
+# the claim the component's own comment makes: each field's `aria-valuetext`
+# is the whole time rather than that field's digits, so a reader moving the
+# hour hears where the time landed. "spin button, 9:30 AM" is that.
+# The group's name comes with the first field rather than on its own, which is
+# NVDA joining them; approved as one phrase because that is what is said.
+Arrival time, grouping, Hour, spin button, 9:30 AM
+Minute, spin button, 9:30 AM
+button, AM or PM

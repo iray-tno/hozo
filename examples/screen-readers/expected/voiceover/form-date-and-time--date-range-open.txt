@@ -1,0 +1,18 @@
+# Approved from screen-readers run 36294264902 (VoiceOver, Safari).
+#
+# partial: the same 18-of-42 cut as the file beside this one. Nothing is
+# selected in this story, so no range state is covered either -- the grid's
+# own goldens under examples/storybook-demo/utterances/ carry that. See #584
+# and #585.
+#
+# The difference from the DateTimePicker story is the point of having both:
+# this one passes no `min`, so the days are "clickable" where the other's are
+# "dimmed", and the previous-month button is a button rather than a disabled
+# one. Two files, one prop apart.
+# No Done button, deliberately: a range Calendar reports only a range with
+# both ends, so the press that completes it is the press that finished.
+Dates of stay dialog pop up button
+Choose a range of dates web dialog
+Previous month button
+September 2026
+Thursday, September 3, 2026 3 clickable
