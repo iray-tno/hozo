@@ -136,15 +136,16 @@ function AccessibilityModes() {
       >
         {/* Deliberately focusable: the hidden parent must suppress an otherwise
             reachable native accessibility node, not merely static text. */}
-        <Text
+        <View
           accessibilityLabel="Decorative GPU cube sentinel"
           accessibilityRole="image"
           accessible
           focusable
-          style={styles.modeText}
         >
-          Decorative scene
-        </Text>
+          <Text accessible={false} style={styles.modeText}>
+            Decorative scene
+          </Text>
+        </View>
       </View>
     </View>
   )
