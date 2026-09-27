@@ -115,6 +115,35 @@ many triangles.
 hover, keyboard focus, and touch hold. Moving across triangle boundaries inside
 one object does not emit a false leave and re-entry.
 
+## React Three Fiber authoring
+
+Applications that author scenes with React Three Fiber can opt into a separate
+entry point. R3F continues to own its reconciler, renderer, frame loop, and
+pointer-event system; Hozo supplies the responsive container and the same
+label, fallback, or decorative accessibility choice as its direct surfaces.
+
+```tsx
+import { ThreeCanvas } from '@hozo/three/r3f'
+
+<ThreeCanvas
+  accessibilityLabel="Rotating product preview"
+  style={{ width: '100%', height: 360 }}
+  camera={{ position: [0, 2, 5] }}
+>
+  <ambientLight intensity={0.5} />
+  <mesh>
+    <boxGeometry />
+    <meshStandardMaterial color="orange" />
+  </mesh>
+</ThreeCanvas>
+```
+
+`@react-three/fiber` is an optional peer and is retained only by this entry
+point. Native R3F hosting remains explicitly unavailable until the GPU-host
+evaluation in issue #596 chooses and verifies a backend. Object-level keyboard
+activation also remains separate from this first envelope: Hozo does not read
+R3F's private instance metadata or synthesize its pointer events.
+
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,

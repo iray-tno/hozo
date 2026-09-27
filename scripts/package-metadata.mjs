@@ -63,6 +63,7 @@ const PACKAGES = {
   three: {
     exports: {
       '.': './dist/index.js',
+      './r3f': './dist/r3f.js',
       './webgl': './dist/webgl-renderer.js',
       './webgpu': './dist/webgpu.js',
     },
@@ -70,6 +71,7 @@ const PACKAGES = {
     // point needs a Native rejection module, so it must not make the whole
     // package claim a React Native implementation or peer dependency.
     nativeTargets: {
+      './r3f': './dist/r3f-react-native.js',
       './webgl': './dist/webgl-react-native.js',
       './webgpu': './dist/webgpu-react-native.js',
     },

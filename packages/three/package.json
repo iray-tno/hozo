@@ -28,6 +28,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./r3f": {
+      "react-native": {
+        "types": "./dist/r3f-react-native.d.ts",
+        "default": "./dist/r3f-react-native.js"
+      },
+      "types": "./dist/r3f.d.ts",
+      "default": "./dist/r3f.js"
+    },
     "./webgl": {
       "react-native": {
         "types": "./dist/webgl-react-native.d.ts",
@@ -68,11 +76,19 @@
     "@hozo/canvas": "workspace:^"
   },
   "peerDependencies": {
+    "@react-three/fiber": ">=9",
     "react": "^19.0.0",
     "three": ">=0.170"
   },
+  "peerDependenciesMeta": {
+    "@react-three/fiber": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@react-three/fiber": "^9.8.1",
     "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
     "@types/three": "^0.180.0",
     "esbuild": "0.28.2",
     "react": "^19.2.8",
