@@ -97,7 +97,9 @@ export interface HozoDateTimePickerProps {
    *
    * Defaults to `dateTimeLabel`, the long form. A short one is a design
    * decision and a spoken accessible name is not, which is why the default is
-   * the same text for both.
+   * the same text for both. It is spoken as the button's name when no
+   * `accessibilityLabel` was given and as its `accessibilityValue` when one
+   * was; see the comment at that prop.
    */
   formatValue?: (value: CalendarDateTime, locale?: string) => string
   /**
@@ -238,6 +240,27 @@ export function HozoDateTimePicker({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
+        // The chosen value, so a reader hears it and not only what the field is
+        // for.
+        //
+        // Only when a name was given, and that is the whole of the bug. iOS
+        // collapses the children of an accessible `Pressable`, so the `Text`
+        // below is not in the accessibility tree: with `accessibilityLabel` set
+        // the button's name is that label and the date is nowhere at all. A
+        // VoiceOver user heard "Departure, button" and could not hear which date
+        // was selected -- found on the first iOS reading of this screen, in the
+        // tree printed by `AccessibilityTreeTests`.
+        //
+        // Android hid it. `TalkBack` reads the label and then the `Text` as the
+        // button's contents, so the same markup announced the value there, and
+        // the Android dump lists the date among the nodes that are *drawn and
+        // undescribed* -- which is exactly the state that works on one platform
+        // and disappears on the other.
+        //
+        // Left undefined when no label was given, because then the name already
+        // *is* this text: `BaseViewManager` would join it to itself and iOS
+        // would say it twice.
+        accessibilityValue={accessibilityLabel ? { text } : undefined}
         accessibilityState={{ expanded: open, disabled }}
         disabled={disabled}
         style={triggerStyle}

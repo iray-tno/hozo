@@ -190,3 +190,81 @@ test('an action nobody sent is not acted on', () => {
   hour?.onAccessibilityAction?.({ nativeEvent: { actionName: 'activate' } })
   assert.deepEqual(changes, [])
 })
+
+// The three pickers' triggers, which had the mirror of the same defect.
+//
+// `TimePicker`'s fields were inert; these were elements with no value. iOS
+// collapses the children of an accessible `Pressable`, so with an
+// `accessibilityLabel` set the button's name is that label and the formatted
+// date is nowhere -- a VoiceOver user heard "Departure, button" and could not
+// hear which date was selected. Found on the first iOS reading of the pickers
+// screen, and invisible on Android, where TalkBack reads the child `Text` as the
+// button's contents.
+//
+// Pinned here rather than left to the next device run, for the reason the
+// fields above are: the props are right in both cases and the tree is the only
+// thing that can see the difference.
+
+const pickers = require('../../form/src/date-picker.native.tsx') as { HozoDatePicker: unknown }
+const timePickers = require('../../form/src/date-time-picker.native.tsx') as {
+  HozoDateTimePicker: unknown
+}
+const rangePickers = require('../../form/src/date-range-picker.native.tsx') as {
+  HozoDateRangePicker: unknown
+}
+
+/** The trigger of one picker, rendered with the props a caller would pass. */
+function trigger(component: unknown, props: Record<string, unknown>) {
+  let root: { toJSON: () => Node | Node[] | null } | null = null
+  renderer.act(() => {
+    root = renderer.create(react.createElement(component, { locale: 'en-US', ...props }))
+  })
+  if (root === null) return undefined
+  const found = flatten((root as { toJSON: () => Node | Node[] | null }).toJSON()).find(
+    (node) => (node.props as Field).accessibilityRole === 'button',
+  )
+  return found?.props as
+    | (Field & { accessibilityValue?: { text?: string }; accessibilityLabel?: string })
+    | undefined
+}
+
+const DAY = { year: 2026, month: 9, day: 24 }
+
+test('a named trigger carries its value, because its own text is not in the tree', () => {
+  const props = { accessibilityLabel: 'Departure', today: DAY }
+  const date = trigger(pickers.HozoDatePicker, { ...props, value: DAY })
+  assert.equal(date?.accessibilityLabel, 'Departure')
+  assert.match(date?.accessibilityValue?.text ?? '', /September 24, 2026/)
+
+  const both = trigger(timePickers.HozoDateTimePicker, {
+    ...props,
+    hour12: true,
+    value: { ...DAY, hour: 9, minute: 30 },
+  })
+  assert.match(both?.accessibilityValue?.text ?? '', /September 24, 2026/)
+  assert.match(both?.accessibilityValue?.text ?? '', /9:30/)
+
+  const range = trigger(rangePickers.HozoDateRangePicker, {
+    ...props,
+    value: { start: DAY, end: { year: 2026, month: 9, day: 26 } },
+  })
+  assert.match(range?.accessibilityValue?.text ?? '', /September/)
+})
+
+test('an unnamed trigger carries none, because then its text is the name', () => {
+  // Setting it as well would have `BaseViewManager` join the text to itself and
+  // VoiceOver say it twice, which is the other way to get this wrong.
+  const date = trigger(pickers.HozoDatePicker, { today: DAY, value: DAY })
+  assert.equal(date?.accessibilityLabel, undefined)
+  assert.equal(date?.accessibilityValue, undefined)
+})
+
+test('a trigger with nothing chosen says the placeholder, not an empty value', () => {
+  const date = trigger(pickers.HozoDatePicker, {
+    accessibilityLabel: 'Departure',
+    today: DAY,
+    value: null,
+    placeholder: 'Select a date',
+  })
+  assert.equal(date?.accessibilityValue?.text, 'Select a date')
+})
