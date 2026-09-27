@@ -590,8 +590,9 @@ else
         note("the hour steppers", has("increase hour"))
         note("the minute steppers", has("increase minute"))
         note("the period, with the whole time on it", has("am or pm, 9:30"))
-        note("the DateTimePicker trigger", has("departure"))
-        note("the DateRangePicker trigger", has("dates of stay"))
+        note("the DatePicker trigger, with its date", has("departure date, thursday, september 10"))
+        note("the DateTimePicker trigger, with its value", has("departure, thursday, september 24"))
+        note("the DateRangePicker trigger, with its range", has("dates of stay, september"))
         // The fields as opposed to their buttons. Nothing matched this on the
         // first run: the value a reader is changing is not described anywhere.
         note(

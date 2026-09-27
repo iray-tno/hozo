@@ -186,11 +186,22 @@ final class AccessibilityTreeTests: XCTestCase {
     // hear where that put the time.
     print("HOZO_PICKERS hourValue=\(said)")
     print("HOZO_PICKERS hourSaysWholeTime=\(said.contains("9:30"))")
-    // Whether the period survived as a button, and the two triggers as buttons
-    // that say what they open.
+    // Whether the period survived as a button.
     print("HOZO_PICKERS periodExists=\(app.buttons["AM or PM"].exists)")
-    print("HOZO_PICKERS departureExists=\(app.buttons["Departure"].exists)")
-    print("HOZO_PICKERS datesOfStayExists=\(app.buttons["Dates of stay"].exists)")
+
+    // And whether each trigger carries the value it is showing.
+    //
+    // This is what the first run of this test found missing and #608 fixed. iOS
+    // collapses the children of an accessible `Pressable`, so with a name set
+    // the formatted date was in no element at all and a VoiceOver user heard
+    // "Departure, button" and nothing about which date it held. Three triggers
+    // rather than two because `DatePicker` arrived on this screen last, having
+    // been fixed alongside the others on the strength of sharing their shape.
+    for name in ["Departure date", "Departure", "Dates of stay"] {
+      let trigger = app.buttons[name]
+      let carried = trigger.exists ? (trigger.value as? String ?? "") : "(absent)"
+      print("HOZO_PICKERS trigger[\(name)]=\(carried)")
+    }
   }
 
   /// Every element the accessibility hierarchy exposes, as JSON between

@@ -1,5 +1,4 @@
-// `TimePicker`, `DateTimePicker` and `DateRangePicker` on a screen a device
-// can be asked about.
+// All four of `@hozo/form`'s controls on a screen a device can be asked about.
 //
 // Its own surface rather than a corner of `CalendarScreen.tsx`, and the
 // reason is the dump rather than the layout. `android-smoke.sh` reads the
@@ -26,12 +25,20 @@
 // exists to find out -- the fields would read on a twenty-four hour clock if
 // it does not, and the two are told apart by what is on screen.
 //
-// The two pickers are closed. What is being asked first is whether their
-// triggers render and name themselves at all; their dialogs are a `Modal`
-// inside a `Modal`, which is worth opening on a device only once the simpler
-// question has an answer.
+// The three pickers start closed. `android-talkback.sh` opens one of them,
+// which nests a `Modal` inside a `Modal` with a screen reader running -- the
+// shape #512 crashed on -- and gates on the app surviving both the opening and
+// the Back that closes it.
+//
+// `DatePicker` was the last of the four to arrive here, and its absence had a
+// cost. It carried the same defect the other two did -- a named trigger whose
+// value reached no reader on iOS (#608) -- and was fixed alongside them on the
+// strength of sharing their shape rather than on anything measured about it.
+// Every one of them carries `accessibilityLabel` for that reason: without a
+// name the button's name is its own text, and the bug only exists when a name
+// displaces it.
 
-import { DateRangePicker, DateTimePicker, TimePicker } from '@hozo/form'
+import { DatePicker, DateRangePicker, DateTimePicker, TimePicker } from '@hozo/form'
 import { Text, View } from 'react-native'
 
 const surface = { backgroundColor: '#ffffff', flex: 1, padding: 16 } as const
@@ -68,6 +75,18 @@ export default function FormScreen() {
       <Text accessibilityRole="header" style={heading}>
         Pickers
       </Text>
+
+      <Text style={label}>DatePicker</Text>
+      <DatePicker
+        accessibilityLabel="Departure date"
+        value={{ year: 2026, month: 9, day: 10 }}
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        min={{ year: 2026, month: 9, day: 3 }}
+        locale="en-US"
+        firstDayOfWeek={1}
+        triggerStyle={trigger}
+      />
 
       <Text style={label}>TimePicker</Text>
       <TimePicker
