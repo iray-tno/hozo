@@ -1,37 +1,26 @@
 import { Canvas, type CanvasPressEvent, type CanvasProps } from '@hozo/canvas'
-import {
-  type Ref,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useReducer,
-  useRef,
-} from 'react'
+import { type Ref, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   type Intersection,
   type Object3D,
   type OrthographicCamera,
   type PerspectiveCamera,
   Raycaster,
-  type Scene,
   Vector2,
 } from 'three'
 
 import { projectThreeScene, type ThreeProjectionDiagnostic } from './project.ts'
-
-export type ThreeCanvasFrameloop = 'demand' | 'always'
-
-export interface ThreeCanvasFrame {
-  camera: ThreeCanvasCamera
-  /** Seconds since the preceding frame. Zero on the first frame. */
-  delta: number
-  /** Seconds since this animation loop started. */
-  elapsed: number
-  scene: Scene
-}
+import {
+  type ThreeSurfaceFrame,
+  type ThreeSurfaceFrameloop,
+  type ThreeSurfaceHandle,
+  type ThreeSurfaceProps,
+  useThreeSurfaceLifecycle,
+} from './surface.ts'
 
 export type ThreeCanvasCamera = PerspectiveCamera | OrthographicCamera
+export type ThreeCanvasFrameloop = ThreeSurfaceFrameloop
+export type ThreeCanvasFrame = ThreeSurfaceFrame<ThreeCanvasCamera>
 
 export interface ThreeCanvasObjectEvent {
   /** The 2D activation that reached the projected object. */
@@ -43,10 +32,7 @@ export interface ThreeCanvasObjectEvent {
   object: Object3D
 }
 
-export interface ThreeCanvasHandle {
-  /** Re-project mutations made to the same Three.js scene and camera objects. */
-  invalidate(): void
-}
+export type ThreeCanvasHandle = ThreeSurfaceHandle
 
 type CanvasSurfaceProps = CanvasProps extends infer Variant
   ? Variant extends CanvasProps
@@ -54,29 +40,19 @@ type CanvasSurfaceProps = CanvasProps extends infer Variant
     : never
   : never
 
-export type ThreeCanvasProps = CanvasSurfaceProps & {
-  camera: ThreeCanvasCamera
-  frameloop?: ThreeCanvasFrameloop
-  height: number
-  onDiagnostic?: (diagnostic: ThreeProjectionDiagnostic) => void
-  onFrame?: (frame: ThreeCanvasFrame) => void
-  /** Name an interactive Three object for its single keyboard control. */
-  getAccessibilityLabel?: (object: Object3D) => string | undefined
-  /** Activated after the projected path identifies an object. */
-  onObjectPress?: (event: ThreeCanvasObjectEvent) => void
-  /** Reports hover, focus, and touch-hold as one object-level state. */
-  onObjectActiveChange?: (event: ThreeCanvasObjectEvent | undefined) => void
-  /** Optional configured raycaster; a package-owned instance is used otherwise. */
-  raycaster?: Raycaster
-  ref?: Ref<ThreeCanvasHandle>
-  /**
-   * An application-owned value that invalidates demand rendering when it
-   * changes. Useful when an imperative ref is inconvenient.
-   */
-  revision?: unknown
-  scene: Scene
-  width: number
-}
+export type ThreeCanvasProps = CanvasSurfaceProps &
+  ThreeSurfaceProps<ThreeCanvasCamera> & {
+    onDiagnostic?: (diagnostic: ThreeProjectionDiagnostic) => void
+    /** Name an interactive Three object for its single keyboard control. */
+    getAccessibilityLabel?: (object: Object3D) => string | undefined
+    /** Activated after the projected path identifies an object. */
+    onObjectPress?: (event: ThreeCanvasObjectEvent) => void
+    /** Reports hover, focus, and touch-hold as one object-level state. */
+    onObjectActiveChange?: (event: ThreeCanvasObjectEvent | undefined) => void
+    /** Optional configured raycaster; a package-owned instance is used otherwise. */
+    raycaster?: Raycaster
+    ref?: Ref<ThreeCanvasHandle>
+  }
 
 /**
  * A small React lifecycle around the deterministic Three.js projection.
@@ -101,34 +77,14 @@ export function ThreeCanvas({
   width,
   ...canvasProps
 }: ThreeCanvasProps) {
-  const [frameRevision, invalidateReducer] = useReducer((value: number) => value + 1, 0)
-  const invalidate = useCallback(() => invalidateReducer(), [])
-  const frameCallback = useRef(onFrame)
   const raycasterRef = useRef<Raycaster | null>(null)
-  frameCallback.current = onFrame
-
-  useImperativeHandle(ref, () => ({ invalidate }), [invalidate])
-
-  useEffect(() => {
-    if (frameloop !== 'always') return
-    let request = 0
-    let first: number | undefined
-    let previous: number | undefined
-    const frame = (timestamp: number) => {
-      first ??= timestamp
-      frameCallback.current?.({
-        camera,
-        delta: previous === undefined ? 0 : (timestamp - previous) / 1000,
-        elapsed: (timestamp - first) / 1000,
-        scene,
-      })
-      previous = timestamp
-      invalidate()
-      request = requestAnimationFrame(frame)
-    }
-    request = requestAnimationFrame(frame)
-    return () => cancelAnimationFrame(request)
-  }, [camera, frameloop, invalidate, scene])
+  const { frameRevision } = useThreeSurfaceLifecycle({
+    camera,
+    frameloop,
+    onFrame,
+    ref,
+    scene,
+  })
 
   const projection = useMemo(() => {
     // These are explicit invalidation tokens. Their values do not enter the
