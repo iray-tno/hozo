@@ -61,11 +61,18 @@ const PACKAGES = {
     keywords: ['react-native', 'canvas', 'graphics', 'skia', 'charts'],
   },
   three: {
-    exports: { '.': './dist/index.js', './webgl': './dist/webgl.js' },
+    exports: {
+      '.': './dist/index.js',
+      './webgl': './dist/webgl.js',
+      './webgpu': './dist/webgpu.js',
+    },
     // The package root is already portable. Only this explicit WebGL entry
     // point needs a Native rejection module, so it must not make the whole
     // package claim a React Native implementation or peer dependency.
-    nativeTargets: { './webgl': './dist/webgl-react-native.js' },
+    nativeTargets: {
+      './webgl': './dist/webgl-react-native.js',
+      './webgpu': './dist/webgpu-react-native.js',
+    },
     keywords: ['react-native', 'three.js', '3d', 'canvas', 'graphics'],
   },
   compiler: {

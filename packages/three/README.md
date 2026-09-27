@@ -66,6 +66,29 @@ sprites also receive real off-screen buttons, so the same object can be reached
 with a pointer, keyboard, or screen reader. `getAccessibilityLabel` can supply
 those names without mutating `object.name`.
 
+## Modern WebGPU renderer family
+
+New Web applications can select Three.js's modern renderer family explicitly:
+
+```tsx
+import { ThreeCanvas } from '@hozo/three/webgpu'
+
+<ThreeCanvas
+  accessibilityLabel="Interactive product model"
+  scene={scene}
+  camera={camera}
+  width={640}
+  height={360}
+/>
+```
+
+Hozo loads `three/webgpu` lazily and awaits `WebGPURenderer.init()` before the
+first draw. Three.js chooses WebGPU when available and otherwise uses its own
+modern WebGL 2 backend; pass `rendererOptions={{ forceWebGL: true }}` to force
+that backend for testing. This is distinct from the classic
+`@hozo/three/webgl` renderer and shares its DOM interaction and accessibility
+contract rather than its material or post-processing extension points.
+
 Pass `onObjectPress` to receive the projected Three object and its raycast
 intersections. Set `object.name`, or provide `getAccessibilityLabel`, to expose
 one keyboard and screen-reader control per object even when it projects into
