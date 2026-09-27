@@ -240,6 +240,8 @@ jobs:
             pickers_opener_dump.xml
             pickers_dump.xml
             pickers.png
+            picker_dialog_dump.xml
+            picker_dialog.png
             examples/native-demo/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 14

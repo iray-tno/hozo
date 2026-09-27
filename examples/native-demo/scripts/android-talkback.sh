@@ -720,7 +720,9 @@ fi
 #
 # Warning-only, like the calendar section and for the same reason: this is a
 # measurement rather than a contract, and nothing here is a fact the project
-# has committed to yet. The gate that follows is about the app surviving.
+# has committed to yet -- with two exceptions at the end, where opening and
+# dismissing a `Modal` inside a `Modal` are gates. Surviving is not a judgement
+# about an announcement and does not depend on timing.
 #
 # What the first run established, so the next reader starts from it. The lap is
 # seven items, twice over inside sixteen steps:
@@ -828,6 +830,83 @@ else
         echo "  heard the hour and minute fields themselves"
       else
         echo "::warning::the value fields are never announced, only their steppers -- a reader can change the time and cannot hear it"
+      fi
+
+      # And then open one, which is a `Modal` inside a `Modal`.
+      #
+      # The one path in `@hozo/form` that nothing has ever executed. Both
+      # pickers' Native halves put their panel in React Native's own `Modal`,
+      # and the screen they sit on is itself a `Modal` over the acceptance
+      # screen -- so opening one nests two, with TalkBack running, which is the
+      # shape #512 crashed on when a `FlatList` merely unmounted underneath it.
+      #
+      # Survival is a gate. Everything about what it *says* is a warning, the
+      # same division the rest of this section keeps: "the app is still there"
+      # is not a judgement about an announcement and does not depend on timing.
+      #
+      # Tab to the trigger rather than tapping coordinates. `uiautomator` must
+      # not run while TalkBack is on (see the note at the top), so there is no
+      # dump to take bounds from, and the trigger is found the way everything
+      # else here is found -- by what TalkBack calls it.
+      dialog_reached=
+      for _ in $(seq 1 12); do
+        advance || true
+        if [ "${new%%|*}" = "Departure" ]; then dialog_reached=1; break; fi
+      done
+
+      if [ -z "$dialog_reached" ]; then
+        echo "::warning::Tab never came back to \"Departure\", so the nested dialog was not opened"
+      else
+        adb shell input keyevent KEYCODE_ENTER || true
+        sleep 2
+        settle || true
+        collect || true
+        printf 'dialog open\t%s\n' "$new" >> "$pickers_file"
+        echo "  DateTimePicker opened: ${new:-(silent)}"
+
+        if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+          echo '--- logcat, crash buffer ---'
+          adb logcat -d -b crash -v brief | tail -60 || true
+          fail "the app died opening a Modal inside a Modal with TalkBack on -- #512's shape again"
+        fi
+        echo "  the app survived nesting two Modals"
+
+        # Enough to cross the grid's first rows and reach the clock below it,
+        # which is the part a nested dialog could plausibly lose.
+        for i in $(seq 1 20); do
+          advance || true
+          printf 'dialog %s\t%s\n' "$i" "$new" >> "$pickers_file"
+          echo "  dialog $i: ${new:-(silent)}"
+        done
+
+        nested_said="$(cut -f2 "$pickers_file" | tr '|' '\n' | grep -v '^$' || true)"
+        nested_heard() {
+          if printf '%s\n' "$nested_said" | grep -qi -- "$2"; then
+            echo "  heard $1"
+          else
+            echo "::warning::the nested dialog never said $1 -- read talkback-speech.json"
+          fi
+        }
+        nested_heard 'the dialog itself' 'choose a date and time'
+        nested_heard 'a day in the grid' 'september'
+        nested_heard "the dialog's clock" 'hour'
+        nested_heard 'the Done button' 'done'
+
+        # Back, which is what a phone user presses and what `onRequestClose`
+        # is wired to. Asked because a nested `Modal` dismissing is the other
+        # half of the crash shape: #512 was an unmount, and this is one.
+        adb shell input keyevent KEYCODE_BACK || true
+        sleep 2
+        settle || true
+        collect || true
+        printf 'dialog closed\t%s\n' "$new" >> "$pickers_file"
+        echo "  after Back: ${new:-(silent)}"
+        if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+          echo '--- logcat, crash buffer ---'
+          adb logcat -d -b crash -v brief | tail -60 || true
+          fail "the app died dismissing the inner Modal with TalkBack on"
+        fi
+        echo "  the app survived dismissing the inner Modal"
       fi
 
       echo '  what the pickers screen said, in order:'
