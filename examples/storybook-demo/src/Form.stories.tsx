@@ -93,8 +93,28 @@ const rangeCell = `${cellBase} data-[hozo-in-range]:bg-indigo-100 data-[hozo-ran
 const trigger =
   'px-4 py-2.5 text-sm font-medium text-slate-700 rounded-lg border border-slate-300 hover:border-indigo-500'
 const dialog = 'mt-2 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-lg'
-const field =
-  'px-3 py-2 w-12 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100'
+/**
+ * The two arrow layouts, which are one markup and two stylesheets.
+ *
+ * A field is a group holding an up arrow, the value and a down arrow, in that
+ * order, and `data-hozo-step` says which arrow is which. That is enough for
+ * both layouts people expect from a time field: pinned inside the field's
+ * right edge, or above and below it the way the Native half draws them. Hozo
+ * ships no CSS and has no `variant` prop -- #148 and ADR 001 -- so the
+ * difference lives here, in the application, which is the point being shown.
+ */
+const inlineField =
+  'relative w-16 py-2 pl-2 pr-5 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100'
+const inlineStep =
+  'absolute right-1 text-[9px] leading-none text-slate-500 hover:text-indigo-600 cursor-pointer data-[hozo-step=increase]:top-1 data-[hozo-step=decrease]:bottom-1'
+
+const stackedField =
+  'flex flex-col items-center gap-0.5 w-12 px-2 py-1 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100'
+const stackedStep = 'text-[9px] leading-none text-slate-500 hover:text-indigo-600 cursor-pointer'
+
+/** The period, which is a button rather than a third spinbutton and has no arrows. */
+const period =
+  'px-3 py-2 w-12 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100 cursor-pointer'
 
 function MonthGridDemo() {
   const [day, setDay] = useState<CalendarDate | null>({ year: 2026, month: 9, day: 10 })
@@ -178,8 +198,26 @@ function ClockDemo() {
         hour12
         accessibilityLabel="Arrival time"
         className={clock}
-        fieldClassName={field}
-        periodClassName={`${field} cursor-pointer`}
+        fieldClassName={inlineField}
+        stepClassName={inlineStep}
+        periodClassName={period}
+      />
+      <Paragraph className={prose}>
+        The same component again, with the arrows above and below instead. Both are the same markup:
+        only the two class names differ, and a keyboard user cannot tell them apart -- the arrows
+        are out of the tab order, because the field already answers Up and Down.
+      </Paragraph>
+      <TimePicker
+        value={arrival}
+        onChange={setArrival}
+        step={15}
+        locale="en-US"
+        hour12
+        accessibilityLabel="Arrival time, stacked arrows"
+        className={clock}
+        fieldClassName={stackedField}
+        stepClassName={stackedStep}
+        periodClassName={period}
       />
     </View>
   )
@@ -225,8 +263,9 @@ function DateAndTimeDemo({ initiallyOpen = false }: { initiallyOpen?: boolean })
           <TimePicker
             {...time}
             className={clock}
-            fieldClassName={field}
-            periodClassName={`${field} cursor-pointer`}
+            fieldClassName={stackedField}
+            stepClassName={stackedStep}
+            periodClassName={period}
           />
         )}
       </DateTimePicker>

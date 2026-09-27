@@ -15,6 +15,8 @@ export interface HozoTimePickerProps {
   /** On each `role="spinbutton"`, so a `disabled:` variant reaches them. */
   fieldClassName?: string
   periodClassName?: string
+  /** On each arrow, so an application can place them and Hozo need not. */
+  stepClassName?: string
   value?: CalendarTime | null
   onChange?: (time: CalendarTime) => void
   /** The time the fields start on while uncontrolled. */
@@ -53,6 +55,14 @@ export interface HozoTimePickerProps {
    * caller with English defaults, like every other piece of chrome here.
    */
   periodLabels?: { am: string; pm: string }
+  /**
+   * What the arrows are called.
+   *
+   * The Native half has carried these since it had buttons and the Web did
+   * not; now both do, and both name them the same way.
+   */
+  increaseLabel?: string
+  decreaseLabel?: string
   /** What a field shows before anything is chosen. */
   emptyLabel?: string
 }
@@ -82,6 +92,7 @@ export function HozoTimePicker({
   className,
   fieldClassName,
   periodClassName,
+  stepClassName,
   value,
   onChange,
   defaultValue,
@@ -96,6 +107,8 @@ export function HozoTimePicker({
   minuteFieldLabel = 'Minute',
   periodFieldLabel = 'AM or PM',
   periodLabels = { am: 'AM', pm: 'PM' },
+  increaseLabel = 'Increase',
+  decreaseLabel = 'Decrease',
   emptyLabel = '--',
 }: HozoTimePickerProps) {
   const [own, setOwn] = useState<CalendarTime | null>(defaultValue ?? null)
@@ -203,6 +216,45 @@ export function HozoTimePicker({
     return twelveHour(current).period === 'am' ? periodLabels.am : periodLabels.pm
   }
 
+  /**
+   * One of a field's two arrows.
+   *
+   * `tabIndex={-1}`, which is the point of having them. The field owns the
+   * arrow keys, so putting these in the tab order would make each field three
+   * stops where it is one, for two controls that do what Up and Down already
+   * do. A pointer gains something; the keyboard path is untouched.
+   *
+   * Still in the accessibility tree, and still named, because a screen reader
+   * reaching one by browsing should know what it is. The Native half's pair
+   * are ordinary focusable buttons: there is no tab order there to lengthen.
+   */
+  const arrow = (name: 'hour' | 'minute', direction: 1 | -1, glyph: string) => (
+    <button
+      type="button"
+      tabIndex={-1}
+      aria-label={`${direction === 1 ? increaseLabel : decreaseLabel} ${
+        name === 'hour' ? hourFieldLabel : minuteFieldLabel
+      }`}
+      disabled={disabled}
+      className={stepClassName}
+      data-hozo-step={direction === 1 ? 'increase' : 'decrease'}
+      onClick={() => stepBy(name, direction)}
+    >
+      {glyph}
+    </button>
+  )
+
+  /**
+   * A field is a group holding its value and its two arrows.
+   *
+   * `fieldClassName` is on that group rather than on the spinbutton, which is
+   * where the Native half puts `fieldStyle`, and the two halves keep the same
+   * prop list. It is also the element an application styles: the arrows sit
+   * inside its right edge or above and below it, and that is a stylesheet's
+   * decision rather than Hozo's -- this package ships no CSS, and the order
+   * here (up, value, down) is what lets one set of markup be laid out either
+   * way.
+   */
   const field = (
     name: 'hour' | 'minute',
     text: string,
@@ -211,21 +263,24 @@ export function HozoTimePicker({
     low: number,
     high: number,
   ) => (
-    <div
-      role="spinbutton"
-      aria-label={label}
-      aria-valuenow={now}
-      aria-valuemin={low}
-      aria-valuemax={high}
-      aria-valuetext={spoken}
-      aria-disabled={disabled || undefined}
-      data-hozo-disabled={disabled ? '' : undefined}
-      tabIndex={disabled ? -1 : 0}
-      className={fieldClassName}
-      onKeyDown={onFieldKeyDown(name)}
-      onBlur={() => setTyped(null)}
-    >
-      {text}
+    <div className={fieldClassName} data-hozo-field={name}>
+      {arrow(name, 1, '▲')}
+      <div
+        role="spinbutton"
+        aria-label={label}
+        aria-valuenow={now}
+        aria-valuemin={low}
+        aria-valuemax={high}
+        aria-valuetext={spoken}
+        aria-disabled={disabled || undefined}
+        data-hozo-disabled={disabled ? '' : undefined}
+        tabIndex={disabled ? -1 : 0}
+        onKeyDown={onFieldKeyDown(name)}
+        onBlur={() => setTyped(null)}
+      >
+        {text}
+      </div>
+      {arrow(name, -1, '▼')}
     </div>
   )
 

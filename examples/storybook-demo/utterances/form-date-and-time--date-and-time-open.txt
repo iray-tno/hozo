@@ -159,12 +159,24 @@ end of rowgroup
 end of grid, September 2026
 end of group
 group
+button, Increase Hour
+▲
+end of button, Increase Hour
 spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
 9
 end of spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+button, Decrease Hour
+▼
+end of button, Decrease Hour
+button, Increase Minute
+▲
+end of button, Increase Minute
 spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
 30
 end of spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+button, Decrease Minute
+▼
+end of button, Decrease Minute
 button, AM or PM
 AM
 end of button, AM or PM
