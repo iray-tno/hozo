@@ -31,6 +31,7 @@ function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
   const meshRef = useRef<Mesh>(null)
   const frameTimes = useRef<number[]>([])
   const completed = useRef(false)
+  const touched = useRef(false)
   const { gl } = useThree()
 
   useEffect(() => {
@@ -55,7 +56,7 @@ function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
 
     mesh.rotation.x += delta * 0.4
     mesh.rotation.y += delta * 0.7
-    frameTimes.current.push(delta * 1_000)
+    if (frameTimes.current.length < sampleFrameCount) frameTimes.current.push(delta * 1_000)
 
     if (frameTimes.current.length === 1) {
       emit({
@@ -66,7 +67,7 @@ function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
       })
     }
 
-    if (frameTimes.current.length === sampleFrameCount) {
+    if (frameTimes.current.length === sampleFrameCount && touched.current) {
       completed.current = true
       emit({
         event: 'steady_sample',
@@ -86,6 +87,7 @@ function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
       ref={meshRef}
       onClick={() => {
         if (!meshRef.current) return
+        touched.current = true
         emit({
           event: 'object_activated',
           host: 'expo-gl',
@@ -97,6 +99,55 @@ function ProbeScene({ onComplete }: { onComplete: (object: Mesh) => void }) {
       <boxGeometry args={[1, 1, 1]} />
       <meshNormalMaterial />
     </mesh>
+  )
+}
+
+function AccessibilityModes() {
+  return (
+    <View style={styles.modes}>
+      <View
+        accessibilityLabel="Labelled GPU cube"
+        accessibilityRole="image"
+        accessible
+        focusable
+        style={styles.mode}
+        testID="labelled-gpu-cube"
+      >
+        <Text accessible={false} style={styles.modeText}>
+          Labelled scene
+        </Text>
+      </View>
+      <View style={styles.mode} testID="fallback-gpu-scene">
+        <Pressable
+          accessibilityLabel="Inspect fallback cube data"
+          accessibilityRole="button"
+          style={styles.fallbackButton}
+        >
+          <Text style={styles.modeText}>Inspect fallback cube data</Text>
+        </Pressable>
+      </View>
+      <View
+        aria-hidden
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.mode}
+        testID="decorative-gpu-scene"
+      >
+        {/* Deliberately focusable: the hidden parent must suppress an otherwise
+            reachable native accessibility node, not merely static text. */}
+        <View
+          accessibilityLabel="Decorative GPU cube sentinel"
+          accessibilityRole="image"
+          accessible
+          focusable
+        >
+          <Text accessible={false} style={styles.modeText}>
+            Decorative scene
+          </Text>
+        </View>
+      </View>
+    </View>
   )
 }
 
@@ -124,16 +175,19 @@ export default function App() {
       <Text accessibilityRole="header" style={styles.heading}>
         Expo GL native GPU probe
       </Text>
-      <View style={styles.canvas}>
+      <View style={styles.canvas} testID="gpu-touch-surface">
         {mounted ? (
           <Canvas camera={{ position: [0, 0, 3] }}>
             <ambientLight intensity={0.4} />
             <ProbeScene onComplete={complete} />
           </Canvas>
         ) : (
-          <Text testID="probe-complete" style={styles.result}>
-            120 frames rendered and the renderer was unmounted.
-          </Text>
+          <View style={styles.complete}>
+            <Text testID="probe-complete" style={styles.result}>
+              120 frames rendered, touched, and unmounted.
+            </Text>
+            <AccessibilityModes />
+          </View>
         )}
       </View>
       <Pressable
@@ -164,7 +218,12 @@ const styles = StyleSheet.create({
   },
   heading: { color: '#f7f8ff', fontSize: 24, fontWeight: '700', marginBottom: 16 },
   canvas: { flex: 1, minHeight: 320, borderRadius: 20, overflow: 'hidden' },
-  result: { color: '#b8f7d4', fontSize: 18, margin: 'auto', textAlign: 'center' },
+  complete: { flex: 1, justifyContent: 'center', gap: 12 },
+  result: { color: '#b8f7d4', fontSize: 18, textAlign: 'center' },
+  modes: { gap: 8 },
+  mode: { backgroundColor: '#171e35', borderRadius: 10, minHeight: 54, padding: 12 },
+  modeText: { color: '#f7f8ff', fontSize: 15, textAlign: 'center' },
+  fallbackButton: { flex: 1, justifyContent: 'center' },
   button: { backgroundColor: '#6750ff', borderRadius: 12, marginTop: 16, padding: 16 },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700', textAlign: 'center' },
   note: { color: '#b4bad0', fontSize: 13, lineHeight: 18, marginTop: 12 },

@@ -20,13 +20,32 @@ adb shell am start -W -n "$activity"
 
 for _ in $(seq 1 90); do
   adb logcat -d -v brief > "$artifacts/logcat.txt"
+  if grep -q '\[hozo-three-native\].*"event":"first_frame"' "$artifacts/logcat.txt"; then
+    break
+  fi
+  sleep 1
+done
+
+# The R3F Native event manager owns this touch. The scene does not unmount
+# until the tap raycasts the cube, so a missing event cannot be hidden by a
+# successful frame sample. Avoid uiautomator while the GPU surface is drawing
+# continuously: this fixture centres both the Canvas and the cube, and its
+# fixed Pixel 6 profile places that centre at 47.5% of the screen height.
+screen_size="$(adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | tail -1)"
+screen_width="${screen_size%x*}"
+screen_height="${screen_size#*x}"
+surface_x=$((screen_width / 2))
+surface_y=$((screen_height * 19 / 40))
+adb shell input tap "$surface_x" "$surface_y"
+
+for _ in $(seq 1 90); do
+  adb logcat -d -v brief > "$artifacts/logcat.txt"
   if grep -q '\[hozo-three-native\].*"event":"renderer_unmounted"' "$artifacts/logcat.txt"; then
     break
   fi
   sleep 1
 done
 
-adb logcat -d -v brief > "$artifacts/logcat.txt"
 for _ in $(seq 1 6); do
   adb shell rm -f /sdcard/three-native-probe.xml >/dev/null 2>&1 || true
   adb shell uiautomator dump /sdcard/three-native-probe.xml >/dev/null 2>&1 || true
@@ -40,6 +59,13 @@ done
 adb exec-out screencap -p > "$artifacts/screenshot.png"
 grep -q "package=\"$package\"" "$artifacts/accessibility.xml"
 grep -q 'probe-complete' "$artifacts/accessibility.xml"
+grep -q 'Labelled GPU cube' "$artifacts/accessibility.xml"
+grep -q 'Inspect fallback cube data' "$artifacts/accessibility.xml"
+# A hierarchy dump includes non-focusable native descendants that TalkBack
+# filters while navigating. It is useful for proving that positive semantic
+# endpoints exist, but not for proving that decorative content is silent.
+# The following TalkBack pass makes that negative assertion from actual TTS
+# output instead.
 read -r control_x control_y < <(
   node "$root/scripts/control-centre.mjs" \
     "$artifacts/accessibility.xml" \

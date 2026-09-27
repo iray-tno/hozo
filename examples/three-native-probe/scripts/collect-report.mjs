@@ -17,16 +17,25 @@ export function collectReport(logText, apkBytes) {
   }
 
   const sampled = events.find((entry) => entry.event === 'steady_sample')
+  const canvasActivation = events.find(
+    (entry) => entry.event === 'object_activated' && entry.source === 'canvas',
+  )
   const semanticActivation = events.find(
     (entry) => entry.event === 'object_activated' && entry.source === 'semantic-control',
   )
+  if (!canvasActivation) {
+    throw new Error('Native GPU probe did not raycast the measured object from a device touch')
+  }
   if (!semanticActivation) {
     throw new Error(
       'Native GPU probe did not activate the measured object through its semantic control',
     )
   }
-  if (sampled.objectId !== semanticActivation.objectId) {
-    throw new Error('The R3F mesh and its semantic control did not share object identity')
+  if (
+    sampled.objectId !== canvasActivation.objectId ||
+    sampled.objectId !== semanticActivation.objectId
+  ) {
+    throw new Error('The R3F touch target and its semantic control did not share object identity')
   }
 
   return {

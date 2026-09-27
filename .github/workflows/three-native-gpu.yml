@@ -39,6 +39,8 @@ jobs:
       - name: Build release APK
         working-directory: examples/three-native-probe/android
         run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+      - name: Build TalkBack speech logger
+        run: examples/native-demo/android/gradlew -p examples/native-demo/speech-log assembleDebug --no-daemon
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -55,7 +57,9 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
-          script: bash examples/three-native-probe/scripts/android-probe.sh artifacts/three-native-gpu
+          script: |
+            bash examples/three-native-probe/scripts/android-probe.sh artifacts/three-native-gpu
+            bash examples/three-native-probe/scripts/android-talkback.sh artifacts/three-native-gpu
       - uses: actions/upload-artifact@v4
         if: always()
         with:
