@@ -131,16 +131,30 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   const errorCallback = useRef(onError)
   const [renderer, setRenderer] = useState<TRenderer>()
   const [creationError, setCreationError] = useState<unknown>()
+  const { measure, size } = useThreeSurfaceSize({ height, onResize, pixelRatio, width })
+  createdCallback.current = onCreated
+  errorCallback.current = onError
+
+  const draw = useCallback(() => {
+    if (!renderer) return
+    try {
+      Promise.resolve(renderer.render(scene, camera)).catch((error: unknown) => {
+        errorCallback.current?.(error)
+        if (!errorCallback.current) setCreationError(error)
+      })
+    } catch (error) {
+      errorCallback.current?.(error)
+      if (!errorCallback.current) setCreationError(error)
+    }
+  }, [camera, renderer, scene])
   const { frameRevision } = useThreeSurfaceLifecycle({
     camera,
     frameloop,
+    onAnimationFrame: draw,
     onFrame,
     ref,
     scene,
   })
-  const { measure, size } = useThreeSurfaceSize({ height, onResize, pixelRatio, width })
-  createdCallback.current = onCreated
-  errorCallback.current = onError
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -263,16 +277,8 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
     void frameRevision
     void revision
     void size
-    try {
-      Promise.resolve(renderer.render(scene, camera)).catch((error: unknown) => {
-        errorCallback.current?.(error)
-        if (!errorCallback.current) setCreationError(error)
-      })
-    } catch (error) {
-      errorCallback.current?.(error)
-      if (!errorCallback.current) setCreationError(error)
-    }
-  }, [camera, cameraResize, frameRevision, renderer, revision, scene, size])
+    draw()
+  }, [cameraResize, draw, frameRevision, renderer, revision, size])
 
   if (creationError !== undefined) throw creationError
 
