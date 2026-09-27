@@ -106,6 +106,7 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   onPointerCancel,
   onPointerDown,
   onPointerLeave,
+  onLostPointerCapture,
   onPointerMove,
   onPointerUp,
   pixelRatio,
@@ -121,6 +122,11 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   const raycasterRef = useRef<Raycaster | null>(null)
   const pressedObjects = useRef(new Map<number, Object3D>())
   const activeObject = useRef<Object3D | undefined>(undefined)
+  const activeSources = useRef<{
+    focus?: ThreeCanvasObjectEvent
+    hover?: ThreeCanvasObjectEvent
+    touch?: ThreeCanvasObjectEvent
+  }>({})
   const createdCallback = useRef(onCreated)
   const errorCallback = useRef(onError)
   const [renderer, setRenderer] = useState<TRenderer>()
@@ -201,11 +207,14 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
     return result
   }, [camera.layers, frameRevision, getAccessibilityLabel, onObjectPress, revision, scene])
 
-  const setActive = useCallback(
-    (event: ThreeCanvasObjectEvent | undefined) => {
-      if (activeObject.current === event?.object) return
-      activeObject.current = event?.object
-      onObjectActiveChange?.(event)
+  const setActiveSource = useCallback(
+    (source: 'focus' | 'hover' | 'touch', event: ThreeCanvasObjectEvent | undefined) => {
+      activeSources.current[source] = event
+      const next =
+        activeSources.current.focus ?? activeSources.current.touch ?? activeSources.current.hover
+      if (activeObject.current === next?.object) return
+      activeObject.current = next?.object
+      onObjectActiveChange?.(next)
     },
     [onObjectActiveChange],
   )
@@ -279,11 +288,28 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
         aria-label={labelled ? accessibilityLabel : undefined}
         role={labelled ? 'img' : undefined}
         onPointerDown={(event) => {
-          const intersection = raycast(event)[0]
-          if (intersection) pressedObjects.current.set(event.pointerId, intersection.object)
+          pressedObjects.current.delete(event.pointerId)
+          if (event.isPrimary !== false && (event.button === undefined || event.button === 0)) {
+            const intersections = raycast(event)
+            const intersection = intersections[0]
+            if (intersection) {
+              pressedObjects.current.set(event.pointerId, intersection.object)
+              if (event.pointerType === 'touch') {
+                setActiveSource(
+                  'touch',
+                  objectEvent(
+                    intersection.object,
+                    intersections.filter(({ object }) => object === intersection.object),
+                  ),
+                )
+              }
+              event.currentTarget.setPointerCapture?.(event.pointerId)
+            }
+          }
           onPointerDown?.(event)
         }}
         onPointerUp={(event) => {
+          if (event.pointerType === 'touch') setActiveSource('touch', undefined)
           const intersections = raycast(event)
           const intersection = intersections[0]
           const pressed = pressedObjects.current.get(event.pointerId)
@@ -296,12 +322,18 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
         }}
         onPointerCancel={(event) => {
           pressedObjects.current.delete(event.pointerId)
+          if (event.pointerType === 'touch') setActiveSource('touch', undefined)
           onPointerCancel?.(event)
         }}
         onPointerMove={(event) => {
+          if (event.pointerType === 'touch') {
+            onPointerMove?.(event)
+            return
+          }
           const intersections = raycast(event)
           const intersection = intersections[0]
-          setActive(
+          setActiveSource(
+            'hover',
             intersection
               ? objectEvent(
                   intersection.object,
@@ -312,8 +344,13 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
           onPointerMove?.(event)
         }}
         onPointerLeave={(event) => {
-          setActive(undefined)
+          if (event.pointerType !== 'touch') setActiveSource('hover', undefined)
           onPointerLeave?.(event)
+        }}
+        onLostPointerCapture={(event) => {
+          pressedObjects.current.delete(event.pointerId)
+          if (event.pointerType === 'touch') setActiveSource('touch', undefined)
+          onLostPointerCapture?.(event)
         }}
       />
       {controls.length > 0 ? (
@@ -323,8 +360,8 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
               key={object.uuid}
               type="button"
               onClick={() => onObjectPress?.(objectEvent(object))}
-              onFocus={() => setActive(objectEvent(object))}
-              onBlur={() => setActive(undefined)}
+              onFocus={() => setActiveSource('focus', objectEvent(object))}
+              onBlur={() => setActiveSource('focus', undefined)}
             >
               {label}
             </button>
