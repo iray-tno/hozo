@@ -16,7 +16,7 @@ test('collects the required lifecycle and frame measurements', () => {
     '{ReactNativeJS} [hozo-three-native] {"event":"object_activated","host":"expo-gl","objectId":"cube","source":"semantic-control"}',
   ].join('\n')
 
-  const report = collectReport(log, 42)
+  const report = collectReport(log, 42, 2)
   assert.equal(report.apkBytes, 42)
   assert.equal(report.schemaVersion, 2)
   assert.deepEqual(report.lifecycle, {
@@ -24,6 +24,7 @@ test('collects the required lifecycle and frame measurements', () => {
     contextAfterResume: 7,
     contextPreserved: true,
     resumeToFrameMs: 17,
+    touchAttempts: 2,
   })
   assert.deepEqual(
     report.events.map((entry) => entry.event),

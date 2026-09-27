@@ -60,7 +60,18 @@ screen_width="${screen_size%x*}"
 screen_height="${screen_size#*x}"
 surface_x=$((screen_width / 2))
 surface_y=$((screen_height * 19 / 40))
-adb shell input tap "$surface_x" "$surface_y"
+touch_attempts=0
+for attempt in $(seq 1 10); do
+  touch_attempts=$attempt
+  adb shell input tap "$surface_x" "$surface_y"
+  sleep 1
+  adb logcat -d -v brief > "$artifacts/logcat.txt"
+  if grep -q '\[hozo-three-native\].*"event":"object_activated".*"source":"canvas"' "$artifacts/logcat.txt"; then
+    break
+  fi
+done
+printf '%s\n' "$touch_attempts" > "$artifacts/touch-attempts.txt"
+grep -q '\[hozo-three-native\].*"event":"object_activated".*"source":"canvas"' "$artifacts/logcat.txt"
 
 for _ in $(seq 1 90); do
   adb logcat -d -v brief > "$artifacts/logcat.txt"
@@ -105,4 +116,8 @@ for _ in $(seq 1 10); do
   sleep 1
 done
 
-node "$root/scripts/collect-report.mjs" "$artifacts/logcat.txt" "$apk" "$artifacts/report.json"
+node "$root/scripts/collect-report.mjs" \
+  "$artifacts/logcat.txt" \
+  "$apk" \
+  "$artifacts/touch-attempts.txt" \
+  "$artifacts/report.json"

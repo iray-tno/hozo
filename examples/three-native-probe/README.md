@@ -6,7 +6,8 @@ renderer initialization, first frame, a real background/resume cycle, a 120-fram
 release APK size, and renderer teardown. The Android job retains the JSON report, logcat,
 screenshot, and accessibility tree. The lifecycle report records whether Expo GL preserved or
 replaced its context, measures active-to-frame recovery latency, and resets the 120-frame sample
-so every reported frame was rendered after resuming.
+so every reported frame was rendered after resuming. The retained `touch-attempts.txt` records
+whether post-resume input was accepted immediately or needed a bounded retry.
 It also drives an actual device tap through R3F raycasting, then records TalkBack reading labelled
 and fallback semantics while proving that decorative content stays silent.
 
