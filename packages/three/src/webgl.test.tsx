@@ -12,7 +12,7 @@ import {
   type WebGLRenderer,
 } from 'three'
 
-import { ThreeCanvas, type ThreeCanvasHandle } from './webgl.tsx'
+import { ThreeCanvas, type ThreeCanvasHandle } from './webgl-renderer.tsx'
 
 const require = createRequire(import.meta.url)
 const testRenderer = require('react-test-renderer') as {

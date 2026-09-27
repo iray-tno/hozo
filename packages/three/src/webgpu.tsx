@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 import type { WebGPURendererParameters } from 'three/src/renderers/webgpu/WebGPURenderer.js'
-import type { WebGPURenderer } from 'three/webgpu'
+import { Raycaster, type WebGPURenderer } from 'three/webgpu'
 
 import {
   type ThreeCanvasFrame,
@@ -9,7 +9,7 @@ import {
   type ThreeCanvasObjectEvent,
   ThreeWebCanvas,
   type ThreeWebCanvasProps,
-} from './webgl.tsx'
+} from './web-surface.tsx'
 
 export type { ThreeCanvasFrame, ThreeCanvasFrameloop, ThreeCanvasHandle, ThreeCanvasObjectEvent }
 
@@ -22,7 +22,7 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 
 export type ThreeCanvasProps = DistributiveOmit<
   ThreeWebCanvasProps<WebGPURenderer>,
-  'createRenderer' | 'onCreated'
+  'createRaycaster' | 'createRenderer' | 'onCreated'
 > & {
   /** Creates the owned modern renderer. Hozo awaits `init()` before drawing. */
   createRenderer?: ThreeWebGPURendererFactory
@@ -34,6 +34,7 @@ const defaultCreateRenderer: ThreeWebGPURendererFactory = async (canvas, options
   const { WebGPURenderer } = await import('three/webgpu')
   return new WebGPURenderer({ ...options, canvas })
 }
+const createRaycaster = () => new Raycaster()
 
 /**
  * The modern Three.js renderer family. Three chooses WebGPU by default and
@@ -59,5 +60,12 @@ export function ThreeCanvas({
     },
     [createRenderer],
   )
-  return <ThreeWebCanvas {...props} createRenderer={create} onCreated={onCreated} />
+  return (
+    <ThreeWebCanvas
+      {...props}
+      createRaycaster={createRaycaster}
+      createRenderer={create}
+      onCreated={onCreated}
+    />
+  )
 }

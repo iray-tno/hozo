@@ -63,7 +63,7 @@ const PACKAGES = {
   three: {
     exports: {
       '.': './dist/index.js',
-      './webgl': './dist/webgl.js',
+      './webgl': './dist/webgl-renderer.js',
       './webgpu': './dist/webgpu.js',
     },
     // The package root is already portable. Only this explicit WebGL entry
