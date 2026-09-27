@@ -169,6 +169,24 @@ for (const id of stories) {
     }
     const log = read.phrases
 
+    // Into the run's own log as well as the artifact, which is the argument
+    // `tree-shape.spec.ts` already makes for itself: this is the material a
+    // person approves from, and reading it should not require downloading a zip.
+    //
+    // The zip is the problem rather than a detail. It is thirty megabytes, almost
+    // all of it screen recordings, and the phrases in it are two kilobytes -- so
+    // approving one story meant fetching the recordings of ten others. An attempt
+    // at that was stopped for memory pressure on the machine doing the
+    // approving, which is a silly reason to be unable to read fourteen lines of
+    // text.
+    //
+    // `JSON.stringify` per phrase, because the empty ones matter: VoiceOver says
+    // `""` where it has nothing to say, and a bare print makes those
+    // indistinguishable from a blank line in the output.
+    console.log(
+      `[phrases] ${id} (${log.length})\n${log.map((phrase) => `  ${JSON.stringify(phrase)}`).join('\n')}`,
+    )
+
     // A reader that said almost nothing did not read the story, and that is
     // a failure of the run rather than of the story. The first NVDA run
     // passed with logs of "", "expanded", "list": it had landed in focus

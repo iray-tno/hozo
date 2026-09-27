@@ -1,4 +1,11 @@
 # Approved from screen-readers run 36299473387 (NVDA, Chrome).
+# The trigger says the field and its value in one phrase, from run 36311058864.
+# #612 put the value into the name -- `aria-labelledby` over a hidden label and
+# the value, because a button has one name and no value and VoiceOver was
+# reading only the label.
+# One line, and that is the finding: the virtual reader emits a button as name,
+# contents and end, so the date appears twice in its model. NVDA reads a button
+# once, so nothing is repeated where a person would hear it.
 #
 # partial: the trigger and the dialog's name, and nothing inside it. The grid,
 # the clock and Done are not read -- unlike the native `<dialog>` in
@@ -8,5 +15,5 @@
 #
 # Worth approving at two lines anyway: "expanded" read as "collapsed" until
 # #598, and the dialog's name was not said at all. These pin both.
-button, expanded, opens dialog, Departure
+button, expanded, opens dialog, Departure Thursday, September 24, 2026 at 9:30 AM
 dialog, Choose a date and time

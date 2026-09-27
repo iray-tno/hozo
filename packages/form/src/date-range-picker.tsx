@@ -149,12 +149,38 @@ export function HozoDateRangePicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? `${id}-dialog` : undefined}
-        aria-label={accessibilityLabel}
+        // The field's purpose *and* its value, which one attribute cannot hold.
+        //
+        // `aria-label` alone was the label, and the value was then only the
+        // button's text content. NVDA reads that content and VoiceOver on Safari
+        // does not: its walk of this story says "Departure dialog pop up button"
+        // and the date appears nowhere, so a VoiceOver user could not hear what
+        // was selected. The Native halves had the same hole and close it with
+        // `accessibilityValue`; the Web has no equivalent on a button, which has
+        // one name and no value.
+        //
+        // So the name is built from both, which is what `aria-labelledby` is
+        // for. The label element is `hidden` and still counted: the accessible
+        // name computation reads referenced elements whether or not they are
+        // displayed, which is the one place that is true.
+        //
+        // Absent when no label was given, so the ordinary case keeps its name
+        // from its text and its markup unchanged.
+        aria-labelledby={accessibilityLabel ? `${id}-name ${id}-value` : undefined}
         disabled={disabled}
         className={triggerClassName}
         onClick={() => change(!open)}
       >
-        {text}
+        {accessibilityLabel ? (
+          <>
+            <span id={`${id}-name`} hidden>
+              {accessibilityLabel}
+            </span>
+            <span id={`${id}-value`}>{text}</span>
+          </>
+        ) : (
+          text
+        )}
       </button>
       {open ? (
         <FloatingPositioner anchorRef={triggerRef} placement="bottom-start" offset={4} flip shift>

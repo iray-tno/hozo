@@ -1,4 +1,9 @@
 # Approved from screen-readers run 36294264902 (VoiceOver, Safari).
+# The trigger says the field and its value in one utterance, from run 36311058864.
+# This is the reader #612 was for: with `aria-label` alone VoiceOver said
+# "Departure dialog pop up button" and the date appeared nowhere, so a VoiceOver
+# user could not hear what was selected. A button has one name and no value, so
+# the name is built from both through `aria-labelledby`.
 # truncates: September 2026 table
 #
 # partial: the same 18-of-42 cut as the file beside this one. Nothing is
@@ -12,7 +17,7 @@
 # one. Two files, one prop apart.
 # No Done button, deliberately: a range Calendar reports only a range with
 # both ends, so the press that completes it is the press that finished.
-Dates of stay dialog pop up button
+Dates of stay Select dates dialog pop up button
 Choose a range of dates web dialog
 Previous month button
 September 2026

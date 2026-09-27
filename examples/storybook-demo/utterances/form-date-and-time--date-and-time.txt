@@ -2,6 +2,6 @@ heading, DateTimePicker, level 2
 paragraph
 A button that opens a grid and a clock in one dialog. It closes on Done rather than on a day press, because a day press happens before the clock has been touched.
 end of paragraph
-button, Departure, not expanded, has popup dialog
+button, Departure Thursday, September 24, 2026 at 9:30 AM, not expanded, has popup dialog
 Thursday, September 24, 2026 at 9:30 AM
-end of button, Departure, not expanded, has popup dialog
+end of button, Departure Thursday, September 24, 2026 at 9:30 AM, not expanded, has popup dialog
