@@ -6,7 +6,7 @@ export function CodeShowcase() {
       nativeID="code-showcase"
       className="py-24 border-t border-wood relative bg-yakisugi-950"
     >
-      <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full min-w-0">
         <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
           <Text className="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">
             Side-by-Side Lowering
@@ -24,23 +24,23 @@ export function CodeShowcase() {
         </View>
 
         {/* Code Comparison Box */}
-        <View className="rounded-2xl border border-wood bg-yakisugi-950 overflow-hidden shadow-2xl max-w-6xl mx-auto">
+        <View className="rounded-2xl border border-wood bg-yakisugi-950 overflow-hidden shadow-2xl max-w-6xl mx-auto w-full min-w-0">
           {/* Top Bar: Source Input (Architectural Wooden Lintel / Nageshi) */}
-          <View className="border-b border-wood p-4 sm:p-6 bg-yakisugi-900 timber-grain timber-plank">
-            <View className="flex flex-row items-center justify-between mb-3">
-              <View className="flex flex-row items-center gap-2">
-                <View className="w-3 h-3 rounded-full bg-bengara" />
-                <View className="w-3 h-3 rounded-full bg-hinoki" />
-                <View className="w-3 h-3 rounded-full bg-tatami-light" />
-                <Text className="text-xs font-mono text-stone-400 ml-2">
+          <View className="border-b border-wood p-4 sm:p-6 bg-yakisugi-900 timber-grain timber-plank min-w-0">
+            <View className="flex flex-row flex-wrap items-center justify-between gap-2 mb-3">
+              <View className="flex flex-row items-center gap-2 min-w-0">
+                <View className="w-3 h-3 rounded-full bg-bengara shrink-0" />
+                <View className="w-3 h-3 rounded-full bg-hinoki shrink-0" />
+                <View className="w-3 h-3 rounded-full bg-tatami-light shrink-0" />
+                <Text className="text-xs font-mono text-stone-400 ml-2 truncate">
                   Universal Source: NotificationCard.tsx
                 </Text>
               </View>
-              <Text className="text-xs px-2.5 py-0.5 rounded bg-wood-subtle text-hinoki border border-wood-strong font-mono">
+              <Text className="text-xs px-2.5 py-0.5 rounded bg-wood-subtle text-hinoki border border-wood-strong font-mono shrink-0">
                 React Native / @hozo/core
               </Text>
             </View>
-            <pre className="font-mono text-xs sm:text-sm text-shikkui-muted overflow-x-auto leading-relaxed">
+            <pre className="font-mono text-xs sm:text-sm text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
               <code>
                 <span className="text-hinoki">import</span> {'{ '}
                 <span className="text-shikkui">View</span>,{' '}
@@ -94,13 +94,13 @@ export function CodeShowcase() {
           </View>
 
           {/* Split Bottom: Web vs Native Output */}
-          <View className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-800">
+          <View className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-800 min-w-0">
             {/* Left: Web Output */}
-            <View className="p-4 sm:p-6 bg-yakisugi-950">
-              <View className="flex flex-row items-center justify-between mb-3">
-                <View className="text-xs font-semibold text-hinoki flex flex-row items-center gap-1.5">
+            <View className="p-4 sm:p-6 bg-yakisugi-950 min-w-0">
+              <View className="flex flex-row flex-wrap items-center justify-between gap-2 mb-3">
+                <View className="text-xs font-semibold text-hinoki flex flex-row items-center gap-1.5 min-w-0">
                   <svg
-                    className="w-4 h-4"
+                    className="w-4 h-4 shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -113,13 +113,13 @@ export function CodeShowcase() {
                       d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
                     />
                   </svg>
-                  <Text>Web Lowering (DOM + CSS + W3C ARIA)</Text>
+                  <Text className="truncate">Web Lowering (DOM + CSS + W3C ARIA)</Text>
                 </View>
-                <Text className="text-[10px] font-mono px-2 py-0.5 rounded bg-wood-subtle text-hinoki-light border border-wood">
+                <Text className="text-[10px] font-mono px-2 py-0.5 rounded bg-wood-subtle text-hinoki-light border border-wood shrink-0">
                   No RNW Wrapper
                 </Text>
               </View>
-              <pre className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed">
+              <pre className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
                 <code>
                   <span className="text-stone-500">
                     {'// Real compiler output: semantic DOM & scoped atomic CSS\n'}
@@ -162,11 +162,11 @@ export function CodeShowcase() {
             </View>
 
             {/* Right: Native Output */}
-            <View className="p-4 sm:p-6 bg-yakisugi-950">
-              <View className="flex flex-row items-center justify-between mb-3">
-                <View className="text-xs font-semibold text-tatami-light flex flex-row items-center gap-1.5">
+            <View className="p-4 sm:p-6 bg-yakisugi-950 min-w-0">
+              <View className="flex flex-row flex-wrap items-center justify-between gap-2 mb-3">
+                <View className="text-xs font-semibold text-tatami-light flex flex-row items-center gap-1.5 min-w-0">
                   <svg
-                    className="w-4 h-4"
+                    className="w-4 h-4 shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -179,13 +179,13 @@ export function CodeShowcase() {
                       d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
                     />
                   </svg>
-                  <Text>Native Lowering (Fabric / StyleSheet)</Text>
+                  <Text className="truncate">Native Lowering (Fabric / StyleSheet)</Text>
                 </View>
-                <Text className="text-[10px] font-mono px-2 py-0.5 rounded bg-tatami-subtle text-tatami-light border border-tatami-subtle">
+                <Text className="text-[10px] font-mono px-2 py-0.5 rounded bg-tatami-subtle text-tatami-light border border-tatami-subtle shrink-0">
                   React Native / Fabric
                 </Text>
               </View>
-              <pre className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed">
+              <pre className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
                 <code>
                   <span className="text-stone-500">
                     {'// Real compiler output: StyleSheet & native primitives\n'}
