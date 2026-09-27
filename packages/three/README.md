@@ -47,6 +47,10 @@ single correct policy.
 Rendering is demand-driven by default. Change the `revision` prop or call
 `invalidate()` through a ref after imperative scene mutations. Animated scenes
 can opt into `frameloop="always"` and mutate their Three objects in `onFrame`.
+GPU surfaces render those continuous frames directly rather than scheduling a
+React update. If an `onFrame` mutation changes semantic structure such as an
+object's name, visibility, or layer, also change `revision` when that semantic
+change occurs so its keyboard and screen-reader controls are rebuilt.
 
 ## Classic WebGL renderer
 

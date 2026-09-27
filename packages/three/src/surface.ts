@@ -122,6 +122,8 @@ export function resizeThreeCamera(
 interface ThreeSurfaceLifecycleOptions<TCamera extends Camera> {
   camera: TCamera
   frameloop: ThreeSurfaceFrameloop
+  /** Optional renderer-owned fast path for continuous frames. */
+  onAnimationFrame?: () => void
   onFrame?: (frame: ThreeSurfaceFrame<TCamera>) => void
   ref?: Ref<ThreeSurfaceHandle>
   scene: Scene
@@ -136,6 +138,7 @@ interface ThreeSurfaceLifecycleOptions<TCamera extends Camera> {
 export function useThreeSurfaceLifecycle<TCamera extends Camera>({
   camera,
   frameloop,
+  onAnimationFrame,
   onFrame,
   ref,
   scene,
@@ -143,7 +146,9 @@ export function useThreeSurfaceLifecycle<TCamera extends Camera>({
   const [frameRevision, invalidateReducer] = useReducer((value: number) => value + 1, 0)
   const invalidate = useCallback(() => invalidateReducer(), [])
   const frameCallback = useRef(onFrame)
+  const animationCallback = useRef(onAnimationFrame)
   frameCallback.current = onFrame
+  animationCallback.current = onAnimationFrame
 
   useImperativeHandle(ref, () => ({ invalidate }), [invalidate])
 
@@ -161,7 +166,8 @@ export function useThreeSurfaceLifecycle<TCamera extends Camera>({
         scene,
       })
       previous = timestamp
-      invalidate()
+      if (animationCallback.current) animationCallback.current()
+      else invalidate()
       request = requestAnimationFrame(frame)
     }
     request = requestAnimationFrame(frame)

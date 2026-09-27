@@ -177,6 +177,73 @@ test('manual camera resize preserves an application-owned projection', async () 
   await testRenderer.act(async () => root?.unmount())
 })
 
+test('continuous WebGL frames bypass React scene and control reconstruction', async () => {
+  const originalRequest = globalThis.requestAnimationFrame
+  const originalCancel = globalThis.cancelAnimationFrame
+  const scheduled = new Map<number, FrameRequestCallback>()
+  let requestId = 0
+  globalThis.requestAnimationFrame = (callback) => {
+    const id = ++requestId
+    scheduled.set(id, callback)
+    return id
+  }
+  globalThis.cancelAnimationFrame = (id) => {
+    scheduled.delete(id)
+  }
+  const scene = new Scene()
+  const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial())
+  scene.add(mesh)
+  const camera = new PerspectiveCamera()
+  let renders = 0
+  let labels = 0
+  const renderer = {
+    dispose: () => undefined,
+    render: () => {
+      renders += 1
+    },
+    setPixelRatio: () => undefined,
+    setSize: () => undefined,
+  } as unknown as WebGLRenderer
+  let root: ReturnType<typeof testRenderer.create> | undefined
+
+  try {
+    await testRenderer.act(async () => {
+      root = testRenderer.create(
+        <ThreeCanvas
+          decorative
+          scene={scene}
+          camera={camera}
+          width={100}
+          height={100}
+          frameloop="always"
+          createRenderer={() => renderer}
+          getAccessibilityLabel={() => {
+            labels += 1
+            return 'Cube'
+          }}
+          onObjectPress={() => undefined}
+        />,
+        { createNodeMock: () => ({}) },
+      )
+    })
+    assert.equal(renders, 1)
+    assert.equal(labels, 1)
+
+    for (const timestamp of [1000, 1016]) {
+      const next = scheduled.entries().next().value as [number, FrameRequestCallback] | undefined
+      assert.ok(next)
+      scheduled.delete(next[0])
+      await testRenderer.act(async () => next[1](timestamp))
+    }
+    assert.equal(renders, 3)
+    assert.equal(labels, 1, 'animation frames rebuilt semantic controls through React')
+  } finally {
+    await testRenderer.act(async () => root?.unmount())
+    globalThis.requestAnimationFrame = originalRequest
+    globalThis.cancelAnimationFrame = originalCancel
+  }
+})
+
 test('classic WebGL surface preserves labelled, decorative, and fallback semantics', async () => {
   const scene = new Scene()
   const camera = new PerspectiveCamera()
