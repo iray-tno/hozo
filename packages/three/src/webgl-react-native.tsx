@@ -1,4 +1,4 @@
-import type { ThreeCanvasProps } from './webgl.tsx'
+import type { ThreeCanvasProps } from './webgl-renderer.tsx'
 
 export type {
   ThreeCanvasFrame,
@@ -7,7 +7,7 @@ export type {
   ThreeCanvasObjectEvent,
   ThreeCanvasProps,
   ThreeWebGLRendererFactory,
-} from './webgl.tsx'
+} from './webgl-renderer.tsx'
 
 /** Classic WebGL has no implicit React Native surface/context host. */
 export function ThreeCanvas(_props: ThreeCanvasProps): never {

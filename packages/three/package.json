@@ -33,8 +33,8 @@
         "types": "./dist/webgl-react-native.d.ts",
         "default": "./dist/webgl-react-native.js"
       },
-      "types": "./dist/webgl.d.ts",
-      "default": "./dist/webgl.js"
+      "types": "./dist/webgl-renderer.d.ts",
+      "default": "./dist/webgl-renderer.js"
     },
     "./webgpu": {
       "react-native": {
@@ -62,7 +62,7 @@
     "report": "node scripts/report-conformance.ts",
     "test:gpu": "node scripts/check-gpu.mjs",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js && node --test scripts/conformance.test.ts && node scripts/report-conformance.ts --check"
+    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js && node --test scripts/conformance.test.ts scripts/renderer-entrypoints.test.ts && node scripts/report-conformance.ts --check"
   },
   "dependencies": {
     "@hozo/canvas": "workspace:^"

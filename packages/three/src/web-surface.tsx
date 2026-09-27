@@ -10,16 +10,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import {
-  type Camera,
-  type Intersection,
-  type Object3D,
-  Raycaster,
-  type Scene,
-  Vector2,
-  WebGLRenderer,
-  type WebGLRendererParameters,
-} from 'three'
+import type { Camera, Intersection, Object3D, Raycaster, Scene, Vector2 } from 'three'
 
 import {
   type ThreeSurfaceFrame,
@@ -45,11 +36,6 @@ export interface ThreeWebRenderer {
   setSize(width: number, height: number, updateStyle: boolean): void
 }
 
-export type ThreeWebGLRendererFactory = (
-  canvas: HTMLCanvasElement,
-  options: Omit<WebGLRendererParameters, 'canvas'>,
-) => WebGLRenderer
-
 type CanvasElementProps = Omit<
   ComponentPropsWithoutRef<'canvas'>,
   'aria-label' | 'children' | 'height' | 'ref' | 'role' | 'width'
@@ -58,6 +44,7 @@ type CanvasElementProps = Omit<
 export type ThreeWebCanvasProps<TRenderer extends ThreeWebRenderer> = CanvasAccessibilityProps &
   CanvasElementProps & {
     camera: Camera
+    createRaycaster: () => Raycaster
     createRenderer: (canvas: HTMLCanvasElement) => Promise<TRenderer> | TRenderer
     frameloop?: ThreeCanvasFrameloop
     /** Name an interactive Three object for its keyboard and screen-reader control. */
@@ -80,21 +67,6 @@ export type ThreeWebCanvasProps<TRenderer extends ThreeWebRenderer> = CanvasAcce
     width: number
   }
 
-type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
-
-export type ThreeCanvasProps = DistributiveOmit<
-  ThreeWebCanvasProps<WebGLRenderer>,
-  'createRenderer' | 'onCreated'
-> & {
-  /** Creates the owned renderer. Primarily useful for custom renderer subclasses and tests. */
-  createRenderer?: ThreeWebGLRendererFactory
-  onCreated?: (renderer: WebGLRenderer) => void
-  rendererOptions?: Omit<WebGLRendererParameters, 'canvas'>
-}
-
-const defaultCreateRenderer: ThreeWebGLRendererFactory = (canvas, options) =>
-  new WebGLRenderer({ ...options, canvas })
-
 const accessibleOnlyStyle: CSSProperties = {
   position: 'absolute',
   width: 1,
@@ -107,11 +79,12 @@ const accessibleOnlyStyle: CSSProperties = {
   border: 0,
 }
 
-/** Shared DOM, lifecycle, raycast, and semantic layer for Web renderer families. */
+/** Renderer-neutral DOM, lifecycle, raycast, and semantic layer for Web families. */
 export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   accessibilityLabel,
   accessibleFallback,
   camera,
+  createRaycaster,
   createRenderer,
   decorative,
   frameloop = 'demand',
@@ -168,14 +141,14 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
       const bounds = event.currentTarget.getBoundingClientRect()
       const x = ((event.clientX - bounds.left) / (bounds.width || width || 1)) * 2 - 1
       const y = 1 - ((event.clientY - bounds.top) / (bounds.height || height || 1)) * 2
-      const raycaster = providedRaycaster ?? (raycasterRef.current ??= new Raycaster())
+      const raycaster = providedRaycaster ?? (raycasterRef.current ??= createRaycaster())
       raycaster.layers.mask = camera.layers.mask
-      raycaster.setFromCamera(new Vector2(x, y), camera)
+      raycaster.setFromCamera({ x, y } as Vector2, camera)
       return raycaster
         .intersectObjects(scene.children, true)
         .filter(({ object }) => objectVisible(object))
     },
-    [camera, height, providedRaycaster, scene, width],
+    [camera, createRaycaster, height, providedRaycaster, scene, width],
   )
 
   const controls = useMemo(() => {
@@ -327,21 +300,6 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
       ) : null}
     </>
   )
-}
-
-/** A Web-only Three.js surface backed by the classic `WebGLRenderer`. */
-export function ThreeCanvas({
-  createRenderer = defaultCreateRenderer,
-  onCreated,
-  rendererOptions = {},
-  ...props
-}: ThreeCanvasProps) {
-  const creationOptions = useRef(rendererOptions)
-  const create = useCallback(
-    (canvas: HTMLCanvasElement) => createRenderer(canvas, creationOptions.current),
-    [createRenderer],
-  )
-  return <ThreeWebCanvas {...props} createRenderer={create} onCreated={onCreated} />
 }
 
 function isRenderableObject(object: Object3D) {
