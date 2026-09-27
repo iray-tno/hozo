@@ -3,7 +3,14 @@ import { createRequire } from 'node:module'
 import test from 'node:test'
 
 import { createRef } from 'react'
-import { PerspectiveCamera, Scene, type WebGLRenderer } from 'three'
+import {
+  BoxGeometry,
+  Mesh,
+  MeshBasicMaterial,
+  PerspectiveCamera,
+  Scene,
+  type WebGLRenderer,
+} from 'three'
 
 import { ThreeCanvas, type ThreeCanvasHandle } from './webgl.tsx'
 
@@ -118,5 +125,65 @@ test('classic WebGL surface preserves labelled, decorative, and fallback semanti
   assert.equal(fallback?.props.role, 'group')
   assert.equal(fallback?.props['aria-label'], 'Data scene')
 
+  await testRenderer.act(async () => root?.unmount())
+})
+
+test('classic WebGL raycasts pointer activation and exposes one semantic control per object', async () => {
+  const scene = new Scene()
+  const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial())
+  mesh.name = 'Cube'
+  scene.add(mesh)
+  const camera = new PerspectiveCamera(90, 1, 1, 10)
+  camera.position.z = 5
+  scene.updateMatrixWorld(true)
+  camera.updateMatrixWorld(true)
+  const events: unknown[] = []
+  const active: unknown[] = []
+  const renderer = {
+    dispose: () => undefined,
+    render: () => undefined,
+    setPixelRatio: () => undefined,
+    setSize: () => undefined,
+  } as unknown as WebGLRenderer
+  const surface = {
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+  }
+  let root: ReturnType<typeof testRenderer.create> | undefined
+
+  await testRenderer.act(async () => {
+    root = testRenderer.create(
+      <ThreeCanvas
+        accessibilityLabel="Cube scene"
+        scene={scene}
+        camera={camera}
+        width={100}
+        height={100}
+        createRenderer={() => renderer}
+        onObjectPress={(event) => events.push(event)}
+        onObjectActiveChange={(event) => active.push(event)}
+      />,
+      { createNodeMock: (element) => (element.type === 'canvas' ? surface : null) },
+    )
+  })
+
+  const button = root?.root.findByType('button')
+  assert.ok(button)
+  assert.equal(button?.props.children, 'Cube')
+  const canvas = root?.root.findByType('canvas')
+  assert.ok(canvas)
+  const pointer = {
+    clientX: 50,
+    clientY: 50,
+    currentTarget: surface,
+    pointerId: 1,
+  }
+  ;(canvas.props.onPointerMove as (event: typeof pointer) => void)(pointer)
+  assert.equal((active[0] as { object: unknown }).object, mesh)
+  ;(canvas.props.onPointerDown as (event: typeof pointer) => void)(pointer)
+  ;(canvas.props.onPointerUp as (event: typeof pointer) => void)(pointer)
+  assert.equal((events[0] as { object: unknown }).object, mesh)
+
+  ;(button.props.onClick as () => void)()
+  assert.equal((events[1] as { object: unknown }).object, mesh)
   await testRenderer.act(async () => root?.unmount())
 })

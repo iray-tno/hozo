@@ -4,6 +4,7 @@ export type {
   ThreeCanvasFrame,
   ThreeCanvasFrameloop,
   ThreeCanvasHandle,
+  ThreeCanvasObjectEvent,
   ThreeCanvasProps,
   ThreeWebGLRendererFactory,
 } from './webgl.tsx'

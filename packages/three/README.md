@@ -60,6 +60,12 @@ does not yet provide a Native WebGL context host. It never silently falls back
 to the portable renderer. The modern `WebGPURenderer` family will use a
 separate `@hozo/three/webgpu` entry point.
 
+`onObjectPress` raycasts the classic WebGL scene and preserves the source
+`Object3D` and its intersections. Named interactive meshes, lines, points, and
+sprites also receive real off-screen buttons, so the same object can be reached
+with a pointer, keyboard, or screen reader. `getAccessibilityLabel` can supply
+those names without mutating `object.name`.
+
 Pass `onObjectPress` to receive the projected Three object and its raycast
 intersections. Set `object.name`, or provide `getAccessibilityLabel`, to expose
 one keyboard and screen-reader control per object even when it projects into
