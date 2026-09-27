@@ -21,9 +21,12 @@
     "@hozo/rn-compat": "workspace:*",
     "@hozo/semantics": "workspace:*",
     "@hozo/svg": "workspace:*",
+    "@hozo/three": "workspace:*",
     "@hozo/typography": "workspace:*",
+    "@react-three/fiber": "^9.8.1",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@guidepup/virtual-screen-reader": "0.32.1",
@@ -32,6 +35,7 @@
     "@storybook/react-vite": "^10.5.9",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@types/three": "^0.180.0",
     "axe-core": "4.13.0",
     "storybook": "^10.5.9",
     "typescript": "7.0.2",
