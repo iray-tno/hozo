@@ -141,8 +141,20 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
  * "Repository table Row 4 of 12 selected" -- the last being an ARIA tree,
  * which WebKit exposes as a table (#475) and which VoiceOver does not enter
  * either.
+ *
+ * And "Confirm Deployment web dialog with 4 items", added after a run on the
+ * story that opens one at load: VoiceOver started inside the dialog and then
+ * said that same line for every remaining step. The walk stalled there, so
+ * the story yielded nothing to approve -- the same shape as the three above
+ * and the same fix.
+ *
+ * `web ?dialog` rather than `dialog`, deliberately. The closed story's button
+ * is announced "Open Confirmation Dialog button", and a bare `\bdialog\b`
+ * matches it -- which would send an interact command to a button and break a
+ * walk that works today. VoiceOver appends the role, so the role is what to
+ * match on.
  */
-const CONTAINER = /\b(toolbar|list ?box|table)\b/i
+const CONTAINER = /\b(toolbar|list ?box|table|web ?dialog)\b/i
 
 /** How many steps one container may take before the walk moves on. */
 const INSIDE_STEPS = 20
@@ -217,5 +229,19 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
     repeats = 0
     silent = 0
   }
+
+  // Which limit ended it, in the run log.
+  //
+  // The three are different findings and the phrase log cannot tell them
+  // apart. Run 36285106553 made that concrete: NVDA said the same eight
+  // phrases for the Dialog story closed and open, so it plainly never reached
+  // the dialog -- and whether it gave up on silence, on a repeat, or on the
+  // budget was left to be guessed at, which decides whether raising a
+  // tolerance would reach further or whether the content is not in its buffer
+  // at all. One line costs nothing and answers it next time.
+  const ended =
+    repeats >= 3 ? 'a repeated phrase' : silent >= 5 ? 'silence' : `the ${maxSteps}-step budget`
+  console.log(`[walk] ${reader} ended on ${ended} after ${steps} steps`)
+
   return await screenReader.spokenPhraseLog()
 }
