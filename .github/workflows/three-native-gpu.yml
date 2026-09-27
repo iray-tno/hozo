@@ -55,7 +55,7 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
-          script: examples/three-native-probe/scripts/android-probe.sh artifacts/three-native-gpu
+          script: bash examples/three-native-probe/scripts/android-probe.sh artifacts/three-native-gpu
       - uses: actions/upload-artifact@v4
         if: always()
         with:
