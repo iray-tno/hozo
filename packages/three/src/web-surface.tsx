@@ -40,6 +40,12 @@ export interface ThreeWebRenderer {
   setSize(width: number, height: number, updateStyle: boolean): void
 }
 
+interface AsyncRenderState {
+  generation: number
+  inFlight: boolean
+  pending: boolean
+}
+
 type CanvasElementProps = Omit<
   ComponentPropsWithoutRef<'canvas'>,
   'aria-label' | 'children' | 'height' | 'ref' | 'role' | 'width'
@@ -129,24 +135,53 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   }>({})
   const createdCallback = useRef(onCreated)
   const errorCallback = useRef(onError)
+  const drawCallback = useRef<() => void>(() => undefined)
+  const drawInputs = useRef({ camera, renderer: undefined as TRenderer | undefined, scene })
+  const renderState = useRef<AsyncRenderState>({ generation: 0, inFlight: false, pending: false })
   const [renderer, setRenderer] = useState<TRenderer>()
   const [creationError, setCreationError] = useState<unknown>()
   const { measure, size } = useThreeSurfaceSize({ height, onResize, pixelRatio, width })
   createdCallback.current = onCreated
   errorCallback.current = onError
+  drawInputs.current = { camera, renderer, scene }
 
   const draw = useCallback(() => {
-    if (!renderer) return
+    const activeRenderer = drawInputs.current.renderer
+    if (!activeRenderer) return
+    const state = renderState.current
+    if (state.inFlight) {
+      state.pending = true
+      return
+    }
+    let result: Promise<void> | void
     try {
-      Promise.resolve(renderer.render(scene, camera)).catch((error: unknown) => {
-        errorCallback.current?.(error)
-        if (!errorCallback.current) setCreationError(error)
-      })
+      result = activeRenderer.render(drawInputs.current.scene, drawInputs.current.camera)
     } catch (error) {
       errorCallback.current?.(error)
       if (!errorCallback.current) setCreationError(error)
+      return
     }
-  }, [camera, renderer, scene])
+    if (!result || typeof result.then !== 'function') return
+    state.inFlight = true
+    const generation = state.generation
+    Promise.resolve(result).then(
+      () => {
+        if (renderState.current.generation !== generation) return
+        renderState.current.inFlight = false
+        if (!renderState.current.pending) return
+        renderState.current.pending = false
+        drawCallback.current()
+      },
+      (error: unknown) => {
+        if (renderState.current.generation !== generation) return
+        renderState.current.inFlight = false
+        renderState.current.pending = false
+        errorCallback.current?.(error)
+        if (!errorCallback.current) setCreationError(error)
+      },
+    )
+  }, [])
+  drawCallback.current = draw
   const { frameRevision } = useThreeSurfaceLifecycle({
     camera,
     frameloop,
@@ -260,6 +295,22 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
       nextRenderer?.dispose()
     }
   }, [createRenderer])
+
+  useEffect(() => {
+    // A new renderer starts a new queue generation; completions belonging to
+    // the disposed instance must not publish errors or schedule more work.
+    void renderer
+    const state = renderState.current
+    const generation = ++state.generation
+    state.inFlight = false
+    state.pending = false
+    return () => {
+      if (renderState.current.generation !== generation) return
+      renderState.current.generation += 1
+      renderState.current.inFlight = false
+      renderState.current.pending = false
+    }
+  }, [renderer])
 
   useEffect(() => {
     if (!renderer) return
