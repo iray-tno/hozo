@@ -108,9 +108,7 @@ jobs:
           cp -f allure-history/allure-history.jsonl apps/landing/dist/reports/history/allure-history.jsonl || true
 
       - name: Brand Allure report head
-        run: |
-          sed -i 's#<title> Hozo — Test Reports </title>#<title>Hozo — Test Reports</title>#' apps/landing/dist/reports/index.html || true
-          sed -i 's#</head>#    <meta property="og:site_name" content="Hozo" />\n    <meta property="og:title" content="Hozo — Test Reports" />\n    <meta name="description" content="CI test reports for Hozo, universal UI compiler for React Native." />\n</head>#' apps/landing/dist/reports/index.html || true
+        run: node packages/test-reporter/src/brand-report.mjs apps/landing/dist/reports/index.html || true
 
       - name: Ensure .nojekyll exists
         run: touch apps/landing/dist/.nojekyll
