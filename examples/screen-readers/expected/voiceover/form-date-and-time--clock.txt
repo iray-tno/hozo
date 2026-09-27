@@ -1,0 +1,10 @@
+# Approved from screen-readers run 36294264902 (VoiceOver, Safari).
+# The same fact NVDA's file records, in this reader's words: the value read
+# out is the whole time, not the field's own digits.
+# "stepper" rather than "spin button" is VoiceOver's name for the role, and
+# the period stays a button -- which is the design: a spinbutton carries
+# `aria-valuenow`, and a number for "am" is a number nobody can read.
+Arrival time group
+9:30 AM Hour stepper
+9:30 AM Minute stepper
+AM or PM button

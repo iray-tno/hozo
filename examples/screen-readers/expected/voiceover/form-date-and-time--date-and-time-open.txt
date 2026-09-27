@@ -1,0 +1,22 @@
+# Approved from screen-readers run 36294264902 (VoiceOver, Safari).
+#
+# partial: VoiceOver enters the month grid as a table and leaves after
+# `INSIDE_STEPS` of 20, so it read 18 of 42 cells -- the 31st of August
+# through the 16th of September. The selected day and today are both the 24th
+# and are never reached, so "selected" and today's cell are NOT covered here.
+# Short scenarios are the answer rather than a larger budget (#584), and
+# saying which part is covered is #585.
+#
+# What is covered: the trigger, entering the dialog, the month heading between
+# its two buttons, a day below `min` announced as unavailable, the clock
+# inside the same dialog, and Done.
+# "dimmed" is VoiceOver's word for disabled. `min` is the 24th at 09:00, so
+# the 3rd being dimmed is right, and so is the previous-month button -- there
+# is no allowed month before this one.
+Departure dialog pop up button
+Choose a date and time web dialog
+Previous month dimmed button
+September 2026
+Thursday, September 3, 2026 3 dimmed
+9:30 AM Hour stepper
+Done button
