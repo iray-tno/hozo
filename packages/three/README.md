@@ -171,6 +171,14 @@ The version-pinned [Three.js conformance report](./conformance.md) separates
 exact and partial support from explicit diagnostics and known silent gaps. Its
 rows link back to the tests behind each compatibility claim.
 
+GPU renderer conformance is environment-dependent and is therefore measured on
+main, weekly, and on demand rather than folded into the portable percentage.
+Run `pnpm --filter @hozo/three test:gpu` to produce JSON and Markdown reports
+for classic WebGL, the modern renderer's automatic backend choice, and its
+forced WebGL 2 backend. A missing native WebGPU backend is recorded as
+`unavailable`; classic WebGL and modern forced-WebGL 2 remain required to draw
+and expose working semantic controls.
+
 <!-- generated: package-footer -->
 
 ---

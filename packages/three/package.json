@@ -60,6 +60,7 @@
   "scripts": {
     "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
     "report": "node scripts/report-conformance.ts",
+    "test:gpu": "node scripts/check-gpu.mjs",
     "typecheck": "tsc -p . --noEmit",
     "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js && node --test scripts/conformance.test.ts && node scripts/report-conformance.ts --check"
   },
@@ -73,7 +74,9 @@
   "devDependencies": {
     "@types/react": "^19.2.18",
     "@types/three": "^0.180.0",
+    "esbuild": "0.28.2",
     "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-test-renderer": "^19.2.8",
     "three": "^0.180.0"
   }
