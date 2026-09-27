@@ -35,6 +35,31 @@ Rendering is demand-driven by default. Change the `revision` prop or call
 `invalidate()` through a ref after imperative scene mutations. Animated scenes
 can opt into `frameloop="always"` and mutate their Three objects in `onFrame`.
 
+## Classic WebGL renderer
+
+Web applications that need Three.js lighting, shader materials, depth, or the
+established `WebGLRenderer` ecosystem can select the classic renderer family
+explicitly:
+
+```tsx
+import { ThreeCanvas } from '@hozo/three/webgl'
+
+<ThreeCanvas
+  accessibilityLabel="Interactive product model"
+  scene={scene}
+  camera={camera}
+  width={640}
+  height={360}
+/>
+```
+
+This entry point owns renderer creation, sizing, drawing, and disposal while
+sharing the portable surface's demand/continuous frame-loop contract. It is
+currently Web-only; importing it on React Native fails explicitly because Hozo
+does not yet provide a Native WebGL context host. It never silently falls back
+to the portable renderer. The modern `WebGPURenderer` family will use a
+separate `@hozo/three/webgpu` entry point.
+
 Pass `onObjectPress` to receive the projected Three object and its raycast
 intersections. Set `object.name`, or provide `getAccessibilityLabel`, to expose
 one keyboard and screen-reader control per object even when it projects into
