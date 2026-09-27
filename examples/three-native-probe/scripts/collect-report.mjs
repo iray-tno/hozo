@@ -46,6 +46,7 @@ export function collectReport(logText, apkBytes) {
       entry.source === 'semantic-control',
   )
   const initialRenderer = events.find((entry) => entry.event === 'renderer_ready')
+  const resumed = events[resumedAt]
   const resumedFrame = events[resumedFrameAt]
   if (!sampled) {
     throw new Error('Native GPU probe did not sample frames after returning active')
@@ -74,6 +75,7 @@ export function collectReport(logText, apkBytes) {
       contextBeforeBackground: initialRenderer.contextId,
       contextAfterResume: resumedFrame.contextId,
       contextPreserved: initialRenderer.contextId === resumedFrame.contextId,
+      resumeToFrameMs: resumedFrame.elapsedMs - resumed.elapsedMs,
     },
     events,
   }

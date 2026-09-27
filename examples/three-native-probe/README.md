@@ -5,7 +5,8 @@ The first fixture uses React Three Fiber's established Native entry over Expo GL
 renderer initialization, first frame, a real background/resume cycle, a 120-frame timing sample,
 release APK size, and renderer teardown. The Android job retains the JSON report, logcat,
 screenshot, and accessibility tree. The lifecycle report records whether Expo GL preserved or
-replaced its context and only passes after R3F produces a post-resume frame.
+replaced its context, measures active-to-frame recovery latency, and resets the 120-frame sample
+so every reported frame was rendered after resuming.
 It also drives an actual device tap through R3F raycasting, then records TalkBack reading labelled
 and fallback semantics while proving that decorative content stays silent.
 

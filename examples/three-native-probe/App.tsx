@@ -39,6 +39,7 @@ function ProbeScene({
 }) {
   const meshRef = useRef<Mesh>(null)
   const frameTimes = useRef<number[]>([])
+  const firstFrameEmitted = useRef(false)
   const completed = useRef(false)
   const touched = useRef(false)
   const observedResumeEpoch = useRef(0)
@@ -68,19 +69,10 @@ function ProbeScene({
 
     mesh.rotation.x += delta * 0.4
     mesh.rotation.y += delta * 0.7
-    if (frameTimes.current.length < sampleFrameCount) frameTimes.current.push(delta * 1_000)
-
-    if (frameTimes.current.length === 1) {
-      emit({
-        event: 'first_frame',
-        host: 'expo-gl',
-        elapsedMs: performance.now() - moduleStartedAt,
-        objectId: mesh.uuid,
-      })
-    }
 
     if (resumeEpoch > observedResumeEpoch.current) {
       observedResumeEpoch.current = resumeEpoch
+      frameTimes.current = []
       emit({
         event: 'frame_after_resume',
         host: 'expo-gl',
@@ -88,6 +80,18 @@ function ProbeScene({
         objectId: mesh.uuid,
         contextId,
         resumeEpoch,
+      })
+    }
+
+    if (frameTimes.current.length < sampleFrameCount) frameTimes.current.push(delta * 1_000)
+
+    if (!firstFrameEmitted.current) {
+      firstFrameEmitted.current = true
+      emit({
+        event: 'first_frame',
+        host: 'expo-gl',
+        elapsedMs: performance.now() - moduleStartedAt,
+        objectId: mesh.uuid,
       })
     }
 
@@ -191,13 +195,22 @@ export default function App() {
       if (state === 'background') {
         if (backgrounded.current) return
         backgrounded.current = true
-        emit({ event: 'app_backgrounded', host: 'expo-gl' })
+        emit({
+          event: 'app_backgrounded',
+          host: 'expo-gl',
+          elapsedMs: performance.now() - moduleStartedAt,
+        })
         return
       }
       if (state !== 'active' || !backgrounded.current) return
       backgrounded.current = false
       resumeCount.current += 1
-      emit({ event: 'app_resumed', host: 'expo-gl', resumeEpoch: resumeCount.current })
+      emit({
+        event: 'app_resumed',
+        host: 'expo-gl',
+        elapsedMs: performance.now() - moduleStartedAt,
+        resumeEpoch: resumeCount.current,
+      })
       setResumeEpoch(resumeCount.current)
     })
     return () => subscription.remove()

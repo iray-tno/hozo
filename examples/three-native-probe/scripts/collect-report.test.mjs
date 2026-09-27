@@ -8,8 +8,8 @@ test('collects the required lifecycle and frame measurements', () => {
     '{ReactNativeJS} [hozo-three-native] {"event":"renderer_ready","host":"expo-gl","elapsedMs":81,"contextId":7}',
     '{ReactNativeJS} [hozo-three-native] {"event":"first_frame","host":"expo-gl","elapsedMs":99,"objectId":"cube"}',
     '{ReactNativeJS} [hozo-three-native] {"event":"app_backgrounded","host":"expo-gl"}',
-    '{ReactNativeJS} [hozo-three-native] {"event":"app_resumed","host":"expo-gl","resumeEpoch":1}',
-    '{ReactNativeJS} [hozo-three-native] {"event":"frame_after_resume","host":"expo-gl","objectId":"cube","contextId":7,"resumeEpoch":1}',
+    '{ReactNativeJS} [hozo-three-native] {"event":"app_resumed","host":"expo-gl","elapsedMs":400,"resumeEpoch":1}',
+    '{ReactNativeJS} [hozo-three-native] {"event":"frame_after_resume","host":"expo-gl","elapsedMs":417,"objectId":"cube","contextId":7,"resumeEpoch":1}',
     '{ReactNativeJS} [hozo-three-native] {"event":"steady_sample","host":"expo-gl","frameCount":120,"medianFrameMs":16.6,"p95FrameMs":18,"objectId":"cube"}',
     '{ReactNativeJS} [hozo-three-native] {"event":"object_activated","host":"expo-gl","objectId":"cube","source":"canvas"}',
     '{ReactNativeJS} [hozo-three-native] {"event":"renderer_unmounted","host":"expo-gl","elapsedMs":2110}',
@@ -23,6 +23,7 @@ test('collects the required lifecycle and frame measurements', () => {
     contextBeforeBackground: 7,
     contextAfterResume: 7,
     contextPreserved: true,
+    resumeToFrameMs: 17,
   })
   assert.deepEqual(
     report.events.map((entry) => entry.event),
