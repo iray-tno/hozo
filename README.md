@@ -590,13 +590,14 @@ apps/
   landing/    Landing site, interactive REPL playground, and the live conformance matrix.
 
 examples/
-  expo-router-demo/     @hozo/example-expo-router-demo  — Real Expo Router type and production-export fixture for @hozo/navigation.
-  login-demo/           login-demo                      — Phase 0 benchmark app -- exercises @hozo/core through @hozo/vite end to end.
-  native-demo/          @hozo/example-native-demo       — React Native example, and the end-to-end check that a Hozo source survives a real Metro bundle.
-  next-demo/            @hozo/example-next              — Next.js, on both bundlers.
-  screen-readers/       @hozo/example-screen-readers    — Real screen readers, NVDA and VoiceOver, reading the Storybook catalogue through Guidepup.
-  storybook-demo/       @hozo/example-storybook         — Storybook, audited against axe-core in CI.
-  tanstack-start-demo/  @hozo/example-tanstack-start    — TanStack Start.
+  expo-router-demo/     @hozo/example-expo-router-demo    — Real Expo Router type and production-export fixture for @hozo/navigation.
+  login-demo/           login-demo                        — Phase 0 benchmark app -- exercises @hozo/core through @hozo/vite end to end.
+  native-demo/          @hozo/example-native-demo         — React Native example, and the end-to-end check that a Hozo source survives a real Metro bundle.
+  next-demo/            @hozo/example-next                — Next.js, on both bundlers.
+  screen-readers/       @hozo/example-screen-readers      — Real screen readers, NVDA and VoiceOver, reading the Storybook catalogue through Guidepup.
+  storybook-demo/       @hozo/example-storybook           — Storybook, audited against axe-core in CI.
+  tanstack-start-demo/  @hozo/example-tanstack-start      — TanStack Start.
+  three-native-probe/   @hozo/example-three-native-probe  — Device probe for candidate Native GPU hosts used by @hozo/three.
 
 docs/
   proposal.md      the full design document

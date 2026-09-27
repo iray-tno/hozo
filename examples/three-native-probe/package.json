@@ -1,0 +1,28 @@
+{
+  "name": "@hozo/example-three-native-probe",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Device probe for candidate Native GPU hosts used by @hozo/three.",
+  "license": "MIT",
+  "main": "index.ts",
+  "scripts": {
+    "prebuild:android": "expo prebuild --platform android --clean --no-install",
+    "test": "node --test scripts/collect-report.test.mjs",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^9.8.1",
+    "expo": "~57.0.25",
+    "expo-asset": "~57.0.18",
+    "expo-file-system": "~57.0.7",
+    "expo-gl": "~57.0.2",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "@types/three": "^0.180.0",
+    "typescript": "~6.0.3"
+  }
+}
