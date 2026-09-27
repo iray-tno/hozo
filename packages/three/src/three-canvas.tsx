@@ -11,11 +11,13 @@ import {
 
 import { projectThreeScene, type ThreeProjectionDiagnostic } from './project.ts'
 import {
+  resizeThreeCamera,
   type ThreeSurfaceFrame,
   type ThreeSurfaceFrameloop,
   type ThreeSurfaceHandle,
   type ThreeSurfaceProps,
   useThreeSurfaceLifecycle,
+  useThreeSurfaceSize,
 } from './surface.ts'
 
 export type ThreeCanvasCamera = PerspectiveCamera | OrthographicCamera
@@ -36,7 +38,7 @@ export type ThreeCanvasHandle = ThreeSurfaceHandle
 
 type CanvasSurfaceProps = CanvasProps extends infer Variant
   ? Variant extends CanvasProps
-    ? Omit<Variant, 'children' | 'fit' | 'height' | 'viewBox' | 'width'>
+    ? Omit<Variant, 'children' | 'fit' | 'height' | 'onSizeChange' | 'viewBox' | 'width'>
     : never
   : never
 
@@ -63,6 +65,7 @@ export type ThreeCanvasProps = CanvasSurfaceProps &
  */
 export function ThreeCanvas({
   camera,
+  cameraResize = 'auto',
   frameloop = 'demand',
   getAccessibilityLabel,
   height,
@@ -70,6 +73,7 @@ export function ThreeCanvas({
   onFrame,
   onObjectActiveChange,
   onObjectPress,
+  onResize,
   raycaster: providedRaycaster,
   ref,
   revision,
@@ -85,14 +89,16 @@ export function ThreeCanvas({
     ref,
     scene,
   })
+  const { measure, size } = useThreeSurfaceSize({ height, onResize, width })
 
   const projection = useMemo(() => {
     // These are explicit invalidation tokens. Their values do not enter the
     // projection, but changing either means the mutable Three objects did.
     void frameRevision
     void revision
-    return projectThreeScene(scene, camera, { width, height })
-  }, [camera, frameRevision, height, revision, scene, width])
+    resizeThreeCamera(camera, size, cameraResize)
+    return projectThreeScene(scene, camera, size)
+  }, [camera, cameraResize, frameRevision, revision, scene, size])
 
   useEffect(() => {
     if (!onDiagnostic) return
@@ -103,7 +109,10 @@ export function ThreeCanvas({
     (object: Object3D, canvasEvent: CanvasPressEvent): ThreeCanvasObjectEvent => {
       const raycaster = providedRaycaster ?? (raycasterRef.current ??= new Raycaster())
       raycaster.setFromCamera(
-        new Vector2((canvasEvent.point.x / width) * 2 - 1, 1 - (canvasEvent.point.y / height) * 2),
+        new Vector2(
+          (canvasEvent.point.x / size.width) * 2 - 1,
+          1 - (canvasEvent.point.y / size.height) * 2,
+        ),
         camera,
       )
       const intersections = raycaster.intersectObject(object, false)
@@ -114,11 +123,17 @@ export function ThreeCanvas({
         object,
       }
     },
-    [camera, height, providedRaycaster, width],
+    [camera, providedRaycaster, size],
   )
 
   return (
-    <Canvas {...canvasProps} width={width} height={height} viewBox={[0, 0, width, height]}>
+    <Canvas
+      {...canvasProps}
+      width={width}
+      height={height}
+      viewBox={[0, 0, size.width, size.height]}
+      onSizeChange={measure}
+    >
       {projection.scene.map((node, index) => {
         const object = projection.objects[index]
         const interaction = object

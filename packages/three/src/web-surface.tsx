@@ -13,10 +13,14 @@ import {
 import type { Camera, Intersection, Object3D, Raycaster, Scene, Vector2 } from 'three'
 
 import {
+  resizeThreeCamera,
+  type ThreeSurfaceCameraResize,
   type ThreeSurfaceFrame,
   type ThreeSurfaceFrameloop,
   type ThreeSurfaceHandle,
+  type ThreeSurfaceSize,
   useThreeSurfaceLifecycle,
+  useThreeSurfaceSize,
 } from './surface.ts'
 
 export type ThreeCanvasFrameloop = ThreeSurfaceFrameloop
@@ -44,12 +48,13 @@ type CanvasElementProps = Omit<
 export type ThreeWebCanvasProps<TRenderer extends ThreeWebRenderer> = CanvasAccessibilityProps &
   CanvasElementProps & {
     camera: Camera
+    cameraResize?: ThreeSurfaceCameraResize
     createRaycaster: () => Raycaster
     createRenderer: (canvas: HTMLCanvasElement) => Promise<TRenderer> | TRenderer
     frameloop?: ThreeCanvasFrameloop
     /** Name an interactive Three object for its keyboard and screen-reader control. */
     getAccessibilityLabel?: (object: Object3D) => string | undefined
-    height: number
+    height?: number
     onCreated?: (renderer: TRenderer) => void
     onError?: (error: unknown) => void
     onFrame?: (frame: ThreeCanvasFrame) => void
@@ -57,6 +62,7 @@ export type ThreeWebCanvasProps<TRenderer extends ThreeWebRenderer> = CanvasAcce
     onObjectActiveChange?: (event: ThreeCanvasObjectEvent | undefined) => void
     /** Activated after raycasting or a semantic control identifies an object. */
     onObjectPress?: (event: ThreeCanvasObjectEvent) => void
+    onResize?: (size: ThreeSurfaceSize) => void
     /** Defaults to the current device pixel ratio. */
     pixelRatio?: number
     /** Optional configured raycaster; a package-owned instance is used otherwise. */
@@ -64,7 +70,7 @@ export type ThreeWebCanvasProps<TRenderer extends ThreeWebRenderer> = CanvasAcce
     ref?: Ref<ThreeCanvasHandle>
     revision?: unknown
     scene: Scene
-    width: number
+    width?: number
   }
 
 const accessibleOnlyStyle: CSSProperties = {
@@ -84,6 +90,7 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   accessibilityLabel,
   accessibleFallback,
   camera,
+  cameraResize = 'auto',
   createRaycaster,
   createRenderer,
   decorative,
@@ -95,6 +102,7 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   onFrame,
   onObjectActiveChange,
   onObjectPress,
+  onResize,
   onPointerCancel,
   onPointerDown,
   onPointerLeave,
@@ -124,8 +132,36 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
     ref,
     scene,
   })
+  const { measure, size } = useThreeSurfaceSize({ height, onResize, pixelRatio, width })
   createdCallback.current = onCreated
   errorCallback.current = onError
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const measureCanvas = () => {
+      const bounds = canvas.getBoundingClientRect?.()
+      measure({
+        width: width ?? (bounds?.width || 300),
+        height: height ?? (bounds?.height || 150),
+        pixelRatio: pixelRatio ?? globalThis.devicePixelRatio ?? 1,
+      })
+    }
+    measureCanvas()
+    const observer =
+      typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measureCanvas)
+    observer?.observe(canvas)
+    const browserWindow = globalThis.window
+    if (typeof browserWindow?.addEventListener === 'function') {
+      browserWindow.addEventListener('resize', measureCanvas)
+    }
+    return () => {
+      observer?.disconnect()
+      if (typeof browserWindow?.removeEventListener === 'function') {
+        browserWindow.removeEventListener('resize', measureCanvas)
+      }
+    }
+  }, [height, measure, pixelRatio, width])
 
   const objectEvent = useCallback(
     (object: Object3D, intersections: readonly Intersection<Object3D>[] = []) => ({
@@ -139,8 +175,8 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   const raycast = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       const bounds = event.currentTarget.getBoundingClientRect()
-      const x = ((event.clientX - bounds.left) / (bounds.width || width || 1)) * 2 - 1
-      const y = 1 - ((event.clientY - bounds.top) / (bounds.height || height || 1)) * 2
+      const x = ((event.clientX - bounds.left) / (bounds.width || size.width || 1)) * 2 - 1
+      const y = 1 - ((event.clientY - bounds.top) / (bounds.height || size.height || 1)) * 2
       const raycaster = providedRaycaster ?? (raycasterRef.current ??= createRaycaster())
       raycaster.layers.mask = camera.layers.mask
       raycaster.setFromCamera({ x, y } as Vector2, camera)
@@ -148,7 +184,7 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
         .intersectObjects(scene.children, true)
         .filter(({ object }) => objectVisible(object))
     },
-    [camera, createRaycaster, height, providedRaycaster, scene, width],
+    [camera, createRaycaster, providedRaycaster, scene, size],
   )
 
   const controls = useMemo(() => {
@@ -207,8 +243,9 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
     // Explicit invalidation tokens: their values do not enter the draw.
     void frameRevision
     void revision
-    renderer.setPixelRatio(pixelRatio ?? globalThis.devicePixelRatio ?? 1)
-    renderer.setSize(width, height, false)
+    resizeThreeCamera(camera, size, cameraResize)
+    renderer.setPixelRatio(size.pixelRatio)
+    renderer.setSize(size.width, size.height, false)
     try {
       Promise.resolve(renderer.render(scene, camera)).catch((error: unknown) => {
         errorCallback.current?.(error)
@@ -218,7 +255,7 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
       errorCallback.current?.(error)
       if (!errorCallback.current) setCreationError(error)
     }
-  }, [camera, frameRevision, height, pixelRatio, renderer, revision, scene, width])
+  }, [camera, cameraResize, frameRevision, renderer, revision, scene, size])
 
   if (creationError !== undefined) throw creationError
 
@@ -229,9 +266,15 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
       <canvas
         {...canvasProps}
         ref={canvasRef}
-        width={width}
-        height={height}
-        style={{ width, height, ...style }}
+        width={Math.max(1, Math.round(size.width * size.pixelRatio))}
+        height={Math.max(1, Math.round(size.height * size.pixelRatio))}
+        style={{
+          width: width ?? style?.width ?? 300,
+          height: height ?? style?.height ?? 150,
+          ...style,
+          ...(width === undefined ? null : { width }),
+          ...(height === undefined ? null : { height }),
+        }}
         aria-hidden={labelled ? undefined : true}
         aria-label={labelled ? accessibilityLabel : undefined}
         role={labelled ? 'img' : undefined}

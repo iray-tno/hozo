@@ -107,6 +107,35 @@ test('ThreeCanvas draws projected mesh vertex colours through the portable mesh'
   await testRenderer.act(async () => renderer?.unmount())
 })
 
+test('portable ThreeCanvas follows the measured Canvas size and camera aspect', async () => {
+  const { camera, scene } = triangleScene()
+  const sizes: string[] = []
+  const surface = recordingSurface([])
+  surface.getBoundingClientRect = () => ({ left: 0, top: 0, width: 240, height: 120 })
+  let renderer: ReturnType<typeof testRenderer.create> | undefined
+
+  await testRenderer.act(async () => {
+    renderer = testRenderer.create(
+      <ThreeCanvas
+        decorative
+        scene={scene}
+        camera={camera}
+        style={{ width: '100%', height: '100%' }}
+        onResize={({ width, height }) => sizes.push(`${width}x${height}`)}
+      />,
+      { createNodeMock: (element) => (element.type === 'canvas' ? surface : null) },
+    )
+  })
+
+  assert.equal(camera.aspect, 2)
+  assert.equal(sizes.at(-1), '240x120')
+  assert.deepEqual(renderer?.root.findByType('canvas').props.style, {
+    width: '100%',
+    height: '100%',
+  })
+  await testRenderer.act(async () => renderer?.unmount())
+})
+
 test('ThreeCanvas paints scene backgrounds without creating an object control', async () => {
   const scene = new Scene()
   scene.background = new Color('#123456')

@@ -158,6 +158,7 @@ export function wrapCanvasText(props: TextProps, maxWidth: number): string[] | u
 export type CanvasProps = CanvasAccessibilityProps & {
   children?: ReactNode
   className?: string
+  onSizeChange?: (size: CanvasSize) => void
   style?: CSSProperties
   width?: number
   height?: number
@@ -166,7 +167,7 @@ export type CanvasProps = CanvasAccessibilityProps & {
   testID?: string
 }
 
-interface Size {
+export interface CanvasSize {
   width: number
   height: number
   pixelRatio: number
@@ -185,6 +186,7 @@ function Root({
   decorative,
   accessibilityLabel,
   accessibleFallback,
+  onSizeChange,
   testID,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -192,11 +194,13 @@ function Root({
   const navigation = useHozoNavigation()
   const { scene, collector, isInteractive, press, activate, interactions, interactionRevision } =
     useCanvasScene(children)
-  const [size, setSize] = useState<Size>(() => ({
+  const [size, setSize] = useState<CanvasSize>(() => ({
     width: width ?? viewBox?.[2] ?? 300,
     height: height ?? viewBox?.[3] ?? 150,
     pixelRatio: 1,
   }))
+  const sizeCallback = useRef(onSizeChange)
+  sizeCallback.current = onSizeChange
   const textureImages = useRef(new Map<string, HTMLImageElement>())
   const textureMounted = useRef(false)
   const [textureRevision, setTextureRevision] = useState(0)
@@ -259,11 +263,23 @@ function Root({
       )
     }
     measure()
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(measure)
-    observer.observe(canvas)
-    return () => observer.disconnect()
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure)
+    observer?.observe(canvas)
+    const browserWindow = globalThis.window
+    if (typeof browserWindow?.addEventListener === 'function') {
+      browserWindow.addEventListener('resize', measure)
+    }
+    return () => {
+      observer?.disconnect()
+      if (typeof browserWindow?.removeEventListener === 'function') {
+        browserWindow.removeEventListener('resize', measure)
+      }
+    }
   }, [width, height, viewBox])
+
+  useIsoLayoutEffect(() => {
+    sizeCallback.current?.(size)
+  }, [size])
 
   useIsoLayoutEffect(() => {
     const context = canvasRef.current?.getContext('2d')
@@ -272,6 +288,8 @@ function Root({
   }, [scene, size, viewBox, fit, textureImage, textureRevision])
 
   const rootStyle: CSSProperties = {
+    width: width ?? style?.width ?? 300,
+    height: height ?? style?.height ?? 150,
     ...style,
     ...(width === undefined ? null : { width }),
     ...(height === undefined ? null : { height }),

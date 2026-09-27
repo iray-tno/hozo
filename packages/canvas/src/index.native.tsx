@@ -21,11 +21,12 @@ import {
   type Transforms3d,
   useImage,
 } from '@shopify/react-native-skia'
-import { type ComponentType, type ReactNode, useMemo, useRef, useState } from 'react'
+import { type ComponentType, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
   Linking,
+  PixelRatio,
   type PointerEvent,
   Pressable,
   type StyleProp,
@@ -122,12 +123,19 @@ export { textLines, wrapText } from './wrap-text.ts'
 export type CanvasProps = CanvasAccessibilityProps & {
   children?: ReactNode
   className?: string
+  onSizeChange?: (size: CanvasSize) => void
   style?: StyleProp<ViewStyle>
   width?: number
   height?: number
   viewBox?: readonly [x: number, y: number, width: number, height: number]
   fit?: 'contain' | 'stretch'
   testID?: string
+}
+
+export interface CanvasSize {
+  width: number
+  height: number
+  pixelRatio: number
 }
 
 function transformFor(transform?: CanvasTransform): Transforms3d | undefined {
@@ -564,6 +572,7 @@ function Root({
   decorative,
   accessibilityLabel,
   accessibleFallback,
+  onSizeChange,
   testID,
 }: CanvasProps) {
   const pressedTarget = useRef<{ id: string; touchId: number } | undefined>(undefined)
@@ -574,6 +583,8 @@ function Root({
     width: width ?? viewBox?.[2] ?? 0,
     height: height ?? viewBox?.[3] ?? 0,
   })
+  const sizeCallback = useRef(onSizeChange)
+  sizeCallback.current = onSizeChange
   const onLayout = (event: LayoutChangeEvent) => {
     const next = event.nativeEvent.layout
     setLayout((current) =>
@@ -582,6 +593,10 @@ function Root({
         : { width: next.width, height: next.height },
     )
   }
+  useEffect(() => {
+    if (layout.width <= 0 || layout.height <= 0) return
+    sizeCallback.current?.({ ...layout, pixelRatio: PixelRatio.get() })
+  }, [layout])
   const transform = useMemo(
     () => viewportTransform(viewBox, layout.width, layout.height, fit),
     [viewBox, layout, fit],

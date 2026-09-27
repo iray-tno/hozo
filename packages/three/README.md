@@ -31,6 +31,19 @@ import { ThreeCanvas } from '@hozo/three'
 />
 ```
 
+`width` and `height` are optional. When either is omitted, the Web renderer
+families follow a `ResizeObserver`, while the portable surface uses the same
+measurement on Web and `onLayout` on Native. The server-rendered fallback is
+300 by 150, and `onResize` reports the resolved layout size and pixel ratio.
+Give the surface a responsive CSS or Native layout size, for example
+`style={{ width: '100%', height: '100%' }}`; without one it keeps the stable
+300-by-150 fallback.
+
+Perspective cameras follow the resolved aspect ratio by default. Use
+`cameraResize="manual"` when the application owns its projection. Orthographic
+cameras are always application-owned because resizing their frustum has no
+single correct policy.
+
 Rendering is demand-driven by default. Change the `revision` prop or call
 `invalidate()` through a ref after imperative scene mutations. Animated scenes
 can opt into `frameloop="always"` and mutate their Three objects in `onFrame`.
