@@ -1,0 +1,5 @@
+heading, React Three Fiber authoring, level 2
+paragraph
+R3F owns the scene, renderer, frame loop, and pointer events. Hozo supplies the responsive surface and its accessibility envelope.
+end of paragraph
+image, Slowly rotating purple torus knot
