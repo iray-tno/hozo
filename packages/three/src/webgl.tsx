@@ -38,6 +38,13 @@ export interface ThreeCanvasObjectEvent {
   object: Object3D
 }
 
+export interface ThreeWebRenderer {
+  dispose(): void
+  render(scene: Scene, camera: Camera): Promise<void> | void
+  setPixelRatio(value: number): void
+  setSize(width: number, height: number, updateStyle: boolean): void
+}
+
 export type ThreeWebGLRendererFactory = (
   canvas: HTMLCanvasElement,
   options: Omit<WebGLRendererParameters, 'canvas'>,
@@ -48,16 +55,15 @@ type CanvasElementProps = Omit<
   'aria-label' | 'children' | 'height' | 'ref' | 'role' | 'width'
 >
 
-export type ThreeCanvasProps = CanvasAccessibilityProps &
+export type ThreeWebCanvasProps<TRenderer extends ThreeWebRenderer> = CanvasAccessibilityProps &
   CanvasElementProps & {
     camera: Camera
-    /** Creates the owned renderer. Primarily useful for custom renderer subclasses and tests. */
-    createRenderer?: ThreeWebGLRendererFactory
+    createRenderer: (canvas: HTMLCanvasElement) => Promise<TRenderer> | TRenderer
     frameloop?: ThreeCanvasFrameloop
     /** Name an interactive Three object for its keyboard and screen-reader control. */
     getAccessibilityLabel?: (object: Object3D) => string | undefined
     height: number
-    onCreated?: (renderer: WebGLRenderer) => void
+    onCreated?: (renderer: TRenderer) => void
     onError?: (error: unknown) => void
     onFrame?: (frame: ThreeCanvasFrame) => void
     /** Reports hover and semantic-control focus as one object-level state. */
@@ -69,11 +75,22 @@ export type ThreeCanvasProps = CanvasAccessibilityProps &
     /** Optional configured raycaster; a package-owned instance is used otherwise. */
     raycaster?: Raycaster
     ref?: Ref<ThreeCanvasHandle>
-    rendererOptions?: Omit<WebGLRendererParameters, 'canvas'>
     revision?: unknown
     scene: Scene
     width: number
   }
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
+
+export type ThreeCanvasProps = DistributiveOmit<
+  ThreeWebCanvasProps<WebGLRenderer>,
+  'createRenderer' | 'onCreated'
+> & {
+  /** Creates the owned renderer. Primarily useful for custom renderer subclasses and tests. */
+  createRenderer?: ThreeWebGLRendererFactory
+  onCreated?: (renderer: WebGLRenderer) => void
+  rendererOptions?: Omit<WebGLRendererParameters, 'canvas'>
+}
 
 const defaultCreateRenderer: ThreeWebGLRendererFactory = (canvas, options) =>
   new WebGLRenderer({ ...options, canvas })
@@ -90,12 +107,12 @@ const accessibleOnlyStyle: CSSProperties = {
   border: 0,
 }
 
-/** A Web-only Three.js surface backed by the classic `WebGLRenderer`. */
-export function ThreeCanvas({
+/** Shared DOM, lifecycle, raycast, and semantic layer for Web renderer families. */
+export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   accessibilityLabel,
   accessibleFallback,
   camera,
-  createRenderer = defaultCreateRenderer,
+  createRenderer,
   decorative,
   frameloop = 'demand',
   getAccessibilityLabel,
@@ -113,21 +130,19 @@ export function ThreeCanvas({
   pixelRatio,
   raycaster: providedRaycaster,
   ref,
-  rendererOptions = {},
   revision,
   scene,
   style,
   width,
   ...canvasProps
-}: ThreeCanvasProps) {
+}: ThreeWebCanvasProps<TRenderer>) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const creationOptions = useRef(rendererOptions)
   const raycasterRef = useRef<Raycaster | null>(null)
   const pressedObjects = useRef(new Map<number, Object3D>())
   const activeObject = useRef<Object3D | undefined>(undefined)
   const createdCallback = useRef(onCreated)
   const errorCallback = useRef(onError)
-  const [renderer, setRenderer] = useState<WebGLRenderer>()
+  const [renderer, setRenderer] = useState<TRenderer>()
   const [creationError, setCreationError] = useState<unknown>()
   const { frameRevision } = useThreeSurfaceLifecycle({
     camera,
@@ -189,19 +204,28 @@ export function ThreeCanvas({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    let nextRenderer: WebGLRenderer
-    try {
-      nextRenderer = createRenderer(canvas, creationOptions.current)
-    } catch (error) {
-      errorCallback.current?.(error)
-      if (!errorCallback.current) setCreationError(error)
-      return
-    }
-    setRenderer(nextRenderer)
-    createdCallback.current?.(nextRenderer)
+    let cancelled = false
+    let nextRenderer: TRenderer | undefined
+    Promise.resolve()
+      .then(() => createRenderer(canvas))
+      .then((createdRenderer) => {
+        if (cancelled) {
+          createdRenderer.dispose()
+          return
+        }
+        nextRenderer = createdRenderer
+        setRenderer(createdRenderer)
+        createdCallback.current?.(createdRenderer)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        errorCallback.current?.(error)
+        if (!errorCallback.current) setCreationError(error)
+      })
     return () => {
+      cancelled = true
       setRenderer(undefined)
-      nextRenderer.dispose()
+      nextRenderer?.dispose()
     }
   }, [createRenderer])
 
@@ -212,7 +236,15 @@ export function ThreeCanvas({
     void revision
     renderer.setPixelRatio(pixelRatio ?? globalThis.devicePixelRatio ?? 1)
     renderer.setSize(width, height, false)
-    renderer.render(scene, camera)
+    try {
+      Promise.resolve(renderer.render(scene, camera)).catch((error: unknown) => {
+        errorCallback.current?.(error)
+        if (!errorCallback.current) setCreationError(error)
+      })
+    } catch (error) {
+      errorCallback.current?.(error)
+      if (!errorCallback.current) setCreationError(error)
+    }
   }, [camera, frameRevision, height, pixelRatio, renderer, revision, scene, width])
 
   if (creationError !== undefined) throw creationError
@@ -295,6 +327,21 @@ export function ThreeCanvas({
       ) : null}
     </>
   )
+}
+
+/** A Web-only Three.js surface backed by the classic `WebGLRenderer`. */
+export function ThreeCanvas({
+  createRenderer = defaultCreateRenderer,
+  onCreated,
+  rendererOptions = {},
+  ...props
+}: ThreeCanvasProps) {
+  const creationOptions = useRef(rendererOptions)
+  const create = useCallback(
+    (canvas: HTMLCanvasElement) => createRenderer(canvas, creationOptions.current),
+    [createRenderer],
+  )
+  return <ThreeWebCanvas {...props} createRenderer={create} onCreated={onCreated} />
 }
 
 function isRenderableObject(object: Object3D) {

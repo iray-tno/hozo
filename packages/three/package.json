@@ -36,6 +36,14 @@
       "types": "./dist/webgl.d.ts",
       "default": "./dist/webgl.js"
     },
+    "./webgpu": {
+      "react-native": {
+        "types": "./dist/webgpu-react-native.d.ts",
+        "default": "./dist/webgpu-react-native.js"
+      },
+      "types": "./dist/webgpu.d.ts",
+      "default": "./dist/webgpu.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
