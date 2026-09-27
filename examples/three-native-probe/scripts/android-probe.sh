@@ -9,6 +9,10 @@ artifacts="${1:-$root/artifacts}"
 
 mkdir -p "$artifacts"
 test -f "$apk"
+# A loaded emulator can put a System UI ANR dialog in front of a healthy app.
+# The probe diagnoses its own process and logs, so another process's dialog is
+# only noise that would make uiautomator inspect the wrong window.
+adb shell settings put global hide_error_dialogs 1 >/dev/null 2>&1 || true
 adb install -r "$apk"
 adb logcat -c
 adb shell am force-stop "$package" || true
@@ -23,9 +27,18 @@ for _ in $(seq 1 90); do
 done
 
 adb logcat -d -v brief > "$artifacts/logcat.txt"
-adb shell uiautomator dump /sdcard/three-native-probe.xml >/dev/null
-adb pull /sdcard/three-native-probe.xml "$artifacts/accessibility.xml" >/dev/null
+for _ in $(seq 1 6); do
+  adb shell rm -f /sdcard/three-native-probe.xml >/dev/null 2>&1 || true
+  adb shell uiautomator dump /sdcard/three-native-probe.xml >/dev/null 2>&1 || true
+  if adb pull /sdcard/three-native-probe.xml "$artifacts/accessibility.xml" >/dev/null 2>&1 \
+    && grep -q "package=\"$package\"" "$artifacts/accessibility.xml" \
+    && grep -q 'probe-complete' "$artifacts/accessibility.xml"; then
+    break
+  fi
+  sleep 3
+done
 adb exec-out screencap -p > "$artifacts/screenshot.png"
+grep -q "package=\"$package\"" "$artifacts/accessibility.xml"
 grep -q 'probe-complete' "$artifacts/accessibility.xml"
 read -r control_x control_y < <(
   node "$root/scripts/control-centre.mjs" \
