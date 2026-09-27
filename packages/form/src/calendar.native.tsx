@@ -59,6 +59,8 @@ interface Shared {
   className?: string
   dayClassName?: string
   headerClassName?: string
+  /** Accepted for parity with the Web half, which puts it on its `<table>`. */
+  gridClassName?: string
   style?: StyleProp<ViewStyle>
   headerStyle?: StyleProp<ViewStyle>
   weekStyle?: StyleProp<ViewStyle>

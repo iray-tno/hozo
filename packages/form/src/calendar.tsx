@@ -55,6 +55,18 @@ interface Shared {
   /** On the `<td>` that is the grid cell, so `disabled:` variants reach it. */
   dayClassName?: string
   headerClassName?: string
+  /**
+   * On the `<table>` that is the grid.
+   *
+   * `className` above is on the `role="group"` that wraps the header and the
+   * table, so it cannot reach either -- and the table is the element that wants
+   * `w-full` and `border-collapse`. Without this there was no way to style it
+   * at all, which the Storybook stories found by looking odd.
+   *
+   * Named for the role rather than for the tag, because the Native half has no
+   * table and the two halves keep the same prop list.
+   */
+  gridClassName?: string
   /** The month shown first. Defaults to `value`'s month, else `today`'s. */
   defaultMonth?: CalendarMonth
   /**
@@ -251,6 +263,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
   const {
     className,
     dayClassName,
+    gridClassName,
     headerClassName,
     defaultMonth,
     month,
@@ -451,6 +464,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
       <table
         // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: a grid is a table
         role="grid"
+        className={gridClassName}
         aria-labelledby={headingId}
         aria-multiselectable={ranged ? true : undefined}
       >
