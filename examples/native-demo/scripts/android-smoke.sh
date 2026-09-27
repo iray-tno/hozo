@@ -599,6 +599,76 @@ else
           described.some((one) => /^(hour|minute)\b/i.test(one)),
         )
       ' ./pickers_dump.xml || true
+
+      # And the tree inside a `Modal` that is inside a `Modal`.
+      #
+      # `android-talkback.sh` asks what the nested dialog *says* and gates on
+      # the app surviving it. This asks the question that one cannot: whether
+      # the panel's contents are in the accessibility tree at all.
+      #
+      # Worth asking separately because the Web half has the same question open
+      # and unanswered. NVDA reads a native `<dialog>`'s contents and does not
+      # read `DateTimePicker`'s panel, which is a positioned `div` with
+      # `aria-modal` (#580) -- so "is it in the tree, or is it in the tree and
+      # not read" is a distinction that has already cost two wrong guesses on
+      # the other platform. Here the dump answers it directly.
+      if trigger="$(centre_of pickers_dump.xml 'Departure' content-desc)"; then
+        # shellcheck disable=SC2086 -- two words, deliberately unquoted
+        adb shell input tap $trigger
+        sleep 3
+        if [ -z "$(adb shell pidof "$package" | tr -d '\r' || true)" ]; then
+          echo "::warning::the app died opening the nested picker dialog"
+          adb logcat -d -b crash -v brief 2>/dev/null | tail -40 | sed 's/^/  crash: /' || true
+        else
+          adb shell uiautomator dump /sdcard/dump.xml > /dev/null 2>&1 || true
+          adb pull /sdcard/dump.xml ./picker_dialog_dump.xml > /dev/null 2>&1 || true
+          adb exec-out screencap -p > ./picker_dialog.png 2>/dev/null || true
+          node --eval '
+            const fs = require("node:fs")
+            const file = process.argv[1]
+            if (!fs.existsSync(file)) {
+              console.log("::warning::no nested dialog dump, so nothing was read")
+              process.exit(0)
+            }
+            const xml = fs.readFileSync(file, "utf8")
+            const described = []
+            for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+              const desc = /content-desc="([^"]+)"/.exec(node[0])
+              if (desc) described.push(desc[1])
+            }
+            const has = (what) => described.some((one) => one.toLowerCase().includes(what))
+            const note = (what, found) => console.log(`  ${found ? "said" : "did not say"} ${what}`)
+            console.log(`  ${described.length} described nodes inside the nested dialog`)
+            // A month of cells is most of the list, so it is counted rather
+            // than printed: forty-two lines would bury the four that matter.
+            const days = described.filter((one) => /^[A-Za-z]+day, /.test(one))
+            console.log(`  ${days.length} day cells`)
+            for (const one of described.filter((x) => !/^[A-Za-z]+day, /.test(x))) {
+              console.log(`    ${one}`)
+            }
+            note("a day cell", days.length > 0)
+            note("the month heading buttons", has("previous month") || has("next month"))
+            // The fold, not the tree. A dump reports what is on screen, and the
+            // first run of this found forty described nodes -- thirty-eight
+            // cells and the two month buttons -- with the clock and Done
+            // absent, while `android-talkback.sh` walked to "Increase Hour" in
+            // the same dialog. Accessibility focus scrolls; a dump does not. So
+            // these two are reported and explained rather than counted as
+            // missing, the same way the calendar screen is one cell short of
+            // forty-two.
+            const below = (what, found) =>
+              console.log(
+                found
+                  ? `  said ${what}`
+                  : `  did not say ${what} -- below the fold rather than absent; TalkBack reaches it`,
+              )
+            below("the clock inside the dialog", has("hour"))
+            below("the Done button", has("done"))
+          ' ./picker_dialog_dump.xml || true
+        fi
+      else
+        echo "::warning::could not find the DateTimePicker trigger, so the nested dialog was not opened"
+      fi
     fi
   else
     echo "::warning::could not find the pickers opener in the tree, so nothing was read"
