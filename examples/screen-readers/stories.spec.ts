@@ -18,8 +18,30 @@
 // A story with no approved phrases yet is reported, not failed: approval is
 // a human step, and a missing one should not turn the week red.
 //
+// ## What this suite does not cover, said here so it is not inferred
+//
+// **NVDA does not enter a modal dialog.** `walk` steps with the reader's own
+// `next` from the top of the document, and a native `<dialog>` shown with
+// `showModal()` is not reachable that way: NVDA reads the inert page behind it
+// and then the end of it. Measured twice on `patterns-dialog--open`, whose
+// phrases were byte-identical to the closed story's, and not a budget or a
+// tolerance -- both were tried (#580).
+//
+// So for any story whose content sits behind a modal, `expected/nvda/` can
+// hold the trigger and nothing else, and its absence is a gap rather than a
+// pass. VoiceOver reaches those, since `CONTAINER` sends it an interact
+// command, so the two readers' approved files are not comparable in size and
+// should not be read as if they were.
+//
+// And an approved file cannot say how much of a story was read, which is the
+// same gap one level up: a walk that stops a third of the way in is approved
+// in the same shape as one that finished (#585).
+//
 // Patterns first: their expected announcements are defined by the WAI-ARIA
 // Authoring Practices, which is what makes approving them possible.
+//
+// And three `@hozo/form` stories by name, which is the other half of the rule
+// and the reason it is a list rather than a second prefix. See `EXTRA` below.
 //
 // How a reader is started, entered into a page and stepped across it lives in
 // `reader.ts`, which `tree-shape.spec.ts` shares.
@@ -46,8 +68,38 @@ const expectedDir = path.join(here, 'expected', reader)
 const index = JSON.parse(readFileSync(path.join(storybook, 'index.json'), 'utf8')) as {
   entries: Record<string, { id: string; type: string }>
 }
+/**
+ * Stories outside `patterns-` that a real reader walks, named one at a time.
+ *
+ * `@hozo/form` is the newest thing in the repository and the least measured:
+ * its Native `TimePicker` shipped with its value unreachable by a screen
+ * reader and nothing automated caught it -- a device run did (#559). Its Web
+ * half had no real-reader evidence at all. So the components with the least
+ * proof were the ones this suite was not looking at, which is backwards.
+ *
+ * A list rather than a `form-` prefix, and the two `Calendar` stories are
+ * deliberately not on it. A month grid is forty-two cells and about a hundred
+ * and fifty phrases; `MAX_STEPS` is 60 and VoiceOver enters a grid as a table
+ * and leaves after `INSIDE_STEPS` of 20. Both budgets stay as they are here,
+ * so adding the grids would mean approving a walk that stopped in the middle
+ * of it -- which reads as coverage and is not. Raising the budgets is not the
+ * answer either; see #584 for what is.
+ *
+ * `clock` has no overlay at all. The two `-open` stories put their panel in a
+ * `div` with `aria-modal`, not a native `<dialog>` behind `showModal()`, so
+ * the page around them is never made inert -- which is why they are worth
+ * trying on NVDA when `patterns-dialog--open` is not (#580).
+ */
+const EXTRA: ReadonlySet<string> = new Set([
+  'form-date-and-time--clock',
+  'form-date-and-time--date-and-time-open',
+  'form-date-and-time--date-range-open',
+])
+
 const stories = Object.values(index.entries)
-  .filter((entry) => entry.type === 'story' && entry.id.startsWith('patterns-'))
+  .filter(
+    (entry) => entry.type === 'story' && (entry.id.startsWith('patterns-') || EXTRA.has(entry.id)),
+  )
   .map((entry) => entry.id)
   .sort()
 
