@@ -169,6 +169,35 @@ mesh keeps its ordinary R3F pointer handler, so Hozo does not synthesize or
 double-dispatch pointer events. A registered object with `href` becomes a real
 anchor instead, preserving modifier-click and application-router integration.
 
+### R3F with WebGPU
+
+R3F also accepts an asynchronous renderer factory. Keep the factory stable and
+initialize Three's modern renderer before returning it:
+
+```tsx
+import type { R3FRendererFactoryProps } from '@hozo/three/r3f'
+
+const createWebGPURenderer = async ({ canvas }: R3FRendererFactoryProps) => {
+  const { WebGPURenderer } = await import('three/webgpu')
+  const renderer = new WebGPURenderer({
+    canvas: canvas as HTMLCanvasElement,
+    antialias: true,
+  })
+  await renderer.init()
+  return renderer
+}
+
+<ThreeCanvas accessibilityLabel="Product preview" gl={createWebGPURenderer}>
+  {/* ordinary R3F scene */}
+</ThreeCanvas>
+```
+
+The dynamic import keeps Three's modern renderer out of applications that use
+the default R3F WebGL path. Hozo passes the factory through; R3F owns awaiting,
+configuration, frame scheduling, error propagation, and disposal. Runtime GPU
+availability still belongs to the browser and should be covered by an
+application-level fallback or error boundary.
+
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle
 `BufferGeometry`, perspective and orthographic cameras, clipping, face sides,
