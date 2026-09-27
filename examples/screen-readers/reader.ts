@@ -62,6 +62,32 @@ export function startRecording(id: string): () => void {
 const ENTRY_ATTEMPTS = 3
 
 /**
+ * What the page's expandable controls and dialogs say right now.
+ *
+ * A diagnostic, printed at each step of entry, and it exists because two
+ * guesses about `form-date-and-time--date-and-time-open` were wrong in a row.
+ * NVDA reads that story's trigger as `collapsed` where the DOM renders
+ * `aria-expanded="true"`; a stale virtual buffer was proposed and then the
+ * entry click, and swallowing the press changed nothing at all.
+ * `DismissableLayer` closes on an outside `pointerdown` *and* on Escape, and
+ * what Guidepup sends while entering is not written down anywhere here.
+ *
+ * So the question stops being answered by reasoning about it. This says
+ * whether the panel is still open when the walk starts, and if it is not,
+ * which step shut it.
+ */
+async function layerState(page: Page): Promise<string> {
+  return await page.evaluate(() => {
+    const expandable = [...document.querySelectorAll('[aria-expanded]')].map(
+      (node) =>
+        `${node.getAttribute('aria-label') ?? node.textContent?.slice(0, 20)}=${node.getAttribute('aria-expanded')}`,
+    )
+    const dialogs = document.querySelectorAll('[role="dialog"], dialog[open]').length
+    return `expanded[${expandable.join(' ')}] dialogs=${dialogs}`
+  })
+}
+
+/**
  * Puts the reader at the top of the page's content, ready to be stepped.
  *
  * On Windows, Guidepup enters the page by clicking the middle of the body and
@@ -76,11 +102,12 @@ const ENTRY_ATTEMPTS = 3
  * It is removed before anything is read, the log is cleared, and NVDA goes back
  * to the top of the page.
  *
- * "Inert" had to be made true rather than assumed. The button swallows the
- * press instead of letting it bubble, because a press anywhere outside a
- * `DismissableLayer` closes it -- so entry itself was dismissing the popovers
- * of the stories it was entering, and the reader then read a page in a state
- * the story never had. See the listeners at the element.
+ * The button swallows the press rather than letting it bubble. That is hygiene
+ * and not a fix for anything measured: `DismissableLayer` does close on a
+ * press outside itself, so a harness element the page can hear is a harness
+ * element that can change the page -- but stopping it did not change what NVDA
+ * read for the one story where that would have shown. `layerState` above is
+ * how the actual cause gets found instead of guessed at again.
  *
  * Entry can also miss the browser window altogether. One run entered the
  * *desktop*: NVDA read "blank", "Pinned, list", "Windows Power Shell, 7 of 8"
@@ -99,10 +126,12 @@ const ENTRY_ATTEMPTS = 3
  * outside the page, and the comparison must not see them.
  */
 export async function enterPage(page: Page, screenReader: IScreenReader): Promise<void> {
+  console.log(`[enter] before        ${await layerState(page)}`)
   for (let attempt = 1; attempt <= ENTRY_ATTEMPTS; attempt++) {
     await page.bringToFront()
     if (!onWindows) {
       await screenReader.navigateToWebContent()
+      console.log(`[enter] voiceover     ${await layerState(page)}`)
       return
     }
     await page.evaluate(() => {
@@ -115,26 +144,26 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
       //
       // Guidepup enters by clicking the middle of the body, which this button
       // is covering, and `DismissableLayer` closes on a `pointerdown` on
-      // `document` whose target it does not contain. So entering a story with
-      // an open popover *closed it*, and the reader then read a page in a state
-      // the story never had: `form-date-and-time--date-and-time-open` came back
-      // as "button, collapsed, opens dialog, Departure" with no panel, which is
-      // NVDA reading correctly and the harness having moved the furniture.
+      // `document` whose target it does not contain. A harness element the page
+      // can hear is a harness element that can change the page, so this one is
+      // made not to be heard: capture phase, before the event reaches the
+      // `document` listener, and `click` and `mousedown` as well as
+      // `pointerdown` because a layer dismissing on either of those would be
+      // perturbed the same way.
       //
-      // macOS never hit it because VoiceOver moves its own cursor and takes the
-      // early return above -- no button, no click. That asymmetry was read as a
-      // reader limitation for a while (#580).
-      //
-      // Capture phase on the button, so the event is stopped before it bubbles
-      // to the `document` listener. `click` and `mousedown` too: a layer that
-      // dismissed on either of those would be perturbed just the same, and this
-      // element exists for the harness rather than for the page.
+      // Hygiene rather than a fix. It was expected to be why
+      // `form-date-and-time--date-and-time-open` read as "button, collapsed,
+      // opens dialog, Departure" with no panel, and it was not: the story read
+      // exactly the same afterwards. Something else is closing that panel, or
+      // it was never open when NVDA looked; `layerState` is there to say which
+      // (#580).
       for (const kind of ['pointerdown', 'mousedown', 'click']) {
         start.addEventListener(kind, (event) => event.stopPropagation(), { capture: true })
       }
       document.body.prepend(start)
     })
     await screenReader.navigateToWebContent()
+    console.log(`[enter] after click   ${await layerState(page)}`)
     await page.evaluate(() => document.getElementById('hozo-screen-reader-start')?.remove())
     // Before the keystroke rather than after it: a Ctrl+Home sent while another
     // window has focus is typed into that window.
@@ -147,6 +176,7 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
       { keyCode: [WindowsKeyCodes.Home], modifiers: [WindowsModifiers.Control] },
       { capture: 'initial' },
     )
+    console.log(`[enter] after home    ${await layerState(page)}`)
     return
   }
   throw new Error(
