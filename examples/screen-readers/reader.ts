@@ -65,16 +65,30 @@ const ENTRY_ATTEMPTS = 3
  * What the page's expandable controls and dialogs say right now.
  *
  * A diagnostic, printed at each step of entry, and it exists because two
- * guesses about `form-date-and-time--date-and-time-open` were wrong in a row.
- * NVDA reads that story's trigger as `collapsed` where the DOM renders
- * `aria-expanded="true"`; a stale virtual buffer was proposed and then the
- * entry click, and swallowing the press changed nothing at all.
- * `DismissableLayer` closes on an outside `pointerdown` *and* on Escape, and
- * what Guidepup sends while entering is not written down anywhere here.
+ * guesses about `form-date-and-time--date-and-time-open` were wrong in a row --
+ * a stale virtual buffer, then the entry click, and swallowing the press
+ * changed nothing at all.
  *
- * So the question stops being answered by reasoning about it. This says
- * whether the panel is still open when the walk starts, and if it is not,
- * which step shut it.
+ * It answered in one run:
+ *
+ *   [enter] before        expanded[Departure=true] dialogs=1
+ *   [enter] after click   expanded[Departure=false] dialogs=0
+ *
+ * Entry closes the overlay. All three stories that open one at load lose it,
+ * `patterns-dialog--open` included -- and that one is a native `<dialog>`,
+ * which no `pointerdown` closes and Escape does. So what
+ * `navigateToWebContent` sends is an Escape, `DismissableLayer`'s `keydown`
+ * handler and the browser's own dialog behaviour both act on it, and the
+ * pointer was never the mechanism.
+ *
+ * Which also rewrites #580. NVDA does not fail to enter a modal dialog; the
+ * dialog is shut before NVDA looks, and the identical logs for the open and
+ * closed Dialog stories were identical because by reading time the two pages
+ * were the same page.
+ *
+ * Kept rather than removed. It would have said all of this on the first run,
+ * and the next surprise in this suite is as likely to be about what the page
+ * was as about what the reader said.
  */
 async function layerState(page: Page): Promise<string> {
   return await page.evaluate(() => {
@@ -151,12 +165,12 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
       // `pointerdown` because a layer dismissing on either of those would be
       // perturbed the same way.
       //
-      // Hygiene rather than a fix. It was expected to be why
-      // `form-date-and-time--date-and-time-open` read as "button, collapsed,
-      // opens dialog, Departure" with no panel, and it was not: the story read
-      // exactly the same afterwards. Something else is closing that panel, or
-      // it was never open when NVDA looked; `layerState` is there to say which
-      // (#580).
+      // Hygiene rather than a fix, and now known to be hygiene. It was expected
+      // to be why `form-date-and-time--date-and-time-open` read as "button,
+      // collapsed, opens dialog, Departure" with no panel; the story read
+      // exactly the same afterwards, and `layerState` then showed entry closing
+      // the panel with an Escape rather than with the press. Worth keeping
+      // anyway: an element the page can hear is an element that can change it.
       for (const kind of ['pointerdown', 'mousedown', 'click']) {
         start.addEventListener(kind, (event) => event.stopPropagation(), { capture: true })
       }
