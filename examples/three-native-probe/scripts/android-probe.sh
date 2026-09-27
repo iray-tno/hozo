@@ -30,7 +30,7 @@ grep -q 'probe-complete' "$artifacts/accessibility.xml"
 read -r control_x control_y < <(
   node "$root/scripts/control-centre.mjs" \
     "$artifacts/accessibility.xml" \
-    "$package:id/activate-measured-cube"
+    'activate-measured-cube'
 )
 adb shell input tap "$control_x" "$control_y"
 
