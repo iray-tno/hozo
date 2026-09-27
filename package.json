@@ -27,7 +27,7 @@
     "measure:bluesky": "node scripts/measure-corpus.mjs bluesky-social-app",
     "measure:bluesky:rnw-free": "node scripts/measure-rnw-free-build.mjs",
     "measure:real-app": "node packages/migration-audit/src/cli.mjs",
-    "report:allure": "pnpm --filter @hozo/test-reporter exec allure generate -o ../../apps/landing/dist/reports ../../junit-reports",
+    "report:allure": "pnpm --filter @hozo/test-reporter exec allure generate -o ../../apps/landing/dist/reports ../../junit-reports && node packages/test-reporter/src/brand-report.mjs apps/landing/dist/reports/index.html",
     "report:conformance": "pnpm --filter @hozo/compiler build:native:release && turbo run report -- --check",
     "test": "pnpm test:packages && pnpm test:publishing && pnpm test:integration",
     "test:integration": "turbo run test --filter=./apps/* --filter=./examples/*",
