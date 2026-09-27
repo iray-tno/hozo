@@ -813,8 +813,9 @@ else
       # `contentDescription` slot. Matched together, because "am" on its own
       # matched this line and was reported as the clock resolving.
       pickers_heard 'the period, with the whole time on it' 'am or pm, 9:30'
-      pickers_heard "the DateTimePicker's trigger" 'departure'
-      pickers_heard "the DateRangePicker's trigger" 'dates of stay'
+      pickers_heard "the DatePicker's trigger, with its date" 'departure date, thursday, september 10'
+      pickers_heard "the DateTimePicker's trigger, with its value" 'departure, thursday, september 24'
+      pickers_heard "the DateRangePicker's trigger, with its range" 'dates of stay, september'
       # Whether the expanded state reaches TalkBack, which is this platform's
       # answer to the Web half's "not expanded".
       pickers_heard 'that the pickers are closed' 'collapsed'
@@ -851,7 +852,13 @@ else
       dialog_reached=
       for _ in $(seq 1 12); do
         advance || true
-        if [ "${new%%|*}" = "Departure" ]; then dialog_reached=1; break; fi
+        # A prefix, not an equality, and #608 is why. The trigger now carries
+        # its value in `accessibilityValue`, and `BaseViewManager` joins label
+        # and value with ", " -- so this utterance is "Departure, Thursday,
+        # September 24, 2026 at 9:30 AM" and an equality against "Departure"
+        # matched nothing. The comma is what keeps it off "Departure date",
+        # which is the `DatePicker` beside it.
+        case "${new%%|*}" in "Departure, "*) dialog_reached=1; break ;; esac
       done
 
       if [ -z "$dialog_reached" ]; then
