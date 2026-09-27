@@ -40,7 +40,8 @@ test(id, async ({ page, screenReader }) => {
     await page.goto('/fixtures/tree-shape.html', { waitUntil: 'load' })
     await page.locator('[role="tree"]').first().waitFor()
     await enterPage(page, screenReader)
-    log = await walk(screenReader, STEPS)
+    const read = await walk(screenReader, STEPS)
+    log = read.phrases
   } finally {
     stopRecording()
     writeFileSync(path.join(phrasesDir, `${id}.json`), `${JSON.stringify(log, null, 2)}\n`)

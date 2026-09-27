@@ -1,4 +1,5 @@
 # Approved from screen-readers run 36294264902 (VoiceOver, Safari).
+# truncates: September 2026 table
 #
 # partial: the same 18-of-42 cut as the file beside this one. Nothing is
 # selected in this story, so no range state is covered either -- the grid's
