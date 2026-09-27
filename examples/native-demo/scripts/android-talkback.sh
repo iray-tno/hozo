@@ -871,9 +871,13 @@ else
         fi
         echo "  the app survived nesting two Modals"
 
-        # Enough to cross the grid's first rows and reach the clock below it,
-        # which is the part a nested dialog could plausibly lose.
-        for i in $(seq 1 20); do
+        # Thirty, because twenty was not enough and the shortfall was worth
+        # measuring rather than guessing at. The walk enters the grid at the
+        # selected day and leaves it at the end of the month, so it spends
+        # nineteen steps on cells before the clock and the Done button below
+        # them -- twenty reached "Increase Hour" and stopped one control short
+        # of the thing the dialog closes with.
+        for i in $(seq 1 30); do
           advance || true
           printf 'dialog %s\t%s\n' "$i" "$new" >> "$pickers_file"
           echo "  dialog $i: ${new:-(silent)}"
@@ -887,8 +891,21 @@ else
             echo "::warning::the nested dialog never said $1 -- read talkback-speech.json"
           fi
         }
-        nested_heard 'the dialog itself' 'choose a date and time'
+        # The dialog's own name is recorded, not required.
+        #
+        # It is on the `View` that carries `accessibilityViewIsModal`, which is
+        # a container, and Tab visits focusable leaves. The same fact as the
+        # grid's `accessibilityLabel` two sections up: absent from this walk and
+        # not absent from the app. Warning about it would report the harness's
+        # reach as the component's defect, which the calendar section already
+        # learned not to do.
+        if printf '%s\n' "$nested_said" | grep -qi 'choose a date and time'; then
+          echo "  heard the dialog's own name, which Tab was not expected to reach"
+        else
+          echo "  the dialog's own name is not on this walk -- it is on a container, so Tab cannot land on it"
+        fi
         nested_heard 'a day in the grid' 'september'
+        nested_heard 'that a day is selected, inside a nested Modal' 'selected'
         nested_heard "the dialog's clock" 'hour'
         nested_heard 'the Done button' 'done'
 
