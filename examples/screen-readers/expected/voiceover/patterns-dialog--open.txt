@@ -1,0 +1,15 @@
+# Approved from screen-readers run 36288036251 (VoiceOver, Safari).
+# The dialog is open at load, so the walk starts inside it: the level-2
+# heading and the opener behind it are never reached, and neither is in this
+# list.
+# The item count is left off "web dialog" on purpose. VoiceOver says "with 4
+# items", which counts the dialog's children and would change with its
+# contents rather than with anything this story is about.
+# Reached only because `CONTAINER` in `reader.ts` learned to send an interact
+# command for a dialog (#577). Before that VoiceOver repeated the dialog's
+# name for every step and read none of this.
+Confirm Deployment web dialog
+heading level 3 Confirm Operation
+Are you sure you want to deploy the universal Hozo UI compiler to production?
+Cancel button
+Confirm button
