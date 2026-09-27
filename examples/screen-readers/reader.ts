@@ -141,11 +141,46 @@ export async function enterPage(page: Page, screenReader: IScreenReader): Promis
  * "Repository table Row 4 of 12 selected" -- the last being an ARIA tree,
  * which WebKit exposes as a table (#475) and which VoiceOver does not enter
  * either.
+ *
+ * And "Confirm Deployment web dialog with 4 items", added after a run on the
+ * story that opens one at load: VoiceOver started inside the dialog and then
+ * said that same line for every remaining step. The walk stalled there, so
+ * the story yielded nothing to approve -- the same shape as the three above
+ * and the same fix.
+ *
+ * `web ?dialog` rather than `dialog`, deliberately. The closed story's button
+ * is announced "Open Confirmation Dialog button", and a bare `\bdialog\b`
+ * matches it -- which would send an interact command to a button and break a
+ * walk that works today. VoiceOver appends the role, so the role is what to
+ * match on.
  */
-const CONTAINER = /\b(toolbar|list ?box|table)\b/i
+const CONTAINER = /\b(toolbar|list ?box|table|web ?dialog)\b/i
 
 /** How many steps one container may take before the walk moves on. */
 const INSIDE_STEPS = 20
+
+/**
+ * NVDA's word for an empty line, which is silence with a name on it.
+ *
+ * Counting it as a phrase made every story end for the wrong reason. NVDA says
+ * "blank" for the empty space after the last control, `walk` counted those as
+ * ordinary phrases, three in a row was a repeat, and seven of the eight
+ * stories were reported as ending on a repeat when they had simply run out of
+ * page. They now end on silence, which is what happened.
+ *
+ * It did **not** reach the Dialog story's dialog, and that was the hope. With
+ * the blanks counted as silence the walk goes one step further and stops on
+ * the fifth of them: there is nothing past them. So a modal dialog's subtree is
+ * not reachable by `next` from the top of the page at all, which is a different
+ * problem from a tolerance and needs a different entry -- NVDA's focus mode, or
+ * navigating to the focused element -- rather than a larger budget. Left alone
+ * here; see #560.
+ *
+ * Matched whole rather than as a substring, so a control actually labelled
+ * "Blank" would still be read. VoiceOver says `""` for the same thing and is
+ * unaffected.
+ */
+const BLANK = /^blank$/i
 
 /**
  * Steps to the end of the page and returns everything the reader said.
@@ -183,7 +218,7 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
 
   while (steps < maxSteps && repeats < 3 && silent < 5) {
     const said = await step()
-    if (said === '') {
+    if (said === '' || BLANK.test(said)) {
       silent += 1
       continue
     }
@@ -217,5 +252,19 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
     repeats = 0
     silent = 0
   }
+
+  // Which limit ended it, in the run log.
+  //
+  // The three are different findings and the phrase log cannot tell them
+  // apart. Run 36285106553 made that concrete: NVDA said the same eight
+  // phrases for the Dialog story closed and open, so it plainly never reached
+  // the dialog -- and whether it gave up on silence, on a repeat, or on the
+  // budget was left to be guessed at, which decides whether raising a
+  // tolerance would reach further or whether the content is not in its buffer
+  // at all. One line costs nothing and answers it next time.
+  const ended =
+    repeats >= 3 ? 'a repeated phrase' : silent >= 5 ? 'silence' : `the ${maxSteps}-step budget`
+  console.log(`[walk] ${reader} ended on ${ended} after ${steps} steps`)
+
   return await screenReader.spokenPhraseLog()
 }
