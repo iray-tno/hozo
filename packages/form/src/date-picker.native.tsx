@@ -55,8 +55,9 @@ export interface HozoDatePickerProps {
    *
    * Defaults to the same long form the grid cells use. An application that
    * wants "2026-09-24" or "Sep 24" supplies it, because the short forms are
-   * a design decision rather than an accessibility one -- the button's
-   * accessible name is this text, so whatever it returns is what is spoken.
+   * a design decision rather than an accessibility one -- whatever it returns
+   * is what is spoken, as the button's name when no `accessibilityLabel` was
+   * given and as its `accessibilityValue` when one was.
    */
   formatValue?: (date: CalendarDate, locale?: string) => string
   /**
@@ -135,17 +136,40 @@ export function HozoDatePicker({
     change(false)
   }
 
+  const text = value ? formatValue(value, locale) : placeholder
+
   return (
     <View style={style}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
+        // The chosen value, so a reader hears it and not only what the field is
+        // for.
+        //
+        // Only when a name was given, and that is the whole of the bug. iOS
+        // collapses the children of an accessible `Pressable`, so the `Text`
+        // below is not in the accessibility tree: with `accessibilityLabel` set
+        // the button's name is that label and the date is nowhere at all. A
+        // VoiceOver user heard "Departure, button" and could not hear which date
+        // was selected -- found on the first iOS reading of this screen, in the
+        // tree printed by `AccessibilityTreeTests`.
+        //
+        // Android hid it. `TalkBack` reads the label and then the `Text` as the
+        // button's contents, so the same markup announced the value there, and
+        // the Android dump lists the date among the nodes that are *drawn and
+        // undescribed* -- which is exactly the state that works on one platform
+        // and disappears on the other.
+        //
+        // Left undefined when no label was given, because then the name already
+        // *is* this text: `BaseViewManager` would join it to itself and iOS
+        // would say it twice.
+        accessibilityValue={accessibilityLabel ? { text } : undefined}
         accessibilityState={{ expanded: open, disabled }}
         disabled={disabled}
         style={triggerStyle}
         onPress={() => change(true)}
       >
-        <Text style={triggerTextStyle}>{value ? formatValue(value, locale) : placeholder}</Text>
+        <Text style={triggerTextStyle}>{text}</Text>
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => change(false)}>
         {/*
