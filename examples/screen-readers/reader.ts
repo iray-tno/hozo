@@ -277,6 +277,28 @@ const INSIDE_STEPS = 20
  */
 const BLANK = /^blank$/i
 
+/**
+ * NVDA's browse mode holds the arrow keys; this hands them to the widget.
+ *
+ * NVDA-Space, copied from Guidepup's own `toggleBetweenBrowseAndFocusMode`
+ * rather than called through it: the command table is on the NVDA class and
+ * the `screenReader` fixture does not expose it -- probe run 36359016412
+ * found `keyboardCommands` undefined on both readers. The definition is two
+ * key codes, so it is written out here with the reason next to it.
+ *
+ * Nothing on macOS. VoiceOver has no browse mode: an arrow key reaches the
+ * page as it is, which the same probe measured -- `press("ArrowRight")` moved
+ * the grid and was announced, while on NVDA the identical call moved nothing
+ * and said "1", which is browse mode reading the next character of "11".
+ */
+export async function enterFocusMode(screenReader: IScreenReader): Promise<void> {
+  if (!onWindows) return
+  await screenReader.perform({
+    keyCode: [WindowsKeyCodes.Insert, WindowsKeyCodes.Spacebar],
+    modifiers: [],
+  })
+}
+
 const SETTLE_MS = 3000
 const QUIET_MS = 700
 

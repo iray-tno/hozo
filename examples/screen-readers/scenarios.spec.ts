@@ -23,21 +23,31 @@
 // file is the same shape as `stories.spec.ts`'s -- phrases that must be said,
 // in order, with `#` lines saying why -- so one reviewer habit covers both.
 //
-// ## Why the keys come from Playwright and not from the reader
+// ## How the keys are delivered, and how that was decided
 //
-// `page.keyboard.press` reaches the browser over CDP. It is not an OS
-// keystroke, so NVDA's browse mode -- which owns the arrow keys and would eat
-// every one of them -- never sees it, and no mode has to be toggled on one
-// platform and not the other. The page moves focus itself, and both readers
-// announce a focus change whoever caused it. The alternative was
-// `toggleBetweenBrowseAndFocusMode` on Windows and nothing on macOS, which is
-// two different things being tested under one name.
+// Through the reader, as real OS keystrokes, with NVDA put into focus mode
+// first. Not over CDP, which is what this file was written to do and what
+// probe run 36359016412 disproved:
 //
-// This is also the honest limit of these scenarios, and it is worth saying
-// rather than leaving to be inferred: **they measure what is announced, not
-// that the key reached the app through the reader.** A browse-mode arrow that
-// NVDA swallows before the grid sees it would not show up here. That is a real
-// gap and a different test; `android-talkback.sh` has the device equivalent.
+//   A  entry.focus() over CDP      focus moved to the 10th   said nothing
+//   B  page.keyboard ArrowRight    focus moved to the 11th   said nothing
+//   C  screenReader.press Arrow…   VoiceOver: "Friday, September 11, 2026"
+//                                  NVDA: "1", and focus did not move at all
+//
+// So a focus change is *not* announced whoever caused it. Both readers stayed
+// silent for a move they did not cause, on a page they were reading -- the
+// same run's `next()` spoke immediately afterwards. That was the premise this
+// file rested on, and measuring it cost one run rather than a wrong fix.
+//
+// C also says what NVDA needs. "1" is browse mode reading the next character
+// of "11": the keystroke went to the virtual buffer and never reached the
+// grid, which is exactly what CDP was chosen to avoid and exactly what focus
+// mode fixes. VoiceOver has no such mode and needs nothing.
+//
+// The grid is reached by Tab rather than by focusing a cell, for the same
+// reason: a programmatic focus is silent, and arriving is one of the things
+// worth hearing. Three tabs -- the two month buttons, then the grid's one
+// roving tab stop.
 //
 // ## Approval
 //
@@ -52,9 +62,11 @@ import { screenReaderTest as test } from '@guidepup/playwright'
 
 import {
   approvedPhrases,
+  enterFocusMode,
   enterPage,
   here,
   missingInOrder,
+  onWindows,
   phrasesDir,
   reader,
   spokenAfter,
@@ -94,6 +106,9 @@ interface Scenario {
   claim: string
   steps: Step[]
 }
+
+/** Tabs from the top of the page to the grid: previous month, next month, a day. */
+const TABS_TO_GRID = 3
 
 const MONTH_GRID = 'form-date-and-time--month-grid'
 const RANGE_GRID = 'form-date-and-time--range'
@@ -176,23 +191,18 @@ test.use({ screenReaderStartOptions: startOptions })
 /**
  * Whether the way this file drives the grid is known to work.
  *
- * It is not, yet. Run 36357458553 drove all eight scenarios on both readers
- * and every one of them heard nothing at all -- focusing a cell said nothing,
- * and an arrow key over CDP said nothing. The guard below fired with its own
- * message each time, which is what it is for; what it cannot say is which of
- * four things went wrong, and guessing at this suite has a track record
- * (#580, #592, #598).
+ * It was false for one commit, and that was the point of the commit. Run
+ * 36357458553 drove all eight scenarios over CDP and heard nothing at all on
+ * either reader; rather than guess which of four things had gone wrong --
+ * guessing at this suite has a record (#580, #592, #598) -- the scenarios
+ * were skipped and `probe.spec.ts` measured it. See the header for what it
+ * found.
  *
- * So the scenarios are declared and skipped while `probe.spec.ts` measures
- * which way of driving a grid a real reader announces. Skipped rather than
- * deleted: they are the thing being built, and a run that carries them past
- * three retries each costs twenty-five minutes on VoiceOver to say the same
- * sentence eight times.
- *
- * Flipped to true in the commit that fixes the delivery, which is the commit
- * that deletes `probe.spec.ts`.
+ * Kept as a named constant because the next change to the delivery will want
+ * the same lever: skipping eight scenarios costs a run nothing, and letting
+ * them fail three times each costs twenty-five minutes of VoiceOver.
  */
-const MECHANISM_MEASURED = false
+const MECHANISM_MEASURED = true
 
 for (const scenario of scenarios) {
   const declare = MECHANISM_MEASURED ? test : test.skip
@@ -209,22 +219,35 @@ for (const scenario of scenarios) {
       await page.locator('#storybook-root > *').first().waitFor()
       await enterPage(page, screenReader)
 
-      // The grid's one tab stop, which is the day the component opens on.
-      //
-      // `tabIndex` roves: exactly one cell carries 0 and the rest carry -1, so
-      // this locator is the component's own answer to "where does a keyboard
-      // user arrive", rather than a date written down twice. Focusing it is
-      // itself the first thing measured -- a reader that says nothing here
-      // would have no scenario below it worth reading.
-      const entry = page.locator('[role="gridcell"][tabindex="0"]')
-      await entry.waitFor()
+      // Waited for rather than focused. `tabIndex` roves -- exactly one cell
+      // carries 0 and the rest carry -1 -- so this is the component's own
+      // answer to "where does a keyboard user arrive", and its presence is
+      // what says the grid has rendered. Focus gets there by Tab.
+      await page.locator('[role="gridcell"][tabindex="0"]').waitFor()
+
+      // Two month buttons, then the grid. The last Tab is the one worth
+      // hearing, so the two before it are stepped past without being recorded
+      // -- they are chrome on the way in, and a scenario that listed them
+      // would be approving the header rather than the calendar.
+      for (let tab = 1; tab < TABS_TO_GRID; tab++) {
+        await spokenAfter(screenReader, () => screenReader.press('Tab'))
+      }
       heard.push({
-        note: 'arriving on the grid',
-        said: await spokenAfter(screenReader, () => entry.focus()),
+        note: 'arriving on the grid, by Tab',
+        said: await spokenAfter(screenReader, () => screenReader.press('Tab')),
       })
 
+      // And then the arrow keys have to reach the grid rather than NVDA's
+      // virtual buffer. A no-op on VoiceOver; see the header.
+      if (onWindows) {
+        heard.push({
+          note: 'NVDA-Space, into focus mode',
+          said: await spokenAfter(screenReader, () => enterFocusMode(screenReader)),
+        })
+      }
+
       for (const step of scenario.steps) {
-        const said = await spokenAfter(screenReader, () => page.keyboard.press(step.press))
+        const said = await spokenAfter(screenReader, () => screenReader.press(step.press))
         heard.push({ note: `${step.press} -- ${step.note}`, said })
         if (step.silent === true && said.length > 0) {
           spoke.push(`${step.press} (${step.note}): ${JSON.stringify(said)}`)
