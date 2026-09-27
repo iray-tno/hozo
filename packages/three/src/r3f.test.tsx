@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createRef } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { Group } from 'three'
 
 import { ThreeCanvas } from './r3f.tsx'
 
@@ -31,4 +33,34 @@ test('decorative R3F surfaces hide the complete envelope', () => {
   const html = renderToStaticMarkup(<ThreeCanvas decorative />)
   assert.match(html, /<div[^>]*aria-hidden="true"[^>]*data-hozo-three-r3f=""/)
   assert.doesNotMatch(html, /role="img"/)
+})
+
+test('registered actions and destinations become native semantic controls', () => {
+  const object = new Group()
+  const objectRef = createRef<Group>()
+  objectRef.current = object
+  const html = renderToStaticMarkup(
+    <ThreeCanvas
+      accessibilityLabel="Product model"
+      accessibleObjects={[
+        { id: 'inspect', label: 'Inspect product', object: objectRef, onPress: () => undefined },
+        { id: 'details', label: 'Product details', object, href: '/products/42', replace: true },
+        {
+          id: 'hidden',
+          label: 'Unavailable option',
+          object,
+          disabled: true,
+          onPress: () => undefined,
+        },
+      ]}
+    />,
+  )
+
+  assert.match(html, /data-hozo-three-controls=""/)
+  assert.match(html, /<button type="button">Inspect product<\/button>/)
+  assert.match(
+    html,
+    /<a href="\/products\/42" data-hozo-navigation-replace="">Product details<\/a>/,
+  )
+  assert.doesNotMatch(html, /Unavailable option/)
 })
