@@ -44,7 +44,7 @@ test('a twenty-four hour clock counts from zero and has no period', () => {
   assert.deepEqual(attributes(html, 'aria-valuenow'), ['14', '5'])
   assert.match(html, />14</, 'the hour reads as itself')
   assert.match(html, />05</, 'and the minute keeps its leading zero')
-  assert.doesNotMatch(html, /<button/, 'nothing to toggle on this clock')
+  assert.equal(count(html, 'aria-label="AM or PM"'), 0, 'nothing to toggle on this clock')
 })
 
 test('a twelve-hour clock counts from one and gains a period', () => {
@@ -95,12 +95,42 @@ test('a disabled picker is out of the tab order and says it is disabled', () => 
   const html = render({ hour12: true, value: { hour: 9, minute: 0 }, disabled: true })
   assert.equal(count(html, 'aria-disabled="true"'), 2)
   assert.equal(count(html, 'data-hozo-disabled=""'), 2, 'the hook a `disabled:` variant needs')
-  assert.deepEqual(attributes(html, 'tabindex'), ['-1', '-1'])
-  assert.match(html, /<button[^>]*\sdisabled=""/, 'and the period with it')
+  assert.deepEqual(attributes(html, 'tabindex'), ['-1', '-1', '-1', '-1', '-1', '-1'])
+  assert.equal(count(html, ' disabled=""'), 5, 'four arrows and the period, all of them')
 })
 
-test('an enabled field is one tab stop each', () => {
-  assert.deepEqual(attributes(render({ value: { hour: 9, minute: 0 } }), 'tabindex'), ['0', '0'])
+test('an enabled field is one tab stop, and its arrows are not stops at all', () => {
+  // Arrow, value, arrow, twice. The field answers Up and Down itself, so
+  // putting its arrows in the tab order would make it three stops where it is
+  // one, for two controls that do what two keys already do. A pointer gains
+  // something; the keyboard path is untouched.
+  const html = render({ value: { hour: 9, minute: 0 } })
+  assert.deepEqual(attributes(html, 'tabindex'), ['-1', '0', '-1', '-1', '0', '-1'])
+})
+
+test('each field has an arrow either side of it, named and pointed', () => {
+  const html = render({ value: { hour: 9, minute: 0 } })
+  assert.deepEqual(attributes(html, 'data-hozo-step'), [
+    'increase',
+    'decrease',
+    'increase',
+    'decrease',
+  ])
+  for (const name of ['Increase Hour', 'Decrease Hour', 'Increase Minute', 'Decrease Minute']) {
+    assert.equal(count(html, `aria-label="${name}"`), 1, name)
+  }
+  assert.match(render({ value: null, increaseLabel: 'Plus' }), /aria-label="Plus Hour"/)
+})
+
+test('a field is a group, and the group is what the field class dresses', () => {
+  // Which is where the Native half puts `fieldStyle`. The arrows sit inside
+  // the group's right edge or above and below it, and which of the two is a
+  // stylesheet's decision rather than Hozo's -- so the class cannot be on the
+  // spinbutton, or neither layout would have anything to hang off.
+  const html = render({ value: { hour: 9, minute: 0 }, fieldClassName: 'F', stepClassName: 'S' })
+  assert.deepEqual(attributes(html, 'data-hozo-field'), ['hour', 'minute'])
+  assert.equal(count(html, 'class="F"'), 2)
+  assert.equal(count(html, 'class="S"'), 4)
 })
 
 test('the fields follow a controlled value rather than their own state', () => {
