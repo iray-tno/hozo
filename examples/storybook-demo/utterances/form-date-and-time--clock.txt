@@ -1,0 +1,53 @@
+heading, TimePicker, level 2
+paragraph
+Spinbuttons that can be typed as well as stepped. Each field announces the whole time rather than its own digits, because a reader moving the hour wants to hear where that put the time.
+end of paragraph
+group, Arrival time
+button, Increase Hour
+▲
+end of button, Increase Hour
+spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+9
+end of spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+button, Decrease Hour
+▼
+end of button, Decrease Hour
+button, Increase Minute
+▲
+end of button, Increase Minute
+spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+30
+end of spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+button, Decrease Minute
+▼
+end of button, Decrease Minute
+button, AM or PM
+AM
+end of button, AM or PM
+end of group, Arrival time
+paragraph
+The same component again, with the arrows above and below instead. Both are the same markup: only the two class names differ, and a keyboard user cannot tell them apart -- the arrows are out of the tab order, because the field already answers Up and Down.
+end of paragraph
+group, Arrival time, stacked arrows
+button, Increase Hour
+▲
+end of button, Increase Hour
+spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+9
+end of spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+button, Decrease Hour
+▼
+end of button, Decrease Hour
+button, Increase Minute
+▲
+end of button, Increase Minute
+spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+30
+end of spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+button, Decrease Minute
+▼
+end of button, Decrease Minute
+button, AM or PM
+AM
+end of button, AM or PM
+end of group, Arrival time, stacked arrows
