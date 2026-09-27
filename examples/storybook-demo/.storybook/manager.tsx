@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { addons, types } from 'storybook/manager-api'
 import { create } from 'storybook/theming/create'
 
@@ -16,17 +16,18 @@ function HomeButton() {
   const [focused, setFocused] = useState(false)
   const active = hovered || focused
 
-  return (
-    <a
-      href="../"
-      target="_self"
-      title="Back to Hozo LP Home"
-      aria-label="Back to Hozo LP Home"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={{
+  return React.createElement(
+    'a',
+    {
+      href: '../',
+      target: '_self',
+      title: 'Back to Hozo LP Home',
+      'aria-label': 'Back to Hozo LP Home',
+      onMouseEnter: () => setHovered(true),
+      onMouseLeave: () => setHovered(false),
+      onFocus: () => setFocused(true),
+      onBlur: () => setFocused(false),
+      style: {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '6px',
@@ -42,13 +43,14 @@ function HomeButton() {
         margin: '0 4px',
         outline: focused ? '2px solid #c8a882' : 'none',
         outlineOffset: '2px',
-      }}
-    >
-      <span aria-hidden="true" style={{ fontSize: '13px', lineHeight: 1 }}>
-        &larr;
-      </span>
-      <span>Hozo Home</span>
-    </a>
+      },
+    },
+    React.createElement(
+      'span',
+      { 'aria-hidden': 'true', style: { fontSize: '13px', lineHeight: 1 } },
+      '←',
+    ),
+    React.createElement('span', null, 'Hozo Home'),
   )
 }
 
@@ -57,6 +59,6 @@ addons.register('hozo/home-link', () => {
     title: 'Back to Hozo Home',
     type: types.TOOL,
     match: () => true,
-    render: () => <HomeButton />,
+    render: () => React.createElement(HomeButton, null),
   })
 })
