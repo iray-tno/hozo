@@ -1,0 +1,64 @@
+name: three-native-gpu
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/three-native-gpu.yml'
+      - 'examples/three-native-probe/**'
+  schedule:
+    - cron: '15 5 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: three-native-gpu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  expo-gl-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: pnpm install --frozen-lockfile --filter @hozo/example-three-native-probe...
+      - run: pnpm --filter @hozo/example-three-native-probe test
+      - run: pnpm --filter @hozo/example-three-native-probe typecheck
+      - run: pnpm --filter @hozo/example-three-native-probe prebuild:android
+      - name: Build release APK
+        working-directory: examples/three-native-probe/android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Exercise Expo GL host
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
+          script: examples/three-native-probe/scripts/android-probe.sh artifacts/three-native-gpu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: three-native-gpu-expo-gl-android
+          path: artifacts/three-native-gpu
+          retention-days: 30

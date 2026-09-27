@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Hozo Three Native Probe",
+    "slug": "hozo-three-native-probe",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "newArchEnabled": true,
+    "android": {
+      "package": "dev.hozo.threenativeprobe"
+    }
+  }
+}
