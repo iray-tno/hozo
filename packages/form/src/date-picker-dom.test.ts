@@ -70,10 +70,28 @@ test('once chosen, the button reads as the date, at whatever length was asked fo
   assert.match(short, />2026-9-24</)
 })
 
-test('the button can be named separately from the text it shows', () => {
-  // The text is a date; the name can say what the date is for.
+test('a named button says what the date is for and what the date is', () => {
   const html = render({ value: date(2026, 9, 24), accessibilityLabel: 'Departure date' })
-  assert.match(html, /aria-label="Departure date"/)
+  // Both, from `aria-labelledby`, because a button has one name and no value.
+  // `aria-label` alone made the name the purpose and left the date as content,
+  // which NVDA reads and VoiceOver on Safari does not -- so a VoiceOver user
+  // could not hear which date was selected. The Native halves close the same
+  // hole with `accessibilityValue`.
+  const [name] = attributes(html, 'aria-labelledby')
+  assert.ok(name, 'the button is named by reference')
+  const [purpose, value] = (name ?? '').split(' ')
+  assert.match(html, new RegExp(`<span id="${purpose}" hidden="">Departure date</span>`))
+  assert.match(html, new RegExp(`<span id="${value}">Thursday, September 24, 2026</span>`))
+  assert.doesNotMatch(html, /aria-label="Departure date"/, 'the label is not also an attribute')
+})
+
+test('an unnamed button is unchanged, down to the markup', () => {
+  // The name is its text, so nothing is referenced and no span is added. Worth
+  // asserting rather than assuming: the ids would otherwise be the first in the
+  // document and the dialog would no longer own the first one.
+  const html = render({ value: date(2026, 9, 24) })
+  assert.doesNotMatch(html, /aria-labelledby/)
+  assert.doesNotMatch(html, /<span/)
   assert.match(html, />Thursday, September 24, 2026</)
 })
 
