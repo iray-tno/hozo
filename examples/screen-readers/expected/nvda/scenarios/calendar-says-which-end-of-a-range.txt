@@ -1,0 +1,7 @@
+# Approved from screen-readers run 36362653748 (NVDA, Chrome).
+# "start of range" is in the cell's accessible name, composed there because
+# `aria-selected` is one bit and cannot say which end a day is. This is the
+# measurement that says composing it was right: the reader reads it, and reads
+# "selected" beside it.
+Wednesday, September 9, 2026, not selected, row 2, column 3
+Thursday, September 10, 2026, start of range, selected, row 2, column 4

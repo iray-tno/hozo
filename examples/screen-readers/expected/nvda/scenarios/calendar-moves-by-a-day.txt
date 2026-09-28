@@ -1,0 +1,7 @@
+# Approved from screen-readers run 36362653748 (NVDA, Chrome).
+# Right moves one day, and the cell is named in full -- the weekday included,
+# because a reader arriving by arrow key never passes through a column header.
+# "row 2, column 5" is NVDA's own, from the grid; it is approved as part of the
+# phrase rather than trimmed off, since a day that moved to the wrong cell would
+# still be named correctly.
+Friday, September 11, 2026, not selected, row 2, column 5

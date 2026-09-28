@@ -1,0 +1,6 @@
+# Approved from screen-readers run 36362653748 (NVDA, Chrome).
+# "current date" comes from `aria-current="date"`, not from the day's name, and
+# that is the whole point of the attribute being there. The story pins the 24th
+# as today so this line does not change overnight.
+Thursday, September 17, 2026, not selected, row 3, column 4
+Thursday, September 24, 2026, not selected, row 4, column 4, current date

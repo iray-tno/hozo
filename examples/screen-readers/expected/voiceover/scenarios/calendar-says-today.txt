@@ -1,0 +1,6 @@
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
+# "current date" reaches this reader too, from the same `aria-current="date"`.
+# The two readers word the cell differently and agree about the attribute, which
+# is the part that was in question.
+Thursday, September 17, 2026 17
+Thursday, September 24, 2026 24 current date

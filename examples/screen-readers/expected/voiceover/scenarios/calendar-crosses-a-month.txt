@@ -1,0 +1,8 @@
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
+# Two of the three steps, because the third is not reliably announced on this
+# reader: run 36361620009 heard the 24th and run 36362653748 did not, with the same
+# keys on the same story. What both heard is the one that carries the claim --
+# the arrow that left September announced a date in October, which is where it
+# landed.
+Thursday, September 17, 2026 17
+Thursday, October 1, 2026 1

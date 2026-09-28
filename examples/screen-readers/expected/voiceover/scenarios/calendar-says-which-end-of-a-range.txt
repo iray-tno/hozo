@@ -1,0 +1,14 @@
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
+# The step away from the range, for the reason the file beside this one gives:
+# VoiceOver does not re-announce the cell it entered the table on, and the
+# range's start is that cell.
+#
+# Not nothing, though. The warm-up -- which is not compared, so it is quoted
+# here rather than approved -- shows the composed name does reach this reader:
+#
+#   "Thursday, September 10, 2026, start of range 10 September 2026 table 7
+#    columns, 6 rows"
+#
+# That is the claim, heard, in a phrase the harness cannot hold to. NVDA's file
+# holds it to it.
+Wednesday, September 9, 2026 9

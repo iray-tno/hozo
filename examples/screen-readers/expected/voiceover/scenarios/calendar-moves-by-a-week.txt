@@ -1,0 +1,4 @@
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
+# Seven days on. VoiceOver does not say the row, so the claim rests on the date
+# alone -- which is the date arithmetic the component did, and is enough.
+Thursday, September 17, 2026 17

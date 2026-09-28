@@ -1,0 +1,5 @@
+# Approved from screen-readers run 36362653748 (NVDA, Chrome).
+# PageDown says the month. The day it keeps is not announced here, and that is
+# what was measured rather than what was hoped for: the caption is read and the
+# cell is not.
+October 2026

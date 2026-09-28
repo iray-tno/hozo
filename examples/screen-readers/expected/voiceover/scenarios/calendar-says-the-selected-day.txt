@@ -1,0 +1,13 @@
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
+# Half a scenario, and the half that is missing is a property of this reader.
+#
+# VoiceOver never announces selection in this grid: not "selected", not "not
+# selected", on any cell. And it does not re-announce the cell the grid opened
+# on -- every route back to the 10th is silent, because that is where its cursor
+# entered the table. So the claim this scenario makes is not measurable here,
+# and only the step away from the selected day is approved.
+#
+# NVDA's file beside this one has the finding that makes the scenario worth
+# keeping: there, the unchosen days say "not selected" and the chosen one says
+# nothing.
+Friday, September 11, 2026 11

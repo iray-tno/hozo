@@ -1,0 +1,4 @@
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
+# The caption, as on NVDA. Both readers answer PageDown with the month and not
+# with the day it kept.
+October 2026

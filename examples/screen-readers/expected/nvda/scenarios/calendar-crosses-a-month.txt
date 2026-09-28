@@ -1,0 +1,8 @@
+# Approved from screen-readers run 36362653748 (NVDA, Chrome).
+# Three downs from the 10th: the 17th, the 24th, and then out of September.
+# The third says "October 2026" and not a date -- the grid was replaced, and the
+# caption is what NVDA reads first. That is the claim: an arrow that leaves the
+# month says the month it landed in.
+Thursday, September 17, 2026, not selected, row 3, column 4
+Thursday, September 24, 2026, not selected, row 4, column 4, current date
+October 2026
