@@ -803,6 +803,18 @@ pub struct JsThemeColor {
     pub token: String,
     pub oklch: String,
     pub hex: String,
+    /// What this token becomes under `prefers-color-scheme: dark`.
+    ///
+    /// Absent for every token a project does not pair, which is all of them
+    /// until it writes one. `@hozo/tailwind` reads the pair off the theme's
+    /// own entries; see `loadTheme`.
+    pub dark: Option<JsThemeColorValue>,
+}
+
+#[napi(object)]
+pub struct JsThemeColorValue {
+    pub oklch: String,
+    pub hex: String,
 }
 
 fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
@@ -811,17 +823,18 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
     };
     let spacing_px = theme.spacing_px;
     let preflight = theme.preflight.unwrap_or(false);
-    hozo_ir::Theme::new(
-        theme
-            .colors
-            .into_iter()
-            .map(|color| {
-                (color.token, hozo_ir::ThemeColor { oklch: color.oklch, hex: color.hex })
-            })
-            .collect(),
-        spacing_px,
-        preflight,
-    )
+    let mut colors = std::collections::HashMap::new();
+    let mut dark_colors = std::collections::HashMap::new();
+    for color in theme.colors {
+        if let Some(dark) = color.dark {
+            dark_colors.insert(
+                color.token.clone(),
+                hozo_ir::ThemeColor { oklch: dark.oklch, hex: dark.hex },
+            );
+        }
+        colors.insert(color.token, hozo_ir::ThemeColor { oklch: color.oklch, hex: color.hex });
+    }
+    hozo_ir::Theme::with_dark(colors, dark_colors, spacing_px, preflight)
 }
 
 /// Every binding a source file imports from one module, by local name.

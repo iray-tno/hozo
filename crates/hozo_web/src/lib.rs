@@ -632,8 +632,37 @@ fn render_node(
             });
             continue;
         }
-        rules.push_str(&css::render_rule(&class_name, &condition, &props, theme));
+        let light = css::render_rule(&class_name, &condition, &props, theme);
+        rules.push_str(&light);
         rules.push_str("\n\n");
+
+        // A token that carries a dark value emits the same rule again under
+        // `prefers-color-scheme`, so a project says "dark" once in its theme
+        // rather than on every class list.
+        //
+        // Rendered rather than computed: the second pass is the identical
+        // properties against a palette whose paired tokens hold their dark
+        // values, and the comparison decides whether it was worth emitting.
+        // Anything not built from a paired token renders identically and
+        // costs nothing.
+        //
+        // Skipped when the author already wrote `dark:`, which is a rule that
+        // is *only* for dark mode. Emitting a dark copy of it would be saying
+        // the same thing twice, and the second one would win on a tie.
+        if condition != hozo_ir::Condition::Dark {
+            if let Some(dark) = theme.dark() {
+                let shaded = css::render_rule(&class_name, &condition, &props, &dark);
+                if shaded != light {
+                    rules.push_str(&css::render_rule(
+                        &class_name,
+                        &hozo_ir::Condition::Dark,
+                        &props,
+                        &dark,
+                    ));
+                    rules.push_str("\n\n");
+                }
+            }
+        }
     }
 
     let (shape, extra_attrs) = markup::element_shape(node, diagnostics);
@@ -1752,6 +1781,74 @@ export function Login() {
         let css = render_candidate_stylesheet(&names, &theme);
         assert!(css.contains(".bg-brand {"), "{css}");
         assert!(!css.contains("accent-height"), "{css}");
+    }
+
+    #[test]
+    fn a_paired_token_emits_its_dark_half_without_anybody_writing_dark() {
+        // The whole point of pairing. Tailwind emits `var(--color-brand)` and
+        // a project redefines the variable under `prefers-color-scheme`;
+        // Hozo resolves the value into the rule, so redefining a variable it
+        // never reads does nothing. This is the same ability, spelled the way
+        // a compiler that inlines can spell it.
+        let theme = paired_theme();
+        let source = "import { View } from '@hozo/core'\nconst el = <View className=\"bg-brand p-4\">x</View>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &theme);
+        assert!(output.css.contains("background-color: oklch(0.7 0.2 30)"), "{}", output.css);
+        assert!(output.css.contains("@media (prefers-color-scheme: dark)"), "{}", output.css);
+        assert!(output.css.contains("background-color: oklch(0.2 0.05 266)"), "{}", output.css);
+        // The padding is in the light rule and has no business being repeated
+        // in the dark one -- but it is, because the dark rule is the same
+        // properties rendered again. Asserted so the cost is visible: a rule
+        // built from one paired token carries whatever else was on it.
+        assert_eq!(output.css.matches("padding-top: 16px").count(), 2, "{}", output.css);
+    }
+
+    #[test]
+    fn an_unpaired_token_emits_nothing_extra() {
+        // What keeps this from doubling every stylesheet. A project with no
+        // pairs renders exactly what it rendered before.
+        let theme = Theme::new(
+            std::collections::HashMap::from([(
+                "brand".to_string(),
+                hozo_ir::ThemeColor { oklch: "oklch(0.7 0.2 30)".into(), hex: "#e05a2b".into() },
+            )]),
+            None,
+            false,
+        );
+        let source = "import { View } from '@hozo/core'\nconst el = <View className=\"bg-brand\">x</View>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &theme);
+        assert!(!output.css.contains("prefers-color-scheme"), "{}", output.css);
+    }
+
+    #[test]
+    fn a_class_the_author_marked_dark_is_not_doubled() {
+        // `dark:bg-brand` is a rule that exists only in dark mode. Rendering
+        // a dark copy of it would say the same thing twice, and the copy
+        // would win on a tie.
+        let theme = paired_theme();
+        let source =
+            "import { View } from '@hozo/core'\nconst el = <View className=\"dark:bg-brand\">x</View>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &theme);
+        assert_eq!(output.css.matches("prefers-color-scheme").count(), 1, "{}", output.css);
+    }
+
+    /// One token with both halves, for the three tests above.
+    fn paired_theme() -> Theme {
+        Theme::with_dark(
+            std::collections::HashMap::from([(
+                "brand".to_string(),
+                hozo_ir::ThemeColor { oklch: "oklch(0.7 0.2 30)".into(), hex: "#e05a2b".into() },
+            )]),
+            std::collections::HashMap::from([(
+                "brand".to_string(),
+                hozo_ir::ThemeColor { oklch: "oklch(0.2 0.05 266)".into(), hex: "#0f172b".into() },
+            )]),
+            None,
+            false,
+        )
     }
 
     #[test]

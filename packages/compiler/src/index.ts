@@ -232,7 +232,20 @@ function loadNative(): NativeBinding {
  * Given to a `Compiler` once, not to every call. See `createCompiler`.
  */
 export interface Theme {
-  colors: { token: string; oklch: string; hex: string }[]
+  colors: {
+    token: string
+    oklch: string
+    hex: string
+    /**
+     * What the token becomes under `prefers-color-scheme: dark`.
+     *
+     * Both backends already had the machinery -- the Web emits a media
+     * query and Native a second `StyleSheet` behind a boolean guard -- and
+     * carried it only for a `dark:` somebody wrote by hand. A paired token
+     * is a project saying it once, in its theme, for every class list.
+     */
+    dark?: { oklch: string; hex: string }
+  }[]
   /** One spacing step in pixels; Tailwind's `--spacing`, 0.25rem by default. */
   spacingPx?: number
   /**

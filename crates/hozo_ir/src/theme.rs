@@ -32,6 +32,12 @@ pub struct ThemeColor {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Theme {
     colors: HashMap<String, ThemeColor>,
+    /// The value each paired token takes under `prefers-color-scheme: dark`.
+    ///
+    /// Separate from `colors` rather than an `Option` inside `ThemeColor`,
+    /// because every existing reader of a colour wants the light one and
+    /// should keep getting it without being changed. See `dark()`.
+    dark_colors: HashMap<String, ThemeColor>,
     /// One spacing step in pixels. Tailwind's `--spacing` is 0.25rem, and
     /// the root font size is 16px, so a step is 4px unless a project says
     /// otherwise.
@@ -78,7 +84,12 @@ impl Default for Theme {
         // No theme means no project, which is every unit test and every
         // caller that has not been told otherwise. `false` is the honest
         // answer there: nothing has said a reset is being shipped.
-        Theme { colors: HashMap::new(), spacing_px: DEFAULT_SPACING_PX, preflight: false }
+        Theme {
+            colors: HashMap::new(),
+            dark_colors: HashMap::new(),
+            spacing_px: DEFAULT_SPACING_PX,
+            preflight: false,
+        }
     }
 }
 
@@ -88,7 +99,21 @@ impl Theme {
         spacing_px: Option<f64>,
         preflight: bool,
     ) -> Self {
-        Theme { colors, spacing_px: spacing_px.unwrap_or(DEFAULT_SPACING_PX), preflight }
+        Theme::with_dark(colors, HashMap::new(), spacing_px, preflight)
+    }
+
+    pub fn with_dark(
+        colors: HashMap<String, ThemeColor>,
+        dark_colors: HashMap<String, ThemeColor>,
+        spacing_px: Option<f64>,
+        preflight: bool,
+    ) -> Self {
+        Theme {
+            colors,
+            dark_colors,
+            spacing_px: spacing_px.unwrap_or(DEFAULT_SPACING_PX),
+            preflight,
+        }
     }
 
     /// Whether a CSS reset is flattening the browser’s own stylesheet.
@@ -119,4 +144,38 @@ impl Theme {
         })
     }
 
+    /// The same theme with every paired token switched to its dark value, or
+    /// `None` when the project declared no pairs.
+    ///
+    /// A token carries two values because both backends already want them.
+    /// The Web emits `@media (prefers-color-scheme: dark)` and Native emits a
+    /// second `StyleSheet` behind `__hozoDark &&` -- that machinery has been
+    /// there for `dark:` written by hand, and this is what lets a project say
+    /// it once in its theme instead.
+    ///
+    /// A whole theme rather than a per-token lookup, because the caller's
+    /// question is "what would this rule be in dark mode", and the answer is
+    /// "the same rendering against a different palette". Resolving colour by
+    /// colour would mean threading "which token did this value come from"
+    /// through every property, and a value has been a `String` by the time
+    /// anything could ask.
+    ///
+    /// `None` rather than a copy of itself, so a project with no dark tokens
+    /// -- which is every project today -- does no extra work and emits no
+    /// extra bytes.
+    pub fn dark(&self) -> Option<Theme> {
+        if self.dark_colors.is_empty() {
+            return None;
+        }
+        let mut colors = self.colors.clone();
+        for (token, color) in &self.dark_colors {
+            colors.insert(token.clone(), color.clone());
+        }
+        Some(Theme {
+            colors,
+            dark_colors: HashMap::new(),
+            spacing_px: self.spacing_px,
+            preflight: self.preflight,
+        })
+    }
 }
