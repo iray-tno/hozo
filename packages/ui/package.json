@@ -44,6 +44,7 @@
     "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
   "dependencies": {
+    "@hozo/core": "workspace:^",
     "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
     "@hozo/typography": "workspace:^"

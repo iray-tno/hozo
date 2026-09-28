@@ -334,6 +334,9 @@ importers:
       '@hozo/typography':
         specifier: workspace:*
         version: link:../../packages/typography
+      '@hozo/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@react-three/fiber':
         specifier: ^9.8.1
         version: 9.8.1(3f09c4011329fbd0f8a23285821411c3)
@@ -1009,6 +1012,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@hozo/core':
+        specifier: workspace:^
+        version: link:../core
       '@hozo/patterns':
         specifier: workspace:^
         version: link:../patterns
