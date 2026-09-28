@@ -575,6 +575,7 @@ packages/
   test-reporter/           JUnit normalization and Allure 3 test report generator for Hozo
   three/                   Projects Three.js scenes into portable Hozo Canvas scenes.
   typography/              Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.
+  ui/                      A styled component library for Hozo, shipped as source and compiled by your own build.
   vite/                    Vite integration for the Hozo compiler (Web lowering backend).
 
 crates/

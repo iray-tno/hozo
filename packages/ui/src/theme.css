@@ -1,0 +1,103 @@
+/* The tokens every component in this package is written against.
+ *
+ * Import once, next to `@import "tailwindcss"`:
+ *
+ *   @import "tailwindcss";
+ *   @import "@hozo/ui/theme.css";
+ *
+ * Every name here becomes a utility: `--color-hozo-accent` is
+ * `bg-hozo-accent`, `text-hozo-accent`, `border-hozo-accent`, and so on.
+ *
+ * ## Why the values are literals, for now
+ *
+ * `--color-hozo-accent: var(--color-indigo-600)` is how Tailwind documents a
+ * semantic theme and is what this file wants to say. It could not, until
+ * #641: `@hozo/tailwind` converts each `--color-*` it finds and leaves out
+ * what will not convert, a `var()` chain was not a colour to that converter,
+ * and so every token here would have vanished from the Theme -- silently, and
+ * with it every concrete value the Native lowering needs, since React Native
+ * has no custom properties to fall back on.
+ *
+ * That is a bug rather than a rule, and #641 fixes it. These become references
+ * when it lands; the comments beside them are what the references will say.
+ *
+ * The palette entry each token came from is therefore recorded twice over,
+ * which is also the record of where the look came from: it is the palette
+ * `examples/storybook-demo` grew by hand, counted and promoted. `text-slate-900`
+ * appeared 120 times there, `border-slate-200` 100, `text-slate-700` 77;
+ * `indigo-600` was the accent in 27 places and `indigo-700` its text in 29.
+ * Nothing here was designed. It was inventoried.
+ *
+ * ## Why semantic names
+ *
+ * A component that says `bg-indigo-600` cannot be re-themed; one that says
+ * `bg-hozo-accent` can, by redefining one line. These are custom properties
+ * rather than a JavaScript object, so they are the same Theme IR a StyleX
+ * frontend would later read rather than a second copy of it (#156 §4).
+ *
+ * **No component in this package may write a palette name or a literal.** A
+ * rule and not a preference: one `bg-slate-100` in one component is a theme
+ * that is 95% swappable, which is the same as not swappable.
+ */
+
+@theme {
+  /* Surfaces, from the page up. `raised` is a control's resting fill --
+   * `bg-slate-100` in the demo's fields and chips. */
+  --color-hozo-surface: #fff; /* white */
+  --color-hozo-surface-sunken: oklch(98.4% 0.003 247.858); /* slate-50 */
+  --color-hozo-surface-raised: oklch(96.8% 0.007 247.896); /* slate-100 */
+  --color-hozo-surface-hover: oklch(98.4% 0.003 247.858); /* slate-50 */
+  --color-hozo-surface-inverse: oklch(20.8% 0.042 265.755); /* slate-900 */
+
+  /* Borders: the hairline between rows, a card's edge, an input's. */
+  --color-hozo-border-subtle: oklch(96.8% 0.007 247.896); /* slate-100 */
+  --color-hozo-border: oklch(92.9% 0.013 255.508); /* slate-200 */
+  --color-hozo-border-strong: oklch(86.9% 0.022 252.894); /* slate-300 */
+
+  /* Text. Every one of these clears 4.5:1 on `surface`, which is not an
+   * accident: `check-a11y.mjs` runs axe with no rule filtering, and three of
+   * the first five findings it ever made were about computed colour.
+   * `subtle` is slate-500 and not the slate-300 a disabled label wants to be,
+   * for that reason and no other. */
+  --color-hozo-text: oklch(20.8% 0.042 265.755); /* slate-900 */
+  --color-hozo-text-body: oklch(37.2% 0.044 257.287); /* slate-700 */
+  --color-hozo-text-muted: oklch(44.6% 0.043 257.281); /* slate-600 */
+  --color-hozo-text-subtle: oklch(55.4% 0.046 257.417); /* slate-500 */
+  --color-hozo-text-inverse: #fff; /* white */
+
+  /* The accent, and what goes on top of it. `on-accent` exists so that no
+   * component has to know the accent happens to be dark. */
+  --color-hozo-accent: oklch(51.1% 0.262 276.966); /* indigo-600 */
+  --color-hozo-accent-hover: oklch(45.7% 0.24 277.023); /* indigo-700 */
+  --color-hozo-accent-subtle: oklch(96.2% 0.018 272.314); /* indigo-50 */
+  --color-hozo-accent-text: oklch(45.7% 0.24 277.023); /* indigo-700 */
+  --color-hozo-on-accent: #fff; /* white */
+
+  /* The focus ring, named once so it cannot drift.
+   *
+   * It drifted already: the demo has `focus-visible:outline-indigo-600` on
+   * four controls and nothing at all on most of the rest. That is a real
+   * accessibility gap, and it is the first thing this package closes by
+   * construction -- the ring is part of the only class list an interactive
+   * component can have. */
+  --color-hozo-focus: oklch(51.1% 0.262 276.966); /* indigo-600 */
+
+  /* Destructive actions and error text. The one family not counted from the
+   * demo, which barely has one, so these were chosen -- and chosen to clear
+   * 4.5:1 on `surface` like the rest. */
+  --color-hozo-danger: oklch(57.7% 0.245 27.325); /* red-600 */
+  --color-hozo-danger-text: oklch(50.5% 0.213 27.518); /* red-700 */
+  --color-hozo-danger-subtle: oklch(97.1% 0.013 17.38); /* red-50 */
+  --color-hozo-on-danger: #fff; /* white */
+
+  /* Radii. The demo used `rounded-lg` 72 times, `rounded-xl` 57 and
+   * `rounded-2xl` 44: a control, a surface, a page-level card. */
+  --radius-hozo-control: 0.5rem; /* lg */
+  --radius-hozo-surface: 0.75rem; /* xl */
+  --radius-hozo-panel: 1rem; /* 2xl */
+
+  /* One shadow, because the demo used `shadow-sm` 65 times and everything
+   * else fewer than six. A second can be added when something needs it,
+   * rather than in case. */
+  --shadow-hozo-surface: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); /* sm */
+}
