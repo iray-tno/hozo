@@ -16,7 +16,7 @@
 import { View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
-import { Button, Card, Field, Stack } from '@hozo/ui'
+import { Alert, Badge, Button, Card, Checkbox, Field, Input, Stack, Switch } from '@hozo/ui'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
@@ -24,15 +24,12 @@ const page = 'max-w-xl w-full space-y-6'
 const title = 'text-xl font-bold text-slate-900'
 const prose = 'text-sm text-slate-600'
 
-/** A plain input, which `@hozo/ui` does not ship and `Field` does not need. */
-const input =
-  'w-full rounded-hozo-control border border-hozo-border-strong bg-hozo-surface px-3 py-2 ' +
-  'text-sm text-hozo-text placeholder:text-hozo-text-subtle ' +
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus ' +
-  'aria-invalid:border-hozo-danger'
+const MEALS = ['Breakfast', 'Lunch', 'Dinner'] as const
 
 function UiGallery() {
   const [email, setEmail] = useState('not-an-email')
+  const [meals, setMeals] = useState<readonly string[]>(['Lunch'])
+  const [emails, setEmails] = useState(true)
   const wrong = !email.includes('@')
 
   return (
@@ -84,13 +81,7 @@ function UiGallery() {
               required
             >
               {(control) => (
-                <input
-                  {...control}
-                  type="email"
-                  className={input}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
+                <Input {...control} inputMode="email" value={email} onChangeText={setEmail} />
               )}
             </Field>
             <Stack direction="row" gap="tight">
@@ -103,6 +94,53 @@ function UiGallery() {
             </Stack>
           </Stack>
         </Card>
+      </Section>
+      <Section>
+        <Heading level={2} className={title}>
+          Checkbox, Switch, Badge and Alert
+        </Heading>
+        <Paragraph className={prose}>
+          The first two wear the patterns from @hozo/patterns and draw a box and a track with
+          pseudo-elements, off data-hozo-state -- so neither is told which state it is in. The
+          parent below is partially checked whenever some but not all of the meals are, which is the
+          state no input attribute can express.
+        </Paragraph>
+        <Card flat>
+          <Stack gap="tight">
+            <Checkbox
+              checked={meals.length === MEALS.length ? true : meals.length === 0 ? false : 'mixed'}
+              onCheckedChange={(next) => setMeals(next ? MEALS : [])}
+            >
+              All meals
+            </Checkbox>
+            {MEALS.map((meal) => (
+              <Checkbox
+                key={meal}
+                className="pl-6"
+                checked={meals.includes(meal)}
+                onCheckedChange={(next) =>
+                  setMeals((chosen) =>
+                    next ? [...chosen, meal] : chosen.filter((one) => one !== meal),
+                  )
+                }
+              >
+                {meal}
+              </Checkbox>
+            ))}
+            <Switch checked={emails} onCheckedChange={setEmails}>
+              Email notifications
+            </Switch>
+          </Stack>
+        </Card>
+        <Stack direction="row" gap="tight" align="center">
+          <Badge>Draft</Badge>
+          <Badge tone="accent">New</Badge>
+          <Badge tone="danger">Overdue</Badge>
+        </Stack>
+        <Alert tone="danger" live="assertive">
+          Your session expires in two minutes.
+        </Alert>
+        <Alert>A notice that is simply on the page, and is not announced for being here.</Alert>
       </Section>
     </View>
   )
