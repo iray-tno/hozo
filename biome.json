@@ -35,6 +35,7 @@
       "!**/*.astro",
       "!packages/tailwind-conformance/snapshot.json",
       "!packages/tailwind-conformance/stylex-manifest.json",
+      "!packages/three/scene-conformance.json",
       "!examples/native-demo/ios"
     ]
   },

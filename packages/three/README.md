@@ -272,7 +272,11 @@ atomic portable capabilities from class-level Three.js surface classification;
 both link every claim back to executable tests. Every current portable surface
 category now has an independently owned capability inventory, so the report can
 publish an overall portable ceiling without presenting it as real-scene success.
-The version-pinned real-scene corpus remains a separate next step.
+The separate [real-scene report](./scene-conformance.md) runs five
+version-pinned archetypes and publishes the same observations as
+[machine-readable JSON](./scene-conformance.json). Portable results are
+measured today; unconnected renderer-family runners remain explicitly
+`not-run` rather than being inferred from their API surface.
 
 GPU renderer conformance is environment-dependent and is therefore measured on
 main, weekly, and on demand rather than folded into the portable percentage.

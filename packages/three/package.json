@@ -52,10 +52,14 @@
       "types": "./dist/webgpu.d.ts",
       "default": "./dist/webgpu.js"
     },
+    "./scene-conformance.json": "./scene-conformance.json",
     "./package.json": "./package.json"
   },
   "files": [
+    "conformance.md",
     "dist",
+    "scene-conformance.json",
+    "scene-conformance.md",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
@@ -67,10 +71,10 @@
   },
   "scripts": {
     "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
-    "report": "node scripts/report-conformance.ts",
+    "report": "node scripts/report-conformance.ts && node scripts/report-scenes.ts",
     "test:gpu": "node scripts/check-gpu.mjs",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js && node --test scripts/conformance.test.ts scripts/renderer-entrypoints.test.ts && node scripts/report-conformance.ts --check"
+    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js && node --test scripts/conformance.test.ts scripts/renderer-entrypoints.test.ts scripts/scene-corpus.test.ts && node scripts/report-conformance.ts --check && node scripts/report-scenes.ts --check"
   },
   "dependencies": {
     "@hozo/canvas": "workspace:^"

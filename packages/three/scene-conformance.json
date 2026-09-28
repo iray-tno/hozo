@@ -1,0 +1,203 @@
+{
+  "fixtures": [
+    {
+      "archetype": "flat diagram / labelled interaction",
+      "exercises": [
+        "orthographic camera",
+        "flat meshes",
+        "line segments",
+        "named interaction targets"
+      ],
+      "families": {
+        "classic-webgl": {
+          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "modern-webgpu": {
+          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "native-host": {
+          "reason": "native-host corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "portable": {
+          "status": "useful"
+        }
+      },
+      "id": "flat-labelled-diagram",
+      "portableObservation": {
+        "diagnosticCodes": [],
+        "namedObjects": 3,
+        "outputNodes": 4
+      },
+      "source": {
+        "location": "scripts/scene-corpus.ts#flatDiagram",
+        "version": "corpus-v1 / Three.js r180"
+      },
+      "verified": true
+    },
+    {
+      "archetype": "wireframe or CAD-like scene",
+      "exercises": [
+        "box geometry",
+        "world rotation",
+        "wireframe material",
+        "depth ordering"
+      ],
+      "families": {
+        "classic-webgl": {
+          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "modern-webgpu": {
+          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "native-host": {
+          "reason": "native-host corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "portable": {
+          "status": "useful"
+        }
+      },
+      "id": "wireframe-cad",
+      "portableObservation": {
+        "diagnosticCodes": [],
+        "namedObjects": 1,
+        "outputNodes": 36
+      },
+      "source": {
+        "location": "scripts/scene-corpus.ts#wireframeCad",
+        "version": "corpus-v1 / Three.js r180"
+      },
+      "verified": true
+    },
+    {
+      "archetype": "points / sprite scene",
+      "exercises": [
+        "points",
+        "fixed screen-space point size",
+        "sprite billboard",
+        "named targets"
+      ],
+      "families": {
+        "classic-webgl": {
+          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "modern-webgpu": {
+          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "native-host": {
+          "reason": "native-host corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "portable": {
+          "status": "useful"
+        }
+      },
+      "id": "points-and-sprite",
+      "portableObservation": {
+        "diagnosticCodes": [],
+        "namedObjects": 2,
+        "outputNodes": 4
+      },
+      "source": {
+        "location": "scripts/scene-corpus.ts#pointsAndSprite",
+        "version": "corpus-v1 / Three.js r180"
+      },
+      "verified": true
+    },
+    {
+      "archetype": "instancing plus morph with a portable material",
+      "exercises": [
+        "instanced mesh",
+        "instance transforms",
+        "morph targets",
+        "MeshBasicMaterial"
+      ],
+      "families": {
+        "classic-webgl": {
+          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "modern-webgpu": {
+          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "native-host": {
+          "reason": "native-host corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "portable": {
+          "status": "useful"
+        }
+      },
+      "id": "instancing-and-morph",
+      "portableObservation": {
+        "diagnosticCodes": [],
+        "namedObjects": 1,
+        "outputNodes": 2
+      },
+      "source": {
+        "location": "scripts/scene-corpus.ts#instancingAndMorph",
+        "version": "corpus-v1 / Three.js r180"
+      },
+      "verified": true
+    },
+    {
+      "archetype": "ordinary glTF/PBR scene",
+      "exercises": [
+        "glTF 2.0 loader",
+        "asset graph",
+        "MeshStandardMaterial",
+        "PBR factors"
+      ],
+      "families": {
+        "classic-webgl": {
+          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "modern-webgpu": {
+          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "native-host": {
+          "reason": "native-host corpus execution is not wired into CI yet",
+          "status": "not-run"
+        },
+        "portable": {
+          "status": "diagnostic"
+        }
+      },
+      "id": "gltf-pbr",
+      "portableObservation": {
+        "diagnosticCodes": [
+          "UNSUPPORTED_MATERIAL"
+        ],
+        "namedObjects": 0,
+        "outputNodes": 0
+      },
+      "source": {
+        "location": "fixtures/minimal-pbr.gltf",
+        "version": "glTF 2.0 / Three.js r180"
+      },
+      "verified": true
+    }
+  ],
+  "generatedAgainst": "Three.js r180",
+  "schemaVersion": 1,
+  "summary": {
+    "diagnostic": 1,
+    "failed": 0,
+    "notRunByFamily": {
+      "classic-webgl": 5,
+      "modern-webgpu": 5,
+      "native-host": 5
+    },
+    "useful": 4
+  }
+}
