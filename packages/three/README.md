@@ -290,6 +290,14 @@ executes the same five real-scene fixtures and requires useful draws, semantic
 controls, and activation for every scene. This makes forced WebGL 2 the stable
 Modern-family baseline while native WebGPU remains separately observable.
 
+The weekly/on-demand Native workflow executes those same fixtures through the
+portable `ThreeCanvas` entry on React Native Android and the Skia Canvas host.
+It uploads screenshots, accessibility trees, and `three-native-corpus.json`:
+the four portable archetypes must draw, expose named Android controls, and
+activate; the ordinary glTF/PBR fixture must stop with the documented
+`UNSUPPORTED_MATERIAL` diagnostic. This is Native-host evidence, not a claim
+that the separately tracked Native GPU backend is available.
+
 <!-- generated: package-footer -->
 
 ---

@@ -14,7 +14,7 @@ on:
       - '.github/workflows/three-gpu.yml'
       - 'packages/three/scripts/check-gpu.mjs'
       - 'packages/three/scripts/gpu-conformance-probe.tsx'
-      - 'packages/three/scripts/scene-fixtures.ts'
+      - 'packages/three/src/conformance-scenes.ts'
       - 'packages/three/fixtures/**'
   schedule:
     - cron: '30 4 * * 1'

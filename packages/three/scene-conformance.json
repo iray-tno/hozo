@@ -10,15 +10,15 @@
       ],
       "families": {
         "classic-webgl": {
-          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "reason": "classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "modern-webgpu": {
-          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "reason": "modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "native-host": {
-          "reason": "native-host corpus execution is not wired into CI yet",
+          "reason": "native-host result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "portable": {
@@ -32,7 +32,7 @@
         "outputNodes": 4
       },
       "source": {
-        "location": "scripts/scene-fixtures.ts#flatDiagram",
+        "location": "src/conformance-scenes.ts#flatDiagram",
         "version": "corpus-v1 / Three.js r180"
       },
       "verified": true
@@ -47,15 +47,15 @@
       ],
       "families": {
         "classic-webgl": {
-          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "reason": "classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "modern-webgpu": {
-          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "reason": "modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "native-host": {
-          "reason": "native-host corpus execution is not wired into CI yet",
+          "reason": "native-host result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "portable": {
@@ -69,7 +69,7 @@
         "outputNodes": 36
       },
       "source": {
-        "location": "scripts/scene-fixtures.ts#wireframeCad",
+        "location": "src/conformance-scenes.ts#wireframeCad",
         "version": "corpus-v1 / Three.js r180"
       },
       "verified": true
@@ -84,15 +84,15 @@
       ],
       "families": {
         "classic-webgl": {
-          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "reason": "classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "modern-webgpu": {
-          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "reason": "modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "native-host": {
-          "reason": "native-host corpus execution is not wired into CI yet",
+          "reason": "native-host result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "portable": {
@@ -106,7 +106,7 @@
         "outputNodes": 4
       },
       "source": {
-        "location": "scripts/scene-fixtures.ts#pointsAndSprite",
+        "location": "src/conformance-scenes.ts#pointsAndSprite",
         "version": "corpus-v1 / Three.js r180"
       },
       "verified": true
@@ -121,15 +121,15 @@
       ],
       "families": {
         "classic-webgl": {
-          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "reason": "classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "modern-webgpu": {
-          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "reason": "modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "native-host": {
-          "reason": "native-host corpus execution is not wired into CI yet",
+          "reason": "native-host result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "portable": {
@@ -143,7 +143,7 @@
         "outputNodes": 2
       },
       "source": {
-        "location": "scripts/scene-fixtures.ts#instancingAndMorph",
+        "location": "src/conformance-scenes.ts#instancingAndMorph",
         "version": "corpus-v1 / Three.js r180"
       },
       "verified": true
@@ -158,15 +158,15 @@
       ],
       "families": {
         "classic-webgl": {
-          "reason": "classic-webgl corpus execution is not wired into CI yet",
+          "reason": "classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "modern-webgpu": {
-          "reason": "modern-webgpu corpus execution is not wired into CI yet",
+          "reason": "modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "native-host": {
-          "reason": "native-host corpus execution is not wired into CI yet",
+          "reason": "native-host result is emitted by its environment workflow and is not baked into this deterministic report",
           "status": "not-run"
         },
         "portable": {

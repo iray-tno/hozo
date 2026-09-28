@@ -3,9 +3,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { type Camera, REVISION, type Scene } from 'three'
-
+import { SCENE_CORPUS_SCENES } from '../src/conformance-scenes.ts'
 import { projectThreeScene, type ThreeProjectionDiagnosticCode } from '../src/project.ts'
-import { SCENE_CORPUS_SCENES } from './scene-fixtures.ts'
 
 export type SceneCorpusFamily = 'classic-webgl' | 'modern-webgpu' | 'native-host' | 'portable'
 export type SceneCorpusStatus = 'diagnostic' | 'failed' | 'not-run' | 'useful'
@@ -85,7 +84,7 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
       minimumOutputNodes: 4,
       status: 'useful',
     },
-    source: authoredSource('scripts/scene-fixtures.ts#flatDiagram'),
+    source: authoredSource('src/conformance-scenes.ts#flatDiagram'),
   },
   {
     archetype: 'wireframe or CAD-like scene',
@@ -98,7 +97,7 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
       minimumOutputNodes: 12,
       status: 'useful',
     },
-    source: authoredSource('scripts/scene-fixtures.ts#wireframeCad'),
+    source: authoredSource('src/conformance-scenes.ts#wireframeCad'),
   },
   {
     archetype: 'points / sprite scene',
@@ -111,7 +110,7 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
       minimumOutputNodes: 4,
       status: 'useful',
     },
-    source: authoredSource('scripts/scene-fixtures.ts#pointsAndSprite'),
+    source: authoredSource('src/conformance-scenes.ts#pointsAndSprite'),
   },
   {
     archetype: 'instancing plus morph with a portable material',
@@ -129,7 +128,7 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
       minimumOutputNodes: 2,
       status: 'useful',
     },
-    source: authoredSource('scripts/scene-fixtures.ts#instancingAndMorph'),
+    source: authoredSource('src/conformance-scenes.ts#instancingAndMorph'),
   },
   {
     archetype: 'ordinary glTF/PBR scene',
@@ -150,7 +149,7 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
 ]
 
 const notRun = (family: Exclude<SceneCorpusFamily, 'portable'>): SceneCorpusFamilyResult => ({
-  reason: `${family} corpus execution is not wired into CI yet`,
+  reason: `${family} result is emitted by its environment workflow and is not baked into this deterministic report`,
   status: 'not-run',
 })
 

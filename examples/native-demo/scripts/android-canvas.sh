@@ -80,6 +80,73 @@ bounds_of() {
   ' "$1" "$2"
 }
 
+node_is_focused_by_id() {
+  node --eval '
+    const fs = require("node:fs")
+    const [file, wanted] = process.argv.slice(1)
+    const xml = fs.readFileSync(file, "utf8")
+    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+      if (node[0].includes(`resource-id="${wanted}"`) && node[0].includes(`focused="true"`)) {
+        process.exit(0)
+      }
+    }
+    process.exit(1)
+  ' "$1" "$2"
+}
+
+node_is_focused_by_description() {
+  node --eval '
+    const fs = require("node:fs")
+    const [file, wanted] = process.argv.slice(1)
+    const xml = fs.readFileSync(file, "utf8")
+    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+      if (node[0].includes(`content-desc="${wanted}"`) && node[0].includes(`focused="true"`)) {
+        process.exit(0)
+      }
+    }
+    process.exit(1)
+  ' "$1" "$2"
+}
+
+# Canvas interactions exercise their real semantic or coordinate paths. The
+# corpus buttons well inside the content area use an explicit touchscreen
+# source; the status-bar-adjacent entry control uses keyboard activation.
+tap_test_id() {
+  local test_id="$1" file="tap-${1}.xml" left top right bottom
+  dump "$file"
+  read -r left top right bottom <<< "$(bounds_of "$file" "$test_id")" ||
+    fail "could not find harness control $test_id"
+  adb shell input touchscreen tap "$(((left + right) / 2))" "$(((top + bottom) / 2))"
+}
+
+activate_test_id() {
+  local test_id="$1" file="focus-${1}.xml"
+  for _ in $(seq 1 20); do
+    adb shell input keyevent KEYCODE_TAB
+    sleep 1
+    dump "$file"
+    if node_is_focused_by_id "$file" "$test_id"; then
+      adb shell input keyevent KEYCODE_ENTER
+      return 0
+    fi
+  done
+  fail "could not keyboard-focus $test_id"
+}
+
+activate_description() {
+  local description="$1" file="focus-description.xml"
+  for _ in $(seq 1 20); do
+    adb shell input keyevent KEYCODE_TAB
+    sleep 1
+    dump "$file"
+    if node_is_focused_by_description "$file" "$description"; then
+      adb shell input keyevent KEYCODE_ENTER
+      return 0
+    fi
+  done
+  fail "could not keyboard-focus $description"
+}
+
 tree_has_text() {
   node --eval '
     const fs = require("node:fs")
@@ -87,6 +154,16 @@ tree_has_text() {
     const xml = fs.readFileSync(file, "utf8")
     process.exit(xml.includes(`text="${wanted}"`) ? 0 : 1)
   ' "$1" "$2"
+}
+
+wait_for_text() {
+  local file="$1" wanted="$2"
+  for _ in $(seq 1 10); do
+    dump "$file"
+    tree_has_text "$file" "$wanted" && return 0
+    sleep 1
+  done
+  return 1
 }
 
 # Convert a point in the 100x60 viewBox into the physical bounds reported by
@@ -141,9 +218,74 @@ assert_pressed circle 62 30
 assert_pressed path 50 6
 assert_pressed line 50 56
 
+# Run the exact version-pinned Three corpus through the Native entry of
+# ThreeCanvas. That entry projects with the portable renderer and draws with
+# the real Skia host already under test above; it is deliberately not evidence
+# for the separate Native GPU investigation in #596.
+dump canvas-before-three.xml
+# This first control sits directly below Android's status-bar inset. Its UI
+# tree bounds are correct, but API 36 can still route an injected coordinate
+# at that edge to System UI. Keyboard activation avoids that platform edge;
+# later corpus controls are safely inside the content area and use touch.
+activate_test_id show-three-corpus
+sleep 2
+
+three_ids=(flat-labelled-diagram wireframe-cad points-and-sprite instancing-and-morph)
+three_labels=('Input node' 'Wireframe assembly' 'Point cloud' 'Morphed instances')
+for index in 0 1 2 3; do
+  id="${three_ids[$index]}"
+  label="${three_labels[$index]}"
+  xml="three-native-${id}.xml"
+  wait_for_text "$xml" "scene: $id" || fail "Three corpus did not select $id"
+  tree_has_text "$xml" 'diagnostics: none' || fail "$id produced an unexpected diagnostic"
+  activate_description "$label"
+  wait_for_text "$xml" "activated: $label" || fail "$id did not activate $label"
+  adb exec-out screencap -p > "three-native-${id}.png" 2>/dev/null || true
+  echo "Three Native host -> $id -> $label"
+  tap_test_id three-corpus-next
+  sleep 2
+done
+
+wait_for_text three-native-gltf-pbr.xml 'scene: gltf-pbr' ||
+  fail 'Three corpus did not select gltf-pbr'
+wait_for_text three-native-gltf-pbr.xml 'diagnostics: UNSUPPORTED_MATERIAL' ||
+  fail 'glTF/PBR did not stop at the documented portable material boundary'
+adb exec-out screencap -p > three-native-gltf-pbr.png 2>/dev/null || true
+node --eval '
+  const fs = require("node:fs")
+  const useful = [
+    "flat-labelled-diagram",
+    "wireframe-cad",
+    "points-and-sprite",
+    "instancing-and-morph",
+  ].map((id) => ({ id, status: "useful", semanticControl: true, activated: true }))
+  fs.writeFileSync("three-native-corpus.json", `${JSON.stringify({
+    family: "native-host",
+    host: "React Native Android / Skia",
+    fixtures: [...useful, {
+      id: "gltf-pbr",
+      status: "diagnostic",
+      diagnostics: ["UNSUPPORTED_MATERIAL"],
+      semanticControl: false,
+      activated: false,
+    }],
+  }, null, 2)}\n`)
+'
+echo 'Three Native host corpus: 4 useful, 1 explicit diagnostic, 0 failed'
+
+# Restore the original surface before the existing TalkBack pass so the new
+# corpus cannot weaken or accidentally replace Canvas's accessibility check.
+tap_test_id three-corpus-back
+sleep 2
+dump canvas-after-three.xml
+bounds_of canvas-after-three.xml canvas-surface >/dev/null ||
+  fail 'Canvas surface did not return after the Three corpus'
+
 # React Native delivers mouse hover through offsetX/offsetY, whereas touch
-# above used locationX/locationY. A successful state change establishes that
-# both point derivations address the same physical Rect on this runtime.
+# above used locationX/locationY. Do this after all harness navigation: the
+# emulator's external mouse retains global pointer/focus state and can make a
+# later touchscreen or Enter activation nondeterministic even when Android's
+# UI tree reports the expected focused node.
 read -r hover_x hover_y <<< "$(at_viewbox_point $surface_bounds 15 30)"
 # Android's shell `input mouse motionevent MOVE` constructs ACTION_MOVE, not
 # the no-button HOVER_MOVE a physical mouse produces. The emulator console's
