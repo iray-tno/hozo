@@ -54,6 +54,39 @@
       by `next` from the top of the page, and the entry is what to change, not
       the component.
 
+  ## What run 36386318431 answered: the third one
+
+  NVDA said exactly two phrases per section, for all three sections:
+
+    heading, level 2, Bare
+    dialog, Bare dialog
+    heading, level 2, Modal
+    dialog, Modal dialog
+    heading, level 2, Floating
+    dialog, Floating dialog
+
+  The `h2` and the dialog's own name, and nothing from inside any of them --
+  not the `h3`, not the prose, not the two buttons. **So `aria-modal` is not
+  the cause and neither is `FloatingPositioner`**: a `div role="dialog"` with
+  no other attribute, in the document flow, is read exactly as badly. And the
+  real story's panel was measured laid out in the same run, which closes that
+  question from the other side:
+
+    dialogs=1 {div#_r_0_-dialog[Choose a date and time]
+               267x426@384,238 visible laid-out kids=3 focus-outside}
+
+  What is left is the traversal. `walk` steps with `next()`, which on NVDA is
+  a plain Down Arrow in browse mode, and a Down Arrow that goes from one `h2`
+  straight to the next is a Down Arrow with no lines between them. Either the
+  dialog's contents are not in the virtual buffer at all, or they are and this
+  key is stepping over them -- and `aria-modal.spec.ts` now asks both
+  questions with `nextHeading` and NVDA-B.
+
+  VoiceOver, for contrast, read Bare and Modal in full -- 8 and 12 phrases --
+  by the `interact` route `walk` already takes for a container. It then stalled
+  on the container it had just left and ended before the third section, which
+  is why the sections are now ordered as they are.
+
   Deliberately static and deliberately not a Storybook story, for the reason
   `tree-shape.html` gives: a story owes a committed golden from the virtual
   reader, and this page should be deletable the day #617 closes.
@@ -75,6 +108,31 @@
 <h1>Dialogs</h1>
 <p>Three dialogs that are dialogs only because they say so.</p>
 
+<h2>Floating</h2>
+<!--
+  The wrapper is what `FloatingPositioner` renders once its effect has
+  measured: `position: fixed` with a computed `left`/`top`, `willChange`, and
+  no `visibility`. The numbers are arbitrary; that it is out of flow is not.
+  Inside it, the `tabindex="-1"` div is `FocusScope`'s container.
+
+  First of the three, although it is the odd one out, because VoiceOver only
+  reaches two of them. Run 36386318431 read Bare and Modal in full and then
+  stalled on the container it had just left, so the walk ended before this
+  section. The section whose markup mirrors the real component therefore goes
+  where it will be reached, and the plainest one -- already read by both
+  readers -- goes last.
+-->
+<div style="position: fixed; left: 520px; top: 24px; width: 240px; will-change: transform">
+  <div tabindex="-1" style="outline: none">
+    <div role="dialog" aria-modal="true" aria-label="Floating dialog">
+      <h3>Floating heading</h3>
+      <p>Floating body text.</p>
+      <button type="button">Floating cancel</button>
+      <button type="button">Floating confirm</button>
+    </div>
+  </div>
+</div>
+
 <h2>Bare</h2>
 <div role="dialog" aria-label="Bare dialog">
   <h3>Bare heading</h3>
@@ -89,24 +147,6 @@
   <p>Modal body text.</p>
   <button type="button">Modal cancel</button>
   <button type="button">Modal confirm</button>
-</div>
-
-<h2>Floating</h2>
-<!--
-  The wrapper is what `FloatingPositioner` renders once its effect has
-  measured: `position: fixed` with a computed `left`/`top`, `willChange`, and
-  no `visibility`. The numbers are arbitrary; that it is out of flow is not.
-  Inside it, the `tabindex="-1"` div is `FocusScope`'s container.
--->
-<div style="position: fixed; left: 520px; top: 24px; width: 240px; will-change: transform">
-  <div tabindex="-1" style="outline: none">
-    <div role="dialog" aria-modal="true" aria-label="Floating dialog">
-      <h3>Floating heading</h3>
-      <p>Floating body text.</p>
-      <button type="button">Floating cancel</button>
-      <button type="button">Floating confirm</button>
-    </div>
-  </div>
 </div>
 
 <h2>End</h2>
