@@ -99,6 +99,7 @@ async function pointsAndSprite(): Promise<SceneCorpusScene> {
 
 async function instancingAndMorph(): Promise<SceneCorpusScene> {
   const geometry = triangleGeometry()
+  geometry.morphTargetsRelative = true
   geometry.morphAttributes.position = [new Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 0, 2, 0], 3)]
   const instances = new InstancedMesh(geometry, new MeshBasicMaterial({ color: '#0284c7' }), 2)
   instances.name = 'Morphed instances'

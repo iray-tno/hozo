@@ -285,9 +285,10 @@ Run `pnpm --filter @hozo/three test:gpu` to produce JSON and Markdown reports
 for classic WebGL, the modern renderer's automatic backend choice, and its
 forced WebGL 2 backend. A missing native WebGPU backend is recorded as
 `unavailable`; classic WebGL and modern forced-WebGL 2 remain required to draw
-and expose working semantic controls. The Classic WebGL run also executes the
-same five real-scene fixtures and requires useful draws, semantic controls, and
-activation for every scene.
+and expose working semantic controls. Every available renderer mode also
+executes the same five real-scene fixtures and requires useful draws, semantic
+controls, and activation for every scene. This makes forced WebGL 2 the stable
+Modern-family baseline while native WebGPU remains separately observable.
 
 <!-- generated: package-footer -->
 

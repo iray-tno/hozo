@@ -57,7 +57,7 @@ function inspect(renderer: unknown) {
     button?.click()
     const renderCalls =
       (renderer as { info?: { render?: { calls?: number } } }).info?.render?.calls ?? 0
-    const sceneCorpus = mode === 'classic-webgl' ? await runClassicSceneCorpus() : undefined
+    const sceneCorpus = await runRendererSceneCorpus()
     finish({
       activated,
       backend: backendName(renderer),
@@ -69,7 +69,7 @@ function inspect(renderer: unknown) {
   }, 250)
 }
 
-async function runClassicSceneCorpus(): Promise<readonly SceneCorpusProbeResult[]> {
+async function runRendererSceneCorpus(): Promise<readonly SceneCorpusProbeResult[]> {
   const gltfSource = fetch('/minimal-pbr.gltf').then(async (response) => {
     if (!response.ok) throw new Error(`glTF fixture request failed: ${response.status}`)
     return response.text()
@@ -78,7 +78,7 @@ async function runClassicSceneCorpus(): Promise<readonly SceneCorpusProbeResult[
   for (const definition of SCENE_CORPUS_SCENES) {
     try {
       const fixture = await definition.create(() => gltfSource)
-      results.push(await renderClassicFixture(definition.id, fixture))
+      results.push(await renderSceneFixture(definition.id, fixture))
     } catch (error) {
       results.push({
         activated: false,
@@ -93,7 +93,7 @@ async function runClassicSceneCorpus(): Promise<readonly SceneCorpusProbeResult[
   return results
 }
 
-function renderClassicFixture(
+function renderSceneFixture(
   id: string,
   fixture: Awaited<ReturnType<(typeof SCENE_CORPUS_SCENES)[number]['create']>>,
 ): Promise<SceneCorpusProbeResult> {
@@ -123,7 +123,7 @@ function renderClassicFixture(
       5_000,
     )
     root.render(
-      createElement(WebGLCanvas, {
+      createElement(Canvas, {
         accessibilityLabel: id,
         camera: fixture.camera,
         height: 180,
@@ -161,7 +161,12 @@ function renderClassicFixture(
           fixtureActivated = true
         },
         pixelRatio: 1,
-        rendererOptions: { antialias: false },
+        rendererOptions:
+          mode === 'classic-webgl'
+            ? { antialias: false }
+            : mode === 'modern-force-webgl2'
+              ? { forceWebGL: true }
+              : undefined,
         scene: fixture.scene,
         width: 320,
       } as never),

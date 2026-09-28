@@ -116,7 +116,7 @@
       "exercises": [
         "instanced mesh",
         "instance transforms",
-        "morph targets",
+        "relative morph targets",
         "MeshBasicMaterial"
       ],
       "families": {

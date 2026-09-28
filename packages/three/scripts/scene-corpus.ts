@@ -116,7 +116,12 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
   {
     archetype: 'instancing plus morph with a portable material',
     create: sceneDefinition('instancing-and-morph'),
-    exercises: ['instanced mesh', 'instance transforms', 'morph targets', 'MeshBasicMaterial'],
+    exercises: [
+      'instanced mesh',
+      'instance transforms',
+      'relative morph targets',
+      'MeshBasicMaterial',
+    ],
     id: 'instancing-and-morph',
     portableExpectation: {
       diagnostics: [],
