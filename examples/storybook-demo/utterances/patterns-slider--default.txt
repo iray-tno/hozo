@@ -1,0 +1,28 @@
+heading, Slider, level 2
+paragraph
+Drag it, or focus the thumb and use the arrows. PageUp and PageDown move by ten steps, Home and End go to the ends. Dragging past the end of the track keeps working, which is what pointer capture buys and what a mouse-event slider gets wrong.
+end of paragraph
+Volume
+30
+%
+slider, Volume, orientated horizontally, max value 10, min value 0, current value 30 percent
+heading, A scale whose points have names, level 2
+paragraph
+Five points, and the number is not the answer to any question a person has.
+code
+valueText
+end of code
+is what a reader says instead, so this announces "Good" rather than "4".
+end of paragraph
+Rating
+Good
+slider, Rating, orientated horizontally, max value 4, min value 0, current value Good
+heading, Disabled, level 2
+paragraph
+Out of the tab order and out of reach of a pointer, and the track says so on
+code
+data-hozo-disabled
+end of code
+so a stylesheet does not have to be told twice.
+end of paragraph
+slider, Bitrate (unavailable), orientated horizontally, max value 10, min value 0, disabled, 6
