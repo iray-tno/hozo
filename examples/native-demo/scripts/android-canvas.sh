@@ -80,29 +80,6 @@ bounds_of() {
   ' "$1" "$2"
 }
 
-# Print the bounds of the semantic control exposed for a named Three object.
-bounds_of_description() {
-  node --eval '
-    const fs = require("node:fs")
-    const [file, wanted] = process.argv.slice(1)
-    const xml = fs.readFileSync(file, "utf8")
-    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
-      if (!node[0].includes(`content-desc="${wanted}"`)) continue
-      const box = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0])
-      if (box) {
-        console.log(box.slice(1).join(" "))
-        process.exit(0)
-      }
-    }
-    process.exit(1)
-  ' "$1" "$2"
-}
-
-tap_bounds() {
-  local left="$1" top="$2" right="$3" bottom="$4"
-  adb shell input touchscreen tap "$(((left + right) / 2))" "$(((top + bottom) / 2))"
-}
-
 node_is_focused_by_id() {
   node --eval '
     const fs = require("node:fs")
@@ -110,6 +87,20 @@ node_is_focused_by_id() {
     const xml = fs.readFileSync(file, "utf8")
     for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
       if (node[0].includes(`resource-id="${wanted}"`) && node[0].includes(`focused="true"`)) {
+        process.exit(0)
+      }
+    }
+    process.exit(1)
+  ' "$1" "$2"
+}
+
+node_is_focused_by_description() {
+  node --eval '
+    const fs = require("node:fs")
+    const [file, wanted] = process.argv.slice(1)
+    const xml = fs.readFileSync(file, "utf8")
+    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+      if (node[0].includes(`content-desc="${wanted}"`) && node[0].includes(`focused="true"`)) {
         process.exit(0)
       }
     }
@@ -134,6 +125,20 @@ activate_test_id() {
   fail "could not keyboard-focus $test_id"
 }
 
+activate_description() {
+  local description="$1" file="focus-description.xml"
+  for _ in $(seq 1 20); do
+    adb shell input keyevent KEYCODE_TAB
+    sleep 1
+    dump "$file"
+    if node_is_focused_by_description "$file" "$description"; then
+      adb shell input keyevent KEYCODE_ENTER
+      return 0
+    fi
+  done
+  fail "could not keyboard-focus $description"
+}
+
 tree_has_text() {
   node --eval '
     const fs = require("node:fs")
@@ -148,19 +153,6 @@ wait_for_text() {
   for _ in $(seq 1 10); do
     dump "$file"
     tree_has_text "$file" "$wanted" && return 0
-    sleep 1
-  done
-  return 1
-}
-
-wait_for_description_bounds() {
-  local file="$1" wanted="$2" bounds
-  for _ in $(seq 1 10); do
-    dump "$file"
-    bounds="$(bounds_of_description "$file" "$wanted")" && {
-      printf '%s\n' "$bounds"
-      return 0
-    }
     sleep 1
   done
   return 1
@@ -255,9 +247,7 @@ for index in 0 1 2 3; do
   xml="three-native-${id}.xml"
   wait_for_text "$xml" "scene: $id" || fail "Three corpus did not select $id"
   tree_has_text "$xml" 'diagnostics: none' || fail "$id produced an unexpected diagnostic"
-  control_bounds="$(wait_for_description_bounds "$xml" "$label")" ||
-    fail "$id did not expose its named Three object to Android accessibility"
-  tap_bounds $control_bounds
+  activate_description "$label"
   wait_for_text "$xml" "activated: $label" || fail "$id did not activate $label"
   adb exec-out screencap -p > "three-native-${id}.png" 2>/dev/null || true
   echo "Three Native host -> $id -> $label"
