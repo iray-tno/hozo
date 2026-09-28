@@ -20,7 +20,7 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { type IScreenReader, WindowsKeyCodes, WindowsModifiers } from '@guidepup/guidepup'
+import { WindowsKeyCodes, WindowsModifiers } from '@guidepup/guidepup'
 import { screenReaderTest as test } from '@guidepup/playwright'
 
 import {
@@ -29,6 +29,7 @@ import {
   onWindows,
   phrasesDir,
   reader,
+  spokenAfter,
   startOptions,
   startRecording,
   walk,
@@ -53,24 +54,6 @@ const HEADINGS = 10
 
 /** How many Tab stops to try: eight buttons on the page, and a little over. */
 const TAB_STOPS = 10
-
-/**
- * Everything the reader said while an action ran, with its silences dropped.
- *
- * `walk` keeps `lastSpokenPhrase` per step, which is one phrase per keystroke
- * and is the wrong instrument for the probes below: NVDA-B answers with a
- * whole window in one press, and a heading jump or a Tab that says two things
- * is exactly what would be interesting about it.
- */
-async function everythingSaid(
-  screenReader: IScreenReader,
-  act: () => Promise<void>,
-): Promise<string[]> {
-  await screenReader.clearSpokenPhraseLog()
-  await act()
-  const said = await screenReader.spokenPhraseLog()
-  return said.map((phrase) => phrase.trim()).filter((phrase) => phrase !== '')
-}
 
 test.use({ screenReaderStartOptions: startOptions })
 
@@ -111,6 +94,14 @@ test(id, async ({ page, screenReader }) => {
     // 12 phrases for Bare and Modal in the same run -- so it has nothing to
     // answer here, and asking it anyway would add minutes to the slower of the
     // two jobs for a log nobody would read.
+    //
+    // Each one through `spokenAfter`, which is what the whole log needs and
+    // `walk`'s one-phrase-per-step does not: NVDA-B answers with a window in a
+    // single press, and a heading jump that says two things is exactly what
+    // would be interesting about it. This file had its own copy of that helper
+    // until #622 landed one that also waits for speech to stop before
+    // returning -- and ten H presses followed by ten Tabs is precisely the fast
+    // sequence that lost announcements there.
     if (onWindows) {
       // Back to the top first, which run 36389572457 needed and did not get:
       // the walk had already reached the bottom of the page, so all ten H
@@ -118,7 +109,7 @@ test(id, async ({ page, screenReader }) => {
       // same Ctrl+Home `enterPage` ends with.
       probes.push({
         note: 'Ctrl+Home, back to the top so H has somewhere to go',
-        said: await everythingSaid(screenReader, () =>
+        said: await spokenAfter(screenReader, () =>
           screenReader.perform({
             keyCode: [WindowsKeyCodes.Home],
             modifiers: [WindowsModifiers.Control],
@@ -128,7 +119,7 @@ test(id, async ({ page, screenReader }) => {
       for (let heading = 1; heading <= HEADINGS; heading++) {
         probes.push({
           note: `nextHeading ${heading}`,
-          said: await everythingSaid(screenReader, () => screenReader.nextHeading()),
+          said: await spokenAfter(screenReader, () => screenReader.nextHeading()),
         })
       }
       // Tab, the other way content can be reached. The buttons inside each
@@ -140,7 +131,7 @@ test(id, async ({ page, screenReader }) => {
       for (let stop = 1; stop <= TAB_STOPS; stop++) {
         probes.push({
           note: `Tab ${stop}`,
-          said: await everythingSaid(screenReader, () => screenReader.press('Tab')),
+          said: await spokenAfter(screenReader, () => screenReader.press('Tab')),
         })
       }
       // Answered "Dialogs NVDA reads and does not read - Google Chrome for
@@ -149,7 +140,7 @@ test(id, async ({ page, screenReader }) => {
       // stays on the record rather than being tried again.
       probes.push({
         note: 'NVDA-B, read all controls in the active window',
-        said: await everythingSaid(screenReader, () =>
+        said: await spokenAfter(screenReader, () =>
           screenReader.perform({
             keyCode: [WindowsKeyCodes.Insert, WindowsKeyCodes.B],
             modifiers: [],
