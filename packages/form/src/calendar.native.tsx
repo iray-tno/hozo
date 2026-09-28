@@ -61,11 +61,23 @@ interface Shared {
   headerClassName?: string
   /** Accepted for parity with the Web half, which puts it on its `<table>`. */
   gridClassName?: string
+  /** Accepted for parity with the Web half, which puts it on its two buttons. */
+  monthButtonClassName?: string
   style?: StyleProp<ViewStyle>
   headerStyle?: StyleProp<ViewStyle>
   weekStyle?: StyleProp<ViewStyle>
   dayStyle?: StyleProp<ViewStyle>
   dayTextStyle?: StyleProp<TextStyle>
+  /**
+   * On each of the two month buttons.
+   *
+   * The Web half's reason is a pointer target that Preflight collapses to four
+   * pixels; here a `Pressable` has no such default and the buttons are usable
+   * without it. It exists because the two halves keep the same prop list, and
+   * because a hit area is worth being able to set on a phone too -- 44 by 44
+   * is the platform guidance and a glyph is not that.
+   */
+  monthButtonStyle?: StyleProp<ViewStyle>
   /** The month shown first. Defaults to `value`'s month, else `today`'s. */
   defaultMonth?: CalendarMonth
   /**
@@ -271,6 +283,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
     weekStyle,
     dayStyle,
     dayTextStyle,
+    monthButtonStyle,
     defaultMonth,
     month,
     onMonthChange,
@@ -341,6 +354,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           accessibilityLabel={previousMonthLabel}
           accessibilityState={{ disabled: !monthIsReachable(monthStep(shown, -1), min, max) }}
           disabled={!monthIsReachable(monthStep(shown, -1), min, max)}
+          style={monthButtonStyle}
           onPress={() => page(-1)}
         >
           <Text>{'‹'}</Text>
@@ -357,6 +371,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           accessibilityLabel={nextMonthLabel}
           accessibilityState={{ disabled: !monthIsReachable(monthStep(shown, 1), min, max) }}
           disabled={!monthIsReachable(monthStep(shown, 1), min, max)}
+          style={monthButtonStyle}
           onPress={() => page(1)}
         >
           <Text>{'›'}</Text>

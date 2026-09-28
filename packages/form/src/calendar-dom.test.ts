@@ -243,3 +243,19 @@ test('single mode marks no range at all', () => {
   assert.equal(count(html, 'data-hozo-in-range=""'), 0)
   assert.doesNotMatch(html, /start of range/, 'no word, because there is no range to be an end of')
 })
+
+test('the month buttons take a class, because nothing else can reach them', () => {
+  const html = render({ monthButtonClassName: 'M' })
+  assert.equal(count(html, 'class="M"'), 2, 'both of them, and only them')
+  // Named rather than counted, so a change that put the class on one button
+  // and the grid on the other would still fail.
+  assert.match(html, /aria-label="Previous month"[^>]*class="M"/)
+  assert.match(html, /aria-label="Next month"[^>]*class="M"/)
+})
+
+test('the month buttons carry no class when none was given', () => {
+  // `className={undefined}` renders no attribute, which is what lets an
+  // application opt out rather than fight a default it did not ask for --
+  // this package ships no CSS and that has to be true of the chrome too.
+  assert.doesNotMatch(render(), /<button[^>]*class=/)
+})
