@@ -9,9 +9,9 @@ export type {
   ThreeCanvasProps,
 } from './r3f.tsx'
 
-/** Native R3F hosting is intentionally gated on the host evaluation in #596. */
+/** Native R3F hosting uses the explicit, separately shipped r3f-native entry. */
 export function ThreeCanvas(_props: ThreeCanvasProps): never {
   throw new Error(
-    '@hozo/three/r3f is currently Web-only. Use portable @hozo/three on React Native while the Native GPU host is evaluated.',
+    '@hozo/three/r3f is Web-only. Use portable @hozo/three on React Native, or the explicit @hozo/three/r3f-native entry when that experimental Expo GL integration is available.',
   )
 }
