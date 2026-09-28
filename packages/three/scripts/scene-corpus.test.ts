@@ -49,16 +49,25 @@ test('the first real-scene corpus is version-pinned, representative, and executa
   ])
 })
 
-test('the pinned glTF fixture loads on a Hermes-like host without TextDecoder', async () => {
-  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'TextDecoder')
+test('the pinned glTF fixture loads with the globals exposed by Hermes', async () => {
+  const textDecoderDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'TextDecoder')
+  const userAgentDescriptor = Object.getOwnPropertyDescriptor(globalThis.navigator, 'userAgent')
   assert.equal(Reflect.deleteProperty(globalThis, 'TextDecoder'), true)
+  Object.defineProperty(globalThis.navigator, 'userAgent', {
+    configurable: true,
+    value: undefined,
+  })
   try {
     const fixture = SCENE_CORPUS_SCENES.find(({ id }) => id === 'gltf-pbr')
     assert.ok(fixture)
     const { scene } = await fixture.create(async () => MINIMAL_PBR_GLTF_SOURCE)
     assert.equal(scene.getObjectByName('Pinned_PBR_triangle')?.name, 'Pinned_PBR_triangle')
   } finally {
-    if (descriptor) Object.defineProperty(globalThis, 'TextDecoder', descriptor)
+    if (textDecoderDescriptor)
+      Object.defineProperty(globalThis, 'TextDecoder', textDecoderDescriptor)
     else Reflect.deleteProperty(globalThis, 'TextDecoder')
+    if (userAgentDescriptor)
+      Object.defineProperty(globalThis.navigator, 'userAgent', userAgentDescriptor)
+    else Reflect.deleteProperty(globalThis.navigator, 'userAgent')
   }
 })
