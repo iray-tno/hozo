@@ -99,7 +99,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
       - name: Install iOS Simulator input driver
-        run: brew install facebook/fb/idb
+        run: |
+          brew tap facebook/fb
+          brew trust facebook/fb
+          brew install facebook/fb/idb
       - name: Exercise Expo GL host
         run: bash examples/three-native-probe/scripts/ios-probe.sh artifacts/three-native-gpu-ios
       - uses: actions/upload-artifact@v4
