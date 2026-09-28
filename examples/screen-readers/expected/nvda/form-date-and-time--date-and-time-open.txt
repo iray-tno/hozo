@@ -1,19 +1,34 @@
-# Approved from screen-readers run 36299473387 (NVDA, Chrome).
+# Approved from screen-readers run 36426275796 (NVDA, Chrome).
+# The panel, read. This file held two lines and said "partial" for four months
+# of issues; #617 is what it was waiting for.
+#
 # The trigger says the field and its value in one phrase, from run 36311058864.
 # #612 put the value into the name -- `aria-labelledby` over a hidden label and
 # the value, because a button has one name and no value and VoiceOver was
-# reading only the label.
-# One line, and that is the finding: the virtual reader emits a button as name,
-# contents and end, so the date appears twice in its model. NVDA reads a button
-# once, so nothing is repeated where a person would hear it.
+# reading only the label. The virtual reader emits a button as name, contents
+# and end, so the date appears twice in its model; NVDA reads a button once, so
+# nothing is repeated where a person would hear it.
 #
-# partial: the trigger and the dialog's name, and nothing inside it. The grid,
-# the clock and Done are not read -- unlike the native `<dialog>` in
-# patterns-dialog--open, whose contents are. The difference between the two is a
-# positioned `div` with `aria-modal` against the browser's top layer, and why
-# that changes what NVDA buffers is not established. See #580 and #585.
+# Everything after "dialog, Choose a date and time" is new, and none of it is
+# in NVDA's browse-mode buffer. Run 36394492849 established that: H from the
+# top of the page finds every heading on it and none of the three inside
+# dialogs, while Tab reaches every control in them. So `walk` enters this panel
+# by focus and reads it with Tab -- see `enterDialog` in `reader.ts`.
 #
-# Worth approving at two lines anyway: "expanded" read as "collapsed" until
-# #598, and the dialog's name was not said at all. These pin both.
+# "Next month, button, focused" is NVDA answering NVDA+Tab, which is how the
+# first control gets named: `locator.focus()` is silent, so something has to
+# ask where focus is. "Previous month" is absent because it is disabled -- the
+# grid opens on September and `min` is the 3rd of it.
+#
+# The grid announces itself once, with the day the panel opened on. The 42 day
+# cells after it are not approved: they are what `next` reads once focus is in
+# the grid, they are the calendar's own scenarios' business (#584), and a
+# golden that listed them would fail on any month boundary.
 button, expanded, opens dialog, Departure Thursday, September 24, 2026 at 9:30 AM
 dialog, Choose a date and time
+Next month, button, focused
+September 2026, table, with 6 rows and 7 columns, row 4, column 4, selected, clickable, current date, 24
+9:30 AM, Hour, spin button
+9:30 AM, Minute, spin button
+AM or PM, button
+Done, button

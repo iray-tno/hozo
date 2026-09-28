@@ -1,13 +1,26 @@
-# Approved from screen-readers run 36299473387 (NVDA, Chrome).
-# The trigger says the field and its value in one phrase, from run 36311058864.
-# #612 put the value into the name -- `aria-labelledby` over a hidden label and
-# the value, because a button has one name and no value and VoiceOver was
-# reading only the label.
-# One line, and that is the finding: the virtual reader emits a button as name,
-# contents and end, so the date appears twice in its model. NVDA reads a button
-# once, so nothing is repeated where a person would hear it.
+# Approved from screen-readers run 36426275796 (NVDA, Chrome).
+# The panel, read. See the file beside this one for why it could not be before
+# #617, and for how `walk` gets in now.
 #
-# partial: the same as the file beside this one -- the trigger and the dialog's
-# name, nothing inside. See #580 and #585.
+# The trigger reads its placeholder because nothing is chosen yet, which is the
+# state this story exists to show: "Dates of stay Select dates" is the hidden
+# label and the value in one accessible name (#612).
+#
+# Both month buttons are here where the other file has one. That panel opens on
+# September with `min` on the 3rd, so its "Previous month" is disabled and out
+# of the tab order; this one has no bound and both work. The difference is the
+# story's, not the component's.
+#
+# And no Done button, which is the other thing this story is for: the range
+# grid reports only a range with both ends, so the press that completes it is
+# the press that finished the job. A dialog with nothing to confirm needs
+# nothing to confirm it with.
+#
+# The grid announces itself once, with the day it opened on -- "not selected",
+# because nothing is. The day cells after it are not approved, for the reason
+# the file beside this one gives.
 button, expanded, opens dialog, Dates of stay Select dates
 dialog, Choose a range of dates
+Previous month, button, focused
+Next month, button
+September 2026, table, with 6 rows and 7 columns, row 4, column 4, not selected, clickable, current date, 24

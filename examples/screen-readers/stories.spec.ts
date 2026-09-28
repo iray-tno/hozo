@@ -29,9 +29,19 @@
 // So for those stories `expected/nvda/` can hold the trigger and nothing else,
 // and its absence is a gap rather than a pass. VoiceOver takes `enterPage`'s
 // early return -- it moves its own cursor, no click and no Escape -- so it
-// reads the overlay and its approved file is much longer. **The two readers'
-// approved files are not comparable in size, and the difference is the harness
-// rather than the readers.**
+// reads the overlay without being knocked out of it.
+//
+// That was the whole of the difference until #617, and it was not. NVDA also
+// does not put a `div` with `role="dialog"` into its browse-mode buffer at
+// all: run 36394492849 found every heading on a page by H and none of the
+// three inside dialogs, while Tab reached every control in them. So the panel
+// was exposed, focusable and unread, and the two readers' files were
+// incomparable for two reasons stacked on each other.
+//
+// `walk` now enters such a dialog by focus and reads it with Tab, and the two
+// `-open` stories are approved whole. **A difference in size between the two
+// readers' files is now the readers, which is what it should always have
+// meant.**
 //
 // And an approved file cannot say how much of a story was read, which is the
 // same gap one level up: a walk that stops a third of the way in is approved
@@ -94,6 +104,10 @@ const index = JSON.parse(readFileSync(path.join(storybook, 'index.json'), 'utf8'
  * `div` with `aria-modal`, not a native `<dialog>` behind `showModal()`, so
  * the page around them is never made inert -- which is why they are worth
  * trying on NVDA when `patterns-dialog--open` is not (#580).
+ *
+ * And why they needed `enterDialog`: the top layer is what makes a native
+ * `<dialog>`'s contents NVDA's buffer, so `patterns-dialog--open` has always
+ * read fine by `next` and these two never could (#617).
  */
 const EXTRA: ReadonlySet<string> = new Set([
   'form-date-and-time--clock',
