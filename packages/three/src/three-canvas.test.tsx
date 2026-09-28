@@ -28,6 +28,7 @@ const testRenderer = require('react-test-renderer') as {
       findByType(type: string): { props: Record<string, unknown> }
     }
     unmount(): void
+    update(node: React.ReactNode): void
   }
 }
 
@@ -189,6 +190,45 @@ test('ThreeCanvas draws a projected Three scene and invalidates imperative mutat
 
   mesh.position.x = 1
   await testRenderer.act(async () => handle.current?.invalidate())
+  assert.equal(paths.at(-1), 'M 50 60 L 70 60 L 60 40 Z')
+
+  await testRenderer.act(async () => renderer?.unmount())
+})
+
+test('revision re-projects imperative scene mutations', async () => {
+  const { camera, mesh, scene } = triangleScene()
+  const paths: string[] = []
+  const surface = recordingSurface(paths)
+  let renderer: ReturnType<typeof testRenderer.create> | undefined
+
+  await testRenderer.act(async () => {
+    renderer = testRenderer.create(
+      <ThreeCanvas
+        decorative
+        scene={scene}
+        camera={camera}
+        width={100}
+        height={100}
+        revision={0}
+      />,
+      { createNodeMock: (element) => (element.type === 'canvas' ? surface : null) },
+    )
+  })
+  assert.equal(paths.at(-1), 'M 40 60 L 60 60 L 50 40 Z')
+
+  mesh.position.x = 1
+  await testRenderer.act(async () => {
+    renderer?.update(
+      <ThreeCanvas
+        decorative
+        scene={scene}
+        camera={camera}
+        width={100}
+        height={100}
+        revision={1}
+      />,
+    )
+  })
   assert.equal(paths.at(-1), 'M 50 60 L 70 60 L 60 40 Z')
 
   await testRenderer.act(async () => renderer?.unmount())

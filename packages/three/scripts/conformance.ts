@@ -555,6 +555,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     {
       tests: [
         canvas('ThreeCanvas draws a projected Three scene and invalidates imperative mutations'),
+        canvas('revision re-projects imperative scene mutations'),
       ],
     },
   ),

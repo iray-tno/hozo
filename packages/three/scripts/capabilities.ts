@@ -7,7 +7,14 @@ export type PortableCapabilityStatus =
   | 'diagnostic'
   | 'silent'
 
-export type PortableCapabilityCategory = 'camera' | 'geometry' | 'material' | 'object' | 'scene'
+export type PortableCapabilityCategory =
+  | 'camera'
+  | 'geometry'
+  | 'interaction'
+  | 'material'
+  | 'object'
+  | 'scene'
+  | 'topology'
 
 export interface PortableCapability {
   capability: string
@@ -20,6 +27,11 @@ export interface PortableCapability {
 
 const project = (title: string): ThreeConformanceTestReference => ({
   file: 'src/project.test.ts',
+  title,
+})
+
+const canvas = (title: string): ThreeConformanceTestReference => ({
+  file: 'src/three-canvas.test.tsx',
   title,
 })
 
@@ -92,6 +104,36 @@ const cameraCapability = (
 ): PortableCapability => ({
   capability: name,
   category: 'camera',
+  detail,
+  owner,
+  status,
+  tests,
+})
+
+const topologyCapability = (
+  owner: string,
+  name: string,
+  status: PortableCapabilityStatus,
+  detail: string,
+  tests: readonly ThreeConformanceTestReference[],
+): PortableCapability => ({
+  capability: name,
+  category: 'topology',
+  detail,
+  owner,
+  status,
+  tests,
+})
+
+const interactionCapability = (
+  owner: string,
+  name: string,
+  status: PortableCapabilityStatus,
+  detail: string,
+  tests: readonly ThreeConformanceTestReference[],
+): PortableCapability => ({
+  capability: name,
+  category: 'interaction',
   detail,
   owner,
   status,
@@ -925,6 +967,137 @@ export const PORTABLE_CAMERA_CAPABILITIES: readonly PortableCapability[] = [
     [project('GPU capture cameras remain diagnostic')],
   ),
 ]
+
+/** Primitive assembly after geometry traversal and before appearance. */
+export const PORTABLE_TOPOLOGY_CAPABILITIES: readonly PortableCapability[] = [
+  topologyCapability(
+    'Triangles',
+    'triangle-list assembly',
+    'exact',
+    'Every complete vertex triple becomes one triangle primitive.',
+    [
+      project('a Three.js triangle becomes a Canvas path in viewport coordinates'),
+      project('indexed geometry emits each triangle'),
+    ],
+  ),
+  topologyCapability(
+    'Line',
+    'line-strip adjacency',
+    'exact',
+    'Each adjacent vertex pair becomes a connected segment.',
+    [project('Line connects adjacent vertices and honours indexed draw ranges')],
+  ),
+  topologyCapability(
+    'LineLoop',
+    'loop closure',
+    'exact',
+    'The final vertex connects back to the first vertex.',
+    [project('LineLoop closes its final vertex back to its first')],
+  ),
+  topologyCapability(
+    'LineSegments',
+    'independent pairs',
+    'exact',
+    'Each disjoint vertex pair becomes one segment.',
+    [project('LineSegments become independent Canvas lines with material colour and width')],
+  ),
+  topologyCapability(
+    'Points',
+    'independent point primitives',
+    'exact',
+    'Each selected vertex becomes one point primitive.',
+    [project('Points become Canvas circles with indexed draw ranges and perspective attenuation')],
+  ),
+]
+
+/** Portable surface invalidation, frame, hit-testing, and semantic-control behaviour. */
+export const PORTABLE_INTERACTION_CAPABILITIES: readonly PortableCapability[] = [
+  interactionCapability(
+    'Demand rendering',
+    'imperative invalidation',
+    'exact',
+    'The public handle re-projects mutations made to stable scene objects.',
+    [canvas('ThreeCanvas draws a projected Three scene and invalidates imperative mutations')],
+  ),
+  interactionCapability(
+    'Demand rendering',
+    'revision invalidation',
+    'exact',
+    'Changing the application-owned revision re-projects stable scene objects.',
+    [canvas('revision re-projects imperative scene mutations')],
+  ),
+  interactionCapability(
+    'Continuous rendering',
+    'onFrame before projection',
+    'exact',
+    'The frame callback mutates the scene before that frame is projected.',
+    [canvas('the continuous loop updates before projecting and stops on unmount')],
+  ),
+  interactionCapability(
+    'Continuous rendering',
+    'unmount cancellation',
+    'exact',
+    'Unmounting cancels the outstanding animation frame.',
+    [canvas('the continuous loop updates before projecting and stops on unmount')],
+  ),
+  interactionCapability(
+    'Raycast activation',
+    'source object',
+    'exact',
+    'Activation reports the original Three.js object.',
+    [canvas('projected triangles raycast as one named Three object')],
+  ),
+  interactionCapability(
+    'Raycast activation',
+    'Three.js intersection',
+    'exact',
+    'Activation carries the matching Three.js raycast intersection.',
+    [canvas('projected triangles raycast as one named Three object')],
+  ),
+  interactionCapability(
+    'Active object',
+    'pointer entry',
+    'exact',
+    'Pointer movement reports the intersected object and intersection.',
+    [canvas('projected triangles raycast as one named Three object')],
+  ),
+  interactionCapability(
+    'Active object',
+    'pointer leave',
+    'exact',
+    'Leaving the surface clears the active object.',
+    [canvas('projected triangles raycast as one named Three object')],
+  ),
+  interactionCapability(
+    'Semantic controls',
+    'one control per source object',
+    'exact',
+    'Multiple projected primitives from one object share one semantic control.',
+    [canvas('projected triangles raycast as one named Three object')],
+  ),
+  interactionCapability(
+    'Semantic controls',
+    'object-name label',
+    'exact',
+    'The source object name labels its semantic control.',
+    [canvas('projected triangles raycast as one named Three object')],
+  ),
+]
+
+/** Every category in the current portable surface inventory, exactly once. */
+export const PORTABLE_CAPABILITY_INVENTORIES = {
+  camera: PORTABLE_CAMERA_CAPABILITIES,
+  geometry: PORTABLE_GEOMETRY_CAPABILITIES,
+  interaction: PORTABLE_INTERACTION_CAPABILITIES,
+  material: PORTABLE_MATERIAL_CAPABILITIES,
+  object: PORTABLE_OBJECT_CAPABILITIES,
+  scene: PORTABLE_SCENE_CAPABILITIES,
+  topology: PORTABLE_TOPOLOGY_CAPABILITIES,
+} satisfies Record<PortableCapabilityCategory, readonly PortableCapability[]>
+
+export const PORTABLE_CAPABILITIES: readonly PortableCapability[] = Object.values(
+  PORTABLE_CAPABILITY_INVENTORIES,
+).flat()
 
 export interface PortableCapabilitySummary {
   approximate: number

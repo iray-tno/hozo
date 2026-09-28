@@ -7,11 +7,8 @@ import test from 'node:test'
 import * as THREE from 'three'
 
 import {
-  PORTABLE_CAMERA_CAPABILITIES,
-  PORTABLE_GEOMETRY_CAPABILITIES,
-  PORTABLE_MATERIAL_CAPABILITIES,
-  PORTABLE_OBJECT_CAPABILITIES,
-  PORTABLE_SCENE_CAPABILITIES,
+  PORTABLE_CAPABILITIES,
+  PORTABLE_CAPABILITY_INVENTORIES,
   summarizePortableCapabilities,
 } from './capabilities.ts'
 import {
@@ -73,14 +70,21 @@ test('conformance rows and summary are internally consistent', () => {
 })
 
 test('portable capability inventories are atomic, referenced, and internally consistent', () => {
-  const inventories = [
-    PORTABLE_MATERIAL_CAPABILITIES,
-    PORTABLE_GEOMETRY_CAPABILITIES,
-    PORTABLE_OBJECT_CAPABILITIES,
-    PORTABLE_CAMERA_CAPABILITIES,
-    PORTABLE_SCENE_CAPABILITIES,
-  ] as const
+  const inventoryEntries = Object.entries(PORTABLE_CAPABILITY_INVENTORIES)
+  const inventories = Object.values(PORTABLE_CAPABILITY_INVENTORIES)
   const entries = inventories.flat()
+  assert.deepEqual(
+    Object.keys(PORTABLE_CAPABILITY_INVENTORIES).sort(),
+    [...new Set(THREE_CONFORMANCE_CASES.map((entry) => entry.category))].sort(),
+  )
+  for (const [category, inventory] of inventoryEntries) {
+    assert.ok(inventory.length > 0, `${category} has no capability inventory`)
+    assert.ok(
+      inventory.every((entry) => entry.category === category),
+      `${category} inventory contains an entry owned by another category`,
+    )
+  }
+  assert.deepEqual(entries, PORTABLE_CAPABILITIES)
   const identities = entries.map((entry) => `${entry.category}/${entry.owner}/${entry.capability}`)
   assert.equal(new Set(identities).size, identities.length)
 
@@ -111,4 +115,8 @@ test('portable capability inventories are atomic, referenced, and internally con
     )
     assert.equal(summary.silent, 0, 'accepted portable semantics must never be silently lost')
   }
+
+  const overall = summarizePortableCapabilities(PORTABLE_CAPABILITIES)
+  assert.equal(overall.silent, 0)
+  assert.equal(overall.total, entries.length)
 })

@@ -20,9 +20,9 @@ Capability status has stricter semantics than the class-level surface table:
 - **Diagnostic** requires a GPU pipeline or is deliberately outside the portable contract and is safely rejected.
 - **Silent** accepts the input while losing its semantics without a diagnostic. The target is zero.
 
-### Inventoried categories
+### Summary
 
-Material, geometry, objects, cameras, and scene composition are complete as independently owned capability categories. Interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; objects own discovery, selection, routing, and source identity; cameras own view/projection and multi-viewport composition; scene owns traversal policy, composition, backgrounds, ordering, and fog. This prevents a future overall denominator from counting the same behaviour twice.
+Every category in the current portable surface inventory now has an independently owned capability inventory. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; objects own discovery, selection, routing, and source identity; cameras own view/projection and multi-viewport composition; scene owns traversal policy, composition, backgrounds, ordering, and fog; topology owns primitive assembly; interaction owns invalidation, frames, hit testing, and semantic controls. This prevents the overall denominator from counting the same behaviour twice.
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -31,8 +31,11 @@ Material, geometry, objects, cameras, and scene composition are complete as inde
 | **Object** | **22** | **0** | **0** | **22** | **22/22 (100.0%)** | **0** | **0** |
 | **Camera** | **7** | **0** | **0** | **7** | **7/7 (100.0%)** | **3** | **0** |
 | **Scene** | **12** | **2** | **2** | **16** | **14/16 (87.5%)** | **3** | **0** |
+| **Topology** | **5** | **0** | **0** | **5** | **5/5 (100.0%)** | **0** | **0** |
+| **Interaction** | **10** | **0** | **0** | **10** | **10/10 (100.0%)** | **0** | **0** |
+| **Overall portable capability** | **99** | **10** | **6** | **115** | **109/115 (94.8%)** | **12** | **0** |
 
-Approximate capabilities count as implemented but remain visible rather than being folded into exact. These category percentages are not combined while the inventory is incomplete.
+Overall exact capability coverage is **99/115 (86.1%)**. Including documented approximations, implemented feasible coverage is **109/115 (94.8%)**. This is a portable capability ceiling, not a real-scene success rate; GPU-required diagnostics remain visible and the separate version-pinned scene corpus is still pending.
 
 ### Material capability details
 
@@ -171,6 +174,31 @@ Approximate capabilities count as implemented but remain visible rather than bei
 | Fog | invalid range refusal | diagnostic | Invalid or non-finite fog parameters are rejected instead of producing invalid colours. | [test](src/project.test.ts) `invalid fog ranges are diagnosed instead of producing non-finite colours` |
 | Depth buffer | per-pixel depth and stencil | diagnostic | Exact intersecting-surface depth and stencil evaluation requires a raster pipeline. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics` |
 
+### Topology capability details
+
+| Owner | Capability | Status | Behaviour | Test |
+| --- | --- | --- | --- | --- |
+| Triangles | triangle-list assembly | exact | Every complete vertex triple becomes one triangle primitive. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates`<br>[test](src/project.test.ts) `indexed geometry emits each triangle` |
+| Line | line-strip adjacency | exact | Each adjacent vertex pair becomes a connected segment. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
+| LineLoop | loop closure | exact | The final vertex connects back to the first vertex. | [test](src/project.test.ts) `LineLoop closes its final vertex back to its first` |
+| LineSegments | independent pairs | exact | Each disjoint vertex pair becomes one segment. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
+| Points | independent point primitives | exact | Each selected vertex becomes one point primitive. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
+
+### Interaction capability details
+
+| Owner | Capability | Status | Behaviour | Test |
+| --- | --- | --- | --- | --- |
+| Demand rendering | imperative invalidation | exact | The public handle re-projects mutations made to stable scene objects. | [test](src/three-canvas.test.tsx) `ThreeCanvas draws a projected Three scene and invalidates imperative mutations` |
+| Demand rendering | revision invalidation | exact | Changing the application-owned revision re-projects stable scene objects. | [test](src/three-canvas.test.tsx) `revision re-projects imperative scene mutations` |
+| Continuous rendering | onFrame before projection | exact | The frame callback mutates the scene before that frame is projected. | [test](src/three-canvas.test.tsx) `the continuous loop updates before projecting and stops on unmount` |
+| Continuous rendering | unmount cancellation | exact | Unmounting cancels the outstanding animation frame. | [test](src/three-canvas.test.tsx) `the continuous loop updates before projecting and stops on unmount` |
+| Raycast activation | source object | exact | Activation reports the original Three.js object. | [test](src/three-canvas.test.tsx) `projected triangles raycast as one named Three object` |
+| Raycast activation | Three.js intersection | exact | Activation carries the matching Three.js raycast intersection. | [test](src/three-canvas.test.tsx) `projected triangles raycast as one named Three object` |
+| Active object | pointer entry | exact | Pointer movement reports the intersected object and intersection. | [test](src/three-canvas.test.tsx) `projected triangles raycast as one named Three object` |
+| Active object | pointer leave | exact | Leaving the surface clears the active object. | [test](src/three-canvas.test.tsx) `projected triangles raycast as one named Three object` |
+| Semantic controls | one control per source object | exact | Multiple projected primitives from one object share one semantic control. | [test](src/three-canvas.test.tsx) `projected triangles raycast as one named Three object` |
+| Semantic controls | object-name label | exact | The source object name labels its semantic control. | [test](src/three-canvas.test.tsx) `projected triangles raycast as one named Three object` |
+
 ## Three.js surface classification
 
 This measures the version-audited upstream surface presented to the portable Hozo Canvas backend. It deliberately separates compatibility from safe refusal:
@@ -296,7 +324,7 @@ The rows are an unweighted API surface. The overall Three.js surface figure excl
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
-| demand invalidation | full | Revision and imperative invalidation re-project mutations. | [test](src/three-canvas.test.tsx) `ThreeCanvas draws a projected Three scene and invalidates imperative mutations` |
+| demand invalidation | full | Revision and imperative invalidation re-project mutations. | [test](src/three-canvas.test.tsx) `ThreeCanvas draws a projected Three scene and invalidates imperative mutations`<br>[test](src/three-canvas.test.tsx) `revision re-projects imperative scene mutations` |
 | continuous frame loop | full | onFrame runs before each projection and cancels on unmount. | [test](src/three-canvas.test.tsx) `the continuous loop updates before projecting and stops on unmount` |
 | object raycast activation | full | Canvas activation carries the source object and intersection. | [test](src/three-canvas.test.tsx) `projected triangles raycast as one named Three object` |
 | object semantic controls | full | Many projected shapes share one labelled control per object. | [test](src/three-canvas.test.tsx) `projected triangles raycast as one named Three object` |
