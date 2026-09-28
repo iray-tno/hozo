@@ -1,11 +1,12 @@
 heading, Buttons, level 2
 paragraph
-Four tones, and every one of them carries the same focus ring -- reach for Tab. The demo these tokens came from had a ring on four controls and nothing on the rest, which is the gap this package closes by construction rather than by remembering.
+Four tones, and every one of them carries the same focus ring -- reach for Tab. The last one is given an href, so it is a link wearing a button: the primitive answers an href with an anchor, and #653 is why that survives being forwarded through a wrapper's spread.
 end of paragraph
 button, Save
 button, Cancel
 button, Learn more
 button, Delete
+link, A link that looks like a button
 heading, A card with a field in it, level 2
 paragraph
 `Field` is the only one of these with anything in it: four elements agreeing on four ids, which is invisible here and is what the component exists for. The error below is read before the description, because somebody who has just been told their input is wrong wants to know why before being told the rules again.
