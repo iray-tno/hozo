@@ -1,4 +1,26 @@
-# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
-# The caption, as on NVDA. Both readers answer PageDown with the month and not
-# with the day it kept.
-October 2026
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari), narrowed
+# after 36401646447 answered the same key differently.
+#
+# This reader gives one of two phrases for PageDown, and which one is not
+# predictable:
+#
+#   36362653748   "October 2026"                      the new grid's caption
+#   36401646447   "Saturday, October 10, 2026 10"     the cell it landed on
+#
+# The same split `calendar-crosses-a-month` has for the arrow that leaves the
+# month, from the same cause: a grid is replaced and the reader announces either
+# the caption above it or the cell under its cursor. Neither is a silence, so
+# neither is the interruption that file also documents -- VoiceOver simply says
+# one or the other.
+#
+# So the approved text is the word both carry. That costs half the claim and the
+# half it costs is the honest one to lose: "PageDown keeps the day and changes
+# the month" can only be held to on the month, because the kept day is named in
+# one of the two wordings and not the other.
+#
+# Worth recording that it *is* named in one of them. The header of NVDA's file
+# beside this one says the day PageDown keeps is not announced, and this file
+# used to say "both readers answer with the month and not with the day it kept".
+# That was true of every run until 36401646447 and is not true in general.
+# NVDA still says only "October 2026", every run, and is still held to it.
+October

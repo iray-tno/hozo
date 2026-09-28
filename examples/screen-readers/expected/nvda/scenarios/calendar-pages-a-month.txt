@@ -1,5 +1,11 @@
 # Approved from screen-readers run 36362653748 (NVDA, Chrome).
 # PageDown says the month. The day it keeps is not announced here, and that is
 # what was measured rather than what was hoped for: the caption is read and the
-# cell is not.
+# cell is not. Every run says the same thing, so it is held to exactly.
+#
+# "here" is doing work in that sentence. VoiceOver answered the same key with
+# "Saturday, October 10, 2026 10" in run 36401646447 -- the cell, with the kept
+# day in it -- and with the caption in every other run. See the file beside this
+# one. So the day is reachable and this reader does not offer it, which is a
+# difference between the readers rather than a gap in the component.
 October 2026
