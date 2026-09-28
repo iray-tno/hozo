@@ -104,6 +104,52 @@
   element on this page is inside a dialog, so where Tab lands says whether the
   subtree is reachable by focus even when Down Arrow will not go there.
 
+  ## What run 36394492849 settled
+
+  The contents are in the accessibility tree. They are not in NVDA's
+  browse-mode buffer.
+
+  H, from the top, stopped on four headings and then ran out:
+
+    heading, level 1, Dialogs
+    Floating, heading, level 2
+    Bare, heading, level 2
+    Modal, heading, level 2
+    End, heading, level 2
+    no next heading
+
+  Every `h2` on the page, and not one of the three `h3`s inside the dialogs. So
+  Down Arrow was not stepping over lines that were there -- there are no such
+  lines. And an `h3` is not the problem in itself: the same reader reads
+  "heading, level 3, Confirm Operation" inside `patterns-dialog--open`.
+
+  Tab, from the same place, reached all six buttons:
+
+    Tab 1  Floating dialog, dialog
+    Tab 2  Floating confirm, button
+    Tab 3  Bare dialog, dialog
+    Tab 4  Bare confirm, button
+    Tab 5  Modal dialog, dialog
+    Tab 6  Modal confirm, button
+    Tab 7  ... - Google Chrome for Testing, region     <- out of the content
+    Tab 8  tool bar                                    <- out of the document
+
+  Two stops per dialog, named, in document order, with the dialog announced on
+  the way in. So the subtree is exposed, reachable and correctly labelled; what
+  will not go there is the virtual buffer.
+
+  Which answers #617 in the component's favour and hands the work to the
+  harness. Hozo's markup is in the tree, axe passes it, Tab walks it, VoiceOver
+  reads it and so does the virtual reader. `walk` steps with Down Arrow and
+  cannot reach it -- which is also why `patterns-dialog--open` looks fine: a
+  `showModal()` dialog is in the top layer, NVDA's buffer *becomes* the dialog,
+  and Down Arrow is inside it from the first step.
+
+  The part that is left is NVDA's own rather than Hozo's: why a `div
+  role="dialog"` subtree is out of the buffer when nothing about it is hidden.
+  Worth reporting upstream with this page attached, since it reproduces in
+  eight lines of markup with no framework under it.
+
   Deliberately static and deliberately not a Storybook story, for the reason
   `tree-shape.html` gives: a story owes a committed golden from the virtual
   reader, and this page should be deletable the day #617 closes.
