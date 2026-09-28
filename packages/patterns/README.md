@@ -1,7 +1,7 @@
 # @hozo/patterns
 
 Accessible stateful widgets for Hozo: `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`,
-`RadioGroup`, `Checkbox`, `Switch`, `Toolbar`, `Tree` and `Tooltip`. Each carries its WAI-ARIA
+`RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Toolbar`, `Tree` and `Tooltip`. Each carries its WAI-ARIA
 keyboard contract on the Web and the matching accessibility semantics on React Native.
 
 `Checkbox` and `Switch` are one control with two roles, and choosing between them chooses what a
@@ -11,6 +11,14 @@ rather than an `<input>` because a real checkbox's indeterminate state is a DOM 
 attribute — it cannot be rendered on a server, and `aria-checked="mixed"` can. Both carry
 `data-hozo-state` (`checked` / `unchecked` / `mixed`) so one class list can draw all three states
 without the application passing its own state back in.
+
+`Accordion` takes `multiple` rather than being two components, and its headers are each their own
+tab stop — the opposite of `Tabs`, where the strip is one stop and the arrows move within it. That
+difference is what the two controls are for: a tab strip is a chooser, so stopping on each tab would
+make a reader pass six things to reach the content, while an accordion's headers are each a thing to
+act on. The arrow keys move between headers as well, because the Authoring Practices offer them and
+a ten-item accordion is unpleasant to Tab through. `headingLevel` is a prop with a guessed default,
+because a heading level is a fact about the page rather than about the component.
 
 They are built on the headless engines in `@hozo/behaviors` -- focus scopes, roving focus,
 typeahead, dismissal and floating positioning -- which stay reusable on their own. Applications

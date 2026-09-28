@@ -1,4 +1,16 @@
 export {
+  HozoAccordion as Accordion,
+  HozoAccordion,
+  type HozoAccordionItem as AccordionItem,
+  type HozoAccordionItem,
+  type HozoAccordionMultipleProps as AccordionMultipleProps,
+  type HozoAccordionMultipleProps,
+  type HozoAccordionProps as AccordionProps,
+  type HozoAccordionProps,
+  type HozoAccordionSingleProps as AccordionSingleProps,
+  type HozoAccordionSingleProps,
+} from './accordion.tsx'
+export {
   type Autocomplete,
   HozoCombobox as Combobox,
   HozoCombobox,
