@@ -42,6 +42,7 @@ xcrun simctl boot "$udid" 2>/dev/null || true
 xcrun simctl bootstatus "$udid" -b
 xcrun simctl uninstall "$udid" "$bundle_id" 2>/dev/null || true
 xcrun simctl install "$udid" "$app"
+data_container_path="$(xcrun simctl get_app_container "$udid" "$bundle_id" data)"
 xcrun simctl spawn "$udid" log stream \
   --style compact \
   --level debug \
@@ -49,13 +50,9 @@ xcrun simctl spawn "$udid" log stream \
   >"$artifacts/system.log" 2>&1 &
 log_pid=$!
 
-data_container() {
-  xcrun simctl get_app_container "$udid" "$bundle_id" data
-}
-
 copy_events() {
   local source
-  source="$(data_container)/Documents/$events_name"
+  source="$data_container_path/Documents/$events_name"
   [ -s "$source" ] || return 1
   cp "$source" "$artifacts/events.json"
 }
@@ -76,10 +73,10 @@ wait_for_event first_frame
 xcrun simctl io "$udid" screenshot "$artifacts/first-frame.png" >/dev/null
 node "$root/../native-demo/scripts/screen-colours.mjs" "$artifacts/first-frame.png" 8
 
-# Foregrounding Settings leaves the probe process alive while producing the
-# ordinary UIKit background transition. Relaunching the probe then measures
+# Foregrounding SpringBoard leaves the probe process alive while producing the
+# ordinary UIKit home/background transition. Relaunching the probe then measures
 # whether Expo GL resumes and renders with the same context.
-xcrun simctl launch "$udid" com.apple.Preferences >/dev/null
+xcrun simctl launch "$udid" com.apple.springboard >/dev/null
 wait_for_event app_backgrounded
 sleep 2
 xcrun simctl launch "$udid" "$bundle_id" >/dev/null
