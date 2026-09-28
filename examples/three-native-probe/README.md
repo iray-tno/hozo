@@ -12,11 +12,14 @@ It also drives an actual device tap through R3F raycasting, then records TalkBac
 and fallback semantics while proving that decorative content stays silent.
 
 The iOS Simulator job measures the same Expo prebuild host through a Release app: initial GPU
-rendering, an ordinary UIKit background/resume cycle, the first resumed frame, a fresh 120-frame
-sample, and teardown. Events are persisted to the app's Documents directory because release-mode
+rendering, a fresh 120-frame sample, and teardown. It also attempts a UIKit background/resume cycle
+and measures the first resumed frame when the hosted simulator delivers it. Events are persisted to
+the app's Documents directory because release-mode
 JavaScript console output is not an iOS system-log contract. The simulator CLI cannot inject a
 trusted canvas touch or traverse VoiceOver, so the iOS report records both as `not-run` instead of
-borrowing Android's evidence.
+borrowing Android's evidence. Some headless simulator images also acknowledge HOME and LOCK input
+without backgrounding the React Native scene; that lifecycle check is recorded as `not-run` with
+its reason while rendering and teardown remain measured.
 
 Run `pnpm prebuild:android`, build the generated release app, start an emulator, and then run
 `scripts/android-probe.sh`. The corresponding iOS route is `pnpm prebuild:ios`, a Release simulator

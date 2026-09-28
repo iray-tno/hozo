@@ -136,6 +136,7 @@ test('collects an honest iOS lifecycle report without claiming unmeasured intera
   const report = collectIosReport(events, 123)
   assert.equal(report.appBytes, 123)
   assert.deepEqual(report.lifecycle, {
+    status: 'measured',
     contextBeforeBackground: 4,
     contextAfterResume: 4,
     contextPreserved: true,
@@ -143,4 +144,26 @@ test('collects an honest iOS lifecycle report without claiming unmeasured intera
   })
   assert.equal(report.interaction.pointerRaycast, 'not-run')
   assert.equal(report.interaction.voiceOver, 'not-run')
+})
+
+test('records an unavailable hosted iOS lifecycle without losing render evidence', () => {
+  const reason = 'The hosted simulator did not background the React Native scene.'
+  const events = [
+    { event: 'renderer_ready', host: 'expo-gl', elapsedMs: 80, contextId: 4 },
+    { event: 'first_frame', host: 'expo-gl', elapsedMs: 96, objectId: 'cube' },
+    { event: 'lifecycle_not_run', host: 'expo-gl', reason },
+    {
+      event: 'steady_sample',
+      host: 'expo-gl',
+      frameCount: 120,
+      medianFrameMs: 16.7,
+      p95FrameMs: 20,
+      objectId: 'cube',
+    },
+    { event: 'renderer_unmounted', host: 'expo-gl', elapsedMs: 2_800 },
+  ]
+
+  const report = collectIosReport(events, 123)
+  assert.deepEqual(report.lifecycle, { status: 'not-run', reason })
+  assert.equal(report.events.at(-1).event, 'renderer_unmounted')
 })
