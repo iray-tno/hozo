@@ -16,6 +16,8 @@ mkdir -p "$artifacts"
 diagnose() {
   echo '--- persisted probe events ---'
   cat "$artifacts/events.json" 2>/dev/null || true
+  echo '--- iOS input driver log ---'
+  cat "$artifacts/idb-home.log" 2>/dev/null || true
   echo '--- iOS application log ---'
   tail -n 300 "$artifacts/system.log" 2>/dev/null || true
 }
@@ -29,6 +31,7 @@ fail() {
 cleanup() {
   if [ -n "${log_pid:-}" ]; then
     kill "$log_pid" 2>/dev/null || true
+    wait "$log_pid" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -76,7 +79,9 @@ node "$root/../native-demo/scripts/screen-colours.mjs" "$artifacts/first-frame.p
 # Send the same HOME HID event as Simulator.app. Merely foregrounding
 # SpringBoard makes the scene inactive without delivering the background state
 # React Native applications receive from an ordinary home-button transition.
-idb ui button HOME --udid "$udid"
+if ! idb ui button HOME --udid "$udid" >"$artifacts/idb-home.log" 2>&1; then
+  fail 'iOS input driver could not send the HOME event'
+fi
 wait_for_event app_backgrounded
 sleep 2
 xcrun simctl launch "$udid" "$bundle_id" >/dev/null
