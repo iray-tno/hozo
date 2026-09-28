@@ -148,7 +148,7 @@ for (const id of stories) {
       await page.goto(`/iframe.html?id=${id}&viewMode=story`, { waitUntil: 'load' })
       await page.locator('#storybook-root > *').first().waitFor()
       await enterPage(page, screenReader)
-      read = await walk(screenReader)
+      read = await walk(screenReader, { page })
     } finally {
       stopRecording()
       // The whole walk rather than only its phrases. Which limit ended it and

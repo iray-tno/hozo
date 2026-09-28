@@ -295,6 +295,35 @@ const CONTAINER = /\b(toolbar|list ?box|table|web ?dialog)\b/i
 const INSIDE_STEPS = 20
 
 /**
+ * A dialog NVDA announces and will not read into.
+ *
+ * The other half of `CONTAINER`, for the other reader, and #617's whole
+ * subject. NVDA says `dialog, Choose a date and time` for the panel
+ * `DateTimePicker` opens and then steps past it to the next heading; run
+ * 36394492849 established that the contents are not in its browse-mode buffer
+ * at all -- H from the top of the page finds every `h2` and none of the three
+ * `h3`s inside dialogs -- while Tab reaches every control in them, named and
+ * in document order.
+ *
+ * So the subtree is exposed and focusable, and the buffer is what will not go
+ * there. A native `<dialog>` opened with `showModal()` has never had this
+ * problem because the top layer makes NVDA's buffer *be* the dialog, which is
+ * why `patterns-dialog--open` reads fine and this does not.
+ *
+ * Anchored, because NVDA says "button, expanded, opens dialog, Departure ..."
+ * for the trigger and a bare `\bdialog\b` would send the walk into a button.
+ * The phrase for the thing itself begins with the role.
+ */
+const DIALOG = /^dialog[,\s]/i
+
+/** Tab stops one dialog may spend before the walk gives up on it. */
+const DIALOG_STOPS = 24
+
+/** What a browser will move focus to with Tab. `FocusScope` uses the same list. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/**
  * NVDA's word for an empty line, which is silence with a name on it.
  *
  * Counting it as a phrase made every story end for the wrong reason. NVDA says
@@ -515,7 +544,76 @@ export interface Walk {
   truncated: string[]
 }
 
-export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): Promise<Walk> {
+/**
+ * Reads one dialog by moving focus through it, and says whether it ran out.
+ *
+ * Returns true when the budget stopped it rather than the dialog running out,
+ * which is what `Walk.truncated` records (#585): the difference between "that
+ * is all it says" and "that is all we listened to" is invisible in a list of
+ * phrases and an approved file has to declare it.
+ *
+ * Focus is put on the first focusable thing inside the dialog and NVDA is
+ * asked what has focus, because a programmatic focus says nothing on its own.
+ * After that each Tab is a real keystroke and each phrase is a control. The
+ * loop ends when focus leaves the dialog, which is the browser's own answer to
+ * "that was the last one" -- `FocusScope` traps Tab, so in a trapped dialog it
+ * wraps to the first control instead and the repeated phrase ends it.
+ */
+async function enterDialog(
+  page: Page,
+  screenReader: IScreenReader,
+  name: string,
+  spend: () => void,
+  budget: number,
+): Promise<boolean> {
+  const dialog = page.locator('[role="dialog"], dialog[open]').first()
+  const first = dialog.locator(FOCUSABLE).first()
+  if ((await first.count()) === 0) {
+    console.log(`[walk] ${name}: nothing focusable inside it`)
+    return false
+  }
+  await first.focus()
+  await screenReader.perform({
+    keyCode: [WindowsKeyCodes.Insert, WindowsKeyCodes.Tab],
+    modifiers: [],
+  })
+
+  /** Whether DOM focus is still somewhere in the dialog. */
+  const inside = () =>
+    dialog.evaluate((node) => node.contains(document.activeElement)).catch(() => false)
+
+  let previous = ''
+  for (let stop = 0; stop < Math.min(DIALOG_STOPS, budget); stop++) {
+    if (!(await inside())) return false
+    await screenReader.press('Tab')
+    spend()
+    const said = (await screenReader.lastSpokenPhrase()).trim()
+    // A trapped dialog wraps rather than letting focus out, so the way it
+    // says "that was all of them" is by saying one of them again.
+    if (said === previous) return false
+    previous = said
+  }
+  return true
+}
+
+export interface WalkOptions {
+  maxSteps?: number
+  /**
+   * The page, so a dialog NVDA will not read into can be entered by focus.
+   *
+   * Optional, and a walk without it is the walk this file has always done.
+   * `tree-shape.spec.ts` passes none, because its fixture has no dialog and
+   * the question it asks is about a tree.
+   */
+  page?: Page
+}
+
+export async function walk(
+  screenReader: IScreenReader,
+  options: WalkOptions | number = {},
+): Promise<Walk> {
+  const { maxSteps = MAX_STEPS, page } =
+    typeof options === 'number' ? { maxSteps: options } : options
   const entered = new Set<string>()
   const truncated: string[] = []
   let steps = 0
@@ -539,6 +637,30 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
     silent = 0
     repeats = said === last ? repeats + 1 : 0
     last = said
+
+    // A dialog NVDA will not read into, entered by focus instead (#617).
+    //
+    // Tab rather than `next`, because `next` is a Down Arrow in the virtual
+    // buffer and the buffer does not contain this subtree. The first stop is
+    // reached with `locator.focus()`, which is silent -- measured in run
+    // 36359016412 -- and then named with NVDA+Tab, whose whole job is to say
+    // what has focus without moving it. Without that the first control in
+    // every dialog would be skipped.
+    //
+    // The walk resumes with `next` afterwards, from wherever NVDA's cursor
+    // ended up. The counters are reset for the same reason the VoiceOver
+    // branch resets them: coming back out often re-announces something
+    // already said, and three of those end a walk early.
+    if (page !== undefined && onWindows && DIALOG.test(said) && !entered.has(said)) {
+      entered.add(said)
+      if (await enterDialog(page, screenReader, said, () => steps++, maxSteps - steps)) {
+        truncated.push(said)
+      }
+      last = ''
+      repeats = 0
+      silent = 0
+      continue
+    }
 
     // Each container once. Re-entering one is how a walk stops going
     // anywhere while still saying something every time.
