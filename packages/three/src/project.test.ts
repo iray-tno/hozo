@@ -1529,6 +1529,17 @@ test('ArrayCamera diagnoses sub-cameras without a viewport', () => {
   assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_CAMERA')
 })
 
+test('GPU capture cameras remain diagnostic', () => {
+  const camera = new THREE.CubeCamera(1, 10, new THREE.WebGLCubeRenderTarget(16))
+  const scene = new Scene()
+  scene.add(new Mesh(triangleGeometry(), new MeshBasicMaterial()))
+
+  const result = projectThreeScene(scene, camera, { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_CAMERA')
+})
+
 test('line morph targets deform projected segments', () => {
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new Float32BufferAttribute([-1, 0, 0, 1, 0, 0], 3))

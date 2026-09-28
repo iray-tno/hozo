@@ -179,6 +179,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   }),
   row('camera', 'CubeCamera', 'out-of-scope', 'Environment capture needs a GPU renderer.', {
     upstream: upstream('camera', 'CubeCamera'),
+    tests: [project('GPU capture cameras remain diagnostic')],
   }),
   row('camera', 'OrthographicCamera', 'full', 'Its public projection matrix is honoured.', {
     upstream: upstream('camera', 'OrthographicCamera'),

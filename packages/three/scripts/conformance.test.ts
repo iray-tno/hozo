@@ -7,6 +7,7 @@ import test from 'node:test'
 import * as THREE from 'three'
 
 import {
+  PORTABLE_CAMERA_CAPABILITIES,
   PORTABLE_GEOMETRY_CAPABILITIES,
   PORTABLE_MATERIAL_CAPABILITIES,
   PORTABLE_OBJECT_CAPABILITIES,
@@ -76,6 +77,7 @@ test('portable capability inventories are atomic, referenced, and internally con
     PORTABLE_MATERIAL_CAPABILITIES,
     PORTABLE_GEOMETRY_CAPABILITIES,
     PORTABLE_OBJECT_CAPABILITIES,
+    PORTABLE_CAMERA_CAPABILITIES,
     PORTABLE_SCENE_CAPABILITIES,
   ] as const
   const entries = inventories.flat()
