@@ -59,7 +59,7 @@ copy_events() {
 
 wait_for_event() {
   local wanted="$1"
-  for _ in $(seq 1 90); do
+  for _ in $(seq 1 30); do
     if copy_events && grep -q "\"event\": \"$wanted\"" "$artifacts/events.json"; then
       return 0
     fi
@@ -73,10 +73,10 @@ wait_for_event first_frame
 xcrun simctl io "$udid" screenshot "$artifacts/first-frame.png" >/dev/null
 node "$root/../native-demo/scripts/screen-colours.mjs" "$artifacts/first-frame.png" 8
 
-# Foregrounding SpringBoard leaves the probe process alive while producing the
-# ordinary UIKit home/background transition. Relaunching the probe then measures
-# whether Expo GL resumes and renders with the same context.
-xcrun simctl launch "$udid" com.apple.springboard >/dev/null
+# Send the same HOME HID event as Simulator.app. Merely foregrounding
+# SpringBoard makes the scene inactive without delivering the background state
+# React Native applications receive from an ordinary home-button transition.
+idb ui button HOME --udid "$udid"
 wait_for_event app_backgrounded
 sleep 2
 xcrun simctl launch "$udid" "$bundle_id" >/dev/null
