@@ -1225,6 +1225,25 @@ impl PropSet {
         })
     }
 
+    /// Whether a `{...spread}` is on this element, hiding what it carries.
+    ///
+    /// A spread's contents are a runtime value, and this compiler reads
+    /// syntax: there is no type checker to ask whether `rest` can hold an
+    /// `href`, and following the value would mean leaving the file. So a
+    /// spread is the compiler being told that it does not know.
+    ///
+    /// That matters wherever a *decision* is made from a prop. A wrapper
+    /// around a primitive is written
+    ///
+    ///   <ButtonPrimitive {...rest} className={own} />
+    ///
+    /// and `rest` is where every prop the wrapper forwards has gone. A
+    /// lowering that asks "is `href` written here" gets "no" and is wrong
+    /// whenever the answer was "not here, but yes" (#653).
+    pub fn has_spread(&self) -> bool {
+        self.passthrough.iter().any(|prop| prop.is_spread)
+    }
+
     pub fn has_responder_handlers(&self) -> bool {
         self.on_start_should_set_responder.is_some()
             || self.on_start_should_set_responder_capture.is_some()

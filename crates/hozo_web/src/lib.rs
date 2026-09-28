@@ -536,6 +536,22 @@ fn source_text(source: &str, expr_ref: hozo_ir::ExprRef) -> &str {
     &source[expr_ref.0.start as usize..expr_ref.0.end as usize]
 }
 
+/// The tag name as the author wrote it, read off the element's own span.
+///
+/// `<ButtonPrimitive ...>` is `ButtonPrimitive`, not `Button`. A lowering
+/// that keeps the component has to name the binding that is in scope, and an
+/// import alias is ordinary in any file that wraps a primitive -- which is
+/// every file in a styled component library. Emitting the canonical name
+/// there produces a free identifier, and a free identifier in a component
+/// position renders nothing and says nothing (#653).
+fn written_tag(source: &str, span: hozo_ir::SourceSpan) -> Option<&str> {
+    let text = source.get(span.start as usize..span.end as usize)?;
+    let rest = text.strip_prefix('<')?;
+    let end = rest.find(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$' || c == '.'))?;
+    let name = &rest[..end];
+    if name.is_empty() { None } else { Some(name) }
+}
+
 /// Re-emits a `ConditionExpr` as a JS boolean expression by splicing the
 /// original source at each leaf `Ref`'s span -- the compiler never
 /// evaluates these, only reconstructs them with real `&&`/`||`/`!`
@@ -620,7 +636,15 @@ fn render_node(
         rules.push_str("\n\n");
     }
 
-    let (mut tag, extra_attrs) = markup::element_shape(node, diagnostics);
+    let (shape, extra_attrs) = markup::element_shape(node, diagnostics);
+    // A shape the backend declined to decide keeps the component, named the
+    // way this file names it rather than the way the primitive is called.
+    // See `written_tag` and #653.
+    let mut tag: &str = if shape == markup::UNDECIDED {
+        written_tag(source, node.span).unwrap_or("div")
+    } else {
+        shape
+    };
     let has_pan_handlers_spread = node.props.passthrough.iter().any(|prop| {
         prop.is_spread && source_text(source, prop.span).contains(".panHandlers")
     });
@@ -2548,6 +2572,80 @@ const el = {element}"
         assert_eq!(
             output.jsx,
             "<div className=\"hozo-view\"><progress value={50} max={100}>50%</progress><a href=\"https://example.com\">Go</a></div>"
+        );
+    }
+
+    #[test]
+    fn a_spread_keeps_the_component_where_the_shape_depends_on_a_prop() {
+        // #653. A wrapper forwards its props, and every prop it forwards has
+        // gone into `rest`:
+        //
+        //   <ButtonPrimitive {...rest} className={own} />
+        //
+        // A lowering that asks "is `href` written here" gets "no", and was
+        // wrong whenever the answer was "not here, but yes" -- it emitted a
+        // `<button>` carrying a useless `href`, where the runtime half of the
+        // same component returns an `<a>`. The two disagreed about the
+        // element, which is worse than either answer on its own.
+        //
+        // There is no static way to tell. This compiler reads syntax, so
+        // there is no type to ask whether `rest` can hold an `href`, and
+        // following the value would mean leaving the file.
+        let cases = [
+            (
+                r#"<Button href="/docs">Docs</Button>"#,
+                r#"<a href="/docs">Docs</a>"#,
+            ),
+            (
+                r#"<Button>Docs</Button>"#,
+                r#"<button type="button">Docs</button>"#,
+            ),
+            (
+                r#"<Button {...rest}>Docs</Button>"#,
+                r#"<Button {...hozoDomProps(rest)}>Docs</Button>"#,
+            ),
+        ];
+        for (input, expected) in cases {
+            let source = format!("import {{ Button }} from '@hozo/core'\nconst el = {input}");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert_eq!(output.jsx, expected, "for {input}");
+        }
+    }
+
+    #[test]
+    fn the_kept_component_is_named_the_way_the_file_names_it() {
+        // The half that makes the fallback usable. Every wrapper around a
+        // primitive imports it under another name, because the wrapper wants
+        // the good one:
+        //
+        //   import { Button as ButtonPrimitive } from '@hozo/primitives'
+        //
+        // Emitting `<Button>` there is a free identifier, which renders
+        // nothing and reports nothing -- a blank story, which is how this was
+        // found.
+        let source = "import { Button as ButtonPrimitive } from '@hozo/core'\n\
+                      const el = <ButtonPrimitive {...rest}>Docs</ButtonPrimitive>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert_eq!(
+            output.jsx,
+            r#"<ButtonPrimitive {...hozoDomProps(rest)}>Docs</ButtonPrimitive>"#
+        );
+    }
+
+    #[test]
+    fn a_spread_gives_up_nothing_where_the_shape_is_fixed() {
+        // The guard is only on the primitives whose *shape* depends on a
+        // prop. A `View` is a `div` whatever it is given, so a spread there
+        // hides nothing and costs nothing -- which is what keeps this from
+        // turning every wrapper in an application back into a runtime tree.
+        let source = "import { View } from '@hozo/core'\nconst el = <View {...rest}>x</View>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert_eq!(
+            output.jsx,
+            r#"<div className="hozo-view" {...hozoDomProps(rest)}>x</div>"#
         );
     }
 

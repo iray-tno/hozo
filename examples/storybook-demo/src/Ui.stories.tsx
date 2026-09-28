@@ -42,9 +42,9 @@ function UiGallery() {
           Buttons
         </Heading>
         <Paragraph className={prose}>
-          Four tones, and every one of them carries the same focus ring -- reach for Tab. The demo
-          these tokens came from had a ring on four controls and nothing on the rest, which is the
-          gap this package closes by construction rather than by remembering.
+          Four tones, and every one of them carries the same focus ring -- reach for Tab. The last
+          one is given an href, so it is a link wearing a button: the primitive answers an href with
+          an anchor, and #653 is why that survives being forwarded through a wrapper's spread.
         </Paragraph>
         <Stack direction="row" gap="tight" align="center">
           <Button tone="accent" onPress={() => {}}>
@@ -58,6 +58,9 @@ function UiGallery() {
           </Button>
           <Button tone="danger" onPress={() => {}}>
             Delete
+          </Button>
+          <Button tone="accent" size="sm" href="/docs">
+            A link that looks like a button
           </Button>
         </Stack>
       </Section>
