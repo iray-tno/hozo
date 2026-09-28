@@ -121,3 +121,65 @@ test('p-px stays one physical pixel', async () => {
   const css = createCompiler(theme).compile(source)[0].css
   assert.match(css, /padding-top: 1px/)
 })
+
+test('a token defined as another token resolves to what that one is', async () => {
+  // The way Tailwind's own documentation writes a semantic theme, and the
+  // way a design system wants to: a name that says what a colour is for,
+  // pointing at the palette entry it happens to be.
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme { --color-brand: var(--color-indigo-600); }`)
+
+  const brand = theme.colors.find((c) => c.token === 'brand')
+  const indigo = theme.colors.find((c) => c.token === 'indigo-600')
+  assert.ok(indigo, 'the palette entry it points at')
+  assert.equal(brand?.hex, indigo?.hex, 'the same colour, not a missing one')
+  assert.equal(brand?.oklch, indigo?.oklch)
+})
+
+test('a chain of references is followed to the end of it', async () => {
+  // One semantic name pointing at another is the same idea a level on: a
+  // component says `bg-button-fill`, the theme says that is the accent, and
+  // the accent is a palette entry.
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme {
+      --color-accent: var(--color-indigo-600);
+      --color-button-fill: var(--color-accent);
+    }`)
+
+  const fill = theme.colors.find((c) => c.token === 'button-fill')
+  const indigo = theme.colors.find((c) => c.token === 'indigo-600')
+  assert.equal(fill?.hex, indigo?.hex)
+})
+
+test('a reference that goes nowhere takes its fallback, as CSS would', async () => {
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme { --color-brand: var(--color-not-a-token, oklch(62% 0.19 259)); }`)
+
+  assert.equal(theme.colors.find((c) => c.token === 'brand')?.hex, '#3581f6')
+})
+
+test('a reference with nowhere to go and no fallback is left out, not guessed', async () => {
+  // The rule the rest of this function follows: a colour that cannot be
+  // resolved is absent rather than approximated, because the backends each
+  // have a defined answer for an absent token and none for a wrong one.
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme { --color-brand: var(--defined-somewhere-else); }`)
+
+  assert.equal(
+    theme.colors.find((c) => c.token === 'brand'),
+    undefined,
+  )
+})
+
+test('a token that refers to itself ends the walk rather than the process', async () => {
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme {
+      --color-ouroboros: var(--color-worm);
+      --color-worm: var(--color-ouroboros);
+    }`)
+
+  assert.equal(
+    theme.colors.find((c) => c.token === 'ouroboros'),
+    undefined,
+  )
+})

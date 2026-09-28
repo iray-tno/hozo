@@ -126,10 +126,15 @@ export async function loadClassOrder(
 export async function loadTheme(css: string, base: string): Promise<Theme> {
   const design = await designSystemFor(css, base)
 
-  const colors: ThemeColor[] = []
+  const declared = new Map<string, string>()
   for (const [name, value] of design.theme.entries()) {
+    declared.set(name, String(value.value).trim())
+  }
+
+  const colors: ThemeColor[] = []
+  for (const [name, declaration] of declared) {
     if (!name.startsWith('--color-')) continue
-    const oklch = String(value.value).trim()
+    const oklch = dereference(declaration, declared)
     const hex = toHex(oklch)
     // A colour that won't convert is left out rather than guessed at. The
     // backends already have a defined answer for a token they can't
@@ -139,6 +144,57 @@ export async function loadTheme(css: string, base: string): Promise<Theme> {
     colors.push({ token: name.slice('--color-'.length), oklch, hex })
   }
   return { colors, spacingPx: readSpacing(design) }
+}
+
+/** How many `var()` hops to follow before giving up, which also breaks cycles. */
+const VAR_HOPS = 8
+
+/** `var(--name)` or `var(--name, fallback)`, and nothing else. */
+const VAR_REFERENCE = /^var\(\s*(--[A-Za-z0-9_-]+)\s*(?:,([\s\S]+))?\)$/
+
+/**
+ * Follows a token that is defined as another token.
+ *
+ * Tailwind's own documentation writes a theme this way -- a semantic name
+ * pointing at a palette entry:
+ *
+ *   @theme {
+ *     --color-brand: var(--color-indigo-600);
+ *   }
+ *
+ * `design.theme.entries()` hands back what was written rather than what it
+ * resolves to, so before this the declaration above reached `toHex` as the
+ * string "var(--color-indigo-600)", failed to convert, and the colour was
+ * dropped from the Theme entirely. Silently: a project whose tokens were all
+ * written that way got a Theme with no colours in it and no diagnostic, and
+ * the Native lowering -- which has no custom properties to fall back on --
+ * had nothing to emit.
+ *
+ * So the reference is followed here, against the same theme it was declared
+ * in. A chain is allowed, because one semantic name pointing at another is
+ * the same idea one level on, and `VAR_HOPS` bounds it so a token that refers
+ * to itself ends the walk rather than the process.
+ *
+ * `var(--x, fallback)` takes the fallback when `--x` is not a theme entry,
+ * which is what CSS does with it. A reference to something outside the theme
+ * and with no fallback is left as it was written: it is then a colour this
+ * cannot resolve, and the sentence above about not guessing applies to it.
+ */
+function dereference(value: string, declared: ReadonlyMap<string, string>): string {
+  let current = value.trim()
+  for (let hop = 0; hop < VAR_HOPS; hop++) {
+    const match = VAR_REFERENCE.exec(current)
+    if (match === null) return current
+    const [, name, fallback] = match
+    const target = name === undefined ? undefined : declared.get(name)
+    if (target !== undefined) {
+      current = target.trim()
+      continue
+    }
+    if (fallback === undefined) return current
+    current = fallback.trim()
+  }
+  return current
 }
 
 /**
