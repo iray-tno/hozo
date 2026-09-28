@@ -299,8 +299,13 @@ export async function enterFocusMode(screenReader: IScreenReader): Promise<void>
   })
 }
 
+/** How long to wait for speech to begin before calling the action silent. */
 const SETTLE_MS = 3000
-const QUIET_MS = 700
+/** How long the log must stop growing before speech counts as finished. */
+const QUIET_MS = 1200
+/** A ceiling on one announcement, so a reader that never stops cannot hang a run. */
+const SPEECH_MS = 15_000
+const POLL_MS = 200
 
 /** Everything the reader actually said, with its silences dropped. */
 export function meaningful(log: readonly string[]): string[] {
@@ -316,10 +321,39 @@ export function meaningful(log: readonly string[]): string[] {
  *
  * Two waits rather than one. The first is for speech to begin, because a key
  * press reaches the page over CDP and the reader speaks a moment later; the
- * second is for it to finish, because an announcement is often several phrases
- * ("Thursday, September 11, 2026", "selected") and returning after the first
- * would approve half a sentence. Both are generous: a scenario runs a handful
- * of steps, so seconds here cost a run nothing, and a flaky approval costs it
+ * second is for it to *finish*, because an announcement is often several
+ * phrases ("Thursday, September 11, 2026", "selected") and returning after the
+ * first would approve half a sentence.
+ *
+ * The second wait used to be a flat 700ms after the first phrase, which is not
+ * a wait for the end of anything, and that cost run 36364764129 a red job and
+ * two approvals their meaning. In that run VoiceOver never announced the 24th:
+ *
+ *   ArrowDown -- the 17th   "Thursday, September 17, 2026 17"
+ *   ArrowDown -- the 24th   (nothing said)
+ *   ArrowDown -- October    "October 2026"
+ *
+ * The third key spoke, so the machine was not lagging and the announcement was
+ * not merely late -- a late one would have leaked into the next step's log,
+ * which was clean. What happened is that the second key was pressed while the
+ * first phrase was still being spoken, and VoiceOver dropped the announcement
+ * it interrupted. The third key then went out into silence and was fine. The
+ * green run on the identical commit had finished speaking inside the 700ms,
+ * which is why this was a machine's speed rather than a calendar's behaviour.
+ *
+ * The same shape explains every other silence this suite has attributed to
+ * VoiceOver: the warm-up's second key, which follows the longest phrase on the
+ * page ("... table 7 columns, 6 rows"), and the step back onto the selected day
+ * in `calendar-says-the-selected-day`. Both notes in `expected/voiceover/` say
+ * VoiceOver does not re-announce the cell it entered the table on. That may
+ * still be true and it is no longer evidenced, because the key that was
+ * supposed to show it was pressed into an ongoing utterance.
+ *
+ * So the log is now watched until it stops growing for `QUIET_MS`, with
+ * `SPEECH_MS` as a ceiling. Growth is measured on the raw log rather than on
+ * `meaningful`, because a trailing empty phrase is still the reader being
+ * busy. Generous on purpose: a scenario runs a handful of steps, so seconds
+ * here cost a run nothing, and an approval that means something else costs it
  * a week.
  *
  * Returning nothing is a result rather than a failure. "Nothing was said" is
@@ -332,12 +366,29 @@ export async function spokenAfter(
 ): Promise<string[]> {
   await screenReader.clearSpokenPhraseLog()
   await act()
-  const deadline = Date.now() + SETTLE_MS
-  while (Date.now() < deadline) {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  const started = Date.now() + SETTLE_MS
+  while (Date.now() < started) {
     if (meaningful(await screenReader.spokenPhraseLog()).length > 0) break
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await sleep(POLL_MS)
   }
-  await new Promise((resolve) => setTimeout(resolve, QUIET_MS))
+
+  // Never the first phrase and out: the announcement is finished when the log
+  // has been the same length for `QUIET_MS`.
+  const ceiling = Date.now() + SPEECH_MS
+  let seen = -1
+  let unchangedSince = Date.now()
+  while (Date.now() < ceiling) {
+    const length = (await screenReader.spokenPhraseLog()).length
+    if (length !== seen) {
+      seen = length
+      unchangedSince = Date.now()
+    } else if (Date.now() - unchangedSince >= QUIET_MS) {
+      break
+    }
+    await sleep(POLL_MS)
+  }
   return meaningful(await screenReader.spokenPhraseLog())
 }
 

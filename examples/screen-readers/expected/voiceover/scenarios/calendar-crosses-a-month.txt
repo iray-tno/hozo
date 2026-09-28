@@ -1,17 +1,29 @@
-# Approved from screen-readers run 36362653748 (VoiceOver, Safari), and
-# narrowed after 36363682051 measured the same story differently.
-# What this reader says for the arrow that leaves September is not stable. Run
-# 36362653748 heard "Thursday, October 1, 2026 1" -- the cell it landed on --
-# and 36363682051 heard "October 2026", the caption of the grid that replaced
-# the old one. Same keys, same story, same build.
-# So the approved phrase is the word both carry. That is not a hedge: the
-# claim this scenario makes is that an arrow out of the month lands in the
-# next one *and says so*, and either phrase says so. Which of the two a reader
-# gets is VoiceOver's business, and holding it to one of them would fail a run
-# for being the other.
-# The middle step is left out for the same reason, one level further: run
-# 36362653748 heard the 24th and 36363682051 did not.
-# NVDA's file beside this one is held to the exact phrase, because there it is
-# the same phrase every time.
+# Approved from screen-readers run 36369849773 (VoiceOver, Safari), with one
+# phrase narrowed after 36363682051 measured the last step differently.
+#
+# All three steps. The middle one -- the 24th -- was left out when this file
+# was written, because run 36363682051 did not hear it and 36362653748 did.
+# That turned out not to be VoiceOver's inconsistency but the harness's:
+# `spokenAfter` returned a flat 700ms after the first phrase instead of waiting
+# for speech to stop, so the key for the 24th was pressed into the tail of the
+# phrase for the 17th and VoiceOver dropped the announcement it interrupted.
+# Run 36364764129 made that legible by dropping the 24th four times out of
+# four on one machine while a faster machine heard it every time.
+#
+# `spokenAfter` now waits for the log to stop growing, so the 24th is held to
+# again. If it goes red, the wait is still too short -- look at the phrase
+# before it in the artifact rather than at the calendar.
+#
+# The last step stays narrowed to one word, and that one is VoiceOver's own
+# doing. 36362653748 heard "Thursday, October 1, 2026 1" -- the cell it landed
+# on -- and 36363682051 heard "October 2026", the caption of the grid that
+# replaced the old one. Both are announcements, not silences, so neither is the
+# interruption above; the reader simply says one or the other. The claim is
+# that an arrow out of the month lands in the next one *and says so*, and both
+# phrases say so, so the approved text is the word they share.
+#
+# NVDA's file beside this one is held to the exact phrase throughout, because
+# there it is the same phrase every time.
 Thursday, September 17, 2026 17
+Thursday, September 24, 2026 24 current date
 October

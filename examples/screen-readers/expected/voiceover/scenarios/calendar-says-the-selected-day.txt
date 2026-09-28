@@ -1,13 +1,26 @@
 # Approved from screen-readers run 36362653748 (VoiceOver, Safari).
-# Half a scenario, and the half that is missing is a property of this reader.
+# Half a scenario, and why the other half is missing is now an open question.
 #
 # VoiceOver never announces selection in this grid: not "selected", not "not
-# selected", on any cell. And it does not re-announce the cell the grid opened
-# on -- every route back to the 10th is silent, because that is where its cursor
-# entered the table. So the claim this scenario makes is not measurable here,
-# and only the step away from the selected day is approved.
+# selected", on any cell. That much is solid -- it holds for the cells it does
+# announce, in every run.
+#
+# The step back onto the 10th is silent, and this file used to say why: that
+# VoiceOver does not re-announce the cell its cursor entered the table on. That
+# explanation is no longer evidenced. Run 36364764129 showed the same silence
+# on a cell that had nothing to do with entering the table -- the 24th, which
+# three other runs announced -- and `spokenAfter` turned out to be pressing the
+# next key while the previous phrase was still being spoken, which VoiceOver
+# answers by dropping the announcement it interrupted. The second key of a pair
+# is exactly the key this scenario measures.
+#
+# `spokenAfter` now waits for speech to stop. If the 10th starts being
+# announced, this file gains a line and the note above goes; if it stays silent
+# with the reader quiet before the key, the original explanation is right and
+# earns its place. Either way it is measured rather than assumed, which is the
+# difference this suite keeps having to learn (#580, #592, #598).
 #
 # NVDA's file beside this one has the finding that makes the scenario worth
-# keeping: there, the unchosen days say "not selected" and the chosen one says
-# nothing.
+# keeping either way: there, the unchosen days say "not selected" and the
+# chosen one says nothing.
 Friday, September 11, 2026 11

@@ -1,14 +1,30 @@
-# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
-# The step away from the range, for the reason the file beside this one gives:
-# VoiceOver does not re-announce the cell it entered the table on, and the
-# range's start is that cell.
+# Approved from screen-readers run 36369849773 (VoiceOver, Safari).
+# Both steps, and the second one is the reason this file was rewritten.
 #
-# Not nothing, though. The warm-up -- which is not compared, so it is quoted
-# here rather than approved -- shows the composed name does reach this reader:
+# It used to hold only the step away from the range, on the grounds that
+# VoiceOver does not re-announce the cell its cursor entered the table on. Run
+# 36369849773 says otherwise, on the identical commit:
 #
-#   "Thursday, September 10, 2026, start of range 10 September 2026 table 7
-#    columns, 6 rows"
+#   ArrowLeft   off the range, onto the 9th
+#     "Wednesday, September 9, 2026 9"
+#   ArrowRight  and back onto the 10th, which is its start
+#     "Thursday, September 10, 2026, start of range 10"
 #
-# That is the claim, heard, in a phrase the harness cannot hold to. NVDA's file
-# holds it to it.
+# So the composed name does reach this reader on arrival, not only in a warm-up
+# that cannot be compared. What made it look otherwise was `spokenAfter`
+# returning a flat 700ms after the first phrase rather than waiting for speech
+# to stop: the next key went out while the previous phrase was still being
+# spoken, and VoiceOver drops the announcement it interrupts. Here the phrase
+# before is short enough to finish in time on a fast machine and not on a slow
+# one, which is why the same two keys produced two different files.
+#
+# `spokenAfter` now waits for the log to stop growing, and this approval is the
+# test of that: it holds VoiceOver to a phrase it can only say if it was not
+# interrupted. A red run here means the wait is still too short, not that the
+# component regressed -- check the step before it in the artifact first.
+#
+# "start of range" is in the cell's accessible name, composed there because
+# `aria-selected` is one bit and cannot say which end a day is. Both readers
+# now read it, which is the measurement that says composing it was right.
 Wednesday, September 9, 2026 9
+Thursday, September 10, 2026, start of range 10

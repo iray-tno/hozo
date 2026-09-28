@@ -81,6 +81,13 @@
 // A warm-up on one platform and not the other is two different tests under one
 // name, and this file has already made that mistake once.
 //
+// The warm-up earns a second keep now that `spokenAfter` waits for speech to
+// stop: its last key leaves the reader quiet, so the first measured key of a
+// scenario is never pressed into an announcement still being spoken. That was
+// what made the second key of a pair unreliable on VoiceOver -- see the note in
+// `expected/voiceover/scenarios/calendar-crosses-a-month.txt` -- and the entry
+// phrase is the longest on the page, so it is the worst one to land behind.
+//
 // ## Approval
 //
 // A scenario with no approved file is reported, never failed, exactly as a
