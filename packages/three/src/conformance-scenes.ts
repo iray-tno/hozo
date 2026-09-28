@@ -80,6 +80,74 @@ function perspective(): PerspectiveCamera {
   return camera
 }
 
+function decodeUtf8(input: AllowSharedBufferSource | undefined): string {
+  if (!input) return ''
+  const bytes = ArrayBuffer.isView(input)
+    ? new Uint8Array(input.buffer, input.byteOffset, input.byteLength)
+    : new Uint8Array(input)
+  let result = ''
+  for (let index = 0; index < bytes.length; ) {
+    const first = bytes[index++] ?? 0
+    if (first < 0x80) {
+      result += String.fromCharCode(first)
+      continue
+    }
+    const width = first < 0xe0 ? 2 : first < 0xf0 ? 3 : 4
+    let codePoint = first & (0x7f >> width)
+    for (let offset = 1; offset < width; offset += 1) {
+      const next = bytes[index++]
+      if (next === undefined || (next & 0xc0) !== 0x80) {
+        result += '\uFFFD'
+        codePoint = -1
+        break
+      }
+      codePoint = (codePoint << 6) | (next & 0x3f)
+    }
+    if (codePoint < 0) continue
+    if (codePoint <= 0xffff) result += String.fromCharCode(codePoint)
+    else {
+      const astral = codePoint - 0x10000
+      result += String.fromCharCode(0xd800 + (astral >> 10), 0xdc00 + (astral & 0x3ff))
+    }
+  }
+  return result
+}
+
+function installGltfHostPolyfills(): void {
+  // Hermes does not expose TextDecoder. GLTFLoader uses it while parsing even
+  // an embedded JSON fixture, so keep this conformance-only host shim beside
+  // the fixture instead of adding a runtime dependency to @hozo/three.
+  if (typeof globalThis.TextDecoder === 'undefined') {
+    Object.defineProperty(globalThis, 'TextDecoder', {
+      configurable: true,
+      value: class ConformanceTextDecoder {
+        readonly encoding = 'utf-8'
+
+        decode(input?: AllowSharedBufferSource): string {
+          return decodeUtf8(input)
+        }
+      },
+    })
+  }
+
+  if (typeof globalThis.ProgressEvent !== 'undefined') return
+  Object.defineProperty(globalThis, 'ProgressEvent', {
+    configurable: true,
+    value: class ConformanceProgressEvent extends Event {
+      readonly lengthComputable: boolean
+      readonly loaded: number
+      readonly total: number
+
+      constructor(type: string, init: ProgressEventInit = {}) {
+        super(type)
+        this.lengthComputable = init.lengthComputable ?? false
+        this.loaded = init.loaded ?? 0
+        this.total = init.total ?? 0
+      }
+    },
+  })
+}
+
 function triangleGeometry(): BufferGeometry {
   return new BufferGeometry().setAttribute(
     'position',
@@ -159,23 +227,7 @@ async function instancingAndMorph(): Promise<SceneCorpusScene> {
 }
 
 async function pinnedGltfPbr(loadGltfSource: () => Promise<string>): Promise<SceneCorpusScene> {
-  if (typeof globalThis.ProgressEvent === 'undefined') {
-    Object.defineProperty(globalThis, 'ProgressEvent', {
-      configurable: true,
-      value: class NodeProgressEvent extends Event {
-        readonly lengthComputable: boolean
-        readonly loaded: number
-        readonly total: number
-
-        constructor(type: string, init: ProgressEventInit = {}) {
-          super(type)
-          this.lengthComputable = init.lengthComputable ?? false
-          this.loaded = init.loaded ?? 0
-          this.total = init.total ?? 0
-        }
-      },
-    })
-  }
+  installGltfHostPolyfills()
   const gltf = await new GLTFLoader().parseAsync(await loadGltfSource(), '')
   const scene = new Scene()
   scene.add(new AmbientLight('#ffffff', 2), gltf.scene)
