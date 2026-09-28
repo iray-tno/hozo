@@ -1,8 +1,16 @@
 # @hozo/patterns
 
 Accessible stateful widgets for Hozo: `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`,
-`RadioGroup`, `Toolbar`, `Tree` and `Tooltip`. Each carries its WAI-ARIA keyboard contract on the
-Web and the matching accessibility semantics on React Native.
+`RadioGroup`, `Checkbox`, `Switch`, `Toolbar`, `Tree` and `Tooltip`. Each carries its WAI-ARIA
+keyboard contract on the Web and the matching accessibility semantics on React Native.
+
+`Checkbox` and `Switch` are one control with two roles, and choosing between them chooses what a
+person hears: a checkbox is "checked" or "not checked" and can also be "partially checked", while
+a switch is "on" or "off" and ARIA gives its role no third value. The checkbox is a `<button role="checkbox">`
+rather than an `<input>` because a real checkbox's indeterminate state is a DOM property with no
+attribute — it cannot be rendered on a server, and `aria-checked="mixed"` can. Both carry
+`data-hozo-state` (`checked` / `unchecked` / `mixed`) so one class list can draw all three states
+without the application passing its own state back in.
 
 They are built on the headless engines in `@hozo/behaviors` -- focus scopes, roving focus,
 typeahead, dismissal and floating positioning -- which stay reusable on their own. Applications

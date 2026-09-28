@@ -1,0 +1,15 @@
+heading, Checkbox, level 2
+paragraph
+Three states, not two. The parent below is "partially checked" whenever some but not all of its children are -- a reader says so, and a stylesheet can see it on the data-hozo-state attribute without being told twice.
+end of paragraph
+checkbox, All meals, partially checked
+checkbox, Breakfast, not checked
+checkbox, Lunch, checked
+checkbox, Dinner, not checked
+checkbox, Second breakfast (unavailable), not checked, disabled
+heading, Switch, level 2
+paragraph
+Two states, because a thing is on or off and there is no third way to be on. ARIA gives the switch role no mixed value, and a reader says "on" and "off" for it rather than "checked".
+end of paragraph
+switch, Email notifications, checked
+switch, Push notifications (no device), not checked, disabled
