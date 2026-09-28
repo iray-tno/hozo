@@ -66,3 +66,49 @@ jobs:
           name: three-native-gpu-expo-gl-android
           path: artifacts/three-native-gpu
           retention-days: 30
+
+  expo-gl-ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @hozo/example-three-native-probe...
+      - run: pnpm --filter @hozo/example-three-native-probe test
+      - run: pnpm --filter @hozo/example-three-native-probe typecheck
+      - run: pnpm --filter @hozo/example-three-native-probe prebuild:ios
+      - name: Install pods
+        working-directory: examples/three-native-probe/ios
+        run: |
+          pod install && exit 0
+          echo "::warning::pod install failed once; retrying"
+          pod install
+      - name: Build release app for the simulator
+        working-directory: examples/three-native-probe/ios
+        run: |
+          xcodebuild \
+            -workspace HozoThreeNativeProbe.xcworkspace \
+            -scheme HozoThreeNativeProbe \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Install iOS Simulator input driver
+        run: |
+          brew tap facebook/fb
+          brew trust facebook/fb
+          brew install facebook/fb/idb
+      - name: Exercise Expo GL host
+        run: bash examples/three-native-probe/scripts/ios-probe.sh artifacts/three-native-gpu-ios
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: three-native-gpu-expo-gl-ios
+          path: artifacts/three-native-gpu-ios
+          if-no-files-found: ignore
+          retention-days: 30

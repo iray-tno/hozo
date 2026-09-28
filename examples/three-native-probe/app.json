@@ -5,6 +5,9 @@
     "version": "0.0.0",
     "orientation": "portrait",
     "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "dev.hozo.threenativeprobe"
+    },
     "android": {
       "package": "dev.hozo.threenativeprobe"
     }

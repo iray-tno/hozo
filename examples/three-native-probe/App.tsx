@@ -1,7 +1,8 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber/native'
+import { File, Paths } from 'expo-file-system'
 import type { ExpoWebGLRenderingContext } from 'expo-gl'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
+import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Mesh } from 'three'
 
 const moduleStartedAt = performance.now()
@@ -18,9 +19,16 @@ type ProbeEvent = {
   source?: 'canvas' | 'semantic-control'
   contextId?: number
   resumeEpoch?: number
+  reason?: string
 }
 
+const recordedEvents: ProbeEvent[] = []
+const eventFile = new File(Paths.document, 'hozo-three-native-events.json')
+const skipLifecycleFile = new File(Paths.document, 'hozo-three-native-skip-lifecycle')
+
 function emit(event: ProbeEvent) {
+  recordedEvents.push(event)
+  eventFile.write(`${JSON.stringify(recordedEvents, null, 2)}\n`)
   console.log(`[hozo-three-native] ${JSON.stringify(event)}`)
 }
 
@@ -33,9 +41,11 @@ function percentile(samples: readonly number[], fraction: number) {
 function ProbeScene({
   onComplete,
   resumeEpoch,
+  allowWithoutResume,
 }: {
   onComplete: (object: Mesh) => void
   resumeEpoch: number
+  allowWithoutResume: boolean
 }) {
   const meshRef = useRef<Mesh>(null)
   const frameTimes = useRef<number[]>([])
@@ -62,6 +72,10 @@ function ProbeScene({
       })
     }
   }, [contextId, gl])
+
+  useEffect(() => {
+    if (allowWithoutResume) frameTimes.current = []
+  }, [allowWithoutResume])
 
   useFrame((_, delta) => {
     const mesh = meshRef.current
@@ -97,8 +111,8 @@ function ProbeScene({
 
     if (
       frameTimes.current.length === sampleFrameCount &&
-      touched.current &&
-      observedResumeEpoch.current > 0
+      (touched.current || Platform.OS === 'ios') &&
+      (observedResumeEpoch.current > 0 || allowWithoutResume)
     ) {
       completed.current = true
       emit({
@@ -187,6 +201,7 @@ export default function App() {
   const [mounted, setMounted] = useState(true)
   const [sampledObject, setSampledObject] = useState<Mesh | null>(null)
   const [resumeEpoch, setResumeEpoch] = useState(0)
+  const [allowWithoutResume, setAllowWithoutResume] = useState(false)
   const backgrounded = useRef(false)
   const resumeCount = useRef(0)
 
@@ -216,6 +231,22 @@ export default function App() {
     return () => subscription.remove()
   }, [])
 
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    const interval = setInterval(() => {
+      if (!skipLifecycleFile.exists) return
+      clearInterval(interval)
+      emit({
+        event: 'lifecycle_not_run',
+        host: 'expo-gl',
+        reason:
+          'The headless iOS Simulator accepted HOME and LOCK input without backgrounding the React Native scene.',
+      })
+      setAllowWithoutResume(true)
+    }, 250)
+    return () => clearInterval(interval)
+  }, [])
+
   const complete = useCallback((object: Mesh) => {
     setSampledObject(object)
     setTimeout(() => setMounted(false), 0)
@@ -240,7 +271,11 @@ export default function App() {
         {mounted ? (
           <Canvas camera={{ position: [0, 0, 3] }}>
             <ambientLight intensity={0.4} />
-            <ProbeScene onComplete={complete} resumeEpoch={resumeEpoch} />
+            <ProbeScene
+              allowWithoutResume={allowWithoutResume}
+              onComplete={complete}
+              resumeEpoch={resumeEpoch}
+            />
           </Canvas>
         ) : (
           <View style={styles.complete}>
