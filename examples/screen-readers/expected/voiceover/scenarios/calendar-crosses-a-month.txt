@@ -1,8 +1,17 @@
-# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
-# Two of the three steps, because the third is not reliably announced on this
-# reader: run 36361620009 heard the 24th and run 36362653748 did not, with the same
-# keys on the same story. What both heard is the one that carries the claim --
-# the arrow that left September announced a date in October, which is where it
-# landed.
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari), and
+# narrowed after 36363682051 measured the same story differently.
+# What this reader says for the arrow that leaves September is not stable. Run
+# 36362653748 heard "Thursday, October 1, 2026 1" -- the cell it landed on --
+# and 36363682051 heard "October 2026", the caption of the grid that replaced
+# the old one. Same keys, same story, same build.
+# So the approved phrase is the word both carry. That is not a hedge: the
+# claim this scenario makes is that an arrow out of the month lands in the
+# next one *and says so*, and either phrase says so. Which of the two a reader
+# gets is VoiceOver's business, and holding it to one of them would fail a run
+# for being the other.
+# The middle step is left out for the same reason, one level further: run
+# 36362653748 heard the 24th and 36363682051 did not.
+# NVDA's file beside this one is held to the exact phrase, because there it is
+# the same phrase every time.
 Thursday, September 17, 2026 17
-Thursday, October 1, 2026 1
+October
