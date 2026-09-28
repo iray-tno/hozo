@@ -59,13 +59,14 @@ function designSystemFor(css: string, base: string) {
   if (!pending) {
     pending = __unstable__loadDesignSystem(css, {
       base,
+      // `from` is a *base directory*, not a file: Tailwind hands back the
+      // `base` each stylesheet reported, and the first one is the base this
+      // design system was built with. Taking its `dirname` -- which this did
+      // -- resolved every relative import one level too high, and went
+      // unnoticed because until now no project imported anything but
+      // `tailwindcss`, which is answered without looking at `from` at all.
       loadStylesheet: async (id: string, from: string) => {
-        // `tailwindcss` itself resolves to the installed package; everything
-        // else is a path relative to the importer.
-        const file =
-          id === 'tailwindcss'
-            ? path.join(tailwindPackageDir(), 'index.css')
-            : path.resolve(path.dirname(from), id)
+        const file = stylesheetPath(id, from)
         return { path: file, base: path.dirname(file), content: readFileSync(file, 'utf8') }
       },
     })
@@ -213,6 +214,35 @@ export function toHex(value: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * The file an `@import` in a project's stylesheet names.
+ *
+ * `base` is the directory the importing stylesheet resolves against.
+ *
+ * Relative and absolute paths resolve against the importer, and a bare
+ * specifier resolves as a package -- which it did not before, and which is
+ * how a library ships tokens at all. `@import "@hozo/ui/theme.css"` used to
+ * become `<project's parent>/@hozo/ui/theme.css` and throw `ENOENT`, so a
+ * project could depend on a package whose whole content was an `@theme` block
+ * and have no way to read it.
+ *
+ * `tailwindcss` keeps its own line because the package's entry is a
+ * JavaScript module and the stylesheet beside it is what is wanted; going
+ * through `exports` would resolve the module.
+ *
+ * Node's resolver rather than a guess at `node_modules/<id>`: a package says
+ * which of its files are importable in its `exports`, and one that does not
+ * publish its stylesheet should fail here rather than be reached around.
+ */
+export function stylesheetPath(id: string, base: string): string {
+  if (id === 'tailwindcss') return path.join(tailwindPackageDir(), 'index.css')
+  if (id.startsWith('.') || path.isAbsolute(id)) return path.resolve(base, id)
+  // Resolved from a file *inside* `base`, which is what `createRequire`
+  // expects; handed the directory itself it would look one level too high.
+  const require = createRequire(path.join(base, 'noop.js'))
+  return require.resolve(id)
 }
 
 export function tailwindPackageDir(): string {
