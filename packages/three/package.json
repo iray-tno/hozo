@@ -40,6 +40,14 @@
       "types": "./dist/r3f.d.ts",
       "default": "./dist/r3f.js"
     },
+    "./r3f-native": {
+      "react-native": {
+        "types": "./dist/r3f-native.d.ts",
+        "default": "./dist/r3f-native.js"
+      },
+      "types": "./dist/r3f-native-unavailable.d.ts",
+      "default": "./dist/r3f-native-unavailable.js"
+    },
     "./scene-conformance.json": "./scene-conformance.json",
     "./webgl": {
       "react-native": {
@@ -81,15 +89,20 @@
     "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js && node --test scripts/conformance.test.ts scripts/renderer-entrypoints.test.ts scripts/scene-corpus.test.ts && node scripts/report-conformance.ts --check && node scripts/report-scenes.ts --check"
   },
   "dependencies": {
-    "@hozo/canvas": "workspace:^"
+    "@hozo/canvas": "workspace:^",
+    "@hozo/engine": "workspace:^"
   },
   "peerDependencies": {
     "@react-three/fiber": ">=9",
     "react": "^19.0.0",
+    "react-native": ">=0.86",
     "three": ">=0.170"
   },
   "peerDependenciesMeta": {
     "@react-three/fiber": {
+      "optional": true
+    },
+    "react-native": {
       "optional": true
     }
   },
@@ -101,6 +114,7 @@
     "esbuild": "0.28.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-native": "^0.87.1",
     "react-test-renderer": "^19.2.8",
     "three": "^0.180.0"
   }

@@ -309,6 +309,7 @@ test('the continuous loop updates before projecting and stops on unmount', async
     return id
   }
   globalThis.cancelAnimationFrame = (id) => {
+    if (id == null) return
     cancelled.push(id)
     scheduled.delete(id)
   }
