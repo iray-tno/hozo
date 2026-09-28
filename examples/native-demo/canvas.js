@@ -19,7 +19,10 @@ function Root() {
   return (
     <SafeAreaProvider>
       {screen === 'canvas' ? (
-        <View>
+        // Keep the harness switch below Android's status bar. SafeAreaProvider
+        // supplies context but does not apply insets by itself, and an ADB tap
+        // at the centre of a control under the status bar reaches System UI.
+        <View style={{ paddingTop: 24 }}>
           <Button testID="show-three-corpus" onPress={() => setScreen('three')}>
             Show Three corpus
           </Button>
