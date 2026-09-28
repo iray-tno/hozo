@@ -48,6 +48,8 @@ export interface HozoDateTimePickerProps {
   calendarClassName?: string
   /** On the `Calendar`'s month header and its grid; see `Calendar`. */
   headerClassName?: string
+  /** On the Calendar's two month buttons; see `Calendar`. */
+  monthButtonClassName?: string
   gridClassName?: string
   dayClassName?: string
   doneClassName?: string
@@ -132,6 +134,7 @@ export function HozoDateTimePicker({
   dialogClassName,
   calendarClassName,
   headerClassName,
+  monthButtonClassName,
   gridClassName,
   dayClassName,
   doneClassName,
@@ -282,6 +285,7 @@ export function HozoDateTimePicker({
                     autoFocus
                     className={calendarClassName}
                     headerClassName={headerClassName}
+                    monthButtonClassName={monthButtonClassName}
                     gridClassName={gridClassName}
                     dayClassName={dayClassName}
                     value={value ? dateOf(value) : null}

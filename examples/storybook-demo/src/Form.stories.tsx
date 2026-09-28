@@ -60,6 +60,27 @@ const grid = 'w-full border-collapse text-sm'
 const header = 'flex flex-row items-center justify-between gap-4 mb-2'
 
 /**
+ * The two month buttons, which are otherwise four pixels wide.
+ *
+ * They hold `‹` and `›` and nothing else, and Preflight gives a `<button>` no
+ * padding, so a browser draws them the width of the glyph -- measured at 4.4px
+ * against WCAG 2.5.8's 24 by 24. Hozo ships no CSS, so the size is the
+ * application's to give and `monthButtonClassName` is where it gives it.
+ *
+ * `disabled:` rather than a hover-only style, because a month with nothing
+ * reachable in it disables its button and a control that looks identical
+ * either way is a control that lies.
+ *
+ * `slate-500` for that state and not the `slate-400` a designer would reach
+ * for, on the same grounds as `cellBase` below. axe skips a real `disabled`
+ * control when it checks contrast, so this would pass either way; the rule
+ * this file follows is that a greyed-out thing is still readable, and a rule
+ * kept only where it is enforced is not one.
+ */
+const monthButton =
+  'px-3 py-1 text-slate-700 rounded-lg hover:bg-slate-100 disabled:text-slate-500 disabled:hover:bg-transparent disabled:cursor-not-allowed'
+
+/**
  * The clock, spelled out rather than left to the default.
  *
  * `DateTimePicker` renders a `TimePicker` when `children` is left out, and it
@@ -105,8 +126,18 @@ const dialog = 'mt-2 space-y-4 rounded-xl border border-slate-200 bg-white p-4 s
  */
 const inlineField =
   'relative w-16 py-2 pl-2 pr-5 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100'
+/**
+ * The two arrows meet at the field's middle rather than at its edges.
+ *
+ * `top-1`/`bottom-1` pinned them a few pixels from the top and bottom, which
+ * is centred as a pair -- their midpoint is the field's -- and reads as two
+ * arrows in the corners with the number between them. A stepper is a pair, so
+ * the pair is what gets placed: `bottom-1/2` puts the up arrow's lower edge on
+ * the middle, `top-1/2` puts the down arrow's upper edge there, and one pixel
+ * of margin each keeps them from touching.
+ */
 const inlineStep =
-  'absolute right-1 text-[9px] leading-none text-slate-500 hover:text-indigo-600 cursor-pointer data-[hozo-step=increase]:top-1 data-[hozo-step=decrease]:bottom-1'
+  'absolute right-1 text-[9px] leading-none text-slate-500 hover:text-indigo-600 cursor-pointer data-[hozo-step=increase]:bottom-1/2 data-[hozo-step=increase]:mb-px data-[hozo-step=decrease]:top-1/2 data-[hozo-step=decrease]:mt-px'
 
 const stackedField =
   'flex flex-col items-center gap-0.5 w-12 px-2 py-1 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100'
@@ -139,6 +170,7 @@ function MonthGridDemo() {
         accessibilityLabel="Departure date"
         className="w-full"
         headerClassName={header}
+        monthButtonClassName={monthButton}
         gridClassName={grid}
         dayClassName={cell}
       />
@@ -172,6 +204,7 @@ function RangeGridDemo() {
         accessibilityLabel="Dates of stay"
         className="w-full"
         headerClassName={header}
+        monthButtonClassName={monthButton}
         gridClassName={grid}
         dayClassName={rangeCell}
       />
@@ -255,6 +288,7 @@ function DateAndTimeDemo({ initiallyOpen = false }: { initiallyOpen?: boolean })
         dialogClassName={dialog}
         calendarClassName="w-full"
         headerClassName={header}
+        monthButtonClassName={monthButton}
         gridClassName={grid}
         dayClassName={cell}
         doneClassName={trigger}
@@ -298,6 +332,7 @@ function DateRangeDemo({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
         dialogClassName={dialog}
         calendarClassName="w-full"
         headerClassName={header}
+        monthButtonClassName={monthButton}
         gridClassName={grid}
         dayClassName={rangeCell}
       />

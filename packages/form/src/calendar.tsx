@@ -56,6 +56,29 @@ interface Shared {
   dayClassName?: string
   headerClassName?: string
   /**
+   * On each of the two month buttons, so an application can size them.
+   *
+   * They hold a glyph and nothing else, and Preflight gives a `<button>` no
+   * padding, so without this they render about four pixels wide -- measured,
+   * not guessed -- and a pointer cannot hit them. WCAG 2.5.8 asks for 24 by
+   * 24, and nothing here could reach it.
+   *
+   * The same reason `TimePicker` has `stepClassName`: this package ships no
+   * CSS, so the size of a control an application places is the application's
+   * to give, and it needs somewhere to give it.
+   *
+   * One prop for both, because they are one control in two directions. An
+   * application that wanted them to differ can still tell them apart -- they
+   * carry `previousMonthLabel` and `nextMonthLabel` -- and one that wants them
+   * to match, which is nearly all of them, writes the class once.
+   *
+   * This replaces reaching them through `headerClassName` with a descendant
+   * selector, which works and asks the application to know that the header's
+   * children are button, div, button. That is the coupling a prop exists to
+   * avoid.
+   */
+  monthButtonClassName?: string
+  /**
    * On the `<table>` that is the grid.
    *
    * `className` above is on the `role="group"` that wraps the header and the
@@ -265,6 +288,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
     dayClassName,
     gridClassName,
     headerClassName,
+    monthButtonClassName,
     defaultMonth,
     month,
     onMonthChange,
@@ -434,6 +458,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           type="button"
           aria-label={previousMonthLabel}
           disabled={!backReachable}
+          className={monthButtonClassName}
           onClick={() => page(-1)}
         >
           {'‹'}
@@ -450,6 +475,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           type="button"
           aria-label={nextMonthLabel}
           disabled={!forwardReachable}
+          className={monthButtonClassName}
           onClick={() => page(1)}
         >
           {'›'}

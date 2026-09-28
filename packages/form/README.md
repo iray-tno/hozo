@@ -24,6 +24,8 @@ On the Web it is a `role="grid"` table whose cells are reached with the arrow ke
 
 On React Native each day is a `Pressable` inside an `accessibilityRole="grid"`. There is no keyboard half, and that is the platform rather than an omission: React Native has no tab order to rove within, so the grid is walked by TalkBack and VoiceOver and pressed with a finger.
 
+Every part you can see takes a class: `className` on the group, `headerClassName` on the month row, `monthButtonClassName` on the two chevrons, `gridClassName` on the table, `dayClassName` on each cell. This package ships no CSS, so a `Calendar` with none of them set is unstyled in the literal sense — and `monthButtonClassName` is the one that catches people out, because a `<button>` holding only `‹` is about four pixels wide under a CSS reset, well under [WCAG 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)'s 24 by 24. Give it padding.
+
 The arithmetic underneath is exported too, and has no `Date` in its types:
 
 ```ts
