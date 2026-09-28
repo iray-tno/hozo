@@ -130,6 +130,21 @@ function installGltfHostPolyfills(): void {
     })
   }
 
+  // React Native defines navigator, but unlike browsers it may omit
+  // userAgent. GLTFLoader currently probes it unconditionally when choosing a
+  // texture loader, including for this texture-free fixture.
+  if (typeof globalThis.navigator === 'undefined') {
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { userAgent: 'React Native' },
+    })
+  } else if (typeof globalThis.navigator.userAgent !== 'string') {
+    Object.defineProperty(globalThis.navigator, 'userAgent', {
+      configurable: true,
+      value: 'React Native',
+    })
+  }
+
   if (typeof globalThis.ProgressEvent !== 'undefined') return
   Object.defineProperty(globalThis, 'ProgressEvent', {
     configurable: true,
