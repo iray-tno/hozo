@@ -52,10 +52,15 @@ test('the first real-scene corpus is version-pinned, representative, and executa
 test('the pinned glTF fixture loads with the globals exposed by Hermes', async () => {
   const textDecoderDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'TextDecoder')
   const userAgentDescriptor = Object.getOwnPropertyDescriptor(globalThis.navigator, 'userAgent')
+  const fetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'fetch')
   assert.equal(Reflect.deleteProperty(globalThis, 'TextDecoder'), true)
   Object.defineProperty(globalThis.navigator, 'userAgent', {
     configurable: true,
     value: undefined,
+  })
+  Object.defineProperty(globalThis, 'fetch', {
+    configurable: true,
+    value: () => Promise.reject(new Error('this host cannot fetch data: URLs')),
   })
   try {
     const fixture = SCENE_CORPUS_SCENES.find(({ id }) => id === 'gltf-pbr')
@@ -69,5 +74,7 @@ test('the pinned glTF fixture loads with the globals exposed by Hermes', async (
     if (userAgentDescriptor)
       Object.defineProperty(globalThis.navigator, 'userAgent', userAgentDescriptor)
     else Reflect.deleteProperty(globalThis.navigator, 'userAgent')
+    if (fetchDescriptor) Object.defineProperty(globalThis, 'fetch', fetchDescriptor)
+    else Reflect.deleteProperty(globalThis, 'fetch')
   }
 })
