@@ -17,7 +17,7 @@ diagnose() {
   echo '--- persisted probe events ---'
   cat "$artifacts/events.json" 2>/dev/null || true
   echo '--- iOS input driver log ---'
-  cat "$artifacts/idb-home.log" 2>/dev/null || true
+  cat "$artifacts/idb-lifecycle.log" 2>/dev/null || true
   echo '--- iOS application log ---'
   tail -n 300 "$artifacts/system.log" 2>/dev/null || true
 }
@@ -76,14 +76,22 @@ wait_for_event first_frame
 xcrun simctl io "$udid" screenshot "$artifacts/first-frame.png" >/dev/null
 node "$root/../native-demo/scripts/screen-colours.mjs" "$artifacts/first-frame.png" 8
 
-# Send the same HOME HID event as Simulator.app. Merely foregrounding
-# SpringBoard makes the scene inactive without delivering the background state
-# React Native applications receive from an ordinary home-button transition.
-if ! idb ui button HOME --udid "$udid" >"$artifacts/idb-home.log" 2>&1; then
-  fail 'iOS input driver could not send the HOME event'
+# A headless Simulator acknowledges HOME events without always transitioning
+# the application beyond inactive. A normal lock/unlock cycle reliably exercises
+# the same UIKit background/resume boundary without terminating the GL process.
+if ! idb ui button LOCK --udid "$udid" >"$artifacts/idb-lifecycle.log" 2>&1; then
+  fail 'iOS input driver could not lock the simulator'
 fi
 wait_for_event app_backgrounded
 sleep 2
+if ! idb ui button LOCK --udid "$udid" >>"$artifacts/idb-lifecycle.log" 2>&1; then
+  fail 'iOS input driver could not wake the simulator'
+fi
+sleep 1
+if ! idb ui swipe 201 780 201 180 --duration 0.4 --udid "$udid" >>"$artifacts/idb-lifecycle.log" 2>&1; then
+  fail 'iOS input driver could not unlock the simulator'
+fi
+sleep 1
 xcrun simctl launch "$udid" "$bundle_id" >/dev/null
 wait_for_event frame_after_resume
 wait_for_event renderer_unmounted
