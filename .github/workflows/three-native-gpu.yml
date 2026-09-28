@@ -77,6 +77,12 @@ jobs:
         with:
           node-version: 25
           cache: pnpm
+      - name: Select a Swift 6.2 Xcode
+        run: |
+          xcode_path="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' ! -name '*beta*' | sort -V | tail -1)"
+          test -n "$xcode_path"
+          echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
+          "$xcode_path/Contents/Developer/usr/bin/xcodebuild" -version
       - run: pnpm install --frozen-lockfile --filter @hozo/example-three-native-probe...
       - run: pnpm --filter @hozo/example-three-native-probe test
       - run: pnpm --filter @hozo/example-three-native-probe typecheck
