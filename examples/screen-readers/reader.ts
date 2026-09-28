@@ -295,6 +295,56 @@ const CONTAINER = /\b(toolbar|list ?box|table|web ?dialog)\b/i
 const INSIDE_STEPS = 20
 
 /**
+ * A dialog NVDA announces and will not read into.
+ *
+ * The other half of `CONTAINER`, for the other reader, and #617's whole
+ * subject. NVDA says `dialog, Choose a date and time` for the panel
+ * `DateTimePicker` opens and then steps past it to the next heading; run
+ * 36394492849 established that the contents are not in its browse-mode buffer
+ * at all -- H from the top of the page finds every `h2` and none of the three
+ * `h3`s inside dialogs -- while Tab reaches every control in them, named and
+ * in document order.
+ *
+ * So the subtree is exposed and focusable, and the buffer is what will not go
+ * there. A native `<dialog>` opened with `showModal()` has never had this
+ * problem because the top layer makes NVDA's buffer *be* the dialog, which is
+ * why `patterns-dialog--open` reads fine and this does not.
+ *
+ * Anchored, because NVDA says "button, expanded, opens dialog, Departure ..."
+ * for the trigger and a bare `\bdialog\b` would send the walk into a button.
+ * The phrase for the thing itself begins with the role.
+ */
+const DIALOG = /^dialog[,\s]/i
+
+/** Tab stops one dialog may spend before the walk gives up on it. */
+const DIALOG_STOPS = 24
+
+/**
+ * What a browser will move focus to with Tab.
+ *
+ * `:not([tabindex="-1"])` on every clause, not only on the last. A
+ * `<button tabindex="-1">` is a button and is not a tab stop, and
+ * `TimePicker`'s four arrows are exactly that -- they are there for a pointer,
+ * because the field itself answers Up and Down. Counting them made the
+ * date-and-time panel ten stops where it has six, and run 36423052382 spent
+ * the difference Tabbing past the end and announcing the first control twice.
+ *
+ * `FocusScope` in `@hozo/behaviors` has the same list without this, and
+ * filters afterwards on `offsetParent`. That catches a hidden control and not
+ * this one.
+ */
+const FOCUSABLE = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]',
+]
+  .map((one) => `${one}:not([tabindex="-1"])`)
+  .join(', ')
+
+/**
  * NVDA's word for an empty line, which is silence with a name on it.
  *
  * Counting it as a phrase made every story end for the wrong reason. NVDA says
@@ -515,7 +565,111 @@ export interface Walk {
   truncated: string[]
 }
 
-export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): Promise<Walk> {
+/**
+ * Reads one dialog by moving focus through it, and says whether it ran out.
+ *
+ * Returns true when the budget stopped it rather than the dialog running out,
+ * which is what `Walk.truncated` records (#585): the difference between "that
+ * is all it says" and "that is all we listened to" is invisible in a list of
+ * phrases and an approved file has to declare it.
+ *
+ * Focus is put on the first focusable thing inside the dialog and NVDA is
+ * asked what has focus, because a programmatic focus says nothing on its own.
+ * After that each Tab is a real keystroke and each phrase is a control. The
+ * loop ends when focus leaves the dialog, which is the browser's own answer to
+ * "that was the last one" -- `FocusScope` traps Tab, so in a trapped dialog it
+ * wraps to the first control instead and the repeated phrase ends it.
+ */
+async function enterDialog(
+  page: Page,
+  screenReader: IScreenReader,
+  name: string,
+  spend: () => void,
+  budget: number,
+): Promise<boolean> {
+  const dialog = page.locator('[role="dialog"], dialog[open]').first()
+  const first = dialog.locator(FOCUSABLE).first()
+  if ((await first.count()) === 0) {
+    console.log(`[walk] ${name}: nothing focusable inside it`)
+    return false
+  }
+  await first.focus()
+  await screenReader.perform({
+    keyCode: [WindowsKeyCodes.Insert, WindowsKeyCodes.Tab],
+    modifiers: [],
+  })
+
+  // The element the tour started on, kept as a handle so "have we come back
+  // round" is an identity check rather than a guess about phrases.
+  //
+  // Run 36418061321 is why. Comparing each phrase with the one before it
+  // never fires in a trapped dialog, because the repeat is a *cycle* and not
+  // a pair: `FocusScope` wraps Tab, so the panel read
+  //
+  //   Next month / September 2026, table ... / Hour / Minute / AM or PM / Done
+  //
+  // and then read it again, and again, until the stop budget ran out. Sixty-
+  // two phrases where eleven were wanted. Stopping on a repeated phrase would
+  // also be wrong in a dialog with two buttons named the same, which is not
+  // rare; coming back to the element we began on is exactly the wrap and
+  // nothing else.
+  const start = await first.elementHandle()
+
+  /** Whether DOM focus is still inside the dialog and has not wrapped. */
+  const going = async (): Promise<boolean> => {
+    try {
+      return await dialog.evaluate(
+        (node, began) => node.contains(document.activeElement) && document.activeElement !== began,
+        start,
+      )
+    } catch {
+      return false
+    }
+  }
+
+  // How many Tabs there are to spend, asked of the dialog rather than found
+  // by walking into the wall. The first control was named without a Tab, so
+  // the rest is one fewer -- and pressing Tab on the last one would announce
+  // the first a second time before anything could notice the wrap, which is a
+  // duplicate line in every golden.
+  //
+  // `going()` below is the safety net rather than the mechanism: a dialog
+  // that does not trap Tab lets focus out early, and one whose focusable set
+  // changed as it was read stops there instead of running on.
+  const total = await dialog.locator(FOCUSABLE).count()
+  const stops = Math.min(total - 1, DIALOG_STOPS, budget)
+
+  for (let stop = 0; stop < stops; stop++) {
+    await screenReader.press('Tab')
+    spend()
+    if (!(await going())) {
+      console.log(`[walk] ${name}: focus left after ${stop + 1} of ${total}`)
+      return false
+    }
+  }
+  const cut = total - 1 > stops
+  console.log(`[walk] ${name}: ${Math.min(total, stops + 1)} of ${total} control(s)`)
+  return cut
+}
+
+export interface WalkOptions {
+  maxSteps?: number
+  /**
+   * The page, so a dialog NVDA will not read into can be entered by focus.
+   *
+   * Optional, and a walk without it is the walk this file has always done.
+   * `tree-shape.spec.ts` passes none, because its fixture has no dialog and
+   * the question it asks is about a tree.
+   */
+  page?: Page
+}
+
+export async function walk(
+  screenReader: IScreenReader,
+  options: WalkOptions | number = {},
+): Promise<Walk> {
+  const { maxSteps = MAX_STEPS, page } =
+    typeof options === 'number' ? { maxSteps: options } : options
   const entered = new Set<string>()
   const truncated: string[] = []
   let steps = 0
@@ -539,6 +693,30 @@ export async function walk(screenReader: IScreenReader, maxSteps = MAX_STEPS): P
     silent = 0
     repeats = said === last ? repeats + 1 : 0
     last = said
+
+    // A dialog NVDA will not read into, entered by focus instead (#617).
+    //
+    // Tab rather than `next`, because `next` is a Down Arrow in the virtual
+    // buffer and the buffer does not contain this subtree. The first stop is
+    // reached with `locator.focus()`, which is silent -- measured in run
+    // 36359016412 -- and then named with NVDA+Tab, whose whole job is to say
+    // what has focus without moving it. Without that the first control in
+    // every dialog would be skipped.
+    //
+    // The walk resumes with `next` afterwards, from wherever NVDA's cursor
+    // ended up. The counters are reset for the same reason the VoiceOver
+    // branch resets them: coming back out often re-announces something
+    // already said, and three of those end a walk early.
+    if (page !== undefined && onWindows && DIALOG.test(said) && !entered.has(said)) {
+      entered.add(said)
+      if (await enterDialog(page, screenReader, said, () => steps++, maxSteps - steps)) {
+        truncated.push(said)
+      }
+      last = ''
+      repeats = 0
+      silent = 0
+      continue
+    }
 
     // Each container once. Re-entering one is how a walk stops going
     // anywhere while still saying something every time.

@@ -65,7 +65,7 @@ test(id, async ({ page, screenReader }) => {
     await page.goto('/fixtures/aria-modal.html', { waitUntil: 'load' })
     await page.locator('[role="dialog"]').first().waitFor()
     await enterPage(page, screenReader)
-    const read = await walk(screenReader, STEPS)
+    const read = await walk(screenReader, { maxSteps: STEPS, page })
     log = read.phrases
 
     // Three more questions, asked where the answer above was "nothing".
