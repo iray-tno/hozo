@@ -20,15 +20,18 @@ Capability status has stricter semantics than the class-level surface table:
 - **Diagnostic** requires a GPU pipeline or is deliberately outside the portable contract and is safely rejected.
 - **Silent** accepts the input while losing its semantics without a diagnostic. The target is zero.
 
-### Material inventory
+### Inventoried categories
 
-This is the first completed capability category, not an overall portable-backend percentage. Geometry, cameras, scenes, interaction, animation, and other categories remain to be inventoried before an overall figure is valid.
+Material and geometry are complete as independently owned capability categories. Cameras, scenes, objects, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping. This prevents a future overall denominator from counting the same behaviour twice.
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Material capabilities only** | **20** | **9** | **4** | **33** | **29/33 (87.9%)** | **6** | **0** |
+| **Material** | **18** | **9** | **4** | **31** | **27/31 (87.1%)** | **6** | **0** |
+| **Geometry** | **26** | **0** | **0** | **26** | **26/26 (100.0%)** | **0** | **0** |
 
-Exact among currently feasible material capabilities: **20/33 (60.6%)**. Approximate capabilities count as implemented but remain visible rather than being folded into exact.
+Approximate capabilities count as implemented but remain visible rather than being folded into exact. These category percentages are not combined while the inventory is incomplete.
+
+### Material capability details
 
 | Owner | Capability | Status | Behaviour | Test |
 | --- | --- | --- | --- | --- |
@@ -36,8 +39,6 @@ Exact among currently feasible material capabilities: **20/33 (60.6%)**. Approxi
 | Material | normal alpha transparency | exact | Uniform opacity and normal transparency are preserved across supported primitives. | [test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
 | Material | uniform alpha test | exact | A uniform primitive is discarded when its opacity is below alphaTest. | [test](src/project.test.ts) `uniform alphaTest omits every supported primitive only below its threshold` |
 | Material | transparent render ordering | exact | Transparent primitives paint after opaque primitives using stable painter ordering. | [test](src/project.test.ts) `transparent primitives paint after opaque primitives` |
-| Material | local clipping planes | exact | Mesh, line, point, and sprite geometry is clipped in world space. | [test](src/project.test.ts) `material clipping planes cut meshes and lines and discard points in world space`<br>[test](src/project.test.ts) `Sprite clipping planes cut billboards and preserve disjoint union regions` |
-| Material | clip intersection | exact | clipIntersection retains the union of the material half-spaces. | [test](src/project.test.ts) `clipIntersection retains the disjoint union of material half-spaces` |
 | MeshBasicMaterial | uniform colour | exact | A flat material colour is preserved on projected triangles. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
 | MeshBasicMaterial | face side selection | exact | FrontSide, BackSide, and DoubleSide follow Three.js winding semantics. | [test](src/project.test.ts) `face side is respected after the viewport y-axis is flipped` |
 | MeshBasicMaterial | solid wireframe | exact | Triangle edges become independent portable lines. | [test](src/project.test.ts) `wireframe MeshBasicMaterial becomes three Canvas lines per triangle` |
@@ -71,6 +72,37 @@ Exact among currently feasible material capabilities: **20/33 (60.6%)**. Approxi
 | ShaderMaterial | custom shaders | diagnostic | ShaderMaterial and RawShaderMaterial require a programmable GPU pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | MeshNormalMaterial | normal, bump, and displacement maps | diagnostic | Per-fragment and displacement texture evaluation requires a GPU material pipeline. | [test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic` |
 | Material | custom depth, stencil, blending, and sampling state | diagnostic | Non-default GPU pipeline state is rejected instead of being silently approximated. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics` |
+
+### Geometry capability details
+
+| Owner | Capability | Status | Behaviour | Test |
+| --- | --- | --- | --- | --- |
+| BufferGeometry | non-indexed triangle traversal | exact | Position triples are traversed directly as triangles. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
+| BufferGeometry | indexed triangle traversal | exact | Triangle vertex lookup follows the geometry index. | [test](src/project.test.ts) `indexed geometry emits each triangle` |
+| BufferGeometry | indexed line traversal | exact | Line vertex lookup follows the geometry index. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
+| BufferGeometry | indexed point traversal | exact | Point vertex lookup follows the geometry index. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
+| BufferGeometry | mesh draw range | exact | The requested draw range intersects mesh topology and material groups. | [test](src/project.test.ts) `material groups intersect the geometry draw range` |
+| BufferGeometry | wireframe draw range | exact | Triangle draw ranges are converted to the equivalent wireframe edge range. | [test](src/project.test.ts) `wireframe projection applies the same doubled draw range as Three.js` |
+| BufferGeometry | line draw range | exact | Indexed line traversal is restricted to the requested draw range. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
+| BufferGeometry | point draw range | exact | Indexed point traversal is restricted to the requested draw range. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
+| BufferGeometry | material groups | exact | Group ranges select the matching entry from a material array. | [test](src/project.test.ts) `material arrays preserve BufferGeometry group colours` |
+| Object3D transforms | nested world transforms | exact | Ancestor and local matrices are composed before projection. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
+| Object3D transforms | mirrored winding | exact | A negative world determinant preserves Three.js front-face semantics. | [test](src/project.test.ts) `mirrored mesh transforms preserve Three.js front-face semantics` |
+| Projection | triangle frustum clipping | exact | Triangles are clipped in homogeneous coordinates against all six planes. | [test](src/project.test.ts) `the homogeneous clip volume cuts a near-plane crossing instead of exploding it` |
+| Projection | line frustum clipping | exact | Line segments crossing the clip volume become finite projected segments. | [test](src/project.test.ts) `a line crossing the near plane is clipped to finite viewport coordinates` |
+| Projection | point frustum rejection | exact | Points outside the homogeneous clip volume are omitted. | [test](src/project.test.ts) `points outside the homogeneous clip volume are omitted` |
+| Clipped attributes | texture-coordinate interpolation | exact | New clip-edge vertices receive the corresponding affine texture coordinates. | [test](src/project.test.ts) `mesh clipping interpolates texture coordinates at generated edges` |
+| Clipped attributes | vertex-colour interpolation | exact | New clip-edge vertices receive the corresponding colour and alpha values. | [test](src/project.test.ts) `mesh clipping interpolates vertex colours at generated edges` |
+| Morph targets | absolute mesh positions | exact | Absolute position targets are blended before projection. | [test](src/project.test.ts) `absolute and relative mesh morph targets deform projected triangles` |
+| Morph targets | relative mesh positions | exact | Relative position deltas are blended before projection. | [test](src/project.test.ts) `absolute and relative mesh morph targets deform projected triangles` |
+| Morph targets | point positions | exact | Point position targets move projected points. | [test](src/project.test.ts) `point morph targets move projected points` |
+| Morph targets | line positions | exact | Line position targets deform projected segments. | [test](src/project.test.ts) `line morph targets deform projected segments` |
+| SkinnedMesh | CPU skinned positions | exact | Morph targets, bind matrices, weights, and the current skeleton pose produce final positions. | [test](src/project.test.ts) `SkinnedMesh evaluates morph targets before public CPU bone transforms` |
+| InstancedMesh | instance transforms | exact | Each active instance matrix is applied independently. | [test](src/project.test.ts) `InstancedMesh applies each instance transform and preserves object identity` |
+| InstancedMesh | per-instance morph weights | exact | Each instance evaluates its own position morph weights. | [test](src/project.test.ts) `InstancedMesh applies per-instance colours and morph weights` |
+| BatchedMesh | geometry and instance ranges | exact | Sparse instance IDs select their geometry range, visibility, and transform. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
+| Material clipping | intersection half-spaces | exact | World-space clipping planes cut meshes and lines and discard rejected points. | [test](src/project.test.ts) `material clipping planes cut meshes and lines and discard points in world space` |
+| Material clipping | union half-spaces | exact | clipIntersection retains the disjoint union of accepted half-spaces. | [test](src/project.test.ts) `clipIntersection retains the disjoint union of material half-spaces` |
 
 ## Three.js surface classification
 
