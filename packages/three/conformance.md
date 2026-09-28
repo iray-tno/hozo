@@ -22,12 +22,13 @@ Capability status has stricter semantics than the class-level surface table:
 
 ### Inventoried categories
 
-Material, geometry, and scene composition are complete as independently owned capability categories. Cameras, objects, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; scene owns traversal policy, composition, backgrounds, ordering, and fog. This prevents a future overall denominator from counting the same behaviour twice.
+Material, geometry, objects, and scene composition are complete as independently owned capability categories. Cameras, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; objects own discovery, selection, routing, and source identity; scene owns traversal policy, composition, backgrounds, ordering, and fog. This prevents a future overall denominator from counting the same behaviour twice.
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | **Material** | **17** | **8** | **4** | **29** | **25/29 (86.2%)** | **6** | **0** |
 | **Geometry** | **26** | **0** | **0** | **26** | **26/26 (100.0%)** | **0** | **0** |
+| **Object** | **22** | **0** | **0** | **22** | **22/22 (100.0%)** | **0** | **0** |
 | **Scene** | **12** | **2** | **2** | **16** | **14/16 (87.5%)** | **3** | **0** |
 
 Approximate capabilities count as implemented but remain visible rather than being folded into exact. These category percentages are not combined while the inventory is incomplete.
@@ -103,6 +104,33 @@ Approximate capabilities count as implemented but remain visible rather than bei
 | Material clipping | intersection half-spaces | exact | World-space clipping planes cut meshes and lines and discard rejected points. | [test](src/project.test.ts) `material clipping planes cut meshes and lines and discard points in world space` |
 | Material clipping | union half-spaces | exact | clipIntersection retains the disjoint union of accepted half-spaces. | [test](src/project.test.ts) `clipIntersection retains the disjoint union of material half-spaces` |
 
+### Object capability details
+
+| Owner | Capability | Status | Behaviour | Test |
+| --- | --- | --- | --- | --- |
+| Object3D | individual visibility | exact | An invisible renderable object is omitted. | [test](src/project.test.ts) `object visibility prunes objects and hidden subtrees` |
+| Group | descendant traversal | exact | Renderable descendants are discovered through nested groups. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
+| Group | hidden-subtree pruning | exact | An invisible ancestor removes its complete subtree. | [test](src/project.test.ts) `object visibility prunes objects and hidden subtrees` |
+| Mesh | triangle-pipeline routing | exact | A Mesh is routed to the portable triangle pipeline. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
+| Line | line-strip routing | exact | A Line is routed to the portable connected-line pipeline. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
+| LineLoop | closed-line routing | exact | A LineLoop selects the closed portable line topology. | [test](src/project.test.ts) `LineLoop closes its final vertex back to its first` |
+| LineSegments | independent-segment routing | exact | LineSegments selects independent portable line pairs. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
+| Points | point-pipeline routing | exact | Points is routed to the portable point pipeline. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
+| Sprite | camera-facing quad | exact | A Sprite becomes a camera-facing quad at its projected centre. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
+| Sprite | centre anchor | exact | The public centre shifts the billboard anchor. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
+| Sprite | object scale | exact | World scale controls the billboard dimensions. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
+| Sprite | draw count visibility | exact | A zero draw count omits the sprite. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
+| InstancedMesh | active instance count | exact | Only instances below the public count are projected. | [test](src/project.test.ts) `InstancedMesh applies each instance transform and preserves object identity` |
+| InstancedMesh | source object identity | exact | Every projected instance retains the InstancedMesh as its source object. | [test](src/project.test.ts) `InstancedMesh applies each instance transform and preserves object identity` |
+| InstancedMesh | per-instance colour | exact | Each instance colour modulates the supported base material colour. | [test](src/project.test.ts) `InstancedMesh applies per-instance colours and morph weights` |
+| BatchedMesh | sparse instance selection | exact | Deleted sparse instance IDs are skipped without shifting active IDs. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
+| BatchedMesh | per-instance visibility | exact | The public visibility flag independently hides a batch instance. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
+| BatchedMesh | per-instance colour | exact | A batch instance colour modulates the supported base material colour. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
+| BatchedMesh | source object identity | exact | Every projected batch instance retains the BatchedMesh as its source object. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
+| LOD | camera-distance selection | exact | Automatic LOD selects the level for the current camera distance. | [test](src/project.test.ts) `LOD selects the camera-distance level and honours manual visibility` |
+| LOD | manual level visibility | exact | Disabling automatic updates preserves application-controlled level visibility. | [test](src/project.test.ts) `LOD selects the camera-distance level and honours manual visibility` |
+| SkinnedMesh | source object identity | exact | Projected skinned primitives retain their SkinnedMesh source object. | [test](src/project.test.ts) `SkinnedMesh evaluates morph targets before public CPU bone transforms` |
+
 ### Scene capability details
 
 | Owner | Capability | Status | Behaviour | Test |
@@ -170,7 +198,7 @@ The rows are an unweighted API surface. The overall Three.js surface figure excl
 | --- | --- | --- | --- |
 | BatchedMesh | full | Sparse instance IDs, geometry ranges, visibility, transforms, and colours are projected. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
 | Bone | out-of-scope | A Bone has no independent render primitive. | — |
-| Group | full | Visibility and nested world transforms are traversed. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
+| Group | full | Visibility and nested world transforms are traversed. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path`<br>[test](src/project.test.ts) `object visibility prunes objects and hidden subtrees` |
 | InstancedMesh | full | Instance transforms, colours, and morph weights project independently. | [test](src/project.test.ts) `InstancedMesh applies each instance transform and preserves object identity`<br>[test](src/project.test.ts) `InstancedMesh applies per-instance colours and morph weights` |
 | Line | full | Line strips project through the portable line pipeline. | [test](src/project.test.ts) `Line connects adjacent vertices and honours indexed draw ranges` |
 | LineLoop | full | Closed line strips project through the line pipeline. | [test](src/project.test.ts) `LineLoop closes its final vertex back to its first` |

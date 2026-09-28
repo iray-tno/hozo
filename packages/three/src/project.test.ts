@@ -1238,6 +1238,22 @@ test('InstancedMesh applies per-instance colours and morph weights', () => {
   ])
 })
 
+test('object visibility prunes objects and hidden subtrees', () => {
+  const hiddenGroup = new Group()
+  hiddenGroup.visible = false
+  hiddenGroup.add(new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#ff0000' })))
+  const hiddenMesh = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#0000ff' }))
+  hiddenMesh.visible = false
+  const visibleMesh = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#16a34a' }))
+  const scene = new Scene()
+  scene.add(hiddenGroup, hiddenMesh, visibleMesh)
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(projectedPaths(result), [{ path: 'M 40 60 L 60 60 L 50 40 Z', fill: '#16a34a' }])
+})
+
 test('mirrored mesh transforms preserve Three.js front-face semantics', () => {
   const mesh = new Mesh(triangleGeometry(), new MeshBasicMaterial())
   mesh.scale.x = -1

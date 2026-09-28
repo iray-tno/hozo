@@ -7,7 +7,7 @@ export type PortableCapabilityStatus =
   | 'diagnostic'
   | 'silent'
 
-export type PortableCapabilityCategory = 'geometry' | 'material' | 'scene'
+export type PortableCapabilityCategory = 'geometry' | 'material' | 'object' | 'scene'
 
 export interface PortableCapability {
   capability: string
@@ -62,6 +62,21 @@ const sceneCapability = (
 ): PortableCapability => ({
   capability: name,
   category: 'scene',
+  detail,
+  owner,
+  status,
+  tests,
+})
+
+const objectCapability = (
+  owner: string,
+  name: string,
+  status: PortableCapabilityStatus,
+  detail: string,
+  tests: readonly ThreeConformanceTestReference[],
+): PortableCapability => ({
+  capability: name,
+  category: 'object',
   detail,
   owner,
   status,
@@ -656,6 +671,169 @@ export const PORTABLE_SCENE_CAPABILITIES: readonly PortableCapability[] = [
         'non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics',
       ),
     ],
+  ),
+]
+
+/**
+ * Object traversal, selection, and source-identity behaviours.
+ *
+ * Primitive topology, transforms, deformation, and appearance stay owned by
+ * geometry, topology, and material rather than being repeated here.
+ */
+export const PORTABLE_OBJECT_CAPABILITIES: readonly PortableCapability[] = [
+  objectCapability(
+    'Object3D',
+    'individual visibility',
+    'exact',
+    'An invisible renderable object is omitted.',
+    [project('object visibility prunes objects and hidden subtrees')],
+  ),
+  objectCapability(
+    'Group',
+    'descendant traversal',
+    'exact',
+    'Renderable descendants are discovered through nested groups.',
+    [project('world transforms under groups are baked into the projected path')],
+  ),
+  objectCapability(
+    'Group',
+    'hidden-subtree pruning',
+    'exact',
+    'An invisible ancestor removes its complete subtree.',
+    [project('object visibility prunes objects and hidden subtrees')],
+  ),
+  objectCapability(
+    'Mesh',
+    'triangle-pipeline routing',
+    'exact',
+    'A Mesh is routed to the portable triangle pipeline.',
+    [project('a Three.js triangle becomes a Canvas path in viewport coordinates')],
+  ),
+  objectCapability(
+    'Line',
+    'line-strip routing',
+    'exact',
+    'A Line is routed to the portable connected-line pipeline.',
+    [project('Line connects adjacent vertices and honours indexed draw ranges')],
+  ),
+  objectCapability(
+    'LineLoop',
+    'closed-line routing',
+    'exact',
+    'A LineLoop selects the closed portable line topology.',
+    [project('LineLoop closes its final vertex back to its first')],
+  ),
+  objectCapability(
+    'LineSegments',
+    'independent-segment routing',
+    'exact',
+    'LineSegments selects independent portable line pairs.',
+    [project('LineSegments become independent Canvas lines with material colour and width')],
+  ),
+  objectCapability(
+    'Points',
+    'point-pipeline routing',
+    'exact',
+    'Points is routed to the portable point pipeline.',
+    [project('Points become Canvas circles with indexed draw ranges and perspective attenuation')],
+  ),
+  objectCapability(
+    'Sprite',
+    'camera-facing quad',
+    'exact',
+    'A Sprite becomes a camera-facing quad at its projected centre.',
+    [project('Sprite projects its billboard centre, rotation, and perspective attenuation')],
+  ),
+  objectCapability(
+    'Sprite',
+    'centre anchor',
+    'exact',
+    'The public centre shifts the billboard anchor.',
+    [project('Sprite projects its billboard centre, rotation, and perspective attenuation')],
+  ),
+  objectCapability(
+    'Sprite',
+    'object scale',
+    'exact',
+    'World scale controls the billboard dimensions.',
+    [project('Sprite projects its billboard centre, rotation, and perspective attenuation')],
+  ),
+  objectCapability(
+    'Sprite',
+    'draw count visibility',
+    'exact',
+    'A zero draw count omits the sprite.',
+    [project('Sprite projects its billboard centre, rotation, and perspective attenuation')],
+  ),
+  objectCapability(
+    'InstancedMesh',
+    'active instance count',
+    'exact',
+    'Only instances below the public count are projected.',
+    [project('InstancedMesh applies each instance transform and preserves object identity')],
+  ),
+  objectCapability(
+    'InstancedMesh',
+    'source object identity',
+    'exact',
+    'Every projected instance retains the InstancedMesh as its source object.',
+    [project('InstancedMesh applies each instance transform and preserves object identity')],
+  ),
+  objectCapability(
+    'InstancedMesh',
+    'per-instance colour',
+    'exact',
+    'Each instance colour modulates the supported base material colour.',
+    [project('InstancedMesh applies per-instance colours and morph weights')],
+  ),
+  objectCapability(
+    'BatchedMesh',
+    'sparse instance selection',
+    'exact',
+    'Deleted sparse instance IDs are skipped without shifting active IDs.',
+    [project('BatchedMesh projects sparse visible instances with transforms and colours')],
+  ),
+  objectCapability(
+    'BatchedMesh',
+    'per-instance visibility',
+    'exact',
+    'The public visibility flag independently hides a batch instance.',
+    [project('BatchedMesh projects sparse visible instances with transforms and colours')],
+  ),
+  objectCapability(
+    'BatchedMesh',
+    'per-instance colour',
+    'exact',
+    'A batch instance colour modulates the supported base material colour.',
+    [project('BatchedMesh projects sparse visible instances with transforms and colours')],
+  ),
+  objectCapability(
+    'BatchedMesh',
+    'source object identity',
+    'exact',
+    'Every projected batch instance retains the BatchedMesh as its source object.',
+    [project('BatchedMesh projects sparse visible instances with transforms and colours')],
+  ),
+  objectCapability(
+    'LOD',
+    'camera-distance selection',
+    'exact',
+    'Automatic LOD selects the level for the current camera distance.',
+    [project('LOD selects the camera-distance level and honours manual visibility')],
+  ),
+  objectCapability(
+    'LOD',
+    'manual level visibility',
+    'exact',
+    'Disabling automatic updates preserves application-controlled level visibility.',
+    [project('LOD selects the camera-distance level and honours manual visibility')],
+  ),
+  objectCapability(
+    'SkinnedMesh',
+    'source object identity',
+    'exact',
+    'Projected skinned primitives retain their SkinnedMesh source object.',
+    [project('SkinnedMesh evaluates morph targets before public CPU bone transforms')],
   ),
 ]
 
