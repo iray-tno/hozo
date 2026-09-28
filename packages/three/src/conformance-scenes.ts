@@ -2,7 +2,6 @@ import {
   AmbientLight,
   BoxGeometry,
   BufferGeometry,
-  type Camera,
   Color,
   Float32BufferAttribute,
   InstancedMesh,
@@ -22,7 +21,7 @@ import {
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
 export interface SceneCorpusScene {
-  camera: Camera
+  camera: OrthographicCamera | PerspectiveCamera
   scene: Scene
 }
 
@@ -30,6 +29,49 @@ export interface SceneCorpusSceneDefinition {
   create: (loadGltfSource: () => Promise<string>) => Promise<SceneCorpusScene>
   id: string
 }
+
+/**
+ * The tiny pinned glTF asset used by every conformance host.
+ *
+ * Keeping the source beside the scene builders lets browser, Node and React
+ * Native execute the same asset without teaching Metro how to import `.gltf`
+ * files. `fixtures/minimal-pbr.gltf` remains the human-readable copy used by
+ * the report and is checked against this value by the corpus test.
+ */
+export const MINIMAL_PBR_GLTF_SOURCE = JSON.stringify({
+  asset: { generator: '@hozo/three real-scene corpus', version: '2.0' },
+  scene: 0,
+  scenes: [{ nodes: [0] }],
+  nodes: [{ mesh: 0, name: 'Pinned PBR triangle' }],
+  meshes: [{ primitives: [{ attributes: { POSITION: 0 }, material: 0 }] }],
+  materials: [
+    {
+      name: 'Ordinary PBR material',
+      pbrMetallicRoughness: {
+        baseColorFactor: [0.125, 0.45, 0.85, 1],
+        metallicFactor: 0.25,
+        roughnessFactor: 0.65,
+      },
+    },
+  ],
+  accessors: [
+    {
+      bufferView: 0,
+      componentType: 5126,
+      count: 3,
+      max: [1, 1, 0],
+      min: [-1, -1, 0],
+      type: 'VEC3',
+    },
+  ],
+  bufferViews: [{ buffer: 0, byteLength: 36 }],
+  buffers: [
+    {
+      byteLength: 36,
+      uri: 'data:application/octet-stream;base64,AACAvwAAgL8AAAAAAAAAPwAAgL8AAAAAAAAAAAAAAD8AAAAA',
+    },
+  ],
+})
 
 function perspective(): PerspectiveCamera {
   const camera = new PerspectiveCamera(90, 1, 0.1, 100)

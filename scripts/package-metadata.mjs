@@ -63,6 +63,7 @@ const PACKAGES = {
   three: {
     exports: {
       '.': './dist/index.js',
+      './conformance-scenes': './dist/conformance-scenes.js',
       './r3f': './dist/r3f.js',
       './scene-conformance.json': './scene-conformance.json',
       './webgl': './dist/webgl-renderer.js',

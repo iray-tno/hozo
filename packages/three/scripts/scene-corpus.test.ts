@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 import { REVISION } from 'three'
 
+import { MINIMAL_PBR_GLTF_SOURCE, SCENE_CORPUS_SCENES } from '../src/conformance-scenes.ts'
 import { runSceneCorpus, SCENE_CORPUS_FIXTURES } from './scene-corpus.ts'
-import { SCENE_CORPUS_SCENES } from './scene-fixtures.ts'
 
 test('the first real-scene corpus is version-pinned, representative, and executable', async () => {
+  assert.deepEqual(
+    JSON.parse(MINIMAL_PBR_GLTF_SOURCE),
+    JSON.parse(await readFile(new URL('../fixtures/minimal-pbr.gltf', import.meta.url), 'utf8')),
+  )
   assert.equal(SCENE_CORPUS_FIXTURES.length, 5)
   assert.equal(new Set(SCENE_CORPUS_FIXTURES.map((fixture) => fixture.id)).size, 5)
   assert.deepEqual(

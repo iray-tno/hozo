@@ -36,6 +36,7 @@
     "Gallery.tsx",
     "CalendarScreen.tsx",
     "CanvasBench.tsx",
+    "ThreeCorpusBench.tsx",
     "HozoBench.tsx",
     "NativeBench.tsx",
     "ProbeTypes.tsx"

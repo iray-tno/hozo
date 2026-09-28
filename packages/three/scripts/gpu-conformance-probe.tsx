@@ -1,10 +1,9 @@
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BoxGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene } from 'three'
-
+import { SCENE_CORPUS_SCENES } from '../src/conformance-scenes.ts'
 import { ThreeCanvas as WebGLCanvas } from '../src/webgl-renderer.tsx'
 import { ThreeCanvas as WebGPUCanvas } from '../src/webgpu.tsx'
-import { SCENE_CORPUS_SCENES } from './scene-fixtures.ts'
 
 type SceneCorpusProbeResult = {
   activated: boolean

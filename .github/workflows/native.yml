@@ -129,6 +129,9 @@ jobs:
             canvas-*.xml
             canvas-talkback.txt
             canvas-android*.png
+            three-native-*.xml
+            three-native-*.png
+            three-native-corpus.json
             examples/native-demo/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 14

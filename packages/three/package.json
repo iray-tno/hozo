@@ -28,6 +28,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./conformance-scenes": {
+      "types": "./dist/conformance-scenes.d.ts",
+      "default": "./dist/conformance-scenes.js"
+    },
     "./r3f": {
       "react-native": {
         "types": "./dist/r3f-react-native.d.ts",

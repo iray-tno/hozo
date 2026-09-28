@@ -17,10 +17,12 @@
     "@hozo/core": "workspace:*",
     "@hozo/form": "workspace:*",
     "@hozo/rn-compat": "workspace:*",
+    "@hozo/three": "workspace:*",
     "@shopify/react-native-skia": "^2.11.1",
     "react": "^19.2.0",
     "react-native": "^0.87.1",
-    "react-native-safe-area-context": "~5.9.1"
+    "react-native-safe-area-context": "~5.9.1",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@hozo/metro": "workspace:*",

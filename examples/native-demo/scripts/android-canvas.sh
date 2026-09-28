@@ -80,6 +80,35 @@ bounds_of() {
   ' "$1" "$2"
 }
 
+# Print the bounds of the semantic control exposed for a named Three object.
+bounds_of_description() {
+  node --eval '
+    const fs = require("node:fs")
+    const [file, wanted] = process.argv.slice(1)
+    const xml = fs.readFileSync(file, "utf8")
+    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+      if (!node[0].includes(`content-desc="${wanted}"`)) continue
+      const box = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0])
+      if (box) {
+        console.log(box.slice(1).join(" "))
+        process.exit(0)
+      }
+    }
+    process.exit(1)
+  ' "$1" "$2"
+}
+
+tap_bounds() {
+  local left="$1" top="$2" right="$3" bottom="$4"
+  adb shell input touchscreen tap "$(((left + right) / 2))" "$(((top + bottom) / 2))"
+}
+
+tap_test_id() {
+  local file="$1" test_id="$2" bounds
+  bounds="$(bounds_of "$file" "$test_id")" || fail "could not find $test_id"
+  tap_bounds $bounds
+}
+
 tree_has_text() {
   node --eval '
     const fs = require("node:fs")
@@ -87,6 +116,29 @@ tree_has_text() {
     const xml = fs.readFileSync(file, "utf8")
     process.exit(xml.includes(`text="${wanted}"`) ? 0 : 1)
   ' "$1" "$2"
+}
+
+wait_for_text() {
+  local file="$1" wanted="$2"
+  for _ in $(seq 1 10); do
+    dump "$file"
+    tree_has_text "$file" "$wanted" && return 0
+    sleep 1
+  done
+  return 1
+}
+
+wait_for_description_bounds() {
+  local file="$1" wanted="$2" bounds
+  for _ in $(seq 1 10); do
+    dump "$file"
+    bounds="$(bounds_of_description "$file" "$wanted")" && {
+      printf '%s\n' "$bounds"
+      return 0
+    }
+    sleep 1
+  done
+  return 1
 }
 
 # Convert a point in the 100x60 viewBox into the physical bounds reported by
@@ -161,6 +213,67 @@ if adb emu event send EV_REL:REL_X:-10000 EV_REL:REL_Y:-10000 EV_SYN:0:0 >/dev/n
 else
   fail "this Android image cannot inject the external-mouse movement needed by the Canvas contract"
 fi
+
+# Run the exact version-pinned Three corpus through the Native entry of
+# ThreeCanvas. That entry projects with the portable renderer and draws with
+# the real Skia host already under test above; it is deliberately not evidence
+# for the separate Native GPU investigation in #596.
+dump canvas-before-three.xml
+tap_test_id canvas-before-three.xml show-three-corpus
+sleep 2
+
+three_ids=(flat-labelled-diagram wireframe-cad points-and-sprite instancing-and-morph)
+three_labels=('Input node' 'Wireframe assembly' 'Point cloud' 'Morphed instances')
+for index in 0 1 2 3; do
+  id="${three_ids[$index]}"
+  label="${three_labels[$index]}"
+  xml="three-native-${id}.xml"
+  wait_for_text "$xml" "scene: $id" || fail "Three corpus did not select $id"
+  tree_has_text "$xml" 'diagnostics: none' || fail "$id produced an unexpected diagnostic"
+  control_bounds="$(wait_for_description_bounds "$xml" "$label")" ||
+    fail "$id did not expose its named Three object to Android accessibility"
+  tap_bounds $control_bounds
+  wait_for_text "$xml" "activated: $label" || fail "$id did not activate $label"
+  adb exec-out screencap -p > "three-native-${id}.png" 2>/dev/null || true
+  echo "Three Native host -> $id -> $label"
+  tap_test_id "$xml" three-corpus-next
+  sleep 2
+done
+
+wait_for_text three-native-gltf-pbr.xml 'scene: gltf-pbr' ||
+  fail 'Three corpus did not select gltf-pbr'
+wait_for_text three-native-gltf-pbr.xml 'diagnostics: UNSUPPORTED_MATERIAL' ||
+  fail 'glTF/PBR did not stop at the documented portable material boundary'
+adb exec-out screencap -p > three-native-gltf-pbr.png 2>/dev/null || true
+node --eval '
+  const fs = require("node:fs")
+  const useful = [
+    "flat-labelled-diagram",
+    "wireframe-cad",
+    "points-and-sprite",
+    "instancing-and-morph",
+  ].map((id) => ({ id, status: "useful", semanticControl: true, activated: true }))
+  fs.writeFileSync("three-native-corpus.json", `${JSON.stringify({
+    family: "native-host",
+    host: "React Native Android / Skia",
+    fixtures: [...useful, {
+      id: "gltf-pbr",
+      status: "diagnostic",
+      diagnostics: ["UNSUPPORTED_MATERIAL"],
+      semanticControl: false,
+      activated: false,
+    }],
+  }, null, 2)}\n`)
+'
+echo 'Three Native host corpus: 4 useful, 1 explicit diagnostic, 0 failed'
+
+# Restore the original surface before the existing TalkBack pass so the new
+# corpus cannot weaken or accidentally replace Canvas's accessibility check.
+tap_test_id three-native-gltf-pbr.xml three-corpus-back
+sleep 2
+dump canvas-after-three.xml
+bounds_of canvas-after-three.xml canvas-surface >/dev/null ||
+  fail 'Canvas surface did not return after the Three corpus'
 
 # Now validate the semantic surface with the actual TalkBack service and a
 # logger TTS engine. uiautomator is intentionally not used after this point:

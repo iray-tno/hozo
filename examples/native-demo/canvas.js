@@ -5,15 +5,29 @@
 // there exists to measure what Hozo costs a typical React Native app --
 // a number that stops meaning anything once an optional renderer most
 // apps never install is inside it.
+
+import { Button, View } from '@hozo/core'
+import { useState } from 'react'
 import { AppRegistry } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { CanvasBench } from './CanvasBench.tsx'
+import { ThreeCorpusBench } from './ThreeCorpusBench.tsx'
 
 function Root() {
+  const [screen, setScreen] = useState('canvas')
   return (
     <SafeAreaProvider>
-      <CanvasBench />
+      {screen === 'canvas' ? (
+        <View>
+          <Button testID="show-three-corpus" onPress={() => setScreen('three')}>
+            Show Three corpus
+          </Button>
+          <CanvasBench />
+        </View>
+      ) : (
+        <ThreeCorpusBench onBack={() => setScreen('canvas')} />
+      )}
     </SafeAreaProvider>
   )
 }
