@@ -278,6 +278,166 @@ const INSIDE_STEPS = 20
 const BLANK = /^blank$/i
 
 /**
+ * NVDA's browse mode holds the arrow keys; this hands them to the widget.
+ *
+ * NVDA-Space, copied from Guidepup's own `toggleBetweenBrowseAndFocusMode`
+ * rather than called through it: the command table is on the NVDA class and
+ * the `screenReader` fixture does not expose it -- probe run 36359016412
+ * found `keyboardCommands` undefined on both readers. The definition is two
+ * key codes, so it is written out here with the reason next to it.
+ *
+ * Nothing on macOS. VoiceOver has no browse mode: an arrow key reaches the
+ * page as it is, which the same probe measured -- `press("ArrowRight")` moved
+ * the grid and was announced, while on NVDA the identical call moved nothing
+ * and said "1", which is browse mode reading the next character of "11".
+ */
+export async function enterFocusMode(screenReader: IScreenReader): Promise<void> {
+  if (!onWindows) return
+  await screenReader.perform({
+    keyCode: [WindowsKeyCodes.Insert, WindowsKeyCodes.Spacebar],
+    modifiers: [],
+  })
+}
+
+/** How long to wait for speech to begin before calling the action silent. */
+const SETTLE_MS = 3000
+/** How long the log must stop growing before speech counts as finished. */
+const QUIET_MS = 1200
+/** A ceiling on one announcement, so a reader that never stops cannot hang a run. */
+const SPEECH_MS = 15_000
+const POLL_MS = 200
+
+/** Everything the reader actually said, with its silences dropped. */
+export function meaningful(log: readonly string[]): string[] {
+  return log.map((phrase) => phrase.trim()).filter((phrase) => phrase !== '' && !BLANK.test(phrase))
+}
+
+/**
+ * What the reader says in response to one action.
+ *
+ * The other half of this file walks a page and takes everything; this takes
+ * one action's worth, which is what a scenario is. The log is cleared first so
+ * the phrases returned are caused by `act` and not left over from arriving.
+ *
+ * Two waits rather than one. The first is for speech to begin, because a key
+ * press reaches the page over CDP and the reader speaks a moment later; the
+ * second is for it to *finish*, because an announcement is often several
+ * phrases ("Thursday, September 11, 2026", "selected") and returning after the
+ * first would approve half a sentence.
+ *
+ * The second wait used to be a flat 700ms after the first phrase, which is not
+ * a wait for the end of anything, and that cost run 36364764129 a red job and
+ * two approvals their meaning. In that run VoiceOver never announced the 24th:
+ *
+ *   ArrowDown -- the 17th   "Thursday, September 17, 2026 17"
+ *   ArrowDown -- the 24th   (nothing said)
+ *   ArrowDown -- October    "October 2026"
+ *
+ * The third key spoke, so the machine was not lagging and the announcement was
+ * not merely late -- a late one would have leaked into the next step's log,
+ * which was clean. What happened is that the second key was pressed while the
+ * first phrase was still being spoken, and VoiceOver dropped the announcement
+ * it interrupted. The third key then went out into silence and was fine. The
+ * green run on the identical commit had finished speaking inside the 700ms,
+ * which is why this was a machine's speed rather than a calendar's behaviour.
+ *
+ * The same shape explains every other silence this suite has attributed to
+ * VoiceOver: the warm-up's second key, which follows the longest phrase on the
+ * page ("... table 7 columns, 6 rows"), and the step back onto the selected day
+ * in `calendar-says-the-selected-day`. Both notes in `expected/voiceover/` say
+ * VoiceOver does not re-announce the cell it entered the table on. That may
+ * still be true and it is no longer evidenced, because the key that was
+ * supposed to show it was pressed into an ongoing utterance.
+ *
+ * So the log is now watched until it stops growing for `QUIET_MS`, with
+ * `SPEECH_MS` as a ceiling. Growth is measured on the raw log rather than on
+ * `meaningful`, because a trailing empty phrase is still the reader being
+ * busy. Generous on purpose: a scenario runs a handful of steps, so seconds
+ * here cost a run nothing, and an approval that means something else costs it
+ * a week.
+ *
+ * Growth is a proxy for speech and not the thing itself, and there is one case
+ * where it is known to be a poor one. Run 36391397389, the first under this
+ * wait, had every scenario's second key speak -- the 24th, the selected 10th,
+ * the range's start, all three of which had been silent before -- and left the
+ * warm-up's second key silent exactly as it was. The phrase before that one is
+ * the longest on the page ("... September 2026 table 7 columns, 6 rows"), and
+ * VoiceOver logs it as a single entry, so the log stops growing at once while
+ * the speech runs on for seconds. A one-phrase announcement is therefore still
+ * escapable, and the warm-up's silence is as likely to be that as anything
+ * about the reader. It costs nothing there, because the warm-up is not
+ * compared; it would cost something in a scenario whose step follows a very
+ * long phrase, and there is none today.
+ *
+ * Returning nothing is a result rather than a failure. "Nothing was said" is
+ * exactly what a key at the edge of a range should produce, and a scenario
+ * that wants to assert it needs it to come back empty rather than to throw.
+ */
+export async function spokenAfter(
+  screenReader: IScreenReader,
+  act: () => Promise<void>,
+): Promise<string[]> {
+  await screenReader.clearSpokenPhraseLog()
+  await act()
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  const started = Date.now() + SETTLE_MS
+  while (Date.now() < started) {
+    if (meaningful(await screenReader.spokenPhraseLog()).length > 0) break
+    await sleep(POLL_MS)
+  }
+
+  // Never the first phrase and out: the announcement is finished when the log
+  // has been the same length for `QUIET_MS`.
+  const ceiling = Date.now() + SPEECH_MS
+  let seen = -1
+  let unchangedSince = Date.now()
+  while (Date.now() < ceiling) {
+    const length = (await screenReader.spokenPhraseLog()).length
+    if (length !== seen) {
+      seen = length
+      unchangedSince = Date.now()
+    } else if (Date.now() - unchangedSince >= QUIET_MS) {
+      break
+    }
+    await sleep(POLL_MS)
+  }
+  return meaningful(await screenReader.spokenPhraseLog())
+}
+
+/** Phrases compared the way this suite compares them: case and spacing do not count. */
+export const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim()
+
+/**
+ * The expected phrases not found in `log`, each searched for after the last
+ * one found.
+ *
+ * A subset in order rather than an equality, for the reason the top of
+ * `stories.spec.ts` gives: phrase boundaries move with timing and a reader
+ * update rewords things, so what a person approves is the phrases that must be
+ * said and not the transcript around them.
+ */
+export function missingInOrder(log: readonly string[], expected: readonly string[]): string[] {
+  const said = log.map(normalize)
+  const missing: string[] = []
+  let from = 0
+  for (const phrase of expected) {
+    const at = said.findIndex((line, index) => index >= from && line.includes(normalize(phrase)))
+    if (at === -1) missing.push(phrase)
+    else from = at + 1
+  }
+  return missing
+}
+
+/** The phrases an approved file requires, with its comment lines dropped. */
+export function approvedPhrases(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'))
+}
+
+/**
  * Steps to the end of the page and returns everything the reader said.
  *
  * A reader that has nowhere left to go says the same thing again, and three of

@@ -1,0 +1,5 @@
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
+# The same claim NVDA's file records, in this reader's words. VoiceOver names
+# the cell and repeats the number it draws; it says nothing about selection,
+# here or anywhere else in this grid.
+Friday, September 11, 2026 11

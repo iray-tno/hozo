@@ -1,0 +1,5 @@
+# Approved from screen-readers run 36362653748 (NVDA, Chrome).
+# Down is seven days, not the next drawn row. The 10th is in row 2 and the 17th
+# in row 3 of the same column, which is the shape of the claim: same column, one
+# row on, seven days later.
+Thursday, September 17, 2026, not selected, row 3, column 4

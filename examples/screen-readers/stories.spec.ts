@@ -52,9 +52,12 @@ import path from 'node:path'
 import { screenReaderTest as test } from '@guidepup/playwright'
 
 import {
+  approvedPhrases,
   enterPage,
   here,
   MIN_SPOKEN,
+  missingInOrder,
+  normalize,
   phrasesDir,
   reader,
   startOptions,
@@ -84,7 +87,8 @@ const index = JSON.parse(readFileSync(path.join(storybook, 'index.json'), 'utf8'
  * and leaves after `INSIDE_STEPS` of 20. Both budgets stay as they are here,
  * so adding the grids would mean approving a walk that stopped in the middle
  * of it -- which reads as coverage and is not. Raising the budgets is not the
- * answer either; see #584 for what is.
+ * answer either: `scenarios.spec.ts` reads those two stories instead, a few
+ * keys at a time, and #584 is the argument for why that is the right shape.
  *
  * `clock` has no overlay at all. The two `-open` stories put their panel in a
  * `div` with `aria-modal`, not a native `<dialog>` behind `showModal()`, so
@@ -103,21 +107,6 @@ const stories = Object.values(index.entries)
   )
   .map((entry) => entry.id)
   .sort()
-
-const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim()
-
-/** The expected phrases not found in `log`, each searched for after the last one found. */
-function missingInOrder(log: readonly string[], expected: readonly string[]): string[] {
-  const said = log.map(normalize)
-  const missing: string[] = []
-  let from = 0
-  for (const phrase of expected) {
-    const at = said.findIndex((line, index) => index >= from && line.includes(normalize(phrase)))
-    if (at === -1) missing.push(phrase)
-    else from = at + 1
-  }
-  return missing
-}
 
 /**
  * What an approved file declares about its own completeness.
@@ -217,13 +206,10 @@ for (const id of stories) {
       return
     }
     const approved = readFileSync(expectedFile, 'utf8')
-    const expected = approved
-      .split('\n')
-      .map((line) => line.trim())
-      // `#` lines say why a phrase is or is not approved, which is the part a
-      // later reviewer needs and a list of phrases does not carry. Two of them
-      // are read rather than skipped; see `declarations`.
-      .filter((line) => line !== '' && !line.startsWith('#'))
+    // `#` lines say why a phrase is or is not approved, which is the part a
+    // later reviewer needs and a list of phrases does not carry. Two of them
+    // are read rather than skipped; see `declarations`.
+    const expected = approvedPhrases(approved)
     const missing = missingInOrder(log, expected)
     if (missing.length > 0) {
       throw new Error(

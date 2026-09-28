@@ -1,0 +1,30 @@
+# Approved from screen-readers run 36369849773 (VoiceOver, Safari).
+# Both steps, and the second one is the reason this file was rewritten.
+#
+# It used to hold only the step away from the range, on the grounds that
+# VoiceOver does not re-announce the cell its cursor entered the table on. Run
+# 36369849773 says otherwise, on the identical commit:
+#
+#   ArrowLeft   off the range, onto the 9th
+#     "Wednesday, September 9, 2026 9"
+#   ArrowRight  and back onto the 10th, which is its start
+#     "Thursday, September 10, 2026, start of range 10"
+#
+# So the composed name does reach this reader on arrival, not only in a warm-up
+# that cannot be compared. What made it look otherwise was `spokenAfter`
+# returning a flat 700ms after the first phrase rather than waiting for speech
+# to stop: the next key went out while the previous phrase was still being
+# spoken, and VoiceOver drops the announcement it interrupts. Here the phrase
+# before is short enough to finish in time on a fast machine and not on a slow
+# one, which is why the same two keys produced two different files.
+#
+# `spokenAfter` now waits for the log to stop growing, and this approval is the
+# test of that: it holds VoiceOver to a phrase it can only say if it was not
+# interrupted. A red run here means the wait is still too short, not that the
+# component regressed -- check the step before it in the artifact first.
+#
+# "start of range" is in the cell's accessible name, composed there because
+# `aria-selected` is one bit and cannot say which end a day is. Both readers
+# now read it, which is the measurement that says composing it was right.
+Wednesday, September 9, 2026 9
+Thursday, September 10, 2026, start of range 10

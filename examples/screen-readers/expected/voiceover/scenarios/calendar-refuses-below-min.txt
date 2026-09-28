@@ -1,0 +1,4 @@
+# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
+# Up reaches `min` and stops there. The refusal itself is checked in code --
+# see the note in NVDA's file beside this one.
+Thursday, September 3, 2026 3

@@ -1,0 +1,6 @@
+# Approved from screen-readers run 36362653748 (NVDA, Chrome).
+# The 3rd is `min`. The first Up reaches it and the second is refused, which is
+# checked in code rather than here -- a list of phrases cannot say "and then
+# nothing", so `silent: true` on that step does it. This file holds the half a
+# list of phrases can say.
+Thursday, September 3, 2026, not selected, row 1, column 4

@@ -1,0 +1,15 @@
+# Approved from screen-readers run 36362653748 (NVDA, Chrome).
+# A finding rather than a confirmation, and approved as what is said.
+#
+# The 11th is announced "not selected". The 10th, which is the chosen day and
+# carries `aria-selected="true"`, is announced with no selection state at all --
+# not "selected", not anything. So on this grid a reader hears which days are
+# *not* chosen and never hears which one is.
+#
+# The range grid does not do this: see `calendar-says-which-end-of-a-range`,
+# where the same reader says "start of range, selected" plainly. The difference
+# between the two is a question for #148 rather than for this file, and it is
+# written here because the next person to read this file is the one who needs
+# it.
+Friday, September 11, 2026, not selected, row 2, column 5
+Thursday, September 10, 2026, row 2, column 4
