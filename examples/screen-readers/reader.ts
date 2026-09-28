@@ -319,9 +319,30 @@ const DIALOG = /^dialog[,\s]/i
 /** Tab stops one dialog may spend before the walk gives up on it. */
 const DIALOG_STOPS = 24
 
-/** What a browser will move focus to with Tab. `FocusScope` uses the same list. */
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+/**
+ * What a browser will move focus to with Tab.
+ *
+ * `:not([tabindex="-1"])` on every clause, not only on the last. A
+ * `<button tabindex="-1">` is a button and is not a tab stop, and
+ * `TimePicker`'s four arrows are exactly that -- they are there for a pointer,
+ * because the field itself answers Up and Down. Counting them made the
+ * date-and-time panel ten stops where it has six, and run 36423052382 spent
+ * the difference Tabbing past the end and announcing the first control twice.
+ *
+ * `FocusScope` in `@hozo/behaviors` has the same list without this, and
+ * filters afterwards on `offsetParent`. That catches a hidden control and not
+ * this one.
+ */
+const FOCUSABLE = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]',
+]
+  .map((one) => `${one}:not([tabindex="-1"])`)
+  .join(', ')
 
 /**
  * NVDA's word for an empty line, which is silence with a name on it.
