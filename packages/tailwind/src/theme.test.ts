@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 
 import { compile, compileNative, createCompiler } from '@hozo/compiler'
-import { loadTheme, toHex } from './theme.ts'
+import { loadTheme, stylesheetPath, toHex } from './theme.ts'
 
 /** Writes a stylesheet somewhere Tailwind can resolve imports from. */
 async function themeFrom(css: string) {
@@ -182,4 +182,49 @@ test('a token that refers to itself ends the walk rather than the process', asyn
     theme.colors.find((c) => c.token === 'ouroboros'),
     undefined,
   )
+})
+
+/** A package installed under `dir`, with the tokens a library would ship. */
+function installed(dir: string, name: string, css: string): void {
+  const home = path.join(dir, 'node_modules', ...name.split('/'))
+  mkdirSync(path.join(home, 'src'), { recursive: true })
+  writeFileSync(
+    path.join(home, 'package.json'),
+    JSON.stringify({ name, version: '0.0.0', exports: { './theme.css': './src/theme.css' } }),
+  )
+  writeFileSync(path.join(home, 'src', 'theme.css'), css)
+}
+
+test('a project can import the tokens a package ships', async () => {
+  // #649 one layer up: a library whose whole content is an `@theme` block was
+  // unreadable, because every `@import` but `tailwindcss` was treated as a
+  // path. `@import "@acme/ui/theme.css"` became `<parent>/@acme/ui/theme.css`
+  // and threw.
+  const dir = mkdtempSync(path.join(import.meta.dirname, '.theme-test-'))
+  try {
+    installed(dir, '@acme/ui', '@theme { --color-brand: var(--color-indigo-600); }')
+    writeFileSync(path.join(dir, 'app.css'), '')
+    const theme = await loadTheme('@import "tailwindcss";\n@import "@acme/ui/theme.css";\n', dir)
+    const brand = theme.colors.find((c) => c.token === 'brand')
+    const indigo = theme.colors.find((c) => c.token === 'indigo-600')
+    assert.ok(indigo)
+    assert.equal(brand?.hex, indigo?.hex, 'the package’s token, resolved')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a relative import resolves against the stylesheet, not its parent', () => {
+  // The bug the line above uncovered. Tailwind hands `loadStylesheet` the
+  // *base directory* rather than a file, so taking its `dirname` climbed one
+  // level for every import -- which nothing noticed, because until now no
+  // project imported anything but `tailwindcss`, and that is answered without
+  // looking at the base at all.
+  assert.equal(stylesheetPath('./tokens.css', '/a/b'), path.resolve('/a/b/tokens.css'))
+  assert.equal(stylesheetPath('../tokens.css', '/a/b'), path.resolve('/a/tokens.css'))
+})
+
+test('tailwindcss keeps its own line, because its entry is not the stylesheet', () => {
+  // Through `exports` it would resolve the JavaScript module beside the CSS.
+  assert.match(stylesheetPath('tailwindcss', '/anywhere'), /index\.css$/)
 })
