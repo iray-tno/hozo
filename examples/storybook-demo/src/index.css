@@ -1,0 +1,17 @@
+/* What Hozo reads this project's design tokens out of.
+ *
+ * Not bundled, and not the same file as `preview.css`. Hozo looks for one of
+ * a handful of usual names -- `src/index.css` is one -- reads the `@theme`
+ * it finds, and compiles the utilities itself; the browser never loads this.
+ * `preview.css` is the opposite: a typeface and a page background, which are
+ * this demo's and which no compiler can infer.
+ *
+ * The one import is the point of the file. `@hozo/ui` ships its tokens as an
+ * `@theme` block and nothing else, so a project that wants its components
+ * styled says this line and gets `bg-hozo-accent`, `rounded-hozo-control` and
+ * the other twenty-five. Overriding one is a line of this file, below the
+ * import -- which is the whole claim #638 makes about shipping a library as
+ * source.
+ */
+@import "tailwindcss";
+@import "@hozo/ui/theme.css";
