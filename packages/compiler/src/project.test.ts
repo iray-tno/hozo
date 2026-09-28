@@ -266,3 +266,116 @@ test('an include the project supplied wins over gitignore', () => {
     rmSync(repo, { recursive: true, force: true })
   }
 })
+
+/** An installed package, with a manifest so it can be resolved by name. */
+function installed(root: string, name: string, files: Record<string, string>): void {
+  const dir = path.join(root, 'node_modules', ...name.split('/'))
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name, version: '0.0.0' }))
+  for (const [relative, text] of Object.entries(files)) {
+    const file = path.join(dir, relative)
+    mkdirSync(path.dirname(file), { recursive: true })
+    writeFileSync(file, text)
+  }
+}
+
+/** A project that depends on the named packages. */
+function manifest(root: string, dependencies: Record<string, string>): void {
+  writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'app', dependencies }))
+}
+
+test('a Hozo package the project depends on is scanned, though it is in node_modules', () => {
+  // #649: a library that ships TSX for this build to compile contributed
+  // nothing, because both routes into the candidate set reject node_modules.
+  // Its components rendered with class names that had no rules behind them.
+  const root = project()
+  try {
+    const own = source(root, 'src/app.tsx')
+    manifest(root, { '@hozo/ui': '^0.1.0' })
+    installed(root, '@hozo/ui', { 'src/button.tsx': 'export const B = "bg-hozo-accent"' })
+
+    const found = discoverSources(root)
+    assert.equal(found.length, 2)
+    assert.ok(found.includes(own))
+    assert.ok(
+      found.some((file) => file.endsWith(path.join('@hozo', 'ui', 'src', 'button.tsx'))),
+      `the package's own source, in ${JSON.stringify(found)}`,
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a package the project does not depend on is left alone', () => {
+  // Read from the manifest rather than by walking node_modules, so a Hozo
+  // package that arrived as somebody else's dependency -- which this project
+  // never asked for and cannot see -- is not scanned.
+  const root = project()
+  try {
+    source(root, 'src/app.tsx')
+    manifest(root, {})
+    installed(root, '@hozo/ui', { 'src/button.tsx': 'export const B = "bg-hozo-accent"' })
+
+    assert.equal(discoverSources(root).length, 1)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('naming packages replaces the default rather than adding to it', () => {
+  // Which is what makes "none of them" expressible as `[]`, and what a
+  // project listing a third-party library has to know: list both.
+  const root = project()
+  try {
+    source(root, 'src/app.tsx')
+    manifest(root, { '@hozo/ui': '^0.1.0' })
+    installed(root, '@hozo/ui', { 'src/button.tsx': 'export const B = "a"' })
+    installed(root, 'acme-ui', { 'src/card.tsx': 'export const C = "b"' })
+
+    const named = discoverSources(root, { packages: ['acme-ui'] })
+    assert.equal(named.length, 2)
+    assert.ok(named.some((file) => file.includes('acme-ui')))
+    assert.ok(
+      !named.some((file) => file.includes('@hozo')),
+      'the default is replaced, not extended',
+    )
+
+    assert.equal(discoverSources(root, { packages: [] }).length, 1, 'and [] is none of them')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("a package's own dist and nested dependencies stay out", () => {
+  // The exclusions are rooted at the package rather than at the project, so
+  // `node_modules` means "not a package nested inside this one" rather than
+  // "not this package" -- which would exclude everything.
+  const root = project()
+  try {
+    source(root, 'src/app.tsx')
+    manifest(root, { '@hozo/ui': '^0.1.0' })
+    installed(root, '@hozo/ui', {
+      'src/button.tsx': 'export const B = "a"',
+      'dist/button.js': 'export const B = "a"',
+      'node_modules/nested/index.js': 'export const N = "b"',
+    })
+
+    const found = discoverSources(root)
+    assert.equal(found.length, 2)
+    assert.ok(!found.some((file) => file.includes('dist')))
+    assert.ok(!found.some((file) => file.includes('nested')))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a project with no manifest scans itself and nothing else', () => {
+  const root = project()
+  try {
+    const own = source(root, 'src/app.tsx')
+    installed(root, '@hozo/ui', { 'src/button.tsx': 'export const B = "a"' })
+    assert.deepEqual(discoverSources(root), [own])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

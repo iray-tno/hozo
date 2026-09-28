@@ -2,6 +2,7 @@
 // by the Vite and Metro integrations.
 
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { globbySync, isGitIgnoredSync } from 'globby'
@@ -78,6 +79,20 @@ export interface ContentOptions {
    * Defaults to true, and has no effect alongside `include`.
    */
   respectGitignore?: boolean
+  /**
+   * Installed packages whose own source is scanned as well as the project's.
+   *
+   * For a library that ships TSX for this build to compile -- `@hozo/ui` is
+   * the first -- which otherwise contributes nothing, because both routes
+   * into the candidate set reject `node_modules` and `DEFAULT_EXCLUDE` wins
+   * however broad an `include` is (#649).
+   *
+   * Defaults to every `@hozo/` package the project's own manifest declares.
+   * Naming any package replaces that default rather than adding to it, so a
+   * project that wants a third-party library *and* the Hozo ones lists both
+   * -- which is the reading that makes "none of them" expressible as `[]`.
+   */
+  packages?: string[]
 }
 
 export type UnloweredReactNativeJsxPolicy = 'allow' | 'warn' | 'error'
@@ -283,16 +298,120 @@ export function discoverSources(root: string, options: ContentOptions = {}): str
     .filter((file) => SCANNABLE.has(path.extname(file)))
     .map((file) => path.resolve(file))
 
-  return (respectGitignore ? files.filter(notIgnoredAbove(root)) : files).sort()
+  const own = respectGitignore ? files.filter(notIgnoredAbove(root)) : files
+  return [...own, ...packageSources(root, options)].sort()
 }
 
-/** The real file behind a bundler module id, if Hozo should inspect it. */
-export function scannableFile(id: string): string | undefined {
-  if (id.startsWith('\0') || id.includes('node_modules')) return undefined
-  //  always yields a first element; the fallback is for the type.
+/**
+ * The source of the installed packages that ship some.
+ *
+ * A library whose whole point is to be compiled by the consumer's build --
+ * `@hozo/ui` is the first -- contributed nothing before this, because both
+ * routes into the candidate set reject `node_modules` outright and
+ * `DEFAULT_EXCLUDE` wins however broad an `include` is. Its components
+ * rendered with class names that had no rules behind them, and #649 has the
+ * measurement.
+ *
+ * It is the wall Tailwind hit and answered with `@source`, which can name a
+ * path inside `node_modules`. `discoverSources` above already cites `@source`
+ * as the precedent it matches for gitignore; this is the rest of it.
+ *
+ * Every `@hozo/` dependency by default, because a package a person installed
+ * from this project is one this project can say is safe to read, and
+ * `npm i @hozo/ui` wanting a configuration line to produce any CSS at all is
+ * not a thing to ask. The cost was measured rather than assumed: scanning all
+ * 27 source files of `@hozo/patterns`, which ships no CSS, yields five
+ * candidates -- `collapse`, `hidden`, `inline-block`, `visible`, `z-50` -- of
+ * which two resolve. Comments are not scanned, which is what keeps it that
+ * small in a repository whose comments are full of class names.
+ *
+ * Only what the project depends on, read from its own manifest. A walk of
+ * `node_modules` looking for Hozo packages would find the ones a dependency
+ * pulled in, which the project never asked for and cannot see.
+ */
+function packageSources(root: string, options: ContentOptions): string[] {
+  const names = options.packages ?? hozoDependencies(root)
+  const files: string[] = []
+  for (const name of names) {
+    const dir = packageDirectory(name, root)
+    if (dir === undefined) continue
+    // Rooted at the package, so `DEFAULT_EXCLUDE`'s `node_modules` rule means
+    // "not a package nested inside this one" rather than "not this package".
+    for (const file of globbySync(DEFAULT_INCLUDE, {
+      cwd: dir,
+      absolute: true,
+      onlyFiles: true,
+      unique: true,
+      followSymbolicLinks: false,
+      gitignore: false,
+      ignore: DEFAULT_EXCLUDE,
+    })) {
+      if (SCANNABLE.has(path.extname(file))) files.push(path.resolve(file))
+    }
+  }
+  return files
+}
+
+/** The `@hozo/` packages this project declares a dependency on. */
+function hozoDependencies(root: string): string[] {
+  try {
+    const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+    }
+    return [
+      ...Object.keys(manifest.dependencies ?? {}),
+      ...Object.keys(manifest.devDependencies ?? {}),
+    ].filter((name) => name.startsWith('@hozo/'))
+  } catch {
+    // No manifest, or an unreadable one. A project without a `package.json`
+    // has no dependencies to scan, and one with a broken manifest has a
+    // louder problem than this.
+    return []
+  }
+}
+
+/**
+ * Where a package's own files are, or `undefined` if it is not installed.
+ *
+ * Through its `package.json` rather than its entry point, because the entry
+ * is often `dist/index.js` and the source beside it is what has the classes
+ * in it. A package that ships no source contributes nothing and costs one
+ * resolve.
+ */
+function packageDirectory(name: string, root: string): string | undefined {
+  try {
+    const require = createRequire(path.join(root, 'package.json'))
+    return path.dirname(require.resolve(`${name}/package.json`))
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The real file behind a bundler module id, if Hozo should inspect it.
+ *
+ * `node_modules` is out, except for a file the project walk has already
+ * decided to read -- which is how a package named by `content.packages` gets
+ * through here as well as through the walk. Without `admitted` the two
+ * disagree: `discoverSources` would list the file and this would reject its
+ * id, so it would be scanned on a cold build and never again on a change to
+ * it, which is the shape of bug that only appears in a dev server.
+ *
+ * The predicate rather than a second look at the options, because the answer
+ * is already computed: the integration holds the walk's result and can say
+ * whether this exact path is in it.
+ */
+export function scannableFile(
+  id: string,
+  admitted?: (file: string) => boolean,
+): string | undefined {
+  if (id.startsWith('\0')) return undefined
   // `split` always yields a first element; the fallback is for the type.
-  const file = id.split('?')[0] ?? id ?? id
-  return TRANSFORMABLE.has(path.extname(file)) ? file : undefined
+  const file = id.split('?')[0] ?? id
+  if (!TRANSFORMABLE.has(path.extname(file))) return undefined
+  if (!id.includes('node_modules')) return file
+  return admitted?.(path.resolve(file)) === true ? file : undefined
 }
 
 /** Whether this file only becomes readable after another plugin transforms it. */

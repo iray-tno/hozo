@@ -125,7 +125,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
    */
   const pass = (accepts: (file: string) => boolean): Pick<Plugin, 'transform'> => ({
     async transform(code, id) {
-      const file = scannableFile(id)
+      const file = scannableFile(id, (candidate) => includedFiles.has(candidate))
       if (file && !accepts(file)) return
       const isDerivedModule = id.includes('?')
       let stylexGraphChanged = false
