@@ -80,6 +80,20 @@ bounds_of() {
   ' "$1" "$2"
 }
 
+node_is_focused_by_id() {
+  node --eval '
+    const fs = require("node:fs")
+    const [file, wanted] = process.argv.slice(1)
+    const xml = fs.readFileSync(file, "utf8")
+    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+      if (node[0].includes(`resource-id="${wanted}"`) && node[0].includes(`focused="true"`)) {
+        process.exit(0)
+      }
+    }
+    process.exit(1)
+  ' "$1" "$2"
+}
+
 node_is_focused_by_description() {
   node --eval '
     const fs = require("node:fs")
@@ -95,15 +109,28 @@ node_is_focused_by_description() {
 }
 
 # Canvas interactions exercise their real semantic or coordinate paths. The
-# surrounding harness buttons use an explicit touchscreen source so the
-# external mouse injected above cannot retain navigation focus or swallow an
-# Enter key between scenes.
+# corpus buttons well inside the content area use an explicit touchscreen
+# source; the status-bar-adjacent entry control uses keyboard activation.
 tap_test_id() {
   local test_id="$1" file="tap-${1}.xml" left top right bottom
   dump "$file"
   read -r left top right bottom <<< "$(bounds_of "$file" "$test_id")" ||
     fail "could not find harness control $test_id"
   adb shell input touchscreen tap "$(((left + right) / 2))" "$(((top + bottom) / 2))"
+}
+
+activate_test_id() {
+  local test_id="$1" file="focus-${1}.xml"
+  for _ in $(seq 1 20); do
+    adb shell input keyevent KEYCODE_TAB
+    sleep 1
+    dump "$file"
+    if node_is_focused_by_id "$file" "$test_id"; then
+      adb shell input keyevent KEYCODE_ENTER
+      return 0
+    fi
+  done
+  fail "could not keyboard-focus $test_id"
 }
 
 activate_description() {
@@ -196,7 +223,11 @@ assert_pressed line 50 56
 # the real Skia host already under test above; it is deliberately not evidence
 # for the separate Native GPU investigation in #596.
 dump canvas-before-three.xml
-tap_test_id show-three-corpus
+# This first control sits directly below Android's status-bar inset. Its UI
+# tree bounds are correct, but API 36 can still route an injected coordinate
+# at that edge to System UI. Keyboard activation avoids that platform edge;
+# later corpus controls are safely inside the content area and use touch.
+activate_test_id show-three-corpus
 sleep 2
 
 three_ids=(flat-labelled-diagram wireframe-cad points-and-sprite instancing-and-morph)
