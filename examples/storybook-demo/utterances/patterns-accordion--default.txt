@@ -1,0 +1,45 @@
+heading, Accordion (one at a time), level 2
+paragraph
+Opening a section closes whichever was open, and pressing the open one closes it. The Authoring Practices allow a set where something is always open; this is the half that does not, because a person who opened something by accident needs a way to put it back.
+end of paragraph
+group, Delivery questions
+heading, When will it arrive?, level 3
+button, When will it arrive?, 1 control, expanded
+end of heading, When will it arrive?, level 3
+region, When will it arrive?
+Two working days inside the country, five outside it.
+end of region, When will it arrive?
+heading, Can I send it back?, level 3
+button, Can I send it back?, 1 control, not expanded
+end of heading, Can I send it back?, level 3
+heading, Does it run small?, level 3
+button, Does it run small?, 1 control, not expanded
+end of heading, Does it run small?, level 3
+heading, When is it back in stock?, level 3
+button, When is it back in stock?, 1 control, disabled, not expanded
+end of heading, When is it back in stock?, level 3
+end of group, Delivery questions
+heading, Accordion (any number), level 2
+paragraph
+The same markup and the same keyboard. Only the answer to "may two be open at once" differs, and it is a prop rather than a second component.
+end of paragraph
+group, Delivery questions, independent
+heading, When will it arrive?, level 3
+button, When will it arrive?, 1 control, not expanded
+end of heading, When will it arrive?, level 3
+heading, Can I send it back?, level 3
+button, Can I send it back?, 1 control, expanded
+end of heading, Can I send it back?, level 3
+region, Can I send it back?
+Within thirty days, unworn, with the tag still on.
+end of region, Can I send it back?
+heading, Does it run small?, level 3
+button, Does it run small?, 1 control, expanded
+end of heading, Does it run small?, level 3
+region, Does it run small?
+It runs one size small. Take the next size up if you are between two.
+end of region, Does it run small?
+heading, When is it back in stock?, level 3
+button, When is it back in stock?, 1 control, disabled, not expanded
+end of heading, When is it back in stock?, level 3
+end of group, Delivery questions, independent
