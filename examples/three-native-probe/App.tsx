@@ -1,7 +1,8 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber/native'
+import { File, Paths } from 'expo-file-system'
 import type { ExpoWebGLRenderingContext } from 'expo-gl'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
+import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Mesh } from 'three'
 
 const moduleStartedAt = performance.now()
@@ -20,7 +21,12 @@ type ProbeEvent = {
   resumeEpoch?: number
 }
 
+const recordedEvents: ProbeEvent[] = []
+const eventFile = new File(Paths.document, 'hozo-three-native-events.json')
+
 function emit(event: ProbeEvent) {
+  recordedEvents.push(event)
+  eventFile.write(`${JSON.stringify(recordedEvents, null, 2)}\n`)
   console.log(`[hozo-three-native] ${JSON.stringify(event)}`)
 }
 
@@ -97,7 +103,7 @@ function ProbeScene({
 
     if (
       frameTimes.current.length === sampleFrameCount &&
-      touched.current &&
+      (touched.current || Platform.OS === 'ios') &&
       observedResumeEpoch.current > 0
     ) {
       completed.current = true

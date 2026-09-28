@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { collectIosReport } from './collect-ios-report.mjs'
 import { collectReport } from './collect-report.mjs'
 
 test('collects the required lifecycle and frame measurements', () => {
@@ -106,4 +107,40 @@ test('rejects a sample that never rendered after returning active', () => {
   const log = events.map((event) => `[hozo-three-native] ${JSON.stringify(event)}`).join('\n')
 
   assert.throws(() => collectReport(log, 1), /frame_after_resume/)
+})
+
+test('collects an honest iOS lifecycle report without claiming unmeasured interaction', () => {
+  const events = [
+    { event: 'renderer_ready', host: 'expo-gl', elapsedMs: 80, contextId: 4 },
+    { event: 'first_frame', host: 'expo-gl', elapsedMs: 96, objectId: 'cube' },
+    { event: 'app_backgrounded', host: 'expo-gl', elapsedMs: 200 },
+    { event: 'app_resumed', host: 'expo-gl', elapsedMs: 500, resumeEpoch: 1 },
+    {
+      event: 'frame_after_resume',
+      host: 'expo-gl',
+      elapsedMs: 518,
+      objectId: 'cube',
+      contextId: 4,
+    },
+    {
+      event: 'steady_sample',
+      host: 'expo-gl',
+      frameCount: 120,
+      medianFrameMs: 16.7,
+      p95FrameMs: 20,
+      objectId: 'cube',
+    },
+    { event: 'renderer_unmounted', host: 'expo-gl', elapsedMs: 2_800 },
+  ]
+
+  const report = collectIosReport(events, 123)
+  assert.equal(report.appBytes, 123)
+  assert.deepEqual(report.lifecycle, {
+    contextBeforeBackground: 4,
+    contextAfterResume: 4,
+    contextPreserved: true,
+    resumeToFrameMs: 18,
+  })
+  assert.equal(report.interaction.pointerRaycast, 'not-run')
+  assert.equal(report.interaction.voiceOver, 'not-run')
 })
