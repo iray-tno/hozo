@@ -200,20 +200,20 @@ function markdown(report) {
       `| ${result.mode} | ${result.backend} | ${result.renderCalls} | ${result.semanticControl ? 'yes' : 'no'} | ${result.activated ? 'yes' : 'no'} | ${error} |`,
     )
   }
-  const classicCorpus =
-    report.results.find(({ mode }) => mode === 'classic-webgl')?.sceneCorpus ?? []
-  lines.push(
-    '',
-    '## Classic WebGL real-scene corpus',
-    '',
-    '| Fixture | Status | Draw calls | Semantic controls | Activation | Error |',
-    '| --- | --- | ---: | ---: | --- | --- |',
-  )
-  for (const fixture of classicCorpus) {
-    const error = fixture.error?.replaceAll('|', '\\|').replaceAll('\n', '<br>') ?? ''
+  for (const result of report.results.filter(({ sceneCorpus }) => sceneCorpus)) {
     lines.push(
-      `| ${fixture.id} | ${fixture.status} | ${fixture.renderCalls} | ${fixture.semanticControls} | ${fixture.activated ? 'yes' : 'no'} | ${error} |`,
+      '',
+      `## ${result.mode} real-scene corpus (${result.backend})`,
+      '',
+      '| Fixture | Status | Draw calls | Semantic controls | Activation | Error |',
+      '| --- | --- | ---: | ---: | --- | --- |',
     )
+    for (const fixture of result.sceneCorpus) {
+      const error = fixture.error?.replaceAll('|', '\\|').replaceAll('\n', '<br>') ?? ''
+      lines.push(
+        `| ${fixture.id} | ${fixture.status} | ${fixture.renderCalls} | ${fixture.semanticControls} | ${fixture.activated ? 'yes' : 'no'} | ${error} |`,
+      )
+    }
   }
   lines.push(
     '',
