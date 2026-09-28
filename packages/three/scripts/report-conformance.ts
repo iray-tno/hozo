@@ -7,6 +7,7 @@ import { REVISION } from 'three'
 import {
   PORTABLE_GEOMETRY_CAPABILITIES,
   PORTABLE_MATERIAL_CAPABILITIES,
+  PORTABLE_SCENE_CAPABILITIES,
   type PortableCapability,
   summarizePortableCapabilities,
 } from './capabilities.ts'
@@ -62,6 +63,7 @@ const categoryRows = categories.map((category) => {
 })
 const materialCapabilities = summarizePortableCapabilities(PORTABLE_MATERIAL_CAPABILITIES)
 const geometryCapabilities = summarizePortableCapabilities(PORTABLE_GEOMETRY_CAPABILITIES)
+const sceneCapabilities = summarizePortableCapabilities(PORTABLE_SCENE_CAPABILITIES)
 const capabilitySummaryRow = (
   label: string,
   summary: ReturnType<typeof summarizePortableCapabilities>,
@@ -92,12 +94,13 @@ Capability status has stricter semantics than the class-level surface table:
 
 ### Inventoried categories
 
-Material and geometry are complete as independently owned capability categories. Cameras, scenes, objects, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping. This prevents a future overall denominator from counting the same behaviour twice.
+Material, geometry, and scene composition are complete as independently owned capability categories. Cameras, objects, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; scene owns traversal policy, composition, backgrounds, ordering, and fog. This prevents a future overall denominator from counting the same behaviour twice.
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 ${capabilitySummaryRow('Material', materialCapabilities)}
 ${capabilitySummaryRow('Geometry', geometryCapabilities)}
+${capabilitySummaryRow('Scene', sceneCapabilities)}
 
 Approximate capabilities count as implemented but remain visible rather than being folded into exact. These category percentages are not combined while the inventory is incomplete.
 
@@ -108,6 +111,10 @@ ${capabilityTable(PORTABLE_MATERIAL_CAPABILITIES)}
 ### Geometry capability details
 
 ${capabilityTable(PORTABLE_GEOMETRY_CAPABILITIES)}
+
+### Scene capability details
+
+${capabilityTable(PORTABLE_SCENE_CAPABILITIES)}
 
 ## Three.js surface classification
 

@@ -9,6 +9,7 @@ import * as THREE from 'three'
 import {
   PORTABLE_GEOMETRY_CAPABILITIES,
   PORTABLE_MATERIAL_CAPABILITIES,
+  PORTABLE_SCENE_CAPABILITIES,
   summarizePortableCapabilities,
 } from './capabilities.ts'
 import {
@@ -70,7 +71,11 @@ test('conformance rows and summary are internally consistent', () => {
 })
 
 test('portable capability inventories are atomic, referenced, and internally consistent', () => {
-  const inventories = [PORTABLE_MATERIAL_CAPABILITIES, PORTABLE_GEOMETRY_CAPABILITIES] as const
+  const inventories = [
+    PORTABLE_MATERIAL_CAPABILITIES,
+    PORTABLE_GEOMETRY_CAPABILITIES,
+    PORTABLE_SCENE_CAPABILITIES,
+  ] as const
   const entries = inventories.flat()
   const identities = entries.map((entry) => `${entry.category}/${entry.owner}/${entry.capability}`)
   assert.equal(new Set(identities).size, identities.length)

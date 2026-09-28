@@ -22,12 +22,13 @@ Capability status has stricter semantics than the class-level surface table:
 
 ### Inventoried categories
 
-Material and geometry are complete as independently owned capability categories. Cameras, scenes, objects, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping. This prevents a future overall denominator from counting the same behaviour twice.
+Material, geometry, and scene composition are complete as independently owned capability categories. Cameras, objects, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; scene owns traversal policy, composition, backgrounds, ordering, and fog. This prevents a future overall denominator from counting the same behaviour twice.
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Material** | **18** | **9** | **4** | **31** | **27/31 (87.1%)** | **6** | **0** |
+| **Material** | **17** | **8** | **4** | **29** | **25/29 (86.2%)** | **6** | **0** |
 | **Geometry** | **26** | **0** | **0** | **26** | **26/26 (100.0%)** | **0** | **0** |
+| **Scene** | **12** | **2** | **2** | **16** | **14/16 (87.5%)** | **3** | **0** |
 
 Approximate capabilities count as implemented but remain visible rather than being folded into exact. These category percentages are not combined while the inventory is incomplete.
 
@@ -38,7 +39,6 @@ Approximate capabilities count as implemented but remain visible rather than bei
 | Material | visibility | exact | Invisible materials omit their primitive without a diagnostic. | [test](src/project.test.ts) `an invisible material emits neither geometry nor a diagnostic` |
 | Material | normal alpha transparency | exact | Uniform opacity and normal transparency are preserved across supported primitives. | [test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
 | Material | uniform alpha test | exact | A uniform primitive is discarded when its opacity is below alphaTest. | [test](src/project.test.ts) `uniform alphaTest omits every supported primitive only below its threshold` |
-| Material | transparent render ordering | exact | Transparent primitives paint after opaque primitives using stable painter ordering. | [test](src/project.test.ts) `transparent primitives paint after opaque primitives` |
 | MeshBasicMaterial | uniform colour | exact | A flat material colour is preserved on projected triangles. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
 | MeshBasicMaterial | face side selection | exact | FrontSide, BackSide, and DoubleSide follow Three.js winding semantics. | [test](src/project.test.ts) `face side is respected after the viewport y-axis is flipped` |
 | MeshBasicMaterial | solid wireframe | exact | Triangle edges become independent portable lines. | [test](src/project.test.ts) `wireframe MeshBasicMaterial becomes three Canvas lines per triangle` |
@@ -61,7 +61,6 @@ Approximate capabilities count as implemented but remain visible rather than bei
 | SpriteMaterial | affine colour map | approximate | A supported map follows clipped billboard UVs without perspective sampling. | [test](src/project.test.ts) `SpriteMaterial map preserves billboard UVs through clipping` |
 | MeshNormalMaterial | smooth view-space normal shading | approximate | Vertex normals become portable colours; per-fragment normal interpolation is not reproduced. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals` |
 | MeshNormalMaterial | flat view-space normal shading | exact | A face normal is evaluated once for each projected triangle. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals` |
-| Fog-enabled materials | fog shading | approximate | Linear and exponential fog are evaluated at projected vertices rather than per fragment. | [test](src/project.test.ts) `fog follows lines, points, sprites, and exponential density` |
 | MeshNormalMaterial | wireframe normal shading | deferred | The CPU projection has enough edge and normal data, but this combination is not implemented yet. | [test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic` |
 | MeshNormalMaterial | instanced normal shading | deferred | Instance transforms are already projected by the CPU path, but their normal matrices are not connected to this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
 | MeshNormalMaterial | skinned normal shading | deferred | CPU skinning is available for positions, but deformed normals are not projected for this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
@@ -103,6 +102,30 @@ Approximate capabilities count as implemented but remain visible rather than bei
 | BatchedMesh | geometry and instance ranges | exact | Sparse instance IDs select their geometry range, visibility, and transform. | [test](src/project.test.ts) `BatchedMesh projects sparse visible instances with transforms and colours` |
 | Material clipping | intersection half-spaces | exact | World-space clipping planes cut meshes and lines and discard rejected points. | [test](src/project.test.ts) `material clipping planes cut meshes and lines and discard points in world space` |
 | Material clipping | union half-spaces | exact | clipIntersection retains the disjoint union of accepted half-spaces. | [test](src/project.test.ts) `clipIntersection retains the disjoint union of material half-spaces` |
+
+### Scene capability details
+
+| Owner | Capability | Status | Behaviour | Test |
+| --- | --- | --- | --- | --- |
+| Render list | opaque and transparent partition | exact | Transparent primitives paint after opaque primitives. | [test](src/project.test.ts) `transparent primitives paint after opaque primitives` |
+| Render list | primitive painter ordering | approximate | Non-intersecting primitives sort far-to-near, but there is no per-pixel depth buffer. | [test](src/project.test.ts) `far triangles are painted before near triangles` |
+| Object3D.renderOrder | explicit object ordering | exact | An explicit object render order overrides portable painter depth. | [test](src/project.test.ts) `renderOrder overrides painter depth while preserving stable object order` |
+| Object3D.renderOrder | stable equal-order traversal | exact | Objects with the same render order and depth retain stable traversal order. | [test](src/project.test.ts) `renderOrder overrides painter depth while preserving stable object order` |
+| Group.renderOrder | descendant ordering group | exact | A group render order is inherited by its projected descendants. | [test](src/project.test.ts) `Group renderOrder applies to its projected descendants` |
+| Layers | camera-object mask filtering | exact | Layer masks filter each renderable without pruning matching descendants. | [test](src/project.test.ts) `camera layers filter objects without hiding matching descendants` |
+| Scene.overrideMaterial | eligible material replacement | exact | The override replaces supported materials after render-list visibility is resolved. | [test](src/project.test.ts) `Scene.overrideMaterial preserves render-list visibility and allowOverride` |
+| Scene.overrideMaterial | allowOverride opt-out | exact | Materials with allowOverride disabled retain their original appearance. | [test](src/project.test.ts) `Scene.overrideMaterial preserves render-list visibility and allowOverride` |
+| Scene.background | solid colour decoration | exact | A colour fills the viewport without becoming an interactive object. | [test](src/project.test.ts) `solid scene backgrounds become non-interactive Canvas rectangles` |
+| Scene.background | 2D texture placement | exact | A supported 2D colour texture covers the viewport as non-interactive decoration. | [test](src/project.test.ts) `a 2D texture background becomes a viewport-sized portable mesh` |
+| Scene.background | background intensity | deferred | Portable colour modulation is feasible, but backgroundIntensity is not connected yet. | [test](src/project.test.ts) `scene background modifiers remain diagnostic` |
+| Scene.background | background blur | deferred | Canvas and Skia can blur a background, but a cross-backend contract is not implemented yet. | [test](src/project.test.ts) `scene background modifiers remain diagnostic` |
+| Scene.background | environment-map sampling | diagnostic | Cube and equirectangular environment projection requires a GPU sampling pipeline. | [test](src/project.test.ts) `environment backgrounds are diagnosed while portable geometry remains visible` |
+| Fog | material opt-out | exact | Materials with fog disabled retain their unfogged colour. | [test](src/project.test.ts) `linear fog blends mesh vertices and honours material fog opt-out` |
+| Fog | constant-depth linear fog | exact | A constant-depth primitive receives the matching linear fog colour. | [test](src/project.test.ts) `fog follows lines, points, sprites, and exponential density` |
+| FogExp2 | constant-depth exponential fog | exact | A constant-depth primitive receives the matching exponential fog colour. | [test](src/project.test.ts) `fog follows lines, points, sprites, and exponential density` |
+| Fog | varying-depth vertex fog | approximate | Fog is evaluated at portable vertices and endpoints rather than per fragment. | [test](src/project.test.ts) `fog is evaluated at vertices created by homogeneous clipping`<br>[test](src/project.test.ts) `fog follows lines, points, sprites, and exponential density` |
+| Fog | invalid range refusal | diagnostic | Invalid or non-finite fog parameters are rejected instead of producing invalid colours. | [test](src/project.test.ts) `invalid fog ranges are diagnosed instead of producing non-finite colours` |
+| Depth buffer | per-pixel depth and stencil | diagnostic | Exact intersecting-surface depth and stencil evaluation requires a raster pipeline. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics` |
 
 ## Three.js surface classification
 
@@ -220,7 +243,7 @@ The rows are an unweighted API surface. The overall Three.js surface figure excl
 | Object3D.renderOrder | full | Explicit object render order groups override the portable painter depth order. | [test](src/project.test.ts) `renderOrder overrides painter depth while preserving stable object order`<br>[test](src/project.test.ts) `Group renderOrder applies to its projected descendants` |
 | camera layers | full | Camera and object layer masks filter renderable objects without pruning descendants. | [test](src/project.test.ts) `camera layers filter objects without hiding matching descendants` |
 | Scene.overrideMaterial | partial | Supported overrides replace eligible render-list materials while preserving visibility and allowOverride. | [test](src/project.test.ts) `Scene.overrideMaterial preserves render-list visibility and allowOverride` |
-| Scene.background | partial | Solid colours and constrained 2D colour textures become non-interactive viewport decoration; environment sampling, blur, and intensity modulation are diagnosed. | [test](src/project.test.ts) `solid scene backgrounds become non-interactive Canvas rectangles`<br>[test](src/project.test.ts) `a 2D texture background becomes a viewport-sized portable mesh`<br>[test](src/three-canvas.test.tsx) `ThreeCanvas paints scene backgrounds without creating an object control`<br>[test](src/project.test.ts) `environment backgrounds are diagnosed while portable geometry remains visible` |
+| Scene.background | partial | Solid colours and constrained 2D colour textures become non-interactive viewport decoration; environment sampling, blur, and intensity modulation are diagnosed. | [test](src/project.test.ts) `solid scene backgrounds become non-interactive Canvas rectangles`<br>[test](src/project.test.ts) `a 2D texture background becomes a viewport-sized portable mesh`<br>[test](src/three-canvas.test.tsx) `ThreeCanvas paints scene backgrounds without creating an object control`<br>[test](src/project.test.ts) `environment backgrounds are diagnosed while portable geometry remains visible`<br>[test](src/project.test.ts) `scene background modifiers remain diagnostic` |
 | scene fog | partial | Fog and FogExp2 blend meshes, wireframes, lines, points, and sprites. Point and constant-depth output is exact; varying-depth gradients approximate the fragment shader at portable vertices and endpoints. | [test](src/project.test.ts) `linear fog blends mesh vertices and honours material fog opt-out`<br>[test](src/project.test.ts) `fog is evaluated at vertices created by homogeneous clipping`<br>[test](src/project.test.ts) `fog follows lines, points, sprites, and exponential density`<br>[test](src/project.test.ts) `invalid fog ranges are diagnosed instead of producing non-finite colours` |
 | renderer tone mapping | out-of-scope | The portable Canvas contract fixes NoToneMapping and has no renderer tone-mapping option. | — |
 | depth and stencil material state | diagnostic | Non-default depth, stencil, colour-write, polygon-offset, and blending state is rejected. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics` |
