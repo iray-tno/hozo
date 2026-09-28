@@ -275,8 +275,9 @@ publish an overall portable ceiling without presenting it as real-scene success.
 The separate [real-scene report](./scene-conformance.md) runs five
 version-pinned archetypes and publishes the same observations as
 [machine-readable JSON](./scene-conformance.json). Portable results are
-measured today; unconnected renderer-family runners remain explicitly
-`not-run` rather than being inferred from their API surface.
+measured deterministically; environment-dependent renderer families remain
+explicitly `not-run` in that checked-in report rather than being inferred from
+their API surface.
 
 GPU renderer conformance is environment-dependent and is therefore measured on
 main, weekly, and on demand rather than folded into the portable percentage.
@@ -284,7 +285,9 @@ Run `pnpm --filter @hozo/three test:gpu` to produce JSON and Markdown reports
 for classic WebGL, the modern renderer's automatic backend choice, and its
 forced WebGL 2 backend. A missing native WebGPU backend is recorded as
 `unavailable`; classic WebGL and modern forced-WebGL 2 remain required to draw
-and expose working semantic controls.
+and expose working semantic controls. The Classic WebGL run also executes the
+same five real-scene fixtures and requires useful draws, semantic controls, and
+activation for every scene.
 
 <!-- generated: package-footer -->
 

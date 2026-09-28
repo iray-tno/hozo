@@ -2,30 +2,10 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import {
-  BoxGeometry,
-  BufferGeometry,
-  type Camera,
-  Color,
-  Float32BufferAttribute,
-  InstancedMesh,
-  LineBasicMaterial,
-  LineSegments,
-  Matrix4,
-  Mesh,
-  MeshBasicMaterial,
-  OrthographicCamera,
-  PerspectiveCamera,
-  Points,
-  PointsMaterial,
-  REVISION,
-  Scene,
-  Sprite,
-  SpriteMaterial,
-} from 'three'
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { type Camera, REVISION, type Scene } from 'three'
 
 import { projectThreeScene, type ThreeProjectionDiagnosticCode } from '../src/project.ts'
+import { SCENE_CORPUS_SCENES } from './scene-fixtures.ts'
 
 export type SceneCorpusFamily = 'classic-webgl' | 'modern-webgpu' | 'native-host' | 'portable'
 export type SceneCorpusStatus = 'diagnostic' | 'failed' | 'not-run' | 'useful'
@@ -84,120 +64,19 @@ const authoredSource = (location: string) => ({
   version: `corpus-v1 / Three.js r${REVISION}`,
 })
 
-function perspective(): PerspectiveCamera {
-  const camera = new PerspectiveCamera(90, 1, 0.1, 100)
-  camera.position.z = 5
-  camera.updateProjectionMatrix()
-  return camera
-}
-
-function triangleGeometry(): BufferGeometry {
-  return new BufferGeometry().setAttribute(
-    'position',
-    new Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3),
-  )
-}
-
-async function flatDiagram(): Promise<{ camera: Camera; scene: Scene }> {
-  const camera = new OrthographicCamera(-4, 4, 3, -3, 0.1, 20)
-  camera.position.z = 5
-  camera.updateProjectionMatrix()
-  const scene = new Scene()
-  scene.background = new Color('#f8fafc')
-  const left = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#2563eb' }))
-  left.name = 'Input node'
-  left.position.x = -1.5
-  const right = new Mesh(triangleGeometry(), new MeshBasicMaterial({ color: '#16a34a' }))
-  right.name = 'Output node'
-  right.position.x = 1.5
-  const edge = new BufferGeometry().setAttribute(
-    'position',
-    new Float32BufferAttribute([-0.5, 0, 0, 0.5, 0, 0], 3),
-  )
-  const connector = new LineSegments(edge, new LineBasicMaterial({ color: '#475569' }))
-  connector.name = 'Connection'
-  scene.add(left, connector, right)
-  return { camera, scene }
-}
-
-async function wireframeCad(): Promise<{ camera: Camera; scene: Scene }> {
-  const scene = new Scene()
-  const model = new Mesh(
-    new BoxGeometry(2, 2, 2),
-    new MeshBasicMaterial({ color: '#0f766e', wireframe: true }),
-  )
-  model.name = 'Wireframe assembly'
-  model.rotation.set(0.4, 0.6, 0.1)
-  scene.add(model)
-  return { camera: perspective(), scene }
-}
-
-async function pointsAndSprite(): Promise<{ camera: Camera; scene: Scene }> {
-  const scene = new Scene()
-  const geometry = new BufferGeometry().setAttribute(
-    'position',
-    new Float32BufferAttribute([-1.5, 0, 0, 0, 1, 0, 1.5, 0, 0], 3),
-  )
-  const cloud = new Points(
-    geometry,
-    new PointsMaterial({ color: '#7c3aed', size: 8, sizeAttenuation: false }),
-  )
-  cloud.name = 'Point cloud'
-  const marker = new Sprite(new SpriteMaterial({ color: '#f97316' }))
-  marker.name = 'Selected point'
-  marker.position.set(0, -1, 0)
-  scene.add(cloud, marker)
-  return { camera: perspective(), scene }
-}
-
-async function instancingAndMorph(): Promise<{ camera: Camera; scene: Scene }> {
-  const geometry = triangleGeometry()
-  geometry.morphAttributes.position = [new Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 0, 2, 0], 3)]
-  const instances = new InstancedMesh(geometry, new MeshBasicMaterial({ color: '#0284c7' }), 2)
-  instances.name = 'Morphed instances'
-  instances.setMatrixAt(0, new Matrix4().makeTranslation(-1.25, 0, 0))
-  instances.setMatrixAt(1, new Matrix4().makeTranslation(1.25, 0, 0))
-  const morphTarget = new Mesh(geometry)
-  if (!morphTarget.morphTargetInfluences) throw new Error('morph target did not initialise')
-  morphTarget.morphTargetInfluences[0] = 0
-  instances.setMorphAt(0, morphTarget)
-  morphTarget.morphTargetInfluences[0] = 1
-  instances.setMorphAt(1, morphTarget)
-  const scene = new Scene()
-  scene.add(instances)
-  return { camera: perspective(), scene }
-}
-
-async function pinnedGltfPbr(): Promise<{ camera: Camera; scene: Scene }> {
-  if (typeof globalThis.ProgressEvent === 'undefined') {
-    Object.defineProperty(globalThis, 'ProgressEvent', {
-      configurable: true,
-      value: class NodeProgressEvent extends Event {
-        readonly lengthComputable: boolean
-        readonly loaded: number
-        readonly total: number
-
-        constructor(type: string, init: ProgressEventInit = {}) {
-          super(type)
-          this.lengthComputable = init.lengthComputable ?? false
-          this.loaded = init.loaded ?? 0
-          this.total = init.total ?? 0
-        }
-      },
-    })
-  }
-  const location = path.join(packageRoot, 'fixtures', 'minimal-pbr.gltf')
-  const source = await readFile(location, 'utf8')
-  const gltf = await new GLTFLoader().parseAsync(source, path.dirname(location))
-  const scene = new Scene()
-  scene.add(gltf.scene)
-  return { camera: perspective(), scene }
+const sceneDefinition = (id: string) => {
+  const definition = SCENE_CORPUS_SCENES.find((entry) => entry.id === id)
+  if (!definition) throw new Error(`Missing real-scene definition: ${id}`)
+  return () =>
+    definition.create(() =>
+      readFile(path.join(packageRoot, 'fixtures', 'minimal-pbr.gltf'), 'utf8'),
+    )
 }
 
 export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
   {
     archetype: 'flat diagram / labelled interaction',
-    create: flatDiagram,
+    create: sceneDefinition('flat-labelled-diagram'),
     exercises: ['orthographic camera', 'flat meshes', 'line segments', 'named interaction targets'],
     id: 'flat-labelled-diagram',
     portableExpectation: {
@@ -206,11 +85,11 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
       minimumOutputNodes: 4,
       status: 'useful',
     },
-    source: authoredSource('scripts/scene-corpus.ts#flatDiagram'),
+    source: authoredSource('scripts/scene-fixtures.ts#flatDiagram'),
   },
   {
     archetype: 'wireframe or CAD-like scene',
-    create: wireframeCad,
+    create: sceneDefinition('wireframe-cad'),
     exercises: ['box geometry', 'world rotation', 'wireframe material', 'depth ordering'],
     id: 'wireframe-cad',
     portableExpectation: {
@@ -219,11 +98,11 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
       minimumOutputNodes: 12,
       status: 'useful',
     },
-    source: authoredSource('scripts/scene-corpus.ts#wireframeCad'),
+    source: authoredSource('scripts/scene-fixtures.ts#wireframeCad'),
   },
   {
     archetype: 'points / sprite scene',
-    create: pointsAndSprite,
+    create: sceneDefinition('points-and-sprite'),
     exercises: ['points', 'fixed screen-space point size', 'sprite billboard', 'named targets'],
     id: 'points-and-sprite',
     portableExpectation: {
@@ -232,11 +111,11 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
       minimumOutputNodes: 4,
       status: 'useful',
     },
-    source: authoredSource('scripts/scene-corpus.ts#pointsAndSprite'),
+    source: authoredSource('scripts/scene-fixtures.ts#pointsAndSprite'),
   },
   {
     archetype: 'instancing plus morph with a portable material',
-    create: instancingAndMorph,
+    create: sceneDefinition('instancing-and-morph'),
     exercises: ['instanced mesh', 'instance transforms', 'morph targets', 'MeshBasicMaterial'],
     id: 'instancing-and-morph',
     portableExpectation: {
@@ -245,11 +124,11 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
       minimumOutputNodes: 2,
       status: 'useful',
     },
-    source: authoredSource('scripts/scene-corpus.ts#instancingAndMorph'),
+    source: authoredSource('scripts/scene-fixtures.ts#instancingAndMorph'),
   },
   {
     archetype: 'ordinary glTF/PBR scene',
-    create: pinnedGltfPbr,
+    create: sceneDefinition('gltf-pbr'),
     exercises: ['glTF 2.0 loader', 'asset graph', 'MeshStandardMaterial', 'PBR factors'],
     id: 'gltf-pbr',
     portableExpectation: {

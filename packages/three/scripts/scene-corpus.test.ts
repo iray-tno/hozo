@@ -4,10 +4,15 @@ import test from 'node:test'
 import { REVISION } from 'three'
 
 import { runSceneCorpus, SCENE_CORPUS_FIXTURES } from './scene-corpus.ts'
+import { SCENE_CORPUS_SCENES } from './scene-fixtures.ts'
 
 test('the first real-scene corpus is version-pinned, representative, and executable', async () => {
   assert.equal(SCENE_CORPUS_FIXTURES.length, 5)
   assert.equal(new Set(SCENE_CORPUS_FIXTURES.map((fixture) => fixture.id)).size, 5)
+  assert.deepEqual(
+    SCENE_CORPUS_SCENES.map((fixture) => fixture.id),
+    SCENE_CORPUS_FIXTURES.map((fixture) => fixture.id),
+  )
   assert.ok(
     SCENE_CORPUS_FIXTURES.every((fixture) => fixture.source.version.includes(`r${REVISION}`)),
   )

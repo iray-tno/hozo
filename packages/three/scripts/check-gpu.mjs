@@ -3,7 +3,15 @@
 // and driver selection belong in the result instead of becoming CI flake.
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -46,6 +54,10 @@ try {
     define: { 'process.env.NODE_ENV': '"production"' },
     logLevel: 'silent',
   })
+  copyFileSync(
+    path.join(here, '..', 'fixtures', 'minimal-pbr.gltf'),
+    path.join(dist, 'minimal-pbr.gltf'),
+  )
   writeFileSync(
     path.join(dist, 'index.html'),
     '<!doctype html><meta charset="utf-8"><div id="app"></div>' +
@@ -111,14 +123,16 @@ try {
       result.renderCalls < 1 ||
       !result.semanticControl ||
       !result.activated ||
+      result.sceneCorpus?.some(({ status }) => status !== 'useful') ||
       (result.mode === 'classic-webgl' && result.backend !== 'classic-webgl') ||
       (result.mode === 'modern-force-webgl2' && result.backend !== 'modern-webgl2')
     )
   })
   if (invalid.length > 0) process.exitCode = 1
 } finally {
-  rmSync(dist, { recursive: true, force: true })
-  rmSync(profileRoot, { recursive: true, force: true })
+  const removalOptions = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }
+  rmSync(dist, removalOptions)
+  rmSync(profileRoot, removalOptions)
 }
 
 function run(mode, port) {
@@ -184,6 +198,21 @@ function markdown(report) {
     const error = result.error?.replaceAll('|', '\\|').replaceAll('\n', '<br>') ?? ''
     lines.push(
       `| ${result.mode} | ${result.backend} | ${result.renderCalls} | ${result.semanticControl ? 'yes' : 'no'} | ${result.activated ? 'yes' : 'no'} | ${error} |`,
+    )
+  }
+  const classicCorpus =
+    report.results.find(({ mode }) => mode === 'classic-webgl')?.sceneCorpus ?? []
+  lines.push(
+    '',
+    '## Classic WebGL real-scene corpus',
+    '',
+    '| Fixture | Status | Draw calls | Semantic controls | Activation | Error |',
+    '| --- | --- | ---: | ---: | --- | --- |',
+  )
+  for (const fixture of classicCorpus) {
+    const error = fixture.error?.replaceAll('|', '\\|').replaceAll('\n', '<br>') ?? ''
+    lines.push(
+      `| ${fixture.id} | ${fixture.status} | ${fixture.renderCalls} | ${fixture.semanticControls} | ${fixture.activated ? 'yes' : 'no'} | ${error} |`,
     )
   }
   lines.push(
