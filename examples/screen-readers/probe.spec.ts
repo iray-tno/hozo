@@ -1,43 +1,62 @@
 // Which way of driving a grid a real reader actually announces.
 //
-// `scenarios.spec.ts` was written on the assumption that a focus change is
-// announced whoever caused it, so the keys could be delivered over CDP and
-// neither reader would need its mode changed. Run 36357458553 says no: on both
-// readers, focusing a cell said nothing and an arrow key said nothing, eight
-// scenarios in a row on each platform.
-//
-// That failure is legible -- the guard in `scenarios.spec.ts` fires with its
-// own message rather than looking like a calendar defect -- and it is all it
-// is. It does not say *why*, and there are at least four candidates:
-//
-//   1. the page never moved focus, so there was nothing to announce;
-//   2. the page moved focus and the reader does not announce a focus change it
-//      did not cause;
-//   3. NVDA's browse mode swallowed the key before the page saw it -- which CDP
-//      was supposed to make impossible, since it is not an OS keystroke;
-//   4. the reader was not reading this page at all.
+// A measurement, not a test. It drives one grid several ways in a single pass
+// and prints what each produced beside the page's own `document.activeElement`,
+// because that pairing is what separates "focus did not move" from "focus moved
+// and nothing was said". Delete it once `scenarios.spec.ts` is driving the grid
+// the way this says to.
 //
 // Three wrong diagnoses were shipped for one symptom in this suite already
 // (#580, #592, then the measurement in #598 that found `navigateToWebContent`
-// sending an Escape). So this file measures instead of choosing. It drives the
-// same grid five ways in one pass, prints what each produced next to what the
-// page's `document.activeElement` was afterwards, and asserts almost nothing.
+// sending an Escape), which is why a question here costs a run rather than a
+// guess.
 //
-// `document.activeElement` is what separates candidates 1 and 2, and it is the
-// question the last run could not answer. If focus moved and nothing was said,
-// the mechanism is wrong. If focus did not move, the delivery is wrong.
+// ## What it has established so far
 //
-// `next` at the end is the control. It is how every other spec in this suite
-// makes a reader speak, so if that says nothing either, the run is broken and
-// nothing above it means anything.
+// **Run 36359016412.** A focus change is not announced whoever caused it.
+// Focusing a cell over CDP moved focus and said nothing; an arrow key over CDP
+// moved focus and said nothing; the same arrow as a real keystroke was
+// announced by VoiceOver, and by NVDA was answered with "1" -- browse mode
+// reading the next character of "11" -- with focus not moving at all. So the
+// keys have to be real, and NVDA needs focus mode.
 //
-// Delete this file once `scenarios.spec.ts` is driving the grid the way this
-// says to. It is a measurement, not a test.
+// **Run 36359768038.** Tab is not the way in. On NVDA it announced
+// "form-date-and-time--month-grid - Google Chrome for Testing, region" and then
+// "list, Open Tabs": focus left the document for Chrome's tab search, which is
+// the failure `enterPage` documents for `navigateToWebContent` and the reason
+// that function is not used here. On VoiceOver it said nothing at all, which is
+// what Safari does when "press Tab to highlight each item" is off.
+//
+// ## What it is asking now
+//
+// Whether a CDP focus (silent, but it does move focus) followed by real arrow
+// keys announces the cell it lands on, or the one it came from. One reading
+// from the first run is consistent with both: after an arrow, VoiceOver said
+// "Friday, September 11, 2026" while focus had already reached the 12th. That
+// is either a cursor catching up with a move it had missed, or an announcement
+// that lags by one -- and the difference decides whether every approved phrase
+// in `scenarios.spec.ts` would be off by one.
+//
+// Four arrows in a row answer it: if what is said tracks where focus is, the
+// first reading was a stale cursor catching up; if it trails by one the whole
+// way, the design has to change.
+//
+// PageDown is in the sequence for a smaller reason: `press` resolves a key by
+// name through Guidepup's table, and whether that table has this one is worth
+// knowing before a scenario depends on it.
 
 import { screenReaderTest as test } from '@guidepup/playwright'
 import type { Page } from '@playwright/test'
 
-import { enterPage, meaningful, reader, spokenAfter, startOptions } from './reader.ts'
+import {
+  enterFocusMode,
+  enterPage,
+  meaningful,
+  onWindows,
+  reader,
+  spokenAfter,
+  startOptions,
+} from './reader.ts'
 
 const STORY = 'form-date-and-time--month-grid'
 
@@ -47,7 +66,7 @@ async function focusedNow(page: Page): Promise<string> {
     const node = document.activeElement
     if (node === null) return '(none)'
     const name = node.getAttribute('aria-label') ?? node.textContent?.trim().slice(0, 40) ?? ''
-    return `${node.tagName.toLowerCase()}[role=${node.getAttribute('role') ?? '-'}, tabindex=${node.getAttribute('tabindex') ?? '-'}] "${name}"`
+    return `${node.tagName.toLowerCase()}[role=${node.getAttribute('role') ?? '-'}] "${name}"`
   })
 }
 
@@ -71,48 +90,36 @@ test('what a grid announces, and to which way of driving it', async ({ page, scr
       failed = error instanceof Error ? error.message : String(error)
     }
     report.push(
-      `  ${what}\n    said: ${said.length > 0 ? JSON.stringify(said) : '(nothing)'}\n    focus: ${await focusedNow(page)}${failed === '' ? '' : `\n    threw: ${failed}`}`,
+      `  ${what}\n    said:  ${said.length > 0 ? JSON.stringify(said) : '(nothing)'}\n    focus: ${await focusedNow(page)}${failed === '' ? '' : `\n    threw: ${failed}`}`,
     )
   }
 
-  // 1. Focus over CDP. What `scenarios.spec.ts` does to arrive on the grid.
+  // Silent, and known to be. It is here to put focus somewhere known, which is
+  // the one thing CDP is good for: the September grid opens on the 10th.
   await probe('A  entry.focus() over CDP', () => entry.focus())
 
-  // 2. A key over CDP. What it does for every step after that.
-  await probe('B  page.keyboard ArrowRight over CDP', () => page.keyboard.press('ArrowRight'))
+  // NVDA's arrows belong to the virtual buffer until this is sent.
+  if (onWindows) await probe('B  NVDA-Space, into focus mode', () => enterFocusMode(screenReader))
 
-  // 3. The same key as a real OS keystroke, through the reader. This is what
-  //    browse mode can intercept, and on VoiceOver it is simply a key press.
-  await probe('C  screenReader.press ArrowRight', () => screenReader.press('ArrowRight'))
+  // The question. Four moves, each printed against where focus actually is.
+  await probe('C1 press ArrowRight  (expect the 11th)', () => screenReader.press('ArrowRight'))
+  await probe('C2 press ArrowRight  (expect the 12th)', () => screenReader.press('ArrowRight'))
+  await probe('C3 press ArrowDown   (expect the 19th)', () => screenReader.press('ArrowDown'))
+  await probe('C4 press ArrowLeft   (expect the 18th)', () => screenReader.press('ArrowLeft'))
 
-  // 4. NVDA only: focus mode first, which is what hands the arrow keys to the
-  //    widget instead of to the virtual buffer. `startOptions` deliberately
-  //    turns off the automatic switch, so if C is silent this is the reason
-  //    and this is the fix.
-  const commands = (screenReader as { keyboardCommands?: Record<string, unknown> }).keyboardCommands
-  const toFocusMode = commands?.['toggleBetweenBrowseAndFocusMode']
-  if (toFocusMode !== undefined) {
-    await probe('D1 toggleBetweenBrowseAndFocusMode', () =>
-      (screenReader as unknown as { perform: (c: unknown) => Promise<void> }).perform(toFocusMode),
-    )
-    await probe('D2 screenReader.press ArrowRight, in focus mode', () =>
-      screenReader.press('ArrowRight'),
-    )
-  } else {
-    report.push('  D  no toggleBetweenBrowseAndFocusMode on this reader (expected on VoiceOver)')
-  }
+  // Does Guidepup's key table have this name, and does the grid page on it?
+  await probe('D  press PageDown    (expect October)', () => screenReader.press('PageDown'))
 
-  // 5. The control: the reader's own command, which every other spec uses.
+  // The control: the reader's own command, which every other spec uses. A run
+  // where this says nothing is a broken run and nothing above it means anything.
   await probe('E  screenReader.next()', () => screenReader.next())
 
   console.log(`[probe] ${reader} on ${STORY}\n${report.join('\n')}`)
 
-  // The only assertion. A run where even `next` says nothing is a broken run,
-  // and reading anything into the four probes above it would be reading noise.
   const control = meaningful(await screenReader.spokenPhraseLog())
   if (control.length === 0) {
     throw new Error(
-      `${reader} said nothing to any of five ways of driving the page, its own next() included, so this run read nothing at all`,
+      `${reader} said nothing to any way of driving the page, its own next() included, so this run read nothing at all`,
     )
   }
 })

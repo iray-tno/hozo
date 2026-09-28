@@ -202,7 +202,7 @@ test.use({ screenReaderStartOptions: startOptions })
  * the same lever: skipping eight scenarios costs a run nothing, and letting
  * them fail three times each costs twenty-five minutes of VoiceOver.
  */
-const MECHANISM_MEASURED = true
+const MECHANISM_MEASURED = false
 
 for (const scenario of scenarios) {
   const declare = MECHANISM_MEASURED ? test : test.skip
