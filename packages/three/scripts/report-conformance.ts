@@ -6,10 +6,13 @@ import { REVISION } from 'three'
 
 import {
   PORTABLE_CAMERA_CAPABILITIES,
+  PORTABLE_CAPABILITIES,
   PORTABLE_GEOMETRY_CAPABILITIES,
+  PORTABLE_INTERACTION_CAPABILITIES,
   PORTABLE_MATERIAL_CAPABILITIES,
   PORTABLE_OBJECT_CAPABILITIES,
   PORTABLE_SCENE_CAPABILITIES,
+  PORTABLE_TOPOLOGY_CAPABILITIES,
   type PortableCapability,
   summarizePortableCapabilities,
 } from './capabilities.ts'
@@ -68,6 +71,9 @@ const cameraCapabilities = summarizePortableCapabilities(PORTABLE_CAMERA_CAPABIL
 const geometryCapabilities = summarizePortableCapabilities(PORTABLE_GEOMETRY_CAPABILITIES)
 const objectCapabilities = summarizePortableCapabilities(PORTABLE_OBJECT_CAPABILITIES)
 const sceneCapabilities = summarizePortableCapabilities(PORTABLE_SCENE_CAPABILITIES)
+const topologyCapabilities = summarizePortableCapabilities(PORTABLE_TOPOLOGY_CAPABILITIES)
+const interactionCapabilities = summarizePortableCapabilities(PORTABLE_INTERACTION_CAPABILITIES)
+const overallCapabilities = summarizePortableCapabilities(PORTABLE_CAPABILITIES)
 const capabilitySummaryRow = (
   label: string,
   summary: ReturnType<typeof summarizePortableCapabilities>,
@@ -96,9 +102,9 @@ Capability status has stricter semantics than the class-level surface table:
 - **Diagnostic** requires a GPU pipeline or is deliberately outside the portable contract and is safely rejected.
 - **Silent** accepts the input while losing its semantics without a diagnostic. The target is zero.
 
-### Inventoried categories
+### Summary
 
-Material, geometry, objects, cameras, and scene composition are complete as independently owned capability categories. Interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; objects own discovery, selection, routing, and source identity; cameras own view/projection and multi-viewport composition; scene owns traversal policy, composition, backgrounds, ordering, and fog. This prevents a future overall denominator from counting the same behaviour twice.
+Every category in the current portable surface inventory now has an independently owned capability inventory. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; objects own discovery, selection, routing, and source identity; cameras own view/projection and multi-viewport composition; scene owns traversal policy, composition, backgrounds, ordering, and fog; topology owns primitive assembly; interaction owns invalidation, frames, hit testing, and semantic controls. This prevents the overall denominator from counting the same behaviour twice.
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -107,8 +113,11 @@ ${capabilitySummaryRow('Geometry', geometryCapabilities)}
 ${capabilitySummaryRow('Object', objectCapabilities)}
 ${capabilitySummaryRow('Camera', cameraCapabilities)}
 ${capabilitySummaryRow('Scene', sceneCapabilities)}
+${capabilitySummaryRow('Topology', topologyCapabilities)}
+${capabilitySummaryRow('Interaction', interactionCapabilities)}
+${capabilitySummaryRow('Overall portable capability', overallCapabilities)}
 
-Approximate capabilities count as implemented but remain visible rather than being folded into exact. These category percentages are not combined while the inventory is incomplete.
+Overall exact capability coverage is **${overallCapabilities.exact}/${overallCapabilities.feasible} (${pct(overallCapabilities.exact, overallCapabilities.feasible)})**. Including documented approximations, implemented feasible coverage is **${overallCapabilities.implemented}/${overallCapabilities.feasible} (${pct(overallCapabilities.implemented, overallCapabilities.feasible)})**. This is a portable capability ceiling, not a real-scene success rate; GPU-required diagnostics remain visible and the separate version-pinned scene corpus is still pending.
 
 ### Material capability details
 
@@ -129,6 +138,14 @@ ${capabilityTable(PORTABLE_CAMERA_CAPABILITIES)}
 ### Scene capability details
 
 ${capabilityTable(PORTABLE_SCENE_CAPABILITIES)}
+
+### Topology capability details
+
+${capabilityTable(PORTABLE_TOPOLOGY_CAPABILITIES)}
+
+### Interaction capability details
+
+${capabilityTable(PORTABLE_INTERACTION_CAPABILITIES)}
 
 ## Three.js surface classification
 
