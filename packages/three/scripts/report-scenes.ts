@@ -34,6 +34,8 @@ This report executes representative, version-pinned scenes instead of treating a
 - Modern WebGPU-family: **${report.summary.notRunByFamily['modern-webgpu']} not run**.
 - Native host: **${report.summary.notRunByFamily['native-host']} not run**.
 
+The checked-in report remains deterministic and therefore leaves driver-backed families as not-run. The separate \`test:gpu\` artifact executes these exact fixtures in Classic WebGL on main, weekly, and on demand; its result is environment evidence rather than a value copied into this file.
+
 The ordinary glTF/PBR fixture intentionally demonstrates the current portable boundary: the asset is loaded through Three.js's GLTFLoader, then its MeshStandardMaterial is rejected with an explicit diagnostic instead of producing misleading flat output.
 
 ## Fixtures

@@ -32,7 +32,7 @@
         "outputNodes": 4
       },
       "source": {
-        "location": "scripts/scene-corpus.ts#flatDiagram",
+        "location": "scripts/scene-fixtures.ts#flatDiagram",
         "version": "corpus-v1 / Three.js r180"
       },
       "verified": true
@@ -69,7 +69,7 @@
         "outputNodes": 36
       },
       "source": {
-        "location": "scripts/scene-corpus.ts#wireframeCad",
+        "location": "scripts/scene-fixtures.ts#wireframeCad",
         "version": "corpus-v1 / Three.js r180"
       },
       "verified": true
@@ -106,7 +106,7 @@
         "outputNodes": 4
       },
       "source": {
-        "location": "scripts/scene-corpus.ts#pointsAndSprite",
+        "location": "scripts/scene-fixtures.ts#pointsAndSprite",
         "version": "corpus-v1 / Three.js r180"
       },
       "verified": true
@@ -143,7 +143,7 @@
         "outputNodes": 2
       },
       "source": {
-        "location": "scripts/scene-corpus.ts#instancingAndMorph",
+        "location": "scripts/scene-fixtures.ts#instancingAndMorph",
         "version": "corpus-v1 / Three.js r180"
       },
       "verified": true

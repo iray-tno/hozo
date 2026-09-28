@@ -4,6 +4,16 @@ import { BoxGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene } from '
 
 import { ThreeCanvas as WebGLCanvas } from '../src/webgl-renderer.tsx'
 import { ThreeCanvas as WebGPUCanvas } from '../src/webgpu.tsx'
+import { SCENE_CORPUS_SCENES } from './scene-fixtures.ts'
+
+type SceneCorpusProbeResult = {
+  activated: boolean
+  error?: string
+  id: string
+  renderCalls: number
+  semanticControls: number
+  status: 'failed' | 'useful'
+}
 
 type ProbeResult = {
   activated: boolean
@@ -11,6 +21,7 @@ type ProbeResult = {
   error?: string
   mode: string
   renderCalls: number
+  sceneCorpus?: readonly SceneCorpusProbeResult[]
   semanticControl: boolean
 }
 
@@ -41,19 +52,121 @@ function backendName(renderer: unknown): ProbeResult['backend'] {
 }
 
 function inspect(renderer: unknown) {
-  setTimeout(() => {
+  setTimeout(async () => {
     const button = document.querySelector<HTMLButtonElement>('[data-hozo-three-controls] button')
     button?.click()
     const renderCalls =
       (renderer as { info?: { render?: { calls?: number } } }).info?.render?.calls ?? 0
+    const sceneCorpus = mode === 'classic-webgl' ? await runClassicSceneCorpus() : undefined
     finish({
       activated,
       backend: backendName(renderer),
       mode,
       renderCalls,
+      sceneCorpus,
       semanticControl: button !== null,
     })
   }, 250)
+}
+
+async function runClassicSceneCorpus(): Promise<readonly SceneCorpusProbeResult[]> {
+  const gltfSource = fetch('/minimal-pbr.gltf').then(async (response) => {
+    if (!response.ok) throw new Error(`glTF fixture request failed: ${response.status}`)
+    return response.text()
+  })
+  const results: SceneCorpusProbeResult[] = []
+  for (const definition of SCENE_CORPUS_SCENES) {
+    try {
+      const fixture = await definition.create(() => gltfSource)
+      results.push(await renderClassicFixture(definition.id, fixture))
+    } catch (error) {
+      results.push({
+        activated: false,
+        error: error instanceof Error ? error.stack : String(error),
+        id: definition.id,
+        renderCalls: 0,
+        semanticControls: 0,
+        status: 'failed',
+      })
+    }
+  }
+  return results
+}
+
+function renderClassicFixture(
+  id: string,
+  fixture: Awaited<ReturnType<(typeof SCENE_CORPUS_SCENES)[number]['create']>>,
+): Promise<SceneCorpusProbeResult> {
+  return new Promise((resolve) => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = createRoot(host)
+    let fixtureActivated = false
+    let settled = false
+    const settle = (result: SceneCorpusProbeResult) => {
+      if (settled) return
+      settled = true
+      root.unmount()
+      host.remove()
+      resolve(result)
+    }
+    const timeout = setTimeout(
+      () =>
+        settle({
+          activated: fixtureActivated,
+          error: 'fixture timed out',
+          id,
+          renderCalls: 0,
+          semanticControls: 0,
+          status: 'failed',
+        }),
+      5_000,
+    )
+    root.render(
+      createElement(WebGLCanvas, {
+        accessibilityLabel: id,
+        camera: fixture.camera,
+        height: 180,
+        onCreated: (renderer: unknown) => {
+          setTimeout(() => {
+            clearTimeout(timeout)
+            const buttons = host.querySelectorAll<HTMLButtonElement>(
+              '[data-hozo-three-controls] button',
+            )
+            buttons[0]?.click()
+            const renderCalls =
+              (renderer as { info?: { render?: { calls?: number } } }).info?.render?.calls ?? 0
+            const useful = renderCalls > 0 && buttons.length > 0 && fixtureActivated
+            settle({
+              activated: fixtureActivated,
+              id,
+              renderCalls,
+              semanticControls: buttons.length,
+              status: useful ? 'useful' : 'failed',
+            })
+          }, 150)
+        },
+        onError: (error: unknown) => {
+          clearTimeout(timeout)
+          settle({
+            activated: fixtureActivated,
+            error: error instanceof Error ? error.stack : String(error),
+            id,
+            renderCalls: 0,
+            semanticControls: 0,
+            status: 'failed',
+          })
+        },
+        onObjectPress: () => {
+          fixtureActivated = true
+        },
+        pixelRatio: 1,
+        rendererOptions: { antialias: false },
+        scene: fixture.scene,
+        width: 320,
+      } as never),
+    )
+  })
 }
 
 addEventListener('error', (event) =>
