@@ -505,6 +505,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
         project('a 2D texture background becomes a viewport-sized portable mesh'),
         canvas('ThreeCanvas paints scene backgrounds without creating an object control'),
         project('environment backgrounds are diagnosed while portable geometry remains visible'),
+        project('scene background modifiers remain diagnostic'),
       ],
     },
   ),

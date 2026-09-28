@@ -7,7 +7,7 @@ export type PortableCapabilityStatus =
   | 'diagnostic'
   | 'silent'
 
-export type PortableCapabilityCategory = 'geometry' | 'material'
+export type PortableCapabilityCategory = 'geometry' | 'material' | 'scene'
 
 export interface PortableCapability {
   capability: string
@@ -53,6 +53,21 @@ const geometryCapability = (
   tests,
 })
 
+const sceneCapability = (
+  owner: string,
+  name: string,
+  status: PortableCapabilityStatus,
+  detail: string,
+  tests: readonly ThreeConformanceTestReference[],
+): PortableCapability => ({
+  capability: name,
+  category: 'scene',
+  detail,
+  owner,
+  status,
+  tests,
+})
+
 /**
  * Atomic material behaviours audited for the portable projector.
  *
@@ -81,13 +96,6 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
     'exact',
     'A uniform primitive is discarded when its opacity is below alphaTest.',
     [project('uniform alphaTest omits every supported primitive only below its threshold')],
-  ),
-  capability(
-    'Material',
-    'transparent render ordering',
-    'exact',
-    'Transparent primitives paint after opaque primitives using stable painter ordering.',
-    [project('transparent primitives paint after opaque primitives')],
   ),
   capability(
     'MeshBasicMaterial',
@@ -233,13 +241,6 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
     'exact',
     'A face normal is evaluated once for each projected triangle.',
     [project('MeshNormalMaterial projects smooth and flat view-space normals')],
-  ),
-  capability(
-    'Fog-enabled materials',
-    'fog shading',
-    'approximate',
-    'Linear and exponential fog are evaluated at projected vertices rather than per fragment.',
-    [project('fog follows lines, points, sprites, and exponential density')],
   ),
   capability(
     'MeshNormalMaterial',
@@ -506,6 +507,155 @@ export const PORTABLE_GEOMETRY_CAPABILITIES: readonly PortableCapability[] = [
     'exact',
     'clipIntersection retains the disjoint union of accepted half-spaces.',
     [project('clipIntersection retains the disjoint union of material half-spaces')],
+  ),
+]
+
+/**
+ * Scene composition and traversal behaviours.
+ *
+ * Material appearance, shape clipping, and object-type-specific visibility
+ * remain owned by their respective inventories.
+ */
+export const PORTABLE_SCENE_CAPABILITIES: readonly PortableCapability[] = [
+  sceneCapability(
+    'Render list',
+    'opaque and transparent partition',
+    'exact',
+    'Transparent primitives paint after opaque primitives.',
+    [project('transparent primitives paint after opaque primitives')],
+  ),
+  sceneCapability(
+    'Render list',
+    'primitive painter ordering',
+    'approximate',
+    'Non-intersecting primitives sort far-to-near, but there is no per-pixel depth buffer.',
+    [project('far triangles are painted before near triangles')],
+  ),
+  sceneCapability(
+    'Object3D.renderOrder',
+    'explicit object ordering',
+    'exact',
+    'An explicit object render order overrides portable painter depth.',
+    [project('renderOrder overrides painter depth while preserving stable object order')],
+  ),
+  sceneCapability(
+    'Object3D.renderOrder',
+    'stable equal-order traversal',
+    'exact',
+    'Objects with the same render order and depth retain stable traversal order.',
+    [project('renderOrder overrides painter depth while preserving stable object order')],
+  ),
+  sceneCapability(
+    'Group.renderOrder',
+    'descendant ordering group',
+    'exact',
+    'A group render order is inherited by its projected descendants.',
+    [project('Group renderOrder applies to its projected descendants')],
+  ),
+  sceneCapability(
+    'Layers',
+    'camera-object mask filtering',
+    'exact',
+    'Layer masks filter each renderable without pruning matching descendants.',
+    [project('camera layers filter objects without hiding matching descendants')],
+  ),
+  sceneCapability(
+    'Scene.overrideMaterial',
+    'eligible material replacement',
+    'exact',
+    'The override replaces supported materials after render-list visibility is resolved.',
+    [project('Scene.overrideMaterial preserves render-list visibility and allowOverride')],
+  ),
+  sceneCapability(
+    'Scene.overrideMaterial',
+    'allowOverride opt-out',
+    'exact',
+    'Materials with allowOverride disabled retain their original appearance.',
+    [project('Scene.overrideMaterial preserves render-list visibility and allowOverride')],
+  ),
+  sceneCapability(
+    'Scene.background',
+    'solid colour decoration',
+    'exact',
+    'A colour fills the viewport without becoming an interactive object.',
+    [project('solid scene backgrounds become non-interactive Canvas rectangles')],
+  ),
+  sceneCapability(
+    'Scene.background',
+    '2D texture placement',
+    'exact',
+    'A supported 2D colour texture covers the viewport as non-interactive decoration.',
+    [project('a 2D texture background becomes a viewport-sized portable mesh')],
+  ),
+  sceneCapability(
+    'Scene.background',
+    'background intensity',
+    'deferred',
+    'Portable colour modulation is feasible, but backgroundIntensity is not connected yet.',
+    [project('scene background modifiers remain diagnostic')],
+  ),
+  sceneCapability(
+    'Scene.background',
+    'background blur',
+    'deferred',
+    'Canvas and Skia can blur a background, but a cross-backend contract is not implemented yet.',
+    [project('scene background modifiers remain diagnostic')],
+  ),
+  sceneCapability(
+    'Scene.background',
+    'environment-map sampling',
+    'diagnostic',
+    'Cube and equirectangular environment projection requires a GPU sampling pipeline.',
+    [project('environment backgrounds are diagnosed while portable geometry remains visible')],
+  ),
+  sceneCapability(
+    'Fog',
+    'material opt-out',
+    'exact',
+    'Materials with fog disabled retain their unfogged colour.',
+    [project('linear fog blends mesh vertices and honours material fog opt-out')],
+  ),
+  sceneCapability(
+    'Fog',
+    'constant-depth linear fog',
+    'exact',
+    'A constant-depth primitive receives the matching linear fog colour.',
+    [project('fog follows lines, points, sprites, and exponential density')],
+  ),
+  sceneCapability(
+    'FogExp2',
+    'constant-depth exponential fog',
+    'exact',
+    'A constant-depth primitive receives the matching exponential fog colour.',
+    [project('fog follows lines, points, sprites, and exponential density')],
+  ),
+  sceneCapability(
+    'Fog',
+    'varying-depth vertex fog',
+    'approximate',
+    'Fog is evaluated at portable vertices and endpoints rather than per fragment.',
+    [
+      project('fog is evaluated at vertices created by homogeneous clipping'),
+      project('fog follows lines, points, sprites, and exponential density'),
+    ],
+  ),
+  sceneCapability(
+    'Fog',
+    'invalid range refusal',
+    'diagnostic',
+    'Invalid or non-finite fog parameters are rejected instead of producing invalid colours.',
+    [project('invalid fog ranges are diagnosed instead of producing non-finite colours')],
+  ),
+  sceneCapability(
+    'Depth buffer',
+    'per-pixel depth and stencil',
+    'diagnostic',
+    'Exact intersecting-surface depth and stencil evaluation requires a raster pipeline.',
+    [
+      project(
+        'non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics',
+      ),
+    ],
   ),
 ]
 
