@@ -57,6 +57,30 @@
 // what the reader says on arrival is the phrase. That is a better test than
 // asking what a page says when it loads, and it is the only one available.
 //
+// ## The warm-up, and why VoiceOver needs one
+//
+// Run 36361620009 ran all eight scenarios on both readers. NVDA answered every
+// claim exactly -- "Friday, September 11, 2026, not selected, row 2, column 5"
+// for a day, row 3 for a week, "October 2026" for a page, silence for a key at
+// `min`. VoiceOver answered the *first* key of every scenario with the cell it
+// started on and the table around it:
+//
+//   ArrowRight (the 10th to the 11th)
+//     "Thursday, September 10, 2026 10 September 2026 table 7 columns, 6 rows"
+//
+// That is VoiceOver entering the table rather than reporting the move: its
+// cursor was outside, the key brought it in, and what it read is where it came
+// in. Every key after that tracked. So the first key of a scenario is not
+// measurable on this reader, and two keys that cancel out are sent before the
+// scenario begins -- Right then Left, back where it started. Their phrases are
+// recorded in the artifact and kept out of the comparison, which is the only
+// honest way to have them: they are the harness arriving, not the calendar
+// answering.
+//
+// NVDA needs none of it and is unharmed by it, which is why it is unconditional.
+// A warm-up on one platform and not the other is two different tests under one
+// name, and this file has already made that mistake once.
+//
 // ## Approval
 //
 // A scenario with no approved file is reported, never failed, exactly as a
@@ -106,6 +130,16 @@ interface Step {
    */
   silent?: true
 }
+
+/**
+ * Two keys that cancel out, sent before every scenario.
+ *
+ * Right then Left is a round trip from wherever the grid opened, so the
+ * scenario starts where it would have anyway. See the header: VoiceOver's
+ * first key reports the cell it entered the table on rather than the one it
+ * moved to, and this is what spends that key.
+ */
+const WARM_UP: readonly string[] = ['ArrowRight', 'ArrowLeft']
 
 interface Scenario {
   name: string
@@ -220,6 +254,10 @@ for (const scenario of scenarios) {
   declare(scenario.name, async ({ page, screenReader }, testInfo) => {
     const stopRecording = startRecording(scenario.name)
     const heard: { note: string; said: string[] }[] = []
+    // Kept apart rather than filtered later: what the warm-up said is evidence
+    // about the reader and must reach the artifact, and it is not evidence
+    // about the calendar and must not reach the comparison.
+    const warmedUp: { note: string; said: string[] }[] = []
     // Collected rather than thrown on the spot, so the artifact and the run
     // log carry the step that broke the claim. A failure nobody can read the
     // evidence for costs another whole run to reproduce, and this suite's runs
@@ -246,6 +284,13 @@ for (const scenario of scenarios) {
       // virtual buffer. A no-op on VoiceOver, which has no browse mode.
       if (onWindows) await enterFocusMode(screenReader)
 
+      for (const key of WARM_UP) {
+        warmedUp.push({
+          note: `${key} -- warm-up, not compared`,
+          said: await spokenAfter(screenReader, () => screenReader.press(key)),
+        })
+      }
+
       for (const step of scenario.steps) {
         const said = await spokenAfter(screenReader, () => screenReader.press(step.press))
         heard.push({ note: `${step.press} -- ${step.note}`, said })
@@ -257,7 +302,7 @@ for (const scenario of scenarios) {
       stopRecording()
       writeFileSync(
         path.join(phrasesDir, `${scenario.name}.json`),
-        `${JSON.stringify({ claim: scenario.claim, heard }, null, 2)}\n`,
+        `${JSON.stringify({ claim: scenario.claim, warmedUp, heard }, null, 2)}\n`,
       )
     }
 
@@ -266,7 +311,7 @@ for (const scenario of scenarios) {
     // there is; here, every phrase has the key that caused it written beside
     // it, and that is what makes one line approvable on its own.
     console.log(
-      `[scenario] ${scenario.name}: ${scenario.claim}\n${heard
+      `[scenario] ${scenario.name}: ${scenario.claim}\n${[...warmedUp, ...heard]
         .map(
           ({ note, said }) =>
             `  ${note}\n${said.map((phrase) => `    ${JSON.stringify(phrase)}`).join('\n') || '    (nothing said)'}`,
@@ -287,8 +332,8 @@ for (const scenario of scenarios) {
       )
     }
 
-    // The first key must say something, whatever the scenario goes on to
-    // check.
+    // The first measured key must say something, whatever the scenario goes
+    // on to check.
     //
     // The one assertion not approved from a file, and every scenario rests on
     // it: the keystroke reaches the browser, the grid moves focus, and the
