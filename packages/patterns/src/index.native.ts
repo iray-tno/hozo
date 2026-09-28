@@ -45,6 +45,22 @@ export {
   type HozoRadioOption,
 } from './radio.native.tsx'
 export {
+  HozoSlider as Slider,
+  HozoSlider,
+  type HozoSliderProps as SliderProps,
+  type HozoSliderProps,
+} from './slider.native.tsx'
+export {
+  fractionAt,
+  fractionOf,
+  movedBy,
+  type SliderKey,
+  type SliderMove,
+  type SliderRange,
+  snap,
+  valueAt,
+} from './slider-rules.ts'
+export {
   type HozoTab as Tab,
   type HozoTab,
   HozoTabs as Tabs,
