@@ -2,6 +2,7 @@ import {
   AmbientLight,
   BoxGeometry,
   BufferGeometry,
+  Cache,
   Color,
   Float32BufferAttribute,
   InstancedMesh,
@@ -111,6 +112,49 @@ function decodeUtf8(input: AllowSharedBufferSource | undefined): string {
     }
   }
   return result
+}
+
+function decodeBase64(value: string): ArrayBuffer {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+  const clean = value.replace(/\s/g, '')
+  const bytes: number[] = []
+  for (let index = 0; index < clean.length; index += 4) {
+    const a = alphabet.indexOf(clean[index] ?? '')
+    const b = alphabet.indexOf(clean[index + 1] ?? '')
+    const c = alphabet.indexOf(clean[index + 2] ?? '')
+    const d = alphabet.indexOf(clean[index + 3] ?? '')
+    if (a < 0 || b < 0) throw new Error('Invalid embedded glTF base64 buffer')
+    bytes.push((a << 2) | (b >> 4))
+    if (clean[index + 2] !== '=') {
+      if (c < 0) throw new Error('Invalid embedded glTF base64 buffer')
+      bytes.push(((b & 0x0f) << 4) | (c >> 2))
+    }
+    if (clean[index + 3] !== '=') {
+      if (c < 0 || d < 0) throw new Error('Invalid embedded glTF base64 buffer')
+      bytes.push(((c & 0x03) << 6) | d)
+    }
+  }
+  return Uint8Array.from(bytes).buffer
+}
+
+function cacheEmbeddedGltfBuffers(source: string): () => void {
+  const document = JSON.parse(source) as { buffers?: { uri?: string }[] }
+  const previousEnabled = Cache.enabled
+  Cache.enabled = true
+  const entries = (document.buffers ?? []).flatMap(({ uri }) => {
+    if (!uri?.startsWith('data:') || !uri.includes(';base64,')) return []
+    const key = `file:${uri}`
+    const previous = Cache.get(key)
+    Cache.add(key, decodeBase64(uri.slice(uri.indexOf(',') + 1)))
+    return [{ key, previous }]
+  })
+  return () => {
+    for (const { key, previous } of entries) {
+      if (previous === undefined) Cache.remove(key)
+      else Cache.add(key, previous)
+    }
+    Cache.enabled = previousEnabled
+  }
 }
 
 function installGltfHostPolyfills(): void {
@@ -243,7 +287,12 @@ async function instancingAndMorph(): Promise<SceneCorpusScene> {
 
 async function pinnedGltfPbr(loadGltfSource: () => Promise<string>): Promise<SceneCorpusScene> {
   installGltfHostPolyfills()
-  const gltf = await new GLTFLoader().parseAsync(await loadGltfSource(), '')
+  const source = await loadGltfSource()
+  // React Native's fetch does not load data: buffers. Seed Three's public
+  // FileLoader cache with the exact embedded bytes, which also avoids adding
+  // a global fetch shim merely to execute this conformance fixture.
+  const restoreCache = cacheEmbeddedGltfBuffers(source)
+  const gltf = await new GLTFLoader().parseAsync(source, '').finally(restoreCache)
   const scene = new Scene()
   scene.add(new AmbientLight('#ffffff', 2), gltf.scene)
   return { camera: perspective(), scene }
