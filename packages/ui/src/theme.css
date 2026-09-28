@@ -8,18 +8,21 @@
  * Every name here becomes a utility: `--color-hozo-accent` is
  * `bg-hozo-accent`, `text-hozo-accent`, `border-hozo-accent`, and so on.
  *
- * ## Why the values are literals and not `var(--color-slate-50)`
+ * ## Why the values are literals, for now
  *
- * A reference would read better and would be dropped. `@hozo/tailwind`'s
- * `loadTheme` runs the project's CSS through Tailwind's own design system and
- * then converts each `--color-*` it finds, and "a colour that won't convert is
- * left out rather than guessed at". `var(--color-slate-50)` is not a colour to
- * that converter, so every token here would vanish from the Theme -- and with
- * it every concrete value the Native lowering needs, since React Native has no
- * custom properties to fall back on.
+ * `--color-hozo-accent: var(--color-indigo-600)` is how Tailwind documents a
+ * semantic theme and is what this file wants to say. It could not, until
+ * #641: `@hozo/tailwind` converts each `--color-*` it finds and leaves out
+ * what will not convert, a `var()` chain was not a colour to that converter,
+ * and so every token here would have vanished from the Theme -- silently, and
+ * with it every concrete value the Native lowering needs, since React Native
+ * has no custom properties to fall back on.
  *
- * So the palette entry each token came from is in the comment beside it. That
- * is also the record of where the look came from: it is the palette
+ * That is a bug rather than a rule, and #641 fixes it. These become references
+ * when it lands; the comments beside them are what the references will say.
+ *
+ * The palette entry each token came from is therefore recorded twice over,
+ * which is also the record of where the look came from: it is the palette
  * `examples/storybook-demo` grew by hand, counted and promoted. `text-slate-900`
  * appeared 120 times there, `border-slate-200` 100, `text-slate-700` 77;
  * `indigo-600` was the accent in 27 places and `indigo-700` its text in 29.
