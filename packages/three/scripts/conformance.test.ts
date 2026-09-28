@@ -6,6 +6,7 @@ import test from 'node:test'
 
 import * as THREE from 'three'
 
+import { PORTABLE_MATERIAL_CAPABILITIES, summarizePortableCapabilities } from './capabilities.ts'
 import {
   summarizeThreeConformance,
   THREE_CONFORMANCE_CASES,
@@ -62,4 +63,37 @@ test('conformance rows and summary are internally consistent', () => {
   assert.equal(summary.inScope + summary.outOfScope, THREE_CONFORMANCE_CASES.length)
   assert.equal(summary.usable, summary.exact + summary.partial)
   assert.equal(summary.safe + summary.silent, summary.inScope)
+})
+
+test('material capability inventory is atomic, referenced, and internally consistent', () => {
+  const identities = PORTABLE_MATERIAL_CAPABILITIES.map(
+    (entry) => `${entry.category}/${entry.owner}/${entry.capability}`,
+  )
+  assert.equal(new Set(identities).size, identities.length)
+
+  const sources = new Map<string, string>()
+  for (const entry of PORTABLE_MATERIAL_CAPABILITIES) {
+    assert.ok(entry.tests.length, `${entry.owner}/${entry.capability} has no test reference`)
+    for (const reference of entry.tests) {
+      const source =
+        sources.get(reference.file) ??
+        readFileSync(path.resolve(path.dirname(import.meta.filename), '..', reference.file), 'utf8')
+      sources.set(reference.file, source)
+      assert.ok(
+        source.includes(`test('${reference.title}'`),
+        `${entry.owner}/${entry.capability} points to missing test: ${reference.title}`,
+      )
+    }
+  }
+
+  const summary = summarizePortableCapabilities()
+  assert.equal(summary.total, PORTABLE_MATERIAL_CAPABILITIES.length)
+  assert.equal(summary.feasible, summary.exact + summary.approximate + summary.deferred)
+  assert.equal(summary.implemented, summary.exact + summary.approximate)
+  assert.equal(
+    summary.total,
+    summary.feasible + summary.diagnostic + summary.silent,
+    'every capability must be either feasible, diagnostic, or silent',
+  )
+  assert.equal(summary.silent, 0, 'accepted material semantics must never be silently lost')
 })

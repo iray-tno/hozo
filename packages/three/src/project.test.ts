@@ -1572,6 +1572,28 @@ test('non-portable MeshNormalMaterial features stay diagnostic', () => {
   }
 })
 
+test('MeshNormalMaterial transformed meshes remain diagnostic', () => {
+  const material = () => new MeshNormalMaterial()
+  const instanced = new THREE.InstancedMesh(triangleGeometry(), material(), 1)
+  const skinned = new THREE.SkinnedMesh(triangleGeometry(), material())
+  const morphed = new Mesh(triangleGeometry(), material())
+  morphed.geometry.morphAttributes.position = [
+    new Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 0, 2, 0], 3),
+  ]
+  morphed.updateMorphTargets()
+  if (!morphed.morphTargetInfluences) throw new Error('mesh did not initialise morph influences')
+  morphed.morphTargetInfluences[0] = 1
+
+  for (const mesh of [instanced, skinned, morphed]) {
+    const result = projectThreeScene(new Scene().add(mesh), perspective(), {
+      width: 100,
+      height: 100,
+    })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
+  }
+})
+
 test('unsupported MeshBasicMaterial features emit diagnostics', () => {
   const materials = [new MeshBasicMaterial({ map: new Texture() })]
 

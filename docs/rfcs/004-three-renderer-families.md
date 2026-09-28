@@ -127,8 +127,11 @@ change renderer families.
 
 Conformance is reported independently for each family:
 
-- **Portable conformance** retains exact, usable, safe diagnostic, silent, and
-  out-of-scope states.
+- **Portable coverage** reports three independent axes: atomic capabilities,
+  the version-audited Three.js surface classification, and a representative
+  real-scene corpus. Capability rows distinguish exact, approximate, feasible
+  but deferred, diagnostic, and silent behaviour. No overall capability
+  percentage is published until every declared category has an inventory.
 - **Classic WebGL integration** measures Hozo's surface/lifecycle/interaction
   contract and any divergence from direct `WebGLRenderer` usage.
 - **Modern WebGPU integration** measures the same Hozo contract separately and
