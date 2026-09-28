@@ -578,22 +578,57 @@ async function enterDialog(
     modifiers: [],
   })
 
-  /** Whether DOM focus is still somewhere in the dialog. */
-  const inside = () =>
-    dialog.evaluate((node) => node.contains(document.activeElement)).catch(() => false)
+  // The element the tour started on, kept as a handle so "have we come back
+  // round" is an identity check rather than a guess about phrases.
+  //
+  // Run 36418061321 is why. Comparing each phrase with the one before it
+  // never fires in a trapped dialog, because the repeat is a *cycle* and not
+  // a pair: `FocusScope` wraps Tab, so the panel read
+  //
+  //   Next month / September 2026, table ... / Hour / Minute / AM or PM / Done
+  //
+  // and then read it again, and again, until the stop budget ran out. Sixty-
+  // two phrases where eleven were wanted. Stopping on a repeated phrase would
+  // also be wrong in a dialog with two buttons named the same, which is not
+  // rare; coming back to the element we began on is exactly the wrap and
+  // nothing else.
+  const start = await first.elementHandle()
 
-  let previous = ''
-  for (let stop = 0; stop < Math.min(DIALOG_STOPS, budget); stop++) {
-    if (!(await inside())) return false
+  /** Whether DOM focus is still inside the dialog and has not wrapped. */
+  const going = async (): Promise<boolean> => {
+    try {
+      return await dialog.evaluate(
+        (node, began) => node.contains(document.activeElement) && document.activeElement !== began,
+        start,
+      )
+    } catch {
+      return false
+    }
+  }
+
+  // How many Tabs there are to spend, asked of the dialog rather than found
+  // by walking into the wall. The first control was named without a Tab, so
+  // the rest is one fewer -- and pressing Tab on the last one would announce
+  // the first a second time before anything could notice the wrap, which is a
+  // duplicate line in every golden.
+  //
+  // `going()` below is the safety net rather than the mechanism: a dialog
+  // that does not trap Tab lets focus out early, and one whose focusable set
+  // changed as it was read stops there instead of running on.
+  const total = await dialog.locator(FOCUSABLE).count()
+  const stops = Math.min(total - 1, DIALOG_STOPS, budget)
+
+  for (let stop = 0; stop < stops; stop++) {
     await screenReader.press('Tab')
     spend()
-    const said = (await screenReader.lastSpokenPhrase()).trim()
-    // A trapped dialog wraps rather than letting focus out, so the way it
-    // says "that was all of them" is by saying one of them again.
-    if (said === previous) return false
-    previous = said
+    if (!(await going())) {
+      console.log(`[walk] ${name}: focus left after ${stop + 1} of ${total}`)
+      return false
+    }
   }
-  return true
+  const cut = total - 1 > stops
+  console.log(`[walk] ${name}: ${Math.min(total, stops + 1)} of ${total} control(s)`)
+  return cut
 }
 
 export interface WalkOptions {
