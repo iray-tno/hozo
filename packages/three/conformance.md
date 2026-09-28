@@ -22,13 +22,14 @@ Capability status has stricter semantics than the class-level surface table:
 
 ### Inventoried categories
 
-Material, geometry, objects, and scene composition are complete as independently owned capability categories. Cameras, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; objects own discovery, selection, routing, and source identity; scene owns traversal policy, composition, backgrounds, ordering, and fog. This prevents a future overall denominator from counting the same behaviour twice.
+Material, geometry, objects, cameras, and scene composition are complete as independently owned capability categories. Interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping; objects own discovery, selection, routing, and source identity; cameras own view/projection and multi-viewport composition; scene owns traversal policy, composition, backgrounds, ordering, and fog. This prevents a future overall denominator from counting the same behaviour twice.
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | **Material** | **17** | **8** | **4** | **29** | **25/29 (86.2%)** | **6** | **0** |
 | **Geometry** | **26** | **0** | **0** | **26** | **26/26 (100.0%)** | **0** | **0** |
 | **Object** | **22** | **0** | **0** | **22** | **22/22 (100.0%)** | **0** | **0** |
+| **Camera** | **7** | **0** | **0** | **7** | **7/7 (100.0%)** | **3** | **0** |
 | **Scene** | **12** | **2** | **2** | **16** | **14/16 (87.5%)** | **3** | **0** |
 
 Approximate capabilities count as implemented but remain visible rather than being folded into exact. These category percentages are not combined while the inventory is incomplete.
@@ -131,6 +132,21 @@ Approximate capabilities count as implemented but remain visible rather than bei
 | LOD | manual level visibility | exact | Disabling automatic updates preserves application-controlled level visibility. | [test](src/project.test.ts) `LOD selects the camera-distance level and honours manual visibility` |
 | SkinnedMesh | source object identity | exact | Projected skinned primitives retain their SkinnedMesh source object. | [test](src/project.test.ts) `SkinnedMesh evaluates morph targets before public CPU bone transforms` |
 
+### Camera capability details
+
+| Owner | Capability | Status | Behaviour | Test |
+| --- | --- | --- | --- | --- |
+| PerspectiveCamera | projection matrix | exact | The public perspective projection matrix maps clip coordinates. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
+| PerspectiveCamera | world-to-view transform | exact | The public camera world matrix is inverted before projection. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
+| OrthographicCamera | projection matrix | exact | The public orthographic projection matrix maps clip coordinates. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
+| OrthographicCamera | world-to-view transform | exact | The public camera world matrix is inverted before orthographic projection. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
+| ArrayCamera | declared sub-camera order | exact | Sub-cameras project in their declared order. | [test](src/project.test.ts) `ArrayCamera projects each sub-camera into its bottom-left viewport` |
+| ArrayCamera | bottom-left viewport mapping | exact | Three.js bottom-left viewport coordinates map to portable top-left groups. | [test](src/project.test.ts) `ArrayCamera projects each sub-camera into its bottom-left viewport` |
+| ArrayCamera | single scene decoration pass | exact | Scene background decoration is emitted once around all sub-camera groups. | [test](src/project.test.ts) `ArrayCamera projects each sub-camera into its bottom-left viewport` |
+| ArrayCamera | missing viewport refusal | diagnostic | A sub-camera without an explicit viewport is rejected. | [test](src/project.test.ts) `ArrayCamera diagnoses sub-cameras without a viewport` |
+| Camera | base camera projection | diagnostic | A base Camera has no usable projection matrix contract and is rejected. | [test](src/project.test.ts) `unsupported inputs are omitted with actionable diagnostics` |
+| CubeCamera | environment capture | diagnostic | Cube environment capture requires a GPU renderer and render target. | [test](src/project.test.ts) `GPU capture cameras remain diagnostic` |
+
 ### Scene capability details
 
 | Owner | Capability | Status | Behaviour | Test |
@@ -216,7 +232,7 @@ The rows are an unweighted API surface. The overall Three.js surface figure excl
 | --- | --- | --- | --- |
 | ArrayCamera | full | Each child camera projects into its bottom-left viewport in declared order. | [test](src/project.test.ts) `ArrayCamera projects each sub-camera into its bottom-left viewport`<br>[test](src/project.test.ts) `ArrayCamera diagnoses sub-cameras without a viewport` |
 | Camera | diagnostic | A base camera has no usable projection and is rejected. | [test](src/project.test.ts) `unsupported inputs are omitted with actionable diagnostics` |
-| CubeCamera | out-of-scope | Environment capture needs a GPU renderer. | — |
+| CubeCamera | out-of-scope | Environment capture needs a GPU renderer. | [test](src/project.test.ts) `GPU capture cameras remain diagnostic` |
 | OrthographicCamera | full | Its public projection matrix is honoured. | [test](src/project.test.ts) `world transforms under groups are baked into the projected path` |
 | PerspectiveCamera | full | Its public projection matrix is honoured. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
 | StereoCamera | out-of-scope | StereoCamera is a two-camera helper, not a direct render camera. | — |

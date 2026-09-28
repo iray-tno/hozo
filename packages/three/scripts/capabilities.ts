@@ -7,7 +7,7 @@ export type PortableCapabilityStatus =
   | 'diagnostic'
   | 'silent'
 
-export type PortableCapabilityCategory = 'geometry' | 'material' | 'object' | 'scene'
+export type PortableCapabilityCategory = 'camera' | 'geometry' | 'material' | 'object' | 'scene'
 
 export interface PortableCapability {
   capability: string
@@ -77,6 +77,21 @@ const objectCapability = (
 ): PortableCapability => ({
   capability: name,
   category: 'object',
+  detail,
+  owner,
+  status,
+  tests,
+})
+
+const cameraCapability = (
+  owner: string,
+  name: string,
+  status: PortableCapabilityStatus,
+  detail: string,
+  tests: readonly ThreeConformanceTestReference[],
+): PortableCapability => ({
+  capability: name,
+  category: 'camera',
   detail,
   owner,
   status,
@@ -834,6 +849,80 @@ export const PORTABLE_OBJECT_CAPABILITIES: readonly PortableCapability[] = [
     'exact',
     'Projected skinned primitives retain their SkinnedMesh source object.',
     [project('SkinnedMesh evaluates morph targets before public CPU bone transforms')],
+  ),
+]
+
+/** Camera projection, view, and multi-viewport composition behaviours. */
+export const PORTABLE_CAMERA_CAPABILITIES: readonly PortableCapability[] = [
+  cameraCapability(
+    'PerspectiveCamera',
+    'projection matrix',
+    'exact',
+    'The public perspective projection matrix maps clip coordinates.',
+    [project('a Three.js triangle becomes a Canvas path in viewport coordinates')],
+  ),
+  cameraCapability(
+    'PerspectiveCamera',
+    'world-to-view transform',
+    'exact',
+    'The public camera world matrix is inverted before projection.',
+    [project('a Three.js triangle becomes a Canvas path in viewport coordinates')],
+  ),
+  cameraCapability(
+    'OrthographicCamera',
+    'projection matrix',
+    'exact',
+    'The public orthographic projection matrix maps clip coordinates.',
+    [project('world transforms under groups are baked into the projected path')],
+  ),
+  cameraCapability(
+    'OrthographicCamera',
+    'world-to-view transform',
+    'exact',
+    'The public camera world matrix is inverted before orthographic projection.',
+    [project('world transforms under groups are baked into the projected path')],
+  ),
+  cameraCapability(
+    'ArrayCamera',
+    'declared sub-camera order',
+    'exact',
+    'Sub-cameras project in their declared order.',
+    [project('ArrayCamera projects each sub-camera into its bottom-left viewport')],
+  ),
+  cameraCapability(
+    'ArrayCamera',
+    'bottom-left viewport mapping',
+    'exact',
+    'Three.js bottom-left viewport coordinates map to portable top-left groups.',
+    [project('ArrayCamera projects each sub-camera into its bottom-left viewport')],
+  ),
+  cameraCapability(
+    'ArrayCamera',
+    'single scene decoration pass',
+    'exact',
+    'Scene background decoration is emitted once around all sub-camera groups.',
+    [project('ArrayCamera projects each sub-camera into its bottom-left viewport')],
+  ),
+  cameraCapability(
+    'ArrayCamera',
+    'missing viewport refusal',
+    'diagnostic',
+    'A sub-camera without an explicit viewport is rejected.',
+    [project('ArrayCamera diagnoses sub-cameras without a viewport')],
+  ),
+  cameraCapability(
+    'Camera',
+    'base camera projection',
+    'diagnostic',
+    'A base Camera has no usable projection matrix contract and is rejected.',
+    [project('unsupported inputs are omitted with actionable diagnostics')],
+  ),
+  cameraCapability(
+    'CubeCamera',
+    'environment capture',
+    'diagnostic',
+    'Cube environment capture requires a GPU renderer and render target.',
+    [project('GPU capture cameras remain diagnostic')],
   ),
 ]
 
