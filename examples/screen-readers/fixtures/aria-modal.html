@@ -1,0 +1,113 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Dialogs NVDA reads and does not read</title>
+<!--
+  Why this page exists (#617).
+
+  NVDA reads the contents of a native `<dialog>` opened with `showModal()`
+  (`patterns-dialog--open`, four phrases inside it) and reads nothing inside
+  the `div role="dialog" aria-modal="true"` that `DateTimePicker` opens:
+
+    button, expanded, opens dialog, Departure Thursday, September 24, 2026 …
+    dialog, Choose a date and time
+    blank
+    blank
+    blank
+    blank
+    blank
+
+  The dialog is announced, so NVDA can see it; the month grid, the clock and
+  the Done button inside it are not. VoiceOver reads all of it and so does the
+  virtual reader.
+
+  Four things differ between the two stories at once, and any of them would be
+  a sufficient explanation on its own:
+
+    1. `aria-modal="true"` versus a real top-layer modal.
+    2. A positioned `div` versus the browser's top layer.
+    3. `FloatingPositioner`, which renders the panel at `left: -9999px;
+       visibility: hidden` until an effect has measured it.
+    4. Where DOM focus is. The harness enters by focusing a transparent button
+       it prepends to `<body>` and then removing it, so at reading time focus
+       is on `<body>` -- outside the dialog, whatever the dialog claims about
+       being modal. `FocusScope` traps Tab and does not pull focus back on a
+       programmatic move, so nothing puts it inside again.
+
+  This page separates the markup from the rest. Three dialogs, the same four
+  things inside each, differing only in what is under suspicion:
+
+    - "Bare" is `role="dialog"` alone.
+    - "Modal" adds `aria-modal="true"` and nothing else.
+    - "Floating" wraps the same modal in the `position: fixed` div
+      `FloatingPositioner` renders, with the inline styles it ends up with
+      after a successful measurement.
+
+  All three are advisory: no `showModal()`, nothing in the top layer, so one
+  reader in one pass can walk the whole page and the three are comparable.
+  Read off the log:
+
+    - Bare read and Modal silent  -> `aria-modal` is the cause, and the fix is
+      in the component: drop it, or reach for a real `<dialog>`.
+    - All three read             -> the markup is innocent and the cause is
+      positioning or focus, which `layerState` now measures on the real story.
+    - All three silent           -> NVDA does not enter *any* `role="dialog"`
+      by `next` from the top of the page, and the entry is what to change, not
+      the component.
+
+  Deliberately static and deliberately not a Storybook story, for the reason
+  `tree-shape.html` gives: a story owes a committed golden from the virtual
+  reader, and this page should be deletable the day #617 closes.
+
+  The headings between the sections are the landmarks that make the log
+  readable -- without them a silent dialog and a missing section look alike.
+
+  The one piece of CSS narrows the flow so the fixed section sits beside it
+  rather than on top of it. Nothing here should be explainable by two dialogs
+  overlapping, and the cheapest way to say so is for them not to.
+-->
+
+<style>
+  body {
+    max-width: 480px;
+  }
+</style>
+
+<h1>Dialogs</h1>
+<p>Three dialogs that are dialogs only because they say so.</p>
+
+<h2>Bare</h2>
+<div role="dialog" aria-label="Bare dialog">
+  <h3>Bare heading</h3>
+  <p>Bare body text.</p>
+  <button type="button">Bare cancel</button>
+  <button type="button">Bare confirm</button>
+</div>
+
+<h2>Modal</h2>
+<div role="dialog" aria-modal="true" aria-label="Modal dialog">
+  <h3>Modal heading</h3>
+  <p>Modal body text.</p>
+  <button type="button">Modal cancel</button>
+  <button type="button">Modal confirm</button>
+</div>
+
+<h2>Floating</h2>
+<!--
+  The wrapper is what `FloatingPositioner` renders once its effect has
+  measured: `position: fixed` with a computed `left`/`top`, `willChange`, and
+  no `visibility`. The numbers are arbitrary; that it is out of flow is not.
+  Inside it, the `tabindex="-1"` div is `FocusScope`'s container.
+-->
+<div style="position: fixed; left: 520px; top: 24px; width: 240px; will-change: transform">
+  <div tabindex="-1" style="outline: none">
+    <div role="dialog" aria-modal="true" aria-label="Floating dialog">
+      <h3>Floating heading</h3>
+      <p>Floating body text.</p>
+      <button type="button">Floating cancel</button>
+      <button type="button">Floating confirm</button>
+    </div>
+  </div>
+</div>
+
+<h2>End</h2>
+<p>Everything above this line should have been read.</p>
