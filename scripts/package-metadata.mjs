@@ -64,9 +64,11 @@ const PACKAGES = {
     exports: {
       '.': './dist/index.js',
       './r3f': './dist/r3f.js',
+      './scene-conformance.json': './scene-conformance.json',
       './webgl': './dist/webgl-renderer.js',
       './webgpu': './dist/webgpu.js',
     },
+    files: ['conformance.md', 'dist', 'scene-conformance.json', 'scene-conformance.md'],
     // The package root is already portable. Only this explicit WebGL entry
     // point needs a Native rejection module, so it must not make the whole
     // package claim a React Native implementation or peer dependency.

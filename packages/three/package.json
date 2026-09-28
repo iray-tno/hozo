@@ -36,6 +36,7 @@
       "types": "./dist/r3f.d.ts",
       "default": "./dist/r3f.js"
     },
+    "./scene-conformance.json": "./scene-conformance.json",
     "./webgl": {
       "react-native": {
         "types": "./dist/webgl-react-native.d.ts",
@@ -52,7 +53,6 @@
       "types": "./dist/webgpu.d.ts",
       "default": "./dist/webgpu.js"
     },
-    "./scene-conformance.json": "./scene-conformance.json",
     "./package.json": "./package.json"
   },
   "files": [
