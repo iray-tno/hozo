@@ -1,26 +1,30 @@
-# Approved from screen-readers run 36362653748 (VoiceOver, Safari).
-# Half a scenario, and why the other half is missing is now an open question.
+# Approved from screen-readers run 36391397389 (VoiceOver, Safari).
+# Both steps, and the finding is in the second one's wording rather than in a
+# silence.
 #
-# VoiceOver never announces selection in this grid: not "selected", not "not
-# selected", on any cell. That much is solid -- it holds for the cells it does
-# announce, in every run.
+#   ArrowRight  off the 10th, onto the unselected 11th
+#     "Friday, September 11, 2026 11"
+#   ArrowLeft   and back onto the 10th, which is selected
+#     "Thursday, September 10, 2026 10"
 #
-# The step back onto the 10th is silent, and this file used to say why: that
-# VoiceOver does not re-announce the cell its cursor entered the table on. That
-# explanation is no longer evidenced. Run 36364764129 showed the same silence
-# on a cell that had nothing to do with entering the table -- the 24th, which
-# three other runs announced -- and `spokenAfter` turned out to be pressing the
-# next key while the previous phrase was still being spoken, which VoiceOver
-# answers by dropping the announcement it interrupted. The second key of a pair
-# is exactly the key this scenario measures.
+# Neither says anything about selection. Not "selected" on the chosen day, not
+# "not selected" on its neighbour -- VoiceOver announces this grid's cells by
+# date and number and never by state, although `aria-selected` is on the cell
+# and the range grid's composed name reaches the same reader intact.
 #
-# `spokenAfter` now waits for speech to stop. If the 10th starts being
-# announced, this file gains a line and the note above goes; if it stays silent
-# with the reader quiet before the key, the original explanation is right and
-# earns its place. Either way it is measured rather than assumed, which is the
-# difference this suite keeps having to learn (#580, #592, #598).
+# That is now a measurement rather than an inference, and it took two tries to
+# get there. This file used to hold one phrase and explain the missing second
+# one by saying VoiceOver does not re-announce the cell its cursor entered the
+# table on. It does, as the line above shows. What was actually happening is in
+# `calendar-crosses-a-month.txt` beside this one: `spokenAfter` pressed the next
+# key while the previous phrase was still being spoken, and VoiceOver drops an
+# announcement it interrupts. The explanation was written down before it was
+# measured, which is the mistake this suite keeps making (#580, #592, #598).
 #
-# NVDA's file beside this one has the finding that makes the scenario worth
-# keeping either way: there, the unchosen days say "not selected" and the
-# chosen one says nothing.
+# Read next to NVDA's file. There the unchosen days say "not selected" and the
+# chosen one says nothing at all, which is the inverse asymmetry and the more
+# surprising of the two. Here both are equally silent about it, so the two
+# readers agree on nothing except that a user cannot hear which day is chosen.
+# That is the question for #148.
 Friday, September 11, 2026 11
+Thursday, September 10, 2026 10

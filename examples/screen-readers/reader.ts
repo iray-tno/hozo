@@ -356,6 +356,19 @@ export function meaningful(log: readonly string[]): string[] {
  * here cost a run nothing, and an approval that means something else costs it
  * a week.
  *
+ * Growth is a proxy for speech and not the thing itself, and there is one case
+ * where it is known to be a poor one. Run 36391397389, the first under this
+ * wait, had every scenario's second key speak -- the 24th, the selected 10th,
+ * the range's start, all three of which had been silent before -- and left the
+ * warm-up's second key silent exactly as it was. The phrase before that one is
+ * the longest on the page ("... September 2026 table 7 columns, 6 rows"), and
+ * VoiceOver logs it as a single entry, so the log stops growing at once while
+ * the speech runs on for seconds. A one-phrase announcement is therefore still
+ * escapable, and the warm-up's silence is as likely to be that as anything
+ * about the reader. It costs nothing there, because the warm-up is not
+ * compared; it would cost something in a scenario whose step follows a very
+ * long phrase, and there is none today.
+ *
  * Returning nothing is a result rather than a failure. "Nothing was said" is
  * exactly what a key at the edge of a range should produce, and a scenario
  * that wants to assert it needs it to come back empty rather than to throw.
