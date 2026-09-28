@@ -103,10 +103,35 @@ tap_bounds() {
   adb shell input touchscreen tap "$(((left + right) / 2))" "$(((top + bottom) / 2))"
 }
 
-tap_test_id() {
-  local file="$1" test_id="$2" bounds
-  bounds="$(bounds_of "$file" "$test_id")" || fail "could not find $test_id"
-  tap_bounds $bounds
+node_is_focused_by_id() {
+  node --eval '
+    const fs = require("node:fs")
+    const [file, wanted] = process.argv.slice(1)
+    const xml = fs.readFileSync(file, "utf8")
+    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+      if (node[0].includes(`resource-id="${wanted}"`) && node[0].includes(`focused="true"`)) {
+        process.exit(0)
+      }
+    }
+    process.exit(1)
+  ' "$1" "$2"
+}
+
+# Coordinate taps are the contract for Canvas itself. Harness navigation is
+# deliberately keyboard-driven: on Android the status bar and injected mouse
+# device can consume a shell tap even when uiautomator reports correct bounds.
+activate_test_id() {
+  local test_id="$1" file="focus-${1}.xml"
+  for _ in $(seq 1 20); do
+    adb shell input keyevent KEYCODE_TAB
+    sleep 1
+    dump "$file"
+    if node_is_focused_by_id "$file" "$test_id"; then
+      adb shell input keyevent KEYCODE_ENTER
+      return 0
+    fi
+  done
+  fail "could not keyboard-focus $test_id"
 }
 
 tree_has_text() {
@@ -219,7 +244,7 @@ fi
 # the real Skia host already under test above; it is deliberately not evidence
 # for the separate Native GPU investigation in #596.
 dump canvas-before-three.xml
-tap_test_id canvas-before-three.xml show-three-corpus
+activate_test_id show-three-corpus
 sleep 2
 
 three_ids=(flat-labelled-diagram wireframe-cad points-and-sprite instancing-and-morph)
@@ -236,7 +261,7 @@ for index in 0 1 2 3; do
   wait_for_text "$xml" "activated: $label" || fail "$id did not activate $label"
   adb exec-out screencap -p > "three-native-${id}.png" 2>/dev/null || true
   echo "Three Native host -> $id -> $label"
-  tap_test_id "$xml" three-corpus-next
+  activate_test_id three-corpus-next
   sleep 2
 done
 
@@ -269,7 +294,7 @@ echo 'Three Native host corpus: 4 useful, 1 explicit diagnostic, 0 failed'
 
 # Restore the original surface before the existing TalkBack pass so the new
 # corpus cannot weaken or accidentally replace Canvas's accessibility check.
-tap_test_id three-native-gltf-pbr.xml three-corpus-back
+activate_test_id three-corpus-back
 sleep 2
 dump canvas-after-three.xml
 bounds_of canvas-after-three.xml canvas-surface >/dev/null ||
