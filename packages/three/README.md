@@ -269,9 +269,10 @@ remain diagnostic rather than receiving an inaccurate approximation.
 
 The version-pinned [Three.js coverage report](./conformance.md) separates
 atomic portable capabilities from class-level Three.js surface classification;
-both link every claim back to executable tests. The capability inventory starts
-with materials and does not publish a misleading whole-backend percentage while
-the remaining categories and real-scene corpus are still being inventoried.
+both link every claim back to executable tests. Material and geometry capability
+inventories are complete; they remain separate and do not publish a misleading
+whole-backend percentage while the other categories and real-scene corpus are
+still being inventoried.
 
 GPU renderer conformance is environment-dependent and is therefore measured on
 main, weekly, and on demand rather than folded into the portable percentage.

@@ -6,7 +6,11 @@ import test from 'node:test'
 
 import * as THREE from 'three'
 
-import { PORTABLE_MATERIAL_CAPABILITIES, summarizePortableCapabilities } from './capabilities.ts'
+import {
+  PORTABLE_GEOMETRY_CAPABILITIES,
+  PORTABLE_MATERIAL_CAPABILITIES,
+  summarizePortableCapabilities,
+} from './capabilities.ts'
 import {
   summarizeThreeConformance,
   THREE_CONFORMANCE_CASES,
@@ -65,14 +69,14 @@ test('conformance rows and summary are internally consistent', () => {
   assert.equal(summary.safe + summary.silent, summary.inScope)
 })
 
-test('material capability inventory is atomic, referenced, and internally consistent', () => {
-  const identities = PORTABLE_MATERIAL_CAPABILITIES.map(
-    (entry) => `${entry.category}/${entry.owner}/${entry.capability}`,
-  )
+test('portable capability inventories are atomic, referenced, and internally consistent', () => {
+  const inventories = [PORTABLE_MATERIAL_CAPABILITIES, PORTABLE_GEOMETRY_CAPABILITIES] as const
+  const entries = inventories.flat()
+  const identities = entries.map((entry) => `${entry.category}/${entry.owner}/${entry.capability}`)
   assert.equal(new Set(identities).size, identities.length)
 
   const sources = new Map<string, string>()
-  for (const entry of PORTABLE_MATERIAL_CAPABILITIES) {
+  for (const entry of entries) {
     assert.ok(entry.tests.length, `${entry.owner}/${entry.capability} has no test reference`)
     for (const reference of entry.tests) {
       const source =
@@ -86,14 +90,16 @@ test('material capability inventory is atomic, referenced, and internally consis
     }
   }
 
-  const summary = summarizePortableCapabilities()
-  assert.equal(summary.total, PORTABLE_MATERIAL_CAPABILITIES.length)
-  assert.equal(summary.feasible, summary.exact + summary.approximate + summary.deferred)
-  assert.equal(summary.implemented, summary.exact + summary.approximate)
-  assert.equal(
-    summary.total,
-    summary.feasible + summary.diagnostic + summary.silent,
-    'every capability must be either feasible, diagnostic, or silent',
-  )
-  assert.equal(summary.silent, 0, 'accepted material semantics must never be silently lost')
+  for (const inventory of inventories) {
+    const summary = summarizePortableCapabilities(inventory)
+    assert.equal(summary.total, inventory.length)
+    assert.equal(summary.feasible, summary.exact + summary.approximate + summary.deferred)
+    assert.equal(summary.implemented, summary.exact + summary.approximate)
+    assert.equal(
+      summary.total,
+      summary.feasible + summary.diagnostic + summary.silent,
+      'every capability must be either feasible, diagnostic, or silent',
+    )
+    assert.equal(summary.silent, 0, 'accepted portable semantics must never be silently lost')
+  }
 })

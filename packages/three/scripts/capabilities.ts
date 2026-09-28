@@ -7,9 +7,11 @@ export type PortableCapabilityStatus =
   | 'diagnostic'
   | 'silent'
 
+export type PortableCapabilityCategory = 'geometry' | 'material'
+
 export interface PortableCapability {
   capability: string
-  category: 'material'
+  category: PortableCapabilityCategory
   detail: string
   owner: string
   status: PortableCapabilityStatus
@@ -30,6 +32,21 @@ const capability = (
 ): PortableCapability => ({
   capability: name,
   category: 'material',
+  detail,
+  owner,
+  status,
+  tests,
+})
+
+const geometryCapability = (
+  owner: string,
+  name: string,
+  status: PortableCapabilityStatus,
+  detail: string,
+  tests: readonly ThreeConformanceTestReference[],
+): PortableCapability => ({
+  capability: name,
+  category: 'geometry',
   detail,
   owner,
   status,
@@ -71,23 +88,6 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
     'exact',
     'Transparent primitives paint after opaque primitives using stable painter ordering.',
     [project('transparent primitives paint after opaque primitives')],
-  ),
-  capability(
-    'Material',
-    'local clipping planes',
-    'exact',
-    'Mesh, line, point, and sprite geometry is clipped in world space.',
-    [
-      project('material clipping planes cut meshes and lines and discard points in world space'),
-      project('Sprite clipping planes cut billboards and preserve disjoint union regions'),
-    ],
-  ),
-  capability(
-    'Material',
-    'clip intersection',
-    'exact',
-    'clipIntersection retains the union of the material half-spaces.',
-    [project('clipIntersection retains the disjoint union of material half-spaces')],
   ),
   capability(
     'MeshBasicMaterial',
@@ -317,6 +317,198 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
   ),
 ]
 
+/**
+ * Shape-processing behaviours owned by the portable projector.
+ *
+ * Cross-cutting colour, texture, transparency, and normal-shading behaviour is
+ * owned by the material inventory so a future overall denominator counts each
+ * atomic capability only once.
+ */
+export const PORTABLE_GEOMETRY_CAPABILITIES: readonly PortableCapability[] = [
+  geometryCapability(
+    'BufferGeometry',
+    'non-indexed triangle traversal',
+    'exact',
+    'Position triples are traversed directly as triangles.',
+    [project('a Three.js triangle becomes a Canvas path in viewport coordinates')],
+  ),
+  geometryCapability(
+    'BufferGeometry',
+    'indexed triangle traversal',
+    'exact',
+    'Triangle vertex lookup follows the geometry index.',
+    [project('indexed geometry emits each triangle')],
+  ),
+  geometryCapability(
+    'BufferGeometry',
+    'indexed line traversal',
+    'exact',
+    'Line vertex lookup follows the geometry index.',
+    [project('Line connects adjacent vertices and honours indexed draw ranges')],
+  ),
+  geometryCapability(
+    'BufferGeometry',
+    'indexed point traversal',
+    'exact',
+    'Point vertex lookup follows the geometry index.',
+    [project('Points become Canvas circles with indexed draw ranges and perspective attenuation')],
+  ),
+  geometryCapability(
+    'BufferGeometry',
+    'mesh draw range',
+    'exact',
+    'The requested draw range intersects mesh topology and material groups.',
+    [project('material groups intersect the geometry draw range')],
+  ),
+  geometryCapability(
+    'BufferGeometry',
+    'wireframe draw range',
+    'exact',
+    'Triangle draw ranges are converted to the equivalent wireframe edge range.',
+    [project('wireframe projection applies the same doubled draw range as Three.js')],
+  ),
+  geometryCapability(
+    'BufferGeometry',
+    'line draw range',
+    'exact',
+    'Indexed line traversal is restricted to the requested draw range.',
+    [project('Line connects adjacent vertices and honours indexed draw ranges')],
+  ),
+  geometryCapability(
+    'BufferGeometry',
+    'point draw range',
+    'exact',
+    'Indexed point traversal is restricted to the requested draw range.',
+    [project('Points become Canvas circles with indexed draw ranges and perspective attenuation')],
+  ),
+  geometryCapability(
+    'BufferGeometry',
+    'material groups',
+    'exact',
+    'Group ranges select the matching entry from a material array.',
+    [project('material arrays preserve BufferGeometry group colours')],
+  ),
+  geometryCapability(
+    'Object3D transforms',
+    'nested world transforms',
+    'exact',
+    'Ancestor and local matrices are composed before projection.',
+    [project('world transforms under groups are baked into the projected path')],
+  ),
+  geometryCapability(
+    'Object3D transforms',
+    'mirrored winding',
+    'exact',
+    'A negative world determinant preserves Three.js front-face semantics.',
+    [project('mirrored mesh transforms preserve Three.js front-face semantics')],
+  ),
+  geometryCapability(
+    'Projection',
+    'triangle frustum clipping',
+    'exact',
+    'Triangles are clipped in homogeneous coordinates against all six planes.',
+    [project('the homogeneous clip volume cuts a near-plane crossing instead of exploding it')],
+  ),
+  geometryCapability(
+    'Projection',
+    'line frustum clipping',
+    'exact',
+    'Line segments crossing the clip volume become finite projected segments.',
+    [project('a line crossing the near plane is clipped to finite viewport coordinates')],
+  ),
+  geometryCapability(
+    'Projection',
+    'point frustum rejection',
+    'exact',
+    'Points outside the homogeneous clip volume are omitted.',
+    [project('points outside the homogeneous clip volume are omitted')],
+  ),
+  geometryCapability(
+    'Clipped attributes',
+    'texture-coordinate interpolation',
+    'exact',
+    'New clip-edge vertices receive the corresponding affine texture coordinates.',
+    [project('mesh clipping interpolates texture coordinates at generated edges')],
+  ),
+  geometryCapability(
+    'Clipped attributes',
+    'vertex-colour interpolation',
+    'exact',
+    'New clip-edge vertices receive the corresponding colour and alpha values.',
+    [project('mesh clipping interpolates vertex colours at generated edges')],
+  ),
+  geometryCapability(
+    'Morph targets',
+    'absolute mesh positions',
+    'exact',
+    'Absolute position targets are blended before projection.',
+    [project('absolute and relative mesh morph targets deform projected triangles')],
+  ),
+  geometryCapability(
+    'Morph targets',
+    'relative mesh positions',
+    'exact',
+    'Relative position deltas are blended before projection.',
+    [project('absolute and relative mesh morph targets deform projected triangles')],
+  ),
+  geometryCapability(
+    'Morph targets',
+    'point positions',
+    'exact',
+    'Point position targets move projected points.',
+    [project('point morph targets move projected points')],
+  ),
+  geometryCapability(
+    'Morph targets',
+    'line positions',
+    'exact',
+    'Line position targets deform projected segments.',
+    [project('line morph targets deform projected segments')],
+  ),
+  geometryCapability(
+    'SkinnedMesh',
+    'CPU skinned positions',
+    'exact',
+    'Morph targets, bind matrices, weights, and the current skeleton pose produce final positions.',
+    [project('SkinnedMesh evaluates morph targets before public CPU bone transforms')],
+  ),
+  geometryCapability(
+    'InstancedMesh',
+    'instance transforms',
+    'exact',
+    'Each active instance matrix is applied independently.',
+    [project('InstancedMesh applies each instance transform and preserves object identity')],
+  ),
+  geometryCapability(
+    'InstancedMesh',
+    'per-instance morph weights',
+    'exact',
+    'Each instance evaluates its own position morph weights.',
+    [project('InstancedMesh applies per-instance colours and morph weights')],
+  ),
+  geometryCapability(
+    'BatchedMesh',
+    'geometry and instance ranges',
+    'exact',
+    'Sparse instance IDs select their geometry range, visibility, and transform.',
+    [project('BatchedMesh projects sparse visible instances with transforms and colours')],
+  ),
+  geometryCapability(
+    'Material clipping',
+    'intersection half-spaces',
+    'exact',
+    'World-space clipping planes cut meshes and lines and discard rejected points.',
+    [project('material clipping planes cut meshes and lines and discard points in world space')],
+  ),
+  geometryCapability(
+    'Material clipping',
+    'union half-spaces',
+    'exact',
+    'clipIntersection retains the disjoint union of accepted half-spaces.',
+    [project('clipIntersection retains the disjoint union of material half-spaces')],
+  ),
+]
+
 export interface PortableCapabilitySummary {
   approximate: number
   deferred: number
@@ -329,7 +521,7 @@ export interface PortableCapabilitySummary {
 }
 
 export function summarizePortableCapabilities(
-  capabilities: readonly PortableCapability[] = PORTABLE_MATERIAL_CAPABILITIES,
+  capabilities: readonly PortableCapability[],
 ): PortableCapabilitySummary {
   const count = (status: PortableCapabilityStatus) =>
     capabilities.filter((entry) => entry.status === status).length

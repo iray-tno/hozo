@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { REVISION } from 'three'
 
 import {
+  PORTABLE_GEOMETRY_CAPABILITIES,
   PORTABLE_MATERIAL_CAPABILITIES,
   type PortableCapability,
   summarizePortableCapabilities,
@@ -59,7 +60,13 @@ const categoryRows = categories.map((category) => {
   )
   return `| ${category} | ${summary.exact}/${summary.inScope} (${pct(summary.exact, summary.inScope)}) | ${summary.usable}/${summary.inScope} (${pct(summary.usable, summary.inScope)}) | ${summary.safe}/${summary.inScope} (${pct(summary.safe, summary.inScope)}) | ${summary.silent} | ${summary.outOfScope} |`
 })
-const materialCapabilities = summarizePortableCapabilities()
+const materialCapabilities = summarizePortableCapabilities(PORTABLE_MATERIAL_CAPABILITIES)
+const geometryCapabilities = summarizePortableCapabilities(PORTABLE_GEOMETRY_CAPABILITIES)
+const capabilitySummaryRow = (
+  label: string,
+  summary: ReturnType<typeof summarizePortableCapabilities>,
+) =>
+  `| **${label}** | **${summary.exact}** | **${summary.approximate}** | **${summary.deferred}** | **${summary.feasible}** | **${summary.implemented}/${summary.feasible} (${pct(summary.implemented, summary.feasible)})** | **${summary.diagnostic}** | **${summary.silent}** |`
 
 const markdown = `# Three.js coverage
 
@@ -83,17 +90,24 @@ Capability status has stricter semantics than the class-level surface table:
 - **Diagnostic** requires a GPU pipeline or is deliberately outside the portable contract and is safely rejected.
 - **Silent** accepts the input while losing its semantics without a diagnostic. The target is zero.
 
-### Material inventory
+### Inventoried categories
 
-This is the first completed capability category, not an overall portable-backend percentage. Geometry, cameras, scenes, interaction, animation, and other categories remain to be inventoried before an overall figure is valid.
+Material and geometry are complete as independently owned capability categories. Cameras, scenes, objects, interaction, animation, and other categories remain to be inventoried before an overall figure is valid. Cross-cutting colour, texture, transparency, and normal-shading behaviour belongs to material; geometry owns shape traversal, deformation, transforms, and clipping. This prevents a future overall denominator from counting the same behaviour twice.
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Material capabilities only** | **${materialCapabilities.exact}** | **${materialCapabilities.approximate}** | **${materialCapabilities.deferred}** | **${materialCapabilities.feasible}** | **${materialCapabilities.implemented}/${materialCapabilities.feasible} (${pct(materialCapabilities.implemented, materialCapabilities.feasible)})** | **${materialCapabilities.diagnostic}** | **${materialCapabilities.silent}** |
+${capabilitySummaryRow('Material', materialCapabilities)}
+${capabilitySummaryRow('Geometry', geometryCapabilities)}
 
-Exact among currently feasible material capabilities: **${materialCapabilities.exact}/${materialCapabilities.feasible} (${pct(materialCapabilities.exact, materialCapabilities.feasible)})**. Approximate capabilities count as implemented but remain visible rather than being folded into exact.
+Approximate capabilities count as implemented but remain visible rather than being folded into exact. These category percentages are not combined while the inventory is incomplete.
+
+### Material capability details
 
 ${capabilityTable(PORTABLE_MATERIAL_CAPABILITIES)}
+
+### Geometry capability details
+
+${capabilityTable(PORTABLE_GEOMETRY_CAPABILITIES)}
 
 ## Three.js surface classification
 
