@@ -84,7 +84,10 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
   }),
   row('object', 'Group', 'full', 'Visibility and nested world transforms are traversed.', {
     upstream: upstream('object', 'Group'),
-    tests: [project('world transforms under groups are baked into the projected path')],
+    tests: [
+      project('world transforms under groups are baked into the projected path'),
+      project('object visibility prunes objects and hidden subtrees'),
+    ],
   }),
   row(
     'object',

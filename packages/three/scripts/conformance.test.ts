@@ -9,6 +9,7 @@ import * as THREE from 'three'
 import {
   PORTABLE_GEOMETRY_CAPABILITIES,
   PORTABLE_MATERIAL_CAPABILITIES,
+  PORTABLE_OBJECT_CAPABILITIES,
   PORTABLE_SCENE_CAPABILITIES,
   summarizePortableCapabilities,
 } from './capabilities.ts'
@@ -74,6 +75,7 @@ test('portable capability inventories are atomic, referenced, and internally con
   const inventories = [
     PORTABLE_MATERIAL_CAPABILITIES,
     PORTABLE_GEOMETRY_CAPABILITIES,
+    PORTABLE_OBJECT_CAPABILITIES,
     PORTABLE_SCENE_CAPABILITIES,
   ] as const
   const entries = inventories.flat()
