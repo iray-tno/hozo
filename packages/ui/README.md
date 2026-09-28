@@ -50,9 +50,25 @@ Every component's class list is a complete literal chosen by a `switch`, not ass
 
 Consumers need `node_modules/@hozo/ui/src` inside their Tailwind content globs for the same reason.
 
+## `Field` is the one with substance in it
+
+`Button`, `Card` and `Stack` are class names. `Field` is wiring:
+
+```tsx
+<Field label="Email" description="We never share it." error={problem} required>
+  {(control) => <input type="email" {...control} />}
+</Field>
+```
+
+Four elements have to agree on four ids between them — a `<label for>`, an `aria-describedby` naming both the description and the error, an `aria-invalid` that agrees with whether there is one, and an `aria-required` that the asterisk cannot carry. Every one of those is something an application gets right on the form it is thinking about and wrong on the other six.
+
+A render prop rather than `<Field><input /></Field>`, because the control is the caller's and stays the caller's. Cloning the child to add props works until somebody wraps their input in a div.
+
+Two decisions it makes for you, both written down in the source: the error comes **first** in `aria-describedby`, because somebody who has just been told their input is wrong wants to know why before being told the rules again; and the error carries `role="alert"`, so a field that mounts with an error already on it announces — right for a form that came back from a server, noisy for one that restores a draft.
+
 ## Status
 
-Early. `Button` and the token set are here; `Card`, `Stack`, `Field` and the rest are tracked in [#638](https://github.com/iray-tno/hozo/issues/638), which also carries the open questions — dark mode strategy, and where `examples/storybook-demo` ends and this package begins.
+Early. `Button`, `Card`, `Stack`, `Field` and the token set are here; the rest is tracked in [#638](https://github.com/iray-tno/hozo/issues/638), which also carries the open questions — dark mode strategy, and where `examples/storybook-demo` ends and this package begins.
 
 <!-- generated: package-footer -->
 
