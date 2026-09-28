@@ -87,6 +87,23 @@
   on the container it had just left and ended before the third section, which
   is why the sections are now ordered as they are.
 
+  ## What run 36389572457 added, and what it wasted
+
+  NVDA-B is out. Its key-table description -- "Reads all the controls in the
+  currently active window (useful for dialogs)" -- is about a real window, and
+  it answered with one:
+
+    "Dialogs NVDA reads and does not read - Google Chrome for Testing, window"
+
+  An ARIA dialog is not a window, so the command has nothing to say about one.
+
+  The heading probe measured nothing, through a mistake in how it was asked
+  rather than through an answer: it ran after the walk, which had already
+  reached the bottom of the page, so all ten H presses said "no next heading".
+  It now sends Ctrl+Home first, and a Tab probe goes with it -- every focusable
+  element on this page is inside a dialog, so where Tab lands says whether the
+  subtree is reachable by focus even when Down Arrow will not go there.
+
   Deliberately static and deliberately not a Storybook story, for the reason
   `tree-shape.html` gives: a story owes a committed golden from the virtual
   reader, and this page should be deletable the day #617 closes.

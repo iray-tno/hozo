@@ -20,7 +20,7 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { type IScreenReader, WindowsKeyCodes } from '@guidepup/guidepup'
+import { type IScreenReader, WindowsKeyCodes, WindowsModifiers } from '@guidepup/guidepup'
 import { screenReaderTest as test } from '@guidepup/playwright'
 
 import {
@@ -51,13 +51,16 @@ const SECTIONS = ['Bare', 'Modal', 'Floating'] as const
 /** How many headings to ask for. Four `h2`s, three `h3`s, and room to overrun. */
 const HEADINGS = 10
 
+/** How many Tab stops to try: eight buttons on the page, and a little over. */
+const TAB_STOPS = 10
+
 /**
  * Everything the reader said while an action ran, with its silences dropped.
  *
  * `walk` keeps `lastSpokenPhrase` per step, which is one phrase per keystroke
- * and is the wrong instrument for the two probes below: NVDA-B answers with a
- * whole window in one press, and a heading jump that says two things is
- * exactly what would be interesting about it.
+ * and is the wrong instrument for the probes below: NVDA-B answers with a
+ * whole window in one press, and a heading jump or a Tab that says two things
+ * is exactly what would be interesting about it.
  */
 async function everythingSaid(
   screenReader: IScreenReader,
@@ -82,7 +85,7 @@ test(id, async ({ page, screenReader }) => {
     const read = await walk(screenReader, STEPS)
     log = read.phrases
 
-    // Two more questions, asked only where the answer above was "nothing".
+    // Three more questions, asked where the answer above was "nothing".
     //
     // Run 36386318431 had NVDA say two phrases for each of the three sections
     // -- the `h2` and the dialog's own name -- and nothing from inside any of
@@ -109,12 +112,41 @@ test(id, async ({ page, screenReader }) => {
     // answer here, and asking it anyway would add minutes to the slower of the
     // two jobs for a log nobody would read.
     if (onWindows) {
+      // Back to the top first, which run 36389572457 needed and did not get:
+      // the walk had already reached the bottom of the page, so all ten H
+      // presses answered "no next heading" and the probe measured nothing. The
+      // same Ctrl+Home `enterPage` ends with.
+      probes.push({
+        note: 'Ctrl+Home, back to the top so H has somewhere to go',
+        said: await everythingSaid(screenReader, () =>
+          screenReader.perform({
+            keyCode: [WindowsKeyCodes.Home],
+            modifiers: [WindowsModifiers.Control],
+          }),
+        ),
+      })
       for (let heading = 1; heading <= HEADINGS; heading++) {
         probes.push({
           note: `nextHeading ${heading}`,
           said: await everythingSaid(screenReader, () => screenReader.nextHeading()),
         })
       }
+      // Tab, the other way content can be reached. The buttons inside each
+      // dialog are focusable, so if Tab lands on them the subtree is in the
+      // tree and reachable -- and then #617 is about which command `walk` uses,
+      // not about the markup. It may also leave the document for Chrome's tab
+      // search, which is what it did from `<body>` in #592; that is a result
+      // too, and this page has no other focusable elements to confuse it.
+      for (let stop = 1; stop <= TAB_STOPS; stop++) {
+        probes.push({
+          note: `Tab ${stop}`,
+          said: await everythingSaid(screenReader, () => screenReader.press('Tab')),
+        })
+      }
+      // Answered "Dialogs NVDA reads and does not read - Google Chrome for
+      // Testing, window" in run 36389572457 and nothing else: the active
+      // window is Chrome, and an ARIA dialog is not a window. Kept so that
+      // stays on the record rather than being tried again.
       probes.push({
         note: 'NVDA-B, read all controls in the active window',
         said: await everythingSaid(screenReader, () =>
