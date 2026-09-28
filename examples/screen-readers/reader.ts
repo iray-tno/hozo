@@ -89,6 +89,21 @@ const ENTRY_ATTEMPTS = 3
  * Kept rather than removed. It would have said all of this on the first run,
  * and the next surprise in this suite is as likely to be about what the page
  * was as about what the reader said.
+ *
+ * Each dialog is now described rather than counted, because counting one was
+ * as far as it could take #617: NVDA announces
+ * `form-date-and-time--date-and-time-open`'s panel and reads nothing inside
+ * it, and a count of 1 is true both when the panel is laid out and when
+ * `FloatingPositioner` still has it at `left: -9999px; visibility: hidden`
+ * waiting for its measuring effect. So the box, the two properties that can
+ * take a subtree out of the tree, and how many children it has.
+ *
+ * And where focus is, which is the other half of the same question. The
+ * harness enters by focusing a button it prepends to `<body>` and then
+ * removes, so by reading time focus is on `<body>` -- outside a dialog that
+ * calls itself modal. Whether that is why NVDA will not read into it is not
+ * known; that it is the case is worth having written down in every log rather
+ * than re-derived from `enterPage` each time someone asks.
  */
 async function layerState(page: Page): Promise<string> {
   return await page.evaluate(() => {
@@ -96,8 +111,33 @@ async function layerState(page: Page): Promise<string> {
       (node) =>
         `${node.getAttribute('aria-label') ?? node.textContent?.slice(0, 20)}=${node.getAttribute('aria-expanded')}`,
     )
-    const dialogs = document.querySelectorAll('[role="dialog"], dialog[open]').length
-    return `expanded[${expandable.join(' ')}] dialogs=${dialogs}`
+    /** Enough of an element to recognise it in a log, and no more. */
+    const name = (node: Element) =>
+      `${node.localName}${node.id ? `#${node.id}` : ''}${
+        node.getAttribute('aria-label') ? `[${node.getAttribute('aria-label')}]` : ''
+      }`
+    const active = document.activeElement
+    const dialogs = [...document.querySelectorAll('[role="dialog"], dialog[open]')].map((node) => {
+      const box = node.getBoundingClientRect()
+      const style = getComputedStyle(node)
+      // Asked of the dialog and of everything above it: `visibility` inherits
+      // and `display: none` on an ancestor takes the subtree out of the tree
+      // without touching the dialog's own computed value. `offsetParent` is
+      // null for a `position: fixed` element whether or not it is displayed,
+      // so it cannot be used for this; `getClientRects` can.
+      const laidOut = node.getClientRects().length > 0
+      return [
+        name(node),
+        `${Math.round(box.width)}x${Math.round(box.height)}@${Math.round(box.left)},${Math.round(box.top)}`,
+        style.visibility,
+        laidOut ? 'laid-out' : 'no-box',
+        `kids=${node.children.length}`,
+        active !== null && node.contains(active) ? 'focus-inside' : 'focus-outside',
+      ].join(' ')
+    })
+    return `expanded[${expandable.join(' ')}] dialogs=${dialogs.length}${dialogs
+      .map((dialog) => ` {${dialog}}`)
+      .join('')} active=${active === null ? 'none' : name(active)}`
   })
 }
 
