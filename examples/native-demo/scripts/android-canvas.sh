@@ -191,27 +191,6 @@ assert_pressed circle 62 30
 assert_pressed path 50 6
 assert_pressed line 50 56
 
-# React Native delivers mouse hover through offsetX/offsetY, whereas touch
-# above used locationX/locationY. A successful state change establishes that
-# both point derivations address the same physical Rect on this runtime.
-read -r hover_x hover_y <<< "$(at_viewbox_point $surface_bounds 15 30)"
-# Android's shell `input mouse motionevent MOVE` constructs ACTION_MOVE, not
-# the no-button HOVER_MOVE a physical mouse produces. The emulator console's
-# EV_REL device is its external-mouse path. Clamp it to the top-left with a
-# large negative delta, then move to the absolute screen point we want.
-if adb emu event send EV_REL:REL_X:-10000 EV_REL:REL_Y:-10000 EV_SYN:0:0 >/dev/null 2>&1 &&
-  adb emu event send "EV_REL:REL_X:$hover_x" "EV_REL:REL_Y:$hover_y" EV_SYN:0:0 >/dev/null 2>&1; then
-  sleep 1
-  dump canvas-hover.xml
-  if tree_has_text canvas-hover.xml 'indicated: rect'; then
-    echo 'mouse hover -> rect'
-  else
-    echo '::warning::the headless emulator accepted external-mouse input but did not deliver a React Native pointer move; physical mouse/stylus hover remains a manual check'
-  fi
-else
-  fail "this Android image cannot inject the external-mouse movement needed by the Canvas contract"
-fi
-
 # Run the exact version-pinned Three corpus through the Native entry of
 # ThreeCanvas. That entry projects with the portable renderer and draws with
 # the real Skia host already under test above; it is deliberately not evidence
@@ -270,6 +249,29 @@ sleep 2
 dump canvas-after-three.xml
 bounds_of canvas-after-three.xml canvas-surface >/dev/null ||
   fail 'Canvas surface did not return after the Three corpus'
+
+# React Native delivers mouse hover through offsetX/offsetY, whereas touch
+# above used locationX/locationY. Do this after all harness navigation: the
+# emulator's external mouse retains global pointer/focus state and can make a
+# later touchscreen or Enter activation nondeterministic even when Android's
+# UI tree reports the expected focused node.
+read -r hover_x hover_y <<< "$(at_viewbox_point $surface_bounds 15 30)"
+# Android's shell `input mouse motionevent MOVE` constructs ACTION_MOVE, not
+# the no-button HOVER_MOVE a physical mouse produces. The emulator console's
+# EV_REL device is its external-mouse path. Clamp it to the top-left with a
+# large negative delta, then move to the absolute screen point we want.
+if adb emu event send EV_REL:REL_X:-10000 EV_REL:REL_Y:-10000 EV_SYN:0:0 >/dev/null 2>&1 &&
+  adb emu event send "EV_REL:REL_X:$hover_x" "EV_REL:REL_Y:$hover_y" EV_SYN:0:0 >/dev/null 2>&1; then
+  sleep 1
+  dump canvas-hover.xml
+  if tree_has_text canvas-hover.xml 'indicated: rect'; then
+    echo 'mouse hover -> rect'
+  else
+    echo '::warning::the headless emulator accepted external-mouse input but did not deliver a React Native pointer move; physical mouse/stylus hover remains a manual check'
+  fi
+else
+  fail "this Android image cannot inject the external-mouse movement needed by the Canvas contract"
+fi
 
 # Now validate the semantic surface with the actual TalkBack service and a
 # logger TTS engine. uiautomator is intentionally not used after this point:
