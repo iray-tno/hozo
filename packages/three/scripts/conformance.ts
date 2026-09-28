@@ -281,6 +281,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
       tests: [
         project('MeshNormalMaterial projects smooth and flat view-space normals'),
         project('non-portable MeshNormalMaterial features stay diagnostic'),
+        project('MeshNormalMaterial transformed meshes remain diagnostic'),
       ],
     },
   ),

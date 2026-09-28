@@ -1,8 +1,80 @@
-# Three.js portable conformance
+# Three.js coverage
 
 Generated against Three.js r180. Run `pnpm --filter @hozo/three report` to update this file and add `--check` to verify it without writing.
 
-This measures the portable Hozo Canvas backend, not Three.js as a whole. It deliberately separates compatibility from safe refusal:
+This report keeps three different questions separate:
+
+1. **Portable capability coverage** asks which atomic behaviours can be implemented faithfully or approximately without a GPU.
+2. **Three.js surface classification** asks what happens when an upstream class or public surface reaches the portable backend.
+3. **Real-scene coverage** will measure representative applications and assets. That corpus is not published yet.
+
+Neither table below is a claim that an arbitrary Three.js scene works. In particular, class-level surface rows and atomic capability rows have different denominators and must not be added together.
+
+## Portable capability coverage
+
+Capability status has stricter semantics than the class-level surface table:
+
+- **Exact** reproduces the named atomic behaviour within its stated contract.
+- **Approximate** is implemented and useful, with a documented rendering difference.
+- **Deferred** appears feasible for the portable CPU/Canvas path but is not implemented yet.
+- **Diagnostic** requires a GPU pipeline or is deliberately outside the portable contract and is safely rejected.
+- **Silent** accepts the input while losing its semantics without a diagnostic. The target is zero.
+
+### Material inventory
+
+This is the first completed capability category, not an overall portable-backend percentage. Geometry, cameras, scenes, interaction, animation, and other categories remain to be inventoried before an overall figure is valid.
+
+| Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **Material capabilities only** | **20** | **9** | **4** | **33** | **29/33 (87.9%)** | **6** | **0** |
+
+Exact among currently feasible material capabilities: **20/33 (60.6%)**. Approximate capabilities count as implemented but remain visible rather than being folded into exact.
+
+| Owner | Capability | Status | Behaviour | Test |
+| --- | --- | --- | --- | --- |
+| Material | visibility | exact | Invisible materials omit their primitive without a diagnostic. | [test](src/project.test.ts) `an invisible material emits neither geometry nor a diagnostic` |
+| Material | normal alpha transparency | exact | Uniform opacity and normal transparency are preserved across supported primitives. | [test](src/project.test.ts) `normal transparent materials project opacity across portable primitives` |
+| Material | uniform alpha test | exact | A uniform primitive is discarded when its opacity is below alphaTest. | [test](src/project.test.ts) `uniform alphaTest omits every supported primitive only below its threshold` |
+| Material | transparent render ordering | exact | Transparent primitives paint after opaque primitives using stable painter ordering. | [test](src/project.test.ts) `transparent primitives paint after opaque primitives` |
+| Material | local clipping planes | exact | Mesh, line, point, and sprite geometry is clipped in world space. | [test](src/project.test.ts) `material clipping planes cut meshes and lines and discard points in world space`<br>[test](src/project.test.ts) `Sprite clipping planes cut billboards and preserve disjoint union regions` |
+| Material | clip intersection | exact | clipIntersection retains the union of the material half-spaces. | [test](src/project.test.ts) `clipIntersection retains the disjoint union of material half-spaces` |
+| MeshBasicMaterial | uniform colour | exact | A flat material colour is preserved on projected triangles. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
+| MeshBasicMaterial | face side selection | exact | FrontSide, BackSide, and DoubleSide follow Three.js winding semantics. | [test](src/project.test.ts) `face side is respected after the viewport y-axis is flipped` |
+| MeshBasicMaterial | solid wireframe | exact | Triangle edges become independent portable lines. | [test](src/project.test.ts) `wireframe MeshBasicMaterial becomes three Canvas lines per triangle` |
+| LineBasicMaterial | uniform colour | exact | Line colour is preserved. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
+| LineBasicMaterial | line width | exact | The requested portable stroke width is preserved. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
+| LineDashedMaterial | dash and gap intervals | exact | Finite line-distance intervals are split into equivalent solid segments. | [test](src/project.test.ts) `LineDashedMaterial projects line-distance dash and gap intervals` |
+| PointsMaterial | uniform colour | exact | Point colour is preserved. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
+| PointsMaterial | point size | exact | The requested material size becomes the point diameter. | [test](src/project.test.ts) `PointsMaterial can keep a fixed screen-space size` |
+| PointsMaterial | size attenuation modes | exact | Perspective and fixed screen-space sizing both follow the material flag. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial can keep a fixed screen-space size` |
+| SpriteMaterial | rotation | exact | Billboard rotation is preserved. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
+| SpriteMaterial | size attenuation mode | exact | Perspective and fixed screen-space sizing follow the material flag. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
+| MeshBasicMaterial | RGB vertex interpolation | approximate | Vertex colours are interpolated in the portable 2D backend; GPU perspective-correct interpolation is not promised. | [test](src/project.test.ts) `mesh vertex colours become a portable interpolated triangle` |
+| Vertex-coloured materials | RGBA vertex alpha interpolation | approximate | Transparent vertex alpha is preserved through the portable colour interpolation path. | [test](src/project.test.ts) `transparent RGBA vertex attributes preserve alpha across portable primitives` |
+| MeshBasicMaterial | wireframe vertex-colour interpolation | approximate | Each projected edge uses a portable linear colour gradient. | [test](src/project.test.ts) `wireframe MeshBasicMaterial preserves RGB vertex colours as edge gradients` |
+| LineBasicMaterial | vertex-colour interpolation | approximate | Projected segments use portable linear colour gradients. | [test](src/project.test.ts) `LineBasicMaterial projects clipped RGB vertex colours as a portable gradient` |
+| PointsMaterial | per-point colour | exact | Each point multiplies its RGB attribute by the material colour. | [test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours` |
+| MeshBasicMaterial | affine colour-map projection | approximate | Supported sRGB maps preserve transformed UVs, but projection is affine rather than perspective-correct. | [test](src/project.test.ts) `MeshBasicMaterial map and UVs become a portable textured triangle` |
+| Texture-backed materials | clamp and repeat wrapping | exact | Clamp and repeat modes are preserved independently on each texture axis. | [test](src/project.test.ts) `mixed clamp and repeat wrapping stays portable per texture axis` |
+| PointsMaterial | point-sprite colour map | approximate | A supported map becomes a portable textured quad without the full GPU sampling pipeline. | [test](src/project.test.ts) `PointsMaterial map becomes a portable point-sprite texture` |
+| SpriteMaterial | affine colour map | approximate | A supported map follows clipped billboard UVs without perspective sampling. | [test](src/project.test.ts) `SpriteMaterial map preserves billboard UVs through clipping` |
+| MeshNormalMaterial | smooth view-space normal shading | approximate | Vertex normals become portable colours; per-fragment normal interpolation is not reproduced. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals` |
+| MeshNormalMaterial | flat view-space normal shading | exact | A face normal is evaluated once for each projected triangle. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals` |
+| Fog-enabled materials | fog shading | approximate | Linear and exponential fog are evaluated at projected vertices rather than per fragment. | [test](src/project.test.ts) `fog follows lines, points, sprites, and exponential density` |
+| MeshNormalMaterial | wireframe normal shading | deferred | The CPU projection has enough edge and normal data, but this combination is not implemented yet. | [test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic` |
+| MeshNormalMaterial | instanced normal shading | deferred | Instance transforms are already projected by the CPU path, but their normal matrices are not connected to this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
+| MeshNormalMaterial | skinned normal shading | deferred | CPU skinning is available for positions, but deformed normals are not projected for this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
+| MeshNormalMaterial | morphed normal shading | deferred | CPU morph evaluation is available for positions, but morphed normals are not projected for this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
+| Texture-backed materials | general GPU texture sampling | diagnostic | Unsupported colour spaces, transforms, mirrored wrapping, and GPU sampling state are rejected. | [test](src/project.test.ts) `non-portable texture sampling is refused with an actionable diagnostic` |
+| Lit mesh materials | lighting models | diagnostic | Lambert, Phong, Standard, Physical, Toon, and Matcap shading require a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
+| Depth and shadow materials | depth, distance, and shadow output | diagnostic | Depth, distance, and shadow materials depend on GPU passes unavailable to the portable projector. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
+| ShaderMaterial | custom shaders | diagnostic | ShaderMaterial and RawShaderMaterial require a programmable GPU pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
+| MeshNormalMaterial | normal, bump, and displacement maps | diagnostic | Per-fragment and displacement texture evaluation requires a GPU material pipeline. | [test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic` |
+| Material | custom depth, stencil, blending, and sampling state | diagnostic | Non-default GPU pipeline state is rejected instead of being silently approximated. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics` |
+
+## Three.js surface classification
+
+This measures the version-audited upstream surface presented to the portable Hozo Canvas backend. It deliberately separates compatibility from safe refusal:
 
 - **Exact** counts rows implemented without a named restriction.
 - **Usable** adds partial implementations with documented restrictions.
@@ -10,9 +82,9 @@ This measures the portable Hozo Canvas backend, not Three.js as a whole. It deli
 - **Silent** is a known semantic loss with no diagnostic. These are the highest-priority gaps.
 - **Out of scope** is excluded from every percentage.
 
-The rows are an unweighted API surface. The overall Three.js figure excludes Hozo's additional interaction contract, which remains visible as its own category. A later corpus report should weight the upstream rows by real scene usage; ordinary glTF scenes rely heavily on `MeshStandardMaterial`, so this table must not be read as a real-model success rate.
+The rows are an unweighted API surface. The overall Three.js surface figure excludes Hozo's additional interaction contract, which remains visible as its own category. A later corpus report should weight the upstream rows by real scene usage; ordinary glTF scenes rely heavily on `MeshStandardMaterial`, so this table must not be read as a real-model success rate.
 
-## Summary
+### Summary
 
 | Category | Exact | Usable | Safe | Silent | Out of scope |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -23,11 +95,11 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | geometry | 10/13 (76.9%) | 13/13 (100.0%) | 13/13 (100.0%) | 0 | 0 |
 | scene | 3/8 (37.5%) | 7/8 (87.5%) | 8/8 (100.0%) | 0 | 1 |
 | interaction | 4/4 (100.0%) | 4/4 (100.0%) | 4/4 (100.0%) | 0 | 0 |
-| **Three.js surface** | **32/58 (55.2%)** | **45/58 (77.6%)** | **58/58 (100.0%)** | **0** | **6** |
+| **Class-level surface** | **32/58 (55.2%)** | **45/58 (77.6%)** | **58/58 (100.0%)** | **0** | **6** |
 
-## Detailed surface
+### Detailed surface
 
-### topology
+#### topology
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
@@ -37,7 +109,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | line segments | full | Each vertex pair becomes an independent line. | [test](src/project.test.ts) `LineSegments become independent Canvas lines with material colour and width` |
 | points | full | Points become circles or textured point-sprite quads with optional perspective attenuation. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation` |
 
-### object
+#### object
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
@@ -55,7 +127,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | SkinnedMesh | full | Public CPU morph and bone transforms are evaluated. | [test](src/project.test.ts) `SkinnedMesh evaluates morph targets before public CPU bone transforms` |
 | Sprite | full | Camera-facing quads preserve centre, rotation, scale, and size attenuation. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation` |
 
-### camera
+#### camera
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
@@ -66,7 +138,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | PerspectiveCamera | full | Its public projection matrix is honoured. | [test](src/project.test.ts) `a Three.js triangle becomes a Canvas path in viewport coordinates` |
 | StereoCamera | out-of-scope | StereoCamera is a two-camera helper, not a direct render camera. | — |
 
-### material
+#### material
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
@@ -85,11 +157,11 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | RawShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
-| MeshNormalMaterial | partial | Smooth and flat view-space normals become portable vertex colours for ordinary meshes; normal/bump/displacement maps, wireframe, skinning, instancing, and active morphs stay diagnostic. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals`<br>[test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic` |
+| MeshNormalMaterial | partial | Smooth and flat view-space normals become portable vertex colours for ordinary meshes; normal/bump/displacement maps, wireframe, skinning, instancing, and active morphs stay diagnostic. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals`<br>[test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic`<br>[test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
 | PointsMaterial | partial | Colour, normal alpha transparency, per-point RGB, fog, size, attenuation, and the constrained point-sprite colour-map subset work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `PointsMaterial map becomes a portable point-sprite texture` |
 | SpriteMaterial | partial | Solid colour, fog, normal alpha transparency, and the constrained affine colour-map subset work. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `SpriteMaterial map preserves billboard UVs through clipping`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
 
-### geometry
+#### geometry
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
@@ -107,7 +179,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | transparency and blending | partial | Normal alpha transparency maps to Canvas opacity after opaque primitives, and uniform alphaTest discards whole primitives. Per-fragment alpha hash, MSAA alpha-to-coverage, dithering, and custom blending are diagnosed. | [test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `uniform alphaTest omits every supported primitive only below its threshold`<br>[test](src/project.test.ts) `transparent primitives paint after opaque primitives`<br>[test](src/project.test.ts) `non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics` |
 | material clipping planes | full | World-space intersection and union clipping cut meshes, lines, and billboards, and discard points. | [test](src/project.test.ts) `material clipping planes cut meshes and lines and discard points in world space`<br>[test](src/project.test.ts) `clipIntersection retains the disjoint union of material half-spaces`<br>[test](src/project.test.ts) `Sprite clipping planes cut billboards and preserve disjoint union regions` |
 
-### scene
+#### scene
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
@@ -121,7 +193,7 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 | renderer tone mapping | out-of-scope | The portable Canvas contract fixes NoToneMapping and has no renderer tone-mapping option. | — |
 | depth and stencil material state | diagnostic | Non-default depth, stencil, colour-write, polygon-offset, and blending state is rejected. | [test](src/project.test.ts) `non-default depth, stencil, write, offset, blending, and sampling state emit diagnostics` |
 
-### interaction
+#### interaction
 
 | Feature | Status | Behaviour | Test |
 | --- | --- | --- | --- |
@@ -132,4 +204,4 @@ The rows are an unweighted API surface. The overall Three.js figure excludes Hoz
 
 ## Interpretation
 
-Topology coverage can be complete while general Three.js compatibility remains low. The portable backend handles every core primitive topology and a deliberately constrained affine colour map, but general GPU materials, texture sampling, lighting, and per-pixel depth remain separate work. The silent count is intentionally visible: raising the usable percentage must not hide accepted input whose semantics are lost.
+Topology surface coverage can be complete while general Three.js compatibility remains low. The portable backend handles every core primitive topology and a deliberately constrained affine colour map, but general GPU materials, texture sampling, lighting, and per-pixel depth remain separate work. The capability inventory makes approximation and feasible-but-deferred work explicit; the surface table records safe rejection of upstream classes. The silent count stays visible in both models so that raising a percentage cannot hide accepted input whose semantics are lost.
