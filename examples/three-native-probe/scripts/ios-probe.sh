@@ -3,7 +3,7 @@ set -euo pipefail
 
 bundle_id=dev.hozo.threenativeprobe
 process_name=HozoThreeNativeProbe
-device_name="${IOS_DEVICE_NAME:-iPhone 16}"
+device_name="${IOS_DEVICE_NAME:-iPhone 17}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 app="$root/ios/build/Build/Products/Release-iphonesimulator/${process_name}.app"
 artifacts="${1:-$root/artifacts-ios}"
