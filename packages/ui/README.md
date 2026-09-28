@@ -66,9 +66,28 @@ A render prop rather than `<Field><input /></Field>`, because the control is the
 
 Two decisions it makes for you, both written down in the source: the error comes **first** in `aria-describedby`, because somebody who has just been told their input is wrong wants to know why before being told the rules again; and the error carries `role="alert"`, so a field that mounts with an error already on it announces — right for a form that came back from a server, noisy for one that restores a draft.
 
+## What is here
+
+| | |
+|---|---|
+| `Button` | four tones, two sizes, and a link when given an `href` |
+| `Input` | one line or many; styled by `aria-invalid` rather than by a prop |
+| `Field` | the wiring above |
+| `Checkbox`, `Switch` | `@hozo/patterns` wearing a box and a track |
+| `Card`, `Stack` | a surface and a flex box |
+| `Badge`, `Alert` | a word with a colour, and a sentence with a role |
+
+Two of those make a decision worth knowing about.
+
+`Input` shows its error state from `aria-invalid:border-hozo-danger` rather than an `invalid` prop. A `Field` already puts that attribute on its control, so the two agree by construction — an `invalid` prop would be a second source of truth, and a disagreement between them is a control that looks fine and announces itself as wrong.
+
+`Alert` is silent by default. `live="polite"` makes it a `status` and `live="assertive"` makes it an `alert`; without either it is a box on the page. An alert rendered *with* the page announces on load, which is right for "your session expired" and wrong for a notice that is there every visit.
+
+`Checkbox` and `Switch` draw their box and track with `::before` and `::after`, reading `data-hozo-state` — so neither is ever told which state it is in. Passing the application's own state back in to draw it is the thing that attribute exists to prevent.
+
 ## Status
 
-Early. `Button`, `Card`, `Stack`, `Field` and the token set are here; the rest is tracked in [#638](https://github.com/iray-tno/hozo/issues/638), which also carries the open questions — dark mode strategy, and where `examples/storybook-demo` ends and this package begins.
+Early. The rest is tracked in [#638](https://github.com/iray-tno/hozo/issues/638), which also carries the open questions — dark mode strategy, and where `examples/storybook-demo` ends and this package begins.
 
 <!-- generated: package-footer -->
 

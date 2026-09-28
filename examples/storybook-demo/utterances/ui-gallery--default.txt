@@ -19,3 +19,19 @@ end of alert
 We use it for the receipt and nothing else.
 button, Continue
 button, Back
+heading, Checkbox, Switch, Badge and Alert, level 2
+paragraph
+The first two wear the patterns from @hozo/patterns and draw a box and a track with pseudo-elements, off data-hozo-state -- so neither is told which state it is in. The parent below is partially checked whenever some but not all of the meals are, which is the state no input attribute can express.
+end of paragraph
+checkbox, All meals, partially checked
+checkbox, Breakfast, not checked
+checkbox, Lunch, checked
+checkbox, Dinner, not checked
+switch, Email notifications, checked
+Draft
+New
+Overdue
+alert
+Your session expires in two minutes.
+end of alert
+A notice that is simply on the page, and is not announced for being here.
