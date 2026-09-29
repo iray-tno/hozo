@@ -83,6 +83,8 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Listbox` | a scrolling box whose chosen row changes weight as well as colour |
 | `Menu` | a neutral trigger and a floating panel |
 | `Toolbar` | a bar; the controls in it are yours |
+| `Combobox` | `Input`'s field and a filtered list whose highlight is only a tint |
+| `Tree` | indentation per depth and a chevron nobody hears |
 | `Card`, `Stack` | a surface and a flex box |
 | `Badge`, `Alert` | a word with a colour, and a sentence with a role |
 
@@ -97,6 +99,18 @@ Four of those make a decision worth knowing about.
 `Listbox` marks its chosen row with a tint **and** a weight. WCAG 1.4.1 asks that colour not be the only visual means of conveying information, and a pale tint on the selected row is the easiest way to fail it — invisible on a monochrome display, to a colour-blind reader, and in print. axe cannot find this; its contrast rule asks whether text is readable, not whether two rows differ for a reason. So `listbox.test.ts` asserts it, the way `tokens.test.ts` asserts the focus ring.
 
 `RadioGroup` draws a ring and a dot with `::before` and `::after`, both positioned over a row that reserves the space with `ps-9`. The options are `<div role="radio">`, so there is no `:checked` to select and nothing the browser draws for us — `aria-checked:` is the attribute a reader announces and therefore the one the dot hangs off.
+
+`Tree` draws its chevron with `::before` rather than writing one into the label, and the difference is audible. The `Patterns/Tree` story puts a `▾` in the text, and its approved golden records what that costs:
+
+```
+treeitem, ▾ crates, expanded, level 1, position 1, not selected
+```
+
+The glyph is part of the accessible name, and then `expanded` says the same thing again. A pseudo-element is not in the accessibility tree at all, so this package's tree reads `treeitem, crates, expanded` — seen and never heard. Indentation is a literal class per depth, because `ps-${level * 4}` is a class name nothing emitted CSS for; Tailwind's scanner and Hozo's compiler both read names without running the code.
+
+Which means `Tree` passes its own `renderRow`. Pass yours and you own the row's inside — label, indentation and marker together — which is the honest bargain and why the prop stays in the type.
+
+`Combobox` and `Listbox` both style `aria-selected`, and they must not look the same. In a combobox the attribute is on the option the arrows have moved to, because the chosen value lives in the input; in a listbox it is the answer. So the combobox highlights with a tint and the listbox adds a weight, and `combobox.test.ts` asserts that the tint does not grow a weight. A combobox whose highlighted row looks chosen tells you that arrowing past an option selected it, which is not a style mistake but a lie about state.
 
 `Toolbar` styles nothing inside it, because a toolbar's items come from `items[].render`, which hands each one the `tabIndex`, `ref` and handlers that make the roving focus work. A `Toolbar` that drew its own buttons would be deciding what a toolbar contains, and the pattern deliberately does not.
 

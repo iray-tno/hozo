@@ -23,7 +23,21 @@ export interface HozoTreeProps {
   accessibilityLabel?: string
   style?: StyleProp<ViewStyle>
   rowStyle?: StyleProp<ViewStyle>
-  renderRow?: (row: { id: string; label: string; level: number; expanded: boolean }) => ReactNode
+  /**
+   * The row's inside, when the default label is not enough.
+   *
+   * `branch` is what tells a closed branch from a leaf: `expanded` is false
+   * for both, so a renderer given only that draws no marker on a folder
+   * nobody has opened yet -- which is how this package's own demo ended up
+   * with closed branches indistinguishable from files.
+   */
+  renderRow?: (row: {
+    id: string
+    label: string
+    level: number
+    expanded: boolean
+    branch: boolean
+  }) => ReactNode
 }
 
 export function HozoTree({
@@ -68,7 +82,13 @@ export function HozoTree({
           }}
         >
           {renderRow
-            ? renderRow({ id: row.id, label: row.label, level: row.level, expanded: row.expanded })
+            ? renderRow({
+                id: row.id,
+                label: row.label,
+                level: row.level,
+                expanded: row.expanded,
+                branch: row.branch,
+              })
             : row.label}
         </Pressable>
       ))}

@@ -53,7 +53,7 @@ test('the chevron is drawn from the state the pattern writes, not from a prop', 
   const html = render()
   const open = /<button[^>]*data-hozo-state="open"[^>]*>/.exec(html)
   assert.ok(open, 'the pattern no longer writes data-hozo-state')
-  assert.match(open[0], /data-\[hozo-state=open\]:after:rotate-135/)
+  assert.match(open[0], /data-\[hozo-state=open\]:after:-rotate-135/)
   assert.match(open[0], /aria-expanded="true"/)
 })
 
