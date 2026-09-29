@@ -27,11 +27,15 @@ import {
   Dialog,
   Field,
   Input,
+  Listbox,
+  Menu,
+  RadioGroup,
   Slider,
   Stack,
   Switch,
   type Tab,
   Tabs,
+  Toolbar,
   Tooltip,
 } from '@hozo/ui'
 import type { Meta, StoryObj } from '@storybook/react-vite'
@@ -57,6 +61,18 @@ const QUESTIONS: AccordionItem[] = [
   { id: 'wrap', header: 'Gift wrapping', content: 'Not yet.', disabled: true },
 ]
 
+const SHIPPING = [
+  { value: 'standard', label: 'Standard, two days' },
+  { value: 'express', label: 'Express, tomorrow' },
+  { value: 'pigeon', label: 'By pigeon', disabled: true },
+] as const
+
+const LANGUAGES = [
+  { value: 'rust', label: 'Rust' },
+  { value: 'ts', label: 'TypeScript' },
+  { value: 'cobol', label: 'COBOL', disabled: true },
+] as const
+
 const PANELS: Tab[] = [
   { label: 'Details', content: 'A universal UI compiler, written in Rust.' },
   { label: 'Shipping', content: 'Two days, or four to an island.' },
@@ -68,6 +84,8 @@ function UiGallery() {
   const [meals, setMeals] = useState<readonly string[]>(['Lunch'])
   const [emails, setEmails] = useState(true)
   const [volume, setVolume] = useState(40)
+  const [shipping, setShipping] = useState<string>('express')
+  const [languages, setLanguages] = useState<readonly string[]>(['rust'])
   const wrong = !email.includes('@')
 
   return (
@@ -228,7 +246,72 @@ function UiGallery() {
             </Button>
           </Tooltip>
           <UiDialog />
+          <Menu
+            trigger="Actions"
+            accessibilityLabel="Actions"
+            items={[
+              { label: 'Rename' },
+              { label: 'Duplicate' },
+              { label: 'Delete', disabled: true },
+            ]}
+          />
         </Stack>
+      </Section>
+      <Section>
+        <Heading level={2} className={title}>
+          Choosing one, choosing several, and a bar
+        </Heading>
+        <Paragraph className={prose}>
+          The radio group is one tab stop and the arrows choose within it, which is what makes it a
+          group rather than a column of checkboxes. Its ring and dot are two pseudo-elements drawn
+          from aria-checked -- there is no input here to be :checked. The listbox marks its chosen
+          row with a tint and a weight, because colour alone fails WCAG 1.4.1 and is invisible in
+          print.
+        </Paragraph>
+        <Card flat>
+          <Stack gap="normal">
+            <RadioGroup
+              options={SHIPPING}
+              accessibilityLabel="Shipping"
+              value={shipping}
+              onValueChange={setShipping}
+            />
+            <Listbox
+              options={LANGUAGES}
+              accessibilityLabel="Languages"
+              multiple
+              value={languages}
+              onValueChange={setLanguages}
+            />
+          </Stack>
+        </Card>
+        <Toolbar
+          accessibilityLabel="Formatting"
+          items={[
+            {
+              render: (props) => (
+                <Button {...props} tone="quiet" size="sm" onPress={() => {}}>
+                  Bold
+                </Button>
+              ),
+            },
+            {
+              render: (props) => (
+                <Button {...props} tone="quiet" size="sm" onPress={() => {}}>
+                  Italic
+                </Button>
+              ),
+            },
+            {
+              disabled: true,
+              render: (props) => (
+                <Button {...props} tone="quiet" size="sm" disabled onPress={() => {}}>
+                  Strikethrough
+                </Button>
+              ),
+            },
+          ]}
+        />
       </Section>
     </View>
   )
