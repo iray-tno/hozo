@@ -25,7 +25,29 @@ export interface ThemeColor {
   oklch: string
   /** React Native's style system has no `oklch()`, so it takes this. */
   hex: string
+  /** What the token becomes under `prefers-color-scheme: dark`, if paired. */
+  dark?: { oklch: string; hex: string }
 }
+
+/**
+ * The suffix that pairs a token with its dark value.
+ *
+ * A naming convention rather than a media query, and that was measured
+ * rather than preferred. Tailwind's design system reports one value per
+ * theme key, so
+ *
+ *   @theme { --color-brand: <light> }
+ *   @media (prefers-color-scheme: dark) { @theme { --color-brand: <dark> } }
+ *
+ * comes back as a single `--color-brand` holding the *dark* value -- the
+ * light one is gone before this can see it. The two-key form survives
+ * because they are two keys.
+ *
+ * Read through Tailwind's own entries either way, which is the rule this
+ * file is built on: a `@theme` can import, extend and redefine, and the
+ * only thing that resolves all of it correctly is Tailwind.
+ */
+export const DARK_SUFFIX = '--dark'
 
 export interface Theme {
   colors: ThemeColor[]
@@ -135,6 +157,10 @@ export async function loadTheme(css: string, base: string): Promise<Theme> {
   const colors: ThemeColor[] = []
   for (const [name, declaration] of declared) {
     if (!name.startsWith('--color-')) continue
+    // The dark half of a pair is not a colour of its own: it is read below,
+    // through the token it belongs to, and listing it as well would offer
+    // `bg-brand--dark` as a utility beside `bg-brand`.
+    if (name.endsWith(DARK_SUFFIX)) continue
     const oklch = dereference(declaration, declared)
     const hex = toHex(oklch)
     // A colour that won't convert is left out rather than guessed at. The
@@ -142,7 +168,20 @@ export async function loadTheme(css: string, base: string): Promise<Theme> {
     // resolve -- a CSS variable reference on Web, a marker on Native --
     // and that is better than a colour that is nearly right.
     if (hex === null) continue
-    colors.push({ token: name.slice('--color-'.length), oklch, hex })
+    const paired = declared.get(`${name}${DARK_SUFFIX}`)
+    const darkOklch = paired === undefined ? null : dereference(paired, declared)
+    const darkHex = darkOklch === null ? null : toHex(darkOklch)
+    colors.push({
+      token: name.slice('--color-'.length),
+      oklch,
+      hex,
+      // A dark value that will not convert is left out for the same reason
+      // its light half would be: the backends have a defined answer for an
+      // absent token, and none for a colour that is nearly right.
+      ...(darkOklch !== null && darkHex !== null
+        ? { dark: { oklch: darkOklch, hex: darkHex } }
+        : {}),
+    })
   }
   return { colors, spacingPx: readSpacing(design) }
 }

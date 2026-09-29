@@ -228,3 +228,45 @@ test('tailwindcss keeps its own line, because its entry is not the stylesheet', 
   // Through `exports` it would resolve the JavaScript module beside the CSS.
   assert.match(stylesheetPath('tailwindcss', '/anywhere'), /index\.css$/)
 })
+
+test('a token paired by name carries its dark value', async () => {
+  // The authoring form, and it is a naming convention because Tailwind's
+  // design system reports one value per key: a `@theme` wrapped in
+  // `@media (prefers-color-scheme: dark)` comes back holding only the dark
+  // value, with the light one gone before this can see it. Two keys survive
+  // because they are two keys.
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme {
+      --color-surface: var(--color-white);
+      --color-surface--dark: var(--color-slate-900);
+    }`)
+
+  const surface = theme.colors.find((c) => c.token === 'surface')
+  const slate = theme.colors.find((c) => c.token === 'slate-900')
+  assert.equal(surface?.hex, '#ffffff')
+  assert.equal(surface?.dark?.hex, slate?.hex, 'the dark half, resolved like any other token')
+})
+
+test('the dark half is not offered as a colour of its own', async () => {
+  // Listing it would put `bg-surface--dark` beside `bg-surface` in the
+  // utilities, which is a second way to say the thing the pairing exists to
+  // say once.
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme {
+      --color-surface: var(--color-white);
+      --color-surface--dark: var(--color-slate-900);
+    }`)
+
+  assert.equal(
+    theme.colors.find((c) => c.token === 'surface--dark'),
+    undefined,
+  )
+})
+
+test('an unpaired token has no dark half, which is most of them', async () => {
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme { --color-brand: oklch(62% 0.19 259); }`)
+
+  assert.equal(theme.colors.find((c) => c.token === 'brand')?.dark, undefined)
+  assert.equal(theme.colors.find((c) => c.token === 'red-500')?.dark, undefined)
+})
