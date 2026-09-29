@@ -1027,6 +1027,9 @@ importers:
       '@hozo/core':
         specifier: workspace:^
         version: link:../core
+      '@hozo/form':
+        specifier: workspace:^
+        version: link:../form
       '@hozo/patterns':
         specifier: workspace:^
         version: link:../patterns

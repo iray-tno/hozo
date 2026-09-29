@@ -46,7 +46,16 @@ const src = path.join(import.meta.dirname, '..', 'src')
  * that cannot be written about makes the comments worse.
  */
 const components = readdirSync(src)
-  .filter((name) => name.endsWith('.tsx'))
+  // The components *and* the modules holding lists for them: `calendar-look.ts`
+  // is four grids' worth of class lists in a `.ts` file, and a rule that read
+  // only `.tsx` would have stopped covering them the moment they were shared.
+  .filter(
+    (name) =>
+      (name.endsWith('.ts') || name.endsWith('.tsx')) &&
+      !name.endsWith('.test.ts') &&
+      !name.endsWith('.test.tsx') &&
+      name !== 'index.ts',
+  )
   .map((name) => {
     const code = readFileSync(path.join(src, name), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, ' ')

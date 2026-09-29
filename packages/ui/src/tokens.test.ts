@@ -36,8 +36,23 @@ function literals(source: string): string[] {
   return [...code.matchAll(/'([^'\n]*)'|`([^`]*)`/g)].map((m) => m[1] ?? m[2] ?? '')
 }
 
+/**
+ * Every file that can hold a class list: the components, and the modules that
+ * hold lists for them.
+ *
+ * `.tsx` alone was the filter until `calendar-look.ts` arrived -- four grids
+ * wear the same lists, so they live in a `.ts` module, and a rule that read
+ * only components would have stopped covering them the moment they were shared.
+ * A shared class list is still a class list.
+ */
+function sourceFile(name: string): boolean {
+  if (name.endsWith('.test.ts') || name.endsWith('.test.tsx')) return false
+  if (name === 'index.ts') return false
+  return name.endsWith('.ts') || name.endsWith('.tsx')
+}
+
 const components = readdirSync(src)
-  .filter((name) => name.endsWith('.tsx'))
+  .filter(sourceFile)
   .map((name) => {
     const source = readFileSync(path.join(src, name), 'utf8')
     return { name, strings: literals(source) }
