@@ -116,6 +116,33 @@ The calendar is where a styled library earns its keep: a month button holding a 
 end of paragraph
 button, Thursday, September 24, 2026, not expanded, has popup dialog
 button, Pick a span, not expanded, has popup dialog
+button, Pick a moment, not expanded, has popup dialog
+paragraph
+The clock's two arrows are 24 by 24 and are told apart only by data-hozo-step -- so until #679 they were drawn in the same place, one on top of the other. Its focus ring is on the field rather than on the spinbutton inside it, because that element takes no class of its own.
+end of paragraph
+group, Arrival time
+button, Increase Hour
+▲
+end of button, Increase Hour
+spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+9
+end of spinbutton, Hour, max value 12, min value 1, current value 9:30 AM
+button, Decrease Hour
+▼
+end of button, Decrease Hour
+button, Increase Minute
+▲
+end of button, Increase Minute
+spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+30
+end of spinbutton, Minute, max value 59, min value 0, current value 9:30 AM
+button, Decrease Minute
+▼
+end of button, Decrease Minute
+button, AM or PM
+AM
+end of button, AM or PM
+end of group, Arrival time
 group, September
 button, Previous month
 ‹

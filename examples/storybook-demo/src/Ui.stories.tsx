@@ -13,7 +13,7 @@
 // #652 so `@import "@hozo/ui/theme.css"` in `src/index.css` resolves. Without
 // either, this page is unstyled and nothing says so.
 
-import type { CalendarDate, CalendarRange } from '@hozo/form'
+import type { CalendarDate, CalendarDateTime, CalendarRange, CalendarTime } from '@hozo/form'
 import { View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
@@ -29,6 +29,7 @@ import {
   Combobox,
   DatePicker,
   DateRangePicker,
+  DateTimePicker,
   Dialog,
   Field,
   Input,
@@ -40,6 +41,7 @@ import {
   Switch,
   type Tab,
   Tabs,
+  TimePicker,
   Toolbar,
   Tooltip,
   Tree,
@@ -112,6 +114,8 @@ function UiGallery() {
   const [languages, setLanguages] = useState<readonly string[]>(['rust'])
   const [date, setDate] = useState<CalendarDate | null>({ year: 2026, month: 9, day: 24 })
   const [span, setSpan] = useState<CalendarRange | null>(null)
+  const [clock, setClock] = useState<CalendarTime | null>({ hour: 9, minute: 30 })
+  const [stamp, setStamp] = useState<CalendarDateTime | null>(null)
   const wrong = !email.includes('@')
 
   return (
@@ -347,7 +351,27 @@ function UiGallery() {
             today={TODAY}
             placeholder="Pick a span"
           />
+          <DateTimePicker
+            locale="en-US"
+            value={stamp}
+            onChange={setStamp}
+            today={TODAY}
+            placeholder="Pick a moment"
+          />
         </Stack>
+        <Paragraph className={prose}>
+          The clock's two arrows are 24 by 24 and are told apart only by data-hozo-step -- so until
+          #679 they were drawn in the same place, one on top of the other. Its focus ring is on the
+          field rather than on the spinbutton inside it, because that element takes no class of its
+          own.
+        </Paragraph>
+        <TimePicker
+          accessibilityLabel="Arrival time"
+          locale="en-US"
+          hour12
+          value={clock}
+          onChange={setClock}
+        />
         <Calendar
           accessibilityLabel="September"
           locale="en-US"

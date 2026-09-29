@@ -94,7 +94,11 @@ test('nothing chosen is a field that says so, with no value on it', () => {
 test('a disabled picker is out of the tab order and says it is disabled', () => {
   const html = render({ hour12: true, value: { hour: 9, minute: 0 }, disabled: true })
   assert.equal(count(html, 'aria-disabled="true"'), 2)
-  assert.equal(count(html, 'data-hozo-disabled=""'), 2, 'the hook a `disabled:` variant needs')
+  // Seven: two spinbuttons, four arrows and the period. The spinbuttons were
+  // the only ones carrying it, so a `disabled:` class on an arrow -- which
+  // Hozo compiles to `[data-hozo-disabled]`, not `:disabled` -- was CSS that
+  // could never match. Every control an application styles has the hook now.
+  assert.equal(count(html, 'data-hozo-disabled=""'), 7, 'the hook a `disabled:` variant needs')
   assert.deepEqual(attributes(html, 'tabindex'), ['-1', '-1', '-1', '-1', '-1', '-1'])
   assert.equal(count(html, ' disabled=""'), 5, 'four arrows and the period, all of them')
 })
