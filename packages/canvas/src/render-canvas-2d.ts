@@ -7,6 +7,7 @@ import {
   type CanvasTextureWrap,
   type CanvasTransform,
   type ClipProps,
+  canvasMeshTextureIntensity,
   canvasMeshTextureWrap,
   cssFontShorthand,
   isGradient,
@@ -24,6 +25,61 @@ import { textLines } from './wrap-text.ts'
 export type { CanvasViewport } from './viewport.ts'
 
 type CanvasTextureImage = (source: CanvasTextureSource) => CanvasImageSource | undefined
+
+const modulatedTextures = new WeakMap<object, Map<number, CanvasImageSource>>()
+
+function srgbToLinear(channel: number): number {
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+}
+
+function linearToSrgb(channel: number): number {
+  return channel <= 0.0031308 ? channel * 12.92 : 1.055 * channel ** (1 / 2.4) - 0.055
+}
+
+/**
+ * Safari has no enabled Canvas 2D filter yet. Pay the pixel cost once there,
+ * cache it by decoded image and multiplier, and keep the normal draw path GPU-backed.
+ */
+function softwareModulatedTexture(
+  image: CanvasImageSource,
+  intensity: number,
+): CanvasImageSource | undefined {
+  const dimensions = imageDimensions(image)
+  if (!dimensions) return undefined
+  const key = image as object
+  const cached = modulatedTextures.get(key)?.get(intensity)
+  if (cached) return cached
+  const surface =
+    typeof OffscreenCanvas === 'function'
+      ? new OffscreenCanvas(dimensions.width, dimensions.height)
+      : typeof document === 'undefined'
+        ? undefined
+        : Object.assign(document.createElement('canvas'), dimensions)
+  if (!surface) return undefined
+  const context = surface.getContext('2d', { willReadFrequently: true })
+  if (!context) return undefined
+  try {
+    context.drawImage(image, 0, 0, dimensions.width, dimensions.height)
+    const pixels = context.getImageData(0, 0, dimensions.width, dimensions.height)
+    for (let offset = 0; offset < pixels.data.length; offset += 4) {
+      for (let channel = 0; channel < 3; channel += 1) {
+        const value = (pixels.data[offset + channel] ?? 0) / 255
+        pixels.data[offset + channel] = Math.round(
+          Math.max(0, Math.min(1, linearToSrgb(srgbToLinear(value) * intensity))) * 255,
+        )
+      }
+    }
+    context.putImageData(pixels, 0, 0)
+  } catch {
+    // A cross-origin image without CORS can be drawn but not read back. Omitting
+    // it is safer than silently drawing the wrong intensity on this browser.
+    return undefined
+  }
+  const byIntensity = modulatedTextures.get(key) ?? new Map<number, CanvasImageSource>()
+  byIntensity.set(intensity, surface)
+  modulatedTextures.set(key, byIntensity)
+  return surface
+}
 
 function applyTransform(context: CanvasRenderingContext2D, transform?: CanvasTransform) {
   if (!transform) return
@@ -208,8 +264,13 @@ function fillTexturedTriangle(
   filter: 'linear' | 'nearest',
   wrapX: CanvasTextureWrap,
   wrapY: CanvasTextureWrap,
+  intensity: number,
 ) {
-  const dimensions = imageDimensions(image)
+  const supportsFilter = 'filter' in context
+  const drawable =
+    intensity === 1 || supportsFilter ? image : softwareModulatedTexture(image, intensity)
+  if (!drawable) return
+  const dimensions = imageDimensions(drawable)
   if (!dimensions) return
   const [a, b, c] = vertices
   const [ta, tb, tc] = coordinates.map(({ x, y }) => ({
@@ -246,6 +307,7 @@ function fillTexturedTriangle(
   trianglePath(context, a, b, c)
   context.clip()
   context.imageSmoothingEnabled = filter === 'linear'
+  if (supportsFilter && intensity !== 1) context.filter = `brightness(${intensity})`
   context.transform(
     horizontal.first,
     vertical.first,
@@ -257,14 +319,14 @@ function fillTexturedTriangle(
   if (wrapX === 'repeat' || wrapY === 'repeat') {
     const repetition =
       wrapX === 'repeat' ? (wrapY === 'repeat' ? 'repeat' : 'repeat-x') : 'repeat-y'
-    const pattern = context.createPattern(image, repetition)
+    const pattern = context.createPattern(drawable, repetition)
     if (pattern) {
       context.fillStyle = pattern
       trianglePath(context, ta, tb, tc)
       context.fill()
     }
   } else {
-    context.drawImage(image, 0, 0, dimensions.width, dimensions.height)
+    context.drawImage(drawable, 0, 0, dimensions.width, dimensions.height)
   }
   context.restore()
 }
@@ -409,6 +471,8 @@ function drawNode(
           if (!a || !b || !c) continue
           if (texture && image) {
             const [wrapX, wrapY] = canvasMeshTextureWrap(texture)
+            const intensity = canvasMeshTextureIntensity(texture)
+            if (intensity === undefined) continue
             const textureA = triangleMeshTextureCoordinate(
               texture.coordinates[indices[offset] as number],
               wrapX,
@@ -433,6 +497,7 @@ function drawNode(
               texture.filter ?? 'linear',
               wrapX,
               wrapY,
+              intensity,
             )
           } else if (node.props.colors) {
             const colorA = triangleMeshColor(node.props.colors[indices[offset] as number])

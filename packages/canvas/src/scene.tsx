@@ -419,6 +419,8 @@ export interface CanvasMeshTexture {
   /** One top-left coordinate per vertex. One unit is one image tile. */
   coordinates: readonly CanvasPoint[]
   filter?: 'linear' | 'nearest'
+  /** Multiplies RGB after sampling while preserving alpha. Defaults to 1. */
+  intensity?: number
   /** Default wrapping for both axes. */
   wrap?: CanvasTextureWrap
   /** Horizontal override, matching texture S/U coordinates. */
@@ -487,6 +489,12 @@ export function canvasMeshTextureWrap(
   texture: CanvasMeshTexture,
 ): readonly [CanvasTextureWrap, CanvasTextureWrap] {
   return [texture.wrapX ?? texture.wrap ?? 'clamp', texture.wrapY ?? texture.wrap ?? 'clamp']
+}
+
+/** A finite RGB multiplier. Negative light is the same clamped black Three.js displays. */
+export function canvasMeshTextureIntensity(texture: CanvasMeshTexture): number | undefined {
+  const intensity = texture.intensity ?? 1
+  return Number.isFinite(intensity) ? Math.max(0, intensity) : undefined
 }
 
 /** The URI a browser can load, absent for a Native-only numeric asset ID. */

@@ -602,21 +602,34 @@ test('environment backgrounds are diagnosed while portable geometry remains visi
   assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
 })
 
-test('scene background modifiers remain diagnostic', () => {
-  for (const modifier of ['intensity', 'blur'] as const) {
-    const scene = new Scene()
-    const background = new Texture()
-    background.source.data = '/background.png'
-    background.colorSpace = THREE.SRGBColorSpace
-    scene.background = background
-    if (modifier === 'intensity') scene.backgroundIntensity = 0.5
-    else scene.backgroundBlurriness = 0.5
+test('scene background intensity modulates texture RGB', () => {
+  const scene = new Scene()
+  const background = new Texture()
+  background.source.data = '/background.png'
+  background.colorSpace = THREE.SRGBColorSpace
+  scene.background = background
+  scene.backgroundIntensity = 0.5
 
-    const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
-    assert.deepEqual(result.scene, [])
-    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
-  }
+  assert.deepEqual(result.diagnostics, [])
+  assert.equal(result.scene[0]?.kind, 'triangle-mesh')
+  if (result.scene[0]?.kind !== 'triangle-mesh') assert.fail('expected a textured mesh')
+  assert.equal(result.scene[0].props.texture?.intensity, 0.5)
+})
+
+test('scene background blur remains diagnostic', () => {
+  const scene = new Scene()
+  const background = new Texture()
+  background.source.data = '/background.png'
+  background.colorSpace = THREE.SRGBColorSpace
+  scene.background = background
+  scene.backgroundBlurriness = 0.5
+
+  const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
 })
 
 test('Scene.overrideMaterial preserves render-list visibility and allowOverride', () => {
