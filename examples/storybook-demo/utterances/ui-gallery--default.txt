@@ -61,3 +61,17 @@ heading, Gift wrapping, level 3
 button, Gift wrapping, 1 control, disabled, not expanded
 end of heading, Gift wrapping, level 3
 end of group, Questions
+heading, Tabs, a tooltip and a dialog, level 2
+paragraph
+The strip is one tab stop and the arrows move within it -- the opposite of the accordion above, and the difference is what the control is for. The chosen tab is styled from aria-selected, which is what a reader is told, and the disabled one from aria-disabled rather than the real attribute: a disabled button leaves the tab order, and a roving strip needs it to stay.
+end of paragraph
+tablist, Product, orientated horizontally
+tab, Details, selected, 1 control, position 1, set size 3
+tab, Shipping, not selected, 1 control, position 2, set size 3
+tab, Returns, not selected, 1 control, disabled, position 3, set size 3
+end of tablist, Product, orientated horizontally
+tabpanel, Details
+A universal UI compiler, written in Rust.
+end of tabpanel, Details
+button, Hover or focus me
+button, Delete the project

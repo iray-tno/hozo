@@ -102,6 +102,15 @@
   --color-hozo-on-accent: var(--color-white);
   --color-hozo-on-accent--dark: var(--color-slate-950);
 
+  /* What a modal dims the page with, used as `bg-hozo-scrim/50`.
+   *
+   * Dark in *both* schemes, which is the whole reason it is not
+   * `surface-inverse`: an inverse surface is white in the dark, so a scrim
+   * built from it would flash the page white behind a dialog instead of
+   * dimming it. A scrim is not a surface seen from the other side. */
+  --color-hozo-scrim: var(--color-slate-900);
+  --color-hozo-scrim--dark: var(--color-slate-950);
+
   /* The focus ring, named once so it cannot drift.
    *
    * It drifted already: the demo has `focus-visible:outline-indigo-600` on

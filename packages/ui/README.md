@@ -76,6 +76,9 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Checkbox`, `Switch` | `@hozo/patterns` wearing a box and a track |
 | `Slider` | a rail, a fill and a 24px thumb, either orientation |
 | `Accordion` | rows in a card, with a chevron drawn from the trigger's state |
+| `Tabs` | an underline that moves with `aria-selected`, either orientation |
+| `Dialog` | a panel and a `::backdrop` scrim, on a real `<dialog>` |
+| `Tooltip` | an inverse bubble, positioned by the pattern |
 | `Card`, `Stack` | a surface and a flex box |
 | `Badge`, `Alert` | a word with a colour, and a sentence with a role |
 
@@ -86,6 +89,8 @@ Four of those make a decision worth knowing about.
 `Alert` is silent by default. `live="polite"` makes it a `status` and `live="assertive"` makes it an `alert`; without either it is a box on the page. An alert rendered *with* the page announces on load, which is right for "your session expired" and wrong for a notice that is there every visit.
 
 `Checkbox` and `Switch` draw their box and track with `::before` and `::after`, reading `data-hozo-state` — so neither is ever told which state it is in. Passing the application's own state back in to draw it is the thing that attribute exists to prevent. `Accordion`'s chevron is the same arrangement: two borders rotated, turned by `data-[hozo-state=open]`, and invisible to a reader because a pseudo-element is not in the accessibility tree and `aria-expanded` already says it.
+
+`Dialog` adds no close button, and that is the rule working rather than an omission. A dismiss control needs a name, a place in the reading order, and a decision about whether focus reaches it first or last — all of which is `@hozo/patterns`' business. Put a `Button` in the children; Escape already works without one. The scrim is the element's own `::backdrop`, so there is no overlay div to reach and no z-index to lose an argument with.
 
 `Slider` is the one component here that takes no class list for its inner parts, and the reason is worth knowing: the pattern positions the thumb by writing `inset-inline-start: 40%` on it as an inline style, and an inline inset does nothing to an element that is not positioned. A caller who replaced the thumb's classes would not be restyling a slider but breaking one, silently — it still renders, takes focus and announces the right value, and sits at the start of the track forever. `className` reaches the track, which is where a width or a height belongs.
 
