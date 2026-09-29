@@ -1073,9 +1073,6 @@ function projectThreeSceneInternal(
   } else if (includeSceneState && isTextureBackground(scene.background)) {
     const background = scene.background
     let reason = textureReason(background)
-    if (!reason && scene.backgroundBlurriness !== 0) {
-      reason = 'blurred scene backgrounds need environment-map sampling'
-    }
     if (!reason && !Number.isFinite(scene.backgroundIntensity)) {
       reason = 'scene backgroundIntensity must be finite'
     }
