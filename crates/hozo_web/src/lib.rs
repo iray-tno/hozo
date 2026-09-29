@@ -329,9 +329,37 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
         // One rule per group: a `container` is a width plus a max-width at
         // each breakpoint, which cannot be one rule.
         let mut rules = String::new();
+        let shaded_theme = theme.dark();
         for (condition, properties) in &utility.groups {
-            rules.push_str(&css::render_rule(&selector, condition, properties, theme));
+            // The same pairing `render_node` does, on the other path a class
+            // can reach the output by. A utility in this sheet is written
+            // once and used by every element that names it, so a project
+            // whose tokens are paired and whose stylesheet is not would have
+            // dark mode on the elements the compiler lowered and not on the
+            // ones it emitted a class for -- which is the same class name
+            // behaving two ways in one page.
+            let palette = match (condition, &shaded_theme) {
+                (hozo_ir::Condition::Dark, Some(shaded)) => shaded,
+                _ => theme,
+            };
+            let light = css::render_rule(&selector, condition, properties, palette);
+            rules.push_str(&light);
             rules.push_str("\n\n");
+            if *condition == hozo_ir::Condition::Dark {
+                continue;
+            }
+            if let Some(dark) = &shaded_theme {
+                let shaded = css::render_rule(&selector, condition, properties, dark);
+                if shaded != light {
+                    rules.push_str(&css::render_rule(
+                        &selector,
+                        &hozo_ir::Condition::Dark,
+                        properties,
+                        dark,
+                    ));
+                    rules.push_str("\n\n");
+                }
+            }
         }
         // The whole candidate, not the one rule: a name is a utility or it
         // is not, and half of `accent-height` is not a style anyone wants.
@@ -632,7 +660,17 @@ fn render_node(
             });
             continue;
         }
-        let light = css::render_rule(&class_name, &condition, &props, theme);
+        // A rule that applies only in dark mode resolves its colours against
+        // the dark palette. That covers a `dark:` the author wrote as well as
+        // a copy made below, and the two have to agree: the same class
+        // meaning two colours depending on how it was produced would be worse
+        // than either answer on its own.
+        let shaded_theme = theme.dark();
+        let palette = match (&condition, &shaded_theme) {
+            (hozo_ir::Condition::Dark, Some(shaded)) => shaded,
+            _ => theme,
+        };
+        let light = css::render_rule(&class_name, &condition, &props, palette);
         rules.push_str(&light);
         rules.push_str("\n\n");
 
@@ -650,14 +688,14 @@ fn render_node(
         // is *only* for dark mode. Emitting a dark copy of it would be saying
         // the same thing twice, and the second one would win on a tie.
         if condition != hozo_ir::Condition::Dark {
-            if let Some(dark) = theme.dark() {
-                let shaded = css::render_rule(&class_name, &condition, &props, &dark);
+            if let Some(dark) = &shaded_theme {
+                let shaded = css::render_rule(&class_name, &condition, &props, dark);
                 if shaded != light {
                     rules.push_str(&css::render_rule(
                         &class_name,
                         &hozo_ir::Condition::Dark,
                         &props,
-                        &dark,
+                        dark,
                     ));
                     rules.push_str("\n\n");
                 }
@@ -1802,6 +1840,20 @@ export function Login() {
         // properties rendered again. Asserted so the cost is visible: a rule
         // built from one paired token carries whatever else was on it.
         assert_eq!(output.css.matches("padding-top: 16px").count(), 2, "{}", output.css);
+    }
+
+    #[test]
+    fn a_utility_in_the_candidate_sheet_is_paired_too() {
+        // The other path a class reaches the output by. A utility here is
+        // written once and used by every element that names it, so pairing
+        // one path and not the other would be the same class name behaving
+        // two ways in one page -- which is how this was caught: the demo's
+        // components had their dark rules and its stylesheet did not.
+        let names = vec!["bg-brand".to_string()];
+        let css = render_candidate_stylesheet(&names, &paired_theme());
+        assert!(css.contains("oklch(0.7 0.2 30)"), "{css}");
+        assert!(css.contains("@media (prefers-color-scheme: dark)"), "{css}");
+        assert!(css.contains("oklch(0.2 0.05 266)"), "{css}");
     }
 
     #[test]

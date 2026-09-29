@@ -108,7 +108,7 @@ fn quote(text: &str) -> String {
 /// border styles map to `borderStyle`), which would emit a duplicate object
 /// key. Keep the last, matching how JS itself would resolve it -- but
 /// written once.
-pub(super) fn style_pairs<'a>(props: &'a [StyleProperty], theme: &Theme) -> Vec<(&'a str, String)> {
+pub(crate) fn style_pairs<'a>(props: &'a [StyleProperty], theme: &Theme) -> Vec<(&'a str, String)> {
     let mut emitted: Vec<(&'a str, String)> = Vec::new();
     // Which axes a `-reverse` utility flipped, read across the whole set
     // because it is a second utility describing the first.
