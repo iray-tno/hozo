@@ -45,6 +45,9 @@ export function collectReport(logText, apkBytes, touchAttempts = 1) {
       entry.event === 'object_activated' &&
       entry.source === 'semantic-control',
   )
+  const navigationActivation = events.find(
+    (entry, index) => index > resumedFrameAt && entry.event === 'navigation_activated',
+  )
   const initialRenderer = events.find((entry) => entry.event === 'renderer_ready')
   const resumed = events[resumedAt]
   const resumedFrame = events[resumedFrameAt]
@@ -58,6 +61,9 @@ export function collectReport(logText, apkBytes, touchAttempts = 1) {
     throw new Error(
       'Native GPU probe did not activate the measured object through its semantic control',
     )
+  }
+  if (navigationActivation?.href !== '/cubes/measured' || navigationActivation.replace !== true) {
+    throw new Error('Native GPU probe did not route its public destination control')
   }
   if (
     sampled.objectId !== resumedFrame.objectId ||

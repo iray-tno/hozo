@@ -43,8 +43,21 @@ test('registered actions and destinations become native semantic controls', () =
     <ThreeCanvas
       accessibilityLabel="Product model"
       accessibleObjects={[
-        { id: 'inspect', label: 'Inspect product', object: objectRef, onPress: () => undefined },
-        { id: 'details', label: 'Product details', object, href: '/products/42', replace: true },
+        {
+          id: 'inspect',
+          label: 'Inspect product',
+          object: objectRef,
+          onPress: () => undefined,
+          testID: 'inspect-product',
+        },
+        {
+          id: 'details',
+          label: 'Product details',
+          object,
+          href: '/products/42',
+          replace: true,
+          testID: 'product-details',
+        },
         {
           id: 'hidden',
           label: 'Unavailable option',
@@ -57,10 +70,13 @@ test('registered actions and destinations become native semantic controls', () =
   )
 
   assert.match(html, /data-hozo-three-controls=""/)
-  assert.match(html, /<button type="button">Inspect product<\/button>/)
   assert.match(
     html,
-    /<a href="\/products\/42" data-hozo-navigation-replace="">Product details<\/a>/,
+    /<button data-testid="inspect-product" type="button">Inspect product<\/button>/,
+  )
+  assert.match(
+    html,
+    /<a data-testid="product-details" href="\/products\/42" data-hozo-navigation-replace="">Product details<\/a>/,
   )
   assert.doesNotMatch(html, /Unavailable option/)
 })

@@ -13,8 +13,9 @@ test('collects the required lifecycle and frame measurements', () => {
     '{ReactNativeJS} [hozo-three-native] {"event":"frame_after_resume","host":"expo-gl","elapsedMs":417,"objectId":"cube","contextId":7,"resumeEpoch":1}',
     '{ReactNativeJS} [hozo-three-native] {"event":"steady_sample","host":"expo-gl","frameCount":120,"medianFrameMs":16.6,"p95FrameMs":18,"objectId":"cube"}',
     '{ReactNativeJS} [hozo-three-native] {"event":"object_activated","host":"expo-gl","objectId":"cube","source":"canvas"}',
-    '{ReactNativeJS} [hozo-three-native] {"event":"renderer_unmounted","host":"expo-gl","elapsedMs":2110}',
     '{ReactNativeJS} [hozo-three-native] {"event":"object_activated","host":"expo-gl","objectId":"cube","source":"semantic-control"}',
+    '{ReactNativeJS} [hozo-three-native] {"event":"navigation_activated","host":"expo-gl","href":"/cubes/measured","replace":true}',
+    '{ReactNativeJS} [hozo-three-native] {"event":"renderer_unmounted","host":"expo-gl","elapsedMs":2110}',
   ].join('\n')
 
   const report = collectReport(log, 42, 2)
@@ -37,8 +38,9 @@ test('collects the required lifecycle and frame measurements', () => {
       'frame_after_resume',
       'steady_sample',
       'object_activated',
-      'renderer_unmounted',
       'object_activated',
+      'navigation_activated',
+      'renderer_unmounted',
     ],
   )
 })
@@ -71,6 +73,7 @@ test('rejects a semantic control wired to a different object', () => {
     { event: 'object_activated', host: 'expo-gl', objectId: 'mesh-a', source: 'canvas' },
     { event: 'renderer_unmounted', host: 'expo-gl' },
     { event: 'object_activated', host: 'expo-gl', objectId: 'mesh-b', source: 'semantic-control' },
+    { event: 'navigation_activated', host: 'expo-gl', href: '/cubes/measured', replace: true },
   ]
   const log = events.map((event) => `[hozo-three-native] ${JSON.stringify(event)}`).join('\n')
 
@@ -91,6 +94,23 @@ test('rejects a frame sample with no device touch raycast', () => {
   const log = events.map((event) => `[hozo-three-native] ${JSON.stringify(event)}`).join('\n')
 
   assert.throws(() => collectReport(log, 1), /device touch/)
+})
+
+test('rejects a destination control that bypassed the navigation adapter', () => {
+  const events = [
+    { event: 'renderer_ready', host: 'expo-gl' },
+    { event: 'first_frame', host: 'expo-gl' },
+    { event: 'app_backgrounded', host: 'expo-gl' },
+    { event: 'app_resumed', host: 'expo-gl' },
+    { event: 'frame_after_resume', host: 'expo-gl', objectId: 'mesh-a' },
+    { event: 'steady_sample', host: 'expo-gl', objectId: 'mesh-a' },
+    { event: 'object_activated', host: 'expo-gl', objectId: 'mesh-a', source: 'canvas' },
+    { event: 'object_activated', host: 'expo-gl', objectId: 'mesh-a', source: 'semantic-control' },
+    { event: 'renderer_unmounted', host: 'expo-gl' },
+  ]
+  const log = events.map((event) => `[hozo-three-native] ${JSON.stringify(event)}`).join('\n')
+
+  assert.throws(() => collectReport(log, 1), /destination control/)
 })
 
 test('rejects a sample that never rendered after returning active', () => {
