@@ -35,3 +35,29 @@ alert
 Your session expires in two minutes.
 end of alert
 A notice that is simply on the page, and is not announced for being here.
+heading, A slider and an accordion, level 2
+paragraph
+The thumb is 24 by 24, which WCAG 2.5.8 asks for and a slider is the control that most invites a 12px dot; the rail is 6px and drawn behind it, so the part a finger has to hit is the whole row. Drag it, and then move it with an arrow key -- it announces "40 percent" rather than "40", because the number is not the answer to how loud.
+end of paragraph
+slider, Volume, orientated horizontally, max value 100, min value 0, current value 40 percent
+paragraph
+Volume:
+40
+end of paragraph
+paragraph
+Every header below is its own tab stop, which is the opposite of the Tabs story and is what the Authoring Practices ask for. The chevron is two borders rotated, reading data-hozo-state off the trigger, so it is never told which way to point -- and being a pseudo-element it is not in the accessibility tree, where aria-expanded already says it.
+end of paragraph
+group, Questions
+heading, When does it arrive?, level 3
+button, When does it arrive?, 1 control, expanded
+end of heading, When does it arrive?, level 3
+region, When does it arrive?
+Two days, or four to an island.
+end of region, When does it arrive?
+heading, Can I send it back?, level 3
+button, Can I send it back?, 1 control, not expanded
+end of heading, Can I send it back?, level 3
+heading, Gift wrapping, level 3
+button, Gift wrapping, 1 control, disabled, not expanded
+end of heading, Gift wrapping, level 3
+end of group, Questions

@@ -16,20 +16,48 @@
 import { View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
-import { Alert, Badge, Button, Card, Checkbox, Field, Input, Stack, Switch } from '@hozo/ui'
+import {
+  Accordion,
+  type AccordionItem,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Field,
+  Input,
+  Slider,
+  Stack,
+  Switch,
+} from '@hozo/ui'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
-const page = 'max-w-xl w-full space-y-6'
-const title = 'text-xl font-bold text-slate-900'
-const prose = 'text-sm text-slate-600'
+// Tokens rather than `text-slate-900`, unlike every other story here, and for
+// a reason the a11y check found rather than a preference: these tokens carry a
+// dark value and `slate-600` does not, so a paragraph written the other way sat
+// at slate-600 on a slate-900 card the moment the browser was in dark mode --
+// 2.4:1, and a serious violation. A page that mixes paired surfaces with
+// unpaired text is unreadable in exactly one of the two schemes.
+const page = 'max-w-xl w-full space-y-6 bg-hozo-surface p-6'
+const title = 'text-xl font-bold text-hozo-text'
+const prose = 'text-sm text-hozo-text-muted'
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner'] as const
+
+// Keyed rather than positional, which is what `id` is for: a section addressed
+// by its place moves the open panel the day somebody reorders the list.
+const QUESTIONS: AccordionItem[] = [
+  { id: 'shipping', header: 'When does it arrive?', content: 'Two days, or four to an island.' },
+  { id: 'returns', header: 'Can I send it back?', content: 'Within thirty days, unopened.' },
+  { id: 'wrap', header: 'Gift wrapping', content: 'Not yet.', disabled: true },
+]
 
 function UiGallery() {
   const [email, setEmail] = useState('not-an-email')
   const [meals, setMeals] = useState<readonly string[]>(['Lunch'])
   const [emails, setEmails] = useState(true)
+  const [volume, setVolume] = useState(40)
   const wrong = !email.includes('@')
 
   return (
@@ -141,6 +169,35 @@ function UiGallery() {
           Your session expires in two minutes.
         </Alert>
         <Alert>A notice that is simply on the page, and is not announced for being here.</Alert>
+      </Section>
+      <Section>
+        <Heading level={2} className={title}>
+          A slider and an accordion
+        </Heading>
+        <Paragraph className={prose}>
+          The thumb is 24 by 24, which WCAG 2.5.8 asks for and a slider is the control that most
+          invites a 12px dot; the rail is 6px and drawn behind it, so the part a finger has to hit
+          is the whole row. Drag it, and then move it with an arrow key -- it announces "40 percent"
+          rather than "40", because the number is not the answer to how loud.
+        </Paragraph>
+        <Card flat>
+          <Stack gap="normal">
+            <Slider
+              accessibilityLabel="Volume"
+              value={volume}
+              onValueChange={setVolume}
+              valueText={(level) => `${level} percent`}
+            />
+            <Paragraph className={prose}>Volume: {volume}</Paragraph>
+          </Stack>
+        </Card>
+        <Paragraph className={prose}>
+          Every header below is its own tab stop, which is the opposite of the Tabs story and is
+          what the Authoring Practices ask for. The chevron is two borders rotated, reading
+          data-hozo-state off the trigger, so it is never told which way to point -- and being a
+          pseudo-element it is not in the accessibility tree, where aria-expanded already says it.
+        </Paragraph>
+        <Accordion items={QUESTIONS} accessibilityLabel="Questions" defaultExpanded="shipping" />
       </Section>
     </View>
   )

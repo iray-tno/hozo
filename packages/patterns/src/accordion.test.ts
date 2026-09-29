@@ -77,6 +77,10 @@ test('a disabled section says so to the platform, not only to a reader', () => {
   const html = render()
   assert.equal(count(html, ' disabled=""'), 1)
   assert.doesNotMatch(html, /aria-disabled/)
+  // And to a stylesheet, which is a third audience: Hozo's `disabled:`
+  // variant compiles to `[data-hozo-disabled]`, so without this a styled
+  // accordion's disabled row looks exactly like an enabled one.
+  assert.equal(count(html, 'data-hozo-disabled=""'), 1)
 })
 
 test('sections are keyed by id, so reordering does not move the open panel', () => {

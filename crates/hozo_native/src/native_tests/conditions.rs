@@ -1268,6 +1268,31 @@ fn a_rule_that_only_applies_in_the_dark_resolves_against_the_dark_palette() {
 }
 
 #[test]
+fn the_dark_copy_of_a_conditional_rule_is_still_conditional() {
+    // Both halves of the guard, and this side had them right while the Web
+    // replaced the condition instead of extending it. `mentions_dark` and
+    // `and_dark` now live in `hozo_ir` so the two cannot say it differently
+    // again; this is the Native half of that agreement.
+    // On a `Button` with a real `disabled` prop, so the guard has something to
+    // merge with and the JSX shows both halves of it. A bare View would put
+    // the entry in the sheet and reference it from nowhere, which is a
+    // different test.
+    let source = "import { Button } from '@hozo/core'\nconst el = <Button disabled={busy} className=\"disabled:bg-surface\">Save</Button>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &paired_theme());
+
+    assert!(output.styles.contains("hozo0_disabled_dark: {"), "{}", output.styles);
+    assert!(output.styles.contains("backgroundColor: '#0f172b',"), "{}", output.styles);
+    // Disabled *and* dark, not either one on its own: the entry is reached
+    // only when the control is disabled, and then only in the dark.
+    assert!(
+        output.jsx.contains("(busy) && __hozoDark && hozoStyles.hozo0_disabled_dark"),
+        "{}",
+        output.jsx
+    );
+}
+
+#[test]
 fn an_unpaired_token_costs_nothing() {
     // What keeps this from putting a guard on every element in an
     // application. A project with no pairs renders what it always did.

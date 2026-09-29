@@ -178,6 +178,13 @@ export function HozoAccordion(props: HozoAccordionProps) {
                 aria-expanded={expanded}
                 aria-controls={`${base}-panel-${at}`}
                 disabled={item.disabled}
+                // The styling hook that goes with the attribute, because
+                // Hozo's `disabled:` variant compiles to `[data-hozo-disabled]`
+                // rather than to `:disabled` -- one selector for a `<button
+                // disabled>`, a `Pressable` and a dimmed region alike. Without
+                // it a `disabled:` class on this trigger is CSS that can never
+                // match, which is the exact cost decision 001 records.
+                data-hozo-disabled={item.disabled ? '' : undefined}
                 className={triggerClassName}
                 data-hozo-state={expanded ? 'open' : 'closed'}
                 onClick={() => toggle(at)}
