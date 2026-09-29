@@ -139,6 +139,80 @@ pub(super) fn unwired_variant(node: &Node, message: &str, severity: Severity) ->
 /// itself. Until 2026-08-15 they were computed into the StyleSheet and then
 /// dropped in silence -- all eight variant-prefixed utilities in the
 /// conformance suite, scored as covered because the entry existed.
+/// The declarations again, with a dark copy of every one a paired token
+/// changes.
+///
+/// The Web half of this renders each rule twice and keeps the second when it
+/// differs (see `render_node`). That shape does not fit here: a rule on this
+/// platform is an entry in a `StyleSheet` plus a guarded reference to it in a
+/// style array, and the guard is built by a five-hundred-line match over the
+/// condition. Rendering twice would mean running that match twice with
+/// different names.
+///
+/// So the dark copy is made a *condition group* instead, before the match
+/// runs, and the match handles it the way it already handles `dark:bg-red-500`
+/// written by hand -- including registering `RuntimeHook::Dark`, which is what
+/// binds `__hozoDark`. A group that guarded on a binding nothing declares
+/// would be the free identifier #653 cost a day to.
+///
+/// Each copy is inserted **immediately after its own declaration**, not
+/// appended, and that is the whole of the ordering argument.
+/// `group_by_condition` keeps conditions in first-appearance order, and a
+/// React Native style array resolves last-wins, so position here is
+/// specificity. Inserted in place, a dark copy of an unconditional rule sorts
+/// among the conditionals *before* `disabled:` -- which is what the Web does,
+/// where `.a:disabled` at (0,2,0) beats `@media dark { .a }` at (0,1,0)
+/// whatever order they are written in. Appended at the end it would beat
+/// `disabled:`, and a disabled control would take its enabled colour after
+/// dark.
+///
+/// `None` when the theme has no pairs, which is every project that has not
+/// written one: no clone, no second pass, no extra entry.
+fn with_dark_copies(
+    declarations: &[StyleDeclaration],
+    theme: &Theme,
+) -> Option<Vec<StyleDeclaration>> {
+    let dark = theme.dark()?;
+    let mut out: Vec<StyleDeclaration> = Vec::with_capacity(declarations.len());
+    let mut copied = false;
+    for declaration in declarations {
+        out.push(declaration.clone());
+        // A rule the author already marked `dark:` is only for dark mode; a
+        // copy of it would say the same thing twice and win on a tie.
+        if condition_mentions_dark(&declaration.condition) {
+            continue;
+        }
+        let property = std::slice::from_ref(&declaration.property);
+        if crate::candidate::style_pairs(property, theme)
+            == crate::candidate::style_pairs(property, &dark)
+        {
+            continue;
+        }
+        out.push(StyleDeclaration {
+            property: declaration.property.clone(),
+            condition: match &declaration.condition {
+                Condition::Always => Condition::Dark,
+                other => Condition::All(vec![other.clone(), Condition::Dark]),
+            },
+        });
+        copied = true;
+    }
+    if copied {
+        Some(out)
+    } else {
+        None
+    }
+}
+
+/// Whether a condition already asks about the colour scheme, at any depth.
+fn condition_mentions_dark(condition: &Condition) -> bool {
+    match condition {
+        Condition::Dark => true,
+        Condition::All(atoms) => atoms.iter().any(condition_mentions_dark),
+        _ => false,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build_style_entries(
     declarations: &[StyleDeclaration],
@@ -146,13 +220,21 @@ pub(super) fn build_style_entries(
     source: &str,
     node: &Node,
     position: SiblingPosition,
-    style_entries: &mut Vec<(String, Vec<StyleProperty>)>,
+    style_entries: &mut Vec<StyleEntry>,
     style_array_parts: &mut Vec<String>,
     pressed_parts: &mut Vec<String>,
     diagnostics: &mut Vec<Diagnostic>,
     runtime: &mut RuntimeNeeds,
     interaction_context: bool,
+    theme: &Theme,
 ) {
+    // Before anything reads them: a paired token becomes a second
+    // declaration, so everything below treats it as an ordinary condition.
+    let with_dark = with_dark_copies(declarations, theme);
+    let declarations: &[StyleDeclaration] = match &with_dark {
+        Some(expanded) => expanded,
+        None => declarations,
+    };
     // A conditional style must land after every unconditional one,
     // whatever order they were written in. On Web the cascade settles this
     // by specificity -- `.hozo-0:disabled` (0,2,0) beats `.hozo-0`
@@ -167,6 +249,8 @@ pub(super) fn build_style_entries(
     let mut conditional_parts: Vec<String> = Vec::new();
 
     for (condition, props) in hozo_ir::group_by_condition(declarations) {
+        // Read before the match below moves parts of `condition` out.
+        let is_dark_only = condition_mentions_dark(&condition);
         let props = hozo_ir::dedupe_last_wins(props);
         if props.is_empty() {
             continue;
@@ -851,7 +935,11 @@ pub(super) fn build_style_entries(
         // that gets computed and dropped. That is exactly how the eight
         // variants this function now reports went unnoticed.
         if !props.is_empty() {
-            style_entries.push((name, props));
+            // A rule that applies only in dark mode resolves its colours
+            // against the dark palette -- whether it got here from a paired
+            // token or from a `dark:` somebody wrote. Those two producing
+            // different colours for the same class would be the worse bug.
+            style_entries.push((name, props, is_dark_only));
         }
     }
 

@@ -1194,3 +1194,85 @@ fn contrast_less_stays_web_only_because_no_platform_has_it() {
         "contrast-less: should still say so"
     );
 }
+
+/// One token with both halves, for the four tests below.
+fn paired_theme() -> Theme {
+    Theme::with_dark(
+        std::collections::HashMap::from([(
+            "surface".to_string(),
+            hozo_ir::ThemeColor { oklch: "oklch(100% 0 0)".into(), hex: "#ffffff".into() },
+        )]),
+        std::collections::HashMap::from([(
+            "surface".to_string(),
+            hozo_ir::ThemeColor { oklch: "oklch(20% 0.04 266)".into(), hex: "#0f172b".into() },
+        )]),
+        None,
+        false,
+    )
+}
+
+fn lower_with_paired(class_name: &str) -> LowerOutput {
+    let source =
+        format!("import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\">x</View>");
+    let parsed = hozo_parser::parse_tsx(&source);
+    lower(&parsed.roots[0].node, &source, &paired_theme())
+}
+
+#[test]
+fn a_paired_token_gets_a_second_sheet_behind_the_dark_guard() {
+    // What the Web half does with a media query, in the shape this platform
+    // has: a second `StyleSheet` entry and a boolean. The author wrote no
+    // `dark:` anywhere.
+    let output = lower_with_paired("bg-surface p-4");
+
+    assert!(output.styles.contains("hozo0: {"), "{}", output.styles);
+    assert!(output.styles.contains("backgroundColor: '#ffffff',"), "{}", output.styles);
+    assert!(output.styles.contains("hozo0_dark: {"), "{}", output.styles);
+    assert!(output.styles.contains("backgroundColor: '#0f172b',"), "{}", output.styles);
+    assert!(
+        output.jsx.contains("[hozoStyles.hozo0, __hozoDark && hozoStyles.hozo0_dark]"),
+        "{}",
+        output.jsx
+    );
+    // The trap: a guard on a binding nothing declares renders nothing and
+    // reports nothing. The hook has to be asked for, not assumed.
+    assert!(output.prelude.iter().any(|line| line.contains("useHozoDark")), "{:?}", output.prelude);
+    assert!(output.runtime_imports.contains(&"useHozoDark"));
+}
+
+#[test]
+fn the_dark_copy_sorts_before_a_variant_that_would_outrank_it_on_web() {
+    // A React Native style array is last-wins, so position stands in for
+    // specificity -- and on Web `.a:disabled` at (0,2,0) beats
+    // `@media dark { .a }` at (0,1,0) whatever order they are written in. So
+    // the dark copy of an unconditional rule has to land *before* the
+    // disabled entry, or a disabled control takes its enabled colour as soon
+    // as the phone goes dark.
+    let output = lower_with_paired("bg-surface disabled:p-8");
+    let dark_at = output.styles.find("hozo0_dark: {").expect("a dark entry");
+    let disabled_at = output.styles.find("hozo0_disabled: {").expect("a disabled entry");
+    assert!(dark_at < disabled_at, "{}", output.styles);
+}
+
+#[test]
+fn a_rule_that_only_applies_in_the_dark_resolves_against_the_dark_palette() {
+    // A `dark:` somebody wrote and a copy made from a pair have to mean the
+    // same thing. The Web half says this in the same words; the two agreeing
+    // is the point, because one class meaning two colours depending on how it
+    // was produced is worse than either answer.
+    let output = lower_with_paired("dark:bg-surface");
+    assert!(output.styles.contains("backgroundColor: '#0f172b',"), "{}", output.styles);
+    assert!(!output.styles.contains("#ffffff"), "{}", output.styles);
+    // And it is not doubled: the rule is already dark-only.
+    assert_eq!(output.styles.matches("backgroundColor").count(), 1, "{}", output.styles);
+}
+
+#[test]
+fn an_unpaired_token_costs_nothing() {
+    // What keeps this from putting a guard on every element in an
+    // application. A project with no pairs renders what it always did.
+    let output = lower_with_paired("bg-red-500");
+    assert!(!output.styles.contains("_dark"), "{}", output.styles);
+    assert!(!output.jsx.contains("__hozoDark"), "{}", output.jsx);
+    assert!(output.prelude.is_empty(), "{:?}", output.prelude);
+}

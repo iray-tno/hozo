@@ -30,21 +30,48 @@
  * rule and not a preference -- `tokens.test.ts` enforces it -- because one
  * `bg-slate-100` in one component is a theme that is 95% swappable, which is
  * the same as not swappable.
+ *
+ * ## Dark mode is here and no component mentions it
+ *
+ * Each colour has a `--dark` twin, and that is the whole of it: `bg-hozo-surface`
+ * emits its light rule and a `prefers-color-scheme: dark` one on the Web, and
+ * a second `StyleSheet` entry behind `__hozoDark` on React Native. Not one
+ * class list in this package says `dark:`.
+ *
+ * Which is what Tailwind and StyleX both do -- a token holds both values and
+ * the component holds neither -- and it took two compiler changes to be able
+ * to, because Hozo resolves a token into the rule where Tailwind emits
+ * `var()`. Redefining a variable nothing reads does nothing.
+ *
+ * The dark values are not the light ones inverted. A surface goes to
+ * `slate-900` and not to `slate-50`'s opposite, the accent goes *up* the
+ * scale to `indigo-400` because a 600 on a dark surface is too dim to read,
+ * and `on-accent` flips from white to `slate-950` for the same reason. Every
+ * pair still clears 4.5:1 on the surface it sits on, which is the rule the
+ * light half already followed.
  */
 
 @theme {
   /* Surfaces, from the page up. `raised` is a control's resting fill --
    * `bg-slate-100` in the demo's fields and chips. */
   --color-hozo-surface: var(--color-white);
+  --color-hozo-surface--dark: var(--color-slate-900);
   --color-hozo-surface-sunken: var(--color-slate-50);
+  --color-hozo-surface-sunken--dark: var(--color-slate-950);
   --color-hozo-surface-raised: var(--color-slate-100);
+  --color-hozo-surface-raised--dark: var(--color-slate-800);
   --color-hozo-surface-hover: var(--color-slate-50);
+  --color-hozo-surface-hover--dark: var(--color-slate-800);
   --color-hozo-surface-inverse: var(--color-slate-900);
+  --color-hozo-surface-inverse--dark: var(--color-white);
 
   /* Borders: the hairline between rows, a card's edge, an input's. */
   --color-hozo-border-subtle: var(--color-slate-100);
+  --color-hozo-border-subtle--dark: var(--color-slate-800);
   --color-hozo-border: var(--color-slate-200);
+  --color-hozo-border--dark: var(--color-slate-700);
   --color-hozo-border-strong: var(--color-slate-300);
+  --color-hozo-border-strong--dark: var(--color-slate-600);
 
   /* Text. Every one of these clears 4.5:1 on `surface`, which is not an
    * accident: `check-a11y.mjs` runs axe with no rule filtering, and three of
@@ -52,18 +79,28 @@
    * `subtle` is slate-500 and not the slate-300 a disabled label wants to be,
    * for that reason and no other. */
   --color-hozo-text: var(--color-slate-900);
+  --color-hozo-text--dark: var(--color-slate-50);
   --color-hozo-text-body: var(--color-slate-700);
+  --color-hozo-text-body--dark: var(--color-slate-200);
   --color-hozo-text-muted: var(--color-slate-600);
+  --color-hozo-text-muted--dark: var(--color-slate-300);
   --color-hozo-text-subtle: var(--color-slate-500);
+  --color-hozo-text-subtle--dark: var(--color-slate-400);
   --color-hozo-text-inverse: var(--color-white);
+  --color-hozo-text-inverse--dark: var(--color-slate-900);
 
   /* The accent, and what goes on top of it. `on-accent` exists so that no
    * component has to know the accent happens to be dark. */
   --color-hozo-accent: var(--color-indigo-600);
+  --color-hozo-accent--dark: var(--color-indigo-400);
   --color-hozo-accent-hover: var(--color-indigo-700);
+  --color-hozo-accent-hover--dark: var(--color-indigo-300);
   --color-hozo-accent-subtle: var(--color-indigo-50);
+  --color-hozo-accent-subtle--dark: var(--color-indigo-950);
   --color-hozo-accent-text: var(--color-indigo-700);
+  --color-hozo-accent-text--dark: var(--color-indigo-300);
   --color-hozo-on-accent: var(--color-white);
+  --color-hozo-on-accent--dark: var(--color-slate-950);
 
   /* The focus ring, named once so it cannot drift.
    *
@@ -73,14 +110,19 @@
    * construction -- the ring is part of the only class list an interactive
    * component can have, which `tokens.test.ts` checks per class list. */
   --color-hozo-focus: var(--color-indigo-600);
+  --color-hozo-focus--dark: var(--color-indigo-400);
 
   /* Destructive actions and error text. The one family not counted from the
    * demo, which barely has one, so these were chosen -- and chosen to clear
    * 4.5:1 on `surface` like the rest. */
   --color-hozo-danger: var(--color-red-600);
+  --color-hozo-danger--dark: var(--color-red-400);
   --color-hozo-danger-text: var(--color-red-700);
+  --color-hozo-danger-text--dark: var(--color-red-300);
   --color-hozo-danger-subtle: var(--color-red-50);
+  --color-hozo-danger-subtle--dark: var(--color-red-950);
   --color-hozo-on-danger: var(--color-white);
+  --color-hozo-on-danger--dark: var(--color-slate-950);
 
   /* Radii: a control, a surface, a page-level card. */
   --radius-hozo-control: var(--radius-lg);

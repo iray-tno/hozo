@@ -62,6 +62,20 @@ mod transition;
 
 use candidate::style_pairs;
 use conditions::{build_style_entries, unwired_variant, RuntimeHook};
+
+/// One entry in the generated `StyleSheet`, and which palette to render it
+/// against.
+///
+/// The third field is `true` only for the dark copy of a paired token. A
+/// copy holds the *same* properties as its original -- that is the whole
+/// trick, and it is why the difference cannot be in the properties: what
+/// changes is which value a colour token resolves to, and that is a question
+/// for the theme rather than for the property.
+///
+/// Rendering every entry against one theme is what this replaces, and it
+/// produced a `hozo0_dark` holding the light colour: structurally correct,
+/// guarded correctly, and the same colour twice.
+type StyleEntry = (String, Vec<StyleProperty>, bool);
 use grid::{grid_absorbs, native_grid, native_grid_item};
 use render::render_node;
 use transition::{ambient_transition, native_driver_transition};
@@ -169,7 +183,9 @@ const STYLE_OBJECT: &str = "hozoStyles";
 
 pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     let mut allocator = NameAllocator { next: 0 };
-    let mut style_entries: Vec<(String, Vec<StyleProperty>)> = Vec::new();
+    let mut style_entries: Vec<StyleEntry> = Vec::new();
+    // See `StyleEntry`: the third field says which palette the entry is
+    // rendered against, and nothing but a dark copy sets it.
     let mut diagnostics = Vec::new();
     let mut runtime = RuntimeNeeds::default();
 
@@ -214,9 +230,20 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     }
 
     let mut styles = String::from("{\n");
-    for (name, props) in &style_entries {
+    // Computed once rather than per entry: it clones the palette, and a tree
+    // of forty nodes would clone it forty times for an answer that cannot
+    // change.
+    let shaded = theme.dark();
+    for (name, props, dark) in &style_entries {
+        // An entry that only applies in dark mode resolves its colours
+        // against the dark palette. The Web half says the same thing in the
+        // same words; the two agreeing is the point.
+        let palette = match (dark, &shaded) {
+            (true, Some(shaded)) => shaded,
+            _ => theme,
+        };
         styles.push_str(&format!("  {name}: {{\n"));
-        for (key, value) in style_pairs(props, theme) {
+        for (key, value) in style_pairs(props, palette) {
             styles.push_str(&format!("    {key}: {value},\n"));
         }
         styles.push_str("  },\n");
@@ -469,9 +496,10 @@ fn spaced_children(
     source: &str,
     node: &Node,
     position: SiblingPosition,
-    style_entries: &mut Vec<(String, Vec<StyleProperty>)>,
+    style_entries: &mut Vec<StyleEntry>,
     diagnostics: &mut Vec<Diagnostic>,
     runtime: &mut RuntimeNeeds,
+    theme: &Theme,
 ) -> String {
     if child_declarations.is_empty() {
         return inner;
@@ -494,6 +522,7 @@ fn spaced_children(
         diagnostics,
         runtime,
         false,
+        theme,
     );
     if !pressed_parts.is_empty() {
         diagnostics.push(unwired_variant(
@@ -536,7 +565,7 @@ fn render_verbatim(
     inherited: &[StyleDeclaration],
     source: &str,
     allocator: &mut NameAllocator,
-    style_entries: &mut Vec<(String, Vec<StyleProperty>)>,
+    style_entries: &mut Vec<StyleEntry>,
     diagnostics: &mut Vec<Diagnostic>,
     runtime: &mut RuntimeNeeds,
     interaction_context: bool,

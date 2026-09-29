@@ -104,7 +104,7 @@ pub(super) fn render_node(
     from_ancestor: FromAncestor,
     source: &str,
     allocator: &mut NameAllocator,
-    style_entries: &mut Vec<(String, Vec<StyleProperty>)>,
+    style_entries: &mut Vec<StyleEntry>,
     diagnostics: &mut Vec<Diagnostic>,
     runtime: &mut RuntimeNeeds,
 ) -> String {
@@ -735,6 +735,7 @@ pub(super) fn render_node(
         diagnostics,
         runtime,
         interaction_context && component == "Text",
+        theme,
     );
 
     // After the compiled styles, so it wins the same way it would in the
@@ -1358,6 +1359,7 @@ pub(super) fn render_node(
                         diagnostics,
                         runtime,
                         interaction_context || rendered_component == "HozoPressable",
+                        theme,
                     )
                 } else {
                     escaped
@@ -1409,6 +1411,7 @@ pub(super) fn render_node(
             style_entries,
             diagnostics,
             runtime,
+            theme,
         )
     };
 

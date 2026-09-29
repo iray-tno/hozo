@@ -85,6 +85,25 @@ Two of those make a decision worth knowing about.
 
 `Checkbox` and `Switch` draw their box and track with `::before` and `::after`, reading `data-hozo-state` — so neither is ever told which state it is in. Passing the application's own state back in to draw it is the thing that attribute exists to prevent.
 
+## Dark mode, which no component mentions
+
+Every colour token has a `--dark` twin in `theme.css`, and that is the whole of it. `bg-hozo-surface` emits its light rule and a `prefers-color-scheme: dark` one on the Web, and a second `StyleSheet` entry behind `__hozoDark` on React Native. **Not one class list in this package says `dark:`.**
+
+Which is what Tailwind and StyleX both do — a token holds both values and the component holds neither. It took two compiler changes to be able to, because Hozo resolves a token into the rule where Tailwind emits `var()`, and redefining a variable nothing reads does nothing.
+
+Re-theming still means redefining one line, and now there are two of them:
+
+```css
+@theme {
+  --color-hozo-accent: var(--color-emerald-600);
+  --color-hozo-accent--dark: var(--color-emerald-400);
+}
+```
+
+The dark values are not the light ones inverted. The accent goes *up* the scale — `indigo-600` to `indigo-400` — because a 600 on a dark surface is too dim to read, and `on-accent` flips from white to `slate-950` for the same reason. Every pair clears 4.5:1 on the surface it sits on, which is the rule the light half already followed.
+
+One limitation, inherited rather than introduced: a class resolved at *runtime* on React Native carries no conditions at all — that path has never supported `dark:` either — so a paired token reaches it as its light value. A statically written `className`, which is every component here, is unaffected.
+
 ## Status
 
 Early. The rest is tracked in [#638](https://github.com/iray-tno/hozo/issues/638), which also carries the open questions — dark mode strategy, and where `examples/storybook-demo` ends and this package begins.

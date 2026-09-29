@@ -152,10 +152,11 @@ pub(super) fn wrap_in_text(
     // asks about it. (The wrapper is trivially its parent's only child,
     // which is not the question.)
     position: SiblingPosition,
-    style_entries: &mut Vec<(String, Vec<StyleProperty>)>,
+    style_entries: &mut Vec<StyleEntry>,
     diagnostics: &mut Vec<Diagnostic>,
     runtime: &mut RuntimeNeeds,
     interaction_context: bool,
+    theme: &Theme,
 ) -> String {
     // A `Text` that no `Primitive::Text` asked for: the author wrote a bare
     // string inside a View, and React Native crashes on one. Synthesized
@@ -182,6 +183,7 @@ pub(super) fn wrap_in_text(
         diagnostics,
         runtime,
         interaction_context,
+        theme,
     );
 
     if interaction_context && !pressed_parts.is_empty() {
