@@ -1907,7 +1907,7 @@ export function Login() {
         // The same class, on the path a scanned name takes -- which is the
         // path `@hozo/ui` reaches a consumer's output by, so this is the half
         // that was visible in the demo's build.
-        let css = render_candidate_stylesheet(&vec!["hover:bg-brand".to_string()], &paired_theme());
+        let css = render_candidate_stylesheet(&["hover:bg-brand".to_string()], &paired_theme());
         let dark = css.split("@media (prefers-color-scheme: dark)").nth(1).unwrap_or_default();
         assert!(dark.contains(":hover"), "the dark copy dropped the condition: {css}");
     }
