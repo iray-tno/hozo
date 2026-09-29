@@ -76,6 +76,23 @@ fn is_bracket_byte(b: u8) -> bool {
 
 /// Resolves one class name, or `None` if it isn't a utility Hozo knows.
 pub fn resolve_class_name(class_name: &str) -> Option<ScannedUtility> {
+    // A template literal's hole is not a class. `console.warn(
+    // `[hozo:${code}] ${message}`)` in `@hozo/rn-compat` reads as the
+    // arbitrary property `[hozo:${code}]` once the scan keeps a `$` and a
+    // brace (#676), and it emits `hozo: ${code}` -- which is not CSS, and
+    // lightningcss refuses the whole stylesheet rather than that one rule.
+    //
+    // Caught in CI and not locally, because a warm `candidates.json` had the
+    // old, split tokens: the cache is keyed by mtime, and nothing in
+    // `rn-compat` had changed.
+    //
+    // Narrow on purpose. `$` stays a legal byte -- `[&[href$='.pdf']]:` is a
+    // real Tailwind variant -- and an arbitrary property whose value happens
+    // to parse as CSS is still admitted, as it was before this. What is
+    // refused is the one marker that says "this text is not finished yet".
+    if class_name.contains("${") {
+        return None;
+    }
     // Source scans also see CSS declarations such as `border-bottom:12px`,
     // which is not a Tailwind utility however much it looks like one.
     if tailwind::has_unstripped_variant(class_name) {
@@ -248,6 +265,19 @@ mod tests {
         // say so.
         let found = scan_class_candidates("const c = 'aria-[sort=ascending]:underline'");
         assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn a_template_literals_hole_is_not_a_class() {
+        // Verbatim from `@hozo/rn-compat`, which is where this broke a CI
+        // build the greedier scan had just made possible: `[hozo:${code}]`
+        // reads as an arbitrary property and emits `hozo: ${code}`, which is
+        // not CSS, and lightningcss refuses the sheet rather than the rule.
+        let source = r#"
+            console.warn(`[hozo:${code}] ${message}`)
+            const c = 'p-4'
+        "#;
+        assert_eq!(scan_class_candidates(source), vec!["p-4"]);
     }
 
     #[test]
