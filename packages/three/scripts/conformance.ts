@@ -507,7 +507,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'scene',
     'Scene.background',
     'partial',
-    'Solid colours and constrained 2D colour textures, including background intensity, become non-interactive viewport decoration; environment sampling and blur are diagnosed.',
+    'Solid colours and constrained 2D colour textures, including background intensity and the upstream 2D blur no-op, become non-interactive viewport decoration; environment sampling is diagnosed.',
     {
       tests: [
         project('solid scene backgrounds become non-interactive Canvas rectangles'),
@@ -515,7 +515,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
         canvas('ThreeCanvas paints scene backgrounds without creating an object control'),
         project('environment backgrounds are diagnosed while portable geometry remains visible'),
         project('scene background intensity modulates texture RGB'),
-        project('scene background blur remains diagnostic'),
+        project('scene background blurriness is a no-op for 2D textures'),
       ],
     },
   ),

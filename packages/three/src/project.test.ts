@@ -618,7 +618,7 @@ test('scene background intensity modulates texture RGB', () => {
   assert.equal(result.scene[0].props.texture?.intensity, 0.5)
 })
 
-test('scene background blur remains diagnostic', () => {
+test('scene background blurriness is a no-op for 2D textures', () => {
   const scene = new Scene()
   const background = new Texture()
   background.source.data = '/background.png'
@@ -628,8 +628,10 @@ test('scene background blur remains diagnostic', () => {
 
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
-  assert.deepEqual(result.scene, [])
-  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_SCENE')
+  assert.deepEqual(result.diagnostics, [])
+  assert.equal(result.scene[0]?.kind, 'triangle-mesh')
+  if (result.scene[0]?.kind !== 'triangle-mesh') assert.fail('expected a textured mesh')
+  assert.equal(result.scene[0].props.texture?.source, '/background.png')
 })
 
 test('Scene.overrideMaterial preserves render-list visibility and allowOverride', () => {

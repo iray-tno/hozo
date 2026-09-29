@@ -672,10 +672,10 @@ export const PORTABLE_SCENE_CAPABILITIES: readonly PortableCapability[] = [
   ),
   sceneCapability(
     'Scene.background',
-    'background blur',
-    'deferred',
-    'Canvas and Skia can blur a background, but a cross-backend contract is not implemented yet.',
-    [project('scene background blur remains diagnostic')],
+    '2D texture blur semantics',
+    'exact',
+    'backgroundBlurriness remains a no-op for ordinary 2D textures, matching Three.js; environment maps are classified separately.',
+    [project('scene background blurriness is a no-op for 2D textures')],
   ),
   sceneCapability(
     'Scene.background',
