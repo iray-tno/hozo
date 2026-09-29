@@ -2316,7 +2316,20 @@ pub fn escape_class_selector(class_name: &str) -> String {
             out.push_str(&format!("\\{:x} ", c as u32));
             continue;
         }
-        if matches!(c, ':' | '/' | '.' | '[' | ']' | '%' | '!' | '#' | '(' | ')' | ',') {
+        // Everything that is not an identifier character, rather than a list
+        // of the punctuation somebody remembered. The list form was wrong the
+        // moment the scanner learned to keep a quote (#676): a candidate
+        // `before:content-['']` came out as `.before\:content-\[''\]::before`,
+        // which is not a selector -- lightningcss refused the whole stylesheet
+        // with `Unexpected token String("")` and the build stopped.
+        //
+        // A minifier rejecting it is the good case. The bad one is a browser
+        // parsing `.a\[b='c'\]` as far as it can and matching nothing, which
+        // is what every unescaped character in the old list would have done
+        // quietly. CSS says an identifier is `[A-Za-z0-9_-]` plus non-ASCII,
+        // so that is the test, and non-ASCII is left alone because CSS allows
+        // it unescaped and Tailwind emits it that way.
+        if !(c.is_ascii_alphanumeric() || c == '-' || c == '_' || !c.is_ascii()) {
             out.push('\\');
         }
         out.push(c);
@@ -2645,6 +2658,26 @@ mod escape_tests {
         assert_eq!(escape_class_selector("w-1/2"), "w-1\\/2");
         assert_eq!(escape_class_selector("p-1.5"), "p-1\\.5");
         assert_eq!(escape_class_selector("flex"), "flex");
+    }
+
+    #[test]
+    fn an_arbitrary_value_escapes_every_character_it_holds() {
+        // The case that broke the build once the scanner stopped losing these
+        // (#676): a quote is not selector syntax in any list somebody writes
+        // from memory, and it ends a CSS string when it arrives unescaped.
+        // lightningcss refused the whole stylesheet with
+        // `Unexpected token String("")`.
+        assert_eq!(
+            escape_class_selector("before:content-['']"),
+            "before\\:content-\\[\\'\\'\\]"
+        );
+        assert_eq!(
+            escape_class_selector("data-[hozo-state=checked]:bg-red-500"),
+            "data-\\[hozo-state\\=checked\\]\\:bg-red-500"
+        );
+        assert_eq!(escape_class_selector("text-[#fff]"), "text-\\[\\#fff\\]");
+        assert_eq!(escape_class_selector("bg-[url(/a.png)]"), "bg-\\[url\\(\\/a\\.png\\)\\]");
+        assert_eq!(escape_class_selector("[&_p]:mt-4"), "\\[\\&_p\\]\\:mt-4");
     }
 
     #[test]

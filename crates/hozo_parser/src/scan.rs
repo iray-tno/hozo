@@ -40,8 +40,8 @@ pub struct ScannedUtility {
     pub groups: Vec<(Condition, Vec<StyleProperty>)>,
 }
 
-/// Bytes that can appear inside a Tailwind class. Anything else ends a
-/// candidate.
+/// Bytes that can appear inside a Tailwind class, *outside* an arbitrary
+/// value. Anything else ends a candidate.
 ///
 /// Byte-wise rather than char-wise so token boundaries are also byte
 /// offsets, which is what the consumed-span subtraction compares against.
@@ -49,6 +49,29 @@ pub struct ScannedUtility {
 /// continuation bytes always end a token rather than splitting one.
 fn is_class_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b':' | b'/' | b'.' | b'[' | b']' | b'%' | b'!')
+}
+
+/// Whether a byte can appear inside `[…]`.
+///
+/// Everything but whitespace, because an arbitrary value is the one place in
+/// a class name where any byte is legal: `data-[hozo-state=checked]:`,
+/// `text-[#fff]`, `bg-[url(/a.png)]`, `content-['']`, `[&[data-x=y]]:`. The
+/// list above this one has none of `= # ( ) ' " ,` in it, and adding them
+/// unconditionally would be much worse than the bug -- a scanner that treats
+/// `"` as a class byte turns `className="a b"` into a token that starts with
+/// a quote, and loses every class in the project.
+///
+/// Inside brackets the greed is bounded instead: the value is delimited, so
+/// the run ends at the matching `]` or at the first space, and an unbalanced
+/// `[` can swallow at most one whitespace-free run -- which then fails to
+/// resolve, exactly as it does today.
+///
+/// This is how Tailwind's own extractor reads them, and #676 is what not
+/// doing it cost: no `[data-x="y"]` selector existed anywhere in a 54-story
+/// build, so three components' state styling was absent from the output with
+/// nothing to say so.
+fn is_bracket_byte(b: u8) -> bool {
+    !b.is_ascii_whitespace()
 }
 
 /// Resolves one class name, or `None` if it isn't a utility Hozo knows.
@@ -113,12 +136,35 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
     let bytes = source.as_bytes();
     let mut found: Vec<String> = Vec::new();
     let mut start: Option<usize> = None;
+    // How deep inside an arbitrary value the scan is. Counted rather than a
+    // boolean because a variant can hold another one: `[&[data-x=y]]:p-4` is
+    // two levels and ends at the second closing bracket.
+    let mut depth: usize = 0;
 
     for i in 0..=bytes.len() {
-        if i < bytes.len() && is_class_byte(bytes[i]) {
-            start.get_or_insert(i);
-            continue;
+        let byte = if i < bytes.len() { Some(bytes[i]) } else { None };
+        let inside = depth > 0;
+        if let Some(b) = byte {
+            if inside && is_bracket_byte(b) {
+                if b == b'[' {
+                    depth += 1;
+                } else if b == b']' {
+                    depth -= 1;
+                }
+                continue;
+            }
+            if !inside && is_class_byte(b) {
+                if b == b'[' {
+                    depth += 1;
+                }
+                start.get_or_insert(i);
+                continue;
+            }
         }
+        // A token ends here, so whatever bracket it left open is closed with
+        // it: the next run starts outside, rather than inheriting a depth
+        // from a line that never balanced.
+        depth = 0;
         let Some(token_start) = start.take() else { continue };
         if is_consumed(consumed, token_start, i) {
             continue;
@@ -150,6 +196,81 @@ mod tests {
         let names = scan_class_candidates(source);
         assert!(names.contains(&"p-4".to_string()));
         assert!(names.contains(&"p-8".to_string()));
+    }
+
+    #[test]
+    fn an_arbitrary_value_may_contain_the_bytes_an_arbitrary_value_contains() {
+        // #676. `=` was not a class byte, so this token was cut in two --
+        // `data-[hozo-state` and `checked]:before:bg-red-500` -- and neither
+        // half resolves. An unresolved candidate is skipped without a
+        // diagnostic, by design, so the cost was three components in
+        // `@hozo/ui` whose state styling was absent from the output and
+        // nothing anywhere saying so.
+        let source = r#"
+            const item = 'data-[hozo-state=checked]:before:bg-red-500'
+        "#;
+        assert_eq!(
+            scan_class_candidates(source),
+            vec!["data-[hozo-state=checked]:before:bg-red-500"]
+        );
+    }
+
+    #[test]
+    fn the_other_bytes_an_arbitrary_value_holds() {
+        // A colour, a URL, a generated content string and a nested variant.
+        // Every one of these contains a byte the outside-brackets list ends a
+        // token on, which is the whole point of counting depth instead of
+        // widening that list: `"` and `'` are in here, and a scanner that
+        // treated a quote as a class byte outside brackets would turn
+        // `className="a b"` into a token beginning with a quote.
+        for candidate in [
+            "text-[#fff]",
+            "bg-[url(/a.png)]",
+            "grid-cols-[1fr,2fr]",
+            "[&[data-x=y]]:p-4",
+        ] {
+            let source = format!("const c = '{candidate}'");
+            let found = scan_class_candidates(&source);
+            assert!(found.contains(&candidate.to_string()), "{candidate}: {found:?}");
+        }
+    }
+
+    #[test]
+    fn a_variant_hozo_does_not_compile_survives_the_scan_and_resolves_to_nothing() {
+        // `aria-[sort=ascending]:` is a spelling Hozo does not implement --
+        // `ARIA_VARIANT_STATES` is the boolean states, and `aria-sort` takes
+        // four words. The scan now hands the whole token over, and
+        // `resolve_class_name` refuses it, which is the right division of
+        // labour: the scan decides what a token *is*, not whether it works.
+        //
+        // What the author gets is a diagnostic rather than silence. See
+        // `unsupported_variant_name`, which had to learn the bracket form to
+        // say so.
+        let found = scan_class_candidates("const c = 'aria-[sort=ascending]:underline'");
+        assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn an_unbalanced_bracket_swallows_one_run_and_no_more() {
+        // The bound that makes the greed safe. `[p-4` never closes, so the
+        // token runs to the first space and fails to resolve -- and `p-8` on
+        // the far side of that space is still found, rather than being eaten
+        // by a bracket somebody left open.
+        let found = scan_class_candidates("const c = '[p-4 p-8'");
+        assert_eq!(found, vec!["p-8"], "{found:?}");
+    }
+
+    #[test]
+    fn code_that_is_not_a_class_still_resolves_to_nothing() {
+        // Subscripts and comparisons are what `=` and `[` mostly are in a
+        // source file. None of these is a utility, so none survives
+        // `resolve_class_name` -- the scan being greedier costs unresolved
+        // candidates, which cost nothing.
+        let source = r#"
+            const first = rows[index] === 'p-4'
+            if (a[i] == b[j]) return
+        "#;
+        assert_eq!(scan_class_candidates(source), vec!["p-4"]);
     }
 
     #[test]

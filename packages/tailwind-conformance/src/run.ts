@@ -578,6 +578,20 @@ const sheetCandidates = [
   ...['block', 'hidden', 'flex', 'grid'].flatMap((utility) =>
     ['sm', 'md', 'lg', 'xl', '2xl'].map((breakpoint) => `${breakpoint}:${utility}`),
   ),
+  // Arbitrary values, for exactly the reason above, one bug later. Every byte
+  // a value can hold is a byte the selector has to escape, and the scanner has
+  // to keep it in the first place -- #676 was both halves of that at once: a
+  // class name cut at its `=` so no rule existed, and then, once the scan kept
+  // it, `.before\:content-\[''\]` with the quotes unescaped, which lightningcss
+  // refused outright. The catalogue is base utilities, so neither half was
+  // reachable from here.
+  'data-[hozo-state=checked]:bg-red-500',
+  'text-[#fff]',
+  "before:content-['']",
+  'bg-[url(/a.png)]',
+  'grid-cols-[1fr,2fr]',
+  '[&_p]:mt-4',
+  'w-[calc(100%-2rem)]',
 ]
 const sheetCache = openCandidateCache()
 sheetCache.scanFile('all.tsx', `const all = ${JSON.stringify(sheetCandidates.join(' '))}`, 1)
