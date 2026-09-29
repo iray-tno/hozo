@@ -12,6 +12,7 @@
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {
+    "@hozo/three": "workspace:^",
     "@react-three/fiber": "^9.8.1",
     "expo": "~57.0.25",
     "expo-asset": "~57.0.18",

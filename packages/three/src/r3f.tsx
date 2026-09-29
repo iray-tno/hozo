@@ -1,7 +1,18 @@
 import type { CanvasAccessibilityProps } from '@hozo/canvas'
 import { Canvas as FiberCanvas, type CanvasProps as FiberCanvasProps } from '@react-three/fiber'
-import type { CSSProperties, ReactNode, RefObject } from 'react'
-import type { Object3D } from 'three'
+import type { CSSProperties, ReactNode } from 'react'
+
+import {
+  type R3FAccessibleObject,
+  type R3FAccessibleObjectEvent,
+  resolveR3FAccessibleObject,
+} from './r3f-accessibility.ts'
+
+export type {
+  R3FAccessibleObject,
+  R3FAccessibleObjectEvent,
+  R3FAccessibleObjectTarget,
+} from './r3f-accessibility.ts'
 
 type R3FCanvasProps = Omit<
   FiberCanvasProps,
@@ -13,35 +24,6 @@ type FunctionMember<T> = T extends (...args: never[]) => unknown ? T : never
 /** The sync or async renderer factory accepted by R3F's public `gl` prop. */
 export type R3FRendererFactory = FunctionMember<NonNullable<FiberCanvasProps['gl']>>
 export type R3FRendererFactoryProps = Parameters<R3FRendererFactory>[0]
-
-export type R3FAccessibleObjectTarget = Object3D | RefObject<Object3D | null>
-
-interface R3FAccessibleObjectBase {
-  /** Stable identity and semantic-control order are owned by the application. */
-  id: string
-  label: string
-  object: R3FAccessibleObjectTarget
-  disabled?: boolean
-}
-
-export interface R3FAccessibleObjectEvent {
-  id: string
-  object: Object3D
-}
-
-export type R3FAccessibleObject =
-  | (R3FAccessibleObjectBase & {
-      href?: never
-      external?: never
-      replace?: never
-      onPress: (event: R3FAccessibleObjectEvent) => void
-    })
-  | (R3FAccessibleObjectBase & {
-      href: string
-      external?: boolean
-      replace?: boolean
-      onPress?: never
-    })
 
 export type ThreeCanvasProps = CanvasAccessibilityProps &
   R3FCanvasProps & {
@@ -109,7 +91,7 @@ export function ThreeCanvas({
           {accessibleObjects.map((control) => {
             if (control.disabled) return null
             const focus = () => {
-              const object = resolveAccessibleObject(control.object)
+              const object = resolveR3FAccessibleObject(control.object)
               if (object) onObjectActiveChange?.({ id: control.id, object })
             }
             if (control.href !== undefined) {
@@ -132,7 +114,7 @@ export function ThreeCanvas({
                 key={control.id}
                 type="button"
                 onClick={() => {
-                  const object = resolveAccessibleObject(control.object)
+                  const object = resolveR3FAccessibleObject(control.object)
                   if (object) control.onPress({ id: control.id, object })
                 }}
                 onFocus={focus}
@@ -156,8 +138,4 @@ export function ThreeCanvas({
       ) : null}
     </div>
   )
-}
-
-function resolveAccessibleObject(target: R3FAccessibleObjectTarget) {
-  return 'current' in target ? target.current : target
 }

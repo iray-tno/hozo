@@ -1,4 +1,5 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber/native'
+import { ThreeCanvas } from '@hozo/three/r3f-native'
+import { useFrame, useThree } from '@react-three/fiber/native'
 import { File, Paths } from 'expo-file-system'
 import type { ExpoWebGLRenderingContext } from 'expo-gl'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -269,14 +270,17 @@ export default function App() {
       </Text>
       <View style={styles.canvas} testID="gpu-touch-surface">
         {mounted ? (
-          <Canvas camera={{ position: [0, 0, 3] }}>
+          <ThreeCanvas
+            accessibilityLabel="Measured rotating GPU cube"
+            camera={{ position: [0, 0, 3] }}
+          >
             <ambientLight intensity={0.4} />
             <ProbeScene
               allowWithoutResume={allowWithoutResume}
               onComplete={complete}
               resumeEpoch={resumeEpoch}
             />
-          </Canvas>
+          </ThreeCanvas>
         ) : (
           <View style={styles.complete}>
             <Text testID="probe-complete" style={styles.result}>

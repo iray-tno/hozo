@@ -139,11 +139,8 @@ import { ThreeCanvas } from '@hozo/three/r3f'
 ```
 
 `@react-three/fiber` is an optional peer and is retained only by this entry
-point. The GPU-host evaluation in issue #596 selected R3F Native over Expo GL
-for an experimental Expo prebuild integration. It will use an explicit
-`@hozo/three/r3f-native` entry point; the current `@hozo/three/r3f` entry remains
-Web-only until that integration ships. Object-level keyboard activation uses
-an explicit list rather than R3F's private instance metadata:
+point. Object-level keyboard activation uses an explicit list rather than
+R3F's private instance metadata:
 
 ```tsx
 const product = useRef<THREE.Mesh>(null)
@@ -199,6 +196,41 @@ the default R3F WebGL path. Hozo passes the factory through; R3F owns awaiting,
 configuration, frame scheduling, error propagation, and disposal. Runtime GPU
 availability still belongs to the browser and should be covered by an
 application-level fallback or error boundary.
+
+### Experimental R3F Native host
+
+Expo prebuild applications can opt into the Native GPU host explicitly:
+
+```tsx
+import { ThreeCanvas } from '@hozo/three/r3f-native'
+
+<ThreeCanvas
+  accessibilityLabel="Rotating product preview"
+  style={{ flex: 1 }}
+  camera={{ position: [0, 2, 5] }}
+>
+  <ambientLight intensity={0.5} />
+  <mesh>
+    <boxGeometry />
+    <meshStandardMaterial color="orange" />
+  </mesh>
+</ThreeCanvas>
+```
+
+Install `@react-three/fiber` and `three`, then use `npx expo install expo-gl
+expo-asset expo-file-system` so the GL host matches the Expo SDK. This entry is
+experimental and separate from `@hozo/three/r3f`: R3F Native owns its Expo GL
+context, frame loop, and touch raycasting, while Hozo supplies the same
+label/fallback/decorative choice and explicit semantic object controls.
+
+The measured support claim is Expo prebuild on Android and iOS. Android has
+release evidence for touch, TalkBack, Activity resume, frame sampling, and
+teardown. The iOS Simulator has release evidence for initialization,
+background/resume, frame sampling, and teardown; trusted pointer and VoiceOver
+operation still need device evidence. Expo Go, bare React Native setup, and
+forced driver/OS context loss are not yet claimed.
+
+## Portable projection details
 
 The result is a retained `CanvasScene`, with world transforms and camera
 projection already baked into its paths. Indexed and non-indexed triangle

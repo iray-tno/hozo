@@ -22,15 +22,17 @@ async function bundledInputs(entry: string) {
 }
 
 test('renderer entry points do not retain the other Three.js renderer family', async () => {
-  const [portable, classic, modern, r3f] = await Promise.all([
+  const [portable, classic, modern, r3f, nativeR3FUnavailable] = await Promise.all([
     bundledInputs('index.ts'),
     bundledInputs('webgl-renderer.tsx'),
     bundledInputs('webgpu.tsx'),
     bundledInputs('r3f.tsx'),
+    bundledInputs('r3f-native-unavailable.tsx'),
   ])
 
   assert.ok(!portable.some((input) => input.includes('/@react-three/fiber/')))
   assert.ok(r3f.some((input) => input.includes('/@react-three/fiber/')))
+  assert.ok(!nativeR3FUnavailable.some((input) => input.includes('/@react-three/fiber/')))
   assert.ok(
     !r3f.some((input) => input.endsWith('/three/build/three.webgpu.js')),
     'the default R3F adapter eagerly retained the opt-in WebGPU renderer',

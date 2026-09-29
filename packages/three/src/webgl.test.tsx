@@ -188,6 +188,7 @@ test('continuous WebGL frames bypass React scene and control reconstruction', as
     return id
   }
   globalThis.cancelAnimationFrame = (id) => {
+    if (id == null) return
     scheduled.delete(id)
   }
   const scene = new Scene()

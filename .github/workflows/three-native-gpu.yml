@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/three-native-gpu.yml'
       - 'examples/three-native-probe/**'
+      - 'packages/three/**'
   schedule:
     - cron: '15 5 * * 3'
   workflow_dispatch:
@@ -33,6 +34,7 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - run: pnpm install --frozen-lockfile --filter @hozo/example-three-native-probe...
+      - run: pnpm --filter @hozo/three... build
       - run: pnpm --filter @hozo/example-three-native-probe test
       - run: pnpm --filter @hozo/example-three-native-probe typecheck
       - run: pnpm --filter @hozo/example-three-native-probe prebuild:android
@@ -78,6 +80,7 @@ jobs:
           node-version: 25
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter @hozo/example-three-native-probe...
+      - run: pnpm --filter @hozo/three... build
       - run: pnpm --filter @hozo/example-three-native-probe test
       - run: pnpm --filter @hozo/example-three-native-probe typecheck
       - run: pnpm --filter @hozo/example-three-native-probe prebuild:ios

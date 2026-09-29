@@ -12,6 +12,6 @@ export type {
 /** Native R3F hosting uses the explicit, separately shipped r3f-native entry. */
 export function ThreeCanvas(_props: ThreeCanvasProps): never {
   throw new Error(
-    '@hozo/three/r3f is Web-only. Use portable @hozo/three on React Native, or the explicit @hozo/three/r3f-native entry when that experimental Expo GL integration is available.',
+    '@hozo/three/r3f is Web-only. Use portable @hozo/three on React Native, or import the experimental Expo GL host from @hozo/three/r3f-native.',
   )
 }
