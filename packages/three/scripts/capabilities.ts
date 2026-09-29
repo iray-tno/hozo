@@ -317,9 +317,9 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
   capability(
     'MeshNormalMaterial',
     'wireframe normal shading',
-    'deferred',
-    'The CPU projection has enough edge and normal data, but this combination is not implemented yet.',
-    [project('non-portable MeshNormalMaterial features stay diagnostic')],
+    'approximate',
+    'Normal-derived endpoint colours become portable linear edge gradients; GPU perspective-correct interpolation is not promised.',
+    [project('MeshNormalMaterial wireframe projects normal-coloured clipped edges')],
   ),
   capability(
     'MeshNormalMaterial',

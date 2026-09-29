@@ -1602,10 +1602,7 @@ test('MeshNormalMaterial projects smooth and flat view-space normals', () => {
 })
 
 test('non-portable MeshNormalMaterial features stay diagnostic', () => {
-  for (const material of [
-    new MeshNormalMaterial({ normalMap: new Texture() }),
-    new MeshNormalMaterial({ wireframe: true }),
-  ]) {
+  for (const material of [new MeshNormalMaterial({ normalMap: new Texture() })]) {
     const result = projectThreeScene(
       new Scene().add(new Mesh(triangleGeometry(), material)),
       perspective(),
@@ -1614,6 +1611,26 @@ test('non-portable MeshNormalMaterial features stay diagnostic', () => {
     assert.deepEqual(result.scene, [])
     assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
   }
+})
+
+test('MeshNormalMaterial wireframe projects normal-coloured clipped edges', () => {
+  const geometry = triangleGeometry([-2, -1, 0, 2, -1, 0, 0, 1, 0])
+  geometry.setAttribute('normal', new Float32BufferAttribute([0, 0, 1, 1, 0, 0, 0, 1, 0], 3))
+  const material = new MeshNormalMaterial({ wireframe: true, wireframeLinewidth: 2 })
+  material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)]
+
+  const result = projectThreeScene(new Scene().add(new Mesh(geometry, material)), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(result.diagnostics, [])
+  const lines = projectedLines(result)
+  assert.equal(lines.length, 2)
+  assert.ok(
+    lines.every(({ stroke, strokeWidth }) => typeof stroke !== 'string' && strokeWidth === 2),
+  )
+  assert.ok(lines.every(({ x1, x2 }) => x1 >= 50 && x2 >= 50))
 })
 
 test('MeshNormalMaterial transformed meshes remain diagnostic', () => {
