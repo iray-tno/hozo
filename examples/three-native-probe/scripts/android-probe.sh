@@ -88,15 +88,22 @@ grep -q '\[hozo-three-native\].*"event":"steady_sample"' "$artifacts/logcat.txt"
 # The public wrapper, rather than a probe-owned sibling button, must expose
 # both controls. Hardware focus + Enter exercises semantic activation without
 # letting the transparent accessibility targets steal pointer hits from R3F.
+dump_accessibility_tree() {
+  local remote_path="$1"
+  local local_path="$2"
+  adb shell rm -f "$remote_path" >/dev/null 2>&1 || true
+  adb shell uiautomator dump "$remote_path" >/dev/null 2>&1 || return 1
+  adb pull "$remote_path" "$local_path" >/dev/null 2>&1 || return 1
+}
+
 focus_and_activate() {
   local resource_id="$1"
+  local tree_path="${2:-$artifacts/public-accessibility.xml}"
   local centre
   for _ in $(seq 1 16); do
     adb shell input keyevent KEYCODE_TAB
-    adb shell rm -f /sdcard/three-native-public.xml >/dev/null 2>&1 || true
-    adb shell uiautomator dump /sdcard/three-native-public.xml >/dev/null 2>&1 || true
-    adb pull /sdcard/three-native-public.xml "$artifacts/public-accessibility.xml" >/dev/null 2>&1
-    if [ "$(node "$root/scripts/control-centre.mjs" "$artifacts/public-accessibility.xml" "$resource_id" --focused)" = true ]; then
+    if dump_accessibility_tree /sdcard/three-native-focus.xml "$tree_path" \
+      && [ "$(node "$root/scripts/control-centre.mjs" "$tree_path" "$resource_id" --focused)" = true ]; then
       adb shell input keyevent KEYCODE_ENTER
       return 0
     fi
@@ -105,13 +112,17 @@ focus_and_activate() {
   # control unmounts with its GPU scene. The target is still a real native
   # button, so fall back to tapping that button's measured accessibility bounds
   # rather than failing on focus-driver state unrelated to its activation.
-  centre="$(node "$root/scripts/control-centre.mjs" "$artifacts/public-accessibility.xml" "$resource_id")"
+  centre="$(node "$root/scripts/control-centre.mjs" "$tree_path" "$resource_id")"
   read -r centre_x centre_y <<< "$centre"
   adb shell input tap "$centre_x" "$centre_y"
 }
 
-adb shell uiautomator dump /sdcard/three-native-public.xml >/dev/null 2>&1
-adb pull /sdcard/three-native-public.xml "$artifacts/public-accessibility.xml" >/dev/null 2>&1
+for _ in $(seq 1 10); do
+  if dump_accessibility_tree /sdcard/three-native-public.xml "$artifacts/public-accessibility.xml"; then
+    break
+  fi
+  sleep 1
+done
 grep -q 'resource-id="activate-measured-cube"' "$artifacts/public-accessibility.xml"
 grep -q 'content-desc="Activate measured cube"' "$artifacts/public-accessibility.xml"
 grep -q 'resource-id="open-measured-cube"' "$artifacts/public-accessibility.xml"
@@ -147,16 +158,14 @@ for fixture_id in \
   # Repeated native GL teardown can delay the final async glTF fixture on a
   # loaded hosted emulator even though the application remains healthy.
   for _ in $(seq 1 60); do
-    adb shell rm -f /sdcard/three-native-corpus.xml >/dev/null 2>&1 || true
-    adb shell uiautomator dump /sdcard/three-native-corpus.xml >/dev/null 2>&1 || true
-    adb pull /sdcard/three-native-corpus.xml "$artifacts/corpus-accessibility.xml" >/dev/null 2>&1
-    if grep -q "resource-id=\"$resource_id\"" "$artifacts/corpus-accessibility.xml"; then
+    if dump_accessibility_tree /sdcard/three-native-corpus.xml "$artifacts/corpus-accessibility.xml" \
+      && grep -q "resource-id=\"$resource_id\"" "$artifacts/corpus-accessibility.xml"; then
       break
     fi
     sleep 1
   done
   grep -q "resource-id=\"$resource_id\"" "$artifacts/corpus-accessibility.xml"
-  focus_and_activate "$resource_id"
+  focus_and_activate "$resource_id" "$artifacts/corpus-accessibility.xml"
   for _ in $(seq 1 15); do
     adb logcat -d -v brief > "$artifacts/logcat.txt"
     if grep -q "\[hozo-three-native\].*\"event\":\"scene_corpus_fixture\".*\"fixtureId\":\"$fixture_id\".*\"status\":\"useful\".*\"activation\":\"measured\"" "$artifacts/logcat.txt"; then
