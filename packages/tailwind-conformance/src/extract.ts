@@ -69,6 +69,24 @@ export function extractRules(css: string): Rule[] {
   for (let index = 0; index < css.length; index += 1) {
     const ch = css[index]
 
+    // An escaped character is one character, and never a delimiter. A quote
+    // in a *selector* is usually escaped -- `.before\:content-\[\'\'\]` is the
+    // class `before:content-['']`, where each quote is a literal in the
+    // identifier rather than the start of a string. Treating the first one as
+    // an opening quote made `closingQuote` skip the second (it is escaped
+    // too), pair with a quote in the declarations, and swallow the rest of the
+    // sheet: a three-rule stylesheet extracted as **zero** rules, and the
+    // candidate-sheet section of the report undercounted by sixteen without
+    // failing.
+    //
+    // Consumed together with its backslash, the same way `classNamesIn`
+    // already reads an escaped character inside a class name.
+    if (ch === '\\') {
+      buffer += css.slice(index, index + 2)
+      index += 1
+      continue
+    }
+
     // A brace inside a string is text, not structure. `content-['{']` is
     // rare and entirely legal.
     if (ch === '"' || ch === "'") {
