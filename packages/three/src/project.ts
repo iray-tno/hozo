@@ -707,7 +707,6 @@ function normalMaterialReason(material: MeshNormalMaterial): string | undefined 
   if (material.bumpMap || material.normalMap || material.displacementMap) {
     return 'MeshNormalMaterial texture perturbation needs per-fragment sampling'
   }
-  if (material.wireframe) return 'MeshNormalMaterial wireframe is not projected yet'
   return undefined
 }
 
@@ -1822,6 +1821,82 @@ function projectThreeSceneInternal(
             ).applyMatrix3(normalMatrix)
             return packedNormalColor(transformed, material.side === BackSide)
           }) as unknown as readonly [Color, Color, Color]
+        }
+        if (material.wireframe) {
+          const strokeWidth = Math.max(0, material.wireframeLinewidth)
+          if (strokeWidth === 0) continue
+          for (const [fromIndex, toIndex] of [
+            [0, 1],
+            [1, 2],
+            [2, 0],
+          ] as const) {
+            const wireFrom = worldPositions[fromIndex]
+            const wireTo = worldPositions[toIndex]
+            const fromColor = sourceColors[fromIndex]
+            const toColor = sourceColors[toIndex]
+            const materialClippedSegments = clippedMaterialSegments(
+              wireFrom,
+              wireTo,
+              materialPlanes,
+              material.clipIntersection,
+            )
+            for (const materialClipped of materialClippedSegments) {
+              const materialFromClip = materialClipped[0].clone().applyMatrix4(viewProjection)
+              const materialToClip = materialClipped[1].clone().applyMatrix4(viewProjection)
+              const clipped = clippedSegment(materialFromClip, materialToClip)
+              if (!clipped) continue
+              const from = projectedPoint(clipped[0], options.width, options.height)
+              const to = projectedPoint(clipped[1], options.width, options.height)
+              if (!from || !to || (from.x === to.x && from.y === to.y)) continue
+              const clippedFromWorld = materialClipped[0]
+                .clone()
+                .lerp(
+                  materialClipped[1],
+                  segmentRatio(clipped[0], materialFromClip, materialToClip),
+                )
+              const clippedToWorld = materialClipped[0]
+                .clone()
+                .lerp(
+                  materialClipped[1],
+                  segmentRatio(clipped[1], materialFromClip, materialToClip),
+                )
+              const clippedFromColor = fromColor
+                .clone()
+                .lerp(toColor, segmentRatio(clippedFromWorld, wireFrom, wireTo))
+              const clippedToColor = fromColor
+                .clone()
+                .lerp(toColor, segmentRatio(clippedToWorld, wireFrom, wireTo))
+              primitives.push({
+                depth: (from.z + to.z) / 2,
+                groupOrder,
+                object,
+                order: order++,
+                renderOrder: object.renderOrder,
+                transparent: material.transparent,
+                node: {
+                  kind: 'line',
+                  props: {
+                    x1: from.x,
+                    y1: from.y,
+                    x2: to.x,
+                    y2: to.y,
+                    stroke: {
+                      kind: 'linear',
+                      from: { x: from.x, y: from.y },
+                      to: { x: to.x, y: to.y },
+                      stops: [
+                        { offset: 0, color: canvasColorCss(clippedFromColor) },
+                        { offset: 1, color: canvasColorCss(clippedToColor) },
+                      ],
+                    },
+                    strokeWidth,
+                    ...projectedOpacityProps(material),
+                  },
+                },
+              })
+            }
+          }
+          continue
         }
         const materialPolygons = clippedMaterialColouredPolygons(
           worldPositions.map((position, indexInTriangle) => ({
