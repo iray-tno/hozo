@@ -1076,8 +1076,8 @@ function projectThreeSceneInternal(
     if (!reason && scene.backgroundBlurriness !== 0) {
       reason = 'blurred scene backgrounds need environment-map sampling'
     }
-    if (!reason && scene.backgroundIntensity !== 1) {
-      reason = 'scene backgroundIntensity needs per-pixel colour modulation'
+    if (!reason && !Number.isFinite(scene.backgroundIntensity)) {
+      reason = 'scene backgroundIntensity must be finite'
     }
     if (background.matrixAutoUpdate) background.updateMatrix()
     const coordinates = [
@@ -1108,6 +1108,9 @@ function projectThreeSceneInternal(
               y: (coordinate as Vector2).y,
             })),
             filter: background.magFilter === NearestFilter ? 'nearest' : 'linear',
+            ...(scene.backgroundIntensity === 1
+              ? {}
+              : { intensity: Math.max(0, scene.backgroundIntensity) }),
             ...textureWrapProps(background),
           },
           vertices: [

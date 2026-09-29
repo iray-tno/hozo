@@ -20,11 +20,14 @@ adb shell am start -W -n "$activity"
 
 for _ in $(seq 1 90); do
   adb logcat -d -v brief > "$artifacts/logcat.txt"
-  if grep -q '\[hozo-three-native\].*"event":"first_frame"' "$artifacts/logcat.txt"; then
+  if grep -q '\[hozo-three-native\].*"event":"first_frame"' "$artifacts/logcat.txt" \
+    && grep -q '\[hozo-three-native\].*"event":"lifecycle_listener_ready"' "$artifacts/logcat.txt"; then
     break
   fi
   sleep 1
 done
+grep -q '\[hozo-three-native\].*"event":"first_frame"' "$artifacts/logcat.txt"
+grep -q '\[hozo-three-native\].*"event":"lifecycle_listener_ready"' "$artifacts/logcat.txt"
 
 # Exercise the real Android Activity lifecycle before accepting the frame
 # sample. AppState alone is not evidence of GPU recovery: the fixture also

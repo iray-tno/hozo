@@ -326,7 +326,7 @@ test('Canvas 2D builds three bounded barycentric colour contributions per face',
 
 test('Canvas 2D maps a decoded texture affinely into each triangle', () => {
   const calls: Array<readonly unknown[]> = []
-  const context = new Proxy({ globalAlpha: 1 } as Record<string, unknown>, {
+  const context = new Proxy({ filter: 'none', globalAlpha: 1 } as Record<string, unknown>, {
     get(target, property) {
       if (property in target) return target[property as string]
       return (...args: unknown[]) => calls.push([property, ...args])
@@ -347,6 +347,7 @@ test('Canvas 2D maps a decoded texture affinely into each triangle', () => {
         texture: {
           source: '/texture.png',
           filter: 'nearest',
+          intensity: 0.5,
           coordinates: [
             { x: 0, y: 0 },
             { x: 1, y: 0 },
@@ -363,10 +364,80 @@ test('Canvas 2D maps a decoded texture affinely into each triangle', () => {
 
   assert.ok(calls.some((call) => call[0] === 'set:globalAlpha' && call[1] === 0.5))
   assert.ok(calls.some((call) => call[0] === 'set:imageSmoothingEnabled' && call[1] === false))
+  assert.ok(calls.some((call) => call[0] === 'set:filter' && call[1] === 'brightness(0.5)'))
   assert.deepEqual(calls.find((call) => call[0] === 'transform')?.slice(1), [0.1, 0, 0, 0.2, 0, 0])
   const drawImage = calls.find((call) => call[0] === 'drawImage')
   assert.equal(drawImage?.[1], image)
   assert.deepEqual(drawImage?.slice(2), [0, 0, 100, 50])
+})
+
+test('Canvas 2D caches a linear-RGB intensity fallback when filters are unavailable', () => {
+  const previous = globalThis.OffscreenCanvas
+  const processed: Uint8ClampedArray[] = []
+  let surfaces = 0
+  class FakeOffscreenCanvas {
+    width: number
+    height: number
+    constructor(width: number, height: number) {
+      this.width = width
+      this.height = height
+      surfaces += 1
+    }
+    getContext() {
+      return {
+        drawImage() {},
+        getImageData: () => ({ data: new Uint8ClampedArray([255, 128, 0, 128]) }),
+        putImageData: (pixels: ImageData) => processed.push(pixels.data),
+      }
+    }
+  }
+  Object.defineProperty(globalThis, 'OffscreenCanvas', {
+    configurable: true,
+    value: FakeOffscreenCanvas,
+  })
+  try {
+    const calls: Array<readonly unknown[]> = []
+    const context = new Proxy({ globalAlpha: 1 } as Record<string, unknown>, {
+      get(target, property) {
+        if (property in target) return target[property as string]
+        return (...args: unknown[]) => calls.push([property, ...args])
+      },
+      set(target, property, value) {
+        target[property as string] = value
+        return true
+      },
+    }) as unknown as CanvasRenderingContext2D
+    const image = { width: 1, height: 1 } as unknown as CanvasImageSource
+    const scene: CanvasScene = [
+      {
+        kind: 'triangle-mesh',
+        props: {
+          vertices: vertices.slice(0, 3),
+          texture: {
+            source: '/texture.png',
+            intensity: 0.5,
+            coordinates: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+              { x: 0, y: 1 },
+            ],
+          },
+        },
+      },
+    ]
+
+    renderCanvas2D(context, scene, { width: 20, height: 20, pixelRatio: 1 }, () => image)
+    renderCanvas2D(context, scene, { width: 20, height: 20, pixelRatio: 1 }, () => image)
+
+    assert.equal(surfaces, 1)
+    assert.deepEqual([...processed[0]!], [188, 92, 0, 128])
+    assert.notEqual(calls.find((call) => call[0] === 'drawImage')?.[1], image)
+  } finally {
+    Object.defineProperty(globalThis, 'OffscreenCanvas', {
+      configurable: true,
+      value: previous,
+    })
+  }
 })
 
 test('Canvas 2D repeats a texture pattern for coordinates outside one tile', () => {

@@ -666,16 +666,16 @@ export const PORTABLE_SCENE_CAPABILITIES: readonly PortableCapability[] = [
   sceneCapability(
     'Scene.background',
     'background intensity',
-    'deferred',
-    'Portable colour modulation is feasible, but backgroundIntensity is not connected yet.',
-    [project('scene background modifiers remain diagnostic')],
+    'exact',
+    'Supported 2D backgrounds multiply sampled RGB while preserving texture alpha.',
+    [project('scene background intensity modulates texture RGB')],
   ),
   sceneCapability(
     'Scene.background',
     'background blur',
     'deferred',
     'Canvas and Skia can blur a background, but a cross-backend contract is not implemented yet.',
-    [project('scene background modifiers remain diagnostic')],
+    [project('scene background blur remains diagnostic')],
   ),
   sceneCapability(
     'Scene.background',

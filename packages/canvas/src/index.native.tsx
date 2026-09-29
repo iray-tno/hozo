@@ -7,6 +7,7 @@ import {
   Skia,
   Canvas as SkiaCanvas,
   Circle as SkiaCircle,
+  ColorMatrix as SkiaColorMatrix,
   Group as SkiaGroup,
   ImageShader as SkiaImageShader,
   Line as SkiaLine,
@@ -56,6 +57,7 @@ import {
   Clip,
   type ClipProps,
   canvasControls,
+  canvasMeshTextureIntensity,
   canvasMeshTextureWrap,
   canvasPressEvent,
   canvasUnreadableText,
@@ -168,7 +170,14 @@ function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
         : source?.default
   const image = useImage(nativeSource)
   const indices = triangleMeshIndices(node.props)
-  if (indices.length === 0 || node.props.fill === 'none' || (texture && !image)) return null
+  const intensity = texture ? canvasMeshTextureIntensity(texture) : 1
+  if (
+    indices.length === 0 ||
+    node.props.fill === 'none' ||
+    (texture && (!image || intensity === undefined))
+  )
+    return null
+  const textureIntensity = intensity ?? 1
   const colors = node.props.colors?.map((color) => {
     const normalized = triangleMeshColor(color)
     return normalized ? triangleMeshColorCss(normalized) : 'rgba(0, 0, 0, 0)'
@@ -193,15 +202,43 @@ function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
       opacity={node.props.opacity}
     >
       {texture && image ? (
-        <SkiaImageShader
-          image={image}
-          fit="none"
-          tx={wrapX}
-          ty={wrapY}
-          sampling={{
-            filter: texture.filter === 'nearest' ? FilterMode.Nearest : FilterMode.Linear,
-          }}
-        />
+        <>
+          <SkiaImageShader
+            image={image}
+            fit="none"
+            tx={wrapX}
+            ty={wrapY}
+            sampling={{
+              filter: texture.filter === 'nearest' ? FilterMode.Nearest : FilterMode.Linear,
+            }}
+          />
+          {textureIntensity !== 1 ? (
+            <SkiaColorMatrix
+              matrix={[
+                textureIntensity,
+                0,
+                0,
+                0,
+                0,
+                0,
+                textureIntensity,
+                0,
+                0,
+                0,
+                0,
+                0,
+                textureIntensity,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+              ]}
+            />
+          ) : null}
+        </>
       ) : colors ? null : (
         gradientShader(node.props.fill as CanvasPaint)
       )}
