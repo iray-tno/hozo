@@ -85,6 +85,8 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Toolbar` | a bar; the controls in it are yours |
 | `Combobox` | `Input`'s field and a filtered list whose highlight is only a tint |
 | `Tree` | indentation per depth and a chevron nobody hears |
+| `Calendar` | a month grid whose cells and month buttons are 36px |
+| `DatePicker`, `DateRangePicker` | that grid in a panel, behind a trigger |
 | `Card`, `Stack` | a surface and a flex box |
 | `Badge`, `Alert` | a word with a colour, and a sentence with a role |
 
@@ -94,13 +96,19 @@ Four of those make a decision worth knowing about.
 
 `Alert` is silent by default. `live="polite"` makes it a `status` and `live="assertive"` makes it an `alert`; without either it is a box on the page. An alert rendered *with* the page announces on load, which is right for "your session expired" and wrong for a notice that is there every visit.
 
-> **`data-[hozo-state=…]` emits no CSS today.** Hozo's candidate scanner ends a class name at `=`, so every rule below that depends on the state — the checkbox's fill, the switch's track colour and knob travel, the accordion's chevron rotation — is currently absent from the output. Measured in a browser rather than inferred, and filed as [#676](https://github.com/iray-tno/hozo/issues/676) with the fix. The geometry these lists describe is correct and verified; what does not arrive yet is the change of state.
+Everything below that reads a `data-[…=…]` attribute — the checkbox's fill, the switch's track and knob, the accordion's chevron, a range's end caps — emitted **no CSS at all** until [#679](https://github.com/iray-tno/hozo/pull/679): Hozo's candidate scanner ended a class name at its `=`, and an unresolved candidate is skipped without a diagnostic. It was found by measuring computed styles in a browser, because nothing else here looks at one.
 
 `Checkbox` and `Switch` draw their box and track with `::before` and `::after`, reading `data-hozo-state` — so neither is ever told which state it is in. Passing the application's own state back in to draw it is the thing that attribute exists to prevent. `Accordion`'s chevron is the same arrangement: two borders rotated, turned by `data-[hozo-state=open]`, and invisible to a reader because a pseudo-element is not in the accessibility tree and `aria-expanded` already says it.
 
 `Listbox` marks its chosen row with a tint **and** a weight. WCAG 1.4.1 asks that colour not be the only visual means of conveying information, and a pale tint on the selected row is the easiest way to fail it — invisible on a monochrome display, to a colour-blind reader, and in print. axe cannot find this; its contrast rule asks whether text is readable, not whether two rows differ for a reason. So `listbox.test.ts` asserts it, the way `tokens.test.ts` asserts the focus ring.
 
 `RadioGroup` draws a ring and a dot with `::before` and `::after`, both positioned over a row that reserves the space with `ps-9`. The options are `<div role="radio">`, so there is no `:checked` to select and nothing the browser draws for us — `aria-checked:` is the attribute a reader announces and therefore the one the dot hangs off.
+
+`Calendar` is where the target-size rule stops being an application's problem. `@hozo/form`'s README warns that a month button holding `‹` is about four pixels wide under a CSS reset — measured there, and warning was all it could do, since that package ships no CSS. A `<td>` holding `1` is about sixteen. Both are 36 here, and `calendar.test.ts` asserts it in pixels.
+
+Its two day-cell class lists differ for a reason worth knowing: in range mode `@hozo/form` puts `aria-selected` on **every** day between the ends, because that is the only attribute ARIA has for "in the range" — the ends say which they are in their accessible names. So the range list ignores `aria-selected` and draws its caps from `data-hozo-range-start` and `-end`, with `-in-range` for the middle. A list that filled `aria-selected` would paint a range as one block with no ends, which looks plausible and cannot tell you where your range starts.
+
+Today is underlined by `renderDay` rather than by a variant, because `aria-current="date"` is not a boolean state and Hozo compiles only those (the class would now be *reported* rather than silently dropped, which is the other half of [#679](https://github.com/iray-tno/hozo/pull/679)). `DatePicker` and `DateRangePicker` wear the same lists from `calendar-look.ts`: a picker whose grid was styled separately from the standalone one is two calendars to keep in step, and the day people notice is the day they stop matching.
 
 `Tree` draws its chevron with `::before` rather than writing one into the label, and the difference is audible. The `Patterns/Tree` story puts a `▾` in the text, and its approved golden records what that costs:
 

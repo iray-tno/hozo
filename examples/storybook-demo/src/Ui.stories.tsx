@@ -13,6 +13,7 @@
 // #652 so `@import "@hozo/ui/theme.css"` in `src/index.css` resolves. Without
 // either, this page is unstyled and nothing says so.
 
+import type { CalendarDate, CalendarRange } from '@hozo/form'
 import { View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
@@ -22,9 +23,12 @@ import {
   Alert,
   Badge,
   Button,
+  Calendar,
   Card,
   Checkbox,
   Combobox,
+  DatePicker,
+  DateRangePicker,
   Dialog,
   Field,
   Input,
@@ -76,6 +80,10 @@ const LANGUAGES = [
   { value: 'cobol', label: 'COBOL', disabled: true },
 ] as const
 
+// Pinned rather than read from the clock, so the golden and the axe run do not
+// change meaning at midnight.
+const TODAY = { year: 2026, month: 9, day: 24 }
+
 const FILES: readonly TreeNode[] = [
   {
     id: 'crates',
@@ -102,6 +110,8 @@ function UiGallery() {
   const [volume, setVolume] = useState(40)
   const [shipping, setShipping] = useState<string>('express')
   const [languages, setLanguages] = useState<readonly string[]>(['rust'])
+  const [date, setDate] = useState<CalendarDate | null>({ year: 2026, month: 9, day: 24 })
+  const [span, setSpan] = useState<CalendarRange | null>(null)
   const wrong = !email.includes('@')
 
   return (
@@ -315,6 +325,37 @@ function UiGallery() {
             <Tree nodes={FILES} accessibilityLabel="Repository" defaultExpanded={['crates']} />
           </Stack>
         </Card>
+        <Paragraph className={prose}>
+          The calendar is where a styled library earns its keep: a month button holding a chevron is
+          about four pixels wide under a CSS reset, and a table cell holding "1" about sixteen. Both
+          are 36 here. Its two day-cell class lists differ because aria-selected means the one
+          chosen day in single mode and every day between the ends in range mode -- so the range's
+          caps come from data attributes, which carried no CSS at all until #679.
+        </Paragraph>
+        <Stack direction="row" gap="tight" align="center">
+          <DatePicker
+            locale="en-US"
+            value={date}
+            onChange={setDate}
+            today={TODAY}
+            placeholder="Pick a day"
+          />
+          <DateRangePicker
+            locale="en-US"
+            value={span}
+            onChange={setSpan}
+            today={TODAY}
+            placeholder="Pick a span"
+          />
+        </Stack>
+        <Calendar
+          accessibilityLabel="September"
+          locale="en-US"
+          today={TODAY}
+          defaultMonth={{ year: 2026, month: 9 }}
+          value={date}
+          onChange={setDate}
+        />
         <Toolbar
           accessibilityLabel="Formatting"
           items={[
