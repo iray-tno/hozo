@@ -243,6 +243,11 @@ export default function App() {
       })
       setResumeEpoch(resumeCount.current)
     })
+    emit({
+      event: 'lifecycle_listener_ready',
+      host: 'expo-gl',
+      elapsedMs: performance.now() - moduleStartedAt,
+    })
     return () => subscription.remove()
   }, [])
 
