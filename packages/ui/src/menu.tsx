@@ -33,13 +33,13 @@ export type HozoMenuProps = Omit<MenuProps, 'triggerClassName' | 'menuClassName'
 export type { MenuItem as HozoMenuItem } from '@hozo/patterns'
 
 const trigger =
-  'inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-hozo-control transition-colors cursor-pointer bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
+  'inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-hozo-control transition-colors cursor-pointer bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
 
 const panel =
-  'flex flex-col gap-0.5 min-w-40 rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1 shadow-hozo-surface'
+  'flex flex-col gap-1 min-w-40 rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1 shadow-hozo-surface'
 
 const item =
-  'cursor-pointer rounded-hozo-control px-3 py-1.5 text-start text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
+  'cursor-pointer rounded-hozo-control px-3 py-2 text-start text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
 export function HozoMenu({ className, ...rest }: HozoMenuProps) {
   return (

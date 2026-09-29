@@ -57,7 +57,7 @@ function classes(tone: HozoButtonTone, size: HozoButtonSize): string {
     'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-not-allowed disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover'
   const danger =
     'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-not-allowed disabled:text-hozo-text-subtle bg-hozo-danger text-hozo-on-danger hover:bg-hozo-danger-text disabled:bg-hozo-surface-raised'
-  const padding = size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2.5 text-sm'
+  const padding = size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm'
   if (tone === 'accent') return `${accent} ${padding}`
   if (tone === 'quiet') return `${quiet} ${padding}`
   if (tone === 'danger') return `${danger} ${padding}`

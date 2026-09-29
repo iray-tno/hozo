@@ -112,6 +112,6 @@ test('the caller’s classes join the package’s rather than replacing them', (
   // A component that let `className` win would lose its own layout the first
   // time somebody wanted a margin.
   const html = render({ className: 'MINE', labelClassName: 'LABEL' })
-  assert.match(html, /class="flex flex-col gap-1\.5 MINE"/)
+  assert.match(html, /class="flex flex-col gap-2 MINE"/)
   assert.match(html, /class="[^"]*text-hozo-text LABEL"/)
 })

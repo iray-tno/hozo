@@ -43,7 +43,7 @@ const field =
   'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-invalid:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed'
 
 const list =
-  'flex flex-col gap-0.5 max-h-60 overflow-y-auto rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1 shadow-hozo-surface'
+  'flex flex-col gap-1 max-h-60 overflow-y-auto rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1 shadow-hozo-surface'
 
 /**
  * A highlight and not a selection: a tint and nothing else.
@@ -52,7 +52,7 @@ const list =
  * the answer", and the two must not look the same.
  */
 const option =
-  'cursor-pointer rounded-hozo-control px-3 py-1.5 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
+  'cursor-pointer rounded-hozo-control px-3 py-2 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
 export function HozoCombobox<T>({ className, ...rest }: HozoComboboxProps<T>) {
   return (
