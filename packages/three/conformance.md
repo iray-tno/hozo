@@ -6,7 +6,7 @@ This report keeps three different questions separate:
 
 1. **Portable capability coverage** asks which atomic behaviours can be implemented faithfully or approximately without a GPU.
 2. **Three.js surface classification** asks what happens when an upstream class or public surface reaches the portable backend.
-3. **Real-scene coverage** will measure representative applications and assets. That corpus is not published yet.
+3. **Real-scene coverage** executes representative, version-pinned applications and assets in its own report and environment workflows.
 
 Neither table below is a claim that an arbitrary Three.js scene works. In particular, class-level surface rows and atomic capability rows have different denominators and must not be added together.
 
@@ -26,16 +26,16 @@ Every category in the current portable surface inventory now has an independentl
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Material** | **17** | **9** | **3** | **29** | **26/29 (89.7%)** | **6** | **0** |
+| **Material** | **18** | **9** | **2** | **29** | **27/29 (93.1%)** | **6** | **0** |
 | **Geometry** | **26** | **0** | **0** | **26** | **26/26 (100.0%)** | **0** | **0** |
 | **Object** | **22** | **0** | **0** | **22** | **22/22 (100.0%)** | **0** | **0** |
 | **Camera** | **7** | **0** | **0** | **7** | **7/7 (100.0%)** | **3** | **0** |
 | **Scene** | **12** | **2** | **2** | **16** | **14/16 (87.5%)** | **3** | **0** |
 | **Topology** | **5** | **0** | **0** | **5** | **5/5 (100.0%)** | **0** | **0** |
 | **Interaction** | **10** | **0** | **0** | **10** | **10/10 (100.0%)** | **0** | **0** |
-| **Overall portable capability** | **99** | **11** | **5** | **115** | **110/115 (95.7%)** | **12** | **0** |
+| **Overall portable capability** | **100** | **11** | **4** | **115** | **111/115 (96.5%)** | **12** | **0** |
 
-Overall exact capability coverage is **99/115 (86.1%)**. Including documented approximations, implemented feasible coverage is **110/115 (95.7%)**. This is a portable capability ceiling, not a real-scene success rate; GPU-required diagnostics remain visible and the separate version-pinned scene corpus is still pending.
+Overall exact capability coverage is **100/115 (87.0%)**. Including documented approximations, implemented feasible coverage is **111/115 (96.5%)**. This is a portable capability ceiling, not a real-scene success rate; GPU-required diagnostics remain visible and the separate version-pinned scene corpus reports application-shaped evidence independently.
 
 ### Material capability details
 
@@ -67,7 +67,7 @@ Overall exact capability coverage is **99/115 (86.1%)**. Including documented ap
 | MeshNormalMaterial | smooth view-space normal shading | approximate | Vertex normals become portable colours; per-fragment normal interpolation is not reproduced. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals` |
 | MeshNormalMaterial | flat view-space normal shading | exact | A face normal is evaluated once for each projected triangle. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals` |
 | MeshNormalMaterial | wireframe normal shading | approximate | Normal-derived endpoint colours become portable linear edge gradients; GPU perspective-correct interpolation is not promised. | [test](src/project.test.ts) `MeshNormalMaterial wireframe projects normal-coloured clipped edges` |
-| MeshNormalMaterial | instanced normal shading | deferred | Instance transforms are already projected by the CPU path, but their normal matrices are not connected to this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
+| MeshNormalMaterial | instanced normal shading | exact | Each instance uses its own view-space normal matrix; the separately inventoried smooth-shading interpolation boundary is unchanged. | [test](src/project.test.ts) `InstancedMesh projects each normal matrix for filled and wireframe normal materials` |
 | MeshNormalMaterial | skinned normal shading | deferred | CPU skinning is available for positions, but deformed normals are not projected for this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
 | MeshNormalMaterial | morphed normal shading | deferred | CPU morph evaluation is available for positions, but morphed normals are not projected for this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
 | Texture-backed materials | general GPU texture sampling | diagnostic | Unsupported colour spaces, transforms, mirrored wrapping, and GPU sampling state are rejected. | [test](src/project.test.ts) `non-portable texture sampling is refused with an actionable diagnostic` |

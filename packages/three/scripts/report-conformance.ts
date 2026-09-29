@@ -88,7 +88,7 @@ This report keeps three different questions separate:
 
 1. **Portable capability coverage** asks which atomic behaviours can be implemented faithfully or approximately without a GPU.
 2. **Three.js surface classification** asks what happens when an upstream class or public surface reaches the portable backend.
-3. **Real-scene coverage** will measure representative applications and assets. That corpus is not published yet.
+3. **Real-scene coverage** executes representative, version-pinned applications and assets in its own report and environment workflows.
 
 Neither table below is a claim that an arbitrary Three.js scene works. In particular, class-level surface rows and atomic capability rows have different denominators and must not be added together.
 
@@ -117,7 +117,7 @@ ${capabilitySummaryRow('Topology', topologyCapabilities)}
 ${capabilitySummaryRow('Interaction', interactionCapabilities)}
 ${capabilitySummaryRow('Overall portable capability', overallCapabilities)}
 
-Overall exact capability coverage is **${overallCapabilities.exact}/${overallCapabilities.feasible} (${pct(overallCapabilities.exact, overallCapabilities.feasible)})**. Including documented approximations, implemented feasible coverage is **${overallCapabilities.implemented}/${overallCapabilities.feasible} (${pct(overallCapabilities.implemented, overallCapabilities.feasible)})**. This is a portable capability ceiling, not a real-scene success rate; GPU-required diagnostics remain visible and the separate version-pinned scene corpus is still pending.
+Overall exact capability coverage is **${overallCapabilities.exact}/${overallCapabilities.feasible} (${pct(overallCapabilities.exact, overallCapabilities.feasible)})**. Including documented approximations, implemented feasible coverage is **${overallCapabilities.implemented}/${overallCapabilities.feasible} (${pct(overallCapabilities.implemented, overallCapabilities.feasible)})**. This is a portable capability ceiling, not a real-scene success rate; GPU-required diagnostics remain visible and the separate version-pinned scene corpus reports application-shaped evidence independently.
 
 ### Material capability details
 

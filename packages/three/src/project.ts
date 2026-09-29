@@ -1757,14 +1757,14 @@ function projectThreeSceneInternal(
       if (!passesUniformAlphaTest(material)) return
       if (
         batchedMesh ||
-        instancedMesh ||
         skinnedMesh ||
+        instancedMesh?.morphTexture ||
         mesh.morphTargetInfluences?.some((influence) => influence !== 0)
       ) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_MESH',
           message:
-            'Portable MeshNormalMaterial currently accepts non-instanced, non-skinned meshes without active morphs.',
+            'Portable MeshNormalMaterial currently rejects batched, skinned, and actively morphed meshes.',
           object,
         })
         return
@@ -1789,171 +1789,183 @@ function projectThreeSceneInternal(
         available,
         Number.isFinite(requested) ? Math.floor(start + requested) : available,
       )
-      const modelView = new Matrix4().multiplyMatrices(camera.matrixWorldInverse, mesh.matrixWorld)
-      const normalMatrix = new Matrix3().getNormalMatrix(modelView)
-      const materialPlanes = (material.clippingPlanes ?? []) as readonly Plane[]
-      for (let offset = start; offset + 2 < end; offset += 3) {
-        const vertexIndices = [
-          index ? index.getX(offset) : offset,
-          index ? index.getX(offset + 1) : offset + 1,
-          index ? index.getX(offset + 2) : offset + 2,
-        ] as const
-        const worldPositions = vertexIndices.map((vertexIndex) =>
-          localPosition(position, vertexIndex, undefined).applyMatrix4(mesh.matrixWorld),
-        ) as unknown as readonly [Vector4, Vector4, Vector4]
-        let sourceColors: readonly [Color, Color, Color]
-        if (material.flatShading) {
-          const viewPositions = worldPositions.map((point) =>
-            new Vector3(point.x, point.y, point.z).applyMatrix4(camera.matrixWorldInverse),
-          )
-          const edgeA = (viewPositions[1] as Vector3).clone().sub(viewPositions[0] as Vector3)
-          const edgeB = (viewPositions[2] as Vector3).clone().sub(viewPositions[0] as Vector3)
-          const faceNormal = edgeA.cross(edgeB)
-          if (faceNormal.lengthSq() === 0) continue
-          const color = packedNormalColor(faceNormal, material.side === BackSide)
-          sourceColors = [color, color, color]
-        } else {
-          sourceColors = vertexIndices.map((vertexIndex) => {
-            const transformed = new Vector3(
-              normal?.getX(vertexIndex) ?? 0,
-              normal?.getY(vertexIndex) ?? 0,
-              normal?.getZ(vertexIndex) ?? 0,
-            ).applyMatrix3(normalMatrix)
-            return packedNormalColor(transformed, material.side === BackSide)
-          }) as unknown as readonly [Color, Color, Color]
+      const worldMatrices: Matrix4[] = []
+      if (instancedMesh) {
+        const instanceMatrix = new Matrix4()
+        for (let instance = 0; instance < instancedMesh.count; instance += 1) {
+          instancedMesh.getMatrixAt(instance, instanceMatrix)
+          worldMatrices.push(new Matrix4().multiplyMatrices(mesh.matrixWorld, instanceMatrix))
         }
-        if (material.wireframe) {
-          const strokeWidth = Math.max(0, material.wireframeLinewidth)
-          if (strokeWidth === 0) continue
-          for (const [fromIndex, toIndex] of [
-            [0, 1],
-            [1, 2],
-            [2, 0],
-          ] as const) {
-            const wireFrom = worldPositions[fromIndex]
-            const wireTo = worldPositions[toIndex]
-            const fromColor = sourceColors[fromIndex]
-            const toColor = sourceColors[toIndex]
-            const materialClippedSegments = clippedMaterialSegments(
-              wireFrom,
-              wireTo,
-              materialPlanes,
-              material.clipIntersection,
+      } else {
+        worldMatrices.push(mesh.matrixWorld)
+      }
+      const materialPlanes = (material.clippingPlanes ?? []) as readonly Plane[]
+      for (const worldMatrix of worldMatrices) {
+        const modelView = new Matrix4().multiplyMatrices(camera.matrixWorldInverse, worldMatrix)
+        const normalMatrix = new Matrix3().getNormalMatrix(modelView)
+        for (let offset = start; offset + 2 < end; offset += 3) {
+          const vertexIndices = [
+            index ? index.getX(offset) : offset,
+            index ? index.getX(offset + 1) : offset + 1,
+            index ? index.getX(offset + 2) : offset + 2,
+          ] as const
+          const worldPositions = vertexIndices.map((vertexIndex) =>
+            localPosition(position, vertexIndex, undefined).applyMatrix4(worldMatrix),
+          ) as unknown as readonly [Vector4, Vector4, Vector4]
+          let sourceColors: readonly [Color, Color, Color]
+          if (material.flatShading) {
+            const viewPositions = worldPositions.map((point) =>
+              new Vector3(point.x, point.y, point.z).applyMatrix4(camera.matrixWorldInverse),
             )
-            for (const materialClipped of materialClippedSegments) {
-              const materialFromClip = materialClipped[0].clone().applyMatrix4(viewProjection)
-              const materialToClip = materialClipped[1].clone().applyMatrix4(viewProjection)
-              const clipped = clippedSegment(materialFromClip, materialToClip)
-              if (!clipped) continue
-              const from = projectedPoint(clipped[0], options.width, options.height)
-              const to = projectedPoint(clipped[1], options.width, options.height)
-              if (!from || !to || (from.x === to.x && from.y === to.y)) continue
-              const clippedFromWorld = materialClipped[0]
-                .clone()
-                .lerp(
-                  materialClipped[1],
-                  segmentRatio(clipped[0], materialFromClip, materialToClip),
-                )
-              const clippedToWorld = materialClipped[0]
-                .clone()
-                .lerp(
-                  materialClipped[1],
-                  segmentRatio(clipped[1], materialFromClip, materialToClip),
-                )
-              const clippedFromColor = fromColor
-                .clone()
-                .lerp(toColor, segmentRatio(clippedFromWorld, wireFrom, wireTo))
-              const clippedToColor = fromColor
-                .clone()
-                .lerp(toColor, segmentRatio(clippedToWorld, wireFrom, wireTo))
+            const edgeA = (viewPositions[1] as Vector3).clone().sub(viewPositions[0] as Vector3)
+            const edgeB = (viewPositions[2] as Vector3).clone().sub(viewPositions[0] as Vector3)
+            const faceNormal = edgeA.cross(edgeB)
+            if (faceNormal.lengthSq() === 0) continue
+            const color = packedNormalColor(faceNormal, material.side === BackSide)
+            sourceColors = [color, color, color]
+          } else {
+            sourceColors = vertexIndices.map((vertexIndex) => {
+              const transformed = new Vector3(
+                normal?.getX(vertexIndex) ?? 0,
+                normal?.getY(vertexIndex) ?? 0,
+                normal?.getZ(vertexIndex) ?? 0,
+              ).applyMatrix3(normalMatrix)
+              return packedNormalColor(transformed, material.side === BackSide)
+            }) as unknown as readonly [Color, Color, Color]
+          }
+          if (material.wireframe) {
+            const strokeWidth = Math.max(0, material.wireframeLinewidth)
+            if (strokeWidth === 0) continue
+            for (const [fromIndex, toIndex] of [
+              [0, 1],
+              [1, 2],
+              [2, 0],
+            ] as const) {
+              const wireFrom = worldPositions[fromIndex]
+              const wireTo = worldPositions[toIndex]
+              const fromColor = sourceColors[fromIndex]
+              const toColor = sourceColors[toIndex]
+              const materialClippedSegments = clippedMaterialSegments(
+                wireFrom,
+                wireTo,
+                materialPlanes,
+                material.clipIntersection,
+              )
+              for (const materialClipped of materialClippedSegments) {
+                const materialFromClip = materialClipped[0].clone().applyMatrix4(viewProjection)
+                const materialToClip = materialClipped[1].clone().applyMatrix4(viewProjection)
+                const clipped = clippedSegment(materialFromClip, materialToClip)
+                if (!clipped) continue
+                const from = projectedPoint(clipped[0], options.width, options.height)
+                const to = projectedPoint(clipped[1], options.width, options.height)
+                if (!from || !to || (from.x === to.x && from.y === to.y)) continue
+                const clippedFromWorld = materialClipped[0]
+                  .clone()
+                  .lerp(
+                    materialClipped[1],
+                    segmentRatio(clipped[0], materialFromClip, materialToClip),
+                  )
+                const clippedToWorld = materialClipped[0]
+                  .clone()
+                  .lerp(
+                    materialClipped[1],
+                    segmentRatio(clipped[1], materialFromClip, materialToClip),
+                  )
+                const clippedFromColor = fromColor
+                  .clone()
+                  .lerp(toColor, segmentRatio(clippedFromWorld, wireFrom, wireTo))
+                const clippedToColor = fromColor
+                  .clone()
+                  .lerp(toColor, segmentRatio(clippedToWorld, wireFrom, wireTo))
+                primitives.push({
+                  depth: (from.z + to.z) / 2,
+                  groupOrder,
+                  object,
+                  order: order++,
+                  renderOrder: object.renderOrder,
+                  transparent: material.transparent,
+                  node: {
+                    kind: 'line',
+                    props: {
+                      x1: from.x,
+                      y1: from.y,
+                      x2: to.x,
+                      y2: to.y,
+                      stroke: {
+                        kind: 'linear',
+                        from: { x: from.x, y: from.y },
+                        to: { x: to.x, y: to.y },
+                        stops: [
+                          { offset: 0, color: canvasColorCss(clippedFromColor) },
+                          { offset: 1, color: canvasColorCss(clippedToColor) },
+                        ],
+                      },
+                      strokeWidth,
+                      ...projectedOpacityProps(material),
+                    },
+                  },
+                })
+              }
+            }
+            continue
+          }
+          const materialPolygons = clippedMaterialColouredPolygons(
+            worldPositions.map((position, indexInTriangle) => ({
+              color: (sourceColors[indexInTriangle] as Color).clone(),
+              position,
+            })),
+            materialPlanes,
+            material.clipIntersection,
+          )
+          for (const materialPolygon of materialPolygons) {
+            const polygon = clippedColouredPolygon(
+              materialPolygon.map(({ color, position }) => ({
+                color,
+                position: position.clone().applyMatrix4(viewProjection),
+              })),
+            )
+            if (polygon.length < 3) continue
+            for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
+              const first = polygon[0]
+              const second = polygon[fan]
+              const third = polygon[fan + 1]
+              if (!first || !second || !third) continue
+              const clipTriangle = [first, second, third] as const
+              const points = clipTriangle.map(({ position }) =>
+                projectedPoint(position, options.width, options.height),
+              )
+              if (points.some((point) => point === undefined)) continue
+              const projected = points as { x: number; y: number; z: number }[]
+              const area = signedArea(projected) * (worldMatrix.determinant() < 0 ? -1 : 1)
+              if (area === 0) continue
+              if (
+                material.side !== DoubleSide &&
+                (material.side === BackSide ? area < 0 : area > 0)
+              ) {
+                continue
+              }
+              const flipDoubleSidedBackFace = material.side === DoubleSide && area > 0
               primitives.push({
-                depth: (from.z + to.z) / 2,
+                depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
                 groupOrder,
                 object,
                 order: order++,
                 renderOrder: object.renderOrder,
                 transparent: material.transparent,
                 node: {
-                  kind: 'line',
+                  kind: 'triangle-mesh',
                   props: {
-                    x1: from.x,
-                    y1: from.y,
-                    x2: to.x,
-                    y2: to.y,
-                    stroke: {
-                      kind: 'linear',
-                      from: { x: from.x, y: from.y },
-                      to: { x: to.x, y: to.y },
-                      stops: [
-                        { offset: 0, color: canvasColorCss(clippedFromColor) },
-                        { offset: 1, color: canvasColorCss(clippedToColor) },
-                      ],
-                    },
-                    strokeWidth,
+                    colors: clipTriangle.map(({ color }) =>
+                      canvasVertexColor(
+                        flipDoubleSidedBackFace ? flipPackedNormalColor(color) : color,
+                      ),
+                    ),
+                    vertices: projected.map(({ x, y }) => ({ x, y })),
                     ...projectedOpacityProps(material),
                   },
                 },
               })
             }
-          }
-          continue
-        }
-        const materialPolygons = clippedMaterialColouredPolygons(
-          worldPositions.map((position, indexInTriangle) => ({
-            color: (sourceColors[indexInTriangle] as Color).clone(),
-            position,
-          })),
-          materialPlanes,
-          material.clipIntersection,
-        )
-        for (const materialPolygon of materialPolygons) {
-          const polygon = clippedColouredPolygon(
-            materialPolygon.map(({ color, position }) => ({
-              color,
-              position: position.clone().applyMatrix4(viewProjection),
-            })),
-          )
-          if (polygon.length < 3) continue
-          for (let fan = 1; fan + 1 < polygon.length; fan += 1) {
-            const first = polygon[0]
-            const second = polygon[fan]
-            const third = polygon[fan + 1]
-            if (!first || !second || !third) continue
-            const clipTriangle = [first, second, third] as const
-            const points = clipTriangle.map(({ position }) =>
-              projectedPoint(position, options.width, options.height),
-            )
-            if (points.some((point) => point === undefined)) continue
-            const projected = points as { x: number; y: number; z: number }[]
-            const area = signedArea(projected) * (mesh.matrixWorld.determinant() < 0 ? -1 : 1)
-            if (area === 0) continue
-            if (
-              material.side !== DoubleSide &&
-              (material.side === BackSide ? area < 0 : area > 0)
-            ) {
-              continue
-            }
-            const flipDoubleSidedBackFace = material.side === DoubleSide && area > 0
-            primitives.push({
-              depth: projected.reduce((sum, point) => sum + point.z, 0) / 3,
-              groupOrder,
-              object,
-              order: order++,
-              renderOrder: object.renderOrder,
-              transparent: material.transparent,
-              node: {
-                kind: 'triangle-mesh',
-                props: {
-                  colors: clipTriangle.map(({ color }) =>
-                    canvasVertexColor(
-                      flipDoubleSidedBackFace ? flipPackedNormalColor(color) : color,
-                    ),
-                  ),
-                  vertices: projected.map(({ x, y }) => ({ x, y })),
-                  ...projectedOpacityProps(material),
-                },
-              },
-            })
           }
         }
       }
