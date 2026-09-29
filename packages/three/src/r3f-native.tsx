@@ -155,7 +155,11 @@ export function ThreeCanvas({
 }
 
 const styles = StyleSheet.create({
-  root: { position: 'relative', overflow: 'hidden' },
+  // FiberCanvas is absolutely positioned inside this accessibility envelope,
+  // so the envelope must claim its parent's available space itself. Without
+  // flex the wrapper collapses to zero height and Expo GL never creates a
+  // rendering context.
+  root: { flex: 1, position: 'relative', overflow: 'hidden' },
   accessibilityLayer: {
     position: 'absolute',
     top: 0,
