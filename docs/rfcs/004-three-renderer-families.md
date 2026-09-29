@@ -123,6 +123,36 @@ Unsupported platform/entry-point combinations must fail clearly at build time
 or component initialization. They must not render an empty surface or silently
 change renderer families.
 
+### Native classic host decision
+
+The evaluation tracked by #596 selected React Three Fiber's Native renderer
+over Expo GL as Hozo's first experimental Native GPU host. It has a real
+classic WebGL-compatible context, keeps R3F responsible for reconciliation and
+pointer raycasting, and completed the repository's release probes on Android
+and the iOS Simulator.
+
+This does not make the Web-only `@hozo/three/r3f` entry point conditionally
+Native. Native applications will opt in through an explicit
+`@hozo/three/r3f-native` entry point so that Expo GL and React Native stay
+outside the dependency graph of portable and Web-only consumers. The entry
+point names an R3F host integration rather than a fourth renderer family: it is
+the Native host for the classic family.
+
+The initial support claim is deliberately narrow:
+
+- Expo prebuild on Android and iOS;
+- React Three Fiber 9 with Expo GL;
+- Android pointer raycasting, TalkBack semantics, Activity resume, frame
+  sampling, and teardown;
+- iOS Simulator initialization, frame sampling, background/resume, and
+  teardown.
+
+Expo Go, bare React Native setup, forced driver/OS context loss, and trusted
+iOS pointer or VoiceOver operation remain unproven. Those gaps must be reported
+as such rather than inferred from Android or Simulator evidence. A Native
+WebGPU host remains deferred until the ecosystem offers a stable published R3F
+route that can be evaluated independently.
+
 ## 7. Conformance and reporting
 
 Conformance is reported independently for each family:
@@ -150,7 +180,8 @@ behavior, but each report must identify its renderer family and actual backend.
 5. Add the modern WebGPU adapter, preserving its asynchronous initialization.
 6. Exercise both modern backends and report which backend ran.
 7. Evaluate Native GPU hosts separately; do not block the Web adapters on that
-   investigation.
+   investigation. This selected R3F Native over Expo GL for an experimental,
+   explicit `@hozo/three/r3f-native` integration.
 
 The classic WebGL adapter comes first because it gives existing Three.js scenes
 the broadest immediate compatibility and establishes the shared contract before

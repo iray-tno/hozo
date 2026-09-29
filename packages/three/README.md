@@ -139,9 +139,11 @@ import { ThreeCanvas } from '@hozo/three/r3f'
 ```
 
 `@react-three/fiber` is an optional peer and is retained only by this entry
-point. Native R3F hosting remains explicitly unavailable until the GPU-host
-evaluation in issue #596 chooses and verifies a backend. Object-level keyboard
-activation uses an explicit list rather than R3F's private instance metadata:
+point. The GPU-host evaluation in issue #596 selected R3F Native over Expo GL
+for an experimental Expo prebuild integration. It will use an explicit
+`@hozo/three/r3f-native` entry point; the current `@hozo/three/r3f` entry remains
+Web-only until that integration ships. Object-level keyboard activation uses
+an explicit list rather than R3F's private instance metadata:
 
 ```tsx
 const product = useRef<THREE.Mesh>(null)
