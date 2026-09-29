@@ -87,6 +87,8 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Tree` | indentation per depth and a chevron nobody hears |
 | `Calendar` | a month grid whose cells and month buttons are 36px |
 | `DatePicker`, `DateRangePicker` | that grid in a panel, behind a trigger |
+| `TimePicker` | two spinbuttons with 24px arrows inside the field |
+| `DateTimePicker` | the grid, that clock, and a Done that only closes |
 | `Card`, `Stack` | a surface and a flex box |
 | `Badge`, `Alert` | a word with a colour, and a sentence with a role |
 
@@ -103,6 +105,12 @@ Everything below that reads a `data-[…=…]` attribute — the checkbox's fill
 `Listbox` marks its chosen row with a tint **and** a weight. WCAG 1.4.1 asks that colour not be the only visual means of conveying information, and a pale tint on the selected row is the easiest way to fail it — invisible on a monochrome display, to a colour-blind reader, and in print. axe cannot find this; its contrast rule asks whether text is readable, not whether two rows differ for a reason. So `listbox.test.ts` asserts it, the way `tokens.test.ts` asserts the focus ring.
 
 `RadioGroup` draws a ring and a dot with `::before` and `::after`, both positioned over a row that reserves the space with `ps-9`. The options are `<div role="radio">`, so there is no `:checked` to select and nothing the browser draws for us — `aria-checked:` is the attribute a reader announces and therefore the one the dot hangs off.
+
+`TimePicker` puts its two arrows inside the field's inline end, 24 by 24 each, told apart only by `data-hozo-step` — so before [#679](https://github.com/iray-tno/hozo/pull/679) they were drawn in the same place, one on top of the other, and the demo's own story had been writing `data-[hozo-step=increase]:bottom-1/2` to no effect since the picker shipped. Measured in a browser after the fix: 24×24 at (22, 1) and (22, 23) of a 47×48 field.
+
+Its focus ring is `focus-within:` on the field rather than on the `role="spinbutton"` inside it, because `@hozo/form` puts no class on that element and it is the one that takes focus. The ring is visible and surrounds the control being operated, which satisfies 2.4.7; a `valueClassName` in `@hozo/form` would be the better answer, and it is a prop on someone else's package.
+
+`DateTimePicker` gets its clock through `children`, which is the seam `@hozo/form` provides for it — there is no class-name prop that reaches the time half, deliberately, because [#148](https://github.com/iray-tno/hozo/issues/148) leaves that half to the caller: a spinbutton expresses a continuum and a list expresses a set with holes in it. Pass your own `children` and this gets out of the way.
 
 `Calendar` is where the target-size rule stops being an application's problem. `@hozo/form`'s README warns that a month button holding `‹` is about four pixels wide under a CSS reset — measured there, and warning was all it could do, since that package ships no CSS. A `<td>` holding `1` is about sixteen. Both are 36 here, and `calendar.test.ts` asserts it in pixels.
 

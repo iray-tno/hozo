@@ -236,6 +236,12 @@ export function HozoTimePicker({
         name === 'hour' ? hourFieldLabel : minuteFieldLabel
       }`}
       disabled={disabled}
+      // The styling hook beside the attribute, because Hozo compiles
+      // `disabled:` to `[data-hozo-disabled]` rather than to `:disabled`
+      // (decision 001). The spinbutton below has carried it from the start;
+      // these two did not, so a `disabled:` class on an arrow was CSS that
+      // could never match.
+      data-hozo-disabled={disabled ? '' : undefined}
       className={stepClassName}
       data-hozo-step={direction === 1 ? 'increase' : 'decrease'}
       onClick={() => stepBy(name, direction)}
@@ -293,6 +299,8 @@ export function HozoTimePicker({
           type="button"
           aria-label={periodFieldLabel}
           disabled={disabled}
+          // The same hook the arrows and the spinbutton carry; see `arrow`.
+          data-hozo-disabled={disabled ? '' : undefined}
           className={periodClassName}
           onClick={() => stepBy('period', 1)}
           onKeyDown={onFieldKeyDown('period')}
