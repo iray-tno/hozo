@@ -9,6 +9,8 @@ interface R3FAccessibleObjectBase {
   label: string
   object: R3FAccessibleObjectTarget
   disabled?: boolean
+  /** Stable selector for Native device automation and Web accessibility tests. */
+  testID?: string
 }
 
 export interface R3FAccessibleObjectEvent {

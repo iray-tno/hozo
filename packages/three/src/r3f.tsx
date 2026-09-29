@@ -98,6 +98,7 @@ export function ThreeCanvas({
               return (
                 <a
                   key={control.id}
+                  data-testid={control.testID}
                   href={control.href}
                   target={control.external ? '_blank' : undefined}
                   rel={control.external ? 'noreferrer noopener' : undefined}
@@ -112,6 +113,7 @@ export function ThreeCanvas({
             return (
               <button
                 key={control.id}
+                data-testid={control.testID}
                 type="button"
                 onClick={() => {
                   const object = resolveR3FAccessibleObject(control.object)

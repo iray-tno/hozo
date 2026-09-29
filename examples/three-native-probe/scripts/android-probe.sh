@@ -73,6 +73,57 @@ done
 printf '%s\n' "$touch_attempts" > "$artifacts/touch-attempts.txt"
 grep -q '\[hozo-three-native\].*"event":"object_activated".*"source":"canvas"' "$artifacts/logcat.txt"
 
+for _ in $(seq 1 30); do
+  adb logcat -d -v brief > "$artifacts/logcat.txt"
+  if grep -q '\[hozo-three-native\].*"event":"steady_sample"' "$artifacts/logcat.txt"; then
+    break
+  fi
+  sleep 1
+done
+grep -q '\[hozo-three-native\].*"event":"steady_sample"' "$artifacts/logcat.txt"
+
+# The public wrapper, rather than a probe-owned sibling button, must expose
+# both controls. Hardware focus + Enter exercises semantic activation without
+# letting the transparent accessibility targets steal pointer hits from R3F.
+focus_and_activate() {
+  local resource_id="$1"
+  for _ in $(seq 1 16); do
+    adb shell input keyevent KEYCODE_TAB
+    adb shell rm -f /sdcard/three-native-public.xml >/dev/null 2>&1 || true
+    adb shell uiautomator dump /sdcard/three-native-public.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/three-native-public.xml "$artifacts/public-accessibility.xml" >/dev/null 2>&1
+    if [ "$(node "$root/scripts/control-centre.mjs" "$artifacts/public-accessibility.xml" "$resource_id" --focused)" = true ]; then
+      adb shell input keyevent KEYCODE_ENTER
+      return 0
+    fi
+  done
+  echo "Could not focus $resource_id" >&2
+  return 1
+}
+
+adb shell uiautomator dump /sdcard/three-native-public.xml >/dev/null 2>&1
+adb pull /sdcard/three-native-public.xml "$artifacts/public-accessibility.xml" >/dev/null 2>&1
+grep -q 'resource-id="activate-measured-cube"' "$artifacts/public-accessibility.xml"
+grep -q 'content-desc="Activate measured cube"' "$artifacts/public-accessibility.xml"
+grep -q 'resource-id="open-measured-cube"' "$artifacts/public-accessibility.xml"
+grep -q 'content-desc="Open measured cube details"' "$artifacts/public-accessibility.xml"
+
+focus_and_activate 'activate-measured-cube'
+for _ in $(seq 1 10); do
+  adb logcat -d -v brief > "$artifacts/logcat.txt"
+  if grep -q '\[hozo-three-native\].*"source":"semantic-control"' "$artifacts/logcat.txt"; then break; fi
+  sleep 1
+done
+grep -q '\[hozo-three-native\].*"source":"semantic-control"' "$artifacts/logcat.txt"
+
+focus_and_activate 'open-measured-cube'
+for _ in $(seq 1 10); do
+  adb logcat -d -v brief > "$artifacts/logcat.txt"
+  if grep -q '\[hozo-three-native\].*"event":"navigation_activated"' "$artifacts/logcat.txt"; then break; fi
+  sleep 1
+done
+grep -q '\[hozo-three-native\].*"event":"navigation_activated".*"href":"/cubes/measured".*"replace":true' "$artifacts/logcat.txt"
+
 for _ in $(seq 1 90); do
   adb logcat -d -v brief > "$artifacts/logcat.txt"
   if grep -q '\[hozo-three-native\].*"event":"renderer_unmounted"' "$artifacts/logcat.txt"; then
@@ -101,20 +152,6 @@ grep -q 'Inspect fallback cube data' "$artifacts/accessibility.xml"
 # endpoints exist, but not for proving that decorative content is silent.
 # The following TalkBack pass makes that negative assertion from actual TTS
 # output instead.
-read -r control_x control_y < <(
-  node "$root/scripts/control-centre.mjs" \
-    "$artifacts/accessibility.xml" \
-    'activate-measured-cube'
-)
-adb shell input tap "$control_x" "$control_y"
-
-for _ in $(seq 1 10); do
-  adb logcat -d -v brief > "$artifacts/logcat.txt"
-  if grep -q '\[hozo-three-native\].*"source":"semantic-control"' "$artifacts/logcat.txt"; then
-    break
-  fi
-  sleep 1
-done
 
 node "$root/scripts/collect-report.mjs" \
   "$artifacts/logcat.txt" \

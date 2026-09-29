@@ -119,6 +119,7 @@ export function ThreeCanvas({
                 accessible
                 accessibilityRole={control.href === undefined ? 'button' : 'link'}
                 accessibilityLabel={control.label}
+                testID={control.testID}
                 onFocus={focus}
                 onBlur={() => onObjectActiveChange?.(undefined)}
                 onPress={() => {
