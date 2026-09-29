@@ -94,6 +94,8 @@ Four of those make a decision worth knowing about.
 
 `Alert` is silent by default. `live="polite"` makes it a `status` and `live="assertive"` makes it an `alert`; without either it is a box on the page. An alert rendered *with* the page announces on load, which is right for "your session expired" and wrong for a notice that is there every visit.
 
+> **`data-[hozo-state=…]` emits no CSS today.** Hozo's candidate scanner ends a class name at `=`, so every rule below that depends on the state — the checkbox's fill, the switch's track colour and knob travel, the accordion's chevron rotation — is currently absent from the output. Measured in a browser rather than inferred, and filed as [#676](https://github.com/iray-tno/hozo/issues/676) with the fix. The geometry these lists describe is correct and verified; what does not arrive yet is the change of state.
+
 `Checkbox` and `Switch` draw their box and track with `::before` and `::after`, reading `data-hozo-state` — so neither is ever told which state it is in. Passing the application's own state back in to draw it is the thing that attribute exists to prevent. `Accordion`'s chevron is the same arrangement: two borders rotated, turned by `data-[hozo-state=open]`, and invisible to a reader because a pseudo-element is not in the accessibility tree and `aria-expanded` already says it.
 
 `Listbox` marks its chosen row with a tint **and** a weight. WCAG 1.4.1 asks that colour not be the only visual means of conveying information, and a pale tint on the selected row is the easiest way to fail it — invisible on a monochrome display, to a colour-blind reader, and in print. axe cannot find this; its contrast rule asks whether text is readable, not whether two rows differ for a reason. So `listbox.test.ts` asserts it, the way `tokens.test.ts` asserts the focus ring.
@@ -117,6 +119,14 @@ Which means `Tree` passes its own `renderRow`. Pass yours and you own the row's 
 `Dialog` adds no close button, and that is the rule working rather than an omission. A dismiss control needs a name, a place in the reading order, and a decision about whether focus reaches it first or last — all of which is `@hozo/patterns`' business. Put a `Button` in the children; Escape already works without one. The scrim is the element's own `::backdrop`, so there is no overlay div to reach and no z-index to lose an argument with.
 
 `Slider` is the one component here that takes no class list for its inner parts, and the reason is worth knowing: the pattern positions the thumb by writing `inset-inline-start: 40%` on it as an inline style, and an inline inset does nothing to an element that is not positioned. A caller who replaced the thumb's classes would not be restyling a slider but breaking one, silently — it still renders, takes focus and announces the right value, and sits at the start of the track forever. `className` reaches the track, which is where a width or a height belongs.
+
+## Every length is a multiple of 4px
+
+Tailwind's spacing unit is `0.25rem`, so every integer step — `p-2`, `gap-3`, `size-6` — is already on a grid of 4. What breaks it is the half step, and there were eight of them in here: `py-1.5` is 6px, `gap-0.5` is 2px, `py-2.5` is 10px. None was a decision; they are what "a little tighter" compiles to when nobody is counting. `grid.test.ts` is the counting.
+
+Two things are exempt, both for a reason. `top-1/2` and `translate-x-1/2` are percentages rather than lengths — half of something is not off-grid, 6px is. And `border-2`, `outline-2` and `outline-offset-2` are ink rather than layout: a hairline is 1px whatever the grid says, and a focus ring forced to 4px would be a different ring.
+
+Snapping is not free, and it changed two things worth knowing about. Rows that draw a control against their first line carry `leading-6`, because a 20px line box centres a 16px box at 10px and a grid of 4 cannot write that; with a 24px line box the offset is 12. The line height has to be on the same grid as the padding, or the padding cannot stay on it. And the buttons grew: `py-2.5` gave a 36px control, `py-3` gives 44 — the height Apple's guidance asks for, well past WCAG 2.5.8's 24. The small size is 36. Two sizes, both on the grid, both large enough, which the previous pair was only by accident.
 
 ## Dark mode, which no component mentions
 

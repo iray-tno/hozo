@@ -40,10 +40,10 @@ export type HozoListboxProps<T> = Styled<ListboxProps<T>>
 export type { ListboxOption as HozoListboxOption } from '@hozo/patterns'
 
 const box =
-  'flex flex-col gap-0.5 max-h-60 overflow-y-auto rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1'
+  'flex flex-col gap-1 max-h-60 overflow-y-auto rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1'
 
 const option =
-  'cursor-pointer rounded-hozo-control px-3 py-1.5 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-selected:font-semibold aria-selected:text-hozo-accent-text aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
+  'cursor-pointer rounded-hozo-control px-3 py-2 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-selected:font-semibold aria-selected:text-hozo-accent-text aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
 export function HozoListbox<T>({ className, ...rest }: HozoListboxProps<T>) {
   return (

@@ -66,8 +66,8 @@ export type HozoSliderProps = Omit<SliderProps, 'thumbClassName' | 'fillClassNam
  */
 const HORIZONTAL = {
   track:
-    "relative h-6 w-full touch-none select-none cursor-pointer disabled:cursor-not-allowed before:content-[''] before:absolute before:inset-x-0 before:inset-y-0 before:my-auto before:h-1.5 before:rounded-full before:bg-hozo-border",
-  fill: 'absolute inset-y-0 my-auto h-1.5 start-0 rounded-full bg-hozo-accent',
+    "relative h-6 w-full touch-none select-none cursor-pointer disabled:cursor-not-allowed before:content-[''] before:absolute before:inset-x-0 before:inset-y-0 before:my-auto before:h-1 before:rounded-full before:bg-hozo-border",
+  fill: 'absolute inset-y-0 my-auto h-1 start-0 rounded-full bg-hozo-accent',
   thumb:
     'absolute inset-y-0 my-auto -ms-3 size-6 rounded-full border-2 border-hozo-accent bg-hozo-surface shadow-hozo-surface cursor-grab hover:border-hozo-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:cursor-not-allowed aria-disabled:border-hozo-border-strong aria-disabled:bg-hozo-surface-raised',
 } as const
@@ -80,8 +80,8 @@ const HORIZONTAL = {
  */
 const VERTICAL = {
   track:
-    "relative h-40 w-6 touch-none select-none cursor-pointer disabled:cursor-not-allowed before:content-[''] before:absolute before:inset-y-0 before:inset-x-0 before:mx-auto before:w-1.5 before:rounded-full before:bg-hozo-border",
-  fill: 'absolute inset-x-0 mx-auto w-1.5 bottom-0 rounded-full bg-hozo-accent',
+    "relative h-40 w-6 touch-none select-none cursor-pointer disabled:cursor-not-allowed before:content-[''] before:absolute before:inset-y-0 before:inset-x-0 before:mx-auto before:w-1 before:rounded-full before:bg-hozo-border",
+  fill: 'absolute inset-x-0 mx-auto w-1 bottom-0 rounded-full bg-hozo-accent',
   thumb:
     'absolute inset-x-0 mx-auto -mb-3 size-6 rounded-full border-2 border-hozo-accent bg-hozo-surface shadow-hozo-surface cursor-grab hover:border-hozo-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:cursor-not-allowed aria-disabled:border-hozo-border-strong aria-disabled:bg-hozo-surface-raised',
 } as const

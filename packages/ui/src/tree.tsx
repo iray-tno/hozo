@@ -50,10 +50,10 @@ export type HozoTreeProps = Omit<TreeProps, 'rowClassName'>
 export type { TreeNode as HozoTreeNode } from '@hozo/patterns'
 
 const container =
-  'flex flex-col gap-0.5 rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1'
+  'flex flex-col gap-1 rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1'
 
 const row =
-  'cursor-pointer rounded-hozo-control px-2 py-1.5 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-selected:font-semibold aria-selected:text-hozo-accent-text aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
+  'cursor-pointer rounded-hozo-control p-2 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-selected:font-semibold aria-selected:text-hozo-accent-text aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
 /** One literal per depth, because a computed class name emits no CSS. */
 const INDENT = ['ps-0', 'ps-5', 'ps-10', 'ps-15', 'ps-20'] as const

@@ -36,7 +36,7 @@ const HORIZONTAL = 'flex flex-row flex-wrap gap-2'
 const VERTICAL = 'flex flex-col gap-1'
 
 const option =
-  "relative flex flex-row items-center cursor-pointer rounded-hozo-control ps-9 pe-3 py-1.5 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus before:content-[''] before:absolute before:start-2 before:top-1/2 before:-mt-2 before:size-4 before:rounded-full before:border-2 before:border-hozo-border-strong before:bg-hozo-surface after:content-[''] after:absolute after:start-3 after:top-1/2 after:-mt-1 after:size-2 after:rounded-full aria-checked:before:border-hozo-accent aria-checked:after:bg-hozo-accent aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent aria-disabled:before:border-hozo-border"
+  "relative block w-full text-left text-sm leading-6 text-hozo-text cursor-pointer rounded-hozo-control ps-9 pe-3 py-2 hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus before:content-[''] before:absolute before:start-2 before:top-3 before:size-4 before:rounded-full before:border-2 before:border-hozo-border-strong before:bg-hozo-surface after:content-[''] after:absolute after:start-3 after:top-4 after:size-2 after:rounded-full aria-checked:before:border-hozo-accent aria-checked:after:bg-hozo-accent aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent aria-disabled:before:border-hozo-border"
 
 export function HozoRadioGroup<T>({ className, orientation, ...rest }: HozoRadioGroupProps<T>) {
   const own = orientation === 'horizontal' ? HORIZONTAL : VERTICAL

@@ -46,11 +46,11 @@ export interface HozoAlertProps {
 }
 
 const badgeNeutral =
-  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-hozo-surface-raised text-hozo-text-body'
+  'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-hozo-surface-raised text-hozo-text-body'
 const badgeAccent =
-  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-hozo-accent-subtle text-hozo-accent-text'
+  'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-hozo-accent-subtle text-hozo-accent-text'
 const badgeDanger =
-  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-hozo-danger-subtle text-hozo-danger-text'
+  'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-hozo-danger-subtle text-hozo-danger-text'
 
 const alertNeutral =
   'rounded-hozo-surface border px-4 py-3 text-sm border-hozo-border bg-hozo-surface-sunken text-hozo-text-body'

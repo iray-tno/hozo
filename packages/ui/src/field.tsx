@@ -68,7 +68,7 @@ export interface HozoFieldProps {
   errorClassName?: string
 }
 
-const shell = 'flex flex-col gap-1.5'
+const shell = 'flex flex-col gap-2'
 const labelText = 'text-sm font-medium text-hozo-text'
 const describeText = 'text-sm text-hozo-text-muted'
 const errorText = 'text-sm font-medium text-hozo-danger-text'
