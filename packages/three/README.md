@@ -299,8 +299,10 @@ than rendered misleadingly.
 `MeshNormalMaterial` is the first non-basic portable mesh material: smooth and
 flat view-space normals become Canvas vertex colours for ordinary and instanced
 meshes, while wireframes become normal-coloured Canvas gradients. Each instance
-uses its own normal matrix. Texture-perturbed normals, skinning, and active
-morphs remain diagnostic rather than receiving an inaccurate approximation.
+uses its own normal matrix, and ordinary meshes blend absolute or relative
+position and normal morph targets before projection. Texture-perturbed normals,
+skinning, and instanced morph textures remain diagnostic rather than receiving
+an inaccurate approximation.
 
 The version-pinned [Three.js coverage report](./conformance.md) separates
 atomic portable capabilities from class-level Three.js surface classification;

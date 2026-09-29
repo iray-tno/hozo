@@ -337,14 +337,14 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
     'skinned normal shading',
     'deferred',
     'CPU skinning is available for positions, but deformed normals are not projected for this material yet.',
-    [project('MeshNormalMaterial transformed meshes remain diagnostic')],
+    [project('MeshNormalMaterial skinned meshes remain diagnostic')],
   ),
   capability(
     'MeshNormalMaterial',
     'morphed normal shading',
-    'deferred',
-    'CPU morph evaluation is available for positions, but morphed normals are not projected for this material yet.',
-    [project('MeshNormalMaterial transformed meshes remain diagnostic')],
+    'exact',
+    'Absolute and relative position and normal targets are blended before normal-material projection; the separately inventoried smooth-shading interpolation boundary is unchanged.',
+    [project('MeshNormalMaterial projects position and normal morph targets')],
   ),
   capability(
     'Texture-backed materials',
