@@ -692,6 +692,38 @@ function localNormal(
   return new Vector3(x, y, z)
 }
 
+interface SkinNormalScratch {
+  blended: Matrix4
+  bone: Matrix4
+  direction: Matrix3
+}
+
+function skinnedNormal(
+  mesh: SkinnedMesh,
+  vertexIndex: number,
+  normal: Vector3,
+  scratch: SkinNormalScratch,
+): Vector3 {
+  const skinIndex = mesh.geometry.getAttribute('skinIndex')
+  const skinWeight = mesh.geometry.getAttribute('skinWeight')
+  scratch.blended.elements.fill(0)
+  for (let index = 0; index < 4; index += 1) {
+    const weight = skinWeight.getComponent(vertexIndex, index)
+    if (weight === 0) continue
+    const boneIndex = skinIndex.getComponent(vertexIndex, index)
+    const bone = mesh.skeleton.bones[boneIndex]
+    const inverse = mesh.skeleton.boneInverses[boneIndex]
+    if (!bone || !inverse) continue
+    scratch.bone.multiplyMatrices(bone.matrixWorld, inverse)
+    for (let element = 0; element < 16; element += 1) {
+      scratch.blended.elements[element] =
+        (scratch.blended.elements[element] ?? 0) + (scratch.bone.elements[element] ?? 0) * weight
+    }
+  }
+  scratch.blended.multiply(mesh.bindMatrix).premultiply(mesh.bindMatrixInverse)
+  return normal.applyMatrix3(scratch.direction.setFromMatrix4(scratch.blended))
+}
+
 function signedArea(points: readonly { x: number; y: number }[]) {
   const [a, b, c] = points
   if (!a || !b || !c) return 0
@@ -1800,11 +1832,11 @@ function projectThreeSceneInternal(
         return
       }
       if (!passesUniformAlphaTest(material)) return
-      if (batchedMesh || skinnedMesh || instancedMesh?.morphTexture) {
+      if (batchedMesh || instancedMesh?.morphTexture) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_MESH',
           message:
-            'Portable MeshNormalMaterial currently rejects batched meshes, skinned meshes, and instanced morph textures.',
+            'Portable MeshNormalMaterial currently rejects batched meshes and instanced morph textures.',
           object,
         })
         return
@@ -1820,6 +1852,27 @@ function projectThreeSceneInternal(
           object,
         })
         return
+      }
+      if (skinnedMesh) {
+        const skinIndex = mesh.geometry.getAttribute('skinIndex')
+        const skinWeight = mesh.geometry.getAttribute('skinWeight')
+        if (
+          !skinnedMesh.skeleton ||
+          !skinIndex ||
+          skinIndex.itemSize < 4 ||
+          skinIndex.count < position.count ||
+          !skinWeight ||
+          skinWeight.itemSize < 4 ||
+          skinWeight.count < position.count
+        ) {
+          diagnostic(diagnostics, options, {
+            code: 'UNSUPPORTED_GEOMETRY',
+            message:
+              'Skinned MeshNormalMaterial needs a bound skeleton and four skin indices and weights per vertex.',
+            object,
+          })
+          return
+        }
       }
       const morph = positionMorphState(mesh.geometry, mesh.morphTargetInfluences)
       const normalMorph = normalMorphState(mesh.geometry, mesh.morphTargetInfluences)
@@ -1856,6 +1909,9 @@ function projectThreeSceneInternal(
         worldMatrices.push(mesh.matrixWorld)
       }
       const materialPlanes = (material.clippingPlanes ?? []) as readonly Plane[]
+      const skinNormalScratch = skinnedMesh
+        ? { blended: new Matrix4(), bone: new Matrix4(), direction: new Matrix3() }
+        : undefined
       for (const worldMatrix of worldMatrices) {
         const modelView = new Matrix4().multiplyMatrices(camera.matrixWorldInverse, worldMatrix)
         const normalMatrix = new Matrix3().getNormalMatrix(modelView)
@@ -1865,9 +1921,13 @@ function projectThreeSceneInternal(
             index ? index.getX(offset + 1) : offset + 1,
             index ? index.getX(offset + 2) : offset + 2,
           ] as const
-          const worldPositions = vertexIndices.map((vertexIndex) =>
-            localPosition(position, vertexIndex, morph).applyMatrix4(worldMatrix),
-          ) as unknown as readonly [Vector4, Vector4, Vector4]
+          const worldPositions = vertexIndices.map((vertexIndex) => {
+            if (skinnedMesh) {
+              const local = skinnedMesh.getVertexPosition(vertexIndex, new Vector3())
+              return new Vector4(local.x, local.y, local.z, 1).applyMatrix4(worldMatrix)
+            }
+            return localPosition(position, vertexIndex, morph).applyMatrix4(worldMatrix)
+          }) as unknown as readonly [Vector4, Vector4, Vector4]
           let sourceColors: readonly [Color, Color, Color]
           if (material.flatShading) {
             const viewPositions = worldPositions.map((point) =>
@@ -1881,11 +1941,16 @@ function projectThreeSceneInternal(
             sourceColors = [color, color, color]
           } else {
             sourceColors = vertexIndices.map((vertexIndex) => {
-              const transformed = localNormal(
-                normal as PositionAttribute,
-                vertexIndex,
-                normalMorph,
-              ).applyMatrix3(normalMatrix)
+              let transformed = localNormal(normal as PositionAttribute, vertexIndex, normalMorph)
+              if (skinnedMesh && skinNormalScratch) {
+                transformed = skinnedNormal(
+                  skinnedMesh,
+                  vertexIndex,
+                  transformed,
+                  skinNormalScratch,
+                )
+              }
+              transformed.applyMatrix3(normalMatrix)
               return packedNormalColor(transformed, material.side === BackSide)
             }) as unknown as readonly [Color, Color, Color]
           }

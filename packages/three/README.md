@@ -300,9 +300,10 @@ than rendered misleadingly.
 flat view-space normals become Canvas vertex colours for ordinary and instanced
 meshes, while wireframes become normal-coloured Canvas gradients. Each instance
 uses its own normal matrix, and ordinary meshes blend absolute or relative
-position and normal morph targets before projection. Texture-perturbed normals,
-skinning, and instanced morph textures remain diagnostic rather than receiving
-an inaccurate approximation.
+position and normal morph targets before projection. Skinned meshes apply those
+morphs before the weighted bone and bind-matrix transforms used by Three.js.
+Texture-perturbed normals and instanced morph textures remain diagnostic rather
+than receiving an inaccurate approximation.
 
 The version-pinned [Three.js coverage report](./conformance.md) separates
 atomic portable capabilities from class-level Three.js surface classification;

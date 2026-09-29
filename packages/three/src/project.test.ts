@@ -1699,15 +1699,36 @@ test('MeshNormalMaterial projects position and normal morph targets', () => {
   }
 })
 
-test('MeshNormalMaterial skinned meshes remain diagnostic', () => {
-  const mesh = new THREE.SkinnedMesh(triangleGeometry(), new MeshNormalMaterial())
+test('MeshNormalMaterial skins morphed positions and normals in bone space', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('normal', new Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3))
+  geometry.setAttribute(
+    'skinIndex',
+    new Uint16BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 4),
+  )
+  geometry.setAttribute(
+    'skinWeight',
+    new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 4),
+  )
+  geometry.morphTargetsRelative = true
+  geometry.morphAttributes.position = [new Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3)]
+  geometry.morphAttributes.normal = [new Float32BufferAttribute([1, 0, -1, 1, 0, -1, 1, 0, -1], 3)]
+  const mesh = new THREE.SkinnedMesh(geometry, new MeshNormalMaterial())
+  const bone = new THREE.Bone()
+  mesh.add(bone)
+  mesh.bind(new THREE.Skeleton([bone]))
+  if (!mesh.morphTargetInfluences) throw new Error('skinned mesh did not initialise morphs')
+  mesh.morphTargetInfluences[0] = 1
+  bone.rotation.z = Math.PI / 2
   const result = projectThreeScene(new Scene().add(mesh), perspective(), {
     width: 100,
     height: 100,
   })
 
-  assert.deepEqual(result.scene, [])
-  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
+  assert.deepEqual(result.diagnostics, [])
+  assert.deepEqual(result.objects, [mesh])
+  const projected = projectedMeshes(result)[0]
+  assert.ok(projected?.colors?.every(({ r, g, b }) => g > r && g > b))
 })
 
 test('unsupported MeshBasicMaterial features emit diagnostics', () => {

@@ -279,7 +279,7 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
     'material',
     'MeshNormalMaterial',
     'partial',
-    'Smooth and flat view-space normals become portable vertex colours for ordinary, instanced, and morphed meshes, including wireframes; normal/bump/displacement maps and skinning stay diagnostic.',
+    'Smooth and flat view-space normals become portable vertex colours for ordinary, instanced, morphed, and skinned meshes, including wireframes; normal/bump/displacement maps stay diagnostic.',
     {
       upstream: upstream('material', 'MeshNormalMaterial'),
       tests: [
@@ -289,8 +289,8 @@ export const THREE_CONFORMANCE_CASES: readonly ThreeConformanceCase[] = [
           'InstancedMesh projects each normal matrix for filled and wireframe normal materials',
         ),
         project('MeshNormalMaterial projects position and normal morph targets'),
+        project('MeshNormalMaterial skins morphed positions and normals in bone space'),
         project('non-portable MeshNormalMaterial features stay diagnostic'),
-        project('MeshNormalMaterial skinned meshes remain diagnostic'),
       ],
     },
   ),
