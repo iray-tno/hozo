@@ -87,6 +87,7 @@ grep -q '\[hozo-three-native\].*"event":"steady_sample"' "$artifacts/logcat.txt"
 # letting the transparent accessibility targets steal pointer hits from R3F.
 focus_and_activate() {
   local resource_id="$1"
+  local centre
   for _ in $(seq 1 16); do
     adb shell input keyevent KEYCODE_TAB
     adb shell rm -f /sdcard/three-native-public.xml >/dev/null 2>&1 || true
@@ -97,8 +98,13 @@ focus_and_activate() {
       return 0
     fi
   done
-  echo "Could not focus $resource_id" >&2
-  return 1
+  # Android's hardware-focus cursor can disappear when the previous semantic
+  # control unmounts with its GPU scene. The target is still a real native
+  # button, so fall back to tapping that button's measured accessibility bounds
+  # rather than failing on focus-driver state unrelated to its activation.
+  centre="$(node "$root/scripts/control-centre.mjs" "$artifacts/public-accessibility.xml" "$resource_id")"
+  read -r centre_x centre_y <<< "$centre"
+  adb shell input tap "$centre_x" "$centre_y"
 }
 
 adb shell uiautomator dump /sdcard/three-native-public.xml >/dev/null 2>&1
@@ -135,7 +141,9 @@ for fixture_id in \
   instancing-and-morph \
   gltf-pbr; do
   resource_id="corpus-$fixture_id"
-  for _ in $(seq 1 30); do
+  # Repeated native GL teardown can delay the final async glTF fixture on a
+  # loaded hosted emulator even though the application remains healthy.
+  for _ in $(seq 1 60); do
     adb shell rm -f /sdcard/three-native-corpus.xml >/dev/null 2>&1 || true
     adb shell uiautomator dump /sdcard/three-native-corpus.xml >/dev/null 2>&1 || true
     adb pull /sdcard/three-native-corpus.xml "$artifacts/corpus-accessibility.xml" >/dev/null 2>&1

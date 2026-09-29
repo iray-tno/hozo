@@ -1660,25 +1660,54 @@ test('InstancedMesh projects each normal matrix for filled and wireframe normal 
   assert.ok(wireframe.objects.every((object) => object === mesh))
 })
 
-test('MeshNormalMaterial transformed meshes remain diagnostic', () => {
-  const material = () => new MeshNormalMaterial()
-  const skinned = new THREE.SkinnedMesh(triangleGeometry(), material())
-  const morphed = new Mesh(triangleGeometry(), material())
-  morphed.geometry.morphAttributes.position = [
-    new Float32BufferAttribute([-1, 0, 0, 1, 0, 0, 0, 2, 0], 3),
-  ]
-  morphed.updateMorphTargets()
-  if (!morphed.morphTargetInfluences) throw new Error('mesh did not initialise morph influences')
-  morphed.morphTargetInfluences[0] = 1
+test('MeshNormalMaterial projects position and normal morph targets', () => {
+  for (const relative of [false, true]) {
+    const geometry = triangleGeometry()
+    geometry.morphTargetsRelative = relative
+    geometry.setAttribute('normal', new Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3))
+    geometry.morphAttributes.position = [
+      new Float32BufferAttribute(
+        relative ? [0, 1, 0, 0, 1, 0, 0, 1, 0] : [-1, 0, 0, 1, 0, 0, 0, 2, 0],
+        3,
+      ),
+    ]
+    geometry.morphAttributes.normal = [
+      new Float32BufferAttribute(
+        relative ? [1, 0, -1, 1, 0, -1, 1, 0, -1] : [1, 0, 0, 1, 0, 0, 1, 0, 0],
+        3,
+      ),
+    ]
+    const mesh = new Mesh(geometry, new MeshNormalMaterial())
+    mesh.updateMorphTargets()
+    if (!mesh.morphTargetInfluences) throw new Error('mesh did not initialise morph influences')
+    mesh.morphTargetInfluences[0] = 1
 
-  for (const mesh of [skinned, morphed]) {
     const result = projectThreeScene(new Scene().add(mesh), perspective(), {
       width: 100,
       height: 100,
     })
-    assert.deepEqual(result.scene, [])
-    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
+
+    assert.deepEqual(result.diagnostics, [], relative ? 'relative' : 'absolute')
+    const projected = projectedMeshes(result)[0]
+    assert.deepEqual(projected?.vertices.slice(0, 2), [
+      { x: 40, y: 50 },
+      { x: 60, y: 50 },
+    ])
+    assert.equal(projected?.vertices[2]?.x, 50)
+    assert.ok(Math.abs((projected?.vertices[2]?.y ?? 0) - 30) < 1e-9)
+    assert.ok(projected?.colors?.every(({ r, g, b }) => r > g && r > b))
   }
+})
+
+test('MeshNormalMaterial skinned meshes remain diagnostic', () => {
+  const mesh = new THREE.SkinnedMesh(triangleGeometry(), new MeshNormalMaterial())
+  const result = projectThreeScene(new Scene().add(mesh), perspective(), {
+    width: 100,
+    height: 100,
+  })
+
+  assert.deepEqual(result.scene, [])
+  assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MESH')
 })
 
 test('unsupported MeshBasicMaterial features emit diagnostics', () => {

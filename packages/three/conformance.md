@@ -26,16 +26,16 @@ Every category in the current portable surface inventory now has an independentl
 
 | Scope | Exact | Approximate | Deferred | Feasible | Implemented feasible | Diagnostic | Silent |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Material** | **18** | **9** | **2** | **29** | **27/29 (93.1%)** | **6** | **0** |
+| **Material** | **19** | **9** | **1** | **29** | **28/29 (96.6%)** | **6** | **0** |
 | **Geometry** | **26** | **0** | **0** | **26** | **26/26 (100.0%)** | **0** | **0** |
 | **Object** | **22** | **0** | **0** | **22** | **22/22 (100.0%)** | **0** | **0** |
 | **Camera** | **7** | **0** | **0** | **7** | **7/7 (100.0%)** | **3** | **0** |
 | **Scene** | **12** | **2** | **2** | **16** | **14/16 (87.5%)** | **3** | **0** |
 | **Topology** | **5** | **0** | **0** | **5** | **5/5 (100.0%)** | **0** | **0** |
 | **Interaction** | **10** | **0** | **0** | **10** | **10/10 (100.0%)** | **0** | **0** |
-| **Overall portable capability** | **100** | **11** | **4** | **115** | **111/115 (96.5%)** | **12** | **0** |
+| **Overall portable capability** | **101** | **11** | **3** | **115** | **112/115 (97.4%)** | **12** | **0** |
 
-Overall exact capability coverage is **100/115 (87.0%)**. Including documented approximations, implemented feasible coverage is **111/115 (96.5%)**. This is a portable capability ceiling, not a real-scene success rate; GPU-required diagnostics remain visible and the separate version-pinned scene corpus reports application-shaped evidence independently.
+Overall exact capability coverage is **101/115 (87.8%)**. Including documented approximations, implemented feasible coverage is **112/115 (97.4%)**. This is a portable capability ceiling, not a real-scene success rate; GPU-required diagnostics remain visible and the separate version-pinned scene corpus reports application-shaped evidence independently.
 
 ### Material capability details
 
@@ -68,8 +68,8 @@ Overall exact capability coverage is **100/115 (87.0%)**. Including documented a
 | MeshNormalMaterial | flat view-space normal shading | exact | A face normal is evaluated once for each projected triangle. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals` |
 | MeshNormalMaterial | wireframe normal shading | approximate | Normal-derived endpoint colours become portable linear edge gradients; GPU perspective-correct interpolation is not promised. | [test](src/project.test.ts) `MeshNormalMaterial wireframe projects normal-coloured clipped edges` |
 | MeshNormalMaterial | instanced normal shading | exact | Each instance uses its own view-space normal matrix; the separately inventoried smooth-shading interpolation boundary is unchanged. | [test](src/project.test.ts) `InstancedMesh projects each normal matrix for filled and wireframe normal materials` |
-| MeshNormalMaterial | skinned normal shading | deferred | CPU skinning is available for positions, but deformed normals are not projected for this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
-| MeshNormalMaterial | morphed normal shading | deferred | CPU morph evaluation is available for positions, but morphed normals are not projected for this material yet. | [test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
+| MeshNormalMaterial | skinned normal shading | deferred | CPU skinning is available for positions, but deformed normals are not projected for this material yet. | [test](src/project.test.ts) `MeshNormalMaterial skinned meshes remain diagnostic` |
+| MeshNormalMaterial | morphed normal shading | exact | Absolute and relative position and normal targets are blended before normal-material projection; the separately inventoried smooth-shading interpolation boundary is unchanged. | [test](src/project.test.ts) `MeshNormalMaterial projects position and normal morph targets` |
 | Texture-backed materials | general GPU texture sampling | diagnostic | Unsupported colour spaces, transforms, mirrored wrapping, and GPU sampling state are rejected. | [test](src/project.test.ts) `non-portable texture sampling is refused with an actionable diagnostic` |
 | Lit mesh materials | lighting models | diagnostic | Lambert, Phong, Standard, Physical, Toon, and Matcap shading require a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | Depth and shadow materials | depth, distance, and shadow output | diagnostic | Depth, distance, and shadow materials depend on GPU passes unavailable to the portable projector. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
@@ -284,7 +284,7 @@ The rows are an unweighted API surface. The overall Three.js surface figure excl
 | RawShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShaderMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
 | ShadowMaterial | diagnostic | Rejected because correct output needs a GPU material pipeline. | [test](src/project.test.ts) `unsupported mesh material classes emit diagnostics` |
-| MeshNormalMaterial | partial | Smooth and flat view-space normals become portable vertex colours for ordinary meshes; normal/bump/displacement maps, wireframe, skinning, instancing, and active morphs stay diagnostic. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals`<br>[test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic`<br>[test](src/project.test.ts) `MeshNormalMaterial transformed meshes remain diagnostic` |
+| MeshNormalMaterial | partial | Smooth and flat view-space normals become portable vertex colours for ordinary, instanced, and morphed meshes, including wireframes; normal/bump/displacement maps and skinning stay diagnostic. | [test](src/project.test.ts) `MeshNormalMaterial projects smooth and flat view-space normals`<br>[test](src/project.test.ts) `MeshNormalMaterial wireframe projects normal-coloured clipped edges`<br>[test](src/project.test.ts) `InstancedMesh projects each normal matrix for filled and wireframe normal materials`<br>[test](src/project.test.ts) `MeshNormalMaterial projects position and normal morph targets`<br>[test](src/project.test.ts) `non-portable MeshNormalMaterial features stay diagnostic`<br>[test](src/project.test.ts) `MeshNormalMaterial skinned meshes remain diagnostic` |
 | PointsMaterial | partial | Colour, normal alpha transparency, per-point RGB, fog, size, attenuation, and the constrained point-sprite colour-map subset work. | [test](src/project.test.ts) `Points become Canvas circles with indexed draw ranges and perspective attenuation`<br>[test](src/project.test.ts) `PointsMaterial multiplies per-point RGB colours`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `PointsMaterial map becomes a portable point-sprite texture` |
 | SpriteMaterial | partial | Solid colour, fog, normal alpha transparency, and the constrained affine colour-map subset work. | [test](src/project.test.ts) `Sprite projects its billboard centre, rotation, and perspective attenuation`<br>[test](src/project.test.ts) `SpriteMaterial map preserves billboard UVs through clipping`<br>[test](src/project.test.ts) `normal transparent materials project opacity across portable primitives`<br>[test](src/project.test.ts) `unsupported SpriteMaterial features are omitted with diagnostics` |
 

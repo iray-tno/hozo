@@ -608,11 +608,32 @@ interface PositionMorphState {
   influences: readonly number[]
 }
 
+interface NormalMorphState {
+  attributes: readonly PositionAttribute[]
+  baseInfluence: number
+  influences: readonly number[]
+}
+
 function positionMorphState(
   geometry: BufferGeometry,
   influences: readonly number[] | undefined,
 ): PositionMorphState | undefined {
   const attributes = geometry.morphAttributes.position
+  if (!influences || !attributes || attributes.length === 0) return undefined
+  return {
+    attributes,
+    baseInfluence: geometry.morphTargetsRelative
+      ? 1
+      : 1 - influences.reduce((sum, influence) => sum + influence, 0),
+    influences,
+  }
+}
+
+function normalMorphState(
+  geometry: BufferGeometry,
+  influences: readonly number[] | undefined,
+): NormalMorphState | undefined {
+  const attributes = geometry.morphAttributes.normal
   if (!influences || !attributes || attributes.length === 0) return undefined
   return {
     attributes,
@@ -645,6 +666,30 @@ function localPosition(
     z += attribute.getZ(vertexIndex) * influence
   }
   return new Vector4(x, y, z, 1)
+}
+
+function localNormal(
+  normal: PositionAttribute,
+  vertexIndex: number,
+  morph: NormalMorphState | undefined,
+): Vector3 {
+  const baseX = normal.getX(vertexIndex)
+  const baseY = normal.getY(vertexIndex)
+  const baseZ = normal.getZ(vertexIndex)
+  if (!morph) return new Vector3(baseX, baseY, baseZ)
+
+  let x = baseX * morph.baseInfluence
+  let y = baseY * morph.baseInfluence
+  let z = baseZ * morph.baseInfluence
+  for (let index = 0; index < morph.attributes.length; index += 1) {
+    const influence = morph.influences[index] ?? 0
+    const attribute = morph.attributes[index]
+    if (influence === 0 || !attribute) continue
+    x += attribute.getX(vertexIndex) * influence
+    y += attribute.getY(vertexIndex) * influence
+    z += attribute.getZ(vertexIndex) * influence
+  }
+  return new Vector3(x, y, z)
 }
 
 function signedArea(points: readonly { x: number; y: number }[]) {
@@ -1755,16 +1800,11 @@ function projectThreeSceneInternal(
         return
       }
       if (!passesUniformAlphaTest(material)) return
-      if (
-        batchedMesh ||
-        skinnedMesh ||
-        instancedMesh?.morphTexture ||
-        mesh.morphTargetInfluences?.some((influence) => influence !== 0)
-      ) {
+      if (batchedMesh || skinnedMesh || instancedMesh?.morphTexture) {
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_MESH',
           message:
-            'Portable MeshNormalMaterial currently rejects batched, skinned, and actively morphed meshes.',
+            'Portable MeshNormalMaterial currently rejects batched meshes, skinned meshes, and instanced morph textures.',
           object,
         })
         return
@@ -1777,6 +1817,22 @@ function projectThreeSceneInternal(
         diagnostic(diagnostics, options, {
           code: 'UNSUPPORTED_GEOMETRY',
           message: 'Smooth MeshNormalMaterial needs one three-component normal per vertex.',
+          object,
+        })
+        return
+      }
+      const morph = positionMorphState(mesh.geometry, mesh.morphTargetInfluences)
+      const normalMorph = normalMorphState(mesh.geometry, mesh.morphTargetInfluences)
+      if (
+        !material.flatShading &&
+        normalMorph?.attributes.some(
+          (attribute) => attribute.itemSize < 3 || attribute.count < position.count,
+        )
+      ) {
+        diagnostic(diagnostics, options, {
+          code: 'UNSUPPORTED_GEOMETRY',
+          message:
+            'Smooth MeshNormalMaterial morph normals must provide three components per vertex.',
           object,
         })
         return
@@ -1810,7 +1866,7 @@ function projectThreeSceneInternal(
             index ? index.getX(offset + 2) : offset + 2,
           ] as const
           const worldPositions = vertexIndices.map((vertexIndex) =>
-            localPosition(position, vertexIndex, undefined).applyMatrix4(worldMatrix),
+            localPosition(position, vertexIndex, morph).applyMatrix4(worldMatrix),
           ) as unknown as readonly [Vector4, Vector4, Vector4]
           let sourceColors: readonly [Color, Color, Color]
           if (material.flatShading) {
@@ -1825,10 +1881,10 @@ function projectThreeSceneInternal(
             sourceColors = [color, color, color]
           } else {
             sourceColors = vertexIndices.map((vertexIndex) => {
-              const transformed = new Vector3(
-                normal?.getX(vertexIndex) ?? 0,
-                normal?.getY(vertexIndex) ?? 0,
-                normal?.getZ(vertexIndex) ?? 0,
+              const transformed = localNormal(
+                normal as PositionAttribute,
+                vertexIndex,
+                normalMorph,
               ).applyMatrix3(normalMatrix)
               return packedNormalColor(transformed, material.side === BackSide)
             }) as unknown as readonly [Color, Color, Color]
