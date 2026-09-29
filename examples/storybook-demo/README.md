@@ -41,8 +41,9 @@ Hozo's Storybook showcases the entire universal component hierarchy across 5 cle
 ## Automated Accessibility Testing
 
 Every story is automatically built and tested against **`axe-core`** in CI:
-- **39/39 stories passing** with **0 automated violations**.
+- **53/53 stories passing** with **0 automated violations**, in **both colour schemes**.
 - Catches machine-testable issues: color contrast thresholds, missing labels, invalid ARIA roles/attributes, and duplicate IDs.
+- Twice, once per scheme, because `--headless=new` reports `prefers-color-scheme: dark` — so every run before [#666](https://github.com/iray-tno/hozo/issues/666) audited the dark render and never the light one. It did not matter while nothing here answered the scheme; `@hozo/ui`'s paired tokens made it two renders per story. The page reports the scheme it actually got and a mismatch fails the run, because a flag that quietly stopped working would put this back where it was while claiming to check both.
 - *Note*: Automated audits cover the rule-based subset of accessibility. Real NVDA and VoiceOver read the `patterns-*` stories weekly (`examples/screen-readers`); interactive keyboard trap behavior and the rest of real-world screen reader usability still require manual testing.
 
 ## Development

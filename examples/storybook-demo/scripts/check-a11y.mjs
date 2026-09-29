@@ -16,6 +16,28 @@
 // Skipped rather than failed when no browser is present. That is a
 // deliberate hole and a narrow one: CI installs one, and the alternative
 // is a check nobody can run locally on a machine without Chrome.
+//
+// ## Twice, once per colour scheme
+//
+// Every run before this one audited dark mode and said nothing about it.
+// `--headless=new` reports `prefers-color-scheme: dark`, which was measured
+// rather than recalled (#666) and is not what anyone assumed -- so the check
+// that has found every computed-colour bug in this repository had never
+// looked at the scheme most people see.
+//
+// It did not matter while nothing here responded to the scheme: one render,
+// audited once. `@hozo/ui`'s paired tokens made it two renders per story, and
+// a page can pass in one and fail in the other -- which is not a corner case
+// but the ordinary outcome of mixing a paired surface with unpaired text.
+//
+// `--blink-settings=preferredColorScheme` is the whole mechanism: 1 is light
+// and 2 is dark. One flag per pass, rather than a driver for
+// `Emulation.setEmulatedMedia`, which would mean adding Puppeteer to a script
+// whose only dependency is a browser that happens to be installed.
+//
+// The page reports the scheme it actually got, and a mismatch fails the run.
+// A flag that silently stopped working would put this back where it started,
+// except now claiming to check both.
 
 import { execFile } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -136,7 +158,10 @@ async function run() {
       found.push({ id, impact: 'error', rule: 'axe', target: '', help: error.message })
     }
   }
-  document.getElementById('out').textContent = 'HOZO_A11Y ' + JSON.stringify({ stories: IDS.length, found })
+  // The scheme this browser actually gave us, read from the page rather than
+  // assumed from the flag that asked for it.
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches
+  document.getElementById('out').textContent = 'HOZO_A11Y ' + JSON.stringify({ stories: IDS.length, dark, found })
 }
 run()
 </script></body>`,
@@ -185,79 +210,129 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
 // Port 0: the OS picks a free one. A fixed port collides with a stale
 // run on a developer's machine and with a parallel job in CI, and the
 // failure reads as EADDRINUSE rather than as anything about the page.
-server.listen(0, () => {
+/**
+ * The two schemes, and the Blink setting that asks for each.
+ *
+ * `preferredColorScheme` is `blink::mojom::PreferredColorScheme`, which is
+ * **dark = 0 and light = 1** -- measured here, one value at a time, because it
+ * reads backwards and the guess costs more than the check. An out-of-range 2
+ * does not fall back or warn: the renderer is killed for a bad Mojo message
+ * mid-run (`VALIDATION_ERROR_UNKNOWN_ENUM_VALUE`), and the enum used to have
+ * three values with dark at 2, so that is exactly what an older recollection
+ * produces.
+ *
+ * `dark` is what the page must report back. Light goes first, because it is
+ * the one that was never checked and the one whose failures are most likely
+ * to be news.
+ */
+const SCHEMES = [
+  { name: 'light', setting: 1, dark: false },
+  { name: 'dark', setting: 0, dark: true },
+]
+
+/** One browser run, in one scheme. Resolves what the page reported. */
+function audit(port, scheme) {
+  return new Promise((resolve, reject) => {
+    // `execFile` and not `execFileSync`: the server is in this process, and
+    // a synchronous child blocks the event loop -- so nothing answers the
+    // browser's request, the page never loads, and the run times out with
+    // no clue as to why. It looked like a browser problem for a while.
+    execFile(
+      browser,
+      [
+        '--headless=new',
+        '--disable-gpu',
+        '--no-sandbox',
+        `--blink-settings=preferredColorScheme=${scheme.setting}`,
+        '--virtual-time-budget=120000',
+        '--dump-dom',
+        `http://localhost:${port}/__a11y.html`,
+      ],
+      {
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        // Its own bound, rather than relying on whatever runs it to have
+        // one. Without this a browser that never exits hangs the job until
+        // something outside kills the whole process -- which takes the
+        // cleanup with it and leaves a listening server behind.
+        timeout: 4 * 60 * 1000,
+        killSignal: 'SIGKILL',
+      },
+      (error, dom) => {
+        if (error) {
+          reject(new Error(`the browser failed to run in ${scheme.name}: ${error.message}`))
+          return
+        }
+        const match = /HOZO_A11Y (\{[\s\S]*?\})<\/pre>/.exec(dom)
+        if (!match) {
+          // Silence here means the run did not finish, and reporting "no
+          // violations" would be the worst possible reading of that.
+          reject(new Error(`the ${scheme.name} run produced no result; the page did not finish`))
+          return
+        }
+        resolve(JSON.parse(match[1]))
+      },
+    )
+  })
+}
+
+server.listen(0, async () => {
   const port = server.address().port
-  // `execFile` and not `execFileSync`: the server is in this process, and
-  // a synchronous child blocks the event loop -- so nothing answers the
-  // browser's request, the page never loads, and the run times out with
-  // no clue as to why. It looked like a browser problem for a while.
-  execFile(
-    browser,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-sandbox',
-      '--virtual-time-budget=120000',
-      '--dump-dom',
-      `http://localhost:${port}/__a11y.html`,
-    ],
-    {
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-      // Its own bound, rather than relying on whatever runs it to have
-      // one. Without this a browser that never exits hangs the job until
-      // something outside kills the whole process -- which takes the
-      // cleanup with it and leaves a listening server behind.
-      timeout: 4 * 60 * 1000,
-      killSignal: 'SIGKILL',
-    },
-    (error, dom) => {
-      cleanup()
-      if (error) {
-        console.error(`[a11y] the browser failed to run: ${error.message}`)
-        process.exit(1)
-      }
-
-      const match = /HOZO_A11Y (\{[\s\S]*?\})<\/pre>/.exec(dom)
-      if (!match) {
-        // Silence here means the run did not finish, and reporting "no
-        // violations" would be the worst possible reading of that.
-        console.error('[a11y] the run produced no result; the page did not finish')
-        process.exit(1)
-      }
-      const { stories, found } = JSON.parse(match[1])
-      const fresh = found.filter((violation) => !(violation.rule in KNOWN))
-      const seen = new Set(found.map((violation) => violation.rule))
-
-      // A rule nobody breaks any more is a line to delete, and saying so is
-      // the only thing that stops this list growing forever.
-      const stale = Object.entries(KNOWN).filter(([rule]) => !seen.has(rule))
-      if (stale.length > 0) {
-        console.error('[a11y] these are no longer violated and should leave KNOWN:\n')
-        for (const [rule, issue] of stale) console.error(`  ${rule}  (#${issue})`)
-        process.exit(1)
-      }
-
-      if (fresh.length === 0) {
-        const held = found.length
-        console.log(
-          `[a11y] ${stories} stories, no new violations` +
-            (held > 0
-              ? ` (${held} held against ${Object.values(KNOWN)
-                  .map((n) => `#${n}`)
-                  .join(', ')})`
-              : ''),
-        )
-        return
-      }
-      console.error(`[a11y] ${fresh.length} violation(s) across ${stories} stories:\n`)
-      for (const violation of fresh) {
-        console.error(
-          `  ${violation.id}\n    ${violation.impact} ${violation.rule} on ${violation.target}` +
-            `\n    ${violation.help}`,
+  let stories = 0
+  const found = []
+  try {
+    for (const scheme of SCHEMES) {
+      const result = await audit(port, scheme)
+      // The flag did what it said, or this run is auditing one scheme twice
+      // and reporting two. Which is the failure #666 was, with a label on it.
+      if (result.dark !== scheme.dark) {
+        throw new Error(
+          `asked for ${scheme.name} and the page reports ` +
+            `prefers-color-scheme: ${result.dark ? 'dark' : 'light'}`,
         )
       }
-      process.exit(1)
-    },
-  )
+      stories = result.stories
+      found.push(...result.found.map((violation) => ({ ...violation, scheme: scheme.name })))
+    }
+  } catch (error) {
+    cleanup()
+    console.error(`[a11y] ${error.message}`)
+    process.exit(1)
+  }
+  cleanup()
+
+  const fresh = found.filter((violation) => !(violation.rule in KNOWN))
+  const seen = new Set(found.map((violation) => violation.rule))
+
+  // A rule nobody breaks any more is a line to delete, and saying so is
+  // the only thing that stops this list growing forever.
+  const stale = Object.entries(KNOWN).filter(([rule]) => !seen.has(rule))
+  if (stale.length > 0) {
+    console.error('[a11y] these are no longer violated and should leave KNOWN:\n')
+    for (const [rule, issue] of stale) console.error(`  ${rule}  (#${issue})`)
+    process.exit(1)
+  }
+
+  const schemes = SCHEMES.map((scheme) => scheme.name).join(' and ')
+  if (fresh.length === 0) {
+    const held = found.length
+    console.log(
+      `[a11y] ${stories} stories in ${schemes}, no new violations` +
+        (held > 0
+          ? ` (${held} held against ${Object.values(KNOWN)
+              .map((n) => `#${n}`)
+              .join(', ')})`
+          : ''),
+    )
+    return
+  }
+  console.error(`[a11y] ${fresh.length} violation(s) across ${stories} stories in ${schemes}:\n`)
+  for (const violation of fresh) {
+    console.error(
+      `  ${violation.id} (${violation.scheme})\n` +
+        `    ${violation.impact} ${violation.rule} on ${violation.target}\n` +
+        `    ${violation.help}`,
+    )
+  }
+  process.exit(1)
 })
