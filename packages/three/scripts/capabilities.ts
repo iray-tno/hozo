@@ -324,9 +324,13 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
   capability(
     'MeshNormalMaterial',
     'instanced normal shading',
-    'deferred',
-    'Instance transforms are already projected by the CPU path, but their normal matrices are not connected to this material yet.',
-    [project('MeshNormalMaterial transformed meshes remain diagnostic')],
+    'exact',
+    'Each instance uses its own view-space normal matrix; the separately inventoried smooth-shading interpolation boundary is unchanged.',
+    [
+      project(
+        'InstancedMesh projects each normal matrix for filled and wireframe normal materials',
+      ),
+    ],
   ),
   capability(
     'MeshNormalMaterial',

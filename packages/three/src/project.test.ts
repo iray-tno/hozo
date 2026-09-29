@@ -1633,9 +1633,35 @@ test('MeshNormalMaterial wireframe projects normal-coloured clipped edges', () =
   assert.ok(lines.every(({ x1, x2 }) => x1 >= 50 && x2 >= 50))
 })
 
+test('InstancedMesh projects each normal matrix for filled and wireframe normal materials', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('normal', new Float32BufferAttribute([1, 0, 0, 1, 0, 0, 1, 0, 0], 3))
+  const material = new MeshNormalMaterial()
+  const mesh = new THREE.InstancedMesh(geometry, material, 2)
+  mesh.setMatrixAt(0, new THREE.Matrix4().makeTranslation(-1, 0, 0))
+  mesh.setMatrixAt(1, new THREE.Matrix4().makeRotationZ(Math.PI / 2).setPosition(1, 0, 0))
+  const scene = new Scene().add(mesh)
+
+  const filled = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+
+  assert.deepEqual(filled.diagnostics, [])
+  assert.deepEqual(filled.objects, [mesh, mesh])
+  const filledMeshes = projectedMeshes(filled)
+  assert.equal(filledMeshes.length, 2)
+  const firstColor = filledMeshes[0]?.colors?.[0]
+  const secondColor = filledMeshes[1]?.colors?.[0]
+  assert.ok(firstColor && firstColor.r > firstColor.g && firstColor.r > firstColor.b)
+  assert.ok(secondColor && secondColor.g > secondColor.r && secondColor.g > secondColor.b)
+
+  material.wireframe = true
+  const wireframe = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
+  assert.deepEqual(wireframe.diagnostics, [])
+  assert.equal(projectedLines(wireframe).length, 6)
+  assert.ok(wireframe.objects.every((object) => object === mesh))
+})
+
 test('MeshNormalMaterial transformed meshes remain diagnostic', () => {
   const material = () => new MeshNormalMaterial()
-  const instanced = new THREE.InstancedMesh(triangleGeometry(), material(), 1)
   const skinned = new THREE.SkinnedMesh(triangleGeometry(), material())
   const morphed = new Mesh(triangleGeometry(), material())
   morphed.geometry.morphAttributes.position = [
@@ -1645,7 +1671,7 @@ test('MeshNormalMaterial transformed meshes remain diagnostic', () => {
   if (!morphed.morphTargetInfluences) throw new Error('mesh did not initialise morph influences')
   morphed.morphTargetInfluences[0] = 1
 
-  for (const mesh of [instanced, skinned, morphed]) {
+  for (const mesh of [skinned, morphed]) {
     const result = projectThreeScene(new Scene().add(mesh), perspective(), {
       width: 100,
       height: 100,
