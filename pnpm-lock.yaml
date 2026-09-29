@@ -423,6 +423,9 @@ importers:
 
   examples/three-native-probe:
     dependencies:
+      '@hozo/navigation':
+        specifier: workspace:^
+        version: link:../../packages/navigation
       '@hozo/three':
         specifier: workspace:^
         version: link:../../packages/three

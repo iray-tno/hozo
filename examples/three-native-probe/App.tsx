@@ -1,8 +1,9 @@
-import { ThreeCanvas } from '@hozo/three/r3f-native'
+import { NavigationProvider } from '@hozo/navigation'
+import { type R3FAccessibleObjectEvent, ThreeCanvas } from '@hozo/three/r3f-native'
 import { useFrame, useThree } from '@react-three/fiber/native'
 import { File, Paths } from 'expo-file-system'
 import type { ExpoWebGLRenderingContext } from 'expo-gl'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Mesh } from 'three'
 
@@ -21,6 +22,8 @@ type ProbeEvent = {
   contextId?: number
   resumeEpoch?: number
   reason?: string
+  href?: string
+  replace?: boolean
 }
 
 const recordedEvents: ProbeEvent[] = []
@@ -43,12 +46,13 @@ function ProbeScene({
   onComplete,
   resumeEpoch,
   allowWithoutResume,
+  meshRef,
 }: {
   onComplete: (object: Mesh) => void
   resumeEpoch: number
   allowWithoutResume: boolean
+  meshRef: RefObject<Mesh | null>
 }) {
-  const meshRef = useRef<Mesh>(null)
   const frameTimes = useRef<number[]>([])
   const firstFrameEmitted = useRef(false)
   const completed = useRef(false)
@@ -201,9 +205,12 @@ function AccessibilityModes() {
 export default function App() {
   const [mounted, setMounted] = useState(true)
   const [sampledObject, setSampledObject] = useState<Mesh | null>(null)
+  const [semanticActivated, setSemanticActivated] = useState(false)
+  const [destinationActivated, setDestinationActivated] = useState(false)
   const [resumeEpoch, setResumeEpoch] = useState(0)
   const [allowWithoutResume, setAllowWithoutResume] = useState(false)
   const backgrounded = useRef(false)
+  const meshRef = useRef<Mesh>(null)
   const resumeCount = useRef(0)
 
   useEffect(() => {
@@ -250,61 +257,84 @@ export default function App() {
 
   const complete = useCallback((object: Mesh) => {
     setSampledObject(object)
-    setTimeout(() => setMounted(false), 0)
+    // Hosted iOS cannot inject a trusted accessibility activation. Its report
+    // keeps that explicit and still verifies renderer teardown.
+    if (Platform.OS === 'ios') setTimeout(() => setMounted(false), 0)
   }, [])
 
-  const activateSemanticControl = useCallback(() => {
-    if (!sampledObject) return
+  const activateSemanticControl = useCallback(({ object }: R3FAccessibleObjectEvent) => {
     emit({
       event: 'object_activated',
       host: 'expo-gl',
-      objectId: sampledObject.uuid,
+      objectId: object.uuid,
       source: 'semantic-control',
     })
-  }, [sampledObject])
+    setSemanticActivated(true)
+  }, [])
+
+  const navigate = useCallback((href: string, request: { replace?: boolean }) => {
+    emit({ event: 'navigation_activated', host: 'expo-gl', href, replace: request.replace })
+    setDestinationActivated(true)
+    return true
+  }, [])
+
+  useEffect(() => {
+    if (!sampledObject || !semanticActivated || !destinationActivated) return
+    setMounted(false)
+  }, [destinationActivated, sampledObject, semanticActivated])
 
   return (
-    <View style={styles.screen} testID="native-gpu-probe">
-      <Text accessibilityRole="header" style={styles.heading}>
-        Expo GL native GPU probe
-      </Text>
-      <View style={styles.canvas} testID="gpu-touch-surface">
-        {mounted ? (
-          <ThreeCanvas
-            accessibilityLabel="Measured rotating GPU cube"
-            camera={{ position: [0, 0, 3] }}
-          >
-            <ambientLight intensity={0.4} />
-            <ProbeScene
-              allowWithoutResume={allowWithoutResume}
-              onComplete={complete}
-              resumeEpoch={resumeEpoch}
-            />
-          </ThreeCanvas>
-        ) : (
-          <View style={styles.complete}>
-            <Text testID="probe-complete" style={styles.result}>
-              120 frames rendered, touched, and unmounted.
-            </Text>
-            <AccessibilityModes />
-          </View>
-        )}
+    <NavigationProvider onNavigate={navigate}>
+      <View style={styles.screen} testID="native-gpu-probe">
+        <Text accessibilityRole="header" style={styles.heading}>
+          Expo GL native GPU probe
+        </Text>
+        <View style={styles.canvas} testID="gpu-touch-surface">
+          {mounted ? (
+            <ThreeCanvas
+              accessibilityLabel="Measured rotating GPU cube"
+              accessibleObjects={[
+                {
+                  id: 'measured-cube-action',
+                  label: 'Activate measured cube',
+                  object: meshRef,
+                  onPress: activateSemanticControl,
+                  testID: 'activate-measured-cube',
+                },
+                {
+                  id: 'measured-cube-destination',
+                  label: 'Open measured cube details',
+                  object: meshRef,
+                  href: '/cubes/measured',
+                  replace: true,
+                  testID: 'open-measured-cube',
+                },
+              ]}
+              camera={{ position: [0, 0, 3] }}
+              frameloop={sampledObject ? 'demand' : 'always'}
+            >
+              <ambientLight intensity={0.4} />
+              <ProbeScene
+                allowWithoutResume={allowWithoutResume}
+                meshRef={meshRef}
+                onComplete={complete}
+                resumeEpoch={resumeEpoch}
+              />
+            </ThreeCanvas>
+          ) : (
+            <View style={styles.complete}>
+              <Text testID="probe-complete" style={styles.result}>
+                120 frames rendered, touched, navigated, and unmounted.
+              </Text>
+              <AccessibilityModes />
+            </View>
+          )}
+        </View>
+        <Text style={styles.note}>
+          The probe stops after its public semantic action and destination both activate.
+        </Text>
       </View>
-      <Pressable
-        accessibilityLabel="Activate measured cube"
-        accessibilityRole="button"
-        disabled={!sampledObject}
-        onPress={activateSemanticControl}
-        style={styles.button}
-        testID="activate-measured-cube"
-      >
-        <Text style={styles.buttonText}>Activate measured cube</Text>
-      </Pressable>
-      <Text style={styles.note}>
-        The probe deliberately stops after sampling so Android can inspect an idle accessibility
-        tree.
-      </Text>
-    </View>
+    </NavigationProvider>
   )
 }
 
@@ -324,7 +354,5 @@ const styles = StyleSheet.create({
   mode: { backgroundColor: '#171e35', borderRadius: 10, minHeight: 54, padding: 12 },
   modeText: { color: '#f7f8ff', fontSize: 15, textAlign: 'center' },
   fallbackButton: { flex: 1, justifyContent: 'center' },
-  button: { backgroundColor: '#6750ff', borderRadius: 12, marginTop: 16, padding: 16 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700', textAlign: 'center' },
   note: { color: '#b4bad0', fontSize: 13, lineHeight: 18, marginTop: 12 },
 })

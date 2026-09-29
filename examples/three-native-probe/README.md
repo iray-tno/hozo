@@ -8,8 +8,11 @@ screenshot, and accessibility tree. The lifecycle report records whether Expo GL
 replaced its context, measures active-to-frame recovery latency, and resets the 120-frame sample
 so every reported frame was rendered after resuming. The retained `touch-attempts.txt` records
 whether post-resume input was accepted immediately or needed a bounded retry.
-It also drives an actual device tap through R3F raycasting, then records TalkBack reading labelled
-and fallback semantics while proving that decorative content stays silent.
+It also drives an actual device tap through R3F raycasting, activates the public
+`@hozo/three/r3f-native` action and destination controls, and proves that the action resolves the
+same Three object while the destination reaches a Hozo navigation provider. TalkBack reads those
+public controls as a button and link, reads the labelled and fallback modes, and leaves decorative
+content silent.
 
 The iOS Simulator job measures the same Expo prebuild host through a Release app: initial GPU
 rendering, a fresh 120-frame sample, and teardown. It also attempts a UIKit background/resume cycle
