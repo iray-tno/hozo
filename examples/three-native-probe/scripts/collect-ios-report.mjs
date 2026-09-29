@@ -2,6 +2,8 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { collectNativeSceneCorpus } from './scene-corpus-report.mjs'
+
 function directoryBytes(path) {
   return readdirSync(path, { withFileTypes: true }).reduce((total, entry) => {
     const child = join(path, entry.name)
@@ -60,7 +62,7 @@ export function collectIosReport(events, appBytes) {
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     host: 'expo-gl',
     platform: 'ios-simulator',
     appBytes,
@@ -70,6 +72,7 @@ export function collectIosReport(events, appBytes) {
       voiceOver: 'not-run',
       reason: 'The iOS Simulator CLI does not expose trusted touch or VoiceOver traversal.',
     },
+    sceneCorpus: collectNativeSceneCorpus(events, 'ios'),
     events,
   }
 }

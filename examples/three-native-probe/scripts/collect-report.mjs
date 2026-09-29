@@ -2,6 +2,8 @@ import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { collectNativeSceneCorpus } from './scene-corpus-report.mjs'
+
 export function collectReport(logText, apkBytes, touchAttempts = 1) {
   const events = []
   for (const line of logText.split(/\r?\n/)) {
@@ -77,7 +79,7 @@ export function collectReport(logText, apkBytes, touchAttempts = 1) {
   }
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     host: 'expo-gl',
     apkBytes,
     lifecycle: {
@@ -87,6 +89,7 @@ export function collectReport(logText, apkBytes, touchAttempts = 1) {
       resumeToFrameMs: resumedFrame.elapsedMs - resumed.elapsedMs,
       touchAttempts,
     },
+    sceneCorpus: collectNativeSceneCorpus(events, 'android'),
     events,
   }
 }

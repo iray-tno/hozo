@@ -124,6 +124,38 @@ for _ in $(seq 1 10); do
 done
 grep -q '\[hozo-three-native\].*"event":"navigation_activated".*"href":"/cubes/measured".*"replace":true' "$artifacts/logcat.txt"
 
+# The public Native host now runs the same five version-pinned scenes as the
+# browser GPU report. Each scene must draw and expose at least one semantic
+# object; Android additionally activates that object through the actual native
+# control before the probe advances.
+for fixture_id in \
+  flat-labelled-diagram \
+  wireframe-cad \
+  points-and-sprite \
+  instancing-and-morph \
+  gltf-pbr; do
+  resource_id="corpus-$fixture_id"
+  for _ in $(seq 1 30); do
+    adb shell rm -f /sdcard/three-native-corpus.xml >/dev/null 2>&1 || true
+    adb shell uiautomator dump /sdcard/three-native-corpus.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/three-native-corpus.xml "$artifacts/corpus-accessibility.xml" >/dev/null 2>&1
+    if grep -q "resource-id=\"$resource_id\"" "$artifacts/corpus-accessibility.xml"; then
+      break
+    fi
+    sleep 1
+  done
+  grep -q "resource-id=\"$resource_id\"" "$artifacts/corpus-accessibility.xml"
+  focus_and_activate "$resource_id"
+  for _ in $(seq 1 15); do
+    adb logcat -d -v brief > "$artifacts/logcat.txt"
+    if grep -q "\[hozo-three-native\].*\"event\":\"scene_corpus_fixture\".*\"fixtureId\":\"$fixture_id\".*\"status\":\"useful\".*\"activation\":\"measured\"" "$artifacts/logcat.txt"; then
+      break
+    fi
+    sleep 1
+  done
+  grep -q "\[hozo-three-native\].*\"event\":\"scene_corpus_fixture\".*\"fixtureId\":\"$fixture_id\".*\"status\":\"useful\".*\"activation\":\"measured\"" "$artifacts/logcat.txt"
+done
+
 for _ in $(seq 1 90); do
   adb logcat -d -v brief > "$artifacts/logcat.txt"
   if grep -q '\[hozo-three-native\].*"event":"renderer_unmounted"' "$artifacts/logcat.txt"; then

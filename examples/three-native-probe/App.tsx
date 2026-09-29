@@ -7,6 +7,8 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Mesh } from 'three'
 
+import { NativeSceneCorpus, type NativeSceneCorpusResult } from './NativeSceneCorpus'
+
 const moduleStartedAt = performance.now()
 const sampleFrameCount = 120
 
@@ -24,6 +26,11 @@ type ProbeEvent = {
   reason?: string
   href?: string
   replace?: boolean
+  fixtureId?: string
+  renderCalls?: number
+  semanticControls?: number
+  status?: 'failed' | 'useful'
+  activation?: 'measured' | 'not-run'
 }
 
 const recordedEvents: ProbeEvent[] = []
@@ -71,7 +78,7 @@ function ProbeScene({
     return () => {
       gl.dispose()
       emit({
-        event: 'renderer_unmounted',
+        event: 'primary_renderer_unmounted',
         host: 'expo-gl',
         elapsedMs: performance.now() - moduleStartedAt,
       })
@@ -203,7 +210,7 @@ function AccessibilityModes() {
 }
 
 export default function App() {
-  const [mounted, setMounted] = useState(true)
+  const [phase, setPhase] = useState<'complete' | 'corpus' | 'primary'>('primary')
   const [sampledObject, setSampledObject] = useState<Mesh | null>(null)
   const [semanticActivated, setSemanticActivated] = useState(false)
   const [destinationActivated, setDestinationActivated] = useState(false)
@@ -258,8 +265,8 @@ export default function App() {
   const complete = useCallback((object: Mesh) => {
     setSampledObject(object)
     // Hosted iOS cannot inject a trusted accessibility activation. Its report
-    // keeps that explicit and still verifies renderer teardown.
-    if (Platform.OS === 'ios') setTimeout(() => setMounted(false), 0)
+    // keeps that explicit while still exercising every Native corpus scene.
+    if (Platform.OS === 'ios') setTimeout(() => setPhase('corpus'), 0)
   }, [])
 
   const activateSemanticControl = useCallback(({ object }: R3FAccessibleObjectEvent) => {
@@ -280,8 +287,31 @@ export default function App() {
 
   useEffect(() => {
     if (!sampledObject || !semanticActivated || !destinationActivated) return
-    setMounted(false)
+    setPhase('corpus')
   }, [destinationActivated, sampledObject, semanticActivated])
+
+  const recordCorpusResult = useCallback((result: NativeSceneCorpusResult) => {
+    emit({
+      event: 'scene_corpus_fixture',
+      host: 'expo-gl',
+      fixtureId: result.id,
+      renderCalls: result.renderCalls,
+      semanticControls: result.semanticControls,
+      status: result.status,
+      activation: result.activation,
+    })
+  }, [])
+
+  const recordCorpusUnmount = useCallback((fixtureId: string, final: boolean) => {
+    emit({
+      event: final ? 'renderer_unmounted' : 'scene_corpus_renderer_unmounted',
+      host: 'expo-gl',
+      fixtureId,
+      elapsedMs: performance.now() - moduleStartedAt,
+    })
+  }, [])
+
+  const completeCorpus = useCallback(() => setPhase('complete'), [])
 
   return (
     <NavigationProvider onNavigate={navigate}>
@@ -290,7 +320,7 @@ export default function App() {
           Expo GL native GPU probe
         </Text>
         <View style={styles.canvas} testID="gpu-touch-surface">
-          {mounted ? (
+          {phase === 'primary' ? (
             <ThreeCanvas
               accessibilityLabel="Measured rotating GPU cube"
               accessibleObjects={[
@@ -321,10 +351,16 @@ export default function App() {
                 resumeEpoch={resumeEpoch}
               />
             </ThreeCanvas>
+          ) : phase === 'corpus' ? (
+            <NativeSceneCorpus
+              onComplete={completeCorpus}
+              onRendererUnmounted={recordCorpusUnmount}
+              onResult={recordCorpusResult}
+            />
           ) : (
             <View style={styles.complete}>
               <Text testID="probe-complete" style={styles.result}>
-                120 frames rendered, touched, navigated, and unmounted.
+                GPU lifecycle and five Native corpus scenes completed.
               </Text>
               <AccessibilityModes />
             </View>

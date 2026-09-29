@@ -3,9 +3,28 @@ import test from 'node:test'
 
 import { collectIosReport } from './collect-ios-report.mjs'
 import { collectReport } from './collect-report.mjs'
+import { collectNativeSceneCorpus, NATIVE_SCENE_CORPUS_IDS } from './scene-corpus-report.mjs'
 
-test('collects the required lifecycle and frame measurements', () => {
-  const log = [
+const sceneCorpusEvents = (activation) =>
+  NATIVE_SCENE_CORPUS_IDS.map((fixtureId) => ({
+    event: 'scene_corpus_fixture',
+    host: 'expo-gl',
+    fixtureId,
+    renderCalls: 1,
+    semanticControls: 1,
+    status: 'useful',
+    activation,
+  }))
+
+test('rejects incomplete or unrendered Native scene evidence', () => {
+  assert.throws(() => collectNativeSceneCorpus([], 'android'), /flat-labelled-diagram/)
+  const events = sceneCorpusEvents('measured')
+  events[2].renderCalls = 0
+  assert.throws(() => collectNativeSceneCorpus(events, 'android'), /points-and-sprite/)
+})
+
+test('collects the required lifecycle, frame, and Native scene measurements', () => {
+  const events = [
     '{ReactNativeJS} [hozo-three-native] {"event":"renderer_ready","host":"expo-gl","elapsedMs":81,"contextId":7}',
     '{ReactNativeJS} [hozo-three-native] {"event":"first_frame","host":"expo-gl","elapsedMs":99,"objectId":"cube"}',
     '{ReactNativeJS} [hozo-three-native] {"event":"app_backgrounded","host":"expo-gl"}',
@@ -15,12 +34,16 @@ test('collects the required lifecycle and frame measurements', () => {
     '{ReactNativeJS} [hozo-three-native] {"event":"object_activated","host":"expo-gl","objectId":"cube","source":"canvas"}',
     '{ReactNativeJS} [hozo-three-native] {"event":"object_activated","host":"expo-gl","objectId":"cube","source":"semantic-control"}',
     '{ReactNativeJS} [hozo-three-native] {"event":"navigation_activated","host":"expo-gl","href":"/cubes/measured","replace":true}',
+    ...sceneCorpusEvents('measured').map(
+      (event) => `{ReactNativeJS} [hozo-three-native] ${JSON.stringify(event)}`,
+    ),
     '{ReactNativeJS} [hozo-three-native] {"event":"renderer_unmounted","host":"expo-gl","elapsedMs":2110}',
-  ].join('\n')
+  ]
+  const log = events.join('\n')
 
   const report = collectReport(log, 42, 2)
   assert.equal(report.apkBytes, 42)
-  assert.equal(report.schemaVersion, 2)
+  assert.equal(report.schemaVersion, 3)
   assert.deepEqual(report.lifecycle, {
     contextBeforeBackground: 7,
     contextAfterResume: 7,
@@ -28,20 +51,10 @@ test('collects the required lifecycle and frame measurements', () => {
     resumeToFrameMs: 17,
     touchAttempts: 2,
   })
-  assert.deepEqual(
-    report.events.map((entry) => entry.event),
-    [
-      'renderer_ready',
-      'first_frame',
-      'app_backgrounded',
-      'app_resumed',
-      'frame_after_resume',
-      'steady_sample',
-      'object_activated',
-      'object_activated',
-      'navigation_activated',
-      'renderer_unmounted',
-    ],
+  assert.equal(report.sceneCorpus.length, 5)
+  assert.equal(
+    report.sceneCorpus.every(({ status }) => status === 'useful'),
+    true,
   )
 })
 
@@ -150,6 +163,7 @@ test('collects an honest iOS lifecycle report without claiming unmeasured intera
       p95FrameMs: 20,
       objectId: 'cube',
     },
+    ...sceneCorpusEvents('not-run'),
     { event: 'renderer_unmounted', host: 'expo-gl', elapsedMs: 2_800 },
   ]
 
@@ -164,6 +178,7 @@ test('collects an honest iOS lifecycle report without claiming unmeasured intera
   })
   assert.equal(report.interaction.pointerRaycast, 'not-run')
   assert.equal(report.interaction.voiceOver, 'not-run')
+  assert.equal(report.sceneCorpus.length, 5)
 })
 
 test('records an unavailable hosted iOS lifecycle without losing render evidence', () => {
@@ -180,6 +195,7 @@ test('records an unavailable hosted iOS lifecycle without losing render evidence
       p95FrameMs: 20,
       objectId: 'cube',
     },
+    ...sceneCorpusEvents('not-run'),
     { event: 'renderer_unmounted', host: 'expo-gl', elapsedMs: 2_800 },
   ]
 
