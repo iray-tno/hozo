@@ -59,13 +59,21 @@ const heading = 'm-0'
 /**
  * One row. The chevron is the last three quarters of it.
  *
- * `-rotate-45` on a box with a bottom and a right border points the corner
- * down; open, it turns to `rotate-135` and points up. Both are the same
- * property, so the transition is between two values rather than between a
- * value and nothing.
+ * The geometry, derived rather than recalled, because it was wrong here first:
+ * a box with only a bottom and a right border is an angle whose apex points
+ * **south-east**, and CSS rotates clockwise. So `rotate-45` turns the apex
+ * south -- a chevron pointing down, which is what a closed row shows -- and
+ * `-rotate-135` turns it north for an open one. The first version of this file
+ * said "`-rotate-45` points down" and drew a chevron pointing *right*, opening
+ * to the *left*: a tree's idiom on an accordion, in code whose comment claimed
+ * otherwise. Nothing caught it, because no automated check in this repository
+ * looks at a shape.
+ *
+ * Both angles are the same property, so the transition runs between two values
+ * rather than between a value and nothing.
  */
 const trigger =
-  "flex w-full flex-row items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-hozo-text cursor-pointer transition-colors hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-not-allowed disabled:text-hozo-text-subtle disabled:hover:bg-transparent after:content-[''] after:size-2 after:shrink-0 after:-rotate-45 after:border-b-2 after:border-r-2 after:border-hozo-text-muted after:transition-transform data-[hozo-state=open]:after:rotate-135"
+  "flex w-full flex-row items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-hozo-text cursor-pointer transition-colors hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-not-allowed disabled:text-hozo-text-subtle disabled:hover:bg-transparent after:content-[''] after:size-2 after:shrink-0 after:rotate-45 after:border-b-2 after:border-r-2 after:border-hozo-text-muted after:transition-transform data-[hozo-state=open]:after:-rotate-135"
 
 const panel = 'px-4 pb-4 text-sm text-hozo-text-body'
 

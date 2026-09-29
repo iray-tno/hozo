@@ -24,6 +24,7 @@ import {
   Button,
   Card,
   Checkbox,
+  Combobox,
   Dialog,
   Field,
   Input,
@@ -37,6 +38,8 @@ import {
   Tabs,
   Toolbar,
   Tooltip,
+  Tree,
+  type TreeNode,
 } from '@hozo/ui'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
@@ -72,6 +75,19 @@ const LANGUAGES = [
   { value: 'ts', label: 'TypeScript' },
   { value: 'cobol', label: 'COBOL', disabled: true },
 ] as const
+
+const FILES: readonly TreeNode[] = [
+  {
+    id: 'crates',
+    label: 'crates',
+    children: [
+      { id: 'ir', label: 'hozo_ir' },
+      { id: 'web', label: 'hozo_web', children: [{ id: 'css', label: 'css.rs' }] },
+    ],
+  },
+  { id: 'packages', label: 'packages', children: [{ id: 'ui', label: 'ui' }] },
+  { id: 'readme', label: 'README.md' },
+]
 
 const PANELS: Tab[] = [
   { label: 'Details', content: 'A universal UI compiler, written in Rust.' },
@@ -283,6 +299,20 @@ function UiGallery() {
               value={languages}
               onValueChange={setLanguages}
             />
+          </Stack>
+        </Card>
+        <Paragraph className={prose}>
+          The combobox filters as you type and moves aria-activedescendant without focus leaving the
+          field. Its highlighted row is a tint and nothing more -- deliberately weaker than the
+          listbox above, because aria-selected means "where you are" here and "the answer" there.
+          The tree's marker is a pseudo-element rather than a glyph: the Patterns/Tree story writes
+          one into the label, and its golden records the cost -- "treeitem, ▾ crates, expanded" says
+          the same fact twice.
+        </Paragraph>
+        <Card flat>
+          <Stack gap="normal">
+            <Combobox options={LANGUAGES} accessibilityLabel="Language" placeholder="Search…" />
+            <Tree nodes={FILES} accessibilityLabel="Repository" defaultExpanded={['crates']} />
           </Stack>
         </Card>
         <Toolbar

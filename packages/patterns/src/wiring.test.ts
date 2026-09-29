@@ -204,6 +204,29 @@ test('only a branch of the tree says whether it is open', () => {
   assert.doesNotMatch(html, /index\.ts/)
 })
 
+test('renderRow is told whether the row is a branch, not only whether it is open', () => {
+  // `expanded` is false for a closed branch *and* for a leaf, so a renderer
+  // given only that draws no marker on a folder nobody has opened yet. Which
+  // is what the demo's tree does, and is why its closed branches look like
+  // files. The flag is the pattern's to hand over: it is the only one that
+  // knows.
+  const seen: string[] = []
+  renderToStaticMarkup(
+    createElement(HozoTree, {
+      accessibilityLabel: 'Files',
+      nodes: [
+        { id: 'src', label: 'src', children: [{ id: 'index', label: 'index.ts' }] },
+        { id: 'readme', label: 'README.md' },
+      ],
+      renderRow: ({ label, branch, expanded }) => {
+        seen.push(`${label}:${branch ? 'branch' : 'leaf'}:${expanded ? 'open' : 'closed'}`)
+        return label
+      },
+    }),
+  )
+  assert.deepEqual(seen, ['src:branch:closed', 'README.md:leaf:closed'])
+})
+
 test('the combobox field keeps focus and names the option instead', () => {
   const html = renderToStaticMarkup(
     createElement(HozoCombobox, {

@@ -90,6 +90,27 @@ option, Rust, selected, position 1, set size 3
 option, TypeScript, not selected, position 2, set size 3
 option, COBOL, not selected, disabled, position 3, set size 3
 end of listbox, Languages, orientated vertically, multi-selectable
+paragraph
+The combobox filters as you type and moves aria-activedescendant without focus leaving the field. Its highlighted row is a tint and nothing more -- deliberately weaker than the listbox above, because aria-selected means "where you are" here and "the answer" there. The tree's marker is a pseudo-element rather than a glyph: the Patterns/Tree story writes one into the label, and its golden records the cost -- "treeitem, ▾ crates, expanded" says the same fact twice.
+end of paragraph
+combobox, Language, has popup listbox, not expanded, autocomplete in list
+tree, Repository, orientated vertically
+treeitem, crates, expanded, level 1, position 1, not selected, set size 3
+crates
+end of treeitem, crates, expanded, level 1, position 1, not selected, set size 3
+treeitem, hozo_ir, level 2, position 1, not selected, set size 2
+hozo_ir
+end of treeitem, hozo_ir, level 2, position 1, not selected, set size 2
+treeitem, hozo_web, not expanded, level 2, position 2, not selected, set size 2
+hozo_web
+end of treeitem, hozo_web, not expanded, level 2, position 2, not selected, set size 2
+treeitem, packages, not expanded, level 1, position 2, not selected, set size 3
+packages
+end of treeitem, packages, not expanded, level 1, position 2, not selected, set size 3
+treeitem, README.md, level 1, position 3, not selected, set size 3
+README.md
+end of treeitem, README.md, level 1, position 3, not selected, set size 3
+end of tree, Repository, orientated vertically
 toolbar, Formatting, orientated horizontally
 button, Bold
 button, Italic

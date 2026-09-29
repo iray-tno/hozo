@@ -23,6 +23,14 @@ export {
   type HozoCardProps,
 } from './card.tsx'
 export {
+  HozoCombobox as Combobox,
+  HozoCombobox,
+  type HozoComboboxOption as ComboboxOption,
+  type HozoComboboxOption,
+  type HozoComboboxProps as ComboboxProps,
+  type HozoComboboxProps,
+} from './combobox.tsx'
+export {
   HozoDialog as Dialog,
   HozoDialog,
   type HozoDialogProps as DialogProps,
@@ -124,3 +132,11 @@ export {
   type HozoTooltipProps as TooltipProps,
   type HozoTooltipProps,
 } from './tooltip.tsx'
+export {
+  HozoTree as Tree,
+  HozoTree,
+  type HozoTreeNode as TreeNode,
+  type HozoTreeNode,
+  type HozoTreeProps as TreeProps,
+  type HozoTreeProps,
+} from './tree.tsx'
