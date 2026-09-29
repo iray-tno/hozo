@@ -79,6 +79,10 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Tabs` | an underline that moves with `aria-selected`, either orientation |
 | `Dialog` | a panel and a `::backdrop` scrim, on a real `<dialog>` |
 | `Tooltip` | an inverse bubble, positioned by the pattern |
+| `RadioGroup` | a ring and a dot, drawn from `aria-checked` |
+| `Listbox` | a scrolling box whose chosen row changes weight as well as colour |
+| `Menu` | a neutral trigger and a floating panel |
+| `Toolbar` | a bar; the controls in it are yours |
 | `Card`, `Stack` | a surface and a flex box |
 | `Badge`, `Alert` | a word with a colour, and a sentence with a role |
 
@@ -89,6 +93,12 @@ Four of those make a decision worth knowing about.
 `Alert` is silent by default. `live="polite"` makes it a `status` and `live="assertive"` makes it an `alert`; without either it is a box on the page. An alert rendered *with* the page announces on load, which is right for "your session expired" and wrong for a notice that is there every visit.
 
 `Checkbox` and `Switch` draw their box and track with `::before` and `::after`, reading `data-hozo-state` — so neither is ever told which state it is in. Passing the application's own state back in to draw it is the thing that attribute exists to prevent. `Accordion`'s chevron is the same arrangement: two borders rotated, turned by `data-[hozo-state=open]`, and invisible to a reader because a pseudo-element is not in the accessibility tree and `aria-expanded` already says it.
+
+`Listbox` marks its chosen row with a tint **and** a weight. WCAG 1.4.1 asks that colour not be the only visual means of conveying information, and a pale tint on the selected row is the easiest way to fail it — invisible on a monochrome display, to a colour-blind reader, and in print. axe cannot find this; its contrast rule asks whether text is readable, not whether two rows differ for a reason. So `listbox.test.ts` asserts it, the way `tokens.test.ts` asserts the focus ring.
+
+`RadioGroup` draws a ring and a dot with `::before` and `::after`, both positioned over a row that reserves the space with `ps-9`. The options are `<div role="radio">`, so there is no `:checked` to select and nothing the browser draws for us — `aria-checked:` is the attribute a reader announces and therefore the one the dot hangs off.
+
+`Toolbar` styles nothing inside it, because a toolbar's items come from `items[].render`, which hands each one the `tabIndex`, `ref` and handlers that make the roving focus work. A `Toolbar` that drew its own buttons would be deciding what a toolbar contains, and the pattern deliberately does not.
 
 `Dialog` adds no close button, and that is the rule working rather than an omission. A dismiss control needs a name, a place in the reading order, and a decision about whether focus reaches it first or last — all of which is `@hozo/patterns`' business. Put a `Button` in the children; Escape already works without one. The scrim is the element's own `::backdrop`, so there is no overlay div to reach and no z-index to lose an argument with.
 

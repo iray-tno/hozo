@@ -75,3 +75,23 @@ A universal UI compiler, written in Rust.
 end of tabpanel, Details
 button, Hover or focus me
 button, Delete the project
+button, Actions, not expanded, has popup menu
+heading, Choosing one, choosing several, and a bar, level 2
+paragraph
+The radio group is one tab stop and the arrows choose within it, which is what makes it a group rather than a column of checkboxes. Its ring and dot are two pseudo-elements drawn from aria-checked -- there is no input here to be :checked. The listbox marks its chosen row with a tint and a weight, because colour alone fails WCAG 1.4.1 and is invisible in print.
+end of paragraph
+radiogroup, Shipping, orientated vertically
+radio, Standard, two days, not checked, position 1, set size 3
+radio, Express, tomorrow, checked, position 2, set size 3
+radio, By pigeon, not checked, disabled, position 3, set size 3
+end of radiogroup, Shipping, orientated vertically
+listbox, Languages, orientated vertically, multi-selectable
+option, Rust, selected, position 1, set size 3
+option, TypeScript, not selected, position 2, set size 3
+option, COBOL, not selected, disabled, position 3, set size 3
+end of listbox, Languages, orientated vertically, multi-selectable
+toolbar, Formatting, orientated horizontally
+button, Bold
+button, Italic
+button, Strikethrough, disabled
+end of toolbar, Formatting, orientated horizontally
