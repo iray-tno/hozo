@@ -179,7 +179,7 @@ fn with_dark_copies(
         out.push(declaration.clone());
         // A rule the author already marked `dark:` is only for dark mode; a
         // copy of it would say the same thing twice and win on a tie.
-        if condition_mentions_dark(&declaration.condition) {
+        if declaration.condition.mentions_dark() {
             continue;
         }
         let property = std::slice::from_ref(&declaration.property);
@@ -190,10 +190,7 @@ fn with_dark_copies(
         }
         out.push(StyleDeclaration {
             property: declaration.property.clone(),
-            condition: match &declaration.condition {
-                Condition::Always => Condition::Dark,
-                other => Condition::All(vec![other.clone(), Condition::Dark]),
-            },
+            condition: declaration.condition.and_dark(),
         });
         copied = true;
     }
@@ -204,14 +201,12 @@ fn with_dark_copies(
     }
 }
 
-/// Whether a condition already asks about the colour scheme, at any depth.
-fn condition_mentions_dark(condition: &Condition) -> bool {
-    match condition {
-        Condition::Dark => true,
-        Condition::All(atoms) => atoms.iter().any(condition_mentions_dark),
-        _ => false,
-    }
-}
+// `mentions_dark` and `and_dark` are `hozo_ir`'s, not this file's. Both
+// backends ask the same two questions of a condition, and when the Web asked
+// them slightly differently -- equality against `Condition::Dark`, and a copy
+// that *replaced* the condition instead of extending it -- the two lowerings
+// disagreed about `hover:` in the dark. One answer in the IR is the fix that
+// cannot drift.
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build_style_entries(
@@ -250,7 +245,7 @@ pub(super) fn build_style_entries(
 
     for (condition, props) in hozo_ir::group_by_condition(declarations) {
         // Read before the match below moves parts of `condition` out.
-        let is_dark_only = condition_mentions_dark(&condition);
+        let is_dark_only = condition.mentions_dark();
         let props = hozo_ir::dedupe_last_wins(props);
         if props.is_empty() {
             continue;

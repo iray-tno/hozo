@@ -1,4 +1,12 @@
 export {
+  HozoAccordion as Accordion,
+  HozoAccordion,
+  type HozoAccordionItem as AccordionItem,
+  type HozoAccordionItem,
+  type HozoAccordionProps as AccordionProps,
+  type HozoAccordionProps,
+} from './accordion.tsx'
+export {
   HozoButton as Button,
   HozoButton,
   type HozoButtonProps as ButtonProps,
@@ -28,6 +36,12 @@ export {
   type HozoInputProps as InputProps,
   type HozoInputProps,
 } from './input.tsx'
+export {
+  HozoSlider as Slider,
+  HozoSlider,
+  type HozoSliderProps as SliderProps,
+  type HozoSliderProps,
+} from './slider.tsx'
 export {
   HozoStack as Stack,
   HozoStack,

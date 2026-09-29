@@ -338,14 +338,14 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
             // dark mode on the elements the compiler lowered and not on the
             // ones it emitted a class for -- which is the same class name
             // behaving two ways in one page.
-            let palette = match (condition, &shaded_theme) {
-                (hozo_ir::Condition::Dark, Some(shaded)) => shaded,
+            let palette = match (condition.mentions_dark(), &shaded_theme) {
+                (true, Some(shaded)) => shaded,
                 _ => theme,
             };
             let light = css::render_rule(&selector, condition, properties, palette);
             rules.push_str(&light);
             rules.push_str("\n\n");
-            if *condition == hozo_ir::Condition::Dark {
+            if condition.mentions_dark() {
                 continue;
             }
             if let Some(dark) = &shaded_theme {
@@ -353,7 +353,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
                 if shaded != light {
                     rules.push_str(&css::render_rule(
                         &selector,
-                        &hozo_ir::Condition::Dark,
+                        &condition.and_dark(),
                         properties,
                         dark,
                     ));
@@ -666,8 +666,8 @@ fn render_node(
         // meaning two colours depending on how it was produced would be worse
         // than either answer on its own.
         let shaded_theme = theme.dark();
-        let palette = match (&condition, &shaded_theme) {
-            (hozo_ir::Condition::Dark, Some(shaded)) => shaded,
+        let palette = match (condition.mentions_dark(), &shaded_theme) {
+            (true, Some(shaded)) => shaded,
             _ => theme,
         };
         let light = css::render_rule(&class_name, &condition, &props, palette);
@@ -687,13 +687,19 @@ fn render_node(
         // Skipped when the author already wrote `dark:`, which is a rule that
         // is *only* for dark mode. Emitting a dark copy of it would be saying
         // the same thing twice, and the second one would win on a tie.
-        if condition != hozo_ir::Condition::Dark {
+        //
+        // The copy keeps the condition it came from and adds the colour scheme
+        // to it. Replacing it was a real bug: the dark half of
+        // `hover:bg-hozo-surface-hover` lost its `:hover` and painted the
+        // hover colour on every element carrying the class, in the dark,
+        // always.
+        if !condition.mentions_dark() {
             if let Some(dark) = &shaded_theme {
                 let shaded = css::render_rule(&class_name, &condition, &props, dark);
                 if shaded != light {
                     rules.push_str(&css::render_rule(
                         &class_name,
-                        &hozo_ir::Condition::Dark,
+                        &condition.and_dark(),
                         &props,
                         dark,
                     ));
@@ -1872,6 +1878,52 @@ export function Login() {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &theme);
         assert!(!output.css.contains("prefers-color-scheme"), "{}", output.css);
+    }
+
+    #[test]
+    fn the_dark_copy_of_a_conditional_rule_keeps_the_condition() {
+        // The bug this test exists for shipped: the copy was emitted under
+        // `Condition::Dark` rather than under the condition *and* dark, so the
+        // dark half of `hover:bg-brand` lost its `:hover` and painted the
+        // hover colour on every element carrying the class, in the dark,
+        // always. The class list of every styled component in `@hozo/ui` has
+        // a `hover:` in it.
+        let theme = paired_theme();
+        let source =
+            "import { View } from '@hozo/core'\nconst el = <View className=\"hover:bg-brand\">x</View>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &theme);
+        let dark = output
+            .css
+            .split("@media (prefers-color-scheme: dark)")
+            .nth(1)
+            .unwrap_or_default();
+        assert!(dark.contains(":hover"), "the dark copy dropped the condition: {}", output.css);
+        assert!(dark.contains("oklch(0.2 0.05 266)"), "{}", output.css);
+    }
+
+    #[test]
+    fn the_candidate_sheet_keeps_it_too() {
+        // The same class, on the path a scanned name takes -- which is the
+        // path `@hozo/ui` reaches a consumer's output by, so this is the half
+        // that was visible in the demo's build.
+        let css = render_candidate_stylesheet(&["hover:bg-brand".to_string()], &paired_theme());
+        let dark = css.split("@media (prefers-color-scheme: dark)").nth(1).unwrap_or_default();
+        assert!(dark.contains(":hover"), "the dark copy dropped the condition: {css}");
+    }
+
+    #[test]
+    fn a_rule_that_already_mentions_dark_among_others_is_not_doubled_either() {
+        // `dark:hover:bg-brand` is not `Condition::Dark`, and an equality
+        // check said it was not about dark mode at all -- so it was given a
+        // copy, and resolved its colour against the *light* palette.
+        let theme = paired_theme();
+        let source = "import { View } from '@hozo/core'\nconst el = <View className=\"dark:hover:bg-brand\">x</View>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &theme);
+        assert_eq!(output.css.matches("prefers-color-scheme").count(), 1, "{}", output.css);
+        assert!(output.css.contains("oklch(0.2 0.05 266)"), "{}", output.css);
+        assert!(!output.css.contains("oklch(0.7 0.2 30)"), "{}", output.css);
     }
 
     #[test]

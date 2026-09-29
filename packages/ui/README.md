@@ -74,16 +74,20 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Input` | one line or many; styled by `aria-invalid` rather than by a prop |
 | `Field` | the wiring above |
 | `Checkbox`, `Switch` | `@hozo/patterns` wearing a box and a track |
+| `Slider` | a rail, a fill and a 24px thumb, either orientation |
+| `Accordion` | rows in a card, with a chevron drawn from the trigger's state |
 | `Card`, `Stack` | a surface and a flex box |
 | `Badge`, `Alert` | a word with a colour, and a sentence with a role |
 
-Two of those make a decision worth knowing about.
+Four of those make a decision worth knowing about.
 
 `Input` shows its error state from `aria-invalid:border-hozo-danger` rather than an `invalid` prop. A `Field` already puts that attribute on its control, so the two agree by construction — an `invalid` prop would be a second source of truth, and a disagreement between them is a control that looks fine and announces itself as wrong.
 
 `Alert` is silent by default. `live="polite"` makes it a `status` and `live="assertive"` makes it an `alert`; without either it is a box on the page. An alert rendered *with* the page announces on load, which is right for "your session expired" and wrong for a notice that is there every visit.
 
-`Checkbox` and `Switch` draw their box and track with `::before` and `::after`, reading `data-hozo-state` — so neither is ever told which state it is in. Passing the application's own state back in to draw it is the thing that attribute exists to prevent.
+`Checkbox` and `Switch` draw their box and track with `::before` and `::after`, reading `data-hozo-state` — so neither is ever told which state it is in. Passing the application's own state back in to draw it is the thing that attribute exists to prevent. `Accordion`'s chevron is the same arrangement: two borders rotated, turned by `data-[hozo-state=open]`, and invisible to a reader because a pseudo-element is not in the accessibility tree and `aria-expanded` already says it.
+
+`Slider` is the one component here that takes no class list for its inner parts, and the reason is worth knowing: the pattern positions the thumb by writing `inset-inline-start: 40%` on it as an inline style, and an inline inset does nothing to an element that is not positioned. A caller who replaced the thumb's classes would not be restyling a slider but breaking one, silently — it still renders, takes focus and announces the right value, and sits at the start of the track forever. `className` reaches the track, which is where a width or a height belongs.
 
 ## Dark mode, which no component mentions
 

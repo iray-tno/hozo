@@ -4655,6 +4655,50 @@ impl Condition {
         }
     }
 
+    /// Whether this condition already asks about the colour scheme, at any
+    /// depth.
+    ///
+    /// Two backends need the same answer twice over, which is why it lives
+    /// here rather than in either of them. A rule that only applies in dark
+    /// mode resolves its colours against the dark palette, and a rule that
+    /// already says `dark:` must not be given a dark copy -- the copy would
+    /// repeat it and win on a tie. `dark:hover:` is both of those and is not
+    /// `Condition::Dark`, so an equality check answers no to a condition that
+    /// mentions nothing else.
+    pub fn mentions_dark(&self) -> bool {
+        match self {
+            Condition::Dark => true,
+            Condition::All(conditions) => conditions.iter().any(Condition::mentions_dark),
+            Condition::Group(inner) | Condition::Peer(inner) | Condition::Has(inner) => {
+                inner.mentions_dark()
+            }
+            _ => false,
+        }
+    }
+
+    /// This condition, and dark mode as well.
+    ///
+    /// What a paired token's second rule is conditional on: everything the
+    /// first one was, plus the colour scheme. Replacing the condition instead
+    /// of extending it is the bug this exists to prevent -- a dark copy of
+    /// `hover:bg-hozo-surface-hover` that dropped the `:hover` painted the
+    /// hover colour on every element carrying the class, in the dark, always.
+    ///
+    /// Flattened rather than nested, because a chain is read as a flat list
+    /// of atoms -- `pseudo_element()` and the Web's `content` insertion both
+    /// walk `All` one level deep -- and `md:hover:` is already one.
+    pub fn and_dark(&self) -> Condition {
+        match self {
+            Condition::Always => Condition::Dark,
+            Condition::All(conditions) => {
+                let mut chain = conditions.clone();
+                chain.push(Condition::Dark);
+                Condition::All(chain)
+            }
+            other => Condition::All(vec![other.clone(), Condition::Dark]),
+        }
+    }
+
     /// The pseudo-element this condition targets, if it targets one.
     ///
     /// Looks through the wrappers, because `hover:before:` still writes
