@@ -23,6 +23,12 @@ export {
   type HozoCardProps,
 } from './card.tsx'
 export {
+  HozoDialog as Dialog,
+  HozoDialog,
+  type HozoDialogProps as DialogProps,
+  type HozoDialogProps,
+} from './dialog.tsx'
+export {
   HozoField as Field,
   HozoField,
   type HozoFieldControl as FieldControl,
@@ -63,6 +69,14 @@ export {
   type HozoStatusTone,
 } from './status.tsx'
 export {
+  type HozoTab as Tab,
+  type HozoTab,
+  HozoTabs as Tabs,
+  HozoTabs,
+  type HozoTabsProps as TabsProps,
+  type HozoTabsProps,
+} from './tabs.tsx'
+export {
   HozoCheckbox as Checkbox,
   HozoCheckbox,
   type HozoCheckboxProps as CheckboxProps,
@@ -72,3 +86,9 @@ export {
   type HozoSwitchProps as SwitchProps,
   type HozoSwitchProps,
 } from './toggle.tsx'
+export {
+  HozoTooltip as Tooltip,
+  HozoTooltip,
+  type HozoTooltipProps as TooltipProps,
+  type HozoTooltipProps,
+} from './tooltip.tsx'

@@ -24,11 +24,15 @@ import {
   Button,
   Card,
   Checkbox,
+  Dialog,
   Field,
   Input,
   Slider,
   Stack,
   Switch,
+  type Tab,
+  Tabs,
+  Tooltip,
 } from '@hozo/ui'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
@@ -51,6 +55,12 @@ const QUESTIONS: AccordionItem[] = [
   { id: 'shipping', header: 'When does it arrive?', content: 'Two days, or four to an island.' },
   { id: 'returns', header: 'Can I send it back?', content: 'Within thirty days, unopened.' },
   { id: 'wrap', header: 'Gift wrapping', content: 'Not yet.', disabled: true },
+]
+
+const PANELS: Tab[] = [
+  { label: 'Details', content: 'A universal UI compiler, written in Rust.' },
+  { label: 'Shipping', content: 'Two days, or four to an island.' },
+  { label: 'Returns', content: 'Not yet.', disabled: true },
 ]
 
 function UiGallery() {
@@ -199,7 +209,64 @@ function UiGallery() {
         </Paragraph>
         <Accordion items={QUESTIONS} accessibilityLabel="Questions" defaultExpanded="shipping" />
       </Section>
+      <Section>
+        <Heading level={2} className={title}>
+          Tabs, a tooltip and a dialog
+        </Heading>
+        <Paragraph className={prose}>
+          The strip is one tab stop and the arrows move within it -- the opposite of the accordion
+          above, and the difference is what the control is for. The chosen tab is styled from
+          aria-selected, which is what a reader is told, and the disabled one from aria-disabled
+          rather than the real attribute: a disabled button leaves the tab order, and a roving strip
+          needs it to stay.
+        </Paragraph>
+        <Tabs tabs={PANELS} accessibilityLabel="Product" />
+        <Stack direction="row" gap="tight" align="center">
+          <Tooltip content="Saves without leaving the page">
+            <Button tone="neutral" onPress={() => {}}>
+              Hover or focus me
+            </Button>
+          </Tooltip>
+          <UiDialog />
+        </Stack>
+      </Section>
     </View>
+  )
+}
+
+/**
+ * The dialog, and the button that opens it.
+ *
+ * Its own component so the story below can start it open. The panel is a real
+ * `<dialog>`, so the scrim is its `::backdrop` and there is no overlay element
+ * here at all; `p-6` and a radius are the whole of what this package adds.
+ */
+function UiDialog({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen)
+  return (
+    <>
+      <Button tone="danger" onPress={() => setOpen(true)}>
+        Delete the project
+      </Button>
+      <Dialog open={open} onClose={() => setOpen(false)} accessibilityLabel="Delete the project">
+        <Stack gap="normal">
+          <Heading level={3} className="text-lg font-bold text-hozo-text">
+            Delete the project?
+          </Heading>
+          <Paragraph className={prose}>
+            Every build, report and golden goes with it. This cannot be undone.
+          </Paragraph>
+          <Stack direction="row" gap="tight">
+            <Button tone="danger" onPress={() => setOpen(false)}>
+              Delete
+            </Button>
+            <Button tone="quiet" onPress={() => setOpen(false)}>
+              Keep it
+            </Button>
+          </Stack>
+        </Stack>
+      </Dialog>
+    </>
   )
 }
 
@@ -211,3 +278,13 @@ const meta = {
 export default meta
 
 export const Default: StoryObj<typeof meta> = {}
+
+/**
+ * The dialog open on mount, so axe sees the panel and the scrim rather than
+ * stopping at the button.
+ *
+ * A story of its own and not a change to the gallery: an open modal traps
+ * focus, so it would swallow the reading order of everything above it. Which
+ * is the same reason `Patterns/Dialog` has two.
+ */
+export const DialogOpen: StoryObj<typeof meta> = { render: () => <UiDialog initiallyOpen /> }

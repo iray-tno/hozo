@@ -1,0 +1,10 @@
+button, Delete the project
+dialog, Delete the project
+dialog, Delete the project
+heading, Delete the project?, level 3
+paragraph
+Every build, report and golden goes with it. This cannot be undone.
+end of paragraph
+button, Delete
+button, Keep it
+end of dialog, Delete the project
