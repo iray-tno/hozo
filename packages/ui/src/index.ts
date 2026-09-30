@@ -7,6 +7,12 @@ export {
   type HozoAccordionProps,
 } from './accordion.tsx'
 export {
+  HozoBottomSheet as BottomSheet,
+  HozoBottomSheet,
+  type HozoBottomSheetProps as BottomSheetProps,
+  type HozoBottomSheetProps,
+} from './bottom-sheet.tsx'
+export {
   HozoButton as Button,
   HozoButton,
   type HozoButtonProps as ButtonProps,

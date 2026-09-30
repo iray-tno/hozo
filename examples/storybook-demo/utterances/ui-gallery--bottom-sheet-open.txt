@@ -1,0 +1,12 @@
+button, Filters
+dialog, Filters, modal
+dialog, Filters, modal
+button, Resize
+heading, Filters, level 3
+paragraph
+Modal, unlike the popover above, and not by preference: something that dims the page has already said the page is unavailable, so aria-modal and the Tab trap have to say the same thing. Drag it down to dismiss, or press Escape.
+end of paragraph
+button, Apply
+button, Cancel
+end of dialog, Filters, modal
+dialog, Filters, modal
