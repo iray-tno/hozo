@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { createTimberTextures } from './textures.ts'
 
 // Geometry and procedural textures adapted from the supplied Kumimono study.
 // Hozo owns the renderer and frame lifecycle; this module owns scene resources.
@@ -30,83 +31,7 @@ export function createKumimonoScene() {
   ember.position.set(-4.5, -1.6, 3.8)
   scene.add(ember)
 
-  function makeWoodTexture() {
-    const canvas = document.createElement('canvas')
-    canvas.width = 512
-    canvas.height = 128
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('Canvas texture context unavailable')
-    const wash = context.createLinearGradient(0, 0, 0, 128)
-    wash.addColorStop(0, '#c28a4c')
-    wash.addColorStop(0.48, '#e3ba76')
-    wash.addColorStop(1, '#a96f37')
-    context.fillStyle = wash
-    context.fillRect(0, 0, 512, 128)
-    for (let i = 0; i < 120; i += 1) {
-      const y = ((i * 43) % 128) + Math.sin(i * 1.71) * 2.4
-      context.beginPath()
-      context.strokeStyle = `rgba(75, 39, 14, ${0.028 + (i % 6) * 0.009})`
-      context.lineWidth = 0.45 + (i % 4) * 0.22
-      context.moveTo(-20, y)
-      for (let x = -20; x <= 540; x += 18) {
-        context.lineTo(x, y + Math.sin(x * 0.025 + i * 0.8) * (1.2 + (i % 4)))
-      }
-      context.stroke()
-    }
-    const texture = new THREE.CanvasTexture(canvas)
-    texture.colorSpace = THREE.SRGBColorSpace
-    texture.wrapS = THREE.RepeatWrapping
-    texture.wrapT = THREE.RepeatWrapping
-    texture.repeat.set(1.8, 1)
-    return texture
-  }
-
-  function makeEndGrainTexture() {
-    const canvas = document.createElement('canvas')
-    canvas.width = 256
-    canvas.height = 256
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('Canvas texture context unavailable')
-    const wash = context.createRadialGradient(126, 132, 12, 126, 132, 178)
-    wash.addColorStop(0, '#e8c98e')
-    wash.addColorStop(0.58, '#d7a966')
-    wash.addColorStop(1, '#bb7d3f')
-    context.fillStyle = wash
-    context.fillRect(0, 0, 256, 256)
-
-    for (let ring = 1; ring <= 14; ring += 1) {
-      context.beginPath()
-      context.strokeStyle = `rgba(94, 49, 18, ${0.055 + ring * 0.004})`
-      context.lineWidth = ring % 4 === 0 ? 2.1 : 1.05
-      context.ellipse(
-        126 + Math.sin(ring * 1.8) * 2.2,
-        132 + Math.cos(ring * 1.3) * 2.8,
-        10 + ring * 9.2,
-        8 + ring * 6.8,
-        -0.08 + Math.sin(ring) * 0.025,
-        0,
-        Math.PI * 2,
-      )
-      context.stroke()
-    }
-
-    for (let ray = 0; ray < 7; ray += 1) {
-      const angle = ray * 0.91 + 0.34
-      context.beginPath()
-      context.strokeStyle = 'rgba(82, 43, 17, 0.10)'
-      context.lineWidth = 0.8
-      context.moveTo(126, 132)
-      context.lineTo(126 + Math.cos(angle) * 108, 132 + Math.sin(angle) * 80)
-      context.stroke()
-    }
-
-    const texture = new THREE.CanvasTexture(canvas)
-    texture.colorSpace = THREE.SRGBColorSpace
-    return texture
-  }
-
-  const woodTexture = makeWoodTexture()
-  const endGrainTexture = makeEndGrainTexture()
+  const { woodTexture, endGrainTexture } = createTimberTextures()
   const timber = new THREE.MeshStandardMaterial({
     color: 0xd8a866,
     map: woodTexture,
@@ -802,6 +727,7 @@ export function createKumimonoScene() {
     scene,
     camera,
     pieceCount: pieces.length,
+    animationObject: pieces[pieces.length - 1].object,
     update(value: number) {
       applyAssembly(value, 0)
       const closePass = Math.sin(clamp01(value / 0.78) * Math.PI) * 2.1
@@ -819,14 +745,17 @@ export function createKumimonoScene() {
     dispose() {
       const geometries = new Set<THREE.BufferGeometry>()
       const materials = new Set<THREE.Material>()
+      const instances = new Set<THREE.InstancedMesh>()
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
           geometries.add(object.geometry)
+          if (object instanceof THREE.InstancedMesh) instances.add(object)
           for (const material of [object.material].flat()) materials.add(material)
         }
       })
       for (const geometry of geometries) geometry.dispose()
       for (const material of materials) material.dispose()
+      for (const instance of instances) instance.dispose()
       woodTexture.dispose()
       endGrainTexture.dispose()
       key.shadow.dispose()

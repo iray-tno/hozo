@@ -17,6 +17,15 @@ real-scene fixtures as the browser GPU report. Both platforms must record GPU dr
 semantic controls for every fixture; Android activates the first control in each scene, while iOS
 records activation honestly as `not-run`.
 
+The probe additionally renders the landing page's 56-part Kumimono scene from
+`@hozo/example-three-kumimono`. Its procedural timber images use `DataTexture`,
+so this fixture has no browser DOM or image-loader dependency. The same PBR
+geometry, instanced roof tiles, lights, shadows, and assembly updater run on
+both hosts. Collection requires two uploaded textures and measured assembly
+rotation across rendered frames; the Android harness activates its public
+pillar control. This is separate from the six version-pinned library corpus
+fixtures and does not change portable coverage totals.
+
 The product-viewer glTF uses R3F Native's `TextureLoader` to save its embedded PNG
 to a local file, determine its decoded size, and upload it through Expo GL. Its
 `AnimationMixer` advances from `useFrame`. The report requires host image decoding,

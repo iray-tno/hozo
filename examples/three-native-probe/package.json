@@ -12,6 +12,7 @@
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {
+    "@hozo/example-three-kumimono": "workspace:*",
     "@hozo/navigation": "workspace:^",
     "@hozo/three": "workspace:^",
     "@react-three/fiber": "^9.8.1",

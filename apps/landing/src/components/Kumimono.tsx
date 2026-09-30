@@ -1,7 +1,6 @@
+import { configureKumimonoRenderer, createKumimonoScene } from '@hozo/example-three-kumimono'
 import { ThreeCanvas, type ThreeCanvasFrame } from '@hozo/three/webgl'
 import { useEffect, useRef, useState } from 'react'
-import { ACESFilmicToneMapping, PCFSoftShadowMap, SRGBColorSpace, type WebGLRenderer } from 'three'
-import { createKumimonoScene } from './kumimono-scene'
 
 type Study = ReturnType<typeof createKumimonoScene>
 
@@ -71,14 +70,6 @@ export function Kumimono() {
     if (fraction === 1) setPlaying(false)
   }
 
-  function configure(renderer: WebGLRenderer) {
-    renderer.outputColorSpace = SRGBColorSpace
-    renderer.toneMapping = ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.07
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = PCFSoftShadowMap
-  }
-
   return (
     <section id="kumimono" className="kumimono-section" aria-labelledby="kumimono-heading">
       <div className="kumimono-heading">
@@ -112,7 +103,7 @@ export function Kumimono() {
             frameloop={playing && visible ? 'always' : 'demand'}
             revision={progress}
             onFrame={frame}
-            onCreated={configure}
+            onCreated={configureKumimonoRenderer}
             onResize={({ width }) => {
               study.camera.fov = width < 600 ? 50 : 40
               study.camera.updateProjectionMatrix()

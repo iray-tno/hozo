@@ -1,3 +1,4 @@
+import { configureKumimonoRenderer, createKumimonoScene } from '@hozo/example-three-kumimono'
 import {
   MINIMAL_PBR_GLTF_SOURCE,
   SCENE_CORPUS_SCENES,
@@ -22,6 +23,45 @@ export interface NativeSceneCorpusResult {
   textureCountDelta: number
 }
 
+type NativeFixture = SceneCorpusScene & {
+  configure?: (renderer: WebGLRenderer) => void
+  dispose?: () => void
+}
+
+const nativeScenes: {
+  id: string
+  create: (
+    ...args: Parameters<(typeof SCENE_CORPUS_SCENES)[number]['create']>
+  ) => Promise<NativeFixture>
+}[] = [
+  ...SCENE_CORPUS_SCENES,
+  {
+    id: 'kumimono',
+    create: async () => {
+      const study = createKumimonoScene()
+      study.camera.fov = 50
+      study.camera.updateProjectionMatrix()
+      study.update(0.85)
+      const pillar = study.scene.getObjectByProperty('isMesh', true)
+      if (pillar) pillar.name = 'Kumimono pillar'
+      let elapsed = 0
+      return {
+        scene: study.scene,
+        camera: study.camera,
+        configure: configureKumimonoRenderer,
+        dispose: study.dispose,
+        animation: {
+          object: study.animationObject,
+          update(delta) {
+            elapsed += delta
+            study.update(0.85 + 0.15 * Math.sin((Math.min(elapsed / 3, 1) * Math.PI) / 2) ** 2)
+          },
+        },
+      }
+    },
+  },
+]
+
 interface NativeSceneCorpusProps {
   onComplete: () => void
   onRendererUnmounted: (id: string, final: boolean) => void
@@ -35,7 +75,7 @@ export function NativeSceneCorpus({
 }: NativeSceneCorpusProps) {
   const [index, setIndex] = useState(0)
   const completed = useRef(false)
-  const definition = SCENE_CORPUS_SCENES[index]
+  const definition = nativeScenes[index]
 
   useEffect(() => {
     if (definition || completed.current) return
@@ -48,7 +88,7 @@ export function NativeSceneCorpus({
     <NativeSceneFixture
       key={definition.id}
       definition={definition}
-      final={index === SCENE_CORPUS_SCENES.length - 1}
+      final={index === nativeScenes.length - 1}
       onRendererUnmounted={onRendererUnmounted}
       onResult={(result) => {
         onResult(result)
@@ -64,26 +104,31 @@ function NativeSceneFixture({
   onRendererUnmounted,
   onResult,
 }: {
-  definition: (typeof SCENE_CORPUS_SCENES)[number]
+  definition: (typeof nativeScenes)[number]
   final: boolean
   onRendererUnmounted: (id: string, final: boolean) => void
   onResult: (result: NativeSceneCorpusResult) => void
 }) {
-  const [fixture, setFixture] = useState<SceneCorpusScene>()
+  const [fixture, setFixture] = useState<NativeFixture>()
   const [error, setError] = useState<unknown>()
 
   useEffect(() => {
     let active = true
+    let resource: NativeFixture | undefined
     void definition
       .create(async () => MINIMAL_PBR_GLTF_SOURCE, { textureLoader: new TextureLoader() })
       .then((created) => {
-        if (active) setFixture(created)
+        if (active) {
+          resource = created
+          setFixture(created)
+        } else created.dispose?.()
       })
       .catch((reason: unknown) => {
         if (active) setError(reason)
       })
     return () => {
       active = false
+      resource?.dispose?.()
     }
   }, [definition])
 
@@ -120,7 +165,7 @@ function MeasuredSceneFixture({
   onResult,
 }: {
   final: boolean
-  fixture: SceneCorpusScene
+  fixture: NativeFixture
   id: string
   onRendererUnmounted: (id: string, final: boolean) => void
   onResult: (result: NativeSceneCorpusResult) => void
@@ -177,6 +222,7 @@ function MeasuredSceneFixture({
       camera={fixture.camera}
       frameloop="always"
       onCreated={({ gl }) => {
+        fixture.configure?.(gl as WebGLRenderer)
         const initialTextures = (gl as WebGLRenderer).info.memory.textures
         timer.current = setTimeout(() => {
           renderCalls.current = (gl as WebGLRenderer).info.render.calls

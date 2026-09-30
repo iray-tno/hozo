@@ -12,10 +12,10 @@ const sceneCorpusEvents = (activation) =>
     fixtureId,
     renderCalls: 1,
     semanticControls: 1,
-    textureCountDelta: fixtureId === 'product-viewer-gltf' ? 1 : 0,
+    textureCountDelta: fixtureId === 'kumimono' ? 2 : fixtureId === 'product-viewer-gltf' ? 1 : 0,
     imageDecoding: fixtureId === 'product-viewer-gltf' ? 'host' : undefined,
-    animationFrames: fixtureId === 'product-viewer-gltf' ? 10 : undefined,
-    animationAngle: fixtureId === 'product-viewer-gltf' ? 0.1 : undefined,
+    animationFrames: ['product-viewer-gltf', 'kumimono'].includes(fixtureId) ? 10 : undefined,
+    animationAngle: ['product-viewer-gltf', 'kumimono'].includes(fixtureId) ? 0.1 : undefined,
     status: 'useful',
     activation,
   }))
@@ -36,6 +36,20 @@ test('rejects incomplete or unrendered Native scene evidence', () => {
   ]) {
     const incomplete = sceneCorpusEvents('measured')
     incomplete.find(({ fixtureId }) => fixtureId === 'product-viewer-gltf')[field] = value
+    assert.throws(() => collectNativeSceneCorpus(incomplete, 'android'), expected)
+  }
+})
+
+test('Kumimono evidence requires both textures and rendered assembly motion', () => {
+  for (const [field, value, expected] of [
+    ['textureCountDelta', 1, /both timber textures/],
+    ['textureCountDelta', NaN, /both timber textures/],
+    ['animationFrames', 1, /assemble across rendered frames/],
+    ['animationAngle', 0, /assemble across rendered frames/],
+    ['animationAngle', NaN, /assemble across rendered frames/],
+  ]) {
+    const incomplete = sceneCorpusEvents('measured')
+    incomplete.find(({ fixtureId }) => fixtureId === 'kumimono')[field] = value
     assert.throws(() => collectNativeSceneCorpus(incomplete, 'android'), expected)
   }
 })
@@ -68,7 +82,7 @@ test('collects the required lifecycle, frame, and Native scene measurements', ()
     resumeToFrameMs: 17,
     touchAttempts: 2,
   })
-  assert.equal(report.sceneCorpus.length, 6)
+  assert.equal(report.sceneCorpus.length, 7)
   assert.equal(
     report.sceneCorpus.every(({ status }) => status === 'useful'),
     true,
@@ -195,7 +209,7 @@ test('collects an honest iOS lifecycle report without claiming unmeasured intera
   })
   assert.equal(report.interaction.pointerRaycast, 'not-run')
   assert.equal(report.interaction.voiceOver, 'not-run')
-  assert.equal(report.sceneCorpus.length, 6)
+  assert.equal(report.sceneCorpus.length, 7)
 })
 
 test('records an unavailable hosted iOS lifecycle without losing render evidence', () => {
