@@ -36,7 +36,7 @@ This report executes representative, version-pinned scenes instead of treating a
 
 The checked-in report remains deterministic and therefore leaves driver-backed families as not-run. The separate \`test:gpu\` artifact executes these exact fixtures in Classic WebGL, Modern forced-WebGL 2, and native WebGPU when available on main, weekly, and on demand; its result is environment evidence rather than a value copied into this file.
 
-Both glTF/PBR fixtures intentionally demonstrate the current portable boundary: their assets load through Three.js's GLTFLoader, then MeshStandardMaterial is rejected with an explicit diagnostic instead of producing misleading flat output. The product-viewer fixture adds a node hierarchy, UVs, a punctual light, and an animation pose. Its small texture is attached from raw pixels after loading so Web and Native exercise GPU upload without claiming that host-specific image-file decoding works.
+Both glTF/PBR fixtures intentionally demonstrate the current portable boundary: their assets load through Three.js's GLTFLoader, then MeshStandardMaterial is rejected with an explicit diagnostic instead of producing misleading flat output. The product-viewer fixture adds a node hierarchy, UVs, a punctual light, and an animation pose. Its glTF material binds a small texture; a fixture-specific raw-pixel decoder supplies identical pixels on Web and Native, exercising glTF texture binding and GPU upload without claiming that host-specific PNG decoding works.
 
 ## Fixtures
 

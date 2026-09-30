@@ -10,6 +10,7 @@ import {
   InstancedMesh,
   LineBasicMaterial,
   LineSegments,
+  LoadingManager,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
@@ -24,6 +25,8 @@ import {
   Sprite,
   SpriteMaterial,
   SRGBColorSpace,
+  type Texture,
+  TextureLoader,
   UnsignedByteType,
 } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
@@ -126,7 +129,20 @@ export const PRODUCT_VIEWER_GLTF_SOURCE = JSON.stringify({
         roughnessFactor: 0.55,
       },
     },
-    { name: 'Display surface', pbrMetallicRoughness: { metallicFactor: 0, roughnessFactor: 0.8 } },
+    {
+      name: 'Display surface',
+      pbrMetallicRoughness: {
+        baseColorTexture: { index: 0 },
+        metallicFactor: 0,
+        roughnessFactor: 0.8,
+      },
+    },
+  ],
+  textures: [{ source: 0 }],
+  images: [
+    {
+      uri: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFklEQVR4nGOQDur9D8Jf5xmCMQPpAgDkoCXhxs9CRAAAAABJRU5ErkJggg==',
+    },
   ],
   animations: [
     {
@@ -265,6 +281,11 @@ function cacheEmbeddedGltfBuffers(source: string): () => void {
 }
 
 function installGltfHostPolyfills(): void {
+  // GLTFLoader's image-source path reads self.URL even for a data: URI
+  // handled by the fixture's own TextureLoader. Hermes does not expose self.
+  if (typeof globalThis.self === 'undefined') {
+    Object.defineProperty(globalThis, 'self', { configurable: true, value: globalThis })
+  }
   // Hermes does not expose TextDecoder. GLTFLoader uses it while parsing even
   // an embedded JSON fixture, so keep this conformance-only host shim beside
   // the fixture instead of adding a runtime dependency to @hozo/three.
@@ -400,37 +421,46 @@ async function pinnedGltfPbr(loadGltfSource: () => Promise<string>): Promise<Sce
   return { camera: perspective(), scene }
 }
 
-async function parseEmbeddedGltf(source: string) {
+async function parseEmbeddedGltf(source: string, manager?: LoadingManager) {
   installGltfHostPolyfills()
   // React Native's fetch does not load data: buffers. Seed Three's public
   // FileLoader cache with the exact embedded bytes, which also avoids adding
   // a global fetch shim merely to execute this conformance fixture.
   const restoreCache = cacheEmbeddedGltfBuffers(source)
-  return new GLTFLoader().parseAsync(source, '').finally(restoreCache)
+  return new GLTFLoader(manager).parseAsync(source, '').finally(restoreCache)
 }
 
 async function productViewer(): Promise<SceneCorpusScene> {
-  const gltf = await parseEmbeddedGltf(PRODUCT_VIEWER_GLTF_SOURCE)
-  const display = gltf.scene.getObjectByName('Product_display')
-  if (!(display instanceof Mesh) || !(display.material instanceof MeshStandardMaterial)) {
-    throw new Error('Product viewer glTF did not load its PBR display mesh')
-  }
-  // The model supplies the UVs and material. This small raw texture exercises
-  // GPU upload on Web and Expo GL without relying on a host-specific PNG
-  // decoder; image-file loading is a separate integration boundary.
   const pixels = new Uint8Array([
     27, 82, 141, 255, 27, 82, 141, 255, 245, 158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27,
     82, 141, 255, 245, 158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27, 82, 141, 255, 245,
     158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27, 82, 141, 255, 245, 158, 49, 255, 245,
     158, 49, 255,
   ])
-  const map = new DataTexture(pixels, 4, 4, RGBAFormat, UnsignedByteType)
-  map.colorSpace = SRGBColorSpace
-  map.magFilter = NearestFilter
-  map.minFilter = NearestFilter
-  map.needsUpdate = true
-  display.material.map = map
-  display.material.needsUpdate = true
+  // The glTF owns its image and texture binding. Its tiny PNG has pinned raw
+  // pixels, so this fixture-specific handler gives all hosts the same decoded
+  // image without making a Native PNG decoder part of the @hozo/three API.
+  const manager = new LoadingManager()
+  class CorpusTextureLoader extends TextureLoader {
+    override load(_url: string, onLoad?: (texture: Texture) => void): Texture {
+      const texture = new DataTexture(pixels, 4, 4, RGBAFormat, UnsignedByteType)
+      texture.colorSpace = SRGBColorSpace
+      texture.magFilter = NearestFilter
+      texture.minFilter = NearestFilter
+      texture.needsUpdate = true
+      onLoad?.(texture)
+      return texture
+    }
+  }
+  manager.addHandler(/^data:image\/png/, new CorpusTextureLoader(manager))
+  const gltf = await parseEmbeddedGltf(PRODUCT_VIEWER_GLTF_SOURCE, manager)
+  const display = gltf.scene.getObjectByName('Product_display')
+  if (!(display instanceof Mesh) || !(display.material instanceof MeshStandardMaterial)) {
+    throw new Error('Product viewer glTF did not load its PBR display mesh')
+  }
+  if (!(display.material.map instanceof DataTexture)) {
+    throw new Error('Product viewer glTF did not bind its base colour texture')
+  }
 
   const turntable = gltf.animations.find((clip) => clip.name === 'Turntable')
   if (!turntable) throw new Error('Product viewer glTF did not load its animation')
