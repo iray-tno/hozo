@@ -72,6 +72,10 @@ jobs:
       # WebAssembly build this job does not have, and belongs where that
       # build already happens (`deploy-pages.yml`).
       - run: pnpm --filter @hozo/landing run test:build
+      # The homepage's deliberate 3D island: actual WebGL pixels plus
+      # keyboard/reduced-motion/responsive/lifecycle checks. No WASM required.
+      - run: pnpm --filter @hozo/landing exec node scripts/check-kumimono.mjs dist-check
+        timeout-minutes: 2
       # Ten thousand rows in a real browser. The Web `FlatList`'s windowing
       # is a claim about layout -- how many rows are mounted, where the
       # scroll lands, which row is at the top -- and jsdom has no layout, so

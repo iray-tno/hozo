@@ -47,6 +47,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/three':
+        specifier: workspace:*
+        version: link:../../packages/three
       '@tailwindcss/vite':
         specifier: ^4.0.9
         version: 4.3.3(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0))
@@ -68,6 +71,9 @@ importers:
       tailwindcss:
         specifier: ^4.0.9
         version: 4.3.3
+      three:
+        specifier: ^0.180.0
+        version: 0.180.0
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.4
@@ -87,6 +93,12 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.5
         version: 19.2.5(@types/react@19.2.18)
+      '@types/three':
+        specifier: ^0.180.0
+        version: 0.180.0
+      playwright-core:
+        specifier: ^1.63.0
+        version: 1.63.0
       typescript:
         specifier: ^5.8.2
         version: 5.9.3

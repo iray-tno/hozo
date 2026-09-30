@@ -5,12 +5,14 @@ import { CodeShowcase } from '../components/CodeShowcase.tsx'
 import { Footer } from '../components/Footer.tsx'
 import { Hero } from '../components/Hero.tsx'
 import { Integrations } from '../components/Integrations.tsx'
+import { Kumimono } from '../components/Kumimono.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import { Philosophy } from '../components/Philosophy.tsx'
 import SiteHead from '../components/SiteHead.astro'
 import { StaticCard } from '../components/StaticCard.tsx'
 import { TieredStyles } from '../components/TieredStyles.tsx'
 import '../styles/global.css'
+import '../styles/kumimono.css'
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 ---
@@ -46,6 +48,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
     <Navbar baseUrl={baseUrl} />
     <main>
       <Hero baseUrl={baseUrl} />
+      <Kumimono client:visible />
       <Philosophy />
       <TieredStyles />
       <!-- No `client:` directive, deliberately. Astro renders this at

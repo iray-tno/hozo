@@ -11,19 +11,21 @@
     "preview": "astro preview",
     "check": "astro check",
     "test:build": "node --test scripts/format-jsx.test.ts && node scripts/copy-wasm.mjs && astro build --outDir dist-check && node scripts/check-build.mjs dist-check && node scripts/check-static.mjs",
-    "test": "pnpm test:build && node scripts/check-repl.mjs dist-check && node scripts/check-navbar.mjs dist-check"
+    "test": "pnpm test:build && node scripts/check-repl.mjs dist-check && node scripts/check-navbar.mjs dist-check && node scripts/check-kumimono.mjs dist-check"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.0",
     "@astrojs/react": "^6.0.5",
     "@hozo/core": "workspace:*",
+    "@hozo/three": "workspace:*",
     "@tailwindcss/vite": "^4.0.9",
     "astro": "^7.2.10",
     "codejar": "^4.3.0",
     "prismjs": "^1.30.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tailwindcss": "^4.0.9"
+    "tailwindcss": "^4.0.9",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
@@ -32,6 +34,8 @@
     "@types/prismjs": "^1.26.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
+    "@types/three": "^0.180.0",
+    "playwright-core": "^1.63.0",
     "typescript": "^5.8.2"
   }
 }
