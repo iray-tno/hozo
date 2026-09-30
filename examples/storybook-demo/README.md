@@ -41,10 +41,19 @@ Hozo's Storybook showcases the entire universal component hierarchy across 5 cle
 ## Automated Accessibility Testing
 
 Every story is automatically built and tested against **`axe-core`** in CI:
-- **53/53 stories passing** with **0 automated violations**, in **both colour schemes**.
+- **54/54 stories passing** with **0 automated violations**, in **both colour schemes**.
 - Catches machine-testable issues: color contrast thresholds, missing labels, invalid ARIA roles/attributes, and duplicate IDs.
 - Twice, once per scheme, because `--headless=new` reports `prefers-color-scheme: dark` — so every run before [#666](https://github.com/iray-tno/hozo/issues/666) audited the dark render and never the light one. It did not matter while nothing here answered the scheme; `@hozo/ui`'s paired tokens made it two renders per story. The page reports the scheme it actually got and a mismatch fails the run, because a flag that quietly stopped working would put this back where it was while claiming to check both.
 - *Note*: Automated audits cover the rule-based subset of accessibility. Real NVDA and VoiceOver read the `patterns-*` stories weekly (`examples/screen-readers`); interactive keyboard trap behavior and the rest of real-world screen reader usability still require manual testing.
+
+And **`check-appearance.mjs`**, which asks the two questions none of the others can — axe reads the accessibility tree, the utterance goldens read text, and `@hozo/ui`'s own rules read class lists out of the source:
+
+- **Target size**, WCAG 2.5.8: every pointer target at least 24×24, with the *Inline* and *user agent* exceptions implemented and the three that are judgements left to `KNOWN`.
+- **Focus visibility**, WCAG 2.4.7: every focusable element matched by a `:focus-visible` (or an ancestor's `:focus-within`) rule in the **built** stylesheets that actually draws something. A class list can carry `focus-visible:outline-hozo-focus` and emit nothing, which is exactly what [#679](https://github.com/iray-tno/hozo/pull/679) was.
+
+It exists because appearance went unchecked and cost three bugs in one week — a switch's knob 96px from its track, a chevron pointing the wrong way for two releases, and every `data-[x=y]` rule in the project emitting no CSS at all. All three were found by opening a browser by hand.
+
+Its first run found **130 findings, every one in a story that writes its own class names**; `ui-gallery--default`, built from `@hozo/ui`, has none. Those are held in `KNOWN` against [#685](https://github.com/iray-tno/hozo/issues/685), and a story that gains a new one fails the build.
 
 ## Development
 

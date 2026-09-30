@@ -23,6 +23,15 @@ export interface HozoTimePickerProps {
    */
   className?: string
   fieldClassName?: string
+  /**
+   * Carried and ignored here, like every class name on this side.
+   *
+   * The prop lists stay in step: the Web half needs this one because its
+   * `role="spinbutton"` is the element a pointer has to hit and it had no class
+   * of its own, which `check-appearance.mjs` measured at 9 by 20 pixels. Here
+   * the equivalent hook is `fieldTextStyle`, which already exists.
+   */
+  valueClassName?: string
   periodClassName?: string
   style?: StyleProp<ViewStyle>
   fieldStyle?: StyleProp<ViewStyle>
