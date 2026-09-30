@@ -25,6 +25,12 @@ change; missing or non-finite animation evidence fails collection. This verifies
 the small embedded PNG fixture, while external images, compressed textures, and
 larger glTF assets need separate cases.
 
+The Metro configuration also shares one CJS Three build between the application,
+GLTFLoader, and R3F. Otherwise Metro's import/require conditions can bundle both
+Three builds and leave ESM TextureLoader outside R3F Native's image-loader patch.
+The source-workspace R3F singleton and this Three singleton serve different
+purposes; both are needed by this probe.
+
 The iOS Simulator job measures the same Expo prebuild host through a Release app: initial GPU
 rendering, a fresh 120-frame sample, and teardown. It also attempts a UIKit background/resume cycle
 and measures the first resumed frame when the hosted simulator delivers it. Events are persisted to

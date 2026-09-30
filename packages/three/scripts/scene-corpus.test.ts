@@ -99,7 +99,7 @@ test('the glTF material uses the supplied image loader and rejects a missing dec
   }
   await assert.rejects(
     fixture.create(async () => '', { textureLoader: new FailedImageLoader() }),
-    /did not decode and bind/,
+    /did not decode and bind.*image decode failed/,
   )
 })
 

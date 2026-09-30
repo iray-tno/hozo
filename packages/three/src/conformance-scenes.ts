@@ -465,7 +465,22 @@ async function productViewer(
       return texture
     }
   }
-  manager.addHandler(/^data:image\/png/, options.textureLoader ?? new CorpusTextureLoader(manager))
+  const imageLoader = options.textureLoader ?? new CorpusTextureLoader(manager)
+  let imageError: unknown
+  class CheckedTextureLoader extends TextureLoader {
+    override load(
+      url: string,
+      onLoad?: (texture: Texture) => void,
+      onProgress?: (event: ProgressEvent) => void,
+      onError?: (error: unknown) => void,
+    ): Texture {
+      return imageLoader.load(url, onLoad, onProgress, (error) => {
+        imageError = error
+        onError?.(error)
+      })
+    }
+  }
+  manager.addHandler(/^data:image\/png/, new CheckedTextureLoader(manager))
   const gltf = await parseEmbeddedGltf(PRODUCT_VIEWER_GLTF_SOURCE, manager)
   const housing = gltf.scene.getObjectByName('Product_housing')
   const display = gltf.scene.getObjectByName('Product_display')
@@ -478,7 +493,9 @@ async function productViewer(
   }
   const image = display.material.map?.image as { width?: number; height?: number } | undefined
   if (image?.width !== 4 || image.height !== 4) {
-    throw new Error('Product viewer glTF did not decode and bind its 4x4 base colour texture')
+    throw new Error(
+      `Product viewer glTF did not decode and bind its 4x4 base colour texture${imageError ? `: ${imageError instanceof Error ? imageError.message : String(imageError)}` : ''}`,
+    )
   }
 
   const turntable = gltf.animations.find((clip) => clip.name === 'Turntable')
