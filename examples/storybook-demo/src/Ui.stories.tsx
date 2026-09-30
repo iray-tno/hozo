@@ -35,6 +35,7 @@ import {
   Input,
   Listbox,
   Menu,
+  Popover,
   RadioGroup,
   Slider,
   Stack,
@@ -285,6 +286,15 @@ function UiGallery() {
               { label: 'Delete', disabled: true },
             ]}
           />
+          <Popover trigger="Shipping" accessibilityLabel="Shipping">
+            <Paragraph className={prose}>
+              Two days, or four to an island. A popover holds whatever you put in it, which is why
+              it is a dialog rather than a menu -- a reader told "menu" expects commands.
+            </Paragraph>
+            <Button tone="quiet" size="sm" href="/shipping">
+              Read the policy
+            </Button>
+          </Popover>
         </Stack>
       </Section>
       <Section>
@@ -466,3 +476,30 @@ export const Default: StoryObj<typeof meta> = {}
  * is the same reason `Patterns/Dialog` has two.
  */
 export const DialogOpen: StoryObj<typeof meta> = { render: () => <UiDialog initiallyOpen /> }
+
+/**
+ * The popover open on mount, so the panel itself is audited rather than the
+ * button that opens it.
+ *
+ * Its own story like the dialog's, and for a *different* reason: this one is not
+ * modal, so it would not have swallowed the gallery's reading order. What it
+ * would have done is autofocus into the panel on load, which changes where every
+ * other check starts from. The panel is the thing worth measuring -- its
+ * contrast in both schemes, its focus ring, and what a reader hears inside a
+ * `role="dialog"` that is not modal.
+ */
+export const PopoverOpen: StoryObj<typeof meta> = {
+  render: () => (
+    <View className={page}>
+      <Popover trigger="Shipping" accessibilityLabel="Shipping" defaultOpen>
+        <Paragraph className={prose}>
+          Two days, or four to an island. Not modal, so the page behind it is still there for a
+          reader -- and the panel closes when focus leaves it, which is the half people forget.
+        </Paragraph>
+        <Button tone="quiet" size="sm" href="/shipping">
+          Read the policy
+        </Button>
+      </Popover>
+    </View>
+  ),
+}

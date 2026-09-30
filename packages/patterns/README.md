@@ -1,7 +1,7 @@
 # @hozo/patterns
 
 Accessible stateful widgets for Hozo: `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`,
-`RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Slider`, `Toolbar`, `Tree` and `Tooltip`. Each carries its WAI-ARIA
+`RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Slider`, `Toolbar`, `Tree`, `Tooltip` and `Popover`. Each carries its WAI-ARIA
 keyboard contract on the Web and the matching accessibility semantics on React Native.
 
 `Checkbox` and `Switch` are one control with two roles, and choosing between them chooses what a
@@ -28,6 +28,23 @@ track — exactly when a person is trying hardest to reach the end. On React Nat
 `PanResponder`, and the thumb also answers `increment` and `decrement`, because with a screen reader
 on, a swipe sends those instead of a pan and a slider that only listens to the pan cannot be moved
 at all. `valueText` becomes `aria-valuetext`: "3" is not an answer to "how loud".
+
+`Popover` is [#142](https://github.com/iray-tno/hozo/issues/142)'s equation and nothing else:
+`FloatingPositioner + FocusScope + DismissableLayer`. It needs nothing new from `@hozo/behaviors`,
+which is what makes it worth having — the composition already existed *inside* `DatePicker`, and
+this is the same arrangement with the contents left to the caller.
+
+Two decisions in it are worth knowing. It is **not modal by default**, because `aria-modal` and a
+Tab trap have to travel together or each does its worse half: a reader stops offering the page
+while the keyboard walks straight out of the panel. `DatePicker` is modal for a reason — a grid you
+arrow around is unusable with Tab escaping it — and a card with two links in it is not that. And a
+non-modal panel **closes when focus leaves it**, which is the half people forget; without it you get
+an open panel sitting behind the page. On React Native there is no `DismissableLayer`: no Escape key,
+and an outside press needs a full-screen catcher, which is a modal by another name. So the trigger
+dismisses it, and `accessibilityViewIsModal` stands in for `aria-modal`.
+
+It is `aria-haspopup="dialog"` rather than `"menu"`, which is the line between it and `Menu`: a
+reader told "menu" expects commands and a popover holds a form.
 
 They are built on the headless engines in `@hozo/behaviors` -- focus scopes, roving focus,
 typeahead, dismissal and floating positioning -- which stay reusable on their own. Applications
