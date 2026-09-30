@@ -8,7 +8,7 @@
   "scripts": {
     "prebuild:android": "expo prebuild --platform android --clean --no-install",
     "prebuild:ios": "expo prebuild --platform ios --clean --no-install",
-    "test": "node --test scripts/collect-report.test.mjs",
+    "test": "node --test scripts/collect-report.test.mjs scripts/scene-render-evidence.test.ts",
     "typecheck": "tsc -p . --noEmit"
   },
   "dependencies": {

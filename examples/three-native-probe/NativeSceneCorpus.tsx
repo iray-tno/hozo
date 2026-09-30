@@ -9,6 +9,7 @@ import { useFrame } from '@react-three/fiber/native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, Text } from 'react-native'
 import { type Object3D, TextureLoader, type WebGLRenderer } from 'three'
+import { sampleSceneRenderEvidence } from './scene-render-evidence.ts'
 
 export interface NativeSceneCorpusResult {
   activation: 'measured' | 'not-run'
@@ -177,7 +178,7 @@ function MeasuredSceneFixture({
   const animationAngle = useRef(0)
   const initialRotation = useMemo(() => fixture.animation?.object.quaternion.clone(), [fixture])
   const settled = useRef(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const initialTextures = useRef(0)
   const objects = useMemo(() => namedObjects(fixture.scene), [fixture.scene])
 
   const settle = useCallback(() => {
@@ -199,7 +200,6 @@ function MeasuredSceneFixture({
 
   useEffect(
     () => () => {
-      if (timer.current) clearTimeout(timer.current)
       onRendererUnmounted(id, final)
     },
     [final, id, onRendererUnmounted],
@@ -215,6 +215,9 @@ function MeasuredSceneFixture({
         onPress: ({ object: activatedObject }: R3FAccessibleObjectEvent) => {
           if (!objects.includes(activatedObject)) return
           activated.current = true
+          console.log(
+            `[hozo-three-evidence] ${JSON.stringify({ id, activated: true, renderCalls: renderCalls.current, textureCountDelta: textureCountDelta.current, animationFrames: animationFrames.current, animationAngle: animationAngle.current })}`,
+          )
           settle()
         },
         testID: index === 0 ? `corpus-${id}` : undefined,
@@ -223,38 +226,46 @@ function MeasuredSceneFixture({
       frameloop="always"
       onCreated={({ gl }) => {
         fixture.configure?.(gl as WebGLRenderer)
-        const initialTextures = (gl as WebGLRenderer).info.memory.textures
-        timer.current = setTimeout(() => {
-          renderCalls.current = (gl as WebGLRenderer).info.render.calls
-          textureCountDelta.current = Math.max(
-            0,
-            (gl as WebGLRenderer).info.memory.textures - initialTextures,
-          )
-          settle()
-        }, 300)
+        initialTextures.current = (gl as WebGLRenderer).info.memory.textures
       }}
       scene={fixture.scene}
     >
-      {fixture.animation ? (
-        <AnimatedFixture
-          onFrame={(delta) => {
-            if (!fixture.animation || !initialRotation) return
+      <MeasuredFixtureFrames
+        onFrame={(delta, gl) => {
+          // R3F's ordinary frame callbacks run before this frame's draw.
+          // Renderer.info therefore proves the preceding frame actually drew,
+          // rather than assuming a wall-clock delay was long enough.
+          const evidence = sampleSceneRenderEvidence(
+            { renderCalls: renderCalls.current, textureCountDelta: textureCountDelta.current },
+            gl.info,
+            initialTextures.current,
+          )
+          if (renderCalls.current === 0 && evidence.renderCalls > 0) {
+            console.log(`[hozo-three-evidence] ${JSON.stringify({ id, ...evidence })}`)
+          }
+          renderCalls.current = evidence.renderCalls
+          textureCountDelta.current = evidence.textureCountDelta
+          if (fixture.animation && initialRotation) {
             fixture.animation.update(delta)
             animationFrames.current += 1
             animationAngle.current = Math.max(
               animationAngle.current,
               initialRotation.angleTo(fixture.animation.object.quaternion),
             )
-            settle()
-          }}
-        />
-      ) : null}
+          }
+          settle()
+        }}
+      />
     </ThreeCanvas>
   )
 }
 
-function AnimatedFixture({ onFrame }: { onFrame: (delta: number) => void }) {
-  useFrame((_, delta) => onFrame(delta))
+function MeasuredFixtureFrames({
+  onFrame,
+}: {
+  onFrame: (delta: number, gl: WebGLRenderer) => void
+}) {
+  useFrame(({ gl }, delta) => onFrame(delta, gl as WebGLRenderer))
   return null
 }
 
