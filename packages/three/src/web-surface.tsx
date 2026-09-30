@@ -1,7 +1,6 @@
 import type { CanvasAccessibilityProps } from '@hozo/canvas'
 import {
   type ComponentPropsWithoutRef,
-  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type Ref,
   useCallback,
@@ -12,6 +11,7 @@ import {
 } from 'react'
 import type { Camera, Intersection, Object3D, Raycaster, Scene, Vector2 } from 'three'
 
+import { accessibleOnlyStyle, focusLeft, revealedControlsStyle } from './accessible-controls.ts'
 import {
   resizeThreeCamera,
   type ThreeSurfaceCameraResize,
@@ -57,6 +57,12 @@ export type ThreeWebCanvasProps<TRenderer extends ThreeWebRenderer> = CanvasAcce
     cameraResize?: ThreeSurfaceCameraResize
     createRaycaster: () => Raycaster
     createRenderer: (canvas: HTMLCanvasElement) => Promise<TRenderer> | TRenderer
+    /**
+     * On each accessible control; see the R3F surface, which takes the same prop
+     * for the same reason. The strip is clipped at rest and revealed while focus
+     * is inside it, in the user agent's own colours (#689).
+     */
+    controlClassName?: string
     frameloop?: ThreeCanvasFrameloop
     /** Name an interactive Three object for its keyboard and screen-reader control. */
     getAccessibilityLabel?: (object: Object3D) => string | undefined
@@ -79,18 +85,6 @@ export type ThreeWebCanvasProps<TRenderer extends ThreeWebRenderer> = CanvasAcce
     width?: number
   }
 
-const accessibleOnlyStyle: CSSProperties = {
-  position: 'absolute',
-  width: 1,
-  height: 1,
-  padding: 0,
-  margin: -1,
-  overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
-  whiteSpace: 'nowrap',
-  border: 0,
-}
-
 /** Renderer-neutral DOM, lifecycle, raycast, and semantic layer for Web families. */
 export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   accessibilityLabel,
@@ -99,6 +93,7 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   cameraResize = 'auto',
   createRaycaster,
   createRenderer,
+  controlClassName,
   decorative,
   frameloop = 'demand',
   getAccessibilityLabel,
@@ -140,6 +135,9 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
   const renderState = useRef<AsyncRenderState>({ generation: 0, inFlight: false, pending: false })
   const [renderer, setRenderer] = useState<TRenderer>()
   const [creationError, setCreationError] = useState<unknown>()
+  // Whether the control strip is showing; see `accessible-controls.ts`. State
+  // rather than `:focus-within`, because this package ships no stylesheet.
+  const [reached, setReached] = useState(false)
   const { measure, size } = useThreeSurfaceSize({ height, onResize, pixelRatio, width })
   createdCallback.current = onCreated
   errorCallback.current = onError
@@ -419,10 +417,20 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
         }}
       />
       {controls.length > 0 ? (
-        <div style={accessibleOnlyStyle} data-hozo-three-controls="">
+        // biome-ignore lint/a11y/noStaticElementInteractions: focus events on a container are how :focus-within is answered without a stylesheet, and the controls inside are real buttons
+        <div
+          style={reached ? revealedControlsStyle : accessibleOnlyStyle}
+          data-hozo-three-controls=""
+          data-hozo-three-reached={reached ? '' : undefined}
+          onFocus={() => setReached(true)}
+          onBlur={(event) => {
+            if (focusLeft(event)) setReached(false)
+          }}
+        >
           {controls.map(({ label, object }) => (
             <button
               key={object.uuid}
+              className={controlClassName}
               type="button"
               onClick={() => onObjectPress?.(objectEvent(object))}
               onFocus={() => setActiveSource('focus', objectEvent(object))}

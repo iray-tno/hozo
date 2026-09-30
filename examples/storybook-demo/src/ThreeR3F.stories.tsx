@@ -62,6 +62,12 @@ function ReactThreeFiberScene() {
         accessibleObjects={[
           { id: 'knot', label: 'Inspect torus knot', object: knot, onPress: inspect },
         ]}
+        // The strip these live in is clipped until focus reaches it and is
+        // readable without this, in the user agent's own colours. This is the
+        // application saying what its own chip looks like -- and it is the whole
+        // of what #689 was about: before it, a keyboard user landed on a control
+        // that was clipped to nothing and there was no prop to reach it with.
+        controlClassName="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         camera={{ position: [0, 0, 4], fov: 48 }}
         dpr={[1, 1.5]}
         onObjectActiveChange={(event) => setActive(event !== undefined)}

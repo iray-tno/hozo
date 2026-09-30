@@ -163,10 +163,25 @@ const product = useRef<THREE.Mesh>(null)
 </ThreeCanvas>
 ```
 
-The hidden native button handles keyboard and screen-reader activation. The
-mesh keeps its ordinary R3F pointer handler, so Hozo does not synthesize or
-double-dispatch pointer events. A registered object with `href` becomes a real
-anchor instead, preserving modifier-click and application-router integration.
+The native control handles keyboard and screen-reader activation. The mesh keeps
+its ordinary R3F pointer handler, so Hozo does not synthesize or double-dispatch
+pointer events. A registered object with `href` becomes a real anchor instead,
+preserving modifier-click and application-router integration.
+
+**Hidden until focus reaches it.** The controls sit off-screen while nothing is
+focused — a canvas should not carry a row of buttons on every scene — and the
+strip is revealed as soon as focus enters it, in the user agent's own
+`Canvas`/`CanvasText` colours. It was clipped in both states until
+[#689](https://github.com/iray-tno/hozo/issues/689), which meant a sighted
+keyboard user tabbed onto a control they could not see anywhere: measured at 1×1
+with `clip: rect(0, 0, 0, 0)` around a 136×24 button that had Chrome's focus ring
+on it, clipped away with everything else. WCAG 2.4.7, and invisible to every
+other check here — axe reads the accessibility tree, where the control was
+correct.
+
+`controlClassName` dresses each control for applications that want their own
+look; the package's two colours are the two a user agent guarantees contrast
+between, and nothing more.
 
 ### R3F with WebGPU
 
