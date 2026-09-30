@@ -11,6 +11,15 @@ const config: StorybookConfig = {
   typescript: {
     reactDocgen: false,
   },
+  // Shared demo packages have development React peers of their own. Hooks
+  // must use this Storybook renderer's React, not the source's neighbor.
+  viteFinal: (config) => ({
+    ...config,
+    resolve: {
+      ...config.resolve,
+      dedupe: [...new Set([...(config.resolve?.dedupe ?? []), 'react', 'react-dom'])],
+    },
+  }),
 }
 
 export default config

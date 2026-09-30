@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Hozo Showcase",
+    "slug": "hozo-native-showcase",
+    "version": "1.0.0",
+    "orientation": "default",
+    "newArchEnabled": true,
+    "ios": { "bundleIdentifier": "dev.hozo.showcase", "supportsTablet": true },
+    "android": { "package": "dev.hozo.showcase" }
+  }
+}

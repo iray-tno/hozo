@@ -1,0 +1,5 @@
+heading, Profile, level 2
+Display name
+textbox, Display name, placeholder Your name
+button, Save profile, disabled
+Not saved yet

@@ -1,0 +1,26 @@
+{
+  "name": "@hozo/example-showcase",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Platform-neutral demo bodies shared by Web and Native Storybook hosts.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@hozo/core": "workspace:^",
+    "@hozo/primitives": "workspace:^",
+    "@hozo/typography": "workspace:^"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "react": "^19.2.8",
+    "typescript": "^7.0.2"
+  }
+}

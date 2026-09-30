@@ -594,8 +594,10 @@ examples/
   expo-router-demo/     @hozo/example-expo-router-demo    — Real Expo Router type and production-export fixture for @hozo/navigation.
   login-demo/           login-demo                        — Phase 0 benchmark app -- exercises @hozo/core through @hozo/vite end to end.
   native-demo/          @hozo/example-native-demo         — React Native example, and the end-to-end check that a Hozo source survives a real Metro bundle.
+  native-showcase/      @hozo/example-native-showcase     — Expo development app with on-device React Native Storybook and shared Hozo demos.
   next-demo/            @hozo/example-next                — Next.js, on both bundlers.
   screen-readers/       @hozo/example-screen-readers      — Real screen readers, NVDA and VoiceOver, reading the Storybook catalogue through Guidepup.
+  showcase/             @hozo/example-showcase            — Platform-neutral demo bodies shared by Web and Native Storybook hosts.
   storybook-demo/       @hozo/example-storybook           — Storybook, audited against axe-core in CI.
   tanstack-start-demo/  @hozo/example-tanstack-start      — TanStack Start.
   three-kumimono/       @hozo/example-three-kumimono      — Shared DOM-free Kumimono Three.js scene for the landing page and Native GPU probe.
