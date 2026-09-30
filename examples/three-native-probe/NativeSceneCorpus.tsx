@@ -4,12 +4,17 @@ import {
   type SceneCorpusScene,
 } from '@hozo/three/conformance-scenes'
 import { type R3FAccessibleObjectEvent, ThreeCanvas } from '@hozo/three/r3f-native'
+import { useFrame } from '@react-three/fiber/native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, Text } from 'react-native'
-import type { Object3D, WebGLRenderer } from 'three'
+import { type Object3D, TextureLoader, type WebGLRenderer } from 'three'
 
 export interface NativeSceneCorpusResult {
   activation: 'measured' | 'not-run'
+  animationFrames?: number
+  animationAngle?: number
+  imageDecoding?: 'fixture' | 'host'
+  error?: string
   id: string
   renderCalls: number
   semanticControls: number
@@ -70,7 +75,7 @@ function NativeSceneFixture({
   useEffect(() => {
     let active = true
     void definition
-      .create(async () => MINIMAL_PBR_GLTF_SOURCE)
+      .create(async () => MINIMAL_PBR_GLTF_SOURCE, { textureLoader: new TextureLoader() })
       .then((created) => {
         if (active) setFixture(created)
       })
@@ -86,6 +91,7 @@ function NativeSceneFixture({
     if (!error) return
     onResult({
       activation: Platform.OS === 'ios' ? 'not-run' : 'measured',
+      error: error instanceof Error ? error.message : String(error),
       id: definition.id,
       renderCalls: 0,
       semanticControls: 0,
@@ -122,22 +128,29 @@ function MeasuredSceneFixture({
   const activated = useRef(Platform.OS === 'ios')
   const renderCalls = useRef(0)
   const textureCountDelta = useRef(0)
+  const animationFrames = useRef(0)
+  const animationAngle = useRef(0)
+  const initialRotation = useMemo(() => fixture.animation?.object.quaternion.clone(), [fixture])
   const settled = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const objects = useMemo(() => namedObjects(fixture.scene), [fixture.scene])
 
   const settle = useCallback(() => {
     if (settled.current || renderCalls.current < 1 || !activated.current) return
+    if (fixture.animation && (animationFrames.current < 2 || animationAngle.current <= 0.01)) return
     settled.current = true
     onResult({
       activation: Platform.OS === 'ios' ? 'not-run' : 'measured',
+      animationFrames: fixture.animation ? animationFrames.current : undefined,
+      animationAngle: fixture.animation ? animationAngle.current : undefined,
+      imageDecoding: fixture.textureImage?.decoding,
       id,
       renderCalls: renderCalls.current,
       semanticControls: objects.length,
       status: objects.length > 0 ? 'useful' : 'failed',
       textureCountDelta: textureCountDelta.current,
     })
-  }, [id, objects.length, onResult])
+  }, [fixture, id, objects.length, onResult])
 
   useEffect(
     () => () => {
@@ -175,8 +188,28 @@ function MeasuredSceneFixture({
         }, 300)
       }}
       scene={fixture.scene}
-    />
+    >
+      {fixture.animation ? (
+        <AnimatedFixture
+          onFrame={(delta) => {
+            if (!fixture.animation || !initialRotation) return
+            fixture.animation.update(delta)
+            animationFrames.current += 1
+            animationAngle.current = Math.max(
+              animationAngle.current,
+              initialRotation.angleTo(fixture.animation.object.quaternion),
+            )
+            settle()
+          }}
+        />
+      ) : null}
+    </ThreeCanvas>
   )
+}
+
+function AnimatedFixture({ onFrame }: { onFrame: (delta: number) => void }) {
+  useFrame((_, delta) => onFrame(delta))
+  return null
 }
 
 function namedObjects(scene: Object3D): Object3D[] {

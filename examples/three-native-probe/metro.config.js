@@ -17,14 +17,18 @@ config.resolver.nodeModulesPaths = [
 // Published consumers do not install @hozo/three's dev dependencies, but this
 // probe intentionally exercises the source workspace and must preserve R3F as
 // a renderer singleton.
-const r3fRequests = new Map(
-  ['@react-three/fiber', '@react-three/fiber/native'].map((request) => [
+// R3F's Native entry is CJS and patches that Three instance's TextureLoader.
+// Metro can otherwise give ESM application/addon imports another Three build,
+// whose ImageLoader still needs a DOM. Share the CJS instance with GLTFLoader
+// so host texture loading, renderer caches, and object identities agree.
+const singletonRequests = new Map(
+  ['@react-three/fiber', '@react-three/fiber/native', 'three'].map((request) => [
     request,
     require.resolve(request, { paths: [projectRoot] }),
   ]),
 )
 
 config.resolver.resolveRequest = (context, moduleName, platform) =>
-  context.resolveRequest(context, r3fRequests.get(moduleName) ?? moduleName, platform)
+  context.resolveRequest(context, singletonRequests.get(moduleName) ?? moduleName, platform)
 
 module.exports = config

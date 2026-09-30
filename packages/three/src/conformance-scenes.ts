@@ -16,6 +16,7 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   NearestFilter,
+  type Object3D,
   OrthographicCamera,
   PerspectiveCamera,
   Points,
@@ -32,12 +33,22 @@ import {
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
 export interface SceneCorpusScene {
+  animation?: { object: Object3D; update: (delta: number) => void }
   camera: OrthographicCamera | PerspectiveCamera
   scene: Scene
+  textureImage?: { decoding: 'fixture' | 'host'; width: number; height: number }
+}
+
+export interface SceneCorpusHostOptions {
+  /** GPU hosts supply their image loader; Node's deterministic report uses pinned pixels. */
+  textureLoader?: TextureLoader
 }
 
 export interface SceneCorpusSceneDefinition {
-  create: (loadGltfSource: () => Promise<string>) => Promise<SceneCorpusScene>
+  create: (
+    loadGltfSource: () => Promise<string>,
+    options?: SceneCorpusHostOptions,
+  ) => Promise<SceneCorpusScene>
   id: string
 }
 
@@ -430,16 +441,18 @@ async function parseEmbeddedGltf(source: string, manager?: LoadingManager) {
   return new GLTFLoader(manager).parseAsync(source, '').finally(restoreCache)
 }
 
-async function productViewer(): Promise<SceneCorpusScene> {
+async function productViewer(
+  _loadGltfSource: () => Promise<string>,
+  options: SceneCorpusHostOptions = {},
+): Promise<SceneCorpusScene> {
   const pixels = new Uint8Array([
     27, 82, 141, 255, 27, 82, 141, 255, 245, 158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27,
     82, 141, 255, 245, 158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27, 82, 141, 255, 245,
     158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27, 82, 141, 255, 245, 158, 49, 255, 245,
     158, 49, 255,
   ])
-  // The glTF owns its image and texture binding. Its tiny PNG has pinned raw
-  // pixels, so this fixture-specific handler gives all hosts the same decoded
-  // image without making a Native PNG decoder part of the @hozo/three API.
+  // Node reports use pinned pixels. GPU probes supply the host's TextureLoader
+  // to decode the embedded PNG through the browser or R3F Native/Expo GL.
   const manager = new LoadingManager()
   class CorpusTextureLoader extends TextureLoader {
     override load(_url: string, onLoad?: (texture: Texture) => void): Texture {
@@ -452,14 +465,37 @@ async function productViewer(): Promise<SceneCorpusScene> {
       return texture
     }
   }
-  manager.addHandler(/^data:image\/png/, new CorpusTextureLoader(manager))
+  const imageLoader = options.textureLoader ?? new CorpusTextureLoader(manager)
+  let imageError: unknown
+  class CheckedTextureLoader extends TextureLoader {
+    override load(
+      url: string,
+      onLoad?: (texture: Texture) => void,
+      onProgress?: (event: ProgressEvent) => void,
+      onError?: (error: unknown) => void,
+    ): Texture {
+      return imageLoader.load(url, onLoad, onProgress, (error) => {
+        imageError = error
+        onError?.(error)
+      })
+    }
+  }
+  manager.addHandler(/^data:image\/png/, new CheckedTextureLoader(manager))
   const gltf = await parseEmbeddedGltf(PRODUCT_VIEWER_GLTF_SOURCE, manager)
+  const housing = gltf.scene.getObjectByName('Product_housing')
   const display = gltf.scene.getObjectByName('Product_display')
-  if (!(display instanceof Mesh) || !(display.material instanceof MeshStandardMaterial)) {
+  if (
+    !(housing instanceof Mesh) ||
+    !(display instanceof Mesh) ||
+    !(display.material instanceof MeshStandardMaterial)
+  ) {
     throw new Error('Product viewer glTF did not load its PBR display mesh')
   }
-  if (!(display.material.map instanceof DataTexture)) {
-    throw new Error('Product viewer glTF did not bind its base colour texture')
+  const image = display.material.map?.image as { width?: number; height?: number } | undefined
+  if (image?.width !== 4 || image.height !== 4) {
+    throw new Error(
+      `Product viewer glTF did not decode and bind its 4x4 base colour texture${imageError ? `: ${imageError instanceof Error ? imageError.message : String(imageError)}` : ''}`,
+    )
   }
 
   const turntable = gltf.animations.find((clip) => clip.name === 'Turntable')
@@ -471,7 +507,16 @@ async function productViewer(): Promise<SceneCorpusScene> {
   const scene = new Scene()
   scene.add(new AmbientLight('#ffffff', 0.6), gltf.scene)
   scene.updateMatrixWorld(true)
-  return { camera: perspective(), scene }
+  return {
+    animation: { object: housing, update: (delta) => mixer.update(delta) },
+    camera: perspective(),
+    scene,
+    textureImage: {
+      decoding: options.textureLoader ? 'host' : 'fixture',
+      width: image.width,
+      height: image.height,
+    },
+  }
 }
 
 export const SCENE_CORPUS_SCENES: readonly SceneCorpusSceneDefinition[] = [

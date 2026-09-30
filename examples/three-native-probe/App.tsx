@@ -30,6 +30,9 @@ type ProbeEvent = {
   renderCalls?: number
   semanticControls?: number
   textureCountDelta?: number
+  animationFrames?: number
+  animationAngle?: number
+  imageDecoding?: 'fixture' | 'host'
   status?: 'failed' | 'useful'
   activation?: 'measured' | 'not-run'
 }
@@ -304,6 +307,10 @@ export default function App() {
       renderCalls: result.renderCalls,
       semanticControls: result.semanticControls,
       textureCountDelta: result.textureCountDelta,
+      animationFrames: result.animationFrames,
+      animationAngle: result.animationAngle,
+      imageDecoding: result.imageDecoding,
+      reason: result.error,
       status: result.status,
       activation: result.activation,
     })

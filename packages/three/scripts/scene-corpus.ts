@@ -136,9 +136,9 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
     exercises: [
       'glTF 2.0 node hierarchy',
       'PBR materials',
-      'UV-mapped raw texture',
+      'UV-mapped texture / GPU host PNG decoding',
       'punctual light',
-      'animation pose',
+      'sampled animation pose / GPU frame-loop playback',
     ],
     id: 'product-viewer-gltf',
     portableExpectation: {

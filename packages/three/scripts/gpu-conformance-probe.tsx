@@ -1,12 +1,22 @@
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BoxGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene } from 'three'
+import {
+  BoxGeometry,
+  Mesh,
+  MeshBasicMaterial,
+  PerspectiveCamera,
+  Scene,
+  TextureLoader,
+} from 'three'
 import { SCENE_CORPUS_SCENES } from '../src/conformance-scenes.ts'
 import { ThreeCanvas as WebGLCanvas } from '../src/webgl-renderer.tsx'
 import { ThreeCanvas as WebGPUCanvas } from '../src/webgpu.tsx'
 
 type SceneCorpusProbeResult = {
   activated: boolean
+  animationFrames?: number
+  animationAngle?: number
+  imageDecoding?: 'fixture' | 'host'
   error?: string
   id: string
   renderCalls: number
@@ -77,7 +87,9 @@ async function runRendererSceneCorpus(): Promise<readonly SceneCorpusProbeResult
   const results: SceneCorpusProbeResult[] = []
   for (const definition of SCENE_CORPUS_SCENES) {
     try {
-      const fixture = await definition.create(() => gltfSource)
+      const fixture = await definition.create(() => gltfSource, {
+        textureLoader: new TextureLoader(),
+      })
       results.push(await renderSceneFixture(definition.id, fixture))
     } catch (error) {
       results.push({
@@ -104,9 +116,15 @@ function renderSceneFixture(
     const root = createRoot(host)
     let fixtureActivated = false
     let settled = false
+    let animationFrames = 0
+    let animationAngle = 0
+    let sampleTimer: ReturnType<typeof setTimeout> | undefined
+    const initialRotation = fixture.animation?.object.quaternion.clone()
     const settle = (result: SceneCorpusProbeResult) => {
       if (settled) return
       settled = true
+      clearTimeout(timeout)
+      clearTimeout(sampleTimer)
       root.unmount()
       host.remove()
       resolve(result)
@@ -116,6 +134,9 @@ function renderSceneFixture(
         settle({
           activated: fixtureActivated,
           error: 'fixture timed out',
+          animationFrames: fixture.animation ? animationFrames : undefined,
+          animationAngle: fixture.animation ? animationAngle : undefined,
+          imageDecoding: fixture.textureImage?.decoding,
           id,
           renderCalls: 0,
           semanticControls: 0,
@@ -128,16 +149,26 @@ function renderSceneFixture(
       createElement(Canvas, {
         accessibilityLabel: id,
         camera: fixture.camera,
+        frameloop: fixture.animation ? 'always' : 'demand',
         height: 180,
+        onFrame: ({ delta }: { delta: number }) => {
+          if (!fixture.animation || !initialRotation) return
+          fixture.animation.update(delta)
+          animationFrames += 1
+          animationAngle = Math.max(
+            animationAngle,
+            initialRotation.angleTo(fixture.animation.object.quaternion),
+          )
+        },
         onCreated: (renderer: unknown) => {
           const initialTextures =
             (renderer as { info?: { memory?: { textures?: number } } }).info?.memory?.textures ?? 0
-          setTimeout(() => {
-            clearTimeout(timeout)
+          const sample = () => {
+            if (settled) return
             const buttons = host.querySelectorAll<HTMLButtonElement>(
               '[data-hozo-three-controls] button',
             )
-            buttons[0]?.click()
+            if (!fixtureActivated) buttons[0]?.click()
             const renderCalls =
               (renderer as { info?: { render?: { calls?: number } } }).info?.render?.calls ?? 0
             const textureCountDelta = Math.max(
@@ -149,16 +180,28 @@ function renderSceneFixture(
               renderCalls > 0 &&
               buttons.length > 0 &&
               fixtureActivated &&
-              (id !== 'product-viewer-gltf' || textureCountDelta > 0)
+              (id !== 'product-viewer-gltf' ||
+                (textureCountDelta > 0 &&
+                  fixture.textureImage?.decoding === 'host' &&
+                  animationFrames >= 2 &&
+                  animationAngle > 0.01))
+            if (!useful) {
+              sampleTimer = setTimeout(sample, 50)
+              return
+            }
             settle({
               activated: fixtureActivated,
+              animationFrames: fixture.animation ? animationFrames : undefined,
+              animationAngle: fixture.animation ? animationAngle : undefined,
+              imageDecoding: fixture.textureImage?.decoding,
               id,
               renderCalls,
               semanticControls: buttons.length,
               status: useful ? 'useful' : 'failed',
               textureCountDelta,
             })
-          }, 150)
+          }
+          sampleTimer = setTimeout(sample, 150)
         },
         onError: (error: unknown) => {
           clearTimeout(timeout)
