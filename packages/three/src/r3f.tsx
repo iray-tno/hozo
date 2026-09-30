@@ -1,7 +1,8 @@
 import type { CanvasAccessibilityProps } from '@hozo/canvas'
 import { Canvas as FiberCanvas, type CanvasProps as FiberCanvasProps } from '@react-three/fiber'
-import type { CSSProperties, ReactNode } from 'react'
+import { type CSSProperties, type ReactNode, useState } from 'react'
 
+import { accessibleOnlyStyle, focusLeft, revealedControlsStyle } from './accessible-controls.ts'
 import {
   type R3FAccessibleObject,
   type R3FAccessibleObjectEvent,
@@ -31,22 +32,21 @@ export type ThreeCanvasProps = CanvasAccessibilityProps &
     accessibleObjects?: readonly R3FAccessibleObject[]
     children?: ReactNode
     className?: string
+    /**
+     * On each accessible control, which is the element a keyboard reaches.
+     *
+     * The strip they live in is clipped at rest and revealed while focus is
+     * inside it, with the user agent's own colours -- so a control is visible
+     * and readable without this. It is here because the package's colours are
+     * the two a user agent guarantees and nothing more, and a scene is somebody
+     * else's design. #689 asked for it after `check-appearance.mjs` found the
+     * control with nothing an application could reach.
+     */
+    controlClassName?: string
     /** Reports semantic-control focus without competing with R3F pointer events. */
     onObjectActiveChange?: (event: R3FAccessibleObjectEvent | undefined) => void
     style?: CSSProperties
   }
-
-const accessibleOnlyStyle: CSSProperties = {
-  position: 'absolute',
-  width: 1,
-  height: 1,
-  padding: 0,
-  margin: -1,
-  overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
-  whiteSpace: 'nowrap',
-  border: 0,
-}
 
 /**
  * An accessibility and layout envelope around React Three Fiber's Web Canvas.
@@ -61,6 +61,7 @@ export function ThreeCanvas({
   accessibleObjects = [],
   children,
   className,
+  controlClassName,
   decorative,
   onObjectActiveChange,
   style,
@@ -68,6 +69,10 @@ export function ThreeCanvas({
 }: ThreeCanvasProps) {
   const hasFallback = accessibleFallback !== undefined
   const labelled = !decorative && !hasFallback
+  // Whether the control strip is showing. State rather than `:focus-within`,
+  // because this package ships no stylesheet to put a pseudo-class in -- the
+  // clip it is replacing is an inline style for the same reason.
+  const [reached, setReached] = useState(false)
   return (
     <div
       className={className}
@@ -87,7 +92,16 @@ export function ThreeCanvas({
         </FiberCanvas>
       </div>
       {accessibleObjects.some(({ disabled }) => !disabled) ? (
-        <div style={accessibleOnlyStyle} data-hozo-three-controls="">
+        // biome-ignore lint/a11y/noStaticElementInteractions: focus events on a container are how :focus-within is answered without a stylesheet, and the controls inside are real buttons
+        <div
+          style={reached ? revealedControlsStyle : accessibleOnlyStyle}
+          data-hozo-three-controls=""
+          data-hozo-three-reached={reached ? '' : undefined}
+          onFocus={() => setReached(true)}
+          onBlur={(event) => {
+            if (focusLeft(event)) setReached(false)
+          }}
+        >
           {accessibleObjects.map((control) => {
             if (control.disabled) return null
             const focus = () => {
@@ -98,6 +112,7 @@ export function ThreeCanvas({
               return (
                 <a
                   key={control.id}
+                  className={controlClassName}
                   data-testid={control.testID}
                   href={control.href}
                   target={control.external ? '_blank' : undefined}
@@ -113,6 +128,7 @@ export function ThreeCanvas({
             return (
               <button
                 key={control.id}
+                className={controlClassName}
                 data-testid={control.testID}
                 type="button"
                 onClick={() => {

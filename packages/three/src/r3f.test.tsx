@@ -80,3 +80,39 @@ test('registered actions and destinations become native semantic controls', () =
   )
   assert.doesNotMatch(html, /Unavailable option/)
 })
+
+test('the control strip is clipped until focus reaches it', () => {
+  // At rest it is off-screen and 1 by 1, which is what makes a canvas readable
+  // without putting a row of buttons on every scene. `data-hozo-three-reached`
+  // is absent, and is how a test or a stylesheet can tell the two apart.
+  const html = renderToStaticMarkup(
+    <ThreeCanvas
+      accessibilityLabel="Product preview"
+      accessibleObjects={[
+        { id: 'inspect', label: 'Inspect', object: new Group(), onPress: () => undefined },
+      ]}
+    />,
+  )
+  const strip = /<div style="([^"]*)" data-hozo-three-controls=""/.exec(html)
+  assert.ok(strip, 'no control strip')
+  assert.match(strip[1] ?? '', /clip:rect\(0, 0, 0, 0\)/)
+  assert.doesNotMatch(html, /data-hozo-three-reached/)
+})
+
+test('an application can dress the control it could not reach', () => {
+  // #689: the strip is revealed in the user agent's own colours, which is
+  // readable and is not anybody's design. Both shapes take the class, because a
+  // registered object with an `href` is an anchor rather than a button.
+  const html = renderToStaticMarkup(
+    <ThreeCanvas
+      accessibilityLabel="Product preview"
+      controlClassName="chip"
+      accessibleObjects={[
+        { id: 'inspect', label: 'Inspect', object: new Group(), onPress: () => undefined },
+        { id: 'details', label: 'Details', object: new Group(), href: '/p/42' },
+      ]}
+    />,
+  )
+  assert.match(html, /<button class="chip"/)
+  assert.match(html, /<a class="chip"/)
+})

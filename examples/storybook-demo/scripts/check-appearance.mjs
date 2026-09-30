@@ -109,15 +109,13 @@ const TYPES = {
  * Checked in both directions like `check-a11y.mjs`'s list: an entry that stops
  * firing fails the run and asks to be deleted. Each one says which WCAG
  * exception it is claiming, because "it looks fine" is not one of them.
+ *
+ * Empty, and it has been empty since the day it was needed. The first run held
+ * 130 (#685), the catalogue's own class lists fixed 129 of them (#692), and the
+ * last one was a control `@hozo/three` clipped to nothing with no prop to reach
+ * it -- which is now revealed when focus arrives (#689).
  */
-const KNOWN = {
-  // The one control in the catalogue an application cannot reach.
-  // `@hozo/three`'s R3F canvas renders an accessible `<button>` per object with
-  // no `className` and no prop for one, so the overlay's container is all a
-  // story can style. Filed as #689; the fix is a hook in that package, the same
-  // shape as the `valueClassName` #686 added to `@hozo/form` for this reason.
-  'media-react-three-fiber--animated-scene/focus-visible': 689,
-}
+const KNOWN = {}
 
 const index = JSON.parse(readFileSync(path.join(STATIC, 'index.json'), 'utf8'))
 const ids = Object.values(index.entries)
