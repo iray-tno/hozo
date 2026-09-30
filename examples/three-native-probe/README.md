@@ -26,6 +26,14 @@ rotation across rendered frames; the Android harness activates its public
 pillar control. This is separate from the six version-pinned library corpus
 fixtures and does not change portable coverage totals.
 
+Each fixture switches to demand rendering after actual draw and animation evidence
+has been collected, while still waiting for Android's real semantic activation.
+Continuously drawing the heavy study can otherwise prevent UiAutomator from
+obtaining an idle accessibility tree. The iOS completion wait has a separate
+bounded 120-second budget for the full seven-fixture sequence and teardown;
+ordinary lifecycle transitions retain their 30-second budget. Completion still
+requires the persisted renderer-unmounted event and all collector assertions.
+
 The product-viewer glTF uses R3F Native's `TextureLoader` to save its embedded PNG
 to a local file, determine its decoded size, and upload it through Expo GL. Its
 `AnimationMixer` advances from `useFrame`. The report requires host image decoding,

@@ -13,6 +13,12 @@ Canvas2D rasterization. Their pixels are deterministic and host-independent.
 - `configureKumimonoRenderer(renderer)` configures color, tone mapping, and shadows.
 - `study.dispose()` releases geometries, materials, textures, and shadow resources.
 
+Repeated opaque materials on box faces are coalesced into fewer geometry groups.
+Only triangle index order changes: positions, normals, UVs, per-material triangles,
+and the 56 animated part boundaries are preserved and compared against the
+unbatched scene in tests. `createKumimonoScene({ batchMaterialGroups: false })`
+keeps the reference layout available for comparisons.
+
 The landing uses `@hozo/three/webgl`; the Native probe uses
 `@hozo/three/r3f-native` with Expo GL. PBR, shadows, and instancing make this a
 GPU example, not a claim of parity on Hozo's portable projection renderer.

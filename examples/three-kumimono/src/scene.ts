@@ -1,9 +1,10 @@
 import * as THREE from 'three'
+import { coalesceMaterialGroups } from './material-groups.ts'
 import { createTimberTextures } from './textures.ts'
 
 // Geometry and procedural textures adapted from the supplied Kumimono study.
 // Hozo owns the renderer and frame lifecycle; this module owns scene resources.
-export function createKumimonoScene() {
+export function createKumimonoScene({ batchMaterialGroups = true } = {}) {
   const scene = new THREE.Scene()
   const fog = new THREE.FogExp2(0x080806, 0.039)
   scene.fog = fog
@@ -441,6 +442,7 @@ export function createKumimonoScene() {
     spin?: [number, number, number]
     kind?: string
   }) {
+    if (batchMaterialGroups) coalesceMaterialGroups(object)
     finishObject(object)
     const finalPosition = new THREE.Vector3(...position)
     const finalQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation))

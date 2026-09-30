@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { DataTexture, InstancedMesh, Mesh, SRGBColorSpace } from 'three'
+import { Box3, DataTexture, InstancedMesh, Mesh, SRGBColorSpace } from 'three'
 import { createKumimonoScene } from './scene.ts'
 import { createTimberTextures } from './textures.ts'
 
@@ -59,4 +59,63 @@ test('the same scene assembles, uses instancing and two textures, and disposes o
     resource.addEventListener('dispose', () => disposed++)
   study.dispose()
   assert.equal(disposed, textures.size + geometries.size + materials.size + instancedMeshes.size)
+})
+
+test('coalescing repeated materials reduces draws without changing geometry or assembly bounds', () => {
+  const original = createKumimonoScene({ batchMaterialGroups: false })
+  const batched = createKumimonoScene()
+  const drawCount = (study: ReturnType<typeof createKumimonoScene>) => {
+    let calls = 0
+    study.scene.traverse((object) => {
+      if (object instanceof Mesh)
+        calls += Array.isArray(object.material) ? object.geometry.groups.length : 1
+    })
+    return calls
+  }
+  assert.ok(
+    drawCount(batched) < drawCount(original) * 0.6,
+    `${drawCount(original)} -> ${drawCount(batched)}`,
+  )
+  for (const progress of [0, 0.5, 1]) {
+    original.update(progress)
+    batched.update(progress)
+    assert.deepEqual(
+      new Box3().setFromObject(batched.scene),
+      new Box3().setFromObject(original.scene),
+    )
+  }
+  const meshes = (study: ReturnType<typeof createKumimonoScene>) => {
+    const result: Mesh[] = []
+    study.scene.traverse((object) => {
+      if (object instanceof Mesh) result.push(object)
+    })
+    return result
+  }
+  const before = meshes(original),
+    after = meshes(batched)
+  assert.equal(after.length, before.length)
+  for (let i = 0; i < before.length; i++) {
+    for (const name of ['position', 'normal', 'uv'])
+      assert.deepEqual(
+        after[i].geometry.getAttribute(name)?.array,
+        before[i].geometry.getAttribute(name)?.array,
+      )
+    // Match each material's exact triangle sequence, not just the bounds.
+    const triangles = (mesh: Mesh) => {
+      const result = new Map<string, number[]>()
+      const materials = [mesh.material].flat()
+      for (const group of mesh.geometry.groups) {
+        const material = materials[group.materialIndex ?? 0] ?? materials[0]
+        const key = `${material.type}:${'color' in material ? material.color.getHex() : ''}`
+        const indices = result.get(key) ?? []
+        for (let n = group.start; n < group.start + group.count; n++)
+          indices.push(mesh.geometry.index?.getX(n) ?? n)
+        result.set(key, indices)
+      }
+      return result
+    }
+    assert.deepEqual(triangles(after[i]), triangles(before[i]))
+  }
+  original.dispose()
+  batched.dispose()
 })
