@@ -78,7 +78,7 @@ const header = 'flex flex-row items-center justify-between gap-4 mb-2'
  * kept only where it is enforced is not one.
  */
 const monthButton =
-  'px-3 py-1 text-slate-700 rounded-lg hover:bg-slate-100 disabled:text-slate-500 disabled:hover:bg-transparent disabled:cursor-not-allowed'
+  'px-3 py-1 text-slate-700 rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:text-slate-500 disabled:hover:bg-transparent disabled:cursor-not-allowed'
 
 /**
  * The clock, spelled out rather than left to the default.
@@ -97,9 +97,15 @@ const clock = 'flex flex-row items-center gap-2'
  * rule filtering and three of the first five findings it ever made were about
  * computed colour. So a greyed-out day is `slate-500` struck through rather
  * than the `slate-300` a designer would reach for.
+ *
+ * The focus ring is on the cell because the cell is the tab stop: this grid
+ * moves a roving `tabIndex` across the `<td>`s themselves rather than putting a
+ * button in each. Without it the arrow keys move and nothing on screen says
+ * where they went, which `check-appearance.mjs` found in three of these stories
+ * at once.
  */
 const cellBase =
-  'p-2 text-center text-slate-700 cursor-pointer rounded-lg aria-disabled:text-slate-500 aria-disabled:line-through aria-disabled:cursor-not-allowed data-[hozo-outside]:text-slate-500 data-[hozo-outside]:italic'
+  'p-2 text-center text-slate-700 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 aria-disabled:text-slate-500 aria-disabled:line-through aria-disabled:cursor-not-allowed data-[hozo-outside]:text-slate-500 data-[hozo-outside]:italic'
 const cell = `${cellBase} aria-selected:bg-indigo-600 aria-selected:text-white`
 
 /**
@@ -112,7 +118,7 @@ const cell = `${cellBase} aria-selected:bg-indigo-600 aria-selected:text-white`
  */
 const rangeCell = `${cellBase} data-[hozo-in-range]:bg-indigo-100 data-[hozo-range-start]:bg-indigo-600 data-[hozo-range-start]:text-white data-[hozo-range-end]:bg-indigo-600 data-[hozo-range-end]:text-white`
 const trigger =
-  'px-4 py-2.5 text-sm font-medium text-slate-700 rounded-lg border border-slate-300 hover:border-indigo-500'
+  'px-4 py-2.5 text-sm font-medium text-slate-700 rounded-lg border border-slate-300 hover:border-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
 const dialog = 'mt-2 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-lg'
 /**
  * The two arrow layouts, which are one markup and two stylesheets.
@@ -125,7 +131,20 @@ const dialog = 'mt-2 space-y-4 rounded-xl border border-slate-200 bg-white p-4 s
  * difference lives here, in the application, which is the point being shown.
  */
 const inlineField =
-  'relative w-16 py-2 pl-2 pr-5 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100'
+  'relative w-16 min-h-12 py-2 pl-2 pr-6 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100'
+
+/**
+ * The value, which is the element a pointer has to hit and the one that takes
+ * focus -- and which had no class at all until `valueClassName` existed.
+ *
+ * `check-appearance.mjs` measured it at 36 by 20 in this layout and 9 by 20 in
+ * the stacked one, against WCAG 2.5.8's 24 by 24, and with no focus ring in
+ * either: `fieldClassName` dresses the group around it, so there was nowhere to
+ * put one. That is what #686 added the prop for, and this is the same fix the
+ * styled `TimePicker` in `@hozo/ui` makes.
+ */
+const fieldValue =
+  'inline-flex min-h-6 min-w-6 items-center justify-center rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
 /**
  * The two arrows meet at the field's middle rather than at its edges.
  *
@@ -135,17 +154,28 @@ const inlineField =
  * the pair is what gets placed: `bottom-1/2` puts the up arrow's lower edge on
  * the middle, `top-1/2` puts the down arrow's upper edge there, and one pixel
  * of margin each keeps them from touching.
+ *
+ * Each one is 24 by 24. They were the glyph's own size -- `check-appearance.mjs`
+ * measured **9 by 9** -- which is a third of what WCAG 2.5.8 asks and is why
+ * this file's other comment about four-pixel month buttons was only half the
+ * story: the same mistake was two constants below it. The field is `min-h-12`
+ * so a 24px pair fits inside it without the arrows touching.
  */
 const inlineStep =
-  'absolute right-1 text-[9px] leading-none text-slate-500 hover:text-indigo-600 cursor-pointer data-[hozo-step=increase]:bottom-1/2 data-[hozo-step=increase]:mb-px data-[hozo-step=decrease]:top-1/2 data-[hozo-step=decrease]:mt-px'
+  'absolute right-1 inline-flex size-6 items-center justify-center text-[9px] leading-none text-slate-500 hover:text-indigo-600 cursor-pointer data-[hozo-step=increase]:bottom-1/2 data-[hozo-step=increase]:mb-px data-[hozo-step=decrease]:top-1/2 data-[hozo-step=decrease]:mt-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
 
 const stackedField =
   'flex flex-col items-center gap-0.5 w-12 px-2 py-1 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100'
-const stackedStep = 'text-[9px] leading-none text-slate-500 hover:text-indigo-600 cursor-pointer'
+const stackedStep =
+  'inline-flex size-6 items-center justify-center text-[9px] leading-none text-slate-500 hover:text-indigo-600 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
 
-/** The period, which is a button rather than a third spinbutton and has no arrows. */
+/**
+ * The period, which is a button rather than a third spinbutton and has no
+ * arrows. 48 by 36, and it needed the focus ring it did not have: it is a tab
+ * stop, and a keyboard user reaching it saw nothing happen.
+ */
 const period =
-  'px-3 py-2 w-12 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100 cursor-pointer'
+  'px-3 py-2 w-12 text-center text-sm font-medium text-slate-900 rounded-lg bg-slate-100 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
 
 function MonthGridDemo() {
   const [day, setDay] = useState<CalendarDate | null>({ year: 2026, month: 9, day: 10 })
@@ -232,6 +262,7 @@ function ClockDemo() {
         accessibilityLabel="Arrival time"
         className={clock}
         fieldClassName={inlineField}
+        valueClassName={fieldValue}
         stepClassName={inlineStep}
         periodClassName={period}
       />
@@ -249,6 +280,7 @@ function ClockDemo() {
         accessibilityLabel="Arrival time, stacked arrows"
         className={clock}
         fieldClassName={stackedField}
+        valueClassName={fieldValue}
         stepClassName={stackedStep}
         periodClassName={period}
       />
@@ -298,6 +330,7 @@ function DateAndTimeDemo({ initiallyOpen = false }: { initiallyOpen?: boolean })
             {...time}
             className={clock}
             fieldClassName={stackedField}
+            valueClassName={fieldValue}
             stepClassName={stackedStep}
             periodClassName={period}
           />

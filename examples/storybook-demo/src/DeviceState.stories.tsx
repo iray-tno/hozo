@@ -86,7 +86,7 @@ function DeviceStateGallery() {
       </Card>
 
       <Card title="Reduced motion" driver="prefers-reduced-motion">
-        <View className="rounded-lg border border-slate-200 p-4 transition-colors duration-500 hover:bg-emerald-50 motion-reduce:transition-none">
+        <View className="rounded-lg border border-slate-200 p-4 transition-colors duration-500 hover:bg-emerald-50 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
           <Text className="text-sm text-slate-700">
             Hover fades over 500ms, or changes instantly when motion is reduced.
           </Text>

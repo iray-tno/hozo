@@ -42,9 +42,15 @@ function SemanticsDemo() {
         </View>
         <Nav className="flex flex-row space-x-4 text-sm font-medium text-slate-700">
           <Text className="text-indigo-700 font-semibold">Overview</Text>
-          <Text className="hover:text-slate-900">Landmarks</Text>
-          <Text className="hover:text-slate-900">Forms</Text>
-          <Text className="hover:text-slate-900">Term Lists</Text>
+          <Text className="hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+            Landmarks
+          </Text>
+          <Text className="hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+            Forms
+          </Text>
+          <Text className="hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+            Term Lists
+          </Text>
         </Nav>
       </Header>
 
@@ -117,7 +123,7 @@ function SemanticsDemo() {
             Native Disclosure (Details & Summary)
           </Heading>
           <Details className="rounded-xl border border-slate-200 overflow-hidden" open>
-            <Summary className="bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 cursor-pointer select-none">
+            <Summary className="bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
               Click to toggle component architecture details
             </Summary>
             <View className="p-4 bg-white text-sm text-slate-700 space-y-2">
@@ -255,7 +261,7 @@ function DisclosuresDemo() {
       <View className="space-y-4">
         {/* Closed by default */}
         <Details className="rounded-xl border border-slate-200 overflow-hidden">
-          <Summary className="bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 cursor-pointer select-none">
+          <Summary className="bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
             What is zero-runtime lowering?
           </Summary>
           <View className="p-4 bg-white text-sm text-slate-700 space-y-2 border-t border-slate-100">
@@ -268,7 +274,7 @@ function DisclosuresDemo() {
 
         {/* Open by default */}
         <Details className="rounded-xl border border-slate-200 overflow-hidden" open>
-          <Summary className="bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 cursor-pointer select-none">
+          <Summary className="bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
             Expanded by default (open=true)
           </Summary>
           <View className="p-4 bg-white text-sm text-slate-700 space-y-2 border-t border-slate-100">
@@ -410,13 +416,21 @@ function SeparatorsDemo() {
             Vertical Inline Separator
           </Heading>
           <View className="flex flex-row items-center rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700">
-            <Text className="hover:text-slate-900 cursor-pointer">File</Text>
+            <Text className="hover:text-slate-900 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+              File
+            </Text>
             <Separator orientation="vertical" className="h-4 border-slate-300 mx-4" />
-            <Text className="hover:text-slate-900 cursor-pointer">Edit</Text>
+            <Text className="hover:text-slate-900 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+              Edit
+            </Text>
             <Separator orientation="vertical" className="h-4 border-slate-300 mx-4" />
-            <Text className="hover:text-slate-900 cursor-pointer">View</Text>
+            <Text className="hover:text-slate-900 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+              View
+            </Text>
             <Separator orientation="vertical" className="h-4 border-slate-300 mx-4" />
-            <Text className="hover:text-slate-900 cursor-pointer">Help</Text>
+            <Text className="hover:text-slate-900 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+              Help
+            </Text>
           </View>
         </View>
 

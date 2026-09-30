@@ -44,9 +44,9 @@ const headingRow = 'm-0'
  */
 const trigger =
   'flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-sm font-semibold ' +
-  'text-slate-900 hover:bg-slate-50 cursor-pointer ' +
+  'text-slate-900 hover:bg-slate-50 cursor-pointer  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600' +
   'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-indigo-600 ' +
-  'disabled:text-slate-500 disabled:hover:bg-transparent disabled:cursor-not-allowed ' +
+  'disabled:text-slate-500 disabled:hover:bg-transparent disabled:cursor-not-allowed  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600' +
   "after:content-['⌄'] after:text-base after:leading-none after:text-slate-500 " +
   'after:transition-transform data-[hozo-state=open]:after:rotate-180'
 

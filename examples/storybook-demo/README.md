@@ -53,7 +53,9 @@ And **`check-appearance.mjs`**, which asks the two questions none of the others 
 
 It exists because appearance went unchecked and cost three bugs in one week — a switch's knob 96px from its track, a chevron pointing the wrong way for two releases, and every `data-[x=y]` rule in the project emitting no CSS at all. All three were found by opening a browser by hand.
 
-Its first run found **130 findings, every one in a story that writes its own class names**; `ui-gallery--default`, built from `@hozo/ui`, has none. Those are held in `KNOWN` against [#685](https://github.com/iray-tno/hozo/issues/685), and a story that gains a new one fails the build.
+Its first run found **130 findings, every one in a story that writes its own class names**; `ui-gallery--default`, built from `@hozo/ui`, had none. [#685](https://github.com/iray-tno/hozo/issues/685) fixed 129 of them — the focus ring is now part of every class list that styles hover, which is the rule `@hozo/ui` already holds itself to, and the four undersized targets are 24px or more.
+
+One is held in `KNOWN`: `@hozo/three` renders an accessible `<button>` per scene object with no class prop to reach it ([#689](https://github.com/iray-tno/hozo/issues/689)), so no story can give it a ring. A story that gains a new finding fails the build, and an entry that stops firing fails it too and asks to be deleted.
 
 ## Development
 
