@@ -15,9 +15,13 @@ function LayoutGallery() {
       {/* Landmarks */}
       <Section className="space-y-4 rounded-xl border border-slate-200 p-6">
         <Nav className="flex flex-row flex-wrap items-center gap-2 text-xs font-semibold text-indigo-600">
-          <Text className="hover:underline cursor-pointer">Home</Text>
+          <Text className="hover:underline cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+            Home
+          </Text>
           <Text className="text-slate-300">/</Text>
-          <Text className="hover:underline cursor-pointer">Documentation</Text>
+          <Text className="hover:underline cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+            Documentation
+          </Text>
           <Text className="text-slate-300">/</Text>
           <Text className="text-slate-600">Landmarks</Text>
         </Nav>
@@ -55,7 +59,7 @@ function LayoutGallery() {
           keyExtractor={(item) => item.id}
           className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden"
           renderItem={({ item }) => (
-            <View className="p-4 hover:bg-slate-50 transition-colors">
+            <View className="p-4 hover:bg-slate-50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
               <Text className="font-semibold text-slate-900">{item.title}</Text>
               <Paragraph className="mt-1 text-xs text-slate-500">{item.desc}</Paragraph>
             </View>

@@ -29,13 +29,30 @@
 // *Essential* -- are judgements rather than measurements, so they are entries
 // in `KNOWN` with a reason instead of a rule here.
 //
-// **Focus visibility, WCAG 2.4.7.** Every focusable element is matched by at
-// least one `:focus-visible` rule in the built stylesheets that changes an
-// outline, a ring or a shadow. Read out of `document.styleSheets` and tested
-// with `element.matches`, rather than by focusing the element and diffing its
-// computed style: programmatic focus matches `:focus-visible` only by a
-// browser heuristic, and a check that depended on that heuristic would be
-// measuring Chrome rather than the page.
+// **An explicit focus indicator**, which is this repository's rule and not
+// WCAG's. Every focusable element is matched by a `:focus`, `:focus-visible` or
+// ancestor `:focus-within` rule in the built stylesheets that changes an
+// outline, a ring or a shadow.
+//
+// The distinction is worth being exact about, because the first version of this
+// check was labelled 2.4.7 and that was wrong. Chrome's own stylesheet draws a
+// ring for `:focus-visible`, and nothing here removes it globally -- so an
+// element with no rule of its own is AA-conformant. What it is not is
+// *designed*: the browser's ring is whatever the browser has, over whatever
+// background the page put under it. `@hozo/ui` holds itself to the stricter rule
+// already (`tokens.test.ts`: a class list that styles hover carries the ring),
+// and this asks the catalogue the same question.
+//
+// The genuine 2.4.7 failure is narrower -- removing the user-agent ring and
+// replacing it with nothing. `focus:outline-none` beside a `box-shadow` is a
+// replacement and passes, which is why plain `:focus` counts and why a shadow
+// counts as drawing.
+//
+// Read out of `document.styleSheets` and tested with `element.matches`, rather
+// than by focusing the element and diffing its computed style: `.focus()` sets
+// `:focus-visible` on a text input and not on a button, and `{ focusVisible:
+// true }` did not change that in a headless frame -- both measured. A check
+// resting on that heuristic would be measuring Chrome rather than the page.
 //
 // Both questions are asked of the page a visitor gets, which is the half the
 // source-level rules in `@hozo/ui` cannot reach: a class list can carry
@@ -94,43 +111,12 @@ const TYPES = {
  * exception it is claiming, because "it looks fine" is not one of them.
  */
 const KNOWN = {
-  'behaviors-showcase--dismissable-stack/focus-visible': 685,
-  'behaviors-showcase--floating-popover/focus-visible': 685,
-  'behaviors-showcase--focus-scope-modal/focus-visible': 685,
-  'behaviors-showcase--hover-card/focus-visible': 685,
-  'behaviors-showcase--live-region-announcements/focus-visible': 685,
-  'behaviors-showcase--roving-focus-toolbar/focus-visible': 685,
-  'behaviors-showcase--showcase/focus-visible': 685,
-  'behaviors-showcase--tooltip-grouping/focus-visible': 685,
-  'form-date-and-time--clock/focus-visible': 685,
-  'form-date-and-time--clock/target-size': 685,
-  'form-date-and-time--date-and-time-open/focus-visible': 685,
-  'form-date-and-time--date-and-time-open/target-size': 685,
-  'form-date-and-time--date-and-time/focus-visible': 685,
-  'form-date-and-time--date-range-open/focus-visible': 685,
-  'form-date-and-time--date-range/focus-visible': 685,
-  'form-date-and-time--month-grid/focus-visible': 685,
-  'form-date-and-time--range/focus-visible': 685,
-  'form-date-and-time--showcase/focus-visible': 685,
-  'form-date-and-time--showcase/target-size': 685,
-  'media-react-three-fiber--animated-scene/focus-visible': 685,
-  'patterns-combobox--default/focus-visible': 685,
-  'patterns-dialog--default/focus-visible': 685,
-  'patterns-dialog--open/focus-visible': 685,
-  'patterns-menu-radio--default/focus-visible': 685,
-  'patterns-slider--default/target-size': 685,
-  'patterns-tabs--default/focus-visible': 685,
-  'primitives-button-interactions--interactive-pressables/focus-visible': 685,
-  'primitives-button-interactions--link-buttons/focus-visible': 685,
-  'primitives-button-interactions--semantic-variants/focus-visible': 685,
-  'primitives-button-interactions--showcase/focus-visible': 685,
-  'primitives-button-interactions--showcase/target-size': 685,
-  'primitives-textinput--default/focus-visible': 685,
-  'semantics-showcase--disclosures/focus-visible': 685,
-  'semantics-showcase--showcase/focus-visible': 685,
-  'typography-showcase--links/focus-visible': 685,
-  'typography-showcase--showcase/focus-visible': 685,
-  'welcome--default/focus-visible': 685,
+  // The one control in the catalogue an application cannot reach.
+  // `@hozo/three`'s R3F canvas renders an accessible `<button>` per object with
+  // no `className` and no prop for one, so the overlay's container is all a
+  // story can style. Filed as #689; the fix is a hook in that package, the same
+  // shape as the `valueClassName` #686 added to `@hozo/form` for this reason.
+  'media-react-three-fiber--animated-scene/focus-visible': 689,
 }
 
 const index = JSON.parse(readFileSync(path.join(STATIC, 'index.json'), 'utf8'))
@@ -179,7 +165,11 @@ function collect(rule, found) {
   // \`@hozo/ui\` rings the field around it, and a check that refused that would
   // be demanding the wrong fix.
   const within = rule.selectorText?.includes(':focus-within')
-  if (!rule.selectorText || !(rule.selectorText.includes(':focus-visible') || within)) return
+  // Plain \`:focus\` counts too. A story that writes \`focus:outline-none\` with a
+  // box-shadow beside it has *replaced* the browser's ring rather than removed
+  // it, and the first version of this check called that a missing indicator --
+  // for three text inputs whose ring was right there in the stylesheet.
+  if (!rule.selectorText?.includes(':focus')) return
   const style = rule.style
   // A rule that matches and changes nothing is not an indicator. Outline,
   // box-shadow and ring are the three ways this project draws one.
@@ -189,8 +179,14 @@ function collect(rule, found) {
   // The subject, with the pseudo-class removed so \`matches\` can be asked
   // about an element that is not focused right now. A \`:focus-within\` rule is
   // recorded as matching an ancestor rather than the element itself.
+  // The long spellings first, or \`:focus-visible\` loses its \`:focus\` and leaves
+  // \`-visible\` behind -- a selector that matches nothing, which read as "these
+  // elements have no ring" while the rule drawing theirs was in the same sheet.
   found.push({
-    selector: rule.selectorText.replaceAll(':focus-visible', '').replaceAll(':focus-within', ''),
+    selector: rule.selectorText
+      .replaceAll(':focus-visible', '')
+      .replaceAll(':focus-within', '')
+      .replaceAll(':focus', ''),
     ancestor: Boolean(within),
   })
 }

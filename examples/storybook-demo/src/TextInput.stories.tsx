@@ -47,14 +47,14 @@ function TextInputGallery() {
               an ordinary textbox. It lowers to `readOnly` on the Web. */}
           <TextInput
             accessibilityLabel="Read-Only Field"
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600 cursor-not-allowed shadow-none"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600 cursor-not-allowed shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             editable={false}
             value="Read-only system value"
           />
         </View>
 
         <Button
-          className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm flex justify-center items-center cursor-pointer mt-2"
+          className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm flex justify-center items-center cursor-pointer mt-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           onPress={() => alert(`Submitted: ${email}`)}
         >
           Sign In

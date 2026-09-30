@@ -53,13 +53,13 @@ function BehaviorsShowcase() {
         </Paragraph>
         <View className="flex flex-row flex-wrap gap-3 pt-1">
           <Button
-            className="rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+            className="rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => handleAnnounce('Changes saved successfully', 'polite')}
           >
             Announce Polite (Save)
           </Button>
           <Button
-            className="rounded-lg bg-red-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-500"
+            className="rounded-lg bg-red-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => handleAnnounce('Critical: Network connection lost', 'assertive')}
           >
             Announce Assertive (Alert)
@@ -97,7 +97,7 @@ function BehaviorsShowcase() {
           </Text>
           <View className="pt-2">
             <Button
-              className="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+              className="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               onPress={() => setShowPortal((v) => !v)}
             >
               {showPortal ? 'Close Portaled Toast' : 'Open Portaled Toast'}
@@ -115,7 +115,7 @@ function BehaviorsShowcase() {
                 </Paragraph>
               </View>
               <Button
-                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"
+                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                 onPress={() => setShowPortal(false)}
               >
                 Dismiss
@@ -135,7 +135,7 @@ function BehaviorsShowcase() {
         </Paragraph>
         <View className="pt-1">
           <Button
-            className="rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500"
+            className="rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => setShowLayer(true)}
           >
             Open Dismissable Popover
@@ -150,7 +150,7 @@ function BehaviorsShowcase() {
             <View className="flex flex-row items-center justify-between">
               <Text className="font-bold text-sm text-indigo-950">Active Dismissable Layer</Text>
               <Button
-                className="rounded px-2 py-0.5 text-xs font-semibold text-indigo-900 hover:bg-indigo-100"
+                className="rounded px-2 py-0.5 text-xs font-semibold text-indigo-900 hover:bg-indigo-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                 onPress={() => setShowLayer(false)}
               >
                 &times; Close
@@ -191,13 +191,13 @@ function LiveRegionDemo() {
       <View className="space-y-4">
         <View className="flex flex-row gap-3">
           <Button
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => trigger('Form saved to cloud', 'polite')}
           >
             Trigger Polite Update
           </Button>
           <Button
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => trigger('Session expired. Please log in.', 'assertive')}
           >
             Trigger Assertive Alert
@@ -239,7 +239,7 @@ function DismissableStackDemo() {
 
       <View className="space-y-4">
         <Button
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           onPress={() => setLevel1(true)}
         >
           Open Primary Popover
@@ -260,7 +260,7 @@ function DismissableStackDemo() {
             </Paragraph>
 
             <Button
-              className="rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800"
+              className="rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               onPress={() => setLevel2(true)}
             >
               Open Nested Sub-Menu (Level 2)
@@ -277,7 +277,7 @@ function DismissableStackDemo() {
                   Level 1 open!
                 </Paragraph>
                 <Button
-                  className="rounded bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                  className="rounded bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                   onPress={() => setLevel2(false)}
                 >
                   Close Level 2
@@ -308,7 +308,7 @@ function FocusScopeDemo() {
 
       <View className="pt-2">
         <Button
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           onPress={() => setOpen(true)}
         >
           Open Trapped Modal
@@ -335,13 +335,13 @@ function FocusScopeDemo() {
 
               <View className="space-y-3 pt-2">
                 <Button
-                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                   onPress={() => alert('Action confirmed')}
                 >
                   Action 1 (First Control)
                 </Button>
                 <Button
-                  className="w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                  className="w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                   onPress={() => setOpen(false)}
                 >
                   Close Modal (Restores Focus)
@@ -363,7 +363,11 @@ function RovingToolbarItem({ index, label }: { index: number; label: string }) {
       tabIndex={tabIndex}
       onFocus={onFocus}
       onKeyDown={onKeyDown}
-      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+      // The ring is shared by both branches. A roving group has exactly one
+      // tab stop, and it is the *active* item -- so a ring only on the
+      // inactive ones is a ring on every button a keyboard can never reach
+      // without arrowing, and none on the one it lands on.
+      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
         isActive
           ? 'bg-indigo-600 text-white shadow-sm'
           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -459,7 +463,9 @@ function TypeaheadDemo() {
               }
             }}
             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-              active === i ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-200'
+              active === i
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-700 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
             }`}
           >
             {fruit}
@@ -497,7 +503,11 @@ function FloatingPopoverDemo() {
           {placements.map((p) => (
             <Button
               key={p}
-              className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+              // The ring is in the part both branches share. It was on the
+              // unselected one only, so the chosen placement -- the one a
+              // keyboard user is most likely to be standing on -- was the one
+              // with nothing to show.
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
                 placement === p
                   ? 'bg-indigo-600 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -513,7 +523,7 @@ function FloatingPopoverDemo() {
           className={`rounded-lg px-3 py-1 text-xs font-semibold ${
             matchWidth
               ? 'bg-emerald-600 text-white'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
           }`}
           onPress={() => setMatchWidth((prev) => !prev)}
         >
@@ -526,7 +536,7 @@ function FloatingPopoverDemo() {
           ref={anchorRef}
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 transition-colors"
+          className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
           {open ? 'Close Popover' : 'Click to Anchor Popover'}
         </button>
@@ -566,7 +576,7 @@ function FloatingPopoverDemo() {
                     Available Height: {pos?.availableDimensions.height}px
                   </Paragraph>
                   <Button
-                    className="w-full rounded bg-slate-100 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                    className="w-full rounded bg-slate-100 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                     onPress={() => setOpen(false)}
                   >
                     Dismiss
@@ -618,7 +628,7 @@ function TooltipDelayGroupingDemo() {
             >
               <button
                 type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-md font-mono text-xs font-semibold text-slate-700 hover:bg-slate-100 focus:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="flex h-9 w-9 items-center justify-center rounded-md font-mono text-xs font-semibold text-slate-700 hover:bg-slate-100 focus:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
                 {tool.icon}
               </button>
@@ -657,7 +667,7 @@ function HoverCardDemo() {
           ref={anchorRef}
           type="button"
           {...triggerProps}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-sky-400 font-bold text-[10px] text-white">
             H
@@ -691,8 +701,8 @@ function HoverCardDemo() {
                     <Button
                       className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                         following
-                          ? 'border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
-                          : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                          ? 'border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
                       }`}
                       onPress={() => setFollowing(!following)}
                     >

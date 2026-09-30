@@ -47,7 +47,7 @@ const fill = 'absolute inset-y-0 left-0 rounded-full bg-indigo-600'
  * the whole thumb outside it.
  */
 const thumb =
-  'absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ' +
+  'absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ' +
   'border-indigo-600 bg-white shadow-sm cursor-grab active:cursor-grabbing ' +
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
 

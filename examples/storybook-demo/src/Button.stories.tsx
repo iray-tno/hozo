@@ -21,7 +21,7 @@ function ButtonGallery() {
             Primary Action
           </Button>
           <Button
-            className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors"
+            className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => alert('Secondary Clicked')}
           >
             Secondary
@@ -34,7 +34,7 @@ function ButtonGallery() {
             Disabled Button
           </Button>
           <Button
-            className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors"
+            className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => alert('Destructive Action')}
           >
             Destructive
@@ -52,7 +52,7 @@ function ButtonGallery() {
         <View className="flex flex-row flex-wrap items-center gap-4">
           <Pressable
             accessibilityRole="button"
-            className="cursor-pointer rounded-xl border border-slate-200 p-4 transition-all hover:bg-indigo-50 hover:border-indigo-300 active:scale-95"
+            className="cursor-pointer rounded-xl border border-slate-200 p-4 transition-all hover:bg-indigo-50 hover:border-indigo-300 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => alert('Pressable Card Clicked')}
           >
             <Text className="font-semibold text-indigo-600">Interactive Card &rarr;</Text>
@@ -63,7 +63,7 @@ function ButtonGallery() {
 
           <Link
             href="https://github.com/iray-tno/hozo"
-            className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-1.5"
+            className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 hover:underline inline-flex min-h-6 items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             External Link &rarr;
           </Link>
@@ -71,7 +71,7 @@ function ButtonGallery() {
           <Button
             href="https://github.com/iray-tno/hozo"
             external
-            className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-colors"
+            className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Button as Link &rarr;
           </Button>
@@ -104,7 +104,7 @@ function SemanticVariantsDemo() {
             </Text>
           </View>
           <Button
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => alert('Primary action')}
           >
             Submit
@@ -117,7 +117,7 @@ function SemanticVariantsDemo() {
             <Text className="text-xs text-slate-500">Alternative or cancel action</Text>
           </View>
           <Button
-            className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+            className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => alert('Cancelled')}
           >
             Cancel
@@ -130,7 +130,7 @@ function SemanticVariantsDemo() {
             <Text className="text-xs text-slate-500">Irreversible action like deleting data</Text>
           </View>
           <Button
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             onPress={() => alert('Delete confirmed')}
           >
             Delete Item
@@ -181,7 +181,7 @@ function LinkButtonsDemo() {
           </Paragraph>
           <Button
             href="/dashboard"
-            className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Go to Dashboard &rarr;
           </Button>
@@ -198,7 +198,7 @@ function LinkButtonsDemo() {
           <Button
             href="https://github.com/iray-tno/hozo"
             external
-            className="inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+            className="inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             View on GitHub &rarr;
           </Button>
@@ -225,7 +225,7 @@ function InteractivePressablesDemo() {
       <View className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
         <Pressable
           accessibilityRole="button"
-          className="cursor-pointer rounded-xl border border-slate-200 p-5 transition-all hover:bg-indigo-50 hover:border-indigo-300 active:scale-95"
+          className="cursor-pointer rounded-xl border border-slate-200 p-5 transition-all hover:bg-indigo-50 hover:border-indigo-300 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           onPress={() => alert('Quick Action 1')}
         >
           <Text className="font-bold text-slate-900">Card Action 1 &rarr;</Text>
@@ -236,7 +236,7 @@ function InteractivePressablesDemo() {
 
         <Pressable
           accessibilityRole="button"
-          className="cursor-pointer rounded-xl border border-slate-200 p-5 transition-all hover:bg-emerald-50 hover:border-emerald-300 active:scale-95"
+          className="cursor-pointer rounded-xl border border-slate-200 p-5 transition-all hover:bg-emerald-50 hover:border-emerald-300 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           onPress={() => alert('Quick Action 2')}
         >
           <Text className="font-bold text-slate-900">Card Action 2 &rarr;</Text>

@@ -19,7 +19,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { Ref } from 'react'
 
 const CONTROL =
-  'rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 ' +
+  'rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600' +
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ' +
   'disabled:text-slate-300 transition-colors'
 

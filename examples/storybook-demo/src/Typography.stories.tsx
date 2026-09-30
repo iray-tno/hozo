@@ -106,7 +106,7 @@ function TypographyDemo() {
           <Link
             href="https://github.com/iray-tno/hozo"
             external
-            className="text-indigo-700 font-semibold underline hover:text-indigo-900"
+            className="text-indigo-700 font-semibold underline hover:text-indigo-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Visit Hozo on GitHub &rarr;
           </Link>
@@ -339,7 +339,7 @@ function LinksDemo() {
             Read more about{' '}
             <Link
               href="/docs/getting-started"
-              className="text-indigo-700 underline font-semibold hover:text-indigo-900"
+              className="text-indigo-700 underline font-semibold hover:text-indigo-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
               getting started with Hozo
             </Link>{' '}
@@ -359,7 +359,7 @@ function LinksDemo() {
           <Link
             href="https://github.com/iray-tno/hozo"
             external
-            className="inline-block rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800"
+            className="inline-block rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             GitHub Repository &rarr;
           </Link>
