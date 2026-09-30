@@ -1,0 +1,8 @@
+button, Shipping, 1 control, expanded, has popup dialog
+dialog, Shipping
+dialog, Shipping
+paragraph
+Two days, or four to an island. Not modal, so the page behind it is still there for a reader -- and the panel closes when focus leaves it, which is the half people forget.
+end of paragraph
+link, Read the policy
+end of dialog, Shipping

@@ -37,6 +37,12 @@ export {
   type HozoMenuProps,
 } from './menu.native.tsx'
 export {
+  HozoPopover as Popover,
+  HozoPopover,
+  type HozoPopoverProps as PopoverProps,
+  type HozoPopoverProps,
+} from './popover.native.tsx'
+export {
   HozoRadioGroup as RadioGroup,
   HozoRadioGroup,
   type HozoRadioGroupProps as RadioGroupProps,
