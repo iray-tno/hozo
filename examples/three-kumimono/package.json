@@ -1,0 +1,19 @@
+{
+  "name": "@hozo/example-three-kumimono",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared DOM-free Kumimono Three.js scene for the landing page and Native GPU probe.",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "node --test src/scene.test.ts",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "typescript": "^5.8.2"
+  }
+}

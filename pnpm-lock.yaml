@@ -47,6 +47,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/example-three-kumimono':
+        specifier: workspace:*
+        version: link:../../examples/three-kumimono
       '@hozo/three':
         specifier: workspace:*
         version: link:../../packages/three
@@ -433,8 +436,24 @@ importers:
         specifier: ^8.2.1
         version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0)
 
+  examples/three-kumimono:
+    dependencies:
+      three:
+        specifier: ^0.180.0
+        version: 0.180.0
+    devDependencies:
+      '@types/three':
+        specifier: ^0.180.0
+        version: 0.180.0
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+
   examples/three-native-probe:
     dependencies:
+      '@hozo/example-three-kumimono':
+        specifier: workspace:*
+        version: link:../three-kumimono
       '@hozo/navigation':
         specifier: workspace:^
         version: link:../../packages/navigation

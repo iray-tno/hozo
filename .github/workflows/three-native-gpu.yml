@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/three-native-gpu.yml'
       - 'examples/three-native-probe/**'
+      - 'examples/three-kumimono/**'
       - 'packages/three/**'
   schedule:
     - cron: '15 5 * * 3'

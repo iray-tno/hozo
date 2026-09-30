@@ -5,6 +5,7 @@ export const NATIVE_SCENE_CORPUS_IDS = [
   'instancing-and-morph',
   'product-viewer-gltf',
   'gltf-pbr',
+  'kumimono',
 ]
 
 export function collectNativeSceneCorpus(events, platform) {
@@ -35,6 +36,17 @@ export function collectNativeSceneCorpus(events, platform) {
       ) {
         throw new Error('Native GPU product viewer did not animate across rendered frames')
       }
+    }
+    if (id === 'kumimono') {
+      if (!Number.isFinite(result.textureCountDelta) || result.textureCountDelta < 2)
+        throw new Error('Native Kumimono did not allocate both timber textures')
+      if (
+        !Number.isFinite(result.animationFrames) ||
+        result.animationFrames < 2 ||
+        !Number.isFinite(result.animationAngle) ||
+        result.animationAngle <= 0.01
+      )
+        throw new Error('Native Kumimono did not assemble across rendered frames')
     }
     const expectedActivation = platform === 'android' ? 'measured' : 'not-run'
     if (result.activation !== expectedActivation) {

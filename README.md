@@ -598,6 +598,7 @@ examples/
   screen-readers/       @hozo/example-screen-readers      — Real screen readers, NVDA and VoiceOver, reading the Storybook catalogue through Guidepup.
   storybook-demo/       @hozo/example-storybook           — Storybook, audited against axe-core in CI.
   tanstack-start-demo/  @hozo/example-tanstack-start      — TanStack Start.
+  three-kumimono/       @hozo/example-three-kumimono      — Shared DOM-free Kumimono Three.js scene for the landing page and Native GPU probe.
   three-native-probe/   @hozo/example-three-native-probe  — Device probe for candidate Native GPU hosts used by @hozo/three.
 
 docs/
