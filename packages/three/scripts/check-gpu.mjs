@@ -205,13 +205,13 @@ function markdown(report) {
       '',
       `## ${result.mode} real-scene corpus (${result.backend})`,
       '',
-      '| Fixture | Status | Draw calls | Semantic controls | Activation | Error |',
-      '| --- | --- | ---: | ---: | --- | --- |',
+      '| Fixture | Status | Draw calls | Texture count delta | Semantic controls | Activation | Error |',
+      '| --- | --- | ---: | ---: | ---: | --- | --- |',
     )
     for (const fixture of result.sceneCorpus) {
       const error = fixture.error?.replaceAll('|', '\\|').replaceAll('\n', '<br>') ?? ''
       lines.push(
-        `| ${fixture.id} | ${fixture.status} | ${fixture.renderCalls} | ${fixture.semanticControls} | ${fixture.activated ? 'yes' : 'no'} | ${error} |`,
+        `| ${fixture.id} | ${fixture.status} | ${fixture.renderCalls} | ${fixture.textureCountDelta} | ${fixture.semanticControls} | ${fixture.activated ? 'yes' : 'no'} | ${error} |`,
       )
     }
   }

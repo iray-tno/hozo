@@ -12,6 +12,7 @@ type SceneCorpusProbeResult = {
   renderCalls: number
   semanticControls: number
   status: 'failed' | 'useful'
+  textureCountDelta: number
 }
 
 type ProbeResult = {
@@ -86,6 +87,7 @@ async function runRendererSceneCorpus(): Promise<readonly SceneCorpusProbeResult
         renderCalls: 0,
         semanticControls: 0,
         status: 'failed',
+        textureCountDelta: 0,
       })
     }
   }
@@ -118,6 +120,7 @@ function renderSceneFixture(
           renderCalls: 0,
           semanticControls: 0,
           status: 'failed',
+          textureCountDelta: 0,
         }),
       5_000,
     )
@@ -127,6 +130,8 @@ function renderSceneFixture(
         camera: fixture.camera,
         height: 180,
         onCreated: (renderer: unknown) => {
+          const initialTextures =
+            (renderer as { info?: { memory?: { textures?: number } } }).info?.memory?.textures ?? 0
           setTimeout(() => {
             clearTimeout(timeout)
             const buttons = host.querySelectorAll<HTMLButtonElement>(
@@ -135,13 +140,23 @@ function renderSceneFixture(
             buttons[0]?.click()
             const renderCalls =
               (renderer as { info?: { render?: { calls?: number } } }).info?.render?.calls ?? 0
-            const useful = renderCalls > 0 && buttons.length > 0 && fixtureActivated
+            const textureCountDelta = Math.max(
+              0,
+              ((renderer as { info?: { memory?: { textures?: number } } }).info?.memory?.textures ??
+                0) - initialTextures,
+            )
+            const useful =
+              renderCalls > 0 &&
+              buttons.length > 0 &&
+              fixtureActivated &&
+              (id !== 'product-viewer-gltf' || textureCountDelta > 0)
             settle({
               activated: fixtureActivated,
               id,
               renderCalls,
               semanticControls: buttons.length,
               status: useful ? 'useful' : 'failed',
+              textureCountDelta,
             })
           }, 150)
         },
@@ -154,6 +169,7 @@ function renderSceneFixture(
             renderCalls: 0,
             semanticControls: 0,
             status: 'failed',
+            textureCountDelta: 0,
           })
         },
         onObjectPress: () => {

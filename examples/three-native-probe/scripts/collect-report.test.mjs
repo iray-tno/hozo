@@ -12,6 +12,7 @@ const sceneCorpusEvents = (activation) =>
     fixtureId,
     renderCalls: 1,
     semanticControls: 1,
+    textureCountDelta: fixtureId === 'product-viewer-gltf' ? 1 : 0,
     status: 'useful',
     activation,
   }))
@@ -21,6 +22,9 @@ test('rejects incomplete or unrendered Native scene evidence', () => {
   const events = sceneCorpusEvents('measured')
   events[2].renderCalls = 0
   assert.throws(() => collectNativeSceneCorpus(events, 'android'), /points-and-sprite/)
+  const withoutTexture = sceneCorpusEvents('measured')
+  withoutTexture.find(({ fixtureId }) => fixtureId === 'product-viewer-gltf').textureCountDelta = 0
+  assert.throws(() => collectNativeSceneCorpus(withoutTexture, 'android'), /allocate a texture/)
 })
 
 test('collects the required lifecycle, frame, and Native scene measurements', () => {
@@ -51,7 +55,7 @@ test('collects the required lifecycle, frame, and Native scene measurements', ()
     resumeToFrameMs: 17,
     touchAttempts: 2,
   })
-  assert.equal(report.sceneCorpus.length, 5)
+  assert.equal(report.sceneCorpus.length, 6)
   assert.equal(
     report.sceneCorpus.every(({ status }) => status === 'useful'),
     true,
@@ -178,7 +182,7 @@ test('collects an honest iOS lifecycle report without claiming unmeasured intera
   })
   assert.equal(report.interaction.pointerRaycast, 'not-run')
   assert.equal(report.interaction.voiceOver, 'not-run')
-  assert.equal(report.sceneCorpus.length, 5)
+  assert.equal(report.sceneCorpus.length, 6)
 })
 
 test('records an unavailable hosted iOS lifecycle without losing render evidence', () => {

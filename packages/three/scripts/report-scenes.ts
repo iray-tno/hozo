@@ -36,7 +36,7 @@ This report executes representative, version-pinned scenes instead of treating a
 
 The checked-in report remains deterministic and therefore leaves driver-backed families as not-run. The separate \`test:gpu\` artifact executes these exact fixtures in Classic WebGL, Modern forced-WebGL 2, and native WebGPU when available on main, weekly, and on demand; its result is environment evidence rather than a value copied into this file.
 
-The ordinary glTF/PBR fixture intentionally demonstrates the current portable boundary: the asset is loaded through Three.js's GLTFLoader, then its MeshStandardMaterial is rejected with an explicit diagnostic instead of producing misleading flat output.
+Both glTF/PBR fixtures intentionally demonstrate the current portable boundary: their assets load through Three.js's GLTFLoader, then MeshStandardMaterial is rejected with an explicit diagnostic instead of producing misleading flat output. The product-viewer fixture adds a node hierarchy, UVs, a punctual light, and an animation pose. Its small texture is attached from raw pixels after loading so Web and Native exercise GPU upload without claiming that host-specific image-file decoding works.
 
 ## Fixtures
 
@@ -51,7 +51,7 @@ ${report.fixtures
 
 ## Interpretation
 
-This first corpus establishes the portable runner and five scenario contracts. It does not yet claim GPU or Native-host scene compatibility. Subsequent work should run these exact fixtures in each renderer family, then use named corpus failures—not a larger row percentage—to choose implementation work.
+This corpus establishes the portable runner and six scenario contracts. It does not yet claim GPU or Native-host scene compatibility. Environment workflows run these same fixtures; their results should drive implementation work rather than a larger row percentage.
 `
 
 function checkFile(output: string, expected: string): boolean {

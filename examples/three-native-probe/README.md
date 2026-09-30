@@ -12,7 +12,7 @@ It also drives an actual device tap through R3F raycasting, activates the public
 `@hozo/three/r3f-native` action and destination controls, and proves that the action resolves the
 same Three object while the destination reaches a Hozo navigation provider. TalkBack reads those
 public controls as a button and link, reads the labelled and fallback modes, and leaves decorative
-content silent. After the lifecycle sample, the probe also executes the same five version-pinned
+content silent. After the lifecycle sample, the probe also executes the same six version-pinned
 real-scene fixtures as the browser GPU report. Both platforms must record GPU draw calls and public
 semantic controls for every fixture; Android activates the first control in each scene, while iOS
 records activation honestly as `not-run`.
@@ -40,10 +40,10 @@ Fiber remain dependencies of this private example only.
 
 | Environment | Status | Evidence |
 | --- | --- | --- |
-| Expo prebuild, Android | Measured by CI | Release APK is generated, installed, touched through R3F raycasting, sampled, runs all five real-scene fixtures with native semantic activation, tears down, and is read by TalkBack. |
+| Expo prebuild, Android | Measured by CI | Release APK is generated, installed, touched through R3F raycasting, sampled, runs all six real-scene fixtures with native semantic activation, tears down, and is read by TalkBack. |
 | Expo managed / Expo Go | Not yet claimed | The dependencies support Expo, but this repository has not run the fixture in Expo Go. |
 | Bare React Native | Not yet claimed | Expo modules must first be installed and configured in the host app. |
-| Expo prebuild, iOS Simulator | Measured by CI | Release app rendering, background/resume, resumed frame sampling, all five real-scene renders, and teardown are retained as artifacts. Pointer, semantic activation, and VoiceOver checks remain explicitly not run. |
+| Expo prebuild, iOS Simulator | Measured by CI | Release app rendering, background/resume, resumed frame sampling, all six real-scene renders, and teardown are retained as artifacts. Pointer, semantic activation, and VoiceOver checks remain explicitly not run. |
 
 Android Activity background/resume is measured. Forced driver- or OS-initiated context loss remains
 unmeasured; a successful Activity resume must not be described as proof of arbitrary context-loss
