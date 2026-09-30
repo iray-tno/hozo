@@ -6,14 +6,14 @@ This report executes representative, version-pinned scenes instead of treating a
 
 ## Summary
 
-- Portable: **4 useful**, **1 safely diagnostic**, **0 failed** across 5 fixtures.
-- Classic WebGL: **5 not run**.
-- Modern WebGPU-family: **5 not run**.
-- Native host: **5 not run**.
+- Portable: **4 useful**, **2 safely diagnostic**, **0 failed** across 6 fixtures.
+- Classic WebGL: **6 not run**.
+- Modern WebGPU-family: **6 not run**.
+- Native host: **6 not run**.
 
 The checked-in report remains deterministic and therefore leaves driver-backed families as not-run. The separate `test:gpu` artifact executes these exact fixtures in Classic WebGL, Modern forced-WebGL 2, and native WebGPU when available on main, weekly, and on demand; its result is environment evidence rather than a value copied into this file.
 
-The ordinary glTF/PBR fixture intentionally demonstrates the current portable boundary: the asset is loaded through Three.js's GLTFLoader, then its MeshStandardMaterial is rejected with an explicit diagnostic instead of producing misleading flat output.
+Both glTF/PBR fixtures intentionally demonstrate the current portable boundary: their assets load through Three.js's GLTFLoader, then MeshStandardMaterial is rejected with an explicit diagnostic instead of producing misleading flat output. The product-viewer fixture adds a node hierarchy, UVs, a punctual light, and an animation pose. Its glTF material binds a small texture; a fixture-specific raw-pixel decoder supplies identical pixels on Web and Native, exercising glTF texture binding and GPU upload without claiming that host-specific PNG decoding works.
 
 ## Fixtures
 
@@ -23,8 +23,9 @@ The ordinary glTF/PBR fixture intentionally demonstrates the current portable bo
 | wireframe or CAD-like scene | src/conformance-scenes.ts#wireframeCad (corpus-v1 / Three.js r180) | box geometry, world rotation, wireframe material, depth ordering | useful | not-run — classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report | not-run — modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report | not-run — native-host result is emitted by its environment workflow and is not baked into this deterministic report | 36 nodes; 1 named objects; diagnostics: none |
 | points / sprite scene | src/conformance-scenes.ts#pointsAndSprite (corpus-v1 / Three.js r180) | points, fixed screen-space point size, sprite billboard, named targets | useful | not-run — classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report | not-run — modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report | not-run — native-host result is emitted by its environment workflow and is not baked into this deterministic report | 4 nodes; 2 named objects; diagnostics: none |
 | instancing plus morph with a portable material | src/conformance-scenes.ts#instancingAndMorph (corpus-v1 / Three.js r180) | instanced mesh, instance transforms, relative morph targets, MeshBasicMaterial | useful | not-run — classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report | not-run — modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report | not-run — native-host result is emitted by its environment workflow and is not baked into this deterministic report | 2 nodes; 1 named objects; diagnostics: none |
+| animated textured glTF product viewer | src/conformance-scenes.ts#productViewer (corpus-v1 / Three.js r180) | glTF 2.0 node hierarchy, PBR materials, UV-mapped raw texture, punctual light, animation pose | diagnostic | not-run — classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report | not-run — modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report | not-run — native-host result is emitted by its environment workflow and is not baked into this deterministic report | 0 nodes; 0 named objects; diagnostics: UNSUPPORTED_MATERIAL, UNSUPPORTED_MATERIAL |
 | ordinary glTF/PBR scene | fixtures/minimal-pbr.gltf (glTF 2.0 / Three.js r180) | glTF 2.0 loader, asset graph, MeshStandardMaterial, PBR factors | diagnostic | not-run — classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report | not-run — modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report | not-run — native-host result is emitted by its environment workflow and is not baked into this deterministic report | 0 nodes; 0 named objects; diagnostics: UNSUPPORTED_MATERIAL |
 
 ## Interpretation
 
-This first corpus establishes the portable runner and five scenario contracts. It does not yet claim GPU or Native-host scene compatibility. Subsequent work should run these exact fixtures in each renderer family, then use named corpus failures—not a larger row percentage—to choose implementation work.
+This corpus establishes the portable runner and six scenario contracts. It does not yet claim GPU or Native-host scene compatibility. Environment workflows run these same fixtures; their results should drive implementation work rather than a larger row percentage.

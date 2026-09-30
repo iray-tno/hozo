@@ -1,23 +1,33 @@
 import {
   AmbientLight,
+  AnimationMixer,
   BoxGeometry,
   BufferGeometry,
   Cache,
   Color,
+  DataTexture,
   Float32BufferAttribute,
   InstancedMesh,
   LineBasicMaterial,
   LineSegments,
+  LoadingManager,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
+  MeshStandardMaterial,
+  NearestFilter,
   OrthographicCamera,
   PerspectiveCamera,
   Points,
   PointsMaterial,
+  RGBAFormat,
   Scene,
   Sprite,
   SpriteMaterial,
+  SRGBColorSpace,
+  type Texture,
+  TextureLoader,
+  UnsignedByteType,
 } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
@@ -70,6 +80,119 @@ export const MINIMAL_PBR_GLTF_SOURCE = JSON.stringify({
     {
       byteLength: 36,
       uri: 'data:application/octet-stream;base64,AACAvwAAgL8AAAAAAAAAPwAAgL8AAAAAAAAAAAAAAD8AAAAA',
+    },
+  ],
+})
+
+/**
+ * A self-contained product-viewer asset with a node hierarchy, UVs, two PBR
+ * materials, a punctual light, and a rotation animation. Its small embedded
+ * buffer makes the same glTF loadable by the browser and Hermes probes.
+ */
+export const PRODUCT_VIEWER_GLTF_SOURCE = JSON.stringify({
+  asset: { generator: '@hozo/three product-viewer corpus', version: '2.0' },
+  extensionsUsed: ['KHR_lights_punctual'],
+  extensions: {
+    KHR_lights_punctual: {
+      lights: [{ type: 'point', color: [1, 0.94, 0.85], intensity: 30 }],
+    },
+  },
+  scene: 0,
+  scenes: [{ nodes: [0, 2] }],
+  nodes: [
+    { mesh: 0, name: 'Product housing', children: [1] },
+    { mesh: 1, name: 'Product display' },
+    {
+      name: 'Product key light',
+      translation: [1, 2, 2],
+      extensions: { KHR_lights_punctual: { light: 0 } },
+    },
+  ],
+  meshes: [
+    {
+      primitives: [
+        { attributes: { POSITION: 0, NORMAL: 1, TEXCOORD_0: 2 }, indices: 3, material: 0 },
+      ],
+    },
+    {
+      primitives: [
+        { attributes: { POSITION: 4, NORMAL: 5, TEXCOORD_0: 6 }, indices: 7, material: 1 },
+      ],
+    },
+  ],
+  materials: [
+    {
+      name: 'Brushed housing',
+      pbrMetallicRoughness: {
+        baseColorFactor: [0.3, 0.4, 0.55, 1],
+        metallicFactor: 0.4,
+        roughnessFactor: 0.55,
+      },
+    },
+    {
+      name: 'Display surface',
+      pbrMetallicRoughness: {
+        baseColorTexture: { index: 0 },
+        metallicFactor: 0,
+        roughnessFactor: 0.8,
+      },
+    },
+  ],
+  textures: [{ source: 0 }],
+  images: [
+    {
+      uri: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFklEQVR4nGOQDur9D8Jf5xmCMQPpAgDkoCXhxs9CRAAAAABJRU5ErkJggg==',
+    },
+  ],
+  animations: [
+    {
+      name: 'Turntable',
+      samplers: [{ input: 8, output: 9, interpolation: 'LINEAR' }],
+      channels: [{ sampler: 0, target: { node: 0, path: 'rotation' } }],
+    },
+  ],
+  accessors: [
+    {
+      bufferView: 0,
+      componentType: 5126,
+      count: 8,
+      min: [-0.7, -0.8, -0.15],
+      max: [0.7, 0.8, 0.15],
+      type: 'VEC3',
+    },
+    { bufferView: 1, componentType: 5126, count: 8, type: 'VEC3' },
+    { bufferView: 2, componentType: 5126, count: 8, type: 'VEC2' },
+    { bufferView: 3, componentType: 5123, count: 36, type: 'SCALAR' },
+    {
+      bufferView: 4,
+      componentType: 5126,
+      count: 4,
+      min: [-0.55, -0.65, 0.16],
+      max: [0.55, 0.65, 0.16],
+      type: 'VEC3',
+    },
+    { bufferView: 5, componentType: 5126, count: 4, type: 'VEC3' },
+    { bufferView: 6, componentType: 5126, count: 4, type: 'VEC2' },
+    { bufferView: 7, componentType: 5123, count: 6, type: 'SCALAR' },
+    { bufferView: 8, componentType: 5126, count: 3, min: [0], max: [1], type: 'SCALAR' },
+    { bufferView: 9, componentType: 5126, count: 3, type: 'VEC4' },
+  ],
+  bufferViews: [
+    { buffer: 0, byteOffset: 0, byteLength: 96 },
+    { buffer: 0, byteOffset: 96, byteLength: 96 },
+    { buffer: 0, byteOffset: 192, byteLength: 64 },
+    { buffer: 0, byteOffset: 256, byteLength: 72 },
+    { buffer: 0, byteOffset: 328, byteLength: 48 },
+    { buffer: 0, byteOffset: 376, byteLength: 48 },
+    { buffer: 0, byteOffset: 424, byteLength: 32 },
+    { buffer: 0, byteOffset: 456, byteLength: 12 },
+    { buffer: 0, byteOffset: 468, byteLength: 12 },
+    { buffer: 0, byteOffset: 480, byteLength: 48 },
+  ],
+  buffers: [
+    {
+      byteLength: 528,
+      uri: 'data:application/octet-stream;base64,MzMzv83MTL+amRm+MzMzP83MTL+amRm+MzMzP83MTD+amRm+MzMzv83MTD+amRm+MzMzv83MTL+amRk+MzMzP83MTL+amRk+MzMzP83MTD+amRk+MzMzv83MTD+amRk+AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAAAAAgD8AAAAAAAAAAAAAgD8AAAAAAACAPwAAgD8AAAAAAACAPwAAAgABAAAAAwACAAQABQAGAAQABgAHAAAAAQAFAAAABQAEAAMABwAGAAMABgACAAEAAgAGAAEABgAFAAAABAAHAAAABwADAM3MDL9mZia/CtcjPs3MDD9mZia/CtcjPs3MDD9mZiY/CtcjPs3MDL9mZiY/CtcjPgAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAAAAAACAPwAAAAAAAIA/AACAPwAAAAAAAIA/AAABAAIAAAACAAMAAAAAAAAAAD8AAIA/AAAAAAAAAAAAAAAAAACAPwAAAAB3V30+AAAAAKUKeD8AAAAAAAAAAAAAAAAAAIA/',
     },
   ],
 })
@@ -158,6 +281,11 @@ function cacheEmbeddedGltfBuffers(source: string): () => void {
 }
 
 function installGltfHostPolyfills(): void {
+  // GLTFLoader's image-source path reads self.URL even for a data: URI
+  // handled by the fixture's own TextureLoader. Hermes does not expose self.
+  if (typeof globalThis.self === 'undefined') {
+    Object.defineProperty(globalThis, 'self', { configurable: true, value: globalThis })
+  }
   // Hermes does not expose TextDecoder. GLTFLoader uses it while parsing even
   // an embedded JSON fixture, so keep this conformance-only host shim beside
   // the fixture instead of adding a runtime dependency to @hozo/three.
@@ -286,15 +414,63 @@ async function instancingAndMorph(): Promise<SceneCorpusScene> {
 }
 
 async function pinnedGltfPbr(loadGltfSource: () => Promise<string>): Promise<SceneCorpusScene> {
-  installGltfHostPolyfills()
   const source = await loadGltfSource()
+  const gltf = await parseEmbeddedGltf(source)
+  const scene = new Scene()
+  scene.add(new AmbientLight('#ffffff', 2), gltf.scene)
+  return { camera: perspective(), scene }
+}
+
+async function parseEmbeddedGltf(source: string, manager?: LoadingManager) {
+  installGltfHostPolyfills()
   // React Native's fetch does not load data: buffers. Seed Three's public
   // FileLoader cache with the exact embedded bytes, which also avoids adding
   // a global fetch shim merely to execute this conformance fixture.
   const restoreCache = cacheEmbeddedGltfBuffers(source)
-  const gltf = await new GLTFLoader().parseAsync(source, '').finally(restoreCache)
+  return new GLTFLoader(manager).parseAsync(source, '').finally(restoreCache)
+}
+
+async function productViewer(): Promise<SceneCorpusScene> {
+  const pixels = new Uint8Array([
+    27, 82, 141, 255, 27, 82, 141, 255, 245, 158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27,
+    82, 141, 255, 245, 158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27, 82, 141, 255, 245,
+    158, 49, 255, 245, 158, 49, 255, 27, 82, 141, 255, 27, 82, 141, 255, 245, 158, 49, 255, 245,
+    158, 49, 255,
+  ])
+  // The glTF owns its image and texture binding. Its tiny PNG has pinned raw
+  // pixels, so this fixture-specific handler gives all hosts the same decoded
+  // image without making a Native PNG decoder part of the @hozo/three API.
+  const manager = new LoadingManager()
+  class CorpusTextureLoader extends TextureLoader {
+    override load(_url: string, onLoad?: (texture: Texture) => void): Texture {
+      const texture = new DataTexture(pixels, 4, 4, RGBAFormat, UnsignedByteType)
+      texture.colorSpace = SRGBColorSpace
+      texture.magFilter = NearestFilter
+      texture.minFilter = NearestFilter
+      texture.needsUpdate = true
+      onLoad?.(texture)
+      return texture
+    }
+  }
+  manager.addHandler(/^data:image\/png/, new CorpusTextureLoader(manager))
+  const gltf = await parseEmbeddedGltf(PRODUCT_VIEWER_GLTF_SOURCE, manager)
+  const display = gltf.scene.getObjectByName('Product_display')
+  if (!(display instanceof Mesh) || !(display.material instanceof MeshStandardMaterial)) {
+    throw new Error('Product viewer glTF did not load its PBR display mesh')
+  }
+  if (!(display.material.map instanceof DataTexture)) {
+    throw new Error('Product viewer glTF did not bind its base colour texture')
+  }
+
+  const turntable = gltf.animations.find((clip) => clip.name === 'Turntable')
+  if (!turntable) throw new Error('Product viewer glTF did not load its animation')
+  const mixer = new AnimationMixer(gltf.scene)
+  mixer.clipAction(turntable).play()
+  mixer.setTime(0.5)
+
   const scene = new Scene()
-  scene.add(new AmbientLight('#ffffff', 2), gltf.scene)
+  scene.add(new AmbientLight('#ffffff', 0.6), gltf.scene)
+  scene.updateMatrixWorld(true)
   return { camera: perspective(), scene }
 }
 
@@ -303,5 +479,6 @@ export const SCENE_CORPUS_SCENES: readonly SceneCorpusSceneDefinition[] = [
   { create: wireframeCad, id: 'wireframe-cad' },
   { create: pointsAndSprite, id: 'points-and-sprite' },
   { create: instancingAndMorph, id: 'instancing-and-morph' },
+  { create: productViewer, id: 'product-viewer-gltf' },
   { create: pinnedGltfPbr, id: 'gltf-pbr' },
 ]

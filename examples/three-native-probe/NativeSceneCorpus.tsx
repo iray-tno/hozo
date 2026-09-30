@@ -14,6 +14,7 @@ export interface NativeSceneCorpusResult {
   renderCalls: number
   semanticControls: number
   status: 'failed' | 'useful'
+  textureCountDelta: number
 }
 
 interface NativeSceneCorpusProps {
@@ -89,6 +90,7 @@ function NativeSceneFixture({
       renderCalls: 0,
       semanticControls: 0,
       status: 'failed',
+      textureCountDelta: 0,
     })
   }, [definition.id, error, onResult])
 
@@ -119,6 +121,7 @@ function MeasuredSceneFixture({
 }) {
   const activated = useRef(Platform.OS === 'ios')
   const renderCalls = useRef(0)
+  const textureCountDelta = useRef(0)
   const settled = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const objects = useMemo(() => namedObjects(fixture.scene), [fixture.scene])
@@ -132,6 +135,7 @@ function MeasuredSceneFixture({
       renderCalls: renderCalls.current,
       semanticControls: objects.length,
       status: objects.length > 0 ? 'useful' : 'failed',
+      textureCountDelta: textureCountDelta.current,
     })
   }, [id, objects.length, onResult])
 
@@ -160,8 +164,13 @@ function MeasuredSceneFixture({
       camera={fixture.camera}
       frameloop="always"
       onCreated={({ gl }) => {
+        const initialTextures = (gl as WebGLRenderer).info.memory.textures
         timer.current = setTimeout(() => {
           renderCalls.current = (gl as WebGLRenderer).info.render.calls
+          textureCountDelta.current = Math.max(
+            0,
+            (gl as WebGLRenderer).info.memory.textures - initialTextures,
+          )
           settle()
         }, 300)
       }}

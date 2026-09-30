@@ -29,6 +29,7 @@ type ProbeEvent = {
   fixtureId?: string
   renderCalls?: number
   semanticControls?: number
+  textureCountDelta?: number
   status?: 'failed' | 'useful'
   activation?: 'measured' | 'not-run'
 }
@@ -302,6 +303,7 @@ export default function App() {
       fixtureId: result.id,
       renderCalls: result.renderCalls,
       semanticControls: result.semanticControls,
+      textureCountDelta: result.textureCountDelta,
       status: result.status,
       activation: result.activation,
     })
@@ -365,7 +367,7 @@ export default function App() {
           ) : (
             <View style={styles.complete}>
               <Text testID="probe-complete" style={styles.result}>
-                GPU lifecycle and five Native corpus scenes completed.
+                GPU lifecycle and six Native corpus scenes completed.
               </Text>
               <AccessibilityModes />
             </View>

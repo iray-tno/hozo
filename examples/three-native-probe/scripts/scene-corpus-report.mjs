@@ -3,6 +3,7 @@ export const NATIVE_SCENE_CORPUS_IDS = [
   'wireframe-cad',
   'points-and-sprite',
   'instancing-and-morph',
+  'product-viewer-gltf',
   'gltf-pbr',
 ]
 
@@ -15,6 +16,9 @@ export function collectNativeSceneCorpus(events, platform) {
     if (result.status !== 'useful' || result.renderCalls < 1 || result.semanticControls < 1) {
       throw new Error(`Native GPU scene corpus fixture ${id} was not useful`)
     }
+    if (id === 'product-viewer-gltf' && result.textureCountDelta < 1) {
+      throw new Error('Native GPU product viewer did not allocate a texture')
+    }
     const expectedActivation = platform === 'android' ? 'measured' : 'not-run'
     if (result.activation !== expectedActivation) {
       throw new Error(`Native GPU scene corpus fixture ${id} has invalid activation evidence`)
@@ -24,6 +28,7 @@ export function collectNativeSceneCorpus(events, platform) {
       status: result.status,
       renderCalls: result.renderCalls,
       semanticControls: result.semanticControls,
+      textureCountDelta: result.textureCountDelta,
       activation: result.activation,
     }
   })

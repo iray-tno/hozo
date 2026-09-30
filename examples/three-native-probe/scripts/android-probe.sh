@@ -144,7 +144,7 @@ for _ in $(seq 1 10); do
 done
 grep -q '\[hozo-three-native\].*"event":"navigation_activated".*"href":"/cubes/measured".*"replace":true' "$artifacts/logcat.txt"
 
-# The public Native host now runs the same five version-pinned scenes as the
+# The public Native host now runs the same six version-pinned scenes as the
 # browser GPU report. Each scene must draw and expose at least one semantic
 # object; Android additionally activates that object through the actual native
 # control before the probe advances.
@@ -153,6 +153,7 @@ for fixture_id in \
   wireframe-cad \
   points-and-sprite \
   instancing-and-morph \
+  product-viewer-gltf \
   gltf-pbr; do
   resource_id="corpus-$fixture_id"
   # Repeated native GL teardown can delay the final async glTF fixture on a

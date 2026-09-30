@@ -149,6 +149,47 @@
       "verified": true
     },
     {
+      "archetype": "animated textured glTF product viewer",
+      "exercises": [
+        "glTF 2.0 node hierarchy",
+        "PBR materials",
+        "UV-mapped raw texture",
+        "punctual light",
+        "animation pose"
+      ],
+      "families": {
+        "classic-webgl": {
+          "reason": "classic-webgl result is emitted by its environment workflow and is not baked into this deterministic report",
+          "status": "not-run"
+        },
+        "modern-webgpu": {
+          "reason": "modern-webgpu result is emitted by its environment workflow and is not baked into this deterministic report",
+          "status": "not-run"
+        },
+        "native-host": {
+          "reason": "native-host result is emitted by its environment workflow and is not baked into this deterministic report",
+          "status": "not-run"
+        },
+        "portable": {
+          "status": "diagnostic"
+        }
+      },
+      "id": "product-viewer-gltf",
+      "portableObservation": {
+        "diagnosticCodes": [
+          "UNSUPPORTED_MATERIAL",
+          "UNSUPPORTED_MATERIAL"
+        ],
+        "namedObjects": 0,
+        "outputNodes": 0
+      },
+      "source": {
+        "location": "src/conformance-scenes.ts#productViewer",
+        "version": "corpus-v1 / Three.js r180"
+      },
+      "verified": true
+    },
+    {
       "archetype": "ordinary glTF/PBR scene",
       "exercises": [
         "glTF 2.0 loader",
@@ -191,12 +232,12 @@
   "generatedAgainst": "Three.js r180",
   "schemaVersion": 1,
   "summary": {
-    "diagnostic": 1,
+    "diagnostic": 2,
     "failed": 0,
     "notRunByFamily": {
-      "classic-webgl": 5,
-      "modern-webgpu": 5,
-      "native-host": 5
+      "classic-webgl": 6,
+      "modern-webgpu": 6,
+      "native-host": 6
     },
     "useful": 4
   }

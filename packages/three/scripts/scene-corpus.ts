@@ -131,6 +131,25 @@ export const SCENE_CORPUS_FIXTURES: readonly SceneCorpusFixture[] = [
     source: authoredSource('src/conformance-scenes.ts#instancingAndMorph'),
   },
   {
+    archetype: 'animated textured glTF product viewer',
+    create: sceneDefinition('product-viewer-gltf'),
+    exercises: [
+      'glTF 2.0 node hierarchy',
+      'PBR materials',
+      'UV-mapped raw texture',
+      'punctual light',
+      'animation pose',
+    ],
+    id: 'product-viewer-gltf',
+    portableExpectation: {
+      diagnostics: ['UNSUPPORTED_MATERIAL', 'UNSUPPORTED_MATERIAL'],
+      minimumNamedObjects: 0,
+      minimumOutputNodes: 0,
+      status: 'diagnostic',
+    },
+    source: authoredSource('src/conformance-scenes.ts#productViewer'),
+  },
+  {
     archetype: 'ordinary glTF/PBR scene',
     create: sceneDefinition('gltf-pbr'),
     exercises: ['glTF 2.0 loader', 'asset graph', 'MeshStandardMaterial', 'PBR factors'],

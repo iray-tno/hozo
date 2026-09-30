@@ -310,7 +310,7 @@ atomic portable capabilities from class-level Three.js surface classification;
 both link every claim back to executable tests. Every current portable surface
 category now has an independently owned capability inventory, so the report can
 publish an overall portable ceiling without presenting it as real-scene success.
-The separate [real-scene report](./scene-conformance.md) runs five
+The separate [real-scene report](./scene-conformance.md) runs six
 version-pinned archetypes and publishes the same observations as
 [machine-readable JSON](./scene-conformance.json). Portable results are
 measured deterministically; environment-dependent renderer families remain
@@ -324,7 +324,7 @@ for classic WebGL, the modern renderer's automatic backend choice, and its
 forced WebGL 2 backend. A missing native WebGPU backend is recorded as
 `unavailable`; classic WebGL and modern forced-WebGL 2 remain required to draw
 and expose working semantic controls. Every available renderer mode also
-executes the same five real-scene fixtures and requires useful draws, semantic
+executes the same six real-scene fixtures and requires useful draws, semantic
 controls, and activation for every scene. This makes forced WebGL 2 the stable
 Modern-family baseline while native WebGPU remains separately observable.
 
