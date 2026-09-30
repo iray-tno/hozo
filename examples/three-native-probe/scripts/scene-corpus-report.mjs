@@ -14,10 +14,27 @@ export function collectNativeSceneCorpus(events, platform) {
     )
     if (!result) throw new Error(`Native GPU probe did not run scene corpus fixture ${id}`)
     if (result.status !== 'useful' || result.renderCalls < 1 || result.semanticControls < 1) {
-      throw new Error(`Native GPU scene corpus fixture ${id} was not useful`)
+      throw new Error(
+        `Native GPU scene corpus fixture ${id} was not useful${result.reason ? `: ${result.reason}` : ''}`,
+      )
     }
-    if (id === 'product-viewer-gltf' && result.textureCountDelta < 1) {
+    if (
+      id === 'product-viewer-gltf' &&
+      (!Number.isFinite(result.textureCountDelta) || result.textureCountDelta < 1)
+    ) {
       throw new Error('Native GPU product viewer did not allocate a texture')
+    }
+    if (id === 'product-viewer-gltf') {
+      if (result.imageDecoding !== 'host')
+        throw new Error('Native GPU product viewer did not decode its PNG with the host loader')
+      if (
+        !Number.isFinite(result.animationFrames) ||
+        result.animationFrames < 2 ||
+        !Number.isFinite(result.animationAngle) ||
+        result.animationAngle <= 0.01
+      ) {
+        throw new Error('Native GPU product viewer did not animate across rendered frames')
+      }
     }
     const expectedActivation = platform === 'android' ? 'measured' : 'not-run'
     if (result.activation !== expectedActivation) {
@@ -29,6 +46,9 @@ export function collectNativeSceneCorpus(events, platform) {
       renderCalls: result.renderCalls,
       semanticControls: result.semanticControls,
       textureCountDelta: result.textureCountDelta,
+      imageDecoding: result.imageDecoding,
+      animationFrames: result.animationFrames,
+      animationAngle: result.animationAngle,
       activation: result.activation,
     }
   })

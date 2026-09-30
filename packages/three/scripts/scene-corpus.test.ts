@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-import { Mesh, MeshStandardMaterial, PointLight, REVISION } from 'three'
+import { Mesh, MeshStandardMaterial, PointLight, REVISION, Texture, TextureLoader } from 'three'
 
 import { MINIMAL_PBR_GLTF_SOURCE, SCENE_CORPUS_SCENES } from '../src/conformance-scenes.ts'
 import { runSceneCorpus, SCENE_CORPUS_FIXTURES } from './scene-corpus.ts'
@@ -53,7 +53,7 @@ test('the real-scene corpus is version-pinned, representative, and executable', 
 test('the product viewer loads a textured, lit, animated glTF scene', async () => {
   const fixture = SCENE_CORPUS_SCENES.find(({ id }) => id === 'product-viewer-gltf')
   assert.ok(fixture)
-  const { scene } = await fixture.create(async () => '')
+  const { scene, animation, textureImage } = await fixture.create(async () => '')
   const housing = scene.getObjectByName('Product_housing')
   const display = scene.getObjectByName('Product_display')
   assert.ok(housing instanceof Mesh)
@@ -63,6 +63,44 @@ test('the product viewer loads a textured, lit, animated glTF scene', async () =
   assert.ok(display.geometry.getAttribute('uv'))
   assert.ok(scene.getObjectByName('Product_key_light') instanceof PointLight)
   assert.ok(housing.rotation.y > 0.4, 'the glTF animation must affect the measured pose')
+  assert.deepEqual(textureImage, { decoding: 'fixture', width: 4, height: 4 })
+  assert.ok(animation)
+  assert.equal(animation.object, housing)
+  const initial = housing.quaternion.clone()
+  animation.update(0.125)
+  const next = housing.quaternion.clone()
+  animation.update(0.125)
+  assert.ok(initial.angleTo(next) > 0.1, 'a frame update must advance the glTF clip')
+  assert.ok(next.angleTo(housing.quaternion) > 0.1, 'a second frame must continue the clip')
+})
+
+test('the glTF material uses the supplied image loader and rejects a missing decoded image', async () => {
+  const fixture = SCENE_CORPUS_SCENES.find(({ id }) => id === 'product-viewer-gltf')!
+  class HostImageLoader extends TextureLoader {
+    override load(url: string, onLoad?: (texture: Texture) => void) {
+      assert.ok(url.startsWith('data:image/png;base64,'))
+      const texture = new Texture({ width: 4, height: 4 } as HTMLImageElement)
+      onLoad?.(texture)
+      return texture
+    }
+  }
+  const loaded = await fixture.create(async () => '', { textureLoader: new HostImageLoader() })
+  assert.deepEqual(loaded.textureImage, { decoding: 'host', width: 4, height: 4 })
+  class FailedImageLoader extends TextureLoader {
+    override load(
+      _url: string,
+      _onLoad?: (texture: Texture) => void,
+      _onProgress?: (event: ProgressEvent) => void,
+      onError?: (error: unknown) => void,
+    ) {
+      onError?.(new Error('image decode failed'))
+      return new Texture()
+    }
+  }
+  await assert.rejects(
+    fixture.create(async () => '', { textureLoader: new FailedImageLoader() }),
+    /did not decode and bind/,
+  )
 })
 
 test('both embedded glTF fixtures load with the globals exposed by Hermes', async () => {

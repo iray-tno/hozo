@@ -13,6 +13,9 @@ const sceneCorpusEvents = (activation) =>
     renderCalls: 1,
     semanticControls: 1,
     textureCountDelta: fixtureId === 'product-viewer-gltf' ? 1 : 0,
+    imageDecoding: fixtureId === 'product-viewer-gltf' ? 'host' : undefined,
+    animationFrames: fixtureId === 'product-viewer-gltf' ? 10 : undefined,
+    animationAngle: fixtureId === 'product-viewer-gltf' ? 0.1 : undefined,
     status: 'useful',
     activation,
   }))
@@ -25,6 +28,16 @@ test('rejects incomplete or unrendered Native scene evidence', () => {
   const withoutTexture = sceneCorpusEvents('measured')
   withoutTexture.find(({ fixtureId }) => fixtureId === 'product-viewer-gltf').textureCountDelta = 0
   assert.throws(() => collectNativeSceneCorpus(withoutTexture, 'android'), /allocate a texture/)
+  for (const [field, value, expected] of [
+    ['imageDecoding', 'fixture', /decode its PNG/],
+    ['animationFrames', undefined, /animate across rendered frames/],
+    ['animationAngle', 0, /animate across rendered frames/],
+    ['animationAngle', NaN, /animate across rendered frames/],
+  ]) {
+    const incomplete = sceneCorpusEvents('measured')
+    incomplete.find(({ fixtureId }) => fixtureId === 'product-viewer-gltf')[field] = value
+    assert.throws(() => collectNativeSceneCorpus(incomplete, 'android'), expected)
+  }
 })
 
 test('collects the required lifecycle, frame, and Native scene measurements', () => {

@@ -112,6 +112,7 @@
     "@types/react-dom": "^19.2.5",
     "@types/three": "^0.180.0",
     "esbuild": "0.28.2",
+    "playwright-core": "1.63.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-native": "^0.87.1",

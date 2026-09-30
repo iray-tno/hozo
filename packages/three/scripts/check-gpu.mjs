@@ -2,7 +2,7 @@
 // weekly, and manual report rather than a pull-request gate: GPU availability
 // and driver selection belong in the result instead of becoming CI flake.
 
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import {
   copyFileSync,
   existsSync,
@@ -16,6 +16,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { chromium } from 'playwright-core'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const candidates = [
@@ -41,7 +42,6 @@ const output = path.resolve(
   outputFlag >= 0 ? process.argv[outputFlag + 1] : path.join('artifacts', 'three-gpu'),
 )
 const dist = mkdtempSync(path.join(tmpdir(), 'hozo-three-gpu-'))
-const profileRoot = mkdtempSync(path.join(tmpdir(), 'hozo-three-gpu-profile-'))
 const { build } = await import('esbuild')
 
 try {
@@ -132,50 +132,31 @@ try {
 } finally {
   const removalOptions = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }
   rmSync(dist, removalOptions)
-  rmSync(profileRoot, removalOptions)
 }
 
-function run(mode, port) {
-  return new Promise((resolve, reject) => {
-    const profile = path.join(profileRoot, mode)
-    const backendFlags = mode === 'modern-auto' ? [] : ['--use-angle=swiftshader']
-    const child = spawn(
-      browser,
-      [
-        '--headless=new',
-        '--no-sandbox',
-        '--enable-unsafe-webgpu',
-        '--ignore-gpu-blocklist',
-        ...backendFlags,
-        `--user-data-dir=${profile}`,
-        '--virtual-time-budget=10000',
-        '--dump-dom',
-        `http://127.0.0.1:${port}/?mode=${mode}`,
-      ],
-      { stdio: ['ignore', 'pipe', 'pipe'] },
-    )
-    let stdout = ''
-    let stderr = ''
-    const timeout = setTimeout(() => {
-      child.kill()
-      reject(new Error(`${mode}: browser timed out`))
-    }, 30_000)
-    child.stdout.on('data', (chunk) => {
-      stdout += String(chunk)
-    })
-    child.stderr.on('data', (chunk) => {
-      stderr += String(chunk)
-    })
-    child.on('exit', (code) => {
-      clearTimeout(timeout)
-      const encoded = /data-hozo-result="([^"]+)"/.exec(stdout)?.[1]
-      if (code !== 0 || !encoded) {
-        reject(new Error(`${mode}: no result (exit ${code})\n${stderr}`))
-        return
-      }
-      resolve(JSON.parse(Buffer.from(encoded, 'base64').toString('utf8')))
-    })
+async function run(mode, port) {
+  // A real animation loop needs real browser frames. --virtual-time-budget
+  // can exhaust timers while requestAnimationFrame hardly advances.
+  const instance = await chromium.launch({
+    executablePath: browser,
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--enable-unsafe-webgpu',
+      '--ignore-gpu-blocklist',
+      ...(mode === 'modern-auto' ? [] : ['--use-angle=swiftshader']),
+    ],
   })
+  try {
+    const page = await instance.newPage()
+    await page.goto(`http://127.0.0.1:${port}/?mode=${mode}`)
+    const result = await page.waitForFunction(() => document.body.dataset.hozoResult, undefined, {
+      timeout: 15_000,
+    })
+    return JSON.parse(Buffer.from(await result.jsonValue(), 'base64').toString('utf8'))
+  } finally {
+    await instance.close()
+  }
 }
 
 function browserIdentity() {
@@ -205,13 +186,13 @@ function markdown(report) {
       '',
       `## ${result.mode} real-scene corpus (${result.backend})`,
       '',
-      '| Fixture | Status | Draw calls | Texture count delta | Semantic controls | Activation | Error |',
-      '| --- | --- | ---: | ---: | ---: | --- | --- |',
+      '| Fixture | Status | Draw calls | Texture count delta | Image decoder | Animation frames / angle | Semantic controls | Activation | Error |',
+      '| --- | --- | ---: | ---: | --- | --- | ---: | --- | --- |',
     )
     for (const fixture of result.sceneCorpus) {
       const error = fixture.error?.replaceAll('|', '\\|').replaceAll('\n', '<br>') ?? ''
       lines.push(
-        `| ${fixture.id} | ${fixture.status} | ${fixture.renderCalls} | ${fixture.textureCountDelta} | ${fixture.semanticControls} | ${fixture.activated ? 'yes' : 'no'} | ${error} |`,
+        `| ${fixture.id} | ${fixture.status} | ${fixture.renderCalls} | ${fixture.textureCountDelta} | ${fixture.imageDecoding ?? '-'} | ${fixture.animationFrames === undefined ? '-' : `${fixture.animationFrames} / ${fixture.animationAngle.toFixed(3)} rad`} | ${fixture.semanticControls} | ${fixture.activated ? 'yes' : 'no'} | ${error} |`,
       )
     }
   }

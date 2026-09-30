@@ -981,6 +981,9 @@ importers:
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
+      playwright-core:
+        specifier: 1.63.0
+        version: 1.63.0
       react:
         specifier: ^19.2.8
         version: 19.2.8

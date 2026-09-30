@@ -328,6 +328,15 @@ executes the same six real-scene fixtures and requires useful draws, semantic
 controls, and activation for every scene. This makes forced WebGL 2 the stable
 Modern-family baseline while native WebGPU remains separately observable.
 
+The product-viewer glTF fixture also decodes an embedded 4x4 PNG through the
+browser's `TextureLoader` and advances its `AnimationMixer` using the surface's
+`onFrame` callback. The browser probe waits for real frames, records the rotation
+change, and requires a GPU texture allocation. The Expo GL probe exercises the
+same image and clip through R3F Native's image loader and `useFrame`; Android and
+iOS results are emitted by the Native GPU workflow. The deterministic Node report
+uses pinned pixels and a sampled pose. External image URLs, compressed textures,
+and larger glTF assets remain separate integration cases.
+
 The weekly/on-demand Native workflow executes those same fixtures through the
 portable `ThreeCanvas` entry on React Native Android and the Skia Canvas host.
 It uploads screenshots, accessibility trees, and `three-native-corpus.json`:
