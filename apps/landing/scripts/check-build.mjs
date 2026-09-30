@@ -4,8 +4,9 @@
 // server-side -- but that the page ships *no JavaScript for it*. Astro only
 // hydrates a component carrying a `client:` directive, so a component built
 // from primitives that need nothing at run time can be used on a static
-// page for free. Eleven of Hozo's seventeen are in that set; the other six
-// each need a client boundary, and an island is what that costs.
+// page for free. Interactive components need a client boundary, and an
+// island is what that costs. The homepage now explicitly includes one
+// visible-only 3D island; the separate MDX probe remains entirely static.
 //
 // Checked here rather than assumed, because the failure is silent in the
 // direction that matters: adding one interactive primitive would still
@@ -56,8 +57,8 @@ const checks = [
   [/<a [^>]*href="https:\/\/github\.com\/iray-tno\/hozo"/.test(html), 'Link did not lower to <a>'],
   // Not "`@hozo/core` is absent from the page": this page is *about*
   // Hozo, so the name is in its copy and in its code samples. The claim
-  // that matters is the one below -- a page with no script cannot have
-  // imported anything.
+  // that matters is the static MDX probe and the exact interactive-island
+  // boundary below, not whether the name occurs anywhere in the page.
 
   // The companion stylesheet was bundled, and with real declarations --
   // a class in the markup that matches no rule is a style that silently
@@ -68,11 +69,10 @@ const checks = [
   // And the point of the exercise. Astro emits its React client entry as
   // an unreferenced chunk once the integration is registered, so the
   // question is what the *page* loads, not what the directory contains.
-  [!/<astro-island/.test(html), 'something hydrated: an island reached the page'],
-  [
-    !/<script(?![^>]*(?:type="application\/ld\+json"|data-analytics))/.test(html),
-    'the page shipped JavaScript for a component that needs none',
-  ],
+  [(html.match(/<astro-island\b/g) ?? []).length === 1, 'expected only the Kumimono island'],
+  [/component-url="[^"]*Kumimono\./.test(html), 'the interactive island is not Kumimono'],
+  [/client="visible"/.test(html), 'the 3D island must hydrate only when visible'],
+  [!/<astro-island/.test(mdx) && !/<script/.test(mdx), 'the static MDX probe shipped JavaScript'],
 ]
 
 // The same component reached from MDX rather than from `.astro`, which
@@ -271,4 +271,6 @@ for (const [ok, message] of checks) {
   if (!ok) throw new Error(message)
 }
 
-console.log(`Astro static-subset check passed (${checks.length} assertions, 0 scripts)`)
+console.log(
+  `Astro static-subset check passed (${checks.length} assertions, one 3D island; static probe has no scripts)`,
+)

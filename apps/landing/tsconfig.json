@@ -1,7 +1,7 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"],
+  "exclude": ["dist", "dist-check"],
   "compilerOptions": {
     // Astro's own preset leaves JSX to Astro, which is right for `.astro`
     // and wrong for the `.tsx` components `@astrojs/react` renders: the
