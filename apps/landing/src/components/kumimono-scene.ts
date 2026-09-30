@@ -4,7 +4,8 @@ import * as THREE from 'three'
 // Hozo owns the renderer and frame lifecycle; this module owns scene resources.
 export function createKumimonoScene() {
   const scene = new THREE.Scene()
-  scene.fog = new THREE.FogExp2(0x080806, 0.039)
+  const fog = new THREE.FogExp2(0x080806, 0.039)
+  scene.fog = fog
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100)
   camera.position.set(7.8, 4.7, 13.8)
@@ -807,6 +808,7 @@ export function createKumimonoScene() {
       // Keep the exploded pieces in view, rather than ending on an empty
       // canvas when the LP's shorter viewport clips the original study.
       const pullback = 18 * (1 - smooth(value / 0.65))
+      fog.density = 0.039 * (0.4 + value * 0.6)
       camera.position.set(
         7.8 + value * 0.4 + pullback * 0.45,
         4.7 + value * 0.15 + pullback * 0.3,
