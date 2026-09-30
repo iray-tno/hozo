@@ -55,16 +55,21 @@ test('an arrow clears the WCAG 2.5.8 target size', () => {
   }
 })
 
-test('the field carries the focus ring, because the spinbutton takes no class', () => {
-  // `@hozo/form` puts `fieldClassName` on the group and nothing on the
-  // `role="spinbutton"` inside it -- which is the element that takes focus. So
-  // the indicator has to be `focus-within:` on the field. A `valueClassName`
-  // would be the better answer and is someone else's package.
+test('the spinbutton is a target of its own, and carries its own ring', () => {
+  // This test used to assert the opposite premise -- that the spinbutton had no
+  // class, so the ring had to be `focus-within:` on the group -- and said that
+  // the day it gained one, it would stop pretending that was a reason. That day
+  // was `check-appearance.mjs` measuring the element at 9 by 20 pixels against
+  // WCAG 2.5.8's 24 by 24, and `@hozo/form` gaining `valueClassName`.
   const html = render()
-  assert.match(html, /focus-within:outline-hozo-focus/)
   const spinbutton = /<div[^>]*role="spinbutton"[^>]*>/.exec(html)
   assert.ok(spinbutton, 'no spinbutton')
-  assert.doesNotMatch(spinbutton[0], /class=/, 'the premise: it has no class of its own')
+  assert.match(spinbutton[0], /focus-visible:outline-hozo-focus/, 'on the focused element')
+  // 32 wide against a 48-tall field, which clears 24 in both directions. The
+  // browser check measures it; this keeps the class that makes it so.
+  assert.match(spinbutton[0], /\bmin-w-8\b/)
+  assert.match(spinbutton[0], /\bself-stretch\b/)
+  assert.doesNotMatch(html, /focus-within:/, 'the ring moved rather than being doubled')
 })
 
 test('every control an application can disable has the hook that styles it', () => {

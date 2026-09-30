@@ -12,8 +12,23 @@ import {
 
 export interface HozoTimePickerProps {
   className?: string
-  /** On each `role="spinbutton"`, so a `disabled:` variant reaches them. */
+  /** On the group holding a value and its two arrows; see `field` below. */
   fieldClassName?: string
+  /**
+   * On each `role="spinbutton"` itself.
+   *
+   * The element that takes focus and the element a pointer has to hit, and it
+   * had nothing: `fieldClassName` dresses the group around it, so the value was
+   * the width of its own digits. Measured in the Storybook catalogue by
+   * `check-appearance.mjs` -- **9 by 20 pixels** for an hour reading "9",
+   * against WCAG 2.5.8's 24 by 24 -- and an application could not fix it from
+   * outside, which is the same reason `Calendar` has `monthButtonClassName`.
+   *
+   * It is also where a focus ring belongs. A ring on the group is a correct
+   * indicator and the only one that was possible; one on the focused element is
+   * what 2.4.11 describes.
+   */
+  valueClassName?: string
   periodClassName?: string
   /** On each arrow, so an application can place them and Hozo need not. */
   stepClassName?: string
@@ -91,6 +106,7 @@ const MIDNIGHT: CalendarTime = { hour: 0, minute: 0 }
 export function HozoTimePicker({
   className,
   fieldClassName,
+  valueClassName,
   periodClassName,
   stepClassName,
   value,
@@ -273,6 +289,7 @@ export function HozoTimePicker({
       {arrow(name, 1, '▲')}
       <div
         role="spinbutton"
+        className={valueClassName}
         aria-label={label}
         aria-valuenow={now}
         aria-valuemin={low}
