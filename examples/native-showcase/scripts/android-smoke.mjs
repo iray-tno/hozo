@@ -11,10 +11,37 @@ const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(process.argv[2] ?? resolve(root, '../../artifacts/native-showcase'))
 mkdirSync(output, { recursive: true })
-const evidence = { platform: 'Android', device: 'emulator', checks: [], passed: false }
+const evidence = {
+  platform: 'Android',
+  device: 'emulator',
+  checks: [],
+  passed: false,
+  binaryRun: process.env.HOZO_BINARY_RUN,
+  driverCommit: process.env.GITHUB_SHA,
+  systemImage: process.env.HOZO_ANDROID_TARGET,
+  diagnostic: process.env.HOZO_DIAGNOSTICS === '1',
+}
 const adb = (...args) => execFileSync('adb', args, { timeout: 30_000, maxBuffer: 16 * 1024 * 1024 })
 const label = (value) => (node) => matchLabel(node, value)
 let latestXml = ''
+
+function collectSystemState(prefix) {
+  if (!evidence.diagnostic) return
+  const reads = {
+    logcat: ['logcat', '-b', 'all', '-d'],
+    cpu: ['shell', 'dumpsys', 'cpuinfo'],
+    pressure: ['shell', 'cat', '/proc/pressure/cpu', '/proc/pressure/memory', '/proc/pressure/io'],
+    input: ['shell', 'dumpsys', 'input'],
+    anr: ['shell', 'dumpsys', 'dropbox', '--print', 'system_app_anr'],
+  }
+  for (const [name, args] of Object.entries(reads)) {
+    try {
+      writeFileSync(resolve(output, `${prefix}-${name}.txt`), adb(...args))
+    } catch (error) {
+      writeFileSync(resolve(output, `${prefix}-${name}-error.txt`), String(error))
+    }
+  }
+}
 
 function nodes() {
   const dump = adb('shell', 'uiautomator', 'dump', '/sdcard/hozo-showcase.xml').toString()
@@ -79,6 +106,8 @@ async function assembly(state) {
 
 try {
   evidence.android = adb('shell', 'getprop', 'ro.build.version.release').toString().trim()
+  // Preserve cold-boot failures before the normal driver clears logcat.
+  collectSystemState('before-app')
   adb('install', '-r', resolve(root, 'android/app/build/outputs/apk/release/app-release.apk'))
   adb('logcat', '-c')
   adb('shell', 'am', 'force-stop', app)
@@ -236,6 +265,7 @@ try {
   evidence.passed = true
 } catch (error) {
   evidence.error = error.stack
+  collectSystemState('failure-system')
   try {
     screenshot('failure')
   } catch {

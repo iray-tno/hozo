@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import {
+  closeSync,
+  cpSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
@@ -25,6 +33,9 @@ const evidence = {
   sidebarSelection: 'visible text (Apple Vision)',
   checks: [],
   passed: false,
+  binaryRun: process.env.HOZO_BINARY_RUN,
+  driverCommit: process.env.GITHUB_SHA,
+  diagnostic: process.env.HOZO_DIAGNOSTICS === '1',
 }
 const run = (command, args, timeout = 30_000) =>
   execFileSync(command, args, {
@@ -37,7 +48,49 @@ let udid
 let latestTree = '[]'
 let logger
 
-const idb = (...args) => run('idb', [...args, '--udid', udid])
+let commandNumber = 0
+const idb = (...args) => {
+  if (!evidence.diagnostic) return run('idb', [...args, '--udid', udid])
+  const prefix = resolve(output, `idb-${++commandNumber}`)
+  const input = args[0] === 'ui' && ['tap', 'text'].includes(args[1])
+  const watcher = input
+    ? spawn(
+        process.execPath,
+        [resolve(root, 'scripts/ios-input-watch.mjs'), String(process.pid), `${prefix}-stacks`],
+        { stdio: 'ignore' },
+      )
+    : undefined
+  const stderrFd = openSync(`${prefix}-stderr.txt`, 'w')
+  const started = Date.now()
+  const command = [...args, '--udid', udid, '--log', 'DEBUG']
+  try {
+    const stdout = execFileSync('idb', command, {
+      timeout: 30_000,
+      maxBuffer: 16 * 1024 * 1024,
+      env: { ...process.env, FBSIMULATORCONTROL_LOG_HID_DETAILS: '1' },
+      stdio: ['ignore', 'pipe', stderrFd],
+    })
+    writeFileSync(
+      `${prefix}.json`,
+      JSON.stringify({ command, elapsedMs: Date.now() - started, completed: true }),
+    )
+    return stdout
+  } catch (error) {
+    writeFileSync(
+      `${prefix}.json`,
+      JSON.stringify({
+        command,
+        elapsedMs: Date.now() - started,
+        completed: false,
+        code: error.code,
+      }),
+    )
+    throw error
+  } finally {
+    watcher?.kill()
+    closeSync(stderrFd)
+  }
+}
 
 function nodes() {
   // The default host AX reader can stall across the OS open-URL window change.
@@ -155,6 +208,17 @@ try {
   logger.on('error', (error) => {
     evidence.logError = error.message
   })
+  if (evidence.diagnostic) {
+    run(
+      'xcrun',
+      ['simctl', 'launch', '--terminate-running-process', udid, 'com.apple.Preferences'],
+      120_000,
+    )
+    await tap(label('General'), 'Settings control: General')
+    await waitFor(label('About'), 'Settings control navigates to General')
+    screenshot('00-settings-control')
+    evidence.settingsControl = { passed: true, action: 'General opens About row' }
+  }
   // The cold simulator's launch service can also lag behind bootstatus.
   // Keep one bounded launch attempt, separate from the UI-readiness budget.
   run('xcrun', ['simctl', 'launch', '--terminate-running-process', udid, app], 120_000)
@@ -298,5 +362,12 @@ try {
   throw error
 } finally {
   logger?.kill()
+  if (evidence.diagnostic) {
+    try {
+      cpSync('/tmp/idb/logs', resolve(output, 'companion-logs'), { recursive: true })
+    } catch (error) {
+      evidence.companionLogError = String(error)
+    }
+  }
   writeFileSync(resolve(output, 'evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`)
 }
