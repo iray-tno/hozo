@@ -45,6 +45,7 @@ device behavior.
 - **Three / Kumimono**: the same procedural scene used by the landing page,
   rendered with `@hozo/three/r3f-native` and Expo GL. Assembly/disassembly uses
   demand rendering, honors reduced motion and pauses in the background.
+  Controls stay disabled while the initial renderer frame is loading.
 
 `@hozo/example-showcase` contains platform-neutral story bodies; it deliberately
 imports neither DOM APIs, React Native nor Storybook. Native story wrappers own
@@ -76,7 +77,9 @@ iPhone 17 simulator, and exercises the selector, counter/reset, disabled
 controls, keyboard/form, preferences, tabs, dialog cancellation/confirmation,
 Kumimono assembly/disassembly and switching away from the GPU story. Its Canvas
 pixel comparisons convert measured accessibility screen-point bounds to Retina
-pixels; changing status labels cannot count as rendered animation.
+pixels; changing status labels cannot count as rendered animation. Both drivers
+wait up to 15 seconds for presented Canvas pixels and reject a permanently blank
+surface, including after animation. Only image reads are polled, not interactions.
 
 `hozo-native-showcase-ios-simulator-app` contains the unsigned simulator `.app`
 in a ZIP (for Apple Silicon macOS Simulator on the current runner, **not**

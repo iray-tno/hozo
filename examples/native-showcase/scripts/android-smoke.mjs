@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './device-evidence.mjs'
+import { waitForImage } from './image-ready.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -165,16 +166,28 @@ try {
 
   await story('three-kumimono--assembly', '組物: timber bracket assembly')
   const canvas = await assembly('assembled')
-  const assembled = imageRegion(screenshot('06-assembled'), canvas.rect)
+  const assembled = await waitForImage(
+    () => imageRegion(screenshot('06-assembled'), canvas.rect),
+    (image) => image.colours >= 40,
+    'assembled first frame',
+  )
   assert.ok(assembled.colours >= 40, `GL surface appears blank: ${assembled.colours} colours`)
   await tap(label('分解'), 'disassemble')
   await assembly('disassembled')
-  const disassembled = imageRegion(screenshot('07-disassembled'), canvas.rect)
+  const disassembled = await waitForImage(
+    () => imageRegion(screenshot('07-disassembled'), canvas.rect),
+    (image) => image.colours >= 40 && changedFraction(assembled, image) >= 0.01,
+    'disassembled frame',
+  )
   const difference = changedFraction(assembled, disassembled)
   assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
   await tap(label('組み立て'), 'assemble')
   await assembly('assembled')
-  const reassembled = imageRegion(screenshot('08-reassembled'), canvas.rect)
+  const reassembled = await waitForImage(
+    () => imageRegion(screenshot('08-reassembled'), canvas.rect),
+    (image) => image.colours >= 40 && changedFraction(disassembled, image) >= 0.01,
+    'reassembled frame',
+  )
   const reverseDifference = changedFraction(disassembled, reassembled)
   assert.ok(
     reverseDifference >= 0.01,
@@ -198,11 +211,19 @@ try {
     originalPid,
     'resume replaced the app process',
   )
-  const resumed = imageRegion(screenshot('09-resumed'), resumedCanvas.rect)
+  const resumed = await waitForImage(
+    () => imageRegion(screenshot('09-resumed'), resumedCanvas.rect),
+    (image) => image.colours >= 40,
+    'resumed frame',
+  )
   assert.ok(resumed.colours >= 40, 'GL surface blank after resume')
   await tap(label('分解'), 'disassemble after resume')
   await assembly('disassembled')
-  const resumedChanged = imageRegion(screenshot('10-resumed-disassembled'), resumedCanvas.rect)
+  const resumedChanged = await waitForImage(
+    () => imageRegion(screenshot('10-resumed-disassembled'), resumedCanvas.rect),
+    (image) => image.colours >= 40 && changedFraction(resumed, image) >= 0.01,
+    'disassembled frame after resume',
+  )
   assert.ok(changedFraction(resumed, resumedChanged) >= 0.01, 'GL animation stopped after resume')
   record('background/resume preserves interactive rendering')
 

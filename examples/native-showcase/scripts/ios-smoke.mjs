@@ -6,6 +6,7 @@ import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
+import { waitForImage } from './image-ready.mjs'
 import { openShowcaseConfirmation, parseIosNodes, pixelBounds } from './ios-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
@@ -205,16 +206,28 @@ try {
 
   await story('three-kumimono--assembly', '組物: timber bracket assembly')
   const canvas = await assembly('assembled')
-  const assembled = canvasImage('10-assembled', canvas)
+  const assembled = await waitForImage(
+    () => canvasImage('10-assembled', canvas),
+    (image) => image.colours >= 40,
+    'assembled first frame',
+  )
   assert.ok(assembled.colours >= 40, `GL surface appears blank: ${assembled.colours} colours`)
   await tap(label('分解'), 'disassemble')
   await assembly('disassembled')
-  const disassembled = canvasImage('11-disassembled', canvas)
+  const disassembled = await waitForImage(
+    () => canvasImage('11-disassembled', canvas),
+    (image) => image.colours >= 40 && changedFraction(assembled, image) >= 0.01,
+    'disassembled frame',
+  )
   const difference = changedFraction(assembled, disassembled)
   assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
   await tap(label('組み立て'), 'assemble')
   await assembly('assembled')
-  const reassembled = canvasImage('12-reassembled', canvas)
+  const reassembled = await waitForImage(
+    () => canvasImage('12-reassembled', canvas),
+    (image) => image.colours >= 40 && changedFraction(disassembled, image) >= 0.01,
+    'reassembled frame',
+  )
   const reverseDifference = changedFraction(disassembled, reassembled)
   assert.ok(reverseDifference >= 0.01, `reverse GL image did not change: ${reverseDifference}`)
   record('Expo GL renders and animates the actual scene', {
