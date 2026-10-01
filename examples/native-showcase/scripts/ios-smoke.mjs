@@ -16,7 +16,7 @@ mkdirSync(output, { recursive: true })
 const evidence = {
   platform: 'iOS',
   device: 'simulator',
-  axBackend: 'axbridge',
+  axBackends: ['axbridge', 'ax (animated sidebar)'],
   checks: [],
   passed: false,
 }
@@ -30,13 +30,14 @@ const label = (value) => (node) => node.AXLabel?.replace(/\s+/g, ' ').trim() ===
 let udid
 let latestTree = '[]'
 let logger
+let axBackend = 'axbridge'
 
 const idb = (...args) => run('idb', [...args, '--udid', udid])
 
 function nodes() {
   // The default host AX reader can stall across the OS open-URL window change.
   // idb's persistent guest reader avoids that boundary without app instrumentation.
-  latestTree = idb('ui', 'describe-all', '--api', 'axbridge', '--nested').toString()
+  latestTree = idb('ui', 'describe-all', '--api', axBackend, '--nested').toString()
   return parseIosNodes(latestTree)
 }
 
@@ -158,6 +159,10 @@ try {
   record('counter increments and resets')
 
   await tap((node) => node.AXUniqueId === 'mobile-menu-button', 'Storybook menu')
+  // The guest reader exposes the animated sheet's shell but can omit its
+  // portal content; the host reader sees the actual accessible menu items.
+  // This stays within the app window, unlike the open-URL transition above.
+  axBackend = 'ax'
   await waitFor(label('Typography'), 'Typography in story selector')
   screenshot('02-story-selector')
   await tap(label('Typography'), 'select Typography')
@@ -170,6 +175,7 @@ try {
     String(Math.floor((left + right) / 2)),
     String(Math.floor(top + (bottom - top) / 10)),
   )
+  axBackend = 'axbridge'
   await waitFor(label('日本語の表示'), 'Typography story rendered')
   screenshot('03-typography')
   record('Storybook selector switches stories')
