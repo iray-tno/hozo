@@ -1,5 +1,5 @@
 /**
- * The arithmetic a draggable sheet is, with no element in it.
+ * The arithmetic a draggable overlay is, with no element in it.
  *
  * Split out for the reason `slider-rules.ts` is: the hard part of a bottom
  * sheet is not the markup. Where a flick lands, which detent wins a release,
@@ -7,20 +7,27 @@
  * to render something and synthesise pointer events to ask "does 0.9 px/ms
  * downward from half-open dismiss it" is a test nobody writes. Both platform
  * halves import this, so the Web sheet and the Native sheet cannot disagree
- * about where a gesture ends.
+ * about where a gesture ends -- and `Drawer` imports it too, which is the claim
+ * the second paragraph below has to earn.
  *
  * ## One sign convention, stated once
  *
  * Everything here is in terms of the **fraction showing**: 1 is fully open, 0
- * is gone. Travel is how far the sheet has been pulled *down* from its own top,
- * in pixels, and is never negative. Velocity is pixels per millisecond and
- * **positive means downward**, toward dismissal.
+ * is gone. Travel is how far the overlay has been pulled *away*, in pixels, and
+ * is never negative. Velocity is pixels per millisecond and **positive means
+ * away**, toward dismissal.
  *
- * That last one is not a choice so much as a coincidence worth using: a Web
+ * Nothing here knows which direction "away" is, which is what lets `Drawer`
+ * import it as well: a bottom sheet moves on its height and travels downward, a
+ * left-hand drawer moves on its width and travels leftward, and each component
+ * turns its own gesture into these two numbers. `extent` is "size along that
+ * axis" for the same reason.
+ *
+ * For a bottom sheet the sign is not even a choice, which is worth using: a Web
  * `pointermove`'s `clientY` grows downward, and React Native's
- * `gestureState.vy` is positive downward and already in pixels per
- * millisecond. The two platforms agree, so the conversion nobody would
- * remember to write does not have to exist.
+ * `gestureState.vy` is positive downward and already in pixels per millisecond.
+ * The two platforms agree, so the conversion nobody would remember to write does
+ * not have to exist. A drawer negates one axis and is no harder.
  */
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
@@ -57,16 +64,16 @@ export function normalizeDetents(detents: readonly number[] | undefined): number
   return sorted.length === 0 ? [1] : sorted
 }
 
-/** The fraction showing when the sheet has been pulled `travel` px down. */
-export function fractionAfter(travel: number, height: number): number {
-  if (!(height > 0)) return 1
-  return clamp(1 - travel / height, 0, 1)
+/** The fraction showing when the overlay has been pulled `travel` px away. */
+export function fractionAfter(travel: number, extent: number): number {
+  if (!(extent > 0)) return 1
+  return clamp(1 - travel / extent, 0, 1)
 }
 
-/** How far down the sheet sits when `fraction` of it is showing. */
-export function travelFor(fraction: number, height: number): number {
-  if (!(height > 0)) return 0
-  return clamp(1 - fraction, 0, 1) * height
+/** How far out the overlay sits when `fraction` of it is showing. */
+export function travelFor(fraction: number, extent: number): number {
+  if (!(extent > 0)) return 0
+  return clamp(1 - fraction, 0, 1) * extent
 }
 
 /**
@@ -74,8 +81,8 @@ export function travelFor(fraction: number, height: number): number {
  *
  * A sheet cannot be pulled up past its largest detent, because there is no more
  * sheet: dragging a half-height sheet to the top would show its bottom edge
- * floating in the middle of the screen. Downward it is unclamped, all the way
- * to gone, because that is the dismissal.
+ * floating in the middle of the screen. Away from open it is unclamped, all the
+ * way to gone, because that is the dismissal.
  */
 export function clampToDetents(fraction: number, detents: readonly number[] | undefined): number {
   const usable = normalizeDetents(detents)
@@ -85,10 +92,13 @@ export function clampToDetents(fraction: number, detents: readonly number[] | un
 export interface SheetRelease {
   /** The fraction showing at the moment the gesture ended. */
   fraction: number
-  /** Downward speed in px/ms at that moment; positive is toward dismissal. */
+  /** Speed away from open in px/ms at that moment; positive is toward dismissal. */
   velocity: number
-  /** The sheet's full height in px, which is what turns a speed into a distance. */
-  height: number
+  /**
+   * The overlay's size along the axis it moves on, in px -- a bottom sheet's
+   * height, a drawer's width. What turns a speed into a distance.
+   */
+  extent: number
   detents?: readonly number[]
   /**
    * The fraction below which a release dismisses rather than snapping.
@@ -104,16 +114,16 @@ export interface SheetRelease {
  *
  * Exported because it is the interesting half and the one worth testing on its
  * own: a slow drag projects almost nowhere and a flick projects further than
- * the sheet is tall. The projection is capped at the sheet's own height for
+ * the sheet is tall. The projection is capped at the sheet's own extent for
  * that second case -- beyond it the answer is already "gone" or "open", and an
  * uncapped number would only make the arithmetic harder to read.
  */
 export function projectedFraction(release: Omit<SheetRelease, 'detents' | 'dismissBelow'>): number {
-  const { fraction, velocity, height } = release
-  if (!(height > 0)) return clamp(fraction, 0, 1)
-  const travel = travelFor(fraction, height)
-  const carried = clamp(velocity * PROJECTION_MS, -height, height)
-  return fractionAfter(clamp(travel + carried, 0, height), height)
+  const { fraction, velocity, extent } = release
+  if (!(extent > 0)) return clamp(fraction, 0, 1)
+  const travel = travelFor(fraction, extent)
+  const carried = clamp(velocity * PROJECTION_MS, -extent, extent)
+  return fractionAfter(clamp(travel + carried, 0, extent), extent)
 }
 
 /**

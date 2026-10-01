@@ -40,44 +40,44 @@ test('a drag cannot pull the sheet above its largest detent', () => {
 })
 
 test('a slow release projects almost nowhere and a flick projects past the sheet', () => {
-  const height = 400
-  assert.equal(projectedFraction({ fraction: 0.8, velocity: 0, height }), 0.8)
+  const extent = 400
+  assert.equal(projectedFraction({ fraction: 0.8, velocity: 0, extent }), 0.8)
   // 0.02 px/ms carries 10px of a 400px sheet: a fortieth.
   assert.equal(
-    projectedFraction({ fraction: 1, velocity: 0.02, height }),
-    fractionAfter(0.02 * PROJECTION_MS, height),
+    projectedFraction({ fraction: 1, velocity: 0.02, extent }),
+    fractionAfter(0.02 * PROJECTION_MS, extent),
   )
   // A deliberate flick is capped at the sheet's own height, which is "gone".
-  assert.equal(projectedFraction({ fraction: 1, velocity: 4, height }), 0)
+  assert.equal(projectedFraction({ fraction: 1, velocity: 4, extent }), 0)
   // Upward velocity is negative and opens it again.
-  assert.equal(projectedFraction({ fraction: 0.5, velocity: -1, height }), 1)
+  assert.equal(projectedFraction({ fraction: 0.5, velocity: -1, extent }), 1)
 })
 
 test('a release lands on the nearest detent, and a flick skips past them', () => {
-  const height = 400
+  const extent = 400
   const detents = [0.5, 1]
-  assert.equal(restingFraction({ fraction: 0.9, velocity: 0, height, detents }), 1)
-  assert.equal(restingFraction({ fraction: 0.6, velocity: 0, height, detents }), 0.5)
+  assert.equal(restingFraction({ fraction: 0.9, velocity: 0, extent, detents }), 1)
+  assert.equal(restingFraction({ fraction: 0.6, velocity: 0, extent, detents }), 0.5)
   // The point of the projection: let go at full height but moving fast, and it
   // goes away rather than snapping back to where the finger was.
-  assert.equal(restingFraction({ fraction: 1, velocity: 2, height, detents }), null)
+  assert.equal(restingFraction({ fraction: 1, velocity: 2, extent, detents }), null)
   // The same position, released still, keeps the sheet.
-  assert.equal(restingFraction({ fraction: 1, velocity: 0, height, detents }), 1)
+  assert.equal(restingFraction({ fraction: 1, velocity: 0, extent, detents }), 1)
 })
 
 test('dismissal is null, and its default threshold is half the lowest detent', () => {
-  const height = 400
+  const extent = 400
   // One detent, so the default floor is 0.5.
-  assert.equal(restingFraction({ fraction: 0.51, velocity: 0, height }), 1)
-  assert.equal(restingFraction({ fraction: 0.49, velocity: 0, height }), null)
+  assert.equal(restingFraction({ fraction: 0.51, velocity: 0, extent }), 1)
+  assert.equal(restingFraction({ fraction: 0.49, velocity: 0, extent }), null)
   // Two detents put the floor at a quarter, so a sheet dragged to a third of
   // itself snaps back to the half rather than going away.
   const detents = [0.5, 1]
-  assert.equal(restingFraction({ fraction: 0.33, velocity: 0, height, detents }), 0.5)
-  assert.equal(restingFraction({ fraction: 0.2, velocity: 0, height, detents }), null)
+  assert.equal(restingFraction({ fraction: 0.33, velocity: 0, extent, detents }), 0.5)
+  assert.equal(restingFraction({ fraction: 0.2, velocity: 0, extent, detents }), null)
   // And the caller can say otherwise.
   assert.equal(
-    restingFraction({ fraction: 0.33, velocity: 0, height, detents, dismissBelow: 0.4 }),
+    restingFraction({ fraction: 0.33, velocity: 0, extent, detents, dismissBelow: 0.4 }),
     null,
   )
 })
@@ -85,7 +85,7 @@ test('dismissal is null, and its default threshold is half the lowest detent', (
 test('a tie keeps the content on screen', () => {
   // Exactly between 0.5 and 1, released still: the larger wins, because a
   // person who has not decided can always drag it back down.
-  assert.equal(restingFraction({ fraction: 0.75, velocity: 0, height: 400, detents: [0.5, 1] }), 1)
+  assert.equal(restingFraction({ fraction: 0.75, velocity: 0, extent: 400, detents: [0.5, 1] }), 1)
 })
 
 test('the keyboard steps through detents and gives the key back at the ends', () => {

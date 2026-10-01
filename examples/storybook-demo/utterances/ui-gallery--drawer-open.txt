@@ -1,0 +1,10 @@
+button, Menu
+dialog, Navigation, modal
+dialog, Navigation, modal
+heading, Navigation, level 3
+link, Documentation
+link, Decisions
+link, Shipping
+button, Close
+end of dialog, Navigation, modal
+dialog, Navigation, modal

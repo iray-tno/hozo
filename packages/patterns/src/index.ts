@@ -27,6 +27,14 @@ export {
 } from './combobox.tsx'
 export { Dialog, type DialogProps, HozoDialog, type HozoDialogProps } from './dialog.tsx'
 export {
+  HozoDrawer as Drawer,
+  HozoDrawer,
+  type HozoDrawerProps as DrawerProps,
+  type HozoDrawerProps,
+  type HozoDrawerSide as DrawerSide,
+  type HozoDrawerSide,
+} from './drawer.tsx'
+export {
   HozoListbox as Listbox,
   HozoListbox,
   type HozoListboxOption as ListboxOption,

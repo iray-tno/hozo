@@ -138,7 +138,7 @@ export function HozoBottomSheet({
           const landed = restingFraction({
             fraction: at.fraction,
             velocity: state.vy,
-            height: at.height,
+            extent: at.height,
             detents: at.stops,
             dismissBelow: at.dismissBelow,
           })

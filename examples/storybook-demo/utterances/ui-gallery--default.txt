@@ -78,6 +78,7 @@ button, Delete the project
 button, Actions, not expanded, has popup menu
 button, Shipping, not expanded, has popup dialog
 button, Filters
+button, Menu
 heading, Choosing one, choosing several, and a bar, level 2
 paragraph
 The radio group is one tab stop and the arrows choose within it, which is what makes it a group rather than a column of checkboxes. Its ring and dot are two pseudo-elements drawn from aria-checked -- there is no input here to be :checked. The listbox marks its chosen row with a tint and a weight, because colour alone fails WCAG 1.4.1 and is invisible in print.
