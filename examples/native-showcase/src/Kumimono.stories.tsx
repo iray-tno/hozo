@@ -50,7 +50,9 @@ function Animation({
 function KumimonoDemo() {
   const [study] = useState(() => createKumimonoScene())
   const [target, setTarget] = useState(1)
-  const [assembly, setAssembly] = useState('assembled')
+  // Cold native GL initialization can outlive the story's mount. Wait for its
+  // frame callback before enabling assembly controls (not just a mounted View).
+  const [assembly, setAssembly] = useState('loading')
   const onComplete = useCallback((value: number) => {
     setAssembly(value === 1 ? 'assembled' : 'disassembled')
   }, [])
@@ -95,7 +97,7 @@ function KumimonoDemo() {
             setAssembly('moving')
             setTarget(0)
           }}
-          disabled={assembly === 'disassembled'}
+          disabled={assembly === 'loading' || assembly === 'disassembled'}
           className="rounded-lg bg-slate-800 px-4 py-3 text-white"
         >
           分解
@@ -105,7 +107,7 @@ function KumimonoDemo() {
             setAssembly('moving')
             setTarget(1)
           }}
-          disabled={assembly === 'assembled'}
+          disabled={assembly === 'loading' || assembly === 'assembled'}
           className="rounded-lg bg-slate-800 px-4 py-3 text-white"
         >
           組み立て
