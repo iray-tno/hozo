@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useScrollLock } from './scroll-lock.ts'
 import {
   clampToDetents,
   cycleDetent,
@@ -118,6 +119,11 @@ export function HozoBottomSheet({
   const largest = stops[stops.length - 1] as number
   const openAt = clampToDetents(defaultDetent ?? largest, stops)
 
+  // The page behind a modal overlay should not scroll, and nothing but a real
+  // `<dialog>` gets that for free. #142 asks for it under `Drawer`; the gap was
+  // the same here, so the fix is the same module.
+  useScrollLock(open)
+
   const panelRef = useRef<HTMLDivElement>(null)
   const [fraction, setFraction] = useState(openAt)
   const [dragging, setDragging] = useState(false)
@@ -183,7 +189,7 @@ export function HozoBottomSheet({
       const landed = restingFraction({
         fraction,
         velocity: at.velocity,
-        height: at.height,
+        extent: at.height,
         detents: stops,
         dismissBelow,
       })

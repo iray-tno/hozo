@@ -33,6 +33,7 @@ import {
   DateRangePicker,
   DateTimePicker,
   Dialog,
+  Drawer,
   Field,
   Input,
   Listbox,
@@ -298,6 +299,7 @@ function UiGallery() {
             </Button>
           </Popover>
           <UiBottomSheet />
+          <UiDrawer />
         </Stack>
       </Section>
       <Section>
@@ -518,6 +520,62 @@ function UiBottomSheet({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   )
 }
 
+/**
+ * The drawer, and the button that opens it.
+ *
+ * Nothing to drag on this platform, which is #142's own split rather than a gap:
+ * the Web drawer is asked for an off-canvas panel, a focus trap and a scroll
+ * lock, and the gesture is listed under Native. A drawer has no grabber, so a
+ * swipe would have to drag the panel's body and fight text selection -- a
+ * trade worth making on a phone, where there is no Escape key either, and not
+ * here.
+ *
+ * It holds links, because that is what a drawer is for and because it makes the
+ * golden say something: four links inside a modal dialog, and nothing from the
+ * page behind it.
+ */
+function UiDrawer({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen)
+  // A host inside the story, for the reason the sheet above has one: the
+  // screen-reader walk reads from `#storybook-root`.
+  const [host, setHost] = useState<HTMLDivElement | null>(null)
+  return (
+    <>
+      {/*
+        Neutral rather than quiet, and the axe run is why. A quiet button has no
+        background of its own, so with the drawer open axe composites its label
+        through the scrim and reports 2.9:1 in dark mode -- correctly, by its own
+        rules. Dimmed text behind a modal is not content anybody is being asked
+        to read, which axe cannot know, so the story does not put a transparent
+        control directly behind a scrim.
+      */}
+      <Button tone="neutral" onPress={() => setOpen(true)}>
+        Menu
+      </Button>
+      <div ref={setHost} />
+      <PortalProvider container={host}>
+        <Drawer open={open} onClose={() => setOpen(false)} accessibilityLabel="Navigation">
+          <Heading level={3} className="text-lg font-bold text-hozo-text">
+            Navigation
+          </Heading>
+          <Button tone="quiet" size="sm" href="/docs">
+            Documentation
+          </Button>
+          <Button tone="quiet" size="sm" href="/decisions">
+            Decisions
+          </Button>
+          <Button tone="quiet" size="sm" href="/shipping">
+            Shipping
+          </Button>
+          <Button tone="neutral" size="sm" onPress={() => setOpen(false)}>
+            Close
+          </Button>
+        </Drawer>
+      </PortalProvider>
+    </>
+  )
+}
+
 const meta = {
   title: 'UI/Gallery',
   component: UiGallery,
@@ -559,6 +617,19 @@ export const DialogOpen: StoryObj<typeof meta> = { render: () => <UiDialog initi
  */
 export const BottomSheetOpen: StoryObj<typeof meta> = {
   render: () => <UiBottomSheet initiallyOpen />,
+}
+
+/**
+ * The drawer open on mount, its own story for the reason the other two modals
+ * have theirs.
+ *
+ * `side="left"` is the default and the only one shown. The other side is one prop
+ * and a second class list in `@hozo/ui` -- written out rather than interpolated,
+ * because a name built at runtime is a name the compiler never sees and never
+ * emits CSS for.
+ */
+export const DrawerOpen: StoryObj<typeof meta> = {
+  render: () => <UiDrawer initiallyOpen />,
 }
 
 export const PopoverOpen: StoryObj<typeof meta> = {

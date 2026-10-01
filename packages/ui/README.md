@@ -81,6 +81,7 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Tooltip` | an inverse bubble, positioned by the pattern |
 | `Popover` | a panel on a surface, non-modal, closing when focus leaves |
 | `BottomSheet` | a modal sheet against the bottom edge, centred from `sm:`, with a grabber |
+| `Drawer` | a modal panel against the left or right edge, one class list per side |
 | `RadioGroup` | a ring and a dot, drawn from `aria-checked` |
 | `Listbox` | a scrolling box whose chosen row changes weight as well as colour |
 | `Menu` | a neutral trigger and a floating panel |

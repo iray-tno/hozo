@@ -27,6 +27,14 @@ export {
 export type { Autocomplete } from './combobox-rules.ts'
 export { Dialog, type DialogProps, HozoDialog, type HozoDialogProps } from './dialog.native.tsx'
 export {
+  HozoDrawer as Drawer,
+  HozoDrawer,
+  type HozoDrawerProps as DrawerProps,
+  type HozoDrawerProps,
+  type HozoDrawerSide as DrawerSide,
+  type HozoDrawerSide,
+} from './drawer.native.tsx'
+export {
   HozoListbox as Listbox,
   HozoListbox,
   type HozoListboxOption as ListboxOption,

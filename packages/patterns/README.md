@@ -2,7 +2,7 @@
 
 Accessible stateful widgets for Hozo: `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`,
 `RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Slider`, `Toolbar`, `Tree`, `Tooltip`, `Popover` and
-`BottomSheet`. Each carries its WAI-ARIA
+`BottomSheet` and `Drawer`. Each carries its WAI-ARIA
 keyboard contract on the Web and the matching accessibility semantics on React Native.
 
 `Checkbox` and `Switch` are one control with two roles, and choosing between them chooses what a
@@ -65,6 +65,29 @@ button that cycles detents and answers the arrows, because then dragging is the 
 the size. On React Native the sheet is a `Modal`, so Android's back button dismisses it through
 `onRequestClose` -- the thing `Popover` cannot offer there -- and the `escape` accessibility action
 answers VoiceOver's two-finger scrub.
+
+`Drawer` closes #142 and is the same composition against a side edge, with the gesture on one
+platform only. That is #142's own split rather than a shortcut: the Web drawer is asked for an
+off-canvas panel, a focus trap and a scroll lock, and the gesture is listed under Native. A drawer
+has no grabber, so a swipe has to drag the panel's own body -- which fights text selection on a
+desktop and fights nothing on a phone, where there is also no Escape key to fall back on. The
+arithmetic is still `sheet-rules.ts`: it is written as "fraction showing", "travel away from open"
+and "velocity away from open" and knows nothing about which direction away is, so a left-hand drawer
+negates one axis and reuses every line of it.
+
+`side` is `'left' | 'right'` rather than logical `start`/`end`, which is a deferral and not a
+preference: turning a logical side into a physical one needs a resolved writing direction, which is
+[#157](https://github.com/iray-tno/hozo/issues/157)'s substrate, and naming it `start` today would
+only put a better word on a guess. **Edge-swipe-to-open is deliberately absent**, in both halves: a
+closed drawer cannot listen at the screen's edge without keeping an invisible catcher over the
+application's content for as long as it is closed, which is a decision about the screen rather than
+about the drawer, and it collides with the platforms' own back gestures. It can never be the only
+way in either, since nobody who cannot swipe could reach it.
+
+`useScrollLock` is the one thing a real `<dialog>` gives away for free and a `position: fixed` panel
+does not, so both `Drawer` and `BottomSheet` call it: without it a wheel over the scrim scrolls the
+page a reader has just been told is unavailable. The locks are counted, because a drawer can open a
+sheet and two overlays each restoring what they found would leave the page locked for good.
 
 They are built on the headless engines in `@hozo/behaviors` -- focus scopes, roving focus,
 typeahead, dismissal and floating positioning -- which stay reusable on their own. Applications
