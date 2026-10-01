@@ -145,11 +145,14 @@ build the current source. The existing 30-day artifact retention applies.
 
 iOS diagnostics first tap **General** in Apple's Settings app and check the
 **About** row, then run the unchanged Hozo interaction assertions. Each idb call
-records its duration and debug log. An input still running after 10 seconds is
+records its duration and debug log. A UI command still running after 10 seconds is
 sampled read-only in a separate process (companion, showcase and command process);
 the existing 30-second input deadline and no-retry policy remain in place.
 Companion logs are retained on both success and failure. Sampling can affect
 timing, so use it to locate a stall, not to measure application performance.
+`ios-ax-backend` explicitly compares the guest (`axbridge`, default) and host
+(`ax`) readers. Inputs still use HID in both cases; there is no automatic reader
+fallback or input retry.
 
 Android diagnostics save boot logs, CPU/pressure, input-service state and system
 ANR reports **before** starting the app, and again on failure. `android-target`

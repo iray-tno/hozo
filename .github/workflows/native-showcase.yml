@@ -30,13 +30,18 @@ on:
         type: choice
         options: [google_apis, default]
         default: google_apis
+      ios-ax-backend:
+        description: 'Accessibility reader for an explicit diagnostic comparison'
+        type: choice
+        options: [axbridge, ax]
+        default: axbridge
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: native-showcase-${{ github.ref }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}
+  group: native-showcase-${{ github.ref }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.ios-ax-backend || 'axbridge' }}
   cancel-in-progress: true
 
 jobs:
@@ -190,6 +195,7 @@ jobs:
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
           HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
+          HOZO_AX_BACKEND: ${{ inputs.ios-ax-backend || 'axbridge' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

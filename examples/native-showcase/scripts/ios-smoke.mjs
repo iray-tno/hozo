@@ -29,7 +29,7 @@ mkdirSync(output, { recursive: true })
 const evidence = {
   platform: 'iOS',
   device: 'simulator',
-  axBackend: 'axbridge',
+  axBackend: process.env.HOZO_AX_BACKEND || 'axbridge',
   sidebarSelection: 'visible text (Apple Vision)',
   checks: [],
   passed: false,
@@ -52,14 +52,14 @@ let commandNumber = 0
 const idb = (...args) => {
   if (!evidence.diagnostic) return run('idb', [...args, '--udid', udid])
   const prefix = resolve(output, `idb-${++commandNumber}`)
-  const input = args[0] === 'ui' && ['tap', 'text'].includes(args[1])
-  const watcher = input
-    ? spawn(
-        process.execPath,
-        [resolve(root, 'scripts/ios-input-watch.mjs'), String(process.pid), `${prefix}-stacks`],
-        { stdio: 'ignore' },
-      )
-    : undefined
+  const watcher =
+    args[0] === 'ui'
+      ? spawn(
+          process.execPath,
+          [resolve(root, 'scripts/ios-input-watch.mjs'), String(process.pid), `${prefix}-stacks`],
+          { stdio: 'ignore' },
+        )
+      : undefined
   const stderrFd = openSync(`${prefix}-stderr.txt`, 'w')
   const started = Date.now()
   const command = [...args, '--udid', udid, '--log', 'DEBUG']
@@ -93,9 +93,10 @@ const idb = (...args) => {
 }
 
 function nodes() {
-  // The default host AX reader can stall across the OS open-URL window change.
-  // idb's persistent guest reader avoids that boundary without app instrumentation.
-  latestTree = idb('ui', 'describe-all', '--api', 'axbridge', '--nested').toString()
+  // Default to the persistent guest reader. Diagnostics may explicitly compare
+  // the host reader; never silently switch readers to turn a failure into a pass.
+  assert.ok(['axbridge', 'ax'].includes(evidence.axBackend), 'unsupported AX backend')
+  latestTree = idb('ui', 'describe-all', '--api', evidence.axBackend, '--nested').toString()
   return parseIosNodes(latestTree)
 }
 
