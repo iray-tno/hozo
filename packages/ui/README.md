@@ -72,6 +72,7 @@ Two decisions it makes for you, both written down in the source: the error comes
 |---|---|
 | `Button` | four tones, two sizes, and a link when given an `href` |
 | `Input` | one line or many; styled by `aria-invalid` rather than by a prop |
+| `TextArea` | a measured, growing field with a counter that is a description |
 | `Field` | the wiring above |
 | `Checkbox`, `Switch` | `@hozo/patterns` wearing a box and a track |
 | `Slider` | a rail, a fill and a 24px thumb, either orientation |

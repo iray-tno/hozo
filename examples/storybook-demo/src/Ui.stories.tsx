@@ -45,6 +45,7 @@ import {
   Switch,
   type Tab,
   Tabs,
+  TextArea,
   TimePicker,
   Toolbar,
   Tooltip,
@@ -111,6 +112,7 @@ const PANELS: Tab[] = [
 
 function UiGallery() {
   const [email, setEmail] = useState('not-an-email')
+  const [notes, setNotes] = useState('')
   const [meals, setMeals] = useState<readonly string[]>(['Lunch'])
   const [emails, setEmails] = useState(true)
   const [volume, setVolume] = useState(40)
@@ -172,6 +174,26 @@ function UiGallery() {
             >
               {(control) => (
                 <Input {...control} inputMode="email" value={email} onChangeText={setEmail} />
+              )}
+            </Field>
+            {/*
+              The textarea grows as it is typed into, and its counter is a
+              description rather than a live region -- a reader hears "160 of 160
+              characters left" on reaching the field, and unprompted only twice:
+              entering the last ten, and running out. `{...control}` works because
+              `TextArea` spells those three attributes the way `Field` does.
+            */}
+            <Field label="Notes" description="Anything the courier should know." required>
+              {(control) => (
+                <TextArea
+                  {...control}
+                  value={notes}
+                  onChangeText={setNotes}
+                  minRows={2}
+                  maxRows={6}
+                  maxLength={160}
+                  placeholder="Leave it with a neighbour…"
+                />
               )}
             </Field>
             <Stack direction="row" gap="tight">

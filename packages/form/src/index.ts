@@ -83,6 +83,23 @@ export {
   withTime,
 } from './date-time-rules.ts'
 export {
+  HozoTextArea as TextArea,
+  HozoTextArea,
+  type HozoTextAreaProps as TextAreaProps,
+  type HozoTextAreaProps,
+} from './text-area.tsx'
+export {
+  type CountAnnouncement,
+  clampedSize,
+  FALLBACK_LINE_HEIGHT,
+  heightForRows,
+  remainingCharacters,
+  shouldAnnounceCount,
+  type TextAreaBox,
+  type TextAreaSize,
+  usableLineHeight,
+} from './text-area-rules.ts'
+export {
   hourLabel,
   minuteLabel,
   type TimeOptionsInput,
