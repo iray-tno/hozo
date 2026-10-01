@@ -73,6 +73,7 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Button` | four tones, two sizes, and a link when given an `href` |
 | `Input` | one line or many; styled by `aria-invalid` rather than by a prop |
 | `TextArea` | a measured, growing field with a counter that is a description |
+| `NativeSelect` | a real `<select>`; the closed box is ours, the open list is the OS's |
 | `Field` | the wiring above |
 | `Form` | a column, and a submission that will not step past an invalid field |
 | `Checkbox`, `Switch` | `@hozo/patterns` wearing a box and a track |

@@ -22,6 +22,14 @@ Notes
 textbox, Notes, Anything the courier should know. 160 of 160 characters left, placeholder Leave it with a neighbour…, required
 160 of 160 characters left
 Anything the courier should know.
+Courier
+combobox, Courier, Who carries it to the door., has popup listbox, not expanded
+option, Choose a courier, not selected, position 1, set size 4
+option, Post office, post, not selected, position 2, set size 4
+option, Bike courier, bike, not selected, position 3, set size 4
+option, Drone, drone, not selected, disabled, position 4, set size 4
+end of combobox, Courier, Who carries it to the door., has popup listbox, not expanded
+Who carries it to the door.
 button, Continue
 button, Back
 end of form, Delivery
