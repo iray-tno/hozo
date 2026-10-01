@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
-import { createWriteStream, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
@@ -23,7 +23,6 @@ const label = (value) => (node) => node.AXLabel?.replace(/\s+/g, ' ').trim() ===
 let udid
 let latestTree = '[]'
 let logger
-let logStream
 
 const idb = (...args) => run('idb', [...args, '--udid', udid])
 
@@ -100,7 +99,7 @@ try {
   if (device.state !== 'Booted') simctl('boot', udid)
   run('xcrun', ['simctl', 'bootstatus', udid, '-b'], 180_000)
   simctl('install', udid, binary)
-  logStream = createWriteStream(resolve(output, 'syslog.txt'))
+  const logFd = openSync(resolve(output, 'syslog.txt'), 'w')
   logger = spawn(
     'xcrun',
     [
@@ -114,10 +113,9 @@ try {
       '--predicate',
       'process == "HozoShowcase"',
     ],
-    { stdio: ['ignore', 'pipe', 'pipe'] },
+    { stdio: ['ignore', logFd, logFd] },
   )
-  logger.stdout.pipe(logStream)
-  logger.stderr.pipe(logStream, { end: false })
+  closeSync(logFd)
   logger.on('error', (error) => {
     evidence.logError = error.message
   })
@@ -232,6 +230,5 @@ try {
   throw error
 } finally {
   logger?.kill()
-  logStream?.end()
   writeFileSync(resolve(output, 'evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`)
 }
