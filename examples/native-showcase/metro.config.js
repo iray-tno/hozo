@@ -32,7 +32,7 @@ config.resolver.resolveRequest = (context, request, platform) =>
 // production-app entry swapping wrapper) and preserve Hozo's transformer.
 module.exports = withHozo(config, {
   root: projectRoot,
-  sources: ['@hozo/primitives', '@hozo/typography'],
+  sources: ['@hozo/primitives', '@hozo/typography', '@hozo/patterns'],
 }).then((hozoConfig) =>
   withStorybook(hozoConfig, {
     enabled: true,

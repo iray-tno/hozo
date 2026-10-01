@@ -1,4 +1,11 @@
-import { ButtonDemo, FormDemo, TypographyDemo } from '@hozo/example-showcase'
+import {
+  ButtonDemo,
+  DialogDemo,
+  FormDemo,
+  PreferencesDemo,
+  TabsDemo,
+  TypographyDemo,
+} from '@hozo/example-showcase'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import './SharedShowcase.css'
 
@@ -21,3 +28,7 @@ export const Buttons: Story = {}
 export const Disabled: Story = { args: { disabled: true } }
 export const Typography: Story = { render: () => <TypographyDemo /> }
 export const Form: Story = { render: () => <FormDemo /> }
+export const Preferences: Story = { render: () => <PreferencesDemo /> }
+export const Sections: Story = { render: () => <TabsDemo /> }
+export const Confirmation: Story = { render: () => <DialogDemo /> }
+export const ConfirmationOpen: Story = { render: () => <DialogDemo initiallyOpen /> }

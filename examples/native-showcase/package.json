@@ -22,6 +22,7 @@
     "@hozo/core": "workspace:^",
     "@hozo/example-showcase": "workspace:*",
     "@hozo/example-three-kumimono": "workspace:*",
+    "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
     "@hozo/three": "workspace:^",
     "@hozo/typography": "workspace:^",

@@ -270,6 +270,9 @@ importers:
       '@hozo/example-three-kumimono':
         specifier: workspace:*
         version: link:../three-kumimono
+      '@hozo/patterns':
+        specifier: workspace:^
+        version: link:../../packages/patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../../packages/primitives
@@ -425,6 +428,9 @@ importers:
       '@hozo/core':
         specifier: workspace:^
         version: link:../../packages/core
+      '@hozo/patterns':
+        specifier: workspace:^
+        version: link:../../packages/patterns
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../../packages/primitives

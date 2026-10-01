@@ -28,6 +28,28 @@ test('Storybook composes with the Hozo transformer and host singleton resolver',
   }
 })
 
+test('shared patterns keep platform-neutral bodies and lower their primitive children', () => {
+  const file = path.join(root, '../showcase/src/patterns.tsx')
+  const source = readFileSync(file, 'utf8')
+  assert.doesNotMatch(
+    source,
+    /from ['"](?:react-native|@storybook\/[^'"]+)['"]|\b(?:window|document)\./,
+  )
+  const transformed = transformHozoSource(source, file)
+  assert.ok(transformed)
+  assert.doesNotMatch(transformed, /className=|<(?:Text|View|Heading|Paragraph)\b[^>]*className=/)
+  assert.match(transformed, /restoreFocusTo=\{opener\}/)
+  assert.match(transformed, /onCheckedChange=\{setNotifications\}/)
+  assert.match(transformed, /onIndexChange=\{setSelected\}/)
+  assert.match(transformed, /StyleSheet\.create/)
+  for (const [, module] of transformed.matchAll(/from ['"](@hozo\/[^'"]+)['"]/g)) {
+    assert.ok(
+      createRequire(file).resolve(module),
+      `shared source must declare generated dependency ${module}`,
+    )
+  }
+})
+
 test('shared bodies lower into Native styles, accessible controls and nested Text', () => {
   const file = path.join(root, '../showcase/src/index.tsx')
   const source = readFileSync(file, 'utf8')

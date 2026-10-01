@@ -36,6 +36,12 @@ device behavior.
 
 - **Primitives / Shared showcase**: buttons (including disabled controls),
   typography and an editable form. Storybook Controls can change `disabled`.
+- **Patterns / Shared showcase**: checkbox/switch preferences, controlled tabs
+  with an unavailable section, and a confirmation dialog (closed/open states).
+  These bodies are also in Web Storybook's shared showcase. Android smoke
+  checks preference changes, disabled selection, tab content, dialog Back
+  cancellation and confirmation. This is not a TalkBack focus-restoration
+  claim; the known modal-window timing boundary remains separate (#484).
 - **Three / Kumimono**: the same procedural scene used by the landing page,
   rendered with `@hozo/three/r3f-native` and Expo GL. Assembly/disassembly uses
   demand rendering, honors reduced motion and pauses in the background.

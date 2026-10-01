@@ -1,6 +1,26 @@
 /* Native TextInput owns its platform focus treatment; this is the Web
    wrapper's ring, not a Native-unsupported variant on the shared body. */
-.shared-showcase input:focus-visible {
+.shared-showcase input:focus-visible,
+.shared-showcase [role="button"]:focus-visible,
+.shared-showcase button[role]:focus-visible,
+.shared-showcase [role="tabpanel"]:focus-visible {
   outline: 2px solid #4f39f6;
   outline-offset: 2px;
+}
+
+.shared-showcase [role="tablist"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.shared-showcase button[role] {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.shared-showcase button[aria-disabled="true"] {
+  cursor: default;
 }

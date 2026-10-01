@@ -1,0 +1,14 @@
+heading, Preferences, level 2
+checkbox, Email notifications, not checked
+Email notifications:
+disabled
+end of checkbox, Email notifications, not checked
+switch, Automatic updates, checked
+Automatic updates:
+on
+end of switch, Automatic updates, checked
+checkbox, Required security notices, checked, disabled
+Preferences: email
+off
+, updates
+on

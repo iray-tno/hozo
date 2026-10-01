@@ -1,0 +1,11 @@
+heading, Workspace sections, level 2
+tablist, Workspace sections, orientated horizontally
+tab, Overview, selected, 1 control, position 1, set size 3
+tab, Details, not selected, 1 control, position 2, set size 3
+tab, Unavailable, not selected, 1 control, disabled, position 3, set size 3
+end of tablist, Workspace sections, orientated horizontally
+tabpanel, Overview
+Your workspace at a glance.
+end of tabpanel, Overview
+Current section:
+Overview
