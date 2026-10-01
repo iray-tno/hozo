@@ -13,7 +13,13 @@ const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(process.argv[2] ?? resolve(root, '../../artifacts/native-showcase-ios'))
 mkdirSync(output, { recursive: true })
-const evidence = { platform: 'iOS', device: 'simulator', checks: [], passed: false }
+const evidence = {
+  platform: 'iOS',
+  device: 'simulator',
+  axBackend: 'axbridge',
+  checks: [],
+  passed: false,
+}
 const run = (command, args, timeout = 30_000) =>
   execFileSync(command, args, {
     timeout,
@@ -28,25 +34,37 @@ let logger
 const idb = (...args) => run('idb', [...args, '--udid', udid])
 
 function nodes() {
-  latestTree = idb('ui', 'describe-all', '--nested').toString()
+  // The default host AX reader can stall across the OS open-URL window change.
+  // idb's persistent guest reader avoids that boundary without app instrumentation.
+  latestTree = idb('ui', 'describe-all', '--api', 'axbridge', '--nested').toString()
   return parseIosNodes(latestTree)
 }
 
 async function waitFor(predicate, description, timeout = 60_000, allowOpenConfirmation = false) {
-  const deadline = Date.now() + timeout
+  let deadline = Date.now() + timeout
   let lastError
+  let confirmed = false
   do {
+    let tree
     try {
-      const tree = nodes()
-      const confirmation = allowOpenConfirmation ? openShowcaseConfirmation(tree) : undefined
+      tree = nodes()
+    } catch (error) {
+      lastError = error
+    }
+    if (tree) {
+      const confirmation =
+        allowOpenConfirmation && !confirmed ? openShowcaseConfirmation(tree) : undefined
       if (confirmation) {
+        // Unlike read-only tree polling, an input error must propagate; never
+        // retry a potentially delivered tap. Allow the app its own route budget
+        // after the OS confirmation, once only (not an indefinitely reset timer).
         idb('ui', 'tap', ...centre(confirmation).map(String))
+        confirmed = true
         evidence.openConfirmations = (evidence.openConfirmations ?? 0) + 1
+        deadline = Date.now() + timeout
       }
       const found = tree.find(predicate)
       if (found) return found
-    } catch (error) {
-      lastError = error
     }
     await pause(1_000)
   } while (Date.now() < deadline)
@@ -244,6 +262,7 @@ try {
   evidence.passed = true
 } catch (error) {
   evidence.error = error.stack
+  evidence.errorCause = error.cause?.message
   try {
     if (udid) screenshot('failure')
   } catch {

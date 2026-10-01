@@ -129,6 +129,7 @@ jobs:
           brew tap facebook/fb
           brew trust facebook/fb
           brew install facebook/fb/idb
+          idb ui describe-all --help
       - name: Exercise real Native Storybook and Expo GL on iOS
         run: node examples/native-showcase/scripts/ios-smoke.mjs artifacts/native-showcase-ios
       - uses: actions/upload-artifact@v4
