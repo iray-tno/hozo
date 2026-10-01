@@ -78,3 +78,62 @@ jobs:
           path: artifacts/native-showcase
           if-no-files-found: ignore
           retention-days: 30
+
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile --filter @hozo/example-native-showcase...
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm --filter @hozo/example-native-showcase... --if-present build
+      - run: pnpm --filter @hozo/example-native-showcase test:unit
+      - run: pnpm --filter @hozo/example-native-showcase typecheck
+      - run: pnpm --filter @hozo/example-native-showcase prebuild:ios
+      - name: Install pods
+        working-directory: examples/native-showcase/ios
+        run: |
+          pod install && exit 0
+          echo "::warning::pod install failed once; retrying"
+          pod install
+      - name: Build standalone showcase for iOS Simulator
+        working-directory: examples/native-showcase/ios
+        run: |
+          xcodebuild \
+            -workspace HozoShowcase.xcworkspace \
+            -scheme HozoShowcase \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/Build/Products/Release-iphonesimulator/HozoShowcase.app \
+            HozoShowcase-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hozo-native-showcase-ios-simulator-app
+          path: examples/native-showcase/ios/HozoShowcase-simulator.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Install iOS Simulator input driver
+        run: |
+          brew tap facebook/fb
+          brew trust facebook/fb
+          brew install facebook/fb/idb
+      - name: Exercise real Native Storybook and Expo GL on iOS
+        run: node examples/native-showcase/scripts/ios-smoke.mjs artifacts/native-showcase-ios
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-ios-evidence
+          path: artifacts/native-showcase-ios
+          if-no-files-found: ignore
+          retention-days: 30

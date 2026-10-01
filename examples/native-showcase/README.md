@@ -71,8 +71,21 @@ not a store release. `hozo-native-showcase-android-evidence` contains screenshot
 UI hierarchies, logs and `evidence.json`, including failures. Artifacts expire
 after 30 days; rebuild via **Run workflow** when needed. The workflow runs
 weekly on main, manually, and on PRs that change the showcase or its driver.
-It does not claim physical-device performance or TalkBack/VoiceOver coverage;
-iOS still needs a native build and interaction check.
+The same workflow builds an **offline iOS Simulator app**, installs it on an
+iPhone 17 simulator, and exercises the selector, counter/reset, disabled
+controls, keyboard/form, preferences, tabs, dialog cancellation/confirmation,
+Kumimono assembly/disassembly and switching away from the GPU story. Its Canvas
+pixel comparisons convert measured accessibility screen-point bounds to Retina
+pixels; changing status labels cannot count as rendered animation.
+
+`hozo-native-showcase-ios-simulator-app` contains the unsigned simulator `.app`
+in a ZIP (for macOS Simulator, **not** physical iPhones).
+`hozo-native-showcase-ios-evidence` contains screenshots, nested accessibility
+trees, system logs and `evidence.json`, including failures. The iOS driver uses
+[idb](https://fbidb.io/docs/idb/ui/) for real taps and keyboard input; it does not
+inject test controls into the showcase. Neither platform's checks claim
+physical-device performance or TalkBack/VoiceOver coverage. iOS background/
+resume and reduced motion remain manual checks; Android resume is automated.
 
 With an Android SDK, connected emulator/device and Java 17, reproduce it locally
 after the dependency builds above:
@@ -89,6 +102,24 @@ On Windows use `gradlew.bat`. Prebuild does not clean an existing generated
 native project. The driver installs the showcase APK, resets its running
 process and writes evidence; use a dedicated emulator rather than a device
 where you need to preserve an active showcase session.
+
+On macOS with Xcode, CocoaPods and `facebook/fb/idb` installed, reproduce the iOS
+check after the dependency builds above:
+
+```sh
+pnpm --filter @hozo/example-native-showcase prebuild:ios
+cd examples/native-showcase/ios
+pod install
+xcodebuild -workspace HozoShowcase.xcworkspace -scheme HozoShowcase \
+  -configuration Release -sdk iphonesimulator -derivedDataPath build \
+  CODE_SIGNING_ALLOWED=NO build
+cd ../../..
+pnpm --filter @hozo/example-native-showcase smoke:ios
+```
+
+The driver boots the available `iPhone 17`, or the simulator specified by
+`IOS_UDID` (alternatively `IOS_DEVICE`). It installs and restarts the showcase,
+so use a dedicated simulator. Every subsequent action uses that exact UDID.
 
 ```sh
 pnpm --filter @hozo/example-native-showcase typecheck
