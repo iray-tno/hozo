@@ -84,6 +84,7 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `BottomSheet` | a modal sheet against the bottom edge, centred from `sm:`, with a grabber |
 | `Drawer` | a modal panel against the left or right edge, one class list per side |
 | `RadioGroup` | a ring and a dot, drawn from `aria-checked` |
+| `SegmentedControl` | that same radio group as a strip; a look, not a component |
 | `Listbox` | a scrolling box whose chosen row changes weight as well as colour |
 | `Menu` | a neutral trigger and a floating panel |
 | `Toolbar` | a bar; the controls in it are yours |
