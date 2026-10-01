@@ -112,6 +112,7 @@ jobs:
             -configuration Release \
             -sdk iphonesimulator \
             -derivedDataPath build \
+            ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO \
             build
           ditto -c -k --sequesterRsrc --keepParent \

@@ -47,3 +47,12 @@ export function pixelBounds(rect, screenRect, image) {
     Math.floor(rect[3] * scaleY),
   ]
 }
+
+export function openShowcaseConfirmation(nodes) {
+  // simctl openurl can go through the OS's external-app confirmation. Do not
+  // approve arbitrary alerts (or another app's similarly named Open button).
+  const prompt = nodes.some((node) => /^Open in [“"]Hozo Showcase[”"]\?$/.test(node.AXLabel ?? ''))
+  return prompt
+    ? nodes.find((node) => node.type === 'Button' && node.AXLabel === 'Open')
+    : undefined
+}

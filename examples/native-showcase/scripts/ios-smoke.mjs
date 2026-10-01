@@ -6,7 +6,7 @@ import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
-import { parseIosNodes, pixelBounds } from './ios-evidence.mjs'
+import { openShowcaseConfirmation, parseIosNodes, pixelBounds } from './ios-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -31,12 +31,18 @@ function nodes() {
   return parseIosNodes(latestTree)
 }
 
-async function waitFor(predicate, description, timeout = 60_000) {
+async function waitFor(predicate, description, timeout = 60_000, allowOpenConfirmation = false) {
   const deadline = Date.now() + timeout
   let lastError
   do {
     try {
-      const found = nodes().find(predicate)
+      const tree = nodes()
+      const confirmation = allowOpenConfirmation ? openShowcaseConfirmation(tree) : undefined
+      if (confirmation) {
+        idb('ui', 'tap', ...centre(confirmation).map(String))
+        evidence.openConfirmations = (evidence.openConfirmations ?? 0) + 1
+      }
+      const found = tree.find(predicate)
       if (found) return found
     } catch (error) {
       lastError = error
@@ -60,7 +66,7 @@ function screenshot(name) {
 
 async function story(id, expected) {
   simctl('openurl', udid, `hozo-showcase://storybook?STORYBOOK_STORY_ID=${id}`)
-  await waitFor(label(expected), `story ${id}`)
+  await waitFor(label(expected), `story ${id}`, 60_000, true)
 }
 
 function record(name, details = {}) {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { centre } from './device-evidence.mjs'
-import { parseIosNodes, pixelBounds } from './ios-evidence.mjs'
+import { openShowcaseConfirmation, parseIosNodes, pixelBounds } from './ios-evidence.mjs'
 
 test('iOS nested AX tree preserves groups, labels, identifiers and screen-point bounds', () => {
   const nodes = parseIosNodes(
@@ -63,4 +63,12 @@ test('Retina Canvas crop uses measured full-screen bounds, never control coordin
       height: 1600,
     }),
   )
+})
+
+test('only the OS confirmation naming this showcase can be approved', () => {
+  const open = { type: 'Button', AXLabel: 'Open', rect: [205, 450, 345, 498] }
+  assert.equal(openShowcaseConfirmation([{ AXLabel: 'Open in “Hozo Showcase”?' }, open]), open)
+  assert.equal(openShowcaseConfirmation([{ AXLabel: 'Open in "Hozo Showcase"?' }, open]), open)
+  assert.equal(openShowcaseConfirmation([{ AXLabel: 'Open in “Other App”?' }, open]), undefined)
+  assert.equal(openShowcaseConfirmation([open]), undefined)
 })

@@ -79,7 +79,9 @@ pixel comparisons convert measured accessibility screen-point bounds to Retina
 pixels; changing status labels cannot count as rendered animation.
 
 `hozo-native-showcase-ios-simulator-app` contains the unsigned simulator `.app`
-in a ZIP (for macOS Simulator, **not** physical iPhones).
+in a ZIP (for Apple Silicon macOS Simulator on the current runner, **not**
+physical iPhones). CI builds only its host architecture rather than spending
+time compiling the untested Intel slice; build locally below for another host.
 `hozo-native-showcase-ios-evidence` contains screenshots, nested accessibility
 trees, system logs and `evidence.json`, including failures. The iOS driver uses
 [idb](https://fbidb.io/docs/idb/ui/) for real taps and keyboard input; it does not
