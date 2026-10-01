@@ -1,6 +1,7 @@
 // A bundle fixture and a device acceptance screen. Stable testIDs make
 // manual VoiceOver/TalkBack and layout results reproducible.
 
+import { hasAccessibilityFocusMover } from '@hozo/behaviors/native'
 import { Dialog, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from '@hozo/core'
 import { PanResponder } from '@hozo/rn-compat'
 import { useEffect, useRef, useState } from 'react'
@@ -60,7 +61,12 @@ export default function App() {
     setConfirming(true)
   }
   const closeConfirmation = () => {
-    console.info('[hozo-dialog-focus] close')
+    // Which restore path this build is on, in the line the harness already
+    // reads. Without it a measured loss cannot be told apart from a native
+    // module that was never reached, and those two want opposite fixes.
+    console.info(
+      `[hozo-dialog-focus] close via ${hasAccessibilityFocusMover() ? 'native-action' : 'event'}`,
+    )
     setConfirming(false)
   }
 
