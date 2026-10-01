@@ -344,7 +344,12 @@ function packageSources(root: string, options: ContentOptions): string[] {
       unique: true,
       followSymbolicLinks: false,
       gitignore: false,
-      ignore: DEFAULT_EXCLUDE,
+      // Workspace checkouts contain fixtures omitted from Hozo's published
+      // packages. Scanning them leaks test-only strings into production CSS
+      // (for example Core's accessibility test contributes `inline`). Keep
+      // this restriction at the dependency boundary: the app's own explicit
+      // source walk is unchanged.
+      ignore: [...DEFAULT_EXCLUDE, '**/*.{test,spec,bench}.{ts,tsx,js,jsx,mts,mjs}'],
     })) {
       if (SCANNABLE.has(path.extname(file))) files.push(path.resolve(file))
     }

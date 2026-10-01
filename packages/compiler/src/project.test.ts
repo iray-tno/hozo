@@ -379,3 +379,27 @@ test('a project with no manifest scans itself and nothing else', () => {
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('dependency test fixtures stay out, without restricting app-owned sources', () => {
+  const root = project()
+  try {
+    const appTest = source(root, 'src/app.test.tsx')
+    manifest(root, { '@hozo/ui': '^0.1.0' })
+    installed(root, '@hozo/ui', {
+      'src/button.tsx': 'export const B = "bg-hozo-accent"',
+      'src/button.test.tsx': 'export const fixture = "p-96"',
+      'src/button.spec.js': 'export const fixture = "gap-96"',
+      'src/button.bench.mjs': 'export const fixture = "m-96"',
+    })
+    const found = discoverSources(root)
+    assert.ok(found.includes(appTest))
+    assert.equal(found.length, 2)
+    const scanned = scanProject(root)
+    assert.ok(scanned.cache.candidates().includes('bg-hozo-accent'))
+    for (const utility of ['p-96', 'gap-96', 'm-96']) {
+      assert.ok(!scanned.cache.candidates().includes(utility))
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
