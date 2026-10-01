@@ -40,6 +40,7 @@ import {
   Menu,
   Popover,
   RadioGroup,
+  SegmentedControl,
   Slider,
   Stack,
   Switch,
@@ -81,6 +82,12 @@ const SHIPPING = [
   { value: 'pigeon', label: 'By pigeon', disabled: true },
 ] as const
 
+const RANGES = [
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+] as const
+
 const LANGUAGES = [
   { value: 'rust', label: 'Rust' },
   { value: 'ts', label: 'TypeScript' },
@@ -118,6 +125,7 @@ function UiGallery() {
   const [volume, setVolume] = useState(40)
   const [shipping, setShipping] = useState<string>('express')
   const [languages, setLanguages] = useState<readonly string[]>(['rust'])
+  const [range, setRange] = useState<string>('week')
   const [date, setDate] = useState<CalendarDate | null>({ year: 2026, month: 9, day: 24 })
   const [span, setSpan] = useState<CalendarRange | null>(null)
   const [clock, setClock] = useState<CalendarTime | null>({ hour: 9, minute: 30 })
@@ -342,6 +350,19 @@ function UiGallery() {
               accessibilityLabel="Shipping"
               value={shipping}
               onValueChange={setShipping}
+            />
+            {/*
+              The same component as the group above, which is the point of it: a
+              segmented control is a radio group drawn as a strip, so the chosen
+              segment is aria-checked and not aria-selected. Reach for Tabs when a
+              panel below changes and for this when a value is being chosen -- the
+              two look identical and tell a reader different things.
+            */}
+            <SegmentedControl
+              options={RANGES}
+              accessibilityLabel="Range"
+              value={range}
+              onValueChange={setRange}
             />
             <Listbox
               options={LANGUAGES}

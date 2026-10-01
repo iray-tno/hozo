@@ -92,6 +92,11 @@ radio, Standard, two days, not checked, position 1, set size 3
 radio, Express, tomorrow, checked, position 2, set size 3
 radio, By pigeon, not checked, disabled, position 3, set size 3
 end of radiogroup, Shipping, orientated vertically
+radiogroup, Range, orientated horizontally
+radio, Day, not checked, position 1, set size 3
+radio, Week, checked, position 2, set size 3
+radio, Month, not checked, position 3, set size 3
+end of radiogroup, Range, orientated horizontally
 listbox, Languages, orientated vertically, multi-selectable
 option, Rust, selected, position 1, set size 3
 option, TypeScript, not selected, position 2, set size 3

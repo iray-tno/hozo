@@ -119,6 +119,14 @@ export {
   type HozoRadioOption,
 } from './radio.tsx'
 export {
+  HozoSegmentedControl as SegmentedControl,
+  HozoSegmentedControl,
+  type HozoSegmentedControlProps as SegmentedControlProps,
+  type HozoSegmentedControlProps,
+  type HozoSegmentedOption as SegmentedOption,
+  type HozoSegmentedOption,
+} from './segmented-control.tsx'
+export {
   HozoSlider as Slider,
   HozoSlider,
   type HozoSliderProps as SliderProps,
