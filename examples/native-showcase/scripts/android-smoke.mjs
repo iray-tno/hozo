@@ -16,7 +16,8 @@ const label = (value) => (node) => matchLabel(node, value)
 let latestXml = ''
 
 function nodes() {
-  adb('shell', 'uiautomator', 'dump', '/sdcard/hozo-showcase.xml')
+  const dump = adb('shell', 'uiautomator', 'dump', '/sdcard/hozo-showcase.xml').toString()
+  assert.ok(dump.includes('dumped to:'), `uiautomator did not refresh the tree: ${dump}`)
   latestXml = adb('exec-out', 'cat', '/sdcard/hozo-showcase.xml').toString()
   return parseNodes(latestXml)
 }
@@ -138,7 +139,9 @@ try {
 
   adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
   await pause(1_000)
-  await story('three-kumimono--assembly', '組物: timber bracket assembly')
+  // Resume the activity without selecting the story again: a deep link could
+  // recreate it and hide a broken existing GL context behind a fresh mount.
+  adb('shell', 'am', 'start', '-W', '-n', `${app}/.MainActivity`)
   const resumedCanvas = await assembly('assembled')
   const resumed = imageRegion(screenshot('09-resumed'), resumedCanvas.rect)
   assert.ok(resumed.colours >= 40, 'GL surface blank after resume')
