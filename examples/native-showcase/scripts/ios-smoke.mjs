@@ -104,7 +104,10 @@ try {
   evidence.simulator = device
   if (device.state !== 'Booted') simctl('boot', udid)
   run('xcrun', ['simctl', 'bootstatus', udid, '-b'], 180_000)
-  simctl('install', udid, binary)
+  // A fresh hosted simulator may still be preparing its installation service
+  // after SpringBoard reports booted. Give installation its own bounded budget,
+  // without retrying interactions or weakening their assertions.
+  run('xcrun', ['simctl', 'install', udid, binary], 120_000)
   const logFd = openSync(resolve(output, 'syslog.txt'), 'w')
   logger = spawn(
     'xcrun',
