@@ -3,7 +3,7 @@ import { Button, Text, View } from '@hozo/primitives'
 import { ThreeCanvas } from '@hozo/three/r3f-native'
 import { useFrame, useThree } from '@react-three/fiber/native'
 import type { Meta, StoryObj } from '@storybook/react-native'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, AppState, ScrollView } from 'react-native'
 
 function Animation({
@@ -11,16 +11,20 @@ function Animation({
   target,
   reducedMotion,
   active,
+  onComplete,
 }: {
   study: ReturnType<typeof createKumimonoScene>
   target: number
   reducedMotion: boolean
   active: boolean
+  onComplete: (target: number) => void
 }) {
   const progress = useRef(1)
+  const completed = useRef<number | undefined>(undefined)
   const invalidate = useThree((state) => state.invalidate)
   useEffect(() => {
     if (active) {
+      completed.current = undefined
       if (reducedMotion) progress.current = target
       study.update(progress.current)
       invalidate()
@@ -35,6 +39,10 @@ function Animation({
     }
     study.update(progress.current)
     if (progress.current !== target) invalidate()
+    else if (completed.current !== target) {
+      completed.current = target
+      onComplete(target)
+    }
   })
   return null
 }
@@ -42,6 +50,10 @@ function Animation({
 function KumimonoDemo() {
   const [study] = useState(() => createKumimonoScene())
   const [target, setTarget] = useState(1)
+  const [assembly, setAssembly] = useState('assembled')
+  const onComplete = useCallback((value: number) => {
+    setAssembly(value === 1 ? 'assembled' : 'disassembled')
+  }, [])
   const [active, setActive] = useState(AppState.currentState === 'active')
   const [reducedMotion, setReducedMotion] = useState(true)
   useEffect(() => {
@@ -69,22 +81,39 @@ function KumimonoDemo() {
         frameloop={active ? 'demand' : 'never'}
         onCreated={({ gl }) => configureKumimonoRenderer(gl)}
       >
-        <Animation study={study} target={target} reducedMotion={reducedMotion} active={active} />
+        <Animation
+          study={study}
+          target={target}
+          reducedMotion={reducedMotion}
+          active={active}
+          onComplete={onComplete}
+        />
       </ThreeCanvas>
       <View className="flex-row gap-3">
         <Button
-          onPress={() => setTarget(0)}
+          onPress={() => {
+            setAssembly('moving')
+            setTarget(0)
+          }}
+          disabled={assembly === 'disassembled'}
           className="rounded-lg bg-slate-800 px-4 py-3 text-white"
         >
           分解
         </Button>
         <Button
-          onPress={() => setTarget(1)}
+          onPress={() => {
+            setAssembly('moving')
+            setTarget(1)
+          }}
+          disabled={assembly === 'assembled'}
           className="rounded-lg bg-slate-800 px-4 py-3 text-white"
         >
           組み立て
         </Button>
       </View>
+      <Text accessibilityLiveRegion="polite" className="text-base text-slate-700">
+        Assembly: {assembly}
+      </Text>
     </View>
   )
 }

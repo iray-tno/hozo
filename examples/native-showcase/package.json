@@ -8,8 +8,10 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "prebuild:android": "expo prebuild --platform android --no-install",
+    "smoke:android": "node scripts/android-smoke.mjs",
     "stories": "sb-rn-get-stories",
-    "test:unit": "node --test scripts/showcase.test.mjs",
+    "test:unit": "node --test scripts/*.test.mjs",
     "test": "pnpm test:unit && node scripts/check-bundles.mjs",
     "typecheck": "pnpm stories && tsc -p .",
     "bundle:android": "expo export --platform android --output-dir dist/android",
@@ -50,6 +52,7 @@
     "@hozo/metro": "workspace:^",
     "@types/react": "~19.2.2",
     "@types/three": "^0.180.0",
+    "pngjs": "^7.0.0",
     "typescript": "~6.0.3"
   }
 }

@@ -2,6 +2,7 @@
   "expo": {
     "name": "Hozo Showcase",
     "slug": "hozo-native-showcase",
+    "scheme": "hozo-showcase",
     "version": "1.0.0",
     "orientation": "default",
     "newArchEnabled": true,

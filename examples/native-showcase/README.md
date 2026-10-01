@@ -52,6 +52,38 @@ Persisted selection is stored locally with AsyncStorage.
 
 ## Verify
 
+The `native-showcase` GitHub Actions workflow builds a **standalone Android
+APK** containing its JavaScript bundle (no Metro connection needed), installs
+it on an API 36 emulator, and checks real Storybook selection, counter/reset,
+disabled controls, keyboard/form input, Kumimono assembly/disassembly,
+background/resume and switching away from the GPU story. It compares pixels
+inside the accessible Canvas bounds, not changing labels outside the scene.
+
+Download `hozo-native-showcase-android-apk` from a successful workflow run to
+try it on an arm64 Android phone. This development showcase is debug-signed,
+not a store release. `hozo-native-showcase-android-evidence` contains screenshots,
+UI hierarchies, logs and `evidence.json`, including failures. Artifacts expire
+after 30 days; rebuild via **Run workflow** when needed. The workflow runs
+weekly on main, manually, and on PRs that change the showcase or its driver.
+It does not claim physical-device performance or TalkBack/VoiceOver coverage;
+iOS still needs a native build and interaction check.
+
+With an Android SDK, connected emulator/device and Java 17, reproduce it locally
+after the dependency builds above:
+
+```sh
+pnpm --filter @hozo/example-native-showcase prebuild:android
+cd examples/native-showcase/android
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
+cd ../../..
+pnpm --filter @hozo/example-native-showcase smoke:android
+```
+
+On Windows use `gradlew.bat`. Prebuild does not clean an existing generated
+native project. The driver installs the showcase APK, resets its running
+process and writes evidence; use a dedicated emulator rather than a device
+where you need to preserve an active showcase session.
+
 ```sh
 pnpm --filter @hozo/example-native-showcase typecheck
 pnpm --filter @hozo/example-native-showcase bundle:android
