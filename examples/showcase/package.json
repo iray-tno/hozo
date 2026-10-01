@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hozo/core": "workspace:^",
+    "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
     "@hozo/typography": "workspace:^"
   },

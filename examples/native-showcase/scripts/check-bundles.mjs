@@ -46,6 +46,10 @@ for (const platform of ['android', 'ios']) {
   for (const label of [
     'Primitives/Shared showcase',
     'Three/Kumimono',
+    'Patterns/Shared showcase',
+    'Email notifications',
+    'Workspace sections',
+    'Confirm save',
     'Add one',
     'Save profile',
     '組み立て',

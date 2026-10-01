@@ -1,0 +1,13 @@
+heading, Confirm changes, level 2
+button, Review changes
+Changes:
+not saved
+dialog, Save workspace changes
+dialog, Save workspace changes
+heading, Save workspace changes, level 2
+paragraph
+Save the updated workspace preferences?
+end of paragraph
+button, Confirm save
+button, Cancel changes
+end of dialog, Save workspace changes

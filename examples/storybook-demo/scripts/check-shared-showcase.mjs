@@ -1,0 +1,142 @@
+import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
+import path from 'node:path'
+import { promisify } from 'node:util'
+
+const directory = path.resolve(process.argv[2] ?? 'storybook-static-check')
+const browser = [
+  process.env.CHROME_PATH,
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium',
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+].find((candidate) => candidate && existsSync(candidate))
+if (!browser) {
+  if (process.env.CI) throw new Error('Shared showcase interaction checks require Chrome')
+  console.log('[shared-showcase] no browser; set CHROME_PATH to run locally')
+  process.exit(0)
+}
+
+// This exercises the built stories, not a separate copy of their components.
+// Synthetic keys verify our roving/Pressable handlers, not browser-trusted
+// default actions; button clicks and dialog cancel events test those contracts.
+writeFileSync(
+  path.join(directory, '_shared-interactions.html'),
+  `<!doctype html>
+<pre id="result">pending</pre><iframe id="story" width="1100" height="900"></iframe>
+<script>
+const result = document.getElementById('result')
+const frame = document.getElementById('story')
+const pause = () => new Promise(resolve => setTimeout(resolve, 250))
+function check(value, message) { if (!value) throw new Error(message) }
+function named(selector, name) {
+  const node = [...frame.contentDocument.querySelectorAll(selector)].find(node =>
+    (node.getAttribute('aria-label') || node.textContent.trim()) === name)
+  check(node, 'Missing control: ' + name)
+  return node
+}
+async function load(name) {
+  await new Promise(resolve => {
+    frame.onload = resolve
+    frame.src = '/iframe.html?id=showcase-shared-web-and-native--' + name + '&viewMode=story'
+  })
+  await pause()
+}
+async function run() {
+  const passed = []
+  await load('preferences')
+  const email = named('[role=checkbox]', 'Email notifications')
+  const updates = named('[role=switch]', 'Automatic updates')
+  email.click(); updates.click(); await pause()
+  check(email.getAttribute('aria-checked') === 'true', 'Checkbox did not toggle')
+  check(updates.getAttribute('aria-checked') === 'false', 'Switch did not toggle')
+  const required = named('[role=checkbox]', 'Required security notices')
+  required.click(); await pause()
+  check(required.disabled && required.getAttribute('aria-checked') === 'true', 'Required notice changed')
+  passed.push('preferences and disabled state')
+
+  await load('sections')
+  const overview = named('[role=tab]', 'Overview')
+  const details = named('[role=tab]', 'Details')
+  overview.focus()
+  overview.dispatchEvent(new frame.contentWindow.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  await pause()
+  check(frame.contentDocument.activeElement === details, 'ArrowRight did not rove')
+  details.dispatchEvent(new frame.contentWindow.KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+  await pause()
+  check(frame.contentDocument.activeElement === details, 'End did not skip unavailable tab')
+  details.click(); await pause()
+  named('[role=tab]', 'Unavailable').click(); await pause()
+  check(details.getAttribute('aria-selected') === 'true', 'Disabled tab selected')
+  check(frame.contentDocument.body.textContent.includes('Current section: Details'), 'Tab panel did not update')
+  passed.push('tabs, keyboard roving and disabled selection')
+
+  await load('confirmation')
+  const opener = named('[role=button]', 'Review changes')
+  opener.focus()
+  opener.dispatchEvent(new frame.contentWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  await pause()
+  const dialog = frame.contentDocument.querySelector('dialog')
+  check(dialog?.open, 'Enter did not open modal')
+  dialog.dispatchEvent(new frame.contentWindow.Event('cancel', { cancelable: true })); await pause()
+  check(!dialog.open && frame.contentDocument.activeElement === opener, 'Cancel did not restore opener')
+  opener.click(); await pause()
+  named('button', 'Confirm save').click(); await pause()
+  check(!dialog.open && frame.contentDocument.body.textContent.includes('Changes: saved'), 'Confirmation did not save')
+  passed.push('dialog keyboard activation, cancel, confirmation and restored focus')
+  result.textContent = JSON.stringify({ passed })
+}
+run().catch(error => { result.textContent = JSON.stringify({ error: error.message }) })
+</script>`,
+)
+
+const types = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.woff2': 'font/woff2',
+}
+const server = createServer((request, response) => {
+  const file = path.resolve(directory, `.${new URL(request.url, 'http://localhost').pathname}`)
+  if (!file.startsWith(`${directory}${path.sep}`)) {
+    response.writeHead(403).end()
+    return
+  }
+  try {
+    response.setHeader('Content-Type', types[path.extname(file)] ?? 'application/octet-stream')
+    response.end(readFileSync(file))
+  } catch {
+    response.writeHead(404).end()
+  }
+})
+await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+try {
+  const { stdout } = await promisify(execFile)(
+    browser,
+    [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-background-networking',
+      '--virtual-time-budget=20000',
+      '--dump-dom',
+      `http://127.0.0.1:${server.address().port}/_shared-interactions.html`,
+    ],
+    { timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
+  )
+  const output = /<pre id="result">([^<]*)<\/pre>/.exec(stdout)?.[1]
+  assert.ok(output && output !== 'pending', 'browser did not complete interactions')
+  const result = JSON.parse(output.replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
+  assert.equal(result.error, undefined, result.error)
+  assert.equal(result.passed.length, 3)
+  console.log(`[shared-showcase] ${result.passed.join('; ')}`)
+} finally {
+  server.closeAllConnections()
+  await new Promise((resolve) => server.close(resolve))
+}
