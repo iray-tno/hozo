@@ -1,0 +1,6 @@
+heading, Buttons, level 2
+Pressed
+0
+times
+button, Add one, disabled
+button, Reset

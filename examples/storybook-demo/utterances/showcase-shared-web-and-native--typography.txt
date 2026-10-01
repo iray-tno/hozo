@@ -1,0 +1,16 @@
+heading, Hozo Showcase, level 1
+paragraph
+Shared components, with
+strong
+strong text
+end of strong
+and
+emphasis
+emphasis
+end of emphasis
+.
+end of paragraph
+heading, 日本語の表示, level 2
+paragraph
+文字のサイズを変えて、読みやすさを確認できます。
+end of paragraph

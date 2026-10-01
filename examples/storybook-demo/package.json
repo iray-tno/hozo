@@ -12,6 +12,7 @@
     "check:a11y": "node scripts/check-a11y.mjs"
   },
   "dependencies": {
+    "@hozo/example-showcase": "workspace:*",
     "@hozo/behaviors": "workspace:*",
     "@hozo/core": "workspace:*",
     "@hozo/engine": "workspace:*",

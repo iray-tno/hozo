@@ -1,0 +1,5 @@
+.expo/
+android/
+ios/
+.rnstorybook/storybook.requires.ts
+expo-env.d.ts
