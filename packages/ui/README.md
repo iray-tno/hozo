@@ -74,6 +74,7 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Input` | one line or many; styled by `aria-invalid` rather than by a prop |
 | `TextArea` | a measured, growing field with a counter that is a description |
 | `Field` | the wiring above |
+| `Form` | a column, and a submission that will not step past an invalid field |
 | `Checkbox`, `Switch` | `@hozo/patterns` wearing a box and a track |
 | `Slider` | a rail, a fill and a 24px thumb, either orientation |
 | `Accordion` | rows in a card, with a chevron drawn from the trigger's state |

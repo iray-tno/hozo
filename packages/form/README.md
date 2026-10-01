@@ -1,6 +1,6 @@
 # @hozo/form
 
-Accessible universal form and date-selection components for Hozo: `TextArea`, `Calendar`, `DatePicker`, `TimePicker`, `DateTimePicker` and `DateRangePicker`.
+Accessible universal form and date-selection components for Hozo: `Form`, `TextArea`, `Calendar`, `DatePicker`, `TimePicker`, `DateTimePicker` and `DateRangePicker`.
 
 A separate package rather than part of [`@hozo/patterns`](https://www.npmjs.com/package/@hozo/patterns), for two reasons that are specific to this domain. Its platform-native variants reach for the operating system's own pickers — `UIDatePicker` on iOS, Material's `DatePickerDialog` on Android, the iOS wheel picker behind a select — which is an optional dependency on native code that an application using only Tabs and Tree should not acquire. And its locale and calendar data changes on a schedule of its own, which a stable widget package should not be versioned against.
 
@@ -231,6 +231,22 @@ The line height is read from the resolved style: `getComputedStyle` on the Web, 
 There is no `invalid` or `required` prop. `TextArea` takes `aria-invalid`, `aria-required` and `aria-describedby`, spelled the way `Field` spells them, so `{...control}` works and there is one source of truth for each — the reason `@hozo/ui`'s `Input` gives: a second prop meaning the same thing is a field that looks fine and announces itself as wrong. On React Native those three are carried and mostly unused, because the platform maps only a handful of `aria-*` props and these are not among them.
 
 `field-sizing: content` is where this should end up: one declaration, no measurement, no effect. It is not here yet because `maxRows` still needs a cap in line units and because a component that uses it where it exists and measures where it does not has two behaviours to verify rather than one. When that changes, `text-area.tsx` gets shorter and `text-area-rules.ts` survives.
+
+## `Form`
+
+#143's last container, and deliberately the smallest of its four controls. The tempting version collects every field's errors, renders a summary, announces it, and owns the wording — and the wording is exactly what Hozo does not own ([#157](https://github.com/iray-tno/hozo/issues/157) is where a message catalogue would have to live first). So `Form` does two things.
+
+It turns a submission into an `onSubmit` call with no event in it, because on React Native there is no event to hand over and a signature that differed between the platforms would be a prop an application could not write once.
+
+And it **declines to submit past a control already marked `aria-invalid`**, focusing that control instead. Nothing about which fields are invalid, or why, or in what words, is the form's business: it reads the attribute a `Field` already set and a screen reader is already announcing. That much is worth the scope, because WCAG 3.3.1 is about telling somebody *which* field is wrong, and a form that scrolls a sighted person to an error while leaving a screen reader's focus on the submit button has told one of them and not the other. `focusInvalidOnSubmit={false}` opts out, for a form validated on the server with nothing marked yet.
+
+The decision itself is `firstInvalid` and `shouldSubmit`, two exported functions over plain records — shaped after `initialFocusIndex` in `@hozo/behaviors`, which is the house pattern for this: the component does the DOM query and the rule is testable without a document. They are two functions rather than one because an invalid control that cannot be focused is a real case, and the right answer to it is "do not move focus" *and* "do not submit".
+
+`useFormSubmit` is the half that crosses platforms. A Web form submits itself when a button inside it is pressed and when Enter is typed in a single-line field; React Native has neither, so the submit button's `onPress` and the last field's `onSubmitEditing` both need something to call. On the Web the hook calls `requestSubmit()` rather than `onSubmit` directly, so a press through the hook, a press on a real submit button and Enter in a field all arrive at one handler with the platform's own behaviour intact.
+
+The platform's validation is left switched on — no `noValidate`. `Field` marks its control with `aria-required` rather than `required`, so the browser has nothing to catch unless the application added a real constraint itself, and silently disabling the feature it reached for is not this component's decision.
+
+On React Native there is no `role="form"` landmark in the platform's vocabulary, so the label is carried on the `View` and the group has a name without being announced as a form. What that half adds instead is dismissing the keyboard before `onSubmit` runs: the keyboard covers the bottom of the screen, which is where the submit button and any error under the last field both are.
 
 ## Status
 

@@ -14,7 +14,13 @@
 // either, this page is unstyled and nothing says so.
 
 import { PortalProvider } from '@hozo/behaviors'
-import type { CalendarDate, CalendarDateTime, CalendarRange, CalendarTime } from '@hozo/form'
+import {
+  type CalendarDate,
+  type CalendarDateTime,
+  type CalendarRange,
+  type CalendarTime,
+  useFormSubmit,
+} from '@hozo/form'
 import { View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
@@ -35,6 +41,7 @@ import {
   Dialog,
   Drawer,
   Field,
+  Form,
   Input,
   Listbox,
   Menu,
@@ -117,6 +124,28 @@ const PANELS: Tab[] = [
   { label: 'Returns', content: 'Not yet.', disabled: true },
 ]
 
+/**
+ * The button that submits the form it is inside.
+ *
+ * Its own component because `useFormSubmit` is a hook, and it is here at all to
+ * show the half of `Form` that crosses platforms. A Web form submits itself when a
+ * button inside it is pressed; React Native has no form element and no Enter key,
+ * so the submit has to be asked for -- and this is the one line an application
+ * writes once for both.
+ *
+ * The email above starts invalid, so pressing this focuses the email field instead
+ * of submitting. That is the only coordination `Form` does: it reads the
+ * `aria-invalid` the `Field` already set and declines to submit past it.
+ */
+function SubmitButton() {
+  const submit = useFormSubmit()
+  return (
+    <Button tone="accent" onPress={submit}>
+      Continue
+    </Button>
+  )
+}
+
 function UiGallery() {
   const [email, setEmail] = useState('not-an-email')
   const [notes, setNotes] = useState('')
@@ -173,7 +202,7 @@ function UiGallery() {
           to know why before being told the rules again.
         </Paragraph>
         <Card>
-          <Stack gap="normal">
+          <Form accessibilityLabel="Delivery" onSubmit={() => {}}>
             <Field
               label="Email"
               description="We use it for the receipt and nothing else."
@@ -205,14 +234,12 @@ function UiGallery() {
               )}
             </Field>
             <Stack direction="row" gap="tight">
-              <Button tone="accent" onPress={() => {}}>
-                Continue
-              </Button>
+              <SubmitButton />
               <Button tone="quiet" onPress={() => {}}>
                 Back
               </Button>
             </Stack>
-          </Stack>
+          </Form>
         </Card>
       </Section>
       <Section>

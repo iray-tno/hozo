@@ -11,6 +11,7 @@ heading, A card with a field in it, level 2
 paragraph
 `Field` is the only one of these with anything in it: four elements agreeing on four ids, which is invisible here and is what the component exists for. The error below is read before the description, because somebody who has just been told their input is wrong wants to know why before being told the rules again.
 end of paragraph
+form, Delivery
 Email
 textbox, Email, not-an-email, That does not look like an email address. We use it for the receipt and nothing else., invalid, required
 alert
@@ -23,6 +24,7 @@ textbox, Notes, Anything the courier should know. 160 of 160 characters left, pl
 Anything the courier should know.
 button, Continue
 button, Back
+end of form, Delivery
 heading, Checkbox, Switch, Badge and Alert, level 2
 paragraph
 The first two wear the patterns from @hozo/patterns and draw a box and a track with pseudo-elements, off data-hozo-state -- so neither is told which state it is in. The parent below is partially checked whenever some but not all of the meals are, which is the state no input attribute can express.

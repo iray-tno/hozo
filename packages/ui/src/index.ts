@@ -83,6 +83,12 @@ export {
   type HozoFieldProps,
 } from './field.tsx'
 export {
+  HozoForm as Form,
+  HozoForm,
+  type HozoFormProps as FormProps,
+  type HozoFormProps,
+} from './form.tsx'
+export {
   HozoInput as Input,
   HozoInput,
   type HozoInputProps as InputProps,
