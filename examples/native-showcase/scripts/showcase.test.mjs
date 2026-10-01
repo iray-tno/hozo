@@ -10,6 +10,50 @@ import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
 
+test('Native Dialog isolates its modal without combining descendant controls', () => {
+  // Inspect actual rendered props with inert hooks/native hosts. This guards
+  // wiring, not VoiceOver behavior; the simulator run verifies the AX tree.
+  const react = require('react')
+  const { transformSync } = require('esbuild')
+  const source = readFileSync(
+    path.join(root, '../../packages/patterns/src/dialog.native.tsx'),
+    'utf8',
+  )
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
+  const native = { Modal: 'NativeModal', View: 'NativeView' }
+  const module = { exports: {} }
+  const load = (name) => {
+    if (name === 'react')
+      return { ...react, useEffect: () => {}, useRef: (current) => ({ current }) }
+    if (name === 'react/jsx-runtime') return require(name)
+    if (name === 'react-native') return native
+    if (name === '@hozo/behaviors') return { shouldRestoreFocus: () => false }
+    throw new Error(`Unexpected Native Dialog dependency: ${name}`)
+  }
+  new Function('require', 'module', code)(load, module)
+  const controls = ['Confirm save', 'Cancel changes'].map((label) =>
+    react.createElement('NativeButton', { key: label, accessibilityLabel: label }),
+  )
+  const onClose = () => {}
+  const modal = module.exports.Dialog({
+    open: true,
+    onClose,
+    accessibilityLabel: 'Save workspace changes',
+    testID: 'confirmation',
+    children: controls,
+  })
+  assert.equal(modal.type, native.Modal)
+  assert.equal(modal.props.visible, true)
+  assert.equal(modal.props.onRequestClose, onClose)
+  const panel = modal.props.children
+  assert.equal(panel.type, native.View)
+  assert.equal(panel.props.accessible, false)
+  assert.equal(panel.props.accessibilityViewIsModal, true)
+  assert.equal(panel.props.accessibilityLabel, 'Save workspace changes')
+  assert.equal(panel.props.testID, 'confirmation')
+  assert.equal(panel.props.children, controls)
+})
+
 test('Storybook composes with the Hozo transformer and host singleton resolver', async () => {
   const config = await require('../metro.config.js')
   assert.equal(config.transformer.babelTransformerPath, require.resolve('@hozo/metro'))

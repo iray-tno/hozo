@@ -150,9 +150,10 @@ sampled read-only in a separate process (companion, showcase and command process
 the existing 30-second input deadline and no-retry policy remain in place.
 Companion logs are retained on both success and failure. Sampling can affect
 timing, so use it to locate a stall, not to measure application performance.
-`ios-ax-backend` explicitly compares the guest (`axbridge`, default) and host
-(`ax`) readers. Inputs still use HID in both cases; there is no automatic reader
-fallback or input retry.
+`ios-ax-backend` explicitly compares the guest (`axbridge`) and host
+(`ax`, default) readers. The guest reader could not resolve even Settings on the
+reference runner; the host reader reached the showcase controls. Inputs still
+use HID in both cases; there is no automatic reader fallback or input retry.
 
 Android diagnostics save boot logs, CPU/pressure, input-service state and system
 ANR reports **before** starting the app, and again on failure. `android-target`

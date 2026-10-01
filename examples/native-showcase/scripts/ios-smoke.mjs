@@ -29,7 +29,7 @@ mkdirSync(output, { recursive: true })
 const evidence = {
   platform: 'iOS',
   device: 'simulator',
-  axBackend: process.env.HOZO_AX_BACKEND || 'axbridge',
+  axBackend: process.env.HOZO_AX_BACKEND || 'ax',
   sidebarSelection: 'visible text (Apple Vision)',
   checks: [],
   passed: false,
@@ -93,8 +93,9 @@ const idb = (...args) => {
 }
 
 function nodes() {
-  // Default to the persistent guest reader. Diagnostics may explicitly compare
-  // the host reader; never silently switch readers to turn a failure into a pass.
+  // The guest reader failed to resolve even Settings on the reference runner;
+  // the host reader reached the showcase's controls. Keep the choice explicit,
+  // with no silent fallback to turn a failure into a pass.
   assert.ok(['axbridge', 'ax'].includes(evidence.axBackend), 'unsupported AX backend')
   latestTree = idb('ui', 'describe-all', '--api', evidence.axBackend, '--nested').toString()
   return parseIosNodes(latestTree)

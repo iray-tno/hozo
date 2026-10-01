@@ -159,7 +159,10 @@ export function Dialog({
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
       <View
         style={style as StyleProp<ViewStyle>}
-        accessible
+        // A dialog is a container, not one combined accessibility element.
+        // On iOS an accessible parent hides its descendant controls from AX.
+        // Keep modal isolation without swallowing confirm/cancel buttons.
+        accessible={false}
         accessibilityViewIsModal
         accessibilityRole="none"
         accessibilityLabel={accessibilityLabel}
