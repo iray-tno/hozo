@@ -562,6 +562,7 @@ packages/
   form/                    Accessible universal form and date-selection components for Hozo applications.
   metro/                   Metro integration for the Hozo compiler (Native lowering backend).
   migration-audit/         Measure how safely Hozo can lower a real React Native application.
+  native/                  Hozo's optional native module: the accessibility capabilities React Native does not expose to JavaScript.
   navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
   next/                    Next.js integration for the Hozo compiler (Web lowering backend).
   patterns/                Accessible composite UI patterns for Hozo applications.

@@ -13,9 +13,11 @@
   },
   "dependencies": {
     "@babel/runtime": "^8.0.0",
+    "@hozo/behaviors": "workspace:*",
     "@hozo/canvas": "workspace:*",
     "@hozo/core": "workspace:*",
     "@hozo/form": "workspace:*",
+    "@hozo/native": "workspace:*",
     "@hozo/rn-compat": "workspace:*",
     "@hozo/three": "workspace:*",
     "@shopify/react-native-skia": "^2.11.1",
