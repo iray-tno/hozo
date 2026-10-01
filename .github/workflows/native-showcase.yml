@@ -41,6 +41,7 @@ concurrency:
 
 jobs:
   android:
+    name: ${{ inputs.reuse-build-run != '' && 'android (reused binary diagnostic)' || 'android' }}
     if: github.event_name != 'workflow_dispatch' || inputs.platform != 'ios'
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -115,6 +116,7 @@ jobs:
           retention-days: 30
 
   ios:
+    name: ${{ inputs.reuse-build-run != '' && 'ios (reused binary diagnostic)' || 'ios' }}
     if: github.event_name != 'workflow_dispatch' || inputs.platform != 'android'
     runs-on: macos-26
     timeout-minutes: 60
