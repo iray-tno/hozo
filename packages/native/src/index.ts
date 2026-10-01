@@ -1,5 +1,5 @@
 import type { ComponentRef } from 'react'
-import { findNodeHandle, Platform, type View } from 'react-native'
+import { AccessibilityInfo, findNodeHandle, Platform, type View } from 'react-native'
 
 import NativeHozoAccessibility from './NativeHozoAccessibility.ts'
 
@@ -44,14 +44,29 @@ function resolveMover(): ((view: HozoFocusTarget) => void) | undefined {
   // conditional expression would leave it possibly null inside one.
   const spec = NativeHozoAccessibility
   if (Platform.OS !== 'android' || !spec) return undefined
+  const event = (view: HozoFocusTarget) => AccessibilityInfo.sendAccessibilityEvent(view, 'focus')
+
   return (view) => {
     const tag = findNodeHandle(view)
     // Nothing for a view that has been unmounted between the request and here.
     // `findNodeHandle` says that with both `null` and `undefined`, so the test is
-    // the type rather than either value. The native side would resolve nothing
-    // and do nothing; stopping one call earlier keeps the bridge out of it.
+    // the type rather than either value.
     if (typeof tag !== 'number') return
-    spec.moveAccessibilityFocus(tag)
+    // The event when Android refuses the action, so installing this package can
+    // never be worse than not installing it. `performAccessibilityAction` returns
+    // false for a view that will not take accessibility focus at that moment, and
+    // a module that swallowed the refusal would have replaced a request that
+    // sometimes works with one that silently did nothing.
+    //
+    // A rejection is treated the same way. The only ones available are a bridge
+    // that went away mid-call, and the right answer to that is also "try the thing
+    // that does not need it".
+    spec
+      .moveAccessibilityFocus(tag)
+      .then((moved) => {
+        if (!moved) event(view)
+      })
+      .catch(() => event(view))
   }
 }
 

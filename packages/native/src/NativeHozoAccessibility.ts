@@ -19,13 +19,20 @@ export interface Spec extends TurboModule {
   /**
    * Performs `ACTION_ACCESSIBILITY_FOCUS` on the view behind a React tag.
    *
-   * Returns nothing, deliberately. The work happens on the UI thread -- the view
-   * cannot be resolved off it -- so a synchronous answer could only be "the
-   * request was made", which the caller already knows. Whether focus landed is a
-   * question for TalkBack rather than for a return value, and the measurement in
-   * #491 is how it is answered.
+   * Resolves what Android said about the request. `performAccessibilityAction`
+   * returns false for a view that will not take accessibility focus at that
+   * moment, and that is the one fact only the platform has. A promise rather than
+   * a synchronous boolean because the view cannot be resolved off the UI thread,
+   * so the answer is a frame away whatever the signature says.
+   *
+   * It was `void` in the first version, on the reasoning that whether focus
+   * landed is TalkBack's answer rather than a return value's. True, and it threw
+   * the useful half away: a 5x3 diagnostic restored focus in 2 of 15 dismissals
+   * with the action confirmed to be running, and nothing in the evidence said
+   * whether those thirteen were refused or accepted and then overridden. Those
+   * want different fixes.
    */
-  moveAccessibilityFocus(viewTag: number): void
+  moveAccessibilityFocus(viewTag: number): Promise<boolean>
 }
 
 /**

@@ -1,7 +1,9 @@
 package com.hozo.nativemodule
 
+import android.util.Log
 import android.view.View
 import android.view.accessibility.AccessibilityNodeInfo
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.UiThreadUtil
 import com.facebook.react.module.annotations.ReactModule
@@ -29,18 +31,33 @@ class HozoAccessibilityModule(context: ReactApplicationContext) :
     override fun getName(): String = NAME
 
     /**
-     * Resolving a view requires the UI thread, so the whole body is posted there.
+     * Resolving a view requires the UI thread, so the whole body is posted there
+     * and the result comes back as a promise.
      *
-     * Which is also why the signature returns nothing: a synchronous result could
-     * only report that the message was queued. Whether focus arrived is TalkBack's
-     * answer, and `examples/native-demo/scripts/android-talkback.sh` is how it is
-     * asked.
+     * What it reports is Android's answer to the request, not TalkBack's. False
+     * means the view refused accessibility focus at that moment -- unmounted, or
+     * not important for accessibility, or behind a window that still owns it. A
+     * warning goes with it, because a refused accessibility action is something an
+     * application developer can act on and nothing else would tell them.
      */
-    override fun moveAccessibilityFocus(viewTag: Double) {
+    override fun moveAccessibilityFocus(viewTag: Double, promise: Promise) {
         val tag = viewTag.toInt()
         UiThreadUtil.runOnUiThread {
-            val view = resolve(tag) ?: return@runOnUiThread
-            view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+            val view = resolve(tag)
+            if (view == null) {
+                Log.w(NAME, "no view behind react tag $tag; accessibility focus was not moved")
+                promise.resolve(false)
+                return@runOnUiThread
+            }
+            val moved =
+                view.performAccessibilityAction(
+                    AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS,
+                    null,
+                )
+            if (!moved) {
+                Log.w(NAME, "view for react tag $tag refused ACTION_ACCESSIBILITY_FOCUS")
+            }
+            promise.resolve(moved)
         }
     }
 
