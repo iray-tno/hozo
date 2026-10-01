@@ -153,6 +153,12 @@ export {
   type HozoTabsProps,
 } from './tabs.tsx'
 export {
+  HozoTextArea as TextArea,
+  HozoTextArea,
+  type HozoTextAreaProps as TextAreaProps,
+  type HozoTextAreaProps,
+} from './text-area.tsx'
+export {
   HozoTimePicker as TimePicker,
   HozoTimePicker,
   type HozoTimePickerProps as TimePickerProps,

@@ -1,6 +1,6 @@
 # @hozo/form
 
-Accessible universal form and date-selection components for Hozo.
+Accessible universal form and date-selection components for Hozo: `TextArea`, `Calendar`, `DatePicker`, `TimePicker`, `DateTimePicker` and `DateRangePicker`.
 
 A separate package rather than part of [`@hozo/patterns`](https://www.npmjs.com/package/@hozo/patterns), for two reasons that are specific to this domain. Its platform-native variants reach for the operating system's own pickers — `UIDatePicker` on iOS, Material's `DatePickerDialog` on Android, the iOS wheel picker behind a select — which is an optional dependency on native code that an application using only Tabs and Tree should not acquire. And its locale and calendar data changes on a schedule of its own, which a stable widget package should not be versioned against.
 
@@ -218,9 +218,23 @@ The degraded form is longer rather than shorter, and the dash is the smaller hal
 
 `dateTimeLabel` does work on the same engine — the `DateTimePicker` trigger beside it read "Thursday, September 24, 2026 at 9:30 AM", the locale's own joining word included — so this is about one method rather than about `Intl` on Hermes generally. `resolvedOptions` remains untested: that screen passes `hour12` explicitly.
 
+## `TextArea`
+
+A multiline field that grows with what is typed into it — [#143](https://github.com/iray-tno/hozo/issues/143)'s first control, and the first component here whose two halves measure genuinely different things. A Web `scrollHeight` is the text plus the padding; React Native's `onContentSizeChange` is the text alone. So `text-area-rules.ts` takes the content and the padding separately, and neither half has to subtract something the other one added.
+
+`minRows` and `maxRows` are line counts rather than pixels, which is the point of them: they survive a change of text size. Past `maxRows` the field scrolls instead of growing, and *whether* it scrolls is an output of the arithmetic rather than a style the caller always sets — `overflow: auto` on a field that is still growing shows a scrollbar for the instant between the text wrapping and the height catching up, on every keystroke.
+
+The line height is read from the resolved style: `getComputedStyle` on the Web, `StyleSheet.flatten` on Native, which can see the entry the compiler lowered a `text-sm` into. When nothing has set one, `usableLineHeight` falls back to `fontSize * 1.2` and then to a constant — so a class list that sets no text size leaves the fallback deciding how tall four rows is.
+
+**The character count is not a live region.** #143 asks for it to be read with `aria-live`, and the direct reading of that interrupts a screen reader on every keystroke and makes the field unusable. So the count is always rendered and attached with `aria-describedby`, where it is read on reaching the field and available on demand, and an unprompted announcement happens at most twice: on entering the last `announceRemaining` characters, and on running out. Deleting back out re-arms both. The rule is `shouldAnnounceCount`, so when it is worth speaking can be tested without a screen reader.
+
+There is no `invalid` or `required` prop. `TextArea` takes `aria-invalid`, `aria-required` and `aria-describedby`, spelled the way `Field` spells them, so `{...control}` works and there is one source of truth for each — the reason `@hozo/ui`'s `Input` gives: a second prop meaning the same thing is a field that looks fine and announces itself as wrong. On React Native those three are carried and mostly unused, because the platform maps only a handful of `aria-*` props and these are not among them.
+
+`field-sizing: content` is where this should end up: one declaration, no measurement, no effect. It is not here yet because `maxRows` still needs a cap in line units and because a component that uses it where it exists and measures where it does not has two behaviours to verify rather than one. When that changes, `text-area.tsx` gets shorter and `text-area-rules.ts` survives.
+
 ## Status
 
-Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148). All four components #148 lists are here. What is left is a device: no Native half of `TimePicker`, `DateTimePicker` or `DateRangePicker` has been run on a phone, and the verification matrix in #148 is still unticked.
+Design is recorded in [#148](https://github.com/iray-tno/hozo/issues/148) and [#143](https://github.com/iray-tno/hozo/issues/143). All four components #148 lists are here. What is left is a device: no Native half of `TimePicker`, `DateTimePicker` or `DateRangePicker` has been run on a phone, and the verification matrix in #148 is still unticked.
 
 The shown month is controllable: `defaultMonth` for the uncontrolled case, `month` plus `onMonthChange` when the caller wants to own it. Handing over a `month` and ignoring `onMonthChange` gives a grid whose paging buttons and month-crossing arrow keys appear to do nothing -- the bargain every controlled component makes, mentioned here because the keys that stop working are in the middle of the widget.
 
