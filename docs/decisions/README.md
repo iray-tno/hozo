@@ -27,3 +27,4 @@ smaller questions that came up on the way, and their answers.
 | [003](003-which-variants-hozo-compiles.md) | Which Tailwind variants Hozo compiles |
 | [004](004-navigation-determines-role.md) | Navigation determines the role, not the component name |
 | [005](005-a-value-is-not-content.md) | A control's value goes in the value channel, not in its content |
+| [006](006-shipping-native-code.md) | Hozo may ship native code, in one optional package, behind a resolved provider |
