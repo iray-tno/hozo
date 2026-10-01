@@ -76,7 +76,7 @@ function KumimonoDemo() {
       <ThreeCanvas
         scene={study.scene}
         camera={study.camera}
-        style={{ height: 350 }}
+        style={{ height: 350, flex: 0 }}
         accessibilityLabel="組物: timber bracket assembly"
         frameloop={active ? 'demand' : 'never'}
         onCreated={({ gl }) => configureKumimonoRenderer(gl)}
