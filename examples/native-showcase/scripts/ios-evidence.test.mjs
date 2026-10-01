@@ -84,6 +84,18 @@ test('visual menu text uses measured normalized bounds with flipped origin, neve
   assert.deepEqual(visualTextControl([box], 'Typography', screen).rect, [40, 560, 160, 600])
   assert.equal(visualTextControl([{ ...box, confidence: 0.1 }], 'Typography', screen), undefined)
   assert.equal(visualTextControl([box], 'Form', screen), undefined)
+  assert.deepEqual(
+    visualTextControl([{ ...box, text: '• Typography' }], 'Typography', screen).rect,
+    [40, 560, 160, 600],
+  )
+  assert.equal(
+    visualTextControl([{ ...box, text: 'Other Typography' }], 'Typography', screen),
+    undefined,
+  )
+  assert.throws(
+    () => visualTextControl([box, { ...box, text: '• Typography' }], 'Typography', screen),
+    /ambiguous/,
+  )
   assert.throws(() => visualTextControl([box, box], 'Typography', screen), /ambiguous/)
   assert.throws(() => visualTextControl([{ ...box, x: 1 }], 'Typography', screen))
 })

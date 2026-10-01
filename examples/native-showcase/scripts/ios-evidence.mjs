@@ -58,7 +58,11 @@ export function openShowcaseConfirmation(nodes) {
 }
 
 export function visualTextControl(boxes, text, screenRect) {
-  const matches = boxes.filter((box) => box.text === text && box.confidence >= 0.8)
+  // Vision can include Storybook's leading bullet in the same text box. Strip
+  // only that observed decoration; keep exact wording and ambiguity checks.
+  const matches = boxes.filter(
+    (box) => box.text.replace(/^•\s+/, '') === text && box.confidence >= 0.8,
+  )
   assert.ok(matches.length <= 1, `ambiguous visible text: ${text}`)
   if (!matches.length) return undefined
   const box = matches[0]
