@@ -374,7 +374,7 @@ export default function App() {
           ) : (
             <View style={styles.complete}>
               <Text testID="probe-complete" style={styles.result}>
-                GPU lifecycle and six Native corpus scenes completed.
+                GPU lifecycle and seven Native corpus scenes completed.
               </Text>
               <AccessibilityModes />
             </View>

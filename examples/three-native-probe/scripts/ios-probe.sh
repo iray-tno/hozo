@@ -64,7 +64,7 @@ copy_events() {
 
 wait_for_event() {
   local wanted="$1"
-  if event_available "$wanted"; then
+  if event_available "$wanted" "${2:-30}"; then
     return 0
   fi
   fail "iOS Native GPU probe did not emit $wanted"
@@ -72,7 +72,7 @@ wait_for_event() {
 
 event_available() {
   local wanted="$1"
-  for _ in $(seq 1 30); do
+  for _ in $(seq 1 "${2:-30}"); do
     if copy_events && grep -q "\"event\": \"$wanted\"" "$artifacts/events.json"; then
       return 0
     fi
@@ -110,7 +110,10 @@ else
   printf 'not-run\n' >"$data_container_path/Documents/$skip_lifecycle_name"
   wait_for_event lifecycle_not_run
 fi
-wait_for_event renderer_unmounted
+# This covers all seven GPU fixtures, shader warmup and final teardown, not
+# one lifecycle transition. Require the actual teardown event within a bounded
+# sequence budget; do not infer success from the last scene's useful result.
+wait_for_event renderer_unmounted 120
 xcrun simctl io "$udid" screenshot "$artifacts/completed.png" >/dev/null
 copy_events
 

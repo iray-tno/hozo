@@ -9,7 +9,7 @@ import { useFrame } from '@react-three/fiber/native'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, Text } from 'react-native'
 import { type Object3D, TextureLoader, type WebGLRenderer } from 'three'
-import { sampleSceneRenderEvidence } from './scene-render-evidence.ts'
+import { sampleSceneRenderEvidence, sceneEvidenceReady } from './scene-render-evidence.ts'
 
 export interface NativeSceneCorpusResult {
   activation: 'measured' | 'not-run'
@@ -178,6 +178,7 @@ function MeasuredSceneFixture({
   const animationAngle = useRef(0)
   const initialRotation = useMemo(() => fixture.animation?.object.quaternion.clone(), [fixture])
   const settled = useRef(false)
+  const [renderReady, setRenderReady] = useState(false)
   const initialTextures = useRef(0)
   const objects = useMemo(() => namedObjects(fixture.scene), [fixture.scene])
 
@@ -223,7 +224,7 @@ function MeasuredSceneFixture({
         testID: index === 0 ? `corpus-${id}` : undefined,
       }))}
       camera={fixture.camera}
-      frameloop="always"
+      frameloop={renderReady ? 'demand' : 'always'}
       onCreated={({ gl }) => {
         fixture.configure?.(gl as WebGLRenderer)
         initialTextures.current = (gl as WebGLRenderer).info.memory.textures
@@ -245,14 +246,21 @@ function MeasuredSceneFixture({
           }
           renderCalls.current = evidence.renderCalls
           textureCountDelta.current = evidence.textureCountDelta
-          if (fixture.animation && initialRotation) {
-            fixture.animation.update(delta)
+          if (fixture.animation && initialRotation && evidence.renderCalls > 0) {
             animationFrames.current += 1
             animationAngle.current = Math.max(
               animationAngle.current,
               initialRotation.angleTo(fixture.animation.object.quaternion),
             )
           }
+          const ready = sceneEvidenceReady(
+            evidence,
+            fixture.animation
+              ? { frames: animationFrames.current, angle: animationAngle.current }
+              : undefined,
+          )
+          if (ready) setRenderReady(true)
+          else fixture.animation?.update(delta)
           settle()
         }}
       />
