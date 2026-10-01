@@ -155,7 +155,9 @@ try {
   logger.on('error', (error) => {
     evidence.logError = error.message
   })
-  simctl('launch', '--terminate-running-process', udid, app)
+  // The cold simulator's launch service can also lag behind bootstatus.
+  // Keep one bounded launch attempt, separate from the UI-readiness budget.
+  run('xcrun', ['simctl', 'launch', '--terminate-running-process', udid, app], 120_000)
   // Establish the reader against the app's own ready window before openurl
   // introduces an OS confirmation. Launch returning is not UI readiness.
   await waitFor((node) => node.AXUniqueId === 'mobile-menu-button', 'initial Storybook window')
