@@ -45,6 +45,7 @@ import {
   Input,
   Listbox,
   Menu,
+  NativeSelect,
   Popover,
   RadioGroup,
   SegmentedControl,
@@ -88,6 +89,12 @@ const SHIPPING = [
   { value: 'express', label: 'Express, tomorrow' },
   { value: 'pigeon', label: 'By pigeon', disabled: true },
 ] as const
+
+const COURIERS = [
+  { value: 'post', label: 'Post office' },
+  { value: 'bike', label: 'Bike courier' },
+  { value: 'drone', label: 'Drone', disabled: true },
+]
 
 const RANGES = [
   { value: 'day', label: 'Day' },
@@ -155,6 +162,7 @@ function UiGallery() {
   const [shipping, setShipping] = useState<string>('express')
   const [languages, setLanguages] = useState<readonly string[]>(['rust'])
   const [range, setRange] = useState<string>('week')
+  const [courier, setCourier] = useState<string>('')
   const [date, setDate] = useState<CalendarDate | null>({ year: 2026, month: 9, day: 24 })
   const [span, setSpan] = useState<CalendarRange | null>(null)
   const [clock, setClock] = useState<CalendarTime | null>({ hour: 9, minute: 30 })
@@ -230,6 +238,27 @@ function UiGallery() {
                   maxRows={6}
                   maxLength={160}
                   placeholder="Leave it with a neighbour…"
+                />
+              )}
+            </Field>
+            {/*
+              A real `<select>`, which is the component with the least code behind
+              it and the most platform behind it. Its open list is the operating
+              system's -- the wheel on iOS Safari, the dropdown on Android Chrome
+              -- so only the closed box is styled here, and that is the bargain
+              rather than an omission. On React Native the same component is an
+              `ActionSheetIOS` on iOS and our own modal list on Android, with a
+              provider seam for an app that has installed a real picker module.
+            */}
+            <Field label="Courier" description="Who carries it to the door.">
+              {(control) => (
+                <NativeSelect
+                  {...control}
+                  options={COURIERS}
+                  placeholder="Choose a courier"
+                  value={courier}
+                  onValueChange={setCourier}
+                  accessibilityLabel="Courier"
                 />
               )}
             </Field>

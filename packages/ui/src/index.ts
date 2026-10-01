@@ -111,6 +111,12 @@ export {
   type HozoMenuProps,
 } from './menu.tsx'
 export {
+  HozoNativeSelect as NativeSelect,
+  HozoNativeSelect,
+  type HozoNativeSelectProps as NativeSelectProps,
+  type HozoNativeSelectProps,
+} from './native-select.tsx'
+export {
   HozoPopover as Popover,
   HozoPopover,
   type HozoPopoverProps as PopoverProps,

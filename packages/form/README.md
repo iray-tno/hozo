@@ -1,6 +1,6 @@
 # @hozo/form
 
-Accessible universal form and date-selection components for Hozo: `Form`, `TextArea`, `Calendar`, `DatePicker`, `TimePicker`, `DateTimePicker` and `DateRangePicker`.
+Accessible universal form and date-selection components for Hozo: `Form`, `TextArea`, `NativeSelect`, `Calendar`, `DatePicker`, `TimePicker`, `DateTimePicker` and `DateRangePicker`.
 
 A separate package rather than part of [`@hozo/patterns`](https://www.npmjs.com/package/@hozo/patterns), for two reasons that are specific to this domain. Its platform-native variants reach for the operating system's own pickers — `UIDatePicker` on iOS, Material's `DatePickerDialog` on Android, the iOS wheel picker behind a select — which is an optional dependency on native code that an application using only Tabs and Tree should not acquire. And its locale and calendar data changes on a schedule of its own, which a stable widget package should not be versioned against.
 
@@ -247,6 +247,31 @@ The decision itself is `firstInvalid` and `shouldSubmit`, two exported functions
 The platform's validation is left switched on — no `noValidate`. `Field` marks its control with `aria-required` rather than `required`, so the browser has nothing to catch unless the application added a real constraint itself, and silently disabling the feature it reached for is not this component's decision.
 
 On React Native there is no `role="form"` landmark in the platform's vocabulary, so the label is carried on the `View` and the group has a name without being announced as a form. What that half adds instead is dismissing the keyboard before `onSubmit` runs: the keyboard covers the bottom of the screen, which is where the submit button and any error under the last field both are.
+
+## `NativeSelect`
+
+#143's last control, and the one this package had already argued against itself. The README above explains why the date grid is the answer rather than `<input type="date">` and `UIDatePicker`: an operating system's picker cannot be styled, which is against the premise that one `className` means the same thing on both platforms. A `<select>` survives that argument where a date input does not.
+
+- **A `<select>` is already the platform's picker on the Web.** It opens the wheel on iOS Safari and the dropdown on Android Chrome. So this is not one platform's widget against ours; it is the same decision on both sides — the operating system owns the choosing.
+- **Its closed state is styleable and its open list is not**, which is a difference in kind from `UIDatePicker`, where nothing is. `className` still means something.
+
+The Web half is one `<select>`: no runtime, no portal, no focus management. It is the component here with the least code behind it and the most platform behind it.
+
+On React Native there are three implementations behind one trigger, in this order: a **presenter** if one was provided; **`ActionSheetIOS`** on iOS, which the operating system draws and which costs no dependency; and a **modal list** everywhere else. Android has no core equivalent — `Picker` was removed from React Native years ago — so that last one is ours and says so. The asymmetry is the implementation of "use the platform's default where there is one", not a gap.
+
+`NativeSelectProvider` is the seam, and it is the reason this component is worth having. Hozo ships no native code ([#353](https://github.com/iray-tno/hozo/issues/353)), and a genuine Android spinner needs a native module — which is one of the two reasons this package exists separately in the first place. An application that has installed one says so once and gets it everywhere:
+
+```tsx
+<NativeSelectProvider presenter={myPickerPresenter}>
+  <App />
+</NativeSelectProvider>
+```
+
+The trigger is `accessibilityRole="combobox"` rather than a button, because that is what a `<select>` is in an accessibility tree: a control whose value is one of a list. A button would announce the current value as its *name*, so a reader would hear "Express, tomorrow, button" with nothing saying what the field is. `cancelLabel` is a prop for the same reason `todayLabel` is: "Cancel" is English and Hozo owns no message catalogue.
+
+Two deliberate limits. `value` and `label` are **strings**, not generics: a `<select>`'s value is a string in the DOM, and supporting objects would mean inventing a key to map back from, at which point the Web half has stopped being a plain `<select>`. A caller with objects wants `Listbox`. And the placeholder is an empty-valued option that is **not** disabled — a placeholder that cannot be chosen again is a field that cannot be cleared, and whether empty is allowed is `aria-required`'s question.
+
+The Android fallback's list is written out rather than reusing `/patterns`' `BottomSheet` and `Listbox`, which would have been the better code. That package has no `./native` entry — `/behaviors` has one precisely so a `.native.tsx` can reach the native types — so an import resolves to the Web half and the native-only `style` props cannot be passed at all. The roles are copied from `listbox.native.tsx` rather than invented, and a `./native` entry there would let most of that file go.
 
 ## Status
 
