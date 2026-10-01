@@ -95,11 +95,27 @@ try {
   await waitFor(label('Typography'), 'Typography in story selector')
   screenshot('02-story-selector')
   await tap(label('Typography'), 'select Typography')
+  const backdrop = await waitFor(label('Bottom sheet backdrop'), 'Storybook selector backdrop')
+  const [left, top, right, bottom] = backdrop.rect
+  // The 75%-height drawer stays open after selection. Its backdrop occupies
+  // the whole screen, but only the top quarter is unobstructed by the drawer.
+  adb(
+    'shell',
+    'input',
+    'tap',
+    String(Math.floor((left + right) / 2)),
+    String(Math.floor(top + (bottom - top) / 10)),
+  )
   await waitFor(label('日本語の表示'), 'Typography story rendered')
   screenshot('03-typography')
   record('Storybook selector switches stories')
 
   await story('primitives-shared-showcase--disabled', 'Add one')
+  const disabledButton = await waitFor(
+    (node) => node.class === 'android.widget.Button' && matchLabel(node, 'Add one'),
+    'native disabled button',
+  )
+  assert.equal(disabledButton.enabled, 'false', 'button is not exposed as disabled')
   await tap(label('Add one'), 'disabled counter button')
   await waitFor(label('Pressed 0 times'), 'disabled counter remains unchanged')
   screenshot('04-disabled')
@@ -137,12 +153,18 @@ try {
     reverseChangedFraction: reverseDifference,
   })
 
+  const originalPid = adb('shell', 'pidof', app).toString().trim()
   adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
   await pause(1_000)
   // Resume the activity without selecting the story again: a deep link could
   // recreate it and hide a broken existing GL context behind a fresh mount.
   adb('shell', 'am', 'start', '-W', '-n', `${app}/.MainActivity`)
   const resumedCanvas = await assembly('assembled')
+  assert.equal(
+    adb('shell', 'pidof', app).toString().trim(),
+    originalPid,
+    'resume replaced the app process',
+  )
   const resumed = imageRegion(screenshot('09-resumed'), resumedCanvas.rect)
   assert.ok(resumed.colours >= 40, 'GL surface blank after resume')
   await tap(label('分解'), 'disassemble after resume')
