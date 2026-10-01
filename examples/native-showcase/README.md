@@ -88,7 +88,13 @@ time compiling the untested Intel slice; build locally below for another host.
 `hozo-native-showcase-ios-evidence` contains screenshots, nested accessibility
 trees, system logs and `evidence.json`, including failures. The iOS driver uses
 [idb](https://fbidb.io/docs/idb/ui/) for real taps and keyboard input; it does not
-inject test controls into the showcase. Neither platform's checks claim
+inject test controls into the showcase.
+The animated third-party sidebar omits its rows from idb's accessibility trees;
+its iOS selector check uses Apple Vision to locate the visible Typography label
+and taps the measured text bounds. OCR boxes are retained with the screenshot.
+This verifies visible selection, not sidebar accessibility. Hozo control checks
+still use accessibility labels and state.
+Neither platform's checks claim
 physical-device performance or TalkBack/VoiceOver coverage. iOS background/
 resume and reduced motion remain manual checks; Android resume is automated.
 

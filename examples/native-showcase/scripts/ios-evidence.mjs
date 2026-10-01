@@ -56,3 +56,27 @@ export function openShowcaseConfirmation(nodes) {
     ? nodes.find((node) => node.type === 'Button' && node.AXLabel === 'Open')
     : undefined
 }
+
+export function visualTextControl(boxes, text, screenRect) {
+  const matches = boxes.filter((box) => box.text === text && box.confidence >= 0.8)
+  assert.ok(matches.length <= 1, `ambiguous visible text: ${text}`)
+  if (!matches.length) return undefined
+  const box = matches[0]
+  const coordinates = [box.x, box.y, box.width, box.height]
+  assert.ok(coordinates.every(Number.isFinite), 'invalid OCR bounds')
+  assert.ok(box.x >= 0 && box.y >= 0 && box.width > 0 && box.height > 0)
+  assert.ok(box.x + box.width <= 1 && box.y + box.height <= 1)
+  const [left, top, right, bottom] = screenRect
+  assert.ok(right > left && bottom > top)
+  const width = right - left
+  const height = bottom - top
+  // Vision's normalized origin is bottom-left; HID's is top-left in points.
+  return {
+    rect: [
+      left + box.x * width,
+      top + (1 - box.y - box.height) * height,
+      left + (box.x + box.width) * width,
+      top + (1 - box.y) * height,
+    ],
+  }
+}

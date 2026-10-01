@@ -7,7 +7,12 @@ import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
 import { waitForImage } from './image-ready.mjs'
-import { openShowcaseConfirmation, parseIosNodes, pixelBounds } from './ios-evidence.mjs'
+import {
+  openShowcaseConfirmation,
+  parseIosNodes,
+  pixelBounds,
+  visualTextControl,
+} from './ios-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -16,7 +21,8 @@ mkdirSync(output, { recursive: true })
 const evidence = {
   platform: 'iOS',
   device: 'simulator',
-  axBackends: ['axbridge', 'ax (animated sidebar)'],
+  axBackend: 'axbridge',
+  sidebarSelection: 'visible text (Apple Vision)',
   checks: [],
   passed: false,
 }
@@ -30,14 +36,13 @@ const label = (value) => (node) => node.AXLabel?.replace(/\s+/g, ' ').trim() ===
 let udid
 let latestTree = '[]'
 let logger
-let axBackend = 'axbridge'
 
 const idb = (...args) => run('idb', [...args, '--udid', udid])
 
 function nodes() {
   // The default host AX reader can stall across the OS open-URL window change.
   // idb's persistent guest reader avoids that boundary without app instrumentation.
-  latestTree = idb('ui', 'describe-all', '--api', axBackend, '--nested').toString()
+  latestTree = idb('ui', 'describe-all', '--api', 'axbridge', '--nested').toString()
   return parseIosNodes(latestTree)
 }
 
@@ -77,10 +82,10 @@ async function tap(predicate, description) {
   idb('ui', 'tap', ...centre(node).map(String))
 }
 
-function screenshot(name) {
+function screenshot(name, includeTree = true) {
   const path = resolve(output, `${name}.png`)
   simctl('io', udid, 'screenshot', path)
-  writeFileSync(resolve(output, `${name}.json`), latestTree)
+  if (includeTree) writeFileSync(resolve(output, `${name}.json`), latestTree)
   return readFileSync(path)
 }
 
@@ -159,13 +164,25 @@ try {
   record('counter increments and resets')
 
   await tap((node) => node.AXUniqueId === 'mobile-menu-button', 'Storybook menu')
-  // The guest reader exposes the animated sheet's shell but can omit its
-  // portal content; the host reader sees the actual accessible menu items.
-  // This stays within the app window, unlike the open-URL transition above.
-  axBackend = 'ax'
-  await waitFor(label('Typography'), 'Typography in story selector')
-  screenshot('02-story-selector')
-  await tap(label('Typography'), 'select Typography')
+  // idb's AX readers omit/stall on this third-party animated portal. Read its
+  // visible text instead, with measured boxes, not magic coordinates. All Hozo
+  // controls below still use AX. This is not a sidebar accessibility claim.
+  const screen = parseIosNodes(latestTree).find((node) => node.type === 'Application')
+  assert.ok(screen, 'missing screen bounds for visual selection')
+  const recognizer = resolve(output, 'recognize-text')
+  run('xcrun', ['swiftc', resolve(root, 'scripts/recognize-text.swift'), '-o', recognizer], 120_000)
+  const deadline = Date.now() + 60_000
+  let typography
+  do {
+    screenshot('02-story-selector', false)
+    const boxes = JSON.parse(run(recognizer, [resolve(output, '02-story-selector.png')]).toString())
+    writeFileSync(resolve(output, '02-story-selector-ocr.json'), JSON.stringify(boxes, null, 2))
+    typography = visualTextControl(boxes, 'Typography', screen.rect)
+    if (typography) break
+    await pause(500)
+  } while (Date.now() < deadline)
+  assert.ok(typography, 'Typography is not uniquely visible in the actual menu')
+  idb('ui', 'tap', ...centre(typography).map(String))
   const backdrop = await waitFor(label('Bottom sheet backdrop'), 'Storybook selector backdrop')
   const [left, top, right, bottom] = backdrop.rect
   // The persistent drawer covers the bottom 75%; tap the exposed backdrop.
@@ -175,7 +192,6 @@ try {
     String(Math.floor((left + right) / 2)),
     String(Math.floor(top + (bottom - top) / 10)),
   )
-  axBackend = 'axbridge'
   await waitFor(label('日本語の表示'), 'Typography story rendered')
   screenshot('03-typography')
   record('Storybook selector switches stories')

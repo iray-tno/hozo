@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { centre } from './device-evidence.mjs'
-import { openShowcaseConfirmation, parseIosNodes, pixelBounds } from './ios-evidence.mjs'
+import {
+  openShowcaseConfirmation,
+  parseIosNodes,
+  pixelBounds,
+  visualTextControl,
+} from './ios-evidence.mjs'
 
 test('iOS nested AX tree preserves groups, labels, identifiers and screen-point bounds', () => {
   const nodes = parseIosNodes(
@@ -71,4 +76,14 @@ test('only the OS confirmation naming this showcase can be approved', () => {
   assert.equal(openShowcaseConfirmation([{ AXLabel: 'Open in "Hozo Showcase"?' }, open]), open)
   assert.equal(openShowcaseConfirmation([{ AXLabel: 'Open in “Other App”?' }, open]), undefined)
   assert.equal(openShowcaseConfirmation([open]), undefined)
+})
+
+test('visual menu text uses measured normalized bounds with flipped origin, never fixed pixels', () => {
+  const box = { text: 'Typography', confidence: 0.99, x: 0.1, y: 0.25, width: 0.3, height: 0.05 }
+  const screen = [0, 0, 400, 800]
+  assert.deepEqual(visualTextControl([box], 'Typography', screen).rect, [40, 560, 160, 600])
+  assert.equal(visualTextControl([{ ...box, confidence: 0.1 }], 'Typography', screen), undefined)
+  assert.equal(visualTextControl([box], 'Form', screen), undefined)
+  assert.throws(() => visualTextControl([box, box], 'Typography', screen), /ambiguous/)
+  assert.throws(() => visualTextControl([{ ...box, x: 1 }], 'Typography', screen))
 })
