@@ -11,6 +11,12 @@ export {
   type HozoAccordionSingleProps,
 } from './accordion.tsx'
 export {
+  HozoBottomSheet as BottomSheet,
+  HozoBottomSheet,
+  type HozoBottomSheetProps as BottomSheetProps,
+  type HozoBottomSheetProps,
+} from './bottom-sheet.tsx'
+export {
   type Autocomplete,
   HozoCombobox as Combobox,
   HozoCombobox,
@@ -50,6 +56,18 @@ export {
   type HozoRadioOption as RadioOption,
   type HozoRadioOption,
 } from './radio.tsx'
+export {
+  clampToDetents,
+  cycleDetent,
+  fractionAfter,
+  nextDetent,
+  normalizeDetents,
+  PROJECTION_MS,
+  projectedFraction,
+  restingFraction,
+  type SheetRelease,
+  travelFor,
+} from './sheet-rules.ts'
 export {
   HozoSlider as Slider,
   HozoSlider,

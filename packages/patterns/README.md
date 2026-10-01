@@ -1,7 +1,8 @@
 # @hozo/patterns
 
 Accessible stateful widgets for Hozo: `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`,
-`RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Slider`, `Toolbar`, `Tree`, `Tooltip` and `Popover`. Each carries its WAI-ARIA
+`RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Slider`, `Toolbar`, `Tree`, `Tooltip`, `Popover` and
+`BottomSheet`. Each carries its WAI-ARIA
 keyboard contract on the Web and the matching accessibility semantics on React Native.
 
 `Checkbox` and `Switch` are one control with two roles, and choosing between them chooses what a
@@ -45,6 +46,25 @@ dismisses it, and `accessibilityViewIsModal` stands in for `aria-modal`.
 
 It is `aria-haspopup="dialog"` rather than `"menu"`, which is the line between it and `Menu`: a
 reader told "menu" expects commands and a popover holds a form.
+
+`BottomSheet` is the other half of [#142](https://github.com/iray-tno/hozo/issues/142):
+`Portal + FocusScope + DismissableLayer` and a gesture, which is the part that is deliberately *not*
+a Behaviour -- press and pan are delegated to React Native's responder system rather than owned, so
+the arithmetic goes in `sheet-rules.ts` and each platform writes the gesture in its own vocabulary.
+Pointer events with `setPointerCapture` on the Web, a `PanResponder` on React Native, and one module
+deciding which detent a flick lands on so the two cannot disagree. Its velocity convention is the
+same on both sides without a conversion, because `gestureState.vy` and a `clientY` delta are both
+positive downward and both in pixels per millisecond.
+
+It is **modal**, which is the opposite end of `Popover`'s argument and the same rule: a sheet has a
+scrim, something that dims the page has already said the page is unavailable, so `aria-modal` and the
+Tab trap have to say it too. The drag handle is the interesting piece of its accessibility. With one
+detent there is nothing to resize, so it is decoration a reader is not shown -- drag-to-dismiss
+already has the tap alternative WCAG 2.5.7 asks for, in the scrim. With several it becomes a named
+button that cycles detents and answers the arrows, because then dragging is the only way to change
+the size. On React Native the sheet is a `Modal`, so Android's back button dismisses it through
+`onRequestClose` -- the thing `Popover` cannot offer there -- and the `escape` accessibility action
+answers VoiceOver's two-finger scrub.
 
 They are built on the headless engines in `@hozo/behaviors` -- focus scopes, roving focus,
 typeahead, dismissal and floating positioning -- which stay reusable on their own. Applications

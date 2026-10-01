@@ -13,6 +13,7 @@
 // #652 so `@import "@hozo/ui/theme.css"` in `src/index.css` resolves. Without
 // either, this page is unstyled and nothing says so.
 
+import { PortalProvider } from '@hozo/behaviors'
 import type { CalendarDate, CalendarDateTime, CalendarRange, CalendarTime } from '@hozo/form'
 import { View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
@@ -22,6 +23,7 @@ import {
   type AccordionItem,
   Alert,
   Badge,
+  BottomSheet,
   Button,
   Calendar,
   Card,
@@ -295,6 +297,7 @@ function UiGallery() {
               Read the policy
             </Button>
           </Popover>
+          <UiBottomSheet />
         </Stack>
       </Section>
       <Section>
@@ -458,6 +461,63 @@ function UiDialog({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   )
 }
 
+/**
+ * The bottom sheet, and the button that opens it.
+ *
+ * Two detents, which is what makes the grabber a `<button>` rather than
+ * decoration: with one resting size the only gesture is drag-to-dismiss and the
+ * scrim already answers that with a tap, but a sheet that can be half-open needs
+ * a way to change size without dragging. So the handle is named, focusable, and
+ * answers a press and the arrows -- and that is the only control on this page
+ * whose effect a screen reader cannot perceive, which is the point of WCAG 2.5.7
+ * being about the pointer.
+ */
+function UiBottomSheet({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen)
+  // A portal host inside the story rather than the default one on `document.body`.
+  //
+  // Not a workaround so much as the case `PortalProvider` exists for -- an
+  // application inside a shadow root or a scoped container has to say where
+  // overlays go. Here the reason is the evidence: the screen-reader walk reads
+  // from `#storybook-root`, so a sheet mounted on `body` is outside everything it
+  // looks at and the golden would record the trigger and nothing else. The
+  // portal is real either way; this only chooses its far end.
+  const [host, setHost] = useState<HTMLDivElement | null>(null)
+  return (
+    <>
+      <Button tone="neutral" onPress={() => setOpen(true)}>
+        Filters
+      </Button>
+      <div ref={setHost} />
+      <PortalProvider container={host}>
+        <BottomSheet
+          open={open}
+          onClose={() => setOpen(false)}
+          accessibilityLabel="Filters"
+          detents={[0.5, 1]}
+        >
+          <Heading level={3} className="text-lg font-bold text-hozo-text">
+            Filters
+          </Heading>
+          <Paragraph className={prose}>
+            Modal, unlike the popover above, and not by preference: something that dims the page has
+            already said the page is unavailable, so aria-modal and the Tab trap have to say the
+            same thing. Drag it down to dismiss, or press Escape.
+          </Paragraph>
+          <Stack direction="row" gap="tight">
+            <Button tone="accent" onPress={() => setOpen(false)}>
+              Apply
+            </Button>
+            <Button tone="quiet" onPress={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </Stack>
+        </BottomSheet>
+      </PortalProvider>
+    </>
+  )
+}
+
 const meta = {
   title: 'UI/Gallery',
   component: UiGallery,
@@ -488,6 +548,19 @@ export const DialogOpen: StoryObj<typeof meta> = { render: () => <UiDialog initi
  * contrast in both schemes, its focus ring, and what a reader hears inside a
  * `role="dialog"` that is not modal.
  */
+/**
+ * The sheet open on mount, for the reason the dialog has its own story: it is
+ * modal, so leaving it open in the gallery would take the reading order of
+ * everything above it away from a reader.
+ *
+ * What this one adds over `DialogOpen` is the handle. It is a real control here,
+ * so the appearance check measures it like any other -- 24px of target around a
+ * 4px bar, and a focus ring on a thing that exists to be dragged.
+ */
+export const BottomSheetOpen: StoryObj<typeof meta> = {
+  render: () => <UiBottomSheet initiallyOpen />,
+}
+
 export const PopoverOpen: StoryObj<typeof meta> = {
   render: () => (
     <View className={page}>
