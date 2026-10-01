@@ -115,6 +115,8 @@ function canvasImage(name, canvas) {
 try {
   const binary = resolve(root, 'ios/build/Build/Products/Release-iphonesimulator/HozoShowcase.app')
   assert.ok(statSync(resolve(binary, 'main.jsbundle')).size > 0, 'standalone JS bundle is missing')
+  const recognizer = resolve(output, 'recognize-text')
+  run('xcrun', ['swiftc', resolve(root, 'scripts/recognize-text.swift'), '-o', recognizer], 120_000)
   const devices = JSON.parse(simctl('list', 'devices', 'available', '--json')).devices
   // Resolve once, and use the exact UDID for boot, install, input and screenshots.
   // Duplicate device names across installed iOS runtimes must not switch targets.
@@ -154,6 +156,9 @@ try {
     evidence.logError = error.message
   })
   simctl('launch', '--terminate-running-process', udid, app)
+  // Establish the reader against the app's own ready window before openurl
+  // introduces an OS confirmation. Launch returning is not UI readiness.
+  await waitFor((node) => node.AXUniqueId === 'mobile-menu-button', 'initial Storybook window')
   await story('primitives-shared-showcase--buttons', 'Add one')
   await waitFor(label('Pressed 0 times'), 'initial counter')
   await tap(label('Add one'), 'counter button')
@@ -169,8 +174,6 @@ try {
   // controls below still use AX. This is not a sidebar accessibility claim.
   const screen = parseIosNodes(latestTree).find((node) => node.type === 'Application')
   assert.ok(screen, 'missing screen bounds for visual selection')
-  const recognizer = resolve(output, 'recognize-text')
-  run('xcrun', ['swiftc', resolve(root, 'scripts/recognize-text.swift'), '-o', recognizer], 120_000)
   const deadline = Date.now() + 60_000
   let typography
   do {
