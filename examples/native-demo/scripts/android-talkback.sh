@@ -264,77 +264,6 @@ adb shell am start -W -n "$activity" > /dev/null
 sleep 12
 [ -n "$(adb shell pidof "$package" | tr -d '\r')" ] || fail "$package did not stay up"
 
-# Where the opener is, for DIALOG_EXPLORE below. Read now because
-# `uiautomator` cannot run once TalkBack is on. The screen does not scroll --
-# every row fits, as `talkback-end.png` shows -- so the position holds.
-DIALOG_EXPLORE=${DIALOG_EXPLORE:-0}
-if [ "$DIALOG_EXPLORE" = 1 ]; then
-  for _ in 1 2 3; do
-    adb shell uiautomator dump /sdcard/explore.xml > /dev/null 2>&1 && break
-    sleep 2
-  done
-  adb pull /sdcard/explore.xml ./explore-dump.xml > /dev/null 2>&1 || true
-  read -r explore_x explore_y < <(node --eval '
-    const xml = require("node:fs").readFileSync(process.argv[1], "utf8")
-    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
-      if (!node[0].includes(`resource-id="smoke-interaction"`)) continue
-      const box = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0])
-      if (!box) continue
-      const [left, top, right, bottom] = box.slice(1).map(Number)
-      console.log((left + right) >> 1, (top + bottom) >> 1)
-      process.exit(0)
-    }
-    process.exit(1)
-  ' ./explore-dump.xml 2> /dev/null) ||
-    fail "DIALOG_EXPLORE needs the opener's bounds, and smoke-interaction has none in the tree"
-  echo "opener is at $explore_x,$explore_y"
-
-  # The tap goes to the touchscreen device itself, not through `input tap`.
-  #
-  # `input tap` was tried first (run 36964163710): fifteen taps, every one
-  # silent, and not one TOUCH_EXPLORATION entry in TalkBack's log. `input`
-  # injects into the input dispatcher, past the accessibility input filter
-  # where touch exploration lives. `sendevent` writes to the kernel device, so
-  # the tap enters where a finger's would. That needs root, which
-  # TALKBACK_LOG may already have taken.
-  if [ "$(adb shell id -u 2> /dev/null | tr -d '\r')" != 0 ]; then
-    adb root > /dev/null 2>&1 || true
-    adb wait-for-device
-    sleep 2
-  fi
-  # Each read to the end rather than stopping at the first match: an early
-  # `exit` or `head -1` closes the pipe under `adb`, and with `pipefail` the
-  # SIGPIPE ends the run (141, three boots of run 36966574264).
-  getevent_dump="$(adb shell getevent -pl 2> /dev/null | tr -d '\r' || true)"
-  touch_dev="$(printf '%s\n' "$getevent_dump" \
-    | awk '/^add device/ { dev = $4 } /ABS_MT_POSITION_X/ && !found { found = dev } END { print found }')"
-  touch_max_x="$(printf '%s\n' "$getevent_dump" | awk -v dev="$touch_dev" '
-    /^add device/ { here = ($4 == dev) }
-    here && /ABS_MT_POSITION_X/ && !max { for (i = 1; i <= NF; i++) if ($i == "max") max = $(i + 1) }
-    END { sub(/,$/, "", max); print max }')"
-  touch_max_y="$(printf '%s\n' "$getevent_dump" | awk -v dev="$touch_dev" '
-    /^add device/ { here = ($4 == dev) }
-    here && /ABS_MT_POSITION_Y/ && !max { for (i = 1; i <= NF; i++) if ($i == "max") max = $(i + 1) }
-    END { sub(/,$/, "", max); print max }')"
-  read -r screen_w screen_h < <(adb shell wm size | tr -d '\r' | sed -n 's/.*Physical size: \([0-9]*\)x\([0-9]*\).*/\1 \2/p') || true
-  [ -n "$touch_dev" ] && [ -n "$touch_max_x" ] && [ -n "$touch_max_y" ] && [ -n "$screen_w" ] ||
-    fail "DIALOG_EXPLORE found no multi-touch device to write to (device \"$touch_dev\", range ${touch_max_x}x${touch_max_y}, screen ${screen_w}x${screen_h:-})"
-  echo "touchscreen $touch_dev, range ${touch_max_x}x${touch_max_y}, screen ${screen_w}x${screen_h}"
-fi
-
-# One finger, down on ($1, $2) in screen pixels, held, and lifted. Held
-# rather than tapped: under touch exploration a resting finger is a hover,
-# and the hover is what moves accessibility focus.
-touch_explore() {
-  local x y d
-  x=$(($1 * touch_max_x / screen_w))
-  y=$(($2 * touch_max_y / screen_h))
-  d=$touch_dev
-  adb shell "sendevent $d 3 47 0; sendevent $d 3 57 100; sendevent $d 3 53 $x; sendevent $d 3 54 $y; \
-    sendevent $d 1 330 1; sendevent $d 0 0 0; sleep 0.4; \
-    sendevent $d 3 57 -1; sendevent $d 1 330 0; sendevent $d 0 0 0"
-}
-
 # On after the app, so its first announcement is of this screen rather than
 # of the launcher.
 #
@@ -551,35 +480,6 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   [ -n "$reached" ] || fail "Tab never reached \"$opener\" in round $round, so the dialog cannot be opened"
 
   opened=
-  # Optionally, TalkBack's own focus on the opener before opening it (#484).
-  #
-  # The restore on dismissal reads TalkBack's history of focus moves, and a
-  # Tab walk fills that history its own way: input focus moves and TalkBack
-  # follows, or drops the move while windows settle. A TalkBack user who
-  # swipes to Continue leaves a LOGICAL_NAVIGATION entry instead. Swipes
-  # cannot be sent from here (above), so a tap stands in: under touch
-  # exploration it moves accessibility focus without pressing, and leaves a
-  # TOUCH_EXPLORATION entry, which the restore reads the same way. Enter then
-  # opens the dialog through input focus, which the Tab walk already put on
-  # Continue.
-  if [ "$DIALOG_EXPLORE" = 1 ]; then
-    touch_explore "$explore_x" "$explore_y"
-    sleep 1
-    settle
-    collect
-    printf 'explore %s\t%s\n' "$round" "$new" >> "$dialog_file"
-    echo "  round $round explored the opener: ${new:-(silent)}"
-    case "|$new|" in
-      *"|Confirm your address|"* | *"|Is this right?|"*)
-        echo "::warning::the tap in round $round pressed Continue instead of exploring it, so touch exploration is off"
-        opened=tap
-        ;;
-      *"|$opener"*) ;;
-      *) echo "::warning::the tap in round $round did not land on \"$opener\"" ;;
-    esac
-  fi
-  # Skipped when the tap above already opened it.
-  [ -n "$opened" ] ||
   for key in KEYCODE_ENTER KEYCODE_DPAD_CENTER; do
     adb shell input keyevent "$key"
     sleep 2
@@ -611,12 +511,14 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   settle
   collect
   if [ "$TALKBACK_LOG" = 1 ]; then
-    # What TalkBack recorded on the way to the dialog: the focus moves it made
-    # and the ones it dropped. The restore on dismissal reads the last of
-    # these, so a dismissal is only explained next to them.
+    # What TalkBack did with focus on the way to the dialog: the moves it made,
+    # the ones it declined, and why. The restore on dismissal reads the last
+    # move it made in this window, so a dismissal is only explained next to
+    # these -- under Tab it follows every control on the lap except the cards
+    # and Continue (#484), and this is where that shows.
     opening="$(talkback_timeline "$((round_since - 1))" | awk -v end="$since" '$1 < end' \
-      | grep -E 'FocusManagerInternal: (Node|FocusActionInfo):|TYPE_VIEW_FOCUSED|InputFocusInterp|A11yFocusInterp|A11yEventProcessor|TouchExplor|HOVER|Ignore' \
-      | cut -c1-400 || true)"
+      | grep -E 'FocusManagerInternal: (Node|FocusActionInfo):|TYPE_VIEW_FOCUSED|InputFocusInterp|A11yFocusInterp|AccessibilityNodeInfoUtils|Drop event|not stable|Ignore' \
+      | cut -c1-500 || true)"
     printf '=== round %s, opening ===\n%s\n' "$round" "$opening" >> "$talkback_log_file"
     timeline="$(talkback_timeline "$((since - 1))")"
     printf '=== round %s ===\n%s\n' "$round" "$timeline" >> "$talkback_log_file"
