@@ -288,7 +288,44 @@ if [ "$DIALOG_EXPLORE" = 1 ]; then
   ' ./explore-dump.xml 2> /dev/null) ||
     fail "DIALOG_EXPLORE needs the opener's bounds, and smoke-interaction has none in the tree"
   echo "opener is at $explore_x,$explore_y"
+
+  # The tap goes to the touchscreen device itself, not through `input tap`.
+  #
+  # `input tap` was tried first (run 36964163710): fifteen taps, every one
+  # silent, and not one TOUCH_EXPLORATION entry in TalkBack's log. `input`
+  # injects into the input dispatcher, past the accessibility input filter
+  # where touch exploration lives. `sendevent` writes to the kernel device, so
+  # the tap enters where a finger's would. That needs root, which
+  # TALKBACK_LOG may already have taken.
+  if [ "$(adb shell id -u 2> /dev/null | tr -d '\r')" != 0 ]; then
+    adb root > /dev/null 2>&1 || true
+    adb wait-for-device
+    sleep 2
+  fi
+  touch_dev="$(adb shell getevent -pl 2> /dev/null | tr -d '\r' \
+    | awk '/^add device/ { dev = $4 } /ABS_MT_POSITION_X/ { print dev; exit }')"
+  touch_max_x="$(adb shell getevent -pl "$touch_dev" 2> /dev/null | tr -d '\r' \
+    | sed -n 's/.*ABS_MT_POSITION_X.*max \([0-9]*\).*/\1/p' | head -1)"
+  touch_max_y="$(adb shell getevent -pl "$touch_dev" 2> /dev/null | tr -d '\r' \
+    | sed -n 's/.*ABS_MT_POSITION_Y.*max \([0-9]*\).*/\1/p' | head -1)"
+  read -r screen_w screen_h < <(adb shell wm size | tr -d '\r' | sed -n 's/.*Physical size: \([0-9]*\)x\([0-9]*\).*/\1 \2/p')
+  [ -n "$touch_dev" ] && [ -n "$touch_max_x" ] && [ -n "$touch_max_y" ] && [ -n "$screen_w" ] ||
+    fail "DIALOG_EXPLORE found no multi-touch device to write to (device \"$touch_dev\", range ${touch_max_x}x${touch_max_y}, screen ${screen_w}x${screen_h:-})"
+  echo "touchscreen $touch_dev, range ${touch_max_x}x${touch_max_y}, screen ${screen_w}x${screen_h}"
 fi
+
+# One finger, down on ($1, $2) in screen pixels, held, and lifted. Held
+# rather than tapped: under touch exploration a resting finger is a hover,
+# and the hover is what moves accessibility focus.
+touch_explore() {
+  local x y d
+  x=$(($1 * touch_max_x / screen_w))
+  y=$(($2 * touch_max_y / screen_h))
+  d=$touch_dev
+  adb shell "sendevent $d 3 47 0; sendevent $d 3 57 100; sendevent $d 3 53 $x; sendevent $d 3 54 $y; \
+    sendevent $d 1 330 1; sendevent $d 0 0 0; sleep 0.4; \
+    sendevent $d 3 57 -1; sendevent $d 1 330 0; sendevent $d 0 0 0"
+}
 
 # On after the app, so its first announcement is of this screen rather than
 # of the launcher.
@@ -518,7 +555,7 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   # opens the dialog through input focus, which the Tab walk already put on
   # Continue.
   if [ "$DIALOG_EXPLORE" = 1 ]; then
-    adb shell input tap "$explore_x" "$explore_y"
+    touch_explore "$explore_x" "$explore_y"
     sleep 1
     settle
     collect
@@ -570,7 +607,7 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
     # and the ones it dropped. The restore on dismissal reads the last of
     # these, so a dismissal is only explained next to them.
     opening="$(talkback_timeline "$((round_since - 1))" | awk -v end="$since" '$1 < end' \
-      | grep -E 'FocusManagerInternal: (Node|FocusActionInfo):|windows are not stable|Drop event after window' \
+      | grep -E 'FocusManagerInternal: (Node|FocusActionInfo):|TYPE_VIEW_FOCUSED|InputFocusInterp|A11yFocusInterp|A11yEventProcessor|TouchExplor|HOVER|Ignore' \
       | cut -c1-400 || true)"
     printf '=== round %s, opening ===\n%s\n' "$round" "$opening" >> "$talkback_log_file"
     timeline="$(talkback_timeline "$((since - 1))")"
