@@ -154,7 +154,7 @@ export default function App() {
 
             <Pressable
               ref={continueRef}
-              className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700 focus-visible:bg-blue-800"
+              className="rounded-lg bg-brand p-3 transition-colors duration-200 hover:bg-blue-700"
               accessibilityRole="button"
               accessibilityLabel="Review email address"
               onPress={openConfirmation}
