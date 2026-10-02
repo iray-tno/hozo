@@ -128,19 +128,21 @@ enable_talkback_log() {
   echo "TalkBack log level preference written: VERBOSE"
 }
 
-# Whether the preference took, from TalkBack's own dump rather than assumed.
-# A warning rather than a failure: the level line is in this TalkBack's dump
-# but not promised to be in every one, and a missing line is not proof the
-# level is wrong. The timelines below say so either way.
+# Whether the preference took, from what TalkBack has logged since it bound
+# rather than from its dump: the first run with this found no level line in
+# the dump at all, while hundreds of VERBOSE lines said the level was right.
+# A warning rather than a failure, since a missing log is a missing
+# diagnostic, not a broken screen.
 check_talkback_log() {
-  local level
-  level="$(adb shell dumpsys activity service "$talkback_service" 2> /dev/null \
-    | tr -d '\r' | grep -o 'LogUtils.getLogLevel=[A-Z]*' | head -1 || true)"
-  echo "TalkBack ${level:-LogUtils.getLogLevel=(not in its dump)}"
-  case "$level" in
-    *=VERBOSE) ;;
-    *) echo "::warning::TalkBack does not report logging at VERBOSE, so its focus decisions may be missing from $talkback_log_file" ;;
-  esac
+  local pid verbose
+  pid="$(adb shell pidof "$talkback" | tr -d '\r' | awk '{print $1}' || true)"
+  verbose=0
+  if [ -n "$pid" ]; then
+    verbose="$(adb logcat -d -v brief --pid="$pid" | grep -c '^[VD]/' || true)"
+  fi
+  echo "TalkBack has logged $verbose VERBOSE/DEBUG lines since it started"
+  [ "$verbose" -gt 0 ] ||
+    echo "::warning::TalkBack has logged nothing below ERROR, so the preference did not take and its focus decisions will be missing from $talkback_log_file"
 }
 
 device_now() {
