@@ -150,8 +150,9 @@ sampled read-only in a separate process (companion, showcase and command process
 the existing 30-second input deadline and no-retry policy remain in place.
 Companion logs are retained on both success and failure. Sampling can affect
 timing, so use it to locate a stall, not to measure application performance.
-The input companion connects to the exact simulator before app interactions;
-its cold discovery/framework initialization has a separate bounded setup budget.
+Simulator discovery and the input companion connection happen before app
+interactions; their cold framework initialization has separate bounded setup
+budgets, with setup duration and the exact connected UDID recorded in evidence.
 AX/HID command deadlines and assertions are unchanged, with no input retry.
 `ios-ax-backend` explicitly compares the guest (`axbridge`) and host
 (`ax`, default) readers. The guest reader could not resolve even Settings on the

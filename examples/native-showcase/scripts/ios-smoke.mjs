@@ -21,7 +21,7 @@ import {
   pixelBounds,
   visualTextControl,
 } from './ios-evidence.mjs'
-import { connectIosInput } from './ios-input-connection.mjs'
+import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -184,7 +184,9 @@ try {
   assert.ok(statSync(resolve(binary, 'main.jsbundle')).size > 0, 'standalone JS bundle is missing')
   const recognizer = resolve(output, 'recognize-text')
   run('xcrun', ['swiftc', resolve(root, 'scripts/recognize-text.swift'), '-o', recognizer], 120_000)
-  const devices = JSON.parse(simctl('list', 'devices', 'available', '--json')).devices
+  const discovery = discoverIosDevices(run)
+  const { devices } = discovery
+  evidence.deviceDiscoveryMs = discovery.elapsedMs
   // Resolve once, and use the exact UDID for boot, install, input and screenshots.
   // Duplicate device names across installed iOS runtimes must not switch targets.
   const candidates = Object.entries(devices)

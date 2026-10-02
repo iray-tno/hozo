@@ -1,6 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { connectIosInput } from './ios-input-connection.mjs'
+import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
+
+test('cold simulator discovery gets a separate setup budget, not the UI budget', () => {
+  const devices = { 'com.apple.CoreSimulator.SimRuntime.iOS-26-4': [{ udid: 'exact-udid' }] }
+  const result = discoverIosDevices((command, args, timeout) => {
+    assert.equal(command, 'xcrun')
+    assert.deepEqual(args, ['simctl', 'list', 'devices', 'available', '--json'])
+    assert.equal(timeout, 120_000)
+    return Buffer.from(JSON.stringify({ devices }))
+  })
+  assert.deepEqual(result.devices, devices)
+  assert.ok(result.elapsedMs >= 0)
+  assert.throws(() => discoverIosDevices(() => Buffer.from('{}')), /missing available/)
+})
 
 test('companion setup targets the exact simulator without an AX read or HID action', () => {
   let calls = 0
