@@ -1,4 +1,4 @@
-# 6. Hozo may ship native code, in one optional package, behind a registered provider
+# 6. Hozo may ship native code, in one optional package, behind a resolved provider
 
 **Status:** decided
 **Date:** 2026-10-02
@@ -12,12 +12,11 @@ an implementation note:
    compile a `className` gains a native dependency. `@hozo/core`,
    `@hozo/primitives`, `@hozo/patterns`, `@hozo/form`, `@hozo/behaviors` and
    `@hozo/engine` stay installable without a Gradle or CocoaPods build.
-2. **Handed in by the application, never imported by a library.** The consuming
-   module keeps a registered provider and degrades to what it does today when
-   nothing has been registered. **Amended on 2026-10-02**, while building #491 —
-   see below; the original wording said "resolved provider", pointing at
-   `packages/engine/src/safe-area.native.ts:50`, and that shape does not
-   generalise.
+2. **Reached through a resolved provider, never imported.** The consuming module
+   resolves the capability once at load, `try`/`require`s the optional package,
+   and degrades to what it does today when it is absent. The shape already exists
+   in `packages/engine/src/safe-area.native.ts:50`, where it was written for a
+   third-party package rather than for this.
 3. **A capability is admitted only when all four of the gate below hold.** The
    first one that does is [#491](https://github.com/iray-tno/hozo/issues/491),
    moving accessibility focus on Android, and nothing else is admitted yet.
@@ -27,36 +26,6 @@ an implementation note:
 for real, closed on 2026-09-15. It is no longer a reason to wait, and leaving it
 written as one would have the two issues gating on something that had already
 happened.
-
-## Amendment: a `require` is not optional under Metro
-
-Found while building #491, which is the first code this record governed.
-
-`safe-area.native.ts` reaches its optional package with
-`try { require('react-native-safe-area-context') } catch {}`, and the first
-version of #491 copied it. It cannot work here. **Metro resolves `require` at
-bundle time**: a literal `require` of a package that is not installed is a build
-failure, and the `catch` runs at runtime, which the bundler never reaches.
-
-Safe areas get away with it for a reason that does not transfer. That module is
-only in the module graph when the compiler emitted a safe-area class — "a project
-that writes none never imports it" is its own comment — so the unresolvable
-`require` is behind a conditional *graph edge*. The accessibility-focus module is
-in the graph of every application that renders a `Dialog`. A `require` there would
-have made `@hozo/native` mandatory and broken every existing application on
-upgrade, which is the exact opposite of constraint 1.
-
-So the mechanism is **registration**: the application calls
-`setAccessibilityFocusMover(moveAccessibilityFocus)` beside its root component,
-and `@hozo/native` is in that application's module graph and in nobody else's.
-Two lines, and they are the installation step rather than a wart — the setter
-accepts `undefined`, which is what the export is on iOS and when the module is
-missing from the binary, so the call needs no condition around it.
-
-`safe-area.native.ts` is left alone. Its arrangement is still correct *for it*,
-and changing a working module to match a rule it predates would be the kind of
-tidying this directory exists to prevent. What is no longer true is that it is the
-shape to copy: copy it only when the module is conditionally in the graph.
 
 ## The gate
 
@@ -104,7 +73,7 @@ It is the only capability that passes all four today.
   Native for exactly this reason, which is written into
   `packages/form/src/form.native.tsx` as a platform difference because there was
   nothing else to write.
-- **Falls back to today.** With nothing registered, the default is
+- **Falls back to today.** Absent `@hozo/native`, the provider resolves to
   `AccessibilityInfo.sendAccessibilityEvent`, which is what `main` does now and
   which works about half the time. The dialog is no worse without the package than
   it is today; it is correct with it. Nothing else on the list has a fallback this
@@ -159,11 +128,8 @@ them passes the gate*. They were answered another way and stay answered that way
 
 ## Evidence
 
-- `packages/behaviors/src/accessibility-focus.native.ts` — the registration, and
-  the Metro reasoning behind the amendment above.
-- `packages/engine/src/safe-area.native.ts:50` — the resolved-provider shape this
-  record first pointed at, correct for a module that is conditionally in the
-  graph and only for that.
+- `packages/engine/src/safe-area.native.ts:50` — the provider shape, written for
+  a third-party package and now the required one.
 - `packages/patterns/src/dialog.native.tsx` — `WINDOW_RESTORE_DELAY_MS` and
   `CLOSE_RESTORE_FALLBACK_MS`, the two constants this is meant to delete.
 - `packages/form/src/form.native.tsx` — `focusInvalidOnSubmit`, accepted and

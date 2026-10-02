@@ -1,6 +1,6 @@
 # @hozo/native
 
-Hozo's optional native module. One capability: moving accessibility focus on Android.
+Hozo's optional native module. One capability: making sure a request for TalkBack's focus on Android was honoured.
 
 Nothing in Hozo imports this package. The **application hands it in**, which is what keeps every other `@hozo/*` package installable without a Gradle or CocoaPods build. Installing this one is how an application opts into the rebuild.
 
@@ -26,25 +26,19 @@ Handed in rather than reached for, because Metro resolves `require` at bundle ti
 
 ## What it does, and why it cannot be JavaScript
 
-`Dialog` restores accessibility focus to the control that opened it. On Android that worked about half the time ([#484](https://github.com/iray-tno/hozo/issues/484)), and [#491](https://github.com/iray-tno/hozo/issues/491) traced why through React Native 0.87's sources on the Fabric architecture:
+`Dialog` returns accessibility focus to the control that opened it. On Android it sends the same request React Native offers JavaScript — `sendAccessibilityEvent(view, 'focus')`, which reaches `view.sendAccessibilityEvent(TYPE_VIEW_FOCUSED)` — and TalkBack honours that request unless it arrives while the windows are still settling after the dialog closed. Then TalkBack drops it, and a moment later restores focus from its own history, which may be somewhere else ([#484](https://github.com/iray-tno/hozo/issues/484) has TalkBack's own log of both).
 
-```
-AccessibilityInfo.sendAccessibilityEvent(view, 'focus')
-  → FabricUIManager  "focus" → AccessibilityEvent.TYPE_VIEW_FOCUSED
-  → SurfaceMountingManager  view.sendAccessibilityEvent(eventType)
-```
+Nothing above this package can tell those two outcomes apart: React Native passes JavaScript nothing about where accessibility focus is. This package can. It sends the same request, watches the window for the first view that takes accessibility focus, and if that is not the opener, sends the request once more — by then the windows have settled, so TalkBack honours it.
 
-It ends at an **event** — a notification that something happened. The thing that moves accessibility focus is the **action** `AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS`, and nothing under React Native's `Libraries/` reaches it. This package performs that action, which is the whole of its Kotlin:
+It never places focus itself. The first version of this package performed `ACTION_ACCESSIBILITY_FOCUS` directly, and measured *worse* than sending nothing at all — 15 of 40 dismissals against a control's 11 of 15 — because focus placed behind TalkBack's back is focus TalkBack then corrects.
 
-```kotlin
-view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-```
+Only the first landing after the request is acted on, and only one request is ever repeated. Anything later may be the user moving on, and pulling focus back from a user would be worse than the defect.
 
-A timing fix was measured first and rejected: a twelve-round emulator sweep found the event ignored through 175 ms after Android's window-focus signal and honoured from 200 ms, which is a property of one emulator rather than of TalkBack. `dialog.native.tsx` still carries that delay, because it is what the fallback path depends on and because nobody has yet measured whether the *action* needs it.
+`moveAccessibilityFocus` resolves what happened — `landed`, `resent`, `resent-landed`, `quiet`, `unwatched`, `missing` — for diagnostics. `Dialog` ignores it.
 
 ## Android only
 
-iOS already works. `setAccessibilityFocus` reaches `UIAccessibility` and lands every time, which is why the synchronous request in `dialog.native.tsx` is the whole mechanism there. So there is no `ios/` directory here, and `moveAccessibilityFocus` is `undefined` on iOS — the export is conditionally a function, so one `typeof` check in the consumer answers both "is the module linked" and "is this a platform it helps on".
+iOS already works. `setAccessibilityFocus` reaches `UIAccessibility` and lands every time, which is why the synchronous request in `dialog.native.tsx` is the whole mechanism there. So there is no `ios/` directory here, and `moveAccessibilityFocus` is `undefined` on iOS.
 
 ## What installing it costs
 
@@ -58,7 +52,7 @@ Stated plainly, because it is the only package here with a cost of this kind:
 
 ## If this package becomes unnecessary
 
-If React Native exposes `ACTION_ACCESSIBILITY_FOCUS` to JavaScript, this package should be **removed** rather than kept for the next thing. That is written into the decision record as the condition that reopens it.
+If React Native starts telling JavaScript where accessibility focus is, this package should be **removed** rather than kept for the next thing.
 
 <!-- generated: package-footer -->
 

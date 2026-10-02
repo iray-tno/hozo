@@ -65,7 +65,7 @@ export default function App() {
     // reads. Without it a measured loss cannot be told apart from a native
     // module that was never reached, and those two want opposite fixes.
     console.info(
-      `[hozo-dialog-focus] close via ${hasAccessibilityFocusMover() ? 'native-action' : 'event'}`,
+      `[hozo-dialog-focus] close via ${hasAccessibilityFocusMover() ? 'native' : 'event'}`,
     )
     setConfirming(false)
   }

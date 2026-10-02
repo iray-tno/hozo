@@ -17,22 +17,28 @@ import { type TurboModule, TurboModuleRegistry } from 'react-native'
  */
 export interface Spec extends TurboModule {
   /**
-   * Performs `ACTION_ACCESSIBILITY_FOCUS` on the view behind a React tag.
+   * Asks TalkBack to put its focus on the view behind a React tag, then checks
+   * where its focus actually lands, and asks once more if that was elsewhere.
    *
-   * Resolves what Android said about the request. `performAccessibilityAction`
-   * returns false for a view that will not take accessibility focus at that
-   * moment, and that is the one fact only the platform has. A promise rather than
-   * a synchronous boolean because the view cannot be resolved off the UI thread,
-   * so the answer is a frame away whatever the signature says.
+   * The request is the same `TYPE_VIEW_FOCUSED` event React Native's
+   * `sendAccessibilityEvent(view, 'focus')` sends -- TalkBack's own source names
+   * it as the way an app says where focus should go. What JavaScript cannot do
+   * is the second half: React Native passes it nothing about where accessibility
+   * focus is, so it cannot tell a request that was honoured from one TalkBack
+   * dropped. This method watches for the first `TYPE_VIEW_ACCESSIBILITY_FOCUSED`
+   * in the view's window for `watchMs`, and if it lands on another view, sends
+   * the event again.
    *
-   * It was `void` in the first version, on the reasoning that whether focus
-   * landed is TalkBack's answer rather than a return value's. True, and it threw
-   * the useful half away: a 5x3 diagnostic restored focus in 2 of 15 dismissals
-   * with the action confirmed to be running, and nothing in the evidence said
-   * whether those thirteen were refused or accepted and then overridden. Those
-   * want different fixes.
+   * Resolves what happened, for diagnostics: `landed`, `resent`, `resent-landed`,
+   * `quiet` (nothing landed within the window), `unwatched` (the event was sent
+   * but the window could not be watched) or `missing` (no view behind the tag).
+   *
+   * #491's first version performed `ACTION_ACCESSIBILITY_FOCUS` here instead,
+   * and measured worse than sending nothing at all (#484): the action places
+   * focus without going through TalkBack, which then restores its own idea of it.
+   * This version never places focus itself.
    */
-  moveAccessibilityFocus(viewTag: number): Promise<boolean>
+  restoreAccessibilityFocus(viewTag: number, watchMs: number): Promise<string>
 }
 
 /**
