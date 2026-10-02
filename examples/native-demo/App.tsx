@@ -99,6 +99,7 @@ export default function App() {
             <TextInput
               className="rounded-lg border border-slate-300 p-3 placeholder-slate-400"
               accessibilityLabel="Email address"
+              showSoftInputOnFocus={false}
               accessibilityHint="Enter an address to review in the confirmation dialog"
               placeholder="you@example.com"
               value={email}
