@@ -155,6 +155,12 @@ timing, so use it to locate a stall, not to measure application performance.
 reference runner; the host reader reached the showcase controls. Inputs still
 use HID in both cases; there is no automatic reader fallback or input retry.
 
+`ios-scenario=canvas` isolates the unchanged Canvas pixel/animation and unmount
+checks, so failures in an earlier keyboard/menu check cannot prevent collecting
+renderer evidence. Results are labelled with their scenario; a Canvas-only pass
+is not full showcase coverage. PR and scheduled runs still use `full`. Combine
+it with `reuse-build-run` to inspect an already-built instrumented app.
+
 Android diagnostics save boot logs, CPU/pressure, input-service state and system
 ANR reports **before** starting the app, and again on failure. `android-target`
 can select `google_apis` or `default` for a controlled system-image comparison.
