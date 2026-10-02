@@ -1,6 +1,6 @@
 # 6. Hozo may ship native code, in one optional package, behind a registered provider
 
-**Status:** decided, amended twice on 2026-10-02 after measuring the first capability
+**Status:** decided; amended three times, 2026-10-02 to 2026-10-03, while measuring the first capability
 **Date:** 2026-10-02
 
 ## Decision
@@ -17,10 +17,12 @@ an implementation note:
    nothing has been registered. Amended from "resolved provider" — see
    **Amendment 1**.
 3. **A capability is admitted only when all four of the gate below hold, with
-   evidence rather than expectation.** **No capability is admitted.**
-   [#491](https://github.com/iray-tno/hozo/issues/491) was, and measurement
-   withdrew it — see **Amendment 2**. So `@hozo/native` does not exist yet, and
-   the first thing to pass the gate creates it.
+   evidence rather than expectation.** **One capability is admitted:** checking
+   where TalkBack's focus lands after a request, and asking once more when it
+   landed elsewhere — see **Amendment 3**.
+   [#491](https://github.com/iray-tno/hozo/issues/491)'s first form, which
+   performed the focus action itself, was admitted on expectation and withdrawn
+   on measurement — see **Amendment 2**.
 
 **The pre-condition in [#353](https://github.com/iray-tno/hozo/issues/353) and
 #491 — "whether before #8" — is already satisfied.** #8, running the release job
@@ -103,6 +105,72 @@ measurement, and that a capability which is *unreachable from JavaScript* can st
 be the wrong thing to build — being impossible to do in JavaScript is not evidence
 that doing it helps.
 
+## Amendment 3: what was missing was seeing, not doing — admitted, measured
+
+Amendment 2's reading was a guess. TalkBack's own log, recorded through
+[#712](https://github.com/iray-tno/hozo/pull/712) (`native.yml`'s `talkback_log`
+input raises TalkBack's log level), replaced it with an observation, and read
+against TalkBack's source (google/talkback) it says:
+
+- After a dialog closes, TalkBack **drops** a focus request until it considers the
+  windows settled — `onViewTargeted return due to windows are not stable` — which
+  took 246 to 467 ms on the reference emulator. `dialog.native.tsx` sends at 250 ms.
+- About 250 ms after settling, it restores focus **from its own history**
+  (`FocusProcessorForScreenStateChange`, `RESTORED_LAST_FOCUS`).
+- So `sendAccessibilityEvent` is not a weak substitute for a missing API. It is the
+  sanctioned one — `InputFocusInterpreter` names "developers manually set input focus
+  onto some node" as a case TalkBack follows — and `ACTION_ACCESSIBILITY_FOCUS` is
+  the service-to-app direction, which the first version called on its own receiving
+  end.
+
+What JavaScript genuinely cannot do is **tell a dropped request from an honoured
+one**: React Native 0.87 passes JavaScript nothing about where accessibility focus
+is. That is the capability now in `@hozo/native`, merged in
+[#710](https://github.com/iray-tno/hozo/pull/710). It sends the same
+`TYPE_VIEW_FOCUSED`, watches the window for the first view that takes
+accessibility focus, and if that is not the opener, sends the request once more,
+when the windows have settled and TalkBack honours it. It never places focus
+itself. Only the first landing is acted on, so a user who moves on is never pulled
+back.
+
+Measured with treatment and control dispatched together, TalkBack log on:
+
+| pair | treatment | control |
+| --- | --- | --- |
+| 1 (37043971216 / 37043976211) | 10 of 10 | 11 of 15 |
+| 2 (37047604068 / 37047607769) | 20 of 20 | 9 of 20 |
+| **total** | **30 of 30** | **20 of 35** |
+
+Fisher's p ≈ 2×10⁻⁵. In 19 of the 30 rounds the first request was dropped and the
+resend recovered it, a rate in line with the control's 15 losses in 35. In a round
+where the first request was honoured, the opener was announced as often as in the
+control. The cost is in the recovered rounds, which announce where TalkBack put
+focus and then the opener.
+
+Against the gate:
+
+- **Unreachable** — no event or property in React Native 0.87 reports accessibility
+  focus to JavaScript. `BaseViewManager` reads `view.isAccessibilityFocused()`
+  internally and passes nothing up.
+- **Already paid for** — #462, #484 and the 250 ms delay, as before.
+- **Falls back and beats it** — unregistered or not watchable, it is the event
+  `main` always sent. Registered, it beat a same-conditions control 30 to 20 of 35.
+- **Verifiable** — the TalkBack harness, plus #712's log, which is what showed the
+  mechanism rather than only the count.
+
+The scope is stated, not implied. The losing history in these runs is written by
+the harness's Tab walk, under which TalkBack declines the opener as `is not
+visible` while the soft keyboard covers it. A hardware-keyboard user or a swipe user
+leaves a different history, and nothing injected from adb reaches TalkBack's
+navigation to measure them (#484). The module covers the lost request whichever
+history produced it. The claim is about recovery, not about how often each
+history occurs.
+
+The lesson Amendment 2 drew still holds, sharpened: the first version was right
+that something was unreachable, and wrong about what. Find the missing fact first —
+here, what TalkBack does with the request — and only then decide what native code
+should supply.
+
 ## The gate
 
 A capability may be built as native code when **all four** hold. Three of the four
@@ -134,15 +202,16 @@ do a thing. It is not evidence that doing it helps.
 The fourth is already met for anything accessibility-shaped and would not be for,
 say, a font-registration capability: `.github/workflows/native.yml` builds release
 APKs, boots an emulator, drives TalkBack and reads the tree
-(`native.yml:139`, `:262`, `:329`), and
-`examples/native-demo/scripts/android-talkback.sh:338` already takes
+(`native.yml:143`, `:266`, `:334`), and
+`examples/native-demo/scripts/android-talkback.sh:463` already takes
 `DIALOG_ROUNDS` and counts how many dismissals returned focus. #297 built that to
 answer a different question; it is the instrument this needs.
 
-## Why #491 looked like the first, and which test it actually failed
+## Why #491's first form looked like the first, and which test it actually failed
 
 Kept rather than deleted, because the reasoning was sound on three of the four and
-the one it got wrong is the one worth recognising next time.
+the one it got wrong is the one worth recognising next time. Amendment 3 admitted a
+different capability for the same defect; this section is about the first one.
 
 It read as the only capability passing all four. **It failed the third**, and not
 in the way that test was written to catch: the fallback is not merely as good as
@@ -216,8 +285,14 @@ them passes the gate*. They were answered another way and stay answered that way
   `@react-native-picker/picker` for no reason.
 - **Shipping the 250 ms delay instead.** Measured over twelve rounds and rejected
   in #491: the threshold is a property of one emulator, and the mount queue adds a
-  variable frame on top. It is in `dialog.native.tsx` today as the best available
-  guess, and replacing it is the acceptance criterion rather than a side effect.
+  variable frame on top. TalkBack's log has since shown it sits on the edge of when
+  the windows settle (Amendment 3). It stays in `dialog.native.tsx`: it wins most
+  of the time, and `@hozo/native` covers the times it loses instead of replacing it.
+- **Sending the request several times on fixed delays.** Considered as the
+  JavaScript-only answer to Amendment 3's finding. It converges, but every request
+  is announced, including the ones TalkBack drops, and with nothing to say when to
+  stop, the common case pays for the rare one. Watching the landing is what lets
+  the module stay quiet when the first request was honoured.
 - **Native code inside an existing package behind a build flag.** It makes the
   rebuild conditional on configuration rather than on installation, which means
   the question "does this package need a native build" stops having one answer.
@@ -230,15 +305,21 @@ them passes the gate*. They were answered another way and stay answered that way
 - Runs 36909079977, 36913846064, 36918142628 (treatment) and 36920538771
   (control) — the four dispatches Amendment 2 is counted from, with the per-boot
   numbers in each job log.
-- https://github.com/iray-tno/hozo/pull/710 — the capability as built, kept
-  unmerged as the record of what was measured.
+- https://github.com/iray-tno/hozo/pull/710 — `@hozo/native` as merged
+  (Amendment 3). Its history holds the first form, which performed the action
+  (Amendment 2).
+- Runs 37043971216, 37047604068 (treatment) and 37043976211, 37047607769
+  (control) — the two pairs Amendment 3 is counted from.
+- https://github.com/iray-tno/hozo/pull/712 and #484's comments — TalkBack's
+  log of each dismissal, and the source lines in google/talkback it was read
+  against.
 - `packages/patterns/src/dialog.native.tsx` — `WINDOW_RESTORE_DELAY_MS` and
-  `CLOSE_RESTORE_FALLBACK_MS`, the two constants this is meant to delete.
+  `CLOSE_RESTORE_FALLBACK_MS`, which stay. The module covers what they lose.
 - `packages/form/src/form.native.tsx` — `focusInvalidOnSubmit`, accepted and
   unused, with #491 named as the reason.
-- `.github/workflows/native.yml:139`, `:262`, `:329` — the Android boot, the
+- `.github/workflows/native.yml:143`, `:266`, `:334` — the Android boot, the
   TalkBack run and the iOS job.
-- `examples/native-demo/scripts/android-talkback.sh:338` — `DIALOG_ROUNDS`, the
+- `examples/native-demo/scripts/android-talkback.sh:463` — `DIALOG_ROUNDS`, the
   instrument for acceptance.
 - #491 — the traced JavaScript path and the twelve-round delay sweep, with run
   ids.
@@ -249,15 +330,16 @@ them passes the gate*. They were answered another way and stay answered that way
 Three things would move this, and only the first reopens the decision rather than
 extending it:
 
-- **A capability that beats its own fallback, measured against a control arm in the
-  same conditions.** That creates `@hozo/native`. Until then the package does not
-  exist, and this record is a gate with nothing through it.
-- **A different attack on #484.** The event outperforms the action, so the open
-  question is no longer which API to call. It is when, and what TalkBack does after
-  a window closes. Nothing in that needs native code yet, and if something does it
-  comes back through the gate with a control arm.
-- **A capability that passes all four.** Admit it, and say in its own record which
-  of the four was the close one.
+- **React Native starts reporting accessibility focus to JavaScript.** Amendment 3's
+  capability stops being unreachable. Remove it rather than keep the package for
+  the next thing; if nothing else has passed the gate by then, `@hozo/native` goes
+  with it.
+- **A human or a real device measures the swipe and hardware-keyboard cases.** If
+  TalkBack's own history already returns focus there, the module is idle for those
+  users, which is fine. If it does not, the module covers it. Either way the result
+  belongs in Amendment 3.
+- **A second capability that passes all four.** Admit it, and say in its own record
+  which of the four was the close one.
 - **A capability that passes three.** The answer is no, and the record of that
   belongs here as an amendment, because the next person will find the same three
   and reach the same wrong conclusion.
