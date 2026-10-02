@@ -323,11 +323,17 @@ try {
     'assembled first frame',
   )
   assert.ok(assembled.colours >= 40, `GL surface appears blank: ${assembled.colours} colours`)
+  evidence.canvasObservation = { assembledColours: assembled.colours }
   await tap(label('分解'), 'disassemble')
   await assembly('disassembled')
   const disassembled = await waitForImage(
     () => canvasImage('11-disassembled', canvas),
-    (image) => image.colours >= 40 && changedFraction(assembled, image) >= 0.01,
+    (image) => {
+      const difference = changedFraction(assembled, image)
+      evidence.canvasObservation.disassembledColours = image.colours
+      evidence.canvasObservation.disassembledChangedFraction = difference
+      return image.colours >= 40 && difference >= 0.01
+    },
     'disassembled frame',
   )
   const difference = changedFraction(assembled, disassembled)
