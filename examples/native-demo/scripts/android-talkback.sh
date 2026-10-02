@@ -302,13 +302,21 @@ if [ "$DIALOG_EXPLORE" = 1 ]; then
     adb wait-for-device
     sleep 2
   fi
-  touch_dev="$(adb shell getevent -pl 2> /dev/null | tr -d '\r' \
-    | awk '/^add device/ { dev = $4 } /ABS_MT_POSITION_X/ { print dev; exit }')"
-  touch_max_x="$(adb shell getevent -pl "$touch_dev" 2> /dev/null | tr -d '\r' \
-    | sed -n 's/.*ABS_MT_POSITION_X.*max \([0-9]*\).*/\1/p' | head -1)"
-  touch_max_y="$(adb shell getevent -pl "$touch_dev" 2> /dev/null | tr -d '\r' \
-    | sed -n 's/.*ABS_MT_POSITION_Y.*max \([0-9]*\).*/\1/p' | head -1)"
-  read -r screen_w screen_h < <(adb shell wm size | tr -d '\r' | sed -n 's/.*Physical size: \([0-9]*\)x\([0-9]*\).*/\1 \2/p')
+  # Each read to the end rather than stopping at the first match: an early
+  # `exit` or `head -1` closes the pipe under `adb`, and with `pipefail` the
+  # SIGPIPE ends the run (141, three boots of run 36966574264).
+  getevent_dump="$(adb shell getevent -pl 2> /dev/null | tr -d '\r' || true)"
+  touch_dev="$(printf '%s\n' "$getevent_dump" \
+    | awk '/^add device/ { dev = $4 } /ABS_MT_POSITION_X/ && !found { found = dev } END { print found }')"
+  touch_max_x="$(printf '%s\n' "$getevent_dump" | awk -v dev="$touch_dev" '
+    /^add device/ { here = ($4 == dev) }
+    here && /ABS_MT_POSITION_X/ && !max { for (i = 1; i <= NF; i++) if ($i == "max") max = $(i + 1) }
+    END { sub(/,$/, "", max); print max }')"
+  touch_max_y="$(printf '%s\n' "$getevent_dump" | awk -v dev="$touch_dev" '
+    /^add device/ { here = ($4 == dev) }
+    here && /ABS_MT_POSITION_Y/ && !max { for (i = 1; i <= NF; i++) if ($i == "max") max = $(i + 1) }
+    END { sub(/,$/, "", max); print max }')"
+  read -r screen_w screen_h < <(adb shell wm size | tr -d '\r' | sed -n 's/.*Physical size: \([0-9]*\)x\([0-9]*\).*/\1 \2/p') || true
   [ -n "$touch_dev" ] && [ -n "$touch_max_x" ] && [ -n "$touch_max_y" ] && [ -n "$screen_w" ] ||
     fail "DIALOG_EXPLORE found no multi-touch device to write to (device \"$touch_dev\", range ${touch_max_x}x${touch_max_y}, screen ${screen_w}x${screen_h:-})"
   echo "touchscreen $touch_dev, range ${touch_max_x}x${touch_max_y}, screen ${screen_w}x${screen_h}"
