@@ -32,6 +32,7 @@ const evidence = {
   axBackend: process.env.HOZO_AX_BACKEND || 'ax',
   sidebarSelection: 'visible text (Apple Vision)',
   scenario: process.env.HOZO_IOS_SCENARIO || 'full',
+  canvasMode: process.env.HOZO_IOS_CANVAS_MODE || 'demand',
   checks: [],
   passed: false,
   binaryRun: process.env.HOZO_BINARY_RUN,
@@ -170,6 +171,7 @@ function canvasImage(name, canvas) {
 
 try {
   assert.ok(['full', 'canvas'].includes(evidence.scenario), 'unsupported iOS scenario')
+  assert.ok(['demand', 'continuous'].includes(evidence.canvasMode), 'unsupported Canvas mode')
   const binary = resolve(root, 'ios/build/Build/Products/Release-iphonesimulator/HozoShowcase.app')
   assert.ok(statSync(resolve(binary, 'main.jsbundle')).size > 0, 'standalone JS bundle is missing')
   const recognizer = resolve(output, 'recognize-text')
@@ -321,7 +323,12 @@ try {
     record('shared dialog opens, cancels and confirms')
   }
 
-  await story('three-kumimono--assembly', '組物: timber bracket assembly')
+  await story(
+    evidence.canvasMode === 'continuous'
+      ? 'three-kumimono--assembly-continuous'
+      : 'three-kumimono--assembly',
+    '組物: timber bracket assembly',
+  )
   const canvas = await assembly('assembled')
   const assembled = await waitForImage(
     () => canvasImage('10-assembled', canvas),

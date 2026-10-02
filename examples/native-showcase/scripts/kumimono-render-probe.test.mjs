@@ -98,3 +98,26 @@ test('a renderer error propagates and cannot produce a render-return observation
     ['render-start'],
   )
 })
+
+test('draw counters and output target are observed after rendering without GL queries', () => {
+  const model = study()
+  const events = []
+  const renderer = {
+    info: { render: { calls: 0, triangles: 0 } },
+    getRenderTarget: () => null,
+    render() {
+      this.info.render.calls = 7
+      this.info.render.triangles = 42
+    },
+  }
+  observeKumimonoRender(
+    renderer,
+    model,
+    () => 0,
+    (event) => events.push(event),
+  )
+  renderer.render(model.scene, model.camera)
+  assert.equal(events[1].drawCalls, 7)
+  assert.equal(events[1].triangles, 42)
+  assert.equal(events[1].defaultFramebuffer, true)
+})

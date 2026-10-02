@@ -161,6 +161,11 @@ renderer evidence. Results are labelled with their scenario; a Canvas-only pass
 is not full showcase coverage. PR and scheduled runs still use `full`. Combine
 it with `reuse-build-run` to inspect an already-built instrumented app.
 
+`ios-canvas-mode=continuous` selects a separate continuous-frame story for an
+explicit comparison with the default demand-driven story. Both use the same
+scene, controls, completion states and pixel assertions. Continuous success does
+not certify the canonical demand mode or establish a battery/performance-safe fix.
+
 Android diagnostics save boot logs, CPU/pressure, input-service state and system
 ANR reports **before** starting the app, and again on failure. `android-target`
 can select `google_apis` or `default` for a controlled system-image comparison.

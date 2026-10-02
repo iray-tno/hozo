@@ -3,7 +3,8 @@ import type { WebGLRenderer } from 'three'
 
 /** Endpoint observations only: no extra rendering, invalidation or GL calls. */
 export function observeKumimonoRender(
-  renderer: Pick<WebGLRenderer, 'render'>,
+  renderer: Pick<WebGLRenderer, 'render'> &
+    Partial<Pick<WebGLRenderer, 'info' | 'getRenderTarget'>>,
   study: ReturnType<typeof createKumimonoScene>,
   readProgress: () => number,
   report: (event: Record<string, unknown>) => void,
@@ -32,6 +33,11 @@ export function observeKumimonoRender(
         phase: 'render-return',
         progress,
         pieceWorldMatrix: study.animationObject.matrixWorld.toArray(),
+        drawCalls: renderer.info?.render.calls,
+        triangles: renderer.info?.render.triangles,
+        defaultFramebuffer: renderer.getRenderTarget
+          ? renderer.getRenderTarget() === null
+          : undefined,
       })
       lastEndpoint = progress
     }

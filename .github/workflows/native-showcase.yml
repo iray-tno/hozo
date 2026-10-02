@@ -40,13 +40,18 @@ on:
         type: choice
         options: [full, canvas]
         default: full
+      ios-canvas-mode:
+        description: 'Controlled frame-loop comparison; demand is the canonical story'
+        type: choice
+        options: [demand, continuous]
+        default: demand
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: native-showcase-${{ github.ref }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}
+  group: native-showcase-${{ github.ref }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
   cancel-in-progress: true
 
 jobs:
@@ -202,6 +207,7 @@ jobs:
           HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
           HOZO_AX_BACKEND: ${{ inputs.ios-ax-backend || 'ax' }}
           HOZO_IOS_SCENARIO: ${{ inputs.ios-scenario || 'full' }}
+          HOZO_IOS_CANVAS_MODE: ${{ inputs.ios-canvas-mode || 'demand' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

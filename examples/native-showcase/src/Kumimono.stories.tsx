@@ -55,7 +55,7 @@ function Animation({
   return null
 }
 
-function KumimonoDemo() {
+function KumimonoDemo({ continuousFrames = false }: { continuousFrames?: boolean }) {
   const [study] = useState(() => createKumimonoScene())
   const [target, setTarget] = useState(1)
   const observedProgress = useRef(1)
@@ -89,7 +89,7 @@ function KumimonoDemo() {
         camera={study.camera}
         style={{ height: 350, flex: 0 }}
         accessibilityLabel="組物: timber bracket assembly"
-        frameloop={active ? 'demand' : 'never'}
+        frameloop={active ? (continuousFrames ? 'always' : 'demand') : 'never'}
         onCreated={({ gl }) => {
           configureKumimonoRenderer(gl)
           observeKumimonoRender(
@@ -151,3 +151,7 @@ const meta = {
 } satisfies Meta<typeof KumimonoDemo>
 export default meta
 export const Assembly: StoryObj<typeof meta> = {}
+// Controlled comparison only: the canonical story remains demand-driven.
+export const AssemblyContinuous: StoryObj<typeof meta> = {
+  render: () => <KumimonoDemo continuousFrames />,
+}
