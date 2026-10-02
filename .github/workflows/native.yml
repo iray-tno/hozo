@@ -57,6 +57,10 @@ on:
         description: 'Set to 1 to record TalkBack''s own focus decisions (VERBOSE, needs adb root). Changes timing: compare only with runs that also had it.'
         default: '0'
         required: false
+      dialog_explore:
+        description: 'Set to 1 to tap the opener before each dialog round, so TalkBack itself focuses it (touch exploration) as a swipe user would. Diagnostic.'
+        default: '0'
+        required: false
   # A pull request that edits this machinery runs it. Narrowly the wrong
   # shape -- the rest of the reasoning above rejects paths filters -- and
   # deliberately so, because these two paths are not a guess about what
@@ -317,7 +321,7 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
-          script: DIALOG_ROUNDS=${{ inputs.dialog_rounds || '1' }} TALKBACK_LOG=${{ inputs.talkback_log || '0' }} bash examples/native-demo/scripts/android-talkback.sh
+          script: DIALOG_ROUNDS=${{ inputs.dialog_rounds || '1' }} TALKBACK_LOG=${{ inputs.talkback_log || '0' }} DIALOG_EXPLORE=${{ inputs.dialog_explore || '0' }} bash examples/native-demo/scripts/android-talkback.sh
 
       - name: Keep what it heard
         if: always()

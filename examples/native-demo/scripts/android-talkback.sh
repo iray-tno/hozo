@@ -264,6 +264,32 @@ adb shell am start -W -n "$activity" > /dev/null
 sleep 12
 [ -n "$(adb shell pidof "$package" | tr -d '\r')" ] || fail "$package did not stay up"
 
+# Where the opener is, for DIALOG_EXPLORE below. Read now because
+# `uiautomator` cannot run once TalkBack is on. The screen does not scroll --
+# every row fits, as `talkback-end.png` shows -- so the position holds.
+DIALOG_EXPLORE=${DIALOG_EXPLORE:-0}
+if [ "$DIALOG_EXPLORE" = 1 ]; then
+  for _ in 1 2 3; do
+    adb shell uiautomator dump /sdcard/explore.xml > /dev/null 2>&1 && break
+    sleep 2
+  done
+  adb pull /sdcard/explore.xml ./explore-dump.xml > /dev/null 2>&1 || true
+  read -r explore_x explore_y < <(node --eval '
+    const xml = require("node:fs").readFileSync(process.argv[1], "utf8")
+    for (const node of xml.matchAll(/<node\b[^>]*?\/?>/g)) {
+      if (!node[0].includes(`resource-id="smoke-interaction"`)) continue
+      const box = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node[0])
+      if (!box) continue
+      const [left, top, right, bottom] = box.slice(1).map(Number)
+      console.log((left + right) >> 1, (top + bottom) >> 1)
+      process.exit(0)
+    }
+    process.exit(1)
+  ' ./explore-dump.xml 2> /dev/null) ||
+    fail "DIALOG_EXPLORE needs the opener's bounds, and smoke-interaction has none in the tree"
+  echo "opener is at $explore_x,$explore_y"
+fi
+
 # On after the app, so its first announcement is of this screen rather than
 # of the launcher.
 #
@@ -471,6 +497,7 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   # focus on the email field, and Enter there types into it instead of opening
   # anything -- so the position has to be re-established from whatever the
   # previous dismissal did.
+  if [ "$TALKBACK_LOG" = 1 ]; then round_since="$(device_now)"; fi
   reached=
   for _ in $(seq 1 "$MAX_STEPS"); do
     advance
@@ -479,6 +506,35 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   [ -n "$reached" ] || fail "Tab never reached \"$opener\" in round $round, so the dialog cannot be opened"
 
   opened=
+  # Optionally, TalkBack's own focus on the opener before opening it (#484).
+  #
+  # The restore on dismissal reads TalkBack's history of focus moves, and a
+  # Tab walk fills that history its own way: input focus moves and TalkBack
+  # follows, or drops the move while windows settle. A TalkBack user who
+  # swipes to Continue leaves a LOGICAL_NAVIGATION entry instead. Swipes
+  # cannot be sent from here (above), so a tap stands in: under touch
+  # exploration it moves accessibility focus without pressing, and leaves a
+  # TOUCH_EXPLORATION entry, which the restore reads the same way. Enter then
+  # opens the dialog through input focus, which the Tab walk already put on
+  # Continue.
+  if [ "$DIALOG_EXPLORE" = 1 ]; then
+    adb shell input tap "$explore_x" "$explore_y"
+    sleep 1
+    settle
+    collect
+    printf 'explore %s\t%s\n' "$round" "$new" >> "$dialog_file"
+    echo "  round $round explored the opener: ${new:-(silent)}"
+    case "|$new|" in
+      *"|Confirm your address|"* | *"|Is this right?|"*)
+        echo "::warning::the tap in round $round pressed Continue instead of exploring it, so touch exploration is off"
+        opened=tap
+        ;;
+      *"|$opener"*) ;;
+      *) echo "::warning::the tap in round $round did not land on \"$opener\"" ;;
+    esac
+  fi
+  # Skipped when the tap above already opened it.
+  [ -n "$opened" ] ||
   for key in KEYCODE_ENTER KEYCODE_DPAD_CENTER; do
     adb shell input keyevent "$key"
     sleep 2
@@ -510,6 +566,13 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   settle
   collect
   if [ "$TALKBACK_LOG" = 1 ]; then
+    # What TalkBack recorded on the way to the dialog: the focus moves it made
+    # and the ones it dropped. The restore on dismissal reads the last of
+    # these, so a dismissal is only explained next to them.
+    opening="$(talkback_timeline "$((round_since - 1))" | awk -v end="$since" '$1 < end' \
+      | grep -E 'FocusManagerInternal: (Node|FocusActionInfo):|windows are not stable|Drop event after window' \
+      | cut -c1-400 || true)"
+    printf '=== round %s, opening ===\n%s\n' "$round" "$opening" >> "$talkback_log_file"
     timeline="$(talkback_timeline "$((since - 1))")"
     printf '=== round %s ===\n%s\n' "$round" "$timeline" >> "$talkback_log_file"
     decisions="$(printf '%s\n' "$timeline" | grep -oE 'result=[A-Z_]+' | paste -sd ' ' - || true)"
