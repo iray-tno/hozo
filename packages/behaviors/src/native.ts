@@ -1,3 +1,10 @@
+export {
+  type HozoFocusMover,
+  type HozoFocusTarget,
+  hasAccessibilityFocusMover,
+  moveAccessibilityFocus,
+  setAccessibilityFocusMover,
+} from './accessibility-focus.native.ts'
 export type { Placement } from './floating-geometry.ts'
 export {
   FloatingPositioner,

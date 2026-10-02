@@ -68,6 +68,101 @@ focus_trace() {
     || true
 }
 
+# TalkBack's own account of what it did with focus, when asked for (#484).
+#
+# Every focus decision TalkBack takes on a window change is logged by
+# `FocusProcessorForScreenStateChange`: `result=SUCCESS` when it placed focus
+# itself, `FAIL_HAS_VALID_FOCUS` when it found focus already valid and left
+# it. That is the question #484 cannot answer from speech alone -- whether our
+# restore was overwritten, and by which of TalkBack's strategies -- but it is
+# logged at DEBUG and TalkBack ships at ERROR.
+#
+# The level is a preference, `pref_log_level`, read from device-protected
+# storage when the service starts (`TalkBackService.reloadPreferenceLogLevel`
+# in google/talkback). So it is written there before TalkBack is switched on.
+# That needs `adb root`, which a `google_apis` image allows.
+#
+# Opt-in, and not only for the noise: VERBOSE makes TalkBack do more work on
+# exactly the path being timed. A run with it is compared with runs that also
+# had it, never with the ordinary ones.
+TALKBACK_LOG=${TALKBACK_LOG:-0}
+talkback_log_file=./talkback-internal.log
+
+enable_talkback_log() {
+  adb root > /dev/null 2>&1 || true
+  adb wait-for-device
+  # adbd restarts as root, and its shell is not there until it has.
+  for _ in $(seq 1 10); do
+    [ "$(adb shell id -u 2> /dev/null | tr -d '\r')" = 0 ] && break
+    sleep 1
+  done
+  if [ "$(adb shell id -u 2> /dev/null | tr -d '\r')" != 0 ]; then
+    echo "::warning::adb root is not available on this image, so TalkBack keeps its default log level and its focus decisions are not recorded"
+    TALKBACK_LOG=0
+    return 0
+  fi
+  local dir="/data/user_de/0/$talkback"
+  local prefs="$dir/shared_prefs/${talkback}_preferences.xml"
+  local owner local_copy
+  owner="$(adb shell stat -c %u "$dir" | tr -d '\r')"
+  local_copy="$(mktemp)"
+  # Stopped first: a running process holds its preferences in memory and
+  # would write that copy back over this one.
+  adb shell am force-stop "$talkback"
+  if adb shell test -f "$prefs"; then
+    adb pull "$prefs" "$local_copy" > /dev/null
+  else
+    printf "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n</map>\n" > "$local_copy"
+  fi
+  # 2 is `Log.VERBOSE`. DEBUG would carry the results; VERBOSE also carries
+  # why the restore actor rejected a candidate, which is the next question.
+  sed -i '/name="pref_log_level"/d; s#</map>#    <string name="pref_log_level">2</string>\n</map>#' "$local_copy"
+  adb push "$local_copy" /data/local/tmp/talkback-prefs.xml > /dev/null
+  adb shell "mkdir -p $dir/shared_prefs \
+    && cp /data/local/tmp/talkback-prefs.xml $prefs \
+    && chown -R $owner:$owner $dir/shared_prefs \
+    && chmod 771 $dir/shared_prefs && chmod 660 $prefs \
+    && restorecon -R $dir/shared_prefs"
+  # Room enough that a round's lines are still in the buffer when read.
+  adb logcat -G 16M > /dev/null 2>&1 || true
+  echo "TalkBack log level preference written: VERBOSE"
+}
+
+# Whether the preference took, from what TalkBack has logged since it bound
+# rather than from its dump: the first run with this found no level line in
+# the dump at all, while hundreds of VERBOSE lines said the level was right.
+# A warning rather than a failure, since a missing log is a missing
+# diagnostic, not a broken screen.
+check_talkback_log() {
+  local pid verbose
+  pid="$(adb shell pidof "$talkback" | tr -d '\r' | awk '{print $1}' || true)"
+  verbose=0
+  if [ -n "$pid" ]; then
+    verbose="$(adb logcat -d -v brief --pid="$pid" | grep -c '^[VD]/' || true)"
+  fi
+  echo "TalkBack has logged $verbose VERBOSE/DEBUG lines since it started"
+  [ "$verbose" -gt 0 ] ||
+    echo "::warning::TalkBack has logged nothing below ERROR, so the preference did not take and its focus decisions will be missing from $talkback_log_file"
+}
+
+device_now() {
+  adb shell date +%s | tr -d '\r'
+}
+
+# One dismissal on one clock: TalkBack's lines and the app's markers since `$1`
+# (device epoch seconds), merged by timestamp. The app's restore and
+# TalkBack's own decision only mean something next to each other -- TalkBack
+# holds its decision until 550 ms into the transition, and both of our delays
+# are shorter than that.
+talkback_timeline() {
+  local pid
+  pid="$(adb shell pidof "$talkback" | tr -d '\r' | awk '{print $1}' || true)"
+  {
+    [ -z "$pid" ] || adb logcat -d -v epoch -T "$1.000" --pid="$pid"
+    adb logcat -d -v epoch -T "$1.000" -s ReactNativeJS:I | grep '\[hozo-dialog-focus\]'
+  } | tr -d '\r' | grep -v '^--------- ' | sort -s -n -k1,1 || true
+}
+
 # `uiautomator` must not run while TalkBack is on. Its UiAutomation connection
 # suppresses every other accessibility service, so TalkBack says "TalkBack
 # off" and the rest of the run is silence -- which a dump added for
@@ -149,6 +244,9 @@ if ! adb shell pm list packages "$talkback" | grep -q "$talkback"; then
   fail "this image has no TalkBack (the API 34 one does not; 33, 35 and 36 do)"
 fi
 echo "TalkBack: $(adb shell dumpsys package "$talkback" | grep -m1 versionName | tr -d '\r' | xargs)"
+if [ "$TALKBACK_LOG" = 1 ]; then
+  enable_talkback_log
+fi
 
 echo "installing the speech log and the app"
 adb install -r "$speech_apk"
@@ -199,6 +297,9 @@ for _ in $(seq 1 20); do
 done
 settle
 adb exec-out screencap -p > ./talkback-start.png 2>/dev/null || true
+if [ "$TALKBACK_LOG" = 1 ]; then
+  check_talkback_log
+fi
 
 initial="$(spoken)"
 echo "said on start:"
@@ -370,6 +471,7 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   # focus on the email field, and Enter there types into it instead of opening
   # anything -- so the position has to be re-established from whatever the
   # previous dismissal did.
+  if [ "$TALKBACK_LOG" = 1 ]; then round_since="$(device_now)"; fi
   reached=
   for _ in $(seq 1 "$MAX_STEPS"); do
     advance
@@ -401,10 +503,28 @@ for round in $(seq 1 "$DIALOG_ROUNDS"); do
   done
 
   trace_before="$(focus_trace | wc -l)"
+  # Read before Back rather than after, and only when asked, so the ordinary
+  # run's dismissal is timed exactly as it was.
+  if [ "$TALKBACK_LOG" = 1 ]; then since="$(device_now)"; fi
   adb shell input keyevent KEYCODE_BACK
   sleep 2
   settle
   collect
+  if [ "$TALKBACK_LOG" = 1 ]; then
+    # What TalkBack did with focus on the way to the dialog: the moves it made,
+    # the ones it declined, and why. The restore on dismissal reads the last
+    # move it made in this window, so a dismissal is only explained next to
+    # these -- under Tab it follows every control on the lap except the cards
+    # and Continue (#484), and this is where that shows.
+    opening="$(talkback_timeline "$((round_since - 1))" | awk -v end="$since" '$1 < end' \
+      | grep -E 'FocusManagerInternal: (Node|FocusActionInfo):|TYPE_VIEW_FOCUSED|InputFocusInterp|A11yFocusInterp|AccessibilityNodeInfoUtils|Drop event|not stable|Ignore' \
+      | cut -c1-500 || true)"
+    printf '=== round %s, opening ===\n%s\n' "$round" "$opening" >> "$talkback_log_file"
+    timeline="$(talkback_timeline "$((since - 1))")"
+    printf '=== round %s ===\n%s\n' "$round" "$timeline" >> "$talkback_log_file"
+    decisions="$(printf '%s\n' "$timeline" | grep -oE 'result=[A-Z_]+' | paste -sd ' ' - || true)"
+    echo "  round $round TalkBack screen-state: ${decisions:-(nothing logged)}"
+  fi
   trace_new="$(focus_trace | tail -n "+$((trace_before + 1))" | paste -sd '|' -)"
   printf 'trace %s\t%s\n' "$round" "$trace_new" >> "$trace_file"
   echo "  round $round focus trace: ${trace_new:-(none)}"
