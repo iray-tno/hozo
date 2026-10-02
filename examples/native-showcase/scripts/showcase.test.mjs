@@ -96,6 +96,7 @@ test('Native Dialog isolates its modal without combining descendant controls', (
     if (name === 'react/jsx-runtime') return require(name)
     if (name === 'react-native') return native
     if (name === '@hozo/behaviors') return { shouldRestoreFocus: () => false }
+    if (name === '@hozo/behaviors/native') return { moveAccessibilityFocus: () => {} }
     throw new Error(`Unexpected Native Dialog dependency: ${name}`)
   }
   new Function('require', 'module', code)(load, module)
