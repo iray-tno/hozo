@@ -10,6 +10,29 @@ import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
 
+test('cold Native Storybook starts with a lightweight primitive, not implicit GPU work', () => {
+  const { transformSync } = require('esbuild')
+  const source = readFileSync(path.join(root, '.rnstorybook/index.tsx'), 'utf8')
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs' })
+  const storage = { getItem() {}, setItem() {} }
+  let options
+  const view = {
+    getStorybookUI(value) {
+      options = value
+      return 'Storybook'
+    },
+  }
+  const module = { exports: {} }
+  new Function('require', 'module', code)((name) => {
+    if (name === '@react-native-async-storage/async-storage') return storage
+    if (name === './storybook.requires') return { view }
+    throw new Error(`Unexpected Storybook dependency: ${name}`)
+  }, module)
+  assert.equal(options.initialSelection, 'primitives-shared-showcase--buttons')
+  assert.equal(options.storage.getItem, storage.getItem)
+  assert.equal(module.exports.default, 'Storybook')
+})
+
 test('Native ThreeCanvas preserves GL host ancestry across responder/style updates', () => {
   const react = require('react')
   const { transformSync } = require('esbuild')
