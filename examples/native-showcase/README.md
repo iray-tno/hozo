@@ -180,6 +180,11 @@ explicitly drains Expo's native command queue after each existing render via
 `flushEXP`. This is a blocking diagnostic comparison, not a production fix,
 presentation acknowledgement, or performance sample. Endpoint logs include the
 renderer frame counter and command-flush time; screen pixels remain authoritative.
+After a disassembly pixel timeout, diagnostic runs additionally observe the
+unchanged screen read-only for up to five minutes, recording any late pixel
+change separately. They still rethrow the original timeout and fail the job;
+late output is not a passing check. No extra GL calls, invalidation or input are
+introduced, so this can distinguish delayed queued output from a persistent freeze.
 
 For JS-only iterations, `rebundle-ios=true` with `diagnostics=true` and a
 `reuse-build-run` regenerates production Hermes bytecode and assets in the

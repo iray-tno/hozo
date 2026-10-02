@@ -14,7 +14,7 @@ import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
-import { waitForImage } from './image-ready.mjs'
+import { observeLateImage, PresentedImageTimeout, waitForImage } from './image-ready.mjs'
 import {
   openShowcaseConfirmation,
   parseIosNodes,
@@ -382,16 +382,34 @@ try {
     evidence.canvasObservation = { assembledColours: assembled.colours }
     await tap(label('分解'), 'disassemble')
     await assembly('disassembled')
-    const disassembled = await waitForImage(
-      () => canvasImage('11-disassembled', canvas),
-      (image) => {
-        const difference = changedFraction(assembled, image)
-        evidence.canvasObservation.disassembledColours = image.colours
-        evidence.canvasObservation.disassembledChangedFraction = difference
-        return image.colours >= 40 && difference >= 0.01
-      },
-      'disassembled frame',
-    )
+    const acceptDisassembled = (image) => {
+      const difference = changedFraction(assembled, image)
+      evidence.canvasObservation.disassembledColours = image.colours
+      evidence.canvasObservation.disassembledChangedFraction = difference
+      return image.colours >= 40 && difference >= 0.01
+    }
+    let disassembled
+    try {
+      disassembled = await waitForImage(
+        () => canvasImage('11-disassembled', canvas),
+        acceptDisassembled,
+        'disassembled frame',
+      )
+    } catch (error) {
+      if (evidence.diagnostic && error instanceof PresentedImageTimeout) {
+        // Keep the failed 15s gate intact, and perform ONLY read-only captures.
+        // No GL calls, invalidation, story remount, or repeated input can flush
+        // the queue and confound backlog-vs-freeze diagnosis. This adds no check.
+        evidence.lateCanvasObservation = await observeLateImage(
+          () => {
+            const image = canvasImage('11-late-disassembled', canvas)
+            return { colours: image.colours, changedFraction: changedFraction(assembled, image) }
+          },
+          (image) => image.colours >= 40 && image.changedFraction >= 0.01,
+        )
+      }
+      throw error
+    }
     const difference = changedFraction(assembled, disassembled)
     assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
     await tap(label('組み立て'), 'assemble')
