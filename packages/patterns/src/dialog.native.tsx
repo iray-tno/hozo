@@ -1,7 +1,7 @@
 import { shouldRestoreFocus } from '@hozo/behaviors'
+import { moveAccessibilityFocus } from '@hozo/behaviors/native'
 import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
 import {
-  AccessibilityInfo,
   AppState,
   findNodeHandle,
   Modal,
@@ -14,13 +14,27 @@ import {
 // TalkBack acceptance sweeps on the reference emulator failed through 175ms
 // after Android's window-focus signal and succeeded from 200ms. This is an
 // empirical compatibility boundary, not a claim about TalkBack internals.
+//
+// TalkBack's own log later showed what the boundary is (#484): it drops a focus
+// request until it considers the windows settled, which took 246 to 467 ms, and
+// then restores focus from its own history. So this wait is on the edge, and
+// loses whenever the windows settle late. `@hozo/native` keeps the wait and
+// covers the loss: it watches where focus lands and asks again once.
 const WINDOW_RESTORE_DELAY_MS = 250
 // One measured dismissal emitted no window-focus signal. Keep a later fallback
 // for that case; a real signal replaces it before it fires.
 const CLOSE_RESTORE_FALLBACK_MS = 500
 
+/**
+ * The request this always sent, or `@hozo/native`'s request-and-check when the
+ * application has registered it.
+ *
+ * Which of the two is running is decided once, in `accessibility-focus.native.ts`,
+ * and is deliberately invisible here: a dialog with two code paths for this would
+ * be a dialog where one of them is the one nobody measured.
+ */
 function attemptRestore(opener: ComponentRef<typeof View>): void {
-  AccessibilityInfo.sendAccessibilityEvent(opener, 'focus')
+  moveAccessibilityFocus(opener)
 }
 
 export interface DialogProps {

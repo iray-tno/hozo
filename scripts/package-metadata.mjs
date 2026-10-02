@@ -202,6 +202,18 @@ const PACKAGES = {
       'live-region',
     ],
   },
+  // The one package with an `android/` directory in its tarball, and the only
+  // one whose installation makes an application rebuild. No `native: true`:
+  // that flag means "this package has a `.native.js` twin for the react-native
+  // condition", and this one has a single entry point that is only ever loaded
+  // there. `!android/build` because Gradle writes into the source tree and a
+  // published tarball should not carry an emulator's leftovers.
+  // `docs/decisions/006-shipping-native-code.md` is why it exists at all.
+  native: {
+    exports: { '.': './dist/index.js' },
+    files: ['dist', 'android', '!android/build'],
+    keywords: ['react-native', 'accessibility', 'talkback', 'android', 'turbomodule'],
+  },
   tailwind: {
     exports: { '.': './dist/index.js' },
     keywords: ['tailwindcss', 'theme', 'design-tokens', 'react-native'],

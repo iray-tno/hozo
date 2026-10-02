@@ -1,0 +1,50 @@
+// Kotlin and nothing else: no C++, no Fabric component, no .so, and therefore no
+// NDK configuration. A TurboModule that performs one accessibility action is the
+// smallest shape a React Native library has.
+//
+// No `buildscript` block either, which is the part worth explaining. An
+// autolinked library is a subproject of the application's Gradle build, so the
+// Android and Kotlin plugins are already on the classpath the root project
+// declared -- `examples/native-demo/android/build.gradle` has both. Libraries
+// that also support being built on their own declare them again;
+// `react-native-safe-area-context` does. This one does not support that, so
+// declaring versions here would only be a second place for them to disagree with
+// the app's.
+
+def extOrDefault = { String name, Object fallback ->
+    rootProject.ext.has(name) ? rootProject.ext.get(name) : fallback
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+// Codegen. The plugin reads `codegenConfig` from this package's `package.json`,
+// generates `NativeHozoAccessibilitySpec` from `src/NativeHozoAccessibility.ts`,
+// and adds the output to this project's source set -- which is why there is no
+// `sourceSets` block below and no generated code in the repository.
+apply plugin: 'com.facebook.react'
+
+android {
+    namespace 'com.hozo.nativemodule'
+    compileSdk extOrDefault('compileSdkVersion', 36)
+
+    defaultConfig {
+        // The floor React Native 0.87 supports. Raising it here would raise it for
+        // every app that installs this, which is not this package's call.
+        minSdk extOrDefault('minSdkVersion', 24)
+    }
+
+    // A library with no resources and no components needs no manifest, and AGP 8
+    // and later accept its absence. One is checked in anyway, empty, because the
+    // alternative is a build failure whose message is about a missing file rather
+    // than about a version.
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    // No version: the root project applies `com.facebook.react.rootproject`, which
+    // is what aligns this with the React Native the application is building
+    // against. A version here would be a second answer to that question.
+    implementation 'com.facebook.react:react-android'
+}
