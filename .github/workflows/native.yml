@@ -53,6 +53,10 @@ on:
         description: 'JSON array of independent TalkBack boots, for example [1,2,3]. Defaults to one.'
         default: '[1]'
         required: false
+      talkback_log:
+        description: 'Set to 1 to record TalkBack''s own focus decisions (VERBOSE, needs adb root). Changes timing: compare only with runs that also had it.'
+        default: '0'
+        required: false
   # A pull request that edits this machinery runs it. Narrowly the wrong
   # shape -- the rest of the reasoning above rejects paths filters -- and
   # deliberately so, because these two paths are not a guess about what
@@ -313,7 +317,7 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
-          script: DIALOG_ROUNDS=${{ inputs.dialog_rounds || '1' }} bash examples/native-demo/scripts/android-talkback.sh
+          script: DIALOG_ROUNDS=${{ inputs.dialog_rounds || '1' }} TALKBACK_LOG=${{ inputs.talkback_log || '0' }} bash examples/native-demo/scripts/android-talkback.sh
 
       - name: Keep what it heard
         if: always()
@@ -322,6 +326,7 @@ jobs:
           name: talkback-speech-${{ matrix.boot }}
           path: |
             talkback-speech.json
+            talkback-internal.log
             talkback-*.png
           if-no-files-found: ignore
           retention-days: 14
