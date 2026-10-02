@@ -10,6 +10,51 @@ import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
 
+test('Native ThreeCanvas preserves GL host ancestry across responder/style updates', () => {
+  const react = require('react')
+  const { transformSync } = require('esbuild')
+  const source = readFileSync(path.join(root, '../../packages/three/src/r3f-native.tsx'), 'utf8')
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
+  const native = {
+    View: 'NativeView',
+    Text: 'NativeText',
+    Pressable: 'NativePressable',
+    StyleSheet: { create: (styles) => styles, absoluteFill: { position: 'absolute' } },
+  }
+  const module = { exports: {} }
+  const load = (name) => {
+    if (name === 'react/jsx-runtime') return require(name)
+    if (name === 'react-native') return native
+    if (name === '@react-three/fiber/native') return { Canvas: 'FiberCanvas' }
+    if (name === '@hozo/engine/navigation') return { useHozoNavigation: () => undefined }
+    if (name === './r3f-accessibility.ts') return {}
+    throw new Error(`Unexpected Native ThreeCanvas dependency: ${name}`)
+  }
+  new Function('require', 'module', code)(load, module)
+  const child = react.createElement('Animation')
+  const onCreated = () => {}
+  // Even an untyped caller cannot opt back into context-destroying flattening.
+  const tree = module.exports.ThreeCanvas({
+    accessibilityLabel: 'Assembly',
+    frameloop: 'demand',
+    onCreated,
+    collapsable: true,
+    children: child,
+  })
+  assert.equal(tree.type, native.View)
+  assert.equal(tree.props.collapsable, false)
+  const host = tree.props.children[0]
+  assert.equal(host.props.collapsable, false)
+  const canvas = react.Children.toArray(host.props.children).find(
+    (node) => node.type === 'FiberCanvas',
+  )
+  assert.ok(canvas)
+  assert.equal(canvas.props.collapsable, false)
+  assert.equal(canvas.props.frameloop, 'demand')
+  assert.equal(canvas.props.onCreated, onCreated)
+  assert.equal(canvas.props.children, child)
+})
+
 test('Native Dialog isolates its modal without combining descendant controls', () => {
   // Inspect actual rendered props with inert hooks/native hosts. This guards
   // wiring, not VoiceOver behavior; the simulator run verifies the AX tree.

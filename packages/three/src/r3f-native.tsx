@@ -34,6 +34,7 @@ type NativeFiberCanvasProps = Omit<
   | 'accessibilityRole'
   | 'accessible'
   | 'children'
+  | 'collapsable'
   | 'importantForAccessibility'
   | 'style'
 >
@@ -79,6 +80,7 @@ export function ThreeCanvas({
 
   return (
     <View
+      collapsable={false}
       style={[styles.root, style]}
       accessible={labelled && controls.length === 0}
       accessibilityRole={labelled && controls.length === 0 ? 'image' : undefined}
@@ -87,12 +89,17 @@ export function ThreeCanvas({
       importantForAccessibility={decorative ? 'no-hide-descendants' : undefined}
     >
       <View
+        collapsable={false}
         style={StyleSheet.absoluteFill}
         accessible={false}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <FiberCanvas {...fiberProps} style={StyleSheet.absoluteFill}>
+        {/* Fabric flattening can detach/reparent GLView as R3F installs its
+            responder handlers. Expo GL destroys its context on detachment;
+            preserve the native host even when its current props are layout-only.
+            See expo/expo#37725. This does not change the frame loop. */}
+        <FiberCanvas {...fiberProps} collapsable={false} style={StyleSheet.absoluteFill}>
           {children}
         </FiberCanvas>
       </View>
