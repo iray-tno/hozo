@@ -21,6 +21,7 @@ import {
   pixelBounds,
   visualTextControl,
 } from './ios-evidence.mjs'
+import { connectIosInput } from './ios-input-connection.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -176,7 +177,7 @@ try {
     'unsupported iOS scenario',
   )
   assert.ok(
-    ['demand', 'continuous', 'instant'].includes(evidence.canvasMode),
+    ['demand', 'continuous', 'instant', 'synchronized'].includes(evidence.canvasMode),
     'unsupported Canvas mode',
   )
   const binary = resolve(root, 'ios/build/Build/Products/Release-iphonesimulator/HozoShowcase.app')
@@ -201,6 +202,9 @@ try {
   // after SpringBoard reports booted. Give installation its own bounded budget,
   // without retrying interactions or weakening their assertions.
   run('xcrun', ['simctl', 'install', udid, binary], 120_000)
+  // Discovery and companion startup are tool setup, not an app interaction.
+  // A cold CoreSimulator framework load can exceed the UI command deadline.
+  evidence.inputConnection = connectIosInput(udid, run)
   const logFd = openSync(resolve(output, 'syslog.txt'), 'w')
   logger = spawn(
     'xcrun',
@@ -361,7 +365,9 @@ try {
         ? 'three-kumimono--assembly-continuous'
         : evidence.canvasMode === 'instant'
           ? 'three-kumimono--assembly-instant'
-          : 'three-kumimono--assembly',
+          : evidence.canvasMode === 'synchronized'
+            ? 'three-kumimono--assembly-synchronized'
+            : 'three-kumimono--assembly',
       '組物: timber bracket assembly',
     )
     const canvas = await assembly('assembled')

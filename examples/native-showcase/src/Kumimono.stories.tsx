@@ -3,6 +3,7 @@ import { Button, Text, View } from '@hozo/primitives'
 import { ThreeCanvas } from '@hozo/three/r3f-native'
 import { useFrame, useThree } from '@react-three/fiber/native'
 import type { Meta, StoryObj } from '@storybook/react-native'
+import type { ExpoWebGLRenderingContext } from 'expo-gl'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, AppState, ScrollView } from 'react-native'
 import { observeKumimonoRender } from './kumimono-render-probe.ts'
@@ -58,9 +59,11 @@ function Animation({
 function KumimonoDemo({
   continuousFrames = false,
   forceReducedMotion = false,
+  synchronizeFrames = false,
 }: {
   continuousFrames?: boolean
   forceReducedMotion?: boolean
+  synchronizeFrames?: boolean
 }) {
   const [study] = useState(() => createKumimonoScene())
   const [target, setTarget] = useState(1)
@@ -105,6 +108,9 @@ function KumimonoDemo({
             study,
             () => observedProgress.current,
             (event) => console.info('[Hozo Kumimono]', JSON.stringify(event)),
+            synchronizeFrames
+              ? () => (gl.getContext() as ExpoWebGLRenderingContext).flushEXP()
+              : undefined,
           )
         }}
       >
@@ -165,4 +171,8 @@ export const AssemblyContinuous: StoryObj<typeof meta> = {
 }
 export const AssemblyInstant: StoryObj<typeof meta> = {
   render: () => <KumimonoDemo forceReducedMotion />,
+}
+// Blocking diagnostic, not a performance-safe production frame-loop policy.
+export const AssemblySynchronized: StoryObj<typeof meta> = {
+  render: () => <KumimonoDemo synchronizeFrames />,
 }

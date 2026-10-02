@@ -47,7 +47,7 @@ on:
       ios-canvas-mode:
         description: 'Controlled frame-loop comparison; demand is the canonical story'
         type: choice
-        options: [demand, continuous, instant]
+        options: [demand, continuous, instant, synchronized]
         default: demand
 
 permissions:

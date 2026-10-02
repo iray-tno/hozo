@@ -103,11 +103,12 @@ test('draw counters and output target are observed after rendering without GL qu
   const model = study()
   const events = []
   const renderer = {
-    info: { render: { calls: 0, triangles: 0 } },
+    info: { render: { calls: 0, triangles: 0, frame: 0 } },
     getRenderTarget: () => null,
     render() {
       this.info.render.calls = 7
       this.info.render.triangles = 42
+      this.info.render.frame++
     },
   }
   observeKumimonoRender(
@@ -120,4 +121,58 @@ test('draw counters and output target are observed after rendering without GL qu
   assert.equal(events[1].drawCalls, 7)
   assert.equal(events[1].triangles, 42)
   assert.equal(events[1].defaultFramebuffer, true)
+  assert.equal(events[1].frame, 1)
+  assert.equal(events[1].commandFlushMs, undefined)
+})
+
+test('an explicit command-flush diagnostic runs after each render, including intermediate frames', () => {
+  const model = study()
+  const order = []
+  const events = []
+  let progress = 1
+  const renderer = {
+    render() {
+      order.push('render')
+      return 'render result'
+    },
+  }
+  observeKumimonoRender(
+    renderer,
+    model,
+    () => progress,
+    (event) => events.push(event),
+    () => {
+      order.push('flush')
+    },
+  )
+  for (progress of [1, 0.5, 0]) {
+    assert.equal(renderer.render(model.scene, model.camera), 'render result')
+  }
+  assert.deepEqual(order, ['render', 'flush', 'render', 'flush', 'render', 'flush'])
+  assert.equal(events.length, 4)
+  assert.ok(events[1].commandFlushMs >= 0)
+})
+
+test('a failed command-flush diagnostic propagates without claiming completion', () => {
+  const model = study()
+  const events = []
+  const renderer = { render() {} }
+  const failure = new Error('flush failed')
+  observeKumimonoRender(
+    renderer,
+    model,
+    () => 0,
+    (event) => events.push(event),
+    () => {
+      throw failure
+    },
+  )
+  assert.throws(
+    () => renderer.render(model.scene, model.camera),
+    (error) => error === failure,
+  )
+  assert.deepEqual(
+    events.map(({ phase }) => phase),
+    ['render-start'],
+  )
 })

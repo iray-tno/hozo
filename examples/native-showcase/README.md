@@ -150,6 +150,9 @@ sampled read-only in a separate process (companion, showcase and command process
 the existing 30-second input deadline and no-retry policy remain in place.
 Companion logs are retained on both success and failure. Sampling can affect
 timing, so use it to locate a stall, not to measure application performance.
+The input companion connects to the exact simulator before app interactions;
+its cold discovery/framework initialization has a separate bounded setup budget.
+AX/HID command deadlines and assertions are unchanged, with no input retry.
 `ios-ax-backend` explicitly compares the guest (`axbridge`) and host
 (`ax`, default) readers. The guest reader could not resolve even Settings on the
 reference runner; the host reader reached the showcase controls. Inputs still
@@ -171,6 +174,11 @@ same two final scene states and pixel assertions but omitting intermediate
 animation frames. `ios-scenario=gl-control` checks a direct Expo GL red-to-blue
 clear without Three or R3F. That control uses a blocking GL error query, which
 drains queued commands and affects timing; neither is canonical Canvas coverage.
+`ios-canvas-mode=synchronized` keeps the animation and demand frame loop but
+explicitly drains Expo's native command queue after each existing render via
+`flushEXP`. This is a blocking diagnostic comparison, not a production fix,
+presentation acknowledgement, or performance sample. Endpoint logs include the
+renderer frame counter and command-flush time; screen pixels remain authoritative.
 
 For JS-only iterations, `rebundle-ios=true` with `diagnostics=true` and a
 `reuse-build-run` regenerates production Hermes bytecode and assets in the
