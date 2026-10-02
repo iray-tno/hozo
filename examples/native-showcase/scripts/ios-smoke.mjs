@@ -36,6 +36,7 @@ const evidence = {
   checks: [],
   passed: false,
   binaryRun: process.env.HOZO_BINARY_RUN,
+  jsBundleCommit: process.env.HOZO_IOS_BUNDLE_COMMIT || undefined,
   driverCommit: process.env.GITHUB_SHA,
   diagnostic: process.env.HOZO_DIAGNOSTICS === '1',
 }
@@ -170,8 +171,14 @@ function canvasImage(name, canvas) {
 }
 
 try {
-  assert.ok(['full', 'canvas'].includes(evidence.scenario), 'unsupported iOS scenario')
-  assert.ok(['demand', 'continuous'].includes(evidence.canvasMode), 'unsupported Canvas mode')
+  assert.ok(
+    ['full', 'canvas', 'gl-control'].includes(evidence.scenario),
+    'unsupported iOS scenario',
+  )
+  assert.ok(
+    ['demand', 'continuous', 'instant'].includes(evidence.canvasMode),
+    'unsupported Canvas mode',
+  )
   const binary = resolve(root, 'ios/build/Build/Products/Release-iphonesimulator/HozoShowcase.app')
   assert.ok(statSync(resolve(binary, 'main.jsbundle')).size > 0, 'standalone JS bundle is missing')
   const recognizer = resolve(output, 'recognize-text')
@@ -231,146 +238,175 @@ try {
   // Establish the reader against the app's own ready window before openurl
   // introduces an OS confirmation. Launch returning is not UI readiness.
   await waitFor((node) => node.AXUniqueId === 'mobile-menu-button', 'initial Storybook window')
-  if (evidence.scenario === 'full') {
-    await story('primitives-shared-showcase--buttons', 'Add one')
-    await waitFor(label('Pressed 0 times'), 'initial counter')
-    await tap(label('Add one'), 'counter button')
-    await waitFor(label('Pressed 1 times'), 'incremented counter')
-    screenshot('01-counter')
-    await tap(label('Reset'), 'reset button')
-    await waitFor(label('Pressed 0 times'), 'reset counter')
-    record('counter increments and resets')
-
-    await tap((node) => node.AXUniqueId === 'mobile-menu-button', 'Storybook menu')
-    // idb's AX readers omit/stall on this third-party animated portal. Read its
-    // visible text instead, with measured boxes, not magic coordinates. All Hozo
-    // controls below still use AX. This is not a sidebar accessibility claim.
-    const screen = parseIosNodes(latestTree).find((node) => node.type === 'Application')
-    assert.ok(screen, 'missing screen bounds for visual selection')
-    const deadline = Date.now() + 60_000
-    let typography
-    do {
-      screenshot('02-story-selector', false)
-      const boxes = JSON.parse(
-        run(recognizer, [resolve(output, '02-story-selector.png')]).toString(),
-      )
-      writeFileSync(resolve(output, '02-story-selector-ocr.json'), JSON.stringify(boxes, null, 2))
-      typography = visualTextControl(boxes, 'Typography', screen.rect)
-      if (typography) break
-      await pause(500)
-    } while (Date.now() < deadline)
-    assert.ok(typography, 'Typography is not uniquely visible in the actual menu')
-    idb('ui', 'tap', ...centre(typography).map(String))
-    const backdrop = await waitFor(label('Bottom sheet backdrop'), 'Storybook selector backdrop')
-    const [left, top, right, bottom] = backdrop.rect
-    // The persistent drawer covers the bottom 75%; tap the exposed backdrop.
-    idb(
-      'ui',
-      'tap',
-      String(Math.floor((left + right) / 2)),
-      String(Math.floor(top + (bottom - top) / 10)),
+  if (evidence.scenario === 'gl-control') {
+    await story('diagnostics-expo-gl--color-flip', 'Raw Expo GL surface')
+    await waitFor(label('Raw frame: red'), 'raw red frame submitted')
+    const surface = await waitFor(label('Raw Expo GL surface'), 'raw GL surface')
+    const red = await waitForImage(
+      () => canvasImage('gl-control-red', surface),
+      (image) =>
+        image.pixels.filter(([r, g, b]) => r > 200 && g < 40 && b < 40).length /
+          image.pixels.length >
+        0.99,
+      'raw red pixels presented',
     )
-    await waitFor(label('日本語の表示'), 'Typography story rendered')
-    screenshot('03-typography')
-    record('Storybook selector switches stories')
+    await tap(label('Draw blue'), 'raw GL blue frame')
+    await waitFor(label('Raw frame: blue'), 'raw blue frame submitted')
+    const blue = await waitForImage(
+      () => canvasImage('gl-control-blue', surface),
+      (image) =>
+        image.pixels.filter(([r, g, b]) => b > 200 && g < 40 && r < 40).length /
+          image.pixels.length >
+        0.99,
+      'raw blue pixels presented',
+    )
+    record('direct Expo GL clear reaches screen (diagnostic control only)', {
+      changedFraction: changedFraction(red, blue),
+    })
+  } else {
+    if (evidence.scenario === 'full') {
+      await story('primitives-shared-showcase--buttons', 'Add one')
+      await waitFor(label('Pressed 0 times'), 'initial counter')
+      await tap(label('Add one'), 'counter button')
+      await waitFor(label('Pressed 1 times'), 'incremented counter')
+      screenshot('01-counter')
+      await tap(label('Reset'), 'reset button')
+      await waitFor(label('Pressed 0 times'), 'reset counter')
+      record('counter increments and resets')
 
-    await story('primitives-shared-showcase--disabled', 'Add one')
-    const disabled = await waitFor(label('Add one'), 'disabled counter button')
-    assert.equal(disabled.enabled, false, 'button is not exposed as disabled')
-    await tap(label('Add one'), 'disabled counter button')
-    await waitFor(label('Pressed 0 times'), 'disabled counter remains unchanged')
-    screenshot('04-disabled')
-    record('disabled button does not activate')
+      await tap((node) => node.AXUniqueId === 'mobile-menu-button', 'Storybook menu')
+      // idb's AX readers omit/stall on this third-party animated portal. Read its
+      // visible text instead, with measured boxes, not magic coordinates. All Hozo
+      // controls below still use AX. This is not a sidebar accessibility claim.
+      const screen = parseIosNodes(latestTree).find((node) => node.type === 'Application')
+      assert.ok(screen, 'missing screen bounds for visual selection')
+      const deadline = Date.now() + 60_000
+      let typography
+      do {
+        screenshot('02-story-selector', false)
+        const boxes = JSON.parse(
+          run(recognizer, [resolve(output, '02-story-selector.png')]).toString(),
+        )
+        writeFileSync(resolve(output, '02-story-selector-ocr.json'), JSON.stringify(boxes, null, 2))
+        typography = visualTextControl(boxes, 'Typography', screen.rect)
+        if (typography) break
+        await pause(500)
+      } while (Date.now() < deadline)
+      assert.ok(typography, 'Typography is not uniquely visible in the actual menu')
+      idb('ui', 'tap', ...centre(typography).map(String))
+      const backdrop = await waitFor(label('Bottom sheet backdrop'), 'Storybook selector backdrop')
+      const [left, top, right, bottom] = backdrop.rect
+      // The persistent drawer covers the bottom 75%; tap the exposed backdrop.
+      idb(
+        'ui',
+        'tap',
+        String(Math.floor((left + right) / 2)),
+        String(Math.floor(top + (bottom - top) / 10)),
+      )
+      await waitFor(label('日本語の表示'), 'Typography story rendered')
+      screenshot('03-typography')
+      record('Storybook selector switches stories')
 
-    await story('primitives-shared-showcase--form', 'Save profile')
-    await tap((node) => label('Display name')(node) && /TextField/.test(node.type), 'name input')
-    idb('ui', 'text', 'Hozo')
-    await tap(label('Save profile'), 'save profile')
-    await waitFor(label('Saved: Hozo'), 'saved form value')
-    screenshot('05-form')
-    record('native keyboard input and save')
+      await story('primitives-shared-showcase--disabled', 'Add one')
+      const disabled = await waitFor(label('Add one'), 'disabled counter button')
+      assert.equal(disabled.enabled, false, 'button is not exposed as disabled')
+      await tap(label('Add one'), 'disabled counter button')
+      await waitFor(label('Pressed 0 times'), 'disabled counter remains unchanged')
+      screenshot('04-disabled')
+      record('disabled button does not activate')
 
-    await story('patterns-shared-showcase--preferences', 'Email notifications')
-    await tap(label('Email notifications'), 'email checkbox')
-    await tap(label('Automatic updates'), 'updates switch')
-    await waitFor(label('Preferences: email on, updates off'), 'preference state changes')
-    const required = await waitFor(label('Required security notices'), 'required checkbox')
-    assert.equal(required.enabled, false, 'required checkbox must be disabled')
-    await tap(label('Required security notices'), 'disabled required checkbox')
-    await waitFor(label('Preferences: email on, updates off'), 'disabled preference unchanged')
-    screenshot('06-preferences')
-    record('shared checkbox and switch change state, disabled checkbox does not activate')
+      await story('primitives-shared-showcase--form', 'Save profile')
+      await tap((node) => label('Display name')(node) && /TextField/.test(node.type), 'name input')
+      idb('ui', 'text', 'Hozo')
+      await tap(label('Save profile'), 'save profile')
+      await waitFor(label('Saved: Hozo'), 'saved form value')
+      screenshot('05-form')
+      record('native keyboard input and save')
 
-    await story('patterns-shared-showcase--sections', 'Current section: Overview')
-    await tap(label('Details'), 'details tab')
-    await waitFor(label('Current section: Details'), 'selected tab updates')
-    await waitFor(label('Workspace details and activity.'), 'selected tab panel')
-    await tap(label('Unavailable'), 'disabled tab')
-    await waitFor(label('Current section: Details'), 'disabled tab does not select')
-    screenshot('07-sections')
-    record('shared tabs switch panels and reject disabled selection')
+      await story('patterns-shared-showcase--preferences', 'Email notifications')
+      await tap(label('Email notifications'), 'email checkbox')
+      await tap(label('Automatic updates'), 'updates switch')
+      await waitFor(label('Preferences: email on, updates off'), 'preference state changes')
+      const required = await waitFor(label('Required security notices'), 'required checkbox')
+      assert.equal(required.enabled, false, 'required checkbox must be disabled')
+      await tap(label('Required security notices'), 'disabled required checkbox')
+      await waitFor(label('Preferences: email on, updates off'), 'disabled preference unchanged')
+      screenshot('06-preferences')
+      record('shared checkbox and switch change state, disabled checkbox does not activate')
 
-    await story('patterns-shared-showcase--confirmation', 'Review changes')
-    await tap(label('Review changes'), 'dialog opener')
-    await waitFor(label('Confirm save'), 'dialog opens')
-    screenshot('08-confirmation-open')
-    await tap(label('Cancel changes'), 'cancel changes')
-    await waitFor(label('Changes: not saved'), 'dialog cancels without saving')
-    await tap(label('Review changes'), 'reopen dialog')
-    await tap(label('Confirm save'), 'confirm changes')
-    await waitFor(label('Changes: saved'), 'dialog confirmation result')
-    screenshot('09-confirmation-saved')
-    record('shared dialog opens, cancels and confirms')
+      await story('patterns-shared-showcase--sections', 'Current section: Overview')
+      await tap(label('Details'), 'details tab')
+      await waitFor(label('Current section: Details'), 'selected tab updates')
+      await waitFor(label('Workspace details and activity.'), 'selected tab panel')
+      await tap(label('Unavailable'), 'disabled tab')
+      await waitFor(label('Current section: Details'), 'disabled tab does not select')
+      screenshot('07-sections')
+      record('shared tabs switch panels and reject disabled selection')
+
+      await story('patterns-shared-showcase--confirmation', 'Review changes')
+      await tap(label('Review changes'), 'dialog opener')
+      await waitFor(label('Confirm save'), 'dialog opens')
+      screenshot('08-confirmation-open')
+      await tap(label('Cancel changes'), 'cancel changes')
+      await waitFor(label('Changes: not saved'), 'dialog cancels without saving')
+      await tap(label('Review changes'), 'reopen dialog')
+      await tap(label('Confirm save'), 'confirm changes')
+      await waitFor(label('Changes: saved'), 'dialog confirmation result')
+      screenshot('09-confirmation-saved')
+      record('shared dialog opens, cancels and confirms')
+    }
+
+    await story(
+      evidence.canvasMode === 'continuous'
+        ? 'three-kumimono--assembly-continuous'
+        : evidence.canvasMode === 'instant'
+          ? 'three-kumimono--assembly-instant'
+          : 'three-kumimono--assembly',
+      '組物: timber bracket assembly',
+    )
+    const canvas = await assembly('assembled')
+    const assembled = await waitForImage(
+      () => canvasImage('10-assembled', canvas),
+      (image) => image.colours >= 40,
+      'assembled first frame',
+    )
+    assert.ok(assembled.colours >= 40, `GL surface appears blank: ${assembled.colours} colours`)
+    evidence.canvasObservation = { assembledColours: assembled.colours }
+    await tap(label('分解'), 'disassemble')
+    await assembly('disassembled')
+    const disassembled = await waitForImage(
+      () => canvasImage('11-disassembled', canvas),
+      (image) => {
+        const difference = changedFraction(assembled, image)
+        evidence.canvasObservation.disassembledColours = image.colours
+        evidence.canvasObservation.disassembledChangedFraction = difference
+        return image.colours >= 40 && difference >= 0.01
+      },
+      'disassembled frame',
+    )
+    const difference = changedFraction(assembled, disassembled)
+    assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
+    await tap(label('組み立て'), 'assemble')
+    await assembly('assembled')
+    const reassembled = await waitForImage(
+      () => canvasImage('12-reassembled', canvas),
+      (image) => image.colours >= 40 && changedFraction(disassembled, image) >= 0.01,
+      'reassembled frame',
+    )
+    const reverseDifference = changedFraction(disassembled, reassembled)
+    assert.ok(reverseDifference >= 0.01, `reverse GL image did not change: ${reverseDifference}`)
+    record('Expo GL renders and animates the actual scene', {
+      colours: assembled.colours,
+      changedFraction: difference,
+      reverseChangedFraction: reverseDifference,
+    })
+
+    await story('primitives-shared-showcase--buttons', 'Add one')
+    await tap(label('Add one'), 'counter after GL unmount')
+    await waitFor(label('Pressed 1 times'), 'counter after GL unmount works')
+    screenshot('13-after-gpu')
+    record('switching away from GPU story keeps the app usable')
   }
-
-  await story(
-    evidence.canvasMode === 'continuous'
-      ? 'three-kumimono--assembly-continuous'
-      : 'three-kumimono--assembly',
-    '組物: timber bracket assembly',
-  )
-  const canvas = await assembly('assembled')
-  const assembled = await waitForImage(
-    () => canvasImage('10-assembled', canvas),
-    (image) => image.colours >= 40,
-    'assembled first frame',
-  )
-  assert.ok(assembled.colours >= 40, `GL surface appears blank: ${assembled.colours} colours`)
-  evidence.canvasObservation = { assembledColours: assembled.colours }
-  await tap(label('分解'), 'disassemble')
-  await assembly('disassembled')
-  const disassembled = await waitForImage(
-    () => canvasImage('11-disassembled', canvas),
-    (image) => {
-      const difference = changedFraction(assembled, image)
-      evidence.canvasObservation.disassembledColours = image.colours
-      evidence.canvasObservation.disassembledChangedFraction = difference
-      return image.colours >= 40 && difference >= 0.01
-    },
-    'disassembled frame',
-  )
-  const difference = changedFraction(assembled, disassembled)
-  assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
-  await tap(label('組み立て'), 'assemble')
-  await assembly('assembled')
-  const reassembled = await waitForImage(
-    () => canvasImage('12-reassembled', canvas),
-    (image) => image.colours >= 40 && changedFraction(disassembled, image) >= 0.01,
-    'reassembled frame',
-  )
-  const reverseDifference = changedFraction(disassembled, reassembled)
-  assert.ok(reverseDifference >= 0.01, `reverse GL image did not change: ${reverseDifference}`)
-  record('Expo GL renders and animates the actual scene', {
-    colours: assembled.colours,
-    changedFraction: difference,
-    reverseChangedFraction: reverseDifference,
-  })
-
-  await story('primitives-shared-showcase--buttons', 'Add one')
-  await tap(label('Add one'), 'counter after GL unmount')
-  await waitFor(label('Pressed 1 times'), 'counter after GL unmount works')
-  screenshot('13-after-gpu')
-  record('switching away from GPU story keeps the app usable')
   evidence.passed = true
 } catch (error) {
   evidence.error = error.stack

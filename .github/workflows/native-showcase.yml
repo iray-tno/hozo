@@ -16,6 +16,10 @@ on:
         description: 'Diagnostic only: reuse app artifacts from this repository run ID (empty builds current source)'
         type: string
         default: ''
+      rebundle-ios:
+        description: 'Diagnostic only: rebuild current Hermes JS in a reused iOS app (native inputs must match)'
+        type: boolean
+        default: false
       platform:
         description: 'Platform to exercise'
         type: choice
@@ -38,12 +42,12 @@ on:
       ios-scenario:
         description: 'Full interaction verification, or isolated Canvas diagnosis (not full coverage)'
         type: choice
-        options: [full, canvas]
+        options: [full, canvas, gl-control]
         default: full
       ios-canvas-mode:
         description: 'Controlled frame-loop comparison; demand is the canonical story'
         type: choice
-        options: [demand, continuous]
+        options: [demand, continuous, instant]
         default: demand
 
 permissions:
@@ -149,6 +153,14 @@ jobs:
       - run: pnpm --filter @hozo/example-native-showcase... --if-present build
       - run: pnpm --filter @hozo/example-native-showcase test:unit
       - run: pnpm --filter @hozo/example-native-showcase typecheck
+      - name: Validate diagnostic rebundling
+        if: inputs.rebundle-ios
+        run: |
+          test -n "$BASE_RUN"
+          test "$DIAGNOSTICS" = "true"
+        env:
+          BASE_RUN: ${{ inputs.reuse-build-run }}
+          DIAGNOSTICS: ${{ inputs.diagnostics }}
       - if: inputs.reuse-build-run == ''
         run: pnpm --filter @hozo/example-native-showcase prebuild:ios
       - name: Install pods
@@ -194,6 +206,14 @@ jobs:
           mkdir -p examples/native-showcase/ios/build/Build/Products/Release-iphonesimulator
           ditto -x -k artifacts/reused-ios/HozoShowcase-simulator.zip \
             examples/native-showcase/ios/build/Build/Products/Release-iphonesimulator
+      - name: Rebundle diagnostic iOS app with current JS
+        if: inputs.rebundle-ios
+        run: node examples/native-showcase/scripts/rebundle-ios.mjs "$BASE_RUN" "$REPOSITORY"
+        env:
+          BASE_RUN: ${{ inputs.reuse-build-run }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
       - name: Install iOS Simulator input driver
         run: |
           brew tap facebook/fb
@@ -208,6 +228,7 @@ jobs:
           HOZO_AX_BACKEND: ${{ inputs.ios-ax-backend || 'ax' }}
           HOZO_IOS_SCENARIO: ${{ inputs.ios-scenario || 'full' }}
           HOZO_IOS_CANVAS_MODE: ${{ inputs.ios-canvas-mode || 'demand' }}
+          HOZO_IOS_BUNDLE_COMMIT: ${{ inputs.rebundle-ios && github.sha || '' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

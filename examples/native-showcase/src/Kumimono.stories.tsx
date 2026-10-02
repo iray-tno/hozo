@@ -55,7 +55,13 @@ function Animation({
   return null
 }
 
-function KumimonoDemo({ continuousFrames = false }: { continuousFrames?: boolean }) {
+function KumimonoDemo({
+  continuousFrames = false,
+  forceReducedMotion = false,
+}: {
+  continuousFrames?: boolean
+  forceReducedMotion?: boolean
+}) {
   const [study] = useState(() => createKumimonoScene())
   const [target, setTarget] = useState(1)
   const observedProgress = useRef(1)
@@ -70,9 +76,11 @@ function KumimonoDemo({ continuousFrames = false }: { continuousFrames?: boolean
   useEffect(() => {
     let mounted = true
     AccessibilityInfo.isReduceMotionEnabled().then((value) => {
-      if (mounted) setReducedMotion(value)
+      if (mounted) setReducedMotion(forceReducedMotion || value)
     })
-    const motion = AccessibilityInfo.addEventListener('reduceMotionChanged', setReducedMotion)
+    const motion = AccessibilityInfo.addEventListener('reduceMotionChanged', (value) =>
+      setReducedMotion(forceReducedMotion || value),
+    )
     const state = AppState.addEventListener('change', (value) => setActive(value === 'active'))
     return () => {
       mounted = false
@@ -80,7 +88,7 @@ function KumimonoDemo({ continuousFrames = false }: { continuousFrames?: boolean
       state.remove()
       study.dispose()
     }
-  }, [study])
+  }, [study, forceReducedMotion])
   return (
     <View className="flex-1 gap-4">
       <Text className="text-xl font-bold text-slate-900">組物</Text>
@@ -154,4 +162,7 @@ export const Assembly: StoryObj<typeof meta> = {}
 // Controlled comparison only: the canonical story remains demand-driven.
 export const AssemblyContinuous: StoryObj<typeof meta> = {
   render: () => <KumimonoDemo continuousFrames />,
+}
+export const AssemblyInstant: StoryObj<typeof meta> = {
+  render: () => <KumimonoDemo forceReducedMotion />,
 }

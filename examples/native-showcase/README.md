@@ -166,6 +166,19 @@ explicit comparison with the default demand-driven story. Both use the same
 scene, controls, completion states and pixel assertions. Continuous success does
 not certify the canonical demand mode or establish a battery/performance-safe fix.
 
+`ios-canvas-mode=instant` forces reduced motion in a separate story, keeping the
+same two final scene states and pixel assertions but omitting intermediate
+animation frames. `ios-scenario=gl-control` checks a direct Expo GL red-to-blue
+clear without Three or R3F. That control uses a blocking GL error query, which
+drains queued commands and affects timing; neither is canonical Canvas coverage.
+
+For JS-only iterations, `rebundle-ios=true` with `diagnostics=true` and a
+`reuse-build-run` regenerates production Hermes bytecode and assets in the
+restored simulator app. Native/dependency/configuration changes are rejected;
+the base must be a manual native-showcase run whose source is unambiguous.
+Evidence records the native build run and the new JS source commit separately.
+This is not a substitute for the normal fresh-source build before merging.
+
 Android diagnostics save boot logs, CPU/pressure, input-service state and system
 ANR reports **before** starting the app, and again on failure. `android-target`
 can select `google_apis` or `default` for a controlled system-image comparison.
