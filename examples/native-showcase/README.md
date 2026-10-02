@@ -180,6 +180,14 @@ explicitly drains Expo's native command queue after each existing render via
 `flushEXP`. This is a blocking diagnostic comparison, not a production fix,
 presentation acknowledgement, or performance sample. Endpoint logs include the
 renderer frame counter and command-flush time; screen pixels remain authoritative.
+The unmodified demand story submitted 80 animation frames; after the old 15s
+pixel deadline, read-only observation saw the correct disassembled endpoint
+roughly 198s later (same 73.19% pixel change as the instant/synchronized controls).
+This establishes delayed output on that hosted simulator, not a permanent freeze.
+Only the heavy iOS scene's functional pixel budget is therefore five minutes;
+it still returns as soon as pixels match and reports first-frame/disassembly/
+reassembly wait times. Raw GL, Android and AX/HID deadlines are unchanged.
+A functional pass is **not** interactive-performance or physical-iPhone evidence.
 After a disassembly pixel timeout, diagnostic runs additionally observe the
 unchanged screen read-only for up to five minutes, recording any late pixel
 change separately. They still rethrow the original timeout and fail the job;

@@ -21,6 +21,7 @@ import {
   pixelBounds,
   visualTextControl,
 } from './ios-evidence.mjs'
+import { IOS_SCENE_IMAGE_TIMEOUT, waitForIosSceneImage } from './ios-image-ready.mjs'
 import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 
 const app = 'dev.hozo.showcase'
@@ -34,6 +35,7 @@ const evidence = {
   sidebarSelection: 'visible text (Apple Vision)',
   scenario: process.env.HOZO_IOS_SCENARIO || 'full',
   canvasMode: process.env.HOZO_IOS_CANVAS_MODE || 'demand',
+  sceneImageTimeoutMs: IOS_SCENE_IMAGE_TIMEOUT,
   checks: [],
   passed: false,
   binaryRun: process.env.HOZO_BINARY_RUN,
@@ -373,13 +375,17 @@ try {
       '組物: timber bracket assembly',
     )
     const canvas = await assembly('assembled')
-    const assembled = await waitForImage(
+    const assembledFrame = await waitForIosSceneImage(
       () => canvasImage('10-assembled', canvas),
       (image) => image.colours >= 40,
       'assembled first frame',
     )
+    const assembled = assembledFrame.image
     assert.ok(assembled.colours >= 40, `GL surface appears blank: ${assembled.colours} colours`)
-    evidence.canvasObservation = { assembledColours: assembled.colours }
+    evidence.canvasObservation = {
+      assembledColours: assembled.colours,
+      firstFrameWaitMs: assembledFrame.presentedAfterMs,
+    }
     await tap(label('分解'), 'disassemble')
     await assembly('disassembled')
     const acceptDisassembled = (image) => {
@@ -390,14 +396,16 @@ try {
     }
     let disassembled
     try {
-      disassembled = await waitForImage(
+      const frame = await waitForIosSceneImage(
         () => canvasImage('11-disassembled', canvas),
         acceptDisassembled,
         'disassembled frame',
       )
+      disassembled = frame.image
+      evidence.canvasObservation.disassemblyWaitMs = frame.presentedAfterMs
     } catch (error) {
       if (evidence.diagnostic && error instanceof PresentedImageTimeout) {
-        // Keep the failed 15s gate intact, and perform ONLY read-only captures.
+        // Keep the failed primary gate intact, and perform ONLY read-only captures.
         // No GL calls, invalidation, story remount, or repeated input can flush
         // the queue and confound backlog-vs-freeze diagnosis. This adds no check.
         evidence.lateCanvasObservation = await observeLateImage(
@@ -414,17 +422,22 @@ try {
     assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
     await tap(label('組み立て'), 'assemble')
     await assembly('assembled')
-    const reassembled = await waitForImage(
+    const reassembledFrame = await waitForIosSceneImage(
       () => canvasImage('12-reassembled', canvas),
       (image) => image.colours >= 40 && changedFraction(disassembled, image) >= 0.01,
       'reassembled frame',
     )
+    const reassembled = reassembledFrame.image
+    evidence.canvasObservation.reassemblyWaitMs = reassembledFrame.presentedAfterMs
     const reverseDifference = changedFraction(disassembled, reassembled)
     assert.ok(reverseDifference >= 0.01, `reverse GL image did not change: ${reverseDifference}`)
     record('Expo GL renders and animates the actual scene', {
       colours: assembled.colours,
       changedFraction: difference,
       reverseChangedFraction: reverseDifference,
+      firstFrameWaitMs: assembledFrame.presentedAfterMs,
+      disassemblyWaitMs: evidence.canvasObservation.disassemblyWaitMs,
+      reassemblyWaitMs: reassembledFrame.presentedAfterMs,
     })
 
     await story('primitives-shared-showcase--buttons', 'Add one')
