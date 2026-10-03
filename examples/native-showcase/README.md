@@ -90,6 +90,13 @@ trees, system logs and `evidence.json`, including failures. The iOS driver uses
 [idb](https://fbidb.io/docs/idb/ui/) for real taps and keyboard input; it does not
 inject test controls into the showcase.
 
+The shared display-name field disables spelling/autocorrection: a person's
+name should not be rewritten to an English dictionary suggestion. On iOS,
+keyboard input sends each character once and observes every exact AX value
+prefix (`H`, `Ho`, `Hoz`, `Hozo`) before sending the next character or saving.
+`formInput` retains confirmed and pending prefixes on failure. A missing key
+is never retyped, and both the field value and final `Saved: Hozo` must match.
+
 The animated third-party sidebar omits its rows from idb's accessibility trees;
 its iOS selector check uses Apple Vision to locate the visible Typography label
 and taps the measured text bounds. OCR boxes are retained with the screenshot.
@@ -131,7 +138,7 @@ pnpm --filter @hozo/example-native-showcase smoke:ios
 ```
 
 The driver boots the available `iPhone 17`, or the simulator specified by
-`IOS_UDID` (alternatively `IOS_DEVICE`). It installs and restarts the showcase,
+`IOS_UDID` (alternatively `IOS_DEVICE`). It installs and launches the showcase,
 so use a dedicated simulator. Every subsequent action uses that exact UDID.
 
 ### Diagnose without rebuilding
@@ -153,6 +160,12 @@ timing, so use it to locate a stall, not to measure application performance.
 Simulator discovery and the input companion connection happen before app
 interactions; their cold framework initialization has separate bounded setup
 budgets, with setup duration and the exact connected UDID recorded in evidence.
+The cold app launch is one attempt with its existing two-minute setup budget;
+it does not first terminate a nonexistent app session. `launches` records its
+command, returned PID, duration and errors, separately from UI readiness.
+After ten seconds, a still-blocked launch is sampled read-only (command,
+showcase and SpringBoard) even in normal PR runs, so a pre-app stall has evidence.
+Neither a launch timeout nor an input error is retried into a passing result.
 AX/HID command deadlines and assertions are unchanged, with no input retry.
 `ios-ax-backend` explicitly compares the guest (`axbridge`) and host
 (`ax`, default) readers. The guest reader could not resolve even Settings on the

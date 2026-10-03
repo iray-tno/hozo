@@ -5,12 +5,22 @@ import { setTimeout as pause } from 'node:timers/promises'
 
 // Separate process: the smoke driver's synchronous command cannot run timers.
 // Read-only sampling while an input is still blocked, never another input.
-const [, , parent, output] = process.argv
+const [, , parent, output, phase = 'ui'] = process.argv
 await pause(10_000)
 mkdirSync(output, { recursive: true })
 const run = (command, args) => execFileSync(command, args, { timeout: 8_000 }).toString()
 const pids = new Set()
-for (const name of ['idb_companion', 'HozoShowcase']) {
+// Sample the blocked command first: startup can stall before the app exists.
+try {
+  for (const pid of run('pgrep', ['-P', parent]).trim().split(/\s+/)) {
+    if (/^\d+$/.test(pid) && Number(pid) !== process.pid) pids.add(pid)
+  }
+} catch {
+  /* No child remains. */
+}
+for (const name of phase === 'launch'
+  ? ['HozoShowcase', 'SpringBoard', 'idb_companion']
+  : ['idb_companion', 'HozoShowcase']) {
   try {
     for (const pid of run('pgrep', ['-x', name]).trim().split(/\s+/)) {
       if (/^\d+$/.test(pid)) pids.add(pid)
@@ -18,13 +28,6 @@ for (const name of ['idb_companion', 'HozoShowcase']) {
   } catch {
     /* Process may not exist. */
   }
-}
-try {
-  for (const pid of run('pgrep', ['-P', parent]).trim().split(/\s+/)) {
-    if (/^\d+$/.test(pid) && Number(pid) !== process.pid) pids.add(pid)
-  }
-} catch {
-  /* No child remains. */
 }
 for (const pid of [...pids].slice(0, 4)) {
   try {

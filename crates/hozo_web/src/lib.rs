@@ -1298,6 +1298,18 @@ fn render_node(
         if let Some(read_only) = text_input.read_only.as_ref() {
             attrs.push_str(&boolean_attribute("readOnly", read_only, source));
         }
+        if let Some(auto_correct) = text_input.auto_correct.as_ref() {
+            attrs.push_str(&match auto_correct {
+                hozo_ir::ConditionExpr::Static(true) => " autoCorrect=\"on\"".to_string(),
+                hozo_ir::ConditionExpr::Static(false) => " autoCorrect=\"off\"".to_string(),
+                other => format!(
+                    // Evaluate an arbitrary author expression once, preserving
+                    // `undefined` (the platform default) rather than disabling it.
+                    " autoCorrect={{((value) => value === undefined ? undefined : value ? 'on' : 'off')({})}}",
+                    render_condition_expr(source, other),
+                ),
+            });
+        }
         if let Some(secure) = text_input.secure_text_entry.as_ref() {
             attrs.push_str(&match secure {
                 hozo_ir::ConditionExpr::Static(true) => " type=\"password\"".to_string(),
@@ -3323,6 +3335,18 @@ const el = {element}
             .contains("readOnly={!(canEdit)}"));
         // And React Native's newer spelling passes straight through.
         assert!(jsx_for(r#"<TextInput accessibilityLabel="N" readOnly />"#).contains(" readOnly"));
+    }
+
+    #[test]
+    fn boolean_auto_correct_is_an_enumerated_dom_attribute_not_a_boolean_attribute() {
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" autoCorrect={false} />"#)
+            .contains(r#" autoCorrect="off""#));
+        assert!(jsx_for(r#"<TextInput accessibilityLabel="N" autoCorrect />"#)
+            .contains(r#" autoCorrect="on""#));
+        let dynamic = jsx_for(r#"<TextInput accessibilityLabel="N" multiline autoCorrect={getCorrection()} />"#);
+        assert!(dynamic.contains("value === undefined ? undefined : value ? 'on' : 'off'"), "{dynamic}");
+        assert_eq!(dynamic.matches("getCorrection()").count(), 1, "{dynamic}");
+        assert!(!jsx_for(r#"<TextInput accessibilityLabel="N" />"#).contains("autoCorrect"));
     }
 
     #[test]

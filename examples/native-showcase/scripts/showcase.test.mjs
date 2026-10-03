@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-
+import { createCompiler } from '../../../packages/compiler/src/index.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -181,6 +181,8 @@ test('shared bodies lower into Native styles, accessible controls and nested Tex
   assert.match(transformed, /accessibilityRole="button"/)
   assert.match(transformed, /accessibilityState=\{\{ disabled: Boolean\(disabled\) \}\}/)
   assert.match(transformed, /onChangeText=\{setName\}/)
+  assert.match(transformed, /autoCorrect=\{false\}/)
+  assert.match(transformed, /spellCheck=\{false\}/)
   assert.match(transformed, /fontStyle: 'italic'/)
   assert.match(transformed, /<Text[^>]+>strong text<\/Text>/)
   for (const [, module] of transformed.matchAll(/from ['"](@hozo\/[^'"]+)['"]/g)) {
@@ -188,5 +190,98 @@ test('shared bodies lower into Native styles, accessible controls and nested Tex
       createRequire(file).resolve(module),
       `generated dependency ${module} must be installed beside its source package`,
     )
+  }
+})
+
+test('the actual shared name field disables dictionary corrections without bypassing controlled input', () => {
+  const react = require('react')
+  const { transformSync } = require('esbuild')
+  const file = path.join(root, '../showcase/src/index.tsx')
+  const source = transformHozoSource(readFileSync(file, 'utf8'), file)
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
+  const module = { exports: {} }
+  const states = ['', '']
+  let stateIndex = 0
+  const load = (name) => {
+    if (name === 'react')
+      return {
+        ...react,
+        useState: () => {
+          const index = stateIndex++
+          return [
+            states[index],
+            (value) => {
+              states[index] = value
+            },
+          ]
+        },
+      }
+    if (name === 'react/jsx-runtime') return require(name)
+    if (name === 'react-native')
+      return {
+        View: 'View',
+        Text: 'Text',
+        TextInput: 'TextInput',
+        Pressable: 'Pressable',
+        StyleSheet: { create: (styles) => styles },
+      }
+    if (name === '@hozo/core/generated/pressable') return { HozoPressable: 'Pressable' }
+    if (name === '@hozo/core/generated/text-input') return { HozoTextInput: 'TextInput' }
+    if (name === './patterns.tsx') return {}
+    throw new Error(`Unexpected form dependency: ${name}`)
+  }
+  new Function('require', 'module', code)(load, module)
+  const render = () => {
+    stateIndex = 0
+    return react.Children.toArray(module.exports.FormDemo().props.children)
+  }
+  const input = render().find((child) => child.type === 'TextInput')
+  assert.ok(input)
+  assert.equal(input.props.autoCorrect, false)
+  assert.equal(input.props.spellCheck, false)
+  assert.equal(input.props.value, '')
+  input.props.onChangeText('Hozo')
+  const updated = render()
+  assert.equal(updated.find((child) => child.type === 'TextInput').props.value, 'Hozo')
+  const save = updated.find((child) => child.props.accessibilityRole === 'button')
+  assert.ok(save)
+  save.props.onPress()
+  assert.equal(states[1], 'Hozo')
+})
+
+test('compiled Web autocorrection evaluates dynamic values once and keeps the platform default', () => {
+  const { transformSync } = require('esbuild')
+  const { renderToStaticMarkup } = require('react-dom/server')
+  const compiler = createCompiler()
+  for (const multiline of [false, true]) {
+    const source = `import { TextInput } from '@hozo/primitives'
+const field = <TextInput accessibilityLabel="Name" ${multiline ? 'multiline' : ''}
+  autoCorrect={getCorrection()} />`
+    const [web] = compiler.compile(source)
+    const [native] = compiler.compileNative(source)
+    assert.match(native.jsx, /autoCorrect=\{getCorrection\(\)\}/)
+    assert.equal(native.jsx.match(/getCorrection\(\)/g).length, 1)
+    const { code } = transformSync(`module.exports = (getCorrection) => (${web.jsx})`, {
+      loader: 'jsx',
+      format: 'cjs',
+      jsx: 'automatic',
+    })
+    const module = { exports: {} }
+    new Function('require', 'module', code)((name) => {
+      if (name === 'react/jsx-runtime') return require(name)
+      throw new Error(`Unexpected compiled field dependency: ${name}`)
+    }, module)
+    for (const value of [false, true, undefined]) {
+      let calls = 0
+      const html = renderToStaticMarkup(
+        module.exports(() => {
+          calls++
+          return value
+        }),
+      )
+      assert.equal(calls, 1)
+      if (value === undefined) assert.doesNotMatch(html, /autoCorrect=/)
+      else assert.match(html, new RegExp(`autoCorrect="${value ? 'on' : 'off'}"`))
+    }
   }
 })

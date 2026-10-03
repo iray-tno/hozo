@@ -60,6 +60,8 @@ export function FormDemo() {
       <Text className="text-base text-slate-700">Display name</Text>
       <TextInput
         accessibilityLabel="Display name"
+        autoCorrect={false}
+        spellCheck={false}
         value={name}
         onChangeText={setName}
         placeholder="Your name"

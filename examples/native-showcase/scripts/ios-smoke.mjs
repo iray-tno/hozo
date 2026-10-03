@@ -21,8 +21,10 @@ import {
   pixelBounds,
   visualTextControl,
 } from './ios-evidence.mjs'
+import { enterIosText } from './ios-form-input.mjs'
 import { IOS_SCENE_IMAGE_TIMEOUT, waitForIosSceneImage } from './ios-image-ready.mjs'
 import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
+import { launchIosApp } from './ios-launch.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -160,6 +162,33 @@ function record(name, details = {}) {
   console.log(`PASS ${name}`)
 }
 
+function launch(appId) {
+  const observation = {}
+  evidence.launches ??= {}
+  evidence.launches[appId] = observation
+  // Startup failures happen before the application's own log exists. Retain
+  // read-only command/SpringBoard samples even in a normal PR run. This neither
+  // launches another app nor retries/extends the existing launch deadline.
+  const watcher = spawn(
+    process.execPath,
+    [
+      resolve(root, 'scripts/ios-input-watch.mjs'),
+      String(process.pid),
+      resolve(output, `launch-${appId}-stacks`),
+      'launch',
+    ],
+    { stdio: 'ignore' },
+  )
+  watcher.on('error', (error) => {
+    observation.samplingError = error.message
+  })
+  try {
+    return launchIosApp(udid, appId, run, observation)
+  } finally {
+    watcher.kill()
+  }
+}
+
 async function assembly(state) {
   await waitFor(label(`Assembly: ${state}`), `animation completed: ${state}`)
   return waitFor(label('組物: timber bracket assembly'), 'native GL image')
@@ -230,11 +259,7 @@ try {
     evidence.logError = error.message
   })
   if (evidence.diagnostic && evidence.scenario === 'full') {
-    run(
-      'xcrun',
-      ['simctl', 'launch', '--terminate-running-process', udid, 'com.apple.Preferences'],
-      120_000,
-    )
+    launch('com.apple.Preferences')
     await tap(label('General'), 'Settings control: General')
     await waitFor(label('About'), 'Settings control navigates to General')
     screenshot('00-settings-control')
@@ -242,7 +267,7 @@ try {
   }
   // The cold simulator's launch service can also lag behind bootstatus.
   // Keep one bounded launch attempt, separate from the UI-readiness budget.
-  run('xcrun', ['simctl', 'launch', '--terminate-running-process', udid, app], 120_000)
+  launch(app)
   // Establish the reader against the app's own ready window before openurl
   // introduces an OS confirmation. Launch returning is not UI readiness.
   await waitFor((node) => node.AXUniqueId === 'mobile-menu-button', 'initial Storybook window')
@@ -324,8 +349,22 @@ try {
       record('disabled button does not activate')
 
       await story('primitives-shared-showcase--form', 'Save profile')
-      await tap((node) => label('Display name')(node) && /TextField/.test(node.type), 'name input')
-      idb('ui', 'text', 'Hozo')
+      const nameField = (node) => label('Display name')(node) && /TextField/.test(node.type)
+      await tap(nameField, 'name input')
+      await waitFor(
+        (node) => nameField(node) && node.traits?.includes('IsEditing'),
+        'name input is editing',
+      )
+      evidence.formInput = {}
+      await enterIosText('Hozo', {
+        send: (character) => idb('ui', 'text', character),
+        waitForValue: (value) =>
+          waitFor(
+            (node) => nameField(node) && node.AXValue === value,
+            `name input contains ${JSON.stringify(value)}`,
+          ),
+        observation: evidence.formInput,
+      })
       await tap(label('Save profile'), 'save profile')
       await waitFor(label('Saved: Hozo'), 'saved form value')
       screenshot('05-form')

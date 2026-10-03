@@ -1274,6 +1274,14 @@ fn build_node(
                 diagnostics,
                 consumed,
             ),
+            "autoCorrect" if primitive == Primitive::TextInput => capture_flag(
+                attr,
+                &mut props.text_input.auto_correct,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
             "multiline" if primitive == Primitive::TextInput => capture_flag(
                 attr,
                 &mut props.text_input.multiline,
