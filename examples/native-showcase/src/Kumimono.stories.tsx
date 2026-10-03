@@ -7,6 +7,7 @@ import type { ExpoWebGLRenderingContext } from 'expo-gl'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, AppState, ScrollView } from 'react-native'
 import { observeKumimonoRender } from './kumimono-render-probe.ts'
+import { useNativeAppActive } from './use-native-app-active.ts'
 
 function Animation({
   study,
@@ -74,8 +75,15 @@ function KumimonoDemo({
   const onComplete = useCallback((value: number) => {
     setAssembly(value === 1 ? 'assembled' : 'disassembled')
   }, [])
-  const [active, setActive] = useState(AppState.currentState === 'active')
+  const active = useNativeAppActive()
+  const frameloop = active ? (continuousFrames ? 'always' : 'demand') : 'never'
   const [reducedMotion, setReducedMotion] = useState(true)
+  useEffect(() => {
+    console.info(
+      '[Hozo Kumimono]',
+      JSON.stringify({ phase: 'frame-policy', appState: AppState.currentState, active, frameloop }),
+    )
+  }, [active, frameloop])
   useEffect(() => {
     let mounted = true
     AccessibilityInfo.isReduceMotionEnabled().then((value) => {
@@ -84,11 +92,9 @@ function KumimonoDemo({
     const motion = AccessibilityInfo.addEventListener('reduceMotionChanged', (value) =>
       setReducedMotion(forceReducedMotion || value),
     )
-    const state = AppState.addEventListener('change', (value) => setActive(value === 'active'))
     return () => {
       mounted = false
       motion.remove()
-      state.remove()
       study.dispose()
     }
   }, [study, forceReducedMotion])
@@ -100,8 +106,17 @@ function KumimonoDemo({
         camera={study.camera}
         style={{ height: 350, flex: 0 }}
         accessibilityLabel="組物: timber bracket assembly"
-        frameloop={active ? (continuousFrames ? 'always' : 'demand') : 'never'}
+        frameloop={frameloop}
         onCreated={({ gl }) => {
+          console.info(
+            '[Hozo Kumimono]',
+            JSON.stringify({
+              phase: 'renderer-created',
+              appState: AppState.currentState,
+              active,
+              frameloop,
+            }),
+          )
           configureKumimonoRenderer(gl)
           observeKumimonoRender(
             gl,

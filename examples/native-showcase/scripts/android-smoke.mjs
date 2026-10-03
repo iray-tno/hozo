@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { readCanvasRounds } from './canvas-rounds.mjs'
 import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './device-evidence.mjs'
 import { waitForImage } from './image-ready.mjs'
 
@@ -20,6 +21,7 @@ const evidence = {
   driverCommit: process.env.GITHUB_SHA,
   systemImage: process.env.HOZO_ANDROID_TARGET,
   diagnostic: process.env.HOZO_DIAGNOSTICS === '1',
+  canvasRounds: readCanvasRounds(process.env.HOZO_ANDROID_CANVAS_ROUNDS),
 }
 const adb = (...args) => execFileSync('adb', args, { timeout: 30_000, maxBuffer: 16 * 1024 * 1024 })
 const label = (value) => (node) => matchLabel(node, value)
@@ -262,6 +264,43 @@ try {
   screenshot('11-after-gpu')
   assert.ok(adb('shell', 'pidof', app).toString().trim(), 'showcase process exited')
   record('switching away from GPU story keeps the app usable')
+  // Explicit stress coverage after the unchanged full interaction sequence.
+  // A failed mount/assertion aborts immediately: later rounds cannot rescue it.
+  for (let round = 2; round <= evidence.canvasRounds; round++) {
+    evidence.currentCanvasRound = round
+    const prefix = `round-${round}`
+    await story('three-kumimono--assembly', '組物: timber bracket assembly')
+    const bounds = await assembly('assembled')
+    const before = await waitForImage(
+      () => imageRegion(screenshot(`${prefix}-assembled`), bounds.rect),
+      (image) => image.colours >= 40,
+      `${prefix} initial frame`,
+    )
+    await tap(label('分解'), `${prefix} disassemble`)
+    await assembly('disassembled')
+    const after = await waitForImage(
+      () => imageRegion(screenshot(`${prefix}-disassembled`), bounds.rect),
+      (image) => image.colours >= 40 && changedFraction(before, image) >= 0.01,
+      `${prefix} disassembled frame`,
+    )
+    await tap(label('組み立て'), `${prefix} reassemble`)
+    await assembly('assembled')
+    const restored = await waitForImage(
+      () => imageRegion(screenshot(`${prefix}-reassembled`), bounds.rect),
+      (image) => image.colours >= 40 && changedFraction(after, image) >= 0.01,
+      `${prefix} reassembled frame`,
+    )
+    await story('primitives-shared-showcase--buttons', 'Add one')
+    await waitFor(label('Pressed 0 times'), `${prefix} new counter after GPU unmount`)
+    await tap(label('Add one'), `${prefix} counter after GPU unmount`)
+    await waitFor(label('Pressed 1 times'), `${prefix} counter responds after GPU unmount`)
+    record('repeated Canvas mount, both animation directions and usable unmount', {
+      round,
+      colours: before.colours,
+      changedFraction: changedFraction(before, after),
+      reverseChangedFraction: changedFraction(after, restored),
+    })
+  }
   evidence.passed = true
 } catch (error) {
   evidence.error = error.stack

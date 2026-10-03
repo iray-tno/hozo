@@ -220,6 +220,23 @@ can select `google_apis` or `default` for a controlled system-image comparison.
 The collectors can allow boot services extra settling time; diagnostic success
 does not by itself establish that the normal cold-boot test is stable.
 
+`android-canvas-rounds=5` adds four more mount/assemble/disassemble/unmount rounds
+after the normal full sequence. Every mount requires the real completion state,
+nonblank/changed Canvas pixels in both directions, and a working counter after
+unmount. The total is bounded to 1-10, defaults to one, and is recorded in evidence.
+Any failed round still aborts the run; these are additional samples, not retries.
+Use `diagnostics=false` to avoid the extra boot-settling time of system collectors.
+
+The Kumimono story reads Native AppState with `useSyncExternalStore`: a resume
+between rendering and listener registration must not leave its frame loop on
+`never`. Real React regression tests reproduce that schedule, including a failing
+control using the former snapshot/passive-listener implementation. Foreground
+still uses demand rendering; background pauses it without polling, remounts or GL
+synchronization. Logs distinguish `frame-policy`, `renderer-created`, animation
+completion and render submission. This repairs a proven lifecycle subscription
+race, but does not alone establish the cause of the earlier isolated Android
+startup failure or certify emulator/physical-device stability.
+
 ```sh
 pnpm --filter @hozo/example-native-showcase typecheck
 pnpm --filter @hozo/example-native-showcase bundle:android
