@@ -16,17 +16,13 @@ import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
 import { observeLateImage, PresentedImageTimeout, waitForImage } from './image-ready.mjs'
-import {
-  openShowcaseConfirmation,
-  parseIosNodes,
-  pixelBounds,
-  visualTextControl,
-} from './ios-evidence.mjs'
+import { parseIosNodes, pixelBounds, visualTextControl } from './ios-evidence.mjs'
 import { enterIosText } from './ios-form-input.mjs'
 import { IOS_SCENE_IMAGE_TIMEOUT, waitForIosSceneImage } from './ios-image-ready.mjs'
 import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 import { launchIosApp } from './ios-launch.mjs'
 import { selectIosSimulator, waitForIosBoot } from './ios-simulator.mjs'
+import { waitForIosControl } from './ios-ui-wait.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -112,34 +108,13 @@ function nodes() {
 }
 
 async function waitFor(predicate, description, timeout = 60_000, allowOpenConfirmation = false) {
-  let deadline = Date.now() + timeout
-  let lastError
-  let confirmed = false
-  do {
-    let tree
-    try {
-      tree = nodes()
-    } catch (error) {
-      lastError = error
-    }
-    if (tree) {
-      const confirmation =
-        allowOpenConfirmation && !confirmed ? openShowcaseConfirmation(tree) : undefined
-      if (confirmation) {
-        // Unlike read-only tree polling, an input error must propagate; never
-        // retry a potentially delivered tap. Allow the app its own route budget
-        // after the OS confirmation, once only (not an indefinitely reset timer).
-        idb('ui', 'tap', ...centre(confirmation).map(String))
-        confirmed = true
-        evidence.openConfirmations = (evidence.openConfirmations ?? 0) + 1
-        deadline = Date.now() + timeout
-      }
-      const found = tree.find(predicate)
-      if (found) return found
-    }
-    await pause(1_000)
-  } while (Date.now() < deadline)
-  throw new Error(`Timed out: ${description}`, { cause: lastError })
+  return waitForIosControl(predicate, description, {
+    readNodes: nodes,
+    tapConfirmation: (node) => idb('ui', 'tap', ...centre(node).map(String)),
+    observation: evidence,
+    timeout,
+    allowOpenConfirmation,
+  })
 }
 
 async function tap(predicate, description) {
@@ -303,7 +278,10 @@ try {
     })
   } else {
     if (evidence.scenario === 'full') {
-      await story('primitives-shared-showcase--buttons', 'Add one')
+      // Storybook already cold-starts on Buttons. Sending that same deep link
+      // can accept the old screen before a delayed OS confirmation appears.
+      // Exercise the real initial screen without introducing a pending route.
+      await waitFor(label('Add one'), 'initial Buttons story')
       await waitFor(label('Pressed 0 times'), 'initial counter')
       await tap(label('Add one'), 'counter button')
       await waitFor(label('Pressed 1 times'), 'incremented counter')
