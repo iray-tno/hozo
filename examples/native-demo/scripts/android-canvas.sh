@@ -30,6 +30,24 @@ fail() {
   # tail above. See `canvas.js` for what each one means.
   echo '--- screen markers ---'
   app_log | grep -F '[hozo-canvas-screen]' | sed 's/^/  /' || true
+  # EXPERIMENT (#714): every Fabric instruction that names a tag React Native
+  # later reported missing, in order -- which component it was, where it was
+  # inserted, and whether it was deleted before the update that failed.
+  local log tags
+  log="$(app_log)"
+  tags="$(printf '%s\n' "$log" | grep -oE 'Unable to find viewState for tag [0-9]+' | grep -oE '[0-9]+$' | sort -u || true)"
+  for tag in $tags; do
+    echo "--- Fabric instructions naming tag $tag ---"
+    printf '%s\n' "$log" | grep -F 'MountItemDispatcher' | grep -E "\[$tag\]" | cut -c1-220 | sed 's/^/  /' | head -60 || true
+  done
+  # And the batch the first loss happened in, around its first report.
+  if [ -n "$tags" ]; then
+    echo '--- the mount batch around the first loss ---'
+    printf '%s\n' "$log" | grep -n -m1 'Unable to find viewState' | cut -d: -f1 | {
+      read -r at || exit 0
+      printf '%s\n' "$log" | sed -n "$((at > 80 ? at - 80 : 1)),$((at + 5))p" | grep -vE '^\s+at |\tat ' | cut -c1-200 | sed 's/^/  /'
+    } || true
+  fi
   echo '--- logcat ---'
   adb logcat -d -v brief | tail -80 || true
   exit 1
@@ -243,6 +261,9 @@ adb shell settings put global hide_error_dialogs 1 >/dev/null 2>&1 || true
 
 adb install -r "$speech_apk"
 adb install -r "$apk"
+# EXPERIMENT (#714): Fabric logs every mount instruction at error level, so
+# give logcat room for a whole run.
+adb logcat -G 32M >/dev/null 2>&1 || true
 adb logcat -c
 adb shell am start -W -n "$activity" >/dev/null
 sleep 12
