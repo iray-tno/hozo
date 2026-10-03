@@ -40,3 +40,13 @@ test('a multiline TextInput becomes a textarea with rows', () => {
   assert.match(html, /^<textarea/)
   assert.match(html, /rows="4"/)
 })
+
+test('boolean autocorrection has the same intent on DOM input and textarea', () => {
+  for (const multiline of [false, true]) {
+    for (const autoCorrect of [false, true, undefined]) {
+      const html = renderToStaticMarkup(createElement(HozoTextInput, { autoCorrect, multiline }))
+      if (autoCorrect === undefined) assert.doesNotMatch(html, /autoCorrect=/)
+      else assert.match(html, new RegExp(`autoCorrect="${autoCorrect ? 'on' : 'off'}"`))
+    }
+  }
+})

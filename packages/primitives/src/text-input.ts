@@ -23,7 +23,7 @@ const INPUT_MODES: Record<string, InputMode> = {
 
 type DomInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
-  'children' | 'onChange' | 'onKeyDown' | 'readOnly' | 'size' | 'style' | 'value'
+  'autoCorrect' | 'children' | 'onChange' | 'onKeyDown' | 'readOnly' | 'size' | 'style' | 'value'
 >
 
 export interface HozoTextInputProps extends DomInputProps {
@@ -42,6 +42,8 @@ export interface HozoTextInputProps extends DomInputProps {
   onKeyPress?: (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void
   onSubmitEditing?: (event: { nativeEvent: { text: string } }) => void
   editable?: boolean
+  /** React Native uses a boolean; the DOM spells it as "on" / "off". */
+  autoCorrect?: boolean
   readOnly?: boolean
   multiline?: boolean
   numberOfLines?: number
@@ -60,6 +62,7 @@ export interface HozoTextInputProps extends DomInputProps {
 /** A value-level TextInput for factories and other code the JSX compiler cannot rewrite. */
 export function HozoTextInput({
   ref,
+  autoCorrect,
   accessibilityHint,
   accessibilityLabel,
   accessibilityLabelledBy,
@@ -105,6 +108,7 @@ export function HozoTextInput({
   ])
   const shared = {
     ...props,
+    autoCorrect: autoCorrect === undefined ? undefined : autoCorrect ? 'on' : 'off',
     id: nativeID,
     value,
     readOnly: readOnly ?? (editable === undefined ? undefined : !editable),

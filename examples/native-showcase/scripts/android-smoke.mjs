@@ -5,15 +5,43 @@ import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './device-evidence.mjs'
+import { waitForImage } from './image-ready.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(process.argv[2] ?? resolve(root, '../../artifacts/native-showcase'))
 mkdirSync(output, { recursive: true })
-const evidence = { platform: 'Android', device: 'emulator', checks: [], passed: false }
+const evidence = {
+  platform: 'Android',
+  device: 'emulator',
+  checks: [],
+  passed: false,
+  binaryRun: process.env.HOZO_BINARY_RUN,
+  driverCommit: process.env.GITHUB_SHA,
+  systemImage: process.env.HOZO_ANDROID_TARGET,
+  diagnostic: process.env.HOZO_DIAGNOSTICS === '1',
+}
 const adb = (...args) => execFileSync('adb', args, { timeout: 30_000, maxBuffer: 16 * 1024 * 1024 })
 const label = (value) => (node) => matchLabel(node, value)
 let latestXml = ''
+
+function collectSystemState(prefix) {
+  if (!evidence.diagnostic) return
+  const reads = {
+    logcat: ['logcat', '-b', 'all', '-d'],
+    cpu: ['shell', 'dumpsys', 'cpuinfo'],
+    pressure: ['shell', 'cat', '/proc/pressure/cpu', '/proc/pressure/memory', '/proc/pressure/io'],
+    input: ['shell', 'dumpsys', 'input'],
+    anr: ['shell', 'dumpsys', 'dropbox', '--print', 'system_app_anr'],
+  }
+  for (const [name, args] of Object.entries(reads)) {
+    try {
+      writeFileSync(resolve(output, `${prefix}-${name}.txt`), adb(...args))
+    } catch (error) {
+      writeFileSync(resolve(output, `${prefix}-${name}-error.txt`), String(error))
+    }
+  }
+}
 
 function nodes() {
   const dump = adb('shell', 'uiautomator', 'dump', '/sdcard/hozo-showcase.xml').toString()
@@ -78,6 +106,8 @@ async function assembly(state) {
 
 try {
   evidence.android = adb('shell', 'getprop', 'ro.build.version.release').toString().trim()
+  // Preserve cold-boot failures before the normal driver clears logcat.
+  collectSystemState('before-app')
   adb('install', '-r', resolve(root, 'android/app/build/outputs/apk/release/app-release.apk'))
   adb('logcat', '-c')
   adb('shell', 'am', 'force-stop', app)
@@ -165,16 +195,28 @@ try {
 
   await story('three-kumimono--assembly', '組物: timber bracket assembly')
   const canvas = await assembly('assembled')
-  const assembled = imageRegion(screenshot('06-assembled'), canvas.rect)
+  const assembled = await waitForImage(
+    () => imageRegion(screenshot('06-assembled'), canvas.rect),
+    (image) => image.colours >= 40,
+    'assembled first frame',
+  )
   assert.ok(assembled.colours >= 40, `GL surface appears blank: ${assembled.colours} colours`)
   await tap(label('分解'), 'disassemble')
   await assembly('disassembled')
-  const disassembled = imageRegion(screenshot('07-disassembled'), canvas.rect)
+  const disassembled = await waitForImage(
+    () => imageRegion(screenshot('07-disassembled'), canvas.rect),
+    (image) => image.colours >= 40 && changedFraction(assembled, image) >= 0.01,
+    'disassembled frame',
+  )
   const difference = changedFraction(assembled, disassembled)
   assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
   await tap(label('組み立て'), 'assemble')
   await assembly('assembled')
-  const reassembled = imageRegion(screenshot('08-reassembled'), canvas.rect)
+  const reassembled = await waitForImage(
+    () => imageRegion(screenshot('08-reassembled'), canvas.rect),
+    (image) => image.colours >= 40 && changedFraction(disassembled, image) >= 0.01,
+    'reassembled frame',
+  )
   const reverseDifference = changedFraction(disassembled, reassembled)
   assert.ok(
     reverseDifference >= 0.01,
@@ -198,11 +240,19 @@ try {
     originalPid,
     'resume replaced the app process',
   )
-  const resumed = imageRegion(screenshot('09-resumed'), resumedCanvas.rect)
+  const resumed = await waitForImage(
+    () => imageRegion(screenshot('09-resumed'), resumedCanvas.rect),
+    (image) => image.colours >= 40,
+    'resumed frame',
+  )
   assert.ok(resumed.colours >= 40, 'GL surface blank after resume')
   await tap(label('分解'), 'disassemble after resume')
   await assembly('disassembled')
-  const resumedChanged = imageRegion(screenshot('10-resumed-disassembled'), resumedCanvas.rect)
+  const resumedChanged = await waitForImage(
+    () => imageRegion(screenshot('10-resumed-disassembled'), resumedCanvas.rect),
+    (image) => image.colours >= 40 && changedFraction(resumed, image) >= 0.01,
+    'disassembled frame after resume',
+  )
   assert.ok(changedFraction(resumed, resumedChanged) >= 0.01, 'GL animation stopped after resume')
   record('background/resume preserves interactive rendering')
 
@@ -215,6 +265,7 @@ try {
   evidence.passed = true
 } catch (error) {
   evidence.error = error.stack
+  collectSystemState('failure-system')
   try {
     screenshot('failure')
   } catch {

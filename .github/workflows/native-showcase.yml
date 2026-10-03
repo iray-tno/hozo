@@ -11,16 +11,57 @@ on:
   schedule:
     - cron: '35 5 * * 3'
   workflow_dispatch:
+    inputs:
+      reuse-build-run:
+        description: 'Diagnostic only: reuse app artifacts from this repository run ID (empty builds current source)'
+        type: string
+        default: ''
+      rebundle-ios:
+        description: 'Diagnostic only: rebuild current Hermes JS in a reused iOS app (native inputs must match)'
+        type: boolean
+        default: false
+      platform:
+        description: 'Platform to exercise'
+        type: choice
+        options: [both, ios, android]
+        default: both
+      diagnostics:
+        description: 'Collect startup and input-tool diagnostics; iOS also exercises Settings'
+        type: boolean
+        default: false
+      android-target:
+        description: 'Android system image for a controlled comparison'
+        type: choice
+        options: [google_apis, default]
+        default: google_apis
+      ios-ax-backend:
+        description: 'Accessibility reader for an explicit diagnostic comparison'
+        type: choice
+        options: [ax, axbridge]
+        default: ax
+      ios-scenario:
+        description: 'Full interaction verification, or isolated Canvas diagnosis (not full coverage)'
+        type: choice
+        options: [full, canvas, gl-control]
+        default: full
+      ios-canvas-mode:
+        description: 'Controlled frame-loop comparison; demand is the canonical story'
+        type: choice
+        options: [demand, continuous, instant, synchronized]
+        default: demand
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: native-showcase-${{ github.ref }}
+  group: native-showcase-${{ github.ref }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
   cancel-in-progress: true
 
 jobs:
   android:
+    name: ${{ inputs.reuse-build-run != '' && 'android (reused binary diagnostic)' || 'android' }}
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'ios'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -42,18 +83,28 @@ jobs:
       - run: pnpm --filter @hozo/example-native-showcase... --if-present build
       - run: pnpm --filter @hozo/example-native-showcase test:unit
       - run: pnpm --filter @hozo/example-native-showcase typecheck
-      - run: pnpm --filter @hozo/example-native-showcase prebuild:android
+      - if: inputs.reuse-build-run == ''
+        run: pnpm --filter @hozo/example-native-showcase prebuild:android
       - name: Build standalone showcase APK
+        if: inputs.reuse-build-run == ''
         working-directory: examples/native-showcase/android
         # Both the emulator and a physical arm64 Android phone can install it.
         # Expo's generated debug signing is for this showcase, not store release.
         run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon
       - uses: actions/upload-artifact@v4
+        if: inputs.reuse-build-run == ''
         with:
           name: hozo-native-showcase-android-apk
           path: examples/native-showcase/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
+      - uses: actions/download-artifact@v4
+        if: inputs.reuse-build-run != ''
+        with:
+          name: hozo-native-showcase-android-apk
+          path: examples/native-showcase/android/app/build/outputs/apk/release
+          run-id: ${{ inputs.reuse-build-run }}
+          github-token: ${{ github.token }}
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -65,16 +116,123 @@ jobs:
         with:
           api-level: 36
           arch: x86_64
-          target: google_apis
+          target: ${{ inputs.android-target || 'google_apis' }}
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase
+        env:
+          HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
+          HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
+          HOZO_ANDROID_TARGET: ${{ inputs.android-target || 'google_apis' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: hozo-native-showcase-android-evidence
           path: artifacts/native-showcase
+          if-no-files-found: ignore
+          retention-days: 30
+
+  ios:
+    name: ${{ inputs.reuse-build-run != '' && 'ios (reused binary diagnostic)' || 'ios' }}
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'android'
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile --filter @hozo/example-native-showcase...
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm --filter @hozo/example-native-showcase... --if-present build
+      - run: pnpm --filter @hozo/example-native-showcase test:unit
+      - run: pnpm --filter @hozo/example-native-showcase typecheck
+      - name: Validate diagnostic rebundling
+        if: inputs.rebundle-ios
+        run: |
+          test -n "$BASE_RUN"
+          test "$DIAGNOSTICS" = "true"
+        env:
+          BASE_RUN: ${{ inputs.reuse-build-run }}
+          DIAGNOSTICS: ${{ inputs.diagnostics }}
+      - if: inputs.reuse-build-run == ''
+        run: pnpm --filter @hozo/example-native-showcase prebuild:ios
+      - name: Install pods
+        if: inputs.reuse-build-run == ''
+        working-directory: examples/native-showcase/ios
+        run: |
+          pod install && exit 0
+          echo "::warning::pod install failed once; retrying"
+          pod install
+      - name: Build standalone showcase for iOS Simulator
+        if: inputs.reuse-build-run == ''
+        working-directory: examples/native-showcase/ios
+        run: |
+          xcodebuild \
+            -workspace HozoShowcase.xcworkspace \
+            -scheme HozoShowcase \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/Build/Products/Release-iphonesimulator/HozoShowcase.app \
+            HozoShowcase-simulator.zip
+      - uses: actions/upload-artifact@v4
+        if: inputs.reuse-build-run == ''
+        with:
+          name: hozo-native-showcase-ios-simulator-app
+          path: examples/native-showcase/ios/HozoShowcase-simulator.zip
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/download-artifact@v4
+        if: inputs.reuse-build-run != ''
+        with:
+          name: hozo-native-showcase-ios-simulator-app
+          path: artifacts/reused-ios
+          run-id: ${{ inputs.reuse-build-run }}
+          github-token: ${{ github.token }}
+      - name: Restore diagnostic simulator app
+        if: inputs.reuse-build-run != ''
+        run: |
+          mkdir -p examples/native-showcase/ios/build/Build/Products/Release-iphonesimulator
+          ditto -x -k artifacts/reused-ios/HozoShowcase-simulator.zip \
+            examples/native-showcase/ios/build/Build/Products/Release-iphonesimulator
+      - name: Rebundle diagnostic iOS app with current JS
+        if: inputs.rebundle-ios
+        run: node examples/native-showcase/scripts/rebundle-ios.mjs "$BASE_RUN" "$REPOSITORY"
+        env:
+          BASE_RUN: ${{ inputs.reuse-build-run }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
+      - name: Install iOS Simulator input driver
+        run: |
+          brew tap facebook/fb
+          brew trust facebook/fb
+          brew install facebook/fb/idb
+          idb ui describe-all --help
+      - name: Exercise real Native Storybook and Expo GL on iOS
+        run: node examples/native-showcase/scripts/ios-smoke.mjs artifacts/native-showcase-ios
+        env:
+          HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
+          HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
+          HOZO_AX_BACKEND: ${{ inputs.ios-ax-backend || 'ax' }}
+          HOZO_IOS_SCENARIO: ${{ inputs.ios-scenario || 'full' }}
+          HOZO_IOS_CANVAS_MODE: ${{ inputs.ios-canvas-mode || 'demand' }}
+          HOZO_IOS_BUNDLE_COMMIT: ${{ inputs.rebundle-ios && github.sha || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-ios-evidence
+          path: artifacts/native-showcase-ios
           if-no-files-found: ignore
           retention-days: 30

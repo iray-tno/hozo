@@ -1071,6 +1071,7 @@ pub(super) fn render_node(
         for (name, value) in [
             ("editable", &text_input.editable),
             ("readOnly", &text_input.read_only),
+            ("autoCorrect", &text_input.auto_correct),
             ("multiline", &text_input.multiline),
             ("secureTextEntry", &text_input.secure_text_entry),
         ] {

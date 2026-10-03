@@ -45,6 +45,7 @@ device behavior.
 - **Three / Kumimono**: the same procedural scene used by the landing page,
   rendered with `@hozo/three/r3f-native` and Expo GL. Assembly/disassembly uses
   demand rendering, honors reduced motion and pauses in the background.
+  Controls stay disabled while the initial renderer frame is loading.
 
 `@hozo/example-showcase` contains platform-neutral story bodies; it deliberately
 imports neither DOM APIs, React Native nor Storybook. Native story wrappers own
@@ -71,8 +72,40 @@ not a store release. `hozo-native-showcase-android-evidence` contains screenshot
 UI hierarchies, logs and `evidence.json`, including failures. Artifacts expire
 after 30 days; rebuild via **Run workflow** when needed. The workflow runs
 weekly on main, manually, and on PRs that change the showcase or its driver.
-It does not claim physical-device performance or TalkBack/VoiceOver coverage;
-iOS still needs a native build and interaction check.
+The same workflow builds an **offline iOS Simulator app**, installs it on an
+iPhone 17 simulator, and exercises the selector, counter/reset, disabled
+controls, keyboard/form, preferences, tabs, dialog cancellation/confirmation,
+Kumimono assembly/disassembly and switching away from the GPU story. Its Canvas
+pixel comparisons convert measured accessibility screen-point bounds to Retina
+pixels; changing status labels cannot count as rendered animation. Both drivers
+wait up to 15 seconds for presented Canvas pixels and reject a permanently blank
+surface, including after animation. Only image reads are polled, not interactions.
+
+`hozo-native-showcase-ios-simulator-app` contains the unsigned simulator `.app`
+in a ZIP (for Apple Silicon macOS Simulator on the current runner, **not**
+physical iPhones). CI builds only its host architecture rather than spending
+time compiling the untested Intel slice; build locally below for another host.
+`hozo-native-showcase-ios-evidence` contains screenshots, nested accessibility
+trees, system logs and `evidence.json`, including failures. The iOS driver uses
+[idb](https://fbidb.io/docs/idb/ui/) for real taps and keyboard input; it does not
+inject test controls into the showcase.
+
+The shared display-name field disables spelling/autocorrection: a person's
+name should not be rewritten to an English dictionary suggestion. On iOS,
+keyboard input sends each character once and observes every exact AX value
+prefix (`H`, `Ho`, `Hoz`, `Hozo`) before sending the next character or saving.
+`formInput` retains confirmed and pending prefixes on failure. A missing key
+is never retyped, and both the field value and final `Saved: Hozo` must match.
+
+The animated third-party sidebar omits its rows from idb's accessibility trees;
+its iOS selector check uses Apple Vision to locate the visible Typography label
+and taps the measured text bounds. OCR boxes are retained with the screenshot.
+This verifies visible selection, not sidebar accessibility. Hozo control checks
+still use accessibility labels and state.
+
+Neither platform's checks claim physical-device performance or
+TalkBack/VoiceOver coverage. iOS background/
+resume and reduced motion remain manual checks; Android resume is automated.
 
 With an Android SDK, connected emulator/device and Java 17, reproduce it locally
 after the dependency builds above:
@@ -89,6 +122,103 @@ On Windows use `gradlew.bat`. Prebuild does not clean an existing generated
 native project. The driver installs the showcase APK, resets its running
 process and writes evidence; use a dedicated emulator rather than a device
 where you need to preserve an active showcase session.
+
+On macOS with Xcode, CocoaPods and `facebook/fb/idb` installed, reproduce the iOS
+check after the dependency builds above:
+
+```sh
+pnpm --filter @hozo/example-native-showcase prebuild:ios
+cd examples/native-showcase/ios
+pod install
+xcodebuild -workspace HozoShowcase.xcworkspace -scheme HozoShowcase \
+  -configuration Release -sdk iphonesimulator -derivedDataPath build \
+  CODE_SIGNING_ALLOWED=NO build
+cd ../../..
+pnpm --filter @hozo/example-native-showcase smoke:ios
+```
+
+The driver boots the available `iPhone 17`, or the simulator specified by
+`IOS_UDID` (alternatively `IOS_DEVICE`). It installs and launches the showcase,
+so use a dedicated simulator. Every subsequent action uses that exact UDID.
+
+### Diagnose without rebuilding
+
+Manually dispatch `native-showcase` with `reuse-build-run` set to a previous
+repository run ID, `platform` set to `ios` or `android`, and `diagnostics` enabled.
+This downloads that run's app artifact instead of rebuilding it. Results record
+`binaryRun` separately from `driverCommit`: a reused binary is diagnostic evidence,
+not proof that the current application source passed. Normal PR/weekly runs still
+build the current source. The existing 30-day artifact retention applies.
+
+iOS diagnostics first tap **General** in Apple's Settings app and check the
+**About** row, then run the unchanged Hozo interaction assertions. Each idb call
+records its duration and debug log. A UI command still running after 10 seconds is
+sampled read-only in a separate process (companion, showcase and command process);
+the existing 30-second input deadline and no-retry policy remain in place.
+Companion logs are retained on both success and failure. Sampling can affect
+timing, so use it to locate a stall, not to measure application performance.
+Simulator discovery and the input companion connection happen before app
+interactions; their cold framework initialization has separate bounded setup
+budgets, with setup duration and the exact connected UDID recorded in evidence.
+The cold app launch is one attempt with its existing two-minute setup budget;
+it does not first terminate a nonexistent app session. `launches` records its
+command, returned PID, duration and errors, separately from UI readiness.
+After ten seconds, a still-blocked launch is sampled read-only (command,
+showcase and SpringBoard) even in normal PR runs, so a pre-app stall has evidence.
+Neither a launch timeout nor an input error is retried into a passing result.
+AX/HID command deadlines and assertions are unchanged, with no input retry.
+`ios-ax-backend` explicitly compares the guest (`axbridge`) and host
+(`ax`, default) readers. The guest reader could not resolve even Settings on the
+reference runner; the host reader reached the showcase controls. Inputs still
+use HID in both cases; there is no automatic reader fallback or input retry.
+
+`ios-scenario=canvas` isolates the unchanged Canvas pixel/animation and unmount
+checks, so failures in an earlier keyboard/menu check cannot prevent collecting
+renderer evidence. Results are labelled with their scenario; a Canvas-only pass
+is not full showcase coverage. PR and scheduled runs still use `full`. Combine
+it with `reuse-build-run` to inspect an already-built instrumented app.
+
+`ios-canvas-mode=continuous` selects a separate continuous-frame story for an
+explicit comparison with the default demand-driven story. Both use the same
+scene, controls, completion states and pixel assertions. Continuous success does
+not certify the canonical demand mode or establish a battery/performance-safe fix.
+
+`ios-canvas-mode=instant` forces reduced motion in a separate story, keeping the
+same two final scene states and pixel assertions but omitting intermediate
+animation frames. `ios-scenario=gl-control` checks a direct Expo GL red-to-blue
+clear without Three or R3F. That control uses a blocking GL error query, which
+drains queued commands and affects timing; neither is canonical Canvas coverage.
+`ios-canvas-mode=synchronized` keeps the animation and demand frame loop but
+explicitly drains Expo's native command queue after each existing render via
+`flushEXP`. This is a blocking diagnostic comparison, not a production fix,
+presentation acknowledgement, or performance sample. Endpoint logs include the
+renderer frame counter and command-flush time; screen pixels remain authoritative.
+The unmodified demand story submitted 80 animation frames; after the old 15s
+pixel deadline, read-only observation saw the correct disassembled endpoint
+roughly 198s later (same 73.19% pixel change as the instant/synchronized controls).
+This establishes delayed output on that hosted simulator, not a permanent freeze.
+Only the heavy iOS scene's functional pixel budget is therefore five minutes;
+it still returns as soon as pixels match and reports first-frame/disassembly/
+reassembly wait times. Raw GL, Android and AX/HID deadlines are unchanged.
+A functional pass is **not** interactive-performance or physical-iPhone evidence.
+After a disassembly pixel timeout, diagnostic runs additionally observe the
+unchanged screen read-only for up to five minutes, recording any late pixel
+change separately. They still rethrow the original timeout and fail the job;
+late output is not a passing check. No extra GL calls, invalidation or input are
+introduced, so this can distinguish delayed queued output from a persistent freeze.
+
+For JS-only iterations, `rebundle-ios=true` with `diagnostics=true` and a
+`reuse-build-run` regenerates production Hermes bytecode and assets in the
+restored simulator app. Native/dependency/configuration changes are rejected;
+the base must be a manual native-showcase run whose source is unambiguous.
+Evidence records the native build run and the new JS source commit separately.
+This is not a substitute for the normal fresh-source build before merging.
+
+Android diagnostics save boot logs, CPU/pressure, input-service state and system
+ANR reports **before** starting the app, and again on failure. `android-target`
+can select `google_apis` or `default` for a controlled system-image comparison.
+The collectors can allow boot services extra settling time; diagnostic success
+does not by itself establish that the normal cold-boot test is stable.
 
 ```sh
 pnpm --filter @hozo/example-native-showcase typecheck
