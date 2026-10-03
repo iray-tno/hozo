@@ -310,10 +310,24 @@ echo 'Three Native host corpus: 4 useful, 2 explicit diagnostics, 0 failed'
 # Restore the original surface before the existing TalkBack pass so the new
 # corpus cannot weaken or accidentally replace Canvas's accessibility check.
 tap_test_id three-corpus-back
-sleep 2
-dump canvas-after-three.xml
-bounds_of canvas-after-three.xml canvas-surface >/dev/null ||
-  fail 'Canvas surface did not return after the Three corpus'
+# Polled, like every other step here that waits on the app, rather than one
+# dump two seconds after the tap. That single read was never reached from
+# 2026-09-30 until #713, and once it was, it failed two runs in five with the
+# bench still on gltf-pbr. The seconds it took are printed so a slow return
+# and a lost tap can be told apart: ten seconds is far past any slowness the
+# rest of this script tolerates.
+returned=
+for second in $(seq 1 10); do
+  sleep 1
+  dump canvas-after-three.xml
+  if bounds_of canvas-after-three.xml canvas-surface >/dev/null; then
+    returned=$second
+    break
+  fi
+done
+[ -n "$returned" ] ||
+  fail "Canvas surface did not return within 10 s of Back after the Three corpus (the Three surface reports $(three_surface_scene canvas-after-three.xml))"
+echo "Back to the Canvas checks after ${returned}s"
 
 # React Native delivers mouse hover through offsetX/offsetY, whereas touch
 # above used locationX/locationY. Do this after all harness navigation: the
