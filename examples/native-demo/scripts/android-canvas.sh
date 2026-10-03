@@ -26,6 +26,10 @@ fail() {
   spoken | tail -50 | sed 's/^/  /' || true
   echo '--- the app: warnings, errors and console ---'
   app_log | tail -150 | sed 's/^/  /' || true
+  # Apart, because a soft exception's stack trace can push them out of the
+  # tail above. See `canvas.js` for what each one means.
+  echo '--- screen markers ---'
+  app_log | grep -F '[hozo-canvas-screen]' | sed 's/^/  /' || true
   echo '--- logcat ---'
   adb logcat -d -v brief | tail -80 || true
   exit 1
