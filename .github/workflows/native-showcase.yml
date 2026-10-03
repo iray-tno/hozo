@@ -34,6 +34,10 @@ on:
         type: choice
         options: [google_apis, default]
         default: google_apis
+      android-canvas-rounds:
+        description: 'Total Canvas mounts (1-10); extra stress rounds abort on any failure, never retry it'
+        type: string
+        default: '1'
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'
         type: choice
@@ -126,6 +130,7 @@ jobs:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
           HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
           HOZO_ANDROID_TARGET: ${{ inputs.android-target || 'google_apis' }}
+          HOZO_ANDROID_CANVAS_ROUNDS: ${{ inputs.android-canvas-rounds || '1' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -146,6 +151,8 @@ jobs:
         with:
           node-version: 25
           cache: pnpm
+      - name: Begin exact iOS Simulator boot during native build
+        run: node examples/native-showcase/scripts/prepare-ios-simulator.mjs artifacts/native-showcase-ios/simulator-preparation.json
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: pnpm install --frozen-lockfile --filter @hozo/example-native-showcase...

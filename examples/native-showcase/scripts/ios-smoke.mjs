@@ -3,6 +3,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import {
   closeSync,
   cpSync,
+  existsSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -15,16 +16,13 @@ import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
 import { observeLateImage, PresentedImageTimeout, waitForImage } from './image-ready.mjs'
-import {
-  openShowcaseConfirmation,
-  parseIosNodes,
-  pixelBounds,
-  visualTextControl,
-} from './ios-evidence.mjs'
+import { parseIosNodes, pixelBounds, visualTextControl } from './ios-evidence.mjs'
 import { enterIosText } from './ios-form-input.mjs'
 import { IOS_SCENE_IMAGE_TIMEOUT, waitForIosSceneImage } from './ios-image-ready.mjs'
 import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 import { launchIosApp } from './ios-launch.mjs'
+import { selectIosSimulator, waitForIosBoot } from './ios-simulator.mjs'
+import { waitForIosControl } from './ios-ui-wait.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -110,34 +108,13 @@ function nodes() {
 }
 
 async function waitFor(predicate, description, timeout = 60_000, allowOpenConfirmation = false) {
-  let deadline = Date.now() + timeout
-  let lastError
-  let confirmed = false
-  do {
-    let tree
-    try {
-      tree = nodes()
-    } catch (error) {
-      lastError = error
-    }
-    if (tree) {
-      const confirmation =
-        allowOpenConfirmation && !confirmed ? openShowcaseConfirmation(tree) : undefined
-      if (confirmation) {
-        // Unlike read-only tree polling, an input error must propagate; never
-        // retry a potentially delivered tap. Allow the app its own route budget
-        // after the OS confirmation, once only (not an indefinitely reset timer).
-        idb('ui', 'tap', ...centre(confirmation).map(String))
-        confirmed = true
-        evidence.openConfirmations = (evidence.openConfirmations ?? 0) + 1
-        deadline = Date.now() + timeout
-      }
-      const found = tree.find(predicate)
-      if (found) return found
-    }
-    await pause(1_000)
-  } while (Date.now() < deadline)
-  throw new Error(`Timed out: ${description}`, { cause: lastError })
+  return waitForIosControl(predicate, description, {
+    readNodes: nodes,
+    tapConfirmation: (node) => idb('ui', 'tap', ...centre(node).map(String)),
+    observation: evidence,
+    timeout,
+    allowOpenConfirmation,
+  })
 }
 
 async function tap(predicate, description) {
@@ -220,17 +197,20 @@ try {
   evidence.deviceDiscoveryMs = discovery.elapsedMs
   // Resolve once, and use the exact UDID for boot, install, input and screenshots.
   // Duplicate device names across installed iOS runtimes must not switch targets.
-  const candidates = Object.entries(devices)
-    .filter(([runtime]) => runtime.includes('.iOS-'))
-    .flatMap(([runtime, entries]) => entries.map((device) => ({ ...device, runtime })))
-  const device = process.env.IOS_UDID
-    ? candidates.find((candidate) => candidate.udid === process.env.IOS_UDID)
-    : candidates.find((candidate) => candidate.name === (process.env.IOS_DEVICE ?? 'iPhone 17'))
-  assert.ok(device, 'requested iOS simulator is not available')
+  const device = selectIosSimulator(devices, {
+    udid: process.env.IOS_UDID,
+    name: process.env.IOS_DEVICE,
+  })
   udid = device.udid
   evidence.simulator = device
-  if (device.state !== 'Booted') simctl('boot', udid)
-  run('xcrun', ['simctl', 'bootstatus', udid, '-b'], 180_000)
+  const preparation = resolve(output, 'simulator-preparation.json')
+  if (existsSync(preparation)) {
+    evidence.simulatorPreparation = JSON.parse(readFileSync(preparation, 'utf8'))
+    assert.equal(evidence.simulatorPreparation.device.udid, udid, 'prepared a different simulator')
+  }
+  if (device.state === 'Shutdown') simctl('boot', udid)
+  evidence.boot = {}
+  waitForIosBoot(udid, run, evidence.boot)
   // A fresh hosted simulator may still be preparing its installation service
   // after SpringBoard reports booted. Give installation its own bounded budget,
   // without retrying interactions or weakening their assertions.
@@ -298,7 +278,10 @@ try {
     })
   } else {
     if (evidence.scenario === 'full') {
-      await story('primitives-shared-showcase--buttons', 'Add one')
+      // Storybook already cold-starts on Buttons. Sending that same deep link
+      // can accept the old screen before a delayed OS confirmation appears.
+      // Exercise the real initial screen without introducing a pending route.
+      await waitFor(label('Add one'), 'initial Buttons story')
       await waitFor(label('Pressed 0 times'), 'initial counter')
       await tap(label('Add one'), 'counter button')
       await waitFor(label('Pressed 1 times'), 'incremented counter')
