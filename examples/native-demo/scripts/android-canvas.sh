@@ -166,6 +166,22 @@ wait_for_text() {
   return 1
 }
 
+# Which scene the Three surface itself says it is drawing, read from its
+# accessibility label (`${definition.id} Three scene` in ThreeCorpusBench).
+#
+# Printed when a scene is not selected, because two different defects fail
+# that check. In one, the bench never advanced. In the other -- seen in run
+# 37076464722 -- the surface had moved on to wireframe-cad and was drawing it,
+# while the `scene:` text above it still said flat-labelled-diagram. Only this
+# label tells them apart from the log.
+three_surface_scene() {
+  node --eval '
+    const xml = require("node:fs").readFileSync(process.argv[1], "utf8")
+    const found = /content-desc="([^"]+) Three scene"/.exec(xml)
+    console.log(found ? found[1] : "(no Three surface in the tree)")
+  ' "$1"
+}
+
 # Convert a point in the 100x60 viewBox into the physical bounds reported by
 # Android. This includes density and the Canvas's actual screen position, so
 # the check does not assume a particular emulator DPI.
@@ -230,13 +246,18 @@ dump canvas-before-three.xml
 activate_test_id show-three-corpus
 sleep 2
 
+# In the order of `SCENE_CORPUS_SCENES` in `@hozo/three/conformance-scenes`,
+# which is the order Next walks. A scene added there has to be added here too:
+# product-viewer-gltf was added on 2026-09-30 without it, and every run after
+# that reached gltf-pbr's place and found product-viewer-gltf in it.
 three_ids=(flat-labelled-diagram wireframe-cad points-and-sprite instancing-and-morph)
 three_labels=('Input node' 'Wireframe assembly' 'Point cloud' 'Morphed instances')
 for index in 0 1 2 3; do
   id="${three_ids[$index]}"
   label="${three_labels[$index]}"
   xml="three-native-${id}.xml"
-  wait_for_text "$xml" "scene: $id" || fail "Three corpus did not select $id"
+  wait_for_text "$xml" "scene: $id" ||
+    fail "Three corpus did not select $id (the surface reports $(three_surface_scene "$xml"))"
   tree_has_text "$xml" 'diagnostics: none' || fail "$id produced an unexpected diagnostic"
   activate_description "$label"
   wait_for_text "$xml" "activated: $label" || fail "$id did not activate $label"
@@ -246,8 +267,21 @@ for index in 0 1 2 3; do
   sleep 2
 done
 
+# The animated, textured product viewer. Under the portable renderer it is a
+# diagnostic rather than a useful scene -- its materials are past the portable
+# boundary, as `scene-conformance.json`'s portableObservation records -- so it
+# is checked for that and has nothing to activate.
+wait_for_text three-native-product-viewer-gltf.xml 'scene: product-viewer-gltf' ||
+  fail "Three corpus did not select product-viewer-gltf (the surface reports $(three_surface_scene three-native-product-viewer-gltf.xml))"
+wait_for_text three-native-product-viewer-gltf.xml 'diagnostics: UNSUPPORTED_MATERIAL' ||
+  fail 'the product viewer did not stop at the documented portable material boundary'
+adb exec-out screencap -p > three-native-product-viewer-gltf.png 2>/dev/null || true
+echo 'Three Native host -> product-viewer-gltf -> UNSUPPORTED_MATERIAL'
+tap_test_id three-corpus-next
+sleep 2
+
 wait_for_text three-native-gltf-pbr.xml 'scene: gltf-pbr' ||
-  fail 'Three corpus did not select gltf-pbr'
+  fail "Three corpus did not select gltf-pbr (the surface reports $(three_surface_scene three-native-gltf-pbr.xml))"
 wait_for_text three-native-gltf-pbr.xml 'diagnostics: UNSUPPORTED_MATERIAL' ||
   fail 'glTF/PBR did not stop at the documented portable material boundary'
 adb exec-out screencap -p > three-native-gltf-pbr.png 2>/dev/null || true
@@ -262,16 +296,16 @@ node --eval '
   fs.writeFileSync("three-native-corpus.json", `${JSON.stringify({
     family: "native-host",
     host: "React Native Android / Skia",
-    fixtures: [...useful, {
-      id: "gltf-pbr",
+    fixtures: [...useful, ...["product-viewer-gltf", "gltf-pbr"].map((id) => ({
+      id,
       status: "diagnostic",
       diagnostics: ["UNSUPPORTED_MATERIAL"],
       semanticControl: false,
       activated: false,
-    }],
+    }))],
   }, null, 2)}\n`)
 '
-echo 'Three Native host corpus: 4 useful, 1 explicit diagnostic, 0 failed'
+echo 'Three Native host corpus: 4 useful, 2 explicit diagnostics, 0 failed'
 
 # Restore the original surface before the existing TalkBack pass so the new
 # corpus cannot weaken or accidentally replace Canvas's accessibility check.
