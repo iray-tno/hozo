@@ -160,6 +160,13 @@ timing, so use it to locate a stall, not to measure application performance.
 Simulator discovery and the input companion connection happen before app
 interactions; their cold framework initialization has separate bounded setup
 budgets, with setup duration and the exact connected UDID recorded in evidence.
+CI requests that exact simulator's boot before dependency/native compilation,
+so cold OS preparation can progress during the build rather than starting only
+after it. The later smoke driver still requires `bootstatus` within its existing
+180-second readiness budget; no boot, input or assertion is retried. Early
+preparation and full boot-progress stdout/stderr (including timeout output) are
+retained separately from app launch and interaction results. This changes setup
+scheduling, not the Canvas renderer, and does not prove universal simulator stability.
 The cold app launch is one attempt with its existing two-minute setup budget;
 it does not first terminate a nonexistent app session. `launches` records its
 command, returned PID, duration and errors, separately from UI readiness.

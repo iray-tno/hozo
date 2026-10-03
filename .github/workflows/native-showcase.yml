@@ -151,6 +151,8 @@ jobs:
         with:
           node-version: 25
           cache: pnpm
+      - name: Begin exact iOS Simulator boot during native build
+        run: node examples/native-showcase/scripts/prepare-ios-simulator.mjs artifacts/native-showcase-ios/simulator-preparation.json
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: pnpm install --frozen-lockfile --filter @hozo/example-native-showcase...

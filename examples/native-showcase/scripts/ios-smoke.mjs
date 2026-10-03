@@ -3,6 +3,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import {
   closeSync,
   cpSync,
+  existsSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -25,6 +26,7 @@ import { enterIosText } from './ios-form-input.mjs'
 import { IOS_SCENE_IMAGE_TIMEOUT, waitForIosSceneImage } from './ios-image-ready.mjs'
 import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 import { launchIosApp } from './ios-launch.mjs'
+import { selectIosSimulator, waitForIosBoot } from './ios-simulator.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -220,17 +222,20 @@ try {
   evidence.deviceDiscoveryMs = discovery.elapsedMs
   // Resolve once, and use the exact UDID for boot, install, input and screenshots.
   // Duplicate device names across installed iOS runtimes must not switch targets.
-  const candidates = Object.entries(devices)
-    .filter(([runtime]) => runtime.includes('.iOS-'))
-    .flatMap(([runtime, entries]) => entries.map((device) => ({ ...device, runtime })))
-  const device = process.env.IOS_UDID
-    ? candidates.find((candidate) => candidate.udid === process.env.IOS_UDID)
-    : candidates.find((candidate) => candidate.name === (process.env.IOS_DEVICE ?? 'iPhone 17'))
-  assert.ok(device, 'requested iOS simulator is not available')
+  const device = selectIosSimulator(devices, {
+    udid: process.env.IOS_UDID,
+    name: process.env.IOS_DEVICE,
+  })
   udid = device.udid
   evidence.simulator = device
-  if (device.state !== 'Booted') simctl('boot', udid)
-  run('xcrun', ['simctl', 'bootstatus', udid, '-b'], 180_000)
+  const preparation = resolve(output, 'simulator-preparation.json')
+  if (existsSync(preparation)) {
+    evidence.simulatorPreparation = JSON.parse(readFileSync(preparation, 'utf8'))
+    assert.equal(evidence.simulatorPreparation.device.udid, udid, 'prepared a different simulator')
+  }
+  if (device.state === 'Shutdown') simctl('boot', udid)
+  evidence.boot = {}
+  waitForIosBoot(udid, run, evidence.boot)
   // A fresh hosted simulator may still be preparing its installation service
   // after SpringBoard reports booted. Give installation its own bounded budget,
   // without retrying interactions or weakening their assertions.
