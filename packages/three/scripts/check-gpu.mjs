@@ -123,7 +123,7 @@ try {
       return (
         result.error ||
         result.backend !== 'canvas2d' ||
-        result.portableTextures?.length !== 9 ||
+        result.portableTextures?.length !== 36 ||
         result.portableTextures.some(({ passed, samples }) => !passed || samples < 1)
       )
     }

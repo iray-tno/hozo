@@ -25,6 +25,7 @@ import {
   Circle,
   Clip,
   canvasControls,
+  canvasMeshTextureColor,
   canvasPressEvent,
   canvasTextureUri,
   canvasUnreadableText,
@@ -218,14 +219,27 @@ function Root({
       for (const node of nodes) {
         if (node.kind === 'triangle-mesh' && node.props.texture) {
           const uri = canvasTextureUri(node.props.texture.source)
-          if (!uri || textureImages.current.has(uri)) continue
+          if (!uri) continue
+          const color = canvasMeshTextureColor(node.props.texture)
+          const readable = color && (color.r !== 1 || color.g !== 1 || color.b !== 1)
+          const cached = textureImages.current.get(uri)
+          if (cached && (!readable || cached.crossOrigin === 'anonymous')) continue
           const image = new Image()
+          // Static RGB modulation reads pixels once. Request CORS only for
+          // that path; ordinary images must still draw without CORS support.
+          if (readable) image.crossOrigin = 'anonymous'
           textureImages.current.set(uri, image)
           image.onload = () => {
+            if (textureImages.current.get(uri) !== image) return
             if (textureMounted.current) setTextureRevision((revision) => revision + 1)
           }
           image.onerror = () => {
+            if (textureImages.current.get(uri) !== image) return
             textureImages.current.delete(uri)
+            if (readable)
+              console.warn(
+                '[hozo] Portable texture colour modulation could not load a readable image; external images need CORS support.',
+              )
             if (textureMounted.current) setTextureRevision((revision) => revision + 1)
           }
           image.src = uri

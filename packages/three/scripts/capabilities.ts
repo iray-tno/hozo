@@ -297,6 +297,13 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
     [project('PointsMaterial map becomes a portable point-sprite texture')],
   ),
   capability(
+    'Texture-backed materials',
+    'linear material-colour modulation',
+    'exact',
+    'Mesh, point, and sprite maps multiply decoded linear RGB by the material colour before encoding; alpha is preserved. Affine/filtering approximation is classified separately.',
+    [project('texture maps preserve linear material tint for meshes, points, and sprites')],
+  ),
+  capability(
     'SpriteMaterial',
     'affine colour map',
     'approximate',

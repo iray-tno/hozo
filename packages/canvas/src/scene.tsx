@@ -419,8 +419,10 @@ export interface CanvasMeshTexture {
   /** One top-left coordinate per vertex. One unit is one image tile. */
   coordinates: readonly CanvasPoint[]
   filter?: 'linear' | 'nearest'
-  /** Multiplies RGB after sampling while preserving alpha. Defaults to 1. */
+  /** Linear RGB multiplier; alpha is unchanged. Defaults to 1. */
   intensity?: number
+  /** Linear-sRGB multipliers, applied before encoding; alpha is unchanged. */
+  tint?: { r: number; g: number; b: number }
   /** Default wrapping for both axes. */
   wrap?: CanvasTextureWrap
   /** Horizontal override, matching texture S/U coordinates. */
@@ -497,6 +499,24 @@ export function canvasMeshTextureIntensity(texture: CanvasMeshTexture): number |
   return Number.isFinite(intensity) ? Math.max(0, intensity) : undefined
 }
 
+const identityTextureColor = Object.freeze({ r: 1, g: 1, b: 1 })
+
+/** One finite linear-RGB contract for validation and both renderer hosts. */
+export function canvasMeshTextureColor(
+  texture: CanvasMeshTexture,
+): { r: number; g: number; b: number } | undefined {
+  const intensity = canvasMeshTextureIntensity(texture)
+  if (intensity === 1 && !texture.tint) return identityTextureColor
+  const tint = texture.tint ?? { r: 1, g: 1, b: 1 }
+  if (intensity === undefined || ![tint.r, tint.g, tint.b].every(Number.isFinite)) return undefined
+  const color = {
+    r: Math.max(0, tint.r) * intensity,
+    g: Math.max(0, tint.g) * intensity,
+    b: Math.max(0, tint.b) * intensity,
+  }
+  return [color.r, color.g, color.b].every(Number.isFinite) ? color : undefined
+}
+
 /** The URI a browser can load, absent for a Native-only numeric asset ID. */
 export function canvasTextureUri(source: CanvasTextureSource): string | undefined {
   if (typeof source === 'string') return source
@@ -511,6 +531,7 @@ export function canvasTextureUri(source: CanvasTextureSource): string | undefine
 /** The complete, valid triangle index stream shared by rendering and hit testing. */
 export function triangleMeshIndices(props: TriangleMeshProps): number[] {
   if (props.colors && props.texture) return []
+  if (props.texture && !canvasMeshTextureColor(props.texture)) return []
   const source = props.indices ?? props.vertices.map((_, index) => index)
   const result: number[] = []
   for (let offset = 0; offset + 2 < source.length; offset += 3) {

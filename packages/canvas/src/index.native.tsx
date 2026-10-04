@@ -12,11 +12,13 @@ import {
   ImageShader as SkiaImageShader,
   Line as SkiaLine,
   LinearGradient as SkiaLinearGradient,
+  LinearToSRGBGamma as SkiaLinearToSRGBGamma,
   Oval as SkiaOval,
   Path as SkiaPath,
   RadialGradient as SkiaRadialGradient,
   Rect as SkiaRect,
   RoundedRect as SkiaRoundedRect,
+  SRGBToLinearGamma as SkiaSRGBToLinearGamma,
   Text as SkiaText,
   Vertices as SkiaVertices,
   type Transforms3d,
@@ -57,7 +59,7 @@ import {
   Clip,
   type ClipProps,
   canvasControls,
-  canvasMeshTextureIntensity,
+  canvasMeshTextureColor,
   canvasMeshTextureWrap,
   canvasPressEvent,
   canvasUnreadableText,
@@ -170,14 +172,14 @@ function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
         : source?.default
   const image = useImage(nativeSource)
   const indices = triangleMeshIndices(node.props)
-  const intensity = texture ? canvasMeshTextureIntensity(texture) : 1
+  const tint = texture ? canvasMeshTextureColor(texture) : { r: 1, g: 1, b: 1 }
   if (
     indices.length === 0 ||
     node.props.fill === 'none' ||
-    (texture && (!image || intensity === undefined))
+    (texture && (!image || tint === undefined))
   )
     return null
-  const textureIntensity = intensity ?? 1
+  const color = tint ?? { r: 1, g: 1, b: 1 }
   const colors = node.props.colors?.map((color) => {
     const normalized = triangleMeshColor(color)
     return normalized ? triangleMeshColorCss(normalized) : 'rgba(0, 0, 0, 0)'
@@ -212,31 +214,35 @@ function NativeTriangleMesh({ node }: { node: TriangleMeshNode }) {
               filter: texture.filter === 'nearest' ? FilterMode.Nearest : FilterMode.Linear,
             }}
           />
-          {textureIntensity !== 1 ? (
-            <SkiaColorMatrix
-              matrix={[
-                textureIntensity,
-                0,
-                0,
-                0,
-                0,
-                0,
-                textureIntensity,
-                0,
-                0,
-                0,
-                0,
-                0,
-                textureIntensity,
-                0,
-                0,
-                0,
-                0,
-                0,
-                1,
-                0,
-              ]}
-            />
+          {color.r !== 1 || color.g !== 1 || color.b !== 1 ? (
+            <SkiaLinearToSRGBGamma>
+              <SkiaColorMatrix
+                matrix={[
+                  color.r,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  color.g,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  color.b,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                ]}
+              >
+                <SkiaSRGBToLinearGamma />
+              </SkiaColorMatrix>
+            </SkiaLinearToSRGBGamma>
           ) : null}
         </>
       ) : colors ? null : (

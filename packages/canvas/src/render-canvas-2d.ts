@@ -7,7 +7,7 @@ import {
   type CanvasTextureWrap,
   type CanvasTransform,
   type ClipProps,
-  canvasMeshTextureIntensity,
+  canvasMeshTextureColor,
   canvasMeshTextureWrap,
   cssFontShorthand,
   isGradient,
@@ -26,7 +26,8 @@ export type { CanvasViewport } from './viewport.ts'
 
 type CanvasTextureImage = (source: CanvasTextureSource) => CanvasImageSource | undefined
 
-const modulatedTextures = new WeakMap<object, Map<number, CanvasImageSource>>()
+const modulatedTextures = new WeakMap<object, Map<string, CanvasImageSource>>()
+const unreadableTextures = new WeakSet<object>()
 const mirroredTextures = new WeakMap<object, Map<string, CanvasImageSource>>()
 
 /**
@@ -85,17 +86,21 @@ function linearToSrgb(channel: number): number {
 }
 
 /**
- * Safari has no enabled Canvas 2D filter yet. Pay the pixel cost once there,
- * cache it by decoded image and multiplier, and keep the normal draw path GPU-backed.
+ * Canvas brightness/compositing operates on encoded channels rather than the
+ * linear RGB Three.js multiplies. Pay this cost once per image/colour, not per
+ * triangle/frame, and keep the subsequent affine draw path host-backed.
  */
 function softwareModulatedTexture(
   image: CanvasImageSource,
-  intensity: number,
+  color: { r: number; g: number; b: number },
 ): CanvasImageSource | undefined {
   const dimensions = imageDimensions(image)
   if (!dimensions) return undefined
   const key = image as object
-  const cached = modulatedTextures.get(key)?.get(intensity)
+  if (unreadableTextures.has(key)) return undefined
+  const cacheKey = `${color.r}/${color.g}/${color.b}`
+  const variants = modulatedTextures.get(key)
+  const cached = variants?.get(cacheKey)
   if (cached) return cached
   const surface =
     typeof OffscreenCanvas === 'function'
@@ -109,23 +114,42 @@ function softwareModulatedTexture(
   try {
     context.drawImage(image, 0, 0, dimensions.width, dimensions.height)
     const pixels = context.getImageData(0, 0, dimensions.width, dimensions.height)
+    const multipliers = [color.r, color.g, color.b]
+    // Only 256 encoded input values exist. Avoid millions of pow() calls when
+    // a large static texture is tinted for the first time.
+    const tables = multipliers.map((multiplier) =>
+      Uint8ClampedArray.from({ length: 256 }, (_, value) =>
+        Math.round(
+          Math.max(0, Math.min(1, linearToSrgb(srgbToLinear(value / 255) * multiplier))) * 255,
+        ),
+      ),
+    )
     for (let offset = 0; offset < pixels.data.length; offset += 4) {
       for (let channel = 0; channel < 3; channel += 1) {
-        const value = (pixels.data[offset + channel] ?? 0) / 255
-        pixels.data[offset + channel] = Math.round(
-          Math.max(0, Math.min(1, linearToSrgb(srgbToLinear(value) * intensity))) * 255,
-        )
+        pixels.data[offset + channel] = tables[channel]![pixels.data[offset + channel] ?? 0]!
       }
     }
     context.putImageData(pixels, 0, 0)
   } catch {
-    // A cross-origin image without CORS can be drawn but not read back. Omitting
-    // it is safer than silently drawing the wrong intensity on this browser.
+    // A cross-origin image without CORS can be drawn but not read back. Report
+    // the limitation once rather than quietly substituting an untinted image.
+    if (!unreadableTextures.has(key)) {
+      unreadableTextures.add(key)
+      console.warn(
+        '[hozo] Portable texture colour modulation requires a readable image (same-origin or CORS-enabled).',
+      )
+    }
     return undefined
   }
-  const byIntensity = modulatedTextures.get(key) ?? new Map<number, CanvasImageSource>()
-  byIntensity.set(intensity, surface)
-  modulatedTextures.set(key, byIntensity)
+  const byColor = variants ?? new Map<string, CanvasImageSource>()
+  // Animated colours must not retain an unbounded collection of pixel copies.
+  const limit = Math.max(
+    1,
+    Math.min(8, Math.floor((16 * 1024 * 1024) / (dimensions.width * dimensions.height * 4))),
+  )
+  if (byColor.size >= limit) byColor.delete(byColor.keys().next().value!)
+  byColor.set(cacheKey, surface)
+  modulatedTextures.set(key, byColor)
   return surface
 }
 
@@ -312,11 +336,10 @@ function fillTexturedTriangle(
   filter: 'linear' | 'nearest',
   wrapX: CanvasTextureWrap,
   wrapY: CanvasTextureWrap,
-  intensity: number,
+  color: { r: number; g: number; b: number },
 ) {
-  const supportsFilter = 'filter' in context
   const drawable =
-    intensity === 1 || supportsFilter ? image : softwareModulatedTexture(image, intensity)
+    color.r === 1 && color.g === 1 && color.b === 1 ? image : softwareModulatedTexture(image, color)
   if (!drawable) return
   const dimensions = imageDimensions(drawable)
   if (!dimensions) return
@@ -355,7 +378,6 @@ function fillTexturedTriangle(
   trianglePath(context, a, b, c)
   context.clip()
   context.imageSmoothingEnabled = filter === 'linear'
-  if (supportsFilter && intensity !== 1) context.filter = `brightness(${intensity})`
   context.transform(
     horizontal.first,
     vertical.first,
@@ -519,8 +541,8 @@ function drawNode(
           if (!a || !b || !c) continue
           if (texture && image) {
             const [wrapX, wrapY] = canvasMeshTextureWrap(texture)
-            const intensity = canvasMeshTextureIntensity(texture)
-            if (intensity === undefined) continue
+            const color = canvasMeshTextureColor(texture)
+            if (color === undefined) continue
             const textureA = triangleMeshTextureCoordinate(
               texture.coordinates[indices[offset] as number],
               wrapX,
@@ -545,7 +567,7 @@ function drawNode(
               texture.filter ?? 'linear',
               wrapX,
               wrapY,
-              intensity,
+              color,
             )
           } else if (node.props.colors) {
             const colorA = triangleMeshColor(node.props.colors[indices[offset] as number])

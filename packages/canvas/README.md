@@ -56,7 +56,11 @@ the same URI form or a local asset ID. Sampling clamps at image edges by
 default; `wrap: 'repeat'` tiles on both axes, `wrap: 'mirror'` alternates reflected
 tiles, while `wrapX` and `wrapY` can
 override either axis independently. Repeated axes permit coordinates outside
-0..1. `intensity` multiplies sampled RGB while preserving alpha. All modes use
+0..1. `intensity` and `tint: { r, g, b }` multiply linear RGB while preserving alpha.
+Web caches the processed image (at most eight colour variants per decoded source,
+fewer for large images),
+requiring same-origin or CORS-enabled images for non-identity modulation.
+Native uses Skia colour filters. All modes use
 affine interpolation per triangle. Textures do not yet combine with vertex
 colours or provide perspective-correct sampling.
 
