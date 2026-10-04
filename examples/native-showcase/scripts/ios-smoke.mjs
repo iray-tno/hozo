@@ -186,7 +186,7 @@ try {
     'unsupported iOS scenario',
   )
   assert.ok(
-    ['demand', 'continuous', 'instant', 'synchronized'].includes(evidence.canvasMode),
+    ['demand', 'continuous', 'instant', 'synchronized', 'paced'].includes(evidence.canvasMode),
     'unsupported Canvas mode',
   )
   const binary = resolve(root, 'ios/build/Build/Products/Release-iphonesimulator/HozoShowcase.app')
@@ -419,6 +419,7 @@ try {
       record('shared dialog opens, cancels and confirms')
     }
 
+    const canvasRequestedAt = Date.now()
     await story(
       evidence.canvasMode === 'continuous'
         ? 'three-kumimono--assembly-continuous'
@@ -426,7 +427,9 @@ try {
           ? 'three-kumimono--assembly-instant'
           : evidence.canvasMode === 'synchronized'
             ? 'three-kumimono--assembly-synchronized'
-            : 'three-kumimono--assembly',
+            : evidence.canvasMode === 'paced'
+              ? 'three-kumimono--assembly-paced'
+              : 'three-kumimono--assembly',
       '組物: timber bracket assembly',
     )
     const canvas = await assembly('assembled')
@@ -440,9 +443,12 @@ try {
     evidence.canvasObservation = {
       assembledColours: assembled.colours,
       firstFrameWaitMs: assembledFrame.presentedAfterMs,
+      firstFrameEndToEndMs: Date.now() - canvasRequestedAt,
     }
+    const disassemblyRequestedAt = Date.now()
     await tap(label('分解'), 'disassemble')
     await assembly('disassembled')
+    evidence.canvasObservation.disassemblyStateObservedMs = Date.now() - disassemblyRequestedAt
     const acceptDisassembled = (image) => {
       const difference = changedFraction(assembled, image)
       evidence.canvasObservation.disassembledColours = image.colours
@@ -458,6 +464,7 @@ try {
       )
       disassembled = frame.image
       evidence.canvasObservation.disassemblyWaitMs = frame.presentedAfterMs
+      evidence.canvasObservation.disassemblyEndToEndMs = Date.now() - disassemblyRequestedAt
     } catch (error) {
       if (evidence.diagnostic && error instanceof PresentedImageTimeout) {
         // Keep the failed primary gate intact, and perform ONLY read-only captures.
@@ -475,8 +482,10 @@ try {
     }
     const difference = changedFraction(assembled, disassembled)
     assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
+    const reassemblyRequestedAt = Date.now()
     await tap(label('組み立て'), 'assemble')
     await assembly('assembled')
+    evidence.canvasObservation.reassemblyStateObservedMs = Date.now() - reassemblyRequestedAt
     const reassembledFrame = await waitForIosSceneImage(
       () => canvasImage('12-reassembled', canvas),
       (image) => image.colours >= 40 && changedFraction(disassembled, image) >= 0.01,
@@ -484,6 +493,7 @@ try {
     )
     const reassembled = reassembledFrame.image
     evidence.canvasObservation.reassemblyWaitMs = reassembledFrame.presentedAfterMs
+    evidence.canvasObservation.reassemblyEndToEndMs = Date.now() - reassemblyRequestedAt
     const reverseDifference = changedFraction(disassembled, reassembled)
     assert.ok(reverseDifference >= 0.01, `reverse GL image did not change: ${reverseDifference}`)
     record('Expo GL renders and animates the actual scene', {

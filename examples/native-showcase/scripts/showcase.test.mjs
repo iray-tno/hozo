@@ -88,6 +88,7 @@ test('the actual Kumimono story uses the live lifecycle for both Canvas and Anim
     const module = { exports: {} }
     const model = { scene: {}, camera: {} }
     let lifecycleReads = 0
+    const rendererWrappers = []
     const events = []
     const load = (name) => {
       if (name === 'react')
@@ -114,7 +115,10 @@ test('the actual Kumimono story uses the live lifecycle for both Canvas and Anim
         return { createKumimonoScene: () => model, configureKumimonoRenderer: () => {} }
       if (name === '@hozo/three/r3f-native') return { ThreeCanvas: 'ThreeCanvas' }
       if (name === '@react-three/fiber/native') return {}
-      if (name === './kumimono-render-probe.ts') return { observeKumimonoRender: () => {} }
+      if (name === './kumimono-render-probe.ts')
+        return { observeKumimonoRender: () => rendererWrappers.push('observe') }
+      if (name === './kumimono-submission-probe.ts')
+        return { paceKumimonoRender: () => rendererWrappers.push('pace') }
       if (name === './use-native-app-active.ts')
         return {
           useNativeAppActive: () => {
@@ -138,6 +142,17 @@ test('the actual Kumimono story uses the live lifecycle for both Canvas and Anim
     assert.equal(events[0].phase, 'renderer-created')
     assert.equal(events[0].active, active)
     assert.equal(events[0].frameloop, canvas.props.frameloop)
+    assert.deepEqual(rendererWrappers, ['observe'])
+    rendererWrappers.length = 0
+    const pacedElement = module.exports.AssemblyPaced.render()
+    assert.equal(pacedElement.props.paceSubmissions, true)
+    const pacedChildren = react.Children.toArray(
+      pacedElement.type(pacedElement.props).props.children,
+    )
+    const pacedCanvas = pacedChildren.find((child) => child.type === 'ThreeCanvas')
+    assert.equal(pacedCanvas.props.frameloop, canvas.props.frameloop)
+    pacedCanvas.props.onCreated({ gl: {} })
+    assert.deepEqual(rendererWrappers, ['observe', 'pace'])
   }
 })
 

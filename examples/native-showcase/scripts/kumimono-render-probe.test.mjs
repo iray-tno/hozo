@@ -176,3 +176,42 @@ test('a failed command-flush diagnostic propagates without claiming completion',
     ['render-start'],
   )
 })
+
+test('endpoint workload separates JS submission time from elapsed time without GL queries', () => {
+  const model = study()
+  let time = 0
+  let progress = 1
+  const events = []
+  const renderer = {
+    info: { render: { calls: 0 } },
+    render() {
+      time += progress === 1 ? 10 : 4
+      this.info.render.calls = progress === 1 ? 230 : 184
+    },
+  }
+  observeKumimonoRender(
+    renderer,
+    model,
+    () => progress,
+    (event) => events.push(event),
+    undefined,
+    () => time,
+  )
+  renderer.render(model.scene, model.camera)
+  time += 100
+  progress = 0.5
+  renderer.render(model.scene, model.camera)
+  time += 100
+  progress = 0
+  renderer.render(model.scene, model.camera)
+  const endpoints = events.filter(({ phase }) => phase === 'render-return')
+  assert.equal(endpoints[0].intervalSubmittedFrames, 1)
+  assert.equal(endpoints[0].intervalJsSubmitMs, 10)
+  assert.equal(endpoints[0].sincePreviousEndpointMs, undefined)
+  assert.equal(endpoints[1].jsSubmitMs, 4)
+  assert.equal(endpoints[1].intervalSubmittedFrames, 2)
+  assert.equal(endpoints[1].intervalJsSubmitMs, 8)
+  assert.equal(endpoints[1].intervalMaxJsSubmitMs, 4)
+  assert.equal(endpoints[1].intervalMainPassDrawCalls, 368)
+  assert.equal(endpoints[1].sincePreviousEndpointMs, 208)
+})

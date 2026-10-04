@@ -204,6 +204,40 @@ The unmodified demand story submitted 80 animation frames; after the old 15s
 pixel deadline, read-only observation saw the correct disassembled endpoint
 roughly 198s later (same 73.19% pixel change as the instant/synchronized controls).
 This establishes delayed output on that hosted simulator, not a permanent freeze.
+
+`ios-canvas-mode=paced` is a separate submission-count experiment. It keeps the
+same simulation ticks, animation progress, geometry, materials, lights, shadows
+and endpoint/pixel assertions, but coalesces intermediate render submissions to
+at most 5Hz. The initial/final endpoints bypass that interval and are never
+discarded. It wraps outside R3F's Native renderer/presentation function, so a
+coalesced call submits neither drawing nor an empty `endFrameEXP` command. The
+canonical story remains demand-driven without this gate. This fixed-rate
+diagnostic is **not native backpressure**, a production quality setting or a
+claim that five frames per second is acceptable interactive performance.
+
+Endpoint logs now include JS-side render-call time and per-transition submitted
+frames, peak/summed render-call time and main-pass draw counts. Three's normal
+counter reset excludes shadow draws; CPU call duration may include existing
+synchronous native waits. No extra GL queries, flushes or intermediate-frame logs
+are added to the canonical path. `performance.json` extracts these measurements
+and the separate screenshot wait times from the evidence, preserving failures
+and source/binary/mode provenance. Neither source counts nor a screenshot wait
+measures native queue depth, GPU time or exact presentation acknowledgement.
+Evidence also records request-to-image end-to-end time and time to the AX
+completion label. The old pixel wait begins only after that label, and therefore
+omits cold renderer/shader startup and animation submission. For example, the
+latest baseline's initial render call occupied about 43.5s before its 3.9s pixel
+wait even began; that pixel wait was never total initial-load latency.
+
+Compare fresh runs at the same source with `platform=ios`, `diagnostics=false`,
+`ios-scenario=canvas`, and `ios-canvas-mode=demand` versus `paced`, retaining every
+result. A reduction in delayed output with fewer submitted frames supports a
+load/backlog explanation; it does not by itself distinguish command processing,
+GPU/shadow cost or hosted-simulator overhead. Physical-iOS throughput and a
+supported asynchronous completion signal remain separate investigation work.
+The investigation and completion criteria are tracked in
+[issue #716](https://github.com/iray-tno/hozo/issues/716).
+
 Only the heavy iOS scene's functional pixel budget is therefore five minutes;
 it still returns as soon as pixels match and reports first-frame/disassembly/
 reassembly wait times. Raw GL, Android and AX/HID deadlines are unchanged.

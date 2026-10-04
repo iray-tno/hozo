@@ -7,6 +7,7 @@ import type { ExpoWebGLRenderingContext } from 'expo-gl'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, AppState, ScrollView } from 'react-native'
 import { observeKumimonoRender } from './kumimono-render-probe.ts'
+import { paceKumimonoRender } from './kumimono-submission-probe.ts'
 import { useNativeAppActive } from './use-native-app-active.ts'
 
 function Animation({
@@ -61,10 +62,12 @@ function KumimonoDemo({
   continuousFrames = false,
   forceReducedMotion = false,
   synchronizeFrames = false,
+  paceSubmissions = false,
 }: {
   continuousFrames?: boolean
   forceReducedMotion?: boolean
   synchronizeFrames?: boolean
+  paceSubmissions?: boolean
 }) {
   const [study] = useState(() => createKumimonoScene())
   const [target, setTarget] = useState(1)
@@ -127,6 +130,14 @@ function KumimonoDemo({
               ? () => (gl.getContext() as ExpoWebGLRenderingContext).flushEXP()
               : undefined,
           )
+          if (paceSubmissions) {
+            paceKumimonoRender(
+              gl,
+              study,
+              () => observedProgress.current,
+              (event) => console.info('[Hozo Kumimono]', JSON.stringify(event)),
+            )
+          }
         }}
       >
         <Animation
@@ -190,4 +201,9 @@ export const AssemblyInstant: StoryObj<typeof meta> = {
 // Blocking diagnostic, not a performance-safe production frame-loop policy.
 export const AssemblySynchronized: StoryObj<typeof meta> = {
   render: () => <KumimonoDemo synchronizeFrames />,
+}
+// Explicit 5Hz submission comparison; simulation and endpoint assertions stay
+// unchanged. This is rate limiting, NOT asynchronous native backpressure.
+export const AssemblyPaced: StoryObj<typeof meta> = {
+  render: () => <KumimonoDemo paceSubmissions />,
 }

@@ -51,7 +51,7 @@ on:
       ios-canvas-mode:
         description: 'Controlled frame-loop comparison; demand is the canonical story'
         type: choice
-        options: [demand, continuous, instant, synchronized]
+        options: [demand, continuous, instant, synchronized, paced]
         default: demand
 
 permissions:
@@ -236,6 +236,9 @@ jobs:
           HOZO_IOS_SCENARIO: ${{ inputs.ios-scenario || 'full' }}
           HOZO_IOS_CANVAS_MODE: ${{ inputs.ios-canvas-mode || 'demand' }}
           HOZO_IOS_BUNDLE_COMMIT: ${{ inputs.rebundle-ios && github.sha || '' }}
+      - name: Summarize iOS submission and pixel measurements
+        if: always()
+        run: node examples/native-showcase/scripts/report-ios-performance.mjs artifacts/native-showcase-ios
       - uses: actions/upload-artifact@v4
         if: always()
         with:
