@@ -78,6 +78,69 @@ test('Native ThreeCanvas preserves GL host ancestry across responder/style updat
   assert.equal(canvas.props.children, child)
 })
 
+test('the actual Kumimono story uses the live lifecycle for both Canvas and Animation', () => {
+  const react = require('react')
+  const { transformSync } = require('esbuild')
+  const file = path.join(root, 'src/Kumimono.stories.tsx')
+  const source = transformHozoSource(readFileSync(file, 'utf8'), file)
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
+  for (const active of [false, true]) {
+    const module = { exports: {} }
+    const model = { scene: {}, camera: {} }
+    let lifecycleReads = 0
+    const events = []
+    const load = (name) => {
+      if (name === 'react')
+        return {
+          ...react,
+          useState: (value) => [typeof value === 'function' ? value() : value, () => {}],
+          useRef: (current) => ({ current }),
+          useCallback: (fn) => fn,
+          useEffect: () => {},
+        }
+      if (name === 'react/jsx-runtime') return require(name)
+      if (name === 'react-native')
+        return {
+          View: 'View',
+          Text: 'Text',
+          Pressable: 'Pressable',
+          ScrollView: 'ScrollView',
+          // Deliberately stale: the story must not bypass the live hook.
+          AppState: { currentState: active ? 'background' : 'active' },
+          StyleSheet: { create: (styles) => styles },
+        }
+      if (name === '@hozo/core/generated/pressable') return { HozoPressable: 'Pressable' }
+      if (name === '@hozo/example-three-kumimono')
+        return { createKumimonoScene: () => model, configureKumimonoRenderer: () => {} }
+      if (name === '@hozo/three/r3f-native') return { ThreeCanvas: 'ThreeCanvas' }
+      if (name === '@react-three/fiber/native') return {}
+      if (name === './kumimono-render-probe.ts') return { observeKumimonoRender: () => {} }
+      if (name === './use-native-app-active.ts')
+        return {
+          useNativeAppActive: () => {
+            lifecycleReads++
+            return active
+          },
+        }
+      throw new Error(`Unexpected Kumimono dependency: ${name}`)
+    }
+    new Function('require', 'module', 'console', code)(load, module, {
+      info: (_prefix, event) => events.push(JSON.parse(event)),
+    })
+    const children = react.Children.toArray(module.exports.default.component({}).props.children)
+    const canvas = children.find((child) => child.type === 'ThreeCanvas')
+    assert.ok(canvas)
+    assert.equal(lifecycleReads, 1)
+    assert.equal(canvas.props.frameloop, active ? 'demand' : 'never')
+    assert.equal(canvas.props.children.props.active, active)
+    assert.equal(canvas.props.scene, model.scene)
+    canvas.props.onCreated({ gl: {} })
+    assert.equal(events[0].phase, 'renderer-created')
+    assert.equal(events[0].active, active)
+    assert.equal(events[0].frameloop, canvas.props.frameloop)
+  }
+})
+
 test('Native Dialog isolates its modal without combining descendant controls', () => {
   // Inspect actual rendered props with inert hooks/native hosts. This guards
   // wiring, not VoiceOver behavior; the simulator run verifies the AX tree.
