@@ -75,9 +75,12 @@ export function Kumimono() {
       <div className="kumimono-heading">
         <div>
           <p className="kumimono-eyebrow">@hozo/three · WebGL</p>
-          <h2 id="kumimono-heading">
-            組物 <span>Kumimono</span>
-          </h2>
+          {/* The heading says what the section shows a developer; the subject
+              is the line under it. It used to be 組物 Kumimono: a term most
+              readers of an English page cannot read, without lang="ja", so a
+              screen reader voiced the kanji with an English voice. */}
+          <h2 id="kumimono-heading">Interactive 3D, from the same React</h2>
+          <p className="kumimono-subject">Kumimono — a Japanese roof-bracket set, 56 parts</p>
           <p id="kumimono-description" className="sr-only">
             A 3D study of Japanese timber roof brackets. Use the button or assembly slider to
             separate and rejoin its 56 parts.
