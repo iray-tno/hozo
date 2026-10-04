@@ -9,6 +9,12 @@ repository, how to verify a change, and the traps a newcomer falls into. Read it
 before your first change. This file does not repeat it; it adds what an agent
 most often gets wrong, and the naming conventions every agent must share.
 
+## Toolchain (local development)
+
+Local tool versions are declared in [`.mise.toml`](.mise.toml) (`node = "25"`, `rust = "stable"`), matching CI.
+`pnpm` (`11.21.0`) is pinned by `packageManager` in `package.json` and runs through mise's shims.
+If tools (`node`, `pnpm`, `cargo`) are missing from your `PATH` in a subshell, ensure mise shims are loaded or run through `mise exec -- <command>`.
+
 ## Before you open a pull request
 
 Run, from the repository root, in this order:
