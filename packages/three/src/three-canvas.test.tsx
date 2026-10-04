@@ -167,6 +167,38 @@ test('ThreeCanvas paints scene backgrounds without creating an object control', 
   await testRenderer.act(async () => renderer?.unmount())
 })
 
+test('ThreeCanvas switches line interpolation without leaking the option to the host', async () => {
+  const { camera, mesh, scene } = triangleScene()
+  mesh.material.wireframe = true
+  mesh.material.vertexColors = true
+  mesh.material.color.set('#ffffff')
+  mesh.geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1], 3))
+  const gradientStops: string[] = []
+  const surface = recordingSurface([], [], gradientStops)
+  let renderer: ReturnType<typeof testRenderer.create> | undefined
+  const render = (lineColorInterpolation: 'endpoints' | 'bounded') => (
+    <ThreeCanvas
+      decorative
+      scene={scene}
+      camera={camera}
+      width={100}
+      height={100}
+      lineColorInterpolation={lineColorInterpolation}
+    />
+  )
+  await testRenderer.act(async () => {
+    renderer = testRenderer.create(render('endpoints'), {
+      createNodeMock: (element) => (element.type === 'canvas' ? surface : null),
+    })
+  })
+  assert.equal(gradientStops.length, 6)
+  assert.equal(renderer?.root.findByType('canvas').props.lineColorInterpolation, undefined)
+  gradientStops.length = 0
+  await testRenderer.act(async () => renderer?.update(render('bounded')))
+  assert.ok(gradientStops.length > 6 && gradientStops.length <= 96)
+  await testRenderer.act(async () => renderer?.unmount())
+})
+
 test('ThreeCanvas draws a projected Three scene and invalidates imperative mutations', async () => {
   const { camera, mesh, scene } = triangleScene()
   const paths: string[] = []

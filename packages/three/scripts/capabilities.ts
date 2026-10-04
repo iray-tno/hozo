@@ -255,14 +255,14 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
     'MeshBasicMaterial',
     'wireframe vertex-colour interpolation',
     'approximate',
-    'Each projected edge uses a portable linear colour gradient.',
+    'Opaque RGB edges refine linear working colour and perspective depth into at most 32 host gradient stops. Short edges have smaller budgets; transparency, fog, and explicit endpoints mode retain two-stop approximation.',
     [project('wireframe MeshBasicMaterial preserves RGB vertex colours as edge gradients')],
   ),
   capability(
     'LineBasicMaterial',
     'vertex-colour interpolation',
     'approximate',
-    'Projected segments use portable linear colour gradients.',
+    'Opaque RGB segments refine linear working colour and perspective depth into at most 32 host gradient stops, after near/material clipping. This remains a bounded approximation; transparency and fog retain two stops.',
     [project('LineBasicMaterial projects clipped RGB vertex colours as a portable gradient')],
   ),
   capability(

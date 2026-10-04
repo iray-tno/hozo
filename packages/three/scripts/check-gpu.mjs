@@ -81,8 +81,14 @@ try {
     server.listen(0, () => resolve(server.address().port)),
   )
   const modes = process.argv.includes('--portable-only')
-    ? ['portable-textures']
-    : ['portable-textures', 'classic-webgl', 'modern-auto', 'modern-force-webgl2']
+    ? ['portable-textures', 'portable-gradients']
+    : [
+        'portable-textures',
+        'portable-gradients',
+        'classic-webgl',
+        'modern-auto',
+        'modern-force-webgl2',
+      ]
   const results = []
   try {
     for (const mode of modes) {
@@ -119,6 +125,14 @@ try {
   console.log(markdown(report))
 
   const invalid = results.filter((result) => {
+    if (result.mode === 'portable-gradients') {
+      return (
+        result.error ||
+        result.backend !== 'canvas2d' ||
+        result.portableGradients?.length !== 10 ||
+        result.portableGradients.some(({ passed, samples }) => !passed || samples < 20)
+      )
+    }
     if (result.mode === 'portable-textures') {
       return (
         result.error ||
@@ -225,5 +239,31 @@ function markdown(report) {
     `Native WebGPU backend observed: ${report.nativeWebGPUObserved ? 'yes' : 'no'}`,
     '',
   )
+  for (const result of report.results.filter(({ portableGradients }) => portableGradients)) {
+    lines.push(
+      '## Portable opaque line pixels (Canvas 2D vs upstream WebGL)',
+      '',
+      '| Fixture | Passed | Samples | Old error | Refined error | Stops | Primitives |',
+      '| --- | --- | ---: | ---: | ---: | ---: | ---: |',
+    )
+    for (const row of result.portableGradients)
+      lines.push(
+        `| ${row.name} | ${row.passed ? 'yes' : 'no'} | ${row.samples} | ${row.baselineMaxChannelError} | ${row.maxChannelError} | ${row.stops} | ${row.primitives} |`,
+      )
+    lines.push('')
+    lines.push(
+      '### Portable line workload timings (report only)',
+      '',
+      'Pixel readback flushes host raster work. Cached-scene draw forces a redraw; an untouched demand scene does not redraw. This fixture has five repeating depth/colour conditions, not 10,000 unique cache misses.',
+      '',
+      '| Lines | Workload | Interpolation | Trials | Median ms |',
+      '| ---: | --- | --- | ---: | ---: |',
+    )
+    for (const row of result.portableGradientTimings ?? [])
+      lines.push(
+        `| ${row.lines} | ${row.workload} | ${row.interpolation} | ${row.trials} | ${row.medianMs.toFixed(2)} |`,
+      )
+    lines.push('')
+  }
   return `${lines.join('\n')}\n`
 }

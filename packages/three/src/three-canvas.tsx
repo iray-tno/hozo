@@ -9,7 +9,11 @@ import {
   Vector2,
 } from 'three'
 
-import { projectThreeScene, type ThreeProjectionDiagnostic } from './project.ts'
+import {
+  projectThreeScene,
+  type ThreeProjectionDiagnostic,
+  type ThreeProjectionOptions,
+} from './project.ts'
 import {
   resizeThreeCamera,
   type ThreeSurfaceFrame,
@@ -44,6 +48,7 @@ type CanvasSurfaceProps = CanvasProps extends infer Variant
 
 export type ThreeCanvasProps = CanvasSurfaceProps &
   ThreeSurfaceProps<ThreeCanvasCamera> & {
+    lineColorInterpolation?: ThreeProjectionOptions['lineColorInterpolation']
     onDiagnostic?: (diagnostic: ThreeProjectionDiagnostic) => void
     /** Name an interactive Three object for its single keyboard control. */
     getAccessibilityLabel?: (object: Object3D) => string | undefined
@@ -69,6 +74,7 @@ export function ThreeCanvas({
   frameloop = 'demand',
   getAccessibilityLabel,
   height,
+  lineColorInterpolation = 'bounded',
   onDiagnostic,
   onFrame,
   onObjectActiveChange,
@@ -97,8 +103,8 @@ export function ThreeCanvas({
     void frameRevision
     void revision
     resizeThreeCamera(camera, size, cameraResize)
-    return projectThreeScene(scene, camera, size)
-  }, [camera, cameraResize, frameRevision, revision, scene, size])
+    return projectThreeScene(scene, camera, { ...size, lineColorInterpolation })
+  }, [camera, cameraResize, frameRevision, revision, scene, size, lineColorInterpolation])
 
   useEffect(() => {
     if (!onDiagnostic) return

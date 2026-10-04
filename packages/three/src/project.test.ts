@@ -67,6 +67,13 @@ function projectedLines(result: ReturnType<typeof projectThreeScene>) {
   })
 }
 
+function gradientEndpoints(line: ReturnType<typeof projectedLines>[number]) {
+  const stroke = line.stroke
+  if (!stroke || typeof stroke === 'string') return line
+  assert.ok(stroke.stops.length >= 2 && stroke.stops.length <= 32)
+  return { ...line, stroke: { ...stroke, stops: [stroke.stops[0], stroke.stops.at(-1)] } }
+}
+
 function projectedCircles(result: ReturnType<typeof projectThreeScene>) {
   return result.scene.map((node) => {
     assert.equal(node.kind, 'circle')
@@ -885,8 +892,15 @@ test('wireframe MeshBasicMaterial preserves RGB vertex colours as edge gradients
   })
 
   assert.deepEqual(result.diagnostics, [])
+  assert.ok(
+    projectedLines(result).every(
+      ({ stroke }) => typeof stroke === 'object' && stroke.stops.length > 2,
+    ),
+  )
   assert.deepEqual(
-    projectedLines(result).map(({ stroke }) => stroke),
+    projectedLines(result)
+      .map(gradientEndpoints)
+      .map(({ stroke }) => stroke),
     [
       {
         kind: 'linear',
@@ -1034,7 +1048,12 @@ test('LineBasicMaterial projects clipped RGB vertex colours as a portable gradie
   const result = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
 
   assert.deepEqual(result.diagnostics, [])
-  assert.deepEqual(projectedLines(result), [
+  assert.ok(
+    projectedLines(result).every(
+      ({ stroke }) => typeof stroke === 'object' && stroke.stops.length > 2,
+    ),
+  )
+  assert.deepEqual(projectedLines(result).map(gradientEndpoints), [
     {
       x1: 50,
       y1: 50,
@@ -1061,7 +1080,7 @@ test('LineBasicMaterial projects clipped RGB vertex colours as a portable gradie
   })
   const dashed = projectThreeScene(scene, perspective(), { width: 100, height: 100 })
   assert.deepEqual(dashed.diagnostics, [])
-  assert.deepEqual(projectedLines(dashed), [
+  assert.deepEqual(projectedLines(dashed).map(gradientEndpoints), [
     {
       x1: 40,
       y1: 50,
@@ -1095,6 +1114,55 @@ test('LineBasicMaterial projects clipped RGB vertex colours as a portable gradie
       strokeWidth: 1,
     },
   ])
+})
+
+test('opaque gradient refinement respects explicit endpoints and disabled colour management', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('color', new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1], 3))
+  const scene = new Scene().add(
+    new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true, wireframe: true })),
+  )
+  const endpoints = projectThreeScene(scene, perspective(), {
+    width: 256,
+    height: 256,
+    lineColorInterpolation: 'endpoints',
+  })
+  assert.ok(
+    projectedLines(endpoints).every(
+      ({ stroke }) => typeof stroke === 'object' && stroke.stops.length === 2,
+    ),
+  )
+  const subCamera = Object.assign(perspective(), { viewport: new THREE.Vector4(0, 0, 256, 256) })
+  const arrayProjection = projectThreeScene(scene, new THREE.ArrayCamera([subCamera]), {
+    width: 256,
+    height: 256,
+    lineColorInterpolation: 'endpoints',
+  })
+  assert.equal(arrayProjection.scene.length, 3)
+  assert.ok(
+    arrayProjection.scene.every(
+      (node) =>
+        node.kind === 'group' &&
+        node.children?.every(
+          (child) =>
+            child.kind === 'line' &&
+            typeof child.props.stroke === 'object' &&
+            child.props.stroke.stops.length === 2,
+        ),
+    ),
+  )
+  const previous = THREE.ColorManagement.enabled
+  try {
+    THREE.ColorManagement.enabled = false
+    const result = projectThreeScene(scene, perspective(), { width: 256, height: 256 })
+    assert.ok(
+      projectedLines(result).every(
+        ({ stroke }) => typeof stroke === 'object' && stroke.stops.length === 2,
+      ),
+    )
+  } finally {
+    THREE.ColorManagement.enabled = previous
+  }
 })
 
 test('a line crossing the near plane is clipped to finite viewport coordinates', () => {

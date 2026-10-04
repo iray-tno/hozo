@@ -13,10 +13,12 @@ import {
   type BufferGeometry,
   ClampToEdgeWrapping,
   Color,
+  ColorManagement,
   DoubleSide,
   type InstancedMesh,
   type InterleavedBufferAttribute,
   LessEqualDepth,
+  LinearSRGBColorSpace,
   type LineBasicMaterial,
   type LineDashedMaterial,
   type LOD,
@@ -48,6 +50,7 @@ import {
   Vector3,
   Vector4,
 } from 'three'
+import { portableLineColorStops } from './line-gradient.ts'
 
 export type ThreeProjectionDiagnosticCode =
   | 'INVALID_VIEWPORT'
@@ -67,6 +70,8 @@ export interface ThreeProjectionDiagnostic {
 export interface ThreeProjectionOptions {
   width: number
   height: number
+  /** Bounded opaque RGB refinement (default), or the cheaper two-stop approximation. */
+  lineColorInterpolation?: 'bounded' | 'endpoints'
   onDiagnostic?: (diagnostic: ThreeProjectionDiagnostic) => void
 }
 
@@ -1162,6 +1167,7 @@ function projectThreeSceneInternal(
         {
           width: viewport.z,
           height: viewport.w,
+          lineColorInterpolation: options.lineColorInterpolation,
           onDiagnostic: options.onDiagnostic,
         },
         false,
@@ -1192,6 +1198,10 @@ function projectThreeSceneInternal(
     camera.matrixWorldInverse,
   )
   const primitives: ProjectedPrimitive[] = []
+  const boundedLineColors =
+    options.lineColorInterpolation !== 'endpoints' &&
+    ColorManagement.enabled &&
+    ColorManagement.workingColorSpace === LinearSRGBColorSpace
   let order = 0
 
   scene.traverseVisible((object) => {
@@ -1579,10 +1589,22 @@ function projectThreeSceneInternal(
                 kind: 'linear',
                 from: { x: from.x, y: from.y },
                 to: { x: to.x, y: to.y },
-                stops: [
-                  { offset: 0, color: canvasColorCss(clippedFromColor, clippedFromAlpha) },
-                  { offset: 1, color: canvasColorCss(clippedToColor, clippedToAlpha) },
-                ],
+                stops:
+                  boundedLineColors &&
+                  !material.transparent &&
+                  clippedFromAlpha === undefined &&
+                  !(material.fog && scene.fog)
+                    ? portableLineColorStops(
+                        clippedFromColor,
+                        clippedToColor,
+                        clipped[0].w,
+                        clipped[1].w,
+                        Math.hypot(to.x - from.x, to.y - from.y),
+                      )
+                    : [
+                        { offset: 0, color: canvasColorCss(clippedFromColor, clippedFromAlpha) },
+                        { offset: 1, color: canvasColorCss(clippedToColor, clippedToAlpha) },
+                      ],
               }
             }
             primitives.push({
@@ -2492,16 +2514,28 @@ function projectThreeSceneInternal(
                   kind: 'linear',
                   from: { x: from.x, y: from.y },
                   to: { x: to.x, y: to.y },
-                  stops: [
-                    {
-                      offset: 0,
-                      color: canvasColorCss(clippedFromColor, clippedFromAlpha),
-                    },
-                    {
-                      offset: 1,
-                      color: canvasColorCss(clippedToColor, clippedToAlpha),
-                    },
-                  ],
+                  stops:
+                    boundedLineColors &&
+                    !range.material.transparent &&
+                    clippedFromAlpha === undefined &&
+                    !rangeFog
+                      ? portableLineColorStops(
+                          clippedFromColor,
+                          clippedToColor,
+                          clipped[0].w,
+                          clipped[1].w,
+                          Math.hypot(to.x - from.x, to.y - from.y),
+                        )
+                      : [
+                          {
+                            offset: 0,
+                            color: canvasColorCss(clippedFromColor, clippedFromAlpha),
+                          },
+                          {
+                            offset: 1,
+                            color: canvasColorCss(clippedToColor, clippedToAlpha),
+                          },
+                        ],
                 }
               }
               primitives.push({
