@@ -101,16 +101,15 @@ still belong on a GPU renderer, or can choose endpoints mode.
 Remaining fidelity follow-ups:
 
 - Extend real-pixel evidence to Native Skia and transformed/skinned wireframes.
-- Compare actual browser and Skia pixels against upstream renderer samples.
-  Alpha needs premultiplied-output error checks, not just straight RGB.
-- Measure 1,000 and 10,000 coloured edges, both static/demand and animated.
-  Retained scene reuse alone is not sufficient when every animation reprojects.
-- Keep a hard stop budget, disclose budget exhaustion, and retain approximate
-  classification. Start with opaque RGB; normal-derived gradients require
-  normalized interpolated normals, not just interpolation of endpoint colours.
+- Extend colour refinement to alpha only with premultiplied-output pixel checks,
+  not just straight RGB. Normal-derived gradients require normalized
+  interpolated normals, not just interpolation of endpoint colours.
+- Add full-scene/device timings with unique colours and depths. The preparation
+  cache-miss benchmark and repeating-condition raster benchmark measure
+  different workloads; neither establishes mobile frame rates.
 
-This is the first fidelity implementation candidate because it can improve
-both colour space and perspective without expanding primitive count.
+This first fidelity implementation improves both colour space and perspective
+without expanding primitive count.
 
 ## Priority 2: opt-in, bounded textured-triangle refinement
 
