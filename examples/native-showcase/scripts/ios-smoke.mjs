@@ -11,17 +11,17 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
 import { observeLateImage, PresentedImageTimeout, waitForImage } from './image-ready.mjs'
-import { parseIosNodes, pixelBounds, visualTextControl } from './ios-evidence.mjs'
+import { parseIosNodes, pixelBounds } from './ios-evidence.mjs'
 import { enterIosText } from './ios-form-input.mjs'
 import { IOS_SCENE_IMAGE_TIMEOUT, waitForIosSceneImage } from './ios-image-ready.mjs'
 import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 import { launchIosApp } from './ios-launch.mjs'
 import { selectIosSimulator, waitForIosBoot } from './ios-simulator.mjs'
+import { selectStableIosText, waitForIosStorySelection } from './ios-story-selector.mjs'
 import { waitForIosControl } from './ios-ui-wait.mjs'
 
 const app = 'dev.hozo.showcase'
@@ -120,6 +120,7 @@ async function waitFor(predicate, description, timeout = 60_000, allowOpenConfir
 async function tap(predicate, description) {
   const node = await waitFor(predicate, description)
   idb('ui', 'tap', ...centre(node).map(String))
+  return node
 }
 
 function screenshot(name, includeTree = true) {
@@ -290,27 +291,59 @@ try {
       await waitFor(label('Pressed 0 times'), 'reset counter')
       record('counter increments and resets')
 
-      await tap((node) => node.AXUniqueId === 'mobile-menu-button', 'Storybook menu')
+      const menu = await tap((node) => node.AXUniqueId === 'mobile-menu-button', 'Storybook menu')
       // idb's AX readers omit/stall on this third-party animated portal. Read its
       // visible text instead, with measured boxes, not magic coordinates. All Hozo
       // controls below still use AX. This is not a sidebar accessibility claim.
       const screen = parseIosNodes(latestTree).find((node) => node.type === 'Application')
       assert.ok(screen, 'missing screen bounds for visual selection')
-      const deadline = Date.now() + 60_000
-      let typography
-      do {
-        screenshot('02-story-selector', false)
-        const boxes = JSON.parse(
-          run(recognizer, [resolve(output, '02-story-selector.png')]).toString(),
-        )
-        writeFileSync(resolve(output, '02-story-selector-ocr.json'), JSON.stringify(boxes, null, 2))
-        typography = visualTextControl(boxes, 'Typography', screen.rect)
-        if (typography) break
-        await pause(500)
-      } while (Date.now() < deadline)
-      assert.ok(typography, 'Typography is not uniquely visible in the actual menu')
-      idb('ui', 'tap', ...centre(typography).map(String))
-      const backdrop = await waitFor(label('Bottom sheet backdrop'), 'Storybook selector backdrop')
+      const selection = {
+        previousStory: menu.AXLabel,
+        expectedStory: 'Primitives/Shared showcase/Typography',
+      }
+      evidence.storySelector = selection
+      let sample = 0
+      await selectStableIosText('Typography', screen.rect, {
+        observation: selection,
+        readBoxes: () => {
+          const name = `02-story-selector-${++sample}`
+          screenshot(name, false)
+          const boxes = JSON.parse(run(recognizer, [resolve(output, `${name}.png`)]).toString())
+          writeFileSync(resolve(output, `${name}-ocr.json`), JSON.stringify(boxes, null, 2))
+          return boxes
+        },
+        tapControl: (node) => idb('ui', 'tap', ...centre(node).map(String)),
+      })
+      // Route confirmation and rendered content share the existing 60s UI
+      // budget. Extra observations must not give a wrong selection more time.
+      const selectionDeadline = Date.now() + 60_000
+      const selectionBudget = () => {
+        const remaining = selectionDeadline - Date.now()
+        assert.ok(remaining > 0, 'Timed out: Typography story selection')
+        return remaining
+      }
+      const selected = await waitForIosStorySelection(
+        selection.previousStory,
+        selection.expectedStory,
+        {
+          readNodes: () => {
+            const tree = nodes()
+            selection.selectedStory = tree.find(
+              (node) => node.AXUniqueId === 'mobile-menu-button',
+            )?.AXLabel
+            return tree
+          },
+          observation: evidence,
+          timeout: selectionBudget(),
+        },
+      )
+      selection.selectedStory = selected.AXLabel
+      selection.selectionConfirmedAt = Date.now()
+      const backdrop = await waitFor(
+        label('Bottom sheet backdrop'),
+        'Storybook selector backdrop',
+        selectionBudget(),
+      )
       const [left, top, right, bottom] = backdrop.rect
       // The persistent drawer covers the bottom 75%; tap the exposed backdrop.
       idb(
@@ -319,7 +352,7 @@ try {
         String(Math.floor((left + right) / 2)),
         String(Math.floor(top + (bottom - top) / 10)),
       )
-      await waitFor(label('日本語の表示'), 'Typography story rendered')
+      await waitFor(label('日本語の表示'), 'Typography story rendered', selectionBudget())
       screenshot('03-typography')
       record('Storybook selector switches stories')
 
