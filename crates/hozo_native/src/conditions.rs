@@ -222,6 +222,10 @@ pub(super) fn build_style_entries(
     runtime: &mut RuntimeNeeds,
     interaction_context: bool,
     theme: &Theme,
+    // Where `starting:` styles go, for an element that can animate from
+    // them (`HozoAnimated`): they are the first frame, not part of the
+    // style array. `None` everywhere else, which reports them instead.
+    mut starting: Option<&mut Vec<String>>,
 ) {
     // Before anything reads them: a paired token becomes a second
     // declaration, so everything below treats it as an ordinary condition.
@@ -657,24 +661,29 @@ pub(super) fn build_style_entries(
                 "`focus-within:` asks whether anything *inside* this element has focus, and React Native gives an element no way to know that. `focus:` on the element that actually takes focus is the version that works on both platforms.",
                 Severity::Error,
             )),
-            // Two that are not gaps in this backend so much as questions
-            // the platform cannot be asked. A link the user has been to
-            // needs links and a history to have been in them, and neither
-            // is a thing React Native has. `@starting-style` needs a
-            // declarative first frame, and React Native's transitions take
-            // their starting value as an argument instead -- which is not
-            // a worse answer, only one the author writes rather than one
-            // a class can.
+            // Not a gap in this backend so much as a question the platform
+            // cannot be asked: a link the user has been to needs links and
+            // a history to have been in them, and neither is a thing React
+            // Native has.
             Condition::Visited => diagnostics.push(unwired_variant(
                 node,
                 "`visited:` styles a link the user has already been to. React Native has no browsing history and no links to have been in one, so there is nothing here for this to be true of. On Web the same class works -- for colours; the browser discards the rest.",
                 Severity::Error,
             )),
-            Condition::StartingStyle => diagnostics.push(unwired_variant(
-                node,
-                "`starting:` is the value a property has for its first frame, so a transition has somewhere to start. React Native transitions through `Animated` and Reanimated, which take that starting value as an argument rather than reading it off a rule -- write it there. On Web the same class works.",
-                Severity::Error,
-            )),
+            // The first frame of an enter animation (decision 007).
+            // `HozoAnimated` starts from these values and transitions to
+            // the element's style, which is what `@starting-style` does on
+            // Web -- so the entry is handed over as `hozoStarting` rather
+            // than joining the style array, where it would win and never
+            // leave.
+            Condition::StartingStyle => match starting.as_deref_mut() {
+                Some(starting) => starting.extend(guarded("")),
+                None => diagnostics.push(unwired_variant(
+                    node,
+                    "`starting:` is the first frame of an enter animation. On React Native it works on a `View` that also has a `transition-*` class -- `HozoAnimated` starts the element from these values and animates to its style. Here it has nothing to animate from, so it does nothing on this platform. On Web, too, `@starting-style` needs a transition on the same element to be seen.",
+                    Severity::Warning,
+                )),
+            },
             Condition::Target => diagnostics.push(unwired_variant(
                 node,
                 "`target:` matches the element the document's URL fragment points at. React Native has no document and no URL to point with, so there is nothing for this to be true of. On Web the same class works.",

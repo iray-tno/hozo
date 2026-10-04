@@ -723,6 +723,8 @@ pub(super) fn render_node(
     let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
         own_declarations.partition(|d| style::is_child_scoped(&d.property));
 
+    let mut starting_parts: Vec<String> = Vec::new();
+    let animates = component == "HozoAnimated";
     build_style_entries(
         &own_declarations,
         &base_name,
@@ -736,7 +738,35 @@ pub(super) fn render_node(
         runtime,
         interaction_context && component == "Text",
         theme,
+        animates.then_some(&mut starting_parts),
     );
+    // What `HozoAnimated` can start from is what it can interpolate. A
+    // `starting:w-0` is `@starting-style` on Web and animates there; here
+    // the width would be applied as the first frame and then jump, which is
+    // worse than not applying it -- so it is left out and named.
+    if !starting_parts.is_empty() {
+        let mut fixed: Vec<String> = own_declarations
+            .iter()
+            .filter(|declaration| matches!(declaration.condition, Condition::StartingStyle))
+            .filter(|declaration| !crate::transition::interpolatable(&declaration.property))
+            .flat_map(|declaration| crate::style::property_and_value(&declaration.property, theme))
+            .map(|(key, _)| format!("`{key}`"))
+            .collect();
+        fixed.dedup();
+        if !fixed.is_empty() {
+            diagnostics.push(crate::conditions::unwired_variant(
+                node,
+                &format!(
+                    "`starting:` on React Native animates opacity, transforms and colours -- what \
+                     `HozoAnimated` can interpolate. {} would be a first frame that jumps to the \
+                     element's style rather than moving to it, so it is not applied here. On Web \
+                     the same class works.",
+                    fixed.join(", ")
+                ),
+                hozo_ir::Severity::Warning,
+            ));
+        }
+    }
 
     // After the compiled styles, so it wins the same way it would in the
     // source: `cn('p-4', getDynamic())` puts the opaque part last, and RN
@@ -951,6 +981,13 @@ pub(super) fn render_node(
         props_text.push_str(&format!(
             " hozoTransition={{{{ duration: {duration}, delay: {delay}, easing: '{easing}' }}}}"
         ));
+    }
+    // The first frame of an enter animation: `HozoAnimated` starts here and
+    // transitions to `style` on mount (decision 007).
+    match starting_parts.as_slice() {
+        [] => {}
+        [one] => props_text.push_str(&format!(" hozoStarting={{{one}}}")),
+        many => props_text.push_str(&format!(" hozoStarting={{[{}]}}", many.join(", "))),
     }
     // The ratio, for the component that resolves it.
     if let Some(ratio) = relative_at_runtime {

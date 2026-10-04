@@ -65,11 +65,13 @@ Web to no one's benefit.
 The platform-setting row is the one place Native compiles more than Web
 does: three of those four have no CSS query at all. Everywhere else it is
 the other way round, and Native compiles all of the above except `peer-…`,
-`has-…`, `not-…`, `data-…`, `supports-…`, `focus-within`, `target`, the
-`-of-type` family, the form states other than `read-only`, every
-pseudo-element, `contrast-less`, `forced-colors`, `print`
+`has-…`, `not-…`, `data-…`, `supports-…`, `focus-within`, `target`,
+`visited`, the `-of-type` family, the form states other than `read-only`,
+every pseudo-element, `contrast-less`, `forced-colors`, `print`
 and `noscript`, and reports each one it cannot. Container queries it does compile, through a component
-that measures itself.
+that measures itself. `starting` it compiles on a `View` that also has a
+`transition-*` class, as the first frame `HozoAnimated` enters from
+(decision 007), and reports elsewhere.
 
 The structural family is where the two platforms differ most interestingly.
 React Native has no selector engine, so `:nth-child()` cannot be asked at

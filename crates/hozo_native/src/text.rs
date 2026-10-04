@@ -184,6 +184,9 @@ pub(super) fn wrap_in_text(
         runtime,
         interaction_context,
         theme,
+        // A text style moved onto the inserted `Text` is not on the element
+        // that animates, so a `starting:` one is reported rather than kept.
+        None,
     );
 
     if interaction_context && !pressed_parts.is_empty() {
