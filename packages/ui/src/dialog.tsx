@@ -50,13 +50,13 @@ const panel =
  * Declared as `StyledDialog` and exported under the package's names, which is
  * not a style choice: `Dialog` is a primitive the compiler lowers, and lowering
  * it injects `import { HozoDialog } from '@hozo/core/generated/dialog'` into
- * this module. A function called `HozoDialog` here is then a redeclaration, and
- * the build fails in the bundler with `Identifier 'HozoDialog' has already been
- * declared` -- a parse error about generated code, in a file that is fine.
+ * this module. A function called `HozoDialog` here would be a redeclaration,
+ * and the compiler refuses the module with `RUNTIME_IMPORT_COLLISION` (#670) --
+ * before that, the bundler did, with a parse error about generated code.
  *
- * Any application component named `HozoDialog` that renders a dialog hits the
- * same wall. Filed as #670; the export names below are unaffected, because an
- * export alias is not a binding.
+ * Any application component named `HozoDialog` that renders a dialog gets the
+ * same refusal, and the same way out: the export names below are unaffected,
+ * because an export alias is not a binding.
  */
 function StyledDialog({ className, ...rest }: HozoDialogProps) {
   return <DialogPattern {...rest} className={className ? `${panel} ${className}` : panel} />

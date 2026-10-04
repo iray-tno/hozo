@@ -22,6 +22,7 @@ import type {
   Compiler,
   StylexExternalBinding,
 } from './index.ts'
+import { topLevelBindings } from './index.ts'
 import type { UnloweredReactNativeJsxPolicy } from './project.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
@@ -58,6 +59,44 @@ export function generatedRuntimeImports(names: readonly string[]): string {
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([specifier, bound]) => `import { ${bound.join(', ')} } from '${specifier}'\n`)
       .join('')
+  )
+}
+
+/**
+ * Refuses a module that already binds a name lowering is about to import.
+ *
+ * `generatedRuntimeImports` prepends `import { HozoDialog } from …` for the
+ * components the output renders by fixed names, and a module that declares
+ * its own `HozoDialog` then declares it twice. Left alone, the bundler
+ * rejects the *generated* line -- "Identifier `HozoDialog` has already been
+ * declared", pointing at code the author never wrote (#670). Dropping the
+ * import instead would be worse: the emitted `<HozoDialog>` would resolve to
+ * the author's component, which in the issue's repro renders the dialog that
+ * renders itself.
+ *
+ * So the build stops here, naming the binding and the one-line way out: an
+ * export alias is not a binding. Aliasing the import instead would need the
+ * backends to write tag names they were told, which #670 weighed and set
+ * aside for a case this rare.
+ */
+export function assertRuntimeImportsUnbound(
+  code: string,
+  names: readonly string[],
+  file: string,
+): void {
+  if (names.length === 0) return
+  const bound = new Set(topLevelBindings(code))
+  const taken = names.filter((name) => bound.has(name))
+  if (taken.length === 0) return
+  const name = taken[0]!
+  const others = taken.length > 1 ? ` (also ${taken.slice(1).join(', ')})` : ''
+  throw new Error(
+    `[hozo] ${file}: RUNTIME_IMPORT_COLLISION: this module binds \`${name}\`${others}, and the ` +
+      `compiled output imports a runtime component under that name (${GENERATED_ABI[name] ?? 'a generated module'}), ` +
+      `so the two would collide. Declare your component under another name and export it as ` +
+      `\`${name}\`: \`function Styled${name.replace(/^Hozo/, '')}(…) {…}\` and ` +
+      `\`export { Styled${name.replace(/^Hozo/, '')} as ${name} }\`. An export alias binds nothing, ` +
+      `so the import can take the name. (#670)`,
   )
 }
 
@@ -685,6 +724,7 @@ function lowerModuleUnchecked(
   // the Native backend's hooks; this is the Web half of that contract.
   const runtimeImports = [...new Set(components.flatMap((component) => component.runtimeImports))]
   if (runtimeImports.length > 0) {
+    assertRuntimeImportsUnbound(next, runtimeImports, file)
     next = `${generatedRuntimeImports(runtimeImports.sort())}${next}`
   }
 

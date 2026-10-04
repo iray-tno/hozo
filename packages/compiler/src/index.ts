@@ -189,6 +189,7 @@ interface NativeBinding {
   compileNative(source: string): CompiledNativeComponent[]
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
   moduleImports(source: string, module: string): string[]
+  topLevelBindings(source: string): string[]
   foreignPrimitives(source: string, sources: string[]): string[]
   summarizeStylexModule(source: string): StylexModuleSummary
   CandidateCache: CandidateCacheConstructor
@@ -454,6 +455,17 @@ export function openCandidateCache(path?: string): CandidateCache {
  */
 export function moduleImports(source: string, module: string): string[] {
   return loadNative().moduleImports(source, module)
+}
+
+/**
+ * Every name a module binds at its top level as a runtime value: imports
+ * (not type-only), functions, classes, enums and `var`/`let`/`const`
+ * bindings, exported or not. Types, `declare` forms and export aliases do
+ * not count. Parsed, so a comment or a string that mentions a name does not
+ * count either.
+ */
+export function topLevelBindings(source: string): string[] {
+  return loadNative().topLevelBindings(source)
 }
 
 /**

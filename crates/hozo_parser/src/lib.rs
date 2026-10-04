@@ -1,6 +1,7 @@
 //! TSX analysis and Style IR construction.
 
 mod arbitrary;
+mod bindings;
 pub mod aria;
 mod aria_check;
 mod canvas;
@@ -12,6 +13,7 @@ mod tailwind;
 mod unfold;
 pub(crate) mod tailwind_variants;
 
+pub use bindings::top_level_bindings;
 pub use jsx::is_primitive_name;
 pub use unfold::unfold_jsx_calls;
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
