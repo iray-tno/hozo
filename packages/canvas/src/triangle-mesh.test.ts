@@ -544,6 +544,111 @@ test('Canvas 2D repeats only the requested texture axis', () => {
   )
 })
 
+test('Canvas 2D caches mirrored periods without changing the original UV scale', () => {
+  const previous = globalThis.OffscreenCanvas
+  const surfaces: FakeOffscreenCanvas[] = []
+  class FakeOffscreenCanvas {
+    calls: unknown[][] = []
+    constructor(
+      public width: number,
+      public height: number,
+    ) {
+      surfaces.push(this)
+    }
+    getContext() {
+      return {
+        save() {},
+        restore() {},
+        translate: (...args: number[]) => this.calls.push(['translate', ...args]),
+        scale: (...args: number[]) => this.calls.push(['scale', ...args]),
+        drawImage: (...args: unknown[]) => this.calls.push(['drawImage', ...args]),
+      }
+    }
+  }
+  Object.defineProperty(globalThis, 'OffscreenCanvas', {
+    configurable: true,
+    value: FakeOffscreenCanvas,
+  })
+  try {
+    const calls: unknown[][] = []
+    const context = new Proxy({ globalAlpha: 1 } as Record<string, unknown>, {
+      get(target, property) {
+        if (property in target) return target[property as string]
+        return (...args: unknown[]) => {
+          calls.push([property, ...args])
+          return property === 'createPattern' ? {} : undefined
+        }
+      },
+      set(target, property, value) {
+        target[property as string] = value
+        return true
+      },
+    }) as unknown as CanvasRenderingContext2D
+    const image = { width: 100, height: 50 } as unknown as CanvasImageSource
+    for (const wrapY of ['clamp', 'repeat', 'mirror'] as const) {
+      const scene: CanvasScene = [
+        {
+          kind: 'triangle-mesh',
+          props: {
+            vertices: vertices.slice(0, 3),
+            texture: {
+              source: '/tiles.png',
+              wrapX: 'mirror',
+              wrapY,
+              coordinates: [
+                { x: -1, y: 0 },
+                { x: 2, y: 0 },
+                { x: -1, y: 1 },
+              ],
+            },
+          },
+        },
+      ]
+      for (let frame = 0; frame < 2; frame += 1) {
+        renderCanvas2D(context, scene, { width: 20, height: 20, pixelRatio: 1 }, () => image)
+      }
+    }
+    assert.equal(surfaces.length, 2, 'clamped/repeated Y share the same mirrored X period')
+    assert.deepEqual(
+      surfaces.map(({ width, height }) => [width, height]),
+      [
+        [200, 50],
+        [200, 100],
+      ],
+    )
+    assert.deepEqual(
+      surfaces[0]?.calls.filter(([name]) => name === 'translate'),
+      [
+        ['translate', 0, 0],
+        ['translate', 200, 0],
+      ],
+    )
+    assert.deepEqual(
+      surfaces[1]?.calls.filter(([name]) => name === 'scale'),
+      [
+        ['scale', 1, 1],
+        ['scale', -1, 1],
+        ['scale', 1, -1],
+        ['scale', -1, -1],
+      ],
+    )
+    assert.deepEqual(
+      calls.filter(([name]) => name === 'createPattern').map(([, , repetition]) => repetition),
+      ['repeat-x', 'repeat-x', 'repeat', 'repeat', 'repeat', 'repeat'],
+    )
+    assert.deepEqual(calls.find(([name]) => name === 'transform')?.slice(1), [
+      1 / 30,
+      0,
+      0,
+      0.2,
+      10 / 3,
+      0,
+    ])
+  } finally {
+    Object.defineProperty(globalThis, 'OffscreenCanvas', { configurable: true, value: previous })
+  }
+})
+
 test('triangle mesh hit testing follows faces rather than their combined bounds', () => {
   const scene: CanvasScene = [{ id: 'mesh', kind: 'triangle-mesh', props: { vertices } }]
   const viewport = { width: 40, height: 20 }

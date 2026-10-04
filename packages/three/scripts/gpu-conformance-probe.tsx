@@ -11,6 +11,7 @@ import {
 import { SCENE_CORPUS_SCENES } from '../src/conformance-scenes.ts'
 import { ThreeCanvas as WebGLCanvas } from '../src/webgl-renderer.tsx'
 import { ThreeCanvas as WebGPUCanvas } from '../src/webgpu.tsx'
+import { type PortableTextureResult, probePortableTextures } from './portable-texture-probe.ts'
 
 type SceneCorpusProbeResult = {
   activated: boolean
@@ -27,12 +28,13 @@ type SceneCorpusProbeResult = {
 
 type ProbeResult = {
   activated: boolean
-  backend: 'classic-webgl' | 'modern-webgl2' | 'webgpu' | 'unknown'
+  backend: 'classic-webgl' | 'modern-webgl2' | 'webgpu' | 'unknown' | 'canvas2d'
   error?: string
   mode: string
   renderCalls: number
   sceneCorpus?: readonly SceneCorpusProbeResult[]
   semanticControl: boolean
+  portableTextures?: readonly PortableTextureResult[]
 }
 
 const mode = new URLSearchParams(location.search).get('mode') ?? 'classic-webgl'
@@ -255,26 +257,37 @@ addEventListener('unhandledrejection', (event) =>
 
 const Canvas = mode === 'classic-webgl' ? WebGLCanvas : WebGPUCanvas
 const rendererOptions = mode === 'modern-force-webgl2' ? { forceWebGL: true } : undefined
-createRoot(document.getElementById('app')!).render(
-  createElement(Canvas, {
-    accessibilityLabel: 'GPU conformance scene',
-    camera,
-    height: 180,
-    onCreated: inspect,
-    onError: (error: unknown) =>
-      finish({
-        activated,
-        backend: 'unknown',
-        error: error instanceof Error ? error.stack : String(error),
-        mode,
-        renderCalls: 0,
-        semanticControl: false,
-      }),
-    onObjectPress: () => {
-      activated = true
-    },
-    rendererOptions,
-    scene,
-    width: 320,
-  } as never),
-)
+if (mode === 'portable-textures') {
+  finish({
+    activated: false,
+    backend: 'canvas2d',
+    mode,
+    renderCalls: 0,
+    semanticControl: false,
+    portableTextures: probePortableTextures(),
+  })
+} else {
+  createRoot(document.getElementById('app')!).render(
+    createElement(Canvas, {
+      accessibilityLabel: 'GPU conformance scene',
+      camera,
+      height: 180,
+      onCreated: inspect,
+      onError: (error: unknown) =>
+        finish({
+          activated,
+          backend: 'unknown',
+          error: error instanceof Error ? error.stack : String(error),
+          mode,
+          renderCalls: 0,
+          semanticControl: false,
+        }),
+      onObjectPress: () => {
+        activated = true
+      },
+      rendererOptions,
+      scene,
+      width: 320,
+    } as never),
+  )
+}

@@ -80,7 +80,9 @@ try {
   const port = await new Promise((resolve) =>
     server.listen(0, () => resolve(server.address().port)),
   )
-  const modes = ['classic-webgl', 'modern-auto', 'modern-force-webgl2']
+  const modes = process.argv.includes('--portable-only')
+    ? ['portable-textures']
+    : ['portable-textures', 'classic-webgl', 'modern-auto', 'modern-force-webgl2']
   const results = []
   try {
     for (const mode of modes) {
@@ -117,6 +119,14 @@ try {
   console.log(markdown(report))
 
   const invalid = results.filter((result) => {
+    if (result.mode === 'portable-textures') {
+      return (
+        result.error ||
+        result.backend !== 'canvas2d' ||
+        result.portableTextures?.length !== 9 ||
+        result.portableTextures.some(({ passed, samples }) => !passed || samples < 1)
+      )
+    }
     if (result.mode === 'modern-auto' && result.backend === 'unavailable') return false
     return (
       result.error ||
@@ -193,6 +203,20 @@ function markdown(report) {
       const error = fixture.error?.replaceAll('|', '\\|').replaceAll('\n', '<br>') ?? ''
       lines.push(
         `| ${fixture.id} | ${fixture.status} | ${fixture.renderCalls} | ${fixture.textureCountDelta} | ${fixture.imageDecoding ?? '-'} | ${fixture.animationFrames === undefined ? '-' : `${fixture.animationFrames} / ${fixture.animationAngle.toFixed(3)} rad`} | ${fixture.semanticControls} | ${fixture.activated ? 'yes' : 'no'} | ${error} |`,
+      )
+    }
+  }
+  for (const result of report.results.filter(({ portableTextures }) => portableTextures)) {
+    lines.push(
+      '',
+      '## Portable texture pixels (Canvas 2D)',
+      '',
+      '| Wrapping | Passed | Pixel samples | Maximum channel error |',
+      '| --- | --- | ---: | ---: |',
+    )
+    for (const texture of result.portableTextures) {
+      lines.push(
+        `| ${texture.name} | ${texture.passed ? 'yes' : 'no'} | ${texture.samples} | ${texture.maxChannelError} |`,
       )
     }
   }

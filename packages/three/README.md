@@ -269,10 +269,10 @@ remain diagnostic because Canvas source-over would change WebGL blend
 semantics. The portable mesh interpolation is screen-space; perspective-correct
 interpolation remains a GPU-backend concern.
 Primary `MeshBasicMaterial.map` colour textures also project when they use
-`SRGBColorSpace`, clamp or repeat wrapping on either axis, a URL/URI or Native
+`SRGBColorSpace`, clamp, repeat, or mirrored wrapping on either axis, a URL/URI or Native
 asset source, and complete two-component UVs. Texture transforms and `flipY`
 are preserved, including UVs created by clipping. Sampling is affine in screen
-space and has no mipmaps; mirrored wrapping, tint/vertex-colour/fog modulation,
+space and has no mipmaps; tint/vertex-colour/fog modulation,
 and per-pixel alpha tests stay diagnostic instead of being silently
 approximated.
 Solid `Scene.background` colours and constrained 2D colour textures fill the
