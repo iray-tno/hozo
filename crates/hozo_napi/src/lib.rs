@@ -847,6 +847,17 @@ pub fn module_imports(source: String, module: String) -> Vec<String> {
     hozo_parser::module_imports(&source, &module)
 }
 
+/// Every name a module binds at its top level as a runtime value.
+///
+/// Lowering prepends imports of runtime components by fixed names, and a
+/// module that already binds one would declare it twice -- a parse error in
+/// generated code the author never wrote (#670). Parsed rather than searched,
+/// so a comment or string mentioning a name does not count.
+#[napi]
+pub fn top_level_bindings(source: String) -> Vec<String> {
+    hozo_parser::top_level_bindings(&source)
+}
+
 /// Primitive-named bindings a file must not have lowered.
 ///
 /// One implementation of the rule, shared with the backends: the Native

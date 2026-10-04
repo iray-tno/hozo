@@ -39,6 +39,48 @@ test('generated names import from one leaf each, through core unless the owner i
   )
 })
 
+// #670. The issue's repro: a component that takes the name the lowered
+// Dialog imports. The bundler used to reject the *generated* import line.
+test('a module that binds a name lowering imports is refused, naming the binding', () => {
+  const source =
+    `import { Dialog } from '@hozo/core'\n` +
+    `export function HozoDialog({ children }) {\n` +
+    `  return <Dialog visible>{children}</Dialog>\n` +
+    `}\n`
+  assert.throws(
+    () => lowerModule(source, file, file, compiler, ROOT),
+    (error: Error) =>
+      error.message.includes('RUNTIME_IMPORT_COLLISION') &&
+      error.message.includes('binds `HozoDialog`') &&
+      error.message.includes('@hozo/core/generated/dialog') &&
+      error.message.includes('export { StyledDialog as HozoDialog }'),
+  )
+})
+
+test('the export-alias workaround compiles, and imports the name once', () => {
+  const source =
+    `import { Dialog } from '@hozo/core'\n` +
+    `function StyledDialog({ children }) {\n` +
+    `  return <Dialog visible>{children}</Dialog>\n` +
+    `}\n` +
+    `export { StyledDialog as HozoDialog }\n`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)
+  assert.ok(lowered)
+  assert.equal(lowered.code.match(/import \{ HozoDialog \}/g)?.length, 1)
+})
+
+test('a comment or a string naming the import is not a binding', () => {
+  // Parsed, not searched: the reason `topLevelBindings` lives in the parser.
+  const source =
+    `import { Dialog } from '@hozo/core'\n` +
+    `// was: export function HozoDialog() {}\n` +
+    `const note = 'class HozoDialog {}'\n` +
+    `export function Confirm({ children }) {\n` +
+    `  return <Dialog visible>{children}</Dialog>\n` +
+    `}\n`
+  assert.ok(lowerModule(source, file, file, compiler, ROOT))
+})
+
 test('lowers a component and namespaces its classes', () => {
   const source =
     `import { View } from '@hozo/core'\n` +

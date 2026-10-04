@@ -602,3 +602,18 @@ test('a foreign component is nobody else s to import', () => {
   assert.doesNotMatch(out, /@hozo\/core/)
   assert.match(out, /import \{ Button \} from '@expo\/ui'/)
 })
+
+// #670, on the Native half: the same refusal before anything is prepended.
+test('a module that binds a name the Native output imports is refused, naming it', () => {
+  const source =
+    `import { Dialog } from '@hozo/core'\n` +
+    `export function HozoDialog({ children }) {\n` +
+    `  return <Dialog visible>{children}</Dialog>\n` +
+    `}\n`
+  assert.throws(
+    () => transformHozoSource(source, 'Confirm.tsx'),
+    (error: Error) =>
+      error.message.includes('RUNTIME_IMPORT_COLLISION') &&
+      error.message.includes('binds `HozoDialog`'),
+  )
+})

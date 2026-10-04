@@ -19,7 +19,7 @@ import path from 'node:path'
 import { type CompiledNativeComponent, type Compiler, createCompiler } from '@hozo/compiler'
 import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
-import { generatedRuntimeImports } from '@hozo/compiler/lower'
+import { assertRuntimeImportsUnbound, generatedRuntimeImports } from '@hozo/compiler/lower'
 import type { StylexModuleCache } from '@hozo/compiler/project'
 import { importSpecifier } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
@@ -310,6 +310,9 @@ export function transformHozoSource(
   const svgSpecifiers = [...new Set([...svg, ...carriedSvg])]
   const rest = [...runtimeImports].filter((name) => !SVG_EXPORTS.has(name))
   if (rest.length > 0) {
+    // The same refusal as the Web half (#670), asked of the module before
+    // anything is prepended to it.
+    assertRuntimeImportsUnbound(next, rest, filename)
     next = `${generatedRuntimeImports(rest)}${next}`
   }
   if (svgSpecifiers.length > 0) {
