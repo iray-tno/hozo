@@ -107,10 +107,15 @@ was repaired it found 939 real cases.
 
 ## Commits and pull requests
 
-Commit subjects say what the commit does and, where there is room, what it cost
-or found — `Refuse a length there is nothing to resolve, instead of calling it
-zero`, not `fix: length handling`. Imperative mood, no prefix tags, no trailing
-period. `git log` is the house style guide.
+Pull request titles are `type(scope): summary` and CI checks them, because the
+title is what lands on `main` and several agents open pull requests here. The
+types, the scopes, and the conventions for branches, issues and labels are in
+[`AGENTS.md`](AGENTS.md); they apply to people as much as to agents.
+
+The prefix is for sorting; the summary still has to say what is different
+afterwards and, where there is room, what it cost or found —
+`fix(core): refuse a length there is nothing to resolve, instead of calling it
+zero`, not `fix: length handling`. No trailing period.
 
 Keep unrelated repairs in their own commits. A formatting sweep mixed into a
 behavioural change makes the behavioural change unreviewable.
