@@ -11,8 +11,8 @@
 //! something is a reason to leave it alone, not a reason to delete it.
 
 use hozo_ir::{
-    AccessibilityRole, Child, ConditionExpr, Diagnostic, DiagnosticCode, Display, ExprRef,
-    HeadingLevel,
+    AccessibilityRole, Child, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display,
+    Environment, ExprRef, HeadingLevel,
     NestedNode, Node, PassthroughProp, Primitive, PropSet, Severity, SourceSpan, StyleDeclaration,
     SvgElement,
     StyleProperty,
@@ -573,6 +573,80 @@ fn validate_flex_direction(
             .to_string(),
         span,
     });
+}
+
+/// A hint when an element enters by moving and says nothing about reduced
+/// motion (decision 007, section 5).
+///
+/// Hozo does not drop an author's translate under reduced motion, because
+/// Tailwind does not on the Web and a class means the same thing on both
+/// platforms. So the author is the one who can say it, and `motion-safe:`
+/// already works on both. Any `motion-safe:` or `motion-reduce:` on the
+/// element counts as having thought about it, whichever classes it is on.
+///
+/// Only movement: translate, rotate, scale and skew. A fade is left alone,
+/// because WCAG 2.3.3 is about motion and a fade is not motion. Only
+/// `starting:` for now; the exit variant joins it when slice 2 decides
+/// its spelling.
+fn validate_enter_motion(style: &[StyleDeclaration], span: SourceSpan, diagnostics: &mut Vec<Diagnostic>) {
+    let enters_moving = style.iter().any(|declaration| {
+        moves(&declaration.property)
+            && condition_mentions(&declaration.condition, &|condition| {
+                matches!(condition, Condition::StartingStyle)
+            })
+    });
+    if !enters_moving {
+        return;
+    }
+    let mentions_motion_preference = style.iter().any(|declaration| {
+        condition_mentions(&declaration.condition, &|condition| {
+            matches!(
+                condition,
+                Condition::Environment(Environment::MotionSafe | Environment::MotionReduce)
+            )
+        })
+    });
+    if mentions_motion_preference {
+        return;
+    }
+    diagnostics.push(Diagnostic {
+        code: DiagnosticCode::EnterMotionIgnoresReducedMotion,
+        severity: Severity::Info,
+        message: "This element moves as it enters (`starting:` with a translate, rotate, scale \
+                  or skew), and nothing on it asks about reduced motion, so it plays for \
+                  everyone, as Tailwind's does on the Web. To leave the movement out for people \
+                  who have asked their device for less motion, write those classes as \
+                  `motion-safe:starting:...`, which works on the Web and on React Native. A \
+                  fade on its own (`starting:opacity-0`) is not motion and needs nothing."
+            .to_string(),
+        span,
+    });
+}
+
+fn moves(property: &StyleProperty) -> bool {
+    matches!(
+        property,
+        StyleProperty::Translate(..)
+            | StyleProperty::TranslateX(..)
+            | StyleProperty::TranslateY(..)
+            | StyleProperty::TranslateZ(..)
+            | StyleProperty::Rotate(..)
+            | StyleProperty::RotateX(..)
+            | StyleProperty::RotateY(..)
+            | StyleProperty::RotateZ(..)
+            | StyleProperty::Scale(..)
+            | StyleProperty::ScaleX(..)
+            | StyleProperty::ScaleY(..)
+            | StyleProperty::ScaleZ(..)
+            | StyleProperty::SkewX(..)
+            | StyleProperty::SkewY(..)
+            | StyleProperty::Transform(..)
+    )
+}
+
+fn condition_mentions(condition: &Condition, predicate: &impl Fn(&Condition) -> bool) -> bool {
+    predicate(condition)
+        || matches!(condition, Condition::All(conditions) if conditions.iter().any(|condition| condition_mentions(condition, predicate)))
 }
 
 fn validate_focusable_disabled(
@@ -1386,6 +1460,7 @@ fn build_node(
     validate_semantic_children(primitive, &children, diagnostics);
     validate_focusable_disabled(&props, to_span(el.span()), diagnostics);
     validate_flex_direction(primitive, &style, to_span(el.span()), diagnostics);
+    validate_enter_motion(&style, to_span(el.span()), diagnostics);
 
     Some(Node {
         primitive,
@@ -1902,5 +1977,62 @@ mod flex_direction_tests {
         // learn to scroll past.
         assert!(found.message.contains("flex-row"), "{}", found.message);
         assert!(found.message.contains("flex-col"), "{}", found.message);
+    }
+}
+
+#[cfg(test)]
+mod enter_motion_tests {
+    use hozo_ir::{DiagnosticCode, Severity};
+
+    fn hints(class_name: &str) -> bool {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\n\
+             const el = <View className=\"{class_name}\">x</View>\n"
+        );
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .any(|d| d.code == DiagnosticCode::EnterMotionIgnoresReducedMotion)
+    }
+
+    #[test]
+    fn an_element_that_enters_moving_is_hinted() {
+        assert!(hints("transition starting:translate-y-4"));
+        assert!(hints("transition starting:opacity-0 starting:scale-95"));
+        assert!(hints("transition starting:rotate-12"));
+        assert!(hints("transition md:starting:-translate-x-full"));
+    }
+
+    #[test]
+    fn a_fade_is_not_motion() {
+        // WCAG 2.3.3 is about motion. A fade changes nothing's position.
+        assert!(!hints("transition starting:opacity-0"));
+        assert!(!hints("transition starting:bg-white"));
+    }
+
+    #[test]
+    fn a_word_about_reduced_motion_anywhere_on_the_element_answers_it() {
+        assert!(!hints("transition motion-safe:starting:translate-y-4"));
+        assert!(!hints("transition starting:translate-y-4 motion-reduce:transition-none"));
+        assert!(!hints("motion-safe:transition starting:translate-y-4"));
+    }
+
+    #[test]
+    fn a_translate_that_is_not_an_entrance_is_not_this() {
+        assert!(!hints("translate-y-4"));
+        assert!(!hints("transition hover:scale-105"));
+    }
+
+    #[test]
+    fn it_is_a_hint() {
+        let source = "import { View } from '@hozo/core'\n\
+                      const el = <View className=\"starting:translate-y-4\">x</View>\n";
+        let found = crate::parse_tsx(source)
+            .diagnostics
+            .into_iter()
+            .find(|d| d.code == DiagnosticCode::EnterMotionIgnoresReducedMotion)
+            .expect("the diagnostic fires");
+        assert_eq!(found.severity, Severity::Info);
+        assert!(found.message.contains("motion-safe:starting:"));
     }
 }
