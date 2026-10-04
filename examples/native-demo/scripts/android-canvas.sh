@@ -24,9 +24,39 @@ fail() {
   adb exec-out screencap -p > ./canvas-android-failed.png 2>/dev/null || true
   echo '--- Canvas speech ---'
   spoken | tail -50 | sed 's/^/  /' || true
+  echo '--- the app: warnings, errors and console ---'
+  app_log | tail -150 | sed 's/^/  /' || true
+  # Apart, because a soft exception's stack trace can push them out of the
+  # tail above. See `canvas.js` for what each one means.
+  echo '--- screen markers ---'
+  app_log | grep -F '[hozo-canvas-screen]' | sed 's/^/  /' || true
   echo '--- logcat ---'
   adb logcat -d -v brief | tail -80 || true
   exit 1
+}
+
+# What the app's own process logged at warning and above, with its console
+# output -- ThreeCorpusBench prints `[hozo-three-corpus] loaded <id>` and each
+# diagnostic, which places a failure on the corpus's own timeline.
+#
+# Here for the failures where React moved on and the screen did not: a
+# `scene:` text left on the previous scene while the Three surface drew the
+# next (#713), and the bench still showing after Back (#714). If a native
+# update was dropped, React Native says so as a soft exception, logged at
+# error level under a per-category tag -- so a filter by tag would miss it,
+# and the plain tail above is the emulator's own chatter by the time it runs.
+# A filter by the app's process does not miss it.
+#
+# By process id, which outlives the process in logcat: the id is taken when
+# the app starts (`app_pid`), so a crashed app's last words are still here.
+app_pid=
+app_log() {
+  local pid="${app_pid:-$(adb shell pidof "$package" | tr -d '\r' | awk '{print $1}' || true)}"
+  if [ -z "$pid" ]; then
+    echo "(no process id for $package was recorded)"
+    return 0
+  fi
+  adb logcat -d -v time --pid="$pid" 'ReactNativeJS:I' '*:W' | tr -d '\r' || true
 }
 
 spoken() {
@@ -216,7 +246,8 @@ adb install -r "$apk"
 adb logcat -c
 adb shell am start -W -n "$activity" >/dev/null
 sleep 12
-[ -n "$(adb shell pidof "$package" | tr -d '\r')" ] || fail "$package did not stay up"
+app_pid="$(adb shell pidof "$package" | tr -d '\r' | awk '{print $1}' || true)"
+[ -n "$app_pid" ] || fail "$package did not stay up"
 
 # TalkBack must still be off here: a single tap under touch exploration moves
 # its cursor rather than delivering the Canvas responder event.
@@ -310,10 +341,24 @@ echo 'Three Native host corpus: 4 useful, 2 explicit diagnostics, 0 failed'
 # Restore the original surface before the existing TalkBack pass so the new
 # corpus cannot weaken or accidentally replace Canvas's accessibility check.
 tap_test_id three-corpus-back
-sleep 2
-dump canvas-after-three.xml
-bounds_of canvas-after-three.xml canvas-surface >/dev/null ||
-  fail 'Canvas surface did not return after the Three corpus'
+# Polled, like every other step here that waits on the app, rather than one
+# dump two seconds after the tap. That single read was never reached from
+# 2026-09-30 until #713, and once it was, it failed two runs in five with the
+# bench still on gltf-pbr. The seconds it took are printed so a slow return
+# and a lost tap can be told apart: ten seconds is far past any slowness the
+# rest of this script tolerates.
+returned=
+for second in $(seq 1 10); do
+  sleep 1
+  dump canvas-after-three.xml
+  if bounds_of canvas-after-three.xml canvas-surface >/dev/null; then
+    returned=$second
+    break
+  fi
+done
+[ -n "$returned" ] ||
+  fail "Canvas surface did not return within 10 s of Back after the Three corpus (the Three surface reports $(three_surface_scene canvas-after-three.xml))"
+echo "Back to the Canvas checks after ${returned}s"
 
 # React Native delivers mouse hover through offsetX/offsetY, whereas touch
 # above used locationX/locationY. Do this after all harness navigation: the
