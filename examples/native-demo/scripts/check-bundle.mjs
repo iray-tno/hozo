@@ -97,10 +97,7 @@ expect(
 // And a coarse ceiling on the whole, for the regression this check began
 // as: a feature pulling a second platform layer or another large dependency
 // into every Native app. Skia was that once (+1.3 MB, now its own entry).
-expect(
-  bundle.length < 5_000_000,
-  `Native dev bundle stays below 5 MB (was ${bundle.length} bytes)`,
-)
+expect(bundle.length < 5_000_000, `Native dev bundle stays below 5 MB (was ${bundle.length} bytes)`)
 
 if (failures.length > 0) {
   console.error('bundle check failed:')
