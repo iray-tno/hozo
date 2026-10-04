@@ -224,7 +224,13 @@ test('Storybook composes with the Hozo transformer and host singleton resolver',
   for (const platform of ['android', 'ios']) {
     const project = config.resolver.resolveRequest(context, '@hozo/engine/project', platform)
     assert.match(project.filePath, /\.hozo[/\\]candidates\.native\.js$/)
-    for (const request of ['react', 'react-native', '@react-three/fiber/native', 'three']) {
+    for (const request of [
+      'react',
+      'react-native',
+      'react-native-svg',
+      '@react-three/fiber/native',
+      'three',
+    ]) {
       const resolved = config.resolver.resolveRequest(context, request, platform)
       assert.equal(resolved.filePath, require.resolve(request))
     }
@@ -318,6 +324,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === '@hozo/core/generated/pressable') return { HozoPressable: 'Pressable' }
     if (name === '@hozo/core/generated/text-input') return { HozoTextInput: 'TextInput' }
     if (name === './patterns.tsx') return {}
+    if (name === './svg-filters.tsx') return {}
     throw new Error(`Unexpected form dependency: ${name}`)
   }
   new Function('require', 'module', code)(load, module)
@@ -337,6 +344,49 @@ test('the actual shared name field disables dictionary corrections without bypas
   assert.ok(save)
   save.props.onPress()
   assert.equal(states[1], 'Hozo')
+})
+
+test('the shared filter graph lowers all ten backed exports into the optional SVG owner', () => {
+  const file = path.join(root, '../showcase/src/svg-filter-scene.tsx')
+  const source = readFileSync(file, 'utf8')
+  assert.doesNotMatch(
+    source,
+    /from ['"](?:react-native|@storybook\/[^'"]+)['"]|\b(?:window|document)\./,
+  )
+  const output = transformHozoSource(source, file)
+  assert.ok(output)
+  const imports = /import \{([^}]+)\} from '@hozo\/svg'/.exec(output)?.[1]
+  assert.ok(imports)
+  for (const name of [
+    'Filter',
+    'FeColorMatrix',
+    'FeGaussianBlur',
+    'FeDropShadow',
+    'FeOffset',
+    'FeFlood',
+    'FeComposite',
+    'FeMerge',
+    'FeMergeNode',
+    'FeBlend',
+  ]) {
+    assert.ok(
+      imports.split(',').some((value) => value.trim() === name),
+      `missing Native ${name}`,
+    )
+  }
+  assert.match(output, /filter=\{enabled \? `url\(#\$\{id\}\)` : undefined\}/)
+  assert.match(output, /<FeMergeNode in="shadow"/)
+  assert.match(output, /<FeMergeNode in="SourceGraphic"/)
+  assert.match(output, /<Svg role="img" accessibilityLabel=/)
+  assert.match(output, /accessibilityLabel=\{SVG_FILTER_LABELS\[kind\]\}/)
+  assert.doesNotMatch(output, /<Svg\./)
+  assert.ok(createRequire(file).resolve('@hozo/svg'))
+  const demoFile = path.join(root, '../showcase/src/svg-filters.tsx')
+  const demo = transformHozoSource(readFileSync(demoFile, 'utf8'), demoFile)
+  assert.ok(demo)
+  assert.doesNotMatch(demo, /className=|<(?:Button|Heading)\b/)
+  assert.match(demo, /idPrefix=\{idPrefix\}/)
+  assert.match(demo, /useId\(\)/)
 })
 
 test('compiled Web autocorrection evaluates dynamic values once and keeps the platform default', () => {

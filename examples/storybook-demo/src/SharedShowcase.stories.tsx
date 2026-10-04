@@ -3,6 +3,7 @@ import {
   DialogDemo,
   FormDemo,
   PreferencesDemo,
+  SvgFiltersDemo,
   TabsDemo,
   TypographyDemo,
 } from '@hozo/example-showcase'
@@ -32,3 +33,4 @@ export const Preferences: Story = { render: () => <PreferencesDemo /> }
 export const Sections: Story = { render: () => <TabsDemo /> }
 export const Confirmation: Story = { render: () => <DialogDemo /> }
 export const ConfirmationOpen: Story = { render: () => <DialogDemo initiallyOpen /> }
+export const SvgFilters: Story = { render: () => <SvgFiltersDemo /> }

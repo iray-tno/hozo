@@ -8,20 +8,26 @@
     ".": "./src/index.tsx"
   },
   "scripts": {
+    "test": "node --test scripts/svg-filter-pixels.test.mjs && node scripts/check-svg-filter-pixels.mjs",
     "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@hozo/core": "workspace:^",
     "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
+    "@hozo/svg": "workspace:^",
     "@hozo/typography": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0"
   },
   "devDependencies": {
+    "@hozo/compiler": "workspace:*",
     "@types/react": "^19.2.18",
+    "esbuild": "0.28.2",
+    "playwright-core": "^1.63.0",
     "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "^7.0.2"
   }
 }

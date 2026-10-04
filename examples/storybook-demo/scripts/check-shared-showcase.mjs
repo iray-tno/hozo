@@ -87,6 +87,23 @@ async function run() {
   named('button', 'Confirm save').click(); await pause()
   check(!dialog.open && frame.contentDocument.body.textContent.includes('Changes: saved'), 'Confirmation did not save')
   passed.push('dialog keyboard activation, cancel, confirmation and restored focus')
+
+  await load('svg-filters')
+  const images = [...frame.contentDocument.querySelectorAll('svg[role=img]')]
+  check(images.length === 5, 'Missing shared filter scenes')
+  const painted = images.map(image => image.querySelector('rect:last-child'))
+  function checkReferences() {
+    for (const rect of painted) {
+      const id = /^url\\(#(.+)\\)$/.exec(rect.getAttribute('filter'))?.[1]
+      check(id && frame.contentDocument.getElementById(id), 'Unresolved filter reference')
+    }
+  }
+  checkReferences()
+  named('button, [role=button]', 'Turn filters off').click(); await pause()
+  check(painted.every(rect => !rect.hasAttribute('filter')), 'Filters did not turn off')
+  named('button, [role=button]', 'Turn filters on').click(); await pause()
+  checkReferences()
+  passed.push('five shared SVG scenes with reversible filter references')
   result.textContent = JSON.stringify({ passed })
 }
 run().catch(error => { result.textContent = JSON.stringify({ error: error.message }) })
@@ -134,7 +151,7 @@ try {
   assert.ok(output && output !== 'pending', 'browser did not complete interactions')
   const result = JSON.parse(output.replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
   assert.equal(result.error, undefined, result.error)
-  assert.equal(result.passed.length, 3)
+  assert.equal(result.passed.length, 4)
   console.log(`[shared-showcase] ${result.passed.join('; ')}`)
 } finally {
   server.closeAllConnections()
