@@ -262,6 +262,15 @@ projects each child camera into its declared bottom-left viewport. `Line`,
 `LineSegments`, and `LineLoop` with `LineBasicMaterial` are projected
 with their declared colour and width. Solid and dashed lines interpolate RGB
 vertex colours through portable Canvas gradients, including clipped endpoints.
+Opaque RGB lines and `MeshBasicMaterial` wireframe edges approximate linear-RGB
+and perspective-correct interpolation with adaptive encoded colour stops. Each
+edge still emits one primitive, capped at 32 stops; short projected edges have
+smaller budgets. Set `lineColorInterpolation="endpoints"` on `ThreeCanvas`, or
+pass the same option to `projectThreeScene`, to keep the cheaper two-stop path
+for large animated scenes. Uniform colours use two stops. Transparency, fog,
+normal-derived gradients and non-default Three colour-management configurations
+retain their existing approximation. The cache holds at most 256 gradient
+conditions; many unique animated depths can miss it on every frame.
 Solid meshes likewise preserve RGB vertex attributes and interpolate colours
 across clipped triangles. RGBA attributes also preserve per-vertex alpha when
 the material opts into transparency; opaque RGBA and alpha-tested gradients

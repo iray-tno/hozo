@@ -1,4 +1,14 @@
-import { Color } from 'three'
+import {
+  BufferGeometry,
+  Color,
+  Float32BufferAttribute,
+  LineBasicMaterial,
+  LineSegments,
+  PerspectiveCamera,
+  Scene,
+} from 'three'
+import { portableLineColorStops } from '../src/line-gradient.ts'
+import { projectThreeScene } from '../src/project.ts'
 
 const red = new Color(1, 0, 0)
 const green = new Color(0, 1, 0)
@@ -9,6 +19,11 @@ const encoded = (position, depthRatio) => {
 }
 
 function buildStops(depthRatio, adaptive) {
+  if (adaptive === 'production')
+    return portableLineColorStops(red, green, 1, depthRatio, 256).map(({ offset, color }) => ({
+      position: offset,
+      color: [1, 3, 5].map((index) => Number.parseInt(color.slice(index, index + 2), 16)),
+    }))
   const stops = [
     { position: 0, color: encoded(0, depthRatio) },
     { position: 1, color: encoded(1, depthRatio) },
@@ -86,6 +101,60 @@ function benchmark(adaptive) {
   trials.sort((a, b) => a - b)
   return { lines: 1000, trials: 5, medianPreparationMs: trials[2] }
 }
+
+function productionBenchmark(lines, animated) {
+  const trials = []
+  let stops = 0
+  for (let trial = 0; trial < 6; trial += 1) {
+    const started = performance.now()
+    for (let index = 0; index < lines; index += 1) {
+      const depth = animated ? 1 + (index + trial * lines) / lines : [1, 2, 4, 16, 100][index % 5]
+      stops += portableLineColorStops(red, green, 1, depth, 256).length
+    }
+    if (trial) trials.push(performance.now() - started)
+  }
+  trials.sort((a, b) => a - b)
+  return {
+    lines,
+    animated,
+    trials: 5,
+    meanStops: stops / (6 * lines),
+    medianPreparationMs: trials[2],
+  }
+}
+
+function projectionBenchmark(lines, animated, lineColorInterpolation) {
+  const positions = []
+  const colors = []
+  for (let index = 0; index < lines; index += 1) {
+    const y = (index % 100) / 100 - 0.5
+    positions.push(-1, y, -2, 1, y, -4 - (index % 5))
+    colors.push(1, 0, 0, 0, 1, 0)
+  }
+  const geometry = new BufferGeometry()
+    .setAttribute('position', new Float32BufferAttribute(positions, 3))
+    .setAttribute('color', new Float32BufferAttribute(colors, 3))
+  const scene = new Scene().add(
+    new LineSegments(geometry, new LineBasicMaterial({ vertexColors: true })),
+  )
+  const camera = new PerspectiveCamera(90, 1, 0.1, 100)
+  const trials = []
+  for (let trial = 0; trial < 6; trial += 1) {
+    if (animated) camera.position.z = trial * 0.013
+    const started = performance.now()
+    const result = projectThreeScene(scene, camera, {
+      width: 256,
+      height: 256,
+      lineColorInterpolation,
+    })
+    if (result.scene.length !== lines || result.diagnostics.length)
+      throw new Error('benchmark projection lost edges')
+    if (trial) trials.push(performance.now() - started)
+  }
+  trials.sort((a, b) => a - b)
+  geometry.dispose()
+  return { lines, animated, lineColorInterpolation, trials: 5, medianProjectionMs: trials[2] }
+}
 console.log(
   JSON.stringify(
     {
@@ -93,8 +162,19 @@ console.log(
       rows: [1, 2, 4, 16, 100].map((ratio) => ({
         baseline: evaluate(ratio, false),
         boundedPrototype: evaluate(ratio, true),
+        production: evaluate(ratio, 'production'),
       })),
       preparationOnlyBenchmark: { baseline: benchmark(false), boundedPrototype: benchmark(true) },
+      productionPreparation: [1000, 10000].flatMap((lines) => [
+        productionBenchmark(lines, false),
+        productionBenchmark(lines, true),
+      ]),
+      fullProjection: [1000, 10000].flatMap((lines) =>
+        ['endpoints', 'bounded'].flatMap((mode) => [
+          projectionBenchmark(lines, false, mode),
+          projectionBenchmark(lines, true, mode),
+        ]),
+      ),
     },
     null,
     2,

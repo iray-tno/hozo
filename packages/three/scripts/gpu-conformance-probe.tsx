@@ -11,6 +11,12 @@ import {
 import { SCENE_CORPUS_SCENES } from '../src/conformance-scenes.ts'
 import { ThreeCanvas as WebGLCanvas } from '../src/webgl-renderer.tsx'
 import { ThreeCanvas as WebGPUCanvas } from '../src/webgpu.tsx'
+import {
+  type PortableGradientResult,
+  type PortableGradientTiming,
+  probePortableGradients,
+  probePortableGradientTimings,
+} from './portable-gradient-probe.ts'
 import { type PortableTextureResult, probePortableTextures } from './portable-texture-probe.ts'
 
 type SceneCorpusProbeResult = {
@@ -35,6 +41,8 @@ type ProbeResult = {
   sceneCorpus?: readonly SceneCorpusProbeResult[]
   semanticControl: boolean
   portableTextures?: readonly PortableTextureResult[]
+  portableGradients?: readonly PortableGradientResult[]
+  portableGradientTimings?: readonly PortableGradientTiming[]
 }
 
 const mode = new URLSearchParams(location.search).get('mode') ?? 'classic-webgl'
@@ -257,7 +265,17 @@ addEventListener('unhandledrejection', (event) =>
 
 const Canvas = mode === 'classic-webgl' ? WebGLCanvas : WebGPUCanvas
 const rendererOptions = mode === 'modern-force-webgl2' ? { forceWebGL: true } : undefined
-if (mode === 'portable-textures') {
+if (mode === 'portable-gradients') {
+  finish({
+    activated: false,
+    backend: 'canvas2d',
+    mode,
+    renderCalls: 0,
+    semanticControl: false,
+    portableGradients: probePortableGradients(),
+    portableGradientTimings: probePortableGradientTimings(),
+  })
+} else if (mode === 'portable-textures') {
   finish({
     activated: false,
     backend: 'canvas2d',

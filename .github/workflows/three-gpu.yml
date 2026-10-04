@@ -14,6 +14,8 @@ on:
       - '.github/workflows/three-gpu.yml'
       - 'packages/three/scripts/check-gpu.mjs'
       - 'packages/three/scripts/gpu-conformance-probe.tsx'
+      - 'packages/three/scripts/portable-*-probe.ts'
+      - 'packages/three/src/line-gradient.ts'
       - 'packages/three/src/conformance-scenes.ts'
       - 'packages/three/fixtures/**'
   schedule:
