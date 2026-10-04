@@ -372,5 +372,8 @@ const SVG_EXPORTS = new Set([
   'SvgSymbol',
   'SvgImage',
   'ForeignObject',
+  'Filter',
+  'FeColorMatrix',
+  'FeGaussianBlur',
   'SvgLink',
 ])

@@ -52,6 +52,42 @@ export function Card() { return <Box className="p-4"><RNText>Hi</RNText></Box> }
   assert.doesNotMatch(lowered.code, /<Box|<RNText/)
 })
 
+test('SVG filters retain their effect chain and references on both backends', () => {
+  const source = `import { Svg } from '@hozo/svg'
+export function Soft() {
+  return <Svg viewBox="0 0 40 40"><Svg.Defs>
+    <Svg.Filter id="soft" x="-20%" width="140%" filterUnits="objectBoundingBox">
+      <Svg.FeColorMatrix in="SourceGraphic" type="saturate" values="0" result="gray" />
+      <Svg.FeGaussianBlur in="gray" stdDeviation={blur} />
+    </Svg.Filter>
+  </Svg.Defs><Svg.Rect width={40} height={40} filter="url(#soft)" /></Svg>
+}`
+  const web = lowerModule(source, 'Soft.tsx', 'Soft.tsx', compiler, ROOT)
+  assert.ok(web)
+  assert.match(
+    web.code,
+    /<filter[^>]*id="soft"[^>]*x="-20%"[^>]*width="140%"[^>]*filterUnits="objectBoundingBox"/,
+  )
+  assert.match(web.code, /<feColorMatrix[^>]*in="SourceGraphic"[^>]*values="0"[^>]*result="gray"/)
+  assert.match(web.code, /<feGaussianBlur[^>]*in="gray"[^>]*stdDeviation=\{blur\}/)
+  assert.match(web.code, /filter="url\(#soft\)"/)
+  assert.doesNotMatch(web.code, /<Svg\.(Filter|FeColorMatrix|FeGaussianBlur)/)
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.deepEqual(
+    new Set(native.runtimeImports),
+    new Set(['Svg', 'Defs', 'Filter', 'FeColorMatrix', 'FeGaussianBlur', 'Rect']),
+  )
+  assert.match(
+    native.jsx,
+    /<Filter[^>]*id="soft"[^>]*x="-20%"[^>]*width="140%"[^>]*filterUnits="objectBoundingBox"/,
+  )
+  assert.match(native.jsx, /<FeColorMatrix[^>]*in="SourceGraphic"[^>]*values="0"[^>]*result="gray"/)
+  assert.match(native.jsx, /<FeGaussianBlur[^>]*in="gray"[^>]*stdDeviation=\{blur\}/)
+  assert.match(native.jsx, /filter="url\(#soft\)"/)
+  assert.deepEqual(native.nativeImports, [])
+})
+
 test('ActivityIndicator lowers to an accessible Web spinner and stays native on device', () => {
   const source = `import { ActivityIndicator } from 'react-native'
 export function Loading() { return <ActivityIndicator size="large" color="white" /> }

@@ -569,9 +569,9 @@ impl Primitive {
 /// The SVG elements Hozo lowers.
 ///
 /// Chosen for what a chart needs to exist -- shapes, grouping, gradients,
-/// clipping, text -- rather than for coverage of the specification. SVG
-/// has around eighty elements and most of them are filters, which are a
-/// different problem and one `react-native-svg` answers differently.
+/// clipping, text -- rather than for coverage of the specification. Filters
+/// are a separate surface: only a subset has a Native implementation in
+/// `react-native-svg`, and an element name does not guarantee prop parity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SvgElement {
     /// The root. Also the namespace object, so `<Svg>` and `<Svg.Rect>`
@@ -617,6 +617,10 @@ pub enum SvgElement {
     /// `react-native-svg` documents its own limits, which is why this is
     /// carried rather than described.
     ForeignObject,
+    /// Shared filter subset; element support does not imply prop parity.
+    Filter,
+    FeColorMatrix,
+    FeGaussianBlur,
 }
 
 impl SvgElement {
@@ -649,6 +653,9 @@ impl SvgElement {
             SvgElement::Symbol => "Symbol",
             SvgElement::Image => "Image",
             SvgElement::ForeignObject => "ForeignObject",
+            SvgElement::Filter => "Filter",
+            SvgElement::FeColorMatrix => "FeColorMatrix",
+            SvgElement::FeGaussianBlur => "FeGaussianBlur",
         }
     }
 
@@ -688,6 +695,9 @@ impl SvgElement {
             SvgElement::ClipPath => "clipPath",
             SvgElement::TextPath => "textPath",
             SvgElement::ForeignObject => "foreignObject",
+            SvgElement::Filter => "filter",
+            SvgElement::FeColorMatrix => "feColorMatrix",
+            SvgElement::FeGaussianBlur => "feGaussianBlur",
             other => match other {
                 SvgElement::G => "g",
                 SvgElement::Rect => "rect",
@@ -740,6 +750,9 @@ impl SvgElement {
             "Symbol" => SvgElement::Symbol,
             "Image" => SvgElement::Image,
             "ForeignObject" => SvgElement::ForeignObject,
+            "Filter" => SvgElement::Filter,
+            "FeColorMatrix" => SvgElement::FeColorMatrix,
+            "FeGaussianBlur" => SvgElement::FeGaussianBlur,
             _ => return None,
         })
     }
@@ -5331,12 +5344,14 @@ mod svg_element_tests {
     #[test]
     fn the_camel_case_tags_keep_their_capitals() {
         // Lowercasing these produces elements that parse and never render,
-        // which is the quietest way an SVG can be wrong. Five of them now.
+        // which is the quietest way an SVG can be wrong.
         assert_eq!(SvgElement::LinearGradient.tag(), "linearGradient");
         assert_eq!(SvgElement::RadialGradient.tag(), "radialGradient");
         assert_eq!(SvgElement::ClipPath.tag(), "clipPath");
         assert_eq!(SvgElement::TextPath.tag(), "textPath");
         assert_eq!(SvgElement::ForeignObject.tag(), "foreignObject");
+        assert_eq!(SvgElement::FeColorMatrix.tag(), "feColorMatrix");
+        assert_eq!(SvgElement::FeGaussianBlur.tag(), "feGaussianBlur");
     }
 
     #[test]
@@ -5353,6 +5368,8 @@ mod svg_element_tests {
                         | SvgElement::ClipPath
                         | SvgElement::TextPath
                         | SvgElement::ForeignObject
+                        | SvgElement::FeColorMatrix
+                        | SvgElement::FeGaussianBlur
                 ),
                 "{:?} has tag {tag}",
                 element,
@@ -5399,6 +5416,9 @@ mod svg_element_tests {
         SvgElement::Symbol,
         SvgElement::Image,
         SvgElement::ForeignObject,
+        SvgElement::Filter,
+        SvgElement::FeColorMatrix,
+        SvgElement::FeGaussianBlur,
     ];
 }
 

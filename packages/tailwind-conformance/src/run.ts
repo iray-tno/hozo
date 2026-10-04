@@ -44,6 +44,7 @@ import { measureRuntimeCost } from './runtime-cost.ts'
 import { finish, record } from './snapshot.ts'
 import { stylexPracticalScorecard } from './stylex-practical.ts'
 import { stylexSurface, stylexVersion } from './stylex-surface.ts'
+import { svgFilterScorecard } from './svg-filters.ts'
 import { loadThemeVars, tailwindPackageDir, tailwindVersion } from './theme.ts'
 import { typeCheckStyles } from './typecheck.ts'
 import { buildVariantCatalog, compareVariant } from './variants.ts'
@@ -75,6 +76,19 @@ record('versions', {
   reactNative: reactNativeVersion(),
   stylex: stylexVersion(),
 })
+
+const svgFilters = svgFilterScorecard()
+console.log(`== SVG filter API/compiler surface vs react-native-svg v${svgFilters.version} ==`)
+console.table(svgFilters.rows)
+console.log(
+  `Web: ${svgFilters.web.covered}/${svgFilters.web.total}; Native-backed: ${svgFilters.native.covered}/${svgFilters.native.total}; upstream Native stubs: ${svgFilters.native.upstreamStubs}`,
+)
+console.log(
+  'Element/API routing only, not prop parity or pixel fidelity; no device rendering claim.\n',
+)
+record('svgFilterWeb', svgFilters.web)
+record('svgFilterNative', svgFilters.native)
+record('svgFilterVersions', { reactNativeSvg: svgFilters.version })
 
 const stylex = stylexSurface()
 console.log('== StyleX static property-name surface ==')

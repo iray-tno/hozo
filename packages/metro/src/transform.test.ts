@@ -62,6 +62,24 @@ export function Graphic() { return <Svg><Svg.Custom /></Svg> }
   assert.match(output, /<Svg\.Custom/)
 })
 
+test('filter compiler ABI imports come from the SVG owner, not generated layout helpers', () => {
+  const source = `import { Svg } from '@hozo/svg'
+export function Soft() { return <Svg><Svg.Defs><Svg.Filter id="soft">
+  <Svg.FeColorMatrix type="saturate" values="0" result="gray" />
+  <Svg.FeGaussianBlur in="gray" stdDeviation={2} />
+</Svg.Filter></Svg.Defs><Svg.Rect filter="url(#soft)" /></Svg> }
+`
+  const output = transformHozoSource(source, 'Soft.tsx')
+  assert.ok(output)
+  assert.match(
+    output,
+    /import \{ Svg, Defs, Filter, FeColorMatrix, FeGaussianBlur, Rect \} from '@hozo\/svg'/,
+  )
+  assert.match(output, /<FeGaussianBlur in="gray" stdDeviation=\{2\}/)
+  assert.match(output, /filter="url\(#soft\)"/)
+  assert.doesNotMatch(output, /react-native'|@hozo\/primitives|@hozo\/engine/)
+})
+
 test('direct owner imports keep non-component compatibility values while components lower', () => {
   const source = `import { View } from '@hozo/primitives'
 import { Platform } from '@hozo/rn-compat'
