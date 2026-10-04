@@ -1,6 +1,6 @@
 # 7. Motion is written as classes, and Native learns `starting:`
 
-**Status:** proposed — for #146 (`@hozo/motion`), before any of it is built
+**Status:** decided — the approach and the order of slices; the exit variant's spelling is left to slice 2
 **Date:** 2026-10-04
 
 ## What #146 asked for, and what already exists
@@ -22,7 +22,7 @@ Much of the underlying machinery has been built since then:
 
 The two big gaps are enter on Native and exit anywhere.
 
-## Decision (proposed)
+## Decision
 
 ### 1. No second vocabulary: motion is written in Tailwind classes
 
@@ -99,7 +99,7 @@ What Hozo does instead:
 
 - **Its own components honour reduced motion**, as `Dialog` already does on the
   Web, including everything the presence component animates.
-- **A diagnostic** (proposed: a hint, not a warning) when a `starting:` or exit
+- **A hint** (not a warning) when a `starting:` or exit
   class moves or scales an element (translate, scale, rotate) without
   `motion-safe:`/`motion-reduce:` on the same element, pointing at
   `motion-safe:`. A fade is left alone: WCAG 2.3.3's concern is motion, and a
@@ -119,12 +119,12 @@ What Hozo does instead:
   a variant decision, while enter needs neither. Enter also proves the
   `hozoStarting` path that exit will reuse.
 
-## Open questions for this record
+## Settled in review, and what is left open
 
-1. Is the order right: enter (`starting:` on Native), then exit (presence),
-   then keyframes?
-2. Reduced-motion diagnostic: hint, warning, or none?
-3. For slice 2 later: the exit variant's spelling, such as a Hozo variant, or
+1. **Order:** enter (`starting:` on Native), then exit (presence), then the
+   project's keyframes, as above.
+2. **Reduced-motion diagnostic:** a hint, as above.
+3. **Left to slice 2:** the exit variant's spelling, such as a Hozo variant, or
    Tailwind's `data-[state=closed]:` on a `data-state` the presence component
    sets. On Native it has to be a condition the compiler understands, not a
    selector.

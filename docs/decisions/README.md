@@ -28,4 +28,4 @@ smaller questions that came up on the way, and their answers.
 | [004](004-navigation-determines-role.md) | Navigation determines the role, not the component name |
 | [005](005-a-value-is-not-content.md) | A control's value goes in the value channel, not in its content |
 | [006](006-shipping-native-code.md) | Hozo may ship native code, in one optional package, behind a registered provider |
-| [007](007-motion-is-written-as-classes.md) | Motion is written as classes, and Native learns `starting:` (proposed) |
+| [007](007-motion-is-written-as-classes.md) | Motion is written as classes, and Native learns `starting:` |
