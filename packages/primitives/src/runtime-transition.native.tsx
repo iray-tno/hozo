@@ -20,7 +20,7 @@
 // one `Animated.timing` would drag the fast ones onto the slow driver.
 // They are separate animations for that reason and not for tidiness.
 
-import { type ReactNode, useEffect, useMemo, useRef } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Easing, type StyleProp, StyleSheet, type ViewStyle } from 'react-native'
 
 export interface HozoTransitionSpec {
@@ -59,11 +59,24 @@ function identity(key: string): number {
 export interface HozoAnimatedProps {
   style?: StyleProp<ViewStyle>
   hozoTransition?: HozoTransitionSpec
+  /**
+   * The first frame of an enter animation, from a `starting:` class
+   * (decision 007). The element mounts at these values and transitions to
+   * `style`, which is what `@starting-style` does on Web. Read once, on
+   * mount: it is where the element enters from, not a style it keeps.
+   */
+  hozoStarting?: StyleProp<ViewStyle>
   children?: ReactNode
   [key: string]: unknown
 }
 
-export function HozoAnimated({ style, hozoTransition, children, ...props }: HozoAnimatedProps) {
+export function HozoAnimated({
+  style,
+  hozoTransition,
+  hozoStarting,
+  children,
+  ...props
+}: HozoAnimatedProps) {
   const flat = useMemo(() => StyleSheet.flatten(style) ?? {}, [style])
 
   // One progress value per animation rather than one per property. The
@@ -72,7 +85,14 @@ export function HozoAnimated({ style, hozoTransition, children, ...props }: Hozo
   // value to its new one is both cheaper and impossible to get out of
   // step with itself.
   const progress = useRef(new Animated.Value(1)).current
-  const from = useRef<ViewStyle>(flat)
+  // Without `hozoStarting` the first render has nothing to animate from --
+  // `from` and `to` are the same style, and the mount effect below runs an
+  // animation that moves nothing. With it, `from` is the starting frame
+  // laid over the style, so that same mount effect is the enter animation.
+  const [entersFrom] = useState<ViewStyle>(() =>
+    hozoStarting ? { ...flat, ...(StyleSheet.flatten(hozoStarting) ?? {}) } : flat,
+  )
+  const from = useRef<ViewStyle>(entersFrom)
   const to = useRef<ViewStyle>(flat)
 
   // What changed, computed during render so the effect below has nothing

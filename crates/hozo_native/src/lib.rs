@@ -523,6 +523,7 @@ fn spaced_children(
         runtime,
         false,
         theme,
+        None,
     );
     if !pressed_parts.is_empty() {
         diagnostics.push(unwired_variant(

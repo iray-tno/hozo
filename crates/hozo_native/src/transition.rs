@@ -107,21 +107,13 @@ pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration])
     // `dark:rounded-lg` is a rule that flips and a property nothing can
     // animate between, and wrapping the element for it would add a
     // component and an animation that never shows.
+    //
+    // A `starting:` value is the other way to have something to animate
+    // between: the first frame and the style it settles on (decision 007).
     let animatable = declarations.iter().any(|declaration| {
-        let interpolatable = matches!(
-            declaration.property,
-            StyleProperty::Opacity(_)
-                | StyleProperty::BackgroundColor(_)
-                | StyleProperty::TextColor(_)
-                | StyleProperty::BorderColor(_)
-                | StyleProperty::Translate(_)
-                | StyleProperty::TranslateX(_)
-                | StyleProperty::TranslateY(_)
-                | StyleProperty::Rotate(_)
-                | StyleProperty::ScaleX(_)
-                | StyleProperty::ScaleY(_)
-        ) || matches!(&declaration.property, StyleProperty::Scale(values) if values.len() <= 2);
-        interpolatable && condition_contains(&declaration.condition, runtime_variable)
+        interpolatable(&declaration.property)
+            && (condition_contains(&declaration.condition, runtime_variable)
+                || matches!(declaration.condition, Condition::StartingStyle))
     });
     if !animatable {
         return None;
@@ -228,6 +220,55 @@ mod ambient_transition_tests {
         assert!(out.jsx.contains("opacity: true"), "{}", out.jsx);
         assert_eq!(out.jsx.matches("hozoTransition").count(), 1, "{}", out.jsx);
     }
+
+    // Decision 007, slice 1: `starting:` is the first frame of an enter
+    // animation, handed to `HozoAnimated` rather than put in the style.
+    #[test]
+    fn a_starting_value_with_a_transition_is_where_the_element_enters_from() {
+        let out = compile("transition-opacity opacity-100 starting:opacity-0");
+        assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
+        assert!(out.jsx.contains("hozoStarting={hozoStyles."), "{}", out.jsx);
+        assert!(out.jsx.contains("_starting}"), "{}", out.jsx);
+        // The first frame, not a style that wins and never leaves.
+        let style = out.jsx.split("style={").nth(1).unwrap_or("");
+        let style = &style[..style.find('}').unwrap_or(style.len())];
+        assert!(!style.contains("_starting"), "{}", out.jsx);
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    }
+
+    #[test]
+    fn a_transform_can_be_entered_from_too() {
+        let out = compile("transition translate-y-0 starting:translate-y-4");
+        assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
+        assert!(out.jsx.contains("hozoStarting="), "{}", out.jsx);
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    }
+
+    #[test]
+    fn a_starting_value_without_a_transition_does_nothing_and_says_so() {
+        // As on Web, where `@starting-style` with no transition is a value
+        // nobody sees.
+        let out = compile("opacity-100 starting:opacity-0");
+        assert!(out.jsx.starts_with("<View"), "{}", out.jsx);
+        assert!(!out.jsx.contains("hozoStarting"), "{}", out.jsx);
+        assert!(
+            out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("`starting:`")
+                && diagnostic.severity == hozo_ir::Severity::Warning),
+            "{:?}",
+            out.diagnostics,
+        );
+    }
+
+    #[test]
+    fn a_starting_value_nothing_can_interpolate_is_left_out_and_named() {
+        let out = compile("transition opacity-100 starting:opacity-0 starting:w-0");
+        assert!(out.jsx.contains("hozoStarting="), "{}", out.jsx);
+        assert!(
+            out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("opacity, transforms and colours")),
+            "{:?}",
+            out.diagnostics,
+        );
+    }
 }
 
 /// Whether this condition is one the React Native runtime can change its
@@ -244,6 +285,24 @@ mod ambient_transition_tests {
 /// These five are exactly the ones with a runtime hook behind them, which
 /// is the same thing said from the other side: a condition Hozo subscribes
 /// to is a condition that can flip.
+/// What `HozoAnimated` can interpolate: opacity, the colours, and
+/// transforms. Everything else changes by jumping.
+pub(super) fn interpolatable(property: &StyleProperty) -> bool {
+    matches!(
+        property,
+        StyleProperty::Opacity(_)
+            | StyleProperty::BackgroundColor(_)
+            | StyleProperty::TextColor(_)
+            | StyleProperty::BorderColor(_)
+            | StyleProperty::Translate(_)
+            | StyleProperty::TranslateX(_)
+            | StyleProperty::TranslateY(_)
+            | StyleProperty::Rotate(_)
+            | StyleProperty::ScaleX(_)
+            | StyleProperty::ScaleY(_)
+    ) || matches!(property, StyleProperty::Scale(values) if values.len() <= 2)
+}
+
 fn runtime_variable(condition: &Condition) -> bool {
     matches!(
         condition,
