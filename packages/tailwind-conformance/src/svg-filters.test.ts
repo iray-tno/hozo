@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import test from 'node:test'
 import { svgFilterScorecard } from './svg-filters.ts'
+
+test('the optional Native SVG peer starts after shadow/composite stopped being stubs', () => {
+  const require = createRequire(import.meta.url)
+  const pkg = JSON.parse(readFileSync(require.resolve('@hozo/svg/package.json'), 'utf8'))
+  assert.equal(pkg.peerDependencies['react-native-svg'], '>=15.9.0')
+  assert.equal(pkg.peerDependenciesMeta['react-native-svg'].optional, true)
+  assert.equal(pkg.dependencies['react-native-svg'], undefined)
+})
 
 test('filter API/compiler coverage uses upstream public exports, not the implemented shortlist', () => {
   const score = svgFilterScorecard()
@@ -9,13 +19,36 @@ test('filter API/compiler coverage uses upstream public exports, not the impleme
   assert.equal(score.native.upstreamStubs, 16)
   assert.deepEqual(
     score.rows.filter((row) => row.web).map((row) => row.name),
-    ['FeColorMatrix', 'FeGaussianBlur', 'Filter'],
+    [
+      'FeBlend',
+      'FeColorMatrix',
+      'FeComposite',
+      'FeDropShadow',
+      'FeFlood',
+      'FeGaussianBlur',
+      'FeMerge',
+      'FeMergeNode',
+      'FeOffset',
+      'Filter',
+    ],
   )
   assert.deepEqual(
     score.rows.filter((row) => row.native).map((row) => row.name),
-    ['FeColorMatrix', 'FeGaussianBlur', 'Filter'],
+    [
+      'FeBlend',
+      'FeColorMatrix',
+      'FeComposite',
+      'FeDropShadow',
+      'FeFlood',
+      'FeGaussianBlur',
+      'FeMerge',
+      'FeMergeNode',
+      'FeOffset',
+      'Filter',
+    ],
   )
   assert.equal(score.rows.find((row) => row.name === 'FeDistantLight')?.upstreamNative, 'stub')
   assert.equal(score.rows.find((row) => row.name === 'FeMergeNode')?.upstreamNative, 'backed')
-  assert.equal(score.rows.find((row) => row.name === 'FeDropShadow')?.web, false)
+  assert.equal(score.rows.find((row) => row.name === 'FeDropShadow')?.web, true)
+  assert.equal(score.rows.find((row) => row.name === 'FeTurbulence')?.web, false)
 })

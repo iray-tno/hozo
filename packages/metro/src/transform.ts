@@ -375,5 +375,12 @@ const SVG_EXPORTS = new Set([
   'Filter',
   'FeColorMatrix',
   'FeGaussianBlur',
+  'FeBlend',
+  'FeComposite',
+  'FeDropShadow',
+  'FeFlood',
+  'FeMerge',
+  'FeMergeNode',
+  'FeOffset',
   'SvgLink',
 ])

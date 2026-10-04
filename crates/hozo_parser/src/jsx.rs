@@ -1629,6 +1629,13 @@ mod tests {
             ("Filter", SvgElement::Filter),
             ("FeColorMatrix", SvgElement::FeColorMatrix),
             ("FeGaussianBlur", SvgElement::FeGaussianBlur),
+            ("FeBlend", SvgElement::FeBlend),
+            ("FeComposite", SvgElement::FeComposite),
+            ("FeDropShadow", SvgElement::FeDropShadow),
+            ("FeFlood", SvgElement::FeFlood),
+            ("FeMerge", SvgElement::FeMerge),
+            ("FeMergeNode", SvgElement::FeMergeNode),
+            ("FeOffset", SvgElement::FeOffset),
         ] {
             let source = format!(
                 "import {{ Svg }} from '@hozo/svg'; const el = <Svg.{name} in=\"SourceGraphic\" result=\"effect\" />"

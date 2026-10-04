@@ -83,6 +83,13 @@ export const SvgImage = element<SVGImageElement>('image')
 export const Filter = element<SVGFilterElement>('filter')
 export const FeColorMatrix = element<SVGFEColorMatrixElement>('feColorMatrix')
 export const FeGaussianBlur = element<SVGFEGaussianBlurElement>('feGaussianBlur')
+export const FeBlend = element<SVGFEBlendElement>('feBlend')
+export const FeComposite = element<SVGFECompositeElement>('feComposite')
+export const FeDropShadow = element<SVGFEDropShadowElement>('feDropShadow')
+export const FeFlood = element<SVGFEFloodElement>('feFlood')
+export const FeMerge = element<SVGFEMergeElement>('feMerge')
+export const FeMergeNode = element<SVGFEMergeNodeElement>('feMergeNode')
+export const FeOffset = element<SVGFEOffsetElement>('feOffset')
 
 /**
  * The SVG root, and the namespace its elements live under.
@@ -131,4 +138,11 @@ export const Svg = Object.assign(Root, {
   Filter,
   FeColorMatrix,
   FeGaussianBlur,
+  FeBlend,
+  FeComposite,
+  FeDropShadow,
+  FeFlood,
+  FeMerge,
+  FeMergeNode,
+  FeOffset,
 })

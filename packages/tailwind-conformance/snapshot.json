@@ -6,11 +6,11 @@
   },
   "svgFilterWeb": {
     "total": 26,
-    "covered": 3
+    "covered": 10
   },
   "svgFilterNative": {
     "total": 10,
-    "covered": 3,
+    "covered": 10,
     "upstreamStubs": 16
   },
   "svgFilterVersions": {
