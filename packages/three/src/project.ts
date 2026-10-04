@@ -26,6 +26,7 @@ import {
   Mesh,
   type MeshBasicMaterial,
   type MeshNormalMaterial,
+  MirroredRepeatWrapping,
   NearestFilter,
   NormalBlending,
   type Object3D,
@@ -807,7 +808,7 @@ function textureReason(texture: Texture, usesGeometryChannel = false): string | 
     return 'texture channel must select uv, uv1, uv2, or uv3'
   }
   if (!textureWrap(texture)) {
-    return 'texture wrapping must clamp or repeat; mirrored wrapping is not projected'
+    return 'texture wrapping must clamp, repeat, or mirror'
   }
   if (texture.colorSpace !== SRGBColorSpace) {
     return 'colour textures need SRGBColorSpace for portable Canvas sampling'
@@ -820,6 +821,7 @@ function textureReason(texture: Texture, usesGeometryChannel = false): string | 
 function textureWrapAxis(wrap: number): CanvasTextureWrap | undefined {
   if (wrap === ClampToEdgeWrapping) return 'clamp'
   if (wrap === RepeatWrapping) return 'repeat'
+  if (wrap === MirroredRepeatWrapping) return 'mirror'
   return undefined
 }
 
@@ -833,7 +835,7 @@ function textureWrap(
 
 function textureWrapProps(texture: Texture): Pick<CanvasMeshTexture, 'wrap' | 'wrapX' | 'wrapY'> {
   const [wrapX, wrapY] = textureWrap(texture) ?? ['clamp', 'clamp']
-  if (wrapX === wrapY) return wrapX === 'repeat' ? { wrap: 'repeat' } : {}
+  if (wrapX === wrapY) return wrapX === 'clamp' ? {} : { wrap: wrapX }
   return { wrapX, wrapY }
 }
 

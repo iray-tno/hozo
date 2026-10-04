@@ -27,6 +27,54 @@ export type { CanvasViewport } from './viewport.ts'
 type CanvasTextureImage = (source: CanvasTextureSource) => CanvasImageSource | undefined
 
 const modulatedTextures = new WeakMap<object, Map<number, CanvasImageSource>>()
+const mirroredTextures = new WeakMap<object, Map<string, CanvasImageSource>>()
+
+/**
+ * Canvas patterns only repeat. Build a two-tile period on each mirrored axis
+ * once per decoded image, then repeat that period without folding triangle UVs.
+ * Folding vertices alone would interpolate through the wrong side of a seam.
+ */
+function mirroredTexture(
+  image: CanvasImageSource,
+  wrapX: CanvasTextureWrap,
+  wrapY: CanvasTextureWrap,
+): CanvasImageSource | undefined {
+  const mirrorX = wrapX === 'mirror'
+  const mirrorY = wrapY === 'mirror'
+  if (!mirrorX && !mirrorY) return image
+  const key = `${mirrorX}/${mirrorY}`
+  const cached = mirroredTextures.get(image)?.get(key)
+  if (cached) return cached
+  const dimensions = imageDimensions(image)
+  if (!dimensions) return undefined
+  const columns = mirrorX ? 2 : 1
+  const rows = mirrorY ? 2 : 1
+  const width = dimensions.width * columns
+  const height = dimensions.height * rows
+  const surface =
+    typeof OffscreenCanvas === 'function'
+      ? new OffscreenCanvas(width, height)
+      : typeof document === 'undefined'
+        ? undefined
+        : Object.assign(document.createElement('canvas'), { width, height })
+  const context = surface?.getContext('2d')
+  if (!surface || !context) return undefined
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < columns; x += 1) {
+      context.save()
+      context.translate(x === 1 ? width : 0, y === 1 ? height : 0)
+      context.scale(x === 1 ? -1 : 1, y === 1 ? -1 : 1)
+      context.drawImage(image, 0, 0, dimensions.width, dimensions.height)
+      context.restore()
+    }
+  }
+  // At most three variants (X, Y, XY) belong to an image; the WeakMap does not
+  // retain the decoded source after the scene/image cache releases it.
+  const variants = mirroredTextures.get(image) ?? new Map<string, CanvasImageSource>()
+  variants.set(key, surface)
+  mirroredTextures.set(image, variants)
+  return surface
+}
 
 function srgbToLinear(channel: number): number {
   return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
@@ -316,10 +364,10 @@ function fillTexturedTriangle(
     horizontal.offset,
     vertical.offset,
   )
-  if (wrapX === 'repeat' || wrapY === 'repeat') {
-    const repetition =
-      wrapX === 'repeat' ? (wrapY === 'repeat' ? 'repeat' : 'repeat-x') : 'repeat-y'
-    const pattern = context.createPattern(drawable, repetition)
+  if (wrapX !== 'clamp' || wrapY !== 'clamp') {
+    const repetition = wrapX !== 'clamp' ? (wrapY !== 'clamp' ? 'repeat' : 'repeat-x') : 'repeat-y'
+    const tile = mirroredTexture(drawable, wrapX, wrapY)
+    const pattern = tile ? context.createPattern(tile, repetition) : null
     if (pattern) {
       context.fillStyle = pattern
       trianglePath(context, ta, tb, tc)

@@ -215,6 +215,42 @@ test('mixed clamp and repeat wrapping stays portable per texture axis', () => {
   })
 })
 
+test('mirrored wrapping preserves negative and transformed UVs on either axis', () => {
+  const geometry = triangleGeometry()
+  geometry.setAttribute('uv', new Float32BufferAttribute([-1, 0, 2, 0, -1, 1], 2))
+  const texture = new Texture()
+  texture.source.data = '/stripes.png'
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.wrapS = THREE.MirroredRepeatWrapping
+  texture.offset.x = 0.25
+
+  for (const wrapT of [
+    THREE.ClampToEdgeWrapping,
+    THREE.RepeatWrapping,
+    THREE.MirroredRepeatWrapping,
+  ]) {
+    texture.wrapT = wrapT
+    const result = projectThreeScene(
+      new Scene().add(new Mesh(geometry, new MeshBasicMaterial({ map: texture }))),
+      perspective(),
+      { width: 100, height: 100 },
+    )
+    assert.deepEqual(result.diagnostics, [])
+    assert.deepEqual(projectedMeshes(result)[0]?.texture, {
+      source: '/stripes.png',
+      coordinates: [
+        { x: -0.75, y: 1 },
+        { x: 2.25, y: 1 },
+        { x: -0.75, y: 0 },
+      ],
+      filter: 'linear',
+      ...(wrapT === THREE.MirroredRepeatWrapping
+        ? { wrap: 'mirror' }
+        : { wrapX: 'mirror', wrapY: wrapT === THREE.RepeatWrapping ? 'repeat' : 'clamp' }),
+    })
+  }
+})
+
 test('mesh clipping interpolates texture coordinates at generated edges', () => {
   const geometry = triangleGeometry()
   geometry.setAttribute('uv', new Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2))
@@ -260,14 +296,14 @@ test('non-portable texture sampling is refused with an actionable diagnostic', (
 
   const repeatedGeometry = triangleGeometry()
   repeatedGeometry.setAttribute('uv', new Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2))
-  texture.wrapS = THREE.MirroredRepeatWrapping
-  const mirrored = projectThreeScene(
+  texture.wrapS = -1 as typeof texture.wrapS
+  const invalidWrap = projectThreeScene(
     new Scene().add(new Mesh(repeatedGeometry, new MeshBasicMaterial({ map: texture }))),
     perspective(),
     { width: 100, height: 100 },
   )
-  assert.equal(mirrored.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
-  assert.match(mirrored.diagnostics[0]?.message ?? '', /mirrored wrapping/)
+  assert.equal(invalidWrap.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+  assert.match(invalidWrap.diagnostics[0]?.message ?? '', /wrapping must/)
 
   texture.wrapS = THREE.ClampToEdgeWrapping
   texture.offset.x = 0.5

@@ -412,7 +412,7 @@ export interface CanvasVertexColor {
 }
 
 export type CanvasTextureSource = string | number | { uri?: string; default?: string }
-export type CanvasTextureWrap = 'clamp' | 'repeat'
+export type CanvasTextureWrap = 'clamp' | 'repeat' | 'mirror'
 
 export interface CanvasMeshTexture {
   source: CanvasTextureSource

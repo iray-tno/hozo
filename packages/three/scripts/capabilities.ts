@@ -281,10 +281,13 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
   ),
   capability(
     'Texture-backed materials',
-    'clamp and repeat wrapping',
+    'clamp, repeat, and mirrored wrapping',
     'exact',
-    'Clamp and repeat modes are preserved independently on each texture axis.',
-    [project('mixed clamp and repeat wrapping stays portable per texture axis')],
+    'Clamp, repeat, and mirror modes are preserved independently on each texture axis, including negative UVs.',
+    [
+      project('mixed clamp and repeat wrapping stays portable per texture axis'),
+      project('mirrored wrapping preserves negative and transformed UVs on either axis'),
+    ],
   ),
   capability(
     'PointsMaterial',
@@ -350,7 +353,7 @@ export const PORTABLE_MATERIAL_CAPABILITIES: readonly PortableCapability[] = [
     'Texture-backed materials',
     'general GPU texture sampling',
     'diagnostic',
-    'Unsupported colour spaces, transforms, mirrored wrapping, and GPU sampling state are rejected.',
+    'Unsupported colour spaces, transforms, and GPU sampling state are rejected.',
     [project('non-portable texture sampling is refused with an actionable diagnostic')],
   ),
   capability(
