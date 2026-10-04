@@ -536,6 +536,28 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
       </section>
 
       <!-- Footer CTA -->
+      <section class="mb-16" aria-labelledby="svg-filter-heading">
+        <h2 id="svg-filter-heading" class="text-xl sm:text-2xl font-bold text-white tracking-tight mb-4">SVG Filter API / Compiler Boundary</h2>
+        <div class="p-6 rounded-2xl glass-panel">
+          <dl class="grid sm:grid-cols-2 gap-6 mb-4">
+            <div>
+              <dt class="text-sm text-slate-400">Web filter-family elements</dt>
+              <dd class="text-xl font-mono text-white">{snapshot.svgFilterWeb.covered} / {snapshot.svgFilterWeb.total}</dd>
+            </div>
+            <div>
+              <dt class="text-sm text-slate-400">Native-backed filter-family elements</dt>
+              <dd class="text-xl font-mono text-white">{snapshot.svgFilterNative.covered} / {snapshot.svgFilterNative.total}</dd>
+            </div>
+          </dl>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Derived from react-native-svg {snapshot.svgFilterVersions.reactNativeSvg} public exports.
+            API, compiler and import routing only: not prop parity, pixel equivalence or device rendering.
+            Its {snapshot.svgFilterNative.upstreamStubs} warning-only Native stubs are separate, not counted as implemented.
+            <a href="https://github.com/iray-tno/hozo/blob/main/packages/tailwind-conformance/src/svg-filters.test.ts" class="text-indigo-300 underline">Read the test</a>.
+          </p>
+        </div>
+      </section>
+
       <div class="p-8 rounded-2xl glass-panel text-center max-w-3xl mx-auto">
         <h3 class="text-xl font-bold text-white mb-3">Inspect the Implementation</h3>
         <p class="text-slate-400 text-xs sm:text-sm leading-relaxed mb-6">

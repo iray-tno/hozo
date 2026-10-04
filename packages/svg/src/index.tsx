@@ -80,6 +80,9 @@ export const Mask = element<SVGMaskElement>('mask')
 export const Pattern = element<SVGPatternElement>('pattern')
 export const SvgSymbol = element<SVGSymbolElement>('symbol')
 export const SvgImage = element<SVGImageElement>('image')
+export const Filter = element<SVGFilterElement>('filter')
+export const FeColorMatrix = element<SVGFEColorMatrixElement>('feColorMatrix')
+export const FeGaussianBlur = element<SVGFEGaussianBlurElement>('feGaussianBlur')
 
 /**
  * The SVG root, and the namespace its elements live under.
@@ -125,4 +128,7 @@ export const Svg = Object.assign(Root, {
   // `Svg.Image` and not `Image`: this package exports a primitive of
   // that name, and the namespace is what keeps the two from arguing.
   Image: SvgImage,
+  Filter,
+  FeColorMatrix,
+  FeGaussianBlur,
 })

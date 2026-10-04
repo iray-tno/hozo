@@ -1623,6 +1623,27 @@ mod tests {
     }
 
     #[test]
+    fn svg_filter_members_are_not_foreign_components() {
+        use hozo_ir::{Primitive, SvgElement};
+        for (name, element) in [
+            ("Filter", SvgElement::Filter),
+            ("FeColorMatrix", SvgElement::FeColorMatrix),
+            ("FeGaussianBlur", SvgElement::FeGaussianBlur),
+        ] {
+            let source = format!(
+                "import {{ Svg }} from '@hozo/svg'; const el = <Svg.{name} in=\"SourceGraphic\" result=\"effect\" />"
+            );
+            let output = crate::parse_tsx(&source);
+            assert_eq!(output.roots.len(), 1);
+            assert_eq!(output.roots[0].node.primitive, Primitive::Svg(element));
+            assert_eq!(
+                passthrough_texts(&source, &output.roots[0].node),
+                vec!["in=\"SourceGraphic\"", "result=\"effect\""]
+            );
+        }
+    }
+
+    #[test]
     fn primitives_inside_a_render_prop_are_retained_for_nested_lowering() {
         let source = r#"
             import { FlatList, Text } from '@hozo/core'

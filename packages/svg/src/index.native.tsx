@@ -40,6 +40,9 @@ export const SvgText = withClassName(NativeSvg.Text)
 export const TextPath = withClassName(NativeSvg.TextPath)
 export const TSpan = withClassName(NativeSvg.TSpan)
 export const Use = withClassName(NativeSvg.Use)
+export const Filter = withClassName(NativeSvg.Filter)
+export const FeColorMatrix = withClassName(NativeSvg.FeColorMatrix)
+export const FeGaussianBlur = withClassName(NativeSvg.FeGaussianBlur)
 const SvgRoot = withClassName(NativeSvg.Svg)
 
 export type { SvgLinkProps } from './svg-link.native.tsx'
@@ -71,4 +74,7 @@ export const Svg = Object.assign(SvgRoot, {
   Pattern,
   Symbol: SvgSymbol,
   Image: SvgImage,
+  Filter,
+  FeColorMatrix,
+  FeGaussianBlur,
 })

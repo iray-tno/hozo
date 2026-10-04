@@ -122,6 +122,17 @@ const conformance = readFileSync(path.join(dist, 'conformance', 'index.html'), '
 const snapshot = JSON.parse(
   readFileSync(path.join('..', '..', 'packages', 'tailwind-conformance', 'snapshot.json'), 'utf8'),
 )
+// The API counters are deliberately not described as a pixel/device pass.
+// Keep that distinction and the path to the executable evidence visible.
+for (const text of [
+  'SVG Filter API / Compiler Boundary',
+  `${snapshot.svgFilterWeb.covered} / ${snapshot.svgFilterWeb.total}`,
+  `${snapshot.svgFilterNative.covered} / ${snapshot.svgFilterNative.total}`,
+  'not prop parity, pixel equivalence or device rendering',
+  'packages/tailwind-conformance/src/svg-filters.test.ts',
+]) {
+  checks.push([conformance.includes(text), `SVG filter report is missing: ${text}`])
+}
 
 checks.push(
   [conformance.includes('Cross-Platform'), 'conformance page did not render title'],
