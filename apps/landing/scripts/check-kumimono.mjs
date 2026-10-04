@@ -71,10 +71,17 @@ try {
       () => Number(document.querySelector('.kumimono-stage').dataset.progress) < 95,
     )
     await section.getByRole('button', { name: 'Reverse', exact: true }).click()
+    // Counted in frames, not seconds. Kumimono adds at most 0.1 s of motion
+    // per frame (`Math.min(delta, 0.1)`), so a full five-second reversal is
+    // at least fifty frames however long they take. Software WebGL in the
+    // Pages workflow, sharing the runner with native bundling, has drawn
+    // fewer than 3.4 a second, and 15 s timed out on two deploys in a row
+    // (37201765193, 37203852619) with nothing wrong. The wait is for the
+    // reversal to finish, so it allows fifty frames at one a second.
     await page.waitForFunction(
       () => document.querySelector('.kumimono-stage').dataset.progress === '100',
       null,
-      { timeout: 15000 },
+      { timeout: 60000 },
     )
     const slider = section.getByRole('slider', { name: 'Assembly', exact: true })
     await slider.focus()
