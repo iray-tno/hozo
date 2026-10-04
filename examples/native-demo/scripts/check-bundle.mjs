@@ -61,14 +61,43 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // pair below is what actually gates, because this block exits first.
 // Kept there, deleted here.
 
-// A coarse dependency/runtime regression guard. This is an unminified dev
-// bundle, so the margin is intentionally broad; crossing it means a feature
-// likely pulled a second platform layer or another large dependency into
-// every Native app and deserves inspection.
+// What Hozo adds to a Native app, measured as Hozo's own modules.
+//
+// This used to be one budget on the whole bundle, 4.6 MB, and the whole
+// bundle is mostly not Hozo: React Native is 2.8 MB of it and the dev-only
+// devtools another 0.8 MB, and the total differs by machine (4,648,596
+// bytes locally against 4,685,584 in CI for the same commit). It crossed
+// 4.6 MB as Hozo grew components -- Metro does not tree-shake, so an app
+// that imports `@hozo/form` carries every form component -- and since only
+// the Pages workflow runs this, nobody saw it fail from 2026-10-02.
+//
+// So the budget that means something is on Hozo's share: every module
+// under the workspace's `packages/`, by its relative module name, which
+// does not depend on where the repo is checked out. 450,930 bytes in 117
+// modules when this was written. Crossing 500 KB is worth a look at which
+// package grew and whether an app that does not use the feature now pays
+// for it.
+const hozoBytes = (() => {
+  const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
+  starts.push(bundle.length)
+  let bytes = 0
+  for (let index = 0; index < starts.length - 1; index++) {
+    const module = bundle.slice(starts[index], starts[index + 1])
+    const name = module.match(/,"([^"]+)"\);/)?.[1] ?? ''
+    if (/(^|[\\/])packages[\\/]/.test(name) && !/node_modules/.test(name)) bytes += module.length
+  }
+  return bytes
+})()
+expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  bundle.length < 4_600_000,
-  `Native dev bundle stays below 4.6 MB (was ${bundle.length} bytes)`,
+  hozoBytes < 500_000,
+  `Hozo's modules stay below 500 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
+
+// And a coarse ceiling on the whole, for the regression this check began
+// as: a feature pulling a second platform layer or another large dependency
+// into every Native app. Skia was that once (+1.3 MB, now its own entry).
+expect(bundle.length < 5_000_000, `Native dev bundle stays below 5 MB (was ${bundle.length} bytes)`)
 
 if (failures.length > 0) {
   console.error('bundle check failed:')
