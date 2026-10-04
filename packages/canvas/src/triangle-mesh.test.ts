@@ -5,6 +5,7 @@ import { canvasNodePoint, hitTestCanvas } from './hit-test.ts'
 import { renderCanvas2D } from './render-canvas-2d.ts'
 import {
   type CanvasScene,
+  canvasMeshTextureColor,
   canvasTextureUri,
   triangleMeshColor,
   triangleMeshColorCss,
@@ -347,7 +348,6 @@ test('Canvas 2D maps a decoded texture affinely into each triangle', () => {
         texture: {
           source: '/texture.png',
           filter: 'nearest',
-          intensity: 0.5,
           coordinates: [
             { x: 0, y: 0 },
             { x: 1, y: 0 },
@@ -364,14 +364,17 @@ test('Canvas 2D maps a decoded texture affinely into each triangle', () => {
 
   assert.ok(calls.some((call) => call[0] === 'set:globalAlpha' && call[1] === 0.5))
   assert.ok(calls.some((call) => call[0] === 'set:imageSmoothingEnabled' && call[1] === false))
-  assert.ok(calls.some((call) => call[0] === 'set:filter' && call[1] === 'brightness(0.5)'))
+  assert.equal(
+    calls.some((call) => call[0] === 'set:filter'),
+    false,
+  )
   assert.deepEqual(calls.find((call) => call[0] === 'transform')?.slice(1), [0.1, 0, 0, 0.2, 0, 0])
   const drawImage = calls.find((call) => call[0] === 'drawImage')
   assert.equal(drawImage?.[1], image)
   assert.deepEqual(drawImage?.slice(2), [0, 0, 100, 50])
 })
 
-test('Canvas 2D caches a linear-RGB intensity fallback when filters are unavailable', () => {
+test('Canvas 2D caches linear-RGB modulation even when encoded-channel filters are available', () => {
   const previous = globalThis.OffscreenCanvas
   const processed: Uint8ClampedArray[] = []
   let surfaces = 0
@@ -397,7 +400,7 @@ test('Canvas 2D caches a linear-RGB intensity fallback when filters are unavaila
   })
   try {
     const calls: Array<readonly unknown[]> = []
-    const context = new Proxy({ globalAlpha: 1 } as Record<string, unknown>, {
+    const context = new Proxy({ globalAlpha: 1, filter: 'none' } as Record<string, unknown>, {
       get(target, property) {
         if (property in target) return target[property as string]
         return (...args: unknown[]) => calls.push([property, ...args])
@@ -432,12 +435,46 @@ test('Canvas 2D caches a linear-RGB intensity fallback when filters are unavaila
     assert.equal(surfaces, 1)
     assert.deepEqual([...processed[0]!], [188, 92, 0, 128])
     assert.notEqual(calls.find((call) => call[0] === 'drawImage')?.[1], image)
+    const mesh = scene[0]!
+    assert.ok(mesh.kind === 'triangle-mesh' && mesh.props.texture)
+    for (let variant = 0; variant < 9; variant += 1) {
+      mesh.props.texture.tint = { r: 0.2 + variant * 0.05, g: 0.5, b: 0.75 }
+      renderCanvas2D(context, scene, { width: 20, height: 20, pixelRatio: 1 }, () => image)
+    }
+    assert.equal(surfaces, 10)
+    delete mesh.props.texture.tint
+    renderCanvas2D(context, scene, { width: 20, height: 20, pixelRatio: 1 }, () => image)
+    assert.equal(
+      surfaces,
+      11,
+      'the ninth colour evicted the old copy instead of retaining it forever',
+    )
   } finally {
     Object.defineProperty(globalThis, 'OffscreenCanvas', {
       configurable: true,
       value: previous,
     })
   }
+})
+
+test('texture colour modulation rejects invalid channels and keeps HDR multipliers finite', () => {
+  const texture = {
+    source: '/texture.png',
+    coordinates: [],
+    intensity: 2,
+    tint: { r: 0.5, g: -1, b: 2 },
+  }
+  assert.deepEqual(canvasMeshTextureColor(texture), { r: 1, g: 0, b: 4 })
+  assert.equal(canvasMeshTextureColor({ ...texture, tint: { r: NaN, g: 1, b: 1 } }), undefined)
+  assert.equal(canvasMeshTextureColor({ ...texture, intensity: Infinity }), undefined)
+  assert.equal(
+    canvasMeshTextureColor({ ...texture, intensity: Number.MAX_VALUE, tint: { r: 2, g: 1, b: 1 } }),
+    undefined,
+  )
+  assert.deepEqual(
+    triangleMeshIndices({ vertices, texture: { ...texture, tint: { r: NaN, g: 1, b: 1 } } }),
+    [],
+  )
 })
 
 test('Canvas 2D repeats a texture pattern for coordinates outside one tile', () => {

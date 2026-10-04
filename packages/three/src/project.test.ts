@@ -281,6 +281,45 @@ test('mesh clipping interpolates texture coordinates at generated edges', () => 
   ])
 })
 
+test('texture maps preserve linear material tint for meshes, points, and sprites', () => {
+  const texture = new Texture()
+  texture.source.data = '/tinted.png'
+  texture.colorSpace = THREE.SRGBColorSpace
+  const color = new THREE.Color().setRGB(0.5, 0.25, 2)
+  const geometry = triangleGeometry()
+  geometry.setAttribute('uv', new Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2))
+  const pointGeometry = new BufferGeometry().setAttribute(
+    'position',
+    new Float32BufferAttribute([0, 0, 0], 3),
+  )
+  const objects = [
+    new Mesh(geometry, new MeshBasicMaterial({ map: texture, color })),
+    new THREE.Points(pointGeometry, new THREE.PointsMaterial({ map: texture, color, size: 1 })),
+    new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, color })),
+  ]
+  for (const object of objects) {
+    const result = projectThreeScene(new Scene().add(object), perspective(), {
+      width: 100,
+      height: 100,
+    })
+    assert.deepEqual(result.diagnostics, [])
+    for (const mesh of projectedMeshes(result))
+      assert.deepEqual(mesh.texture?.tint, { r: 0.5, g: 0.25, b: 2 })
+    assert.ok(result.scene.length > 0)
+  }
+  color.r = Number.NaN
+  for (const object of objects) {
+    object.material.color.r = color.r
+    const result = projectThreeScene(new Scene().add(object), perspective(), {
+      width: 100,
+      height: 100,
+    })
+    assert.deepEqual(result.scene, [])
+    assert.equal(result.diagnostics[0]?.code, 'UNSUPPORTED_MATERIAL')
+    assert.match(result.diagnostics[0]?.message ?? '', /colour must be finite/)
+  }
+})
+
 test('non-portable texture sampling is refused with an actionable diagnostic', () => {
   const texture = new Texture()
   texture.source.data = '/checkerboard.png'

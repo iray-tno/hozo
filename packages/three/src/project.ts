@@ -770,9 +770,8 @@ function materialReason(material: MeshBasicMaterial): string | undefined {
   if (material.map) {
     if (material.vertexColors) return 'texture and vertex-colour modulation is not projected yet'
     if (material.wireframe) return 'textured wireframes are not projected'
-    if (material.color.getHex() !== 0xffffff) {
-      return 'texture and material-colour modulation is not projected yet'
-    }
+    if (![material.color.r, material.color.g, material.color.b].every(Number.isFinite))
+      return 'texture material colour must be finite'
     if (material.alphaTest > 0) return 'textured alphaTest needs per-pixel sampling'
   }
   return undefined
@@ -837,6 +836,12 @@ function textureWrapProps(texture: Texture): Pick<CanvasMeshTexture, 'wrap' | 'w
   const [wrapX, wrapY] = textureWrap(texture) ?? ['clamp', 'clamp']
   if (wrapX === wrapY) return wrapX === 'clamp' ? {} : { wrap: wrapX }
   return { wrapX, wrapY }
+}
+
+function textureTintProps(color: Color): Pick<CanvasMeshTexture, 'tint'> {
+  return color.r === 1 && color.g === 1 && color.b === 1
+    ? {}
+    : { tint: { r: color.r, g: color.g, b: color.b } }
 }
 
 function textureAttributeName(texture: Texture): `uv${string}` {
@@ -954,9 +959,8 @@ function pointsMaterialReason(material: PointsMaterial): string | undefined {
     const mapReason = textureReason(material.map)
     if (mapReason) return mapReason
     if (material.vertexColors) return 'texture and per-point colour modulation is not projected yet'
-    if (material.color.getHex() !== 0xffffff) {
-      return 'texture and point-colour modulation is not projected yet'
-    }
+    if (![material.color.r, material.color.g, material.color.b].every(Number.isFinite))
+      return 'texture point colour must be finite'
     if (material.alphaTest > 0) return 'textured alphaTest needs per-pixel sampling'
   }
   return undefined
@@ -970,9 +974,8 @@ function spriteMaterialReason(material: SpriteMaterial): string | undefined {
   if (material.map) {
     const mapReason = textureReason(material.map)
     if (mapReason) return mapReason
-    if (material.color.getHex() !== 0xffffff) {
-      return 'texture and sprite-colour modulation is not projected yet'
-    }
+    if (![material.color.r, material.color.g, material.color.b].every(Number.isFinite))
+      return 'texture sprite colour must be finite'
     if (material.alphaTest > 0) return 'textured alphaTest needs per-pixel sampling'
   }
   return undefined
@@ -1364,6 +1367,7 @@ function projectThreeSceneInternal(
                       })),
                       filter: spriteMap.magFilter === NearestFilter ? 'nearest' : 'linear',
                       ...textureWrapProps(spriteMap),
+                      ...textureTintProps(spriteMaterial.color),
                     },
                     vertices: points.map(({ x, y }) => ({ x, y })),
                     ...projectedOpacityProps(spriteMaterial),
@@ -1775,6 +1779,7 @@ function projectThreeSceneInternal(
                       })),
                       filter: pointMap.magFilter === NearestFilter ? 'nearest' : 'linear',
                       ...textureWrapProps(pointMap),
+                      ...textureTintProps(pointMaterial.color),
                     },
                     vertices: [
                       { x: projected.x - radius, y: projected.y - radius },
@@ -2643,6 +2648,7 @@ function projectThreeSceneInternal(
                           }),
                           filter: map.magFilter === NearestFilter ? 'nearest' : 'linear',
                           ...textureWrapProps(map),
+                          ...textureTintProps(range.material.color),
                         },
                         vertices: projected.map(({ x, y }) => ({ x, y })),
                         ...projectedOpacityProps(range.material),
