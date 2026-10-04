@@ -238,6 +238,23 @@ supported asynchronous completion signal remain separate investigation work.
 The investigation and completion criteria are tracked in
 [issue #716](https://github.com/iray-tno/hozo/issues/716).
 
+`ios-canvas-mode=profile` requires `diagnostics=true` and selects a separate,
+unpaced demand story. Before its first frame, it queries `RENDERER`, `VENDOR`,
+`VERSION` and `SHADING_LANGUAGE_VERSION` once. Expo implements these as blocking
+native calls: identity/query duration is kept in `performance.json.contextIdentity`,
+not in the render-call timing. Missing or failed strings stay explicitly unknown;
+a renderer name alone is not proof of hardware GPU use. No query is added to
+canonical or paced stories, and there is no per-frame query or extra flush.
+
+This mode also takes a three-second read-only native thread sample five seconds
+after the cold-story request and each transition request, targeting only the
+PID returned by that simulator's app launch. Samples, process CPU observations,
+collector errors and host display metadata are retained in the evidence artifact.
+Sampling can perturb execution, so this is a bottleneck/renderer diagnosis, not
+an uninstrumented timing comparison or a physical-iPhone performance claim.
+The unchanged pixel assertions and timeout still determine functional success;
+sampling failure is recorded, not silently retried into diagnostic success.
+
 Only the heavy iOS scene's functional pixel budget is therefore five minutes;
 it still returns as soon as pixels match and reports first-frame/disassembly/
 reassembly wait times. Raw GL, Android and AX/HID deadlines are unchanged.

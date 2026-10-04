@@ -144,5 +144,5 @@ test('driver and workflow expose paced only as an explicit comparison; canonical
   )
   assert.match(driver, /canvasMode: process.env.HOZO_IOS_CANVAS_MODE \|\| 'demand'/)
   assert.match(driver, /'three-kumimono--assembly-paced'/)
-  assert.match(workflow, /options: \[demand, continuous, instant, synchronized, paced\]/)
+  assert.match(workflow, /options: \[demand, continuous, instant, synchronized, paced, profile\]/)
 })

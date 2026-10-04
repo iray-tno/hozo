@@ -51,7 +51,7 @@ on:
       ios-canvas-mode:
         description: 'Controlled frame-loop comparison; demand is the canonical story'
         type: choice
-        options: [demand, continuous, instant, synchronized, paced]
+        options: [demand, continuous, instant, synchronized, paced, profile]
         default: demand
 
 permissions:
@@ -236,6 +236,13 @@ jobs:
           HOZO_IOS_SCENARIO: ${{ inputs.ios-scenario || 'full' }}
           HOZO_IOS_CANVAS_MODE: ${{ inputs.ios-canvas-mode || 'demand' }}
           HOZO_IOS_BUNDLE_COMMIT: ${{ inputs.rebundle-ios && github.sha || '' }}
+      - name: Record host display environment for explicit renderer diagnosis
+        if: always() && inputs.ios-canvas-mode == 'profile'
+        run: |
+          mkdir -p artifacts/native-showcase-ios
+          uname -a > artifacts/native-showcase-ios/host-kernel.txt
+          sysctl hw.model hw.physicalcpu hw.memsize > artifacts/native-showcase-ios/host-hardware.txt
+          system_profiler SPDisplaysDataType -json > artifacts/native-showcase-ios/host-displays.json
       - name: Summarize iOS submission and pixel measurements
         if: always()
         run: node examples/native-showcase/scripts/report-ios-performance.mjs artifacts/native-showcase-ios

@@ -12,7 +12,8 @@ export function summarizeIosPerformance(log, evidence) {
     if (start < 0) continue
     try {
       const event = JSON.parse(line.slice(start, line.lastIndexOf('}') + 1))
-      if (['render-return', 'submission-policy'].includes(event.phase)) events.push(event)
+      if (['render-return', 'submission-policy', 'context-identity'].includes(event.phase))
+        events.push(event)
     } catch (error) {
       parseErrors.push({ line: index + 1, error: error.message })
     }
@@ -30,6 +31,8 @@ export function summarizeIosPerformance(log, evidence) {
     performanceCertified: false,
     endpoints: events.filter(({ phase }) => phase === 'render-return'),
     submissionPolicy: events.filter(({ phase }) => phase === 'submission-policy'),
+    contextIdentity: events.filter(({ phase }) => phase === 'context-identity'),
+    renderProfiling: evidence.renderProfiling,
     pixelWaits: evidence.canvasObservation,
     parseErrors,
   }

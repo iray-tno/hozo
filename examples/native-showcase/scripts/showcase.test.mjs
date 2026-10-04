@@ -119,6 +119,8 @@ test('the actual Kumimono story uses the live lifecycle for both Canvas and Anim
         return { observeKumimonoRender: () => rendererWrappers.push('observe') }
       if (name === './kumimono-submission-probe.ts')
         return { paceKumimonoRender: () => rendererWrappers.push('pace') }
+      if (name === './kumimono-context-probe.ts')
+        return { inspectKumimonoContext: () => rendererWrappers.push('inspect') }
       if (name === './use-native-app-active.ts')
         return {
           useNativeAppActive: () => {
@@ -153,6 +155,16 @@ test('the actual Kumimono story uses the live lifecycle for both Canvas and Anim
     assert.equal(pacedCanvas.props.frameloop, canvas.props.frameloop)
     pacedCanvas.props.onCreated({ gl: {} })
     assert.deepEqual(rendererWrappers, ['observe', 'pace'])
+    rendererWrappers.length = 0
+    const profileElement = module.exports.AssemblyProfile.render()
+    assert.equal(profileElement.props.inspectContext, true)
+    assert.equal(profileElement.props.paceSubmissions, undefined)
+    const profileCanvas = react.Children.toArray(
+      profileElement.type(profileElement.props).props.children,
+    ).find((child) => child.type === 'ThreeCanvas')
+    assert.equal(profileCanvas.props.frameloop, canvas.props.frameloop)
+    profileCanvas.props.onCreated({ gl: { getContext: () => ({}) } })
+    assert.deepEqual(rendererWrappers, ['inspect', 'observe'])
   }
 })
 

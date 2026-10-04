@@ -43,3 +43,23 @@ test('truncated native logs retain parse errors rather than inventing endpoint m
   assert.equal(report.parseErrors[0].line, 1)
   assert.deepEqual(report.endpoints, [])
 })
+
+test('diagnostic GL identity and profiler perturbation remain separate from submission timing', () => {
+  const identity = {
+    phase: 'context-identity',
+    parameters: { RENDERER: 'unknown renderer' },
+    queryMs: 12,
+    errors: {},
+    timingPerturbed: true,
+  }
+  const report = summarizeIosPerformance(`[Hozo Kumimono] ${JSON.stringify(identity)}`, {
+    canvasMode: 'profile',
+    diagnostic: true,
+    renderProfiling: { timingPerturbed: true },
+  })
+  assert.deepEqual(report.contextIdentity, [identity])
+  assert.deepEqual(report.endpoints, [])
+  assert.equal(report.renderProfiling.timingPerturbed, true)
+  assert.equal(report.performanceCertified, false)
+  assert.deepEqual(summarizeIosPerformance('', {}).contextIdentity, [])
+})
