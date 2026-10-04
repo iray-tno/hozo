@@ -254,6 +254,11 @@ Sampling can perturb execution, so this is a bottleneck/renderer diagnosis, not
 an uninstrumented timing comparison or a physical-iPhone performance claim.
 The unchanged pixel assertions and timeout still determine functional success;
 sampling failure is recorded, not silently retried into diagnostic success.
+`performance.json.renderProfiling` reads each collector's actual `sampling.json`
+and records its result/error separately from the subprocess exit code. Its
+`samplingComplete` is true only if all three observations succeed and each has a
+nonempty native stack file. Functional success and GL identity do not imply that
+thread sampling succeeded.
 
 Only the heavy iOS scene's functional pixel budget is therefore five minutes;
 it still returns as soon as pixels match and reports first-frame/disassembly/
