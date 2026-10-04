@@ -119,7 +119,6 @@ labels; ask in the PR or issue if one seems missing.
 | `needs-device` | Cannot be settled without real hardware or a real screen reader |
 | `performance` | Speed or size of the compiler or runtime — with a number |
 | `direction` | Where the project is going; no owner yet |
-| `phase-3` | Beyond the first release |
 
 ## Writing
 
