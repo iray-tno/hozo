@@ -15,8 +15,8 @@ interface Props {
   description: string
   /** Keep the page out of search results (the MDX probe). */
   noindex?: boolean
-  /** Structured data, emitted as JSON-LD. */
-  jsonLd?: Record<string, unknown>
+  /** Structured data, emitted as JSON-LD: one block per object. */
+  jsonLd?: Record<string, unknown> | readonly Record<string, unknown>[]
 }
 
 const { title, description, noindex = false, jsonLd } = Astro.props
@@ -35,6 +35,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href
 // Absolute: a crawler fetching the card resolves nothing against the page.
 const image = new URL(`${base}/og-image.png`, Astro.site).href
 const imageAlt = 'Hozo: Write React Native. Ship Semantic Web & Native UI.'
+const structuredData = jsonLd === undefined ? [] : Array.isArray(jsonLd) ? jsonLd : [jsonLd]
+// Search Console's ownership check, the code shared across iray-tno.github.io
+// (#704). Public by design: the tag proves control of the page, not a secret.
+const GOOGLE_SITE_VERIFICATION = 'Bi3E2hIYlL4dUq-rWPnj6Qklwt7RR4_kLA4KZCpN3xI'
 ---
 
 <meta charset="UTF-8" />
@@ -44,7 +48,19 @@ const imageAlt = 'Hozo: Write React Native. Ship Semantic Web & Native UI.'
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
-{noindex && <meta name="robots" content="noindex" />}
+{
+  noindex ? (
+    <meta name="robots" content="noindex" />
+  ) : (
+    // Lets search engines and AI overviews show the large card image and a
+    // full-length snippet rather than a truncated one (#704).
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+  )
+}
+<meta name="google-site-verification" content={GOOGLE_SITE_VERIFICATION} />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Hozo" />
 <meta property="og:title" content={title} />
@@ -62,7 +78,11 @@ const imageAlt = 'Hozo: Write React Native. Ship Semantic Web & Native UI.'
 <meta name="twitter:image" content={image} />
 <meta name="twitter:image:alt" content={imageAlt} />
 <link rel="sitemap" href={`${base}/sitemap.xml`} />
-{jsonLd && <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+{
+  structuredData.map((data) => (
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(data)} />
+  ))
+}
 {
   analytics && (
     <>
