@@ -138,4 +138,15 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // React Native 0.87's SurfaceMountingManager keeps its view registry in
+    // androidx.collection's MutableIntObjectMap, and 1.4.0-1.4.2 corrupt that
+    // map after runs of removals: entries for views that were never deleted
+    // vanish, React Native logs "Unable to find viewState for tag N" and drops
+    // every later update to them. In canvas-android that was the Three corpus's
+    // stale scene text and its Back button that no longer received presses
+    // (#714). React Native pins 1.4.0; 1.4.3 fixed it, and React Native 0.88
+    // moves to 1.4.4 (reactwg/react-native-releases#1426). Remove this when
+    // the app is on 0.88.
+    implementation("androidx.collection:collection:1.4.4")
 }
