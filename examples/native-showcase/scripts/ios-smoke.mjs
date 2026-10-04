@@ -53,6 +53,26 @@ const label = (value) => (node) => node.AXLabel?.replace(/\s+/g, ' ').trim() ===
 let udid
 let latestTree = '[]'
 let logger
+const renderSamples = []
+
+function sampleRender(phase) {
+  if (evidence.canvasMode !== 'profile') return
+  const child = spawn(
+    process.execPath,
+    [
+      resolve(root, 'scripts/ios-render-sample.mjs'),
+      String(evidence.launches[app].pid),
+      resolve(output, `render-${phase}-stacks`),
+    ],
+    { stdio: 'ignore' },
+  )
+  renderSamples.push(
+    new Promise((complete) => {
+      child.once('error', (error) => complete({ phase, error: error.message }))
+      child.once('exit', (code, signal) => complete({ phase, code, signal }))
+    }),
+  )
+}
 
 let commandNumber = 0
 const idb = (...args) => {
@@ -186,9 +206,15 @@ try {
     'unsupported iOS scenario',
   )
   assert.ok(
-    ['demand', 'continuous', 'instant', 'synchronized'].includes(evidence.canvasMode),
+    ['demand', 'continuous', 'instant', 'synchronized', 'paced', 'profile'].includes(
+      evidence.canvasMode,
+    ),
     'unsupported Canvas mode',
   )
+  if (evidence.canvasMode === 'profile') {
+    assert.equal(evidence.diagnostic, true, 'context/profile mode requires diagnostics=true')
+    evidence.renderProfiling = { timingPerturbed: true }
+  }
   const binary = resolve(root, 'ios/build/Build/Products/Release-iphonesimulator/HozoShowcase.app')
   assert.ok(statSync(resolve(binary, 'main.jsbundle')).size > 0, 'standalone JS bundle is missing')
   const recognizer = resolve(output, 'recognize-text')
@@ -419,6 +445,8 @@ try {
       record('shared dialog opens, cancels and confirms')
     }
 
+    const canvasRequestedAt = Date.now()
+    sampleRender('cold')
     await story(
       evidence.canvasMode === 'continuous'
         ? 'three-kumimono--assembly-continuous'
@@ -426,7 +454,11 @@ try {
           ? 'three-kumimono--assembly-instant'
           : evidence.canvasMode === 'synchronized'
             ? 'three-kumimono--assembly-synchronized'
-            : 'three-kumimono--assembly',
+            : evidence.canvasMode === 'paced'
+              ? 'three-kumimono--assembly-paced'
+              : evidence.canvasMode === 'profile'
+                ? 'three-kumimono--assembly-profile'
+                : 'three-kumimono--assembly',
       '組物: timber bracket assembly',
     )
     const canvas = await assembly('assembled')
@@ -440,9 +472,13 @@ try {
     evidence.canvasObservation = {
       assembledColours: assembled.colours,
       firstFrameWaitMs: assembledFrame.presentedAfterMs,
+      firstFrameEndToEndMs: Date.now() - canvasRequestedAt,
     }
+    const disassemblyRequestedAt = Date.now()
+    sampleRender('disassembly')
     await tap(label('分解'), 'disassemble')
     await assembly('disassembled')
+    evidence.canvasObservation.disassemblyStateObservedMs = Date.now() - disassemblyRequestedAt
     const acceptDisassembled = (image) => {
       const difference = changedFraction(assembled, image)
       evidence.canvasObservation.disassembledColours = image.colours
@@ -458,6 +494,7 @@ try {
       )
       disassembled = frame.image
       evidence.canvasObservation.disassemblyWaitMs = frame.presentedAfterMs
+      evidence.canvasObservation.disassemblyEndToEndMs = Date.now() - disassemblyRequestedAt
     } catch (error) {
       if (evidence.diagnostic && error instanceof PresentedImageTimeout) {
         // Keep the failed primary gate intact, and perform ONLY read-only captures.
@@ -475,8 +512,11 @@ try {
     }
     const difference = changedFraction(assembled, disassembled)
     assert.ok(difference >= 0.01, `GL image did not change: ${difference}`)
+    const reassemblyRequestedAt = Date.now()
+    sampleRender('reassembly')
     await tap(label('組み立て'), 'assemble')
     await assembly('assembled')
+    evidence.canvasObservation.reassemblyStateObservedMs = Date.now() - reassemblyRequestedAt
     const reassembledFrame = await waitForIosSceneImage(
       () => canvasImage('12-reassembled', canvas),
       (image) => image.colours >= 40 && changedFraction(disassembled, image) >= 0.01,
@@ -484,6 +524,7 @@ try {
     )
     const reassembled = reassembledFrame.image
     evidence.canvasObservation.reassemblyWaitMs = reassembledFrame.presentedAfterMs
+    evidence.canvasObservation.reassemblyEndToEndMs = Date.now() - reassemblyRequestedAt
     const reverseDifference = changedFraction(disassembled, reassembled)
     assert.ok(reverseDifference >= 0.01, `reverse GL image did not change: ${reverseDifference}`)
     record('Expo GL renders and animates the actual scene', {
@@ -512,6 +553,7 @@ try {
   }
   throw error
 } finally {
+  if (renderSamples.length) evidence.renderProfiling.collectors = await Promise.all(renderSamples)
   logger?.kill()
   if (evidence.diagnostic) {
     try {

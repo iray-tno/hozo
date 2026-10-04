@@ -6,7 +6,9 @@ import type { Meta, StoryObj } from '@storybook/react-native'
 import type { ExpoWebGLRenderingContext } from 'expo-gl'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, AppState, ScrollView } from 'react-native'
+import { inspectKumimonoContext } from './kumimono-context-probe.ts'
 import { observeKumimonoRender } from './kumimono-render-probe.ts'
+import { paceKumimonoRender } from './kumimono-submission-probe.ts'
 import { useNativeAppActive } from './use-native-app-active.ts'
 
 function Animation({
@@ -61,10 +63,14 @@ function KumimonoDemo({
   continuousFrames = false,
   forceReducedMotion = false,
   synchronizeFrames = false,
+  paceSubmissions = false,
+  inspectContext = false,
 }: {
   continuousFrames?: boolean
   forceReducedMotion?: boolean
   synchronizeFrames?: boolean
+  paceSubmissions?: boolean
+  inspectContext?: boolean
 }) {
   const [study] = useState(() => createKumimonoScene())
   const [target, setTarget] = useState(1)
@@ -118,6 +124,11 @@ function KumimonoDemo({
             }),
           )
           configureKumimonoRenderer(gl)
+          if (inspectContext) {
+            inspectKumimonoContext(gl.getContext(), (event) =>
+              console.info('[Hozo Kumimono]', JSON.stringify(event)),
+            )
+          }
           observeKumimonoRender(
             gl,
             study,
@@ -127,6 +138,14 @@ function KumimonoDemo({
               ? () => (gl.getContext() as ExpoWebGLRenderingContext).flushEXP()
               : undefined,
           )
+          if (paceSubmissions) {
+            paceKumimonoRender(
+              gl,
+              study,
+              () => observedProgress.current,
+              (event) => console.info('[Hozo Kumimono]', JSON.stringify(event)),
+            )
+          }
         }}
       >
         <Animation
@@ -190,4 +209,13 @@ export const AssemblyInstant: StoryObj<typeof meta> = {
 // Blocking diagnostic, not a performance-safe production frame-loop policy.
 export const AssemblySynchronized: StoryObj<typeof meta> = {
   render: () => <KumimonoDemo synchronizeFrames />,
+}
+// Explicit 5Hz submission comparison; simulation and endpoint assertions stay
+// unchanged. This is rate limiting, NOT asynchronous native backpressure.
+export const AssemblyPaced: StoryObj<typeof meta> = {
+  render: () => <KumimonoDemo paceSubmissions />,
+}
+// One-time blocking context identity query; no pacing, flushing or quality change.
+export const AssemblyProfile: StoryObj<typeof meta> = {
+  render: () => <KumimonoDemo inspectContext />,
 }
