@@ -156,6 +156,10 @@ const PACKAGES = {
   svg: {
     exports: { '.': './dist/index.js' },
     native: true,
+    // Filter exports existed as stubs in early 15.x. FeComposite and
+    // FeDropShadow were implemented in 15.9.0, so >=15 promises too much.
+    // https://github.com/software-mansion/react-native-svg/releases/tag/v15.9.0
+    peerOverrides: { 'react-native-svg': '>=15.9.0' },
     keywords: ['react-native', 'react', 'svg', 'vector', 'graphics'],
   },
   navigation: {
@@ -419,6 +423,11 @@ export function applyMetadata(name) {
   const json = JSON.parse(readFileSync(file, 'utf8'))
   delete json.private
   const merged = { ...json, ...metadataFor(name) }
+  // Pin feature-dependent peers in the generator without taking ownership
+  // of unrelated React/platform peer ranges in the same package.
+  if (PACKAGES[name].peerOverrides) {
+    merged.peerDependencies = { ...json.peerDependencies, ...PACKAGES[name].peerOverrides }
+  }
   for (const key of Object.keys(merged)) if (merged[key] === undefined) delete merged[key]
   // Workspace dependencies all use the caret protocol; see `shared`.
   for (const field of ['dependencies', 'devDependencies']) {

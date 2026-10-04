@@ -80,6 +80,30 @@ export function Soft() { return <Svg><Svg.Defs><Svg.Filter id="soft">
   assert.doesNotMatch(output, /react-native'|@hozo\/primitives|@hozo\/engine/)
 })
 
+test('every Native-backed filter composition import uses the optional SVG package', () => {
+  const source = `import { Svg } from '@hozo/svg'
+export function Shadow() { return <Svg><Svg.Defs><Svg.Filter id="shadow">
+  <Svg.FeOffset dx={2} dy={3} result="offset" />
+  <Svg.FeFlood floodColor="black" floodOpacity={0.5} result="paint" />
+  <Svg.FeComposite in="paint" in2="offset" operator="in" result="shadow" />
+  <Svg.FeBlend in="shadow" in2="SourceGraphic" mode="multiply" />
+  <Svg.FeMerge><Svg.FeMergeNode in="shadow" /><Svg.FeMergeNode in="SourceGraphic" /></Svg.FeMerge>
+  <Svg.FeDropShadow dx={2} dy={3} stdDeviation="2" />
+</Svg.Filter></Svg.Defs></Svg> }`
+  const output = transformHozoSource(source, 'Shadow.tsx')
+  assert.ok(output)
+  assert.match(
+    output,
+    /import \{ Svg, Defs, Filter, FeOffset, FeFlood, FeComposite, FeBlend, FeMerge, FeMergeNode, FeDropShadow \} from '@hozo\/svg'/,
+  )
+  assert.match(output, /<FeComposite in="paint" in2="offset" operator="in" result="shadow"/)
+  assert.match(
+    output,
+    /<FeMerge><FeMergeNode in="shadow"><\/FeMergeNode><FeMergeNode in="SourceGraphic"><\/FeMergeNode><\/FeMerge>/,
+  )
+  assert.doesNotMatch(output, /react-native'|@hozo\/primitives|@hozo\/engine/)
+})
+
 test('direct owner imports keep non-component compatibility values while components lower', () => {
   const source = `import { View } from '@hozo/primitives'
 import { Platform } from '@hozo/rn-compat'

@@ -88,6 +88,95 @@ export function Soft() {
   assert.deepEqual(native.nativeImports, [])
 })
 
+test('SVG composition keeps graph order, named inputs and arithmetic coefficients', () => {
+  const source = `import { Svg } from '@hozo/svg'
+export function Shadow() { return <Svg><Svg.Defs>
+  <Svg.Filter id="shadow">
+    <Svg.FeOffset in="SourceAlpha" dx={dx} dy={3} result="offset" />
+    <Svg.FeFlood floodColor="#2563eb" floodOpacity={0.5} result="paint" />
+    <Svg.FeComposite in="paint" in2="offset" operator="arithmetic" k1={0} k2={1} k3={0.5} k4={0} result="mixed" />
+    <Svg.FeBlend in="mixed" in2="SourceGraphic" mode="multiply" result="blend" />
+    <Svg.FeMerge><Svg.FeMergeNode in="blend" /><Svg.FeMergeNode in="SourceGraphic" /></Svg.FeMerge>
+    <Svg.FeDropShadow dx={2} dy={3} stdDeviation="2" floodColor="black" floodOpacity={0.5} />
+  </Svg.Filter>
+</Svg.Defs><Svg.Rect filter="url(#shadow)" /></Svg> }`
+  const web = lowerModule(source, 'Shadow.tsx', 'Shadow.tsx', compiler, ROOT)
+  const native = compiler.compileNative(source)[0]
+  assert.ok(web)
+  assert.ok(native)
+  for (const [output, prefix] of [
+    [web.code, 'fe'],
+    [native.jsx, 'Fe'],
+  ] as const) {
+    assert.match(
+      output,
+      new RegExp(`<${prefix}Offset in="SourceAlpha" dx=\\{dx\\} dy=\\{3\\} result="offset"`),
+    )
+    assert.match(
+      output,
+      new RegExp(`<${prefix}Flood floodColor="#2563eb" floodOpacity=\\{0\\.5\\} result="paint"`),
+    )
+    assert.match(
+      output,
+      new RegExp(
+        `<${prefix}Composite in="paint" in2="offset" operator="arithmetic" k1=\\{0\\} k2=\\{1\\} k3=\\{0\\.5\\} k4=\\{0\\} result="mixed"`,
+      ),
+    )
+    assert.match(
+      output,
+      new RegExp(`<${prefix}Blend in="mixed" in2="SourceGraphic" mode="multiply" result="blend"`),
+    )
+    assert.match(
+      output,
+      new RegExp(
+        `<${prefix}Merge><${prefix}MergeNode in="blend"[^>]*>[\\s\\S]*<${prefix}MergeNode in="SourceGraphic"`,
+      ),
+    )
+    assert.match(
+      output,
+      new RegExp(
+        `<${prefix}DropShadow dx=\\{2\\} dy=\\{3\\} stdDeviation="2" floodColor="black" floodOpacity=\\{0\\.5\\}`,
+      ),
+    )
+    assert.match(output, /filter="url\(#shadow\)"/)
+    const tags = [
+      ...output.matchAll(
+        new RegExp(
+          `<(${prefix}(?:Offset|Flood|Composite|Blend|Merge|MergeNode|DropShadow))\\b`,
+          'g',
+        ),
+      ),
+    ].map((match) => match[1].slice(2))
+    assert.deepEqual(tags, [
+      'Offset',
+      'Flood',
+      'Composite',
+      'Blend',
+      'Merge',
+      'MergeNode',
+      'MergeNode',
+      'DropShadow',
+    ])
+  }
+  assert.deepEqual(
+    new Set(native.runtimeImports),
+    new Set([
+      'Svg',
+      'Defs',
+      'Filter',
+      'FeOffset',
+      'FeFlood',
+      'FeComposite',
+      'FeBlend',
+      'FeMerge',
+      'FeMergeNode',
+      'FeDropShadow',
+      'Rect',
+    ]),
+  )
+  assert.deepEqual(native.nativeImports, [])
+})
+
 test('ActivityIndicator lowers to an accessible Web spinner and stays native on device', () => {
   const source = `import { ActivityIndicator } from 'react-native'
 export function Loading() { return <ActivityIndicator size="large" color="white" /> }

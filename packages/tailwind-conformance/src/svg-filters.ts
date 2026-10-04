@@ -1,5 +1,5 @@
 // This measures the API/compiler boundary, not filter pixels. The external
-// denominator includes upstream's stubs so adding three exports cannot turn
+// denominator includes upstream's stubs so adding backed exports cannot turn
 // into "100% SVG filters". Native's smaller denominator is separately reviewed
 // against installed upstream source; unknown implementations require review.
 
@@ -37,6 +37,38 @@ export interface SvgFilterRow {
   upstreamNative: 'backed' | 'stub'
   web: boolean
   native: boolean
+}
+
+// These are representative props, not a complete prop-parity inventory.
+// Keep effect nodes inside a Filter and merge nodes inside a FeMerge: proving
+// an element name on an invalid standalone tree would hide integration gaps.
+const PROBE_PROPS: Record<string, Record<string, string | number>> = {
+  Filter: { id: 'effect', x: '-20%', y: '-20%', width: '140%', height: '140%' },
+  FeBlend: { in: 'SourceGraphic', in2: 'SourceAlpha', mode: 'multiply', result: 'effect' },
+  FeColorMatrix: { in: 'SourceGraphic', type: 'saturate', values: '0', result: 'effect' },
+  FeComposite: {
+    in: 'SourceGraphic',
+    in2: 'SourceAlpha',
+    operator: 'arithmetic',
+    k1: 0,
+    k2: 1,
+    k3: 0.5,
+    k4: 0,
+    result: 'effect',
+  },
+  FeDropShadow: {
+    dx: 2,
+    dy: 3,
+    stdDeviation: '2',
+    floodColor: 'black',
+    floodOpacity: 0.5,
+    result: 'effect',
+  },
+  FeFlood: { floodColor: '#2563eb', floodOpacity: 0.5, result: 'effect' },
+  FeGaussianBlur: { in: 'SourceGraphic', stdDeviation: '2 3', result: 'effect' },
+  FeMerge: { result: 'effect' },
+  FeMergeNode: { in: 'SourceGraphic' },
+  FeOffset: { in: 'SourceGraphic', dx: 2, dy: 3, result: 'effect' },
 }
 
 export function svgFilterInventory(): string[] {
@@ -94,9 +126,30 @@ export function svgFilterScorecard() {
     const upstreamNative = nativeAvailability(name)
     const component = namespace[name]
     if (!component) return { name, upstreamNative, web: false, native: false }
+    const props = PROBE_PROPS[name]
+    if (!props) throw new Error(`${name} needs a reviewed SVG filter probe`)
     const tag = name[0].toLowerCase() + name.slice(1)
+    const attrs = Object.entries(props).map(
+      ([key, value]) =>
+        `${key}=${typeof value === 'string' ? JSON.stringify(value) : `{${value}}`}`,
+    )
+    const children = name === 'FeMerge' ? '<Svg.FeMergeNode in="SourceGraphic" />' : ''
+    let effect = `<Svg.${name} ${attrs.join(' ')}>${children}</Svg.${name}>`
+    let fallback = createElement(
+      component,
+      props,
+      name === 'FeMerge' ? createElement(Svg.FeMergeNode, { in: 'SourceGraphic' }) : undefined,
+    )
+    if (name === 'FeMergeNode') {
+      effect = `<Svg.FeMerge>${effect}</Svg.FeMerge>`
+      fallback = createElement(Svg.FeMerge, {}, fallback)
+    }
+    if (name !== 'Filter') {
+      effect = `<Svg.Filter id="effect">${effect}</Svg.Filter>`
+      fallback = createElement(Svg.Filter, { id: 'effect' }, fallback)
+    }
     const source = `import { Svg } from '@hozo/svg'
-export function Effect() { return <Svg><Svg.Defs><Svg.${name} result="effect" /></Svg.Defs></Svg> }`
+export function Effect() { return <Svg><Svg.Defs>${effect}</Svg.Defs><Svg.Rect filter="url(#effect)" /></Svg> }`
     const webOutput = compile(source)[0]?.jsx ?? ''
     const nativeOutput = compileNative(source)[0]
     const metroOutput = transformHozoSource(source, 'Effect.tsx') ?? ''
@@ -104,16 +157,28 @@ export function Effect() { return <Svg><Svg.Defs><Svg.${name} result="effect" />
       createElement(
         Svg,
         {},
-        createElement(Svg.Defs, {}, createElement(component, { result: 'effect' })),
+        createElement(Svg.Defs, {}, fallback),
+        createElement(Svg.Rect, { filter: 'url(#effect)' }),
       ),
     )
+    const marker =
+      name === 'Filter'
+        ? 'id="effect"'
+        : name === 'FeMergeNode'
+          ? 'in="SourceGraphic"'
+          : 'result="effect"'
+    const webTag = webOutput.match(new RegExp(`<${tag}\\b[^>]*>`))?.[0] ?? ''
+    const nativeTag = nativeOutput?.jsx.match(new RegExp(`<${name}\\b[^>]*>`))?.[0] ?? ''
     const web =
-      new RegExp(`<${tag}\\b[^>]*result="effect"`).test(webOutput) &&
-      new RegExp(`<${tag}\\b[^>]*result="effect"`).test(markup)
+      attrs.every((attr) => webTag.includes(attr)) &&
+      new RegExp(`<${tag}\\b[^>]*${marker}`).test(markup) &&
+      webOutput.includes('filter="url(#effect)"') &&
+      markup.includes('filter="url(#effect)"')
     const native =
       upstreamNative === 'backed' &&
       nativeOutput?.runtimeImports.includes(name) === true &&
-      new RegExp(`<${name}\\b[^>]*result="effect"`).test(nativeOutput.jsx) &&
+      attrs.every((attr) => nativeTag.includes(attr)) &&
+      nativeOutput.jsx.includes('filter="url(#effect)"') &&
       new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from '@hozo/svg'`).test(metroOutput) &&
       new RegExp(`export const ${name} = withClassName\\(NativeSvg\\.${name}\\)`).test(
         nativeFacade,

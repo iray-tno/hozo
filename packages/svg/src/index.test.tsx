@@ -1,7 +1,69 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { FeColorMatrix, FeGaussianBlur, Filter, Svg } from './index.tsx'
+import {
+  FeBlend,
+  FeColorMatrix,
+  FeComposite,
+  FeDropShadow,
+  FeFlood,
+  FeGaussianBlur,
+  FeMerge,
+  FeMergeNode,
+  FeOffset,
+  Filter,
+  Svg,
+} from './index.tsx'
+
+test('composition exports preserve the namespace ABI and ordered SVG filter graph', () => {
+  for (const [name, component] of Object.entries({
+    FeBlend,
+    FeComposite,
+    FeDropShadow,
+    FeFlood,
+    FeMerge,
+    FeMergeNode,
+    FeOffset,
+  })) {
+    assert.equal(Svg[name as keyof typeof Svg], component)
+  }
+  const html = renderToStaticMarkup(
+    <Svg viewBox="0 0 40 40">
+      <Svg.Defs>
+        <Svg.Filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+          <Svg.FeGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur" />
+          <Svg.FeOffset in="blur" dx={2} dy={3} result="offset" />
+          <Svg.FeFlood floodColor="#2563eb" floodOpacity={0.5} result="paint" />
+          <Svg.FeComposite in="paint" in2="offset" operator="in" result="shadow" />
+          <Svg.FeMerge>
+            <Svg.FeMergeNode in="shadow" />
+            <Svg.FeMergeNode in="SourceGraphic" />
+          </Svg.FeMerge>
+        </Svg.Filter>
+        <Svg.Filter id="blend">
+          <Svg.FeBlend in="SourceGraphic" in2="SourceAlpha" mode="multiply" />
+        </Svg.Filter>
+        <Svg.Filter id="compact">
+          <Svg.FeDropShadow dx={2} dy={3} stdDeviation="2" floodColor="black" floodOpacity={0.5} />
+        </Svg.Filter>
+      </Svg.Defs>
+      <Svg.Rect width={40} height={40} filter="url(#shadow)" />
+    </Svg>,
+  )
+  assert.match(html, /<feOffset in="blur" dx="2" dy="3" result="offset">/)
+  assert.match(html, /<feFlood flood-color="#2563eb" flood-opacity="0.5" result="paint">/)
+  assert.match(html, /<feComposite in="paint" in2="offset" operator="in" result="shadow">/)
+  assert.match(
+    html,
+    /<feMerge><feMergeNode in="shadow"><\/feMergeNode><feMergeNode in="SourceGraphic"><\/feMergeNode><\/feMerge>/,
+  )
+  assert.match(html, /<feBlend in="SourceGraphic" in2="SourceAlpha" mode="multiply">/)
+  assert.match(
+    html,
+    /<feDropShadow dx="2" dy="3" stdDeviation="2" flood-color="black" flood-opacity="0.5">/,
+  )
+  assert.match(html, /filter="url\(#shadow\)"/)
+})
 
 test('filter fallback keeps chaining, bounds and correctly cased browser attributes', () => {
   assert.equal(Svg.Filter, Filter)

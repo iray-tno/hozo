@@ -43,6 +43,13 @@ export const Use = withClassName(NativeSvg.Use)
 export const Filter = withClassName(NativeSvg.Filter)
 export const FeColorMatrix = withClassName(NativeSvg.FeColorMatrix)
 export const FeGaussianBlur = withClassName(NativeSvg.FeGaussianBlur)
+export const FeBlend = withClassName(NativeSvg.FeBlend)
+export const FeComposite = withClassName(NativeSvg.FeComposite)
+export const FeDropShadow = withClassName(NativeSvg.FeDropShadow)
+export const FeFlood = withClassName(NativeSvg.FeFlood)
+export const FeMerge = withClassName(NativeSvg.FeMerge)
+export const FeMergeNode = withClassName(NativeSvg.FeMergeNode)
+export const FeOffset = withClassName(NativeSvg.FeOffset)
 const SvgRoot = withClassName(NativeSvg.Svg)
 
 export type { SvgLinkProps } from './svg-link.native.tsx'
@@ -77,4 +84,11 @@ export const Svg = Object.assign(SvgRoot, {
   Filter,
   FeColorMatrix,
   FeGaussianBlur,
+  FeBlend,
+  FeComposite,
+  FeDropShadow,
+  FeFlood,
+  FeMerge,
+  FeMergeNode,
+  FeOffset,
 })

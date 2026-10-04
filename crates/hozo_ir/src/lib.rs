@@ -621,6 +621,13 @@ pub enum SvgElement {
     Filter,
     FeColorMatrix,
     FeGaussianBlur,
+    FeBlend,
+    FeComposite,
+    FeDropShadow,
+    FeFlood,
+    FeMerge,
+    FeMergeNode,
+    FeOffset,
 }
 
 impl SvgElement {
@@ -656,6 +663,13 @@ impl SvgElement {
             SvgElement::Filter => "Filter",
             SvgElement::FeColorMatrix => "FeColorMatrix",
             SvgElement::FeGaussianBlur => "FeGaussianBlur",
+            SvgElement::FeBlend => "FeBlend",
+            SvgElement::FeComposite => "FeComposite",
+            SvgElement::FeDropShadow => "FeDropShadow",
+            SvgElement::FeFlood => "FeFlood",
+            SvgElement::FeMerge => "FeMerge",
+            SvgElement::FeMergeNode => "FeMergeNode",
+            SvgElement::FeOffset => "FeOffset",
         }
     }
 
@@ -698,6 +712,13 @@ impl SvgElement {
             SvgElement::Filter => "filter",
             SvgElement::FeColorMatrix => "feColorMatrix",
             SvgElement::FeGaussianBlur => "feGaussianBlur",
+            SvgElement::FeBlend => "feBlend",
+            SvgElement::FeComposite => "feComposite",
+            SvgElement::FeDropShadow => "feDropShadow",
+            SvgElement::FeFlood => "feFlood",
+            SvgElement::FeMerge => "feMerge",
+            SvgElement::FeMergeNode => "feMergeNode",
+            SvgElement::FeOffset => "feOffset",
             other => match other {
                 SvgElement::G => "g",
                 SvgElement::Rect => "rect",
@@ -753,6 +774,13 @@ impl SvgElement {
             "Filter" => SvgElement::Filter,
             "FeColorMatrix" => SvgElement::FeColorMatrix,
             "FeGaussianBlur" => SvgElement::FeGaussianBlur,
+            "FeBlend" => SvgElement::FeBlend,
+            "FeComposite" => SvgElement::FeComposite,
+            "FeDropShadow" => SvgElement::FeDropShadow,
+            "FeFlood" => SvgElement::FeFlood,
+            "FeMerge" => SvgElement::FeMerge,
+            "FeMergeNode" => SvgElement::FeMergeNode,
+            "FeOffset" => SvgElement::FeOffset,
             _ => return None,
         })
     }
@@ -5352,6 +5380,13 @@ mod svg_element_tests {
         assert_eq!(SvgElement::ForeignObject.tag(), "foreignObject");
         assert_eq!(SvgElement::FeColorMatrix.tag(), "feColorMatrix");
         assert_eq!(SvgElement::FeGaussianBlur.tag(), "feGaussianBlur");
+        assert_eq!(SvgElement::FeBlend.tag(), "feBlend");
+        assert_eq!(SvgElement::FeComposite.tag(), "feComposite");
+        assert_eq!(SvgElement::FeDropShadow.tag(), "feDropShadow");
+        assert_eq!(SvgElement::FeFlood.tag(), "feFlood");
+        assert_eq!(SvgElement::FeMerge.tag(), "feMerge");
+        assert_eq!(SvgElement::FeMergeNode.tag(), "feMergeNode");
+        assert_eq!(SvgElement::FeOffset.tag(), "feOffset");
     }
 
     #[test]
@@ -5370,6 +5405,13 @@ mod svg_element_tests {
                         | SvgElement::ForeignObject
                         | SvgElement::FeColorMatrix
                         | SvgElement::FeGaussianBlur
+                        | SvgElement::FeBlend
+                        | SvgElement::FeComposite
+                        | SvgElement::FeDropShadow
+                        | SvgElement::FeFlood
+                        | SvgElement::FeMerge
+                        | SvgElement::FeMergeNode
+                        | SvgElement::FeOffset
                 ),
                 "{:?} has tag {tag}",
                 element,
@@ -5419,6 +5461,13 @@ mod svg_element_tests {
         SvgElement::Filter,
         SvgElement::FeColorMatrix,
         SvgElement::FeGaussianBlur,
+        SvgElement::FeBlend,
+        SvgElement::FeComposite,
+        SvgElement::FeDropShadow,
+        SvgElement::FeFlood,
+        SvgElement::FeMerge,
+        SvgElement::FeMergeNode,
+        SvgElement::FeOffset,
     ];
 }
 
