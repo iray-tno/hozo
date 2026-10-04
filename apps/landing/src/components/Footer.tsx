@@ -1,4 +1,4 @@
-import { Link, Text, View } from '@hozo/core'
+import { Link, Nav, Text, View } from '@hozo/core'
 
 export interface FooterProps {
   baseUrl?: string
@@ -70,9 +70,24 @@ export function Footer({ baseUrl = '' }: FooterProps) {
             </Link>
           </View>
 
-          <Text className="text-xs text-stone-500">
-            &copy; {year} Hozo Contributors. MIT Licensed.
-          </Text>
+          <View className="flex flex-col items-center md:items-end gap-2 shrink min-w-0">
+            {/* Where this site sits under iray-tno.github.io, in the footer so
+                the header keeps to the page's own navigation. Mirrored by the
+                BreadcrumbList the index page emits as JSON-LD (#704). */}
+            <Nav
+              accessibilityLabel="Breadcrumb"
+              className="flex flex-row items-center gap-1.5 text-xs text-stone-500"
+            >
+              <Link href="https://iray-tno.github.io/" className="hover:underline">
+                <Text>iray-tno</Text>
+              </Link>
+              <Text aria-hidden="true">/</Text>
+              <Text className="font-medium text-shikkui">Hozo</Text>
+            </Nav>
+            <Text className="text-xs text-stone-500">
+              &copy; {year} Hozo Contributors. MIT Licensed.
+            </Text>
+          </View>
         </View>
       </View>
     </View>

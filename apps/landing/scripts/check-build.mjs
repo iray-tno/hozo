@@ -210,6 +210,50 @@ checks.push(
   [/<meta name="robots" content="noindex"/.test(mdx), 'the MDX probe page is indexable'],
 )
 
+// #704. The product's name in the one <h1>, hidden only visually; the
+// breadcrumb in the footer and as structured data; and the crawler and
+// Search Console tags in the head of every indexed page.
+const h1 = html.match(/<h1\b[\s\S]*?<\/h1>/)?.[0] ?? ''
+checks.push(
+  [(html.match(/<h1\b/g) ?? []).length === 1, 'the index page does not have exactly one <h1>'],
+  [/>Hozo — </.test(h1), 'the <h1> does not name Hozo'],
+  [/"@type":"BreadcrumbList"/.test(html), 'the index page carries no BreadcrumbList'],
+  [
+    (() => {
+      // Structured data names the page by the URL its canonical tag uses.
+      const canonical = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1]
+      return (
+        canonical !== undefined &&
+        html.includes(`"url":"${canonical}"`) &&
+        html.includes(`"name":"Hozo","item":"${canonical}"`)
+      )
+    })(),
+    "the index page's JSON-LD names a different URL from its canonical tag",
+  ],
+  [
+    /<nav [^>]*aria-label="Breadcrumb"[\s\S]*?href="https:\/\/iray-tno\.github\.io\/"/.test(html),
+    'the footer breadcrumb does not link to iray-tno.github.io',
+  ],
+)
+for (const page of sitePages) {
+  const document = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
+  const label = page === '' ? 'index' : page
+  checks.push(
+    [
+      /<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"/.test(
+        document,
+      ),
+      `${label}: no robots directive for previews and snippets`,
+    ],
+    [
+      /<meta name="google-site-verification" content="Bi3E2hIYlL4dUq-rWPnj6Qklwt7RR4_kLA4KZCpN3xI"/.test(
+        document,
+      ),
+      `${label}: no Search Console verification tag`,
+    ],
+  )
+}
+
 const sitemap = readFileSync(path.join(dist, 'sitemap.xml'), 'utf8')
 const llms = readFileSync(path.join(dist, 'llms.txt'), 'utf8')
 checks.push(

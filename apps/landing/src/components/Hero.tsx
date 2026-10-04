@@ -29,6 +29,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             level={1}
             className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-shikkui mb-6 leading-[1.12]"
           >
+            {/* The product's name in the page's one <h1>, for search engines
+                and screen readers, without changing the headline anyone sees:
+                the visible line already has "Hozo" in the navbar above it. */}
+            <Text className="sr-only">Hozo — </Text>
             Write React Native.
             <br />
             <Text className="gradient-text">Ship Semantic Web & Native UI.</Text>
