@@ -176,9 +176,10 @@ What each platform does with it:
   the state is never `closed`. Any other `data-*` condition keeps its
   diagnostic on Native, as today.
 - **StyleX:** the frontend learns to read `'[data-state="…"]'` keys into the
-  same condition. Whether StyleX's `'@starting-style'` key produces the right
-  CSS is to be checked against StyleX's own output before the frontend reads it
-  as `starting:`.
+  same condition. StyleX 0.19's own output for `'@starting-style'` is an
+  `@starting-style` rule, so that key is read as `starting:` too. Both are
+  nested-object keys today; StyleX's per-value form (`opacity: { default: 1,
+  ':hover': 0.5 }`) is a gap for every condition, not only these.
 - **The reduced-motion hint** (section 5) covers `data-[state=closed]:` as it
   covers `starting:`.
 
