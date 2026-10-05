@@ -75,6 +75,7 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['HozoTabs', 'The same component under its other published name.'],
   ['HozoToolbar', 'The same component under its other published name.'],
   ['HozoTree', 'The same component under its other published name.'],
+  ['Presence', 'Takes one element and renders it, never a label of its own.'],
 ])
 
 /** The ones a label is an ordinary thing to write inside. */

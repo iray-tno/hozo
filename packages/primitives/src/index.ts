@@ -30,6 +30,7 @@ import {
 } from './windowing.ts'
 
 export * from './foundation.tsx'
+export { Presence, type PresenceProps } from './presence.tsx'
 
 export interface HozoScrollEvent {
   nativeEvent: {

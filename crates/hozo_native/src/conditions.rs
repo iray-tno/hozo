@@ -123,6 +123,23 @@ fn breakpoint_name(bp: &Breakpoint) -> &'static str {
 
 const STARTING_WITHOUT_TRANSITION: &str = "`starting:` is the first frame of an enter animation. On React Native it works on a `View` that also has a `transition-*` class -- `HozoAnimated` starts the element from these values and animates to its style. Here it has nothing to animate from, so it does nothing on this platform. On Web, too, `@starting-style` needs a transition on the same element to be seen.";
 
+const EXIT_WITHOUT_TRANSITION: &str = "`data-[state=closed]:` is the style an element leaves to inside `Presence`. On React Native it works on a `View` that also has a `transition-*` class -- `HozoAnimated` animates to these values before `Presence` removes the element. Here there is nothing to animate with, so the element is removed at once. On Web, too, without a transition the element is removed at once.";
+
+/// The first and last frames of an element that animates in and out
+/// (decision 007): `starting:` and `data-[state=closed]:`, each a list of
+/// guarded style parts.
+#[derive(Debug, Default)]
+pub(super) struct AnimatedFrames {
+    pub(super) starting: Vec<String>,
+    pub(super) exit: Vec<String>,
+}
+
+/// `data-[state=closed]:`, the one attribute selector Native can answer:
+/// `Presence` keeps the state, and `HozoAnimated` reads it.
+pub(super) fn presence_closed(condition: &Condition) -> bool {
+    matches!(condition, Condition::DataAttribute(selector) if selector == "[data-state=\"closed\"]")
+}
+
 pub(super) fn unwired_variant(node: &Node, message: &str, severity: Severity) -> Diagnostic {
     Diagnostic {
         code: DiagnosticCode::NotWiredOnNative,
@@ -224,10 +241,11 @@ pub(super) fn build_style_entries(
     runtime: &mut RuntimeNeeds,
     interaction_context: bool,
     theme: &Theme,
-    // Where `starting:` styles go, for an element that can animate from
-    // them (`HozoAnimated`): they are the first frame, not part of the
-    // style array. `None` everywhere else, which reports them instead.
-    mut starting: Option<&mut Vec<String>>,
+    // Where `starting:` and `data-[state=closed]:` styles go, for an
+    // element that can animate (`HozoAnimated`): they are the first and
+    // the last frame, not part of the style array. `None` everywhere else,
+    // which reports them instead.
+    mut frames: Option<&mut AnimatedFrames>,
 ) {
     // Before anything reads them: a paired token becomes a second
     // declaration, so everything below treats it as an ordinary condition.
@@ -349,7 +367,7 @@ pub(super) fn build_style_entries(
                             | Condition::LastChild
                             | Condition::Structural(_)
                             | Condition::StartingStyle
-                    )
+                    ) || presence_closed(atom)
                 });
                 if !supported {
                     diagnostics.push(unwired_variant(
@@ -373,6 +391,9 @@ pub(super) fn build_style_entries(
                     // frame, under the other atoms' guards. It goes where an
                     // unstacked `starting:` goes, guarded.
                     let mut enters_from = false;
+                    // `motion-safe:data-[state=closed]:`: the same, for the
+                    // frame an element leaves to inside `Presence`.
+                    let mut leaves_to = false;
                     for atom in atoms {
                         match atom {
                             Condition::Always => {}
@@ -569,6 +590,7 @@ pub(super) fn build_style_entries(
                                 }
                             }
                             Condition::StartingStyle => enters_from = true,
+                            Condition::DataAttribute(_) => leaves_to = true,
                             _ => unreachable!("unsupported atoms were rejected above"),
                         }
                     }
@@ -578,9 +600,29 @@ pub(super) fn build_style_entries(
                         } else {
                             format!("{} && ", guards.join(" && "))
                         };
-                        if enters_from {
-                            match (starting.as_deref_mut(), uses_interactive_state) {
-                                (Some(starting), false) => starting.extend(guarded(&prefix)),
+                        if enters_from && leaves_to {
+                            diagnostics.push(unwired_variant(
+                                node,
+                                "`starting:` and `data-[state=closed]:` in one class are the first frame of an element that is already leaving. Nothing can be both, so it is not applied here.",
+                                Severity::Warning,
+                            ));
+                        } else if leaves_to {
+                            match (frames.as_deref_mut(), uses_interactive_state) {
+                                (Some(frames), false) => frames.exit.extend(guarded(&prefix)),
+                                (Some(_), true) => diagnostics.push(unwired_variant(
+                                    node,
+                                    "`data-[state=closed]:` stacked with an interaction state is not wired on React Native: the frame an element leaves to is chosen when `Presence` closes, not as it is pressed or hovered. On Web the same class works.",
+                                    Severity::Warning,
+                                )),
+                                (None, _) => diagnostics.push(unwired_variant(
+                                    node,
+                                    EXIT_WITHOUT_TRANSITION,
+                                    Severity::Warning,
+                                )),
+                            }
+                        } else if enters_from {
+                            match (frames.as_deref_mut(), uses_interactive_state) {
+                                (Some(frames), false) => frames.starting.extend(guarded(&prefix)),
                                 // The first frame is read once, on mount, and
                                 // nothing has been pressed or hovered yet.
                                 (Some(_), true) => diagnostics.push(unwired_variant(
@@ -659,6 +701,19 @@ pub(super) fn build_style_entries(
                 ),
                 Severity::Error,
             )),
+            // The frame an element leaves to inside `Presence` (decision
+            // 007, amendment 1). On Web it is the attribute `Presence` sets;
+            // here it is the state `HozoAnimated` reads from `Presence`, so
+            // the entry is handed over as `hozoExit` rather than joining the
+            // style array.
+            Condition::DataAttribute(_) if presence_closed(&condition) => match frames.as_deref_mut() {
+                Some(frames) => frames.exit.extend(guarded("")),
+                None => diagnostics.push(unwired_variant(
+                    node,
+                    EXIT_WITHOUT_TRANSITION,
+                    Severity::Warning,
+                )),
+            },
             // `data-…:` selects on an attribute, and React Native views
             // have none: what the DOM keeps in an attribute a React Native
             // component keeps in a prop, and Hozo cannot read a prop it
@@ -700,8 +755,8 @@ pub(super) fn build_style_entries(
             // Web -- so the entry is handed over as `hozoStarting` rather
             // than joining the style array, where it would win and never
             // leave.
-            Condition::StartingStyle => match starting.as_deref_mut() {
-                Some(starting) => starting.extend(guarded("")),
+            Condition::StartingStyle => match frames.as_deref_mut() {
+                Some(frames) => frames.starting.extend(guarded("")),
                 None => diagnostics.push(unwired_variant(
                     node,
                     STARTING_WITHOUT_TRANSITION,

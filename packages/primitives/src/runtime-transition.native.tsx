@@ -20,8 +20,9 @@
 // one `Animated.timing` would drag the fast ones onto the slow driver.
 // They are separate animations for that reason and not for tidiness.
 
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Easing, type StyleProp, StyleSheet, type ViewStyle } from 'react-native'
+import { PresenceContext } from './presence-context.ts'
 
 export interface HozoTransitionSpec {
   duration: number
@@ -66,6 +67,14 @@ export interface HozoAnimatedProps {
    * mount: it is where the element enters from, not a style it keeps.
    */
   hozoStarting?: StyleProp<ViewStyle>
+  /**
+   * The last frame of an exit animation, from a `data-[state=closed]:`
+   * class (decision 007, amendment 1). Laid over `style` while the
+   * enclosing `Presence` is closing, which is what the attribute selector
+   * does on Web; `Presence` removes the element when the transition to it
+   * ends.
+   */
+  hozoExit?: StyleProp<ViewStyle>
   children?: ReactNode
   [key: string]: unknown
 }
@@ -74,10 +83,19 @@ export function HozoAnimated({
   style,
   hozoTransition,
   hozoStarting,
+  hozoExit,
   children,
   ...props
 }: HozoAnimatedProps) {
-  const flat = useMemo(() => StyleSheet.flatten(style) ?? {}, [style])
+  const presence = useContext(PresenceContext)
+  // Only an element that has somewhere to leave to takes part. One without
+  // `hozoExit` neither waits for `Presence` nor makes it wait.
+  const exits = presence !== null && hozoExit != null
+  const leaving = exits && presence.state === 'closed'
+  const flat = useMemo(
+    () => StyleSheet.flatten(leaving ? [style, hozoExit] : style) ?? {},
+    [style, hozoExit, leaving],
+  )
 
   // One progress value per animation rather than one per property. The
   // properties change together -- they are the same rule flipping -- so
@@ -110,6 +128,20 @@ export function HozoAnimated({
     previous.current = signature
   }
 
+  // Registered for as long as it can exit, so `Presence` knows to wait for
+  // it and how long to wait before giving up.
+  const [id] = useState(() => Symbol('HozoAnimated'))
+  const register = exits ? presence.register : undefined
+  const exitMs = hozoTransition ? hozoTransition.duration + (hozoTransition.delay ?? 0) : 0
+  useEffect(() => register?.(id, exitMs), [register, id, exitMs])
+  // Read when the animation ends, which is after this render's values may
+  // have changed.
+  const leavingNow = useRef(leaving)
+  leavingNow.current = leaving
+  const done = presence?.done
+  const doneNow = useRef(done)
+  doneNow.current = done
+
   // `signature` is read above rather than inside, and it is what says the
   // style moved -- `hozoTransition` does not change when only the values
   // do. Without it a style change starts no transition at all, which is
@@ -130,9 +162,11 @@ export function HozoAnimated({
       // before the text that sits on it is worse than both arriving late.
       useNativeDriver: false,
     })
-    animation.start()
+    animation.start(({ finished }) => {
+      if (finished && leavingNow.current) doneNow.current?.(id)
+    })
     return () => animation.stop()
-  }, [progress, signature, hozoTransition])
+  }, [progress, signature, hozoTransition, id])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: as above -- `signature` is what changed
   const animated = useMemo(() => {
@@ -180,7 +214,14 @@ export function HozoAnimated({
 
   return (
     <Animated.View style={animated as StyleProp<ViewStyle>} {...props}>
-      {children}
+      {exits ? (
+        // The state is this element's, as `data-state` on Web belongs to
+        // the one element `Presence` puts it on. Something nested further
+        // in does not leave with it.
+        <PresenceContext.Provider value={null}>{children}</PresenceContext.Provider>
+      ) : (
+        children
+      )}
     </Animated.View>
   )
 }

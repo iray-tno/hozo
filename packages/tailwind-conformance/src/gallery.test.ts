@@ -74,6 +74,11 @@ const NOT_ON_THE_SCREEN = new Map([
   ],
   ['HozoFlatList', 'The same component under its other published name.'],
   [
+    'Presence',
+    'Renders nothing of its own: it keeps its child mounted while the child animates ' +
+      'out, and the census screen never closes anything. Covered by `presence.test.ts`.',
+  ],
+  [
     'Dialog',
     'On the acceptance screen instead, where the round trip that opens and ' +
       'dismisses it lives. A modal on a census screen would cover the census.',

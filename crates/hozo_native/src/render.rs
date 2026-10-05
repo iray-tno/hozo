@@ -723,7 +723,7 @@ pub(super) fn render_node(
     let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
         own_declarations.partition(|d| style::is_child_scoped(&d.property));
 
-    let mut starting_parts: Vec<String> = Vec::new();
+    let mut frames = crate::conditions::AnimatedFrames::default();
     let animates = component == "HozoAnimated";
     build_style_entries(
         &own_declarations,
@@ -738,18 +738,21 @@ pub(super) fn render_node(
         runtime,
         interaction_context && component == "Text",
         theme,
-        animates.then_some(&mut starting_parts),
+        animates.then_some(&mut frames),
     );
+    let starting_parts = frames.starting;
+    let exit_parts = frames.exit;
     // What `HozoAnimated` can start from is what it can interpolate. A
     // `starting:w-0` is `@starting-style` on Web and animates there; here
     // the width would be applied as the first frame and then jump, which is
     // worse than not applying it -- so it is left out and named.
-    if !starting_parts.is_empty() {
+    if !starting_parts.is_empty() || !exit_parts.is_empty() {
         let mut fixed: Vec<String> = own_declarations
             .iter()
             .filter(|declaration| {
                 crate::condition_contains(&declaration.condition, |condition| {
                     matches!(condition, Condition::StartingStyle)
+                        || crate::conditions::presence_closed(condition)
                 })
             })
             .filter(|declaration| !crate::transition::interpolatable(&declaration.property))
@@ -761,10 +764,10 @@ pub(super) fn render_node(
             diagnostics.push(crate::conditions::unwired_variant(
                 node,
                 &format!(
-                    "`starting:` on React Native animates opacity, transforms and colours -- what \
-                     `HozoAnimated` can interpolate. {} would be a first frame that jumps to the \
-                     element's style rather than moving to it, so it is not applied here. On Web \
-                     the same class works.",
+                    "`starting:` and `data-[state=closed]:` on React Native animate opacity, \
+                     transforms and colours -- what `HozoAnimated` can interpolate. {} would be a \
+                     frame that jumps rather than moves, so it is not applied here. On Web the \
+                     same class works.",
                     fixed.join(", ")
                 ),
                 hozo_ir::Severity::Warning,
@@ -992,6 +995,13 @@ pub(super) fn render_node(
         [] => {}
         [one] => props_text.push_str(&format!(" hozoStarting={{{one}}}")),
         many => props_text.push_str(&format!(" hozoStarting={{[{}]}}", many.join(", "))),
+    }
+    // The frame an element leaves to: `HozoAnimated` transitions to it when
+    // `Presence` closes, and `Presence` removes the element when it ends.
+    match exit_parts.as_slice() {
+        [] => {}
+        [one] => props_text.push_str(&format!(" hozoExit={{{one}}}")),
+        many => props_text.push_str(&format!(" hozoExit={{[{}]}}", many.join(", "))),
     }
     // The ratio, for the component that resolves it.
     if let Some(ratio) = relative_at_runtime {

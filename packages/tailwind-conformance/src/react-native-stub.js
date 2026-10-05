@@ -231,9 +231,17 @@ export const Animated = {
   // that nothing inside the effect reads -- which is the shape a linter
   // calls unnecessary. Nothing could see the difference until this
   // recorded it.
+  // `finish` ends one by hand, for a test that needs to see what happens
+  // when it does -- `Presence` waits for exactly that.
   timing: (value, config) => {
-    Animated.__hozoTimings.push({ value, config })
-    return { start: () => {}, stop: () => {} }
+    const entry = { value, config, finish: () => {} }
+    Animated.__hozoTimings.push(entry)
+    return {
+      start: (callback) => {
+        entry.finish = (finished = true) => callback?.({ finished })
+      },
+      stop: () => {},
+    }
   },
   __hozoTimings: [],
   __hozoResetTimings: () => {
