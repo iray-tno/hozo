@@ -1,17 +1,25 @@
 // The author-facing namespace and the compiler ABI share one owner.
 // `react-native-svg` already uses SVG's vocabulary, so the adapter is
-// deliberately only naming and navigation rather than another renderer.
+// naming, navigation and raster-unit adaptation rather than another renderer.
 
-import type { JSXElementConstructor } from 'react'
+import type { ComponentProps, JSXElementConstructor, RefAttributes } from 'react'
+import { Platform } from 'react-native'
 import * as NativeSvg from 'react-native-svg'
+import { AndroidDropShadow, AndroidGaussianBlur, AndroidSvg } from './blur.native.tsx'
 import { SvgLink } from './svg-link.native.tsx'
 
 type PropsOf<T> = T extends JSXElementConstructor<infer Props> ? Props : never
 type WithClassName<T extends JSXElementConstructor<never>> = T &
   JSXElementConstructor<PropsOf<T> & { className?: string }>
 
+// A platform choice must expose one JSX signature, not a union of a class
+// constructor and a forwardRef call signature. Both forward the same ref.
+type AdaptedElement<Props, Instance> = JSXElementConstructor<
+  Props & { className?: string } & RefAttributes<Instance>
+>
+
 // className is compile-time input: Hozo consumes it before these components
-// render. Keep react-native-svg's runtime identity and full static type while
+// render. Keep upstream identities except the Android raster adapters, while
 // making that authoring prop visible to TypeScript.
 function withClassName<T extends JSXElementConstructor<never>>(component: T): WithClassName<T> {
   return component as WithClassName<T>
@@ -42,15 +50,25 @@ export const TSpan = withClassName(NativeSvg.TSpan)
 export const Use = withClassName(NativeSvg.Use)
 export const Filter = withClassName(NativeSvg.Filter)
 export const FeColorMatrix = withClassName(NativeSvg.FeColorMatrix)
-export const FeGaussianBlur = withClassName(NativeSvg.FeGaussianBlur)
+export const FeGaussianBlur: AdaptedElement<
+  ComponentProps<typeof NativeSvg.FeGaussianBlur>,
+  NativeSvg.FeGaussianBlur
+> = Platform.OS === 'android'
+  ? withClassName(AndroidGaussianBlur)
+  : withClassName(NativeSvg.FeGaussianBlur)
 export const FeBlend = withClassName(NativeSvg.FeBlend)
 export const FeComposite = withClassName(NativeSvg.FeComposite)
-export const FeDropShadow = withClassName(NativeSvg.FeDropShadow)
+export const FeDropShadow: AdaptedElement<
+  ComponentProps<typeof NativeSvg.FeDropShadow>,
+  NativeSvg.FeDropShadow
+> = Platform.OS === 'android'
+  ? withClassName(AndroidDropShadow)
+  : withClassName(NativeSvg.FeDropShadow)
 export const FeFlood = withClassName(NativeSvg.FeFlood)
 export const FeMerge = withClassName(NativeSvg.FeMerge)
 export const FeMergeNode = withClassName(NativeSvg.FeMergeNode)
 export const FeOffset = withClassName(NativeSvg.FeOffset)
-const SvgRoot = withClassName(NativeSvg.Svg)
+const SvgRoot = Platform.OS === 'android' ? withClassName(AndroidSvg) : withClassName(NativeSvg.Svg)
 
 export type { SvgLinkProps } from './svg-link.native.tsx'
 export { SvgLink }

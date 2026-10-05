@@ -17,6 +17,10 @@ The shared semantic checks require grayscale, blur outside the source, offset
 red shadows with the blue source on top, and a screen-blended magenta source.
 Native allows at most eight RGB levels of solid-colour deviation; it does not
 claim exact Web/Native rasterizer parity or full filter-prop conformance.
+The Android owner now converts SVG blur deviation to the density/viewBox-scaled
+native kernel for both Gaussian blur and compact shadow. The original blur
+position assertion is unchanged; the first failed run is retained, not counted
+as a rendering pass or fixed by relaxing the pixel gate.
 
 Android PR/weekly runs execute this isolated scenario **before** the unchanged
 full interaction/Canvas scenario, with separate evidence. Dispatch with
