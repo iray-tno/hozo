@@ -318,4 +318,43 @@ mod tests {
         let out = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(out.jsx.starts_with("<Animated.View"), "{}", out.jsx);
     }
+
+    #[test]
+    fn and_a_text_with_a_loop_on_an_animated_text() {
+        let source =
+            "import { Text } from '@hozo/core'\nconst el = <Text className=\"animate-pulse\">Loading</Text>\n";
+        let parsed = hozo_parser::parse_tsx(source);
+        let out = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(out.jsx.starts_with("<Animated.Text"), "{}", out.jsx);
+        assert!(out.native_imports.contains(&"Animated"), "{:?}", out.native_imports);
+    }
+}
+
+#[cfg(test)]
+mod theme_animation_tests {
+    use crate::{lower, Theme};
+
+    fn warned(class_name: &str) -> bool {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        out.diagnostics.iter().any(|d| {
+            d.message.contains("--animate-*") && d.severity == hozo_ir::Severity::Warning
+        })
+    }
+
+    #[test]
+    fn a_theme_animation_is_named_rather_than_silently_gone() {
+        // It used to compile to nothing at all on this platform.
+        assert!(warned("animate-wiggle"));
+        assert!(warned("motion-safe:animate-wiggle"));
+    }
+
+    #[test]
+    fn tailwinds_own_and_unrelated_classes_say_nothing() {
+        assert!(!warned("animate-spin"));
+        assert!(!warned("my-card"));
+    }
 }
