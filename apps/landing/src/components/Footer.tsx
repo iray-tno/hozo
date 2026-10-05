@@ -48,6 +48,12 @@ export function Footer({ baseUrl = '' }: FooterProps) {
 
           <View className="flex flex-row flex-wrap items-center justify-center sm:justify-start gap-x-6 gap-y-3 pt-6 border-t border-wood text-xs font-medium">
             <Link
+              href={`${cleanBase}/#try-hozo`}
+              className="hover:text-hinoki-light text-shikkui-muted transition-colors"
+            >
+              <Text>Try Hozo</Text>
+            </Link>
+            <Link
               href={`${cleanBase}/repl/`}
               className="hover:text-bengara text-shikkui-muted transition-colors"
             >

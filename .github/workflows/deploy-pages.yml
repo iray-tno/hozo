@@ -16,6 +16,11 @@ on:
   schedule:
     - cron: '0 3 * * 1'
   workflow_dispatch:
+  # A release published using GITHUB_TOKEN cannot trigger a `release` event
+  # workflow. Observe the successful tag workflow instead; dry runs don't deploy.
+  workflow_run:
+    workflows: [release]
+    types: [completed]
 
 permissions:
   contents: read
@@ -28,12 +33,15 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -57,6 +65,9 @@ jobs:
       - run: node scripts/build-wasm.mjs
       - run: pnpm build
       - run: pnpm --filter @hozo/landing build
+        env:
+          HOZO_SHOWCASE_DOWNLOADS: '1'
+          GITHUB_TOKEN: ${{ github.token }}
       - run: pnpm --filter @hozo/example-storybook build
 
       - name: Integrate Storybook into Landing Dist

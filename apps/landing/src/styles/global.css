@@ -1,5 +1,40 @@
 @import "tailwindcss";
 
+/* Fixed headers must not cover anchor destinations or keyboard focus. */
+html {
+  scroll-padding-top: 5rem;
+}
+
+:focus-visible {
+  outline: 2px solid #dfc8ab;
+  outline-offset: 4px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  background: #f7f5f0;
+  color: #100f0e;
+  border-radius: 0.5rem;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.scroll-smooth {
+    scroll-behavior: auto;
+  }
+  .animate-pulse {
+    animation: none;
+  }
+}
+
 @theme {
   --color-yakisugi-950: #100f0e;
   --color-yakisugi-900: #141312;

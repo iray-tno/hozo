@@ -49,6 +49,19 @@ const stylesheets = [
 ].join('\n')
 
 const checks = [
+  [html.includes('id="try-hozo"'), 'the home page has no showcase entry section'],
+  [
+    html.includes('href="#main-content"') && html.includes('id="main-content" tabindex="-1"'),
+    'the keyboard skip link has no focusable destination',
+  ],
+  [
+    html.includes('pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'),
+    'the quick install mixes runtime and development dependencies',
+  ],
+  [
+    !html.includes('/releases/latest/download/'),
+    'the page advertises unverified latest-release files',
+  ],
   // The primitives became plain HTML with compiled class names.
   [GENERATED_CLASS.test(html), 'no Hozo-generated class reached the page'],
   [/<section class="[^"]*hozo-/.test(html), 'Section did not lower to <section>'],

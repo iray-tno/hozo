@@ -12,6 +12,8 @@ import { Philosophy } from '../components/Philosophy.tsx'
 import SiteHead from '../components/SiteHead.astro'
 import { StaticCard } from '../components/StaticCard.tsx'
 import { TieredStyles } from '../components/TieredStyles.tsx'
+import { TryShowcase } from '../components/TryShowcase.tsx'
+import { loadShowcaseRelease } from '../lib/showcase-release'
 import '../styles/global.css'
 import '../styles/kumimono.css'
 
@@ -20,6 +22,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 // the trailing slash. `new URL(BASE_URL, site)` gave `/hozo`, so the
 // structured data named a different URL from the page it described.
 const homeUrl = new URL(`${baseUrl}/`, Astro.site).href
+const showcaseRelease = await loadShowcaseRelease()
 ---
 
 <!doctype html>
@@ -71,9 +74,11 @@ const homeUrl = new URL(`${baseUrl}/`, Astro.site).href
     />
   </head>
   <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <Navbar baseUrl={baseUrl} />
-    <main>
+    <main id="main-content" tabindex="-1">
       <Hero baseUrl={baseUrl} />
+      <TryShowcase baseUrl={baseUrl} release={showcaseRelease} />
       <DomainShowcase baseUrl={baseUrl} />
       <Kumimono client:visible baseUrl={baseUrl} />
       <Philosophy />

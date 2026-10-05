@@ -8,6 +8,15 @@ Official documentation site, interactive browser REPL, and automated conformance
 - **Interactive REPL (`/repl`)**: Client-side playground executing the Hozo compiler directly in the browser via WebAssembly (`hozo_wasm`). Live compiles TSX to semantic HTML, CSS, and React Native StyleSheet in sub-millisecond cycles.
 - **Conformance Matrix (`/conformance`)**: Automated differential cross-platform report importing live data from `packages/tailwind-conformance/snapshot.json`. Displays exact Web fidelity, Native coverage (refusals/no-ops), StyleX mapping tiers, and W3C ARIA specs.
 - **Hosted Artifacts**: Serves `/storybook/` (static build of `@hozo/example-storybook`) and `/reports/` (Allure 3 CI test results).
+- **Try Hozo (`/#try-hozo`)**: Web Storybook and native showcase entry points. The Pages build opts into bounded GitHub release discovery with `HOZO_SHOWCASE_DOWNLOADS=1`; direct Android/iOS Simulator links appear only for a published release with both uploaded binaries, installation notes, checksums and manifest. Discovery includes prereleases. Local/PR builds stay offline; missing files or API failures show working release/source links instead. iOS downloads are Simulator-only, not iPhone/TestFlight builds.
+
+Pages rebuilds from trusted `main` after a successful tag-triggered `release`
+workflow, as well as on its existing push/manual/weekly triggers. A release created
+with `GITHUB_TOKEN` cannot itself trigger a release-event workflow, so this uses
+`workflow_run` completion; failed builds and credentialless dry runs do not deploy.
+GitHub asset presence is discovery, not a second native-test or signature gate:
+the release workflow owns verification. The links reflect the last site build,
+not a client-side availability check.
 
 ## Static Zero-JS Guarantees
 
@@ -19,6 +28,9 @@ Kumimono starts assembled without autoplay. Its button and labeled slider work w
 - `scripts/check-static.mjs`: Uses `@hozo/compiler` to inspect `StaticCard.tsx` and assert `needsClientBoundary: false`.
 - `scripts/check-repl.mjs`: Headless build verification ensuring WASM compilation targets and bindings assemble cleanly.
 - `scripts/check-kumimono.mjs`: Real WebGL screenshot pixels, mobile/desktop layout, keyboard controls, reversal, reduced motion, offscreen pause, and WebGL failure fallback. Runs on PR CI independently of the WASM probe.
+- `scripts/showcase-release.test.ts`: Offline release-discovery cases, including prereleases, partial/draft uploads, foreign URLs, missing metadata and unavailable APIs.
+- `scripts/check-showcase-build.mjs`: An isolated Astro build using a test-only mock release catalogue, followed by the same browser checks against the actual download UI. No files are published or assumed to exist externally. Its output is separate from the ordinary app build.
+- `scripts/check-landing.mjs`: Real-browser checks at 320–1280px for the two install commands, unclipped showcase actions, fixed-header anchor offsets, skip-link focus and reduced motion. Set `LANDING_SCREENSHOT_DIR` to retain hero/showcase screenshots.
 
 ## Development
 

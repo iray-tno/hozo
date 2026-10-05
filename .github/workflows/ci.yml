@@ -72,6 +72,8 @@ jobs:
       # WebAssembly build this job does not have, and belongs where that
       # build already happens (`deploy-pages.yml`).
       - run: pnpm --filter @hozo/landing run test:build
+      - run: pnpm --filter @hozo/landing exec node scripts/check-landing.mjs dist-check
+        timeout-minutes: 2
       - run: pnpm --filter @hozo/example-three-kumimono test
       - run: pnpm --filter @hozo/example-three-native-probe test
       # Keep Metro export costs in main's integration report, but catch a
