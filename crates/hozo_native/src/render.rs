@@ -747,7 +747,11 @@ pub(super) fn render_node(
     if !starting_parts.is_empty() {
         let mut fixed: Vec<String> = own_declarations
             .iter()
-            .filter(|declaration| matches!(declaration.condition, Condition::StartingStyle))
+            .filter(|declaration| {
+                crate::condition_contains(&declaration.condition, |condition| {
+                    matches!(condition, Condition::StartingStyle)
+                })
+            })
             .filter(|declaration| !crate::transition::interpolatable(&declaration.property))
             .flat_map(|declaration| crate::style::property_and_value(&declaration.property, theme))
             .map(|(key, _)| format!("`{key}`"))

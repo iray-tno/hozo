@@ -113,7 +113,9 @@ pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration])
     let animatable = declarations.iter().any(|declaration| {
         interpolatable(&declaration.property)
             && (condition_contains(&declaration.condition, runtime_variable)
-                || matches!(declaration.condition, Condition::StartingStyle))
+                || condition_contains(&declaration.condition, |condition| {
+                    matches!(condition, Condition::StartingStyle)
+                }))
     });
     if !animatable {
         return None;
@@ -265,6 +267,39 @@ mod ambient_transition_tests {
         assert!(out.jsx.contains("hozoStarting="), "{}", out.jsx);
         assert!(
             out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("opacity, transforms and colours")),
+            "{:?}",
+            out.diagnostics,
+        );
+    }
+
+    // `motion-safe:starting:` is how the reduced-motion hint tells an
+    // author to write a moving entrance, so it has to work here as it does
+    // on Web: the first frame, guarded by the preference.
+    #[test]
+    fn a_starting_value_can_be_stacked_with_reduced_motion() {
+        let out = compile("transition opacity-100 starting:opacity-0 motion-safe:starting:translate-y-4");
+        assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
+        let starting = out.jsx.split("hozoStarting={").nth(1).unwrap_or("");
+        assert!(starting.contains("__hozoEnv_motion_safe && hozoStyles."), "{}", out.jsx);
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+        let style = out.jsx.split("style={").nth(1).unwrap_or("");
+        let style = &style[..style.find('}').unwrap_or(style.len())];
+        assert!(!style.contains("_starting"), "{}", out.jsx);
+    }
+
+    #[test]
+    fn and_with_a_breakpoint() {
+        let out = compile("transition md:starting:opacity-0");
+        assert!(out.jsx.contains("hozoStarting={__hozoBp_md && hozoStyles."), "{}", out.jsx);
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    }
+
+    #[test]
+    fn a_stacked_starting_value_without_a_transition_says_so_as_the_plain_one_does() {
+        let out = compile("motion-safe:starting:translate-y-4");
+        assert!(!out.jsx.contains("hozoStarting"), "{}", out.jsx);
+        assert!(
+            out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("first frame of an enter animation")),
             "{:?}",
             out.diagnostics,
         );
