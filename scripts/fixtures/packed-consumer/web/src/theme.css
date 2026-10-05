@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@import "@hozo/ui/theme.css";
+
+@theme {
+  --color-hozo-accent: #087c50;
+}

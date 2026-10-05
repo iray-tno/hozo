@@ -1,0 +1,49 @@
+# Network installs and real bundlers belong at the release boundary, not
+# in every unrelated PR. The existing strict-install gate remains offline.
+name: packed-consumer
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/packed-consumer.yml'
+      - 'scripts/check-packed-consumer*'
+      - 'scripts/fixtures/packed-consumer/**'
+  schedule:
+    - cron: '15 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      # Repository builds use the maintained dev toolchain. Only the
+      # consuming application and platform addon are exercised under LTS.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter='./packages/*'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: pnpm test:packed-consumer
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packed-consumer-node-${{ matrix.node }}
+          path: artifacts/packed-consumer/
+          if-no-files-found: error
+          retention-days: 14
