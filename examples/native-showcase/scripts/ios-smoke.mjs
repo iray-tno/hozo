@@ -10,6 +10,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
@@ -22,7 +23,9 @@ import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 import { launchIosApp } from './ios-launch.mjs'
 import { selectIosSimulator, waitForIosBoot } from './ios-simulator.mjs'
 import { selectStableIosText, waitForIosStorySelection } from './ios-story-selector.mjs'
+import { iosSvgEvidence, iosSvgRegion, readIosScenario } from './ios-svg-filter-evidence.mjs'
 import { waitForIosControl } from './ios-ui-wait.mjs'
+import { exerciseSvgFilters } from './svg-filter-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -200,11 +203,53 @@ function canvasImage(name, canvas) {
   return imageRegion(buffer, bounds)
 }
 
-try {
-  assert.ok(
-    ['full', 'canvas', 'gl-control'].includes(evidence.scenario),
-    'unsupported iOS scenario',
+async function svgFilters() {
+  const directory = resolve(output, 'svg-filters')
+  mkdirSync(directory, { recursive: true })
+  const require = createRequire(import.meta.url)
+  const svg = iosSvgEvidence(
+    evidence,
+    readFileSync(resolve(root, '../showcase/src/svg-filter-scene.tsx')),
+    require('react-native-svg/package.json').version,
   )
+  evidence.svgFilterEvidence = svg
+  try {
+    await exerciseSvgFilters(
+      {
+        story,
+        waitFor: (text) => waitFor(label(text), `SVG control: ${text}`),
+        tap: (text) => tap(label(text), `SVG action: ${text}`),
+        screenshot: (name) => {
+          const path = resolve(directory, `${name}.png`)
+          simctl('io', udid, 'screenshot', path)
+          writeFileSync(resolve(directory, `${name}.json`), latestTree)
+          return readFileSync(path)
+        },
+        captureRegion: (buffer, node) =>
+          iosSvgRegion(
+            buffer,
+            node,
+            parseIosNodes(latestTree).find((entry) => entry.type === 'Application'),
+          ),
+        waitForImage,
+        record: (name, details) => {
+          svg.checks.push({ name, passed: true, ...details })
+          console.log(`PASS ${name}`)
+        },
+      },
+      svg,
+    )
+    svg.passed = true
+  } catch (error) {
+    svg.error = error.stack
+    throw error
+  } finally {
+    writeFileSync(resolve(directory, 'evidence.json'), `${JSON.stringify(svg, null, 2)}\n`)
+  }
+}
+
+try {
+  readIosScenario(evidence.scenario)
   assert.ok(
     ['demand', 'continuous', 'instant', 'synchronized', 'paced', 'profile'].includes(
       evidence.canvasMode,
@@ -278,7 +323,9 @@ try {
   // Establish the reader against the app's own ready window before openurl
   // introduces an OS confirmation. Launch returning is not UI readiness.
   await waitFor((node) => node.AXUniqueId === 'mobile-menu-button', 'initial Storybook window')
-  if (evidence.scenario === 'gl-control') {
+  if (evidence.scenario === 'svg-filters') {
+    await svgFilters()
+  } else if (evidence.scenario === 'gl-control') {
     await story('diagnostics-expo-gl--color-flip', 'Raw Expo GL surface')
     await waitFor(label('Raw frame: red'), 'raw red frame submitted')
     const surface = await waitFor(label('Raw Expo GL surface'), 'raw GL surface')
@@ -443,6 +490,11 @@ try {
       await waitFor(label('Changes: saved'), 'dialog confirmation result')
       screenshot('09-confirmation-saved')
       record('shared dialog opens, cancels and confirms')
+
+      // Share the established app/input connection instead of launching a
+      // second full scenario on a window left in the previous SVG story.
+      // The original nine full-scenario checks and Canvas budgets stay intact.
+      await svgFilters()
     }
 
     const canvasRequestedAt = Date.now()
@@ -555,6 +607,27 @@ try {
 } finally {
   if (renderSamples.length) evidence.renderProfiling.collectors = await Promise.all(renderSamples)
   logger?.kill()
+  if (evidence.svgFilterEvidence) {
+    try {
+      cpSync(resolve(output, 'syslog.txt'), resolve(output, 'svg-filters/syslog.txt'))
+    } catch (error) {
+      evidence.svgFilterEvidence.logError = String(error)
+    }
+    if (!evidence.svgFilterEvidence.passed) {
+      try {
+        for (const file of ['failure.png', 'failure.json']) {
+          if (existsSync(resolve(output, file)))
+            cpSync(resolve(output, file), resolve(output, 'svg-filters', file))
+        }
+      } catch (error) {
+        evidence.svgFilterEvidence.failureCaptureError = String(error)
+      }
+    }
+    writeFileSync(
+      resolve(output, 'svg-filters/evidence.json'),
+      `${JSON.stringify(evidence.svgFilterEvidence, null, 2)}\n`,
+    )
+  }
   if (evidence.diagnostic) {
     try {
       cpSync('/tmp/idb/logs', resolve(output, 'companion-logs'), { recursive: true })
