@@ -4,8 +4,10 @@ import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import SiteHead from '../components/SiteHead.astro'
 import '../styles/global.css'
+import snapshot from '../../../../packages/tailwind-conformance/snapshot.json'
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFixed(1)}%`)
 ---
 
 <!doctype html>
@@ -108,12 +110,195 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
         </div>
       </section>
 
+      <!-- Section: Web Conformance Details -->
+      <section class="mb-16">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/20 flex items-center justify-center text-hinoki font-bold">
+            W
+          </div>
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-shikkui tracking-tight">Web Lowering Conformance (hozo_web)</h2>
+            <p class="text-xs sm:text-sm text-stone-400">
+              Verified by comparing Hozo's compiled CSS directly against Tailwind's official compilation oracle.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono text-stone-400 mb-1">Full Catalogue Coverage</div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.catalogue.match.toLocaleString()} / {snapshot.catalogue.comparable.toLocaleString()}
+            </div>
+            <div class="text-xs text-emerald-400 font-semibold mb-2">
+              {pct(snapshot.catalogue.match, snapshot.catalogue.comparable)} Match
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Tailwind's IntelliSense catalogue of 23,286 entries tested across layout, typography, colors, borders, and effects.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono text-stone-400 mb-1">Cascade Rule Ordering</div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.candidateSheet.inOrder.toLocaleString()} / {snapshot.candidateSheet.comparable.toLocaleString()}
+            </div>
+            <div class="text-xs text-emerald-400 font-semibold mb-2">100% In Order</div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Candidate stylesheet order perfectly preserves Tailwind's specificity tiers and breakpoint ascending rules.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono text-stone-400 mb-1">Arbitrary Values Support</div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.arbitrary.match.toLocaleString()} / {snapshot.arbitrary.candidates.toLocaleString()}
+            </div>
+            <div class="text-xs text-hinoki font-semibold mb-2">
+              {pct(snapshot.arbitrary.match, snapshot.arbitrary.candidates)} Fidelity
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              High fidelity for arbitrary value syntax like <code class="text-stone-300">p-[13px]</code>, <code class="text-stone-300">bg-[#0d1117]</code>, and CSS variable bindings across tested utilities.
+            </p>
+          </div>
+        </div>
+
+        <div class="p-5 rounded-xl bg-yakisugi-900/60 border border-wood text-xs text-stone-300 leading-relaxed">
+          <strong class="text-shikkui">Why exact fidelity matters on Web:</strong> In CSS, utility classes only work reliably when their order, selector structure, and variable declarations mirror the design system. Hozo doesn't invent its own CSS dialect &mdash; it lowers JSX primitives to semantic HTML elements with authentic scoped CSS classes.
+        </div>
+      </section>
+
+      <!-- Section: Native Lowering & Refusal Breakdown -->
+      <section class="mb-16">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-8 h-8 rounded-lg bg-bengara/15 border border-bengara/30 flex items-center justify-center text-bengara font-bold">
+            N
+          </div>
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-shikkui tracking-tight">Native Lowering & Refusal Audit (hozo_native)</h2>
+            <p class="text-xs sm:text-sm text-stone-400">
+              Lowers to React Native Fabric components and StyleSheet objects. Refusals are diagnosed at build time.
+            </p>
+          </div>
+        </div>
+
+        <!-- Native Verdicts Explanation -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div class="p-4 rounded-xl border border-wood bg-yakisugi-950/80 border-l-4 border-l-emerald-400">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-shikkui text-sm">COVERED</span>
+              <span class="text-xs font-mono font-bold text-emerald-400">{snapshot.native.covered}</span>
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Hozo emits a native StyleSheet property (flexbox, dimensions, typography, colors, borders, transforms).
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl border border-wood bg-yakisugi-950/80 border-l-4 border-l-amber-400">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-shikkui text-sm">REFUSED (Known Gaps)</span>
+              <span class="text-xs font-mono font-bold text-amber-400">{snapshot.native.refused}</span>
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              React Native has no native equivalent. The compiler alerts you with a diagnostic rather than failing silently.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl border border-wood bg-yakisugi-950/80 border-l-4 border-l-hinoki">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-shikkui text-sm">NO-OP (Honoured)</span>
+              <span class="text-xs font-mono font-bold text-hinoki">{snapshot.native.noOp}</span>
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              React Native already performs this by default (e.g. <code class="text-stone-300">box-border</code>). Doing nothing satisfies the contract.
+            </p>
+          </div>
+        </div>
+
+        <!-- Refusal Breakdown Detail Table -->
+        <div class="rounded-xl border border-wood bg-yakisugi-950 overflow-hidden mb-6">
+          <div class="p-4 bg-yakisugi-900/60 border-b border-wood">
+            <h3 class="text-sm font-bold text-shikkui flex items-center gap-2">
+              <span>Why Candidates Are Refused on Native</span>
+              <span class="text-[10px] font-normal px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
+                Audited against RN types
+              </span>
+            </h3>
+          </div>
+          <div class="divide-y divide-wood/40 text-xs font-mono">
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+              <div class="flex items-center gap-2">
+                <span class="text-amber-400 font-semibold">REFUSED</span>
+                <span class="text-shikkui">box-content</span>
+              </div>
+              <div class="text-stone-400 text-[11px] font-sans">
+                React Native Yoga engine enforces <code class="font-mono text-stone-300">box-sizing: border-box</code> universally; content-box is not supported.
+              </div>
+            </div>
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+              <div class="flex items-center gap-2">
+                <span class="text-amber-400 font-semibold">REFUSED</span>
+                <span class="text-shikkui">accent-* (accent-indigo-500)</span>
+              </div>
+              <div class="text-stone-400 text-[11px] font-sans">
+                No CSS <code class="font-mono text-stone-300">accent-color</code> equivalent exists for native controls; tint is handled via primitive props.
+              </div>
+            </div>
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+              <div class="flex items-center gap-2">
+                <span class="text-amber-400 font-semibold">REFUSED</span>
+                <span class="text-shikkui">caret-* (caret-indigo-500)</span>
+              </div>
+              <div class="text-stone-400 text-[11px] font-sans">
+                Input caret color requires <code class="font-mono text-stone-300">selectionColor</code> on TextInput, not a general style property.
+              </div>
+            </div>
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+              <div class="flex items-center gap-2">
+                <span class="text-amber-400 font-semibold">REFUSED</span>
+                <span class="text-shikkui">table, list, inline-*</span>
+              </div>
+              <div class="text-stone-400 text-[11px] font-sans">
+                HTML table & list layouts do not exist in React Native flexbox layout.
+              </div>
+            </div>
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+              <div class="flex items-center gap-2">
+                <span class="text-hinoki font-semibold">NO-OP</span>
+                <span class="text-shikkui">box-border</span>
+              </div>
+              <div class="text-stone-400 text-[11px] font-sans">
+                Honoured by doing nothing: all React Native views already use border-box sizing.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Refusal Audit Summary Card -->
+        <div class="p-4 rounded-xl border border-wood bg-yakisugi-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+          <div>
+            <div class="font-bold text-shikkui mb-0.5">Automated Refusal Audit against React Native `.d.ts`</div>
+            <p class="text-stone-400">
+              Of <strong>{snapshot.refusalAudit.refusals.toLocaleString()}</strong> total refusals audited, <strong>{snapshot.refusalAudit.confirmed.toLocaleString()}</strong> are confirmed impossible from React Native's official type definitions.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 font-mono text-[11px]">
+            <span class="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+              {snapshot.refusalAudit.confirmed.toLocaleString()} Confirmed
+            </span>
+            <span class="px-2.5 py-1 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+              {snapshot.refusalAudit.partial} Partial
+            </span>
+          </div>
+        </div>
+      </section>
+
       <!-- Conformance Link Card -->
       <div class="mb-16 p-6 sm:p-8 rounded-2xl border border-hinoki/30 bg-hinoki/5 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h3 class="text-lg font-bold text-shikkui mb-1">Verify Exact Engine Conformance</h3>
+          <h3 class="text-lg font-bold text-shikkui mb-1">Verify Full Differential Conformance</h3>
           <p class="text-xs sm:text-sm text-stone-300">
-            Hozo's compiler output is verified directly against Tailwind's official engine on every commit.
+            View the automated cross-platform conformance snapshot comparing Tailwind, StyleX, ARIA, and Fabric.
           </p>
         </div>
         <a

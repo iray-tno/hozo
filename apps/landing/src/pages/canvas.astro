@@ -1,4 +1,5 @@
 ---
+import { CanvasWorkbench } from '../components/CanvasWorkbench.tsx'
 import { DomainNav } from '../components/DomainNav.tsx'
 import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
@@ -42,6 +43,11 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
           Rendering massive datasets (thousands of points, heatmaps, or fluid charts) overwhelms DOM node trees. Hozo's 2D Canvas delivers a declarative JSX API that compiles to optimized batched Canvas operations on Web and native Skia draw calls on mobile.
         </p>
       </section>
+
+      <!-- Interactive 2D Canvas Workbench -->
+      <div class="mb-16">
+        <CanvasWorkbench client:visible />
+      </div>
 
       <!-- SVG vs Canvas Decision Guide Card -->
       <div class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
