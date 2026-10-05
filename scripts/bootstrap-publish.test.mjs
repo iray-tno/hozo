@@ -7,6 +7,7 @@ import {
   resolveCrateTarget,
   resolveNpmTarget,
 } from './bootstrap-publish.mjs'
+import { metadataFor, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
 
 const workspace = [
   {
@@ -25,6 +26,25 @@ test('an intended public workspace package is a bootstrap target', () => {
   const target = resolveNpmTarget('@hozo/core')
   assert.equal(target.kind, 'workspace')
   assert.equal(target.path, 'packages/core')
+})
+
+test('source-distributed UI is release-listed and admitted for bootstrap', async () => {
+  assert.ok(PACKAGE_NAMES.includes('ui'))
+  const metadata = metadataFor('ui')
+  assert.equal(metadata.main, './src/index.ts')
+  assert.equal(metadata.types, './src/index.ts')
+  assert.equal(metadata.exports['.'], './src/index.ts')
+  assert.equal(metadata.exports['./theme.css'], './src/theme.css')
+  assert.deepEqual(metadata.sideEffects, ['./src/**/*.css'])
+  assert.ok(metadata.files.includes('src'))
+  assert.ok(metadata.files.includes('!src/**/*.hozo.css'))
+  assert.ok(!metadata.files.includes('dist'))
+  const plan = await bootstrapPlan('npm', '@hozo/ui', {
+    fetch: async () => ({ status: 404, ok: false }),
+  })
+  assert.equal(plan.kind, 'workspace')
+  assert.equal(plan.path, 'packages/ui')
+  assert.equal(plan.version, VERSION)
 })
 
 test('private and unknown npm names are refused', () => {

@@ -179,7 +179,7 @@ async function main() {
         .digest('hex'),
     }
 
-    const names = [...new Set([...PACKAGE_NAMES, 'ui'])]
+    const names = PACKAGE_NAMES
     const manifests = new Map(
       names.map((name) => [name, json(path.join(root, 'packages', name, 'package.json'))]),
     )

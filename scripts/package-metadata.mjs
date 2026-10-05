@@ -113,6 +113,16 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'react', 'form', 'date-picker', 'calendar', 'accessibility'],
   },
+  ui: {
+    // The consumer compiles these components against its own theme. A dist
+    // entry would bypass that compilation; CSS imports must survive shaking.
+    exports: { '.': './src/index.ts', './theme.css': './src/theme.css' },
+    // Local consumer builds can leave generated CSS next to the source. It
+    // belongs to that consumer's theme, not the source-distributed tarball.
+    files: ['src', '!src/**/*.hozo.css'],
+    sideEffects: ['./src/**/*.css'],
+    keywords: ['react-native', 'react', 'design-system', 'tailwind', 'accessibility'],
+  },
   semantics: {
     exports: { '.': './dist/index.js' },
     // Absent until now, and `index.native.tsx` was unreachable because of
@@ -357,12 +367,16 @@ export function metadataFor(name) {
   return {
     ...shared(name),
     main,
-    types: main.startsWith('./dist') ? main.replace(/\.js$/, '.d.ts') : undefined,
+    types: main.startsWith('./dist')
+      ? main.replace(/\.js$/, '.d.ts')
+      : /\.tsx?$/.test(main)
+        ? main
+        : undefined,
     exports: exportsField,
     // Bundlers cannot cross a package boundary safely until the package says
     // which modules execute work merely by being imported. One explicit
     // runtime exception preserves the Native ambient listeners; every other
-    // generated package is side-effect-free.
+    // generated package is side-effect-free, except UI's explicit CSS imports.
     sideEffects: spec.sideEffects ?? false,
     // `src` ships alongside `dist` because the build emits
     // `declarationMap` and `sourceMap`, and a map whose source is absent
