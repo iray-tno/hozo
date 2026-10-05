@@ -51,6 +51,36 @@ export function Footer({ baseUrl = '' }: FooterProps) {
               <Text>Conformance Matrix</Text>
             </Link>
             <Link
+              href={`${cleanBase}/three/`}
+              className="hover:text-hinoki text-shikkui-muted transition-colors"
+            >
+              <Text>Three.js (3D)</Text>
+            </Link>
+            <Link
+              href={`${cleanBase}/canvas/`}
+              className="hover:text-tatami-light text-shikkui-muted transition-colors"
+            >
+              <Text>2D Canvas</Text>
+            </Link>
+            <Link
+              href={`${cleanBase}/svg/`}
+              className="hover:text-hinoki-light text-shikkui-muted transition-colors"
+            >
+              <Text>Universal SVG</Text>
+            </Link>
+            <Link
+              href={`${cleanBase}/tailwind/`}
+              className="hover:text-bengara text-shikkui-muted transition-colors"
+            >
+              <Text>Tailwind AOT</Text>
+            </Link>
+            <Link
+              href={`${cleanBase}/stylex/`}
+              className="hover:text-hinoki text-shikkui-muted transition-colors"
+            >
+              <Text>StyleX</Text>
+            </Link>
+            <Link
               href="https://github.com/iray-tno/hozo"
               className="hover:text-shikkui transition-colors"
             >

@@ -1,0 +1,150 @@
+---
+import { DomainNav } from '../components/DomainNav.tsx'
+import { Footer } from '../components/Footer.tsx'
+import { Navbar } from '../components/Navbar.tsx'
+import SiteHead from '../components/SiteHead.astro'
+import '../styles/global.css'
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <SiteHead
+      title="Declarative 2D Canvas & Charts — Hozo"
+      description="High-performance 2D Canvas for dense data visualization in React Native. Compiles declarative JSX into batched HTML5 Canvas draws on Web and Skia commands on Native."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
+    <Navbar baseUrl={baseUrl} />
+
+    <main class="pt-24 pb-20 md:pt-32 md:pb-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <DomainNav baseUrl={baseUrl} currentDomain="canvas" />
+
+      <!-- Page Header -->
+      <section class="mb-12 max-w-4xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wood-subtle border border-wood text-hinoki text-xs font-mono mb-4">
+          <span>@hozo/canvas</span>
+          <span class="text-stone-600">•</span>
+          <span>HTML5 Canvas · React Native Skia</span>
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-shikkui mb-5">
+          Declarative 2D Canvas & <span class="text-hinoki">Data Visualization</span>
+        </h1>
+        <p class="text-base sm:text-lg text-stone-300 leading-relaxed">
+          Rendering massive datasets (thousands of points, heatmaps, or fluid charts) overwhelms DOM node trees. Hozo's 2D Canvas delivers a declarative JSX API that compiles to optimized batched Canvas operations on Web and native Skia draw calls on mobile.
+        </p>
+      </section>
+
+      <!-- SVG vs Canvas Decision Guide Card -->
+      <div class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
+        <h2 class="text-xl sm:text-2xl font-bold text-shikkui mb-4">Choosing Between SVG and Canvas</h2>
+        <p class="text-sm text-stone-300 leading-relaxed mb-6">
+          Hozo provides first-class support for both vector systems. Rather than forcing one paradigm across all use cases, library authors choose based on data density and interaction model:
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="flex items-center gap-2 text-hinoki font-bold text-base mb-2">
+              <span>Use SVG (@hozo/svg)</span>
+            </div>
+            <ul class="text-xs sm:text-sm text-stone-300 space-y-2 list-disc list-inside leading-relaxed">
+              <li>UI icons, vector logos, and design elements</li>
+              <li>Small to medium charts (&lt; 500 data points)</li>
+              <li>When individual nodes need CSS hover transitions and DOM events</li>
+              <li>Zero runtime overhead on Web (emits native <code class="text-hinoki">&lt;svg&gt;</code>)</li>
+            </ul>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="flex items-center gap-2 text-tatami-light font-bold text-base mb-2">
+              <span>Use Canvas (@hozo/canvas)</span>
+            </div>
+            <ul class="text-xs sm:text-sm text-stone-300 space-y-2 list-disc list-inside leading-relaxed">
+              <li>High-frequency real-time time-series and candlestick charts</li>
+              <li>Large datasets (&gt; 5,000 data points) and heatmaps</li>
+              <li>Custom particle animations, drawing pads, and filters</li>
+              <li>Single GPU surface with zero DOM node creation overhead</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Architectural Pillars -->
+      <section class="mb-20">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-8 tracking-tight">
+          Solving the Platform Asymmetry
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              01
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">Imperative vs Declarative</h3>
+            <p class="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              Web Canvas is strictly imperative (<code class="text-hinoki">ctx.fillRect</code>), while React Native Skia is declarative. Hozo compiles declarative JSX into draw instructions, reconciling the asymmetry without runtime bloat.
+            </p>
+          </div>
+
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              02
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">Spatial Hit-Testing</h3>
+            <p class="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              Hozo deliberately does not create a fake DOM over Canvas. Hit-testing is implemented via spatial math, allowing precise gestures and tooltips on both mouse pointers and touch screens.
+            </p>
+          </div>
+
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              03
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">Accessible Sibling Tables</h3>
+            <p class="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              Canvas graphics are often invisible to screen readers. Hozo automatically pairs canvas visualizations with accessible semantic sibling tables so screen reader users can navigate the underlying data.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Code Example -->
+      <section class="mb-16">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-4 tracking-tight">
+          Declarative 2D Authoring
+        </h2>
+        <p class="text-sm text-stone-300 mb-6 max-w-2xl">
+          Write declarative components that compile to optimized draw loops on Web and Skia commands on Native.
+        </p>
+        <div class="rounded-xl border border-wood bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
+<pre><code><span class="text-hinoki">import</span> &#123; Canvas, Rect, Path &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/canvas'</span>
+
+<span class="text-hinoki">export function</span> <span class="text-shikkui">DataBarChart</span>(&#123; points &#125;) &#123;
+  <span class="text-hinoki">return</span> (
+    &lt;<span class="text-bengara">Canvas</span> <span class="text-hinoki-light">width</span>=&#123;600&#125; <span class="text-hinoki-light">height</span>=&#123;300&#125; <span class="text-hinoki-light">accessibilityLabel</span>=<span class="text-tatami-light">"Quarterly Revenue Trends"</span>&gt;
+      &#123;points.map((p, i) =&gt; (
+        &lt;<span class="text-bengara">Rect</span>
+          <span class="text-hinoki-light">key</span>=&#123;i&#125;
+          <span class="text-hinoki-light">x</span>=&#123;i * 60 + 10&#125;
+          <span class="text-hinoki-light">y</span>=&#123;300 - p.value&#125;
+          <span class="text-hinoki-light">width</span>=&#123;40&#125;
+          <span class="text-hinoki-light">height</span>=&#123;p.value&#125;
+          <span class="text-hinoki-light">fill</span>=<span class="text-tatami-light">"#c8a882"</span>
+        /&gt;
+      ))&#125;
+    &lt;/<span class="text-bengara">Canvas</span>&gt;
+  )
+&#125;</code></pre>
+        </div>
+      </section>
+    </main>
+
+    <Footer baseUrl={baseUrl} />
+  </body>
+</html>

@@ -1,0 +1,152 @@
+---
+import { DomainNav } from '../components/DomainNav.tsx'
+import { Footer } from '../components/Footer.tsx'
+import { Navbar } from '../components/Navbar.tsx'
+import SiteHead from '../components/SiteHead.astro'
+import '../styles/global.css'
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <SiteHead
+      title="StyleX & Type-Safe CSS-in-JS — Hozo"
+      description="Zero-runtime static analysis for Meta's StyleX alongside Tailwind in the same compiler. Deterministic merge order, strict type contracts, and cross-platform lowering."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
+    <Navbar baseUrl={baseUrl} />
+
+    <main class="pt-24 pb-20 md:pt-32 md:pb-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <DomainNav baseUrl={baseUrl} currentDomain="stylex" />
+
+      <!-- Page Header -->
+      <section class="mb-12 max-w-4xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wood-subtle border border-wood text-hinoki text-xs font-mono mb-4">
+          <span>@hozo/stylex</span>
+          <span class="text-stone-600">•</span>
+          <span>Meta StyleX · Type Safety</span>
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-shikkui mb-5">
+          StyleX & <span class="text-hinoki">Type-Safe CSS-in-JS</span>
+        </h1>
+        <p class="text-base sm:text-lg text-stone-300 leading-relaxed">
+          Utility classes are fast for product prototyping, but large enterprise codebases and strict design systems demand deterministic style merging and typed props. Hozo integrates Meta's StyleX as a first-class frontend in its Rust compiler, coexisting with Tailwind in the same workspace.
+        </p>
+      </section>
+
+      <!-- Why StyleX in Hozo Grid -->
+      <div class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
+        <h2 class="text-xl sm:text-2xl font-bold text-shikkui mb-4">Why StyleX Coexists with Tailwind in Hozo</h2>
+        <p class="text-sm text-stone-300 leading-relaxed mb-6">
+          Rather than forcing a single styling dogma, Hozo's intermediate representation (<code class="text-hinoki">hozo_ir</code>) accepts both utility classes and typed CSS-in-JS definitions:
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">01: Deterministic Order</div>
+            <h3 class="text-base font-bold text-shikkui mb-2">No Specificity Wars</h3>
+            <p class="text-xs text-stone-300 leading-relaxed">
+              StyleX guarantees that whichever style is applied last wins, regardless of declaration order or class name specificity.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">02: Typed Token Contracts</div>
+            <h3 class="text-base font-bold text-shikkui mb-2">Strict Design Systems</h3>
+            <p class="text-xs text-stone-300 leading-relaxed">
+              Props can enforce exact style variants through TypeScript types, preventing invalid inline style regressions in large engineering teams.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">03: Zero Runtime Cost</div>
+            <h3 class="text-base font-bold text-shikkui mb-2">AOT Compilation</h3>
+            <p class="text-xs text-stone-300 leading-relaxed">
+              <code class="text-hinoki">stylex.create</code> calls are analyzed at build time. Web emits deduplicated atomic classes; Native emits constant StyleSheets.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coexistence in One Project -->
+      <section class="mb-20">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-8 tracking-tight">
+          Coexistence Without Friction
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <h3 class="text-lg font-bold text-shikkui mb-2">Dual-Frontend Compiler</h3>
+            <p class="text-sm text-stone-300 leading-relaxed mb-4">
+              Write Tailwind on marketing pages and StyleX in your component library:
+            </p>
+            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
+              <li>Both syntaxes lower into the same shared intermediate representation (<code class="text-hinoki">hozo_ir</code>).</li>
+              <li>Shared CSS class deduplication across Tailwind and StyleX output.</li>
+              <li>Identical zero-runtime guarantees across both styling pipelines.</li>
+            </ul>
+          </div>
+
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <h3 class="text-lg font-bold text-shikkui mb-2">Smooth Migration Path</h3>
+            <p class="text-sm text-stone-300 leading-relaxed mb-4">
+              Migrate existing React Native or Web applications incrementally:
+            </p>
+            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
+              <li>Drop-in replacement for existing React Native <code class="text-hinoki">StyleSheet.create</code> objects.</li>
+              <li>Replaces runtime CSS-in-JS libraries (Styled Components, Emotion) with zero-cost static CSS.</li>
+              <li>No need to rewrite components overnight — adopt package by package.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Code Example -->
+      <section class="mb-16">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-4 tracking-tight">
+          StyleX Authoring Example
+        </h2>
+        <p class="text-sm text-stone-300 mb-6 max-w-2xl">
+          Define typed styles with <code class="text-hinoki">stylex.create</code>. Hozo evaluates them statically and emits zero-runtime styles for both platforms.
+        </p>
+        <div class="rounded-xl border border-wood bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
+<pre><code><span class="text-hinoki">import</span> * <span class="text-hinoki">as</span> stylex <span class="text-hinoki">from</span> <span class="text-tatami-light">'@stylexjs/stylex'</span>
+<span class="text-hinoki">import</span> &#123; View, Text &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/core'</span>
+
+<span class="text-hinoki">const</span> styles = stylex.create(&#123;
+  base: &#123;
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: <span class="text-tatami-light">'#1c1a18'</span>,
+    borderWidth: 1,
+    borderColor: <span class="text-tatami-light">'rgba(200, 168, 130, 0.18)'</span>,
+  &#125;,
+  active: &#123;
+    borderColor: <span class="text-tatami-light">'#c8a882'</span>,
+    transform: <span class="text-tatami-light">'scale(1.02)'</span>,
+  &#125;,
+&#125;)
+
+<span class="text-hinoki">export function</span> <span class="text-shikkui">TypedCard</span>(&#123; isActive &#125;) &#123;
+  <span class="text-hinoki">return</span> (
+    &lt;<span class="text-bengara">View</span> <span class="text-hinoki-light">style</span>=&#123;[styles.base, isActive &amp;&amp; styles.active]&#125;&gt;
+      &lt;<span class="text-bengara">Text</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"text-shikkui font-bold"</span>&gt;
+        Type-Safe StyleX Component
+      &lt;/<span class="text-bengara">Text</span>&gt;
+    &lt;/<span class="text-bengara">View</span>&gt;
+  )
+&#125;</code></pre>
+        </div>
+      </section>
+    </main>
+
+    <Footer baseUrl={baseUrl} />
+  </body>
+</html>
