@@ -47,6 +47,14 @@ const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /**
+ * How long to keep trying to move focus in: ten tries a frame's length
+ * apart. A container hidden until it is measured shows by the first or
+ * second; ten is a bound, not a guess at a delay.
+ */
+const INITIAL_FOCUS_ATTEMPTS = 10
+const INITIAL_FOCUS_INTERVAL_MS = 16
+
+/**
  * Universal `<FocusScope>` component for Web.
  * Traps Tab key navigation, moves initial focus, and safely restores focus on unmount.
  */
@@ -74,7 +82,10 @@ export function FocusScope({
     const container = containerRef.current
     if (!container) return
 
-    if (autoFocus) {
+    // Where focus goes on the way in: the first candidate, or the container
+    // itself (tabIndex="-1") so a screen reader still announces the role and
+    // name.
+    const initialTarget = (): HTMLElement => {
       const focusables = Array.from(
         container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
       ).filter((el) => el.offsetParent !== null || el.getClientRects().length > 0)
@@ -85,13 +96,32 @@ export function FocusScope({
       }))
 
       const targetIdx = initialFocusIndex(candidates)
-      if (targetIdx !== null && focusables[targetIdx]) {
-        focusables[targetIdx].focus()
-      } else {
-        // Fallback: focus container itself (tabIndex="-1") so screen readers announce dialog role/label
-        container.focus()
-      }
+      return (targetIdx !== null && focusables[targetIdx]) || container
     }
+
+    // `focus()` on an element that cannot take focus yet does nothing, and
+    // says nothing. `FloatingPositioner` is the case that found it: it draws
+    // its content `visibility: hidden` until it has measured, in an effect
+    // that runs after this one, so a popover's first focus landed on nothing
+    // and stayed on the trigger. Trying again shortly after covers that and
+    // any container like it -- but only while focus is still where the scope
+    // found it, so a person who has moved on is not pulled back. A timer
+    // rather than an animation frame: `focus()` resolves style itself, so it
+    // needs the positioner to have rendered, not the page to have painted --
+    // and frames do not run at all in a tab that is not being drawn.
+    let retry: ReturnType<typeof setTimeout> | undefined
+    const moveIn = (attempt: number) => {
+      const target = initialTarget()
+      target.focus()
+      if (document.activeElement === target || attempt >= INITIAL_FOCUS_ATTEMPTS) return
+      const stillWaiting =
+        document.activeElement === openerRef.current ||
+        document.activeElement === document.body ||
+        document.activeElement === null
+      if (!stillWaiting) return
+      retry = setTimeout(() => moveIn(attempt + 1), INITIAL_FOCUS_INTERVAL_MS)
+    }
+    if (autoFocus) moveIn(0)
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!trapped || event.key !== 'Tab') return
@@ -125,6 +155,7 @@ export function FocusScope({
     container.addEventListener('keydown', handleKeyDown)
 
     return () => {
+      clearTimeout(retry)
       container.removeEventListener('keydown', handleKeyDown)
       if (restoreFocus) {
         const opener = openerRef.current
