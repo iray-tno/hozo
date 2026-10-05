@@ -31,6 +31,14 @@ export interface FocusScopeProps {
   trapped?: boolean
   autoFocus?: boolean
   restoreFocus?: boolean
+  /**
+   * Whether the scope holds focus. Turning it false does what unmounting
+   * does -- the trap is released and focus goes back to the opener -- for
+   * an overlay that stays mounted while it animates out (decision 007).
+   * Focus left inside a panel that is fading away would be on something
+   * nobody can use, and on nothing once the panel goes.
+   */
+  active?: boolean
   className?: string
   style?: CSSProperties
 }
@@ -47,6 +55,7 @@ export function FocusScope({
   trapped = true,
   autoFocus = true,
   restoreFocus = true,
+  active = true,
   className,
   style,
 }: FocusScopeProps) {
@@ -55,6 +64,7 @@ export function FocusScope({
 
   useEffect(() => {
     if (typeof document === 'undefined') return
+    if (!active) return
 
     // Capture the trigger element that opened this scope
     if (restoreFocus && document.activeElement instanceof HTMLElement) {
@@ -128,7 +138,7 @@ export function FocusScope({
         }
       }
     }
-  }, [trapped, autoFocus, restoreFocus])
+  }, [trapped, autoFocus, restoreFocus, active])
 
   return (
     <div

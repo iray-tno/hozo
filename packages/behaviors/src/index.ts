@@ -57,6 +57,11 @@ export {
   PortalProvider,
 } from './portal.tsx'
 export {
+  type PresenceBinding,
+  type PresenceState,
+  usePresence,
+} from './presence.ts'
+export {
   nextIndex,
   type Orientation,
   RovingFocusGroup,

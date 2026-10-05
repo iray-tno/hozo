@@ -36,7 +36,7 @@ const trigger =
   'inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-hozo-control transition-colors cursor-pointer bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:text-hozo-text-subtle disabled:cursor-not-allowed disabled:hover:bg-transparent'
 
 const panel =
-  'flex flex-col gap-3 min-w-56 max-w-xs rounded-hozo-panel border border-hozo-border bg-hozo-surface p-4 text-sm text-hozo-text-body shadow-hozo-surface'
+  'flex flex-col gap-3 min-w-56 max-w-xs rounded-hozo-panel border border-hozo-border bg-hozo-surface p-4 text-sm text-hozo-text-body shadow-hozo-surface transition-opacity duration-150 ease-out starting:opacity-0 data-[state=closed]:opacity-0'
 
 export function HozoPopover({ className, ...rest }: HozoPopoverProps) {
   return (
