@@ -2,14 +2,36 @@
 
 A dedicated Expo development app running **React Native Storybook**. It is
 separate from `native-demo` (compiler/accessibility verification) and
-`three-native-probe` (GPU measurements). No test controls or probe logging are
-injected into the showcase.
+`three-native-probe` (GPU measurements). Verification stories are explicit;
+no test controls or probe logging are injected into the ordinary demos.
 
 **SVG / Shared filters / Filters** uses the same five filter scenes as Web
 Storybook, with an on/off toggle. Metro resolves `react-native-svg` from this
 host so workspace library peers do not select another version. The shared
 [browser pixel checks](../showcase/README.md#svg-filters) are not evidence of
-Android/iOS filter rendering; that needs the separate device check.
+Android/iOS filter rendering. **SVG / Filter pixels** supplies five isolated
+stories rendering that exact shared scene, initially unfiltered, without
+scrolling or changing the filter graph. The Android driver captures off/on/off
+inside a measured, non-flattened 96dp host and normalizes screenshot density.
+The shared semantic checks require grayscale, blur outside the source, offset
+red shadows with the blue source on top, and a screen-blended magenta source.
+Native allows at most eight RGB levels of solid-colour deviation; it does not
+claim exact Web/Native rasterizer parity or full filter-prop conformance.
+
+Android PR/weekly runs execute this isolated scenario **before** the unchanged
+full interaction/Canvas scenario, with separate evidence. Dispatch with
+`platform=android`, `android-scenario=svg-filters` to verify filters without
+loading Kumimono. `hozo-native-showcase-android-svg-evidence` retains each
+PNG/XML capture, logcat, source/binary provenance, per-effect measurements,
+presentation waits and failures. Only image reads are polled; each toggle is
+sent once, a failed case aborts, and changing labels cannot satisfy the gate.
+The new device checks must actually pass before claiming Android rendering;
+iOS filter-pixel automation remains follow-up work.
+
+With the built APK and a dedicated connected device/emulator, reproduce only
+this scenario using `HOZO_ANDROID_SCENARIO=svg-filters pnpm --filter
+@hozo/example-native-showcase smoke:android` (PowerShell: set
+`$env:HOZO_ANDROID_SCENARIO = 'svg-filters'` first).
 
 ## Run on a device
 

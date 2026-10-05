@@ -5,7 +5,8 @@
   "description": "Platform-neutral demo bodies shared by Web and Native Storybook hosts.",
   "type": "module",
   "exports": {
-    ".": "./src/index.tsx"
+    ".": "./src/index.tsx",
+    "./svg-filter-scene": "./src/svg-filter-scene.tsx"
   },
   "scripts": {
     "test": "node --test scripts/svg-filter-pixels.test.mjs && node scripts/check-svg-filter-pixels.mjs",

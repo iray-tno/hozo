@@ -38,6 +38,11 @@ on:
         description: 'Total Canvas mounts (1-10); extra stress rounds abort on any failure, never retry it'
         type: string
         default: '1'
+      android-scenario:
+        description: 'Full showcase plus isolated SVG filters, or SVG filters only (no Canvas)'
+        type: choice
+        options: [full, svg-filters]
+        default: full
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'
         type: choice
@@ -59,7 +64,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: native-showcase-${{ github.ref }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
+  group: native-showcase-${{ github.ref }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
   cancel-in-progress: true
 
 jobs:
@@ -115,7 +120,7 @@ jobs:
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Exercise real Native Storybook and Expo GL
+      - name: Exercise isolated SVG filters, then full Storybook and Expo GL
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -125,12 +130,22 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
-          script: node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase
+          script: |
+            HOZO_ANDROID_SCENARIO=svg-filters node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase-svg
+            if [ "$HOZO_ANDROID_SCENARIO" = full ]; then node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase; fi
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
           HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
           HOZO_ANDROID_TARGET: ${{ inputs.android-target || 'google_apis' }}
           HOZO_ANDROID_CANVAS_ROUNDS: ${{ inputs.android-canvas-rounds || '1' }}
+          HOZO_ANDROID_SCENARIO: ${{ inputs.android-scenario || 'full' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-android-svg-evidence
+          path: artifacts/native-showcase-svg
+          if-no-files-found: ignore
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:
