@@ -33,8 +33,11 @@ for (const platform of ['android', 'ios']) {
     bundleOut: out,
     sourceMapOut: `${out}.map`,
     sourceMap: true,
+    sourceMapUrl: `${platform}.bundle.map`,
   })
-  assert.ok(readFileSync(out, 'utf8').length > 1000)
+  const bundle = readFileSync(out, 'utf8')
+  assert.ok(bundle.length > 1000)
+  assert.ok(!bundle.includes('sourceMappingURL=data:'), 'production bundle must not inline sources')
   const map = JSON.parse(readFileSync(`${out}.map`, 'utf8'))
   const sources = mapSources(map)
   assert.ok(sources.some((source) => source.includes('NativeHozoAccessibility')))
