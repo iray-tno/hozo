@@ -52,6 +52,10 @@ for (const platform of ['android', 'ios']) {
     'Confirm save',
     'Add one',
     'Save profile',
+    'SVG/Shared filters',
+    'SVG filters',
+    'Composed shadow',
+    'Turn filters off',
     '組み立て',
   ]) {
     assert.ok(bundle.includes(label), `${platform}: missing story content ${label}`)

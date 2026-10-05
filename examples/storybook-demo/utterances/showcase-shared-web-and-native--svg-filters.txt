@@ -1,0 +1,12 @@
+heading, SVG filters, level 2
+button, Turn filters off
+Grayscale
+image, Grayscale
+Gaussian blur
+image, Gaussian blur
+Drop shadow
+image, Drop shadow
+Composed shadow
+image, Composed shadow
+Screen blend
+image, Screen blend

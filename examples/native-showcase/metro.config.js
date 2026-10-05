@@ -20,6 +20,7 @@ const singletons = new Map(
     'react/jsx-runtime',
     'react/jsx-dev-runtime',
     'react-native',
+    'react-native-svg',
     '@react-three/fiber',
     '@react-three/fiber/native',
     'three',

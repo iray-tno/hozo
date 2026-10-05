@@ -5,6 +5,12 @@ separate from `native-demo` (compiler/accessibility verification) and
 `three-native-probe` (GPU measurements). No test controls or probe logging are
 injected into the showcase.
 
+**SVG / Shared filters / Filters** uses the same five filter scenes as Web
+Storybook, with an on/off toggle. Metro resolves `react-native-svg` from this
+host so workspace library peers do not select another version. The shared
+[browser pixel checks](../showcase/README.md#svg-filters) are not evidence of
+Android/iOS filter rendering; that needs the separate device check.
+
 ## Run on a device
 
 From the repository root:

@@ -3,6 +3,7 @@ import { Emphasis, Heading, Paragraph, Strong } from '@hozo/typography'
 import { useState } from 'react'
 
 export { DialogDemo, PreferencesDemo, TabsDemo } from './patterns.tsx'
+export { SvgFiltersDemo } from './svg-filters.tsx'
 
 // Shared story bodies: no DOM, React Native imports, or Storybook APIs.
 export function ButtonDemo({ disabled = false }: { disabled?: boolean }) {

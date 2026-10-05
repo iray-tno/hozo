@@ -77,6 +77,16 @@ jobs:
       # Keep Metro export costs in main's integration report, but catch a
       # broken Storybook/Hozo transformer composition in a bounded unit check.
       - run: pnpm --filter @hozo/example-native-showcase test:unit
+      # Screenshot parity plus independent effect/position assertions on the
+      # exact scene shared by Web and Native. This is Web evidence, not an
+      # Android/iOS rendering claim; takes seconds, not an emulator build.
+      - run: pnpm --filter @hozo/example-showcase test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: svg-filter-web-evidence
+          path: examples/showcase/artifacts/svg-filters
+          if-no-files-found: warn
       # The homepage's deliberate 3D island: actual WebGL pixels plus
       # keyboard/reduced-motion/responsive/lifecycle checks. No WASM required.
       - run: pnpm --filter @hozo/landing exec node scripts/check-kumimono.mjs dist-check

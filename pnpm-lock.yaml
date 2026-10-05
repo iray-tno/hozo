@@ -443,16 +443,31 @@ importers:
       '@hozo/primitives':
         specifier: workspace:^
         version: link:../../packages/primitives
+      '@hozo/svg':
+        specifier: workspace:^
+        version: link:../../packages/svg
       '@hozo/typography':
         specifier: workspace:^
         version: link:../../packages/typography
     devDependencies:
+      '@hozo/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      playwright-core:
+        specifier: ^1.63.0
+        version: 1.63.0
       react:
         specifier: ^19.2.8
         version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
