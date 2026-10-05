@@ -14,7 +14,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { NATIVE_TARGETS } from '../src/native-targets.ts'
+import { NATIVE_TARGETS, npmPlatformConstraints } from '../src/native-targets.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.resolve(here, '..')
@@ -70,6 +70,14 @@ for (const target of NATIVE_TARGETS) {
   // JavaScript that calls it.
   if (manifest.version !== version) {
     problems.push(`${target.packageName}: version ${manifest.version}, expected ${version}`)
+  }
+  const constraints = npmPlatformConstraints(target)
+  for (const field of ['os', 'cpu', 'libc']) {
+    if (JSON.stringify(manifest[field]) !== JSON.stringify(constraints[field])) {
+      problems.push(
+        `${target.packageName}: ${field} is ${JSON.stringify(manifest[field])}, expected ${JSON.stringify(constraints[field])} -- the package manager may silently skip this optional binding`,
+      )
+    }
   }
   if (!existsSync(path.join(dir, manifest.main))) {
     problems.push(`${target.packageName}: ${manifest.main} is missing`)

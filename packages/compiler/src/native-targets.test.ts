@@ -2,7 +2,13 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { nativePackageName } from './native-loader.ts'
-import { cdylibFileName, hostTarget, NATIVE_TARGETS, publishManifest } from './native-targets.ts'
+import {
+  cdylibFileName,
+  hostTarget,
+  NATIVE_TARGETS,
+  npmPlatformConstraints,
+  publishManifest,
+} from './native-targets.ts'
 
 test('the packer and the loader name the same packages', () => {
   // The whole reason the table exists. These are two independent
@@ -69,4 +75,23 @@ test('the published manifest lists every platform, pinned exactly', () => {
     )
   }
   assert.equal(Object.keys(published.optionalDependencies).length, NATIVE_TARGETS.length)
+})
+
+test('npm platform metadata names glibc while Rust triples and package names keep gnu', () => {
+  for (const arch of ['x64', 'arm64']) {
+    const gnu = hostTarget('linux', arch, 'gnu')!
+    assert.deepEqual(npmPlatformConstraints(gnu), { os: ['linux'], cpu: [arch], libc: ['glibc'] })
+    assert.ok(gnu.triple.endsWith('-gnu'))
+    assert.ok(gnu.packageName.endsWith('-gnu'))
+    assert.deepEqual(npmPlatformConstraints(hostTarget('linux', arch, 'musl')!), {
+      os: ['linux'],
+      cpu: [arch],
+      libc: ['musl'],
+    })
+    for (const platform of ['win32', 'darwin'] as const)
+      assert.deepEqual(npmPlatformConstraints(hostTarget(platform, arch)!), {
+        os: [platform],
+        cpu: [arch],
+      })
+  }
 })
