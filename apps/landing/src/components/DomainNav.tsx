@@ -34,16 +34,23 @@ export function DomainNav({ baseUrl = '', currentDomain }: DomainNavProps) {
           |
         </Text>
         {items.map((item) => {
-          const isActive = item.id === currentDomain
+          if (item.id === currentDomain) {
+            return (
+              <Link
+                key={item.id}
+                href={item.path}
+                aria-current="page"
+                className="inline-flex flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all bg-hinoki/15 text-hinoki border border-hinoki/30 shadow-sm"
+              >
+                <Text>{item.label}</Text>
+              </Link>
+            )
+          }
           return (
             <Link
               key={item.id}
               href={item.path}
-              className={
-                isActive
-                  ? 'inline-flex flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all bg-hinoki/15 text-hinoki border border-hinoki/30 shadow-sm'
-                  : 'inline-flex flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all text-stone-300 hover:text-shikkui hover:bg-yakisugi-800/80'
-              }
+              className="inline-flex flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all text-stone-300 hover:text-shikkui hover:bg-yakisugi-800/80"
             >
               <Text>{item.label}</Text>
             </Link>
