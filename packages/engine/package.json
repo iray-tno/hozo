@@ -1,6 +1,6 @@
 {
   "name": "@hozo/engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.",
   "keywords": [
     "react-native",
@@ -88,6 +88,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "CHANGELOG.md",
     "dist",
     "src",
     "!src/**/*.test.ts",

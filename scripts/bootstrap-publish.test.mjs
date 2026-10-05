@@ -7,12 +7,12 @@ import {
   resolveCrateTarget,
   resolveNpmTarget,
 } from './bootstrap-publish.mjs'
-import { metadataFor, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
+import { applyMetadata, metadataFor, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
 
 const workspace = [
   {
     directory: '/repo/packages/new-package',
-    json: { name: '@hozo/new-package', version: '0.1.0' },
+    json: { name: '@hozo/new-package', version: VERSION },
   },
   {
     directory: '/repo/packages/test-reporter',
@@ -37,6 +37,7 @@ test('source-distributed UI is release-listed and admitted for bootstrap', async
   assert.equal(metadata.exports['./theme.css'], './src/theme.css')
   assert.deepEqual(metadata.sideEffects, ['./src/**/*.css'])
   assert.ok(metadata.files.includes('src'))
+  assert.ok(metadata.files.includes('CHANGELOG.md'))
   assert.ok(metadata.files.includes('!src/**/*.hozo.css'))
   assert.ok(!metadata.files.includes('dist'))
   const plan = await bootstrapPlan('npm', '@hozo/ui', {
@@ -85,13 +86,13 @@ test('only publishable workspace crates are admitted', () => {
     packages: [
       {
         name: 'hozo_new',
-        version: '0.1.0',
+        version: VERSION,
         publish: null,
         manifest_path: '/repo/crates/hozo_new/Cargo.toml',
       },
       {
         name: 'hozo_binding',
-        version: '0.1.0',
+        version: VERSION,
         publish: [],
         manifest_path: '/repo/crates/hozo_binding/Cargo.toml',
       },
@@ -100,6 +101,37 @@ test('only publishable workspace crates are admitted', () => {
   assert.equal(resolveCrateTarget('hozo_new', metadata).kind, 'crate')
   assert.throws(() => resolveCrateTarget('hozo_binding', metadata), /publish = false/)
   assert.throws(() => resolveCrateTarget('hozo_missing', metadata), /not a crate declared/)
+})
+
+test('npm and crate targets on a different release version are refused', () => {
+  assert.throws(
+    () =>
+      resolveNpmTarget('@hozo/core', [
+        { directory: '/repo/packages/core', json: { name: '@hozo/core', version: '0.0.0' } },
+      ]),
+    /is on 0\.0\.0; the release version is/,
+  )
+  assert.throws(
+    () =>
+      resolveCrateTarget('hozo_new', {
+        packages: [
+          {
+            name: 'hozo_new',
+            version: '0.0.0',
+            publish: null,
+            manifest_path: '/repo/crates/hozo_new/Cargo.toml',
+          },
+        ],
+      }),
+    /is on 0\.0\.0; the release version is/,
+  )
+})
+
+test('navigation typed-factory peer keeps the release floor and pre-1.0 ceiling', () => {
+  // The generator owns this override; Changesets otherwise loses the ceiling.
+  const generated = JSON.parse(applyMetadata('navigation').text)
+  assert.equal(generated.version, VERSION)
+  assert.equal(generated.peerDependencies['@hozo/core'], `>=${VERSION} <1`)
 })
 
 test('registry lookup distinguishes a missing name from an outage', async () => {

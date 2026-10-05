@@ -1,6 +1,6 @@
 {
   "name": "@hozo/patterns",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Accessible composite UI patterns for Hozo applications.",
   "keywords": [
     "react-native",
@@ -43,6 +43,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "CHANGELOG.md",
     "dist",
     "src",
     "!src/**/*.test.ts",

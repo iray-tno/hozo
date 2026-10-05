@@ -38,7 +38,7 @@ Every colour, radius and shadow is a token in `theme.css`, and **no component wr
 
 The tokens are custom properties rather than a JavaScript object, so they are the same Theme IR a future StyleX frontend would read rather than a second copy of it (see [#156](https://github.com/iray-tno/hozo/issues/156)).
 
-Their values are literals rather than `var(--color-slate-600)` references, which would read better and be dropped: `/tailwind` converts each `--color-*` it finds and leaves out what will not convert, and a `var()` chain is not a colour to that converter. The palette entry each token came from is in a comment beside it.
+The shipped palette values are literals, with their source palette entries in comments. Application overrides can also use `var(--color-emerald-600)` references: the theme resolver follows chained aliases before colour conversion. Unresolved or cyclic aliases still cannot become Native colours and are not a reason to assume browser-only custom-property evaluation exists on Native.
 
 The palette was not designed. It was counted: `examples/storybook-demo` had grown a consistent look by hand, and the tokens are its most-used values promoted — `text-slate-900` in 120 places, `border-slate-200` in 100, `indigo-600` as the accent in 27. `theme.css` records which is which.
 

@@ -74,7 +74,7 @@ This entry point owns renderer creation, sizing, drawing, and disposal while
 sharing the portable surface's demand/continuous frame-loop contract. It is
 currently Web-only; importing it on React Native fails explicitly because Hozo
 does not yet provide a Native WebGL context host. It never silently falls back
-to the portable renderer. The modern `WebGPURenderer` family will use a
+to the portable renderer. The modern `WebGPURenderer` family uses a
 separate `@hozo/three/webgpu` entry point.
 
 `onObjectPress` raycasts the classic WebGL scene and preserves the source
