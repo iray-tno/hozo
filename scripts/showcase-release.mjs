@@ -272,6 +272,22 @@ export function configureVersion(app, identity, runNumber) {
   }
 }
 
+export function signingCertificateSha256(output) {
+  // apksigner v3.1 labels signers by their SDK range rather than by number.
+  // The same certificate can appear in multiple scheme/range records. A
+  // rotated or multi-signer APK is not this release's single-key contract.
+  const fingerprints = new Set(
+    [
+      ...String(output).matchAll(
+        /^Signer (?:#\d+|\(minSdkVersion=\d+(?: \(dev release=true\))?, maxSdkVersion=\d+\)) certificate SHA-256 digest: ([a-f0-9]{64})\r?$/gim,
+      ),
+    ].map((match) => match[1].toLowerCase()),
+  )
+  assert.ok(fingerprints.size > 0, 'verified signing certificate fingerprint is missing')
+  assert.equal(fingerprints.size, 1, 'expected a single signing certificate')
+  return [...fingerprints][0]
+}
+
 export function prepareAndroid(root, env, run = execFileSync) {
   const apk = path.join(
     root,
@@ -318,10 +334,10 @@ export function prepareAndroid(root, env, run = execFileSync) {
       copyFileSync(signed, apk)
     }
     const verified = run(signer, ['verify', '--print-certs', apk], { env, encoding: 'utf8' })
-    const certificateSha256 = /Signer #1 certificate SHA-256 digest: ([a-f0-9]{64})/i
-      .exec(verified)?.[1]
-      ?.toLowerCase()
-    assert.ok(certificateSha256, 'verified signing certificate fingerprint is missing')
+    // Public certificate information, not key material. Preserve the real
+    // verifier output so a future SDK format change can be diagnosed in CI.
+    console.log(String(verified).trim())
+    const certificateSha256 = signingCertificateSha256(verified)
     writeJson(path.join(path.dirname(apk), 'signing.json'), {
       mode: release ? 'release' : 'debug-preview',
       commit: env.GITHUB_SHA,

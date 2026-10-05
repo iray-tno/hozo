@@ -21,6 +21,7 @@ import {
   publishAssets,
   releaseIdentity,
   SHOWCASE_CHECKS,
+  signingCertificateSha256,
   signingCredentials,
   validateEvidence,
 } from './showcase-release.mjs'
@@ -218,6 +219,41 @@ test('signing fails before compiling when secrets are missing; private material 
   )
 })
 
+test('signing fingerprints support numbered and SDK-scoped signers but refuse ambiguous certificates', () => {
+  const fingerprint = 'b'.repeat(64)
+  assert.equal(
+    signingCertificateSha256(`Signer #1 certificate SHA-256 digest: ${fingerprint}\r\n`),
+    fingerprint,
+  )
+  assert.equal(
+    signingCertificateSha256(
+      [
+        `Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate SHA-256 digest: ${fingerprint.toUpperCase()}`,
+        `Signer (minSdkVersion=28 (dev release=true), maxSdkVersion=32) certificate SHA-256 digest: ${fingerprint}`,
+      ].join('\n'),
+    ),
+    fingerprint,
+  )
+  assert.throws(
+    () =>
+      signingCertificateSha256(
+        [
+          `Signer #1 certificate SHA-256 digest: ${fingerprint}`,
+          `Signer #2 certificate SHA-256 digest: ${'c'.repeat(64)}`,
+        ].join('\n'),
+      ),
+    /single signing certificate/,
+  )
+  for (const output of [
+    '',
+    `Source Stamp Signer certificate SHA-256 digest: ${fingerprint}`,
+    `Signer #1 public key SHA-256 digest: ${fingerprint}`,
+    `Signer #1 certificate SHA-256 digest: ${fingerprint}ff`,
+    `Signer #1 certificate SHA-256 digest: ${'z'.repeat(64)}`,
+  ])
+    assert.throws(() => signingCertificateSha256(output), /fingerprint is missing/)
+})
+
 test('Android re-signs before fingerprinting, uses env passwords and removes only its temporary key directory', (t) => {
   const { root } = fixture(t)
   const apk = path.join(
@@ -240,7 +276,7 @@ test('Android re-signs before fingerprinting, uses env passwords and removes onl
       writeFileSync(args[args.indexOf('--out') + 1], 'fixed signed')
     } else if (args.includes('--print-certs')) {
       assert.equal(readFileSync(apk, 'utf8'), 'fixed signed')
-      return `Signer #1 certificate SHA-256 digest: ${'b'.repeat(64)}\n`
+      return `Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate SHA-256 digest: ${'b'.repeat(64)}\n`
     }
     return ''
   }
