@@ -29,13 +29,28 @@ loading Kumimono. `hozo-native-showcase-android-svg-evidence` retains each
 PNG/XML capture, logcat, source/binary provenance, per-effect measurements,
 presentation waits and failures. Only image reads are polled; each toggle is
 sent once, a failed case aborts, and changing labels cannot satisfy the gate.
-The new device checks must actually pass before claiming Android rendering;
-iOS filter-pixel automation remains follow-up work.
+The device checks must actually pass before claiming Native rendering.
+
+iOS full runs verify the same five scenes after the ordinary interactions and
+before Canvas, sharing the existing app launch and input connection. The original
+nine full-scenario checks and Canvas deadlines are unchanged. Dispatch with
+`platform=ios`, `ios-scenario=svg-filters` to verify only SVG without loading
+Kumimono. `hozo-native-showcase-ios-svg-evidence` retains the PNG/AX JSON captures,
+syslog, per-effect off/on/off measurements, point and Retina pixel bounds, source
+SHA256, peer version, source/binary provenance and failures. Its success is separate
+from full-scenario success, Canvas performance and screen-reader accessibility.
+Both platforms use the same effect/restore gates, tolerances and 15s pixel budget;
+only iOS screen-point-to-pixel conversion differs. A passed bundle or synthetic
+Retina unit test is not simulator rendering evidence.
 
 With the built APK and a dedicated connected device/emulator, reproduce only
 this scenario using `HOZO_ANDROID_SCENARIO=svg-filters pnpm --filter
 @hozo/example-native-showcase smoke:android` (PowerShell: set
 `$env:HOZO_ANDROID_SCENARIO = 'svg-filters'` first).
+
+On macOS, with the release Simulator app built as described below and the input
+driver installed, use `HOZO_IOS_SCENARIO=svg-filters pnpm --filter
+@hozo/example-native-showcase smoke:ios` for the isolated iOS measurement.
 
 ## Run on a device
 

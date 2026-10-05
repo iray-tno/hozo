@@ -49,9 +49,9 @@ on:
         options: [ax, axbridge]
         default: ax
       ios-scenario:
-        description: 'Full interaction verification, or isolated Canvas diagnosis (not full coverage)'
+        description: 'Full interactions plus SVG pixels, isolated SVG pixels, or Canvas diagnosis'
         type: choice
-        options: [full, canvas, gl-control]
+        options: [full, svg-filters, canvas, gl-control]
         default: full
       ios-canvas-mode:
         description: 'Controlled frame-loop comparison; demand is the canonical story'
@@ -242,7 +242,7 @@ jobs:
           brew trust facebook/fb
           brew install facebook/fb/idb
           idb ui describe-all --help
-      - name: Exercise real Native Storybook and Expo GL on iOS
+      - name: Exercise real Native Storybook, SVG filters and Expo GL on iOS
         run: node examples/native-showcase/scripts/ios-smoke.mjs artifacts/native-showcase-ios
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
@@ -261,6 +261,13 @@ jobs:
       - name: Summarize iOS submission and pixel measurements
         if: always()
         run: node examples/native-showcase/scripts/report-ios-performance.mjs artifacts/native-showcase-ios
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-ios-svg-evidence
+          path: artifacts/native-showcase-ios/svg-filters
+          if-no-files-found: ignore
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:

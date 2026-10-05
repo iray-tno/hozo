@@ -50,6 +50,9 @@ export function verifyRestored(control, restored) {
 // every failed observation remains in evidence and no failing case is skipped.
 export async function exerciseSvgFilters(driver, evidence) {
   const { story, waitFor, tap, screenshot, waitForImage, record } = driver
+  const captureRegion =
+    driver.captureRegion ??
+    ((buffer, node) => ({ image: svgImage(buffer, node.rect), pixelBounds: node.rect }))
   for (const kind of SVG_FILTER_KINDS) {
     const result = { kind, passed: false, observations: [] }
     evidence.svgFilters ??= []
@@ -63,8 +66,11 @@ export async function exerciseSvgFilters(driver, evidence) {
       const capture = (state) => {
         const name = `svg-${kind}-${state}-${result.captures.length + 1}`
         result.captures.push(name)
-        const image = svgImage(screenshot(name), node.rect)
-        return image
+        const region = captureRegion(screenshot(name), node)
+        if (result.pixelBounds) assert.deepEqual(region.pixelBounds, result.pixelBounds)
+        result.pixelBounds = region.pixelBounds
+        if (region.screenBounds) result.screenBounds = region.screenBounds
+        return region.image
       }
       // An unfiltered pair still needs a source and white background. Using the
       // shared color assertion with itself would reject its missing effect, so

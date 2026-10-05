@@ -158,3 +158,21 @@ test('a failed case is preserved and aborts the series, never rescued by later e
   assert.ok(evidence.svgFilters[1].error)
   assert.ok(!events.some((event) => event.includes('--shadow')))
 })
+
+test('a changing screenshot coordinate system fails without sampling a new region or retoggling', async () => {
+  const evidence = {}
+  const { driver, events } = fakeDriver()
+  let captures = 0
+  driver.captureRegion = (buffer, node) => {
+    const shift = captures++
+    return {
+      image: svgImage(buffer, node.rect),
+      pixelBounds: node.rect.map((coordinate) => coordinate + shift),
+    }
+  }
+  await assert.rejects(exerciseSvgFilters(driver, evidence))
+  assert.equal(evidence.svgFilters.length, 1)
+  assert.equal(evidence.svgFilters[0].passed, false)
+  assert.ok(evidence.svgFilters[0].error)
+  assert.equal(events.filter((event) => event.includes(': Turn filter')).length, 1)
+})
