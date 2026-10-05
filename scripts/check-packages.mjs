@@ -108,6 +108,7 @@ for (const name of PACKAGE_NAMES) {
   // A published package with no README is a blank page on npm.
   if (!files.has('README.md')) fail(name, 'no README.md in the tarball')
   if (!files.has('LICENSE')) fail(name, 'no LICENSE in the tarball')
+  if (!files.has('CHANGELOG.md')) fail(name, 'no CHANGELOG.md in the tarball')
 
   // Things that must never ship.
   for (const file of files) {

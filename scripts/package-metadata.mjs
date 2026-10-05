@@ -198,6 +198,9 @@ const PACKAGES = {
     ],
     files: ['dist', 'hozo-links.schema.json'],
     native: true,
+    // Changesets raises the floor but drops the old upper bound. Keep the
+    // typed-factory peer on this release without claiming future 1.x APIs.
+    peerOverrides: { '@hozo/core': `>=${VERSION} <1` },
     keywords: ['react-native', 'react', 'navigation', 'router', 'deep-linking', 'universal'],
   },
   behaviors: {
@@ -386,6 +389,8 @@ export function metadataFor(name) {
     // by name -- npm honours negations here. Benchmarks follow the same
     // rule: useful in the repository, but not part of the package API.
     files: [
+      // Unlike README/LICENSE, npm does not include changelogs implicitly.
+      'CHANGELOG.md',
       ...(spec.files ?? ['dist']),
       ...(!spec.files?.includes('src') ? ['src'] : []),
       '!src/**/*.test.ts',

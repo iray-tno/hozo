@@ -27,13 +27,10 @@ pnpm --filter @hozo/compiler build:native   # after any change under crates/
 pnpm test                                   # from the repository root
 ```
 
-`pnpm test` is the same command CI runs. Two lines in its output matter, and
-both have to appear:
-
-```
- Tasks:    24 successful, 24 total
-12 packages pack correctly
-```
+`pnpm test` is the same command CI runs. Its package build/test tasks,
+publishing checks and application integration tests must all succeed. The
+final package check must report that every public package packs correctly;
+the exact task/package counts grow as packages are added.
 
 If your change moves any conformance number, also run the audit and commit the
 new snapshot. Build the addon in release first — the audit is almost entirely
@@ -59,9 +56,10 @@ numeric work is `f64`, and an `as` cast truncates silently in both.
 ## Five things that will bite you
 
 **`pnpm turbo run test` is not `pnpm test`.** The root script is
-`turbo run test && node scripts/check-packages.mjs`, and the second half is
-where a broken `exports` map surfaces. Running only the Turborepo half reports
-green while CI is red. This has happened.
+the package build/test/pack checks followed by publishing and integration
+checks. `scripts/check-packages.mjs` is where a broken `exports` map surfaces;
+running only the Turborepo tests skips this and the release checks and can
+report green while CI is red. This has happened.
 
 **`packages/*/package.json` is generated.** `scripts/package-metadata.mjs`
 writes it and `scripts/check-packages.mjs` verifies it. Editing one by hand

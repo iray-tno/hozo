@@ -1,6 +1,6 @@
 {
   "name": "@hozo/native",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hozo's optional native module: the accessibility capabilities React Native does not expose to JavaScript.",
   "keywords": [
     "react-native",
@@ -31,6 +31,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "CHANGELOG.md",
     "dist",
     "android",
     "!android/build",
