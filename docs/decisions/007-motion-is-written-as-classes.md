@@ -1,6 +1,6 @@
 # 7. Motion is written as classes, and Native learns `starting:`
 
-**Status:** decided — the approach and the order of slices; the exit variant's spelling is left to slice 2
+**Status:** decided — the approach, the order of slices, and (amendment 1) the exit variant's spelling
 **Date:** 2026-10-04
 
 ## What #146 asked for, and what already exists
@@ -76,8 +76,7 @@ needs something that keeps the child mounted while it leaves:
   transition ends: `transitionend` on the Web, the `Animated` completion
   callback on Native. A timeout covers a transition that never fires.
 - The exiting styles are written as a class variant, so they live with the
-  rest. Which variant spelling to use is the first question of that slice
-  (below), not of this one.
+  rest. The spelling is `data-[state=closed]:` (amendment 1).
 - Hozo's own overlays (`Popover`, `BottomSheet`, `Drawer`, the date panels)
   are its first users, and the reason to build it.
 
@@ -124,10 +123,8 @@ What Hozo does instead:
 1. **Order:** enter (`starting:` on Native), then exit (presence), then the
    project's keyframes, as above.
 2. **Reduced-motion diagnostic:** a hint, as above.
-3. **Left to slice 2:** the exit variant's spelling, such as a Hozo variant, or
-   Tailwind's `data-[state=closed]:` on a `data-state` the presence component
-   sets. On Native it has to be a condition the compiler understands, not a
-   selector.
+3. **The exit variant's spelling:** `data-[state=closed]:`, settled before
+   slice 2 started. See amendment 1.
 
 ## How slice 1 will be shown to work
 
@@ -139,6 +136,51 @@ What Hozo does instead:
   On an unsupported property it gets a diagnostic.
 - A story in the native demo that fades and slides a card in, run on the
   emulator, with the Web story beside it.
+
+## Amendment 1 — exit is written `data-[state=closed]:` (2026-10-05)
+
+The presence component sets `data-state` on its child: `"open"` while it is
+shown, `"closed"` while it leaves. Exit styles are written against that:
+
+```tsx
+<Presence show={open}>
+  <View className="transition motion-safe:starting:translate-y-4 starting:opacity-0
+                   data-[state=closed]:opacity-0 motion-safe:data-[state=closed]:translate-y-4">
+```
+
+Why this spelling, of the three considered:
+
+- **It is Tailwind's own, and a convention people already write.** Radix and
+  shadcn/ui set `data-state="open" | "closed"`, and their exit animations are
+  `data-[state=closed]:` classes. Nothing new to learn, nothing to register.
+- **StyleX can say the same thing.** StyleX 0.19 accepts conditional keys that
+  start with `[`, so `opacity: { default: 1, '[data-state="closed"]': 0 }` is
+  the same attribute selector. Both frontends land on the one
+  `Condition::DataAttribute`, so Web and Native each need one implementation.
+- **`exit:`** (a Hozo variant through `@custom-variant`) reads best beside
+  `starting:`, but StyleX has no counterpart, and Hozo would have to invent a
+  key there. Rejected.
+- **`data-closed:`** (Headless UI's: one closed state used as both the enter
+  start and the exit end) is shorter, but overlaps with `starting:`, which
+  slice 1 has just shipped. Rejected.
+
+What each platform does with it:
+
+- **Web:** the selector as Tailwind writes it. The presence component puts
+  `data-state` on its child's element and unmounts it on `transitionend`
+  (or `animationend`), with a timeout.
+- **Native:** there are no selectors, so `[data-state="open"]` and
+  `[data-state="closed"]` are read as the presence state, which
+  `HozoAnimated` gets from the presence component's context, and the
+  `Animated` completion callback ends the exit. Outside a presence component
+  the state is never `closed`. Any other `data-*` condition keeps its
+  diagnostic on Native, as today.
+- **StyleX:** the frontend learns to read `'[data-state="…"]'` keys into the
+  same condition. Whether StyleX's `'@starting-style'` key produces the right
+  CSS is to be checked against StyleX's own output before the frontend reads it
+  as `starting:`.
+- **The reduced-motion hint** (section 5) covers `data-[state=closed]:` as it
+  covers `starting:`.
 
 ## When to revisit
 
