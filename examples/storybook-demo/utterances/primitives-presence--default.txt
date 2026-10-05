@@ -1,0 +1,6 @@
+heading, Enter and exit (Presence), level 2
+paragraph
+The card fades and slides in on mount and out before it is removed. With reduced motion it only fades.
+end of paragraph
+button, Hide the card
+Entered from its starting style.
