@@ -1,0 +1,150 @@
+---
+import { DomainNav } from '../components/DomainNav.tsx'
+import { Footer } from '../components/Footer.tsx'
+import { Kumimono } from '../components/Kumimono.tsx'
+import { Navbar } from '../components/Navbar.tsx'
+import SiteHead from '../components/SiteHead.astro'
+import '../styles/global.css'
+import '../styles/kumimono.css'
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <SiteHead
+      title="Three.js & 3D Spatial Graphics — Hozo"
+      description="Unified WebGL, WebGPU, and Native GPU 3D pipeline for React Native. Author scenes once with Three.js and React Three Fiber; run across Web, Hermes, iOS and Android."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
+    <Navbar baseUrl={baseUrl} />
+
+    <main class="pt-24 pb-20 md:pt-32 md:pb-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <DomainNav baseUrl={baseUrl} currentDomain="three" />
+
+      <!-- Page Header -->
+      <section class="mb-12 max-w-4xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wood-subtle border border-wood text-hinoki text-xs font-mono mb-4">
+          <span>@hozo/three</span>
+          <span class="text-stone-600">•</span>
+          <span>WebGL · WebGPU · Expo GL</span>
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-shikkui mb-5">
+          Three.js & <span class="text-hinoki">3D Spatial Graphics</span>
+        </h1>
+        <p class="text-base sm:text-lg text-stone-300 leading-relaxed">
+          3D graphics on the web and on mobile usually live in two isolated ecosystems with diverging shader languages and asset pipelines. Hozo bridges them with a unified 3D pipeline that lowers to WebGL / WebGPU on the Web and native OpenGL ES / Metal on React Native.
+        </p>
+      </section>
+
+      <!-- Interactive Kumimono Workbench -->
+      <div class="mb-20 rounded-2xl border border-wood bg-yakisugi-900/60 p-4 sm:p-8 backdrop-blur-sm shadow-xl">
+        <div class="mb-6 border-b border-wood-subtle pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-shikkui">Interactive Proof: Kumimono (組物)</h2>
+            <p class="text-xs sm:text-sm text-stone-400 mt-1">
+              Live WebGL rendering of a traditional Japanese timber joinery bracket system using portable bounded shaders.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 text-xs font-mono text-hinoki">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Zero idle frame draw</span>
+          </div>
+        </div>
+
+        <Kumimono client:visible baseUrl={baseUrl} />
+      </div>
+
+      <!-- Core Capabilities Grid -->
+      <section class="mb-20">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-8 tracking-tight">
+          Architecture & Key Capabilities
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              01
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">Three-Tier Renderers</h3>
+            <p class="text-sm text-stone-300 leading-relaxed mb-4">
+              Switch seamlessly between three distinct targets:
+            </p>
+            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
+              <li><strong class="text-shikkui">Portable Shaders:</strong> Zero vendor GLSL extensions; identical output on Web and Hermes mobile.</li>
+              <li><strong class="text-shikkui">Classic WebGL:</strong> Maximum browser reach and canvas compatibility.</li>
+              <li><strong class="text-shikkui">Modern WebGPU:</strong> Compute-backed pipeline for next-generation devices.</li>
+            </ul>
+          </div>
+
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              02
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">R3F Native Host</h3>
+            <p class="text-sm text-stone-300 leading-relaxed mb-4">
+              Full authoring compatibility with declarative React Three Fiber syntax.
+            </p>
+            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
+              <li><strong class="text-shikkui">Declarative JSX:</strong> Use standard <code class="text-hinoki">&lt;mesh&gt;</code> and <code class="text-hinoki">&lt;group&gt;</code> tags.</li>
+              <li><strong class="text-shikkui">Expo GL Integration:</strong> Direct native buffer submission without serializing vertices across the bridge.</li>
+              <li><strong class="text-shikkui">Demand Rendering:</strong> Only redraws when the scene state moves, saving mobile battery.</li>
+            </ul>
+          </div>
+
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              03
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">Accessible 3D Controls</h3>
+            <p class="text-sm text-stone-300 leading-relaxed mb-4">
+              3D objects are accompanied by semantic accessibility controls out of the box.
+            </p>
+            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
+              <li><strong class="text-shikkui">ARIA Slider:</strong> Full keyboard stepping (<kbd class="px-1 py-0.5 rounded bg-yakisugi-800 text-stone-300">Home</kbd>, <kbd class="px-1 py-0.5 rounded bg-yakisugi-800 text-stone-300">End</kbd>, Arrows).</li>
+              <li><strong class="text-shikkui">Screen Reader Feedback:</strong> Announces <code class="text-hinoki">aria-valuetext</code> states clearly.</li>
+              <li><strong class="text-shikkui">Reduced Motion:</strong> Jumps directly to targets when the user prefers no animation.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Code Example -->
+      <section class="mb-16">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-4 tracking-tight">
+          Declarative Authoring
+        </h2>
+        <p class="text-sm text-stone-300 mb-6 max-w-2xl">
+          Author scenes with standard React patterns. Hozo compiles the scene to WebGL on the browser and maps directly to the Native GPU runtime on iOS/Android.
+        </p>
+        <div class="rounded-xl border border-wood bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
+<pre><code><span class="text-hinoki">import</span> &#123; ThreeCanvas &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/three'</span>
+<span class="text-hinoki">import</span> &#123; useRef &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'react'</span>
+
+<span class="text-hinoki">export function</span> <span class="text-shikkui">ProductViewer</span>() &#123;
+  <span class="text-hinoki">return</span> (
+    &lt;<span class="text-bengara">ThreeCanvas</span>
+      <span class="text-hinoki-light">camera</span>=&#123;&#123; position: [0, 2, 5], fov: 45 &#125;&#125;
+      <span class="text-hinoki-light">frameloop</span>=<span class="text-tatami-light">"demand"</span>
+      <span class="text-hinoki-light">accessibilityLabel</span>=<span class="text-tatami-light">"Interactive 3D Kumimono Bracket"</span>
+    &gt;
+      &lt;<span class="text-bengara">ambientLight</span> <span class="text-hinoki-light">intensity</span>=&#123;0.6&#125; /&gt;
+      &lt;<span class="text-bengara">directionalLight</span> <span class="text-hinoki-light">position</span>=&#123;[10, 10, 5]&#125; <span class="text-hinoki-light">intensity</span>=&#123;1.2&#125; /&gt;
+      &lt;<span class="text-bengara">KumimonoMesh</span> /&gt;
+    &lt;/<span class="text-bengara">ThreeCanvas</span>&gt;
+  )
+&#125;</code></pre>
+        </div>
+      </section>
+    </main>
+
+    <Footer baseUrl={baseUrl} />
+  </body>
+</html>

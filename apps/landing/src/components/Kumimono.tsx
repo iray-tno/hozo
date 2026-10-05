@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 
 type Study = ReturnType<typeof createKumimonoScene>
 
-export function Kumimono() {
+export function Kumimono({ baseUrl = '' }: { baseUrl?: string } = {}) {
+  const cleanBase = baseUrl ? baseUrl.replace(/\/$/, '') : ''
   const root = useRef<HTMLDivElement>(null)
   const [study, setStudy] = useState<Study>()
   const [error, setError] = useState(false)
@@ -86,9 +87,12 @@ export function Kumimono() {
             separate and rejoin its 56 parts.
           </p>
         </div>
-        <a href="https://github.com/iray-tno/hozo/tree/main/apps/landing/src/components/Kumimono.tsx">
-          View source ↗
-        </a>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <a href={`${cleanBase}/three/`}>3D Documentation &rarr;</a>
+          <a href="https://github.com/iray-tno/hozo/tree/main/apps/landing/src/components/Kumimono.tsx">
+            View source ↗
+          </a>
+        </div>
       </div>
       <div
         ref={root}

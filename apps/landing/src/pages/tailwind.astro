@@ -1,0 +1,159 @@
+---
+import { DomainNav } from '../components/DomainNav.tsx'
+import { Footer } from '../components/Footer.tsx'
+import { Navbar } from '../components/Navbar.tsx'
+import SiteHead from '../components/SiteHead.astro'
+import '../styles/global.css'
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <SiteHead
+      title="Ahead-of-Time Tailwind CSS Compiler — Hozo"
+      description="Zero-runtime AOT compilation of Tailwind CSS classes into atomic CSS for Web and optimized React Native Fabric StyleSheets. Full pseudo-class and dark mode parity."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
+    <Navbar baseUrl={baseUrl} />
+
+    <main class="pt-24 pb-20 md:pt-32 md:pb-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <DomainNav baseUrl={baseUrl} currentDomain="tailwind" />
+
+      <!-- Page Header -->
+      <section class="mb-12 max-w-4xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wood-subtle border border-wood text-hinoki text-xs font-mono mb-4">
+          <span>@hozo/tailwind</span>
+          <span class="text-stone-600">•</span>
+          <span>AOT Compilation · Zero Runtime</span>
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-shikkui mb-5">
+          Ahead-of-Time <span class="text-hinoki">Tailwind CSS Compiler</span>
+        </h1>
+        <p class="text-base sm:text-lg text-stone-300 leading-relaxed">
+          Traditional React Native solutions run a heavy style parser in the client JavaScript bundle. Hozo compiles Tailwind classes ahead of time in Rust, emitting zero-runtime atomic CSS for Web and precalculated Fabric StyleSheets for Mobile.
+        </p>
+      </section>
+
+      <!-- 3-Tier Style Resolution Pipeline -->
+      <div class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
+        <h2 class="text-xl sm:text-2xl font-bold text-shikkui mb-4">The 3-Tier Style Resolution Pipeline</h2>
+        <p class="text-sm text-stone-300 leading-relaxed mb-6">
+          To ensure 100% predictability with maximum runtime performance, Hozo executes styles through a three-tier pipeline:
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 1: Static AOT</div>
+            <h3 class="text-base font-bold text-shikkui mb-2">Build-Time Compilation</h3>
+            <p class="text-xs text-stone-300 leading-relaxed">
+              Static classes are scanned by <code class="text-hinoki">hozo_cache</code> and compiled into native atomic classes and constant StyleSheets. Zero bytes of runtime parser code ship to users.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 2: Dynamic Preflight</div>
+            <h3 class="text-base font-bold text-shikkui mb-2">Branch Pre-Calculation</h3>
+            <p class="text-xs text-stone-300 leading-relaxed">
+              Ternary expressions (<code class="text-hinoki">isActive ? 'bg-hinoki' : 'bg-transparent'</code>) are evaluated at build time. Both branches are compiled into constant numeric lookups.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 3: Candidate Sheet</div>
+            <h3 class="text-base font-bold text-shikkui mb-2">Universal Fallback</h3>
+            <p class="text-xs text-stone-300 leading-relaxed">
+              Unresolvable runtime strings link to a pre-extracted candidate stylesheet derived from Tailwind v4, ensuring no dynamic class ever fails silently.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cross-Platform Pseudos & Theming -->
+      <section class="mb-20">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-8 tracking-tight">
+          Cross-Platform Variants & Theming
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <h3 class="text-lg font-bold text-shikkui mb-2">Pseudo-Class Parity</h3>
+            <p class="text-sm text-stone-300 leading-relaxed mb-4">
+              Write standard Tailwind variants without platform-specific checks:
+            </p>
+            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
+              <li><strong class="text-shikkui">hover: & focus-visible:</strong> Native CSS pseudo-selectors on Web; Pressable state transitions on Native.</li>
+              <li><strong class="text-shikkui">dark:</strong> Lowered to CSS media queries on Web and paired dark token StyleSheets on Mobile.</li>
+              <li><strong class="text-shikkui">aria-* variants:</strong> Direct accessibility state binding across W3C and AccessibilityState.</li>
+            </ul>
+          </div>
+
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <h3 class="text-lg font-bold text-shikkui mb-2">Tailwind v4 @theme Integration</h3>
+            <p class="text-sm text-stone-300 leading-relaxed mb-4">
+              Synchronize your design system tokens effortlessly:
+            </p>
+            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
+              <li><strong class="text-shikkui">Web:</strong> Tokens emit clean CSS custom properties (<code class="text-hinoki">var(--color-hinoki)</code>).</li>
+              <li><strong class="text-shikkui">Native:</strong> Tokens emit structured constants into the React Native StyleSheet dictionary.</li>
+              <li><strong class="text-shikkui">No Duplication:</strong> Single design token source of truth across the monorepo.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Conformance Link Card -->
+      <div class="mb-16 p-6 sm:p-8 rounded-2xl border border-hinoki/30 bg-hinoki/5 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div>
+          <h3 class="text-lg font-bold text-shikkui mb-1">Verify Exact Engine Conformance</h3>
+          <p class="text-xs sm:text-sm text-stone-300">
+            Hozo's compiler output is verified directly against Tailwind's official engine on every commit.
+          </p>
+        </div>
+        <a
+          href={`${baseUrl}/conformance/`}
+          class="px-5 py-2.5 rounded-lg bg-hinoki text-yakisugi-950 font-bold text-xs sm:text-sm hover:bg-hinoki-light transition-colors shrink-0 text-center"
+        >
+          View Conformance Matrix &rarr;
+        </a>
+      </div>
+
+      <!-- Code Example -->
+      <section class="mb-16">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-4 tracking-tight">
+          Universal Component Example
+        </h2>
+        <p class="text-sm text-stone-300 mb-6 max-w-2xl">
+          Write responsive, stateful Tailwind components with zero wrappers and zero runtime cost.
+        </p>
+        <div class="rounded-xl border border-wood bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
+<pre><code><span class="text-hinoki">import</span> &#123; View, Text, Pressable &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/core'</span>
+
+<span class="text-hinoki">export function</span> <span class="text-shikkui">InteractiveCard</span>() &#123;
+  <span class="text-hinoki">return</span> (
+    &lt;<span class="text-bengara">Pressable</span>
+      <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"p-6 rounded-2xl bg-yakisugi-900 border border-wood hover:border-hinoki active:scale-95 transition-all dark:bg-yakisugi-950"</span>
+      <span class="text-hinoki-light">accessibilityRole</span>=<span class="text-tatami-light">"button"</span>
+    &gt;
+      &lt;<span class="text-bengara">Text</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"text-lg font-bold text-shikkui group-hover:text-hinoki"</span>&gt;
+        Ahead-of-Time Compiled Card
+      &lt;/<span class="text-bengara">Text</span>&gt;
+      &lt;<span class="text-bengara">Text</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"text-sm text-stone-400 mt-2 leading-relaxed"</span>&gt;
+        Zero-runtime atomic CSS on Web. Fabric StyleSheet on Native.
+      &lt;/<span class="text-bengara">Text</span>&gt;
+    &lt;/<span class="text-bengara">Pressable</span>&gt;
+  )
+&#125;</code></pre>
+        </div>
+      </section>
+    </main>
+
+    <Footer baseUrl={baseUrl} />
+  </body>
+</html>

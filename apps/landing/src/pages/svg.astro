@@ -1,0 +1,169 @@
+---
+import { DomainNav } from '../components/DomainNav.tsx'
+import { Footer } from '../components/Footer.tsx'
+import { Navbar } from '../components/Navbar.tsx'
+import SiteHead from '../components/SiteHead.astro'
+import '../styles/global.css'
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <SiteHead
+      title="Universal SVG & Filters — Hozo"
+      description="Zero-runtime scalable vector graphics with unified namespace on Web and React Native. Compiles to native SVG elements and react-native-svg with advanced filter effects."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
+    <Navbar baseUrl={baseUrl} />
+
+    <main class="pt-24 pb-20 md:pt-32 md:pb-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <DomainNav baseUrl={baseUrl} currentDomain="svg" />
+
+      <!-- Page Header -->
+      <section class="mb-12 max-w-4xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wood-subtle border border-wood text-hinoki text-xs font-mono mb-4">
+          <span>@hozo/svg</span>
+          <span class="text-stone-600">•</span>
+          <span>Zero-Runtime DOM · react-native-svg</span>
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-shikkui mb-5">
+          Universal SVG & <span class="text-hinoki">Vector Filters</span>
+        </h1>
+        <p class="text-base sm:text-lg text-stone-300 leading-relaxed">
+          Vector icons, badges, and illustrations shouldn't require separate implementations for Web and Mobile. Hozo compiles a single, standard <code class="text-hinoki">&lt;Svg&gt;</code> namespace directly into native DOM SVG elements on Web and <code class="text-hinoki">react-native-svg</code> on iOS/Android.
+        </p>
+      </section>
+
+      <!-- Live Vector & Filter Visual Showcase -->
+      <div class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
+        <h2 class="text-xl sm:text-2xl font-bold text-shikkui mb-2">Live Universal Vector & Filter Pipeline</h2>
+        <p class="text-xs sm:text-sm text-stone-400 mb-6">
+          The graphics below are rendered with pure vector elements and native filter effects.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <!-- Card 1: Vector Geometries -->
+          <div class="p-6 rounded-xl border border-wood-subtle bg-yakisugi-950/80 flex flex-col items-center justify-center text-center">
+            <svg class="w-24 h-24 mb-4" viewBox="0 0 100 100" fill="none">
+              <polygon points="50,10 90,85 10,85" stroke="#c8a882" stroke-width="3" fill="#c8a882" fill-opacity="0.1" />
+              <circle cx="50" cy="60" r="16" stroke="#dfc8ab" stroke-width="2" fill="#9e3d31" fill-opacity="0.3" />
+              <line x1="50" y1="20" x2="50" y2="80" stroke="#c8a882" stroke-width="1.5" stroke-dasharray="4 2" />
+            </svg>
+            <h3 class="text-sm font-bold text-shikkui">Vector Primitives</h3>
+            <p class="text-xs text-stone-400 mt-1">Polygon, Circle, Line & Path</p>
+          </div>
+
+          <!-- Card 2: Filter Shadow -->
+          <div class="p-6 rounded-xl border border-wood-subtle bg-yakisugi-950/80 flex flex-col items-center justify-center text-center">
+            <svg class="w-24 h-24 mb-4" viewBox="0 0 100 100">
+              <defs>
+                <filter id="soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#c8a882" flood-opacity="0.6" />
+                </filter>
+              </defs>
+              <rect x="25" y="25" width="50" height="50" rx="12" fill="#c8a882" filter="url(#soft-glow)" />
+              <path d="M40 50 L47 57 L62 42" stroke="#100f0e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            </svg>
+            <h3 class="text-sm font-bold text-shikkui">feDropShadow</h3>
+            <p class="text-xs text-stone-400 mt-1">Soft composite shadow filter</p>
+          </div>
+
+          <!-- Card 3: Color Matrix -->
+          <div class="p-6 rounded-xl border border-wood-subtle bg-yakisugi-950/80 flex flex-col items-center justify-center text-center">
+            <svg class="w-24 h-24 mb-4" viewBox="0 0 100 100">
+              <defs>
+                <linearGradient id="gradient-card" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#9e3d31" />
+                  <stop offset="100%" stop-color="#c8a882" />
+                </linearGradient>
+                <filter id="blur-glow">
+                  <feGaussianBlur stdDeviation="3" />
+                </filter>
+              </defs>
+              <circle cx="50" cy="50" r="28" fill="url(#gradient-card)" filter="url(#blur-glow)" opacity="0.6" />
+              <circle cx="50" cy="50" r="24" fill="url(#gradient-card)" />
+            </svg>
+            <h3 class="text-sm font-bold text-shikkui">Gradients & Blur</h3>
+            <p class="text-xs text-stone-400 mt-1">LinearGradient & feGaussianBlur</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Capabilities Grid -->
+      <section class="mb-20">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-8 tracking-tight">
+          Pillars of Universal SVG
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              01
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">Zero-Runtime Lowering</h3>
+            <p class="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              On Web, Hozo emits standard HTML5 <code class="text-hinoki">&lt;svg&gt;</code> elements with zero JavaScript wrapper code. On Native, it links directly to <code class="text-hinoki">react-native-svg</code> 15.9+.
+            </p>
+          </div>
+
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              02
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">Cross-Platform Filters</h3>
+            <p class="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              Exposes the full upstream filter subset supported on both platforms: <code class="text-hinoki">Svg.FeColorMatrix</code>, <code class="text-hinoki">Svg.FeGaussianBlur</code>, <code class="text-hinoki">Svg.FeDropShadow</code>, and <code class="text-hinoki">Svg.FeBlend</code>.
+            </p>
+          </div>
+
+          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+            <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
+              03
+            </div>
+            <h3 class="text-lg font-bold text-shikkui mb-2">Semantic SVG Navigation</h3>
+            <p class="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              <code class="text-hinoki">Svg.Link</code> lowers to a semantic <code class="text-hinoki">&lt;a&gt;</code> on Web and a router-aware Pressable group on Native, sharing state with <code class="text-hinoki">@hozo/navigation</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Code Example -->
+      <section class="mb-16">
+        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-4 tracking-tight">
+          Authoring with @hozo/svg
+        </h2>
+        <p class="text-sm text-stone-300 mb-6 max-w-2xl">
+          Define filters in <code class="text-hinoki">&lt;Svg.Defs&gt;</code> and reference them via standard <code class="text-hinoki">url(#id)</code> strings.
+        </p>
+        <div class="rounded-xl border border-wood bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
+<pre><code><span class="text-hinoki">import</span> &#123; Svg &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/svg'</span>
+
+<span class="text-hinoki">export function</span> <span class="text-shikkui">StatusBadge</span>() &#123;
+  <span class="text-hinoki">return</span> (
+    &lt;<span class="text-bengara">Svg</span> <span class="text-hinoki-light">viewBox</span>=<span class="text-tatami-light">"0 0 80 80"</span> <span class="text-hinoki-light">accessibilityLabel</span>=<span class="text-tatami-light">"Verified Status"</span>&gt;
+      &lt;<span class="text-bengara">Svg.Defs</span>&gt;
+        &lt;<span class="text-bengara">Svg.Filter</span> <span class="text-hinoki-light">id</span>=<span class="text-tatami-light">"soft-shadow"</span> <span class="text-hinoki-light">x</span>=<span class="text-tatami-light">"-20%"</span> <span class="text-hinoki-light">y</span>=<span class="text-tatami-light">"-20%"</span> <span class="text-hinoki-light">width</span>=<span class="text-tatami-light">"140%"</span> <span class="text-hinoki-light">height</span>=<span class="text-tatami-light">"140%"</span>&gt;
+          &lt;<span class="text-bengara">Svg.FeDropShadow</span> <span class="text-hinoki-light">dx</span>=&#123;0&#125; <span class="text-hinoki-light">dy</span>=&#123;4&#125; <span class="text-hinoki-light">stdDeviation</span>=&#123;4&#125; <span class="text-hinoki-light">floodColor</span>=<span class="text-tatami-light">"#c8a882"</span> <span class="text-hinoki-light">floodOpacity</span>=&#123;0.4&#125; /&gt;
+        &lt;/<span class="text-bengara">Svg.Filter</span>&gt;
+      &lt;/<span class="text-bengara">Svg.Defs</span>&gt;
+      &lt;<span class="text-bengara">Svg.Circle</span> <span class="text-hinoki-light">cx</span>=&#123;40&#125; <span class="text-hinoki-light">cy</span>=&#123;40&#125; <span class="text-hinoki-light">r</span>=&#123;24&#125; <span class="text-hinoki-light">fill</span>=<span class="text-tatami-light">"#c8a882"</span> <span class="text-hinoki-light">filter</span>=<span class="text-tatami-light">"url(#soft-shadow)"</span> /&gt;
+      &lt;<span class="text-bengara">Svg.Path</span> <span class="text-hinoki-light">d</span>=<span class="text-tatami-light">"M32 40 L38 46 L50 34"</span> <span class="text-hinoki-light">stroke</span>=<span class="text-tatami-light">"#100f0e"</span> <span class="text-hinoki-light">strokeWidth</span>=&#123;3&#125; <span class="text-hinoki-light">strokeLinecap</span>=<span class="text-tatami-light">"round"</span> /&gt;
+    &lt;/<span class="text-bengara">Svg</span>&gt;
+  )
+&#125;</code></pre>
+        </div>
+      </section>
+    </main>
+
+    <Footer baseUrl={baseUrl} />
+  </body>
+</html>
