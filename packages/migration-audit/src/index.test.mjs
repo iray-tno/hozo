@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 
-import { measureRealApp, renderRealAppMarkdown, runCli } from './index.mjs'
+import { AuditInputError, measureRealApp, renderRealAppMarkdown, runCli } from './index.mjs'
 
 test('measures platform-aware residue after DOM style arrays are normalized', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-'))
@@ -136,7 +137,7 @@ test('a className-only corpus with no React Native lowers nothing', () => {
     const report = measureRealApp({ root, source: 'src', name: 'dom-only' })
     assert.equal(report.authoredSignals.filesImportingReactNative, 0)
     assert.equal(report.authoredSignals.filesWithDirectReactNativeJsx, 0)
-    assert.equal(report.authoredSignals.filesUsingAlfAtoms, 0)
+    assert.equal(Object.hasOwn(report.authoredSignals, 'filesUsingAlfAtoms'), false)
     assert.equal(report.authoredSignals.filesWithClassName, 2)
     // `flex` alone, not `flex-col`: one file, not two.
     assert.equal(report.authoredSignals.filesWithBareFlexClassName, 1)
@@ -217,8 +218,174 @@ test('the CLI accepts the checkout as a positional argument', () => {
     const report = runCli([root, '--output', out])
     assert.equal(report.corpus.name, path.basename(root))
     assert.equal(report.scope.tsxFiles, 1)
-    assert.match(readFileSync(out, 'utf8'), /"schemaVersion": 1/)
+    assert.match(readFileSync(out, 'utf8'), /"schemaVersion": 2/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+function fixture(t, files) {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-audit-discovery-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  for (const [file, source] of Object.entries(files)) {
+    const destination = path.join(root, file)
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(destination, source)
+  }
+  return root
+}
+
+const simpleSource = 'export function App() { return <div /> }\n'
+
+test('discovers app without src and scans both when src and app coexist', (t) => {
+  const appRoot = fixture(t, { 'app/index.tsx': simpleSource })
+  const app = measureRealApp({ root: appRoot })
+  assert.deepEqual(app.corpus.sourceDirectories, ['app'])
+  assert.equal(app.scope.tsxFiles, 1)
+  const bothRoot = fixture(t, { 'src/Shared.tsx': simpleSource, 'app/index.tsx': simpleSource })
+  const both = measureRealApp({ root: bothRoot })
+  assert.deepEqual(both.corpus.sourceDirectories, ['src', 'app'])
+  assert.equal(both.scope.tsxFiles, 2)
+  const markdown = renderRealAppMarkdown(both)
+  assert.match(markdown, /`src\/\*\*\/\*\.tsx`, `app\/\*\*\/\*\.tsx`/)
+  assert.match(markdown, /--source "src" --source "app"/)
+})
+
+test('an empty src does not hide app or root-level TSX', (t) => {
+  const appRoot = fixture(t, {
+    'src/utility.ts': 'export const x = 1',
+    'app/index.tsx': simpleSource,
+  })
+  assert.deepEqual(measureRealApp({ root: appRoot }).corpus.sourceDirectories, ['app'])
+  const root = fixture(t, { 'src/utility.ts': 'export const x = 1', 'App.tsx': simpleSource })
+  assert.deepEqual(measureRealApp({ root }).corpus.sourceDirectories, ['.'])
+})
+
+test('root fallback excludes dependencies and generated output', (t) => {
+  const root = fixture(t, {
+    'App.tsx': simpleSource,
+    'components/Card.tsx': simpleSource,
+    'node_modules/library/Bad.tsx': 'not valid TSX !!!',
+    '.git/Bad.tsx': 'not valid TSX !!!',
+    '.next/Bad.tsx': 'not valid TSX !!!',
+    '.expo/Bad.tsx': 'not valid TSX !!!',
+    'dist/Bad.tsx': 'not valid TSX !!!',
+    'build/Bad.tsx': 'not valid TSX !!!',
+    'coverage/Bad.tsx': 'not valid TSX !!!',
+    'artifacts/Bad.tsx': 'not valid TSX !!!',
+  })
+  const report = measureRealApp({ root })
+  assert.equal(report.scope.tsxFiles, 2)
+  assert.equal(report.lowering.parseOrCompileFailures, 0)
+})
+
+test('root discovery does not follow a directory symlink back into the checkout', (t) => {
+  const root = fixture(t, { 'App.tsx': simpleSource })
+  symlinkSync(root, path.join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir')
+  assert.equal(measureRealApp({ root }).scope.tsxFiles, 1)
+})
+
+test('explicit sources override discovery and overlapping sources are deduplicated', (t) => {
+  const root = fixture(t, {
+    'src/App.tsx': simpleSource,
+    'app/index.tsx': simpleSource,
+    'custom/Card.tsx': simpleSource,
+  })
+  const report = measureRealApp({ root, source: 'custom' })
+  assert.deepEqual(report.corpus.sourceDirectories, ['custom'])
+  assert.equal(report.scope.tsxFiles, 1)
+  const stdout = {
+    isTTY: false,
+    output: '',
+    write(value) {
+      this.output += value
+    },
+  }
+  runCli([root, '--source', '.', '--source', 'src'], { stdout })
+  assert.equal(JSON.parse(stdout.output).scope.tsxFiles, 3)
+})
+
+test('no TSX, missing source, source file and missing checkout are input errors', (t) => {
+  const root = fixture(t, { 'app/index.jsx': simpleSource })
+  assert.throws(() => measureRealApp({ root }), { name: 'Error', message: /No TSX.*--source/ })
+  for (const source of ['missing', 'app/index.jsx']) {
+    assert.throws(() => measureRealApp({ root, source }), AuditInputError)
+  }
+  assert.throws(() => measureRealApp({ root: path.join(root, 'missing') }), AuditInputError)
+  const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
+  const result = spawnSync(process.execPath, [cli, root], { encoding: 'utf8' })
+  assert.equal(result.status, 1)
+  assert.equal(result.stdout, '')
+  assert.match(result.stderr, /^hozo-migration-audit: No TSX.*--source[^\r\n]*\r?\n$/)
+  assert.doesNotMatch(result.stderr, /ENOENT|at walk|node:fs/)
+})
+
+test('terminal output is Markdown, pipes are JSON, and explicit formats win', (t) => {
+  const root = fixture(t, { 'src/App.tsx': simpleSource })
+  for (const [isTTY, args, format] of [
+    [true, [], 'markdown'],
+    [false, [], 'json'],
+    [true, ['--format', 'json'], 'json'],
+    [false, ['--format', 'markdown'], 'markdown'],
+  ]) {
+    const stdout = {
+      isTTY,
+      output: '',
+      write(value) {
+        this.output += value
+      },
+    }
+    runCli([root, ...args], { stdout })
+    if (format === 'json') assert.equal(JSON.parse(stdout.output).schemaVersion, 2)
+    else assert.match(stdout.output, /^# Real-app measurement:/)
+  }
+  const md = path.join(root, 'report.md')
+  const stdout = { isTTY: false, write() {} }
+  runCli([root, '--output', md], { stdout })
+  assert.match(readFileSync(md, 'utf8'), /^# Real-app measurement:/)
+  runCli([root, '--output', md, '--format', 'json'], { stdout })
+  assert.equal(JSON.parse(readFileSync(md, 'utf8')).schemaVersion, 2)
+})
+
+test('help succeeds without a checkout and argument errors have no stack trace', () => {
+  const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
+  const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' })
+  assert.equal(help.status, 0)
+  assert.match(help.stdout, /Only \.tsx files/)
+  assert.equal(help.stderr, '')
+  for (const args of [[], ['--source'], ['.', '--unknown', 'x']]) {
+    const result = spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' })
+    assert.equal(result.status, 1)
+    assert.equal(result.stderr.trim().split(/\r?\n/).length, 1)
+    assert.match(result.stderr, /^hozo-migration-audit:/)
+  }
+})
+
+test('Bluesky-style corpus signals are opt-in and do not leak into generic output', (t) => {
+  const root = fixture(t, {
+    'src/App.tsx':
+      'const atoms = { box: {} }; export function App() { return <div style={atoms.box} /> }',
+  })
+  const generic = measureRealApp({ root })
+  assert.equal(generic.corpusSignals, undefined)
+  assert.equal(Object.hasOwn(generic.authoredSignals, 'filesUsingAlfAtoms'), false)
+  assert.doesNotMatch(renderRealAppMarkdown(generic), /ALF|filesUsingAlfAtoms/)
+  const report = measureRealApp({
+    root,
+    fileSignals: { filesUsingAlfAtoms: (source) => /\batoms(?:\.|\[)/.test(source) },
+  })
+  assert.deepEqual(report.corpusSignals, { filesUsingAlfAtoms: 1 })
+  assert.equal(report.scope.tsxFiles, generic.scope.tsxFiles)
+  assert.deepEqual(report.lowering, generic.lowering)
+  const markdown = renderRealAppMarkdown(report)
+  assert.match(markdown, /Corpus-specific signals/)
+  assert.match(markdown, /filesUsingAlfAtoms \| 1/)
+  assert.match(markdown, /heuristics supplied by the corpus runner/)
+  assert.throws(
+    () => measureRealApp({ root, expectedCommit: 'not-the-pinned-commit' }),
+    AuditInputError,
+  )
+  report.lowering.parseOrCompileFailures = 1
+  assert.match(renderRealAppMarkdown(report), /The corpus has parse or compile failures/)
+  assert.doesNotMatch(renderRealAppMarkdown(report), /The corpus parses cleanly/)
 })

@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
-import { runCli } from './index.mjs'
+import { AuditInputError, runCli } from './index.mjs'
 
-runCli()
+try {
+  runCli()
+} catch (error) {
+  if (!(error instanceof AuditInputError)) throw error
+  console.error(`hozo-migration-audit: ${error.message}`)
+  process.exitCode = 1
+}
