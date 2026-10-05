@@ -29,6 +29,8 @@ interface Shared<T> {
    * against the source the compiler reads rather than its output.
    */
   className?: string
+  /** Source-level slot, carried like `className`; `optionStyle` is the runtime hook. */
+  optionClassName?: string
   options: readonly HozoListboxOption<T>[]
   accessibilityLabel?: string
   style?: StyleProp<ViewStyle>

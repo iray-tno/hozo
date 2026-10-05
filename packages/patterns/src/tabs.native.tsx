@@ -18,6 +18,12 @@ export interface HozoTabsProps {
    * against the source the compiler reads rather than its output.
    */
   className?: string
+  /** Source-level styling slots, carried like `className`; use styles at runtime. */
+  tabListClassName?: string
+  tabClassName?: string
+  panelClassName?: string
+  /** Shared author prop; Native focus order does not use the Web arrow-key axis. */
+  orientation?: 'horizontal' | 'vertical' | 'both'
   tabs: readonly HozoTab[]
   defaultIndex?: number
   index?: number

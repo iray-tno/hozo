@@ -122,6 +122,15 @@ export function hostTarget(
   )
 }
 
+/** npm uses `glibc`, not the Rust triple / package suffix `gnu`. */
+export function npmPlatformConstraints(target: NativeTarget) {
+  return {
+    os: [target.platform],
+    cpu: [target.arch],
+    ...(target.libc ? { libc: [target.libc === 'gnu' ? 'glibc' : 'musl'] } : {}),
+  }
+}
+
 /** The manifest `@hozo/compiler` publishes, given the one it develops under. */
 export function publishManifest(
   current: Record<string, unknown> & { version: string },

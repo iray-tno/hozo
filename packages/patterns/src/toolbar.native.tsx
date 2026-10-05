@@ -29,6 +29,8 @@ export interface HozoToolbarProps {
    * against the source the compiler reads rather than its output.
    */
   className?: string
+  /** Shared author prop; Native focus order does not use the Web arrow-key axis. */
+  orientation?: 'horizontal' | 'vertical' | 'both'
   items: readonly HozoToolbarItem[]
   accessibilityLabel?: string
   style?: StyleProp<ViewStyle>

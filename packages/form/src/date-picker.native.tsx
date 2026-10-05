@@ -28,6 +28,10 @@ export interface HozoDatePickerProps {
   dialogClassName?: string
   calendarClassName?: string
   dayClassName?: string
+  /** Calendar slots accepted by shared UI source, like `calendarClassName`. */
+  headerClassName?: string
+  gridClassName?: string
+  monthButtonClassName?: string
   style?: StyleProp<ViewStyle>
   triggerStyle?: StyleProp<ViewStyle>
   triggerTextStyle?: StyleProp<TextStyle>

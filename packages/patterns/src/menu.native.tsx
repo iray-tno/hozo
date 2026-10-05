@@ -18,6 +18,10 @@ export interface HozoMenuProps {
    * against the source the compiler reads rather than its output.
    */
   className?: string
+  /** Source-level styling slots, carried like `className`; use styles at runtime. */
+  triggerClassName?: string
+  menuClassName?: string
+  itemClassName?: string
   trigger: ReactNode
   items: readonly HozoMenuItem[]
   accessibilityLabel?: string

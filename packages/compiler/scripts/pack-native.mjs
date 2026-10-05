@@ -20,7 +20,12 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { cdylibFileName, hostTarget, NATIVE_TARGETS } from '../src/native-targets.ts'
+import {
+  cdylibFileName,
+  hostTarget,
+  NATIVE_TARGETS,
+  npmPlatformConstraints,
+} from '../src/native-targets.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.resolve(here, '..')
@@ -109,9 +114,7 @@ writeFileSync(
       repository,
       main: binary,
       files: [binary],
-      os: [target.platform],
-      cpu: [target.arch],
-      ...(target.libc ? { libc: [target.libc] } : {}),
+      ...npmPlatformConstraints(target),
     },
     null,
     2,
