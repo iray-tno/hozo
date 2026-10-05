@@ -38,13 +38,14 @@ function named(selector, name) {
   check(node, 'Missing control: ' + name)
   return node
 }
-async function load(name) {
+async function loadStory(id) {
   await new Promise(resolve => {
     frame.onload = resolve
-    frame.src = '/iframe.html?id=showcase-shared-web-and-native--' + name + '&viewMode=story'
+    frame.src = '/iframe.html?id=' + id + '&viewMode=story'
   })
   await pause()
 }
+const load = (name) => loadStory('showcase-shared-web-and-native--' + name)
 async function run() {
   const passed = []
   await load('preferences')
@@ -104,6 +105,20 @@ async function run() {
   named('button, [role=button]', 'Turn filters on').click(); await pause()
   checkReferences()
   passed.push('five shared SVG scenes with reversible filter references')
+
+  // A popover's first focus goes into the panel. FloatingPositioner draws
+  // the panel hidden until it has measured, and focus used to be tried in
+  // that frame and land on nothing, leaving it on the trigger.
+  await loadStory('ui-gallery--default')
+  const shipping = named('button[aria-haspopup=dialog]', 'Shipping')
+  shipping.focus()
+  shipping.click(); await pause()
+  const panel = frame.contentDocument.querySelector('[role=dialog][aria-label="Shipping"]')
+  check(panel, 'Popover did not open')
+  check(panel.contains(frame.contentDocument.activeElement), 'Popover did not move focus into its panel')
+  shipping.click(); await pause()
+  check(frame.contentDocument.activeElement === shipping, 'Popover did not restore focus to its trigger')
+  passed.push('popover focus moves into the panel and back')
   result.textContent = JSON.stringify({ passed })
 }
 run().catch(error => { result.textContent = JSON.stringify({ error: error.message }) })
@@ -151,7 +166,7 @@ try {
   assert.ok(output && output !== 'pending', 'browser did not complete interactions')
   const result = JSON.parse(output.replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
   assert.equal(result.error, undefined, result.error)
-  assert.equal(result.passed.length, 4)
+  assert.equal(result.passed.length, 5)
   console.log(`[shared-showcase] ${result.passed.join('; ')}`)
 } finally {
   server.closeAllConnections()
