@@ -39,6 +39,36 @@ export interface SvgFilterRow {
   native: boolean
 }
 
+// Reviewed delegation, not pixel parity. The Android unit adapters still
+// render upstream primitives; the runtime wiring and pixel tests check their
+// behavior separately. Do not count arbitrary wrappers as backed exports.
+export function svgFilterDelegates(name: string, facade: string, adapters: string): boolean {
+  if (new RegExp(`export const ${name} = withClassName\\(NativeSvg\\.${name}\\)`).test(facade))
+    return true
+  const adapter =
+    name === 'FeGaussianBlur'
+      ? 'AndroidGaussianBlur'
+      : name === 'FeDropShadow'
+        ? 'AndroidDropShadow'
+        : undefined
+  if (!adapter) return false
+  const exported = facade.split(`export const ${name}`)[1]?.split(/\bexport const\b/)[0] ?? ''
+  const delegated =
+    adapters.split(`export const ${adapter}`)[1]?.split(`${adapter}.displayName`)[0] ?? ''
+  return (
+    new RegExp(`import \\{[^}]*\\b${adapter}\\b[^}]*\\} from './blur\\.native\\.tsx'`).test(
+      facade,
+    ) &&
+    new RegExp(
+      `=\\s*Platform\\.OS === 'android'\\s*\\? withClassName\\(${adapter}\\)\\s*: withClassName\\(NativeSvg\\.${name}\\)`,
+    ).test(exported) &&
+    new RegExp(`<NativeSvg\\.${name}\\b`).test(delegated) &&
+    /\{\.\.\.props\}/.test(delegated) &&
+    /ref=\{ref\}/.test(delegated) &&
+    /stdDeviation=\{androidBlurDeviation\(props\.stdDeviation, scale\)\}/.test(delegated)
+  )
+}
+
 // These are representative props, not a complete prop-parity inventory.
 // Keep effect nodes inside a Filter and merge nodes inside a FeMerge: proving
 // an element name on an invalid standalone tree would hide integration gaps.
@@ -121,6 +151,7 @@ export function svgFilterScorecard() {
     if (!names.includes(name)) throw new Error(`${name} disappeared from upstream's public API`)
   }
   const nativeFacade = readFileSync(path.join(svgRoot, 'src/index.native.tsx'), 'utf8')
+  const nativeAdapters = readFileSync(path.join(svgRoot, 'src/blur.native.tsx'), 'utf8')
   const namespace = Svg as unknown as Record<string, ElementType | undefined>
   const rows: SvgFilterRow[] = names.map((name) => {
     const upstreamNative = nativeAvailability(name)
@@ -180,9 +211,7 @@ export function Effect() { return <Svg><Svg.Defs>${effect}</Svg.Defs><Svg.Rect f
       attrs.every((attr) => nativeTag.includes(attr)) &&
       nativeOutput.jsx.includes('filter="url(#effect)"') &&
       new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from '@hozo/svg'`).test(metroOutput) &&
-      new RegExp(`export const ${name} = withClassName\\(NativeSvg\\.${name}\\)`).test(
-        nativeFacade,
-      ) &&
+      svgFilterDelegates(name, nativeFacade, nativeAdapters) &&
       new RegExp(`\\b${name},`).test(nativeFacade.split('Object.assign')[1] ?? '')
     return { name, upstreamNative, web, native }
   })

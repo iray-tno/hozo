@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { readCanvasRounds } from './canvas-rounds.mjs'
 import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './device-evidence.mjs'
 import { waitForImage } from './image-ready.mjs'
+import { exerciseSvgFilters, readAndroidScenario } from './svg-filter-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -22,6 +24,7 @@ const evidence = {
   systemImage: process.env.HOZO_ANDROID_TARGET,
   diagnostic: process.env.HOZO_DIAGNOSTICS === '1',
   canvasRounds: readCanvasRounds(process.env.HOZO_ANDROID_CANVAS_ROUNDS),
+  scenario: readAndroidScenario(process.env.HOZO_ANDROID_SCENARIO),
 }
 const adb = (...args) => execFileSync('adb', args, { timeout: 30_000, maxBuffer: 16 * 1024 * 1024 })
 const label = (value) => (node) => matchLabel(node, value)
@@ -106,13 +109,7 @@ async function assembly(state) {
   return waitFor(label('組物: timber bracket assembly'), 'native GL image')
 }
 
-try {
-  evidence.android = adb('shell', 'getprop', 'ro.build.version.release').toString().trim()
-  // Preserve cold-boot failures before the normal driver clears logcat.
-  collectSystemState('before-app')
-  adb('install', '-r', resolve(root, 'android/app/build/outputs/apk/release/app-release.apk'))
-  adb('logcat', '-c')
-  adb('shell', 'am', 'force-stop', app)
+async function fullShowcase() {
   await story('primitives-shared-showcase--buttons', 'Add one')
   await waitFor(label('Pressed 0 times'), 'initial counter')
   await tap(label('Add one'), 'counter button')
@@ -300,6 +297,36 @@ try {
       changedFraction: changedFraction(before, after),
       reverseChangedFraction: changedFraction(after, restored),
     })
+  }
+}
+
+try {
+  evidence.android = adb('shell', 'getprop', 'ro.build.version.release').toString().trim()
+  // Preserve cold-boot failures before the normal driver clears logcat.
+  collectSystemState('before-app')
+  adb('install', '-r', resolve(root, 'android/app/build/outputs/apk/release/app-release.apk'))
+  adb('logcat', '-c')
+  adb('shell', 'am', 'force-stop', app)
+  if (evidence.scenario === 'svg-filters') {
+    evidence.sceneSourceSha256 = createHash('sha256')
+      .update(readFileSync(resolve(root, '../showcase/src/svg-filter-scene.tsx')))
+      .digest('hex')
+    evidence.svgPeerVersion = JSON.parse(
+      readFileSync(resolve(root, 'package.json'), 'utf8'),
+    ).dependencies['react-native-svg']
+    await exerciseSvgFilters(
+      {
+        story,
+        waitFor: (value) => waitFor(label(value), value),
+        tap: (value) => tap(label(value), value),
+        screenshot,
+        waitForImage,
+        record,
+      },
+      evidence,
+    )
+  } else {
+    await fullShowcase()
   }
   evidence.passed = true
 } catch (error) {

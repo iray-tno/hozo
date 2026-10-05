@@ -389,6 +389,62 @@ test('the shared filter graph lowers all ten backed exports into the optional SV
   assert.match(demo, /useId\(\)/)
 })
 
+test('filter pixel stories use the real shared graph and keep measurable bounds through lowering', () => {
+  const file = path.join(root, 'src/SvgFilterPixels.stories.tsx')
+  const source = readFileSync(file, 'utf8')
+  const output = transformHozoSource(source, file)
+  assert.ok(output)
+  assert.match(output, /from ['"]@hozo\/example-showcase\/svg-filter-scene['"]/)
+  assert.match(output, /<SvgFilterScene kind=\{kind\} enabled=\{enabled\}/)
+  assert.doesNotMatch(output, /from ['"]@hozo\/primitives['"]|<Button\b|<Svg\./)
+  for (const kind of ['color', 'blur', 'shadow', 'composition', 'blend']) {
+    assert.ok(source.includes(`kind: '${kind}'`))
+  }
+  assert.ok(createRequire(file).resolve('@hozo/example-showcase/svg-filter-scene'))
+  const react = require('react')
+  const { code } = require('esbuild').transformSync(output, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'automatic',
+  })
+  let enabled = false
+  const module = { exports: {} }
+  new Function('require', 'module', code)((name) => {
+    if (name === 'react')
+      return {
+        ...react,
+        useState: () => [
+          enabled,
+          (value) => {
+            enabled = value
+          },
+        ],
+      }
+    if (name === 'react/jsx-runtime') return require(name)
+    if (name === 'react-native')
+      return { View: 'NativeView', Text: 'NativeText', Pressable: 'NativePressable' }
+    if (name === '@hozo/example-showcase/svg-filter-scene') return { SvgFilterScene: 'SharedGraph' }
+    throw new Error(`Unexpected SVG fixture dependency: ${name}`)
+  }, module)
+  const component = module.exports.default.component
+  for (const state of [false, true]) {
+    const children = react.Children.toArray(component({ kind: 'composition' }).props.children)
+    const region = children.find((child) => child.props.accessibilityLabel === 'SVG pixel scene')
+    assert.ok(region)
+    assert.deepEqual(region.props.style, { width: 96, height: 96 })
+    assert.equal(region.props.accessible, true)
+    assert.equal(region.props.role, 'img')
+    assert.equal(region.props.collapsable, false)
+    assert.equal(region.props.children.type, 'SharedGraph')
+    assert.equal(region.props.children.props.kind, 'composition')
+    assert.equal(region.props.children.props.enabled, state)
+    const button = children.find((child) => child.props.accessibilityRole === 'button')
+    assert.equal(button.props.children.props.children, state ? 'Turn filter off' : 'Turn filter on')
+    button.props.onPress()
+    assert.equal(enabled, !state)
+  }
+})
+
 test('compiled Web autocorrection evaluates dynamic values once and keeps the platform default', () => {
   const { transformSync } = require('esbuild')
   const { renderToStaticMarkup } = require('react-dom/server')

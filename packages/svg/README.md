@@ -72,6 +72,22 @@ implemented there; use the default `none`. Native `FeBlend` supports `normal`, `
 large enough for the blur to avoid clipping at the filter region. Filters can allocate
 offscreen surfaces; apply them to the smallest useful region rather than the entire scene.
 
+Hozo compensates Android Gaussian blur and compact shadow blur for screen density,
+root `viewBox` scaling and the difference between SVG standard deviation and Android's
+RenderScript radius. Fixed numeric viewports need no extra layout observation; responsive
+viewports use their measured native root bounds. The same correction serves named compiler
+imports and the author namespace, preserving graph inputs/results and upstream instance refs.
+iOS continues to use upstream without this Android-specific conversion. The kernel mapping
+comes from [AOSP's implementation](https://android.googlesource.com/platform/frameworks/rs/+/refs/tags/android-13.0.0_r52/cpu_ref/rsCpuIntrinsicBlur.cpp), not a multiplier fitted to one screenshot.
+
+This is not a second renderer or exact raster parity: Android still uses one isotropic
+kernel (the larger X/Y deviation), a maximum radius of 25 bitmap pixels (about 10.6px sigma),
+and cannot represent arbitrarily tiny positive sigma exactly. Root density/`viewBox` correction
+does not infer the bounding box for `primitiveUnits="objectBoundingBox"`, the target element's
+additional group transforms, or geometry changed imperatively without a React update. Those
+cases and a multipass large-blur implementation remain separate work, rather than silently
+claiming full filter-property equivalence.
+
 The conformance report derives the filter-family denominator from upstream's public exports.
 Its Web and Native sections measure API, compiler and import routing, **not pixel equivalence
 or device rendering**. Upstream Native warning-only stubs are listed separately, not counted

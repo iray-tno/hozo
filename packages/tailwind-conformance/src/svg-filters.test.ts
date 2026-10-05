@@ -2,7 +2,50 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
-import { svgFilterScorecard } from './svg-filters.ts'
+import { svgFilterDelegates, svgFilterScorecard } from './svg-filters.ts'
+
+test('reviewed blur adapters count delegation without hiding broken platform or graph wiring', () => {
+  const require = createRequire(import.meta.url)
+  const root = require.resolve('@hozo/svg/package.json').replace('package.json', 'src/')
+  const facade = readFileSync(`${root}index.native.tsx`, 'utf8')
+  const adapters = readFileSync(`${root}blur.native.tsx`, 'utf8')
+  for (const [name, adapter] of [
+    ['FeGaussianBlur', 'AndroidGaussianBlur'],
+    ['FeDropShadow', 'AndroidDropShadow'],
+  ]) {
+    assert.equal(svgFilterDelegates(name, facade, adapters), true)
+    assert.equal(
+      svgFilterDelegates(name, facade.replace(`withClassName(${adapter})`, 'Unknown'), adapters),
+      false,
+    )
+    assert.equal(
+      svgFilterDelegates(
+        name,
+        facade.replace(`withClassName(NativeSvg.${name})`, 'Unknown'),
+        adapters,
+      ),
+      false,
+    )
+    assert.equal(
+      svgFilterDelegates(name, facade, adapters.replace(`<NativeSvg.${name}`, '<Unknown')),
+      false,
+    )
+    assert.equal(svgFilterDelegates(name, facade, adapters.replaceAll('ref={ref}', '')), false)
+    assert.equal(svgFilterDelegates(name, facade, adapters.replaceAll('{...props}', '')), false)
+    assert.equal(
+      svgFilterDelegates(
+        name,
+        facade,
+        adapters.replaceAll(
+          'androidBlurDeviation(props.stdDeviation, scale)',
+          'props.stdDeviation',
+        ),
+      ),
+      false,
+    )
+  }
+  assert.equal(svgFilterDelegates('FeTurbulence', facade, adapters), false)
+})
 
 test('the optional Native SVG peer starts after shadow/composite stopped being stubs', () => {
   const require = createRequire(import.meta.url)
