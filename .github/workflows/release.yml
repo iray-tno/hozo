@@ -31,6 +31,45 @@ on:
   workflow_dispatch:
 
 jobs:
+  showcase:
+    uses: ./.github/workflows/native-showcase.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      release-assets: true
+      release-signing: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    secrets:
+      SHOWCASE_ANDROID_KEYSTORE_BASE64: ${{ secrets.SHOWCASE_ANDROID_KEYSTORE_BASE64 }}
+      SHOWCASE_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.SHOWCASE_ANDROID_KEYSTORE_PASSWORD }}
+
+  # All reversible work must finish before either registry is written.
+  # Even a green native job needs full, fresh-source evidence before shipping.
+  showcase-assets:
+    needs: showcase
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hozo-native-showcase-*
+          path: artifacts/showcase-input
+      - run: node scripts/showcase-release.mjs prepare
+        env:
+          HOZO_RELEASE_SIGNING: ${{ startsWith(github.ref, 'refs/tags/v') && '1' || '' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hozo-showcase-release-assets
+          path: artifacts/showcase-release
+          if-no-files-found: error
+          retention-days: 30
+
   build:
     strategy:
       fail-fast: false
@@ -103,7 +142,7 @@ jobs:
   # hours and only while nothing depends on the package.
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, showcase-assets]
     runs-on: ubuntu-latest
     permissions:
       # npm trusted publishing, and the provenance attestation either way.
@@ -126,6 +165,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: '{x86_64,aarch64}-*'
           merge-multiple: true
 
       # Fails if any of the eight is missing, rather than publishing a
@@ -198,6 +238,27 @@ jobs:
       - run: cargo login "${{ steps.auth.outputs.token }}"
       - run: cargo publish --workspace
 
+  # Asset upload cannot be made atomic with npm/crates.io. Keep the GitHub
+  # Release draft until all attachments exist; never clobber an existing release.
+  github-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [crates, showcase-assets]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+      - uses: actions/download-artifact@v4
+        with:
+          name: hozo-showcase-release-assets
+          path: artifacts/showcase-release
+      - run: node scripts/showcase-release.mjs publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # The dry run for the above, on `workflow_dispatch`: packages every crate
   # and builds each from its packaged sources alone, which is where a missing
   # `version` on a path dependency or a file outside the package shows up.
@@ -210,7 +271,7 @@ jobs:
   # manifests until publishing.
   artifacts-dry-run:
     if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-    needs: build
+    needs: [build, showcase-assets]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -223,6 +284,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: '{x86_64,aarch64}-*'
           merge-multiple: true
       - run: node scripts/check-artifacts.mjs
         working-directory: packages/compiler

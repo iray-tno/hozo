@@ -35,7 +35,7 @@
     "test:packages": "turbo run build --filter=./packages/* && turbo run test --filter=./packages/* && node scripts/check-packages.mjs",
     "test:performance": "turbo run test:performance --filter=@hozo/canvas --filter=@hozo/engine",
     "test:packed-consumer": "node scripts/check-packed-consumer.mjs",
-    "test:publishing": "tsc -p packages/ui/tsconfig.native.json && node --test scripts/bootstrap-publish.test.mjs scripts/pack-npm.test.mjs scripts/release-policy.test.mjs scripts/check-packed-consumer.test.mjs scripts/check-pr-title.test.mjs packages/test-reporter/src/brand-report.test.mjs && node scripts/pack-npm.mjs --target @hozo/core --destination artifacts/npm-test",
+    "test:publishing": "tsc -p packages/ui/tsconfig.native.json && node --test scripts/bootstrap-publish.test.mjs scripts/pack-npm.test.mjs scripts/release-policy.test.mjs scripts/showcase-release.test.mjs scripts/check-packed-consumer.test.mjs scripts/check-pr-title.test.mjs packages/test-reporter/src/brand-report.test.mjs && node scripts/pack-npm.mjs --target @hozo/core --destination artifacts/npm-test",
     "typecheck": "turbo run typecheck",
     "version": "changeset version && node scripts/package-metadata.mjs && node scripts/crate-metadata.mjs && pnpm install --lockfile-only && cargo update --workspace"
   },

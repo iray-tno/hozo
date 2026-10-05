@@ -6,12 +6,35 @@ on:
   pull_request:
     paths:
       - '.github/workflows/native-showcase.yml'
+      - 'scripts/showcase-release*'
       - 'examples/native-showcase/**'
       - 'examples/showcase/**'
   schedule:
     - cron: '35 5 * * 3'
+  # Release calls the same build and device assertions, not a second recipe.
+  workflow_call:
+    inputs:
+      release-assets:
+        type: boolean
+        default: false
+      release-signing:
+        type: boolean
+        default: false
+    secrets:
+      SHOWCASE_ANDROID_KEYSTORE_BASE64:
+        required: false
+      SHOWCASE_ANDROID_KEYSTORE_PASSWORD:
+        required: false
   workflow_dispatch:
     inputs:
+      release-assets:
+        description: 'Set the showcase version to the library version (fresh builds only)'
+        type: boolean
+        default: false
+      release-signing:
+        description: 'Sign Android with the fixed showcase key (requires both signing secrets)'
+        type: boolean
+        default: false
       reuse-build-run:
         description: 'Diagnostic only: reuse app artifacts from this repository run ID (empty builds current source)'
         type: string
@@ -64,7 +87,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: native-showcase-${{ github.ref }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
+  group: native-showcase-${{ github.workflow }}-${{ github.ref }}-${{ inputs.release-signing || false }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
   cancel-in-progress: true
 
 jobs:
@@ -75,6 +98,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Validate release signing configuration before compiling
+        if: inputs.release-signing
+        run: node scripts/showcase-release.mjs check-signing
+        env:
+          SHOWCASE_ANDROID_KEYSTORE_BASE64: ${{ secrets.SHOWCASE_ANDROID_KEYSTORE_BASE64 }}
+          SHOWCASE_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.SHOWCASE_ANDROID_KEYSTORE_PASSWORD }}
+          HOZO_REUSE_BUILD_RUN: ${{ inputs.reuse-build-run }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -92,6 +122,11 @@ jobs:
       - run: pnpm --filter @hozo/example-native-showcase... --if-present build
       - run: pnpm --filter @hozo/example-native-showcase test:unit
       - run: pnpm --filter @hozo/example-native-showcase typecheck
+      - name: Set release showcase version
+        if: inputs.release-assets
+        run: node scripts/showcase-release.mjs version
+        env:
+          HOZO_REUSE_BUILD_RUN: ${{ inputs.reuse-build-run }}
       - if: inputs.reuse-build-run == ''
         run: pnpm --filter @hozo/example-native-showcase prebuild:android
       - name: Build standalone showcase APK
@@ -100,11 +135,20 @@ jobs:
         # Both the emulator and a physical arm64 Android phone can install it.
         # Expo's generated debug signing is for this showcase, not store release.
         run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon
+      - name: Sign and fingerprint the exact APK exercised below
+        if: inputs.reuse-build-run == ''
+        run: node scripts/showcase-release.mjs android
+        env:
+          HOZO_RELEASE_SIGNING: ${{ inputs.release-signing && '1' || '' }}
+          SHOWCASE_ANDROID_KEYSTORE_BASE64: ${{ inputs.release-signing && secrets.SHOWCASE_ANDROID_KEYSTORE_BASE64 || '' }}
+          SHOWCASE_ANDROID_KEYSTORE_PASSWORD: ${{ inputs.release-signing && secrets.SHOWCASE_ANDROID_KEYSTORE_PASSWORD || '' }}
       - uses: actions/upload-artifact@v4
         if: inputs.reuse-build-run == ''
         with:
           name: hozo-native-showcase-android-apk
-          path: examples/native-showcase/android/app/build/outputs/apk/release/app-release.apk
+          path: |
+            examples/native-showcase/android/app/build/outputs/apk/release/app-release.apk
+            examples/native-showcase/android/app/build/outputs/apk/release/signing.json
           if-no-files-found: error
           retention-days: 30
       - uses: actions/download-artifact@v4
@@ -175,6 +219,11 @@ jobs:
       - run: pnpm --filter @hozo/example-native-showcase... --if-present build
       - run: pnpm --filter @hozo/example-native-showcase test:unit
       - run: pnpm --filter @hozo/example-native-showcase typecheck
+      - name: Set release showcase version
+        if: inputs.release-assets
+        run: node scripts/showcase-release.mjs version
+        env:
+          HOZO_REUSE_BUILD_RUN: ${{ inputs.reuse-build-run }}
       - name: Validate diagnostic rebundling
         if: inputs.rebundle-ios
         run: |
@@ -208,11 +257,16 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent \
             build/Build/Products/Release-iphonesimulator/HozoShowcase.app \
             HozoShowcase-simulator.zip
+      - name: Fingerprint the Simulator archive and record its actual architecture
+        if: inputs.reuse-build-run == ''
+        run: node scripts/showcase-release.mjs ios
       - uses: actions/upload-artifact@v4
         if: inputs.reuse-build-run == ''
         with:
           name: hozo-native-showcase-ios-simulator-app
-          path: examples/native-showcase/ios/HozoShowcase-simulator.zip
+          path: |
+            examples/native-showcase/ios/HozoShowcase-simulator.zip
+            examples/native-showcase/ios/build.json
           if-no-files-found: error
           retention-days: 30
       - uses: actions/download-artifact@v4
