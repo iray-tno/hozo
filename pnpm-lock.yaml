@@ -550,6 +550,9 @@ importers:
       axe-core:
         specifier: 4.13.0
         version: 4.13.0
+      playwright-core:
+        specifier: ^1.63.0
+        version: 1.63.0
       storybook:
         specifier: ^10.5.9
         version: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8)
