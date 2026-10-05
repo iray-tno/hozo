@@ -1,0 +1,33 @@
+# Exercise the browser measurement itself on Linux when its harness changes.
+# The full integration report still runs on main/weekly; this is not an extra
+# whole-repository integration gate for every UI or compiler change.
+name: storybook-a11y
+on:
+  pull_request:
+    paths:
+      - 'examples/storybook-demo/scripts/a11y-audit*'
+      - 'examples/storybook-demo/scripts/check-a11y.mjs'
+      - 'examples/storybook-demo/package.json'
+      - '.github/workflows/storybook-a11y.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: storybook-a11y-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm turbo run test --filter=@hozo/example-storybook

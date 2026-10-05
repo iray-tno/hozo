@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test scripts/utterance-walk.test.mjs && tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check && node scripts/check-appearance.mjs storybook-static-check && node scripts/check-shared-showcase.mjs storybook-static-check",
+    "test": "node --test scripts/utterance-walk.test.mjs scripts/a11y-audit.test.mjs && tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check && node scripts/check-appearance.mjs storybook-static-check && node scripts/check-shared-showcase.mjs storybook-static-check",
     "utterances:update": "node scripts/build.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check --update",
     "typecheck": "tsc --noEmit -p .",
     "check:a11y": "node scripts/check-a11y.mjs"
@@ -39,6 +39,7 @@
     "@types/react-dom": "^19.2.4",
     "@types/three": "^0.180.0",
     "axe-core": "4.13.0",
+    "playwright-core": "^1.63.0",
     "storybook": "^10.5.9",
     "typescript": "7.0.2",
     "vite": "^8.2.1"
