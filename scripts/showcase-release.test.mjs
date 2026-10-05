@@ -254,6 +254,24 @@ test('signing fingerprints support numbered and SDK-scoped signers but refuse am
     assert.throws(() => signingCertificateSha256(output), /fingerprint is missing/)
 })
 
+test('the build-tools V2 Signer record observed in the failed CI is a certificate, not a public-key digest', () => {
+  const fingerprint = 'fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c'
+  const output = [
+    'V2 Signer: certificate DN: CN=Android Debug, OU=Android, O=Unknown, L=Unknown, ST=Unknown, C=US',
+    `V2 Signer: certificate SHA-256 digest: ${fingerprint}`,
+    `V2 Signer: public key SHA-256 digest: ${'c'.repeat(64)}`,
+  ].join('\n')
+  assert.equal(signingCertificateSha256(output), fingerprint)
+  assert.throws(() => signingCertificateSha256(output.split('\n')[2]), /fingerprint is missing/)
+  assert.throws(
+    () =>
+      signingCertificateSha256(
+        `${output}\nV3 Signer: certificate SHA-256 digest: ${'b'.repeat(64)}`,
+      ),
+    /single signing certificate/,
+  )
+})
+
 test('Android re-signs before fingerprinting, uses env passwords and removes only its temporary key directory', (t) => {
   const { root } = fixture(t)
   const apk = path.join(
@@ -276,7 +294,7 @@ test('Android re-signs before fingerprinting, uses env passwords and removes onl
       writeFileSync(args[args.indexOf('--out') + 1], 'fixed signed')
     } else if (args.includes('--print-certs')) {
       assert.equal(readFileSync(apk, 'utf8'), 'fixed signed')
-      return `Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate SHA-256 digest: ${'b'.repeat(64)}\n`
+      return `V2 Signer: certificate SHA-256 digest: ${'b'.repeat(64)}\n`
     }
     return ''
   }

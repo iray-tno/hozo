@@ -273,13 +273,14 @@ export function configureVersion(app, identity, runNumber) {
 }
 
 export function signingCertificateSha256(output) {
-  // apksigner v3.1 labels signers by their SDK range rather than by number.
+  // SDK versions use numbered, SDK-ranged or scheme-labelled signer records.
+  // The current build-tools verifier prints "V2 Signer:" for our debug APK.
   // The same certificate can appear in multiple scheme/range records. A
   // rotated or multi-signer APK is not this release's single-key contract.
   const fingerprints = new Set(
     [
       ...String(output).matchAll(
-        /^Signer (?:#\d+|\(minSdkVersion=\d+(?: \(dev release=true\))?, maxSdkVersion=\d+\)) certificate SHA-256 digest: ([a-f0-9]{64})\r?$/gim,
+        /^(?:Signer (?:#\d+|\(minSdkVersion=\d+(?: \(dev release=true\))?, maxSdkVersion=\d+\))|V[1-4](?:\.1)? Signer:) certificate SHA-256 digest: ([a-f0-9]{64})\r?$/gim,
       ),
     ].map((match) => match[1].toLowerCase()),
   )
