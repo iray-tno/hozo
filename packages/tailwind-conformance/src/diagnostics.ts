@@ -167,7 +167,7 @@ const PROVOCATIONS: Record<string, Provocation> = {
   // `flex` with no direction, on a box that was already a flex container.
   FLEX_DIRECTION_UNSAID: { source: '<View className="flex items-center">x</View>' },
   // Moves as it enters, with nothing on it about reduced motion.
-  ENTER_MOTION_IGNORES_REDUCED_MOTION: {
+  MOTION_IGNORES_REDUCED_MOTION: {
     source: '<View className="transition starting:translate-y-4">x</View>',
   },
 }

@@ -338,15 +338,16 @@ pub enum DiagnosticCode {
     /// Quiet in the way that matters: the page renders, nothing throws,
     /// and the content is simply stacked the other way.
     FlexDirectionUnsaid,
-    /// An element that moves as it enters and says nothing about reduced
-    /// motion: `starting:translate-y-4` with no `motion-safe:` or
+    /// An element that moves as it enters or leaves and says nothing about
+    /// reduced motion: `starting:translate-y-4` or
+    /// `data-[state=closed]:translate-y-4` with no `motion-safe:` or
     /// `motion-reduce:` on it.
     ///
     /// A hint, not a warning (decision 007). The animation is what the
     /// author wrote and plays the same on both platforms, as Tailwind's
     /// does; what is missing is a choice only the author can make, and
     /// `motion-safe:` is how they make it.
-    EnterMotionIgnoresReducedMotion,
+    MotionIgnoresReducedMotion,
 }
 
 // ---------------------------------------------------------------------------
@@ -5520,7 +5521,7 @@ impl DiagnosticCode {
             DiagnosticCode::UnreadableArbitraryValue => "UNREADABLE_ARBITRARY_VALUE",
             DiagnosticCode::StylexNotLowered => "STYLEX_NOT_LOWERED",
             DiagnosticCode::FlexDirectionUnsaid => "FLEX_DIRECTION_UNSAID",
-            DiagnosticCode::EnterMotionIgnoresReducedMotion => "ENTER_MOTION_IGNORES_REDUCED_MOTION",
+            DiagnosticCode::MotionIgnoresReducedMotion => "MOTION_IGNORES_REDUCED_MOTION",
         }
     }
 }

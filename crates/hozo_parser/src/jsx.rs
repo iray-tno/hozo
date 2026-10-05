@@ -575,8 +575,8 @@ fn validate_flex_direction(
     });
 }
 
-/// A hint when an element enters by moving and says nothing about reduced
-/// motion (decision 007, section 5).
+/// A hint when an element enters or leaves by moving and says nothing
+/// about reduced motion (decision 007, section 5).
 ///
 /// Hozo does not drop an author's translate under reduced motion, because
 /// Tailwind does not on the Web and a class means the same thing on both
@@ -585,14 +585,14 @@ fn validate_flex_direction(
 /// element counts as having thought about it, whichever classes it is on.
 ///
 /// Only movement: translate, rotate, scale and skew. A fade is left alone,
-/// because WCAG 2.3.3 is about motion and a fade is not motion. Only
-/// `starting:` for now; the exit variant joins it when slice 2 decides
-/// its spelling.
+/// because WCAG 2.3.3 is about motion and a fade is not motion. Entering
+/// is `starting:`; leaving is `data-[state=closed]:`, the frame an element
+/// animates to inside `Presence` (amendment 1).
 fn validate_enter_motion(style: &[StyleDeclaration], span: SourceSpan, diagnostics: &mut Vec<Diagnostic>) {
     let enters_moving = style.iter().any(|declaration| {
         moves(&declaration.property)
             && condition_mentions(&declaration.condition, &|condition| {
-                matches!(condition, Condition::StartingStyle)
+                matches!(condition, Condition::StartingStyle) || leaves_to(condition)
             })
     });
     if !enters_moving {
@@ -610,17 +610,25 @@ fn validate_enter_motion(style: &[StyleDeclaration], span: SourceSpan, diagnosti
         return;
     }
     diagnostics.push(Diagnostic {
-        code: DiagnosticCode::EnterMotionIgnoresReducedMotion,
+        code: DiagnosticCode::MotionIgnoresReducedMotion,
         severity: Severity::Info,
-        message: "This element moves as it enters (`starting:` with a translate, rotate, scale \
-                  or skew), and nothing on it asks about reduced motion, so it plays for \
-                  everyone, as Tailwind's does on the Web. To leave the movement out for people \
-                  who have asked their device for less motion, write those classes as \
-                  `motion-safe:starting:...`, which works on the Web and on React Native. A \
-                  fade on its own (`starting:opacity-0`) is not motion and needs nothing."
+        message: "This element moves as it enters or leaves (`starting:` or \
+                  `data-[state=closed]:` with a translate, rotate, scale or skew), and nothing \
+                  on it asks about reduced motion, so it plays for everyone, as Tailwind's does \
+                  on the Web. To leave the movement out for people who have asked their device \
+                  for less motion, write those classes as `motion-safe:starting:...` and \
+                  `motion-safe:data-[state=closed]:...`, which work on the Web and on React \
+                  Native. A fade on its own (`starting:opacity-0`) is not motion and needs \
+                  nothing."
             .to_string(),
         span,
     });
+}
+
+/// `data-[state=closed]:`, the state `Presence` sets on an element that is
+/// leaving.
+fn leaves_to(condition: &Condition) -> bool {
+    matches!(condition, Condition::DataAttribute(selector) if selector == "[data-state=\"closed\"]")
 }
 
 fn moves(property: &StyleProperty) -> bool {
@@ -1992,7 +2000,7 @@ mod enter_motion_tests {
         crate::parse_tsx(&source)
             .diagnostics
             .into_iter()
-            .any(|d| d.code == DiagnosticCode::EnterMotionIgnoresReducedMotion)
+            .any(|d| d.code == DiagnosticCode::MotionIgnoresReducedMotion)
     }
 
     #[test]
@@ -2001,6 +2009,16 @@ mod enter_motion_tests {
         assert!(hints("transition starting:opacity-0 starting:scale-95"));
         assert!(hints("transition starting:rotate-12"));
         assert!(hints("transition md:starting:-translate-x-full"));
+    }
+
+    #[test]
+    fn an_element_that_leaves_moving_is_hinted_too() {
+        assert!(hints("transition data-[state=closed]:translate-y-4"));
+        assert!(hints("transition data-[state=closed]:opacity-0 data-[state=closed]:scale-95"));
+        assert!(!hints("transition data-[state=closed]:opacity-0"));
+        assert!(!hints("transition motion-safe:data-[state=closed]:translate-y-4"));
+        // Some other attribute is not `Presence` leaving.
+        assert!(!hints("transition data-[state=open]:translate-y-4"));
     }
 
     #[test]
@@ -2030,7 +2048,7 @@ mod enter_motion_tests {
         let found = crate::parse_tsx(source)
             .diagnostics
             .into_iter()
-            .find(|d| d.code == DiagnosticCode::EnterMotionIgnoresReducedMotion)
+            .find(|d| d.code == DiagnosticCode::MotionIgnoresReducedMotion)
             .expect("the diagnostic fires");
         assert_eq!(found.severity, Severity::Info);
         assert!(found.message.contains("motion-safe:starting:"));
