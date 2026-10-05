@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -13,6 +13,9 @@ const corpora = {
     commit: '007c893de107c2ecbf2188d618196075f19c8f5a',
     source: 'src',
     checkout: 'social-app',
+    // Retain the original lexical atoms-reference count for this pinned corpus,
+    // not as evidence that an arbitrary application's identifier came from ALF.
+    fileSignals: { filesUsingAlfAtoms: (source) => /\batoms(?:\.|\[)/.test(source) },
   },
 }
 
@@ -68,23 +71,22 @@ run(
 )
 
 const artifact = path.join(root, 'artifacts', 'measurements', `${key}.md`)
-run(process.execPath, [
-  path.join(root, 'packages', 'migration-audit', 'src', 'cli.mjs'),
-  '--root',
-  checkout,
-  '--source',
-  spec.source,
-  '--name',
-  spec.name,
-  '--repository',
-  spec.repository,
-  '--expected-commit',
-  spec.commit,
-  '--reproduce-command',
-  `pnpm measure:${key === 'bluesky-social-app' ? 'bluesky' : key}`,
-  '--output',
-  artifact,
-])
+// Import only after building the compiler, just as the CLI subprocess did.
+const { measureRealApp, renderRealAppMarkdown } = await import(
+  '../packages/migration-audit/src/index.mjs'
+)
+const report = measureRealApp({
+  root: checkout,
+  source: spec.source,
+  name: spec.name,
+  repository: spec.repository,
+  expectedCommit: spec.commit,
+  reproduceCommand: `pnpm measure:${key === 'bluesky-social-app' ? 'bluesky' : key}`,
+  fileSignals: spec.fileSignals,
+})
+mkdirSync(path.dirname(artifact), { recursive: true })
+writeFileSync(artifact, renderRealAppMarkdown(report))
+console.log(`Wrote ${artifact}`)
 
 const baseline = path.join(root, 'docs', 'measurements', `${key}.md`)
 if (existsSync(baseline) && readFileSync(artifact, 'utf8') === readFileSync(baseline, 'utf8')) {

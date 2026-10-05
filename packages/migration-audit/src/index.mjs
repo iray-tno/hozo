@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 
@@ -8,43 +8,63 @@ import { lowerModule } from '@hozo/compiler/lower'
 
 const SOURCE_EXTENSION = '.tsx'
 const SAMPLE_LIMIT = 12
+const EXCLUDED_DIRECTORIES = new Set([
+  'node_modules',
+  '.git',
+  '.hg',
+  '.svn',
+  '.next',
+  '.nuxt',
+  '.expo',
+  '.turbo',
+  '.cache',
+  'dist',
+  'build',
+  'coverage',
+  '.test-build',
+  'artifacts',
+  'temp',
+])
 const DOM_STYLE_ARRAY =
   /<(?:a|article|aside|button|div|fieldset|footer|h[1-6]|header|hr|img|input|label|legend|li|main|meter|nav|ol|p|progress|section|select|span|textarea|ul)\b[^>]*?\bstyle=\{\[/g
 
-function usage(message) {
-  if (message) console.error(message)
-  console.error(`Usage:
+export class AuditInputError extends Error {}
+
+const HELP = `Usage:
+  hozo-migration-audit <checkout> [options]
   hozo-migration-audit --root <checkout> [options]
 
 Options:
-  --source <directory>       Source directory relative to the checkout (default: src)
+  --source <directory>       Source directory; repeat to scan several (default: src/app, then root)
   --name <name>              Human-readable corpus name
   --repository <url>         Canonical repository URL recorded in the report
   --expected-commit <sha>    Fail unless the checkout is at this commit
   --reproduce-command <cmd>  Command recorded in the Markdown report
   --output <path>            Write the report to this path instead of stdout
-  --format json|markdown     Output format (default: inferred from --output, otherwise json)`)
-  process.exit(1)
-}
+  --format json|markdown     Override format (default: Markdown in a terminal, JSON in a pipe)
+  --help                    Show this help
+
+Only .tsx files are measured. Dependencies, generated output and symlinked directories are skipped.`
 
 function parseArgs(argv) {
-  const options = { source: 'src' }
+  const options = {}
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index]
     if (key === '--') continue
+    if (key === '--help') return { help: true }
     // `npx @hozo/migration-audit .` is the first thing anyone types, and it
     // failed with `Missing value for .` -- the `.` was read as a flag waiting
     // for its value (#457). A bare token is the checkout.
     if (!key?.startsWith('--')) {
-      if (options.root) usage(`Unexpected argument: ${key}`)
+      if (options.root) throw new AuditInputError(`Unexpected argument: ${key}`)
       options.root = key
       continue
     }
     const value = argv[index + 1]
-    if (!value || value.startsWith('--')) usage(`Missing value for ${key}`)
+    if (!value || value.startsWith('--')) throw new AuditInputError(`Missing value for ${key}`)
     index += 1
     if (key === '--root') options.root = value
-    else if (key === '--source') options.source = value
+    else if (key === '--source') (options.source ??= []).push(value)
     else if (key === '--name') options.name = value
     else if (key === '--repository') options.repository = value
     else if (key === '--expected-commit') options.expectedCommit = value
@@ -52,10 +72,9 @@ function parseArgs(argv) {
     else if (key === '--reproduce-command') options.reproduceCommand = value
     else if (key === '--format' && (value === 'json' || value === 'markdown'))
       options.format = value
-    else usage(`Unknown option: ${key}`)
+    else throw new AuditInputError(`Unknown option or value: ${key} ${value}`)
   }
-  if (!options.root) usage('--root is required')
-  options.format ??= options.output?.endsWith('.md') ? 'markdown' : 'json'
+  if (!options.root) throw new AuditInputError('A checkout is required; use --help for usage')
   return options
 }
 
@@ -63,10 +82,48 @@ function walk(directory) {
   const files = []
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const absolute = path.join(directory, entry.name)
-    if (entry.isDirectory()) files.push(...walk(absolute))
+    if (entry.isDirectory() && !EXCLUDED_DIRECTORIES.has(entry.name)) files.push(...walk(absolute))
     else if (entry.isFile() && path.extname(entry.name) === SOURCE_EXTENSION) files.push(absolute)
   }
   return files.sort()
+}
+
+function isDirectory(directory) {
+  try {
+    return statSync(directory).isDirectory()
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return false
+    throw error
+  }
+}
+
+function sourceFiles(root, source) {
+  if (!isDirectory(root)) throw new AuditInputError(`Checkout is not a directory: ${root}`)
+  const explicit = source !== undefined
+  let directories = explicit ? (Array.isArray(source) ? source : [source]) : ['src', 'app']
+  const found = []
+  for (const directory of directories) {
+    const absolute = path.resolve(root, directory)
+    if (!isDirectory(absolute)) {
+      if (explicit)
+        throw new AuditInputError(
+          `Source is not a directory: ${directory}; use --source <directory>`,
+        )
+      continue
+    }
+    const files = walk(absolute)
+    if (files.length > 0) found.push({ directory: relative(root, absolute) || '.', files })
+  }
+  // Both src/ and app/ can contain application code. Never let an empty src/
+  // hide app/, or scan installed packages when falling back to the checkout.
+  if (!explicit && found.length === 0) found.push({ directory: '.', files: walk(root) })
+  const files = [...new Set(found.flatMap((item) => item.files))].sort()
+  if (files.length === 0)
+    throw new AuditInputError(
+      'No TSX source files found; use --source <directory> containing .tsx files',
+    )
+  directories = [...new Set(found.map((item) => item.directory))]
+  return { directories, files }
 }
 
 function platformFor(file) {
@@ -126,24 +183,24 @@ function diagnosticsFor(components, backend, file, report) {
 
 function measure(options) {
   const root = path.resolve(options.root)
-  const sourceRoot = path.resolve(root, options.source)
+  const { directories, files } = sourceFiles(root, options.source)
   const commit = optionalGit(root, ['rev-parse', 'HEAD']) ?? 'unknown'
   if (options.expectedCommit && !commit.startsWith(options.expectedCommit)) {
-    throw new Error(`Expected corpus commit ${options.expectedCommit}, found ${commit}`)
+    throw new AuditInputError(`Expected corpus commit ${options.expectedCommit}, found ${commit}`)
   }
 
   const repository =
     options.repository ?? optionalGit(root, ['remote', 'get-url', 'origin']) ?? root
   const compiler = createCompiler()
-  const files = walk(sourceRoot)
   const started = performance.now()
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     corpus: {
       name: options.name ?? path.basename(root),
       repository,
       commit,
-      sourceDirectory: options.source,
+      ...(directories.length === 1 ? { sourceDirectory: directories[0] } : {}),
+      sourceDirectories: directories,
       reproduceCommand: options.reproduceCommand,
     },
     scope: {
@@ -162,7 +219,6 @@ function measure(options) {
       filesWithBareFlexClassName: 0,
       filesWithStyleProp: 0,
       filesWithStyleSheetCreate: 0,
-      filesUsingAlfAtoms: 0,
     },
     lowering: {
       filesLowered: 0,
@@ -196,6 +252,12 @@ function measure(options) {
     _compileFailures: new Set(),
     _confirmedWrongOutputFiles: new Set(),
   }
+  // Corpus-owned heuristics stay separate from the generic migration contract.
+  // The Bluesky runner can retain its historical signals without teaching a
+  // general-purpose CLI that an arbitrary `atoms` identifier is a design system.
+  const fileSignals = Object.entries(options.fileSignals ?? {})
+  if (fileSignals.length > 0)
+    report.corpusSignals = Object.fromEntries(fileSignals.map(([name]) => [name, 0]))
 
   for (const absolute of files) {
     const file = relative(root, absolute)
@@ -217,7 +279,9 @@ function measure(options) {
     if (/\bStyleSheet\s*\.\s*create\s*\(/.test(source)) {
       report.authoredSignals.filesWithStyleSheetCreate += 1
     }
-    if (/\batoms(?:\.|\[)/.test(source)) report.authoredSignals.filesUsingAlfAtoms += 1
+    for (const [name, matches] of fileSignals) {
+      if (matches(source, file)) report.corpusSignals[name] += 1
+    }
 
     let nativeModule
     let rnImports = []
@@ -383,6 +447,13 @@ function table(entries) {
 }
 
 function markdown(report) {
+  const sourceDirectories = report.corpus.sourceDirectories ?? [report.corpus.sourceDirectory]
+  const sourcePatterns = sourceDirectories
+    .map((directory) => `\`${directory === '.' ? '' : `${directory}/`}**/*.tsx\``)
+    .join(', ')
+  const sourceArguments = sourceDirectories
+    .map((directory) => `--source ${JSON.stringify(directory)}`)
+    .join(' ')
   const topImports = Object.entries(report.reactNativeImports).slice(0, 15)
   const residueImports = Object.entries(report.reactNativeJsxResidueImports)
   const diagnostics = Object.entries(report.diagnostics.byCode)
@@ -402,7 +473,7 @@ function markdown(report) {
   // `style` -- the opposite of what the README documents as the headline
   // feature. It was believed over the README and had to be walked back
   // (#457), which is the cost of a report that reasons instead of reporting.
-  const stylingFinding = `**Styling surface:** ${report.authoredSignals.filesWithClassName} of ${report.scope.tsxFiles} files use \`className\`, ${report.authoredSignals.filesWithStyleProp} use \`style\`, and ${report.authoredSignals.filesUsingAlfAtoms} use ALF atoms.${report.authoredSignals.filesWithBareFlexClassName > 0 ? ` ${report.authoredSignals.filesWithBareFlexClassName} write a bare \`flex\` class, which means a row in React DOM and lowers to a column on Native.` : ''}`
+  const stylingFinding = `**Styling surface:** ${report.authoredSignals.filesWithClassName} of ${report.scope.tsxFiles} files use \`className\` and ${report.authoredSignals.filesWithStyleProp} use \`style\`.${report.authoredSignals.filesWithBareFlexClassName > 0 ? ` ${report.authoredSignals.filesWithBareFlexClassName} write a bare \`flex\` class, which means a row in React DOM and lowers to a column on Native.` : ''}`
   const webStyleFinding = report.review.invalidDomStyleArrayOccurrences
     ? `**Unchanged Web output is not safe yet:** ${report.review.confirmedWrongOutputFiles} files contain ${report.review.invalidDomStyleArrayOccurrences.toLocaleString()} lowered DOM style arrays, a confirmed invalid React DOM shape.`
     : '**The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.'
@@ -416,14 +487,14 @@ This is a read-only compiler measurement, not a claim that the application can b
 |---|---|
 | Repository | ${report.corpus.repository} |
 | Commit | \`${report.corpus.commit}\` |
-| Source | \`${report.corpus.sourceDirectory}/**/*.tsx\` |
+| Source | ${sourcePatterns} |
 | Files | ${report.scope.tsxFiles.toLocaleString()} |
 | Source bytes | ${report.scope.sourceBytes.toLocaleString()} |
 | Shared / Web / Native | ${report.scope.platformFiles.shared} / ${report.scope.platformFiles.web} / ${report.scope.platformFiles.native} |
 
 ## Findings
 
-1. **The corpus parses cleanly:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.tsxFiles.toLocaleString()} TSX files.
+1. **${report.lowering.parseOrCompileFailures === 0 ? 'The corpus parses cleanly' : 'The corpus has parse or compile failures'}:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.tsxFiles.toLocaleString()} TSX files.
 2. ${webStyleFinding}
 3. ${rnJsxFinding}
 4. ${stylingFinding}
@@ -434,7 +505,20 @@ This is a read-only compiler measurement, not a claim that the application can b
 |---|---:|
 ${table(Object.entries(report.authoredSignals))}
 
-Only direct imports from \`react-native\` are counted as direct React Native JSX. Custom ALF components remain foreign by design; treating every component named \`Text\` or \`Button\` as a React Native primitive would create false transformations.
+Only direct imports from \`react-native\` are counted as direct React Native JSX. Application-specific components remain foreign by design; treating every component named \`Text\` or \`Button\` as a React Native primitive would create false transformations.
+${
+  report.corpusSignals
+    ? `
+## Corpus-specific signals
+
+These are heuristics supplied by the corpus runner, not general migration guarantees.
+
+| Signal | Files |
+|---|---:|
+${table(Object.entries(report.corpusSignals))}
+`
+    : ''
+}
 
 ## Lowering outcome
 
@@ -488,13 +572,24 @@ ${sampleSections || 'No suspicious samples were produced.'}
 ${
   report.corpus.reproduceCommand
     ? `The corpus runner fetches and verifies ${report.corpus.repository} at commit \`${report.corpus.commit}\`. From a Hozo checkout with dependencies installed, run:\n\n\`${report.corpus.reproduceCommand}\``
-    : `Check out \`${report.corpus.commit}\` from ${report.corpus.repository}, build \`@hozo/compiler\`, then run:\n\n\`npx @hozo/migration-audit --root <checkout> --source ${report.corpus.sourceDirectory} --name "${report.corpus.name}" --repository ${report.corpus.repository} --expected-commit ${report.corpus.commit} --output hozo-audit.md\``
+    : `Check out \`${report.corpus.commit}\` from ${report.corpus.repository}, build \`@hozo/compiler\`, then run:\n\n\`npx @hozo/migration-audit --root <checkout> ${sourceArguments} --name "${report.corpus.name}" --repository ${report.corpus.repository} --expected-commit ${report.corpus.commit} --output hozo-audit.md\``
 }
 `
 }
 
-export function runCli(argv = process.argv.slice(2)) {
+export function runCli(argv = process.argv.slice(2), { stdout = process.stdout } = {}) {
   const options = parseArgs(argv)
+  if (options.help) {
+    stdout.write(`${HELP}\n`)
+    return
+  }
+  options.format ??= options.output
+    ? options.output.endsWith('.md')
+      ? 'markdown'
+      : 'json'
+    : stdout.isTTY
+      ? 'markdown'
+      : 'json'
   const report = measure(options)
   const output =
     options.format === 'markdown' ? markdown(report) : `${JSON.stringify(report, null, 2)}\n`
@@ -502,9 +597,9 @@ export function runCli(argv = process.argv.slice(2)) {
     const destination = path.resolve(options.output)
     mkdirSync(path.dirname(destination), { recursive: true })
     writeFileSync(destination, output)
-    console.log(`Wrote ${destination}`)
+    stdout.write(`Wrote ${destination}\n`)
   } else {
-    process.stdout.write(output)
+    stdout.write(output)
   }
   return report
 }
