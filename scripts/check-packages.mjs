@@ -22,7 +22,7 @@ import { gzipSync } from 'node:zlib'
 import { build } from 'esbuild'
 
 import { facadedOwners, generatedLeaves } from './generated-abi.mjs'
-import { applyMetadata, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
+import { applyMetadata, metadataFor, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const problems = []
@@ -82,10 +82,9 @@ for (const name of PACKAGE_NAMES) {
   if (json.private) fail(name, 'still marked private')
   if (json.version !== VERSION) fail(name, `version is ${json.version}, expected ${VERSION}`)
 
-  // Tree shaking is part of the package contract. Native ambient hooks are
-  // the sole exception: importing that module installs the shared platform
-  // subscriptions even when no binding from it survives locally.
-  const expectedSideEffects = name === 'engine' ? ['./dist/hooks.native.js'] : false
+  // Native ambient hooks install shared subscriptions, and source-distributed
+  // UI CSS must survive shaking. The generator owns both explicit exceptions.
+  const expectedSideEffects = metadataFor(name).sideEffects
   if (JSON.stringify(json.sideEffects) !== JSON.stringify(expectedSideEffects)) {
     fail(
       name,
@@ -94,7 +93,9 @@ for (const name of PACKAGE_NAMES) {
   }
   for (const sideEffect of Array.isArray(json.sideEffects) ? json.sideEffects : []) {
     const relative = sideEffect.replace(/^\.\//, '')
-    if (!files.has(relative)) fail(name, `${relative} is marked as a side effect but is not packed`)
+    if (![...files].some((file) => path.matchesGlob(file, relative))) {
+      fail(name, `${relative} is marked as a side effect but is not packed`)
+    }
   }
 
   // Every entry point has to be in the tarball, which is the whole point.
@@ -110,6 +111,9 @@ for (const name of PACKAGE_NAMES) {
 
   // Things that must never ship.
   for (const file of files) {
+    if (name === 'ui' && file.endsWith('.hozo.css')) {
+      fail(name, `${file} is consumer-generated CSS and should not ship`)
+    }
     if (/\.test\.tsx?$/.test(file)) fail(name, `${file} is a test and should not ship`)
     if (file.endsWith('.node')) {
       fail(name, `${file} is a platform-specific addon; it belongs in its own package`)

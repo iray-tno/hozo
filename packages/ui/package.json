@@ -23,7 +23,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "sideEffects": [
-    "*.css"
+    "./src/**/*.css"
   ],
   "exports": {
     ".": "./src/index.ts",
@@ -32,8 +32,10 @@
   },
   "files": [
     "src",
+    "!src/**/*.hozo.css",
     "!src/**/*.test.ts",
-    "!src/**/*.test.tsx"
+    "!src/**/*.test.tsx",
+    "!src/**/*.bench.ts"
   ],
   "publishConfig": {
     "access": "public",

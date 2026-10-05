@@ -57,11 +57,11 @@ OIDC trust, eventual registry availability, every integration, every public API,
 Gradle/CocoaPods compilation, or device behaviour/performance. Existing real-device
 and native-build workflows remain necessary.
 
-`@hozo/ui` is explicitly packed as a **candidate** even while absent from the
-generated public-package list. Evidence records `releaseListed` per package: a
-successful consumer does not fix that release-list omission or make the package
-published. Likewise a successful dry run does not create registry identities or
-configure Trusted Publishers. Those are separate release prerequisites.
+`@hozo/ui` is in the generated public-package list, preserving its source entry
+and theme CSS. Evidence records `releaseListed` per package, but a successful
+consumer does not make the package published. First create a new package's
+registry identity with the explicit bootstrap workflow, then configure its
+Trusted Publisher. Dry runs do neither; those remain release prerequisites.
 
 Native type acceptance of shared widget styling slots is not proof of their
 visual appearance. Native patterns currently carry class-name slots without

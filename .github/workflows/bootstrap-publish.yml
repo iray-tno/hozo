@@ -53,6 +53,10 @@ jobs:
     if: needs.validate.outputs.kind == 'workspace'
     needs: validate
     runs-on: ubuntu-latest
+    # Token authentication publishes the package; OIDC attests its provenance.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -88,6 +92,9 @@ jobs:
     if: needs.validate.outputs.kind == 'native'
     needs: validate
     runs-on: ${{ needs.validate.outputs.runner }}
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
