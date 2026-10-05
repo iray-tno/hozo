@@ -872,6 +872,18 @@ const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
     definitions: "media: { '@media (min-width: 600px)': { padding: 24 } },",
   },
   {
+    name: 'nested starting style',
+    expression: 'styles.entering',
+    definitions:
+      "entering: { opacity: 1, transitionProperty: 'opacity', transitionDuration: '200ms', '@starting-style': { opacity: 0 } },",
+  },
+  {
+    name: 'nested presence state',
+    expression: 'styles.leaving',
+    definitions:
+      "leaving: { transitionProperty: 'opacity', transitionDuration: '200ms', '[data-state=\"closed\"]': { opacity: 0 } },",
+  },
+  {
     name: 'rule object spread',
     expression: 'styles.spread',
     definitions: 'spread: { ...shared, padding: 16 },',

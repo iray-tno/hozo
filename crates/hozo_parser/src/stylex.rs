@@ -6163,6 +6163,35 @@ fn stylex_pseudo_condition(name: &str) -> Option<(Condition, u16)> {
     })
 }
 
+/// A `data-*` attribute key, as Tailwind's `data-[…]:` reads it.
+///
+/// StyleX accepts any key starting with `[`; Hozo takes the `data-*`
+/// presence and equality forms, which are what `Presence`'s
+/// `[data-state="closed"]` needs (decision 007, amendment 1). The value is
+/// written back double-quoted, the form Tailwind's variant produces, so
+/// both frontends land on the same `Condition::DataAttribute` text and
+/// Native recognises the same state whichever way the quotes were written.
+fn stylex_attribute_condition(name: &str) -> Option<Condition> {
+    let inner = name.strip_prefix('[')?.strip_suffix(']')?;
+    let attribute_ok = |attribute: &str| {
+        attribute.len() > "data-".len()
+            && attribute.starts_with("data-")
+            && attribute.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+    };
+    let Some((attribute, value)) = inner.split_once('=') else {
+        return attribute_ok(inner).then(|| Condition::DataAttribute(format!("[{inner}]")));
+    };
+    let value = value
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .or_else(|| value.strip_prefix('\'').and_then(|value| value.strip_suffix('\'')))
+        .unwrap_or(value);
+    let value_ok = !value.is_empty()
+        && value.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'));
+    (attribute_ok(attribute) && value_ok)
+        .then(|| Condition::DataAttribute(format!("[{attribute}=\"{value}\"]")))
+}
+
 fn combine_conditions(outer: &Condition, inner: Condition) -> Condition {
     let mut conditions = match outer {
         Condition::Always => Vec::new(),
@@ -6315,6 +6344,13 @@ fn parse_rule_object(
             Some(stylex_media_condition(&name).map(|condition| (condition, 200)))
         } else if name.starts_with(':') {
             Some(stylex_pseudo_condition(&name))
+        } else if name == "@starting-style" {
+            // StyleX 0.19 has no priority entry for either of these keys, so
+            // they take its default of 3000 -- which is what its own output
+            // shows: `opacity` under either is priority 6000.
+            Some(Some((Condition::StartingStyle, 3000)))
+        } else if name.starts_with('[') {
+            Some(stylex_attribute_condition(&name).map(|condition| (condition, 3000)))
         } else {
             None
         };
@@ -9791,6 +9827,66 @@ mod tests {
         assert_eq!(style[1].condition, Condition::FocusVisible);
         assert_eq!(style[2].condition, Condition::Hover);
         assert_eq!(style[3].condition, Condition::Pressed);
+    }
+
+    // Decision 007, amendment 1: StyleX says enter and exit with the same
+    // conditions Tailwind's `starting:` and `data-[state=closed]:` parse to.
+    #[test]
+    fn starting_style_and_presence_state_keys_are_the_tailwind_conditions() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({
+              root: {
+                opacity: 1,
+                '@starting-style': { opacity: 0 },
+                '[data-state="closed"]': { opacity: 0 },
+                "[data-state='open']": { opacity: 1 },
+                '[data-state=closed]': { transform: 'translateY(16px)' },
+                '[data-active]': { opacity: 0.5 }
+              }
+            })
+            const card = <View {...stylex.props(styles.root)} />
+        "#,
+        );
+        assert!(
+            parsed.diagnostics.iter().all(|d| d.code != hozo_ir::DiagnosticCode::StylexNotLowered),
+            "{:?}",
+            parsed.diagnostics
+        );
+        let conditions: Vec<_> = parsed.roots[0].node.style.iter().map(|d| d.condition.clone()).collect();
+        assert!(conditions.contains(&Condition::StartingStyle), "{conditions:?}");
+        let closed = Condition::DataAttribute(r#"[data-state="closed"]"#.to_string());
+        // Quoted or not, the same text Tailwind's variant gives.
+        assert_eq!(conditions.iter().filter(|c| **c == closed).count(), 2, "{conditions:?}");
+        assert!(conditions.contains(&Condition::DataAttribute(r#"[data-state="open"]"#.to_string())));
+        assert!(conditions.contains(&Condition::DataAttribute("[data-active]".to_string())));
+        let tailwind = crate::parse_tsx(
+            "import { View } from '@hozo/core'
+const card = <View className=\"data-[state=closed]:opacity-0\" />
+",
+        );
+        assert_eq!(tailwind.roots[0].node.style[0].condition, closed);
+    }
+
+    #[test]
+    fn other_attribute_keys_stay_with_official_stylex() {
+        for key in ["[data-x~=a]", "[aria-expanded=true]", "[data-x=\"a b\"]", "[data-]"] {
+            let source = format!(
+                "import * as stylex from '@stylexjs/stylex'
+                 import {{ View }} from '@hozo/core'
+                 const styles = stylex.create({{ root: {{ '{key}': {{ opacity: 0 }} }} }})
+                 const card = <View {{...stylex.props(styles.root)}} />
+"
+            );
+            let parsed = crate::parse_tsx(&source);
+            assert!(
+                parsed.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::StylexNotLowered),
+                "{key}: {:?}",
+                parsed.diagnostics
+            );
+        }
     }
 
     #[test]
