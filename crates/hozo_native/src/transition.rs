@@ -115,6 +115,7 @@ pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration])
             && (condition_contains(&declaration.condition, runtime_variable)
                 || condition_contains(&declaration.condition, |condition| {
                     matches!(condition, Condition::StartingStyle)
+                        || crate::conditions::presence_closed(condition)
                 }))
     });
     if !animatable {
@@ -300,6 +301,59 @@ mod ambient_transition_tests {
         assert!(!out.jsx.contains("hozoStarting"), "{}", out.jsx);
         assert!(
             out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("first frame of an enter animation")),
+            "{:?}",
+            out.diagnostics,
+        );
+    }
+
+    // Decision 007, slice 2: `data-[state=closed]:` is the frame an element
+    // leaves to inside `Presence`, handed to `HozoAnimated` as `hozoExit`.
+    #[test]
+    fn a_closed_state_with_a_transition_is_where_the_element_leaves_to() {
+        let out = compile("transition opacity-100 data-[state=closed]:opacity-0 data-[state=closed]:translate-y-4");
+        assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
+        assert!(out.jsx.contains("hozoExit={hozoStyles."), "{}", out.jsx);
+        let style = out.jsx.split("style={").nth(1).unwrap_or("");
+        let style = &style[..style.find('}').unwrap_or(style.len())];
+        assert!(!style.contains("_data"), "{}", out.jsx);
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    }
+
+    #[test]
+    fn a_closed_state_alone_is_enough_to_animate() {
+        // Nothing else on the element changes at runtime; leaving is the
+        // change.
+        let out = compile("transition data-[state=closed]:opacity-0");
+        assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
+        assert!(out.jsx.contains("hozoExit="), "{}", out.jsx);
+    }
+
+    #[test]
+    fn a_closed_state_can_be_stacked_with_reduced_motion() {
+        let out = compile("transition data-[state=closed]:opacity-0 motion-safe:data-[state=closed]:translate-y-4");
+        let exit = out.jsx.split("hozoExit={").nth(1).unwrap_or("");
+        assert!(exit.contains("__hozoEnv_motion_safe && hozoStyles."), "{}", out.jsx);
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    }
+
+    #[test]
+    fn a_closed_state_without_a_transition_says_so() {
+        let out = compile("data-[state=closed]:opacity-0");
+        assert!(!out.jsx.contains("hozoExit"), "{}", out.jsx);
+        assert!(
+            out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("removed at once")
+                && diagnostic.severity == hozo_ir::Severity::Warning),
+            "{:?}",
+            out.diagnostics,
+        );
+    }
+
+    #[test]
+    fn any_other_data_attribute_is_still_refused() {
+        let out = compile("transition data-[state=open]:opacity-100");
+        assert!(!out.jsx.contains("hozoExit"), "{}", out.jsx);
+        assert!(
+            out.diagnostics.iter().any(|diagnostic| diagnostic.severity == hozo_ir::Severity::Error),
             "{:?}",
             out.diagnostics,
         );

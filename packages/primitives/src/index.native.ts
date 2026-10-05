@@ -22,3 +22,5 @@ export type { HozoFlatListRenderInfo as FlatListRenderInfo } from './index.ts'
 export { HozoFlatList as FlatList, HozoScrollView as ScrollView }
 export type FlatListProps<T> = import('./flat-list.native.tsx').HozoFlatListProps<T>
 export type ScrollViewProps = HozoScrollViewProps
+
+export { Presence, type PresenceProps } from './presence.native.tsx'
