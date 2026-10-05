@@ -167,6 +167,19 @@ pub(super) fn render_node(
     // consumes -- they are Web-only on an element with nothing to animate
     // and lowered on one with something.
     let ambient_transition = ambient_transition(node, &style);
+    // A keyframe animation's `animation-*` longhands are its timing, read
+    // into `useHozoKeyframes` -- Web-only on an element with no keyframes
+    // and lowered on one with them, as the transition ones above are.
+    let has_keyframes = style
+        .iter()
+        .any(|declaration| matches!(declaration.property, StyleProperty::AnimationName(_)));
+    // A style holding `Animated` values only moves on an `Animated`
+    // component: a plain `View` is handed objects it cannot read. Tailwind's
+    // four loops and a project's own keyframes both produce one.
+    let animated_style = has_keyframes
+        || style.iter().any(|declaration| {
+            matches!(&declaration.property, StyleProperty::Animation(name) if *name != hozo_ir::Animation::None)
+        });
 
     // `react-native-svg` takes paint as *props*, not as style, so on an
     // SVG element these three stop being Web-only and become something to
@@ -243,6 +256,9 @@ pub(super) fn render_node(
             continue;
         }
         if truncation.is_some() && is_truncation_declaration(&declaration.property) {
+            continue;
+        }
+        if has_keyframes && crate::keyframes::is_timing(&declaration.property) {
             continue;
         }
         if matches!(declaration.property, StyleProperty::PlaceholderColor(_)) {
@@ -331,6 +347,10 @@ pub(super) fn render_node(
     if ambient_transition.is_some() && component == "View" {
         component = "HozoAnimated";
         runtime.need_component("HozoAnimated");
+    }
+    if animated_style && component == "View" {
+        component = "Animated.View";
+        runtime.need_native("Animated");
     }
 
     // Only `Text` can hold text on this platform -- a raw string inside a

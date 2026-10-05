@@ -2964,10 +2964,8 @@ impl StyleProperty {
                 "CSS transitions: React Native has no declarative transition in its StyleSheet"
                     .to_string(),
             ),
-            StyleProperty::AnimationName(_) => Some(
-                "StyleX `animationName` keyframes are CSS at-rules; React Native has no declarative keyframe style"
-                    .to_string(),
-            ),
+            // Lowered to `useHozoKeyframes` (decision 007, slice 3).
+            StyleProperty::AnimationName(_) => None,
             // All four of Tailwind's loops are wired now. They move only
             // opacity and transform, which is what let them share one
             // native-driver hook -- and what keeps them running on the UI

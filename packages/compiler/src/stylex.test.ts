@@ -1009,7 +1009,7 @@ export const Card = () => <View {...stylex.props(styles.root)} />
   }
 })
 
-test('static StyleX keyframes are hoisted once and animationName fails explicitly on Native', () => {
+test('static StyleX keyframes are hoisted once on Web and run through useHozoKeyframes on Native', () => {
   const source = `import * as stylex from '@stylexjs/stylex'
 import { View } from '@hozo/core'
 const fade = stylex.keyframes({
@@ -1038,15 +1038,20 @@ export const Card = () => <View {...stylex.props(styles.root)}>
   assert.match(web.css, /to \{[\s\S]*opacity: 1;[\s\S]*transform: translateY\(0px\)/)
   assert.match(web.css, /animation-duration: 0\.2s/)
 
+  // Decision 007, slice 3: the same frames, as an `Animated` track each.
   const native = compileNative(source)[0]
   assert.ok(native)
-  assert.equal(native.diagnostics.length, 3, JSON.stringify(native.diagnostics))
-  assert.ok(native.diagnostics.every(({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE'))
-  assert.equal(
-    native.diagnostics.filter(({ message }) => /animationName.*keyframes/.test(message)).length,
-    2,
-  )
+  assert.equal(native.diagnostics.length, 0, JSON.stringify(native.diagnostics))
   assert.doesNotMatch(native.jsx, /stylex\.props/)
+  assert.equal(
+    native.jsx.match(/<Animated\.View style=\{__hozoKeyframes_\d\}/g)?.length,
+    2,
+    native.jsx,
+  )
+  const [timed] = native.prelude.filter((line) => line.includes('duration: 200'))
+  assert.ok(timed, native.prelude.join('\n'))
+  assert.match(timed, /\{ at: 0, style: \{ opacity: 0, transform: \[\{ translateY: 8 \}\] \} \}/)
+  assert.match(timed, /\{ at: 0\.5, style: \{ opacity: 0\.5 \} \}/)
 })
 
 test('static StyleX keyframe fallbacks preserve official declaration order', () => {
@@ -1073,11 +1078,14 @@ export const Card = () => <View {...stylex.props(styles.preferredFirst)}>
   )
   assert.deepEqual(declarations, [names[1], names[0], names[0], names[1]])
 
+  // Native runs the one the Web's cascade lands on: the last declaration.
   const native = compileNative(source)[0]
   assert.ok(native)
-  assert.equal(native.diagnostics.length, 2, JSON.stringify(native.diagnostics))
-  assert.ok(native.diagnostics.every(({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE'))
+  assert.equal(native.diagnostics.length, 0, JSON.stringify(native.diagnostics))
   assert.doesNotMatch(native.jsx, /stylex\.props/)
+  const fadesIn = native.prelude.find((line) => /\{ at: 0, style: \{ opacity: 0 \} \}/.test(line))
+  const fadesOut = native.prelude.find((line) => /\{ at: 0, style: \{ opacity: 1 \} \}/.test(line))
+  assert.ok(fadesIn && fadesOut, native.prelude.join('\n'))
 })
 
 test('unsupported StyleX keyframe bodies stay with the official transform', () => {
