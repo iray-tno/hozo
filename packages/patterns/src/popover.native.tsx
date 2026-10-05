@@ -1,6 +1,17 @@
-import { FloatingPositioner, type Placement, Portal } from '@hozo/behaviors/native'
-import { type ComponentRef, type ReactNode, useCallback, useRef, useState } from 'react'
-import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import { FloatingPositioner, type Placement, Portal, usePresence } from '@hozo/behaviors/native'
+import { type ComponentRef, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { Animated, Easing, Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+
+/**
+ * How long the panel fades in and out, matching `@hozo/ui`'s Web panel
+ * (`duration-150`), so the two platforms open at the same pace.
+ *
+ * A fade and nothing else, on both: it is not motion, so it stays under
+ * reduced motion, which is the line decision 007 draws (WCAG 2.3.3 is about
+ * movement). The Web half can be restyled; this one is built in, because a
+ * Native pattern has no class list to say it with.
+ */
+const POPOVER_FADE_MS = 150
 
 /** What React Native hands back for a `<View>`; see `tooltip.native.tsx`. */
 export type NativeMeasurable = ComponentRef<typeof View>
@@ -83,6 +94,25 @@ export function HozoPopover({
   const anchorRef = useRef<NativeMeasurable | null>(null)
   const [uncontrolled, setUncontrolled] = useState(defaultOpen)
   const open = controlled ?? uncontrolled
+  // Mounted while it fades out, so closing is not a cut on one platform and
+  // a fade on the other.
+  const presence = usePresence(open)
+  const leaving = presence.mounted && !open
+  const opacity = useRef(new Animated.Value(0)).current
+  const { done } = presence
+  useEffect(() => {
+    if (!presence.mounted) return
+    const fade = Animated.timing(opacity, {
+      toValue: open ? 1 : 0,
+      duration: POPOVER_FADE_MS,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    })
+    fade.start(({ finished }) => {
+      if (finished && !open) done()
+    })
+    return () => fade.stop()
+  }, [open, presence.mounted, opacity, done])
 
   const change = useCallback(
     (next: boolean) => {
@@ -107,7 +137,7 @@ export function HozoPopover({
       >
         {trigger}
       </Pressable>
-      {open ? (
+      {presence.mounted ? (
         <Portal>
           <FloatingPositioner
             anchorRef={anchorRef}
@@ -116,14 +146,19 @@ export function HozoPopover({
             flip
             shift
           >
-            <View
-              accessibilityViewIsModal={modal}
+            <Animated.View
+              accessibilityViewIsModal={modal && !leaving}
               accessibilityRole={modal ? 'none' : undefined}
               accessibilityLabel={accessibilityLabel}
-              style={panelStyle}
+              // Leaving: still drawn, no longer there -- the Native words for
+              // the Web half's `inert`.
+              pointerEvents={leaving ? 'none' : 'auto'}
+              accessibilityElementsHidden={leaving}
+              importantForAccessibility={leaving ? 'no-hide-descendants' : 'auto'}
+              style={[panelStyle, { opacity }]}
             >
               {children}
-            </View>
+            </Animated.View>
           </FloatingPositioner>
         </Portal>
       ) : null}

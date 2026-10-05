@@ -20,3 +20,4 @@ export {
   useHoverTrigger,
 } from './hover-trigger.native.tsx'
 export { Portal, PortalHost, type PortalProps, PortalProvider } from './portal.native.tsx'
+export { type PresenceBinding, type PresenceState, usePresence } from './presence.native.ts'

@@ -1,4 +1,4 @@
-import { DismissableLayer, FocusScope, Portal } from '@hozo/behaviors'
+import { DismissableLayer, FocusScope, Portal, usePresence } from '@hozo/behaviors'
 import type { ReactNode } from 'react'
 import { useScrollLock } from './scroll-lock.ts'
 
@@ -85,27 +85,52 @@ export function HozoDrawer({
   children,
 }: HozoDrawerProps) {
   useScrollLock(open)
+  // The panel stays mounted while it animates out, as `data-state="closed"`
+  // on the wrapper, the scrim and the panel (decision 007). The panel's
+  // transition is the one waited for; with none it goes at once.
+  const presence = usePresence(open)
+  const leaving = presence.mounted && !open
 
-  if (!open) return null
+  if (!presence.mounted) return null
 
   return (
     <Portal disabled={!portal}>
-      <div className={className} data-hozo-side={side} data-hozo-state="open">
+      <div
+        className={className}
+        data-hozo-side={side}
+        data-hozo-state={presence.state}
+        data-state={presence.state}
+        // Leaving: still drawn, no longer there. `inert` takes the whole layer
+        // out of the tab order and the accessibility tree, and the pointer
+        // passes through the full-screen scrim to the page it is uncovering.
+        inert={leaving || undefined}
+        style={leaving ? { pointerEvents: 'none' } : undefined}
+      >
         {/*
           Hidden from the accessibility tree and carrying no press handler:
           `aria-modal` has said the page is unavailable, and `DismissableLayer`
           already sees a press outside the panel, which the scrim is.
         */}
-        <div aria-hidden="true" className={scrimClassName} />
-        <DismissableLayer onDismiss={onClose} style={{ display: 'contents' }}>
-          <FocusScope trapped autoFocus restoreFocus style={{ display: 'contents' }}>
+        <div aria-hidden="true" className={scrimClassName} data-state={presence.state} />
+        <DismissableLayer onDismiss={leaving ? undefined : onClose} style={{ display: 'contents' }}>
+          <FocusScope
+            trapped
+            autoFocus
+            restoreFocus
+            active={!leaving}
+            style={{ display: 'contents' }}
+          >
             <div
+              ref={presence.ref}
+              onTransitionEnd={presence.onTransitionEnd}
+              onAnimationEnd={presence.onAnimationEnd}
+              data-state={presence.state}
               role="dialog"
               aria-modal="true"
               aria-label={accessibilityLabelledBy ? undefined : accessibilityLabel}
               aria-labelledby={accessibilityLabelledBy}
               data-hozo-side={side}
-              data-hozo-state="open"
+              data-hozo-state={presence.state}
               data-testid={testID}
               className={panelClassName}
             >

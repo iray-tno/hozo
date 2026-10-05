@@ -56,6 +56,7 @@ export {
   type PortalProps,
   PortalProvider,
 } from './portal.native.tsx'
+export { type PresenceBinding, type PresenceState, usePresence } from './presence.native.ts'
 export {
   nextIndex,
   type Orientation,

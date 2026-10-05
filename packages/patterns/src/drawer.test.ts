@@ -56,7 +56,7 @@ test('the side is on the element, so a class list can read it', () => {
 
 test('the scrim is not in the accessibility tree', () => {
   const html = render({ open: true, scrimClassName: 'scrim' })
-  assert(html.includes('<div aria-hidden="true" class="scrim">'))
+  assert(html.includes('<div aria-hidden="true" class="scrim"'))
 })
 
 test('nothing carries a class it was not given', () => {

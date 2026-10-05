@@ -185,6 +185,7 @@ export const I18nManager = {
 
 export const Easing = {
   linear: (value) => value,
+  quad: (value) => value * value,
   ease: (value) => value,
   in: (easing) => easing,
   out: (easing) => easing,

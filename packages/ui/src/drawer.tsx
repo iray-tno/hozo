@@ -32,16 +32,17 @@ const ROOT: Record<DrawerSide, string> = {
 }
 
 /** Dark in both schemes, because a scrim is not a surface seen from behind. */
-const scrim = 'absolute inset-0 bg-hozo-scrim/50'
+const scrim =
+  'absolute inset-0 bg-hozo-scrim/50 transition-opacity duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0'
 
 /**
  * The radius and the border are on the inner edge only -- the outer one is
  * against the viewport, where a rounded corner would show the page through it.
  */
 const PANEL: Record<DrawerSide, string> = {
-  left: 'relative flex h-full w-80 max-w-[85vw] flex-col gap-4 overflow-y-auto rounded-r-hozo-panel border-r border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface',
+  left: 'relative flex h-full w-80 max-w-[85vw] flex-col gap-4 overflow-y-auto rounded-r-hozo-panel border-r border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface transition duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0 motion-safe:starting:-translate-x-full motion-safe:data-[state=closed]:-translate-x-full',
   right:
-    'relative flex h-full w-80 max-w-[85vw] flex-col gap-4 overflow-y-auto rounded-l-hozo-panel border-l border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface',
+    'relative flex h-full w-80 max-w-[85vw] flex-col gap-4 overflow-y-auto rounded-l-hozo-panel border-l border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface transition duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0 motion-safe:starting:translate-x-full motion-safe:data-[state=closed]:translate-x-full',
 }
 
 export function HozoDrawer({ side = 'left', ...rest }: HozoDrawerProps) {

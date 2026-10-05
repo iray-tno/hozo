@@ -37,7 +37,8 @@ export type HozoBottomSheetProps = Omit<
 const root = 'fixed inset-0 z-50 flex items-end justify-center sm:items-center'
 
 /** Dark in both schemes, because a scrim is not a surface seen from behind. */
-const scrim = 'absolute inset-0 bg-hozo-scrim/50'
+const scrim =
+  'absolute inset-0 bg-hozo-scrim/50 transition-opacity duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0'
 
 /**
  * `max-h-[85vh]` with `overflow-y-auto` for the reason `Dialog` has them: the
@@ -48,7 +49,7 @@ const scrim = 'absolute inset-0 bg-hozo-scrim/50'
  * touching the bottom edge and wants all four.
  */
 const sheet =
-  'relative flex w-full max-w-lg flex-col gap-4 max-h-[85vh] overflow-y-auto rounded-t-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface transition-transform duration-200 data-[hozo-dragging=true]:transition-none sm:max-w-md sm:rounded-hozo-panel'
+  'relative flex w-full max-w-lg flex-col gap-4 max-h-[85vh] overflow-y-auto rounded-t-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface transition duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0 motion-safe:starting:translate-y-full motion-safe:data-[state=closed]:translate-y-full data-[hozo-dragging=true]:transition-none sm:max-w-md sm:rounded-hozo-panel'
 
 /**
  * A 24px box holding a 4px bar.

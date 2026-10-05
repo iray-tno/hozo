@@ -1,4 +1,10 @@
-import { DismissableLayer, FloatingPositioner, FocusScope, type Placement } from '@hozo/behaviors'
+import {
+  DismissableLayer,
+  FloatingPositioner,
+  FocusScope,
+  type Placement,
+  usePresence,
+} from '@hozo/behaviors'
 import { type KeyboardEvent, type ReactNode, useCallback, useId, useRef, useState } from 'react'
 
 export interface HozoPopoverProps {
@@ -95,6 +101,10 @@ export function HozoPopover({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [uncontrolled, setUncontrolled] = useState(defaultOpen)
   const open = controlled ?? uncontrolled
+  // The panel stays mounted while it animates out, as `data-state="closed"`
+  // (decision 007). With no transition on `panelClassName` it goes at once.
+  const presence = usePresence(open)
+  const leaving = presence.mounted && !open
 
   const change = useCallback(
     (next: boolean) => {
@@ -135,7 +145,7 @@ export function HozoPopover({
       >
         {trigger}
       </button>
-      {open ? (
+      {presence.mounted ? (
         <FloatingPositioner
           anchorRef={triggerRef}
           placement={placement}
@@ -145,22 +155,32 @@ export function HozoPopover({
           className="z-50"
         >
           {() => (
-            <DismissableLayer onDismiss={() => change(false)}>
+            <DismissableLayer onDismiss={leaving ? undefined : () => change(false)}>
               {/*
                 `aria-modal` and the trap travel together or not at all. The
                 prop's own comment has the reasoning; what matters here is that
                 one boolean decides both, so they cannot be set to disagree.
               */}
-              <FocusScope trapped={modal} autoFocus restoreFocus>
+              <FocusScope trapped={modal} autoFocus restoreFocus active={!leaving}>
                 <div
                   role="dialog"
                   aria-modal={modal ? 'true' : undefined}
                   id={`${base}-panel`}
                   aria-label={accessibilityLabelledBy ? undefined : accessibilityLabel}
                   aria-labelledby={accessibilityLabelledBy}
-                  data-hozo-state="open"
+                  data-hozo-state={presence.state}
+                  data-state={presence.state}
+                  // Leaving: still drawn, no longer there. `inert` takes it out
+                  // of the tab order, the pointer and the accessibility tree at
+                  // once, so the fading panel is not something to land on.
+                  inert={leaving || undefined}
+                  style={leaving ? { pointerEvents: 'none' } : undefined}
+                  ref={presence.ref}
+                  onTransitionEnd={presence.onTransitionEnd}
+                  onAnimationEnd={presence.onAnimationEnd}
                   className={panelClassName}
                   onBlur={(event) => {
+                    if (leaving) return
                     // A non-modal panel closes when focus leaves it, and a
                     // modal one cannot be left. `relatedTarget` is where focus
                     // is going: inside the panel is a hop between its own
