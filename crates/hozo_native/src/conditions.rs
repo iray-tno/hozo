@@ -121,6 +121,8 @@ fn breakpoint_name(bp: &Breakpoint) -> &'static str {
     }
 }
 
+const STARTING_WITHOUT_TRANSITION: &str = "`starting:` is the first frame of an enter animation. On React Native it works on a `View` that also has a `transition-*` class -- `HozoAnimated` starts the element from these values and animates to its style. Here it has nothing to animate from, so it does nothing on this platform. On Web, too, `@starting-style` needs a transition on the same element to be seen.";
+
 pub(super) fn unwired_variant(node: &Node, message: &str, severity: Severity) -> Diagnostic {
     Diagnostic {
         code: DiagnosticCode::NotWiredOnNative,
@@ -346,6 +348,7 @@ pub(super) fn build_style_entries(
                             | Condition::FirstChild
                             | Condition::LastChild
                             | Condition::Structural(_)
+                            | Condition::StartingStyle
                     )
                 });
                 if !supported {
@@ -366,6 +369,10 @@ pub(super) fn build_style_entries(
                     let mut guards = Vec::new();
                     let mut uses_interactive_state = false;
                     let mut applies = true;
+                    // `motion-safe:starting:`, `md:starting:`: the first
+                    // frame, under the other atoms' guards. It goes where an
+                    // unstacked `starting:` goes, guarded.
+                    let mut enters_from = false;
                     for atom in atoms {
                         match atom {
                             Condition::Always => {}
@@ -561,6 +568,7 @@ pub(super) fn build_style_entries(
                                     }
                                 }
                             }
+                            Condition::StartingStyle => enters_from = true,
                             _ => unreachable!("unsupported atoms were rejected above"),
                         }
                     }
@@ -570,7 +578,23 @@ pub(super) fn build_style_entries(
                         } else {
                             format!("{} && ", guards.join(" && "))
                         };
-                        if uses_interactive_state {
+                        if enters_from {
+                            match (starting.as_deref_mut(), uses_interactive_state) {
+                                (Some(starting), false) => starting.extend(guarded(&prefix)),
+                                // The first frame is read once, on mount, and
+                                // nothing has been pressed or hovered yet.
+                                (Some(_), true) => diagnostics.push(unwired_variant(
+                                    node,
+                                    "`starting:` stacked with an interaction state is the first frame of an element that is already being pressed, hovered or focused as it mounts. React Native reads the first frame once, before any of those can be true, so it is not applied here. On Web the same class works.",
+                                    Severity::Warning,
+                                )),
+                                (None, _) => diagnostics.push(unwired_variant(
+                                    node,
+                                    STARTING_WITHOUT_TRANSITION,
+                                    Severity::Warning,
+                                )),
+                            }
+                        } else if uses_interactive_state {
                             pressed_parts.extend(guarded(&prefix));
                         } else {
                             conditional_parts.extend(guarded(&prefix));
@@ -680,7 +704,7 @@ pub(super) fn build_style_entries(
                 Some(starting) => starting.extend(guarded("")),
                 None => diagnostics.push(unwired_variant(
                     node,
-                    "`starting:` is the first frame of an enter animation. On React Native it works on a `View` that also has a `transition-*` class -- `HozoAnimated` starts the element from these values and animates to its style. Here it has nothing to animate from, so it does nothing on this platform. On Web, too, `@starting-style` needs a transition on the same element to be seen.",
+                    STARTING_WITHOUT_TRANSITION,
                     Severity::Warning,
                 )),
             },
