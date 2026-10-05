@@ -850,7 +850,11 @@ interface StylexConstructCase {
   name: string
   expression: string
   definitions?: string
-  webOnly?: boolean
+  /**
+   * Keyframes: the Web hoists them as `@keyframes`, and Native runs them
+   * through `useHozoKeyframes` (decision 007, slice 3).
+   */
+  keyframes?: boolean
 }
 
 const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
@@ -907,13 +911,13 @@ const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
     name: 'static keyframes',
     expression: 'styles.motion',
     definitions: "motion: { animationName: fade, animationDuration: '200ms' },",
-    webOnly: true,
+    keyframes: true,
   },
   {
     name: 'keyframe fallback',
     expression: 'styles.motionFallback',
     definitions: 'motionFallback: { animationName: stylex.firstThatWorks(fade, fadeOut) },',
-    webOnly: true,
+    keyframes: true,
   },
   { name: 'cross-file sheet', expression: 'external.root' },
 ] as const
@@ -992,7 +996,7 @@ export function compareStylexConstruct(testCase: StylexConstructCase): StylexCon
   if (!native) return { name: testCase.name, covered: false, silent: true }
   const consumed = !native.jsx.includes('.props(')
   const diagnosed = native.diagnostics.some(({ code }) => code === 'STYLEX_NOT_LOWERED')
-  if (testCase.webOnly) {
+  if (testCase.keyframes) {
     const web = compile(constructSource(testCase))[0]
     const webCovered =
       !!web &&
@@ -1000,13 +1004,14 @@ export function compareStylexConstruct(testCase: StylexConstructCase): StylexCon
       web.diagnostics.length === 0 &&
       web.css.includes('@keyframes hozo-kf-') &&
       web.css.includes('animation-name: hozo-kf-')
-    const nativeRefused = native.diagnostics.some(
-      ({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE',
-    )
+    const nativeLowered =
+      native.diagnostics.length === 0 &&
+      native.prelude.some((line) => line.includes('useHozoKeyframes(')) &&
+      native.jsx.startsWith('<Animated.View')
     return {
       name: testCase.name,
-      covered: webCovered && consumed && nativeRefused && !diagnosed,
-      silent: !webCovered && !nativeRefused && !diagnosed,
+      covered: webCovered && consumed && nativeLowered && !diagnosed,
+      silent: !webCovered && !nativeLowered && !diagnosed,
     }
   }
   return {

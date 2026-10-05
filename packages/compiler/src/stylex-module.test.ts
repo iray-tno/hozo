@@ -111,7 +111,8 @@ test('an exported sheet carries its local static keyframes across the module reg
     const native = compiler.compileNative(componentSource, modules.bindingsFor(component))[0]
     assert.ok(native)
     assert.doesNotMatch(native.jsx, /stylex\.props/)
-    assert.equal(native.diagnostics[0]?.code, 'WEB_ONLY_PROPERTY_ON_NATIVE')
+    assert.equal(native.diagnostics.length, 0, JSON.stringify(native.diagnostics))
+    assert.ok(native.prelude.some((line) => line.includes('useHozoKeyframes(')))
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

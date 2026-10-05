@@ -40,6 +40,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   useHozoBreakpoint: '@hozo/core/generated/environment',
   useHozoDark: '@hozo/core/generated/environment',
   useHozoEnvironment: '@hozo/core/generated/environment',
+  useHozoKeyframes: '@hozo/core/generated/animation',
   useHozoSafeArea: '@hozo/core/generated/safe-area',
   useHozoViewport: '@hozo/core/generated/environment',
   useHozoWidthAtLeast: '@hozo/core/generated/environment',

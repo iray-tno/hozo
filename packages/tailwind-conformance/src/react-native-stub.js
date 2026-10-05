@@ -247,7 +247,18 @@ export const Animated = {
   __hozoTimings: [],
   __hozoResetTimings: () => {
     Animated.__hozoTimings.length = 0
+    Animated.__hozoLoops.length = 0
   },
-  loop: (animation) => animation,
+  // The loop's config is recorded for the same reason: how many times a
+  // keyframe animation repeats is the question `useHozoKeyframes` answers.
+  loop: (animation, config) => {
+    Animated.__hozoLoops.push(config)
+    return animation
+  },
+  __hozoLoops: [],
+  sequence: (animations) => ({
+    start: (callback) => animations.at(-1)?.start(callback),
+    stop: () => {},
+  }),
   parallel: () => ({ start: () => {}, stop: () => {} }),
 }

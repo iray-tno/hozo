@@ -48,6 +48,10 @@ pub(super) enum RuntimeHook {
     /// same native driver and differ from it in nothing a separate hook
     /// would have expressed.
     Animation(hozo_ir::Animation),
+    /// A project's own `@keyframes`, by its index in
+    /// `RuntimeNeeds::keyframes` (decision 007, slice 3). The spec is
+    /// written into the declaration there, since it is not `Copy`.
+    Keyframes(usize),
 }
 
 impl RuntimeHook {
@@ -60,6 +64,7 @@ impl RuntimeHook {
             RuntimeHook::Viewport => "__hozoViewport".to_string(),
             RuntimeHook::SafeArea => "__hozoSafeArea".to_string(),
             RuntimeHook::Animation(name) => format!("__hozoAnim_{}", animation_name(*name)),
+            RuntimeHook::Keyframes(index) => format!("__hozoKeyframes_{index}"),
             RuntimeHook::Environment(query) => {
                 format!("__hozoEnv_{}", environment_name(*query).replace('-', "_"))
             }
@@ -73,6 +78,7 @@ impl RuntimeHook {
             RuntimeHook::Viewport => "useHozoViewport",
             RuntimeHook::SafeArea => "useHozoSafeArea",
             RuntimeHook::Animation(_) => "useHozoAnimation",
+            RuntimeHook::Keyframes(_) => "useHozoKeyframes",
             RuntimeHook::Environment(_) => "useHozoEnvironment",
             RuntimeHook::WidthAtLeast(_) => "useHozoWidthAtLeast",
         }
@@ -91,6 +97,8 @@ impl RuntimeHook {
             }
             RuntimeHook::Viewport => format!("const {} = useHozoViewport()", self.binding()),
             RuntimeHook::SafeArea => format!("const {} = useHozoSafeArea()", self.binding()),
+            // Written by the caller, which holds the spec.
+            RuntimeHook::Keyframes(_) => unreachable!("keyframes declarations are written from RuntimeNeeds"),
             RuntimeHook::Animation(name) => format!(
                 "const {} = useHozoAnimation('{}')",
                 self.binding(),
@@ -306,7 +314,37 @@ pub(super) fn build_style_entries(
         if let Some(hook) = animation_hook {
             runtime.hooks.push(hook);
         }
-        if props.is_empty() && viewport.is_none() && safe_area.is_none() && animation.is_none() {
+        // A project's own `@keyframes` (decision 007, slice 3), timed by the
+        // `animation-*` longhands written beside it: those under this same
+        // condition, over the unconditional ones. The longhands themselves
+        // never reach the style array -- they are the hook's argument.
+        let (keyframe_props, props): (Vec<_>, Vec<_>) = props
+            .into_iter()
+            .filter(|property| !crate::keyframes::is_timing(property))
+            .partition(|property| matches!(property, StyleProperty::AnimationName(_)));
+        let keyframes = keyframe_props.last().and_then(|property| {
+            let StyleProperty::AnimationName(keyframes) = property else { return None };
+            let timing: Vec<&StyleProperty> = declarations
+                .iter()
+                .filter(|declaration| declaration.condition == Condition::Always)
+                .chain(declarations.iter().filter(|declaration| {
+                    condition != Condition::Always && declaration.condition == condition
+                }))
+                .map(|declaration| &declaration.property)
+                .filter(|property| crate::keyframes::is_timing(property))
+                .collect();
+            let spec = crate::keyframes::spec(keyframes, &timing, theme, node, diagnostics);
+            let hook = runtime.keyframes_hook(spec);
+            let binding = hook.binding();
+            runtime.hooks.push(hook);
+            Some(binding)
+        });
+        if props.is_empty()
+            && viewport.is_none()
+            && safe_area.is_none()
+            && animation.is_none()
+            && keyframes.is_none()
+        {
             continue;
         }
         let name = match condition_suffix(&condition) {
@@ -325,6 +363,7 @@ pub(super) fn build_style_entries(
             .chain(viewport.clone())
             .chain(safe_area.clone())
             .chain(animation.clone())
+            .chain(keyframes.clone())
             .collect();
         // Each part carries the condition's guard. There may be two of them
         // (a StyleSheet entry and an inline viewport object), and both have

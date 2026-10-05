@@ -54,6 +54,7 @@
 mod candidate;
 mod conditions;
 mod grid;
+mod keyframes;
 mod markup;
 mod render;
 mod style;
@@ -138,6 +139,9 @@ struct RuntimeNeeds {
     /// mapping would be a second copy of it, and this repository has
     /// already paid three times for that shape.
     native: Vec<&'static str>,
+    /// `useHozoKeyframes` arguments, one per distinct animation;
+    /// `RuntimeHook::Keyframes` holds the index.
+    keyframes: Vec<String>,
 }
 
 impl RuntimeNeeds {
@@ -145,6 +149,19 @@ impl RuntimeNeeds {
         if !self.components.contains(&name) {
             self.components.push(name);
         }
+    }
+
+    /// The hook for a keyframes spec, sharing one call between elements
+    /// that run the same animation.
+    fn keyframes_hook(&mut self, spec: String) -> RuntimeHook {
+        let index = match self.keyframes.iter().position(|known| *known == spec) {
+            Some(index) => index,
+            None => {
+                self.keyframes.push(spec);
+                self.keyframes.len() - 1
+            }
+        };
+        RuntimeHook::Keyframes(index)
     }
 
     fn need_native(&mut self, name: &'static str) {
@@ -220,7 +237,17 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
             distinct.push(hook);
         }
     }
-    let prelude: Vec<String> = distinct.iter().map(RuntimeHook::declaration).collect();
+    let prelude: Vec<String> = distinct
+        .iter()
+        .map(|hook| match hook {
+            RuntimeHook::Keyframes(index) => format!(
+                "const {} = useHozoKeyframes({})",
+                hook.binding(),
+                runtime.keyframes[*index]
+            ),
+            hook => hook.declaration(),
+        })
+        .collect();
     let native_imports = runtime.native;
     let mut runtime_imports: Vec<&'static str> = runtime.components;
     for hook in &distinct {

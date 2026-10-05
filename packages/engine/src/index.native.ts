@@ -35,4 +35,9 @@ export {
 } from './hooks.native.ts'
 export { hozoImageSource } from './image-source.native.ts'
 export * from './index.ts'
+export {
+  type HozoKeyframe,
+  type HozoKeyframesSpec,
+  useHozoKeyframes,
+} from './keyframes.native.ts'
 export { type HozoSafeAreaInsets, useHozoSafeArea } from './safe-area.native.ts'
