@@ -33,6 +33,8 @@ export interface HozoTimePickerProps {
    */
   valueClassName?: string
   periodClassName?: string
+  /** Source-level slot; `stepStyle` supplies the Native runtime appearance. */
+  stepClassName?: string
   style?: StyleProp<ViewStyle>
   fieldStyle?: StyleProp<ViewStyle>
   fieldTextStyle?: StyleProp<TextStyle>

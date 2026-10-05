@@ -21,6 +21,10 @@ export interface HozoComboboxProps<T> {
    * against the source the compiler reads rather than its output.
    */
   className?: string
+  /** Source-level styling slots, carried like `className`; use styles at runtime. */
+  inputClassName?: string
+  listClassName?: string
+  optionClassName?: string
   options: readonly HozoComboboxOption<T>[]
   value?: T
   onValueChange?: (value: T) => void

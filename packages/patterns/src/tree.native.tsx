@@ -16,6 +16,8 @@ export interface HozoTreeProps {
    * against the source the compiler reads rather than its output.
    */
   className?: string
+  /** Source-level slot, carried like `className`; `rowStyle` is the runtime hook. */
+  rowClassName?: string
   nodes: readonly TreeNode[]
   defaultExpanded?: readonly string[]
   selectedId?: string

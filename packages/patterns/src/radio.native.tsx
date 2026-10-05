@@ -28,6 +28,10 @@ export interface HozoRadioGroupProps<T> {
    * against the source the compiler reads rather than its output.
    */
   className?: string
+  /** Source-level slot, carried like `className`; `optionStyle` is the runtime hook. */
+  optionClassName?: string
+  /** Shared author prop; Native focus order does not use the Web arrow-key axis. */
+  orientation?: 'horizontal' | 'vertical' | 'both'
   options: readonly HozoRadioOption<T>[]
   defaultValue?: T
   value?: T
