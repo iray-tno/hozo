@@ -4,8 +4,10 @@ import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import SiteHead from '../components/SiteHead.astro'
 import '../styles/global.css'
+import snapshot from '../../../../packages/tailwind-conformance/snapshot.json'
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFixed(1)}%`)
 ---
 
 <!doctype html>
@@ -104,6 +106,96 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
               <li>Replaces runtime CSS-in-JS libraries (Styled Components, Emotion) with zero-cost static CSS.</li>
               <li>No need to rewrite components overnight — adopt package by package.</li>
             </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: StyleX Compatibility & Conformance -->
+      <section class="mb-16">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 font-bold">
+            X
+          </div>
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-shikkui tracking-tight">StyleX Compatibility & Authoring Parity</h2>
+            <p class="text-xs sm:text-sm text-stone-400">
+              Full cross-compilation support for Meta's StyleX syntax, both universal and Web-only properties.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono text-stone-400">Compiler-Relevant</span>
+              <span class="text-xs font-mono font-bold text-pink-400">100%</span>
+            </div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.stylex.mappedCompilerRelevant} / {snapshot.stylex.compilerRelevantProperties}
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Ordinary declarations in StyleX's default mode, excluding optional platform adapters.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono text-stone-400">Universal Properties</span>
+              <span class="text-xs font-mono font-bold text-pink-400">100%</span>
+            </div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.stylex.mappedNative} / {snapshot.stylex.nativeProperties}
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Every portable property valid across Web and Native platforms maps directly to Fabric styles.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono text-stone-400">Contextual / Interactive</span>
+              <span class="text-xs font-mono font-bold text-pink-400">100%</span>
+            </div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.stylex.mappedContextual} / {snapshot.stylex.contextualProperties}
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Interactive pseudo-states (:hover, :active, :focus) and contextual container queries.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-mono text-stone-400">Web-Only Extensions</span>
+              <span class="text-xs font-mono font-bold text-stone-300">
+                {pct(snapshot.stylex.mappedWebOnly, snapshot.stylex.webOnlyProperties)}
+              </span>
+            </div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.stylex.mappedWebOnly} / {snapshot.stylex.webOnlyProperties}
+            </div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Extended CSS longhands, animations, and typography available when compiling for Web.
+            </p>
+          </div>
+        </div>
+
+        <!-- Practical fixtures card -->
+        <div class="p-5 rounded-xl bg-yakisugi-900/60 border border-wood grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
+          <div>
+            <span class="text-stone-400 block mb-1">Representative Values</span>
+            <strong class="text-shikkui text-base font-bold">{snapshot.stylexValues.covered} / {snapshot.stylexValues.cases}</strong>
+            <span class="text-emerald-400 ml-1">({pct(snapshot.stylexValues.covered, snapshot.stylexValues.cases)})</span>
+          </div>
+          <div>
+            <span class="text-stone-400 block mb-1">Authoring Constructs</span>
+            <strong class="text-shikkui text-base font-bold">{snapshot.stylexConstructs.covered} / {snapshot.stylexConstructs.cases}</strong>
+            <span class="text-emerald-400 ml-1">(100%)</span>
+          </div>
+          <div>
+            <span class="text-stone-400 block mb-1">Scenario Declarations</span>
+            <strong class="text-shikkui text-base font-bold">{snapshot.stylexCorpus.covered} / {snapshot.stylexCorpus.cases}</strong>
+            <span class="text-emerald-400 ml-1">({pct(snapshot.stylexCorpus.covered, snapshot.stylexCorpus.cases)})</span>
           </div>
         </div>
       </section>

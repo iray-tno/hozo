@@ -2,6 +2,7 @@
 import { Accessibility } from '../components/Accessibility.tsx'
 import { Architecture } from '../components/Architecture.tsx'
 import { CodeShowcase } from '../components/CodeShowcase.tsx'
+import { DomainShowcase } from '../components/DomainShowcase.tsx'
 import { Footer } from '../components/Footer.tsx'
 import { Hero } from '../components/Hero.tsx'
 import { Integrations } from '../components/Integrations.tsx'
@@ -73,6 +74,7 @@ const homeUrl = new URL(`${baseUrl}/`, Astro.site).href
     <Navbar baseUrl={baseUrl} />
     <main>
       <Hero baseUrl={baseUrl} />
+      <DomainShowcase baseUrl={baseUrl} />
       <Kumimono client:visible baseUrl={baseUrl} />
       <Philosophy />
       <TieredStyles />

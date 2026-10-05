@@ -3,7 +3,9 @@ import { DomainNav } from '../components/DomainNav.tsx'
 import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import SiteHead from '../components/SiteHead.astro'
+import { SvgWorkbench } from '../components/SvgWorkbench.tsx'
 import '../styles/global.css'
+import snapshot from '../../../../packages/tailwind-conformance/snapshot.json'
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 ---
@@ -42,6 +44,11 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
           Vector icons, badges, and illustrations shouldn't require separate implementations for Web and Mobile. Hozo compiles a single, standard <code class="text-hinoki">&lt;Svg&gt;</code> namespace directly into native DOM SVG elements on Web and <code class="text-hinoki">react-native-svg</code> on iOS/Android.
         </p>
       </section>
+
+      <!-- Interactive SVG & Filter Studio -->
+      <div class="mb-16">
+        <SvgWorkbench client:visible />
+      </div>
 
       <!-- Live Vector & Filter Visual Showcase -->
       <div class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
@@ -131,6 +138,45 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
             <h3 class="text-lg font-bold text-shikkui mb-2">Semantic SVG Navigation</h3>
             <p class="text-xs sm:text-sm text-stone-300 leading-relaxed">
               <code class="text-hinoki">Svg.Link</code> lowers to a semantic <code class="text-hinoki">&lt;a&gt;</code> on Web and a router-aware Pressable group on Native, sharing state with <code class="text-hinoki">@hozo/navigation</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SVG Filter Conformance Report -->
+      <section class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/20 flex items-center justify-center text-hinoki font-bold">
+            &Sigma;
+          </div>
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-shikkui tracking-tight">SVG Filter API / Compiler Boundary</h2>
+            <p class="text-xs sm:text-sm text-stone-400">
+              Verified in CI across both platforms (packages/tailwind-conformance/src/svg-filters.test.ts).
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono text-stone-400 mb-1">Web Filter API Boundary</div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.svgFilterWeb.covered} / {snapshot.svgFilterWeb.total}
+            </div>
+            <div class="text-xs text-emerald-400 font-semibold mb-2">100% Surface Lowering</div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Lowers directly to native HTML5 SVG filter tags (feDropShadow, feGaussianBlur, feColorMatrix, feBlend, feComposite) with zero runtime wrapper code.
+            </p>
+          </div>
+
+          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+            <div class="text-xs font-mono text-stone-400 mb-1">Native Filter API Boundary</div>
+            <div class="text-2xl font-bold text-shikkui mb-1">
+              {snapshot.svgFilterNative.covered} / {snapshot.svgFilterNative.total}
+            </div>
+            <div class="text-xs text-hinoki font-semibold mb-2">100% Surface Lowering</div>
+            <p class="text-xs text-stone-400 leading-relaxed">
+              Mapped to react-native-svg compatible elements. Note: this verifies the compiler API boundary (not prop parity, pixel equivalence or device rendering).
             </p>
           </div>
         </div>

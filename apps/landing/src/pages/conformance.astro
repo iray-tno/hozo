@@ -271,80 +271,29 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
           </div>
         </div>
 
-        <!-- Refusal Breakdown Detail Table -->
-        <div class="rounded-xl border border-white/10 bg-[#0d1117] overflow-hidden mb-6">
-          <div class="p-4 bg-slate-950/60 border-b border-white/10">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
-              <span>Why Candidates Are Refused on Native</span>
-              <span class="text-[10px] font-normal px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                Audited against RN types
-              </span>
-            </h3>
-          </div>
-          <div class="divide-y divide-white/5 text-xs font-mono">
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02]">
-              <div class="flex items-center gap-2">
-                <span class="text-amber-400 font-semibold">REFUSED</span>
-                <span class="text-white">box-content</span>
-              </div>
-              <div class="text-slate-400 text-[11px] font-sans">
-                React Native Yoga engine enforces <code class="font-mono text-slate-300">box-sizing: border-box</code> universally; content-box is not supported.
-              </div>
-            </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02]">
-              <div class="flex items-center gap-2">
-                <span class="text-amber-400 font-semibold">REFUSED</span>
-                <span class="text-white">accent-* (accent-indigo-500)</span>
-              </div>
-              <div class="text-slate-400 text-[11px] font-sans">
-                No CSS <code class="font-mono text-slate-300">accent-color</code> equivalent exists for native controls; tint is handled via primitive props.
-              </div>
-            </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02]">
-              <div class="flex items-center gap-2">
-                <span class="text-amber-400 font-semibold">REFUSED</span>
-                <span class="text-white">caret-* (caret-indigo-500)</span>
-              </div>
-              <div class="text-slate-400 text-[11px] font-sans">
-                Input caret color requires <code class="font-mono text-slate-300">selectionColor</code> on TextInput, not a general style property.
-              </div>
-            </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02]">
-              <div class="flex items-center gap-2">
-                <span class="text-amber-400 font-semibold">REFUSED</span>
-                <span class="text-white">table, list, inline-*</span>
-              </div>
-              <div class="text-slate-400 text-[11px] font-sans">
-                HTML table & list layouts do not exist in React Native flexbox layout.
-              </div>
-            </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02]">
-              <div class="flex items-center gap-2">
-                <span class="text-sky-400 font-semibold">NO-OP</span>
-                <span class="text-white">box-border</span>
-              </div>
-              <div class="text-slate-400 text-[11px] font-sans">
-                Honoured by doing nothing: all React Native views already use border-box sizing.
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Refusal Audit Summary Card -->
-        <div class="p-4 rounded-xl glass-panel flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+        <div class="p-6 rounded-2xl glass-panel flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-6">
           <div>
-            <div class="font-bold text-white mb-0.5">Automated Refusal Audit against React Native `.d.ts`</div>
-            <p class="text-slate-400">
-              Of <strong>{snapshot.refusalAudit.refusals.toLocaleString()}</strong> total refusals audited, <strong>{snapshot.refusalAudit.confirmed.toLocaleString()}</strong> are confirmed impossible from React Native's official type definitions.
+            <div class="font-bold text-white text-base mb-1">Automated Refusal Audit against React Native `.d.ts`</div>
+            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl">
+              Of <strong>{snapshot.refusalAudit.refusals.toLocaleString()}</strong> total refusals audited, <strong>{snapshot.refusalAudit.confirmed.toLocaleString()}</strong> are confirmed impossible from React Native's official type definitions. The full refusal breakdown is documented in the dedicated Tailwind AOT guide.
             </p>
           </div>
-          <div class="flex items-center gap-2 font-mono text-[11px]">
-            <span class="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-              {snapshot.refusalAudit.confirmed.toLocaleString()} Confirmed
-            </span>
-            <span class="px-2.5 py-1 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
-              {snapshot.refusalAudit.partial} Partial
-            </span>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+            <div class="flex items-center gap-2 font-mono text-[11px]">
+              <span class="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                {snapshot.refusalAudit.confirmed.toLocaleString()} Confirmed
+              </span>
+              <span class="px-2.5 py-1 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                {snapshot.refusalAudit.partial} Partial
+              </span>
+            </div>
+            <a
+              href={`${baseUrl}/tailwind/`}
+              class="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-all text-center"
+            >
+              View Refusal Breakdown Table in Tailwind Guide &rarr;
+            </a>
           </div>
         </div>
       </section>
