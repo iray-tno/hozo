@@ -12,8 +12,12 @@ export interface NativeContextualCase {
     | 'translate-none'
     | 'transform-none'
     | 'transform-cpu'
+    | 'not-disabled'
+    | 'not-aria-checked'
+    | 'not-motion-reduce'
   purpose: string
   className: string
+  props?: string
   expected: string[]
 }
 
@@ -23,6 +27,26 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'not-disabled',
+    purpose: 'a negated prop predicate composes with a breakpoint and existing interaction state',
+    props: 'disabled={false}',
+    className: 'opacity-100 md:hover:not-disabled:opacity-50',
+    expected: ['__hozoBp_md && hovered && !((false)) &&'],
+  },
+  {
+    candidate: 'not-aria-checked',
+    purpose: 'the opposite ARIA state uses the same readable accessibilityState prop',
+    props: 'accessibilityState={{ checked: false }}',
+    className: 'opacity-100 md:not-aria-checked:opacity-50',
+    expected: ['__hozoBp_md &&', '.checked === true)) &&'],
+  },
+  {
+    candidate: 'not-motion-reduce',
+    purpose: 'a negated supported environment query reuses its hook under a breakpoint',
+    className: 'opacity-100 md:not-motion-reduce:opacity-50',
+    expected: ['__hozoBp_md && !(__hozoEnv_motion_reduce) &&', 'useHozoEnvironment'],
+  },
   ...(
     ['rotate-none', 'scale-none', 'translate-none', 'transform-none', 'transform-cpu'] as const
   ).map((candidate) => ({
@@ -55,7 +79,7 @@ export function compareNativeContextual(testCase: NativeContextualCase): NativeC
   const source =
     `import { Pressable } from '@hozo/core'\n` +
     `export function C() {\n` +
-    `  return <Pressable accessibilityRole="button" className="${testCase.className}">x</Pressable>\n` +
+    `  return <Pressable accessibilityRole="button" ${testCase.props ?? ''} className="${testCase.className}">x</Pressable>\n` +
     `}\n`
   const [result] = compileNative(source)
   if (!result) return { ...testCase, verdict: 'SILENT', detail: 'no component compiled' }

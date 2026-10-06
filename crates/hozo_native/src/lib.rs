@@ -863,7 +863,12 @@ fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
             return None;
         }
     }
-    Some(format!("({}).{state}", source_text(source, value)))
+    // An opaque prop expression may evaluate to undefined/null (RN's
+    // accessibilityState is optional). That means no active ARIA state,
+    // not a JS exception in either the positive or the negative guard.
+    // Tailwind's boolean aria variants match the literal true state;
+    // checked="mixed" is a real RN state, but not aria-checked="true".
+    Some(format!("({})?.{state} === true", source_text(source, value)))
 }
 
 fn escape_jsx_text(text: &str) -> String {

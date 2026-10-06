@@ -318,7 +318,7 @@ if (silent.length > 0) {
 const contextual = NATIVE_CONTEXTUAL_CASES.map(compareNativeContextual)
 const contextualCovered = contextual.filter((result) => result.verdict === 'COVERED').length
 console.log(
-  `\nNative contextual transforms and transitions: ${contextualCovered}/${contextual.length} = ` +
+  `\nNative contextual conditions, transforms and transitions: ${contextualCovered}/${contextual.length} = ` +
     `${pct(contextualCovered, contextual.length)}  (configuration plus a guarded interactive target)`,
 )
 record('nativeContextual', {

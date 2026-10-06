@@ -5,6 +5,8 @@
 
 use super::*;
 
+mod guards;
+
 /// A React hook the generated component needs in order to observe an
 /// ambient condition -- one whose value is the same app-wide at any moment.
 ///
@@ -400,6 +402,17 @@ pub(super) fn build_style_entries(
             parts.iter().map(|part| format!("{prefix}{part}")).collect()
         };
         match &condition {
+            Condition::Disabled | Condition::Enabled | Condition::Aria(_)
+            | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
+            | Condition::Structural(_) | Condition::Not(_) => {
+                match guards::resolve(&condition, node, source, position, runtime) {
+                    Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
+                    Ok(guards::Guard::Known(true)) => conditional_parts.extend(guarded("")),
+                    Ok(guards::Guard::Known(false)) => {}
+                    Ok(guards::Guard::Dynamic(guard)) => conditional_parts.extend(guarded(&format!("{guard} && "))),
+                    Err(reason) => diagnostics.push(unwired_variant(node, &reason, Severity::Error)),
+                }
+            }
             Condition::Always => base_parts.extend(parts.clone()),
             Condition::All(conditions) => {
                 let mut atoms = Vec::new();
@@ -433,6 +446,7 @@ pub(super) fn build_style_entries(
                             | Condition::LastChild
                             | Condition::Structural(_)
                             | Condition::StartingStyle
+                            | Condition::Not(_)
                     ) || presence_closed(atom)
                 });
                 if !supported {
@@ -462,23 +476,20 @@ pub(super) fn build_style_entries(
                     let mut leaves_to = false;
                     for atom in atoms {
                         match atom {
-                            Condition::Always => {}
-                            Condition::Disabled => {
-                                if let Some(disabled) = &node.props.disabled {
-                                    guards.push(format!(
-                                        "({})",
-                                        render_condition_expr(source, disabled)
-                                    ));
-                                } else {
-                                    diagnostics.push(unwired_variant(
-                                        node,
-                                        "`disabled:` in a stacked variant needs a `disabled` prop \
-                                         on the same element to drive it, and this one has none.",
-                                        Severity::Error,
-                                    ));
-                                    applies = false;
+                            Condition::Disabled | Condition::Enabled | Condition::Aria(_)
+                            | Condition::Environment(_) | Condition::FirstChild
+                            | Condition::LastChild | Condition::Structural(_) | Condition::Not(_) => {
+                                match guards::resolve(atom, node, source, position, runtime) {
+                                    Ok(guards::Guard::Known(true)) => {}
+                                    Ok(guards::Guard::Known(false)) => applies = false,
+                                    Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
+                                    Err(reason) => {
+                                        diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+                                        applies = false;
+                                    }
                                 }
                             }
+                            Condition::Always => {}
                             Condition::Group(inner) => match group_state(inner, interaction_context) {
                                 Some(state) => {
                                     guards.push(state.to_string());
@@ -493,28 +504,6 @@ pub(super) fn build_style_entries(
                                     applies = false;
                                 }
                             },
-                            Condition::Enabled => {
-                                // The negation of the guard `disabled:`
-                                // uses, from the same prop.
-                                if let Some(disabled) = &node.props.disabled {
-                                    guards.push(format!("!({})", render_condition_expr(source, disabled)));
-                                }
-                            },
-                            Condition::Aria(state) => {
-                                match aria_state_guard(node, source, state) {
-                                    Some(guard) => guards.push(format!("({guard})")),
-                                    None => {
-                                        diagnostics.push(unwired_variant(
-                                            node,
-                                            &format!(
-                                                "`aria-{state}:` in a stacked variant needs an `accessibilityState` on the same element to drive it on Native, and this one has none."
-                                            ),
-                                            Severity::Error,
-                                        ));
-                                        applies = false;
-                                    }
-                                }
-                            }
                             Condition::Pressed => {
                                 guards.push("pressed".to_string());
                                 uses_interactive_state = true;
@@ -614,47 +603,6 @@ pub(super) fn build_style_entries(
                                 guards.push(hook.binding().to_string());
                                 runtime.hooks.push(hook);
                             }
-                            Condition::Environment(query) => match native_environment(*query) {
-                                Some(query) => {
-                                    let hook = RuntimeHook::Environment(query);
-                                    guards.push(hook.binding().to_string());
-                                    runtime.hooks.push(hook);
-                                }
-                                None => {
-                                    diagnostics.push(unwired_variant(
-                                        node,
-                                        &environment_unwired_message(*query),
-                                        Severity::Error,
-                                    ));
-                                    applies = false;
-                                }
-                            },
-                            Condition::FirstChild
-                            | Condition::LastChild
-                            | Condition::Structural(_) => {
-                                let known = match atom {
-                                    Condition::FirstChild => position.first,
-                                    Condition::LastChild => position.last,
-                                    Condition::Structural(structural) => {
-                                        structural_holds(structural, node, position)
-                                    }
-                                    _ => unreachable!("matched above"),
-                                };
-                                match known {
-                                    Some(true) => {}
-                                    Some(false) => applies = false,
-                                    None => {
-                                        diagnostics.push(unwired_variant(
-                                            node,
-                                            "a structural condition in this stacked variant \
-                                             can't be resolved because the element's sibling \
-                                             position isn't statically known.",
-                                            Severity::Error,
-                                        ));
-                                        applies = false;
-                                    }
-                                }
-                            }
                             Condition::StartingStyle => enters_from = true,
                             Condition::DataAttribute(_) => leaves_to = true,
                             _ => unreachable!("unsupported atoms were rejected above"),
@@ -710,24 +658,6 @@ pub(super) fn build_style_entries(
                     }
                 }
             }
-            Condition::Disabled => {
-                if let Some(disabled) = &node.props.disabled {
-                    let guard = render_condition_expr(source, disabled);
-                    conditional_parts.extend(guarded(&format!("({guard}) && ")));
-                } else {
-                    // Nothing on this element drives the condition. On Web
-                    // the same source is inert too (`:disabled` never
-                    // matches a div), but there it's CSS behaving
-                    // correctly; here it's a style that was computed and
-                    // then had nowhere to go.
-                    diagnostics.push(unwired_variant(
-                        node,
-                        "`disabled:` needs a `disabled` prop on the same element to drive it, and \
-                         this one has none.",
-                        Severity::Error,
-                    ));
-                }
-            }
             Condition::Group(inner) => match group_state(inner, interaction_context) {
                 // `pressed_parts`, not `conditional_parts`: these names
                 // come from the render-prop the interaction context hands
@@ -742,31 +672,6 @@ pub(super) fn build_style_entries(
                     Severity::Error,
                 )),
             },
-            Condition::Environment(query) => match native_environment(*query) {
-                Some(query) => {
-                    let hook = RuntimeHook::Environment(query);
-                    conditional_parts.extend(guarded(&format!("{} && ", hook.binding())));
-                    runtime.hooks.push(hook);
-                }
-                None => diagnostics.push(unwired_variant(
-                    node,
-                    &environment_unwired_message(*query),
-                    Severity::Error,
-                )),
-            },
-            // Negation is a guard like any other, so this is wired
-            // wherever the thing it negates is -- but the inner condition
-            // has to be resolved first, and that resolution lives in the
-            // arms below rather than in a function this can call. Reported
-            // for now, which is at least not silence.
-            Condition::Not(inner) => diagnostics.push(unwired_variant(
-                node,
-                &format!(
-                    "`not-{}:` is not wired on React Native yet. On Web the same class works.",
-                    condition_suffix(inner).unwrap_or_default()
-                ),
-                Severity::Error,
-            )),
             // The frame an element leaves to inside `Presence` (decision
             // 007, amendment 1). On Web it is the attribute `Presence` sets;
             // here it is the state `HozoAnimated` reads from `Presence`, so
@@ -913,33 +818,6 @@ pub(super) fn build_style_entries(
                  a sibling has nowhere to hand it. On Web the same class works.",
                 Severity::Error,
             )),
-            Condition::Enabled => match &node.props.disabled {
-                Some(disabled) => {
-                    let guard = render_condition_expr(source, disabled);
-                    conditional_parts.extend(guarded(&format!("!({guard}) && ")));
-                }
-                // An element with no `disabled` prop cannot become
-                // disabled, so `enabled:` on it is simply always true --
-                // unlike `disabled:`, where nothing driving it means the
-                // style had nowhere to go.
-                None => base_parts.extend(parts.clone()),
-            },
-            Condition::Aria(state) => {
-                match aria_state_guard(node, source, state) {
-                    Some(guard) => conditional_parts.extend(guarded(&format!("({guard}) && "))),
-                    // Web needs nothing from the props here -- the selector
-                    // matches whatever the element carries. Native has no
-                    // selector engine, so the state has to be readable as
-                    // an expression or the style has nowhere to go.
-                    None => diagnostics.push(unwired_variant(
-                        node,
-                        &format!(
-                            "`aria-{state}:` needs an `accessibilityState` on the same element to drive it on Native, and this one has none. On Web the same class works from the attribute alone."
-                        ),
-                        Severity::Error,
-                    )),
-                }
-            }
             Condition::Pressed => pressed_parts.extend(guarded("pressed && ")),
             Condition::Expr(expr) => {
                 let guard = render_condition_expr(source, expr);
@@ -1008,38 +886,6 @@ pub(super) fn build_style_entries(
                 let hook = RuntimeHook::Dark;
                 conditional_parts.extend(guarded(&format!("{} && ", hook.binding())));
                 runtime.hooks.push(hook);
-            }
-            // Resolved at build time rather than needing a selector
-            // engine. Both decided answers are exact -- the same thing
-            // `:first-child` would do on Web -- so neither reports
-            // anything; only an undecidable position does.
-            Condition::FirstChild | Condition::LastChild | Condition::Structural(_) => {
-                let (end, known) = match condition {
-                    Condition::FirstChild => ("first".to_string(), position.first),
-                    Condition::LastChild => ("last".to_string(), position.last),
-                    Condition::Structural(structural) => (
-                        structural.variant_name(),
-                        structural_holds(&structural, node, position),
-                    ),
-                    _ => unreachable!("matched above"),
-                };
-                match known {
-                    Some(true) => conditional_parts.extend(guarded("")),
-                    // The pseudo-class wouldn't match here either, so
-                    // dropping the style is the correct outcome, not a gap.
-                    Some(false) => {}
-                    None => diagnostics.push(unwired_variant(
-                        node,
-                        &format!(
-                            "`{end}:` can only be resolved when the compiler can see this \
-                             element's position among its siblings, and here it can't -- it's \
-                             either the root of a component (whose position its caller decides) \
-                             or a sibling of something Hozo doesn't model, such as a custom \
-                             component or a `{{...}}` expression."
-                        ),
-                        Severity::Error,
-                    )),
-                }
             }
             // Refused rather than shelved. React Native has no selector
             // engine at all -- not a missing feature but a different
