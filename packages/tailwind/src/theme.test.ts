@@ -309,3 +309,25 @@ test("a project's own animation reaches both backends (decision 007, slice 3)", 
     compileNative(source)[0]?.diagnostics.some(({ message }) => message.includes('animate-wiggle')),
   )
 })
+
+test('a frame declaration Native cannot read is named, not dropped in silence', async () => {
+  // Tailwind's own `bounce` is written this way: a timing function per frame.
+  const theme = await themeFrom(`@import "tailwindcss";
+@theme {
+  --animate-hop: hop 1s infinite;
+  @keyframes hop {
+    0%, 100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+    50% { transform: none; animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+  }
+}`)
+  const source = `import { View } from '@hozo/core'\nexport const C = () => <View className="animate-hop" />\n`
+  const native = createCompiler(theme).compileNative(source)[0]
+  assert.ok(native)
+  assert.ok(
+    native.diagnostics.some(({ message }) =>
+      message.includes('`animation-timing-function`'),
+    ),
+    JSON.stringify(native.diagnostics),
+  )
+  assert.ok(native.prelude.some((line) => line.includes('useHozoKeyframes(')))
+})

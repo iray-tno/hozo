@@ -357,6 +357,19 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
                 rules.push_str("\n\n");
             }
         }
+        // Tailwind's four need theirs here too, for the same reason: an
+        // `animation: spin 1s linear infinite` with no `@keyframes spin`
+        // anywhere on the page is a spinner that does not turn.
+        let built_in = utility.groups.iter().flat_map(|(_, properties)| properties).find_map(
+            |property| match property {
+                hozo_ir::StyleProperty::Animation(animation) => animation.keyframes(),
+                _ => None,
+            },
+        );
+        if let Some(keyframes) = built_in {
+            rules.push_str(keyframes);
+            rules.push_str("\n\n");
+        }
         let shaded_theme = theme.dark();
         for (condition, properties) in &utility.groups {
             // The same pairing `render_node` does, on the other path a class
@@ -3859,6 +3872,7 @@ mod theme_animation_tests {
                 shorthand: "wiggle 1s ease-in-out infinite".to_string(),
                 keyframes_css: Some("@keyframes wiggle {\n  50% {\n    opacity: .5;\n  }\n}\n".to_string()),
                 keyframes: None,
+                unread: Vec::new(),
             },
         );
         Theme::default().with_animations(animations)
@@ -3894,5 +3908,13 @@ mod theme_animation_tests {
         assert!(sheet.contains("@keyframes wiggle"), "{sheet}");
         assert!(sheet.contains("animation: wiggle 1s ease-in-out infinite;"), "{sheet}");
         assert!(render_candidate_stylesheet(&["animate-unknown".to_string()], &theme()).is_empty());
+    }
+
+    #[test]
+    fn and_so_does_it_for_tailwinds_own() {
+        let sheet = render_candidate_stylesheet(&["animate-spin".to_string()], &Theme::default());
+        assert!(sheet.contains("@keyframes spin"), "{sheet}");
+        assert!(sheet.contains("animation: spin 1s linear infinite;"), "{sheet}");
+        assert!(!render_candidate_stylesheet(&["animate-none".to_string()], &Theme::default()).contains("@keyframes"));
     }
 }

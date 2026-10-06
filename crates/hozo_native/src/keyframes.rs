@@ -226,7 +226,19 @@ pub(super) fn spec(
             .cloned()
             .partition(animatable);
         for property in &dropped {
-            for (key, _) in crate::style::property_and_value(property, theme) {
+            // A Web-only or arbitrary declaration has no React Native key to
+            // name it by, so it is named by its CSS property -- otherwise it
+            // left the frames without a word, which is how a frame's
+            // `animation-timing-function` (Tailwind's own `bounce` has one)
+            // disappeared.
+            let keys: Vec<String> = match property {
+                StyleProperty::WebOnly(name, _) | StyleProperty::Arbitrary(name, _) => vec![name.clone()],
+                property => crate::style::property_and_value(property, theme)
+                    .into_iter()
+                    .map(|(key, _)| key.to_string())
+                    .collect(),
+            };
+            for key in keys {
                 let key = format!("`{key}`");
                 if !fixed.contains(&key) {
                     fixed.push(key);
@@ -252,8 +264,8 @@ pub(super) fn spec(
             node,
             &format!(
                 "`@keyframes {}` on React Native animates opacity, transforms and colours -- what \
-                 the native runtime can interpolate. {} would jump from frame to frame rather than \
-                 move, so it is left out here. On Web the same keyframes animate it.",
+                 the native runtime can interpolate. {} is left out of its frames here, so the \
+                 animation runs without it. On Web the same keyframes apply it.",
                 keyframes.name,
                 fixed.join(", ")
             ),
@@ -455,6 +467,7 @@ mod theme_animation_tests {
                 shorthand: "wiggle 1s ease-in-out infinite".to_string(),
                 keyframes_css: None,
                 keyframes: Some(hozo_ir::Keyframes { name: "wiggle".to_string(), frames }),
+                unread: Vec::new(),
             },
         );
         Theme::default().with_animations(animations)
@@ -510,6 +523,26 @@ mod theme_animation_tests {
     fn tailwinds_own_and_unrelated_classes_say_nothing() {
         assert!(!warned(&compile("animate-spin", &Theme::default())));
         assert!(!warned(&compile("my-card", &Theme::default())));
+    }
+
+    #[test]
+    fn a_frame_declaration_with_no_typed_form_is_named() {
+        // Tailwind's own bounce puts an `animation-timing-function` in each
+        // frame. Native runs the frames without it, and says so.
+        let mut wiggle = theme().animation("wiggle").cloned().unwrap();
+        wiggle.unread = vec!["animation-timing-function: cubic-bezier(0.8, 0, 1, 1)".to_string()];
+        let theme = Theme::default().with_animations(HashMap::from([("wiggle".to_string(), wiggle)]));
+        let out = compile("animate-wiggle", &theme);
+        assert!(
+            out.diagnostics.iter().any(|d| d
+                .message
+                .contains("`animation-timing-function: cubic-bezier(0.8, 0, 1, 1)`")
+                && d.severity == hozo_ir::Severity::Warning),
+            "{:?}",
+            out.diagnostics
+        );
+        // Still runs: the rest of the frames are the animation.
+        assert!(out.prelude.iter().any(|line| line.contains("useHozoKeyframes(")));
     }
 
     #[test]
