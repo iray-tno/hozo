@@ -60,6 +60,7 @@ mod render;
 mod style;
 mod text;
 mod transition;
+mod transforms;
 
 use candidate::style_pairs;
 use conditions::{build_style_entries, unwired_variant, RuntimeHook};

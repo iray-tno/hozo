@@ -27,6 +27,7 @@ export type ClassResolver = (value: unknown) => StyleObject[]
 export function createClassResolver(
   styles: Record<string, StyleObject>,
   unsupported: Record<string, string> = {},
+  compose?: (styles: StyleObject[]) => StyleObject[],
 ): ClassResolver {
   // Class strings repeat constantly across renders and list items, and the
   // result is immutable, so each distinct string is resolved once.
@@ -68,7 +69,8 @@ export function createClassResolver(
       }
     }
 
-    cache.set(value, resolved)
-    return resolved
+    const composed = compose ? compose(resolved) : resolved
+    cache.set(value, composed)
+    return composed
   }
 }

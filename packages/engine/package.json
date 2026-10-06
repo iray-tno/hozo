@@ -85,6 +85,10 @@
       "types": "./dist/generated/scrollable.d.ts",
       "default": "./dist/generated/scrollable.js"
     },
+    "./generated/transform-slots": {
+      "types": "./dist/generated/transform-slots.d.ts",
+      "default": "./dist/generated/transform-slots.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

@@ -3,7 +3,15 @@ import { compileNative } from '@hozo/compiler'
 export type ContextualVerdict = 'COVERED' | 'REFUSED' | 'SILENT'
 
 export interface NativeContextualCase {
-  candidate: 'transition' | 'duration-200' | 'ease-in-out'
+  candidate:
+    | 'transition'
+    | 'duration-200'
+    | 'ease-in-out'
+    | 'rotate-none'
+    | 'scale-none'
+    | 'translate-none'
+    | 'transform-none'
+    | 'transform-cpu'
   purpose: string
   className: string
   expected: string[]
@@ -15,6 +23,14 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  ...(
+    ['rotate-none', 'scale-none', 'translate-none', 'transform-none', 'transform-cpu'] as const
+  ).map((candidate) => ({
+    candidate,
+    purpose: 'conditional transform control preserves the independent CSS transform slots',
+    className: `translate-x-2 rotate-45 scale-95 rotate-x-30 md:hover:${candidate}`,
+    expected: ['hozoTransformStyles', '__hozoBp_md && hovered &&'],
+  })),
   {
     candidate: 'transition',
     purpose: 'default transition drives an interactive transform',

@@ -29,7 +29,8 @@ pub(super) fn native_driver_transition(
             | StyleProperty::RotateZ(_)
             | StyleProperty::ScaleX(_)
             | StyleProperty::ScaleY(_)
-    ) || matches!(property, StyleProperty::Scale(values) if values.len() <= 2));
+    ) || matches!(property, StyleProperty::Scale(values) if values.len() <= 2)
+        || crate::transforms::is_control(property));
     let has_base_text_color = declarations.iter().any(|declaration| {
         matches!(declaration.property, StyleProperty::TextColor(_))
             && matches!(declaration.condition, Condition::Always)
@@ -390,6 +391,7 @@ pub(super) fn interpolatable(property: &StyleProperty) -> bool {
             | StyleProperty::ScaleX(_)
             | StyleProperty::ScaleY(_)
     ) || matches!(property, StyleProperty::Scale(values) if values.len() <= 2)
+        || crate::transforms::is_control(property)
 }
 
 fn runtime_variable(condition: &Condition) -> bool {

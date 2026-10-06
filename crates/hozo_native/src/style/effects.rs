@@ -10,8 +10,36 @@ use super::*;
 /// none. Ordered translate -> rotate -> scale, matching how CSS applies its
 /// standalone properties, so the two platforms compose identically.
 pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static str, String)> {
+    // A reset changes a CSS property, not Tailwind's underlying axis
+    // registers. A later axis utility can therefore restore earlier axes.
+    let reset = |predicate: fn(&StyleProperty) -> bool| props.iter().rposition(predicate);
+    let translate_off = reset(|p| matches!(p, StyleProperty::TranslateNone))
+        > reset(|p| matches!(p, StyleProperty::Translate(_) | StyleProperty::TranslateX(_)
+            | StyleProperty::TranslateY(_) | StyleProperty::TranslateZ(_)));
+    let scale_off = reset(|p| matches!(p, StyleProperty::ScaleNone))
+        > reset(|p| matches!(p, StyleProperty::Scale(_) | StyleProperty::ScaleX(_)
+            | StyleProperty::ScaleY(_) | StyleProperty::ScaleZ(_)));
+    let rotate_off = reset(|p| matches!(p, StyleProperty::RotateNone))
+        > reset(|p| matches!(p, StyleProperty::Rotate(_)));
+    let functions_off = reset(|p| matches!(p, StyleProperty::TransformNone))
+        > reset(|p| matches!(p, StyleProperty::Transform(_) | StyleProperty::TransformEmpty
+            | StyleProperty::RotateX(_) | StyleProperty::RotateY(_) | StyleProperty::RotateZ(_)
+            | StyleProperty::SkewX(_) | StyleProperty::SkewY(_)));
+    let effective: Option<Vec<_>> = (translate_off || scale_off || rotate_off || functions_off).then(|| props.iter().filter(|p| !(
+        translate_off && matches!(p, StyleProperty::Translate(_) | StyleProperty::TranslateX(_)
+            | StyleProperty::TranslateY(_) | StyleProperty::TranslateZ(_))
+        || scale_off && matches!(p, StyleProperty::Scale(_) | StyleProperty::ScaleX(_)
+            | StyleProperty::ScaleY(_) | StyleProperty::ScaleZ(_) | StyleProperty::Scale3d)
+        || rotate_off && matches!(p, StyleProperty::Rotate(_))
+        || functions_off && matches!(p, StyleProperty::Transform(_) | StyleProperty::RotateX(_)
+            | StyleProperty::RotateY(_) | StyleProperty::RotateZ(_) | StyleProperty::SkewX(_) | StyleProperty::SkewY(_))
+    )).cloned().collect());
+    let has_control = props.iter().any(|p| crate::transforms::is_reset(p)
+        || matches!(p, StyleProperty::TransformEmpty));
+    let props = effective.as_deref().unwrap_or(props);
     let mut parts: Vec<String> = Vec::new();
     let last_authored = props.iter().rposition(|property| matches!(property, StyleProperty::Transform(_)));
+    let last_empty = props.iter().rposition(|property| matches!(property, StyleProperty::TransformEmpty));
     let last_function_slots = props.iter().rposition(|property| matches!(
         property,
         StyleProperty::RotateX(_) | StyleProperty::RotateY(_) | StyleProperty::RotateZ(_)
@@ -63,7 +91,7 @@ pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<
     }
     // React Native has the 3D rotations and the skews as transform entries
     // of their own, in the same order CSS applies them.
-    if last_function_slots > last_authored {
+    if last_function_slots > last_authored || last_empty > last_authored {
         for (name, angle) in [
             ("rotateX", props.iter().find_map(rotate_x)),
             ("rotateY", props.iter().find_map(rotate_y)),
@@ -142,7 +170,7 @@ pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<
     }
     // CSS applies the authored transform list after its standalone
     // translate/rotate/scale properties. Preserve the list's own order.
-    if last_authored > last_function_slots {
+    if last_authored > last_function_slots && last_authored > last_empty {
         let functions = props.iter().rev().find_map(|property| match property {
             StyleProperty::Transform(functions) => Some(functions),
             _ => None,
@@ -165,7 +193,7 @@ pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<
             parts.push(entry);
         }
     }
-    if parts.is_empty() {
+    if parts.is_empty() && !has_control {
         return None;
     }
     Some(("transform", format!("[{}]", parts.join(", "))))
