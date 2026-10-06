@@ -79,6 +79,12 @@ const VARIANTS = [
   // single/stacked matrix too, not only in a hand-written contextual case.
   'not-focus',
   'not-focus-visible',
+  // Negated ambient conditions must preserve the oracle's query as well
+  // as the declaration, both alone and in the full pairwise matrix.
+  'not-md',
+  'not-dark',
+  'not-min-[500px]',
+  'not-max-[500px]',
   // Compositional: an attribute, a feature query, and the third relation
   // after group and peer.
   'data-open',

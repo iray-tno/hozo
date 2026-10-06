@@ -208,7 +208,7 @@ fn with_dark_copies(
         out.push(declaration.clone());
         // A rule the author already marked `dark:` is only for dark mode; a
         // copy of it would say the same thing twice and win on a tie.
-        if declaration.condition.mentions_dark() {
+        if declaration.condition.mentions_dark() || light_only(&declaration.condition) {
             continue;
         }
         let property = std::slice::from_ref(&declaration.property);
@@ -227,6 +227,16 @@ fn with_dark_copies(
         Some(out)
     } else {
         None
+    }
+}
+
+// A not-dark token stays in its light palette. Appending a dark copy would
+// manufacture a contradictory guard and a permanently unreachable entry.
+fn light_only(condition: &Condition) -> bool {
+    match condition {
+        Condition::Not(inner) => matches!(inner.as_ref(), Condition::Dark),
+        Condition::All(conditions) => conditions.iter().any(light_only),
+        _ => false,
     }
 }
 
@@ -417,7 +427,8 @@ pub(super) fn build_style_entries(
         match &condition {
             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
             | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
-            | Condition::Structural(_) | Condition::Not(_) | Condition::Focus | Condition::FocusVisible => {
+            | Condition::Structural(_) | Condition::Not(_) | Condition::Focus | Condition::FocusVisible
+            | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark => {
                 match guards::resolve(&condition, node, source, position, runtime, interaction_context) {
                     Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
                     Ok(guards::Guard::Known(true)) => conditional_parts.extend(guarded("")),
@@ -493,7 +504,8 @@ pub(super) fn build_style_entries(
                             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
                             | Condition::Environment(_) | Condition::FirstChild
                             | Condition::LastChild | Condition::Structural(_) | Condition::Not(_)
-                            | Condition::Focus | Condition::FocusVisible => {
+                            | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
+                            | Condition::Width { .. } | Condition::Dark => {
                                 match guards::resolve(atom, node, source, position, runtime, interaction_context) {
                                     Ok(guards::Guard::Known(true)) => {}
                                     Ok(guards::Guard::Known(false)) => applies = false,
@@ -545,11 +557,6 @@ pub(super) fn build_style_entries(
                             Condition::Expr(expr) => {
                                 guards.push(format!("({})", render_condition_expr(source, expr)));
                             }
-                            Condition::Responsive(bp) => {
-                                let hook = RuntimeHook::Breakpoint(*bp);
-                                guards.push(hook.binding().to_string());
-                                runtime.hooks.push(hook);
-                            }
                             Condition::Container { name, at_least, value } => {
                                 match container_guard(name, *at_least, value) {
                                     Some(guard) => guards.push(format!("({guard})")),
@@ -564,34 +571,6 @@ pub(super) fn build_style_entries(
                                         applies = false;
                                     }
                                 }
-                            }
-                            Condition::Width { at_least, value } => {
-                                match width_threshold_px(value) {
-                                    Some(px) => {
-                                        let hook = RuntimeHook::WidthAtLeast(px);
-                                        guards.push(if *at_least {
-                                            hook.binding().to_string()
-                                        } else {
-                                            format!("!{}", hook.binding())
-                                        });
-                                        runtime.hooks.push(hook);
-                                    }
-                                    None => {
-                                        diagnostics.push(unwired_variant(
-                                            node,
-                                            &format!(
-                                                "`{value}` in this stacked variant is not a pixel width, and React Native has nothing to resolve it against.",
-                                            ),
-                                            Severity::Error,
-                                        ));
-                                        applies = false;
-                                    }
-                                }
-                            }
-                            Condition::Dark => {
-                                let hook = RuntimeHook::Dark;
-                                guards.push(hook.binding().to_string());
-                                runtime.hooks.push(hook);
                             }
                             Condition::StartingStyle => enters_from = true,
                             Condition::DataAttribute(_) => leaves_to = true,
@@ -828,41 +807,6 @@ pub(super) fn build_style_entries(
                  because those elements own the interaction events that drive the state.",
                 Severity::Error,
             )),
-            // Ambient conditions: one app-wide value, observed through a
-            // hook so this component re-renders when it changes. The hook
-            // declaration goes to the caller rather than into the JSX --
-            // see `LowerOutput::prelude` for why inlining it is unsafe.
-            // `max-…:` is the same question read from the other side, so
-            // it is the same hook negated rather than a second one.
-            Condition::Width { at_least, value } => match width_threshold_px(value) {
-                Some(px) => {
-                    let hook = RuntimeHook::WidthAtLeast(px);
-                    let guard = if *at_least {
-                        format!("{} && ", hook.binding())
-                    } else {
-                        format!("!{} && ", hook.binding())
-                    };
-                    conditional_parts.extend(guarded(&guard));
-                    runtime.hooks.push(hook);
-                }
-                None => diagnostics.push(unwired_variant(
-                    node,
-                    &format!(
-                        "`{value}` is not a pixel width, and React Native has nothing to resolve it against -- no root font size for `rem`, and a viewport unit compared against the viewport answers itself. Write the threshold in `px`. On Web the same class works.",
-                    ),
-                    Severity::Error,
-                )),
-            },
-            Condition::Responsive(bp) => {
-                let hook = RuntimeHook::Breakpoint(*bp);
-                conditional_parts.extend(guarded(&format!("{} && ", hook.binding())));
-                runtime.hooks.push(hook);
-            }
-            Condition::Dark => {
-                let hook = RuntimeHook::Dark;
-                conditional_parts.extend(guarded(&format!("{} && ", hook.binding())));
-                runtime.hooks.push(hook);
-            }
             // Refused rather than shelved. React Native has no selector
             // engine at all -- not a missing feature but a different
             // architecture, since styles there are objects handed to

@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { test } from 'node:test'
 
 import {
+  loadNativeModule,
   renderNative,
   renderNativeWithEvents,
   renderNativeWithLayouts,
@@ -418,6 +419,84 @@ test('child Text focus-visible follows its owner through keyboard, pointer and b
     for (const tree of snapshots) {
       assert.equal(children(tree)[0].props.hozoFocusVisible, undefined)
     }
+  }
+})
+
+test('negated ambient styles are complementary at exact boundaries and reuse coarse snapshots', () => {
+  const stub = require('react-native') as {
+    Dimensions: {
+      get: (name: string) => { width: number }
+      __hozoSetWindow: (window: { width: number }) => void
+    }
+    Appearance: { getColorScheme: () => string; __hozoSetColorScheme: (scheme: string) => void }
+    StyleSheet: { flatten: (style: unknown) => { opacity?: number } }
+  }
+  const previousWidth = stub.Dimensions.get('window').width
+  const previousScheme = stub.Appearance.getColorScheme()
+  const react = require('react')
+  const renderer = require('react-test-renderer')
+  let root: { toJSON: () => Tree; unmount: () => void } | undefined
+  let commits = 0
+  try {
+    renderer.act(() => {
+      stub.Dimensions.__hozoSetWindow({ width: 499 })
+      stub.Appearance.__hozoSetColorScheme('light')
+    })
+    const { C } = loadNativeModule(`
+      import { View } from '@hozo/core'
+      export function C() {
+        return <View>
+          <View className="md:opacity-100 not-md:opacity-50" />
+          <View className="min-[500px]:opacity-100 not-min-[500px]:opacity-50" />
+          <View className="max-[500px]:opacity-50 not-max-[500px]:opacity-100" />
+          <View className="dark:opacity-50 not-dark:opacity-100" />
+        </View>
+      }`)
+    renderer.act(() => {
+      root = renderer.create(
+        react.createElement(
+          react.Profiler,
+          {
+            id: 'ambient',
+            onRender: () => {
+              commits += 1
+            },
+          },
+          react.createElement(C),
+        ),
+      )
+    })
+    const opacities = () =>
+      children(root!.toJSON()).map((tree) => stub.StyleSheet.flatten(tree?.props.style).opacity)
+    assert.deepEqual(opacities(), [0.5, 0.5, 0.5, 1])
+    for (const [width, expected, expectedCommits] of [
+      [500, [0.5, 1, 1, 1], 1],
+      [501, [0.5, 1, 1, 1], 0],
+      [639, [0.5, 1, 1, 1], 0],
+      // The existing named-breakpoint store tracks shared buckets: crossing
+      // sm rerenders once even though this component only asks about md.
+      [640, [0.5, 1, 1, 1], 1],
+      [767, [0.5, 1, 1, 1], 0],
+      [768, [1, 1, 1, 1], 1],
+      [769, [1, 1, 1, 1], 0],
+    ] as const) {
+      commits = 0
+      renderer.act(() => stub.Dimensions.__hozoSetWindow({ width }))
+      assert.deepEqual(opacities(), expected, `width=${width}`)
+      assert.equal(commits, expectedCommits, `commits at width=${width}`)
+    }
+    renderer.act(() => stub.Appearance.__hozoSetColorScheme('dark'))
+    assert.deepEqual(opacities(), [1, 1, 1, 0.5])
+    renderer.act(() => stub.Dimensions.__hozoSetWindow({ width: 499 }))
+    assert.deepEqual(opacities(), [0.5, 0.5, 0.5, 0.5])
+    renderer.act(() => stub.Appearance.__hozoSetColorScheme('light'))
+    assert.deepEqual(opacities(), [0.5, 0.5, 0.5, 1])
+  } finally {
+    renderer.act(() => {
+      root?.unmount()
+      stub.Dimensions.__hozoSetWindow({ width: previousWidth })
+      stub.Appearance.__hozoSetColorScheme(previousScheme)
+    })
   }
 })
 

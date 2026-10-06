@@ -1,4 +1,4 @@
-//! One answer for a prop/environment/structural/focus predicate, whether used
+//! One answer for a prop/ambient/structural/focus predicate, whether used
 //! alone, in a stack, or negated. An unresolved predicate is not false:
 //! negating an error must never make an unsupported style unconditional.
 
@@ -65,6 +65,22 @@ pub(super) fn resolve(
             runtime.hooks.push(hook);
             Ok(Guard::Dynamic(guard))
         }
+        // Positive, stacked and negated ambient predicates all observe the
+        // same hook. Its declaration belongs in the component prelude, not
+        // inside a potentially conditional JSX expression.
+        Condition::Responsive(bp) => Ok(ambient(RuntimeHook::Breakpoint(*bp), runtime)),
+        Condition::Dark => Ok(ambient(RuntimeHook::Dark, runtime)),
+        Condition::Width { at_least, value } => {
+            // max- is the same threshold read from the other side, so its
+            // negation shares the min- hook too, including at the boundary.
+            let px = width_threshold_px(value).ok_or_else(|| format!(
+                "`{value}` is not a pixel width, and React Native has nothing to resolve it against -- no root font size for `rem`, and a viewport unit compared against the viewport answers itself. Write the threshold in `px`. On Web the same class works."
+            ))?;
+            let hook = RuntimeHook::WidthAtLeast(px);
+            let guard = if *at_least { hook.binding() } else { format!("!{}", hook.binding()) };
+            runtime.hooks.push(hook);
+            Ok(Guard::Dynamic(guard))
+        }
         // Known positions are decided at build time: neither the positive
         // nor the negative half needs a selector engine or a subscription.
         Condition::FirstChild | Condition::LastChild | Condition::Structural(_) => {
@@ -84,4 +100,10 @@ pub(super) fn resolve(
         // on Web. It is not safe to treat not-hover as just !hovered.
         _ => Err("this inner condition is not wired for Native negation yet. On Web the same class works.".into()),
     }
+}
+
+fn ambient(hook: RuntimeHook, runtime: &mut RuntimeNeeds) -> Guard {
+    let binding = hook.binding();
+    runtime.hooks.push(hook);
+    Guard::Dynamic(binding)
 }
