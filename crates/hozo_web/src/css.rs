@@ -1299,6 +1299,13 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::TransitionTimingFunction(f, _) => ("transition-timing-function", f.clone()),
         StyleProperty::AnimationName(keyframes) => ("animation-name", keyframes.name.clone()),
         StyleProperty::Animation(a) => ("animation", a.shorthand().to_string()),
+        // The theme's own shorthand, as Tailwind writes it for
+        // `animate-<name>`. A name the theme does not define emits nothing:
+        // the class is carried, so the project's own CSS still applies.
+        StyleProperty::ThemeAnimation(name) => match theme.animation(name) {
+            Some(animation) => ("animation", animation.shorthand.clone()),
+            None => ("", String::new()),
+        },
         // Never reached: `render_rule` partitions these out into their own
         // child-scoped rule before calling this. Emitting the margin on the
         // element itself would be wrong, so there's nothing sensible to
@@ -2161,6 +2168,11 @@ fn render_shape(
                 continue;
             }
             let (name, value) = property_and_value(prop, theme);
+            // A theme animation the theme does not define has no declaration
+            // to write; its class is carried instead.
+            if name.is_empty() {
+                continue;
+            }
             body.push_str(&format!("  {name}: {value};\n"));
         }
         if let Some(value) = box_shadow_value(&shadow_props, theme) {

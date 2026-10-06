@@ -6235,6 +6235,31 @@ fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclar
         .collect()
 }
 
+/// One CSS declaration as typed properties, the way a StyleX static value
+/// is read: `transform: rotate(3deg)` from a Tailwind theme's `@keyframes`
+/// lands on the same `StyleProperty` as `transform: 'rotate(3deg)'` in a
+/// `stylex.keyframes`. `None` for a declaration with no typed form.
+pub fn css_declaration(property: &str, value: &str) -> Option<Vec<StyleProperty>> {
+    let mut camel = String::new();
+    let mut upper = false;
+    for character in property.trim().chars() {
+        if character == '-' {
+            upper = true;
+        } else if upper {
+            camel.extend(character.to_uppercase());
+            upper = false;
+        } else {
+            camel.push(character);
+        }
+    }
+    let value = value.trim();
+    let value = match value.parse::<f64>() {
+        Ok(number) => StaticValue::Number(number),
+        Err(_) => StaticValue::String(value.to_string()),
+    };
+    lower_static_value(&camel, &value)
+}
+
 fn lower_static_value(name: &str, value: &StaticValue) -> Option<Vec<StyleProperty>> {
     direct_properties(name, value).or_else(|| {
         let token = token_for(name, value)?;

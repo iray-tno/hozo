@@ -35,6 +35,58 @@ fn animatable(property: &StyleProperty) -> bool {
             if functions.iter().all(|function| !matches!(function, hozo_ir::TransformFunction::Perspective(_))))
 }
 
+/// The `animation` shorthand's parts as the longhands `spec` reads.
+///
+/// CSS assigns them by shape rather than position: the first time is the
+/// duration and the second the delay, a number or `infinite` is the
+/// iteration count, and the keywords say which longhand they belong to.
+/// Whatever is left is the name, which the theme already resolved.
+pub(super) fn shorthand_timing(shorthand: &str) -> Vec<StyleProperty> {
+    let mut parts: Vec<String> = Vec::new();
+    let mut depth = 0usize;
+    let mut current = String::new();
+    for character in shorthand.chars() {
+        match character {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        if character.is_whitespace() && depth == 0 {
+            if !current.is_empty() {
+                parts.push(std::mem::take(&mut current));
+            }
+        } else {
+            current.push(character);
+        }
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+
+    let longhand = |name: &str, value: &str| StyleProperty::WebOnly(name.to_string(), value.to_string());
+    let mut out = Vec::new();
+    let mut times = 0;
+    for part in parts {
+        let part = part.as_str();
+        if milliseconds(part).is_some() {
+            out.push(longhand(if times == 0 { "animation-duration" } else { "animation-delay" }, part));
+            times += 1;
+        } else if part == "infinite" || part.parse::<f64>().is_ok() {
+            out.push(longhand("animation-iteration-count", part));
+        } else if matches!(part, "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" | "step-start" | "step-end")
+            || part.starts_with("cubic-bezier(")
+            || part.starts_with("steps(")
+        {
+            out.push(longhand("animation-timing-function", part));
+        } else if matches!(part, "normal" | "reverse" | "alternate" | "alternate-reverse") {
+            out.push(longhand("animation-direction", part));
+        } else if matches!(part, "none" | "forwards" | "backwards" | "both") {
+            out.push(longhand("animation-fill-mode", part));
+        }
+    }
+    out
+}
+
 /// A CSS time in milliseconds: `200ms`, `0.2s`, `.5s`.
 fn milliseconds(value: &str) -> Option<f64> {
     let value = value.trim();
@@ -332,29 +384,105 @@ mod tests {
 
 #[cfg(test)]
 mod theme_animation_tests {
-    use crate::{lower, Theme};
+    use crate::{lower, LowerOutput, Theme};
+    use std::collections::HashMap;
 
-    fn warned(class_name: &str) -> bool {
+    fn theme() -> Theme {
+        let frames = vec![
+            hozo_ir::Keyframe {
+                selector: "0%, 100%".to_string(),
+                properties: hozo_parser::css_declaration("transform", "rotate(-3deg)").unwrap(),
+            },
+            hozo_ir::Keyframe {
+                selector: "50%".to_string(),
+                properties: hozo_parser::css_declaration("opacity", ".5").unwrap(),
+            },
+        ];
+        let mut animations = HashMap::new();
+        animations.insert(
+            "wiggle".to_string(),
+            hozo_ir::ThemeAnimation {
+                shorthand: "wiggle 1s ease-in-out infinite".to_string(),
+                keyframes_css: None,
+                keyframes: Some(hozo_ir::Keyframes { name: "wiggle".to_string(), frames }),
+            },
+        );
+        Theme::default().with_animations(animations)
+    }
+
+    fn compile(class_name: &str, theme: &Theme) -> LowerOutput {
         let source = format!(
             "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
         );
         let parsed = hozo_parser::parse_tsx(&source);
-        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        lower(&parsed.roots[0].node, &source, theme)
+    }
+
+    fn warned(out: &LowerOutput) -> bool {
         out.diagnostics.iter().any(|d| {
-            d.message.contains("--animate-*") && d.severity == hozo_ir::Severity::Warning
+            d.message.contains("does not define") && d.severity == hozo_ir::Severity::Warning
         })
     }
 
     #[test]
-    fn a_theme_animation_is_named_rather_than_silently_gone() {
-        // It used to compile to nothing at all on this platform.
-        assert!(warned("animate-wiggle"));
-        assert!(warned("motion-safe:animate-wiggle"));
+    fn a_theme_animation_runs_through_the_keyframes_hook() {
+        let out = compile("animate-wiggle", &theme());
+        assert!(out.jsx.starts_with("<Animated.View"), "{}", out.jsx);
+        let spec = out.prelude.iter().find(|line| line.contains("useHozoKeyframes(")).expect("hook");
+        for expected in [
+            "{ at: 0, style: { transform: [{ rotate: '-3deg' }] } }",
+            "{ at: 0.5, style: { opacity: 0.5 } }",
+            "duration: 1000",
+            "easing: 'ease-in-out'",
+            "iterations: -1",
+        ] {
+            assert!(spec.contains(expected), "missing {expected}: {spec}");
+        }
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    }
+
+    #[test]
+    fn under_motion_safe_it_is_guarded_by_the_preference() {
+        let out = compile("motion-safe:animate-wiggle", &theme());
+        assert!(out.jsx.contains("__hozoEnv_motion_safe && __hozoKeyframes_0"), "{}", out.jsx);
+    }
+
+    #[test]
+    fn a_name_the_theme_lacks_is_named_rather_than_silently_gone() {
+        // It compiled to nothing at all on this platform before #748.
+        let out = compile("animate-wiggle", &Theme::default());
+        assert!(warned(&out), "{:?}", out.diagnostics);
+        assert!(!out.jsx.starts_with("<Animated"), "{}", out.jsx);
+        assert!(warned(&compile("motion-safe:animate-unknown", &theme())));
     }
 
     #[test]
     fn tailwinds_own_and_unrelated_classes_say_nothing() {
-        assert!(!warned("animate-spin"));
-        assert!(!warned("my-card"));
+        assert!(!warned(&compile("animate-spin", &Theme::default())));
+        assert!(!warned(&compile("my-card", &Theme::default())));
+    }
+
+    #[test]
+    fn the_shorthand_is_read_by_shape() {
+        let timing = super::shorthand_timing("wiggle .3s cubic-bezier(0.4, 0, 0.2, 1) 0.1s 2 alternate both");
+        let pairs: Vec<(String, String)> = timing
+            .into_iter()
+            .filter_map(|property| match property {
+                hozo_ir::StyleProperty::WebOnly(name, value) => Some((name, value)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            pairs,
+            [
+                ("animation-duration", ".3s"),
+                ("animation-timing-function", "cubic-bezier(0.4, 0, 0.2, 1)"),
+                ("animation-delay", "0.1s"),
+                ("animation-iteration-count", "2"),
+                ("animation-direction", "alternate"),
+                ("animation-fill-mode", "both"),
+            ]
+            .map(|(name, value)| (name.to_string(), value.to_string()))
+        );
     }
 }

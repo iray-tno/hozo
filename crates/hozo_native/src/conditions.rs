@@ -321,8 +321,35 @@ pub(super) fn build_style_entries(
         let (keyframe_props, props): (Vec<_>, Vec<_>) = props
             .into_iter()
             .filter(|property| !crate::keyframes::is_timing(property))
-            .partition(|property| matches!(property, StyleProperty::AnimationName(_)));
+            .partition(|property| {
+                matches!(property, StyleProperty::AnimationName(_) | StyleProperty::ThemeAnimation(_))
+            });
         let keyframes = keyframe_props.last().and_then(|property| {
+            // One of the project's own Tailwind animations: the theme holds
+            // both the keyframes and the timing, as `--animate-<name>`.
+            if let StyleProperty::ThemeAnimation(name) = property {
+                let Some(keyframes) = theme.animation(name).and_then(|animation| animation.keyframes.as_ref())
+                else {
+                    diagnostics.push(unwired_variant(
+                        node,
+                        &format!(
+                            "`animate-{name}` names an animation the project's Tailwind theme does not define \
+                             with `--animate-{name}` and its `@keyframes`, so there is nothing to run here. \
+                             On Web the class reaches the page, where the project's own CSS can still run it."
+                        ),
+                        Severity::Warning,
+                    ));
+                    return None;
+                };
+                let shorthand = theme.animation(name).map(|animation| animation.shorthand.as_str()).unwrap_or_default();
+                let timing = crate::keyframes::shorthand_timing(shorthand);
+                let timing: Vec<&StyleProperty> = timing.iter().collect();
+                let spec = crate::keyframes::spec(keyframes, &timing, theme, node, diagnostics);
+                let hook = runtime.keyframes_hook(spec);
+                let binding = hook.binding();
+                runtime.hooks.push(hook);
+                return Some(binding);
+            }
             let StyleProperty::AnimationName(keyframes) = property else { return None };
             let timing: Vec<&StyleProperty> = declarations
                 .iter()

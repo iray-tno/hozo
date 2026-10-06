@@ -270,3 +270,42 @@ test('an unpaired token has no dark half, which is most of them', async () => {
   assert.equal(theme.colors.find((c) => c.token === 'brand')?.dark, undefined)
   assert.equal(theme.colors.find((c) => c.token === 'red-500')?.dark, undefined)
 })
+
+test("a project's own animation reaches both backends (decision 007, slice 3)", async () => {
+  const theme = await themeFrom(`@import "tailwindcss";
+@theme {
+  --animate-wiggle: wiggle 1s ease-in-out infinite;
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); opacity: 0.5; }
+  }
+}`)
+  const wiggle = theme.animations?.find((animation) => animation.name === 'wiggle')
+  assert.ok(wiggle, JSON.stringify(theme.animations))
+  assert.equal(wiggle.shorthand, 'wiggle 1s ease-in-out infinite')
+  assert.match(wiggle.keyframesCss ?? '', /@keyframes wiggle \{/)
+  // Tailwind's four are Hozo's own, on the native driver; they are not read
+  // from the theme.
+  assert.ok(!theme.animations?.some((animation) => animation.name === 'spin'))
+
+  const compiler = createCompiler(theme)
+  const source = `import { View } from '@hozo/core'\nexport const C = () => <View className="animate-wiggle" />\n`
+  const web = compiler.compile(source)[0]
+  assert.ok(web)
+  assert.match(web.css, /animation: wiggle 1s ease-in-out infinite;/)
+  assert.match(web.css, /@keyframes wiggle/)
+  const native = compiler.compileNative(source)[0]
+  assert.ok(native)
+  assert.equal(native.diagnostics.length, 0, JSON.stringify(native.diagnostics))
+  assert.ok(
+    native.prelude.some((line) => line.includes("rotate: '3deg'")),
+    native.prelude.join('\n'),
+  )
+
+  // Without the theme the same class is carried on the Web and named on
+  // Native, rather than gone.
+  assert.doesNotMatch(compile(source)[0]?.css ?? '', /animation/)
+  assert.ok(
+    compileNative(source)[0]?.diagnostics.some(({ message }) => message.includes('animate-wiggle')),
+  )
+})

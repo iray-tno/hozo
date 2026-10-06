@@ -250,6 +250,16 @@ export interface Theme {
   /** One spacing step in pixels; Tailwind's `--spacing`, 0.25rem by default. */
   spacingPx?: number
   /**
+   * The project's own animations, `--animate-<name>` with its `@keyframes`
+   * (decision 007, slice 3). `@hozo/tailwind`'s `loadTheme` reads them.
+   */
+  animations?: {
+    name: string
+    shorthand: string
+    keyframesCss?: string
+    frames?: { selector: string; declarations: [string, string][] }[]
+  }[]
+  /**
    * Whether the project ships a CSS reset over the browser's own stylesheet.
    *
    * The resolved `preflight` option -- `preflightEnabled` in

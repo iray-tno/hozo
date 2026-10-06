@@ -24,6 +24,21 @@ pub struct ThemeColor {
     pub hex: String,
 }
 
+/// One of a project's own animations: `--animate-<name>` in its `@theme`,
+/// and the `@keyframes` that value names (decision 007, slice 3).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ThemeAnimation {
+    /// The `animation` shorthand as the theme wrote it:
+    /// `wiggle 1s ease-in-out infinite`.
+    pub shorthand: String,
+    /// The `@keyframes` rule, as CSS, for the Web to emit as it is. `None`
+    /// when the theme defines the animation and not its keyframes.
+    pub keyframes_css: Option<String>,
+    /// The same frames as typed properties, for Native. Declarations that
+    /// have no typed form are left out here and kept in `keyframes_css`.
+    pub keyframes: Option<crate::Keyframes>,
+}
+
 /// A project's resolved design tokens.
 ///
 /// Empty means "the default palette only", which is what every caller got
@@ -73,6 +88,9 @@ pub struct Theme {
     /// declared choice rather than an inference from whether some unrelated
     /// file happens to contain a utility class.
     preflight: bool,
+    /// The project's own animations by name -- `wiggle` for
+    /// `--animate-wiggle`. Tailwind's four are not here: Hozo has its own.
+    animations: HashMap<String, ThemeAnimation>,
 }
 
 /// Tailwind's own default, and what every caller got before a theme could
@@ -89,6 +107,7 @@ impl Default for Theme {
             dark_colors: HashMap::new(),
             spacing_px: DEFAULT_SPACING_PX,
             preflight: false,
+            animations: HashMap::new(),
         }
     }
 }
@@ -113,7 +132,20 @@ impl Theme {
             dark_colors,
             spacing_px: spacing_px.unwrap_or(DEFAULT_SPACING_PX),
             preflight,
+            animations: HashMap::new(),
         }
+    }
+
+    /// The same theme with the project's own animations.
+    pub fn with_animations(mut self, animations: HashMap<String, ThemeAnimation>) -> Self {
+        self.animations = animations;
+        self
+    }
+
+    /// One of the project's own animations, by the name `animate-<name>`
+    /// uses.
+    pub fn animation(&self, name: &str) -> Option<&ThemeAnimation> {
+        self.animations.get(name)
     }
 
     /// Whether a CSS reset is flattening the browser’s own stylesheet.
@@ -176,6 +208,7 @@ impl Theme {
             dark_colors: HashMap::new(),
             spacing_px: self.spacing_px,
             preflight: self.preflight,
+            animations: self.animations.clone(),
         })
     }
 }

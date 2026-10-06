@@ -297,7 +297,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // comment said could not happen.
         StyleProperty::Arbitrary(..)
         | StyleProperty::WebOnly(..)
-        | StyleProperty::AnimationName(..) => Vec::new(),
+        | StyleProperty::AnimationName(..)
+        | StyleProperty::ThemeAnimation(..) => Vec::new(),
         // Composed into one `backgroundImage` by `background_image_entry`,
         // the same way the transform axes are.
         StyleProperty::BackgroundImageNone

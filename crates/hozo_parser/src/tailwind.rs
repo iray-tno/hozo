@@ -188,6 +188,19 @@ pub fn parse_utility(token: &str) -> Option<StyleProperty> {
         _ => {}
     }
 
+    // Tailwind's four are matched above. Any other name is one only the
+    // project's theme can define (`--animate-wiggle`), and the parser has no
+    // theme, so it is held by name for each backend to look up (decision
+    // 007, slice 3). The bracket form is an arbitrary value and is read
+    // elsewhere.
+    if let Some(name) = token.strip_prefix("animate-") {
+        if !name.is_empty()
+            && name.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        {
+            return Some(StyleProperty::ThemeAnimation(name.to_string()));
+        }
+    }
+
     if let Some(radius) = parse_border_radius(token) {
         return Some(StyleProperty::BorderRadius(radius));
     }

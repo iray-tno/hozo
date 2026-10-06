@@ -188,6 +188,17 @@ impl ClassAllocator {
 /// here: candidates are a project-wide set, so their stylesheet is built
 /// once by `render_candidate_stylesheet` rather than per file.
 pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
+    // An `animate-<name>` the theme does not define has nothing to emit
+    // here: its class is carried, which is what lets the project's own CSS
+    // run it. Taken out before rendering, so it leaves no empty rule and
+    // no class behind -- the output an unknown class always had.
+    let resolved;
+    let root = if mentions_unresolved_animation(root, theme) {
+        resolved = without_unresolved_animations(root, theme);
+        &resolved
+    } else {
+        root
+    };
     let mut allocator = ClassAllocator { next: 0 };
     let mut rules = String::new();
     let mut diagnostics = Vec::new();
@@ -329,6 +340,23 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
         // One rule per group: a `container` is a width plus a max-width at
         // each breakpoint, which cannot be one rule.
         let mut rules = String::new();
+        // A theme animation: nothing to write when the theme does not
+        // define it (the class reaches the page for the project's own CSS),
+        // and its `@keyframes` beside the rule when it does, since this
+        // sheet is the only CSS a dynamic class gets.
+        let theme_animation = utility.groups.iter().flat_map(|(_, properties)| properties).find_map(
+            |property| match property {
+                hozo_ir::StyleProperty::ThemeAnimation(name) => Some(name),
+                _ => None,
+            },
+        );
+        if let Some(name) = theme_animation {
+            let Some(animation) = theme.animation(name) else { continue };
+            if let Some(keyframes) = &animation.keyframes_css {
+                rules.push_str(keyframes);
+                rules.push_str("\n\n");
+            }
+        }
         let shaded_theme = theme.dark();
         for (condition, properties) in &utility.groups {
             // The same pairing `render_node` does, on the other path a class
@@ -376,6 +404,8 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
 enum RequiredKeyframes<'a> {
     BuiltIn(&'static str),
     Stylex(&'a hozo_ir::Keyframes),
+    /// A theme animation's `@keyframes`, by the animation's name.
+    Theme(&'a str),
 }
 
 fn collect_keyframes(node: &Node) -> Vec<RequiredKeyframes<'_>> {
@@ -387,6 +417,13 @@ fn collect_keyframes(node: &Node) -> Vec<RequiredKeyframes<'_>> {
 fn render_keyframes(keyframes: RequiredKeyframes<'_>, theme: &Theme) -> String {
     match keyframes {
         RequiredKeyframes::BuiltIn(css) => css.to_string(),
+        // As the theme wrote it: Tailwind emits the same rule for the same
+        // class, so a page that also loads Tailwind's CSS gets one animation
+        // under one name either way.
+        RequiredKeyframes::Theme(name) => theme
+            .animation(name)
+            .and_then(|animation| animation.keyframes_css.clone())
+            .unwrap_or_default(),
         RequiredKeyframes::Stylex(keyframes) => {
             let frames = keyframes
                 .frames
@@ -486,6 +523,42 @@ fn scrolls_by_style(node: &Node) -> bool {
     })
 }
 
+fn unresolved_animation(property: &hozo_ir::StyleProperty, theme: &Theme) -> bool {
+    matches!(property, hozo_ir::StyleProperty::ThemeAnimation(name) if theme.animation(name).is_none())
+}
+
+fn mentions_unresolved_animation(node: &Node, theme: &Theme) -> bool {
+    node.style.iter().any(|declaration| unresolved_animation(&declaration.property, theme))
+        || node.children.iter().any(|child| match child {
+            hozo_ir::Child::Node(child) => mentions_unresolved_animation(child, theme),
+            hozo_ir::Child::Verbatim { nested, .. } => {
+                nested.iter().any(|entry| mentions_unresolved_animation(&entry.node, theme))
+            }
+            hozo_ir::Child::Text(_) => false,
+        })
+}
+
+fn without_unresolved_animations(node: &Node, theme: &Theme) -> Node {
+    let mut node = node.clone();
+    strip_unresolved_animations(&mut node, theme);
+    node
+}
+
+fn strip_unresolved_animations(node: &mut Node, theme: &Theme) {
+    node.style.retain(|declaration| !unresolved_animation(&declaration.property, theme));
+    for child in &mut node.children {
+        match child {
+            hozo_ir::Child::Node(child) => strip_unresolved_animations(child, theme),
+            hozo_ir::Child::Verbatim { nested, .. } => {
+                for entry in nested {
+                    strip_unresolved_animations(&mut entry.node, theme);
+                }
+            }
+            hozo_ir::Child::Text(_) => {}
+        }
+    }
+}
+
 fn collect_keyframes_into<'a>(node: &'a Node, found: &mut Vec<RequiredKeyframes<'a>>) {
     fn collect_property<'a>(
         property: &'a hozo_ir::StyleProperty,
@@ -506,6 +579,14 @@ fn collect_keyframes_into<'a>(node: &'a Node, found: &mut Vec<RequiredKeyframes<
                     matches!(found, RequiredKeyframes::Stylex(existing) if existing.name == keyframes.name)
                 }) {
                     found.push(RequiredKeyframes::Stylex(keyframes));
+                }
+            }
+            hozo_ir::StyleProperty::ThemeAnimation(name) => {
+                if !found
+                    .iter()
+                    .any(|found| matches!(found, RequiredKeyframes::Theme(existing) if *existing == name))
+                {
+                    found.push(RequiredKeyframes::Theme(name));
                 }
             }
             hozo_ir::StyleProperty::FirstThatWorks(candidates) => {
@@ -3762,5 +3843,56 @@ mod scrollable_keyboard_tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(!output.jsx.contains("hozoScrollable"), "{}", output.jsx);
         assert!(!output.runtime_imports.contains(&"hozoScrollable"));
+    }
+}
+
+#[cfg(test)]
+mod theme_animation_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn theme() -> Theme {
+        let mut animations = HashMap::new();
+        animations.insert(
+            "wiggle".to_string(),
+            hozo_ir::ThemeAnimation {
+                shorthand: "wiggle 1s ease-in-out infinite".to_string(),
+                keyframes_css: Some("@keyframes wiggle {\n  50% {\n    opacity: .5;\n  }\n}\n".to_string()),
+                keyframes: None,
+            },
+        );
+        Theme::default().with_animations(animations)
+    }
+
+    fn compile(class_name: &str, theme: &Theme) -> LowerOutput {
+        let source =
+            format!("import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, theme)
+    }
+
+    #[test]
+    fn a_theme_animation_is_its_shorthand_and_its_keyframes() {
+        let out = compile("animate-wiggle", &theme());
+        assert!(out.css.contains("animation: wiggle 1s ease-in-out infinite;"), "{}", out.css);
+        assert_eq!(out.css.matches("@keyframes wiggle").count(), 1, "{}", out.css);
+        // Still carried, as Tailwind's own CSS would also select on it.
+        assert!(out.jsx.contains("animate-wiggle"), "{}", out.jsx);
+    }
+
+    #[test]
+    fn a_name_the_theme_lacks_is_only_carried() {
+        let out = compile("animate-unknown", &theme());
+        assert!(!out.css.contains("animation"), "{}", out.css);
+        assert!(!out.css.contains("hozo-0"), "{}", out.css);
+        assert!(out.jsx.contains("animate-unknown"), "{}", out.jsx);
+    }
+
+    #[test]
+    fn the_dynamic_path_brings_the_keyframes_too() {
+        let sheet = render_candidate_stylesheet(&["animate-wiggle".to_string()], &theme());
+        assert!(sheet.contains("@keyframes wiggle"), "{sheet}");
+        assert!(sheet.contains("animation: wiggle 1s ease-in-out infinite;"), "{sheet}");
+        assert!(render_candidate_stylesheet(&["animate-unknown".to_string()], &theme()).is_empty());
     }
 }
