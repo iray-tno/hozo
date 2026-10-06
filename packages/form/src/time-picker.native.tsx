@@ -1,3 +1,4 @@
+import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { useCallback, useState } from 'react'
 import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 
@@ -124,18 +125,29 @@ export function HozoTimePicker({
   min,
   max,
   step = 1,
-  locale,
+  locale: localeProp,
   hour12,
   disabled,
   accessibilityLabel,
-  hourFieldLabel = 'Hour',
-  minuteFieldLabel = 'Minute',
-  periodFieldLabel = 'AM or PM',
+  hourFieldLabel: hourFieldLabelProp,
+  minuteFieldLabel: minuteFieldLabelProp,
+  periodFieldLabel: periodFieldLabelProp,
   periodLabels = { am: 'AM', pm: 'PM' },
-  increaseLabel = 'Increase',
-  decreaseLabel = 'Decrease',
-  emptyLabel = '--',
+  increaseLabel: increaseLabelProp,
+  decreaseLabel: decreaseLabelProp,
+  emptyLabel: emptyLabelProp,
 }: HozoTimePickerProps) {
+  // A string from the prop, then the project's i18n, then English;
+  // `locale` the same way (decision 008).
+  const message = useHozoMessage()
+  const hozoI18n = useHozoI18n()
+  const locale = localeProp ?? hozoI18n.locale
+  const hourFieldLabel = message('hozo.timePicker.hour', {}, hourFieldLabelProp)
+  const minuteFieldLabel = message('hozo.timePicker.minute', {}, minuteFieldLabelProp)
+  const periodFieldLabel = message('hozo.timePicker.period', {}, periodFieldLabelProp)
+  const increaseLabel = message('hozo.timePicker.increase', {}, increaseLabelProp)
+  const decreaseLabel = message('hozo.timePicker.decrease', {}, decreaseLabelProp)
+  const emptyLabel = message('hozo.timePicker.empty', {}, emptyLabelProp)
   const [own, setOwn] = useState<CalendarTime | null>(defaultValue ?? null)
   const controlled = value !== undefined
   const current = controlled ? value : own

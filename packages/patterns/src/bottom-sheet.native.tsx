@@ -1,3 +1,4 @@
+import { useHozoMessage } from '@hozo/behaviors'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type LayoutChangeEvent,
@@ -88,7 +89,7 @@ export function HozoBottomSheet({
   detents,
   defaultDetent,
   dismissBelow,
-  handleAccessibilityLabel = 'Resize',
+  handleAccessibilityLabel: handleAccessibilityLabelProp,
   style,
   scrimStyle,
   sheetStyle,
@@ -96,6 +97,14 @@ export function HozoBottomSheet({
   testID,
   children,
 }: HozoBottomSheetProps) {
+  // A string from the prop, then the project's i18n, then English;
+  // `locale` the same way (decision 008).
+  const message = useHozoMessage()
+  const handleAccessibilityLabel = message(
+    'hozo.bottomSheet.handle',
+    {},
+    handleAccessibilityLabelProp,
+  )
   const stops = useMemo(() => normalizeDetents(detents), [detents])
   const largest = stops[stops.length - 1] as number
   const openAt = clampToDetents(defaultDetent ?? largest, stops)

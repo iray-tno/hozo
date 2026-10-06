@@ -1,6 +1,21 @@
 // Zero-setup facade. Components are implemented by their domain package;
 // core deliberately owns no second copy of them.
 
+// The connection to a project's i18n library (decision 008). Behaviors owns
+// it because every component that shows a string already depends on it.
+export {
+  fromI18next,
+  fromReactIntl,
+  type HozoI18n,
+  HozoI18nProvider,
+  type HozoI18nProviderProps,
+  type HozoMessageKey,
+  type HozoMessageParams,
+  hozoMessages,
+  type I18nextLike,
+  type ReactIntlLike,
+  useHozoI18n,
+} from '@hozo/behaviors'
 export {
   type Autocomplete,
   Dialog,

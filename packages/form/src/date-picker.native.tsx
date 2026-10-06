@@ -1,3 +1,4 @@
+import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { type ReactNode, useCallback, useState } from 'react'
 import {
   Modal,
@@ -111,20 +112,26 @@ export function HozoDatePicker({
   onMonthChange,
   min,
   max,
-  locale,
+  locale: localeProp,
   firstDayOfWeek,
   today,
   weeks,
   disabled,
   formatValue = dayLabel,
   placeholder = 'Select a date',
-  dialogLabel = 'Choose a date',
+  dialogLabel: dialogLabelProp,
   previousMonthLabel,
   nextMonthLabel,
   todayLabel,
   accessibilityLabel,
   renderDay,
 }: HozoDatePickerProps) {
+  // A string from the prop, then the project's i18n, then English;
+  // `locale` the same way (decision 008).
+  const message = useHozoMessage()
+  const hozoI18n = useHozoI18n()
+  const locale = localeProp ?? hozoI18n.locale
+  const dialogLabel = message('hozo.datePicker.dialog', {}, dialogLabelProp)
   const [open, setOpen] = useState(defaultOpen)
 
   const change = useCallback(

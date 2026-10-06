@@ -723,6 +723,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@hozo/behaviors':
+        specifier: workspace:^
+        version: link:../behaviors
       '@hozo/engine':
         specifier: workspace:^
         version: link:../engine

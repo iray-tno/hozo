@@ -74,6 +74,11 @@ const NOT_ON_THE_SCREEN = new Map([
   ],
   ['HozoFlatList', 'The same component under its other published name.'],
   [
+    'HozoI18nProvider',
+    'Renders nothing of its own: it puts a project’s i18n in context for the ' +
+      'components below it (decision 008). Covered by the i18n tests in `@hozo/behaviors`.',
+  ],
+  [
     'Presence',
     'Renders nothing of its own: it keeps its child mounted while the child animates ' +
       'out, and the census screen never closes anything. Covered by `presence.test.ts`.',

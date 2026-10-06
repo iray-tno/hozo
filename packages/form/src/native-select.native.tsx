@@ -1,3 +1,4 @@
+import { useHozoMessage } from '@hozo/behaviors'
 import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
 import {
   ActionSheetIOS,
@@ -155,7 +156,7 @@ export function HozoNativeSelect({
   placeholder,
   accessibilityLabel,
   disabled,
-  cancelLabel = 'Cancel',
+  cancelLabel: cancelLabelProp,
   sheetStyle,
   scrimStyle,
   optionStyle,
@@ -165,6 +166,10 @@ export function HozoNativeSelect({
   onBlur,
   onFocus,
 }: HozoNativeSelectProps) {
+  // A string from the prop, then the project's i18n, then English;
+  // `locale` the same way (decision 008).
+  const message = useHozoMessage()
+  const cancelLabel = message('hozo.nativeSelect.cancel', {}, cancelLabelProp)
   const presenter = useNativeSelectPresenter()
   const [uncontrolled, setUncontrolled] = useState(defaultValue)
   const [open, setOpen] = useState(false)
