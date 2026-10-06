@@ -17,7 +17,10 @@ pub use bindings::top_level_bindings;
 pub use jsx::is_primitive_name;
 pub use unfold::unfold_jsx_calls;
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
-pub use scan::{resolve_class_name, scan_class_candidates, source_uses_tailwind, ScannedUtility};
+pub use scan::{
+    resolve_class_name, scan_class_candidates, scan_class_candidates_with, source_uses_tailwind,
+    ScannedUtility,
+};
 pub use stylex::{
     css_declaration,
     ExternalBinding as StylexExternalBinding,

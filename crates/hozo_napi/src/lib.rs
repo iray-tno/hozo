@@ -509,6 +509,10 @@ impl Compiler {
 #[napi]
 pub struct CandidateCache {
     inner: hozo_cache::CandidateCache,
+    /// The modules the project lowers primitives from, so the scan
+    /// subtracts what the compile will actually read. See
+    /// `hozo_parser::scan_class_candidates_with`.
+    sources: Option<Vec<String>>,
 }
 
 #[napi]
@@ -517,12 +521,12 @@ impl CandidateCache {
     /// Rust side's business). Pass no path for a build that has nothing to
     /// resume from, e.g. a one-shot production build.
     #[napi(constructor)]
-    pub fn new(path: Option<String>) -> Self {
+    pub fn new(path: Option<String>, sources: Option<Vec<String>>) -> Self {
         let store: Box<dyn hozo_cache::SnapshotStore> = match path {
             Some(path) => Box::new(hozo_cache::JsonFileStore::new(path)),
             None => Box::new(hozo_cache::MemoryStore::new()),
         };
-        CandidateCache { inner: hozo_cache::CandidateCache::open(store) }
+        CandidateCache { inner: hozo_cache::CandidateCache::open(store), sources }
     }
 
     /// Whether `path` was already scanned at this exact `modifiedMs`, i.e.
@@ -540,7 +544,7 @@ impl CandidateCache {
     /// triggering a pointless HMR round.
     #[napi]
     pub fn scan_file(&mut self, path: String, source: String, modified_ms: f64) -> bool {
-        let class_names = hozo_parser::scan_class_candidates(&source);
+        let class_names = hozo_parser::scan_class_candidates_with(&source, self.sources.as_deref());
         let uses_tailwind = hozo_parser::source_uses_tailwind(&source);
         self.inner.record(&path, modified_ms as u64, class_names, uses_tailwind)
     }

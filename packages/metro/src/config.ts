@@ -190,6 +190,7 @@ export async function withHozo<T extends MetroConfigShape>(
     css: options.css,
     content: options.content,
     preflight: options.preflight,
+    sources: options.sources,
   })
   const fontFaceCss = options.fontFaceCss?.trim()
   const fontFaceCssPath = fontFaceCss

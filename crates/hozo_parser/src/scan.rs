@@ -136,10 +136,23 @@ pub fn source_uses_tailwind(source: &str) -> bool {
 }
 
 pub fn scan_class_candidates(source: &str) -> Vec<String> {
+    scan_class_candidates_with(source, None)
+}
+
+/// The same scan, subtracting only what the compiler will read under the
+/// project's `sources` -- the list it lowers primitives from.
+///
+/// Without the list the subtraction trusted every module: a `<Skeleton>` or
+/// `<Button>` imported from `@hozo/ui` -- a component, not the primitive of
+/// the same name -- had its `className` subtracted as already compiled,
+/// while the compile itself, which has the list, carried it untouched. The
+/// class then had CSS from neither path. The scan has to ask the question
+/// the compile asks.
+pub fn scan_class_candidates_with(source: &str, sources: Option<&[String]>) -> Vec<String> {
     // A source that doesn't parse yields no spans of either kind, so it
     // degrades to a plain scan -- more candidates than necessary, never
     // fewer.
-    let parsed = crate::parse_tsx(source);
+    let parsed = crate::parse_tsx_with(source, sources);
     let mut skip = parsed.consumed_class_spans;
     skip.extend(parsed.non_class_spans);
     scan_outside(source, &skip)
@@ -200,6 +213,22 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_component_named_like_a_primitive_keeps_its_classes() {
+        // `@hozo/ui`'s `Skeleton` is a component, not the primitive: the
+        // compile carries it, so its classes need the candidate sheet.
+        let source = "import { Skeleton } from '@hozo/ui'
+import { View } from '@hozo/core'
+export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" /></View>
+";
+        let sources = ["@hozo/core".to_string()];
+        let names = scan_class_candidates_with(source, Some(&sources));
+        assert!(names.contains(&"h-4".to_string()), "{names:?}");
+        assert!(names.contains(&"w-48".to_string()), "{names:?}");
+        // What the compile reads exactly is still left to it.
+        assert!(!names.contains(&"p-4".to_string()), "{names:?}");
+    }
 
     #[test]
     fn finds_classes_the_ast_never_sees() {

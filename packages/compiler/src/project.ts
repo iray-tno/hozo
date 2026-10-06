@@ -483,11 +483,15 @@ export async function resolveStylexRequests(
  * files absent from this complete walk. Unchanged files are statted but never
  * read, which keeps warm starts proportional to directory traversal.
  */
-export function scanProject(root: string, options: ContentOptions = {}): ProjectCache {
+export function scanProject(
+  root: string,
+  options: ContentOptions = {},
+  sources?: readonly string[],
+): ProjectCache {
   const started = performance.now()
   const dir = path.join(root, CACHE_DIR)
   mkdirSync(dir, { recursive: true })
-  const cache = openCandidateCache(path.join(dir, 'candidates.json'))
+  const cache = openCandidateCache(path.join(dir, 'candidates.json'), sources)
   const stylexModules = new StylexModuleCache(path.join(dir, 'stylex-modules.json'))
   const files = discoverSources(root, options)
   let scannedFiles = 0

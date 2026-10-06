@@ -370,7 +370,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves
         // statically.
-        const project = scanProject(root, options.content)
+        const project = scanProject(root, options.content, options.sources)
         classOrder = await loadProjectClassOrder(root, project.cache.candidates(), {
           css: options.css,
         })

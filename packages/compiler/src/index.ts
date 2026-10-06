@@ -168,7 +168,7 @@ export interface CandidateCache {
 interface CandidateCacheConstructor {
   /// `path` is where the cache persists between builds; omit it to keep the
   /// cache in memory only.
-  new (path?: string): CandidateCache
+  new (path?: string, sources?: string[]): CandidateCache
 }
 
 /**
@@ -452,8 +452,16 @@ export function compileCanvasPaints(source: string, native = false): CompiledCan
   return loadNative().compileCanvasPaints(source, native)
 }
 
-export function openCandidateCache(path?: string): CandidateCache {
-  return new (loadNative().CandidateCache)(path)
+/**
+ * `sources` is the project's list of modules primitives are lowered from --
+ * the same list given to `createCompiler`, defaulting the same way -- so the
+ * scan leaves a class to the compile only where the compile will read it.
+ */
+export function openCandidateCache(
+  path?: string,
+  sources: readonly string[] = DEFAULT_PRIMITIVE_SOURCES,
+): CandidateCache {
+  return new (loadNative().CandidateCache)(path, [...sources])
 }
 
 /**
