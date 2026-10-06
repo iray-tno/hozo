@@ -192,8 +192,20 @@ pub(super) fn wrap_in_text(
     if interaction_context && !pressed_parts.is_empty() {
         style_array_parts.extend(pressed_parts);
         runtime.need_component("HozoText");
+        // A raw string uses the same interaction callback as an explicit
+        // Text. Leaving this binding out breaks inherited focus-visible
+        // colours, even if the parent correctly enabled modality tracking.
+        let state = if text_declarations.iter().any(|declaration| {
+            condition_contains(&declaration.condition, |condition| {
+                focus_state(condition) == Some("focusVisible")
+            })
+        }) {
+            "{ pressed, hovered, focused, focusVisible }"
+        } else {
+            "{ pressed, hovered, focused }"
+        };
         return format!(
-            "<HozoText style={{({{ pressed, hovered, focused }}) => [{}]}}>{content}</HozoText>",
+            "<HozoText style={{({state}) => [{}]}}>{content}</HozoText>",
             style_array_parts.join(", ")
         );
     }

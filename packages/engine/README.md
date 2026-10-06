@@ -38,8 +38,14 @@ sibling positions and unsupported environment queries remain diagnostics too.
 Boolean ARIA predicates match the literal `true` state; an optional state object
 can be absent at runtime, and `checked: 'mixed'` is not treated as checked=true.
 Known sibling predicates cost no runtime state; environment queries share their
-existing hook. `not-hover:` and other negated interaction/selector conditions are
-not wired in this slice.
+existing hook. `not-focus:` and `not-focus-visible:` on Pressable/Button reuse
+their existing interaction callback, including stacked conditions and transitions;
+negated focus-visible alone enables the same pointer/keyboard modality inference
+as its positive form. Text in that interaction context uses the owner's state,
+not an independent text focus target, just as positive focus variants do. No new
+store or subscription is added. Other elements without a readable focus driver
+remain diagnostics. `not-hover:` and other unsupported selector negations remain
+unwired.
 
 **Interaction state infrastructure.** The canonical `HozoPressable` in `@hozo/primitives` tracks
 pressed, hovered, focused and focus-visible state using the shared helpers owned here. Focus-visible

@@ -417,12 +417,13 @@ pub(super) fn build_style_entries(
         match &condition {
             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
             | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
-            | Condition::Structural(_) | Condition::Not(_) => {
-                match guards::resolve(&condition, node, source, position, runtime) {
+            | Condition::Structural(_) | Condition::Not(_) | Condition::Focus | Condition::FocusVisible => {
+                match guards::resolve(&condition, node, source, position, runtime, interaction_context) {
                     Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
                     Ok(guards::Guard::Known(true)) => conditional_parts.extend(guarded("")),
                     Ok(guards::Guard::Known(false)) => {}
                     Ok(guards::Guard::Dynamic(guard)) => conditional_parts.extend(guarded(&format!("{guard} && "))),
+                    Ok(guards::Guard::Interactive(guard)) => pressed_parts.extend(guarded(&format!("{guard} && "))),
                     Err(reason) => diagnostics.push(unwired_variant(node, &reason, Severity::Error)),
                 }
             }
@@ -491,11 +492,16 @@ pub(super) fn build_style_entries(
                         match atom {
                             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
                             | Condition::Environment(_) | Condition::FirstChild
-                            | Condition::LastChild | Condition::Structural(_) | Condition::Not(_) => {
-                                match guards::resolve(atom, node, source, position, runtime) {
+                            | Condition::LastChild | Condition::Structural(_) | Condition::Not(_)
+                            | Condition::Focus | Condition::FocusVisible => {
+                                match guards::resolve(atom, node, source, position, runtime, interaction_context) {
                                     Ok(guards::Guard::Known(true)) => {}
                                     Ok(guards::Guard::Known(false)) => applies = false,
                                     Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
+                                    Ok(guards::Guard::Interactive(guard)) => {
+                                        guards.push(guard);
+                                        uses_interactive_state = true;
+                                    }
                                     Err(reason) => {
                                         diagnostics.push(unwired_variant(node, &reason, Severity::Error));
                                         applies = false;
@@ -531,35 +537,6 @@ pub(super) fn build_style_entries(
                                         node,
                                         "`hover:` in a stacked variant is wired only on \
                                          Pressable and Button on React Native.",
-                                        Severity::Error,
-                                    ));
-                                    applies = false;
-                                }
-                            }
-                            Condition::Focus => {
-                                if interaction_context || matches!(node.primitive, Primitive::Pressable | Primitive::Button)
-                                {
-                                    guards.push("focused".to_string());
-                                    uses_interactive_state = true;
-                                } else {
-                                    diagnostics.push(unwired_variant(
-                                        node,
-                                        "`focus:` in a stacked variant is wired only on \
-                                         Pressable and Button on React Native.",
-                                        Severity::Error,
-                                    ));
-                                    applies = false;
-                                }
-                            }
-                            Condition::FocusVisible => {
-                                if interaction_context || matches!(node.primitive, Primitive::Pressable | Primitive::Button)
-                                {
-                                    guards.push("focusVisible".to_string());
-                                    uses_interactive_state = true;
-                                } else {
-                                    diagnostics.push(unwired_variant(
-                                        node,
-                                        "`focus-visible:` in a stacked variant is wired only on Pressable and Button on React Native.",
                                         Severity::Error,
                                     ));
                                     applies = false;
@@ -840,29 +817,15 @@ pub(super) fn build_style_entries(
             // never referenced -- computed, then dropped, with nothing
             // said. That silence is the bug being fixed here; the styles
             // still don't apply, but no longer without saying so.
-            Condition::Hover | Condition::Focus
+            Condition::Hover
                 if interaction_context || matches!(node.primitive, Primitive::Pressable | Primitive::Button) =>
             {
-                let guard = match condition {
-                    Condition::Hover => "hovered && ",
-                    _ => "focused && ",
-                };
-                pressed_parts.extend(guarded(guard));
+                pressed_parts.extend(guarded("hovered && "));
             }
-            Condition::Hover | Condition::Focus => diagnostics.push(unwired_variant(
+            Condition::Hover => diagnostics.push(unwired_variant(
                 node,
-                "`hover:` and `focus:` are wired only on Pressable and Button on React Native, \
+                "`hover:` is wired only on Pressable and Button on React Native, \
                  because those elements own the interaction events that drive the state.",
-                Severity::Error,
-            )),
-            Condition::FocusVisible
-                if interaction_context || matches!(node.primitive, Primitive::Pressable | Primitive::Button) =>
-            {
-                pressed_parts.extend(guarded("focusVisible && "));
-            }
-            Condition::FocusVisible => diagnostics.push(unwired_variant(
-                node,
-                "`focus-visible:` is wired only on Pressable and Button on React Native, because those elements own the pointer and keyboard events used to infer modality.",
                 Severity::Error,
             )),
             // Ambient conditions: one app-wide value, observed through a

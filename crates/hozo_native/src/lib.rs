@@ -504,6 +504,18 @@ fn condition_contains(condition: &Condition, predicate: impl Fn(&Condition) -> b
         || matches!(condition, Condition::All(conditions) if conditions.iter().any(|condition| condition_contains(condition, predicate)))
 }
 
+// Only focus predicates are transparent through negation here. Walking
+// every Not in condition_contains would also enable unrelated, unwired
+// containers/starting frames merely because their inner condition exists.
+fn focus_state(condition: &Condition) -> Option<&'static str> {
+    match condition {
+        Condition::Focus => Some("focused"),
+        Condition::FocusVisible => Some("focusVisible"),
+        Condition::Not(inner) => focus_state(inner),
+        _ => None,
+    }
+}
+
 /// Wraps `inner` in `HozoSpaced` when the element carries `space-*` or
 /// `divide-*`, so the style reaches the children.
 ///
