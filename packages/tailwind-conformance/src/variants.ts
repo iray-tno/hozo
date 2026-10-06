@@ -75,6 +75,10 @@ const VARIANTS = [
   'not-aria-checked',
   'not-motion-reduce',
   'not-disabled',
+  // Keep newly supported negated interaction states in the oracle-derived
+  // single/stacked matrix too, not only in a hand-written contextual case.
+  'not-focus',
+  'not-focus-visible',
   // Compositional: an attribute, a feature query, and the third relation
   // after group and peer.
   'data-open',
