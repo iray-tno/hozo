@@ -876,6 +876,11 @@ const STYLEX_CONSTRUCT_CASES: readonly StylexConstructCase[] = [
     definitions: "media: { '@media (min-width: 600px)': { padding: 24 } },",
   },
   {
+    name: 'conditional value',
+    expression: 'styles.conditional',
+    definitions: "conditional: { padding: { default: 8, '@media (min-width: 600px)': 16 } },",
+  },
+  {
     name: 'nested starting style',
     expression: 'styles.entering',
     definitions:

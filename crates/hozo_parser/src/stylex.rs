@@ -6340,20 +6340,7 @@ fn parse_rule_object(
                 span: source_span(property.key.span()),
             });
         };
-        let nested = if name.starts_with("@media ") {
-            Some(stylex_media_condition(&name).map(|condition| (condition, 200)))
-        } else if name.starts_with(':') {
-            Some(stylex_pseudo_condition(&name))
-        } else if name == "@starting-style" {
-            // StyleX 0.19 has no priority entry for either of these keys, so
-            // they take its default of 3000 -- which is what its own output
-            // shows: `opacity` under either is priority 6000.
-            Some(Some((Condition::StartingStyle, 3000)))
-        } else if name.starts_with('[') {
-            Some(stylex_attribute_condition(&name).map(|condition| (condition, 3000)))
-        } else {
-            None
-        };
+        let nested = condition_key(&name);
         if let Some(nested) = nested {
             let Some((nested_condition_atom, priority)) = nested else {
                 residual.push(ResidualProperty {
@@ -6413,6 +6400,34 @@ fn parse_rule_object(
                     });
                 }
                 gaps.extend(nested_gaps);
+            }
+            continue;
+        }
+        // StyleX's other way to say the same thing, and the one its own
+        // documentation leads with: the conditions inside the value,
+        // `opacity: { default: 1, ':hover': 0.5 }`. Read into the same
+        // entries the nested-object form makes. All of it or none of it, as
+        // there: one unreadable branch keeps the whole property for the
+        // official transform rather than splitting it between the two.
+        if let Expression::ObjectExpression(values) = &property.value {
+            let mut entries = Vec::new();
+            match conditional_value(
+                &name,
+                values,
+                variables,
+                condition,
+                nesting_priority,
+                source_span(property.span),
+                &mut entries,
+            ) {
+                Ok(()) => out.extend(entries),
+                Err(message) => {
+                    residual.push(ResidualProperty {
+                        css_name: canonical_property(&name).to_string(),
+                        span: ExprRef(source_span(property.span)),
+                    });
+                    gaps.push(Gap { message, span: source_span(property.value.span()) });
+                }
             }
             continue;
         }
@@ -6520,6 +6535,100 @@ fn parse_rule_object(
             condition: condition.clone(),
             span: source_span(property.span),
         });
+    }
+    Ok(())
+}
+
+/// Whether a key is a condition, and which: `None` for a property name,
+/// `Some(None)` for a condition Hozo does not read, and the condition with
+/// StyleX's priority offset for one it does. One answer for both places a
+/// condition can be written -- as a nested object's key and inside a value.
+fn condition_key(name: &str) -> Option<Option<(Condition, u16)>> {
+    if name.starts_with("@media ") {
+        Some(stylex_media_condition(name).map(|condition| (condition, 200)))
+    } else if name.starts_with(':') {
+        Some(stylex_pseudo_condition(name))
+    } else if name == "@starting-style" {
+        // StyleX 0.19 has no priority entry for either of these keys, so
+        // they take its default of 3000 -- which is what its own output
+        // shows: `opacity` under either is priority 6000.
+        Some(Some((Condition::StartingStyle, 3000)))
+    } else if name.starts_with('[') {
+        Some(stylex_attribute_condition(name).map(|condition| (condition, 3000)))
+    } else {
+        None
+    }
+}
+
+/// `name: { default: …, ':hover': …, '@media …': { default: …, … } }`,
+/// as entries. `default` is the value under the conditions already
+/// around it; every other key is a condition added to them, and may nest
+/// again. `null` is StyleX's "no value here".
+fn conditional_value(
+    name: &str,
+    values: &ObjectExpression,
+    variables: &StaticVariables,
+    condition: &Condition,
+    nesting_priority: u16,
+    span: SourceSpan,
+    out: &mut Vec<Entry>,
+) -> Result<(), String> {
+    for item in &values.properties {
+        let ObjectPropertyKind::ObjectProperty(branch) = item else {
+            return Err(format!("`{name}`: a spread inside a conditional value is not read statically."));
+        };
+        if branch.computed {
+            return Err(format!("`{name}`: a computed condition key is not read statically."));
+        }
+        let Some(key) = static_key(&branch.key) else {
+            return Err(format!("`{name}`: condition keys must be identifiers or string literals."));
+        };
+        let (branch_condition, branch_priority) = if key == "default" {
+            (condition.clone(), nesting_priority)
+        } else {
+            match condition_key(&key) {
+                Some(Some((atom, priority))) => {
+                    (combine_conditions(&atom, condition.clone()), nesting_priority.saturating_add(priority))
+                }
+                Some(None) => {
+                    return Err(format!(
+                        "StyleX condition `{key}` in `{name}` is outside Hozo's cross-platform condition subset."
+                    ))
+                }
+                None => return Err(format!("`{key}` in `{name}` is not a StyleX condition.")),
+            }
+        };
+        match &branch.value {
+            Expression::NullLiteral(_) => {}
+            Expression::ObjectExpression(nested) => conditional_value(
+                name,
+                nested,
+                variables,
+                &branch_condition,
+                branch_priority,
+                span,
+                out,
+            )?,
+            value => {
+                let Some(value) = resolved_static_value(value, variables) else {
+                    return Err(format!(
+                        "`{name}` under `{key}` has a dynamic value; this frontend slice accepts static strings, numbers, and safe local `defineVars` members."
+                    ));
+                };
+                let Some(properties) = lower_static_value(name, &value) else {
+                    return Err(format!(
+                        "StyleX property `{name}` or its value is not in Hozo's typed universal subset yet."
+                    ));
+                };
+                out.push(Entry {
+                    css_name: canonical_property(name).to_string(),
+                    priority: property_priority(name).saturating_add(branch_priority),
+                    properties,
+                    condition: branch_condition,
+                    span,
+                });
+            }
+        }
     }
     Ok(())
 }
@@ -9887,6 +9996,71 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
                 parsed.diagnostics
             );
         }
+    }
+
+    // The conditions inside the value, which is how StyleX's own
+    // documentation writes them, land on the same entries as the
+    // nested-object form.
+    #[test]
+    fn conditions_inside_a_value_are_the_nested_form_written_the_other_way() {
+        let style = |rule: &str| {
+            let source = format!(
+                "import * as stylex from '@stylexjs/stylex'\n\
+                 import {{ Pressable }} from '@hozo/core'\n\
+                 const styles = stylex.create({{ root: {{ {rule} }} }})\n\
+                 const card = <Pressable accessibilityRole=\"button\" {{...stylex.props(styles.root)}} />\n"
+            );
+            let parsed = crate::parse_tsx(&source);
+            assert!(parsed.diagnostics.is_empty(), "{rule}: {:?}", parsed.diagnostics);
+            parsed.roots[0].node.style.clone()
+        };
+        assert_eq!(
+            style("opacity: { default: 1, ':hover': 0.5, ':focus-visible': 0.25 }"),
+            style("opacity: 1, ':hover': { opacity: 0.5 }, ':focus-visible': { opacity: 0.25 }"),
+        );
+        assert_eq!(
+            style("opacity: { default: 1, ':hover': { default: 0.5, '@media (min-width: 600px)': 0.25 } }"),
+            style("opacity: 1, ':hover': { opacity: 0.5, '@media (min-width: 600px)': { opacity: 0.25 } }"),
+        );
+    }
+
+    #[test]
+    fn a_null_default_is_no_value_at_all() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { Pressable } from '@hozo/core'
+            const styles = stylex.create({ root: { opacity: { default: null, ':hover': 0.5 } } })
+            const card = <Pressable accessibilityRole="button" {...stylex.props(styles.root)} />
+        "#,
+        );
+        let style = &parsed.roots[0].node.style;
+        assert_eq!(style.len(), 1, "{style:?}");
+        assert_eq!(style[0].condition, Condition::Hover);
+    }
+
+    #[test]
+    fn one_unreadable_branch_keeps_the_whole_value_for_official_stylex() {
+        let parsed = crate::parse_tsx(
+            r#"
+            import * as stylex from '@stylexjs/stylex'
+            import { View } from '@hozo/core'
+            const styles = stylex.create({ root: { opacity: { default: 1, ':nth-child(2)': 0.5 }, padding: 4 } })
+            const card = <View {...stylex.props(styles.root)} />
+        "#,
+        );
+        assert!(
+            parsed.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::StylexNotLowered),
+            "{:?}",
+            parsed.diagnostics
+        );
+        // Not half of it: no unconditional opacity was taken out of a value
+        // whose other half stays with StyleX.
+        assert!(!parsed.roots[0]
+            .node
+            .style
+            .iter()
+            .any(|d| matches!(d.property, StyleProperty::Opacity(_))));
     }
 
     #[test]
