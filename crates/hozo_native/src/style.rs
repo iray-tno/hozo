@@ -848,6 +848,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_logical_border_width_lowers_and_its_solid_style_asks_nothing() {
+        // `border-s-2` failed the build: Tailwind writes a solid style per
+        // edge beside the width, and that style was refused as Web-only
+        // although solid is what React Native draws anyway.
+        for (class_name, expected) in [
+            ("border-s-2", "borderStartWidth: 2"),
+            ("border-e", "borderEndWidth: 1"),
+            ("border-x-4", "borderEndWidth: 4"),
+        ] {
+            let source = format!(
+                "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+            );
+            let parsed = hozo_parser::parse_tsx(&source);
+            let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(out.styles.contains(expected), "{class_name}: {}", out.styles);
+            assert!(out.diagnostics.is_empty(), "{class_name}: {:?}", out.diagnostics);
+        }
+        // A non-solid side style is still one React Native cannot draw.
+        assert!(
+            StyleProperty::BorderLogicalStyle(hozo_ir::Edge::InlineStart, hozo_ir::BorderStyle::Dashed)
+                .unsupported_on_native()
+                .is_some()
+        );
+    }
+
+    #[test]
     fn numbers_have_no_unit_suffix() {
         assert_eq!(property_and_value(&StyleProperty::PaddingTop(Length::Px(24.0)), &Theme::default()), vec![("paddingTop", "24".to_string())]);
     }

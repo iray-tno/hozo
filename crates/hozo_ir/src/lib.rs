@@ -2848,6 +2848,12 @@ impl StyleProperty {
                 "`overflow-x-*`/`overflow-y-*`: React Native has one `overflow` for both axes"
                     .to_string(),
             ),
+            // `border-s-2` writes `border-inline-start-style: solid` beside
+            // its width, as Tailwind does. Solid is what React Native draws
+            // every edge with unless told otherwise, so that one asks for
+            // nothing and is not refused: it was failing the build for
+            // `border-s-2`, whose width Native had already lowered.
+            StyleProperty::BorderLogicalStyle(_, BorderStyle::Solid) => None,
             StyleProperty::BorderLogicalStyle(_, _) => Some(
                 "logical or side-specific border styles: React Native has one `borderStyle` for all four edges"
                     .to_string(),
