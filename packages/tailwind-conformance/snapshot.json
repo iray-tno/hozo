@@ -63,8 +63,8 @@
     "noOp": 1
   },
   "nativeContextual": {
-    "cases": 13,
-    "covered": 13,
+    "cases": 16,
+    "covered": 16,
     "refused": 0,
     "silent": 0
   },
@@ -106,9 +106,9 @@
     "inOrder": 20310
   },
   "refusalAudit": {
-    "refusals": 10398,
-    "checkable": 10064,
-    "confirmed": 10035,
+    "refusals": 10368,
+    "checkable": 10034,
+    "confirmed": 10005,
     "partial": 28,
     "suspect": 1,
     "uncheckable": 334
@@ -138,8 +138,8 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 515,
-    "refused": 2298,
+    "covered": 527,
+    "refused": 2286,
     "noOp": 32,
     "silent": 0
   },

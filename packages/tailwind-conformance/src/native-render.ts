@@ -174,6 +174,19 @@ export function renderNative(
   return renderNativeFixture(source, componentName, scope, [])
 }
 
+/** Drive the actual generated owner callbacks, retaining each committed tree.
+ * This tests context delivery rather than substituting hand-made state for it.
+ */
+export function renderNativeWithEvents(
+  source: string,
+  componentName: string,
+  events: readonly string[],
+): Tree[] {
+  const snapshots: Tree[] = []
+  renderNativeFixture(source, componentName, {}, [], { events, snapshots })
+  return snapshots
+}
+
 /**
  * Renders a generated Native component and drives every host `onLayout`
  * callback in tree order. This is not a device substitute, but it executes
@@ -267,6 +280,7 @@ function renderNativeFixture(
   componentName: string,
   scope: Record<string, unknown>,
   layoutPasses: readonly (readonly NativeLayoutBox[])[],
+  interaction?: { events: readonly string[]; snapshots: Tree[] },
 ): Tree {
   const exports = loadNativeModule(source)
   {
@@ -311,6 +325,21 @@ function renderNativeFixture(
             onLayout({ nativeEvent: { layout: pass[index] } })
           })
         })
+      }
+      if (interaction) {
+        interaction.snapshots.push(mounted.toJSON())
+        for (const event of interaction.events) {
+          // Select host leaves only: composite props can contain the same
+          // callback and would otherwise deliver the event twice.
+          const targets = mounted.root.findAll(
+            (node) => (node as TestInstance & { type: unknown }).type === 'Pressable',
+          )
+          if (targets.length !== 1) throw new Error('event fixture requires one Pressable owner')
+          const callback = targets[0].props[event]
+          if (typeof callback !== 'function') throw new Error(`missing owner callback ${event}`)
+          renderer.act(() => callback({ nativeEvent: {} }))
+          interaction.snapshots.push(mounted.toJSON())
+        }
       }
       return mounted.toJSON()
     } finally {
