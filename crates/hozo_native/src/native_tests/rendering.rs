@@ -786,3 +786,28 @@ fn a_heading_under_a_reset_carries_its_role_and_no_size() {
         );
     }
 }
+
+#[test]
+fn a_meter_carries_its_amount_and_range_where_a_reader_finds_them() {
+    // `Meter`, not `Progress`: an amount within a range. The range defaults
+    // to 0..1 as `<meter>`'s does, and `low`/`high`/`optimum` -- which only
+    // colour the Web's bar -- do not reach a View that has no use for them.
+    let source = r#"
+        import { Meter } from '@hozo/core'
+        const a = <Meter accessibilityLabel="Disk usage" value={used} min={0} max={100} low={30} high={80} optimum={20} />
+        const b = <Meter accessibilityLabel="Strength" value={0.6} />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let sized = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(sized.diagnostics.is_empty(), "{:?}", sized.diagnostics);
+    assert!(sized.jsx.contains(r#"role="meter""#), "{}", sized.jsx);
+    assert!(sized.jsx.contains("accessibilityValue={{ min: 0, max: 100, now: used }}"), "{}", sized.jsx);
+    for gone in ["low=", "high=", "optimum=", " value=", " max="] {
+        assert!(!sized.jsx.contains(gone), "{gone} reached the View: {}", sized.jsx);
+    }
+    // `<meter>`'s box in Chrome, so it is not zero pixels and absent.
+    assert!(sized.styles.contains("width: 80") && sized.styles.contains("height: 16"), "{}", sized.styles);
+
+    let bare = lower(&parsed.roots[1].node, source, &Theme::default());
+    assert!(bare.jsx.contains("accessibilityValue={{ min: 0, max: 1, now: 0.6 }}"), "{}", bare.jsx);
+}
