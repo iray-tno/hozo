@@ -992,7 +992,7 @@ Universal、Contextual、Adapter、Web-onlyのlaneと、mappedとして数える
 基盤とする。
 
 現在の実行可能scorecardでは、代表value 349/349 (100%)、一般的なauthoring
-construct 18/18 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
+construct 19/19 (100%)、Card/Typography/Input/Scroll/Motion/Grid/Borderへ利用頻度を
 持たせた宣言271/271 (100%)、silent failure 0となった。valueはHozo Webが公式
 StyleX Babel CSSと一致し、かつNativeが忠実にlowerするかmanifest所定のWeb-only
 refusalを返した場合だけcoveredとする。diagnostic付きresidualは安全性を満たすが
