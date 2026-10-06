@@ -30,9 +30,13 @@ pub(super) fn is_timing(property: &StyleProperty) -> bool {
 /// functions with a React Native transform entry. `perspective` is not one
 /// a frame can interpolate towards.
 fn animatable(property: &StyleProperty) -> bool {
-    crate::transition::interpolatable(property)
-        || matches!(property, StyleProperty::Transform(functions)
-            if functions.iter().all(|function| !matches!(function, hozo_ir::TransformFunction::Perspective(_))))
+    // Ambient transitions receive a composed style target. Frame specs do
+    // not carry the independent CSS slots, so a control is not a safe
+    // endpoint here even though transitions can interpolate its target.
+    !crate::transforms::is_control(property)
+        && (crate::transition::interpolatable(property)
+            || matches!(property, StyleProperty::Transform(functions)
+                if functions.iter().all(|function| !matches!(function, hozo_ir::TransformFunction::Perspective(_)))))
 }
 
 /// A CSS time in milliseconds: `200ms`, `0.2s`, `.5s`.
@@ -147,6 +151,18 @@ pub(super) fn spec(
 
     let mut frames: Vec<String> = Vec::new();
     let mut fixed: Vec<String> = Vec::new();
+    if keyframes.frames.iter().any(|frame| {
+        frame.properties.iter().any(crate::transforms::is_control)
+    }) {
+        diagnostics.push(crate::conditions::unwired_variant(
+            node,
+            &format!(
+                "Transform controls in `@keyframes {}` are not wired on Native yet. Use explicit transform values for these animation endpoints.",
+                keyframes.name,
+            ),
+            Severity::Error,
+        ));
+    }
     for frame in &keyframes.frames {
         let Some(at) = offsets(&frame.selector) else {
             unread.push(format!("the frame selector `{}`", frame.selector));
@@ -293,6 +309,40 @@ mod tests {
             "{:?}",
             out.diagnostics
         );
+    }
+
+    #[test]
+    fn independent_transform_controls_are_refused_as_keyframe_endpoints() {
+        use hozo_ir::{Keyframe, Keyframes, Severity, StyleProperty};
+
+        let source = "import { View } from '@hozo/core'; const el = <View />";
+        let parsed = hozo_parser::parse_tsx(source);
+        for control in [
+            StyleProperty::RotateNone,
+            StyleProperty::ScaleNone,
+            StyleProperty::TranslateNone,
+            StyleProperty::TransformNone,
+            StyleProperty::TransformEmpty,
+        ] {
+            let keyframes = Keyframes {
+                name: "reset".into(),
+                frames: vec![Keyframe {
+                    selector: "to".into(),
+                    properties: vec![StyleProperty::Opacity(1.0), control],
+                }],
+            };
+            let mut diagnostics = Vec::new();
+            let output = super::spec(
+                &keyframes, &[], &Theme::default(), &parsed.roots[0].node, &mut diagnostics,
+            );
+            assert!(output.contains("opacity: 1"), "{output}");
+            assert!(!output.contains("transform:"), "{output}");
+            assert!(
+                diagnostics.iter().any(|d| d.severity == Severity::Error
+                    && d.message.contains("Transform controls in `@keyframes reset`")),
+                "{diagnostics:?}",
+            );
+        }
     }
 
     #[test]

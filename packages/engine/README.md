@@ -22,7 +22,9 @@ plain StyleSheet values. Conditional controls and dynamic class strings use one
 small slot composer, without extra state or subscriptions; dynamic results stay
 cached by class string. `transform-gpu` still reports a diagnostic because a
 browser compositing hint cannot force a Native hardware layer. Transform controls
-combined with `starting:`/exit animation frames remain explicitly unwired.
+combined with `starting:`/exit animation frames, or used as independent
+`@keyframes` controls, remain explicitly unwired. Use explicit transform values
+for those animation endpoints.
 
 **Interaction state infrastructure.** The canonical `HozoPressable` in `@hozo/primitives` tracks
 pressed, hovered, focused and focus-visible state using the shared helpers owned here. Focus-visible
