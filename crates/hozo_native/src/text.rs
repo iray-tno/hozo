@@ -241,6 +241,7 @@ pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
     matches!(
         primitive,
         Primitive::Text
+            | Primitive::Badge
             | Primitive::Paragraph
             | Primitive::Heading
             | Primitive::Figcaption

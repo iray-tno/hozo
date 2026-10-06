@@ -811,3 +811,22 @@ fn a_meter_carries_its_amount_and_range_where_a_reader_finds_them() {
     let bare = lower(&parsed.roots[1].node, source, &Theme::default());
     assert!(bare.jsx.contains("accessibilityValue={{ min: 0, max: 1, now: 0.6 }}"), "{}", bare.jsx);
 }
+
+#[test]
+fn a_badge_is_hozo_badge_and_keeps_its_text_styles() {
+    // `HozoBadge` is a `Text` underneath and draws its count rather than
+    // its children, so a colour moved onto an inserted `Text` around the
+    // children would be on nothing.
+    let source = r#"
+        import { Badge } from '@hozo/core'
+        const el = <Badge count={n} accessibilityLabel="3 unread" className="rounded-full bg-red-600 text-white text-xs" />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoBadge style={hozoStyles.hozo0}"), "{}", output.jsx);
+    assert!(output.jsx.contains("count={n}"), "{}", output.jsx);
+    assert!(output.runtime_imports.contains(&"HozoBadge"), "{:?}", output.runtime_imports);
+    assert!(!output.styles.contains("_text"), "{}", output.styles);
+    assert!(output.styles.contains("color: '#fff'"), "{}", output.styles);
+}

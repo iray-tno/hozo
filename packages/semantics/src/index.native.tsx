@@ -1,4 +1,4 @@
-import { hozoTextChildren } from '@hozo/behaviors'
+import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { hozoPreflight } from '@hozo/engine/project'
 import React, { type ComponentProps, type ReactNode } from 'react'
 // The components rather than their names. These files used to render
@@ -301,6 +301,29 @@ export function Progress({
     },
     hozoTextChildren(children),
   )
+}
+
+export interface BadgeProps extends SemanticsNativeProps {
+  count?: number
+  max?: number
+  children?: ReactNode
+}
+
+/**
+ * A short status label, on React Native: a `Text`, which -- unlike a
+ * `<span>` -- may carry an `accessibilityLabel`, so a count is the digit
+ * drawn and the sentence read with nothing hidden.
+ */
+export function Badge({ count, max, accessibilityLabel, children, ...props }: BadgeProps) {
+  const message = useHozoMessage()
+  if (count === undefined) {
+    return React.createElement(Text, { accessibilityLabel, ...props }, children)
+  }
+  const over = max !== undefined && count > max
+  const shown = over ? `${max}+` : String(count)
+  const label =
+    accessibilityLabel ?? (over ? message('hozo.badge.overflow', { max: max as number }) : shown)
+  return React.createElement(Text, { ...props, accessibilityLabel: label }, shown)
 }
 
 export interface MeterProps extends SemanticsNativeProps {

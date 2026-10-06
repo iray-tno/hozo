@@ -1,3 +1,4 @@
+import { useHozoMessage } from '@hozo/behaviors'
 import type { CSSProperties, ReactNode } from 'react'
 
 export interface SemanticsUniversalProps {
@@ -239,6 +240,63 @@ export interface ProgressProps extends SemanticsUniversalProps {
   value?: number
   max?: number
   children?: ReactNode
+}
+
+export interface BadgeProps extends SemanticsUniversalProps {
+  /**
+   * A number to show. With it, the badge reads as its `accessibilityLabel`
+   * ("3 unread messages") rather than as the bare digit; without one, the
+   * children are the badge, a word that already says what it means.
+   */
+  count?: number
+  /** The largest number shown; above it the badge shows `99+`. */
+  max?: number
+  children?: ReactNode
+}
+
+/** Off screen and still in the accessibility tree. */
+const VISUALLY_HIDDEN = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  margin: -1,
+  padding: 0,
+  overflow: 'hidden',
+  clipPath: 'inset(50%)',
+  whiteSpace: 'nowrap',
+  border: 0,
+} as const
+
+/**
+ * A short status label -- "Draft", or a count.
+ *
+ * A count is the case with something to get right. The digit alone is read
+ * as "three", which says nothing about what there are three of, and a
+ * `<span>` cannot carry an accessible name to say it instead: `generic` is
+ * one of the roles ARIA prohibits naming. So the digit is hidden from
+ * assistive technology and the sentence is beside it, off screen -- the
+ * same arrangement a screen reader would hear from `"3" + " unread messages"`
+ * written out, with only the first part drawn.
+ */
+export function Badge({ count, max, className, style, children, ...props }: BadgeProps) {
+  const message = useHozoMessage()
+  const { 'aria-label': named, ...dom } = domProps(props)
+  if (count === undefined) {
+    return (
+      <span className={className} style={style} aria-label={named} {...dom}>
+        {children}
+      </span>
+    )
+  }
+  const over = max !== undefined && count > max
+  const shown = over ? `${max}+` : String(count)
+  const label = named ?? (over ? message('hozo.badge.overflow', { max: max as number }) : shown)
+  return (
+    <span className={className} style={style} {...dom}>
+      <span aria-hidden="true">{shown}</span>
+      <span style={VISUALLY_HIDDEN}>{label}</span>
+    </span>
+  )
 }
 
 export interface MeterProps extends SemanticsUniversalProps {
