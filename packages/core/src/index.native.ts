@@ -1,6 +1,21 @@
 // Native half of the zero-setup facade. Ownership is identical to the Web
 // entry; package export conditions select each owner's native implementation.
 
+// The connection to a project's i18n library (decision 008). Behaviors owns
+// it because every component that shows a string already depends on it.
+export {
+  fromI18next,
+  fromReactIntl,
+  type HozoI18n,
+  HozoI18nProvider,
+  type HozoI18nProviderProps,
+  type HozoMessageKey,
+  type HozoMessageParams,
+  hozoMessages,
+  type I18nextLike,
+  type ReactIntlLike,
+  useHozoI18n,
+} from '@hozo/behaviors'
 export type { Autocomplete } from '@hozo/patterns'
 export {
   Dialog,

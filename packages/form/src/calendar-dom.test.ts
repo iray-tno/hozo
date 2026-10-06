@@ -259,3 +259,41 @@ test('the month buttons carry no class when none was given', () => {
   // this package ships no CSS and that has to be true of the chrome too.
   assert.doesNotMatch(render(), /<button[^>]*class=/)
 })
+
+// Decision 008: the strings and the locale come from the project's i18n
+// when the component is not given its own.
+test('the month buttons and the locale come from the provider', async () => {
+  const { HozoI18nProvider } = await import('@hozo/behaviors')
+  const translated: Record<string, string> = {
+    'hozo.calendar.previousMonth': '前の月',
+    'hozo.calendar.nextMonth': '次の月',
+  }
+  const html = renderToStaticMarkup(
+    createElement(
+      HozoI18nProvider,
+      {
+        value: {
+          locale: 'ja-JP',
+          translate: (key: string, _params: unknown, fallback: string) =>
+            translated[key] ?? fallback,
+        },
+      },
+      createElement(HozoCalendar, { ...defaults, locale: undefined }),
+    ),
+  )
+  assert.match(html, /aria-label="前の月"/)
+  assert.match(html, /aria-label="次の月"/)
+  assert.match(html, /2026年9月/, 'the month is not in the provider’s locale')
+})
+
+test('a label passed to the calendar still wins over the provider', async () => {
+  const { HozoI18nProvider } = await import('@hozo/behaviors')
+  const html = renderToStaticMarkup(
+    createElement(
+      HozoI18nProvider,
+      { value: { translate: () => 'translated' } },
+      createElement(HozoCalendar, { ...defaults, previousMonthLabel: 'Earlier' }),
+    ),
+  )
+  assert.match(html, /aria-label="Earlier"/)
+})

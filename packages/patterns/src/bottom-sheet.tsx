@@ -1,4 +1,4 @@
-import { DismissableLayer, FocusScope, Portal, usePresence } from '@hozo/behaviors'
+import { DismissableLayer, FocusScope, Portal, useHozoMessage, usePresence } from '@hozo/behaviors'
 import {
   type KeyboardEvent,
   type PointerEvent,
@@ -106,7 +106,7 @@ export function HozoBottomSheet({
   detents,
   defaultDetent,
   dismissBelow,
-  handleAccessibilityLabel = 'Resize',
+  handleAccessibilityLabel: handleAccessibilityLabelProp,
   portal = true,
   className,
   scrimClassName,
@@ -115,6 +115,14 @@ export function HozoBottomSheet({
   testID,
   children,
 }: HozoBottomSheetProps) {
+  // A string from the prop, then the project's i18n, then English;
+  // `locale` the same way (decision 008).
+  const message = useHozoMessage()
+  const handleAccessibilityLabel = message(
+    'hozo.bottomSheet.handle',
+    {},
+    handleAccessibilityLabelProp,
+  )
   const stops = normalizeDetents(detents)
   const largest = stops[stops.length - 1] as number
   const openAt = clampToDetents(defaultDetent ?? largest, stops)

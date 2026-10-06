@@ -1,4 +1,4 @@
-import { useAnnounce } from '@hozo/behaviors'
+import { useAnnounce, useHozoMessage } from '@hozo/behaviors'
 import {
   type ChangeEvent,
   type ReactNode,
@@ -77,9 +77,6 @@ export interface HozoTextAreaProps {
   onFocus?: () => void
 }
 
-const defaultFormatCount = (remaining: number, maxLength: number) =>
-  `${remaining} of ${maxLength} characters left`
-
 /**
  * `useLayoutEffect`, except on a server, where there is no layout to be before.
  *
@@ -136,7 +133,7 @@ export function HozoTextArea({
   minRows = 2,
   maxRows,
   maxLength,
-  formatCount = defaultFormatCount,
+  formatCount: formatCountProp,
   announceRemaining = 10,
   disabled,
   readOnly,
@@ -153,6 +150,16 @@ export function HozoTextArea({
   onBlur,
   onFocus,
 }: HozoTextAreaProps) {
+  // The count from the prop, then the project's i18n, then English
+  // (decision 008). Held stable, because announcing it is an effect on it.
+  const message = useHozoMessage()
+  const formatCount = useCallback(
+    (remaining: number, maxLength: number) =>
+      formatCountProp
+        ? formatCountProp(remaining, maxLength)
+        : message('hozo.textArea.remaining', { remaining, maxLength }),
+    [formatCountProp, message],
+  )
   const generated = useId()
   const fieldId = id ?? `${generated}-field`
   const countId = `${generated}-count`

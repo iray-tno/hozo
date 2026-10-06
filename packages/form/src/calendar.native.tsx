@@ -1,3 +1,4 @@
+import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { type ReactNode, useState } from 'react'
 import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 
@@ -289,16 +290,24 @@ export function HozoCalendar(props: HozoCalendarProps) {
     onMonthChange,
     min,
     max,
-    locale,
+    locale: localeProp,
     firstDayOfWeek,
     today,
     weeks,
     accessibilityLabel,
-    previousMonthLabel = 'Previous month',
-    nextMonthLabel = 'Next month',
-    todayLabel = 'today',
+    previousMonthLabel: previousMonthLabelProp,
+    nextMonthLabel: nextMonthLabelProp,
+    todayLabel: todayLabelProp,
     renderDay,
   } = props
+  // A string from the prop, then the project's i18n, then English;
+  // `locale` the same way (decision 008).
+  const message = useHozoMessage()
+  const hozoI18n = useHozoI18n()
+  const locale = localeProp ?? hozoI18n.locale
+  const previousMonthLabel = message('hozo.calendar.previousMonth', {}, previousMonthLabelProp)
+  const nextMonthLabel = message('hozo.calendar.nextMonth', {}, nextMonthLabelProp)
+  const todayLabel = message('hozo.calendar.today', {}, todayLabelProp)
 
   const currentDay = today ?? todayLocal()
   const weekStart = firstDayOfWeek ?? weekStartFor(locale)
@@ -310,8 +319,11 @@ export function HozoCalendar(props: HozoCalendarProps) {
   const chosen = chosenRange(props)
   const [pending, setPending] = useState<CalendarDate | null>(null)
   const rangeStartLabel =
-    props.range === true ? (props.rangeStartLabel ?? 'start of range') : undefined
-  const rangeEndLabel = props.range === true ? (props.rangeEndLabel ?? 'end of range') : undefined
+    props.range === true
+      ? message('hozo.calendar.rangeStart', {}, props.rangeStartLabel)
+      : undefined
+  const rangeEndLabel =
+    props.range === true ? message('hozo.calendar.rangeEnd', {}, props.rangeEndLabel) : undefined
 
   const choose = (date: CalendarDate) => {
     if (!isWithin(date, { min, max })) return

@@ -1,3 +1,4 @@
+import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import {
   type KeyboardEvent,
   type ReactNode,
@@ -294,16 +295,23 @@ export function HozoCalendar(props: HozoCalendarProps) {
     onMonthChange,
     min,
     max,
-    locale,
+    locale: localeProp,
     firstDayOfWeek,
     today,
     weeks,
     autoFocus,
     accessibilityLabel,
-    previousMonthLabel = 'Previous month',
-    nextMonthLabel = 'Next month',
+    previousMonthLabel: previousMonthLabelProp,
+    nextMonthLabel: nextMonthLabelProp,
     renderDay,
   } = props
+  // A string from the prop, then the project's i18n, then English;
+  // `locale` the same way (decision 008).
+  const message = useHozoMessage()
+  const hozoI18n = useHozoI18n()
+  const locale = localeProp ?? hozoI18n.locale
+  const previousMonthLabel = message('hozo.calendar.previousMonth', {}, previousMonthLabelProp)
+  const nextMonthLabel = message('hozo.calendar.nextMonth', {}, nextMonthLabelProp)
   const ranged = props.range === true
 
   const currentDay = today ?? todayLocal()
@@ -393,8 +401,11 @@ export function HozoCalendar(props: HozoCalendarProps) {
   }
 
   const rangeStartLabel =
-    props.range === true ? (props.rangeStartLabel ?? 'start of range') : undefined
-  const rangeEndLabel = props.range === true ? (props.rangeEndLabel ?? 'end of range') : undefined
+    props.range === true
+      ? message('hozo.calendar.rangeStart', {}, props.rangeStartLabel)
+      : undefined
+  const rangeEndLabel =
+    props.range === true ? message('hozo.calendar.rangeEnd', {}, props.rangeEndLabel) : undefined
 
   /**
    * A cell's accessible name, with the end it is on when it is on one.

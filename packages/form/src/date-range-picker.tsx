@@ -1,4 +1,10 @@
-import { DismissableLayer, FloatingPositioner, FocusScope } from '@hozo/behaviors'
+import {
+  DismissableLayer,
+  FloatingPositioner,
+  FocusScope,
+  useHozoI18n,
+  useHozoMessage,
+} from '@hozo/behaviors'
 import { type ReactNode, useCallback, useId, useRef, useState } from 'react'
 
 import { HozoCalendar, type HozoCalendarDay } from './calendar.tsx'
@@ -103,7 +109,7 @@ export function HozoDateRangePicker({
   onMonthChange,
   min,
   max,
-  locale,
+  locale: localeProp,
   firstDayOfWeek,
   today,
   weeks,
@@ -111,7 +117,7 @@ export function HozoDateRangePicker({
   formatValue,
   placeholder = 'Select dates',
   rangeSeparator,
-  dialogLabel = 'Choose a range of dates',
+  dialogLabel: dialogLabelProp,
   previousMonthLabel,
   nextMonthLabel,
   todayLabel,
@@ -120,6 +126,12 @@ export function HozoDateRangePicker({
   accessibilityLabel,
   renderDay,
 }: HozoDateRangePickerProps) {
+  // A string from the prop, then the project's i18n, then English;
+  // `locale` the same way (decision 008).
+  const message = useHozoMessage()
+  const hozoI18n = useHozoI18n()
+  const locale = localeProp ?? hozoI18n.locale
+  const dialogLabel = message('hozo.dateRangePicker.dialog', {}, dialogLabelProp)
   const id = useId()
   const [open, setOpen] = useState(defaultOpen)
   // A stable ref object, not a fresh one per render: `useFloatingPosition`

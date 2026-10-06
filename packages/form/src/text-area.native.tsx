@@ -3,8 +3,8 @@
 // the signature is the same on both sides and the export condition picks the
 // implementation, which is what `dialog.native.tsx` relies on for
 // `shouldRestoreFocus`.
-import { useAnnounce } from '@hozo/behaviors'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAnnounce, useHozoMessage } from '@hozo/behaviors'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type StyleProp,
   StyleSheet,
@@ -71,9 +71,6 @@ export interface HozoTextAreaProps {
   onFocus?: () => void
 }
 
-const defaultFormatCount = (remaining: number, maxLength: number) =>
-  `${remaining} of ${maxLength} characters left`
-
 /**
  * A multiline field that grows with what is typed into it, on React Native.
  *
@@ -109,7 +106,7 @@ export function HozoTextArea({
   minRows = 2,
   maxRows,
   maxLength,
-  formatCount = defaultFormatCount,
+  formatCount: formatCountProp,
   announceRemaining = 10,
   disabled,
   readOnly,
@@ -120,6 +117,16 @@ export function HozoTextArea({
   onBlur,
   onFocus,
 }: HozoTextAreaProps) {
+  // The count from the prop, then the project's i18n, then English
+  // (decision 008). Held stable, because announcing it is an effect on it.
+  const message = useHozoMessage()
+  const formatCount = useCallback(
+    (remaining: number, maxLength: number) =>
+      formatCountProp
+        ? formatCountProp(remaining, maxLength)
+        : message('hozo.textArea.remaining', { remaining, maxLength }),
+    [formatCountProp, message],
+  )
   const [uncontrolled, setUncontrolled] = useState(defaultValue)
   const text = controlled ?? uncontrolled
   const [content, setContent] = useState(0)
