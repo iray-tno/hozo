@@ -15,7 +15,26 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { classNamesIn } from './extract.ts'
-import { classNamePattern, cssClassName } from './variants.ts'
+import { buildVariantCatalog, classNamePattern, compareVariant, cssClassName } from './variants.ts'
+
+test('negated container scopes and ordered stacks match Tailwind itself', async () => {
+  const { cases, vars } = await buildVariantCatalog([
+    '@md',
+    'not-@md',
+    '@max-md',
+    'not-@max-md',
+    'not-@min-[400px]',
+    'not-@md/main',
+    'not-not-@md/main',
+    'md',
+    'hover',
+  ])
+  assert.ok(cases.length > 0)
+  for (const testCase of cases) {
+    const result = compareVariant(testCase, vars)
+    assert.equal(result.verdict, 'MATCH', `${testCase.candidate}: ${JSON.stringify(result)}`)
+  }
+})
 
 test('a class name is escaped the way Tailwind writes it', () => {
   // One backslash, because that is what is in the stylesheet.

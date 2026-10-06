@@ -428,13 +428,15 @@ pub(super) fn build_style_entries(
             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
             | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
             | Condition::Structural(_) | Condition::Not(_) | Condition::Focus | Condition::FocusVisible
-            | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark => {
+            | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark
+            | Condition::Container { .. } => {
                 match guards::resolve(&condition, node, source, position, runtime, interaction_context) {
                     Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
                     Ok(guards::Guard::Known(true)) => conditional_parts.extend(guarded("")),
                     Ok(guards::Guard::Known(false)) => {}
                     Ok(guards::Guard::Dynamic(guard)) => conditional_parts.extend(guarded(&format!("{guard} && "))),
                     Ok(guards::Guard::Interactive(guard)) => pressed_parts.extend(guarded(&format!("{guard} && "))),
+                    Ok(guards::Guard::Scoped { available, predicate }) => conditional_parts.extend(guarded(&format!("({available} && {predicate}) && "))),
                     Err(reason) => diagnostics.push(unwired_variant(node, &reason, Severity::Error)),
                 }
             }
@@ -505,7 +507,7 @@ pub(super) fn build_style_entries(
                             | Condition::Environment(_) | Condition::FirstChild
                             | Condition::LastChild | Condition::Structural(_) | Condition::Not(_)
                             | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
-                            | Condition::Width { .. } | Condition::Dark => {
+                            | Condition::Width { .. } | Condition::Dark | Condition::Container { .. } => {
                                 match guards::resolve(atom, node, source, position, runtime, interaction_context) {
                                     Ok(guards::Guard::Known(true)) => {}
                                     Ok(guards::Guard::Known(false)) => applies = false,
@@ -513,6 +515,9 @@ pub(super) fn build_style_entries(
                                     Ok(guards::Guard::Interactive(guard)) => {
                                         guards.push(guard);
                                         uses_interactive_state = true;
+                                    }
+                                    Ok(guards::Guard::Scoped { available, predicate }) => {
+                                        guards.push(format!("({available} && {predicate})"));
                                     }
                                     Err(reason) => {
                                         diagnostics.push(unwired_variant(node, &reason, Severity::Error));
@@ -556,21 +561,6 @@ pub(super) fn build_style_entries(
                             }
                             Condition::Expr(expr) => {
                                 guards.push(format!("({})", render_condition_expr(source, expr)));
-                            }
-                            Condition::Container { name, at_least, value } => {
-                                match container_guard(name, *at_least, value) {
-                                    Some(guard) => guards.push(format!("({guard})")),
-                                    None => {
-                                        diagnostics.push(unwired_variant(
-                                            node,
-                                            &format!(
-                                                "`{value}` in this stacked variant is not a pixel width, and React Native has nothing to resolve it against.",
-                                            ),
-                                            Severity::Error,
-                                        ));
-                                        applies = false;
-                                    }
-                                }
                             }
                             Condition::StartingStyle => enters_from = true,
                             Condition::DataAttribute(_) => leaves_to = true,
@@ -755,20 +745,6 @@ pub(super) fn build_style_entries(
                 ),
                 Severity::Error,
             )),
-            // The width comes from an ancestor that measured itself, read
-            // through the render prop `HozoContainerQuery` puts in the way.
-            Condition::Container { name, at_least, value } => {
-                match container_guard(name, *at_least, value) {
-                    Some(guard) => conditional_parts.extend(guarded(&format!("{guard} && "))),
-                    None => diagnostics.push(unwired_variant(
-                        node,
-                        &format!(
-                            "`{value}` is not a pixel width, and React Native has nothing to resolve it against -- no root font size for `rem`. Write the threshold in `px`, or use one of Tailwind's container sizes. On Web the same class works.",
-                        ),
-                        Severity::Error,
-                    )),
-                }
-            }
             // A subtree marker that survived the partition above, which
             // means it is wrapped in something -- `not-*:` and the like.
             // Handing a style down is the answer to `*:`; there is no

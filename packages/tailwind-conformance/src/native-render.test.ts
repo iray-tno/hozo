@@ -500,6 +500,150 @@ test('negated ambient styles are complementary at exact boundaries and reuse coa
   }
 })
 
+test('negated container queries keep missing scopes unknown and use the applicable ancestor', () => {
+  const react = require('react')
+  const renderer = require('react-test-renderer')
+  const stub = require('react-native') as {
+    StyleSheet: { flatten: (style: unknown) => { opacity?: number } }
+  }
+  let root: ReturnType<typeof renderer.create> | undefined
+  let queryCommits = 0
+  let authoredLayouts = 0
+  const { C } = loadNativeModule(`
+    import { View } from '@hozo/core'
+    import { Profiler } from 'react'
+    export function C({ onLayout, onQueryRender }) {
+      return <View onLayout={onLayout} className="@container/main opacity-100 not-@md/main:opacity-25">
+        <Profiler id="query" onRender={onQueryRender}>
+          <View className="@md:opacity-100 not-@md:opacity-50" />
+        </Profiler>
+        <View className="@max-md:opacity-50 not-@max-md:opacity-100" />
+        <View className="@container/inner opacity-100 not-@md/inner:opacity-25">
+          <View className="opacity-100 not-@min-[400px]/main:opacity-50" />
+          <View className="opacity-100 not-@min-[400px]/inner:opacity-50" />
+          <View className="opacity-100 not-@md/missing:opacity-50" />
+          <View className="opacity-100 not-not-@min-[400px]:opacity-50" />
+        </View>
+      </View>
+    }`)
+  try {
+    renderer.act(() => {
+      root = renderer.create(
+        react.createElement(C, {
+          onLayout: () => {
+            authoredLayouts += 1
+          },
+          onQueryRender: () => {
+            queryCommits += 1
+          },
+        }),
+      )
+    })
+    const opacity = (tree: Tree) => stub.StyleSheet.flatten(tree?.props.style).opacity
+    const opacities = () => {
+      const tree = root!.toJSON() as Tree
+      const [min, max, inner] = children(tree)
+      return [
+        opacity(tree),
+        opacity(min),
+        opacity(max),
+        opacity(inner),
+        ...children(inner).map(opacity),
+      ]
+    }
+    // The container never queries itself, and an unmeasured or missing
+    // named ancestor remains unknown even through repeated negation.
+    assert.deepEqual(opacities(), [1, undefined, undefined, 1, 1, 1, 1, 1])
+    const measure = (outerWidth: number, innerWidth: number) => {
+      const targets = root!.root.findAll(
+        (node: { type: unknown; props: Record<string, unknown> }) =>
+          node.type === 'View' && typeof node.props.onLayout === 'function',
+      )
+      assert.equal(targets.length, 2)
+      renderer.act(() => {
+        for (const [index, width] of [outerWidth, innerWidth].entries()) {
+          targets[index].props.onLayout({ nativeEvent: { layout: { width, height: 100 } } })
+        }
+      })
+    }
+    for (const [outer, inner, expected] of [
+      [399, 449, [1, 0.5, 0.5, 1, 0.5, 1, 1, 0.5]],
+      [400, 399, [1, 0.5, 0.5, 1, 1, 0.5, 1, 1]],
+      [447, 400, [1, 0.5, 0.5, 1, 1, 1, 1, 0.5]],
+      [448, 400, [1, 1, 1, 1, 1, 1, 1, 0.5]],
+      [449, 400, [1, 1, 1, 1, 1, 1, 1, 0.5]],
+      // Zero is measured, not absent: the negative minimum must apply.
+      [0, 0, [1, 0.5, 0.5, 1, 0.5, 0.5, 1, 1]],
+    ] as const) {
+      measure(outer, inner)
+      assert.deepEqual(opacities(), expected, `outer=${outer}, inner=${inner}`)
+    }
+    queryCommits = 0
+    measure(0, 0)
+    assert.equal(queryCommits, 0, 'unchanged measurements do not commit a new query tree')
+    assert.equal(authoredLayouts, 7, 'the author still receives every layout event')
+  } finally {
+    renderer.act(() => root?.unmount())
+  }
+})
+
+test('container negation reaches inherited raw text and the real interaction callback', () => {
+  const react = require('react')
+  const renderer = require('react-test-renderer')
+  const stub = require('react-native') as {
+    StyleSheet: { flatten: (style: unknown) => { opacity?: number; color?: string } }
+  }
+  const { C } = loadNativeModule(`
+    import { View, Pressable } from '@hozo/core'
+    export function C() {
+      return <View className="@container/main">
+        <View className="not-@md/main:text-red-500">raw</View>
+        <Pressable className="opacity-100 not-@md/main:hover:opacity-50" />
+      </View>
+    }`)
+  let root: ReturnType<typeof renderer.create> | undefined
+  try {
+    renderer.act(() => {
+      root = renderer.create(react.createElement(C))
+    })
+    const styles = () => {
+      const [view, pressable] = children(root!.toJSON())
+      assert.ok(pressable)
+      // The host stub does not evaluate RN's style callback. Give it RN's
+      // unpressed state; hover still comes from the actual owner's events.
+      const style = pressable.props.style as (state: { pressed: boolean }) => unknown
+      assert.equal(typeof style, 'function')
+      return [
+        stub.StyleSheet.flatten(children(view)[0].props.style).color,
+        stub.StyleSheet.flatten([style({ pressed: false })].flat(Infinity)).opacity,
+      ]
+    }
+    const host = (type: string, prop: string) => {
+      const matches = root!.root.findAll(
+        (node: { type: unknown; props: Record<string, unknown> }) =>
+          node.type === type && typeof node.props[prop] === 'function',
+      )
+      assert.equal(matches.length, 1)
+      return matches[0]
+    }
+    assert.deepEqual(styles(), [undefined, 1])
+    renderer.act(() => host('Pressable', 'onHoverIn').props.onHoverIn())
+    assert.deepEqual(styles(), [undefined, 1], 'hover cannot make a missing query true')
+    renderer.act(() =>
+      host('View', 'onLayout').props.onLayout({ nativeEvent: { layout: { width: 447 } } }),
+    )
+    const [red] = styles()
+    assert.ok(red, 'inherited text receives the conditional colour')
+    assert.deepEqual(styles(), [red, 0.5])
+    renderer.act(() =>
+      host('View', 'onLayout').props.onLayout({ nativeEvent: { layout: { width: 448 } } }),
+    )
+    assert.deepEqual(styles(), [undefined, 1])
+  } finally {
+    renderer.act(() => root?.unmount())
+  }
+})
+
 test('a compiled list says where each cell sits, and deliberately not how long it is', () => {
   // A windowed list has a length its accessibility tree does not. React
   // Native mounts the rows near the viewport and TalkBack counts those, so a
