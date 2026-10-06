@@ -2862,6 +2862,18 @@ const el = {element}"
         }
     }
     #[test]
+    fn a_meter_is_the_meter_element_with_its_range_as_written() {
+        let source = "import { Meter } from '@hozo/core'
+const el = <Meter aria-label=\"Disk usage\" value={0.6} low={0.3} high={0.8} />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<meter "), "{}", output.jsx);
+        assert!(output.jsx.contains("low={0.3} high={0.8}"), "{}", output.jsx);
+    }
+
+    #[test]
     fn progress_and_button_with_href_lower_to_html_primitives() {
         let source = r#"
             import { Button, View } from '@hozo/core'

@@ -303,6 +303,57 @@ export function Progress({
   )
 }
 
+export interface MeterProps extends SemanticsNativeProps {
+  value: number
+  min?: number
+  max?: number
+  /** Accepted for parity with the Web, where they colour the bar; unused here. */
+  low?: number
+  high?: number
+  optimum?: number
+  accessibilityValue?: {
+    min?: number
+    max?: number
+    now?: number
+    text?: string
+  }
+}
+
+/**
+ * An amount within a known range, on React Native.
+ *
+ * React Native accepts `role="meter"`, and Android does not map it to a
+ * platform role yet, so the amount is carried by `accessibilityValue`,
+ * which a reader announces either way. The range is 0 to 1 when left out,
+ * as `<meter>` reads it.
+ */
+export function Meter({
+  value,
+  min,
+  max,
+  low: _low,
+  high: _high,
+  optimum: _optimum,
+  role = 'meter',
+  accessibilityValue,
+  style,
+  children,
+  ...props
+}: MeterProps) {
+  return React.createElement(
+    View,
+    {
+      role,
+      accessibilityValue: accessibilityValue ?? { min: min ?? 0, max: max ?? 1, now: value },
+      // `<meter>`'s box in Chrome, 80 x 16, for the reason `Progress` has
+      // one: a View with none is zero pixels and absent from the tree.
+      style: [{ width: 80, height: 16 }, style],
+      ...props,
+    },
+    hozoTextChildren(children),
+  )
+}
+
 /**
  * The names `@hozo/core` re-exports on the Web.
  *

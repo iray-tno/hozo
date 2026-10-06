@@ -81,6 +81,7 @@ const SNIPPETS = {
   Paragraph: '<Paragraph>x</Paragraph>',
   Pressable: '<Pressable role="button" onPress={go}>x</Pressable>',
   Progress: '<Progress value={40} max={100} accessibilityLabel="Upload" />',
+  Meter: '<Meter value={0.6} accessibilityLabel="Disk usage" />',
   RefreshControl: '<RefreshControl refreshing={busy} onRefresh={reload} />',
   Ruby: '<Ruby>x<RubyText>y</RubyText></Ruby>',
   RubyText: '<RubyText>x</RubyText>',

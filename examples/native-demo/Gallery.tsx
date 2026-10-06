@@ -89,6 +89,7 @@ import {
   ListItem,
   Main,
   Mark,
+  Meter,
   Nav,
   NoBreak,
   Paragraph,
@@ -268,6 +269,7 @@ export default function Gallery() {
           className="h-2 bg-slate-300"
           testID="gallery-ProgressSized"
         />
+        <Meter value={0.6} accessibilityLabel="Disk usage" testID="gallery-Meter" />
 
         <Button accessibilityLabel="A button" testID="gallery-Button">
           Button

@@ -241,6 +241,56 @@ export interface ProgressProps extends SemanticsUniversalProps {
   children?: ReactNode
 }
 
+export interface MeterProps extends SemanticsUniversalProps {
+  /** Where in the range the amount is. */
+  value: number
+  /** The range, 0 to 1 when left out, as `<meter>` reads it. */
+  min?: number
+  max?: number
+  /**
+   * Where the range counts as low, high and best. The browser colours the
+   * bar by them; nothing announces them, on either platform.
+   */
+  low?: number
+  high?: number
+  optimum?: number
+  children?: ReactNode
+}
+
+/**
+ * An amount within a known range -- a disk's fill, a password's strength.
+ * Not `Progress`, which is how far a task has got: a reader says "meter"
+ * for this and "progress bar" for that, and they mean different things.
+ */
+export function Meter({
+  value,
+  min,
+  max,
+  low,
+  high,
+  optimum,
+  className,
+  children,
+  style,
+  ...props
+}: MeterProps) {
+  return (
+    <meter
+      value={value}
+      min={min}
+      max={max}
+      low={low}
+      high={high}
+      optimum={optimum}
+      className={className}
+      style={style}
+      {...domProps(props)}
+    >
+      {children}
+    </meter>
+  )
+}
+
 export function Progress({ value, max, className, children, style, ...props }: ProgressProps) {
   return (
     <progress value={value} max={max} className={className} style={style} {...domProps(props)}>

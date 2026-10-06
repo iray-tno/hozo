@@ -151,6 +151,10 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // and mean nothing on a View, so a compiled progress bar announced
         // itself as one and reported no position at all.
         Primitive::Progress => ("View", vec![("role", "progressbar".to_string())]),
+        // React Native accepts `role="meter"`, and Android does not map it to
+        // a platform role yet -- so the amount travels in `accessibilityValue`
+        // (below), which is what a reader announces either way.
+        Primitive::Meter => ("View", vec![("role", "meter".to_string())]),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),
         Primitive::ActivityIndicator => ("ActivityIndicator", Vec::new()),

@@ -419,6 +419,10 @@ pub enum Primitive {
     Separator,
     /// A progress indicator bar: `<progress>` on Web and `role="progressbar"` `View` on React Native.
     Progress,
+    /// A scalar within a known range -- a disk's fill, a password's strength:
+    /// `<meter>` on Web and a `View` carrying `accessibilityValue` on React
+    /// Native. Not `Progress`, which is how far a task has got.
+    Meter,
     /// A static semantic list: `<ul>`/`<ol>` on Web and a list-role
     /// `View` on React Native. Data-heavy lists remain `FlatList`.
     List,

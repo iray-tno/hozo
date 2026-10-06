@@ -105,6 +105,13 @@ function rolesHozoEmits(): Set<string> {
  * `separator` is the tenth and the one #309 found, by looking at a device
  * rather than at this table.
  *
+ * `meter` is the eleventh, and chosen rather than found. Android's nearest
+ * widget is `progressbar`, and a disk's fill announced as "progress bar" is
+ * a different statement, not a rougher one -- how far a task has got versus
+ * where an amount sits. So `Meter` keeps its own role, and what Android
+ * does read is the amount: `accessibilityValue` becomes the node's range
+ * information. The day React Native maps `meter`, the test above says so.
+ *
  * Each entry is a decision that the silence is acceptable, not a list to
  * append to when a test goes red. A new one means a primitive announces
  * itself on one platform and not the other, and that is worth reading
@@ -119,6 +126,7 @@ const DISCARDED_ON_ANDROID = [
   'group',
   'listitem',
   'main',
+  'meter',
   'navigation',
   'separator',
 ]

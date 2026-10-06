@@ -102,6 +102,7 @@ const TAKES_A_LABEL = [
   'ListItem',
   'Main',
   'Mark',
+  'Meter',
   'Nav',
   'NoBreak',
   'Paragraph',
@@ -155,6 +156,7 @@ const REQUIRED: Record<string, Record<string, unknown>> = {
   // ordinary box with children.
   Details: { open: true },
   Progress: { value: 50, max: 100 },
+  Meter: { value: 0.5 },
 }
 
 /** Whether the label ends up inside a `Text`, or `null` if it is not there. */
