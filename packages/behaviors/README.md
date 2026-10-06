@@ -1,8 +1,10 @@
 # @hozo/behaviors
 
-Universal headless runtime behaviors and positioning primitives for Hozo.
+Universal headless runtime behaviors for Hozo: the layer where **accessibility and internationalisation are first-class behaviours**.
 
-These primitives provide the essential interaction mechanics — focus management, outside click handling, keyboard navigation, collision-aware floating positioning, disclosure states, phonetic reading control, and hover delay groups — on both Web and React Native.
+Those are the two concerns that should be designed in from the start and are usually added at the end. Defining them here, below every component, is how Hozo makes "from the start" the default ([decision 008](../../docs/decisions/008-i18n-is-a-connection.md)).
+
+The behaviours cover focus management, outside click handling, keyboard navigation, collision-aware floating positioning, disclosure states, screen reader announcements, phonetic reading control, text direction, and hover delay groups, on both Web and React Native.
 
 ## Included Behaviors
 

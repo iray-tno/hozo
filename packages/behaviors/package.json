@@ -1,7 +1,7 @@
 {
   "name": "@hozo/behaviors",
   "version": "0.2.0",
-  "description": "Universal runtime behaviors substrate (LiveRegion, Portal, DismissableLayer, FocusScope, RovingFocus, FloatingPositioner) for Hozo.",
+  "description": "Hozo's accessibility and internationalisation behaviours (FocusScope, RovingFocus, LiveRegion, Portal, DismissableLayer, FloatingPositioner), shared by Web and React Native.",
   "keywords": [
     "react-native",
     "behaviors",

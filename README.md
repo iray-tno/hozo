@@ -531,7 +531,7 @@ static guarantees and minimizing runtime overhead:
 ```
 
 - **Layer 1 (Zero-Runtime Primitives)**: Lower directly to native HTML5 tags on Web and foundational primitives on React Native. Completely safe for static SSR / React Server Components (RSC) without `'use client'`.
-- **Layer 2 (Universal Behaviors)**: Minimal headless runtime behavior units. The compiler statically removes what is knowable at build time (e.g. static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
+- **Layer 2 (Universal Behaviors)**: Minimal headless runtime behavior units, where accessibility and internationalisation are first-class behaviours ([decision 008](docs/decisions/008-i18n-is-a-connection.md)). The compiler statically removes what is knowable at build time (e.g. static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
 - **Layer 3 (Universal Patterns)**: Accessible stateful widgets composed strictly from Layer 1 and Layer 2.
 - **`@hozo/core`** re-exports all three layers for zero-setup authoring and owns no implementation of its own. Domain-specific and migration packages (`@hozo/form`, `@hozo/three`, `@hozo/canvas`, `@hozo/svg`, `@hozo/rn-compat`) sit alongside the layers as opt-in packages.
 
@@ -573,7 +573,7 @@ static guarantees and minimizing runtime overhead:
 
 ```
 packages/
-  behaviors/               Universal runtime behaviors substrate (LiveRegion, Portal, DismissableLayer, FocusScope, RovingFocus, FloatingPositioner) for Hozo.
+  behaviors/               Hozo's accessibility and internationalisation behaviours (FocusScope, RovingFocus, LiveRegion, Portal, DismissableLayer, FloatingPositioner), shared by Web and React Native.
   canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
   compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
   core/                    Zero-setup facade over Hozo's canonical authoring packages.
