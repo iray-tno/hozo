@@ -863,6 +863,7 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
         // Read the way a StyleX keyframe body is. A declaration with no
         // typed form is left out of the Native frames -- the Native backend
         // says which -- and stays in the CSS the Web emits.
+        let mut unread = Vec::new();
         let keyframes = animation.frames.map(|frames| hozo_ir::Keyframes {
             name: animation.name.clone(),
             frames: frames
@@ -873,7 +874,16 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
                         .declarations
                         .iter()
                         .filter_map(|pair| match pair.as_slice() {
-                            [property, value] => hozo_parser::css_declaration(property, value),
+                            [property, value] => {
+                                let typed = hozo_parser::css_declaration(property, value);
+                                if typed.is_none() {
+                                    let declaration = format!("{property}: {value}");
+                                    if !unread.contains(&declaration) {
+                                        unread.push(declaration);
+                                    }
+                                }
+                                typed
+                            }
                             _ => None,
                         })
                         .flatten()
@@ -887,6 +897,7 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
                 shorthand: animation.shorthand,
                 keyframes_css: animation.keyframes_css,
                 keyframes,
+                unread,
             },
         );
     }

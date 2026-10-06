@@ -341,6 +341,19 @@ pub(super) fn build_style_entries(
                     ));
                     return None;
                 };
+                let unread = theme.animation(name).map(|animation| animation.unread.as_slice()).unwrap_or_default();
+                if !unread.is_empty() {
+                    diagnostics.push(unwired_variant(
+                        node,
+                        &format!(
+                            "`animate-{name}`: {} in its `@keyframes` could not be read on React Native, so \
+                             the frames run without {}. On Web the keyframes apply as written.",
+                            unread.iter().map(|declaration| format!("`{declaration}`")).collect::<Vec<_>>().join(", "),
+                            if unread.len() == 1 { "it" } else { "them" },
+                        ),
+                        Severity::Warning,
+                    ));
+                }
                 let shorthand = theme.animation(name).map(|animation| animation.shorthand.as_str()).unwrap_or_default();
                 let timing = crate::keyframes::shorthand_timing(shorthand);
                 let timing: Vec<&StyleProperty> = timing.iter().collect();

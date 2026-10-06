@@ -37,6 +37,10 @@ pub struct ThemeAnimation {
     /// The same frames as typed properties, for Native. Declarations that
     /// have no typed form are left out here and kept in `keyframes_css`.
     pub keyframes: Option<crate::Keyframes>,
+    /// The frames' declarations that have no typed form, as
+    /// `property: value`. Left out of `keyframes`, so Native names them
+    /// rather than running a different animation from the Web's in silence.
+    pub unread: Vec<String>,
 }
 
 /// A project's resolved design tokens.
