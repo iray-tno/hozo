@@ -79,6 +79,42 @@ pinned for this app, including safe-area-context 5.8.0, while Expo SDK 57's
 bundled copy is 5.7.x. Metro export verifies bundling, not native linking or
 device behavior.
 
+## Release downloads
+
+Version tags build and verify both platforms through the same `native-showcase`
+workflow before npm or crates.io publication. A failure on either platform, missing
+or mismatched evidence, or missing Android signing configuration blocks publication.
+The manual release dry run exercises the same checks but uses a clearly labelled
+debug-signed preview; it publishes neither packages nor a GitHub Release.
+
+After both registries publish, GitHub Release receives:
+
+- `hozo-showcase-vX.Y.Z-android.apk`: standalone arm64/x86_64 APK, signed with the
+  fixed showcase key and tested after signing. Open it on an Android phone or run
+  `adb install -r <file.apk>`. Allow installation from your browser/file manager
+  when requested. No Metro server, Expo Go or Google Play account is required.
+- `hozo-showcase-vX.Y.Z-ios-simulator.app.zip`: standalone Simulator app. Unzip it
+  on a Mac, boot a compatible simulator, then run `xcrun simctl install booted
+  HozoShowcase.app` and `xcrun simctl launch booted dev.hozo.showcase`. See the
+  attached instructions for the actual binary architecture and minimum runtime.
+- `INSTALL.md`, `SHA256SUMS` and `showcase-manifest.json`: installation instructions,
+  hashes, Android certificate fingerprint, source/run and full/SVG check results.
+
+The iOS download **does not run on an iPhone**. There is no signed IPA or TestFlight
+integration yet. For personal iPhone testing, build the source using the local
+instructions above, open the generated `ios/HozoShowcase.xcworkspace` on macOS, and
+choose your own Personal Team under Signing & Capabilities. Set a unique bundle ID
+if Xcode requires it, pair/select your device and enable Developer Mode. A free
+Apple Account supports personal testing with provisioning that expires after seven
+days; public distribution/TestFlight needs Apple Developer Program membership.
+See [Apple's membership comparison](https://developer.apple.com/support/compare-memberships/)
+and [Developer Mode](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device).
+
+Emulator functional checks are not physical-device, screen-reader or interactive
+GPU performance certification. The known iOS heavy-scene latency remains separate.
+For maintainers, fixed Android key setup and failure recovery are in
+[release verification](../../docs/release-verification.md#showcase-signing-and-release-gate).
+
 ## Stories
 
 - **Primitives / Shared showcase**: buttons (including disabled controls),
