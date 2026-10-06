@@ -26,6 +26,21 @@ combined with `starting:`/exit animation frames, or used as independent
 `@keyframes` controls, remain explicitly unwired. Use explicit transform values
 for those animation endpoints.
 
+**Native negated variants.** `not-disabled:`, `not-enabled:`, `not-aria-*:`,
+negated known sibling predicates such as `not-first:`/`not-last:`, and negated
+supported environment queries such as `not-motion-reduce:` reuse the positive
+predicate, including when stacked with other supported conditions. Prop predicates
+need the same readable driver as their positive form; `not-disabled:` without a
+`disabled` prop or an unreadable ARIA state is still a diagnostic, not a false value
+to invert. `not-enabled:` follows the existing `enabled:` contract: without a
+`disabled` prop, enabled is known true and its negation does not apply. Unknown
+sibling positions and unsupported environment queries remain diagnostics too.
+Boolean ARIA predicates match the literal `true` state; an optional state object
+can be absent at runtime, and `checked: 'mixed'` is not treated as checked=true.
+Known sibling predicates cost no runtime state; environment queries share their
+existing hook. `not-hover:` and other negated interaction/selector conditions are
+not wired in this slice.
+
 **Interaction state infrastructure.** The canonical `HozoPressable` in `@hozo/primitives` tracks
 pressed, hovered, focused and focus-visible state using the shared helpers owned here. Focus-visible
 follows the input modality, so a tap does not draw a focus ring and a Tab key does.

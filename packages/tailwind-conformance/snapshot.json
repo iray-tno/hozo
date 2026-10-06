@@ -38,8 +38,8 @@
     "covered": 349
   },
   "stylexConstructs": {
-    "cases": 18,
-    "covered": 18
+    "cases": 19,
+    "covered": 19
   },
   "stylexCorpus": {
     "cases": 271,
@@ -63,8 +63,8 @@
     "noOp": 1
   },
   "nativeContextual": {
-    "cases": 8,
-    "covered": 8,
+    "cases": 11,
+    "covered": 11,
     "refused": 0,
     "silent": 0
   },
@@ -198,9 +198,9 @@
   },
   "nativeVariants": {
     "total": 22707,
-    "covered": 4122,
-    "restricted": 2205,
-    "refused": 18585,
+    "covered": 4590,
+    "restricted": 2520,
+    "refused": 18117,
     "silent": 0,
     "noOp": 0
   }
