@@ -15,7 +15,10 @@ use serde::{Deserialize, Serialize};
 /// different version is discarded rather than migrated -- this is a cache,
 /// so rebuilding it is cheap and always correct, while a half-understood
 /// migration is neither.
-pub const SNAPSHOT_VERSION: u32 = 2;
+///
+/// 3: the scan subtracts only what the project's source list compiles, so a
+/// snapshot from 2 is missing classes passed to same-named components.
+pub const SNAPSHOT_VERSION: u32 = 3;
 
 /// What one source file contributed.
 ///

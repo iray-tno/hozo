@@ -193,7 +193,7 @@ const MDX_LOADER = /[\\/]@next[\\/]mdx[\\/]|[\\/]@mdx-js[\\/]loader/
  * stylesheet the first module didn't import.
  */
 function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptions {
-  const project = scanProject(root, options.content)
+  const project = scanProject(root, options.content, options.sources)
   const candidateCssPath = path.join(project.dir, 'candidates.css')
   const preflightPath = preflightCssPath(project.dir)
   // Rendered with no theme: the theme is loaded asynchronously and this

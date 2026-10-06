@@ -31,7 +31,10 @@ const projects = new Map()
 function projectState(options) {
   let state = projects.get(options.root)
   if (!state) {
-    const cache = openCandidateCache(path.join(options.root, CACHE_DIR, 'candidates.json'))
+    const cache = openCandidateCache(
+      path.join(options.root, CACHE_DIR, 'candidates.json'),
+      options.sources,
+    )
     const stylexModules = new StylexModuleCache(
       path.join(options.root, CACHE_DIR, 'stylex-modules.json'),
     )

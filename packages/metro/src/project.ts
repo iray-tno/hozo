@@ -76,7 +76,7 @@ export async function generateCandidateModule(
     css: options.css,
     warn: (message) => console.warn(message),
   })
-  const { cache, stats } = scanProject(projectRoot, options.content)
+  const { cache, stats } = scanProject(projectRoot, options.content, options.sources)
   if (options.debug) {
     // eslint-disable-next-line no-console
     console.info(scanSummary(stats))
