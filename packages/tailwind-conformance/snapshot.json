@@ -57,14 +57,14 @@
   },
   "native": {
     "candidates": 124,
-    "covered": 118,
-    "refused": 5,
+    "covered": 119,
+    "refused": 4,
     "silent": 0,
     "noOp": 1
   },
   "nativeContextual": {
-    "cases": 11,
-    "covered": 11,
+    "cases": 13,
+    "covered": 13,
     "refused": 0,
     "silent": 0
   },
@@ -191,16 +191,16 @@
     "unreachable": 0
   },
   "variants": {
-    "total": 22707,
-    "match": 22707,
+    "total": 23763,
+    "match": 23763,
     "mismatch": 0,
     "unsupported": 0
   },
   "nativeVariants": {
-    "total": 22707,
-    "covered": 4590,
-    "restricted": 2520,
-    "refused": 18117,
+    "total": 23763,
+    "covered": 4998,
+    "restricted": 2928,
+    "refused": 18765,
     "silent": 0,
     "noOp": 0
   }

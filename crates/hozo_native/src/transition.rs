@@ -13,7 +13,7 @@ pub(super) fn native_driver_transition(
         declarations.iter().any(|declaration| {
             property(&declaration.property)
                 && condition_contains(&declaration.condition, |condition| {
-                matches!(condition, Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Pressed)
+                matches!(condition, Condition::Hover | Condition::Pressed) || super::focus_state(condition).is_some()
             })
         })
     };

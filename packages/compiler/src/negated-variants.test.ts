@@ -24,7 +24,7 @@ function expressions(jsx: string): string[] {
 }
 
 function compile(body: string) {
-  const source = `import { View, Pressable } from '@hozo/core'
+  const source = `import { View, Text, Pressable, Button } from '@hozo/core'
 export function C({ off, state }) { return (${body}) }`
   const [result] = compileNative(source)
   assert.ok(result)
@@ -133,6 +133,104 @@ test('not-first and not-last are decided at build time without hooks', () => {
   assert.deepEqual(c.result.prelude, [])
 })
 
+test('negated focus-only classes activate the existing callback and complement positive states', () => {
+  for (const primitive of ['Pressable', 'Button']) {
+    const c = compile(
+      `<${primitive} className="opacity-100 p-0 not-focus:opacity-50 not-focus-visible:p-4" />`,
+    )
+    const positive = compile(`<${primitive} className="focus:opacity-50 focus-visible:p-4" />`)
+    assert.deepEqual(c.result.diagnostics, [])
+    assert.ok(c.result.jsx.startsWith('<HozoPressable'), c.result.jsx)
+    assert.ok(c.result.jsx.includes(' hozoFocusVisible'), c.result.jsx)
+    assert.deepEqual(c.result.prelude, [])
+    assert.deepEqual(c.result.runtimeImports, positive.result.runtimeImports)
+    const style = c.values()[0] as (state: object) => unknown
+    // Includes both initial and repeated entry/exit, not just one matching render.
+    for (const [focused, focusVisible] of [
+      [false, false],
+      [true, false],
+      [false, false],
+      [true, true],
+      [false, false],
+    ]) {
+      const value = flatten(style({ focused, focusVisible }))
+      assert.equal(value.opacity, focused ? 1 : 0.5)
+      assert.equal(value.paddingTop, focusVisible ? 0 : 16)
+    }
+  }
+})
+
+test('positive and negative focus guards share one state without losing either half', () => {
+  const c = compile(
+    '<Pressable className="focus:opacity-100 not-focus:opacity-50 focus-visible:p-4 not-focus-visible:p-2" />',
+  )
+  assert.deepEqual(c.result.diagnostics, [])
+  const style = c.values()[0] as (state: object) => unknown
+  for (const focused of [false, true]) {
+    for (const focusVisible of [false, true]) {
+      const value = flatten(style({ focused, focusVisible }))
+      assert.equal(value.opacity, focused ? 1 : 0.5)
+      assert.equal(value.paddingTop, focusVisible ? 16 : 8)
+    }
+  }
+  assert.equal(c.result.jsx.match(/ hozoFocusVisible/g)?.length, 1)
+})
+
+test('stacked negated focus stays in its callback alongside breakpoint and prop predicates', () => {
+  const c = compile(
+    '<Pressable disabled={off} className="opacity-100 md:not-disabled:not-focus:not-focus-visible:opacity-50" />',
+  )
+  assert.deepEqual(c.result.diagnostics, [])
+  for (const off of [false, true]) {
+    for (const md of [false, true]) {
+      const style = c.values(off, { checked: false }, false, md)[0] as (state: object) => unknown
+      for (const focused of [false, true]) {
+        for (const focusVisible of [false, true]) {
+          assert.equal(
+            flatten(style({ focused, focusVisible })).opacity,
+            md && !off && !focused && !focusVisible ? 0.5 : 1,
+          )
+        }
+      }
+    }
+  }
+  assert.equal(c.result.prelude.filter((line) => line.includes('useHozoBreakpoint')).length, 1)
+})
+
+test('negated focus drives existing opacity, transform and inherited text colour transitions', () => {
+  const c = compile(
+    '<Pressable className="opacity-100 scale-100 text-gray-500 transition not-focus:opacity-50 not-focus:scale-95 not-focus-visible:text-blue-500">x</Pressable>',
+  )
+  assert.deepEqual(c.result.diagnostics, [])
+  assert.ok(c.result.jsx.includes('hozoTransition='), c.result.jsx)
+  for (const marker of ['opacity: true', 'transform: true', 'colors: true', '<HozoText']) {
+    assert.ok(c.result.jsx.includes(marker), c.result.jsx)
+  }
+  const [parent, child] = c.values() as ((state: object) => unknown)[]
+  const unfocused = { focused: false, focusVisible: false }
+  const focused = { focused: true, focusVisible: true }
+  assert.equal(flatten(parent(unfocused)).opacity, 0.5)
+  assert.equal(flatten(parent(focused)).opacity, 1)
+  assert.notDeepEqual(flatten(parent(unfocused)).transform, flatten(parent(focused)).transform)
+  assert.notEqual(flatten(child(unfocused)).color, flatten(child(focused)).color)
+})
+
+test('focus-visible text-only variants enable their owner and work for raw and explicit text', () => {
+  for (const content of ['x', '<Text>x</Text>']) {
+    const c = compile(
+      `<Pressable className="focus-visible:text-blue-500 not-focus-visible:text-gray-500">${content}</Pressable>`,
+    )
+    assert.deepEqual(c.result.diagnostics, [])
+    assert.ok(c.result.jsx.startsWith('<HozoPressable'), c.result.jsx)
+    assert.ok(c.result.jsx.includes(' hozoFocusVisible'), c.result.jsx)
+    const [child] = c.values() as ((state: object) => unknown)[]
+    assert.notEqual(
+      flatten(child({ focused: true, focusVisible: true })).color,
+      flatten(child({ focused: true, focusVisible: false })).color,
+    )
+  }
+})
+
 test('other supported environment queries reuse their existing predicate', () => {
   const c = compile('<View className="opacity-100 not-portrait:opacity-50" />')
   assert.deepEqual(c.result.diagnostics, [])
@@ -182,6 +280,9 @@ test('an unreadable or unsupported inner condition remains an explicit refusal',
     '<View accessibilityState={{ busy: true }} className="not-aria-checked:p-4" />',
     '<View className="not-print:p-4" />',
     '<Pressable className="not-hover:p-4" />',
+    '<View className="not-focus:p-4" />',
+    '<Text className="not-focus-visible:p-4" />',
+    '<View className="md:not-focus-visible:p-4" />',
     '<View className="md:not-focus-within:p-4" />',
   ]) {
     const c = compile(body)

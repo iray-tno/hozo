@@ -1,4 +1,4 @@
-//! One answer for a prop/environment/structural predicate, whether used
+//! One answer for a prop/environment/structural/focus predicate, whether used
 //! alone, in a stack, or negated. An unresolved predicate is not false:
 //! negating an error must never make an unsupported style unconditional.
 
@@ -7,6 +7,9 @@ use super::*;
 pub(super) enum Guard {
     Known(bool),
     Dynamic(String),
+    // Unlike a prop or ambient hook, this binding exists only inside the
+    // interaction style callback. Negation must keep that ownership.
+    Interactive(String),
 }
 
 impl Guard {
@@ -14,6 +17,7 @@ impl Guard {
         match self {
             Self::Known(value) => Self::Known(!value),
             Self::Dynamic(expression) => Self::Dynamic(format!("!({expression})")),
+            Self::Interactive(expression) => Self::Interactive(format!("!({expression})")),
         }
     }
 }
@@ -24,9 +28,10 @@ pub(super) fn resolve(
     source: &str,
     position: SiblingPosition,
     runtime: &mut RuntimeNeeds,
+    interaction_context: bool,
 ) -> Result<Guard, String> {
     match condition {
-        Condition::Not(inner) => resolve(inner, node, source, position, runtime)
+        Condition::Not(inner) => resolve(inner, node, source, position, runtime, interaction_context)
             .map(Guard::negate)
             .map_err(|reason| format!("`not-{}:` cannot be resolved: {reason}", condition_suffix(inner).unwrap_or_default())),
         Condition::Disabled => node.props.disabled.as_ref()
@@ -38,6 +43,16 @@ pub(super) fn resolve(
         Condition::Enabled => Ok(node.props.disabled.as_ref().map_or(Guard::Known(true), |disabled| {
             Guard::Dynamic(format!("!({})", render_condition_expr(source, disabled)))
         })),
+        Condition::Focus | Condition::FocusVisible => {
+            if interaction_context || matches!(node.primitive, Primitive::Pressable | Primitive::Button) {
+                Ok(Guard::Interactive(focus_state(condition).unwrap().to_string()))
+            } else {
+                Err(format!(
+                    "`{}:` is wired only on Pressable and Button, or Text in their interaction context, on React Native; no readable focus state exists on this element.",
+                    condition_suffix(condition).unwrap_or_default()
+                ))
+            }
+        }
         Condition::Aria(state) => aria_state_guard(node, source, state)
             .map(|guard| Guard::Dynamic(format!("({guard})")))
             .ok_or_else(|| format!(

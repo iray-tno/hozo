@@ -1,7 +1,7 @@
 use super::*;
 
 fn compile(body: &str) -> LowerOutput {
-    let source = format!("import {{ View, Pressable }} from '@hozo/core'; const el = {body}");
+    let source = format!("import {{ View, Text, Pressable, Button }} from '@hozo/core'; const el = {body}");
     let parsed = hozo_parser::parse_tsx(&source);
     lower(&parsed.roots[0].node, &source, &Theme::default())
 }
@@ -64,6 +64,34 @@ fn negated_atom_composes_with_ambient_and_interactive_guards() {
 }
 
 #[test]
+fn negated_focus_owns_a_callback_and_enables_modality_without_positive_variants() {
+    for primitive in ["Pressable", "Button"] {
+        let out = compile(&format!(
+            r#"<{primitive} className="opacity-100 not-focus:opacity-50 not-focus-visible:p-4" />"#,
+        ));
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+        assert!(out.jsx.starts_with("<HozoPressable"), "{}", out.jsx);
+        assert!(out.jsx.contains("style={({ pressed, hovered, focused, focusVisible }) =>"), "{}", out.jsx);
+        assert!(out.jsx.contains("!(focused) &&"), "{}", out.jsx);
+        assert!(out.jsx.contains("!(focusVisible) &&"), "{}", out.jsx);
+        assert!(out.jsx.contains(" hozoFocusVisible"), "{}", out.jsx);
+        assert!(out.prelude.is_empty(), "{:?}", out.prelude);
+    }
+}
+
+#[test]
+fn negated_focus_reuses_transition_and_stacked_state_routing() {
+    let out = compile(
+        r#"<Pressable disabled={off} className="opacity-100 transition-opacity md:not-disabled:not-focus-visible:opacity-50" />"#,
+    );
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("__hozoBp_md && !((off)) && !(focusVisible) &&"), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoTransition="), "{}", out.jsx);
+    assert!(out.jsx.contains("opacity: true"), "{}", out.jsx);
+    assert!(out.jsx.contains(" hozoFocusVisible"), "{}", out.jsx);
+}
+
+#[test]
 fn unknown_and_unsupported_predicates_do_not_become_true_when_negated() {
     for body in [
         r#"<View className="not-first:p-4" />"#,
@@ -72,6 +100,9 @@ fn unknown_and_unsupported_predicates_do_not_become_true_when_negated() {
         r#"<View accessibilityState={{ busy: true }} className="not-aria-checked:p-4" />"#,
         r#"<View className="not-print:p-4" />"#,
         r#"<Pressable className="not-hover:p-4" />"#,
+        r#"<View className="not-focus:p-4" />"#,
+        r#"<Text className="not-focus-visible:p-4" />"#,
+        r#"<View className="md:not-focus-visible:p-4" />"#,
         r#"<View><Unknown /><View className="md:not-first:p-4" /></View>"#,
         r#"<View className="md:not-has-hover:p-4" />"#,
     ] {

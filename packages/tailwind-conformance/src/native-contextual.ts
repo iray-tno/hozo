@@ -15,6 +15,8 @@ export interface NativeContextualCase {
     | 'not-disabled'
     | 'not-aria-checked'
     | 'not-motion-reduce'
+    | 'not-focus'
+    | 'not-focus-visible'
   purpose: string
   className: string
   props?: string
@@ -27,6 +29,18 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'not-focus',
+    purpose: 'negated focus reuses the Pressable callback and opacity transition',
+    className: 'opacity-100 transition-opacity md:not-focus:opacity-50',
+    expected: ['HozoPressable', '__hozoBp_md && !(focused) &&', 'opacity: true'],
+  },
+  {
+    candidate: 'not-focus-visible',
+    purpose: 'negation alone enables modality inference using the same focus-visible state',
+    className: 'opacity-100 md:not-focus-visible:opacity-50',
+    expected: ['HozoPressable', '__hozoBp_md && !(focusVisible) &&', 'hozoFocusVisible'],
+  },
   {
     candidate: 'not-disabled',
     purpose: 'a negated prop predicate composes with a breakpoint and existing interaction state',

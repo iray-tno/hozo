@@ -831,14 +831,16 @@ pub(super) fn render_node(
         style_array_parts.push(format!("hozoClasses({})", source_text(source, *expr_ref)));
     }
 
-    let needs_focus_visible = own_declarations.iter().any(|declaration| {
+    // Text colours travel to a child, but the interaction owner must still
+    // collect focus events and infer modality for those inherited guards.
+    let needs_focus_visible = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
         condition_contains(&declaration.condition, |condition| {
-            matches!(condition, Condition::FocusVisible)
+            focus_state(condition) == Some("focusVisible")
         })
     });
-    let needs_hover_or_focus = own_declarations.iter().any(|declaration| {
+    let needs_hover_or_focus = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
         condition_contains(&declaration.condition, |condition| {
-            matches!(condition, Condition::Hover | Condition::Focus | Condition::FocusVisible)
+            matches!(condition, Condition::Hover) || focus_state(condition).is_some()
         })
     });
     // `@container`, which on Web is a property and here is a component:
