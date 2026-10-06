@@ -324,9 +324,7 @@ test('a frame declaration Native cannot read is named, not dropped in silence', 
   const native = createCompiler(theme).compileNative(source)[0]
   assert.ok(native)
   assert.ok(
-    native.diagnostics.some(({ message }) =>
-      message.includes('`animation-timing-function`'),
-    ),
+    native.diagnostics.some(({ message }) => message.includes('`animation-timing-function`')),
     JSON.stringify(native.diagnostics),
   )
   assert.ok(native.prelude.some((line) => line.includes('useHozoKeyframes(')))
