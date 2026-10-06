@@ -54,6 +54,7 @@
 mod candidate;
 mod conditions;
 mod grid;
+mod interaction;
 mod keyframes;
 mod markup;
 mod render;

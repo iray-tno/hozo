@@ -196,9 +196,7 @@ pub(super) fn wrap_in_text(
         // Text. Leaving this binding out breaks inherited focus-visible
         // colours, even if the parent correctly enabled modality tracking.
         let state = if text_declarations.iter().any(|declaration| {
-            condition_contains(&declaration.condition, |condition| {
-                focus_state(condition) == Some("focusVisible")
-            })
+            interaction::uses_focus_visible(&declaration.condition)
         }) {
             "{ pressed, hovered, focused, focusVisible }"
         } else {

@@ -2,7 +2,12 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { test } from 'node:test'
 
-import { renderNative, renderNativeWithLayouts, type Tree } from './native-render.ts'
+import {
+  renderNative,
+  renderNativeWithEvents,
+  renderNativeWithLayouts,
+  type Tree,
+} from './native-render.ts'
 
 const require = createRequire(import.meta.url)
 
@@ -386,6 +391,34 @@ test('focus-visible installs modality events only on an interaction that asks fo
   assert.equal(typeof tree?.props.onPointerDown, 'function')
   assert.equal(typeof tree?.props.onKeyDown, 'function')
   assert.equal(typeof tree?.props.style, 'function')
+})
+
+test('child Text focus-visible follows its owner through keyboard, pointer and blur events', () => {
+  for (const parent of ['', 'focus:opacity-50']) {
+    const snapshots = renderNativeWithEvents(
+      `import { Pressable, Text } from '@hozo/core'
+       export function Save() {
+         return <Pressable className="${parent}"><Text className="focus-visible:opacity-50 not-focus-visible:opacity-100">Save</Text></Pressable>
+       }`,
+      'Save',
+      ['onFocus', 'onPointerDown', 'onKeyDown', 'onBlur'],
+    )
+    const flatten = require('react-native').StyleSheet.flatten as (style: unknown) => {
+      opacity?: number
+    }
+    assert.deepEqual(
+      snapshots.map((tree) => {
+        const style = children(tree)[0].props.style
+        // The stub's flatten is shallow; Animated.Text wraps the compiled
+        // style array once more. RN itself flattens these nested arrays.
+        return flatten(Array.isArray(style) ? style.flat(Infinity) : style).opacity
+      }),
+      [1, 0.5, 1, 0.5, 1],
+    )
+    for (const tree of snapshots) {
+      assert.equal(children(tree)[0].props.hozoFocusVisible, undefined)
+    }
+  }
 })
 
 test('a compiled list says where each cell sits, and deliberately not how long it is', () => {

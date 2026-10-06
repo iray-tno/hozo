@@ -842,18 +842,17 @@ pub(super) fn render_node(
         style_array_parts.push(format!("hozoClasses({})", source_text(source, *expr_ref)));
     }
 
-    // Text colours travel to a child, but the interaction owner must still
-    // collect focus events and infer modality for those inherited guards.
+    // The owner collects events for both inherited styles and child-authored
+    // styles. A Text reads context; putting modality handlers on it does not
+    // update the state its callback consumes.
     let needs_focus_visible = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
-        condition_contains(&declaration.condition, |condition| {
-            focus_state(condition) == Some("focusVisible")
-        })
-    });
+        interaction::uses_focus_visible(&declaration.condition)
+    }) || (component == "Pressable" && interaction::descendant_uses(node, interaction::uses_focus_visible));
     let needs_hover_or_focus = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
         condition_contains(&declaration.condition, |condition| {
             matches!(condition, Condition::Hover) || focus_state(condition).is_some()
         })
-    });
+    }) || (component == "Pressable" && interaction::descendant_uses(node, interaction::uses_interaction));
     // `@container`, which on Web is a property and here is a component:
     // an element has to measure itself before anything below it can query
     // its width.
@@ -1082,7 +1081,7 @@ pub(super) fn render_node(
     if let Some(ratio) = relative_at_runtime {
         props_text.push_str(&format!(" hozoRelative={{{ratio}}}"));
     }
-    if needs_focus_visible {
+    if needs_focus_visible && rendered_component == "HozoPressable" {
         props_text.push_str(" hozoFocusVisible");
     }
     // Skipping the ones the author already wrote.

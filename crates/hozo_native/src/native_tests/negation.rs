@@ -117,3 +117,28 @@ fn unknown_and_unsupported_predicates_do_not_become_true_when_negated() {
         assert!(!out.jsx.contains("_not"), "{body}: {}", out.jsx);
     }
 }
+
+#[test]
+fn descendant_focus_visible_enables_only_the_nearest_owner() {
+    for parent in ["", "focus:opacity-50"] {
+        for variant in ["focus-visible", "not-focus-visible", "group-focus-visible"] {
+            let out = compile(&format!(
+                r#"<Pressable className="{parent}"><View>{{ready && <Text className="{variant}:text-red-500">Label</Text>}}</View></Pressable>"#,
+            ));
+            assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+            assert!(out.jsx.starts_with("<HozoPressable"), "{}", out.jsx);
+            assert_eq!(out.jsx.matches(" hozoFocusVisible").count(), 1, "{}", out.jsx);
+            assert!(out.jsx.contains("<HozoText style={({ pressed, hovered, focused, focusVisible }) =>"), "{}", out.jsx);
+            assert!(out.jsx.split("<HozoText").next().unwrap().contains("hozoFocusVisible"), "{}", out.jsx);
+        }
+    }
+
+    let out = compile(r#"<Pressable><Button><Text className="not-focus-visible:text-red-500">Inner</Text></Button></Pressable>"#);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<Pressable>"), "{}", out.jsx);
+    assert_eq!(out.jsx.matches(" hozoFocusVisible").count(), 1, "{}", out.jsx);
+
+    let out = compile(r#"<Pressable><Unknown /></Pressable>"#);
+    assert!(out.jsx.starts_with("<Pressable>"), "{}", out.jsx);
+    assert!(!out.jsx.contains("hozoFocusVisible"), "{}", out.jsx);
+}

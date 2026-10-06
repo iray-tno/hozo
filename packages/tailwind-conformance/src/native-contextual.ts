@@ -17,9 +17,13 @@ export interface NativeContextualCase {
     | 'not-motion-reduce'
     | 'not-focus'
     | 'not-focus-visible'
+    | 'descendant-focus-visible'
+    | 'descendant-not-focus-visible'
+    | 'group-focus-visible'
   purpose: string
   className: string
   props?: string
+  children?: string
   expected: string[]
 }
 
@@ -29,6 +33,35 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'descendant-focus-visible',
+    purpose: 'child-authored state enables modality tracking on an otherwise plain owner',
+    className: '',
+    children: '<Text className="focus-visible:opacity-50">x</Text>',
+    expected: [
+      'HozoPressable',
+      'hozoFocusVisible',
+      'HozoText style={({ pressed, hovered, focused, focusVisible }) =>',
+    ],
+  },
+  {
+    candidate: 'descendant-not-focus-visible',
+    purpose: 'a focus-only parent also tracks modality for its negated child predicate',
+    className: 'focus:opacity-50',
+    children: '<Text className="not-focus-visible:opacity-50">x</Text>',
+    expected: ['HozoPressable', 'hozoFocusVisible', '!(focusVisible) &&'],
+  },
+  {
+    candidate: 'group-focus-visible',
+    purpose: 'the existing group context binds the focus-visible value it reads',
+    className: '',
+    children: '<Text className="group-focus-visible:opacity-50">x</Text>',
+    expected: [
+      'HozoPressable',
+      'hozoFocusVisible',
+      'HozoText style={({ pressed, hovered, focused, focusVisible }) =>',
+    ],
+  },
   {
     candidate: 'not-focus',
     purpose: 'negated focus reuses the Pressable callback and opacity transition',
@@ -91,9 +124,9 @@ export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
 
 export function compareNativeContextual(testCase: NativeContextualCase): NativeContextualResult {
   const source =
-    `import { Pressable } from '@hozo/core'\n` +
+    `import { Pressable, Text } from '@hozo/core'\n` +
     `export function C() {\n` +
-    `  return <Pressable accessibilityRole="button" ${testCase.props ?? ''} className="${testCase.className}">x</Pressable>\n` +
+    `  return <Pressable accessibilityRole="button" ${testCase.props ?? ''} className="${testCase.className}">${testCase.children ?? 'x'}</Pressable>\n` +
     `}\n`
   const [result] = compileNative(source)
   if (!result) return { ...testCase, verdict: 'SILENT', detail: 'no component compiled' }
