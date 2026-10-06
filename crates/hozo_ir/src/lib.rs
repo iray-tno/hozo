@@ -2748,15 +2748,10 @@ impl StyleProperty {
             StyleProperty::Position(Position::Css(value)) => Some(format!(
                 "`position: {value}`: React Native's position is relative or absolute"
             )),
-            StyleProperty::RotateNone
-            | StyleProperty::ScaleNone
-            | StyleProperty::TranslateNone
-            | StyleProperty::TransformNone
-            | StyleProperty::TransformEmpty
-            | StyleProperty::TransformGpu => Some(
-                "`rotate-none`/`scale-none`/`translate-none`/`transform-none`: React Native builds 
-                 one transform array, so there is no property to switch off -- omit the transform 
-                 instead"
+            StyleProperty::TransformGpu => Some(
+                "`transform-gpu` requests browser GPU compositing. React Native's transform \
+                 array cannot force a hardware compositing layer; use ordinary transforms \
+                 rather than assuming this hint controls the Native renderer"
                     .to_string(),
             ),
             StyleProperty::Flex(FlexShorthand::Fraction(n, d)) => Some(format!(

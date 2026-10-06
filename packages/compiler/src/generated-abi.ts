@@ -35,6 +35,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoTextSize: '@hozo/core/generated/text-size',
   HozoTouchableOpacity: '@hozo/rn-compat/generated/touchable-opacity',
   HozoTouchableWithoutFeedback: '@hozo/rn-compat/generated/touchable-without-feedback',
+  hozoTransformStyles: '@hozo/core/generated/transform-slots',
   HozoView: '@hozo/core/generated/view',
   useHozoAnimation: '@hozo/core/generated/animation',
   useHozoBreakpoint: '@hozo/core/generated/environment',

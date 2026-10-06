@@ -774,6 +774,7 @@ pub(super) fn render_node(
 
     let mut frames = crate::conditions::AnimatedFrames::default();
     let animates = component == "HozoAnimated";
+    let transform_entry_start = style_entries.len();
     build_style_entries(
         &own_declarations,
         &base_name,
@@ -789,8 +790,22 @@ pub(super) fn render_node(
         theme,
         animates.then_some(&mut frames),
     );
+    let transform_specs = if own_declarations.iter().any(|d| crate::transforms::is_control(&d.property))
+        && own_declarations.iter().any(|d| d.condition != Condition::Always)
+    {
+        crate::transforms::specs(&style_entries[transform_entry_start..], theme)
+    } else {
+        String::new()
+    };
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
+    if own_declarations.iter().any(|d| crate::transforms::is_control(&d.property))
+        && (!starting_parts.is_empty() || !exit_parts.is_empty())
+    {
+        diagnostics.push(unwired_variant(node,
+            "Transform resets with starting/exit animation frames are not wired on Native yet. Use explicit transform values for these animation endpoints.",
+            Severity::Error));
+    }
     // What `HozoAnimated` can start from is what it can interpolate. A
     // `starting:w-0` is `@starting-style` on Web and animates there; here
     // the width would be applied as the first frame and then jump, which is
@@ -1006,6 +1021,13 @@ pub(super) fn render_node(
         })
         .collect();
     style_array_parts.extend(authored_style);
+
+    if !transform_specs.is_empty() {
+        runtime.need_component("hozoTransformStyles");
+        style_array_parts = vec![format!(
+            "hozoTransformStyles([{}], [{}])", style_array_parts.join(", "), transform_specs
+        )];
+    }
 
     if needs_pressed_fn {
         let state = if needs_focus_visible {

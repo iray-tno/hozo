@@ -91,6 +91,54 @@ fn transforms_compose_into_rn_single_transform_array() {
 }
 
 #[test]
+fn transform_resets_preserve_other_css_transform_properties() {
+    for (classes, expected) in [
+        ("translate-x-2 rotate-45 scale-95 rotate-none", "[{ translateX: 8 }, { scale: 0.95 }]"),
+        ("translate-x-2 rotate-45 scale-95 scale-none", "[{ translateX: 8 }, { rotate: '45deg' }]"),
+        ("translate-x-2 rotate-45 scale-95 translate-none", "[{ rotate: '45deg' }, { scale: 0.95 }]"),
+        ("translate-x-2 rotate-45 scale-95 rotate-x-30 transform-none", "[{ translateX: 8 }, { rotate: '45deg' }, { scale: 0.95 }]"),
+        ("rotate-none rotate-45", "[{ rotate: '45deg' }]"),
+        ("translate-y-3 translate-none translate-x-2", "[{ translateX: 8 }, { translateY: 12 }]"),
+        ("scale-y-75 scale-none scale-x-50", "[{ scaleX: 0.5 }, { scaleY: 0.75 }]"),
+        ("rotate-x-30 transform-none transform-cpu", "[{ rotateX: '30deg' }]"),
+        ("rotate-x-30 transform-none skew-x-3", "[{ rotateX: '30deg' }, { skewX: '3deg' }]"),
+        ("rotate-none scale-none translate-none transform-none", "[]"),
+        ("transform", "[]"),
+    ] {
+        let source = format!("import {{ View }} from '@hozo/core'; const e = <View className=\"{classes}\" />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{classes}: {:?}", output.diagnostics);
+        assert!(output.styles.contains(&format!("transform: {expected},")), "{classes}: {}", output.styles);
+        assert!(!output.runtime_imports.contains(&"hozoTransformStyles"), "static resets need no runtime");
+    }
+}
+
+#[test]
+fn conditional_transform_resets_carry_slots_and_use_existing_guards() {
+    let source = "import { Pressable } from '@hozo/core'; function C() { return <Pressable accessibilityRole=\"button\" className=\"translate-x-2 rotate-45 scale-95 md:rotate-none hover:scale-none pressed:translate-none\" /> }";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.runtime_imports.contains(&"hozoTransformStyles"));
+    assert!(output.jsx.contains("hozoTransformStyles(["), "{}", output.jsx);
+    for expected in ["__hozoBp_md &&", "hovered &&", "pressed &&", "rotate: []", "scale: 'none'", "translate: 'none'"] {
+        assert!(output.jsx.contains(expected), "{expected}: {}", output.jsx);
+    }
+    assert_eq!(output.prelude.len(), 1, "only the existing breakpoint hook is needed");
+}
+
+#[test]
+fn transform_gpu_and_reset_animation_frames_remain_explicitly_diagnostic() {
+    for classes in ["transform-gpu", "transition rotate-45 starting:rotate-none"] {
+        let source = format!("import {{ View }} from '@hozo/core'; function C() {{ return <View className=\"{classes}\" /> }}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.iter().any(|d| d.severity == Severity::Error), "{classes}: {:?}", output.diagnostics);
+    }
+}
+
+#[test]
 fn shadow_and_filter_carry_across_as_strings() {
     let source = r#"
             import { View } from '@hozo/core'

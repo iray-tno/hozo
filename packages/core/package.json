@@ -128,6 +128,10 @@
       "types": "./dist/generated/text-size.d.ts",
       "default": "./dist/generated/text-size.js"
     },
+    "./generated/transform-slots": {
+      "types": "./dist/generated/transform-slots.d.ts",
+      "default": "./dist/generated/transform-slots.js"
+    },
     "./generated/view": {
       "types": "./dist/generated/view.d.ts",
       "default": "./dist/generated/view.js"

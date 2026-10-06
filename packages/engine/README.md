@@ -13,6 +13,17 @@ platform adapter, because Hozo does not add a native module to every application
 
 **Contextual variants.** `dark:`, `sm:`/`md:`/`lg:`, and viewport-relative sizes are media queries on Web and subscriptions on Native. `useHozoDark`, `useHozoBreakpoint` and `useHozoViewport` are separate stores on purpose: a component using only `md:` must not re-render on every resize that does not cross a breakpoint.
 
+**Native transform controls.** `rotate-none`, `scale-none`, `translate-none`, and
+`transform-none` reset their own CSS transform property, not every transform.
+For example, `rotate-45 scale-95 md:rotate-none` keeps its scale when the rotation
+is reset. `transform`/`transform-cpu` restore the function-slot chain; they do not
+switch Native rendering to a CPU backend. Unconditional controls compile into
+plain StyleSheet values. Conditional controls and dynamic class strings use one
+small slot composer, without extra state or subscriptions; dynamic results stay
+cached by class string. `transform-gpu` still reports a diagnostic because a
+browser compositing hint cannot force a Native hardware layer. Transform controls
+combined with `starting:`/exit animation frames remain explicitly unwired.
+
 **Interaction state infrastructure.** The canonical `HozoPressable` in `@hozo/primitives` tracks
 pressed, hovered, focused and focus-visible state using the shared helpers owned here. Focus-visible
 follows the input modality, so a tap does not draw a focus ring and a Tab key does.

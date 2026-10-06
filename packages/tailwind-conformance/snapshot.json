@@ -62,6 +62,12 @@
     "silent": 0,
     "noOp": 1
   },
+  "nativeContextual": {
+    "cases": 8,
+    "covered": 8,
+    "refused": 0,
+    "silent": 0
+  },
   "a11yContracts": {
     "cases": 33,
     "covered": 33,
@@ -100,15 +106,15 @@
     "inOrder": 20310
   },
   "refusalAudit": {
-    "refusals": 10404,
-    "checkable": 10070,
-    "confirmed": 10038,
+    "refusals": 10398,
+    "checkable": 10064,
+    "confirmed": 10035,
     "partial": 28,
-    "suspect": 4,
+    "suspect": 1,
     "uncheckable": 334
   },
   "nativeTypes": {
-    "entries": 19106,
+    "entries": 19118,
     "rejected": 0
   },
   "render": {
