@@ -6,10 +6,9 @@ export interface HeroProps {
 
 export function Hero({ baseUrl = '' }: HeroProps) {
   const cleanBase = baseUrl.replace(/\/$/, '')
-  const storybookUrl = `${cleanBase}/storybook/`
 
   return (
-    <Section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+    <Section className="relative pt-24 pb-12 sm:pt-32 sm:pb-20 md:pt-40 md:pb-28 overflow-hidden">
       {/* Timber & plaster architectural ambient lighting */}
       <View className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[360px] bg-glow-hinoki rounded-full blur-[140px] pointer-events-none -z-10" />
       <View className="absolute top-1/3 left-1/3 w-[420px] h-[320px] bg-glow-bengara rounded-full blur-[120px] pointer-events-none -z-10" />
@@ -27,7 +26,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           {/* Main Headline */}
           <Heading
             level={1}
-            className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-shikkui mb-6 leading-[1.12]"
+            className="text-3xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-shikkui mb-6 leading-[1.12]"
           >
             {/* The product's name in the page's one <h1>, for search engines
                 and screen readers, without changing the headline anyone sees:
@@ -39,11 +38,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           </Heading>
 
           {/* Subtitle */}
-          <View className="max-w-3xl mx-auto mb-10 text-center flex flex-col gap-3">
-            <Paragraph className="text-lg sm:text-xl text-shikkui-muted leading-relaxed">
-              Hozo fits your React Native source to each platform’s native strengths—semantic HTML
-              and CSS on the Web, React Native primitives on iOS and Android, with first-class
-              accessibility.
+          <View className="max-w-3xl mx-auto mb-6 sm:mb-10 text-center flex flex-col gap-3">
+            <Paragraph className="text-base sm:text-xl text-shikkui-muted leading-relaxed">
+              Compile React Native components and styles to semantic HTML and CSS on the Web, and
+              native primitives on iOS and Android.
             </Paragraph>
             <Paragraph className="text-base sm:text-lg text-hinoki font-medium leading-relaxed">
               Static paths compile away. Only truly dynamic behavior remains at runtime.
@@ -62,10 +60,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               </span>
             </Link>
             <Link
-              href={storybookUrl}
+              href="#try-hozo"
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
-              <span>Explore Storybook</span>
+              <span>Try the showcase</span>
             </Link>
             <Link
               href={`${cleanBase}/conformance/`}
@@ -76,13 +74,19 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           </View>
 
           {/* Quick Command Snippet */}
-          <View className="inline-flex flex-row items-center gap-3 px-4 py-2.5 rounded-xl bg-yakisugi-950 border border-wood text-xs text-shikkui-muted shadow-2xl backdrop-blur-md">
-            <Text className="text-hinoki font-bold select-none">$</Text>
-            <Text className="text-shikkui font-medium">
-              pnpm add @hozo/core -D @hozo/vite @hozo/compiler
-            </Text>
-            <Text className="text-stone-600">|</Text>
-            <Text className="text-stone-400">Zero config fallback</Text>
+          <View
+            nativeID="quick-install"
+            className="w-full max-w-xl min-w-0 p-4 rounded-xl bg-yakisugi-950 border border-wood text-xs text-shikkui-muted shadow-2xl text-left"
+          >
+            <pre className="whitespace-pre-wrap break-words text-shikkui">
+              <code>{'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'}</code>
+            </pre>
+            <Link
+              href="https://github.com/iray-tno/hozo#getting-started"
+              className="inline-flex mt-3 text-hinoki-light underline hover:text-shikkui"
+            >
+              Vite setup &amp; other integrations &rarr;
+            </Link>
           </View>
 
           {/* Key Metrics & Badges */}

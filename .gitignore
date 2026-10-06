@@ -9,6 +9,7 @@ dist-ssr/
 # with the `build` script running beside it (#322).
 .output-check/
 dist-check/
+dist-showcase-test/
 storybook-static-check/
 storybook-static/
 # Screen reader runs: phrase logs and recordings are CI artifacts, never committed.

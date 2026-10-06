@@ -118,18 +118,20 @@ export function CanvasWorkbench() {
     let animId: number
     let isVisible = true
 
-    const observer = new IntersectionObserver(([entry]) => {
-      isVisible = entry.isIntersecting
-    })
-    if (containerRef.current) observer.observe(containerRef.current)
-
     let step = 0
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    function render() {
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting
+    })
+    if (containerRef.current) observer.observe(containerRef.current)
+
+    // Capture the checked context after initialization, rather than in a
+    // hoisted declaration where TypeScript cannot retain the null narrowing.
+    const render = () => {
       if (!isVisible || (!isPlaying && !reducedMotion)) {
         animId = requestAnimationFrame(render)
         return

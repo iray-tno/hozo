@@ -54,8 +54,8 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 Three.js & 3D Spatial
               </Heading>
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Unified WebGL, WebGPU, and Native GPU pipeline. Features the interactive Kumimono
-                timber joinery proof with bounded shaders and demand rendering.
+                Three.js scenes on WebGL and WebGPU, with a bounded Native GPU path. Try the
+                Kumimono timber joinery proof with bounded shaders and demand rendering.
               </Paragraph>
             </View>
             <View className="pt-4 border-t border-wood-subtle flex flex-row items-center justify-between text-xs font-semibold text-hinoki">
@@ -83,8 +83,8 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 Declarative 2D Canvas
               </Heading>
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                High-frequency charts, particle fields, and heatmaps on a single GPU surface.
-                Compiles to HTML5 Canvas on Web and React Native Skia on Mobile.
+                Charts, particle fields, and heatmaps on a single drawing surface. Compiles to HTML5
+                Canvas on Web and React Native Skia on Mobile.
               </Paragraph>
             </View>
             <View className="pt-4 border-t border-wood-subtle flex flex-row items-center justify-between text-xs font-semibold text-tatami-light">
