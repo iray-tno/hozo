@@ -74,6 +74,11 @@ const NOT_ON_THE_SCREEN = new Map([
   ],
   ['HozoFlatList', 'The same component under its other published name.'],
   [
+    'Skeleton',
+    'Hidden from assistive technology by design, so the census -- which reads the ' +
+      'accessibility tree -- would only ever report it absent. Covered by the backends’ tests.',
+  ],
+  [
     'HozoI18nProvider',
     'Renders nothing of its own: it puts a project’s i18n in context for the ' +
       'components below it (decision 008). Covered by the i18n tests in `@hozo/behaviors`.',

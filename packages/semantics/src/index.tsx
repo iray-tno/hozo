@@ -299,6 +299,33 @@ export function Badge({ count, max, className, style, children, ...props }: Badg
   )
 }
 
+export interface SkeletonProps extends SemanticsUniversalProps {
+  children?: ReactNode
+}
+
+/**
+ * A loading placeholder.
+ *
+ * Hidden from assistive technology, because a grey box has nothing to say;
+ * the region being loaded is what says so, with `aria-busy`. Marked with
+ * `data-hozo-skeleton`, so the compiler's base CSS stops any animation on it
+ * or inside it under reduced motion -- whatever class started it
+ * (decision 007, section 5). The look, pulse included, is the caller's.
+ */
+export function Skeleton({ className, style, children, ...props }: SkeletonProps) {
+  return (
+    <div
+      className={className}
+      style={style}
+      {...domProps(props)}
+      aria-hidden={true}
+      data-hozo-skeleton=""
+    >
+      {children}
+    </div>
+  )
+}
+
 export interface MeterProps extends SemanticsUniversalProps {
   /** Where in the range the amount is. */
   value: number

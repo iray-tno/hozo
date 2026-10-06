@@ -49,6 +49,7 @@ import {
   Popover,
   RadioGroup,
   SegmentedControl,
+  Skeleton,
   Slider,
   Stack,
   Switch,
@@ -312,6 +313,11 @@ function UiGallery() {
           <Badge>Draft</Badge>
           <Badge tone="accent">New</Badge>
           <Badge tone="danger">Overdue</Badge>
+          <Badge tone="accent" count={3} accessibilityLabel="3 unread messages" />
+        </Stack>
+        <Stack direction="row" gap="tight" align="center">
+          <Skeleton className="size-10 rounded-full" />
+          <Skeleton className="h-4 w-48" />
         </Stack>
         <Alert tone="danger" live="assertive">
           Your session expires in two minutes.

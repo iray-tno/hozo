@@ -830,3 +830,25 @@ fn a_badge_is_hozo_badge_and_keeps_its_text_styles() {
     assert!(!output.styles.contains("_text"), "{}", output.styles);
     assert!(output.styles.contains("color: '#fff'"), "{}", output.styles);
 }
+
+#[test]
+fn a_skeleton_is_hidden_and_animates_only_when_motion_is_allowed() {
+    // Decision 007, section 5: whatever animation a class puts on a
+    // skeleton runs only when motion is allowed -- `animate-pulse` here is
+    // `motion-safe:animate-pulse` -- and an author who wrote `motion-safe:`
+    // is not guarded twice.
+    for (class_name, guard) in [
+        ("h-4 animate-pulse", "__hozoEnv_motion_safe && __hozoAnim_pulse"),
+        ("h-4 md:animate-pulse", "__hozoEnv_motion_safe && __hozoBp_md && __hozoAnim_pulse"),
+        ("h-4 motion-safe:animate-pulse", "[hozoStyles.hozo0, __hozoEnv_motion_safe && __hozoAnim_pulse]"),
+    ] {
+        let source = format!(
+            "import {{ Skeleton }} from '@hozo/core'\nconst el = <Skeleton className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{class_name}: {:?}", output.diagnostics);
+        assert!(output.jsx.contains(guard), "{class_name}: {}", output.jsx);
+        assert!(output.jsx.contains(" aria-hidden"), "{class_name}: {}", output.jsx);
+    }
+}

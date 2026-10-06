@@ -83,6 +83,7 @@ const SNIPPETS = {
   Progress: '<Progress value={40} max={100} accessibilityLabel="Upload" />',
   Meter: '<Meter value={0.6} accessibilityLabel="Disk usage" />',
   Badge: '<Badge count={3} accessibilityLabel="3 unread messages" />',
+  Skeleton: '<Skeleton className="h-4 w-32 animate-pulse" />',
   RefreshControl: '<RefreshControl refreshing={busy} onRefresh={reload} />',
   Ruby: '<Ruby>x<RubyText>y</RubyText></Ruby>',
   RubyText: '<RubyText>x</RubyText>',

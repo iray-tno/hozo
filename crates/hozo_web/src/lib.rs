@@ -149,6 +149,14 @@ const DISABLED_BASE_CSS: &str = "@media (forced-colors: active) {\n  \
 ///
 /// Copied from Tailwind's output rather than reasoned about, including
 /// the shape of the feature test, which is not something to re-derive.
+/// A skeleton's animation stops under reduced motion, whatever started it:
+/// `animate-pulse`, a theme animation, or a dynamic class the compiler never
+/// saw (decision 007, section 5). On the element and inside it, so a
+/// pulsing layer a look puts within it stops too. `!important`, because the
+/// rule that started it is a class written after this one.
+const SKELETON_BASE_CSS: &str = "@media (prefers-reduced-motion: reduce) {\n  \
+     [data-hozo-skeleton],\n  [data-hozo-skeleton] * {\n    animation: none !important;\n  }\n}\n\n";
+
 const CONTENT_BASE_CSS: &str = "@property --hozo-content {
       syntax: \"*\";
       inherits: false;
@@ -237,6 +245,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     }
     if uses_generated_content(root) {
         css.push_str(CONTENT_BASE_CSS);
+    }
+    if contains_primitive(root, Primitive::Skeleton) {
+        css.push_str(SKELETON_BASE_CSS);
     }
     // An `animation` declaration is inert without its `@keyframes`, and
     // those are document-level rather than per-node -- so they're collected
@@ -2864,6 +2875,25 @@ const el = {element}"
             assert_eq!(output.jsx, expected, "{element}");
         }
     }
+    #[test]
+    fn a_skeleton_is_hidden_and_its_animation_stops_under_reduced_motion() {
+        let source = "import { Skeleton } from '@hozo/core'
+const el = <Skeleton className=\"h-4 animate-pulse\" />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.contains("aria-hidden={true} data-hozo-skeleton=\"\""), "{}", output.jsx);
+        assert!(output.css.contains("[data-hozo-skeleton] * {"), "{}", output.css);
+        assert!(output.css.contains("animation: none !important;"), "{}", output.css);
+        // Only where there is a skeleton.
+        let plain = "import { View } from '@hozo/core'
+const el = <View className=\"animate-pulse\" />
+";
+        let parsed = hozo_parser::parse_tsx(plain);
+        assert!(!lower(&parsed.roots[0].node, plain, &Theme::default()).css.contains("data-hozo-skeleton"));
+    }
+
     #[test]
     fn a_badge_is_hozo_badge_with_its_classes_compiled() {
         let source = "import { Badge } from '@hozo/core'

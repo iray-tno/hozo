@@ -737,6 +737,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Progress" => Some(Primitive::Progress),
         "Meter" => Some(Primitive::Meter),
         "Badge" => Some(Primitive::Badge),
+        "Skeleton" => Some(Primitive::Skeleton),
         "Strong" => Some(Primitive::Strong),
         "Emphasis" => Some(Primitive::Emphasis),
         "Underline" => Some(Primitive::Underline),
