@@ -155,6 +155,9 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // a platform role yet -- so the amount travels in `accessibilityValue`
         // (below), which is what a reader announces either way.
         Primitive::Meter => ("View", vec![("role", "meter".to_string())]),
+        // A `Text` underneath, which takes an `accessibilityLabel` here as
+        // it cannot on the Web; see `@hozo/semantics`' `Badge`.
+        Primitive::Badge => ("HozoBadge", Vec::new()),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),
         Primitive::ActivityIndicator => ("ActivityIndicator", Vec::new()),

@@ -255,6 +255,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::Dialog) {
         runtime_imports.push("HozoDialog");
     }
+    if contains_primitive(root, Primitive::Badge) {
+        runtime_imports.push("HozoBadge");
+    }
     if contains_primitive(root, Primitive::ActivityIndicator) {
         runtime_imports.push("HozoActivityIndicator");
     }
@@ -2861,6 +2864,19 @@ const el = {element}"
             assert_eq!(output.jsx, expected, "{element}");
         }
     }
+    #[test]
+    fn a_badge_is_hozo_badge_with_its_classes_compiled() {
+        let source = "import { Badge } from '@hozo/core'
+const el = <Badge count={n} accessibilityLabel=\"3 unread\" className=\"rounded-full\" />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<HozoBadge className=\"hozo-0\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoBadge"), "{:?}", output.runtime_imports);
+        assert!(output.css.contains("border-radius"), "{}", output.css);
+    }
+
     #[test]
     fn a_meter_is_the_meter_element_with_its_range_as_written() {
         let source = "import { Meter } from '@hozo/core'

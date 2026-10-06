@@ -70,6 +70,7 @@ import {
   Address,
   Article,
   Aside,
+  Badge,
   Button,
   Code,
   Del,
@@ -270,6 +271,7 @@ export default function Gallery() {
           testID="gallery-ProgressSized"
         />
         <Meter value={0.6} accessibilityLabel="Disk usage" testID="gallery-Meter" />
+        <Badge count={3} accessibilityLabel="3 unread messages" testID="gallery-Badge" />
 
         <Button accessibilityLabel="A button" testID="gallery-Button">
           Button

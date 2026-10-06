@@ -1,12 +1,14 @@
 /**
  * A badge and an alert: a word with a colour, and a sentence with a role.
  *
- * `Badge` is entirely a look and belongs here for that reason. It is a
- * `<span>` with no role, because a coloured word is decoration around text
- * that says the same thing -- a badge reading "Draft" beside a title a reader
- * has already heard adds nothing, and a badge whose colour is the only thing
- * saying "error" is a badge a colour-blind reader cannot read either. The
- * word carries the meaning; the colour repeats it.
+ * `Badge` is a look over `@hozo/semantics`' `Badge`, which owns what it
+ * means. A word badge is a `<span>` with no role, because a coloured word is
+ * decoration around text that says the same thing -- a badge reading "Draft"
+ * beside a title a reader has already heard adds nothing, and a badge whose
+ * colour is the only thing saying "error" is a badge a colour-blind reader
+ * cannot read either. The word carries the meaning; the colour repeats it. A
+ * `count` badge is the other case, and the semantic one handles it: the digit
+ * is drawn and its `accessibilityLabel` ("3 unread messages") is what is read.
  *
  * `Alert` is the one line of semantics in this package, and it is a role
  * rather than behaviour: `role="status"` for something that appeared,
@@ -20,12 +22,19 @@
  * without `live`, and can say so.
  */
 
+import { Badge } from '@hozo/core'
 import type { ReactNode } from 'react'
 
 export type HozoStatusTone = 'neutral' | 'accent' | 'danger'
 
 export interface HozoBadgeProps {
   children?: ReactNode
+  /** A number to show instead of `children`; see `accessibilityLabel`. */
+  count?: number
+  /** Above this, the badge shows `99+`. */
+  max?: number
+  /** What a count is read as -- "3 unread messages". */
+  accessibilityLabel?: string
   tone?: HozoStatusTone
   className?: string
 }
@@ -59,9 +68,28 @@ const alertAccent =
 const alertDanger =
   'rounded-hozo-surface border px-4 py-3 text-sm border-hozo-danger bg-hozo-danger-subtle text-hozo-danger-text'
 
-export function HozoBadge({ children, tone = 'neutral', className }: HozoBadgeProps) {
+// Not named `HozoBadge` here: compiled output imports a runtime component
+// under that name for the `<Badge>` below (#670), so the local binding takes
+// another and the export restores the public name.
+function StyledBadge({
+  children,
+  count,
+  max,
+  accessibilityLabel,
+  tone = 'neutral',
+  className,
+}: HozoBadgeProps) {
   const own = tone === 'accent' ? badgeAccent : tone === 'danger' ? badgeDanger : badgeNeutral
-  return <span className={className ? `${own} ${className}` : own}>{children}</span>
+  return (
+    <Badge
+      count={count}
+      max={max}
+      accessibilityLabel={accessibilityLabel}
+      className={className ? `${own} ${className}` : own}
+    >
+      {children}
+    </Badge>
+  )
 }
 
 export function HozoAlert({ children, tone = 'neutral', live = false, className }: HozoAlertProps) {
@@ -83,7 +111,8 @@ export function HozoAlert({ children, tone = 'neutral', live = false, className 
 export {
   HozoAlert as Alert,
   type HozoAlertProps as AlertProps,
-  HozoBadge as Badge,
   type HozoBadgeProps as BadgeProps,
   type HozoStatusTone as StatusTone,
+  StyledBadge as Badge,
+  StyledBadge as HozoBadge,
 }

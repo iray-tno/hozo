@@ -736,6 +736,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Separator" => Some(Primitive::Separator),
         "Progress" => Some(Primitive::Progress),
         "Meter" => Some(Primitive::Meter),
+        "Badge" => Some(Primitive::Badge),
         "Strong" => Some(Primitive::Strong),
         "Emphasis" => Some(Primitive::Emphasis),
         "Underline" => Some(Primitive::Underline),
@@ -1501,6 +1502,7 @@ fn validate_semantic_children(
             Primitive::Paragraph | Primitive::Heading => matches!(
                 child.primitive,
                 Primitive::Text
+                    | Primitive::Badge
                     | Primitive::Link
                     | Primitive::Button
                     | Primitive::TextInput

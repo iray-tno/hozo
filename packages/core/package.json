@@ -44,6 +44,10 @@
       "types": "./dist/generated/backdrop-filter.d.ts",
       "default": "./dist/generated/backdrop-filter.js"
     },
+    "./generated/badge": {
+      "types": "./dist/generated/badge.d.ts",
+      "default": "./dist/generated/badge.js"
+    },
     "./generated/class-resolver": {
       "types": "./dist/generated/class-resolver.d.ts",
       "default": "./dist/generated/class-resolver.js"

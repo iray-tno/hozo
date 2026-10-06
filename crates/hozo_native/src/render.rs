@@ -381,7 +381,7 @@ pub(super) fn render_node(
     let relative_at_runtime = if parent_size_opaque { size_ratio(node, theme) } else { None };
     let opaque_here = size_is_opaque(node);
     let publishes_size =
-        opaque_here && component == "Text" && has_relative_descendant(node, theme);
+        opaque_here && renders_text(component) && has_relative_descendant(node, theme);
     // The size a relative one scales against, per condition.
     //
     // `parent_font_size` before `inherited`, which is the other way round
@@ -647,7 +647,7 @@ pub(super) fn render_node(
     // that a default could only ever be about type. Widening it changes
     // nothing above -- each of those arms matches a primitive that lowers
     // to `Text` anyway -- and it is what makes a rule one pixel tall.
-    let style: Vec<StyleDeclaration> = if component == "Text" {
+    let style: Vec<StyleDeclaration> = if renders_text(component) {
         inherited.iter().cloned().chain(semantic_defaults).chain(style).collect()
     } else {
         semantic_defaults.into_iter().chain(style).collect()
@@ -687,7 +687,7 @@ pub(super) fn render_node(
     // them: React Native's View has no `fontSize`, so leaving them here
     // would be a style that renders nothing while the same source renders
     // correctly on Web.
-    let (text_declarations, own_declarations): (Vec<_>, Vec<_>) = if component == "Text" {
+    let (text_declarations, own_declarations): (Vec<_>, Vec<_>) = if renders_text(component) {
         (Vec::new(), style.clone())
     } else {
         style.iter().cloned().partition(|d| is_text_property(&d.property))
@@ -781,7 +781,7 @@ pub(super) fn render_node(
         &mut pressed_parts,
         diagnostics,
         runtime,
-        interaction_context && component == "Text",
+        interaction_context && renders_text(component),
         theme,
         animates.then_some(&mut frames),
     );
@@ -894,7 +894,7 @@ pub(super) fn render_node(
     } else if component == "Pressable" && (needs_hover_or_focus || transition.is_some()) {
         runtime.need_component("HozoPressable");
         "HozoPressable"
-    } else if component == "Text" && interaction_context && !pressed_parts.is_empty() {
+    } else if renders_text(component) && interaction_context && !pressed_parts.is_empty() {
         runtime.need_component("HozoText");
         "HozoText"
     } else if relative_at_runtime.is_some() {
@@ -1267,6 +1267,9 @@ pub(super) fn render_node(
     if let Some(open) = &node.props.open {
         props_text.push_str(&format!(" open={{{}}}", render_condition_expr(source, open)));
     }
+    if node.primitive == Primitive::Badge {
+        runtime.need_component("HozoBadge");
+    }
     if matches!(node.primitive, Primitive::Details | Primitive::Summary) {
         runtime.need_component(if node.primitive == Primitive::Details {
             "HozoDetails"
@@ -1483,7 +1486,7 @@ pub(super) fn render_node(
                 // belongs -- the string vanishes rather than rendering.
                 // The wrapper exists because a bare string inside a `View`
                 // crashes; inside `<Svg.Text>` there is nothing to fix.
-                let holds_text = component == "Text" || component == "SvgText";
+                let holds_text = renders_text(component) || component == "SvgText";
                 inner.push_str(&if !holds_text {
                     wrap_in_text(
                         &escaped,
@@ -1589,4 +1592,12 @@ pub(super) fn render_node(
     } else {
         rendered
     }
+}
+
+/// Whether `component` is a React Native `Text` underneath, so text styles
+/// stay on it rather than moving to an inserted `Text`. `HozoBadge` is one:
+/// it draws its count rather than its children, so a colour moved inside
+/// would be on nothing.
+fn renders_text(component: &str) -> bool {
+    matches!(component, "Text" | "HozoBadge")
 }

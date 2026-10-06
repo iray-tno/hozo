@@ -423,6 +423,11 @@ pub enum Primitive {
     /// `<meter>` on Web and a `View` carrying `accessibilityValue` on React
     /// Native. Not `Progress`, which is how far a task has got.
     Meter,
+    /// A short status label, and the one that is a number: `count` shows
+    /// "3" and is read as its `accessibilityLabel` ("3 unread messages").
+    /// `HozoBadge` on both platforms, because the Web half needs a second
+    /// element -- a `<span>` cannot carry an accessible name.
+    Badge,
     /// A static semantic list: `<ul>`/`<ol>` on Web and a list-role
     /// `View` on React Native. Data-heavy lists remain `FlatList`.
     List,

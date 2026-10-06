@@ -33,6 +33,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./generated/badge": {
+      "react-native": {
+        "types": "./dist/generated/badge.native.d.ts",
+        "default": "./dist/generated/badge.native.js"
+      },
+      "types": "./dist/generated/badge.d.ts",
+      "default": "./dist/generated/badge.js"
+    },
     "./generated/disclosure": {
       "react-native": {
         "types": "./dist/generated/disclosure.native.d.ts",

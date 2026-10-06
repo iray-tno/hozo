@@ -22,6 +22,7 @@ import { createContext, createElement, type ReactNode, useCallback, useContext }
  * library this connects to interpolates by name.
  */
 export const hozoMessages = {
+  'hozo.badge.overflow': 'more than {max}',
   'hozo.bottomSheet.handle': 'Resize',
   'hozo.calendar.nextMonth': 'Next month',
   'hozo.calendar.previousMonth': 'Previous month',
