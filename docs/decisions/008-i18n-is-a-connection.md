@@ -9,9 +9,11 @@
 `<I18nProvider>`, localisation of Hozo's own components, and CJK line breaking.
 
 The first is mostly done. `ms-*`, `pe-*`, `start-*`, `rounded-s-*` and the
-`rtl:`/`ltr:` variants compile on both platforms. Two utilities do not reach
-Native yet: `border-s-*`, which React Native has as `borderStartWidth`, and
-`text-start`. They are tracked with this decision but do not depend on it.
+`rtl:`/`ltr:` variants compile on both platforms, and React Native 0.87 takes
+`textAlign: 'start' | 'end'` as written. One utility failed on Native:
+`border-s-*`. Its width lowers to `borderStartWidth`, but the solid per-edge
+style Tailwind writes beside it was refused as Web-only (#767). That fix does
+not depend on this decision.
 
 The other three have not started. Hozo's components each carry their own
 English strings as prop defaults, roughly fifteen of them: `Calendar`'s
