@@ -10,7 +10,7 @@ mod colors;
 pub use colors::{resolve_color_token, ResolvedColor};
 
 mod theme;
-pub use theme::{Theme, ThemeColor};
+pub use theme::{Theme, ThemeAnimation, ThemeColor};
 
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics
@@ -1880,6 +1880,12 @@ pub enum StyleProperty {
     /// runtime lowering. Native currently wires Spin and refuses the other
     /// motion shapes rather than approximating them.
     Animation(Animation),
+    /// `animate-<name>` for a name that is not one of Tailwind's four: an
+    /// animation only the project's theme can define (decision 007, slice
+    /// 3). Held by name because the parser has no theme; each backend looks
+    /// it up in its own and does nothing when the theme does not have it --
+    /// the class is carried too, so a project's CSS can still run it.
+    ThemeAnimation(String),
     /// The odd one out: this styles the element's *children*, not the
     /// element. Tailwind's `space-x-*`/`space-y-*` are defined that way --
     /// a gap between siblings applied as a margin on all but the last --
@@ -2589,6 +2595,7 @@ impl StyleProperty {
             | StyleProperty::TransitionTimingFunction(..)
             | StyleProperty::AnimationName(..)
             | StyleProperty::Animation(..)
+            | StyleProperty::ThemeAnimation(..)
             | StyleProperty::BackgroundImageNone
             | StyleProperty::BackgroundImage(..)
             | StyleProperty::Gradient(..)

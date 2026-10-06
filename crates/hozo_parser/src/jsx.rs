@@ -932,7 +932,14 @@ fn build_node(
                                 .is_empty()
                                 .then(|| tailwind::unsupported_variant_name(token))
                                 .flatten();
-                            if properties.is_empty() {
+                            // A theme animation is carried as well as read:
+                            // a backend whose theme lacks the name emits
+                            // nothing for it, and the class is then what lets
+                            // the project's own CSS run it.
+                            let theme_animation = properties
+                                .iter()
+                                .any(|property| matches!(property, StyleProperty::ThemeAnimation(_)));
+                            if properties.is_empty() || theme_animation {
                                 carried_classes.push(token.to_string());
                             }
                             // A selector that matches a form control, on

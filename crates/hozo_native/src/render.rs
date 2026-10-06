@@ -140,28 +140,6 @@ pub(super) fn render_node(
         });
     }
 
-    // A carried class is one Hozo did not read, and on this platform there
-    // is no stylesheet for it to reach -- so it is gone. That is right for a
-    // project's own `my-card`, which only ever meant something to its CSS.
-    // An `animate-*` is different: it names an animation the project's
-    // Tailwind theme defines, which the Web runs and this side did not, with
-    // nothing said (decision 007, slice 3).
-    for class_name in &node.carried_classes {
-        let utility = class_name.rsplit(':').next().unwrap_or(class_name);
-        if utility.starts_with("animate-") {
-            diagnostics.push(unwired_variant(
-                node,
-                &format!(
-                    "`{class_name}` names an animation from the project's own Tailwind theme, and \
-                     React Native does not read the theme's `--animate-*` and `@keyframes` yet, \
-                     so it does not move here. On Web the class reaches the page and Tailwind's \
-                     CSS runs it."
-                ),
-                Severity::Warning,
-            ));
-        }
-    }
-
     // Some CSS concepts are props on this platform rather than styles, so
     // they're absorbed before the refusal check below -- otherwise the
     // thing that *does* express them would be reported as impossible.
@@ -192,9 +170,15 @@ pub(super) fn render_node(
     // A keyframe animation's `animation-*` longhands are its timing, read
     // into `useHozoKeyframes` -- Web-only on an element with no keyframes
     // and lowered on one with them, as the transition ones above are.
-    let has_keyframes = style
-        .iter()
-        .any(|declaration| matches!(declaration.property, StyleProperty::AnimationName(_)));
+    let has_keyframes = style.iter().any(|declaration| match &declaration.property {
+        StyleProperty::AnimationName(_) => true,
+        // Only one the theme can run: an unresolved name renders nothing
+        // animated, so the element stays what it was.
+        StyleProperty::ThemeAnimation(name) => {
+            theme.animation(name).is_some_and(|animation| animation.keyframes.is_some())
+        }
+        _ => false,
+    });
     // A style holding `Animated` values only moves on an `Animated`
     // component: a plain `View` or `Text` is handed objects it cannot read. Tailwind's
     // four loops and a project's own keyframes both produce one.

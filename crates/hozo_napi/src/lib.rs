@@ -796,6 +796,30 @@ pub struct JsTheme {
     /// rendering it should match. Absent means no reset, which is what a
     /// caller that has never heard of the question should get (#315).
     pub preflight: Option<bool>,
+    /// The project's own animations: `--animate-<name>` and the
+    /// `@keyframes` it names (decision 007, slice 3). Tailwind's four are
+    /// left out by `@hozo/tailwind`; Hozo has its own.
+    pub animations: Option<Vec<JsThemeAnimation>>,
+}
+
+#[napi(object)]
+pub struct JsThemeAnimation {
+    /// `wiggle`, for `--animate-wiggle` and `animate-wiggle`.
+    pub name: String,
+    /// The `animation` shorthand the theme wrote.
+    pub shorthand: String,
+    /// The `@keyframes` rule as CSS, for the Web to emit as it is.
+    pub keyframes_css: Option<String>,
+    /// The same rule's frames, for Native to read into typed properties.
+    pub frames: Option<Vec<JsThemeKeyframe>>,
+}
+
+#[napi(object)]
+pub struct JsThemeKeyframe {
+    /// `from`, `50%`, `0%, 100%`.
+    pub selector: String,
+    /// `[property, value]` pairs, in the order written.
+    pub declarations: Vec<Vec<String>>,
 }
 
 #[napi(object)]
@@ -834,7 +858,39 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
         }
         colors.insert(color.token, hozo_ir::ThemeColor { oklch: color.oklch, hex: color.hex });
     }
-    hozo_ir::Theme::with_dark(colors, dark_colors, spacing_px, preflight)
+    let mut animations = std::collections::HashMap::new();
+    for animation in theme.animations.unwrap_or_default() {
+        // Read the way a StyleX keyframe body is. A declaration with no
+        // typed form is left out of the Native frames -- the Native backend
+        // says which -- and stays in the CSS the Web emits.
+        let keyframes = animation.frames.map(|frames| hozo_ir::Keyframes {
+            name: animation.name.clone(),
+            frames: frames
+                .into_iter()
+                .map(|frame| hozo_ir::Keyframe {
+                    selector: frame.selector,
+                    properties: frame
+                        .declarations
+                        .iter()
+                        .filter_map(|pair| match pair.as_slice() {
+                            [property, value] => hozo_parser::css_declaration(property, value),
+                            _ => None,
+                        })
+                        .flatten()
+                        .collect(),
+                })
+                .collect(),
+        });
+        animations.insert(
+            animation.name,
+            hozo_ir::ThemeAnimation {
+                shorthand: animation.shorthand,
+                keyframes_css: animation.keyframes_css,
+                keyframes,
+            },
+        );
+    }
+    hozo_ir::Theme::with_dark(colors, dark_colors, spacing_px, preflight).with_animations(animations)
 }
 
 /// Every binding a source file imports from one module, by local name.

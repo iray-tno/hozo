@@ -49,8 +49,29 @@ export interface ThemeColor {
  */
 export const DARK_SUFFIX = '--dark'
 
+/**
+ * One of a project's own animations: `--animate-<name>` in its `@theme`,
+ * and the `@keyframes` its value names (decision 007, slice 3).
+ */
+export interface ThemeAnimation {
+  /** `wiggle`, for `--animate-wiggle` and the class `animate-wiggle`. */
+  name: string
+  /** The `animation` shorthand: `wiggle 1s ease-in-out infinite`. */
+  shorthand: string
+  /** The `@keyframes` rule as CSS, emitted as it is on the Web. */
+  keyframesCss?: string
+  /** The same rule's frames, which Native reads into typed properties. */
+  frames?: { selector: string; declarations: [string, string][] }[]
+}
+
 export interface Theme {
   colors: ThemeColor[]
+  /**
+   * The project's own animations. Tailwind's four (`spin`, `ping`,
+   * `pulse`, `bounce`) are left out: Hozo implements those itself, on
+   * the native driver.
+   */
+  animations?: ThemeAnimation[]
   /**
    * One spacing step in pixels. Tailwind's `--spacing` is a length, and
    * every spacing utility is a multiple of it, so a project that changes
@@ -183,7 +204,72 @@ export async function loadTheme(css: string, base: string): Promise<Theme> {
         : {}),
     })
   }
-  return { colors, spacingPx: readSpacing(design) }
+  return { colors, spacingPx: readSpacing(design), animations: readAnimations(design, declared) }
+}
+
+/** Tailwind's own animations, which Hozo implements itself. */
+const BUILT_IN_ANIMATIONS = new Set(['spin', 'ping', 'pulse', 'bounce'])
+
+interface KeyframesNode {
+  kind: string
+  params?: string
+  selector?: string
+  property?: string
+  value?: string
+  nodes?: KeyframesNode[]
+}
+
+/**
+ * `--animate-*` and the `@keyframes` each names, asked of Tailwind rather
+ * than parsed here, for the reason the colours are.
+ */
+function readAnimations(
+  design: { theme: { getKeyframes(): Iterable<unknown> } },
+  declared: ReadonlyMap<string, string>,
+): ThemeAnimation[] {
+  const keyframes = new Map<string, KeyframesNode>()
+  for (const rule of design.theme.getKeyframes() as Iterable<KeyframesNode>) {
+    if (rule.params) keyframes.set(rule.params.trim(), rule)
+  }
+  const animations: ThemeAnimation[] = []
+  for (const [token, value] of declared) {
+    if (!token.startsWith('--animate-')) continue
+    const name = token.slice('--animate-'.length)
+    if (BUILT_IN_ANIMATIONS.has(name)) continue
+    const shorthand = dereference(value, declared)
+    // The keyframes are named somewhere in the shorthand, not necessarily
+    // first and not necessarily after the animation: `--animate-shake:
+    // wiggle .3s` runs `@keyframes wiggle`.
+    const rule = shorthand
+      .split(/\s+/)
+      .map((part) => keyframes.get(part))
+      .find((found) => found !== undefined)
+    if (!rule) {
+      animations.push({ name, shorthand })
+      continue
+    }
+    const frames = (rule.nodes ?? [])
+      .filter((node) => node.kind === 'rule' && node.selector)
+      .map((node) => ({
+        selector: node.selector as string,
+        declarations: (node.nodes ?? [])
+          .filter((child) => child.kind === 'declaration' && child.property)
+          .map((child) => [child.property, String(child.value ?? '')] as [string, string]),
+      }))
+    const body = frames
+      .map(
+        (frame) =>
+          `  ${frame.selector} {\n${frame.declarations.map(([property, value]) => `    ${property}: ${value};`).join('\n')}\n  }`,
+      )
+      .join('\n')
+    animations.push({
+      name,
+      shorthand,
+      keyframesCss: `@keyframes ${rule.params?.trim()} {\n${body}\n}\n`,
+      frames,
+    })
+  }
+  return animations
 }
 
 /** How many `var()` hops to follow before giving up, which also breaks cycles. */
