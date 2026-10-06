@@ -1268,6 +1268,18 @@ fn a_rule_that_only_applies_in_the_dark_resolves_against_the_dark_palette() {
 }
 
 #[test]
+fn not_dark_tokens_keep_the_light_palette_without_unreachable_dark_copies() {
+    for class_name in ["not-dark:bg-surface", "md:not-dark:bg-surface"] {
+        let output = lower_with_paired(class_name);
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.styles.contains("backgroundColor: '#ffffff',"), "{}", output.styles);
+        assert!(!output.styles.contains("#0f172b"), "{}", output.styles);
+        assert_eq!(output.styles.matches("backgroundColor").count(), 1, "{}", output.styles);
+        assert!(output.jsx.contains("!(__hozoDark) &&"), "{}", output.jsx);
+    }
+}
+
+#[test]
 fn the_dark_copy_of_a_conditional_rule_is_still_conditional() {
     // Both halves of the guard, and this side had them right while the Web
     // replaced the condition instead of extending it. `mentions_dark` and

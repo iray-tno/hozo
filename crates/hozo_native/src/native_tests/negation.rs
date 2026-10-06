@@ -142,3 +142,41 @@ fn descendant_focus_visible_enables_only_the_nearest_owner() {
     assert!(out.jsx.starts_with("<Pressable>"), "{}", out.jsx);
     assert!(!out.jsx.contains("hozoFocusVisible"), "{}", out.jsx);
 }
+
+#[test]
+fn negated_ambient_conditions_reuse_the_positive_hooks() {
+    let out = compile(r#"<View className="md:p-4 not-md:p-2 dark:opacity-50 not-dark:opacity-100 min-[500px]:m-4 not-min-[500px]:m-2 not-max-[500px]:w-10" />"#);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    for (hook, guard) in [
+        ("useHozoBreakpoint", "!(__hozoBp_md) &&"),
+        ("useHozoDark", "!(__hozoDark) &&"),
+        ("useHozoWidthAtLeast", "!(__hozoWidth_500) &&"),
+    ] {
+        assert_eq!(out.prelude.iter().filter(|line| line.contains(hook)).count(), 1, "{:?}", out.prelude);
+        assert!(out.jsx.contains(guard), "{}", out.jsx);
+    }
+    assert!(out.jsx.contains("!(!__hozoWidth_500) &&"), "{}", out.jsx);
+    assert!(!out.jsx.contains("useHozo"), "{}", out.jsx);
+}
+
+#[test]
+fn negated_ambient_targets_transition_and_compose_with_interactions() {
+    for variant in ["not-md", "not-dark", "not-min-[500px]", "not-max-[500px]"] {
+        let out = compile(&format!(r#"<View className="opacity-100 transition-opacity {variant}:opacity-50" />"#));
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+        assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
+    }
+    let out = compile(r#"<Pressable disabled={off} className="not-md:not-dark:hover:not-disabled:opacity-50" />"#);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("!(__hozoBp_md) && !(__hozoDark) && hovered && !((off)) &&"), "{}", out.jsx);
+}
+
+#[test]
+fn negated_unresolvable_width_does_not_register_a_guessed_threshold() {
+    for variant in ["not-min-[40rem]", "not-max-[50vw]", "md:not-min-[40rem]"] {
+        let out = compile(&format!(r#"<View className="{variant}:p-4" />"#));
+        assert!(out.diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error), "{:?}", out.diagnostics);
+        assert!(!out.prelude.iter().any(|line| line.contains("useHozoWidthAtLeast")), "{:?}", out.prelude);
+        assert!(!out.jsx.contains("_not"), "{}", out.jsx);
+    }
+}

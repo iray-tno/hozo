@@ -20,9 +20,14 @@ export interface NativeContextualCase {
     | 'descendant-focus-visible'
     | 'descendant-not-focus-visible'
     | 'group-focus-visible'
+    | 'not-md'
+    | 'not-dark'
+    | 'not-min-[500px]'
+    | 'not-max-[500px]'
   purpose: string
   className: string
   props?: string
+  primitive?: 'Pressable' | 'View'
   children?: string
   expected: string[]
 }
@@ -33,6 +38,31 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'not-md',
+    purpose: 'negated breakpoint and focus predicates share their existing ambient/owner state',
+    className: 'opacity-100 not-md:not-focus:opacity-50',
+    expected: ['HozoPressable', '!(__hozoBp_md) && !(focused) &&', 'useHozoBreakpoint'],
+  },
+  {
+    candidate: 'not-dark',
+    purpose: 'a light-only ambient target can animate without an interaction callback',
+    className: 'opacity-100 transition-opacity not-dark:opacity-50',
+    primitive: 'View',
+    expected: ['HozoAnimated', '!(__hozoDark) &&', 'useHozoDark'],
+  },
+  {
+    candidate: 'not-min-[500px]',
+    purpose: 'a negated pixel minimum composes with the existing hover context',
+    className: 'opacity-100 not-min-[500px]:hover:opacity-50',
+    expected: ['HozoPressable', '!(__hozoWidth_500) && hovered &&', 'useHozoWidthAtLeast'],
+  },
+  {
+    candidate: 'not-max-[500px]',
+    purpose: 'negating the strict maximum retains the inclusive minimum boundary',
+    className: 'opacity-100 not-max-[500px]:opacity-50',
+    expected: ['!(!__hozoWidth_500) &&', 'useHozoWidthAtLeast'],
+  },
   {
     candidate: 'descendant-focus-visible',
     purpose: 'child-authored state enables modality tracking on an otherwise plain owner',
@@ -123,10 +153,11 @@ export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
 ]
 
 export function compareNativeContextual(testCase: NativeContextualCase): NativeContextualResult {
+  const primitive = testCase.primitive ?? 'Pressable'
   const source =
-    `import { Pressable, Text } from '@hozo/core'\n` +
+    `import { Pressable, Text, View } from '@hozo/core'\n` +
     `export function C() {\n` +
-    `  return <Pressable accessibilityRole="button" ${testCase.props ?? ''} className="${testCase.className}">${testCase.children ?? 'x'}</Pressable>\n` +
+    `  return <${primitive} ${primitive === 'Pressable' ? 'accessibilityRole="button"' : ''} ${testCase.props ?? ''} className="${testCase.className}">${testCase.children ?? 'x'}</${primitive}>\n` +
     `}\n`
   const [result] = compileNative(source)
   if (!result) return { ...testCase, verdict: 'SILENT', detail: 'no component compiled' }

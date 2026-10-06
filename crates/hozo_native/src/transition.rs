@@ -395,11 +395,15 @@ pub(super) fn interpolatable(property: &StyleProperty) -> bool {
 }
 
 fn runtime_variable(condition: &Condition) -> bool {
-    // A negated environment query observes exactly the same store. The
-    // polarity changes its target, not whether the target can transition.
+    // Negating a supported ambient predicate observes exactly the same
+    // store. Polarity changes its target, not whether it can transition.
     if let Condition::Not(inner) = condition {
-        return matches!(inner.as_ref(), Condition::Environment(query)
-            if super::native_environment(*query).is_some());
+        return match inner.as_ref() {
+            Condition::Dark | Condition::Responsive(_) | Condition::Width { .. } => true,
+            Condition::Environment(query) => super::native_environment(*query).is_some(),
+            Condition::Not(_) => runtime_variable(inner),
+            _ => false,
+        };
     }
     matches!(
         condition,
