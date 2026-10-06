@@ -139,6 +139,12 @@ export {
   type HozoSegmentedOption,
 } from './segmented-control.tsx'
 export {
+  HozoSkeleton,
+  HozoSkeleton as Skeleton,
+  type HozoSkeletonProps,
+  type HozoSkeletonProps as SkeletonProps,
+} from './skeleton.tsx'
+export {
   HozoSlider as Slider,
   HozoSlider,
   type HozoSliderProps as SliderProps,

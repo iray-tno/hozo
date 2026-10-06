@@ -157,6 +157,37 @@ pub(super) fn render_node(
     // React Native's equivalents aren't. Resolved here, before the refusal
     // check, so only the ones that genuinely can't be resolved are refused.
     let style = lower_inline_flex(fold_font_relative(&node.style, inherited));
+    // A skeleton's animation runs only when motion is allowed, whatever the
+    // class said: `animate-pulse` on one is read as
+    // `motion-safe:animate-pulse` (decision 007, section 5). The Web half is
+    // a base CSS rule; here it is the same guard a written `motion-safe:`
+    // gets.
+    let style = if node.primitive == Primitive::Skeleton {
+        style
+            .into_iter()
+            .map(|declaration| match declaration.property {
+                // Already said, so not said twice.
+                _ if condition_contains(&declaration.condition, |condition| {
+                    matches!(condition, Condition::Environment(hozo_ir::Environment::MotionSafe))
+                }) =>
+                {
+                    declaration
+                }
+                StyleProperty::Animation(_)
+                | StyleProperty::AnimationName(_)
+                | StyleProperty::ThemeAnimation(_) => StyleDeclaration {
+                    condition: Condition::all(vec![
+                        Condition::Environment(hozo_ir::Environment::MotionSafe),
+                        declaration.condition.clone(),
+                    ]),
+                    ..declaration
+                },
+                _ => declaration,
+            })
+            .collect()
+    } else {
+        style
+    };
     let grid = native_grid(&style, theme, runtime);
     let grid_item = native_grid_item(&style, grid_columns, grid_rows);
     // The fast Native transition path is deliberately narrow: opacity on

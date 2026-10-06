@@ -79,6 +79,7 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
     'Badge',
     'A Text underneath (HozoBadge), so its children are already text and nothing wraps them.',
   ],
+  ['Skeleton', 'A placeholder hidden from assistive technology; it holds no label.'],
   ['HozoI18nProvider', 'A context provider; it renders its children and no text of its own.'],
   ['Presence', 'Takes one element and renders it, never a label of its own.'],
 ])

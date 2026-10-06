@@ -326,6 +326,20 @@ export function Badge({ count, max, accessibilityLabel, children, ...props }: Ba
   return React.createElement(Text, { ...props, accessibilityLabel: label }, shown)
 }
 
+export interface SkeletonProps extends SemanticsNativeProps {
+  children?: ReactNode
+}
+
+/**
+ * A loading placeholder, on React Native: a `View` hidden from assistive
+ * technology. Compiled, an animation class on it runs only when motion is
+ * allowed; this fallback for an uncompiled file draws whatever `style` it is
+ * given.
+ */
+export function Skeleton({ children, ...props }: SkeletonProps) {
+  return React.createElement(View, { ...props, 'aria-hidden': true }, children)
+}
+
 export interface MeterProps extends SemanticsNativeProps {
   value: number
   min?: number

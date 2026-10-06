@@ -428,6 +428,11 @@ pub enum Primitive {
     /// `HozoBadge` on both platforms, because the Web half needs a second
     /// element -- a `<span>` cannot carry an accessible name.
     Badge,
+    /// A loading placeholder: a box with no meaning of its own, hidden from
+    /// assistive technology, whose animation stops under reduced motion
+    /// whatever classes put it there (decision 007, section 5). `<div>` on
+    /// Web and `View` on React Native.
+    Skeleton,
     /// A static semantic list: `<ul>`/`<ol>` on Web and a list-role
     /// `View` on React Native. Data-heavy lists remain `FlatList`.
     List,
@@ -566,6 +571,7 @@ impl Primitive {
             self,
             Primitive::View
                 | Primitive::AnimatedView
+                | Primitive::Skeleton
                 | Primitive::Section
                 | Primitive::Article
                 | Primitive::Nav

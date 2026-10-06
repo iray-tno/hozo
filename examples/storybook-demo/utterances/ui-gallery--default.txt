@@ -45,6 +45,7 @@ switch, Email notifications, checked
 Draft
 New
 Overdue
+3 unread messages
 alert
 Your session expires in two minutes.
 end of alert

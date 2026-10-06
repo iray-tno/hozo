@@ -158,6 +158,7 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // A `Text` underneath, which takes an `accessibilityLabel` here as
         // it cannot on the Web; see `@hozo/semantics`' `Badge`.
         Primitive::Badge => ("HozoBadge", Vec::new()),
+        Primitive::Skeleton => ("View", vec![("aria-hidden", String::new())]),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),
         Primitive::ActivityIndicator => ("ActivityIndicator", Vec::new()),

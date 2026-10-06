@@ -3,7 +3,7 @@ import test from 'node:test'
 import { HozoI18nProvider } from '@hozo/behaviors'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { Badge, Meter } from './index.tsx'
+import { Badge, Meter, Skeleton } from './index.tsx'
 
 test('a word badge is the word, in a span with no role', () => {
   const html = renderToStaticMarkup(<Badge className="b">Draft</Badge>)
@@ -43,4 +43,9 @@ test('the overflow sentence comes from the project’s i18n', () => {
 test('a meter is the meter element with its range as written', () => {
   const html = renderToStaticMarkup(<Meter value={0.6} low={0.3} aria-label="Strength" />)
   assert.equal(html, '<meter value="0.6" low="0.3" aria-label="Strength"></meter>')
+})
+
+test('a skeleton is hidden from assistive technology and marked for the reduced-motion rule', () => {
+  const html = renderToStaticMarkup(<Skeleton className="s" />)
+  assert.equal(html, '<div class="s" aria-hidden="true" data-hozo-skeleton=""></div>')
 })
