@@ -16,8 +16,16 @@
 // component boundary between the provider and the read, and adding a View
 // to do that would change the layout the query is measuring.
 
-import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
-import { type LayoutChangeEvent, View, type ViewProps } from 'react-native'
+import {
+  type ComponentPropsWithRef,
+  createContext,
+  type ElementType,
+  type ReactNode,
+  useContext,
+  useMemo,
+  useState,
+} from 'react'
+import { type LayoutChangeEvent, View } from 'react-native'
 
 import { keepIfSettled } from './runtime-measured.ts'
 
@@ -39,24 +47,29 @@ export type HozoContainerWidths = Readonly<Record<string, number | undefined>>
 
 const HozoContainerContext = createContext<HozoContainerWidths>({})
 
-export interface HozoContainerProps extends ViewProps {
-  /** `@container/main` -- the name `@sm/main:` addresses. */
-  hozoContainerName?: string
-  children?: ReactNode
-}
+export type HozoContainerProps<Host extends ElementType = typeof View> =
+  ComponentPropsWithRef<Host> & {
+    /** Compiler-selected host: measurement must not turn a control into a View. */
+    hozoContainerComponent?: Host
+    /** `@container/main` -- the name `@sm/main:` addresses. */
+    hozoContainerName?: string
+  }
 
 /**
- * A View that measures itself and hands its width to its subtree.
+ * Measures the existing host and hands its width to its subtree.
  *
- * The compiler renders an element here instead of a View when its classes
- * declared it a container.
+ * A provider adds no layout node. The host keeps its own style/children
+ * callbacks, refs and events rather than asking a replacement View to
+ * approximate them. An ordinary container still defaults to View.
  */
-export function HozoContainer({
+export function HozoContainer<Host extends ElementType = typeof View>({
+  hozoContainerComponent,
   hozoContainerName,
   onLayout,
   children,
   ...rest
-}: HozoContainerProps): ReactNode {
+}: HozoContainerProps<Host>): ReactNode {
+  const Component: ElementType = hozoContainerComponent ?? View
   const [width, setWidth] = useState<number | undefined>(undefined)
   const outer = useContext(HozoContainerContext)
 
@@ -82,9 +95,11 @@ export function HozoContainer({
   }
 
   return (
-    <View {...rest} onLayout={measure}>
-      <HozoContainerContext.Provider value={widths}>{children}</HozoContainerContext.Provider>
-    </View>
+    <HozoContainerContext.Provider value={widths}>
+      <Component {...rest} onLayout={measure}>
+        {children}
+      </Component>
+    </HozoContainerContext.Provider>
   )
 }
 

@@ -63,8 +63,8 @@
     "noOp": 1
   },
   "nativeContextual": {
-    "cases": 26,
-    "covered": 26,
+    "cases": 28,
+    "covered": 28,
     "refused": 0,
     "silent": 0
   },

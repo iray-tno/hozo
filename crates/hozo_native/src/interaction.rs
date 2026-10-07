@@ -4,16 +4,12 @@
 use super::*;
 use hozo_ir::Child;
 
-/// Destination-bearing controls render HozoLink, not HozoPressable; a
-/// container declaration replaces the host with HozoContainer. Neither
-/// wrapper provides interaction state. The primitive's name alone must not
-/// promise state its actual runtime lacks.
+/// Destination-bearing controls render HozoLink, not HozoPressable. Its
+/// runtime has no interaction provider yet. Container measurement, on the
+/// other hand, preserves the selected host and its provider.
 pub(super) fn owns_events(node: &Node) -> bool {
     matches!(node.primitive, Primitive::Pressable | Primitive::Button)
         && !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("href"))
-        && !node.style.iter().any(|declaration| {
-            matches!(&declaration.property, StyleProperty::Keyword("container-type", kind) if *kind != "normal")
-        })
 }
 
 pub(super) fn uses_focus_visible(condition: &Condition) -> bool {

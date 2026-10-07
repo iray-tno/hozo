@@ -916,10 +916,10 @@ pub(super) fn render_node(
             Severity::Error,
         ));
     }
-    let rendered_component = if declares_container {
-        runtime.need_component("HozoContainer");
-        "HozoContainer"
-    } else if renders_backdrop_filter {
+    // Choose the actual host before adding measurement. Replacing it with a
+    // View loses Pressable events, Text semantics and ScrollView behavior;
+    // container measurement is a provider around this very same host.
+    let rendered_component = if renders_backdrop_filter {
         runtime.need_component("HozoBackdropFilter");
         "HozoBackdropFilter"
     } else if component == "Pressable" && (needs_hover_or_focus || transition.is_some()) {
@@ -944,6 +944,23 @@ pub(super) fn render_node(
     } else {
         component
     };
+    // Only a host with one forwarded layout event can publish its width.
+    // Portals, non-layout SVG nodes, and identity-sensitive compound parts
+    // need their own adapter; a provider must not invent a measurable box
+    // for them or hide their identity from their owning component.
+    let measures_host = declares_container && matches!(rendered_component,
+        "View" | "Animated.View" | "Text" | "Animated.Text" | "TextInput" | "Image"
+        | "ScrollView" | "Pressable" | "HozoPressable" | "HozoLink" | "HozoFlatList"
+        | "HozoText" | "HozoTextSize" | "HozoRelativeText" | "HozoAnimated"
+        | "HozoRuby" | "HozoDetails" | "HozoBadge" | "Svg"
+    );
+    if declares_container && !measures_host {
+        diagnostics.push(unwired_variant(
+            node,
+            &format!("`@container` needs a single layout-reporting host on Native; `{rendered_component}` cannot publish that width through this adapter. Put the container on a View inside or around it instead."),
+            Severity::Error,
+        ));
+    }
     // An intervening control owns its own interaction. A destination renders
     // HozoLink, which has no state provider; Text below it must not silently
     // read an outer button's hover/focus instead.
@@ -1256,7 +1273,11 @@ pub(super) fn render_node(
     // `@container/main`. The unnamed form needs nothing: the component
     // registers under the empty key either way, which is what an unnamed
     // `@sm:` reads.
-    if declares_container {
+    if measures_host {
+        runtime.need_component("HozoContainer");
+        if rendered_component != "View" {
+            props_text.push_str(&format!(" hozoContainerComponent={{{rendered_component}}}"));
+        }
         if let Some(name) = &container_name {
             props_text.push_str(&format!(" hozoContainerName=\"{name}\""));
         }
@@ -1592,10 +1613,11 @@ pub(super) fn render_node(
     };
 
     // React Native's TextInput takes no children either.
+    let tag = if measures_host { "HozoContainer" } else { rendered_component };
     let rendered = if component == "TextInput" || component == "Image" {
-        format!("<{rendered_component}{props_text} />")
+        format!("<{tag}{props_text} />")
     } else {
-        format!("<{rendered_component}{props_text}>{inner}</{rendered_component}>")
+        format!("<{tag}{props_text}>{inner}</{tag}>")
     };
     // Inside the grid item rather than outside it: `HozoGrid` reads its
     // children's types to place them, so anything between the two would

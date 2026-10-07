@@ -30,6 +30,8 @@ export interface NativeContextualCase {
     | 'not-@max-md'
     | 'not-@min-[400px]'
     | 'not-@md/main'
+    | 'container-interaction-host'
+    | 'container-descendant-owner'
   purpose: string
   className: string
   props?: string
@@ -44,6 +46,30 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'container-interaction-host',
+    purpose: 'measurement keeps the event owner, modality and existing transition on one host',
+    className:
+      '@container/main opacity-100 transition-opacity not-hover:opacity-50 focus-visible:opacity-25',
+    expected: [
+      'HozoContainer',
+      'hozoContainerComponent={HozoPressable}',
+      'hozoFocusVisible',
+      'opacity: true',
+    ],
+  },
+  {
+    candidate: 'container-descendant-owner',
+    purpose: 'a container-declaring control still supplies interaction and width contexts to Text',
+    className: '@container/main',
+    children: '<Text className="@sm/main:not-hover:opacity-50">x</Text>',
+    expected: [
+      'hozoContainerComponent={HozoPressable}',
+      'HozoText',
+      'HozoContainerQuery',
+      '!(hovered) &&',
+    ],
+  },
   {
     candidate: 'not-hover',
     purpose: 'Native event-owned hover is negated in the same callback and opacity transition',
