@@ -19,6 +19,8 @@ export interface NativeContextualCase {
     | 'not-focus-visible'
     | 'not-hover'
     | 'not-active'
+    | 'read-only'
+    | 'not-read-only'
     | 'pressed-text-owner'
     | 'descendant-not-active'
     | 'descendant-not-hover'
@@ -41,7 +43,7 @@ export interface NativeContextualCase {
   purpose: string
   className: string
   props?: string
-  primitive?: 'Pressable' | 'View' | 'Button' | 'Link'
+  primitive?: 'Pressable' | 'View' | 'Button' | 'Link' | 'TextInput'
   children?: string
   expected: string[]
 }
@@ -52,6 +54,33 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'read-only',
+    purpose: 'an editable prop supplies the same read-only predicate under a breakpoint',
+    primitive: 'TextInput',
+    props: 'editable={canEdit} accessibilityLabel="Field"',
+    className: 'opacity-100 md:read-only:opacity-50',
+    children: '',
+    expected: ['__hozoBp_md && ((canEdit) === false) &&', 'editable={canEdit}'],
+  },
+  {
+    candidate: 'not-read-only',
+    purpose: 'negation uses the explicit readOnly driver without adding event state',
+    primitive: 'TextInput',
+    props: 'readOnly={locked} accessibilityLabel="Field"',
+    className: 'opacity-100 md:not-read-only:opacity-50',
+    children: '',
+    expected: ['__hozoBp_md && !((locked)) &&', 'readOnly={locked}'],
+  },
+  {
+    candidate: 'not-read-only',
+    purpose: 'container scope remains required even when the read-only predicate is negated',
+    primitive: 'TextInput',
+    props: 'editable={canEdit} accessibilityLabel="Field"',
+    className: 'opacity-100 @sm/main:not-read-only:opacity-50',
+    children: '',
+    expected: ['HozoContainerQuery', '!== undefined', '!(((canEdit) === false)) &&'],
+  },
   {
     candidate: 'not-active',
     purpose: 'negated pressed alone drives the existing transition under stacked predicates',
@@ -317,7 +346,7 @@ export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
 export function compareNativeContextual(testCase: NativeContextualCase): NativeContextualResult {
   const primitive = testCase.primitive ?? 'Pressable'
   const source =
-    `import { Pressable, Text, View, Button, Link } from '@hozo/core'\n` +
+    `import { Pressable, Text, View, Button, Link, TextInput } from '@hozo/core'\n` +
     `export function C() {\n` +
     `  return <${primitive} ${primitive === 'Pressable' ? 'accessibilityRole="button"' : ''} ${testCase.props ?? ''} className="${testCase.className}">${testCase.children ?? 'x'}</${primitive}>\n` +
     `}\n`

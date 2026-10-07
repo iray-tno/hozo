@@ -429,7 +429,7 @@ pub(super) fn build_style_entries(
             | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
             | Condition::Structural(_) | Condition::Not(_) | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible
             | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark
-            | Condition::Container { .. } => {
+            | Condition::Container { .. } | Condition::FormState(FormState::ReadOnly) => {
                 match guards::resolve(&condition, node, source, position, runtime, interaction_context) {
                     Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
                     Ok(guards::Guard::Known(true)) => conditional_parts.extend(guarded("")),
@@ -474,6 +474,7 @@ pub(super) fn build_style_entries(
                             | Condition::Structural(_)
                             | Condition::StartingStyle
                             | Condition::Not(_)
+                            | Condition::FormState(FormState::ReadOnly)
                     ) || presence_closed(atom)
                 });
                 if !supported {
@@ -507,7 +508,8 @@ pub(super) fn build_style_entries(
                             | Condition::Environment(_) | Condition::FirstChild
                             | Condition::LastChild | Condition::Structural(_) | Condition::Not(_)
                             | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
-                            | Condition::Width { .. } | Condition::Dark | Condition::Container { .. } => {
+                            | Condition::Width { .. } | Condition::Dark | Condition::Container { .. }
+                            | Condition::FormState(FormState::ReadOnly) => {
                                 match guards::resolve(atom, node, source, position, runtime, interaction_context) {
                                     Ok(guards::Guard::Known(true)) => {}
                                     Ok(guards::Guard::Known(false)) => applies = false,
@@ -679,29 +681,6 @@ pub(super) fn build_style_entries(
                 "`target:` matches the element the document's URL fragment points at. React Native has no document and no URL to point with, so there is nothing for this to be true of. On Web the same class works.",
                 Severity::Error,
             )),
-            // `read-only:` is the one the compiler can answer: React Native
-            // has the state, under two names, as a prop it is looking at.
-            // The other ten are the DOM's constraint validation, and
-            // React Native has no such thing -- no `required`, no
-            // `pattern`, no `:invalid` for them to be true of.
-            Condition::FormState(FormState::ReadOnly) => {
-                match native_read_only(&node.props.text_input) {
-                    // A value known at build time decides the style rather
-                    // than guarding it, the same way `first:` does: `true
-                    // && style` in the output would be a condition that
-                    // was already resolved, written out anyway.
-                    Some(ConditionExpr::Static(true)) => conditional_parts.extend(guarded("")),
-                    Some(ConditionExpr::Static(false)) => {}
-                    Some(guard) => {
-                        conditional_parts.extend(guarded(&format!("{} && ", render_condition_expr(source, &guard))))
-                    }
-                    None => diagnostics.push(unwired_variant(
-                        node,
-                        "`read-only:` needs this element to say whether it is read-only, and it doesn't. Add `readOnly` or `editable` -- either spelling -- and the style resolves at build time.",
-                        Severity::Error,
-                    )),
-                }
-            }
             // Not a gap that could be closed. React Native's styles are
             // objects handed to components, and a pseudo-element is a box
             // the browser makes that has no component to hand one to.

@@ -809,7 +809,7 @@ const el = {element}
             // guarding it -- no `true &&` in the output.
             assert!(!output.jsx.contains("true &&"), "{}", output.jsx);
         } else {
-            assert!(output.jsx.contains("!(canEdit)"), "{}", output.jsx);
+            assert!(output.jsx.contains("(canEdit) === false"), "{}", output.jsx);
         }
     }
 }
@@ -833,6 +833,68 @@ fn the_rest_of_the_form_states_are_named_absent() {
             "{class_name}: {:?}",
             output.diagnostics
         );
+    }
+}
+
+fn compile_read_only_input(props: &str, class_name: &str) -> LowerOutput {
+    let source = format!("import {{ TextInput }} from '@hozo/core'; export function C({{locked, canEdit, ready}}) {{ return <TextInput accessibilityLabel=\"Field\" {props} className=\"{class_name}\" /> }}");
+    let parsed = hozo_parser::parse_tsx(&source);
+    lower(&parsed.roots[0].node, &source, &Theme::default())
+}
+
+#[test]
+fn read_only_and_its_complement_share_static_answers_in_stacks() {
+    for (props, read_only) in [
+        ("readOnly", true),
+        ("readOnly={false}", false),
+        ("editable={false}", true),
+        ("editable", false),
+        ("readOnly={false} editable={false}", false),
+        ("readOnly editable", true),
+    ] {
+        let out = compile_read_only_input(props, "opacity-100 read-only:p-4 not-read-only:m-2 md:read-only:p-8 md:not-read-only:m-4");
+        assert!(out.diagnostics.is_empty(), "{props}: {:?}", out.diagnostics);
+        for prefix in ["", "md_"] {
+            assert_eq!(out.jsx.contains(&format!("hozoStyles.hozo0_{prefix}readonly")), read_only, "{props}: {}", out.jsx);
+            assert_eq!(out.jsx.contains(&format!("hozoStyles.hozo0_{prefix}notreadonly")), !read_only, "{props}: {}", out.jsx);
+        }
+        assert!(!out.jsx.contains("true &&") && !out.jsx.contains("false &&"), "{}", out.jsx);
+    }
+}
+
+#[test]
+fn read_only_guards_group_expressions_and_keep_the_existing_driver_precedence() {
+    for (props, driver) in [
+        ("readOnly={locked}", "(locked)"),
+        ("editable={canEdit}", "((canEdit) === false)"),
+        ("readOnly={locked} editable={canEdit}", "((locked) !== undefined ? (locked) : (canEdit) === false)"),
+        ("readOnly={locked || ready}", "(locked || ready)"),
+        ("readOnly={ready ? locked : canEdit}", "(ready ? locked : canEdit)"),
+    ] {
+        let out = compile_read_only_input(props, "opacity-100 read-only:p-4 not-read-only:m-2");
+        assert!(out.diagnostics.is_empty(), "{props}: {:?}", out.diagnostics);
+        assert!(out.jsx.contains(&format!("{driver} && hozoStyles.hozo0_readonly")), "{}", out.jsx);
+        assert!(out.jsx.contains(&format!("!({driver}) && hozoStyles.hozo0_notreadonly")), "{}", out.jsx);
+        assert!(out.prelude.is_empty() && out.runtime_imports.is_empty(), "{:?}", out.runtime_imports);
+        let stacked = compile_read_only_input(props, "md:read-only:p-4 md:not-read-only:m-2");
+        assert!(stacked.diagnostics.is_empty(), "{:?}", stacked.diagnostics);
+        assert!(stacked.jsx.contains(&format!("__hozoBp_md && {driver} &&")), "{}", stacked.jsx);
+        assert!(stacked.jsx.contains(&format!("__hozoBp_md && !({driver}) &&")), "{}", stacked.jsx);
+        assert_eq!(stacked.prelude.iter().filter(|line| line.contains("useHozoBreakpoint")).count(), 1);
+    }
+}
+
+#[test]
+fn missing_read_only_drivers_and_other_form_states_remain_refused_when_negated() {
+    for variant in ["read-only", "not-read-only", "md:read-only", "md:not-read-only", "not-not-read-only"] {
+        let out = compile_read_only_input("", &format!("opacity-100 {variant}:p-4"));
+        assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{variant}: {:?}", out.diagnostics);
+        assert!(!out.jsx.contains("_readonly") && !out.jsx.contains("_notreadonly"), "{}", out.jsx);
+    }
+    for variant in ["not-required", "not-invalid", "md:not-placeholder-shown", "read-only:focus"] {
+        let out = compile_read_only_input("readOnly={locked}", &format!("{variant}:p-4"));
+        assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{variant}: {:?}", out.diagnostics);
+        assert!(!out.jsx.contains("hozoStyles"), "{}", out.jsx);
     }
 }
 

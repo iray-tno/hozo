@@ -381,24 +381,6 @@ fn structural_holds(
 ///
 /// `multiline` rather than `multiline={true}`, which is what the author
 /// wrote and what React Native's own code reads like.
-/// Whether this element is read-only, from either spelling.
-///
-/// `readOnly` if it was written; otherwise the negation of `editable`,
-/// which is the same state said backwards. `None` when neither is there
-/// -- not `false`, because a `TextInput` with no such prop is editable by
-/// default and a `read-only:` class on it is a style that will never
-/// apply, which is worth saying rather than silently dropping.
-fn native_read_only(props: &hozo_ir::TextInputProps) -> Option<ConditionExpr> {
-    if let Some(read_only) = props.read_only.as_ref() {
-        return Some(read_only.clone());
-    }
-    let editable = props.editable.as_ref()?;
-    Some(match editable {
-        ConditionExpr::Static(value) => ConditionExpr::Static(!value),
-        other => ConditionExpr::Not(Box::new(other.clone())),
-    })
-}
-
 fn native_flag(name: &str, value: &ConditionExpr, source: &str) -> String {
     match value {
         ConditionExpr::Static(true) => format!(" {name}"),

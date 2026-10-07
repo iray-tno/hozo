@@ -51,6 +51,10 @@ pub(super) fn resolve(
         Condition::Enabled => Ok(node.props.disabled.as_ref().map_or(Guard::Known(true), |disabled| {
             Guard::Dynamic(format!("!({})", render_condition_expr(source, disabled)))
         })),
+        // This form state is a real TextInput prop, not DOM constraint
+        // validation. Use one answer for the positive, stacked and negated
+        // cases; a missing driver remains unknown, never false by default.
+        Condition::FormState(FormState::ReadOnly) => read_only(&node.props.text_input, source),
         Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
             if interaction::owns_events(node)
                 || (interaction_context && !matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button)) {
@@ -137,4 +141,33 @@ fn ambient(hook: RuntimeHook, runtime: &mut RuntimeNeeds) -> Guard {
     let binding = hook.binding();
     runtime.hooks.push(hook);
     Guard::Dynamic(binding)
+}
+
+/// Read the same input state as RN TextInput: a defined readOnly wins;
+/// undefined falls back to editable. Prop presence alone is not precedence.
+/// With neither spelling, preserve the diagnostic instead of guessing false.
+fn read_only(props: &hozo_ir::TextInputProps, source: &str) -> Result<Guard, String> {
+    if let Some(read_only) = props.read_only.as_ref() {
+        return Ok(match read_only {
+            ConditionExpr::Static(value) => Guard::Known(*value),
+            driver => {
+                let driver = render_condition_expr(source, driver);
+                let driver = match props.editable.as_ref() {
+                    Some(editable) => format!(
+                        "({driver}) !== undefined ? ({driver}) : ({}) === false",
+                        render_condition_expr(source, editable)
+                    ),
+                    None => driver,
+                };
+                // An OR or ternary must not escape the other atoms in a
+                // stacked conjunction. Negation then groups the same guard.
+                Guard::Dynamic(format!("({driver})"))
+            }
+        });
+    }
+    props.editable.as_ref().map(|editable| match editable {
+        ConditionExpr::Static(value) => Guard::Known(!value),
+        // An omitted/undefined editable prop keeps the host editable.
+        driver => Guard::Dynamic(format!("(({}) === false)", render_condition_expr(source, driver))),
+    }).ok_or_else(|| "`read-only:` needs a `readOnly` or `editable` prop on the same TextInput to drive it, and this one has neither.".into())
 }

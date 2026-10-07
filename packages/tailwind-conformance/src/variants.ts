@@ -123,6 +123,7 @@ const VARIANTS = [
   'required',
   'invalid',
   'read-only',
+  'not-read-only',
   'placeholder-shown',
   'user-invalid',
   'autofill',
