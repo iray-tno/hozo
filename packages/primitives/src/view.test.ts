@@ -23,7 +23,8 @@ test('normalizes Native-shaped View props onto one DOM element', () => {
     ),
   )
 
-  assert.match(html, /^<div/)
+  assert.match(html, /<div class="hozo-view"/)
+  assert.match(html, /data-href="hozo-view-base"/)
   assert.match(html, /role="region"/)
   assert.match(html, /aria-label="Settings"/)
   assert.match(html, /aria-description="Contains account settings"/)

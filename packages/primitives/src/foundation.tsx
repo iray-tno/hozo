@@ -6,6 +6,8 @@
 import {
   type HozoDomStyle,
   hozoDomStyle,
+  hozoViewBase,
+  hozoViewClassName,
   type ResponderProps,
   useResponderDomProps,
 } from '@hozo/engine'
@@ -132,9 +134,17 @@ export function View({ className, children, onLayout, ...universal }: ViewProps)
   const ref = useLayoutRef<HTMLDivElement>(onLayout)
   const responder = useResponderDomProps(ref, universal)
   return (
-    <div ref={ref} className={className} {...universalDomProps(universal)} {...responder}>
-      {children}
-    </div>
+    <>
+      {hozoViewBase()}
+      <div
+        ref={ref}
+        className={hozoViewClassName(className)}
+        {...universalDomProps(universal)}
+        {...responder}
+      >
+        {children}
+      </div>
+    </>
   )
 }
 

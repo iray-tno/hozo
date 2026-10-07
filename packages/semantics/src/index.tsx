@@ -1,4 +1,5 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { hozoViewBase, hozoViewClassName } from '@hozo/engine'
 import type { CSSProperties, ReactNode } from 'react'
 
 export interface SemanticsUniversalProps {
@@ -32,65 +33,89 @@ function domProps(props: Omit<SemanticsUniversalProps, 'style' | 'className' | '
 
 export function Main({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <main className={className} style={style} {...domProps(props)}>
-      {children}
-    </main>
+    <>
+      {hozoViewBase()}
+      <main className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </main>
+    </>
   )
 }
 
 export function Header({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <header className={className} style={style} {...domProps(props)}>
-      {children}
-    </header>
+    <>
+      {hozoViewBase()}
+      <header className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </header>
+    </>
   )
 }
 
 export function Footer({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <footer className={className} style={style} {...domProps(props)}>
-      {children}
-    </footer>
+    <>
+      {hozoViewBase()}
+      <footer className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </footer>
+    </>
   )
 }
 
 export function Aside({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <aside className={className} style={style} {...domProps(props)}>
-      {children}
-    </aside>
+    <>
+      {hozoViewBase()}
+      <aside className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </aside>
+    </>
   )
 }
 
 export function Search({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <search className={className} style={style} {...domProps(props)}>
-      {children}
-    </search>
+    <>
+      {hozoViewBase()}
+      <search className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </search>
+    </>
   )
 }
 
 export function Section({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <section className={className} style={style} {...domProps(props)}>
-      {children}
-    </section>
+    <>
+      {hozoViewBase()}
+      <section className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </section>
+    </>
   )
 }
 
 export function Article({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <article className={className} style={style} {...domProps(props)}>
-      {children}
-    </article>
+    <>
+      {hozoViewBase()}
+      <article className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </article>
+    </>
   )
 }
 
 export function Nav({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <nav className={className} style={style} {...domProps(props)}>
-      {children}
-    </nav>
+    <>
+      {hozoViewBase()}
+      <nav className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </nav>
+    </>
   )
 }
 
@@ -101,25 +126,34 @@ export interface ListProps extends SemanticsUniversalProps {
 export function List({ ordered = false, className, children, style, ...props }: ListProps) {
   const Tag = ordered ? 'ol' : 'ul'
   return (
-    <Tag className={className} style={style} {...domProps(props)}>
-      {children}
-    </Tag>
+    <>
+      {hozoViewBase()}
+      <Tag className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </Tag>
+    </>
   )
 }
 
 export function ListItem({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <li className={className} style={style} {...domProps(props)}>
-      {children}
-    </li>
+    <>
+      {hozoViewBase()}
+      <li className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </li>
+    </>
   )
 }
 
 export function Figure({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <figure className={className} style={style} {...domProps(props)}>
-      {children}
-    </figure>
+    <>
+      {hozoViewBase()}
+      <figure className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </figure>
+    </>
   )
 }
 
@@ -141,17 +175,23 @@ export function Time({ className, children, style, dateTime, datetime, ...props 
 
 export function Address({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <address className={className} style={style} {...domProps(props)}>
-      {children}
-    </address>
+    <>
+      {hozoViewBase()}
+      <address className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </address>
+    </>
   )
 }
 
 export function Fieldset({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <fieldset className={className} style={style} {...domProps(props)}>
-      {children}
-    </fieldset>
+    <>
+      {hozoViewBase()}
+      <fieldset className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </fieldset>
+    </>
   )
 }
 
@@ -193,17 +233,23 @@ export function Term({ className, children, style, ...props }: SemanticsUniversa
 
 export function Description({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <dd className={className} style={style} {...domProps(props)}>
-      {children}
-    </dd>
+    <>
+      {hozoViewBase()}
+      <dd className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </dd>
+    </>
   )
 }
 
 export function TermList({ className, children, style, ...props }: SemanticsUniversalProps) {
   return (
-    <dl className={className} style={style} {...domProps(props)}>
-      {children}
-    </dl>
+    <>
+      {hozoViewBase()}
+      <dl className={hozoViewClassName(className)} style={style} {...domProps(props)}>
+        {children}
+      </dl>
+    </>
   )
 }
 
@@ -314,15 +360,18 @@ export interface SkeletonProps extends SemanticsUniversalProps {
  */
 export function Skeleton({ className, style, children, ...props }: SkeletonProps) {
   return (
-    <div
-      className={className}
-      style={style}
-      {...domProps(props)}
-      aria-hidden={true}
-      data-hozo-skeleton=""
-    >
-      {children}
-    </div>
+    <>
+      {hozoViewBase()}
+      <div
+        className={hozoViewClassName(className)}
+        style={style}
+        {...domProps(props)}
+        aria-hidden={true}
+        data-hozo-skeleton=""
+      >
+        {children}
+      </div>
+    </>
   )
 }
 

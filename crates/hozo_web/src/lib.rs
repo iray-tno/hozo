@@ -69,17 +69,10 @@ const ARIA_STATE_ATTRS: &[(&str, &str)] = &[
 /// The `[data-hozo-*]` bases below are deliberately *not* wrapped. Those
 /// are behaviour rather than defaults -- a disabled control has to look
 /// disabled in forced colours even if a component class says otherwise.
-// `{\n  \`, not `{ \`: a line-continuation backslash also swallows the
-// newline and the next line's indentation, so the first declaration used to
-// land on the brace line -- in every stylesheet that carried this base.
-const VIEW_BASE_CSS: &str = ":where(.hozo-view) {\n  \
-    display: flex;\n  \
-    flex-direction: column;\n  \
-    flex-shrink: 0;\n  \
-    position: relative;\n  \
-    min-width: 0;\n  \
-    box-sizing: border-box;\n\
-}\n\n";
+// Included here and generated into @hozo/engine for uncompiled components.
+// `base` keeps Tailwind's layered utilities stronger than these defaults;
+// :where keeps ordinary project rules stronger regardless of source order.
+const VIEW_BASE_CSS: &str = include_str!("view-base.css");
 
 /// The plain rule is zero-specificity for the same reason `.hozo-view`
 /// is. The two attribute-qualified rules below it are not: they answer a
@@ -2411,7 +2404,7 @@ export function Login() {
         // continuation after `{ ` swallowed the newline -- and a query's
         // rules sat at the query's own indentation.
         let css = css_for("p-4 md:hover:p-8");
-        assert!(css.contains(":where(.hozo-view) {\n  display: flex;\n"), "{css}");
+        assert!(css.contains(":where(.hozo-view) {\n    display: flex;\n"), "{css}");
         assert!(
             css.contains(
                 "@media (width >= 768px) {\n  @media (hover: hover) {\n    .hozo-0:hover {\n      padding-top: 32px;\n"
@@ -2724,6 +2717,23 @@ export function Login() {
 
         // And the CSS selector that attribute name feeds is present too.
         assert!(output.css.contains("] {"));
+    }
+
+    #[test]
+    fn semantic_boxes_keep_the_shared_base_and_explicit_overrides() {
+        for primitive in ["Section", "Article", "Nav", "Main", "Header", "Footer",
+            "Aside", "Search", "Figure", "Address", "Fieldset", "TermList",
+            "Description", "List", "ListItem", "Skeleton"] {
+            let source = format!("import {{ {primitive} }} from '@hozo/core'; const el = <{primitive} className=\"flex-row shrink m-2 p-2 border-2\">x</{primitive}>");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(out.jsx.contains("hozo-view"), "{primitive}: {}", out.jsx);
+            assert!(out.css.contains(VIEW_BASE_CSS), "{primitive}: {}", out.css);
+            assert!(out.css.contains("flex-direction: row"), "{primitive}: {}", out.css);
+            assert!(out.css.contains("flex-shrink: 1"), "{primitive}: {}", out.css);
+            assert!(out.css.contains("@layer base"), "{primitive}: {}", out.css);
+            assert!(out.diagnostics.is_empty(), "{primitive}: {:?}", out.diagnostics);
+        }
     }
 
     #[test]

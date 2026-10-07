@@ -86,6 +86,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
+          name: semantic-web-layout-evidence
+          path: examples/showcase/artifacts/semantic-layout
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
           name: svg-filter-web-evidence
           path: examples/showcase/artifacts/svg-filters
           if-no-files-found: warn

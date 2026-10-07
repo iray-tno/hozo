@@ -23,10 +23,13 @@ import { build } from 'esbuild'
 
 import { facadedOwners, generatedLeaves } from './generated-abi.mjs'
 import { applyMetadata, metadataFor, PACKAGE_NAMES, VERSION } from './package-metadata.mjs'
+import { generateViewBase } from './view-base.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const problems = []
 const packedPackages = []
+
+generateViewBase(true)
 
 function fail(pkg, message) {
   problems.push(`@hozo/${pkg}: ${message}`)

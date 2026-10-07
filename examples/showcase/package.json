@@ -9,7 +9,7 @@
     "./svg-filter-scene": "./src/svg-filter-scene.tsx"
   },
   "scripts": {
-    "test": "node --test scripts/svg-filter-pixels.test.mjs && node scripts/check-svg-filter-pixels.mjs",
+    "test": "node --test scripts/svg-filter-pixels.test.mjs && node scripts/check-svg-filter-pixels.mjs && node scripts/check-semantic-layout.mjs",
     "typecheck": "tsc -p ."
   },
   "dependencies": {

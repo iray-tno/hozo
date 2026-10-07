@@ -47,5 +47,8 @@ test('a meter is the meter element with its range as written', () => {
 
 test('a skeleton is hidden from assistive technology and marked for the reduced-motion rule', () => {
   const html = renderToStaticMarkup(<Skeleton className="s" />)
-  assert.equal(html, '<div class="s" aria-hidden="true" data-hozo-skeleton=""></div>')
+  assert.ok(
+    html.endsWith('<div class="hozo-view s" aria-hidden="true" data-hozo-skeleton=""></div>'),
+  )
+  assert.match(html, /data-href="hozo-view-base"/)
 })
