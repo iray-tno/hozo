@@ -586,6 +586,54 @@ fn the_elements_own_style_wins_over_what_it_was_handed() {
 }
 
 #[test]
+fn declaring_a_container_preserves_the_selected_native_host() {
+    for (primitive, props, classes, host) in [
+        ("Button", "onPress={save}", "@container", "Pressable"),
+        ("Pressable", "onPress={save}", "@container hover:opacity-50", "HozoPressable"),
+        ("Button", "href=\"/docs\"", "@container", "HozoLink"),
+        ("Text", "", "@container", "Text"),
+        ("TextInput", "value={value}", "@container", "TextInput"),
+        ("Image", "source={image}", "@container", "Image"),
+        ("ScrollView", "onScroll={scroll}", "@container", "ScrollView"),
+        ("FlatList", "data={items} renderItem={renderItem}", "@container", "HozoFlatList"),
+        ("View", "", "@container opacity-100 transition-opacity dark:opacity-50", "HozoAnimated"),
+        ("View", "", "@container animate-pulse", "Animated.View"),
+    ] {
+        let source = format!(
+            "import {{ {primitive} }} from '@hozo/core'; const el = <{primitive} {props} className=\"{classes}\" />;"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(!out.diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error), "{primitive}: {:?}", out.diagnostics);
+        assert!(out.jsx.contains(&format!("hozoContainerComponent={{{host}}}")), "{primitive}: {}", out.jsx);
+        assert!(out.runtime_imports.contains(&"HozoContainer"));
+        assert!(!out.styles.contains("containerType"));
+        if !props.is_empty() {
+            assert!(out.jsx.contains(props), "{}", out.jsx);
+        }
+    }
+}
+
+#[test]
+fn a_container_cannot_invent_a_box_or_hide_compound_part_identity() {
+    for (primitive, host) in [
+        ("Modal", "Modal"),
+        ("Dialog", "HozoDialog"),
+        ("Summary", "HozoSummary"),
+        ("Svg.Path", "Path"),
+    ] {
+        let source = format!(
+            "import {{ Modal, Dialog, Summary, Svg }} from '@hozo/core'; const el = <{primitive} className=\"@container\" />;"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(out.diagnostics.iter().any(|diagnostic| diagnostic.code == DiagnosticCode::NotWiredOnNative && diagnostic.message.contains("single layout-reporting host")), "{primitive}: {:?}", out.diagnostics);
+        assert!(out.jsx.starts_with(&format!("<{host}")), "{}", out.jsx);
+        assert!(!out.runtime_imports.contains(&"HozoContainer"));
+    }
+}
+
+#[test]
 fn a_container_measures_itself_and_its_subtree_reads_the_width() {
     // The one width the runtime cannot already know. A window has one
     // and `useHozoViewport` reports it; a container's is whatever

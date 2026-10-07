@@ -128,11 +128,25 @@ including text colours moved onto raw labels. Descendants cannot silently
 borrow an outer button's state across the intervening link. Adding a real
 link interaction owner is follow-up work, not an OS capability guess.
 
-Similarly, a control declaring `@container` itself currently becomes
-`HozoContainer`, a View-based measurer without an interaction provider.
-Hover/focus predicates there are diagnosed, not passed as a function style
-to that View or dropped from its raw label. Put `@container` on an enclosing
-View and keep the Button/Pressable as a separate, real interaction owner.
+Container measurement preserves the selected host instead of replacing it
+with a View. `HozoContainer` receives the compiler's host (`Pressable`,
+`HozoPressable`, `TextInput`, `ScrollView`, or the existing animation helper)
+and adds only a provider and the composed `onLayout` callback. A control
+declaring `@container` remains a control: its events, role, ref, function
+style/children and interaction context survive. No extra layout node or
+second interaction machine is introduced. The querying element's boundary
+stays outside its own provider, so it still cannot query itself.
+
+An ordinary View container uses the default host. Destination-bearing
+controls retain `HozoLink`, including its navigation behavior and the
+interaction-state limitation above; measurement does not invent support
+the preserved host lacks.
+
+Hosts without a single forwarded layout event (Modal/Dialog, non-layout
+SVG nodes) and identity-sensitive compound parts (Summary, dynamic RubyText)
+are diagnosed instead of being replaced with a fake box. Put a container
+View inside or around those parts. Their dedicated adapters remain separate
+work, not a reason to change their semantics here.
 
 This is a platform-shaped interaction contract, **not CSS capability
 parity**. Web retains Tailwind's `:not(:hover)` / `not (hover: hover)`

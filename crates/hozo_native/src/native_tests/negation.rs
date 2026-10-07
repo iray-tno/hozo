@@ -153,14 +153,15 @@ fn destination_controls_do_not_invent_hover_owners_or_borrow_outer_state() {
 }
 
 #[test]
-fn container_wrappers_do_not_accept_an_interaction_callback_or_drop_text_guards() {
+fn container_measurement_preserves_the_interaction_host_and_text_guards() {
     for primitive in ["Pressable", "Button"] {
         for utility in ["opacity-50", "text-red-500"] {
             for variant in ["hover", "not-hover", "focus", "not-focus"] {
                 let body = format!(r#"<{primitive} className="@container {variant}:{utility}">Label</{primitive}>"#);
                 let out = compile(&body);
-                assert!(out.diagnostics.iter().any(|d| d.severity == Severity::Error), "{body}: {:?}", out.diagnostics);
-                assert!(!out.jsx.contains("style={({"), "{body}: {}", out.jsx);
+                assert!(out.diagnostics.is_empty(), "{body}: {:?}", out.diagnostics);
+                assert!(out.jsx.contains("hozoContainerComponent={HozoPressable}"), "{body}: {}", out.jsx);
+                assert!(out.jsx.contains("style={({"), "{body}: {}", out.jsx);
             }
         }
     }

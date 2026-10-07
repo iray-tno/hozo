@@ -347,16 +347,14 @@ test('destination-bearing controls refuse missing hover owners rather than dropp
   }
 })
 
-test('a container wrapper cannot masquerade as an interaction owner', () => {
+test('a container wrapper keeps the actual interaction owner instead of a View callback', () => {
   for (const primitive of ['Pressable', 'Button']) {
     for (const utility of ['opacity-50', 'text-red-500']) {
       const body = `<${primitive} className="@container not-hover:${utility}">Label</${primitive}>`
       const c = compile(body)
-      assert.ok(
-        c.result.diagnostics.some((d) => d.code === 'NOT_WIRED_ON_NATIVE'),
-        body,
-      )
-      assert.ok(!c.result.jsx.includes('style={({'), `${body}: ${c.result.jsx}`)
+      assert.deepEqual(c.result.diagnostics, [], body)
+      assert.match(c.result.jsx, /hozoContainerComponent=\{HozoPressable\}/)
+      assert.ok(c.result.jsx.includes('style={({'), `${body}: ${c.result.jsx}`)
     }
   }
   const supported = compile(

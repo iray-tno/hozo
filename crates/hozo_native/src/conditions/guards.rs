@@ -63,19 +63,8 @@ pub(super) fn resolve(
                 // A style object which the JSX never references is a silent
                 // drop, not support. Refuse when no owner can drive it.
                 if matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button) {
-                    let wrapper = if matches!(node.primitive, Primitive::Link)
-                        || node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("href")) {
-                        "HozoLink"
-                    } else {
-                        "HozoContainer"
-                    };
-                    let advice = if wrapper == "HozoContainer" {
-                        " Put a container on an enclosing View instead of the control itself."
-                    } else {
-                        ""
-                    };
                     return Err(format!(
-                        "`{}:` needs a readable interaction owner on Native, but this control renders {wrapper}, which does not carry that state yet.{advice} On Web the same class works.",
+                        "`{}:` needs a readable interaction owner on Native, but this control renders HozoLink, which does not carry that state yet. On Web the same class works.",
                         condition_suffix(condition).unwrap_or_default()
                     ));
                 }
