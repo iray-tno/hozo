@@ -1108,7 +1108,9 @@ fi
 # A skeleton is in the list on purpose: it is hidden from assistive
 # technology, and what it should produce is nothing.
 echo "census walk:"
-census_since="$(adb shell date +%s.%N | tr -d '\r')"
+# Whole seconds: toybox `date` may not know `%N`, and the markers are seconds
+# apart anyway.
+census_since="$(adb shell date +%s | tr -d '\r')"
 adb shell am start -a android.intent.action.VIEW -d "hozonativedemo://census" "$package" > /dev/null 2>&1 || true
 census_done=
 for _ in $(seq 1 45); do
