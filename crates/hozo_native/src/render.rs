@@ -878,12 +878,19 @@ pub(super) fn render_node(
     // update the state its callback consumes.
     let needs_focus_visible = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
         interaction::uses_focus_visible(&declaration.condition)
-    }) || (component == "Pressable" && interaction::descendant_uses(node, interaction::uses_focus_visible));
+    }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_focus_visible));
     let needs_hover_or_focus = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
         condition_contains(&declaration.condition, |condition| {
             uses_hover(condition) || focus_state(condition).is_some()
         })
-    }) || (component == "Pressable" && interaction::descendant_uses(node, interaction::uses_interaction));
+    }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_interaction));
+    // Navigation stays in HozoLink; the compiler selects the existing state
+    // provider underneath it. A plain link imports no animation machinery.
+    let link_interaction = component == "HozoLink" && (needs_hover_or_focus || transition.is_some()
+        || text_declarations.iter().any(|declaration| interaction::uses_interaction(&declaration.condition)));
+    if link_interaction {
+        runtime.need_component("HozoPressable");
+    }
     // `@container`, which on Web is a property and here is a component:
     // an element has to measure itself before anything below it can query
     // its width.
@@ -961,12 +968,11 @@ pub(super) fn render_node(
             Severity::Error,
         ));
     }
-    // An intervening control owns its own interaction. A destination renders
-    // HozoLink, which has no state provider; Text below it must not silently
-    // read an outer button's hover/focus instead.
-    let child_interaction_context = rendered_component == "HozoPressable"
+    // An intervening control owns its own interaction. Neither an enhanced
+    // nor a plain link may borrow an outer button's hover/focus context.
+    let child_interaction_context = rendered_component == "HozoPressable" || link_interaction
         || (interaction_context && !matches!(node.primitive, Primitive::Pressable | Primitive::Button | Primitive::Link));
-    let needs_pressed_fn = matches!(rendered_component, "Pressable" | "HozoPressable" | "HozoText")
+    let needs_pressed_fn = matches!(rendered_component, "Pressable" | "HozoPressable" | "HozoText" | "HozoLink")
         && !pressed_parts.is_empty();
     if needs_pressed_fn {
         style_array_parts.extend(pressed_parts);
@@ -992,6 +998,9 @@ pub(super) fn render_node(
         .iter()
         .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
         .collect::<String>();
+    if link_interaction {
+        props_text.push_str(" hozoLinkComponent={HozoPressable}");
+    }
     if rendered_component == "HozoBackdropFilter" {
         if let Some(NativeBackdropFilter::Blur(radius)) = &backdrop_filter {
             props_text.push_str(&format!(" hozoBlurRadius={{{radius}}}"));
@@ -1134,7 +1143,7 @@ pub(super) fn render_node(
     if let Some(ratio) = relative_at_runtime {
         props_text.push_str(&format!(" hozoRelative={{{ratio}}}"));
     }
-    if needs_focus_visible && rendered_component == "HozoPressable" {
+    if needs_focus_visible && (rendered_component == "HozoPressable" || link_interaction) {
         props_text.push_str(" hozoFocusVisible");
     }
     // Skipping the ones the author already wrote.

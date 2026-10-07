@@ -15,9 +15,9 @@
 //! form (no synthesized state needed, unlike what an earlier pass of this
 //! design assumed) -- so a node with a `Pressed` condition gets its whole
 //! `style` prop wrapped in that function instead of being a plain array.
-//! Only applies when `component == "Pressable"` (Button maps to it too);
-//! a function isn't a valid `style` value on View/Text, so `Pressed` stays
-//! unmerged there.
+//! Control hosts (Pressable, Button and Link) expose that callback. Text
+//! in an enhanced owner's context reads it through HozoText; a standalone
+//! View/Text cannot take a function style and is diagnosed instead.
 //!
 //! Until 2026-08-15 `Hover`/`Focus`/`Responsive`/`Dark`/`FirstChild` did
 //! not merge into anything. That was a
@@ -43,13 +43,14 @@
 //!   costs nothing at runtime. Only an undecidable position (a component
 //!   root, or a sibling of anything carried as `Child::Verbatim`, which
 //!   may render nothing or a hundred elements) is an error.
-//! - `Hover`/`Focus` are wired on Pressable and Button through a small
-//!   runtime wrapper. Only elements that use either condition pay for its
-//!   state and event handlers; ordinary Pressables keep RN's native path.
-//!   A View/Text has no interaction owner, so using either there is an
-//!   error rather than a style silently applied under the wrong condition.
-//! - `Disabled` without a `disabled` prop, and `Pressed` on anything but a
-//!   Pressable, are errors: nothing on the element can drive them.
+//! - `Hover`/`Focus` are wired on Pressable, Button and Link through the
+//!   same small runtime wrapper. Own or descendant state selects it;
+//!   ordinary controls keep RN's native path. Link retains navigation
+//!   around that host, and Text reads its nearest owner's context. A
+//!   standalone View/Text has none, so using either there is an error
+//!   rather than a style silently applied under the wrong condition.
+//! - `Disabled` without a `disabled` prop, and `Pressed` without a control
+//!   or inherited interaction context, are errors: nothing can drive them.
 
 mod candidate;
 mod conditions;

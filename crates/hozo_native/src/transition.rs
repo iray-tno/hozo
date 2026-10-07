@@ -1,4 +1,4 @@
-use hozo_ir::{Condition, Node, Primitive, StyleDeclaration, StyleProperty};
+use hozo_ir::{Condition, Node, StyleDeclaration, StyleProperty};
 
 use super::condition_contains;
 
@@ -95,7 +95,7 @@ pub(super) fn native_driver_transition(
 /// and here the guard is a runtime value, so what the style *becomes* is
 /// only known once it has. `HozoAnimated` diffs it at render instead.
 pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration]) -> Option<(u32, u32, &'static str)> {
-    if matches!(node.primitive, Primitive::Pressable | Primitive::Button) {
+    if super::interaction::owns_events(node) {
         return None;
     }
     let properties = declarations.iter().rev().find_map(|declaration| match &declaration.property {

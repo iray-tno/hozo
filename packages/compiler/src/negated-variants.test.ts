@@ -329,19 +329,25 @@ test('an unreadable or unsupported inner condition remains an explicit refusal',
   }
 })
 
-test('destination-bearing controls refuse missing hover owners rather than dropping text styles', () => {
+test('destination-bearing controls supply their own hover and focus text owner', () => {
   for (const primitive of ['Pressable', 'Button', 'Link']) {
-    for (const variant of ['hover', 'not-hover', 'focus', 'not-focus']) {
+    for (const variant of [
+      'hover',
+      'not-hover',
+      'focus',
+      'not-focus',
+      'focus-visible',
+      'not-focus-visible',
+      'active',
+    ]) {
       for (const body of [
         `<${primitive} href="/docs" className="${variant}:text-red-500">Docs</${primitive}>`,
         `<Pressable className="hover:opacity-50"><${primitive} href="/docs"><Text className="${variant}:text-red-500">Docs</Text></${primitive}></Pressable>`,
       ]) {
         const c = compile(body)
-        assert.ok(
-          c.result.diagnostics.some((d) => d.code === 'NOT_WIRED_ON_NATIVE'),
-          body,
-        )
-        assert.ok(!c.result.jsx.includes('<HozoText'), `${body}: ${c.result.jsx}`)
+        assert.deepEqual(c.result.diagnostics, [], body)
+        assert.match(c.result.jsx, /<HozoLink hozoLinkComponent=\{HozoPressable\}/)
+        assert.ok(c.result.jsx.includes('<HozoText'), `${body}: ${c.result.jsx}`)
       }
     }
   }
