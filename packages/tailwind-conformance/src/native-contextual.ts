@@ -17,6 +17,8 @@ export interface NativeContextualCase {
     | 'not-motion-reduce'
     | 'not-focus'
     | 'not-focus-visible'
+    | 'not-hover'
+    | 'descendant-not-hover'
     | 'descendant-focus-visible'
     | 'descendant-not-focus-visible'
     | 'group-focus-visible'
@@ -42,6 +44,23 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'not-hover',
+    purpose: 'Native event-owned hover is negated in the same callback and opacity transition',
+    className: 'opacity-100 transition-opacity md:not-hover:opacity-50',
+    expected: ['HozoPressable', '__hozoBp_md && !(hovered) &&', 'opacity: true'],
+  },
+  {
+    candidate: 'descendant-not-hover',
+    purpose: 'a descendant-only negated hover predicate enables its otherwise plain owner',
+    className: '',
+    children: '<Text className="not-hover:opacity-50">x</Text>',
+    expected: [
+      'HozoPressable',
+      'HozoText style={({ pressed, hovered, focused }) =>',
+      '!(hovered) &&',
+    ],
+  },
   {
     candidate: 'not-@md',
     purpose: 'negating a measured ancestor width remains inside its query and can transition',

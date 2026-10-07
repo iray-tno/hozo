@@ -51,12 +51,36 @@ pub(super) fn resolve(
         Condition::Enabled => Ok(node.props.disabled.as_ref().map_or(Guard::Known(true), |disabled| {
             Guard::Dynamic(format!("!({})", render_condition_expr(source, disabled)))
         })),
-        Condition::Focus | Condition::FocusVisible => {
-            if interaction_context || matches!(node.primitive, Primitive::Pressable | Primitive::Button) {
-                Ok(Guard::Interactive(focus_state(condition).unwrap().to_string()))
+        Condition::Hover | Condition::Focus | Condition::FocusVisible => {
+            if interaction::owns_events(node)
+                || (interaction_context && !matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button)) {
+                // Both directions read the existing owner events. Web hover
+                // additionally asks about the primary input's capability;
+                // Native has no equivalent query and does not guess one.
+                let state = if matches!(condition, Condition::Hover) { "hovered" } else { focus_state(condition).unwrap() };
+                Ok(Guard::Interactive(state.to_string()))
             } else {
+                // A style object which the JSX never references is a silent
+                // drop, not support. Refuse when no owner can drive it.
+                if matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button) {
+                    let wrapper = if matches!(node.primitive, Primitive::Link)
+                        || node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("href")) {
+                        "HozoLink"
+                    } else {
+                        "HozoContainer"
+                    };
+                    let advice = if wrapper == "HozoContainer" {
+                        " Put a container on an enclosing View instead of the control itself."
+                    } else {
+                        ""
+                    };
+                    return Err(format!(
+                        "`{}:` needs a readable interaction owner on Native, but this control renders {wrapper}, which does not carry that state yet.{advice} On Web the same class works.",
+                        condition_suffix(condition).unwrap_or_default()
+                    ));
+                }
                 Err(format!(
-                    "`{}:` is wired only on Pressable and Button, or Text in their interaction context, on React Native; no readable focus state exists on this element.",
+                    "`{}:` is wired only on Pressable and Button, or Text in their interaction context, on React Native; no readable interaction state exists on this element.",
                     condition_suffix(condition).unwrap_or_default()
                 ))
             }
@@ -116,8 +140,8 @@ pub(super) fn resolve(
                 "`{name}:` can only be resolved when the compiler can see this element's position among its siblings, and here it can't -- it's either the root of a component (whose position its caller decides) or a sibling of something Hozo doesn't model, such as a custom component or a `{{...}}` expression."
             ))
         }
-        // In particular hover includes both a media query and a selector
-        // on Web. It is not safe to treat not-hover as just !hovered.
+        // An unimplemented predicate must not become true by default merely
+        // because the author negates it.
         _ => Err("this inner condition is not wired for Native negation yet. On Web the same class works.".into()),
     }
 }

@@ -518,6 +518,17 @@ fn focus_state(condition: &Condition) -> Option<&'static str> {
     }
 }
 
+// Native hover is the interaction owner's event state, not CSS's primary
+// input capability query. Its complement uses the same owner, including
+// when only a descendant asks for it; unrelated negations stay opaque.
+fn uses_hover(condition: &Condition) -> bool {
+    match condition {
+        Condition::Hover => true,
+        Condition::Not(inner) => uses_hover(inner),
+        _ => false,
+    }
+}
+
 /// Wraps `inner` in `HozoSpaced` when the element carries `space-*` or
 /// `divide-*`, so the style reaches the children.
 ///

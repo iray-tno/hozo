@@ -63,16 +63,16 @@
     "noOp": 1
   },
   "nativeContextual": {
-    "cases": 24,
-    "covered": 24,
+    "cases": 26,
+    "covered": 26,
     "refused": 0,
     "silent": 0
   },
   "a11yContracts": {
     "cases": 33,
     "covered": 33,
-    "primitives": 54,
-    "uncontracted": 6
+    "primitives": 57,
+    "uncontracted": 9
   },
   "ariaRoles": {
     "roles": 113,
@@ -198,9 +198,9 @@
   },
   "nativeVariants": {
     "total": 28227,
-    "covered": 7278,
-    "restricted": 3744,
-    "refused": 20949,
+    "covered": 7539,
+    "restricted": 4005,
+    "refused": 20688,
     "silent": 0,
     "noOp": 0
   }

@@ -1,7 +1,7 @@
 use super::*;
 
 fn compile(body: &str) -> LowerOutput {
-    let source = format!("import {{ View, Text, Pressable, Button }} from '@hozo/core'; const el = {body}");
+    let source = format!("import {{ View, Text, Pressable, Button, Link }} from '@hozo/core'; const el = {body}");
     let parsed = hozo_parser::parse_tsx(&source);
     lower(&parsed.roots[0].node, &source, &Theme::default())
 }
@@ -92,6 +92,85 @@ fn negated_focus_reuses_transition_and_stacked_state_routing() {
 }
 
 #[test]
+fn negated_hover_uses_the_existing_owner_without_positive_variants() {
+    for primitive in ["Pressable", "Button"] {
+        let out = compile(&format!(
+            r#"<{primitive} className="opacity-100 not-hover:opacity-50" />"#,
+        ));
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+        assert!(out.jsx.starts_with("<HozoPressable"), "{}", out.jsx);
+        assert!(out.jsx.contains("style={({ pressed, hovered, focused }) =>"), "{}", out.jsx);
+        assert!(out.jsx.contains("!(hovered) &&"), "{}", out.jsx);
+        assert!(!out.jsx.contains("hozoFocusVisible"), "{}", out.jsx);
+        assert!(out.prelude.is_empty(), "{:?}", out.prelude);
+    }
+}
+
+#[test]
+fn negated_hover_composes_and_reuses_all_interaction_transition_channels() {
+    let out = compile(
+        r#"<Pressable disabled={off} className="opacity-100 bg-white text-gray-500 transition md:not-disabled:not-hover:opacity-50 not-hover:scale-95 not-hover:bg-blue-500 not-hover:text-blue-500">Save</Pressable>"#,
+    );
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("__hozoBp_md && !((off)) && !(hovered) &&"), "{}", out.jsx);
+    for marker in ["hozoTransition=", "opacity: true", "transform: true", "colors: true", "<HozoText style={({ pressed, hovered, focused }) =>"] {
+        assert!(out.jsx.contains(marker), "{}", out.jsx);
+    }
+}
+
+#[test]
+fn descendant_negated_hover_enables_only_its_nearest_owner() {
+    for body in [
+        r#"<Pressable><View>{ready && <Text className="not-hover:text-red-500">Label</Text>}</View></Pressable>"#,
+        r#"<Pressable><View className="not-hover:text-red-500">Label</View></Pressable>"#,
+    ] {
+        let out = compile(body);
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+        assert!(out.jsx.starts_with("<HozoPressable"), "{}", out.jsx);
+        assert!(out.jsx.contains("<HozoText style={({ pressed, hovered, focused }) =>"), "{}", out.jsx);
+        assert!(out.jsx.contains("!(hovered) &&"), "{}", out.jsx);
+    }
+    let out = compile(r#"<Pressable><Button><Text className="not-hover:text-red-500">Inner</Text></Button></Pressable>"#);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<Pressable>"), "{}", out.jsx);
+    assert_eq!(out.jsx.matches("<HozoPressable").count(), 1, "{}", out.jsx);
+}
+
+#[test]
+fn destination_controls_do_not_invent_hover_owners_or_borrow_outer_state() {
+    for primitive in ["Pressable", "Button", "Link"] {
+        for variant in ["hover", "not-hover", "focus", "not-focus"] {
+            for body in [
+                format!(r#"<{primitive} href="/docs" className="{variant}:text-red-500">Docs</{primitive}>"#),
+                format!(r#"<Pressable className="hover:opacity-50"><{primitive} href="/docs"><Text className="{variant}:text-red-500">Docs</Text></{primitive}></Pressable>"#),
+            ] {
+                let out = compile(&body);
+                assert!(out.diagnostics.iter().any(|d| d.severity == Severity::Error), "{body}: {:?}", out.diagnostics);
+                assert!(!out.jsx.contains("<HozoText"), "{body}: {}", out.jsx);
+            }
+        }
+    }
+}
+
+#[test]
+fn container_wrappers_do_not_accept_an_interaction_callback_or_drop_text_guards() {
+    for primitive in ["Pressable", "Button"] {
+        for utility in ["opacity-50", "text-red-500"] {
+            for variant in ["hover", "not-hover", "focus", "not-focus"] {
+                let body = format!(r#"<{primitive} className="@container {variant}:{utility}">Label</{primitive}>"#);
+                let out = compile(&body);
+                assert!(out.diagnostics.iter().any(|d| d.severity == Severity::Error), "{body}: {:?}", out.diagnostics);
+                assert!(!out.jsx.contains("style={({"), "{body}: {}", out.jsx);
+            }
+        }
+    }
+    // Measuring a separate ancestor keeps both real runtime owners intact.
+    let out = compile(r#"<View className="@container"><Button className="not-hover:opacity-50">Label</Button></View>"#);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("<HozoPressable"), "{}", out.jsx);
+}
+
+#[test]
 fn unknown_and_unsupported_predicates_do_not_become_true_when_negated() {
     for body in [
         r#"<View className="not-first:p-4" />"#,
@@ -99,7 +178,10 @@ fn unknown_and_unsupported_predicates_do_not_become_true_when_negated() {
         r#"<View className="not-disabled:p-4" />"#,
         r#"<View accessibilityState={{ busy: true }} className="not-aria-checked:p-4" />"#,
         r#"<View className="not-print:p-4" />"#,
-        r#"<Pressable className="not-hover:p-4" />"#,
+        r#"<View className="not-hover:p-4" />"#,
+        r#"<Text className="not-hover:p-4" />"#,
+        r#"<View className="md:not-hover:p-4" />"#,
+        r#"<Pressable><View className="not-hover:p-4" /></Pressable>"#,
         r#"<View className="not-focus:p-4" />"#,
         r#"<Text className="not-focus-visible:p-4" />"#,
         r#"<View className="md:not-focus-visible:p-4" />"#,
