@@ -422,6 +422,122 @@ test('child Text focus-visible follows its owner through keyboard, pointer and b
   }
 })
 
+test('negated hover follows real owner events, not pressing or a fabricated capability', () => {
+  const flatten = require('react-native').StyleSheet.flatten as (style: unknown) => {
+    opacity?: number
+    paddingTop?: number
+  }
+  for (const primitive of ['Pressable', 'Button']) {
+    const snapshots = renderNativeWithEvents(
+      `import { ${primitive} } from '@hozo/core'
+       export function C() {
+         return <${primitive} className="not-hover:opacity-50 hover:opacity-100 hover:p-4">Save</${primitive}>
+       }`,
+      'C',
+      ['onPressIn', 'onPressOut', 'onHoverIn', 'onPressIn', 'onPressOut', 'onHoverOut'],
+    )
+    assert.deepEqual(
+      snapshots.map((tree) => {
+        const style = tree?.props.style as (state: { pressed: boolean }) => unknown
+        assert.equal(typeof style, 'function', 'RN must still receive its plain style callback')
+        assert.equal(tree?.props.onPointerDown, undefined, 'no new modality listener is needed')
+        const resolved = flatten([style({ pressed: false })].flat(Infinity))
+        return [resolved.opacity, resolved.paddingTop]
+      }),
+      [
+        [0.5, undefined],
+        [0.5, undefined],
+        [0.5, undefined],
+        [1, 16],
+        [1, 16],
+        [1, 16],
+        [0.5, undefined],
+      ],
+      primitive,
+    )
+  }
+})
+
+test('descendant-only hover negation binds explicit and inherited Text to the nearest owner', () => {
+  const flatten = require('react-native').StyleSheet.flatten as (style: unknown) => {
+    color?: string
+  }
+  for (const content of [
+    '<Text className="not-hover:text-red-500">Save</Text>',
+    '<View className="not-hover:text-red-500">Save</View>',
+  ]) {
+    const snapshots = renderNativeWithEvents(
+      `import { Pressable, Text, View } from '@hozo/core'
+       export function C() { return <Pressable>${content}</Pressable> }`,
+      'C',
+      ['onPressIn', 'onPressOut', 'onHoverIn', 'onHoverOut'],
+    )
+    const colors = snapshots.map((tree) => {
+      const [child] = children(tree)
+      const text = child?.type === 'View' ? children(child)[0] : child
+      return flatten([text?.props.style].flat(Infinity)).color
+    })
+    assert.ok(colors[0], 'the no-hover style must apply before any event')
+    assert.deepEqual(colors, [colors[0], colors[0], colors[0], undefined, colors[0]])
+  }
+
+  const react = require('react')
+  const renderer = require('react-test-renderer')
+  const { C } = loadNativeModule(`
+    import { Pressable, Button, Text } from '@hozo/core'
+    export function C() {
+      return <Pressable testID="outer"><Button testID="inner">
+        <Text className="not-hover:text-red-500">Save</Text>
+      </Button></Pressable>
+    }`)
+  let root: ReturnType<typeof renderer.create> | undefined
+  try {
+    renderer.act(() => {
+      root = renderer.create(react.createElement(C))
+    })
+    const hosts = root!.root.findAll((node: { type: unknown }) => node.type === 'Pressable')
+    assert.equal(hosts.length, 2)
+    assert.equal(hosts[0].props.onHoverIn, undefined, 'the outer owner must remain plain')
+    const color = () =>
+      flatten([children(children(root!.toJSON())[0])[0].props.style].flat(Infinity)).color
+    const initial = color()
+    assert.ok(initial)
+    renderer.act(() => hosts[1].props.onHoverIn())
+    assert.equal(color(), undefined)
+    renderer.act(() => hosts[1].props.onHoverOut())
+    assert.equal(color(), initial)
+  } finally {
+    renderer.act(() => root?.unmount())
+  }
+})
+
+test('hover negation alone installs the existing opacity transition and preserves its targets', () => {
+  const snapshots = renderNativeWithEvents(
+    `import { Pressable } from '@hozo/core'
+     export function C() {
+       return <Pressable className="opacity-100 transition-opacity not-hover:opacity-50" />
+     }`,
+    'C',
+    ['onHoverIn', 'onHoverOut'],
+  )
+  assert.deepEqual(
+    snapshots.map((tree) => {
+      assert.notEqual(
+        typeof tree?.props.style,
+        'function',
+        'Animated must receive an attachable array',
+      )
+      const parts = [tree?.props.style].flat(Infinity) as { opacity?: unknown }[]
+      assert.ok(
+        parts.some((part) => part?.opacity && typeof part.opacity === 'object'),
+        'animation is not dropped',
+      )
+      return parts.filter((part) => typeof part?.opacity === 'number').at(-1)?.opacity
+    }),
+    [0.5, 1, 0.5],
+  )
+})
+
 test('negated ambient styles are complementary at exact boundaries and reuse coarse snapshots', () => {
   const stub = require('react-native') as {
     Dimensions: {

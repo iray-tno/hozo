@@ -427,7 +427,7 @@ pub(super) fn build_style_entries(
         match &condition {
             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
             | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
-            | Condition::Structural(_) | Condition::Not(_) | Condition::Focus | Condition::FocusVisible
+            | Condition::Structural(_) | Condition::Not(_) | Condition::Hover | Condition::Focus | Condition::FocusVisible
             | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark
             | Condition::Container { .. } => {
                 match guards::resolve(&condition, node, source, position, runtime, interaction_context) {
@@ -506,7 +506,7 @@ pub(super) fn build_style_entries(
                             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
                             | Condition::Environment(_) | Condition::FirstChild
                             | Condition::LastChild | Condition::Structural(_) | Condition::Not(_)
-                            | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
+                            | Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
                             | Condition::Width { .. } | Condition::Dark | Condition::Container { .. } => {
                                 match guards::resolve(atom, node, source, position, runtime, interaction_context) {
                                     Ok(guards::Guard::Known(true)) => {}
@@ -543,21 +543,6 @@ pub(super) fn build_style_entries(
                             Condition::Pressed => {
                                 guards.push("pressed".to_string());
                                 uses_interactive_state = true;
-                            }
-                            Condition::Hover => {
-                                if interaction_context || matches!(node.primitive, Primitive::Pressable | Primitive::Button)
-                                {
-                                    guards.push("hovered".to_string());
-                                    uses_interactive_state = true;
-                                } else {
-                                    diagnostics.push(unwired_variant(
-                                        node,
-                                        "`hover:` in a stacked variant is wired only on \
-                                         Pressable and Button on React Native.",
-                                        Severity::Error,
-                                    ));
-                                    applies = false;
-                                }
                             }
                             Condition::Expr(expr) => {
                                 guards.push(format!("({})", render_condition_expr(source, expr)));
@@ -768,21 +753,6 @@ pub(super) fn build_style_entries(
                 let guard = render_condition_expr(source, expr);
                 conditional_parts.extend(guarded(&format!("({guard}) && ")));
             }
-            // Each of these produced a style object that the rendered JSX
-            // never referenced -- computed, then dropped, with nothing
-            // said. That silence is the bug being fixed here; the styles
-            // still don't apply, but no longer without saying so.
-            Condition::Hover
-                if interaction_context || matches!(node.primitive, Primitive::Pressable | Primitive::Button) =>
-            {
-                pressed_parts.extend(guarded("hovered && "));
-            }
-            Condition::Hover => diagnostics.push(unwired_variant(
-                node,
-                "`hover:` is wired only on Pressable and Button on React Native, \
-                 because those elements own the interaction events that drive the state.",
-                Severity::Error,
-            )),
             // Refused rather than shelved. React Native has no selector
             // engine at all -- not a missing feature but a different
             // architecture, since styles there are objects handed to

@@ -6,14 +6,16 @@ pub(super) fn native_driver_transition(
     node: &Node,
     declarations: &[StyleDeclaration],
 ) -> Option<(u32, u32, &'static str, bool, bool, bool)> {
-    if !matches!(node.primitive, Primitive::Pressable | Primitive::Button) {
+    if !super::interaction::owns_events(node) {
         return None;
     }
     let interactive = |property: fn(&StyleProperty) -> bool| {
         declarations.iter().any(|declaration| {
             property(&declaration.property)
                 && condition_contains(&declaration.condition, |condition| {
-                matches!(condition, Condition::Hover | Condition::Pressed) || super::focus_state(condition).is_some()
+                matches!(condition, Condition::Pressed)
+                    || super::uses_hover(condition)
+                    || super::focus_state(condition).is_some()
             })
         })
     };

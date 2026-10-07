@@ -36,6 +36,15 @@ test('negated container scopes and ordered stacks match Tailwind itself', async 
   }
 })
 
+test('hover complements preserve Tailwind capability branches in ordered stacks', async () => {
+  const { cases, vars } = await buildVariantCatalog(['hover', 'not-hover', 'md', 'not-focus'])
+  assert.ok(cases.some((testCase) => testCase.candidate === 'not-hover:flex'))
+  for (const testCase of cases) {
+    const result = compareVariant(testCase, vars)
+    assert.equal(result.verdict, 'MATCH', `${testCase.candidate}: ${JSON.stringify(result)}`)
+  }
+})
+
 test('a class name is escaped the way Tailwind writes it', () => {
   // One backslash, because that is what is in the stylesheet.
   assert.equal(cssClassName('hover:flex'), 'hover\\:flex')

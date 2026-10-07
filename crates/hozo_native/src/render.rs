@@ -881,7 +881,7 @@ pub(super) fn render_node(
     }) || (component == "Pressable" && interaction::descendant_uses(node, interaction::uses_focus_visible));
     let needs_hover_or_focus = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
         condition_contains(&declaration.condition, |condition| {
-            matches!(condition, Condition::Hover) || focus_state(condition).is_some()
+            uses_hover(condition) || focus_state(condition).is_some()
         })
     }) || (component == "Pressable" && interaction::descendant_uses(node, interaction::uses_interaction));
     // `@container`, which on Web is a property and here is a component:
@@ -944,7 +944,12 @@ pub(super) fn render_node(
     } else {
         component
     };
-    let needs_pressed_fn = (component == "Pressable" || rendered_component == "HozoText")
+    // An intervening control owns its own interaction. A destination renders
+    // HozoLink, which has no state provider; Text below it must not silently
+    // read an outer button's hover/focus instead.
+    let child_interaction_context = rendered_component == "HozoPressable"
+        || (interaction_context && !matches!(node.primitive, Primitive::Pressable | Primitive::Button | Primitive::Link));
+    let needs_pressed_fn = matches!(rendered_component, "Pressable" | "HozoPressable" | "HozoText")
         && !pressed_parts.is_empty();
     if needs_pressed_fn {
         style_array_parts.extend(pressed_parts);
@@ -955,7 +960,7 @@ pub(super) fn render_node(
         diagnostics.push(unwired_variant(
             node,
             &format!(
-                "`pressed:` needs an element that tracks press state, and `{component}` doesn't. \
+                "`pressed:` needs an element that tracks press state, and `{rendered_component}` doesn't. \
                  Move it to a Pressable or Button."
             ),
             Severity::Error,
@@ -1448,7 +1453,7 @@ pub(super) fn render_node(
             style_entries,
             diagnostics,
             runtime,
-            interaction_context || rendered_component == "HozoPressable",
+            child_interaction_context,
         ));
     }
 
@@ -1489,7 +1494,7 @@ pub(super) fn render_node(
                 inner.push_str(&render_node(
                     child_node,
                     child_position,
-                    interaction_context || rendered_component == "HozoPressable",
+                    child_interaction_context,
                     grid.as_ref().and_then(|grid| grid.track_count),
                     grid.as_ref().and_then(|grid| grid.row_track_count),
                     theme,
@@ -1529,7 +1534,7 @@ pub(super) fn render_node(
                         style_entries,
                         diagnostics,
                         runtime,
-                        interaction_context || rendered_component == "HozoPressable",
+                        child_interaction_context,
                         theme,
                     )
                 } else {
@@ -1547,7 +1552,7 @@ pub(super) fn render_node(
                     style_entries,
                     diagnostics,
                     runtime,
-                    interaction_context || rendered_component == "HozoPressable",
+                    child_interaction_context,
                 ));
             }
         }

@@ -4,6 +4,18 @@
 use super::*;
 use hozo_ir::Child;
 
+/// Destination-bearing controls render HozoLink, not HozoPressable; a
+/// container declaration replaces the host with HozoContainer. Neither
+/// wrapper provides interaction state. The primitive's name alone must not
+/// promise state its actual runtime lacks.
+pub(super) fn owns_events(node: &Node) -> bool {
+    matches!(node.primitive, Primitive::Pressable | Primitive::Button)
+        && !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("href"))
+        && !node.style.iter().any(|declaration| {
+            matches!(&declaration.property, StyleProperty::Keyword("container-type", kind) if *kind != "normal")
+        })
+}
+
 pub(super) fn uses_focus_visible(condition: &Condition) -> bool {
     condition_contains(condition, |condition| {
         focus_state(condition) == Some("focusVisible")
@@ -13,7 +25,8 @@ pub(super) fn uses_focus_visible(condition: &Condition) -> bool {
 
 pub(super) fn uses_interaction(condition: &Condition) -> bool {
     condition_contains(condition, |condition| {
-        matches!(condition, Condition::Hover | Condition::Pressed)
+        matches!(condition, Condition::Pressed)
+            || uses_hover(condition)
             || focus_state(condition).is_some()
             || matches!(condition, Condition::Group(inner) if group_state(inner, true).is_some())
     })

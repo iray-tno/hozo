@@ -24,7 +24,7 @@ function expressions(jsx: string): string[] {
 }
 
 function compile(body: string) {
-  const source = `import { View, Text, Pressable, Button } from '@hozo/core'
+  const source = `import { View, Text, Pressable, Button, Link } from '@hozo/core'
 export function C({ off, state }) { return (${body}) }`
   const [result] = compileNative(source)
   assert.ok(result)
@@ -110,6 +110,38 @@ test('positive hover plus a negated prop stays inside the existing Pressable cal
       const style = c.values(off, { checked: false }, false, md)[0] as (state: object) => unknown
       for (const hovered of [false, true]) {
         assert.equal(flatten(style({ hovered })).opacity, md && hovered && !off ? 0.5 : 1)
+      }
+    }
+  }
+})
+
+test('negated hover alone shares the positive owner and stacks without an ambient hover query', () => {
+  for (const primitive of ['Pressable', 'Button']) {
+    const negative = compile(`<${primitive} className="opacity-100 not-hover:opacity-50" />`)
+    const positive = compile(`<${primitive} className="opacity-100 hover:opacity-50" />`)
+    assert.deepEqual(negative.result.diagnostics, [])
+    assert.ok(negative.result.jsx.startsWith('<HozoPressable'), negative.result.jsx)
+    assert.deepEqual(negative.result.prelude, [])
+    assert.deepEqual(negative.result.runtimeImports, positive.result.runtimeImports)
+    const negativeStyle = negative.values()[0] as (state: object) => unknown
+    const positiveStyle = positive.values()[0] as (state: object) => unknown
+    for (const hovered of [false, true, false]) {
+      assert.equal(flatten(negativeStyle({ hovered })).opacity, hovered ? 1 : 0.5)
+      assert.equal(flatten(positiveStyle({ hovered })).opacity, hovered ? 0.5 : 1)
+    }
+
+    const stacked = compile(
+      `<${primitive} disabled={off} className="opacity-100 md:not-hover:not-disabled:opacity-50" />`,
+    )
+    assert.deepEqual(stacked.result.diagnostics, [])
+    for (const off of [false, true]) {
+      for (const md of [false, true]) {
+        const style = stacked.values(off, { checked: false }, false, md)[0] as (
+          state: object,
+        ) => unknown
+        for (const hovered of [false, true]) {
+          assert.equal(flatten(style({ hovered })).opacity, md && !off && !hovered ? 0.5 : 1)
+        }
       }
     }
   }
@@ -279,7 +311,10 @@ test('an unreadable or unsupported inner condition remains an explicit refusal',
     '<View className="md:not-first:p-4" />',
     '<View accessibilityState={{ busy: true }} className="not-aria-checked:p-4" />',
     '<View className="not-print:p-4" />',
-    '<Pressable className="not-hover:p-4" />',
+    '<View className="not-hover:p-4" />',
+    '<Text className="not-hover:p-4" />',
+    '<View className="md:not-hover:p-4" />',
+    '<Pressable><View className="not-hover:p-4" /></Pressable>',
     '<View className="not-focus:p-4" />',
     '<Text className="not-focus-visible:p-4" />',
     '<View className="md:not-focus-visible:p-4" />',
@@ -292,6 +327,43 @@ test('an unreadable or unsupported inner condition remains an explicit refusal',
     )
     assert.ok(!c.result.jsx.includes('_not'), `${body}: ${c.result.jsx}`)
   }
+})
+
+test('destination-bearing controls refuse missing hover owners rather than dropping text styles', () => {
+  for (const primitive of ['Pressable', 'Button', 'Link']) {
+    for (const variant of ['hover', 'not-hover', 'focus', 'not-focus']) {
+      for (const body of [
+        `<${primitive} href="/docs" className="${variant}:text-red-500">Docs</${primitive}>`,
+        `<Pressable className="hover:opacity-50"><${primitive} href="/docs"><Text className="${variant}:text-red-500">Docs</Text></${primitive}></Pressable>`,
+      ]) {
+        const c = compile(body)
+        assert.ok(
+          c.result.diagnostics.some((d) => d.code === 'NOT_WIRED_ON_NATIVE'),
+          body,
+        )
+        assert.ok(!c.result.jsx.includes('<HozoText'), `${body}: ${c.result.jsx}`)
+      }
+    }
+  }
+})
+
+test('a container wrapper cannot masquerade as an interaction owner', () => {
+  for (const primitive of ['Pressable', 'Button']) {
+    for (const utility of ['opacity-50', 'text-red-500']) {
+      const body = `<${primitive} className="@container not-hover:${utility}">Label</${primitive}>`
+      const c = compile(body)
+      assert.ok(
+        c.result.diagnostics.some((d) => d.code === 'NOT_WIRED_ON_NATIVE'),
+        body,
+      )
+      assert.ok(!c.result.jsx.includes('style={({'), `${body}: ${c.result.jsx}`)
+    }
+  }
+  const supported = compile(
+    '<View className="@container"><Button className="not-hover:opacity-50">Label</Button></View>',
+  )
+  assert.deepEqual(supported.result.diagnostics, [])
+  assert.ok(supported.result.jsx.includes('<HozoPressable'), supported.result.jsx)
 })
 
 test('a readable optional ARIA prop can be absent at runtime without throwing', () => {

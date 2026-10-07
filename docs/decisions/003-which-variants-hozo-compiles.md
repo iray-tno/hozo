@@ -112,6 +112,37 @@ marker's four.
 
 Lifting it closed the last hole. `not-hover:` compiles.
 
+On **Native**, `hover:` and `not-hover:` read opposite sides of the same
+Pressable/Button event state. No hover event means the negative style
+applies, including on touch-only devices; a delivered hover-in suppresses
+it until hover-out. Pressing alone does not mean hovering. Text descendants
+reuse their nearest owner's context, including inherited raw text, rather
+than growing independent hover listeners. Negation alone enables that owner
+and the existing interaction transition path. A plain View or standalone
+Text has no readable hover owner and is still refused.
+
+Destination-bearing controls are a separate boundary: a Button or Pressable
+with `href` renders `HozoLink`, not `HozoPressable`. That link does not carry
+the hover/focus context yet, so these predicates are refused there too,
+including text colours moved onto raw labels. Descendants cannot silently
+borrow an outer button's state across the intervening link. Adding a real
+link interaction owner is follow-up work, not an OS capability guess.
+
+Similarly, a control declaring `@container` itself currently becomes
+`HozoContainer`, a View-based measurer without an interaction provider.
+Hover/focus predicates there are diagnosed, not passed as a function style
+to that View or dropped from its raw label. Put `@container` on an enclosing
+View and keep the Button/Pressable as a separate, real interaction owner.
+
+This is a platform-shaped interaction contract, **not CSS capability
+parity**. Web retains Tailwind's `:not(:hover)` / `not (hover: hover)`
+branches. React Native exposes no equivalent primary-input media query, so
+Hozo does not guess capability from the OS, pointer type or a timer. On a
+hybrid device whose browser reports primary-input `hover: none` but whose
+Native Pressable receives hover events, the backends can differ. Native
+coverage measures usable lowering in a supported context, not CSS fidelity.
+Negated group/peer selectors are not added by this contract.
+
 The lesson is worth keeping separate from the rule it revised: a refusal
 whose reason is "the compiler has no way to say that" is a note about the
 compiler, and belongs in a different category from one whose reason is
