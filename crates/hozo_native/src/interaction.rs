@@ -19,7 +19,7 @@ pub(super) fn uses_focus_visible(condition: &Condition) -> bool {
 
 pub(super) fn uses_interaction(condition: &Condition) -> bool {
     condition_contains(condition, |condition| {
-        matches!(condition, Condition::Pressed)
+        uses_pressed(condition)
             || uses_hover(condition)
             || focus_state(condition).is_some()
             || matches!(condition, Condition::Group(inner) if group_state(inner, true).is_some())

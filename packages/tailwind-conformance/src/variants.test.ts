@@ -17,6 +17,21 @@ import { test } from 'node:test'
 import { classNamesIn } from './extract.ts'
 import { buildVariantCatalog, classNamePattern, compareVariant, cssClassName } from './variants.ts'
 
+test('pressed complements and ordered stacks match Tailwind itself', async () => {
+  const { cases, vars } = await buildVariantCatalog([
+    'active',
+    'not-active',
+    'not-disabled',
+    'hover',
+    'md',
+  ])
+  assert.ok(cases.some((testCase) => testCase.candidate === 'not-active:flex'))
+  for (const testCase of cases) {
+    const result = compareVariant(testCase, vars)
+    assert.equal(result.verdict, 'MATCH', `${testCase.candidate}: ${JSON.stringify(result)}`)
+  }
+})
+
 test('negated container scopes and ordered stacks match Tailwind itself', async () => {
   const { cases, vars } = await buildVariantCatalog([
     '@md',

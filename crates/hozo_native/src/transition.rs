@@ -13,7 +13,7 @@ pub(super) fn native_driver_transition(
         declarations.iter().any(|declaration| {
             property(&declaration.property)
                 && condition_contains(&declaration.condition, |condition| {
-                matches!(condition, Condition::Pressed)
+                super::uses_pressed(condition)
                     || super::uses_hover(condition)
                     || super::focus_state(condition).is_some()
             })

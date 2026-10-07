@@ -121,6 +121,18 @@ than growing independent hover listeners. Negation alone enables that owner
 and the existing interaction transition path. A plain View or standalone
 Text has no readable hover owner and is still refused.
 
+`active:` and `not-active:` similarly read opposite sides of RN's existing
+`pressed` state, including stacked breakpoint/prop conditions. A host-only
+pressed style stays in RN's style callback: negation adds no listener,
+subscription or enhanced host. Inherited raw labels and explicit Text need
+the existing interaction provider, even on ordinary Button/Pressable, so
+their styles are actually consumed rather than merely emitted. Descendant-only
+pressed styles enable the nearest owner; a nested control never borrows its
+parent's pressed state. Negation-only transitions reuse the existing drivers.
+Standalone View/Text predicates remain refused in both directions, not treated
+as false and then made unconditionally true by negation. This adds no negated
+group/peer contract.
+
 Destination-bearing controls keep `HozoLink` and its navigation semantics
 (decision 004). When their own styles or descendant text need interaction
 state, the compiler selects `HozoPressable` as that link's host. The existing

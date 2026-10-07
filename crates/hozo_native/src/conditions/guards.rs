@@ -51,13 +51,17 @@ pub(super) fn resolve(
         Condition::Enabled => Ok(node.props.disabled.as_ref().map_or(Guard::Known(true), |disabled| {
             Guard::Dynamic(format!("!({})", render_condition_expr(source, disabled)))
         })),
-        Condition::Hover | Condition::Focus | Condition::FocusVisible => {
+        Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
             if interaction::owns_events(node)
                 || (interaction_context && !matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button)) {
                 // Both directions read the existing owner events. Web hover
                 // additionally asks about the primary input's capability;
                 // Native has no equivalent query and does not guess one.
-                let state = if matches!(condition, Condition::Hover) { "hovered" } else { focus_state(condition).unwrap() };
+                let state = match condition {
+                    Condition::Pressed => "pressed",
+                    Condition::Hover => "hovered",
+                    _ => focus_state(condition).unwrap(),
+                };
                 Ok(Guard::Interactive(state.to_string()))
             } else {
                 // A style object which the JSX never references is a silent
