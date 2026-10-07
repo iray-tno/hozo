@@ -22,6 +22,14 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <!-- hozonativedemo://census opens the census walk, for the TalkBack
+             harness: under TalkBack a tap explores rather than presses. -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="hozonativedemo" android:host="census" />
+        </intent-filter>
       </activity>
     </application>
 </manifest>
