@@ -886,8 +886,12 @@ pub(super) fn render_node(
     }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_interaction));
     // Navigation stays in HozoLink; the compiler selects the existing state
     // provider underneath it. A plain link imports no animation machinery.
-    let link_interaction = component == "HozoLink" && (needs_hover_or_focus || transition.is_some()
-        || text_declarations.iter().any(|declaration| interaction::uses_interaction(&declaration.condition)));
+    // A host-only pressed style can stay in RN's cheap style callback. Text
+    // needs a provider even for raw children, otherwise its emitted pressed
+    // style is never referenced (or borrows an unrelated outer owner).
+    let needs_interaction_host = needs_hover_or_focus || transition.is_some()
+        || text_declarations.iter().any(|declaration| interaction::uses_interaction(&declaration.condition));
+    let link_interaction = component == "HozoLink" && needs_interaction_host;
     if link_interaction {
         runtime.need_component("HozoPressable");
     }
@@ -929,7 +933,7 @@ pub(super) fn render_node(
     let rendered_component = if renders_backdrop_filter {
         runtime.need_component("HozoBackdropFilter");
         "HozoBackdropFilter"
-    } else if component == "Pressable" && (needs_hover_or_focus || transition.is_some()) {
+    } else if component == "Pressable" && needs_interaction_host {
         runtime.need_component("HozoPressable");
         "HozoPressable"
     } else if renders_text(component) && interaction_context && !pressed_parts.is_empty() {

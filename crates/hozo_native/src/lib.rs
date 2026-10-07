@@ -530,6 +530,17 @@ fn uses_hover(condition: &Condition) -> bool {
     }
 }
 
+// Negation changes the predicate, not which owner supplies its state.
+// Keep this narrow: traversing every Not in condition_contains would also
+// enable unrelated conditions whose ownership has not been implemented.
+fn uses_pressed(condition: &Condition) -> bool {
+    match condition {
+        Condition::Pressed => true,
+        Condition::Not(inner) => uses_pressed(inner),
+        _ => false,
+    }
+}
+
 /// Wraps `inner` in `HozoSpaced` when the element carries `space-*` or
 /// `divide-*`, so the style reaches the children.
 ///

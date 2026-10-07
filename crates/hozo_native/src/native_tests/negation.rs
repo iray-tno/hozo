@@ -7,6 +7,35 @@ fn compile(body: &str) -> LowerOutput {
 }
 
 #[test]
+fn negated_pressed_keeps_the_host_fast_path_but_text_requires_an_owner() {
+    for primitive in ["Pressable", "Button", "Link"] {
+        let destination = if primitive == "Link" { "href=\"/docs\"" } else { "" };
+        let out = compile(&format!(r#"<{primitive} {destination} className="active:opacity-100 not-active:opacity-50" />"#));
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+        assert!(!out.runtime_imports.contains(&"HozoPressable"), "{}", out.jsx);
+        assert!(out.jsx.contains("!(pressed) &&"), "{}", out.jsx);
+        for content in ["x", "<Text>x</Text>"] {
+            let out = compile(&format!(r#"<{primitive} {destination} className="active:text-red-500 not-active:text-blue-500">{content}</{primitive}>"#));
+            assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+            assert!(out.jsx.contains("HozoPressable"), "{}", out.jsx);
+            assert!(out.jsx.contains("<HozoText"), "{}", out.jsx);
+            assert!(out.jsx.contains("!(pressed) &&"), "{}", out.jsx);
+        }
+    }
+}
+
+#[test]
+fn pressed_guards_without_a_readable_owner_are_refused_in_both_directions() {
+    for variant in ["active", "not-active", "md:not-active"] {
+        for primitive in ["View", "Text"] {
+            let out = compile(&format!(r#"<{primitive} className="{variant}:opacity-50" />"#));
+            assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{:?}", out.diagnostics);
+            assert!(!out.jsx.contains("pressed &&") && !out.jsx.contains("!(pressed)"), "{}", out.jsx);
+        }
+    }
+}
+
+#[test]
 fn negated_prop_guards_use_the_same_readable_driver() {
     let out = compile(
         r#"<View disabled={off} accessibilityState={{ checked }} className="not-disabled:opacity-50 not-aria-checked:p-4" />"#,

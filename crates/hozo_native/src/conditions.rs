@@ -427,7 +427,7 @@ pub(super) fn build_style_entries(
         match &condition {
             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
             | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
-            | Condition::Structural(_) | Condition::Not(_) | Condition::Hover | Condition::Focus | Condition::FocusVisible
+            | Condition::Structural(_) | Condition::Not(_) | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible
             | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark
             | Condition::Container { .. } => {
                 match guards::resolve(&condition, node, source, position, runtime, interaction_context) {
@@ -506,7 +506,7 @@ pub(super) fn build_style_entries(
                             Condition::Disabled | Condition::Enabled | Condition::Aria(_)
                             | Condition::Environment(_) | Condition::FirstChild
                             | Condition::LastChild | Condition::Structural(_) | Condition::Not(_)
-                            | Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
+                            | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
                             | Condition::Width { .. } | Condition::Dark | Condition::Container { .. } => {
                                 match guards::resolve(atom, node, source, position, runtime, interaction_context) {
                                     Ok(guards::Guard::Known(true)) => {}
@@ -540,10 +540,6 @@ pub(super) fn build_style_entries(
                                     applies = false;
                                 }
                             },
-                            Condition::Pressed => {
-                                guards.push("pressed".to_string());
-                                uses_interactive_state = true;
-                            }
                             Condition::Expr(expr) => {
                                 guards.push(format!("({})", render_condition_expr(source, expr)));
                             }
@@ -748,7 +744,6 @@ pub(super) fn build_style_entries(
                  a sibling has nowhere to hand it. On Web the same class works.",
                 Severity::Error,
             )),
-            Condition::Pressed => pressed_parts.extend(guarded("pressed && ")),
             Condition::Expr(expr) => {
                 let guard = render_condition_expr(source, expr);
                 conditional_parts.extend(guarded(&format!("({guard}) && ")));

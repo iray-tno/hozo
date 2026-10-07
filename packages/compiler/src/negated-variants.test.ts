@@ -57,6 +57,80 @@ function flatten(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 }
 
+test('active and not-active share RN pressed state without upgrading host-only controls', () => {
+  for (const primitive of ['Pressable', 'Button', 'Link']) {
+    for (const destination of primitive === 'Link' ? ['href="/docs"'] : ['', 'href="/docs"']) {
+      const c = compile(
+        `<${primitive} ${destination} className="active:opacity-100 not-active:opacity-50" />`,
+      )
+      assert.deepEqual(c.result.diagnostics, [])
+      assert.ok(!c.result.runtimeImports.includes('HozoPressable'), c.result.jsx)
+      const [style] = c.values() as ((state: object) => unknown)[]
+      for (const pressed of [false, true]) {
+        assert.equal(flatten(style({ pressed })).opacity, pressed ? 1 : 0.5)
+      }
+    }
+  }
+})
+
+test('negated pressed composes with hover, breakpoint and disabled in one callback', () => {
+  const c = compile(
+    '<Button disabled={off} className="opacity-100 md:hover:not-active:not-disabled:opacity-50" />',
+  )
+  assert.deepEqual(c.result.diagnostics, [])
+  for (const off of [false, true]) {
+    for (const md of [false, true]) {
+      const [style] = c.values(off, { checked: false }, false, md) as ((state: object) => unknown)[]
+      for (const hovered of [false, true]) {
+        for (const pressed of [false, true]) {
+          assert.equal(
+            flatten(style({ hovered, pressed })).opacity,
+            md && hovered && !pressed && !off ? 0.5 : 1,
+          )
+        }
+      }
+    }
+  }
+})
+
+test('pressed text inheritance supplies an owner for raw and explicit children', () => {
+  for (const primitive of ['Pressable', 'Button']) {
+    for (const content of ['x', '<Text>x</Text>']) {
+      const c = compile(
+        `<${primitive} className="active:text-red-500 not-active:text-blue-500">${content}</${primitive}>`,
+      )
+      assert.deepEqual(c.result.diagnostics, [])
+      assert.ok(c.result.jsx.startsWith('<HozoPressable'), c.result.jsx)
+      assert.ok(c.result.jsx.includes('<HozoText'), c.result.jsx)
+      const [style] = c.values() as ((state: object) => unknown)[]
+      assert.notEqual(
+        flatten(style({ pressed: false })).color,
+        flatten(style({ pressed: true })).color,
+      )
+    }
+  }
+})
+
+test('negated pressed alone enables existing transition channels', () => {
+  const c = compile(
+    '<Button className="opacity-100 scale-100 text-gray-500 transition not-active:opacity-50 not-active:scale-95 not-active:text-blue-500">x</Button>',
+  )
+  assert.deepEqual(c.result.diagnostics, [])
+  for (const marker of [
+    'hozoTransition=',
+    'opacity: true',
+    'transform: true',
+    'colors: true',
+    '<HozoText',
+  ]) {
+    assert.ok(c.result.jsx.includes(marker), c.result.jsx)
+  }
+  const [parent, child] = c.values() as ((state: object) => unknown)[]
+  assert.equal(flatten(parent({ pressed: false })).opacity, 0.5)
+  assert.equal(flatten(parent({ pressed: true })).opacity, 1)
+  assert.notEqual(flatten(child({ pressed: false })).color, flatten(child({ pressed: true })).color)
+})
+
 test('negated disabled and ARIA props apply only on the opposite state', () => {
   const c = compile(
     '<View disabled={off} accessibilityState={state} className="opacity-100 p-0 not-disabled:opacity-50 not-aria-checked:p-4" />',
@@ -319,6 +393,10 @@ test('an unreadable or unsupported inner condition remains an explicit refusal',
     '<Text className="not-focus-visible:p-4" />',
     '<View className="md:not-focus-visible:p-4" />',
     '<View className="md:not-focus-within:p-4" />',
+    '<View className="not-active:p-4" />',
+    '<Text className="not-active:text-red-500" />',
+    '<View className="md:active:p-4" />',
+    '<Pressable><View className="not-active:p-4" /></Pressable>',
   ]) {
     const c = compile(body)
     assert.ok(
@@ -339,6 +417,7 @@ test('destination-bearing controls supply their own hover and focus text owner',
       'focus-visible',
       'not-focus-visible',
       'active',
+      'not-active',
     ]) {
       for (const body of [
         `<${primitive} href="/docs" className="${variant}:text-red-500">Docs</${primitive}>`,

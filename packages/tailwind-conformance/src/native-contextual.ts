@@ -18,6 +18,9 @@ export interface NativeContextualCase {
     | 'not-focus'
     | 'not-focus-visible'
     | 'not-hover'
+    | 'not-active'
+    | 'pressed-text-owner'
+    | 'descendant-not-active'
     | 'descendant-not-hover'
     | 'descendant-focus-visible'
     | 'descendant-not-focus-visible'
@@ -49,6 +52,35 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'not-active',
+    purpose: 'negated pressed alone drives the existing transition under stacked predicates',
+    primitive: 'Button',
+    props: 'disabled={false}',
+    className: 'opacity-100 transition-opacity md:not-disabled:not-active:opacity-50',
+    expected: ['HozoPressable', '__hozoBp_md && !((false)) && !(pressed) &&', 'opacity: true'],
+  },
+  ...(['Button', 'Pressable'] as const).map((primitive) => ({
+    candidate: 'pressed-text-owner' as const,
+    purpose: `${primitive} supplies inherited pressed state to raw text instead of emitting an unused style`,
+    primitive,
+    className: 'active:text-red-500 not-active:text-blue-500',
+    expected: ['HozoPressable', 'HozoText', 'pressed &&', '!(pressed) &&'],
+  })),
+  {
+    candidate: 'descendant-not-active',
+    purpose: 'descendant-only negated pressed selects the measured nearest link owner',
+    primitive: 'Link',
+    props: 'href="/docs"',
+    className: '@container/main',
+    children: '<Text className="@sm/main:not-active:opacity-50">x</Text>',
+    expected: [
+      'hozoLinkComponent={HozoPressable}',
+      'HozoContainerQuery',
+      'HozoText',
+      '!(pressed) &&',
+    ],
+  },
   ...(['Link', 'Button', 'Pressable'] as const).map((primitive) => ({
     candidate: 'link-interaction' as const,
     purpose: `${primitive} with href keeps navigation while sharing interaction transitions`,

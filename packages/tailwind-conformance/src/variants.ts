@@ -79,6 +79,7 @@ const VARIANTS = [
   // single/stacked matrix too, not only in a hand-written contextual case.
   'not-focus',
   'not-focus-visible',
+  'not-active',
   // Negated ambient conditions must preserve the oracle's query as well
   // as the declaration, both alone and in the full pairwise matrix.
   'not-md',
