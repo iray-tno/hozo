@@ -283,6 +283,8 @@ export function Progress({
     {
       role,
       accessibilityRole: 'progressbar',
+      // One element, or Android never focuses it; see `Meter`.
+      accessible: true,
       accessibilityValue: accessibilityValue ?? {
         min: 0,
         max: max ?? 100,
@@ -381,6 +383,9 @@ export function Meter({
     View,
     {
       role,
+      // A View is one element for a screen reader on Android only when it
+      // says so; without this TalkBack's focus never landed on it (#789).
+      accessible: true,
       accessibilityValue: accessibilityValue ?? { min: min ?? 0, max: max ?? 1, now: value },
       // `<meter>`'s box in Chrome, 80 x 16, for the reason `Progress` has
       // one: a View with none is zero pixels and absent from the tree.

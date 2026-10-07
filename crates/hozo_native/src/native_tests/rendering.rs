@@ -600,6 +600,7 @@ fn progress_and_button_with_href_lower_to_native_components() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.contains(r#"role="progressbar""#), "{}", output.jsx);
+    assert!(output.jsx.contains("role=\"progressbar\" accessible"), "{}", output.jsx);
     assert!(output.jsx.contains(r#"<HozoLink href="https://example.com">"#), "{}", output.jsx);
     assert!(!output.jsx.contains(r#"accessibilityRole="button" href="https://example.com""#), "{}", output.jsx);
 }
@@ -801,6 +802,8 @@ fn a_meter_carries_its_amount_and_range_where_a_reader_finds_them() {
     let sized = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(sized.diagnostics.is_empty(), "{:?}", sized.diagnostics);
     assert!(sized.jsx.contains(r#"role="meter""#), "{}", sized.jsx);
+    // One element, or TalkBack never lands on it (#789).
+    assert!(sized.jsx.contains(" accessible"), "{}", sized.jsx);
     assert!(sized.jsx.contains("accessibilityValue={{ min: 0, max: 100, now: used }}"), "{}", sized.jsx);
     for gone in ["low=", "high=", "optimum=", " value=", " max="] {
         assert!(!sized.jsx.contains(gone), "{gone} reached the View: {}", sized.jsx);
