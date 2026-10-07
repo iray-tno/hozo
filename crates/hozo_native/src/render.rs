@@ -899,10 +899,10 @@ pub(super) fn render_node(
     // And the other half: an element whose styles ask about a container's
     // width has to read that width from a component boundary away, which
     // is what `HozoContainerQuery` is for.
-    let uses_container_query = own_declarations.iter().any(|declaration| {
-        condition_contains(&declaration.condition, |condition| {
-            matches!(condition, Condition::Container { .. })
-        })
+    let raw_text_reads_container = node.children.iter().any(|child| matches!(child, hozo_ir::Child::Text(_)))
+        && descend.iter().any(|declaration| condition_contains(&declaration.condition, uses_container_width));
+    let uses_container_query = raw_text_reads_container || own_declarations.iter().any(|declaration| {
+        condition_contains(&declaration.condition, uses_container_width)
     });
     let renders_backdrop_filter = matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
         && component == "View"

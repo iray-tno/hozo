@@ -399,7 +399,7 @@ fn runtime_variable(condition: &Condition) -> bool {
     // store. Polarity changes its target, not whether it can transition.
     if let Condition::Not(inner) = condition {
         return match inner.as_ref() {
-            Condition::Dark | Condition::Responsive(_) | Condition::Width { .. } => true,
+            Condition::Dark | Condition::Responsive(_) | Condition::Width { .. } | Condition::Container { .. } => true,
             Condition::Environment(query) => super::native_environment(*query).is_some(),
             Condition::Not(_) => runtime_variable(inner),
             _ => false,

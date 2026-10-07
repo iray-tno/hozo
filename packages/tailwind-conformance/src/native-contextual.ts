@@ -24,6 +24,10 @@ export interface NativeContextualCase {
     | 'not-dark'
     | 'not-min-[500px]'
     | 'not-max-[500px]'
+    | 'not-@md'
+    | 'not-@max-md'
+    | 'not-@min-[400px]'
+    | 'not-@md/main'
   purpose: string
   className: string
   props?: string
@@ -38,6 +42,42 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  {
+    candidate: 'not-@md',
+    purpose: 'negating a measured ancestor width remains inside its query and can transition',
+    primitive: 'View',
+    className: 'opacity-100 transition-opacity not-@md:opacity-50',
+    expected: [
+      'HozoContainerQuery',
+      'HozoAnimated',
+      '__hozoCq[""] !== undefined && !(__hozoCq[""] >= 448)',
+    ],
+  },
+  {
+    candidate: 'not-@max-md',
+    purpose: 'negated strict maximum retains the inclusive minimum and missing-container guard',
+    primitive: 'View',
+    className: 'opacity-100 not-@max-md:opacity-50',
+    expected: ['HozoContainerQuery', '__hozoCq[""] !== undefined && !(__hozoCq[""] < 448)'],
+  },
+  {
+    candidate: 'not-@min-[400px]',
+    purpose: 'an arbitrary pixel query negates the existing measurement without a viewport hook',
+    primitive: 'View',
+    className: 'opacity-100 not-@min-[400px]:opacity-50',
+    expected: ['HozoContainerQuery', '__hozoCq[""] !== undefined && !(__hozoCq[""] >= 400)'],
+  },
+  {
+    candidate: 'not-@md/main',
+    purpose: 'a named query composes with the owner state without negating ancestor availability',
+    className: 'opacity-100 not-@md/main:not-focus:opacity-50',
+    expected: [
+      'HozoContainerQuery',
+      'HozoPressable',
+      '__hozoCq["main"] !== undefined && !(__hozoCq["main"] >= 448)',
+      '!(focused) &&',
+    ],
+  },
   {
     candidate: 'not-md',
     purpose: 'negated breakpoint and focus predicates share their existing ambient/owner state',

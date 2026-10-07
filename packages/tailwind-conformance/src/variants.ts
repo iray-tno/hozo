@@ -154,6 +154,12 @@ const VARIANTS = [
   '@min-[400px]',
   '@sm/main',
   '@max-md/sidebar',
+  // Negation leaves the container lookup intact: no applicable ancestor is
+  // unknown, not a small width that suddenly satisfies the opposite query.
+  'not-@md',
+  'not-@max-md',
+  'not-@min-[400px]',
+  'not-@md/main',
   // The two that move the *styled* element rather than the condition,
   // which is why order matters between them and everything else:
   // `hover:*:` is the children of a hovered element and `*:hover:` is the

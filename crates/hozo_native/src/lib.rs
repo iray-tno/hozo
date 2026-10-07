@@ -505,9 +505,10 @@ fn condition_contains(condition: &Condition, predicate: impl Fn(&Condition) -> b
         || matches!(condition, Condition::All(conditions) if conditions.iter().any(|condition| condition_contains(condition, predicate)))
 }
 
-// Only focus predicates are transparent through negation here. Walking
-// every Not in condition_contains would also enable unrelated, unwired
-// containers/starting frames merely because their inner condition exists.
+// Focus predicates are transparent through negation here. Walking every
+// Not in condition_contains would also enable unrelated, unwired starting
+// frames merely because their inner condition exists. Container reads use
+// a similarly narrow helper below rather than widening that traversal.
 fn focus_state(condition: &Condition) -> Option<&'static str> {
     match condition {
         Condition::Focus => Some("focused"),
@@ -999,17 +1000,14 @@ fn collect_expr_refs(expr: &ConditionExpr, out: &mut Vec<ExprRef>) {
 #[cfg(test)]
 mod native_tests;
 
-/// The test a container query becomes, or `None` when React Native has
-/// nothing to resolve the threshold against.
-///
-/// The `!== undefined` half is not defensive. CSS says a query with no
-/// container in scope matches nothing in *either* direction, so a
-/// `@max-md:` must not fire merely because no width came back -- which is
-/// exactly what comparing `undefined < 448` would do.
-fn container_guard(name: &Option<String>, at_least: bool, value: &str) -> Option<String> {
-    let px = width_threshold_px(value)?;
-    let read = format!("__hozoCq[{:?}]", name.as_deref().unwrap_or(""));
-    Some(format!("{read} !== undefined && {read} {} {px}", if at_least { ">=" } else { "<" }))
+/// Only the width predicate is transparent through negation. Discover its
+/// query boundary without also treating an unwired condition as supported.
+fn uses_container_width(condition: &Condition) -> bool {
+    match condition {
+        Condition::Container { .. } => true,
+        Condition::Not(inner) => uses_container_width(inner),
+        _ => false,
+    }
 }
 
 /// The pixel threshold a `Condition::Width` names, if React Native can be

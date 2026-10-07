@@ -10,6 +10,10 @@ pub(super) enum Guard {
     // Unlike a prop or ambient hook, this binding exists only inside the
     // interaction style callback. Negation must keep that ownership.
     Interactive(String),
+    // The availability check is not defensive: CSS matches nothing without
+    // an applicable measured ancestor, in either direction. Negation flips
+    // the width predicate, never that ancestor's existence.
+    Scoped { available: String, predicate: String },
 }
 
 impl Guard {
@@ -18,6 +22,10 @@ impl Guard {
             Self::Known(value) => Self::Known(!value),
             Self::Dynamic(expression) => Self::Dynamic(format!("!({expression})")),
             Self::Interactive(expression) => Self::Interactive(format!("!({expression})")),
+            Self::Scoped { available, predicate } => Self::Scoped {
+                available,
+                predicate: format!("!({predicate})"),
+            },
         }
     }
 }
@@ -80,6 +88,18 @@ pub(super) fn resolve(
             let guard = if *at_least { hook.binding() } else { format!("!{}", hook.binding()) };
             runtime.hooks.push(hook);
             Ok(Guard::Dynamic(guard))
+        }
+        // Unlike viewport width, this binding belongs to the query render
+        // prop. The renderer discovers it through supported negations too.
+        Condition::Container { name, at_least, value } => {
+            let px = width_threshold_px(value).ok_or_else(|| format!(
+                "`{value}` is not a pixel width, and React Native has nothing to resolve it against -- no root font size for `rem`. Write the threshold in `px`, or use one of Tailwind's container sizes. On Web the same class works."
+            ))?;
+            let read = format!("__hozoCq[{:?}]", name.as_deref().unwrap_or(""));
+            Ok(Guard::Scoped {
+                available: format!("{read} !== undefined"),
+                predicate: format!("{read} {} {px}", if *at_least { ">=" } else { "<" }),
+            })
         }
         // Known positions are decided at build time: neither the positive
         // nor the negative half needs a selector engine or a subscription.

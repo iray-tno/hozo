@@ -1466,6 +1466,17 @@ fn has_argument(selector: &str) -> String {
 /// `@media (prefers-color-scheme: dark)` becomes `@media not
 /// (prefers-color-scheme: dark)`.
 fn negate_at_rule(rule: &str) -> String {
+    if let Some(query) = rule.strip_prefix("@container ") {
+        // The optional container name is a lookup scope, not part of the
+        // boolean expression. `@container main not (width >= ...)` still
+        // asks for main, and repeated negation keeps that same lookup.
+        if let Some((scope, expression)) = query.split_once('(') {
+            return match scope.strip_suffix("not ") {
+                Some(scope) => format!("@container {scope}({expression}"),
+                None => format!("@container {scope}not ({expression}"),
+            };
+        }
+    }
     match rule.strip_prefix("@media ") {
         Some(query) => format!("@media not {query}"),
         // `@supports` and the arbitrary at-rules are not negated by this

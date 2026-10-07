@@ -3611,6 +3611,21 @@ const el = {element}
     }
 
     #[test]
+    fn a_negated_container_query_preserves_its_optional_lookup_name() {
+        for (class, query) in [
+            ("not-@md:flex", "@container not (width >= 448px)"),
+            ("not-@max-md:flex", "@container not (width < 448px)"),
+            ("not-@md/main:flex", "@container main not (width >= 448px)"),
+            ("md:not-@min-[400px]/main:flex", "@container main not (width >= 400px)"),
+            ("not-not-@md/main:flex", "@container main (width >= 448px)"),
+        ] {
+            let css = css_for(class);
+            assert!(css.contains(query), "{class}: {css}");
+            assert_eq!(css.matches("@container").count(), 1, "{css}");
+        }
+    }
+
+    #[test]
     fn generated_content_is_written_where_the_box_is_made() {
         // A `::before` with no `content` generates nothing, so the
         // declaration is unconditional even when the style is not:

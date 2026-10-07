@@ -180,3 +180,55 @@ fn negated_unresolvable_width_does_not_register_a_guessed_threshold() {
         assert!(!out.jsx.contains("_not"), "{}", out.jsx);
     }
 }
+
+#[test]
+fn negated_container_comparison_keeps_the_applicable_ancestor_guard() {
+    for (variant, comparison) in [
+        ("not-@md", r#"!(__hozoCq[""] >= 448)"#),
+        ("not-@max-md/main", r#"!(__hozoCq["main"] < 448)"#),
+        ("not-@min-[400px]/main", r#"!(__hozoCq["main"] >= 400)"#),
+        ("not-not-@md", r#"!(!(__hozoCq[""] >= 448))"#),
+    ] {
+        let out = compile(&format!(r#"<View className="{variant}:opacity-50" />"#));
+        assert!(out.diagnostics.is_empty(), "{variant}: {:?}", out.diagnostics);
+        assert!(out.jsx.starts_with("<HozoContainerQuery>{(__hozoCq) =>"), "{}", out.jsx);
+        assert!(out.jsx.contains(comparison), "{}", out.jsx);
+        assert!(out.jsx.contains("!== undefined && !"), "{}", out.jsx);
+        assert!(!out.jsx.contains("!(__hozoCq[\"\"] !== undefined"), "{}", out.jsx);
+        assert!(out.prelude.is_empty(), "{:?}", out.prelude);
+    }
+}
+
+#[test]
+fn negated_container_queries_compose_with_interactions_and_ambient_transitions() {
+    let out = compile(r#"<Pressable disabled={off} className="md:hover:not-@md/main:not-disabled:opacity-50" />"#);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains(r#"__hozoBp_md && hovered && (__hozoCq["main"] !== undefined && !(__hozoCq["main"] >= 448)) && !((off)) &&"#), "{}", out.jsx);
+    assert!(out.jsx.contains("<HozoPressable"), "{}", out.jsx);
+
+    let out = compile(r#"<View className="opacity-100 transition-opacity not-@md:opacity-50" />"#);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<HozoContainerQuery"), "{}", out.jsx);
+    assert!(out.jsx.contains("<HozoAnimated"), "{}", out.jsx);
+}
+
+#[test]
+fn container_text_styles_bind_the_query_even_when_only_raw_text_uses_it() {
+    for variant in ["@md", "not-@md"] {
+        let out = compile(&format!(r#"<View className="{variant}:text-red-500">raw</View>"#));
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+        assert!(out.jsx.starts_with("<HozoContainerQuery"), "{}", out.jsx);
+        assert!(out.jsx.contains("<Text style="), "{}", out.jsx);
+        assert!(out.jsx.contains(r#"__hozoCq[""] !== undefined"#), "{}", out.jsx);
+    }
+}
+
+#[test]
+fn negated_container_unresolvable_units_remain_refused() {
+    for variant in ["not-@min-[40rem]", "md:not-@max-[50vw]", "not-not-@min-[40rem]"] {
+        let out = compile(&format!(r#"<View className="{variant}:p-4" />"#));
+        assert!(out.diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error), "{:?}", out.diagnostics);
+        assert!(!out.jsx.contains("_not"), "{}", out.jsx);
+        assert!(!out.prelude.iter().any(|line| line.contains("useHozoWidthAtLeast")), "{:?}", out.prelude);
+    }
+}

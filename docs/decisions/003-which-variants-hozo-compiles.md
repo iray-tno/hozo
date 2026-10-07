@@ -65,7 +65,7 @@ Web to no one's benefit.
 The platform-setting row is the one place Native compiles more than Web
 does: three of those four have no CSS query at all. Everywhere else it is
 the other way round, and Native compiles all of the above except `peer-…`,
-`has-…`, `not-…`, `data-…`, `supports-…`, `focus-within`, `target`,
+`has-…`, unsupported `not-…` predicates, `data-…`, `supports-…`, `focus-within`, `target`,
 `visited`, the `-of-type` family, the form states other than `read-only`,
 every pseudo-element, `contrast-less`, `forced-colors`, `print`
 and `noscript`, and reports each one it cannot. Container queries it does compile, through a component
@@ -188,9 +188,23 @@ no element of its own — putting a View in the way would change the layout
 being measured.
 
 The guard tests for a width before comparing one, and that is not
-defensiveness. CSS says a query with no container in scope matches nothing
-in *either* direction, so evaluating `undefined < 448` would fire every
-`@max-…:` on every element that has no container, which is most of them.
+defensiveness. CSS says a query with no applicable container is unknown,
+and matches nothing in *either* direction. Treating that as false and then
+negating it would apply `not-@md:` where there is no container at all.
+
+Negated container queries now compile on both backends. Web writes
+`@container main not (width >= 448px)`, keeping the optional lookup name
+outside the negation. Native keeps `width !== undefined` and negates only
+the comparison, inside the same `HozoContainerQuery` render prop. A
+measured zero remains a width; a missing name, an unmeasured ancestor, or a
+container querying itself does not become one through negation. Repeated
+negation preserves that distinction too.
+
+This adds no measurement source or subscription. Named sizes, pixel
+thresholds and stacked supported predicates reuse the existing context;
+negated width targets can use the existing `View` transition path. Text
+inherited onto a raw string needs the same query boundary, just as an
+explicit `Text` does. Unsupported units remain reported, not guessed.
 
 Both are resolved to px, as Tailwind's viewport breakpoints already were.
 These are Tailwind's own numbers rather than a length the author wrote,
