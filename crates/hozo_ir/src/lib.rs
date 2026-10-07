@@ -552,42 +552,17 @@ impl Primitive {
         )
     }
 
-    /// Whether this primitive is one of React Native's boxes.
+    /// Whether this primitive promises RN View layout defaults on Web too.
     ///
-    /// Every one of these lowers to a React Native `View`, so every one is
-    /// a column flex container on device -- and the Web backend gives them
-    /// the same base so they are one in a browser too. Here rather than in
-    /// either backend because it is a fact about the primitive: the Web
-    /// side needs it to pick a class and the parser needs it to say
-    /// anything about `flex`, and two lists would be one rule with two
-    /// answers.
-    ///
-    /// `Separator` and `Progress` are deliberately absent. They are `View`s
-    /// on Native only because React Native has no `<hr>` and no
-    /// `<progress>`; on the Web they are a void element and a replaced
-    /// element, and `display: flex` on either is meaningless at best.
+    /// Lowering to a View on Native is not that promise: semantic markup
+    /// (landmarks, lists, figures, fieldsets, loading placeholders) retains
+    /// its HTML defaults on Web, just as its uncompiled implementation does.
+    /// Giving Nav `flex-shrink: 0` broke narrow layouts only when compiled.
+    /// Keep the backend's base class and the parser's cross-platform flex
+    /// direction diagnostic on the same, narrower contract. Native still
+    /// renders semantic containers with its own platform defaults.
     pub fn is_view_box(self) -> bool {
-        matches!(
-            self,
-            Primitive::View
-                | Primitive::AnimatedView
-                | Primitive::Skeleton
-                | Primitive::Section
-                | Primitive::Article
-                | Primitive::Nav
-                | Primitive::Main
-                | Primitive::Header
-                | Primitive::Footer
-                | Primitive::Aside
-                | Primitive::Search
-                | Primitive::Figure
-                | Primitive::Address
-                | Primitive::Fieldset
-                | Primitive::TermList
-                | Primitive::Description
-                | Primitive::List
-                | Primitive::ListItem
-        )
+        matches!(self, Primitive::View | Primitive::AnimatedView)
     }
 }
 

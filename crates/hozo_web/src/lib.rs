@@ -2735,7 +2735,30 @@ export function Login() {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert_eq!(output.jsx, "<section className=\"hozo-view\"><h2>Title</h2><p>Body</p></section>");
+        assert_eq!(output.jsx, "<section><h2>Title</h2><p>Body</p></section>");
+    }
+
+    #[test]
+    fn semantic_defaults_never_inherit_the_view_base_even_with_a_view_sibling() {
+        for primitive in ["Section", "Article", "Nav", "Main", "Header", "Footer",
+            "Aside", "Search", "Figure", "Figcaption", "Time", "Address", "Fieldset",
+            "Legend", "Details", "Summary", "TermList", "Term", "Description",
+            "List", "ListItem", "Skeleton"] {
+            let source = format!("import {{ {primitive}, View }} from '@hozo/core'; const el = <View><{primitive} className=\"flex shrink relative min-w-0\">x</{primitive}></View>");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert_eq!(out.jsx.matches("hozo-view").count(), 1, "{primitive}: {}", out.jsx);
+            assert!(out.css.contains(VIEW_BASE_CSS), "{primitive}: {}", out.css);
+            assert!(out.css.contains("flex-shrink: 1"), "{primitive}: {}", out.css);
+            assert!(!out.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::FlexDirectionUnsaid), "{primitive}: {:?}", out.diagnostics);
+        }
+        for primitive in ["Section", "Nav", "Main", "List"] {
+            let source = format!("import {{ {primitive} }} from '@hozo/core'; const el = <{primitive} onLayout={{measure}} className=\"flex\">x</{primitive}>");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(out.jsx.starts_with(&format!("<{primitive} ")), "{}", out.jsx);
+            assert!(!out.jsx.contains("hozo-view") && !out.css.contains(VIEW_BASE_CSS), "{}", out.jsx);
+        }
     }
 
     #[test]
@@ -2790,7 +2813,7 @@ export function Login() {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(
             output.jsx,
-            "<main className=\"hozo-view\"><header className=\"hozo-view\">Banner</header><aside className=\"hozo-view\">Sidebar</aside><search className=\"hozo-view\">Searchbox</search><figure className=\"hozo-view\"><figcaption>Caption</figcaption></figure><time>2026-09-02</time><address className=\"hozo-view\">Contact</address><footer className=\"hozo-view\">Footer</footer></main>"
+            "<main><header>Banner</header><aside>Sidebar</aside><search>Searchbox</search><figure><figcaption>Caption</figcaption></figure><time>2026-09-02</time><address>Contact</address><footer>Footer</footer></main>"
         );
     }
 
@@ -2818,7 +2841,7 @@ export function Login() {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert_eq!(
             output.jsx,
-            "<fieldset className=\"hozo-view\"><legend>Options</legend><details><summary>More</summary><dl className=\"hozo-view\"><dt>Term</dt><dd className=\"hozo-view\">Detail</dd><dt>CompoundTerm</dt><dd className=\"hozo-view\">CompoundDetail</dd></dl></details></fieldset>"
+            "<fieldset><legend>Options</legend><details><summary>More</summary><dl><dt>Term</dt><dd>Detail</dd><dt>CompoundTerm</dt><dd>CompoundDetail</dd></dl></details></fieldset>"
         );
     }
 
@@ -3229,7 +3252,7 @@ const el = {element}"
             "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert_eq!(output.jsx, "<article className=\"hozo-view\"><h1>Title</h1><nav className=\"hozo-view\" aria-label={\"Primary\"}></nav></article>");
+        assert_eq!(output.jsx, "<article><h1>Title</h1><nav aria-label={\"Primary\"}></nav></article>");
     }
 
     #[test]
@@ -3412,7 +3435,7 @@ const el = {element}
             "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert_eq!(output.jsx, "<ol className=\"hozo-view\"><li className=\"hozo-view\">First</li></ol>");
+        assert_eq!(output.jsx, "<ol><li>First</li></ol>");
 
         let dynamic = r#"
             import { List, ListItem } from '@hozo/core'
@@ -3420,7 +3443,7 @@ const el = {element}
             "#;
         let parsed = hozo_parser::parse_tsx(dynamic);
         let output = lower(&parsed.roots[0].node, dynamic, &Theme::default());
-        assert_eq!(output.jsx, "<List className=\"hozo-view\" ordered={ranked}><li className=\"hozo-view\">First</li></List>");
+        assert_eq!(output.jsx, "<List ordered={ranked}><li>First</li></List>");
     }
 
     /// Compiles one element and returns its JSX.

@@ -110,6 +110,19 @@ has the machinery to check it: the generated role table carries
 author building a data grid would get "this `row` is not inside a
 `rowgroup`" at compile time. Nothing else in this space does that.
 
+## HTML semantics do not imply View layout
+
+Semantic containers keep their HTML layout defaults on Web, compiled or not.
+Being represented by a View on Native is not a request for RN's flex column,
+zero shrink, relative positioning, minimum width or border-box defaults on
+Web. Applying the View base to Nav broke narrow headers only after compilation
+(#781). This applies equally to landmarks, lists, figures, fieldsets and
+Skeleton; authored utilities still override their platform's defaults.
+
+View and Animated.View retain the RN-shaped Web base. Native semantic
+containers remain Views with Native defaults. The platform difference is
+intentional; a compiler/fallback difference on the same platform is not.
+
 ## Rejected: a generic element escape
 
 Something like `<Element as="aside">` or a `Box` taking a tag name.
