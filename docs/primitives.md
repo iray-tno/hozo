@@ -14,34 +14,34 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | Primitive | Web | React Native | Pinned by |
 | --- | --- | --- | --- |
 | `ActivityIndicator` | `<HozoActivityIndicator accessibilityLabel={"Loading"}>` | `<ActivityIndicator accessibilityLabel={"Loading"}>` | — |
-| `Address` | `<address>` | `<View>` | contact address |
+| `Address` | `<address className="hozo-view">` | `<View>` | contact address |
 | `AnimatedView` | `<HozoAnimatedView className="hozo-view">` | `<Animated.View>` | — |
-| `Article` | `<article>` | `<View role="article">` | document landmarks |
-| `Aside` | `<aside>` | `<View role="complementary">` | landmark regions |
+| `Article` | `<article className="hozo-view">` | `<View role="article">` | document landmarks |
+| `Aside` | `<aside className="hozo-view">` | `<View role="complementary">` | landmark regions |
 | `Badge` | `<HozoBadge accessibilityLabel={"3 unread messages"} count={3}>` | `<HozoBadge accessibilityLabel={"3 unread messages"} count={3}>` | — |
 | `Button` | `<button type="button">` | `<Pressable accessibilityRole="button">` | semantic Button |
 | `Code` | `<code>` | `<Text>` | inline emphasis and its meaning |
-| `Description` | `<dd>` | `<View>` | a description list |
+| `Description` | `<dd className="hozo-view">` | `<View>` | a description list |
 | `Details` | `<details>` | `<HozoDetails>` | a disclosure and its trigger |
 | `Dialog` | `<HozoDialog accessibilityLabel={"Settings"} open onClose={dismiss}>` | `<HozoDialog accessibilityLabel={"Settings"} open onClose={dismiss}>` | modal Dialog; incomplete Dialog diagnostic |
 | `Emphasis` | `<em>` | `<Text>` | inline emphasis and its meaning |
-| `Fieldset` | `<fieldset>` | `<View role="group">` | a group of fields and its name |
+| `Fieldset` | `<fieldset className="hozo-view">` | `<View role="group">` | a group of fields and its name |
 | `Figcaption` | `<figcaption>` | `<Text>` | figure and its caption |
-| `Figure` | `<figure>` | `<View role="figure">` | figure and its caption |
+| `Figure` | `<figure className="hozo-view">` | `<View role="figure">` | figure and its caption |
 | `FlatList` | `<HozoFlatList data={rows} renderItem={({ item }) =>` | `<HozoFlatList accessibilityRole="list" data={rows} renderItem={({ item }) =>` | virtualized list semantics |
-| `Footer` | `<footer>` | `<View role="contentinfo">` | landmark regions |
-| `Header` | `<header>` | `<View role="banner">` | landmark regions |
+| `Footer` | `<footer className="hozo-view">` | `<View role="contentinfo">` | landmark regions |
+| `Header` | `<header className="hozo-view">` | `<View role="banner">` | landmark regions |
 | `Heading` | `<h2>` | `<Text accessibilityRole="header">` | semantic document structure |
 | `Image` | `<img src={"/a.png"} alt={"A picture"} />` | `<Image accessibilityLabel={"A picture"} source={{ uri: "/a.png" }} />` | described Image |
 | `Legend` | `<legend>` | `<Text>` | a group of fields and its name |
 | `Link` | `<a href="/a">` | `<HozoLink href="/a">` | semantic Link |
-| `List` | `<ul>` | `<View accessibilityRole="list">` | ordered static list |
-| `ListItem` | `<li>` | `<View role="listitem">` | ordered static list |
-| `Main` | `<main>` | `<View role="main">` | landmark regions |
+| `List` | `<ul className="hozo-view">` | `<View accessibilityRole="list">` | ordered static list |
+| `ListItem` | `<li className="hozo-view">` | `<View role="listitem">` | ordered static list |
+| `Main` | `<main className="hozo-view">` | `<View role="main">` | landmark regions |
 | `Mark` | `<mark>` | `<Text>` | inline emphasis and its meaning |
 | `Meter` | `<meter aria-label={"Disk usage"} value={0.6}>` | `<View accessibilityValue={{ min: 0, max: 1, now: 0.6 }} role="meter" accessibilityLabel={"Disk usage"}>` | — |
 | `Modal` | `<HozoModal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | `<Modal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | — |
-| `Nav` | `<nav>` | `<View role="navigation">` | document landmarks |
+| `Nav` | `<nav className="hozo-view">` | `<View role="navigation">` | document landmarks |
 | `NoBreak` | `<span}>` | `<Text>` | scripts, small print and an unbreakable run |
 | `Paragraph` | `<p>` | `<Text>` | semantic document structure; invalid document nesting diagnostic; a disclosure and its trigger; inline emphasis and its meaning; scripts, small print and an unbreakable run |
 | `Pressable` | `<div role="button" {...hozoInteractive(go)}>` | `<Pressable role="button" onPress={go}>` | role-bearing Pressable; missing interaction role diagnostic |
@@ -50,10 +50,10 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `Ruby` | `<ruby>` | `<Text accessibilityLabel="x">` | ruby and its reading |
 | `RubyText` | `<rt>` | `<Text>` | ruby and its reading |
 | `ScrollView` | `<div className="hozo-scroll-view" {...hozoScrollable()}>` | `<ScrollView>` | named scrollable region; unnamed scrollable region diagnostic |
-| `Search` | `<search>` | `<View>` | the landmark React Native has no word for |
-| `Section` | `<section>` | `<View>` | semantic document structure; invalid document nesting diagnostic |
+| `Search` | `<search className="hozo-view">` | `<View>` | the landmark React Native has no word for |
+| `Section` | `<section className="hozo-view">` | `<View>` | semantic document structure; invalid document nesting diagnostic |
 | `Separator` | `<hr />` | `<View role="separator">` | a separator is a separator; a decorative separator is silent |
-| `Skeleton` | `<div className="hozo-0" aria-hidden={true} data-hozo-skeleton="">` | `<Animated.View aria-hidden>` | — |
+| `Skeleton` | `<div className="hozo-view hozo-0" aria-hidden={true} data-hozo-skeleton="">` | `<Animated.View aria-hidden>` | — |
 | `Small` | `<small>` | `<Text>` | scripts, small print and an unbreakable run |
 | `Strikethrough` | `<s>` | `<Text>` | inline emphasis and its meaning |
 | `Strong` | `<strong>` | `<Text>` | inline emphasis and its meaning |
@@ -62,7 +62,7 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `Sup` | `<sup>` | `<Text>` | scripts, small print and an unbreakable run |
 | `Svg` | `<svg role="img" aria-label={"Chart"} viewBox="0 0 8 8">` | `<Svg accessible accessibilityRole="image" accessibilityLabel={"Chart"} viewBox="0 0 8 8">` | named drawing; decorative drawing |
 | `Term` | `<dt>` | `<Text>` | a description list |
-| `TermList` | `<dl>` | `<View role="list">` | a description list |
+| `TermList` | `<dl className="hozo-view">` | `<View role="list">` | a description list |
 | `Text` | `<span>` | `<Text>` | generic container; named scrollable region; unnamed scrollable region diagnostic; virtualized list semantics |
 | `TextInput` | `<input aria-label={"Name"} />` | `<TextInput accessibilityLabel={"Name"} />` | named TextInput; missing field name diagnostic |
 | `Time` | `<time dateTime="2026-09-11">` | `<Text dateTime="2026-09-11">` | a machine-readable time |

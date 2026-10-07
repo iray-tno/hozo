@@ -35,7 +35,8 @@ test('Animated.View resolves Animated-compatible nodes before DOM style normaliz
     }),
   )
 
-  assert.match(html, /^<div/)
+  assert.match(html, /<div class="hozo-view"/)
+  assert.match(html, /data-href="hozo-view-base"/)
   assert.match(html, /opacity:0.5/)
   assert.match(html, /transform:scale\(0.5\)/)
   assert.doesNotMatch(html, /__getValue/)
@@ -83,7 +84,9 @@ test('Animated.View omits incompatible nodes and diagnoses each capability failu
         },
       }),
     )
-    assert.doesNotMatch(html, /opacity|z-index|width|height/)
+    // The shared stylesheet legitimately contains min-width. Check the
+    // element's style, not a substring in the separate CSS resource.
+    assert.ok(html.endsWith('<div class="hozo-view"></div>'))
     assert.equal(
       warnings.filter((warning) => warning.includes('ANIMATED_GETTER_MISSING')).length,
       1,

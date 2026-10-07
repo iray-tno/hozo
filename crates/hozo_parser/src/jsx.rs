@@ -1930,12 +1930,13 @@ mod flex_direction_tests {
     }
 
     #[test]
-    fn html_semantics_do_not_claim_view_layout_defaults() {
-        // They become Views on Native, but Web keeps its HTML defaults.
-        // The old diagnostic claimed a redundant flex column on both and
-        // instructed an author to remove a non-redundant Web declaration.
-        assert!(!warns(r#"<Section className="flex">x</Section>"#));
-        assert!(!warns(r#"<Nav className="flex">x</Nav>"#));
+    fn and_on_every_other_box_too() {
+        // The landmarks are `View`s on device and carry the same base on
+        // the Web, so the same sentence is true of all of them. A check
+        // that knew only `View` would be right about the primitive people
+        // reach for first and silent about the ones they reach for next.
+        assert!(warns(r#"<Section className="flex">x</Section>"#));
+        assert!(warns(r#"<Nav className="flex">x</Nav>"#));
     }
 
     #[test]

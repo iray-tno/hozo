@@ -26,4 +26,6 @@ test('the canonical package directly renders every foundational Web primitive', 
   assert.match(html, /<div[^>]*>Open<\/div>/)
   assert.match(html, /<img src="\/avatar.png" alt="Avatar"/)
   assert.match(html, /<input[^>]*aria-label="Query"/)
+  assert.match(html, /<div class="hozo-view"/)
+  assert.match(html, /data-href="hozo-view-base"/)
 })

@@ -110,18 +110,29 @@ has the machinery to check it: the generated role table carries
 author building a data grid would get "this `row` is not inside a
 `rowgroup`" at compile time. Nothing else in this space does that.
 
-## HTML semantics do not imply View layout
+## Semantic meaning and shared box layout are separate contracts
 
-Semantic containers keep their HTML layout defaults on Web, compiled or not.
-Being represented by a View on Native is not a request for RN's flex column,
-zero shrink, relative positioning, minimum width or border-box defaults on
-Web. Applying the View base to Nav broke narrow headers only after compilation
-(#781). This applies equally to landmarks, lists, figures, fieldsets and
-Skeleton; authored utilities still override their platform's defaults.
+A landmark can be a `<nav>` on Web and a navigation-role View on Native
+without giving it different default layout. View-backed semantic containers
+share the RN-shaped box base on both platforms: flex column, zero shrink,
+relative positioning, zero minimum width and border-box sizing. Web's UA
+margin, padding and border defaults are reset on those boxes as well. Text
+semantics and specialized elements such as `<progress>` and `<hr>` are not
+ordinary boxes and do not acquire this base.
 
-View and Animated.View retain the RN-shaped Web base. Native semantic
-containers remain Views with Native defaults. The platform difference is
-intentional; a compiler/fallback difference on the same platform is not.
+#781 found a real compiler/fallback mismatch: only compiled Nav received the
+base. Removing it from compiled output would fix that mismatch by creating a
+Web/Native mismatch instead. The repair is to give fallback boxes the same
+base, retaining their semantic tags and roles. Both paths consume one CSS
+definition, with the fallback using a deduplicated, SSR-safe React stylesheet
+resource. Utilities and inline styles override the base; it is not an inline
+style object that would silently win over authored classes.
+
+`flex` alone does not ask for a row, and boxes do not shrink by default.
+Authors specify `flex-row` and `shrink` where their layout needs them. A
+stressed header is not made to fit by assigning Web-only shrink behavior.
+Browser layout and Yoga are still distinct engines; sharing these defaults
+does not claim identical font metrics or every specialized HTML behavior.
 
 ## Rejected: a generic element escape
 
