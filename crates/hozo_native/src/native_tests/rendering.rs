@@ -852,3 +852,40 @@ fn a_skeleton_is_hidden_and_animates_only_when_motion_is_allowed() {
         assert!(output.jsx.contains(" aria-hidden"), "{class_name}: {}", output.jsx);
     }
 }
+
+#[test]
+fn line_breaking_is_a_text_prop_where_android_has_one_and_a_warning_where_not() {
+    // `text-balance` used to stop the Native build as a Web-only error,
+    // for a utility that only moves where lines fall.
+    let compile = |element: &str| {
+        let source = format!("import {{ Text, View }} from '@hozo/core'\nconst el = {element}\n");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let balanced = compile(r#"<Text className="text-balance">x</Text>"#);
+    assert!(balanced.jsx.contains(r#"textBreakStrategy="balanced""#), "{}", balanced.jsx);
+    assert!(balanced.diagnostics.is_empty(), "{:?}", balanced.diagnostics);
+    let pretty = compile(r#"<Text className="text-pretty">x</Text>"#);
+    assert!(pretty.jsx.contains(r#"textBreakStrategy="highQuality""#), "{}", pretty.jsx);
+
+    for element in [
+        r#"<Text className="break-keep">x</Text>"#,
+        r#"<Text className="wrap-anywhere">x</Text>"#,
+        r#"<Text className="[line-break:strict]">x</Text>"#,
+        r#"<Text className="md:text-balance">x</Text>"#,
+        r#"<View className="text-balance">x</View>"#,
+    ] {
+        let output = compile(element);
+        assert!(!output.jsx.contains("textBreakStrategy"), "{element}: {}", output.jsx);
+        assert!(
+            !output.diagnostics.is_empty()
+                && output.diagnostics.iter().all(|d| d.severity == hozo_ir::Severity::Warning),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+    }
+    // The platform's own behaviour already, so nothing to say.
+    for element in [r#"<Text className="break-normal">x</Text>"#, r#"<Text className="text-wrap">x</Text>"#] {
+        assert!(compile(element).diagnostics.is_empty(), "{element}");
+    }
+}
