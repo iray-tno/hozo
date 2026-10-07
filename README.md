@@ -503,37 +503,54 @@ VoiceOver over the Storybook patterns, and TalkBack over the Native demo app's
 controls. iOS VoiceOver is not automated. Full conformance still requires
 manual screen reader testing.
 
-## Three-Layer Component Hierarchy
+## How the packages stack
 
-Hozo organizes universal UI across three clean layers, maximizing compile-time
-static guarantees and minimizing runtime overhead:
+Hozo's packages divide by *who runs them*: the compiler, or your app at
+runtime. The dependency arrows point down, and the bottom depends on nothing:
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│ Layer 3: Universal Patterns (@hozo/patterns)                  │
-│   Dialog · Tabs · Menu · Listbox · Combobox · RadioGroup      │
-│   Toolbar · Tree · Tooltip                                    │
-│   Composed from Layer 1 primitives + Layer 2 behaviors        │
+│ @hozo/ui        Looks: classes over the layers below.         │
+│                 Shipped as source, compiled by your build.    │
 └───────────────────────────────────────────────────────────────┘
-                               ▲
+                               │
 ┌───────────────────────────────────────────────────────────────┐
-│ Layer 2: Universal Behaviors (Minimal Runtime, @hozo/behaviors)│
-│   FocusScope · DismissableLayer · Portal · RovingFocus        │
-│   FloatingPositioner · LiveRegion · useHoverTrigger           │
-│   Safe Polygon · DelayGroupMachine (Warmup/Cooldown)          │
+│ @hozo/core      Re-exports, for zero-setup authoring.         │
+│                 Owns no implementation.                       │
 └───────────────────────────────────────────────────────────────┘
-                               ▲
+               │                                 │
+┌──────────────────────────────┐ ┌──────────────────────────────┐
+│ Primitives (compiled)        │ │ Patterns (runtime)           │
+│ @hozo/primitives             │ │ @hozo/patterns · @hozo/form  │
+│ @hozo/semantics              │ │ Dialog · Tabs · Menu ·       │
+│ @hozo/typography             │ │ Combobox · Popover · Chip ·  │
+│ Lowered by the compiler;     │ │ DatePicker · TextArea …      │
+│ listed in docs/primitives.md │ │ Write host elements directly │
+└──────────────────────────────┘ └──────────────────────────────┘
+               │                                 │
+┌──────────────────────────────┐                 │
+│ @hozo/engine                 │                 │
+│ What compiled output calls   │                 │
+│ at runtime: environment,     │                 │
+│ animation and class hooks    │                 │
+└──────────────────────────────┘                 │
+               │                                 │
 ┌───────────────────────────────────────────────────────────────┐
-│ Layer 1: Universal Primitives (Zero Runtime / Static SSR Safe)│
-│   @hozo/primitives · @hozo/typography · @hozo/semantics       │
-│   Named one by one in docs/primitives.md, which is generated  │
+│ @hozo/behaviors  Accessibility and internationalisation as    │
+│                  first-class behaviours: FocusScope ·         │
+│                  RovingFocus · LiveRegion · Portal ·          │
+│                  FloatingPositioner · usePresence ·           │
+│                  HozoI18nProvider. Depends on nothing.        │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-- **Layer 1 (Zero-Runtime Primitives)**: Lower directly to native HTML5 tags on Web and foundational primitives on React Native. Completely safe for static SSR / React Server Components (RSC) without `'use client'`.
-- **Layer 2 (Universal Behaviors)**: Minimal headless runtime behavior units, where accessibility and internationalisation are first-class behaviours ([decision 008](docs/decisions/008-i18n-is-a-connection.md)). The compiler statically removes what is knowable at build time (e.g. static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
-- **Layer 3 (Universal Patterns)**: Accessible stateful widgets composed strictly from Layer 1 and Layer 2.
-- **`@hozo/core`** re-exports all three layers for zero-setup authoring and owns no implementation of its own. Domain-specific and migration packages (`@hozo/form`, `@hozo/three`, `@hozo/canvas`, `@hozo/svg`, `@hozo/rn-compat`) sit alongside the layers as opt-in packages.
+- **Primitives** are what you write: `View`, `Text`, `Heading`, `Meter`, and the rest. The compiler lowers each one to a host element (`<div>`, React Native's `View`) with its classes compiled. A few lower to a small runtime component instead, such as `HozoBadge` or `HozoDialog`, when the element needs structure a single tag cannot carry. Static output is safe for server rendering without `'use client'`.
+- **`@hozo/engine`** is the runtime the compiled output calls: environment hooks (`dark:`, `md:`, `motion-safe:`), the animation and keyframe hooks, and the class resolver for classes only known at runtime.
+- **Patterns** are stateful widgets that ship as ordinary runtime code. They compose **behaviors over host elements**: `<button>` and `<div>` on the Web, `Pressable` and `View` on React Native. They do not use primitives. Published packages are not run through your compiler, so writing the host elements directly is what keeps their markup and ARIA exactly as designed. The same reason is why their class slots are resolved on the Web and carried on Native, where a pattern takes `style` props for its look.
+- **`@hozo/behaviors`** is the base every string-showing and focus-handling package builds on, so accessibility and internationalisation are designed in from the start rather than added at the end ([decision 008](docs/decisions/008-i18n-is-a-connection.md)). The compiler statically removes what is knowable at build time (static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
+- **`@hozo/ui`** is a look. Its components are classes over the packages above, shipped as source so your build compiles them with your theme.
+- The RFCs and older comments call these Layer 1 (primitives), Layer 2 (behaviors) and Layer 3 (patterns). The numbering reads as if each layer were built from the one below it. Patterns are built on behaviors, not on primitives, which is what this section used to get wrong (#764).
+- Domain packages (`@hozo/three`, `@hozo/canvas`, `@hozo/svg`, `@hozo/native`) and the migration package (`@hozo/rn-compat`) sit beside this stack as opt-in packages.
 
 ## Architecture
 
