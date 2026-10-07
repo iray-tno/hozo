@@ -4,17 +4,23 @@ import {
   prefetchHozoNavigation,
   useHozoNavigation,
 } from '@hozo/engine/navigation'
-import { type ReactNode, useRef } from 'react'
+import { type ComponentPropsWithRef, type ElementType, type ReactNode, useRef } from 'react'
 import { Linking, Pressable, type PressableProps } from 'react-native'
+import type { HozoPressable } from './pressable.native.tsx'
 
-export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
-  href: string
-  external?: boolean
-  replace?: boolean
-  prefetch?: boolean
-  onPress?: PressableProps['onPress']
-  children?: PressableProps['children']
-}
+type LinkHost = typeof Pressable | typeof HozoPressable
+
+export type HozoLinkProps<Host extends LinkHost = typeof Pressable> =
+  ComponentPropsWithRef<Host> & {
+    /** Compiler-only host selection; ordinary links retain RN's cheap path. */
+    hozoLinkComponent?: Host
+    href: string
+    external?: boolean
+    replace?: boolean
+    prefetch?: boolean
+    onPress?: PressableProps['onPress']
+    children?: PressableProps['children']
+  }
 
 /**
  * Native semantic link with the same destination-bearing API as `<a>`.
@@ -34,11 +40,15 @@ export interface HozoLinkProps extends Omit<PressableProps, 'onPress'> {
  * `Link` carried its own copy of exactly this and is why it existed
  * separately at all; it delegates here now.
  *
- * Only a lone string, which is the case that occurs: a label. A mixed
- * array is left alone rather than guessed at, since wrapping the lot
- * would put whatever else is in there inside a `Text`.
+ * Normalization wraps text runs, not whole arrays: embedded controls remain
+ * controls. Function children are still evaluated by React Native itself.
+ *
+ * State variants select HozoPressable without duplicating its event machine
+ * or navigation. The type-only import keeps that machinery out of ordinary
+ * links' Metro graph, where unused static imports would still cost modules.
  */
-export function HozoLink({
+export function HozoLink<Host extends LinkHost = typeof Pressable>({
+  hozoLinkComponent,
   href,
   external,
   replace,
@@ -49,22 +59,23 @@ export function HozoLink({
   children,
   accessibilityRole = 'link',
   ...props
-}: HozoLinkProps) {
+}: HozoLinkProps<Host>) {
+  const Component: ElementType = hozoLinkComponent ?? Pressable
   const navigation = useHozoNavigation()
   const prefetchedHref = useRef<string | null>(null)
   return (
-    <Pressable
+    <Component
       {...props}
       disabled={disabled}
       accessibilityRole={accessibilityRole}
-      onPressIn={(event) => {
+      onPressIn={(event: Parameters<NonNullable<PressableProps['onPressIn']>>[0]) => {
         onPressIn?.(event)
         if (prefetch && !disabled && prefetchedHref.current !== href) {
           prefetchedHref.current = href
           prefetchHozoNavigation(navigation, { href, external, replace })
         }
       }}
-      onPress={(event) => {
+      onPress={(event: Parameters<NonNullable<PressableProps['onPress']>>[0]) => {
         onPress?.(event)
         if (!event.defaultPrevented) {
           void activateHozoNavigation(navigation, { href, external, replace }, Linking.openURL)
@@ -72,6 +83,6 @@ export function HozoLink({
       }}
     >
       {typeof children === 'function' ? children : hozoTextChildren(children as ReactNode)}
-    </Pressable>
+    </Component>
   )
 }

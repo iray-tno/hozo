@@ -4,12 +4,10 @@
 use super::*;
 use hozo_ir::Child;
 
-/// Destination-bearing controls render HozoLink, not HozoPressable. Its
-/// runtime has no interaction provider yet. Container measurement, on the
-/// other hand, preserves the selected host and its provider.
+/// All canonical controls can carry the same event owner. HozoLink keeps
+/// navigation and receives HozoPressable as its host only when needed.
 pub(super) fn owns_events(node: &Node) -> bool {
-    matches!(node.primitive, Primitive::Pressable | Primitive::Button)
-        && !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("href"))
+    matches!(node.primitive, Primitive::Pressable | Primitive::Button | Primitive::Link)
 }
 
 pub(super) fn uses_focus_visible(condition: &Condition) -> bool {
@@ -34,7 +32,7 @@ pub(super) fn uses_interaction(condition: &Condition) -> bool {
 /// children use the same context as ordinary JSX children.
 pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) -> bool {
     fn visit(node: &Node, predicate: fn(&Condition) -> bool) -> bool {
-        if matches!(node.primitive, Primitive::Pressable | Primitive::Button) {
+        if owns_events(node) {
             return false;
         }
         node.style.iter().any(|declaration| {

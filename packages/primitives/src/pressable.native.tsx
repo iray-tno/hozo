@@ -490,9 +490,13 @@ export function HozoText({ style, ...props }: HozoTextProps) {
   const fraction = useRef(1)
   const previousTarget = useRef(typeof target === 'string' ? target : '')
   const range = useRef<ColorRange>({ from: previousTarget.current, to: previousTarget.current })
-  const interaction = `${state.pressed}:${state.hovered}:${state.focused}`
+  const interaction = `${state.pressed}:${state.hovered}:${state.focused}:${state.focusVisible}`
   const previousInteraction = useRef(interaction)
-  const pending = previousInteraction.current !== interaction && typeof target === 'string'
+  // Carry the state key, not just true/false. Consecutive interaction
+  // changes can both be pending: a boolean effect dependency would skip
+  // the second transition, even though its colour target changed.
+  const pending =
+    previousInteraction.current !== interaction && typeof target === 'string' ? interaction : null
   if (pending) {
     range.current = {
       from: blendColor(range.current.from, range.current.to, fraction.current),

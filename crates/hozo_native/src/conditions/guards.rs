@@ -62,14 +62,8 @@ pub(super) fn resolve(
             } else {
                 // A style object which the JSX never references is a silent
                 // drop, not support. Refuse when no owner can drive it.
-                if matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button) {
-                    return Err(format!(
-                        "`{}:` needs a readable interaction owner on Native, but this control renders HozoLink, which does not carry that state yet. On Web the same class works.",
-                        condition_suffix(condition).unwrap_or_default()
-                    ));
-                }
                 Err(format!(
-                    "`{}:` is wired only on Pressable and Button, or Text in their interaction context, on React Native; no readable interaction state exists on this element.",
+                    "`{}:` is wired only on Pressable, Button and Link, or Text in their interaction context, on React Native; no readable interaction state exists on this element.",
                     condition_suffix(condition).unwrap_or_default()
                 ))
             }

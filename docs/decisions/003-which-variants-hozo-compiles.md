@@ -121,12 +121,17 @@ than growing independent hover listeners. Negation alone enables that owner
 and the existing interaction transition path. A plain View or standalone
 Text has no readable hover owner and is still refused.
 
-Destination-bearing controls are a separate boundary: a Button or Pressable
-with `href` renders `HozoLink`, not `HozoPressable`. That link does not carry
-the hover/focus context yet, so these predicates are refused there too,
-including text colours moved onto raw labels. Descendants cannot silently
-borrow an outer button's state across the intervening link. Adding a real
-link interaction owner is follow-up work, not an OS capability guess.
+Destination-bearing controls keep `HozoLink` and its navigation semantics
+(decision 004). When their own styles or descendant text need interaction
+state, the compiler selects `HozoPressable` as that link's host. The existing
+event machine then supplies hover, focus, focus-visible and pressed state,
+including supported stacks, negation and inherited raw labels. Navigation,
+prefetch, cancellation and refs still pass through the same link adapter.
+Opacity and transforms use the existing native-driver transition path;
+colours use its JS driver. A plain link (including a pressed-only host style)
+retains RN's Pressable without importing the enhanced host or its animation
+machinery. Nested links stop the owner scan and never borrow an outer
+button's state; descendant-only state enables the nearest link instead.
 
 Container measurement preserves the selected host instead of replacing it
 with a View. `HozoContainer` receives the compiler's host (`Pressable`,
@@ -138,9 +143,8 @@ second interaction machine is introduced. The querying element's boundary
 stays outside its own provider, so it still cannot query itself.
 
 An ordinary View container uses the default host. Destination-bearing
-controls retain `HozoLink`, including its navigation behavior and the
-interaction-state limitation above; measurement does not invent support
-the preserved host lacks.
+controls retain `HozoLink`, including its navigation behavior and selected
+interaction host; measurement does not add a second state machine.
 
 Hosts without a single forwarded layout event (Modal/Dialog, non-layout
 SVG nodes) and identity-sensitive compound parts (Summary, dynamic RubyText)

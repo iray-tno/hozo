@@ -32,10 +32,13 @@ export interface NativeContextualCase {
     | 'not-@md/main'
     | 'container-interaction-host'
     | 'container-descendant-owner'
+    | 'link-interaction'
+    | 'link-descendant-owner'
+    | 'link-container-owner'
   purpose: string
   className: string
   props?: string
-  primitive?: 'Pressable' | 'View'
+  primitive?: 'Pressable' | 'View' | 'Button' | 'Link'
   children?: string
   expected: string[]
 }
@@ -46,6 +49,48 @@ export interface NativeContextualResult extends NativeContextualCase {
 }
 
 export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
+  ...(['Link', 'Button', 'Pressable'] as const).map((primitive) => ({
+    candidate: 'link-interaction' as const,
+    purpose: `${primitive} with href keeps navigation while sharing interaction transitions`,
+    primitive,
+    props: 'href="/docs"',
+    className: 'opacity-100 transition-opacity md:not-hover:opacity-50 focus-visible:opacity-25',
+    expected: [
+      'HozoLink',
+      'hozoLinkComponent={HozoPressable}',
+      'hozoFocusVisible',
+      'opacity: true',
+    ],
+  })),
+  {
+    candidate: 'link-descendant-owner',
+    purpose: 'descendant-only state and modality enable the nearest link owner',
+    primitive: 'Link',
+    props: 'href="/docs"',
+    className: '',
+    children: '<Text className="not-focus-visible:text-red-500 group-hover:underline">x</Text>',
+    expected: [
+      'hozoLinkComponent={HozoPressable}',
+      'hozoFocusVisible',
+      'HozoText',
+      '!(focusVisible) &&',
+    ],
+  },
+  {
+    candidate: 'link-container-owner',
+    purpose:
+      'container measurement forwards navigation and interaction without replacing either host',
+    primitive: 'Link',
+    props: 'href="/docs"',
+    className: '@container/main text-gray-500 transition-colors not-hover:text-blue-500',
+    children: '<Text className="@sm/main:focus:opacity-50">x</Text>',
+    expected: [
+      'hozoContainerComponent={HozoLink}',
+      'hozoLinkComponent={HozoPressable}',
+      'HozoContainerQuery',
+      'colors: true',
+    ],
+  },
   {
     candidate: 'container-interaction-host',
     purpose: 'measurement keeps the event owner, modality and existing transition on one host',
@@ -240,7 +285,7 @@ export const NATIVE_CONTEXTUAL_CASES: NativeContextualCase[] = [
 export function compareNativeContextual(testCase: NativeContextualCase): NativeContextualResult {
   const primitive = testCase.primitive ?? 'Pressable'
   const source =
-    `import { Pressable, Text, View } from '@hozo/core'\n` +
+    `import { Pressable, Text, View, Button, Link } from '@hozo/core'\n` +
     `export function C() {\n` +
     `  return <${primitive} ${primitive === 'Pressable' ? 'accessibilityRole="button"' : ''} ${testCase.props ?? ''} className="${testCase.className}">${testCase.children ?? 'x'}</${primitive}>\n` +
     `}\n`

@@ -137,19 +137,36 @@ fn descendant_negated_hover_enables_only_its_nearest_owner() {
 }
 
 #[test]
-fn destination_controls_do_not_invent_hover_owners_or_borrow_outer_state() {
+fn destination_controls_supply_their_own_text_interaction_owner() {
     for primitive in ["Pressable", "Button", "Link"] {
-        for variant in ["hover", "not-hover", "focus", "not-focus"] {
+        for variant in ["hover", "not-hover", "focus", "not-focus", "focus-visible", "not-focus-visible", "active"] {
             for body in [
                 format!(r#"<{primitive} href="/docs" className="{variant}:text-red-500">Docs</{primitive}>"#),
                 format!(r#"<Pressable className="hover:opacity-50"><{primitive} href="/docs"><Text className="{variant}:text-red-500">Docs</Text></{primitive}></Pressable>"#),
             ] {
                 let out = compile(&body);
-                assert!(out.diagnostics.iter().any(|d| d.severity == Severity::Error), "{body}: {:?}", out.diagnostics);
-                assert!(!out.jsx.contains("<HozoText"), "{body}: {}", out.jsx);
+                assert!(out.diagnostics.is_empty(), "{body}: {:?}", out.diagnostics);
+                assert!(out.jsx.contains("<HozoLink hozoLinkComponent={HozoPressable}"), "{body}: {}", out.jsx);
+                assert!(out.jsx.contains("<HozoText"), "{body}: {}", out.jsx);
             }
         }
     }
+}
+
+#[test]
+fn plain_links_keep_the_fast_host_and_nested_links_do_not_upgrade_outer_controls() {
+    for body in [
+        r#"<Link href="/docs">Docs</Link>"#,
+        r#"<Link href="/docs" className="active:opacity-50">Docs</Link>"#,
+    ] {
+        let out = compile(body);
+        assert!(out.diagnostics.is_empty(), "{body}: {:?}", out.diagnostics);
+        assert!(!out.runtime_imports.contains(&"HozoPressable"), "{body}: {:?}", out.runtime_imports);
+    }
+    let out = compile(r#"<Pressable><Link href="/docs"><Text className="hover:text-red-500">Docs</Text></Link></Pressable>"#);
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<Pressable"), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoLinkComponent={HozoPressable}"), "{}", out.jsx);
 }
 
 #[test]
