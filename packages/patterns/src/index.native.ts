@@ -17,6 +17,12 @@ export {
   type HozoBottomSheetProps,
 } from './bottom-sheet.native.tsx'
 export {
+  HozoChip as Chip,
+  HozoChip,
+  type HozoChipProps as ChipProps,
+  type HozoChipProps,
+} from './chip.native.tsx'
+export {
   HozoCombobox as Combobox,
   HozoCombobox,
   type HozoComboboxOption as ComboboxOption,

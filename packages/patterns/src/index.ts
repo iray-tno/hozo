@@ -17,6 +17,12 @@ export {
   type HozoBottomSheetProps,
 } from './bottom-sheet.tsx'
 export {
+  HozoChip as Chip,
+  HozoChip,
+  type HozoChipProps as ChipProps,
+  type HozoChipProps,
+} from './chip.tsx'
+export {
   type Autocomplete,
   HozoCombobox as Combobox,
   HozoCombobox,

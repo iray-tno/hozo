@@ -29,6 +29,7 @@ export const hozoMessages = {
   'hozo.calendar.rangeEnd': 'end of range',
   'hozo.calendar.rangeStart': 'start of range',
   'hozo.calendar.today': 'today',
+  'hozo.chip.remove': 'Remove {label}',
   'hozo.datePicker.dialog': 'Choose a date',
   'hozo.dateRangePicker.dialog': 'Choose a range of dates',
   'hozo.dateTimePicker.dialog': 'Choose a date and time',
