@@ -30,6 +30,10 @@ export const BackHandler = {
 
 export const Linking = {
   openURL: async () => {},
+  // Launched by no URL, and none arrives: the acceptance screen listens for
+  // the census walk's (#789) and stays itself here.
+  getInitialURL: async () => null,
+  addEventListener: () => ({ remove: () => {} }),
 }
 
 // The gesture responder, which the acceptance screen uses and nothing here
@@ -196,6 +200,17 @@ export const Easing = {
   // calls it, and a stub that omits a method the real module has reports
   // the absence as a crash somewhere unrelated.
   bezier: () => (value) => value,
+}
+
+// No native modules here, which is what an app binary without one looks
+// like: `@hozo/native` resolves its mover to `undefined` and the caller
+// keeps its default. The acceptance screen imports it through the census
+// walk (#789).
+export const TurboModuleRegistry = {
+  get: () => null,
+  getEnforcing: (name) => {
+    throw new Error(`TurboModuleRegistry.getEnforcing('${name}'): not in this stub`)
+  },
 }
 
 export const Animated = {
