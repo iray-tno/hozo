@@ -438,6 +438,57 @@ pub(super) fn caret_only_reason() -> String {
 ///
 /// `None` means this node can't absorb them (nothing asked for truncation,
 /// or it isn't a `Text`), and the caller refuses them instead.
+/// Android's `textBreakStrategy` for `text-balance` (`balanced`) or
+/// `text-pretty` (`highQuality`), on a text element and unconditionally --
+/// a prop has one value, so a variant cannot switch it. The last one written
+/// wins, as in CSS.
+pub(super) fn text_break_strategy(node: &Node) -> Option<&'static str> {
+    if !is_text_primitive(node.primitive) {
+        return None;
+    }
+    node.style.iter().rev().find_map(|declaration| {
+        if declaration.condition != hozo_ir::Condition::Always {
+            return None;
+        }
+        match line_breaking(&declaration.property) {
+            Some((name, value)) if name == "text-wrap" => match value.as_str() {
+                "balance" => Some("balanced"),
+                "pretty" => Some("highQuality"),
+                _ => None,
+            },
+            _ => None,
+        }
+    })
+}
+
+/// The property and value of a declaration about where text breaks into
+/// lines -- `text-wrap`, `word-break`, `overflow-wrap`, `line-break` --
+/// whichever of the IR's shapes carries it: a keyword (`text-balance`), a
+/// pair (`break-normal`, which sets two of them to `normal`), or a
+/// declaration written out (`[line-break:strict]`).
+pub(super) fn line_breaking(property: &StyleProperty) -> Option<(String, String)> {
+    let breaking = |name: &str| matches!(name, "text-wrap" | "word-break" | "overflow-wrap" | "line-break");
+    match property {
+        StyleProperty::Keyword(name, value) if breaking(name) => Some((name.to_string(), value.to_string())),
+        StyleProperty::KeywordPair(first, first_value, second, second_value)
+            if breaking(first) && breaking(second) =>
+        {
+            // Both halves: a pair is one intention, so it is "normal" only
+            // when both are, and otherwise reported by its second name.
+            let value = if *first_value == "normal" && *second_value == "normal" {
+                "normal"
+            } else {
+                second_value
+            };
+            Some((second.to_string(), value.to_string()))
+        }
+        StyleProperty::WebOnly(name, value) | StyleProperty::Arbitrary(name, value) if breaking(name) => {
+            Some((name.clone(), value.clone()))
+        }
+        _ => None,
+    }
+}
+
 pub(super) fn truncation_props(node: &Node) -> Option<Vec<(&'static str, String)>> {
     // `numberOfLines` exists on Text alone; on a View there's nothing to
     // put it on, so truncation there really is unsupported.

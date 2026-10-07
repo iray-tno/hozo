@@ -144,6 +144,9 @@ pub(super) fn render_node(
     // they're absorbed before the refusal check below -- otherwise the
     // thing that *does* express them would be reported as impossible.
     let truncation = truncation_props(node);
+    // `text-balance` and `text-pretty` are a Text prop here, Android's
+    // `textBreakStrategy`, the way `truncate` is `numberOfLines`.
+    let text_break = text_break_strategy(node);
     // Same shape as truncation: a CSS concept React Native keeps on a prop,
     // absorbed before the refusal check so the thing that *does* express it
     // isn't reported as impossible.
@@ -294,6 +297,66 @@ pub(super) fn render_node(
         }
         if truncation.is_some() && is_truncation_declaration(&declaration.property) {
             continue;
+        }
+        // How text breaks into lines. The Web has five properties for it and
+        // React Native one Android prop, so most of these have nothing to
+        // become here. That is a difference in where lines fall, not a layout
+        // that is wrong, so it is a warning -- it used to be the Web-only
+        // error, which stopped the Native build for a `text-balance` in a
+        // component written once for both.
+        if let Some((name, value)) = crate::text::line_breaking(&declaration.property) {
+            {
+                let lowered = text_break.is_some()
+                    && name == "text-wrap"
+                    && matches!(value.as_str(), "balance" | "pretty")
+                    && declaration.condition == Condition::Always;
+                // The platform's own behaviour already -- for Tailwind's
+                // `break-normal` and `text-wrap`, which reset rather than ask.
+                // A declaration written out (StyleX, `[line-break:normal]`) is
+                // still reported: someone set it on purpose, and the StyleX
+                // scorecard holds its Web-only properties to saying so.
+                let default = match &declaration.property {
+                    StyleProperty::KeywordPair(..) => value == "normal",
+                    StyleProperty::Keyword("text-wrap", "wrap") => true,
+                    _ => false,
+                };
+                if !lowered && !default {
+                    let reason = if name == "text-wrap"
+                        && matches!(value.as_str(), "balance" | "pretty")
+                    {
+                        if declaration.condition == Condition::Always {
+                            "React Native sets it on the `Text` that holds the words (Android's \
+                             `textBreakStrategy`), and this element is not one"
+                        } else {
+                            "React Native sets it as a `Text` prop, which a variant cannot switch"
+                        }
+                    } else {
+                        "React Native's `Text` has no control over where lines break beyond \
+                         Android's `textBreakStrategy`, so the platform decides"
+                    };
+                    diagnostics.push(Diagnostic {
+                        code: DiagnosticCode::WebOnlyPropertyOnNative,
+                        severity: Severity::Warning,
+                        // A StyleX declaration keeps the reason its
+                        // property is refused everywhere else (it names
+                        // StyleX's Web surface); only the weight changes.
+                        message: match declaration.property.unsupported_on_native() {
+                            Some(refusal) if matches!(declaration.property, StyleProperty::WebOnly(..)) => {
+                                format!(
+                                    "{refusal}. Lines fall where React Native puts them here; on \
+                                     Web it applies as written."
+                                )
+                            }
+                            _ => format!(
+                                "`{name}: {value}`: {reason}. Lines fall where React Native puts \
+                                 them here; on Web it applies as written."
+                            ),
+                        },
+                        span: node.span,
+                    });
+                }
+                continue;
+            }
         }
         if has_keyframes && crate::keyframes::is_timing(&declaration.property) {
             continue;
@@ -1182,6 +1245,12 @@ pub(super) fn render_node(
     }
     for (key, value) in caret.into_iter().flatten() {
         props_text.push_str(&format!(" {key}={{{value}}}"));
+    }
+    // Android only: iOS has no balanced strategy, and the prop is ignored
+    // there rather than refused, which is the same answer as the Web giving
+    // `text-wrap: balance` to a browser that predates it.
+    if let Some(strategy) = text_break {
+        props_text.push_str(&format!(r#" textBreakStrategy="{strategy}""#));
     }
     for (key, value) in truncation.into_iter().flatten() {
         if value.parse::<u32>().is_ok() {

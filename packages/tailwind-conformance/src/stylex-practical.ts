@@ -819,6 +819,16 @@ export interface StylexValueResult extends StylexValueCase {
   silent: boolean
 }
 
+/**
+ * Values of Web-only properties that React Native does have, as something
+ * other than a style. `text-wrap: balance` is a Web-only *property*, and on
+ * a `Text` its value is Android's `textBreakStrategy` prop: lowered rather
+ * than reported, so for these the policy is "lowered with nothing to say".
+ */
+const NATIVE_EQUIVALENTS: Readonly<Record<string, readonly string[]>> = {
+  textWrap: ['balance', 'pretty'],
+}
+
 export function compareStylexValue(testCase: StylexValueCase): StylexValueResult {
   const source = sourceFor(testCase)
   const expected = declarationMap(officialCss(source))
@@ -833,7 +843,9 @@ export function compareStylexValue(testCase: StylexValueCase): StylexValueResult
   const entry = manifestEntry(testCase.property)
   const nativePolicyMatches =
     entry?.lane === 'web-only'
-      ? native.diagnostics.some(({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE') &&
+      ? (NATIVE_EQUIVALENTS[testCase.property]?.includes(String(testCase.value))
+          ? native.diagnostics.length === 0
+          : native.diagnostics.some(({ code }) => code === 'WEB_ONLY_PROPERTY_ON_NATIVE')) &&
         !native.jsx.includes('stylex.props')
       : native.diagnostics.length === 0 && !native.jsx.includes('stylex.props')
   const covered = cssMatches && web.diagnostics.length === 0 && webConsumed && nativePolicyMatches
