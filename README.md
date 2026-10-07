@@ -4,6 +4,7 @@
 [![crates.io](https://img.shields.io/crates/v/hozo_parser?color=c8a882)](https://crates.io/crates/hozo_parser)
 [![CI](https://github.com/iray-tno/hozo/actions/workflows/ci.yml/badge.svg)](https://github.com/iray-tno/hozo/actions/workflows/ci.yml)
 [![Native](https://github.com/iray-tno/hozo/actions/workflows/native.yml/badge.svg)](https://github.com/iray-tno/hozo/actions/workflows/native.yml)
+[![Security Audit](https://github.com/iray-tno/hozo/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/iray-tno/hozo/actions/workflows/security.yml)
 [![Conformance](https://img.shields.io/badge/conformance-matrix-556348)](https://iray-tno.github.io/hozo/conformance/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-9e3d31)](LICENSE)
 
