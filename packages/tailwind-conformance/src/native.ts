@@ -145,6 +145,16 @@ const PROBE_CONTEXTS = [
       `  return <TextInput className="${candidate}" accessibilityLabel="Field" />\n}\n`,
   },
   {
+    // Read-only styling needs an explicit driver, not an assumed default.
+    // A dynamic prop keeps both directions observable; a static true probe
+    // would make not-read-only a known-false, intentionally unused style.
+    name: 'TextInput with readOnly',
+    render: (candidate: string) =>
+      `import { TextInput } from '@hozo/core'\n` +
+      `export function C({ locked }) {\n` +
+      `  return <TextInput readOnly={locked} className="${candidate}" accessibilityLabel="Field" />\n}\n`,
+  },
+  {
     // `*:` and `**:` hand their style to the element's *children*, and
     // every other context here has only a text child -- which becomes an
     // inserted `Text` and is not what a subtree selector reaches. So they

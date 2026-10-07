@@ -63,8 +63,8 @@
     "noOp": 1
   },
   "nativeContextual": {
-    "cases": 37,
-    "covered": 37,
+    "cases": 40,
+    "covered": 40,
     "refused": 0,
     "silent": 0
   },
@@ -191,16 +191,16 @@
     "unreachable": 0
   },
   "variants": {
-    "total": 28812,
-    "match": 28812,
+    "total": 29403,
+    "match": 29403,
     "mismatch": 0,
     "unsupported": 0
   },
   "nativeVariants": {
-    "total": 28812,
-    "covered": 7800,
-    "restricted": 4266,
-    "refused": 21012,
+    "total": 29403,
+    "covered": 8232,
+    "restricted": 4698,
+    "refused": 21171,
     "silent": 0,
     "noOp": 0
   }

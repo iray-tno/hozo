@@ -17,6 +17,23 @@ import { test } from 'node:test'
 import { classNamesIn } from './extract.ts'
 import { buildVariantCatalog, classNamePattern, compareVariant, cssClassName } from './variants.ts'
 
+test('read-only complements and ordered stacks match Tailwind itself', async () => {
+  const { cases, vars } = await buildVariantCatalog([
+    'read-only',
+    'not-read-only',
+    'md',
+    'not-md',
+    'motion-reduce',
+    '@sm/main',
+  ])
+  assert.ok(cases.some((testCase) => testCase.candidate === 'not-read-only:flex'))
+  assert.ok(cases.some((testCase) => testCase.candidate === 'md:read-only:p-4'))
+  for (const testCase of cases) {
+    const result = compareVariant(testCase, vars)
+    assert.equal(result.verdict, 'MATCH', `${testCase.candidate}: ${JSON.stringify(result)}`)
+  }
+})
+
 test('pressed complements and ordered stacks match Tailwind itself', async () => {
   const { cases, vars } = await buildVariantCatalog([
     'active',
