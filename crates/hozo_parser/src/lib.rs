@@ -43,6 +43,17 @@ use oxc_parser::Parser;
 use oxc_span::SourceType;
 use oxc_syntax::module_record::{ImportImportName, ModuleRecord};
 
+/// Source grammar shared by module inventory and imported StyleX definitions.
+/// JavaScript accepts JSX (as React Native/Babel projects commonly do), but
+/// TypeScript only does so in TSX. An omitted filename keeps the historical
+/// TSX API; MDX integrations pass already generated JSX, not authored Markdown.
+pub fn source_type_for_file(file: Option<&str>) -> SourceType {
+    let source_type = file
+        .and_then(|file| SourceType::from_path(file).ok())
+        .unwrap_or_else(|| SourceType::from_extension("tsx").expect("\"tsx\" is a known extension"));
+    source_type.with_jsx(source_type.is_javascript())
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ImportBinding {
     /// Module specifier as written, for example `react-native`.
@@ -225,8 +236,12 @@ pub fn parse_tsx(source_text: &str) -> ParseOutput {
 /// This remains useful independently of lowering: bundlers persist it to
 /// decide which modules belong in the shared parsed-rule registry.
 pub fn summarize_stylex_module(source_text: &str) -> StylexModuleSummary {
+    summarize_stylex_module_for_file(source_text, None)
+}
+
+pub fn summarize_stylex_module_for_file(source_text: &str, file: Option<&str>) -> StylexModuleSummary {
     let allocator = Allocator::default();
-    let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
+    let source_type = source_type_for_file(file);
     let ret = Parser::new(&allocator, source_text, source_type).parse();
     let frontend = stylex::Frontend::collect(&ret.program, &ret.module_record);
     frontend.module_summary(&ret.program, &ret.module_record)
@@ -261,7 +276,19 @@ pub fn parse_tsx_with_stylex(
     registry: Option<&StylexModuleRegistry>,
     bindings: &[StylexExternalBinding],
 ) -> ParseOutput {
-    parse(source_text, sources, registry, bindings, ReactNativeCompat::Lower)
+    parse_module_for_file(source_text, sources, registry, bindings, None)
+}
+
+/// The filename selects grammar, not integration eligibility. Build adapters
+/// still decide which files may have their JSX lowered.
+pub fn parse_module_for_file(
+    source_text: &str,
+    sources: Option<&[String]>,
+    registry: Option<&StylexModuleRegistry>,
+    bindings: &[StylexExternalBinding],
+    file: Option<&str>,
+) -> ParseOutput {
+    parse(source_text, sources, registry, bindings, ReactNativeCompat::Lower, file)
 }
 
 /// The package whose components stand in for React Native's own on the Web.
@@ -297,7 +324,7 @@ pub fn parse_tsx_for_web(
     bindings: &[StylexExternalBinding],
     compat: ReactNativeCompat,
 ) -> ParseOutput {
-    parse(source_text, sources, registry, bindings, compat)
+    parse(source_text, sources, registry, bindings, compat, None)
 }
 
 fn parse(
@@ -306,9 +333,10 @@ fn parse(
     registry: Option<&StylexModuleRegistry>,
     bindings: &[StylexExternalBinding],
     compat: ReactNativeCompat,
+    file: Option<&str>,
 ) -> ParseOutput {
     let allocator = Allocator::default();
-    let source_type = SourceType::from_extension("tsx").expect("\"tsx\" is a known extension");
+    let source_type = source_type_for_file(file);
     let ret = Parser::new(&allocator, source_text, source_type).parse();
 
     let imports = import_bindings(&ret.module_record);
@@ -475,6 +503,25 @@ impl<'a> Visit<'a> for JsxTextSpans {
 mod tests {
     use super::*;
     use hozo_ir::{Child, Primitive};
+
+    #[test]
+    fn filename_selects_grammar_without_retrying_invalid_tsx_as_ts() {
+        let parse_file = |source, file| parse_module_for_file(source, None, None, &[], Some(file));
+        let generic = "export const identity = async <T>(value: T): Promise<T> => value";
+        assert!(parse_file(generic, "sheet.ts").syntax_errors.is_empty());
+        assert!(!parse_file(generic, "sheet.tsx").syntax_errors.is_empty());
+        assert!(!parse_tsx(generic).syntax_errors.is_empty());
+        for file in ["Card.js", "Card.jsx", "Card.mjs"] {
+            assert!(parse_file("export const Card = () => <View />", file)
+                .syntax_errors.is_empty(), "{file}");
+            assert!(!parse_file("export const value: number = 1", file)
+                .syntax_errors.is_empty(), "{file}");
+        }
+        assert!(parse_file("export const identity = <T,>(value: T) => value", "sheet.mts")
+            .syntax_errors.is_empty());
+        assert!(!parse_file("export const Card = () => <View />", "Card.ts")
+            .syntax_errors.is_empty());
+    }
 
     #[test]
     fn syntax_errors_survive_without_lowerable_roots() {

@@ -103,6 +103,8 @@ export interface StylexModuleSource {
   id: string
   contentHash: string
   source: string
+  /** Grammar of the definition; omitted retains the historical TSX default. */
+  sourceFile?: string
   links: StylexExternalBinding[]
 }
 
@@ -112,7 +114,7 @@ export interface StylexExternalBinding {
   moduleId: string
 }
 
-/** Native output and source metadata produced by one TSX parser pass. */
+/** Native output and source metadata produced by one source parser pass. */
 export interface CompiledNativeModule {
   /** Source parser errors, including modules with no lowerable JSX roots. */
   syntaxDiagnostics: CompileDiagnostic[]
@@ -193,7 +195,7 @@ interface NativeBinding {
   moduleImports(source: string, module: string): string[]
   topLevelBindings(source: string): string[]
   foreignPrimitives(source: string, sources: string[]): string[]
-  summarizeStylexModule(source: string): StylexModuleSummary
+  summarizeStylexModule(source: string, sourceFile?: string): StylexModuleSummary
   CandidateCache: CandidateCacheConstructor
   Compiler: CompilerConstructor
 }
@@ -207,7 +209,11 @@ interface NativeCompiler {
     rehomeReactNative?: boolean,
   ): CompiledComponent[]
   compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
-  compileNativeModule(source: string, bindings?: StylexExternalBinding[]): CompiledNativeModule
+  compileNativeModule(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    sourceFile?: string,
+  ): CompiledNativeModule
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
   setStylexModules(modules: StylexModuleSource[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
@@ -343,8 +349,14 @@ export interface Compiler {
    * Native lowering plus source imports and foreign primitive bindings from
    * that same parse. Bundler integrations should prefer this over reparsing
    * the file around `compileNative`.
+   * `sourceFile` selects syntax only; omitted retains TSX. It does not grant
+   * transform support to a new extension in an integration.
    */
-  compileNativeModule(source: string, bindings?: StylexExternalBinding[]): CompiledNativeModule
+  compileNativeModule(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    sourceFile?: string,
+  ): CompiledNativeModule
   /**
    * A machine-folded module with its primitives written back as JSX,
    * or `undefined` when there is nothing folded to put back.
@@ -412,8 +424,8 @@ export function createCompiler(
           ),
         ],
       })),
-    compileNativeModule: (source, bindings) => {
-      const module = inner.compileNativeModule(source, bindings)
+    compileNativeModule: (source, bindings, sourceFile) => {
+      const module = inner.compileNativeModule(source, bindings, sourceFile)
       return {
         ...module,
         components: module.components.map((result) => ({
@@ -439,8 +451,8 @@ export function createCompiler(
 }
 
 /** Exported StyleX sheets and variable tables visible to another module. */
-export function summarizeStylexModule(source: string): StylexModuleSummary {
-  return loadNative().summarizeStylexModule(source)
+export function summarizeStylexModule(source: string, sourceFile?: string): StylexModuleSummary {
+  return loadNative().summarizeStylexModule(source, sourceFile)
 }
 
 /**

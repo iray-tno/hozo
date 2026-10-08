@@ -18,7 +18,8 @@ import {
   summarizeStylexModule,
 } from './index.ts'
 
-const SNAPSHOT_VERSION = 3
+// Extension-aware grammar changes export recovery, even for unchanged bytes.
+const SNAPSHOT_VERSION = 4
 
 interface FileEntry {
   modifiedMs: number
@@ -125,7 +126,7 @@ export class StylexModuleCache {
       summary:
         source.includes('@stylexjs/stylex') ||
         /\bexport\s*(?:\*|\{)[\s\S]*?\bfrom\s*['"]/.test(source)
-          ? summarizeStylexModule(source)
+          ? summarizeStylexModule(source, file)
           : { exports: [], reexports: [], imports: [] },
     }
     const previous = this.#snapshot.files[file]
@@ -293,6 +294,7 @@ export class StylexModuleCache {
       id: module.path,
       contentHash: module.contentHash,
       source: this.#sources.get(module.path) ?? readFileSync(module.path, 'utf8'),
+      sourceFile: module.path,
       links: this.#bindingsFor(module.path, modules),
     }))
   }

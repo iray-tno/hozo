@@ -208,19 +208,11 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
             path.resolve(file),
           )
         : undefined,
+      file,
     ),
   )
   if (original && original.syntaxDiagnostics.length > 0) {
-    const syntaxDiagnostics =
-      file.endsWith('.tsx') || file.endsWith('.mdx')
-        ? original.syntaxDiagnostics
-        : original.syntaxDiagnostics.map((diagnostic) => ({
-            ...diagnostic,
-            code: 'PARSER_PROBE_REJECTED',
-            severity: 'warning',
-            message: `TSX parser probe rejected ${path.extname(file)} input; this does not prove invalid authored syntax: ${diagnostic.message}`,
-          }))
-    collect('source', 'syntax', syntaxDiagnostics, source)
+    collect('source', 'syntax', original.syntaxDiagnostics, source)
     // Recovery ASTs are inventory, not successful lowering. Do not interpret
     // missing recovered JSX as a clean RN boundary or run target transforms.
     result.stages.push({ backend: 'source', stage: 'syntax', status: 'failed', durationMs: 0 })
@@ -282,7 +274,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
     if (target.code === undefined) target.status = 'failed'
     else {
       const residue = run('web', 'jsx-residue', () => {
-        const emitted = compiler.compileNativeModule(target.code!)
+        const emitted = compiler.compileNativeModule(target.code!, undefined, file)
         if (emitted.syntaxDiagnostics.length > 0) {
           collect(
             'web',
@@ -327,6 +319,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
         return compiler.compileNativeModule(
           canvas.code,
           usesStylex ? nativeGraph?.bindingsFor(path.resolve(file)) : undefined,
+          file,
         )
       })
       if (module) {

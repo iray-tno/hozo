@@ -549,14 +549,28 @@ test('cross-file StyleX context is read-only and remains outside authored scope'
   await assert.rejects(() => measureRealApp({ root, source: 'linked' }), AuditInputError)
 })
 
-test('valid TS rejected by the TSX parser is a probe limitation, not an authored syntax verdict', async (t) => {
+test('valid non-JSX TS generic arrows parse without expanding integration eligibility', async (t) => {
   const root = fixture(t, { 'src/generic.ts': 'export const identity = <T>(value: T): T => value' })
   const report = await measureRealApp({ root })
-  assert.equal(report.lowering.parseOrCompileFailures, 1)
+  assert.equal(report.lowering.parseOrCompileFailures, 0)
   assert.equal(report.diagnostics.filesWithErrors, 0)
-  assert.equal(report.findings[0].code, 'PARSER_PROBE_REJECTED')
-  assert.match(report.findings[0].message, /does not prove invalid authored syntax/)
+  assert.deepEqual(report.findings, [])
   assert.equal(report.files[0].targets.web.integrationEligibility, 'runtime-imports-only')
+  assert.equal(report.files[0].targets.native.integrationEligibility, 'compiler-probe-only')
+  assert.match(renderRealAppMarkdown(report), /extension-aware syntax parsing/)
+})
+
+test('JS/TS grammar failures remain errors rather than unassessed TSX probe warnings', async (t) => {
+  const root = fixture(t, {
+    'src/generic.tsx': 'export const identity = <T>(value: T) => value',
+    'src/typed.js': 'export const value: number = 1',
+    'src/broken.ts': '// 😀 日本語\r\nexport const value = ;',
+  })
+  const report = await measureRealApp({ root })
+  assert.equal(report.lowering.parseOrCompileFailures, 3)
+  assert.equal(report.diagnostics.filesWithErrors, 3)
+  assert.ok(report.findings.every(({ code }) => code === 'SOURCE_SYNTAX_ERROR'))
+  assert.ok(report.files.every(({ targets }) => targets.web.status === 'failed'))
   assert.match(renderRealAppMarkdown(report), /boundary is not fully assessed/)
 })
 

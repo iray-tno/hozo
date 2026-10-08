@@ -7,7 +7,7 @@ import { analyzeModule, discoverAnalysisSources, prepareAnalysisProject } from '
 
 const card = `import * as stylex from '@stylexjs/stylex'; import { View } from '@hozo/core'; import { styles } from '@/barrel'; export const Card = () => <View {...stylex.props(styles.root)} />`
 const sheet = (padding: number) =>
-  `import * as stylex from '@stylexjs/stylex'; export const styles = stylex.create({ root: { padding: ${padding} } })`
+  `export const identity = <T>(value: T) => value; import * as stylex from '@stylexjs/stylex'; export const styles = stylex.create({ root: { padding: ${padding} } })`
 function fixture(t: test.TestContext, files: Record<string, string>) {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-analysis-graph-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))

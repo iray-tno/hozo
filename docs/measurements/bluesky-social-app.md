@@ -15,20 +15,20 @@ This is a read-only compiler measurement, not a claim that the application can b
 
 ## Findings
 
-1. **The corpus has parse or compile failures:** 1 parse or compile failures across 1,660 JS/TS files (TSX parser probe, not TypeScript validation).
+1. **The corpus parses cleanly:** 0 parse or compile failures across 1,660 JS/TS files (extension-aware syntax parsing, not TypeScript validation).
 2. **The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.
-3. **The direct RN JSX boundary is not fully assessed:** Project context or Web/binding analysis was incomplete, or no Web targets were assessed; zero observed residue is not a closed boundary.
+3. **The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.
 4. **Styling surface:** 9 of 1660 files use `className` and 651 use `style`.
 
 The separate [production dependency-graph measurement](./bluesky-rnw-free-build.md) remains a historical build experiment over the same pinned corpus. This static audit does not rerun that production build or certify runtime behavior.
 
 This Slice 3 snapshot expands the authored scope from 1,050 TSX files to **1,660 JS/TS files** (1,049 TSX + 611 TS). The shared compiler walk excludes `src/screens/Messages/components/vendor/KeyboardStickyView.tsx`; the earlier dedicated audit walker included it. Three declaration-only files are listed as excluded source inventory in JSON. Generated/dependency directory contents are not enumerated. The authored fingerprint changes because the measured scope changes, not because the pinned checkout changed.
 
-Semantic counts remain **1,193 Web / 1,149 Native components in 573 lowered files**, with zero observed direct RN JSX residue, invalid DOM style arrays or eligible shared-backend count mismatches. Warnings increase from 200 to **219**: 18 additional `RN_COMPAT_NOT_INSTALLED` setup warnings are exposed in the newly observed TS files (135 total), plus one `PARSER_PROBE_REJECTED` at `src/components/Dialog/sheet-wrapper.ts:11:39`. Its valid generic async arrow is rejected by the compiler's current TSX-only parser. This is one failed/unassessed probe, **not an authored syntax error**, and prevents a closed-boundary verdict despite zero observed residue. No parser limitation was hidden or counted as successful lowering.
+Semantic counts remain **1,193 Web / 1,149 Native components in 573 lowered files**, with zero observed direct RN JSX residue, invalid DOM style arrays or eligible shared-backend count mismatches. The extension-aware follow-up removes the one failed probe at `src/components/Dialog/sheet-wrapper.ts:11:39`: its valid generic async arrow now parses as `.ts`, rather than TSX. All **1,660 files** complete the selected analyses with **0 parse/compile failures**. Warnings move **219 → 218**, solely by removing `PARSER_PROBE_REJECTED`; the 135 `RN_COMPAT_NOT_INSTALLED` setup warnings remain. This restores the direct JSX boundary verdict for the selected scope, not a claim that all RN APIs or a production app work without RNW. No transform extension gate was expanded, and invalid TSX is not retried as TS.
 
 Conventional CSS remains absent; builtin tokens and auto preflight=true are explicit compiler assumptions, not evidence about Bluesky's production reset. Root tsconfig is read and hashed, but its package-based `extends` is unsupported by the local-only static alias loader; aliases are not guessed. No StyleX definitions/consumers are observed in this corpus, so its prepared graphs are empty and it loads no context modules. Cross-file/alias/reexport/platform behavior is demonstrated by dedicated fixtures, not by Bluesky. Shared/native probes select Android by default; iOS/Android-suffixed files retain their own platform.
 
-The final serial observation on two logical CPU cores took **44.60s**: 0.41s discovery, 0.09s Git provenance, **35.05s authored snapshot reads**, 5.51s project preparation, and separately recorded compiler stages. This is not a controlled speed comparison with the narrower earlier scope, nor evidence that lowering itself became 7x slower: the new timings isolate the dominant source-reading time. Node 25.9.0, Tailwind 4.3.3 and JSONC parser 3.3.1 were used with a freshly rebuilt development binding. Full input hashes, eligibility, unresolved facts and stage observations remain reproducible in JSON.
+The final follow-up serial observation on two logical CPU cores took **26.41s**: 0.27s discovery, 0.10s Git provenance, 18.71s authored snapshot reads, 3.86s project preparation, 0.93s bindings, 1.58s Web lowering and 0.82s Web residue parsing. An earlier follow-up observation took 7.89s with 0.06s source reads and the same outcome counts; the earlier Slice 3 observation took 44.60s, including 35.05s source reads. These are **not a controlled performance comparison**, and the difference must not be attributed to this syntax fix. Node 25.9.0, Tailwind 4.3.3 and JSONC parser 3.3.1 were used with a freshly rebuilt development binding. Full input hashes, eligibility, unresolved facts and stage observations remain reproducible in JSON.
 
 Slice 1's corrections are retained: previously omitted setup warnings stay visible, and rewritten Hozo Pressable imports are not mislabeled as direct React Native residue. This slice adds analysis scope/context, not new component compatibility.
 
@@ -71,7 +71,7 @@ These are heuristics supplied by the corpus runner, not general migration guaran
 | filesWithDirectReactNativeJsxResidueOnWeb | 0 |
 | directReactNativeJsxBindingsResidueOnWeb | 0 |
 | sharedBackendShapeMismatches | 0 |
-| parseOrCompileFailures | 1 |
+| parseOrCompileFailures | 0 |
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
@@ -101,7 +101,7 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 | | Count |
 |---|---:|
 | Files with errors | 0 |
-| Files with warnings | 154 |
+| Files with warnings | 153 |
 | RN_COMPAT_NOT_INSTALLED | 135 |
 | ARIA_NAME_PROHIBITED | 40 |
 | A11Y_INTERACTIVE_WITHOUT_ROLE | 30 |
@@ -109,11 +109,10 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 | A11Y_PRESS_WITHOUT_KEYBOARD | 3 |
 | A11Y_MISSING_ACCESSIBLE_NAME | 2 |
 | ARIA_INCOMPLETE_PATTERN | 2 |
-| PARSER_PROBE_REJECTED | 1 |
 | ROLE_HAS_NO_WEB_EQUIVALENT | 1 |
 | UNSAFE_PROP_SPREAD_AFTER_STYLE | 1 |
 
-219 complete finding records are available in JSON. Use --details to expand Markdown findings.
+218 complete finding records are available in JSON. Use --details to expand Markdown findings.
 
 ## Analysis provenance
 
@@ -121,7 +120,7 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 |---|---|
 | Audit / compiler versions | 0.2.0 / 0.2.0 |
 | Theme loader / Tailwind / CSS parser | 0.2.0 / 4.3.3 / 8.5.26 |
-| Loaded binding SHA-256 | 85d2e03ecbea4cd25474c03895a5180ceaf1f7b517df1d89cc5703502b442675 |
+| Loaded binding SHA-256 | 1f7674a6356ad7f80e374e00f8f7e0266f4c3fb48003f5788e663274890def48 |
 | Authored source SHA-256 | db5373982baac27062021d8503f795cdb38a78d7cc2e0a2dccfe7eab805f36d8 |
 | Checkout dirty | false |
 
@@ -246,10 +245,6 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 
 - `src/components/Dialog/index.web.tsx`
 - `src/view/com/util/EventStopper.tsx`
-
-### diagnostic:PARSER_PROBE_REJECTED
-
-- `src/components/Dialog/sheet-wrapper.ts`
 
 ### diagnostic:UNSAFE_PROP_SPREAD_AFTER_STYLE
 
