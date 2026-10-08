@@ -432,3 +432,24 @@ export function Progress({ value, max, className, children, style, ...props }: P
     </progress>
   )
 }
+
+export {
+  HozoTable,
+  HozoTableCaption,
+  HozoTableCell,
+  HozoTableRow,
+  HozoTableSection,
+  Table,
+  TableBody,
+  TableCaption,
+  type TableCaptionProps,
+  TableCell,
+  type TableCellProps,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  type TableProps,
+  TableRow,
+  type TableRowProps,
+  type TableSectionProps,
+} from './table.tsx'

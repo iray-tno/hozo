@@ -3015,6 +3015,20 @@ const el = <Stepper steps={steps} activeStep={0} className=\"flex gap-2\" curren
     }
 
     #[test]
+    fn a_table_is_the_table_elements_and_a_header_cell_heads_its_column() {
+        let source = "import { Table, TableHeader, TableRow, TableHead, TableCell } from '@hozo/core'
+const el = <Table className=\"w-full\"><TableHeader><TableRow><TableHead>Item</TableHead><TableHead scope=\"row\">x</TableHead><TableCell>y</TableCell></TableRow></TableHeader></Table>
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<table className=\"hozo-0\"><thead><tr>"), "{}", output.jsx);
+        assert!(output.jsx.contains("<th scope=\"col\">Item</th>"), "{}", output.jsx);
+        assert!(output.jsx.contains("<th scope=\"row\">x</th><td>y</td>"), "{}", output.jsx);
+        assert!(output.runtime_imports.is_empty(), "{:?}", output.runtime_imports);
+    }
+
+    #[test]
     fn a_meter_is_the_meter_element_with_its_range_as_written() {
         let source = "import { Meter } from '@hozo/core'
 const el = <Meter aria-label=\"Disk usage\" value={0.6} low={0.3} high={0.8} />

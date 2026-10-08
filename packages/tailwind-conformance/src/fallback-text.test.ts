@@ -91,6 +91,28 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['HozoPagination', 'The same component under its other published name.'],
   ['Stepper', 'Draws its steps from the `steps` prop; it takes no children.'],
   ['HozoStepper', 'The same component under its other published name.'],
+  ['Table', 'Holds sections and rows, not text.'],
+  ['TableHeader', 'Holds rows, not text.'],
+  ['TableBody', 'Holds rows, not text.'],
+  ['TableFooter', 'Holds rows, not text.'],
+  ['TableRow', 'Holds cells, not text.'],
+  [
+    'TableCell',
+    'HozoTableCell wraps its own text in a Text, and the compiler leaves it as written so the cell can read it to name itself with its column.',
+  ],
+  ['TableHead', 'The same component as TableCell, told it is a header.'],
+  [
+    'TableCaption',
+    'HozoTableCaption is a Text, so its label is already text and nothing wraps it.',
+  ],
+  ['HozoTable', 'The same component as Table, under the name compiled output imports.'],
+  ['HozoTableSection', 'The component the three sections lower to; holds rows, not text.'],
+  ['HozoTableRow', 'The same component as TableRow, under the name compiled output imports.'],
+  ['HozoTableCell', 'The same component as TableCell, under the name compiled output imports.'],
+  [
+    'HozoTableCaption',
+    'The same component as TableCaption, under the name compiled output imports.',
+  ],
   [
     'Meter',
     "A bar (HozoMeter). Its children are <meter>'s fallback content, which no browser draws.",

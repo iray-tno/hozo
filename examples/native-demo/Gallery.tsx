@@ -112,6 +112,14 @@ import {
   Sub,
   Summary,
   Sup,
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
   Term,
   TermList,
   Text,
@@ -310,6 +318,31 @@ export default function Gallery() {
           currentIndicatorClassName="bg-slate-800 text-white"
           testID="gallery-Stepper"
         />
+        <Table className="border border-slate-300" testID="gallery-Table">
+          <TableCaption testID="gallery-TableCaption">Orders</TableCaption>
+          <TableHeader testID="gallery-TableHeader">
+            <TableRow>
+              <TableHead className="px-2" testID="gallery-TableHead">
+                Item
+              </TableHead>
+              <TableHead className="px-2">Price</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody testID="gallery-TableBody">
+            <TableRow testID="gallery-TableRow">
+              <TableCell className="px-2" testID="gallery-TableCell">
+                Shortbread
+              </TableCell>
+              <TableCell className="px-2 text-right">$12</TableCell>
+            </TableRow>
+          </TableBody>
+          <TableFooter testID="gallery-TableFooter">
+            <TableRow>
+              <TableCell className="px-2">Total</TableCell>
+              <TableCell className="px-2 text-right">$12</TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
 
         <Button accessibilityLabel="A button" testID="gallery-Button">
           Button

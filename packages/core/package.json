@@ -140,6 +140,10 @@
       "types": "./dist/generated/stepper.d.ts",
       "default": "./dist/generated/stepper.js"
     },
+    "./generated/table": {
+      "types": "./dist/generated/table.d.ts",
+      "default": "./dist/generated/table.js"
+    },
     "./generated/text": {
       "types": "./dist/generated/text.d.ts",
       "default": "./dist/generated/text.js"

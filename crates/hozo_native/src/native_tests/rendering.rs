@@ -1043,3 +1043,26 @@ fn a_stepper_is_hozo_stepper_with_a_style_per_status() {
     }
     assert!(output.runtime_imports.contains(&"HozoStepper"), "{:?}", output.runtime_imports);
 }
+
+#[test]
+fn a_table_is_runtime_parts_whose_cells_keep_their_text_styles() {
+    // #144: a cell is nearly always `{row.price}`, so its text styles stay
+    // on the cell, which wraps its own content in a Text; a header cell is
+    // the same component told it is one.
+    let source = r#"
+        import { Table, TableBody, TableRow, TableHead, TableCell } from '@hozo/core'
+        const el = <Table className="w-full"><TableBody><TableRow><TableHead scope="row">{name}</TableHead><TableCell className="text-right font-bold">{price}</TableCell></TableRow></TableBody></Table>
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoTable style={hozoStyles.hozo0}>"), "{}", output.jsx);
+    assert!(output.jsx.contains(r#"<HozoTableSection section="body">"#), "{}", output.jsx);
+    assert!(output.jsx.contains(r#"<HozoTableCell head scope="row">{name}</HozoTableCell>"#), "{}", output.jsx);
+    assert!(output.jsx.contains("{price}</HozoTableCell>"), "{}", output.jsx);
+    assert!(!output.jsx.contains("<Text"), "{}", output.jsx);
+    assert!(output.styles.contains("textAlign: 'right'"), "{}", output.styles);
+    for name in ["HozoTable", "HozoTableSection", "HozoTableRow", "HozoTableCell"] {
+        assert!(output.runtime_imports.contains(&name), "{name}: {:?}", output.runtime_imports);
+    }
+}
