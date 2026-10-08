@@ -243,7 +243,7 @@ async function measure(options) {
       nativePlatform: options.nativePlatform ?? 'android',
       resolutionPolicy:
         'static-relative-and-tsconfig-paths; platform suffix preference; ambiguous extensions unresolved; not authoritative bundler resolution',
-      parserMode: 'TSX compiler probe for all source extensions; not TypeScript validation',
+      parserMode: 'extension-aware JS/TS syntax; JavaScript accepts JSX; not TypeScript validation',
       contextModules: project.stylex.contextSources.map(({ file, sha256 }) => ({
         file: relative(root, file),
         sha256,
@@ -556,7 +556,7 @@ This is a read-only compiler measurement, not a claim that the application can b
 
 ## Findings
 
-1. **${report.lowering.parseOrCompileFailures === 0 ? 'The corpus parses cleanly' : 'The corpus has parse or compile failures'}:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.authoredFiles.toLocaleString()} JS/TS files (TSX parser probe, not TypeScript validation).
+1. **${report.lowering.parseOrCompileFailures === 0 ? 'The corpus parses cleanly' : 'The corpus has parse or compile failures'}:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.authoredFiles.toLocaleString()} JS/TS files (extension-aware syntax parsing, not TypeScript validation).
 2. ${webStyleFinding}
 3. ${rnJsxFinding}
 4. ${stylingFinding}

@@ -66,6 +66,7 @@ pub struct StylexModuleSource {
     pub id: String,
     pub content_hash: String,
     pub source: String,
+    pub source_file: Option<String>,
     pub links: Vec<StylexExternalBinding>,
 }
 
@@ -94,8 +95,8 @@ fn external_bindings(
 /// project graph once. The summary contains no AST-backed data and is safe
 /// to persist between processes.
 #[napi]
-pub fn summarize_stylex_module(source: String) -> StylexModuleSummary {
-    let summary = hozo_parser::summarize_stylex_module(&source);
+pub fn summarize_stylex_module(source: String, source_file: Option<String>) -> StylexModuleSummary {
+    let summary = hozo_parser::summarize_stylex_module_for_file(&source, source_file.as_deref());
     StylexModuleSummary {
         exports: summary
             .exports
@@ -450,13 +451,15 @@ impl Compiler {
         lower_native(&source, &self.theme, self.sources.as_deref(), Some((&self.stylex, &bindings)))
     }
 
-    /// Native output plus module metadata collected by the same TSX parse.
-    /// Metro needs both to rewrite imports without reparsing the file.
+    /// Native output plus module metadata collected by the same source parse.
+    /// Metro needs both to rewrite imports without reparsing the file. Optional
+    /// source_file selects grammar; omitted retains the historical TSX API.
     #[napi]
     pub fn compile_native_module(
         &self,
         source: String,
         bindings: Option<Vec<StylexExternalBinding>>,
+        source_file: Option<String>,
     ) -> CompiledNativeModule {
         let bindings = external_bindings(bindings);
         lower_native_module(
@@ -464,6 +467,7 @@ impl Compiler {
             &self.theme,
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
+            source_file.as_deref(),
         )
     }
 
@@ -475,6 +479,7 @@ impl Compiler {
                 id: module.id,
                 content_hash: module.content_hash,
                 source: module.source,
+                source_file: module.source_file,
                 links: module
                     .links
                     .into_iter()
@@ -711,13 +716,13 @@ fn lower_native_module(
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
     stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
+    source_file: Option<&str>,
 ) -> CompiledNativeModule {
-    let parsed = match stylex {
-        Some((registry, bindings)) => {
-            hozo_parser::parse_tsx_with_stylex(source, sources, Some(registry), bindings)
-        }
-        None => hozo_parser::parse_tsx_with(source, sources),
+    let (registry, bindings) = match stylex {
+        Some((registry, bindings)) => (Some(registry), bindings),
+        None => (None, &[][..]),
     };
+    let parsed = hozo_parser::parse_module_for_file(source, sources, registry, bindings, source_file);
     let components = lower_native_components(source, theme, &parsed);
     let imports = parsed
         .imports
@@ -966,7 +971,7 @@ mod utf16_tests {
     fn module_syntax_errors_cross_napi_as_utf16_even_without_components() {
         let source = "// 😀 日本語\r\nexport const value = <";
         let parsed = hozo_parser::parse_tsx(source);
-        let module = lower_native_module(source, &hozo_ir::Theme::default(), None, None);
+        let module = lower_native_module(source, &hozo_ir::Theme::default(), None, None, None);
         assert!(module.components.is_empty());
         assert_eq!(module.syntax_diagnostics.len(), parsed.syntax_errors.len());
         assert!(!module.syntax_diagnostics.is_empty());

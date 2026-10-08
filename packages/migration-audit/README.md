@@ -50,11 +50,11 @@ fingerprints are content hints, not unique identities or baseline matching guara
 
 Web assessment uses the shared module lowering pipeline, including Canvas and import diagnostics.
 Native assessment is a compiler-only component/Canvas probe, **not** full Metro module preparation.
-All extensions use the compiler's current TSX parser probe, not extension-specific TypeScript
-validation (for example a valid non-JSX generic arrow in `.ts` may not parse as TSX).
-Such rejection is `PARSER_PROBE_REJECTED` (warning), a failed/unassessed probe, not an
-authored `SOURCE_SYNTAX_ERROR`. The legacy failure counter includes it; zero RN JSX residue
-cannot close a boundary when a selected file could not be analysed.
+The compiler selects syntax from each filename: `.ts`/`.mts` are non-JSX TypeScript,
+`.tsx` is TSX, and `.js`/`.jsx`/`.mjs` accept JavaScript with JSX, not TypeScript or Flow.
+This applies to both authored inventory and imported StyleX definitions. Valid `.ts` generic
+arrows are no longer rejected by a TSX-only probe. Parser errors remain `SOURCE_SYNTAX_ERROR`;
+invalid TSX is not retried as TS to hide errors. This is not TypeScript type-checking.
 Each target records `integrationEligibility`: Web `.tsx` is `semantic-module`, other source
 extensions are `runtime-imports-only`; Native non-TSX results are `compiler-probe-only`.
 No extensions are renamed to claim integration support. Probe-only counts are not backend

@@ -123,6 +123,7 @@ pub struct ModuleSource {
     pub id: String,
     pub content_hash: String,
     pub source: String,
+    pub source_file: Option<String>,
     pub links: Vec<ExternalBinding>,
 }
 
@@ -135,6 +136,7 @@ struct RegisteredReexport {
 
 struct RegisteredModule {
     content_hash: String,
+    source_file: Option<String>,
     links: Vec<ExternalBinding>,
     own_sheets: HashMap<String, HashMap<String, Rule>>,
     sheets: HashMap<String, HashMap<String, Rule>>,
@@ -157,13 +159,14 @@ impl ModuleRegistry {
         self.modules.retain(|id, _| retained.contains(id));
         for module in modules {
             if self.modules.get(&module.id).is_some_and(|registered| {
-                registered.content_hash == module.content_hash && registered.links == module.links
+                registered.content_hash == module.content_hash
+                    && registered.links == module.links
+                    && registered.source_file == module.source_file
             }) {
                 continue;
             }
             let allocator = oxc_allocator::Allocator::default();
-            let source_type = oxc_span::SourceType::from_extension("tsx")
-                .expect("\"tsx\" is a known extension");
+            let source_type = crate::source_type_for_file(module.source_file.as_deref());
             let parsed = oxc_parser::Parser::new(&allocator, &module.source, source_type).parse();
             let frontend = Frontend::collect(&parsed.program, &parsed.module_record);
             let own_sheets = frontend.exported_static_sheets(&parsed.module_record);
@@ -189,6 +192,7 @@ impl ModuleRegistry {
                 module.id.clone(),
                 RegisteredModule {
                     content_hash: module.content_hash.clone(),
+                    source_file: module.source_file.clone(),
                     links: module.links.clone(),
                     sheets: own_sheets.clone(),
                     own_sheets,

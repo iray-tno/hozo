@@ -93,6 +93,13 @@ registry inputs per file. The mutable compiler still belongs to one serial worke
 Target results distinguish current integration eligibility from parser/compiler capability;
 the analysis API does not expand the Web/Metro transform extension gates or certify a build.
 
+Module inventory and StyleX definitions select syntax using their filenames: `.ts`/`.mts`
+are non-JSX TypeScript, `.tsx` is TSX, and JavaScript sources accept JSX but not TypeScript.
+`compileNativeModule(source, bindings, sourceFile)` and `summarizeStylexModule(source, sourceFile)`
+retain their TSX default when no filename is supplied. StyleX registry entries carry `sourceFile`
+separately from their opaque module ID; the project cache supplies it and invalidates old snapshots.
+This is syntax parsing, not a TypeScript type-check or support for Flow syntax.
+
 <!-- generated: package-footer -->
 
 ---
