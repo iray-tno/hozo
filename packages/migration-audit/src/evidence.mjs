@@ -48,7 +48,7 @@ export function recordAnalysis(report, analysis, file, source, platform) {
   const usage = analysis.reactNativeUsage
   const census = (report.reactNativeUsage ??= {
     mode: 'authored-esm-symbols',
-    rewriteDecisions: 'not-assessed',
+    rewriteDecisions: 'web-import-declarations-only',
     limitations: [
       'CommonJS require, dynamic import, TS import-equals, and indirect wrapper modules are not inventoried.',
       'No alias/data-flow propagation beyond the directly imported symbol.',
@@ -88,6 +88,49 @@ export function recordAnalysis(report, analysis, file, source, platform) {
       }
     }
   } else census.filesNotAssessed += 1
+  if (analysis.targets.web) {
+    const imports = (report.reactNativeImportDecisions ??= {
+      scope: 'web-import-declarations',
+      semanticReferences: 'not-assessed',
+      memberCompatibility: 'not-assessed',
+      dependencyRemoval: 'not-assessed',
+      filesCompleted: 0,
+      filesPartial: 0,
+      filesFailed: 0,
+      filesNotAssessed: 0,
+      rewrittenBindings: 0,
+      retainedBindings: 0,
+      typeOnlyBindings: 0,
+      notAssessedEdges: 0,
+      unmappedDecisions: 0,
+    })
+    const journal = analysis.targets.web.reactNativeImports
+    const status =
+      journal?.status ?? (analysis.targets.web.status === 'failed' ? 'failed' : 'not-assessed')
+    imports[
+      {
+        completed: 'filesCompleted',
+        partial: 'filesPartial',
+        failed: 'filesFailed',
+        'not-assessed': 'filesNotAssessed',
+      }[status]
+    ] += 1
+    imports.unmappedDecisions += journal?.unmappedDecisions ?? 0
+    // Failed/partial runs retain the journal in JSON, but must not pad the
+    // headline successful rewrite counts with edits from an aborted pipeline.
+    if (status === 'completed') {
+      for (const outcome of journal.outcomes) {
+        imports[
+          {
+            'rewritten-to-hozo': 'rewrittenBindings',
+            'retained-react-native': 'retainedBindings',
+            'type-only': 'typeOnlyBindings',
+            'not-assessed': 'notAssessedEdges',
+          }[outcome.disposition]
+        ] += 1
+      }
+    }
+  }
   for (const stage of analysis.stages) {
     const key = `${stage.backend}:${stage.stage}`
     report.analysis.stageDurationMs[key] =

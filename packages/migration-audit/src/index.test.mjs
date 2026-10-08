@@ -13,8 +13,53 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-
+import { recordAnalysis } from './evidence.mjs'
 import { AuditInputError, measureRealApp, renderRealAppMarkdown, runCli } from './index.mjs'
+
+test('aborted import journals stay in file evidence but do not enter successful rewrite counts', () => {
+  const report = {
+    files: [],
+    findings: [],
+    analysis: { stageDurationMs: {} },
+    samples: {},
+    diagnostics: { byCode: {}, bySeverity: {} },
+    _compileFailures: new Set(),
+    _filesWithErrors: new Set(),
+    _filesWithWarnings: new Set(),
+  }
+  recordAnalysis(
+    report,
+    {
+      targets: {
+        web: {
+          status: 'failed',
+          reactNativeImports: {
+            status: 'failed',
+            scope: 'import-declarations',
+            unmappedDecisions: 0,
+            outcomes: [
+              {
+                bindingIndex: 0,
+                disposition: 'rewritten-to-hozo',
+                replacement: '@hozo/rn-compat',
+                reason: 'actual edit before failure',
+              },
+            ],
+          },
+        },
+      },
+      stages: [],
+      findings: [],
+    },
+    'app.tsx',
+    'source',
+    'shared',
+  )
+  assert.equal(report.reactNativeImportDecisions.filesFailed, 1)
+  assert.equal(report.reactNativeImportDecisions.rewrittenBindings, 0)
+  assert.equal(report.files[0].targets.web.reactNativeImports.outcomes.length, 1)
+  assert.equal(report.reactNativeUsage.filesNotAssessed, 1)
+})
 
 test('RN source census excludes types, unused values and shadowed names from runtime references', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-rn-usage-audit-'))
@@ -39,13 +84,27 @@ test('RN source census excludes types, unused values and shadowed names from run
     assert.equal(usage.runtimeReexports, 1)
     assert.equal(usage.typeReexports, 1)
     assert.equal(usage.sideEffectImports, 1)
-    assert.equal(usage.rewriteDecisions, 'not-assessed')
+    assert.equal(usage.rewriteDecisions, 'web-import-declarations-only')
+    assert.equal(report.reactNativeImportDecisions.filesCompleted, 1)
+    assert.equal(report.reactNativeImportDecisions.rewrittenBindings, 3)
+    assert.equal(report.reactNativeImportDecisions.retainedBindings, 1)
+    assert.equal(report.reactNativeImportDecisions.typeOnlyBindings, 2)
+    assert.equal(report.reactNativeImportDecisions.notAssessedEdges, 3)
+    assert.equal(report.reactNativeImportDecisions.semanticReferences, 'not-assessed')
+    assert.equal(report.reactNativeImports.Platform, 1)
+    const journal = report.files[0].targets.web.reactNativeImports
+    assert.equal(journal.outcomes[0].replacement, '@hozo/rn-compat')
+    assert.equal(journal.outcomes[1].disposition, 'retained-react-native')
     const bindings = report.files[0].reactNativeUsage.bindings
     assert.equal(bindings[0].references.length, 2)
     const span = bindings[0].references[0]
     assert.equal(source.slice(span.spanStart, span.spanEnd), 'P.OS')
     assert.match(renderRealAppMarkdown(report), /Authored React Native usage/)
-    assert.match(renderRealAppMarkdown(report), /actual rewrite dispositions are not assessed yet/)
+    assert.match(renderRealAppMarkdown(report), /Web React Native import decisions/)
+    assert.match(
+      renderRealAppMarkdown(report),
+      /Retained imports are not remaining runtime-use counts/,
+    )
     assert.deepEqual(readdirSync(root, { recursive: true }), before)
     assert.equal(readFileSync(file, 'utf8'), source)
   } finally {

@@ -3,6 +3,7 @@
 mod arbitrary;
 mod bindings;
 mod rn_usage;
+mod rn_imports;
 pub mod aria;
 mod aria_check;
 mod canvas;
@@ -15,6 +16,10 @@ mod unfold;
 pub(crate) mod tailwind_variants;
 
 pub use bindings::top_level_bindings;
+pub use rn_imports::{
+    react_native_imports, ReactNativeImportDeclaration, ReactNativeImportSpecifier,
+    ReactNativeImports,
+};
 pub use rn_usage::{analyze_react_native_usage, ReactNativeBindingUsage, ReactNativeReference, ReactNativeUsage};
 pub use jsx::is_primitive_name;
 pub use unfold::unfold_jsx_calls;

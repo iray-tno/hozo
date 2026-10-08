@@ -116,6 +116,24 @@ inventory does not assess CommonJS, dynamic imports, TS import-equals, indirect 
 actual rewrite dispositions or member compatibility. Audit must consume compiler-owned
 rewrite decisions separately; an observed import/member is not dependency-removal proof.
 
+### Actual Web import decisions
+
+The shared Web lowerer uses `reactNativeImports(source, sourceFile?)` AST declarations
+instead of matching import-like text. Its `imports` observer events journal the same
+specifier edits that produce the output. Mixed default/named imports, Unicode aliases,
+comments and escaped module strings are handled structurally; type/namespace/default
+imports and declarations with import attributes are not moved. Policy `allow` does not
+run this rewrite. Ordinary compilation does not build semantic usage scopes.
+
+`analyzeModule` joins these events to authored `reactNativeUsage.bindings` indices in
+`targets.web.reactNativeImports`. A later pass can join only an unchanged, unique
+specifier-token/binding identity; uncertain provenance stays partial/not-assessed.
+Failed targets keep their evidence but are not successful migration verdicts. Retained
+imports do not mean their JSX uses survived: lowering may leave an unused import for
+the bundler to elide. This journal deliberately does not assess semantic reference
+dispositions, forwarding edges, member compatibility, Native module imports, package
+resolution or production dependency removal. These remain separate evidence layers.
+
 <!-- generated: package-footer -->
 
 ---
