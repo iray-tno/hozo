@@ -3,7 +3,7 @@
 import { AuditInputError, runCli } from './index.mjs'
 
 try {
-  runCli()
+  await runCli()
 } catch (error) {
   if (!(error instanceof AuditInputError)) throw error
   console.error(`hozo-migration-audit: ${error.message}`)

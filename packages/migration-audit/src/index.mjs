@@ -4,8 +4,8 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'n
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 
-import { createCompiler } from '@hozo/compiler'
-import { analyzeModule } from '@hozo/compiler/analysis'
+import { analyzeModule, prepareAnalysisProject } from '@hozo/compiler/analysis'
+import { loadStaticProjectTheme } from '@hozo/tailwind'
 import { findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
 
 const SOURCE_EXTENSION = '.tsx'
@@ -38,6 +38,9 @@ const HELP = `Usage:
 
 Options:
   --source <directory>       Source directory; repeat to scan several (default: src/app, then root)
+  --css <file>               Static Tailwind CSS entry (default: conventional CSS discovery)
+  --preflight auto|true|false Reset assumption for both backends (default: auto in selected scope)
+  --primitive-source <name>  Explicit trusted re-export source; repeat to extend defaults
   --name <name>              Human-readable corpus name
   --repository <url>         Canonical repository URL recorded in the report
   --expected-commit <sha>    Fail unless the checkout is at this commit
@@ -72,6 +75,10 @@ function parseArgs(argv) {
     index += 1
     if (key === '--root') options.root = value
     else if (key === '--source') (options.source ??= []).push(value)
+    else if (key === '--css') options.css = value
+    else if (key === '--primitive-source') (options.primitiveSources ??= []).push(value)
+    else if (key === '--preflight' && ['auto', 'true', 'false'].includes(value))
+      options.preflight = value === 'auto' ? 'auto' : value === 'true'
     else if (key === '--name') options.name = value
     else if (key === '--repository') options.repository = value
     else if (key === '--expected-commit') options.expectedCommit = value
@@ -178,7 +185,8 @@ function directReactNativeJsxBindings(jsxBindings, imports) {
   return imports.filter((name) => used.has(name))
 }
 
-function measure(options) {
+async function measure(options) {
+  const started = performance.now()
   const root = path.resolve(options.root)
   const { directories, files } = sourceFiles(root, options.source)
   const commit = optionalGit(root, ['rev-parse', 'HEAD']) ?? 'unknown'
@@ -188,8 +196,24 @@ function measure(options) {
 
   const repository =
     options.repository ?? optionalGit(root, ['remote', 'get-url', 'origin']) ?? root
-  const compiler = createCompiler()
-  const started = performance.now()
+  if (options.preflight !== undefined && ![true, false, 'auto'].includes(options.preflight))
+    throw new AuditInputError('preflight must be auto, true or false')
+  if (options.css !== undefined && (typeof options.css !== 'string' || !options.css.trim()))
+    throw new AuditInputError('css must name a stylesheet')
+  if (
+    options.primitiveSources !== undefined &&
+    (!Array.isArray(options.primitiveSources) ||
+      options.primitiveSources.some((source) => typeof source !== 'string' || !source.trim()))
+  )
+    throw new AuditInputError('primitiveSources must be an array of nonempty module names')
+  const authoredSources = files.map((file) => ({ file, source: readFileSync(file, 'utf8') }))
+  const project = await prepareAnalysisProject(
+    { ...options, root, authoredSources },
+    loadStaticProjectTheme,
+  )
+  if (options.css !== undefined && project.projectFacts.css.status === 'invalid')
+    throw new AuditInputError(project.projectFacts.css.reason)
+  const { compiler } = project
   const sourceHash = createHash('sha256')
   const dirty = optionalGit(root, ['status', '--porcelain', '--ignore-submodules=all'])
   const report = {
@@ -214,27 +238,16 @@ function measure(options) {
     },
     analysis: {
       workers: 1,
-      projectFacts: {
-        theme: {
-          status: 'defaulted',
-          value: 'builtin',
-          reason: 'Project CSS is not assessed yet.',
-        },
-        preflight: {
-          status: 'defaulted',
-          value: false,
-          reason: 'Default compiler has no project reset.',
-        },
-        css: { status: 'unresolved', reason: 'Static project CSS discovery is not assessed yet.' },
-        fonts: { status: 'unresolved', reason: 'Project font registration is not assessed yet.' },
-        aliases: { status: 'unresolved', reason: 'Project import aliases are not assessed yet.' },
-        stylexGraph: {
-          status: 'unresolved',
-          reason: 'Cross-file StyleX context is not assessed yet.',
-        },
+      projectFacts: project.projectFacts,
+      contextStatus: project.contextStatus,
+      stylesheetInputs: project.stylesheets,
+      preflightBasis: project.preflightBasis,
+      compilerAssumptions: {
+        theme: project.projectFacts.theme.status === 'resolved' ? 'project' : 'builtin',
+        preflight: project.compilerInputs.theme.preflight,
       },
       primitiveSources: [...compiler.sources],
-      stageDurationMs: {},
+      stageDurationMs: { 'project:preparation': project.durationMs },
       productionBuild: 'not-assessed',
       runtimeBehavior: 'not-assessed',
     },
@@ -291,9 +304,8 @@ function measure(options) {
   if (fileSignals.length > 0)
     report.corpusSignals = Object.fromEntries(fileSignals.map(([name]) => [name, 0]))
 
-  for (const absolute of files) {
+  for (const { file: absolute, source } of authoredSources) {
     const file = relative(root, absolute)
-    const source = readFileSync(absolute, 'utf8')
     const platform = platformFor(absolute)
     // Length framing prevents different path/content boundaries sharing a hash.
     for (const part of [file, source]) {
@@ -475,10 +487,12 @@ function markdown(report, { details = false } = {}) {
   const diagnostics = Object.entries(report.diagnostics.byCode)
   const rnJsxFinding = report.lowering.directReactNativeJsxBindingsResidueOnWeb
     ? `**RNW cannot yet be removed at the JSX boundary:** ${report.lowering.filesWithDirectReactNativeJsxResidueOnWeb} files retain ${report.lowering.directReactNativeJsxBindingsResidueOnWeb} direct React Native JSX bindings after Web lowering.`
-    : report.files?.some(
+    : report.analysis.contextStatus === 'partial' ||
+        report.files?.some(
           (file) => file.targets.web?.status === 'failed' || file.bindingsStatus === 'failed',
-        ) || report.files?.every((file) => !file.targets.web)
-      ? '**The direct RN JSX boundary is not fully assessed:** Web/binding analysis failed or no Web targets were assessed; zero observed residue is not a closed boundary.'
+        ) ||
+        report.files?.every((file) => !file.targets.web)
+      ? '**The direct RN JSX boundary is not fully assessed:** Project context or Web/binding analysis was incomplete, or no Web targets were assessed; zero observed residue is not a closed boundary.'
       : '**The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.'
   const sampleSections = Object.entries(report.samples)
     .map(([name, values]) => `### ${name}\n\n${values.map((value) => `- \`${value}\``).join('\n')}`)
@@ -548,7 +562,24 @@ ${table(Object.entries(report.lowering))}
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
-Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Project CSS, fonts, aliases and cross-file StyleX are not assessed yet; the default theme and no preflight are used. Only authored TSX files enter the denominator; no dependency context modules are loaded.
+Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Static CSS/theme is prepared once; executable configuration is refused. Fonts, aliases and cross-file StyleX are not assessed yet. Only authored TSX files enter the denominator; no dependency source modules are loaded.
+
+## Project context
+
+| Fact | Status | Value or reason |
+|---|---|---|
+${Object.entries(report.analysis.projectFacts)
+  .map(
+    ([name, fact]) =>
+      `| ${name} | ${fact.status}${fact.origin ? ` (${fact.origin})` : ''} | ${JSON.stringify(
+        fact.value ?? fact.reason,
+      )
+        .replaceAll('|', '\\|')
+        .replace(/\r?\n/g, ' ')} |`,
+  )
+  .join('\n')}
+
+Effective compiler assumptions: theme=${report.analysis.compilerAssumptions.theme}, preflight=${report.analysis.compilerAssumptions.preflight}. Partial context uses builtin tokens only as a probe, not an assessment of the project's theme. Auto preflight uses the compiler's Tailwind facts for selected authored files; it is not discovery of the app's actual bundler settings or reset stylesheet. CSS inputs and content hashes are retained separately in JSON.
 
 "Lowered" counts files the compiler produced components for. It does not mean migrated, and it is not a measure of progress.
 
@@ -571,6 +602,7 @@ ${
 | | |
 |---|---|
 | Audit / compiler versions | ${report.toolchain.auditVersion} / ${report.toolchain.compilerVersion} |
+| Theme loader / Tailwind / CSS parser | ${report.toolchain.themeLoaderVersion} / ${report.toolchain.tailwindVersion} / ${report.toolchain.cssParserVersion} |
 | Loaded binding SHA-256 | ${report.toolchain.binding.sha256} |
 | Authored source SHA-256 | ${report.corpus.sourceSha256} |
 | Checkout dirty | ${report.corpus.dirty === null ? 'unknown (not a Git checkout)' : report.corpus.dirty} |
@@ -617,7 +649,7 @@ ${
 `
 }
 
-export function runCli(argv = process.argv.slice(2), { stdout = process.stdout } = {}) {
+export async function runCli(argv = process.argv.slice(2), { stdout = process.stdout } = {}) {
   const options = parseArgs(argv)
   if (options.help) {
     stdout.write(`${HELP}\n`)
@@ -630,7 +662,7 @@ export function runCli(argv = process.argv.slice(2), { stdout = process.stdout }
     : stdout.isTTY
       ? 'markdown'
       : 'json'
-  const report = measure(options)
+  const report = await measure(options)
   const output =
     options.format === 'markdown'
       ? markdown(report, options)

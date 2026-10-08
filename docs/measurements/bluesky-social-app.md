@@ -20,10 +20,13 @@ This is a read-only compiler measurement, not a claim that the application can b
 3. **The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.
 4. **Styling surface:** 8 of 1050 files use `className` and 651 use `style`.
 
-
 The separate [production dependency-graph measurement](./bluesky-rnw-free-build.md) remains a historical build experiment over the same pinned corpus. This static audit does not rerun that production build or certify runtime behavior.
 
-This schema-3 snapshot was measured with the development compiler binding identified below. A paired run of main's previous audit with that same binding produced identical component/file counts (1,193 Web components, 1,149 Native components, 573 lowered files). This audit additionally reports 117 previously omitted `RN_COMPAT_NOT_INSTALLED` warnings. Its emitted-binding check removes 18 false-positive RN JSX residues: those Pressable bindings were rehomed to `@hozo/core`, not left imported from React Native. The historical snapshot predates this compiler; its component-count differences must not be attributed to this audit change.
+This Slice 2 snapshot uses the same 1,050-file authored fingerprint as Slice 1. Headline counts are unchanged: 1,193 Web components, 1,149 Native components, 573 lowered files, 200 warnings, and zero parse/compile failures, direct RN JSX residue or invalid DOM style arrays. Conventional CSS discovery found no entry; CSS is now recorded as absent rather than unassessed. Auto preflight is true using the shared conservative token scan over selected authored TSX. That is an explicit compiler assumption, not evidence that Bluesky's production Web build ships a reset. Fonts, aliases and cross-file StyleX remain unresolved.
+
+The final serial run on two logical CPU cores took 5.98s, including 2.79s of project preparation (candidate scanning included), with a freshly rebuilt development binding. These are stage observations, not a controlled performance comparison. Complete JSON evidence is emitted by the reproduction command below.
+
+Slice 1 already exposed 117 previously omitted RN_COMPAT_NOT_INSTALLED setup warnings and removed 18 false-positive JSX residues whose Pressable imports had moved to Hozo. Those corrections are retained; this slice does not claim new component support from unchanged counts. The historical pre-analysis snapshot predates this compiler and its component-count differences must not be attributed to audit alone.
 
 ## Authored surface
 
@@ -68,7 +71,20 @@ These are heuristics supplied by the corpus runner, not general migration guaran
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
-Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Project CSS, fonts, aliases and cross-file StyleX are not assessed yet; the default theme and no preflight are used. Only authored TSX files enter the denominator; no dependency context modules are loaded.
+Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Static CSS/theme is prepared once; executable configuration is refused. Fonts, aliases and cross-file StyleX are not assessed yet. Only authored TSX files enter the denominator; no dependency source modules are loaded.
+
+## Project context
+
+| Fact | Status | Value or reason |
+|---|---|---|
+| css | absent | "No conventional CSS entry found." |
+| theme | defaulted | "builtin" |
+| preflight | defaulted | true |
+| fonts | unresolved | "Static font registration is not supplied; CSS font faces alone do not prove Native availability." |
+| aliases | unresolved | "Project import aliases are not assessed yet." |
+| stylexGraph | unresolved | "Cross-file StyleX context is not assessed yet." |
+
+Effective compiler assumptions: theme=builtin, preflight=true. Partial context uses builtin tokens only as a probe, not an assessment of the project's theme. Auto preflight uses the compiler's Tailwind facts for selected authored files; it is not discovery of the app's actual bundler settings or reset stylesheet. CSS inputs and content hashes are retained separately in JSON.
 
 "Lowered" counts files the compiler produced components for. It does not mean migrated, and it is not a measure of progress.
 
@@ -97,7 +113,8 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 | | |
 |---|---|
 | Audit / compiler versions | 0.2.0 / 0.2.0 |
-| Loaded binding SHA-256 | 38351dab9bac40bcd756f3981ffbd79530bd7bc1adcd3d13a6d03541fdf54054 |
+| Theme loader / Tailwind / CSS parser | 0.2.0 / 4.3.3 / 8.5.26 |
+| Loaded binding SHA-256 | 8372b25b1f93ca4eeed34487bde87fa725b0e6f836f88afb537814a16f983aca |
 | Authored source SHA-256 | 1597ac133ed3a9b765d58c7fbd3466e695f0c2941b4945e75afeef05aeb51c2a |
 | Checkout dirty | false |
 

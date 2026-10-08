@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url'
 
 import { AuditInputError, measureRealApp, renderRealAppMarkdown, runCli } from './index.mjs'
 
-test('measures platform-aware residue after DOM style arrays are normalized', () => {
+test('measures platform-aware residue after DOM style arrays are normalized', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-'))
   try {
     const source = path.join(root, 'src')
@@ -49,7 +49,7 @@ export function Syntax() { return <><Animated.View /><SectionList /></> }
     execFileSync('git', ['add', '.'], { cwd: root })
     execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
 
-    const report = measureRealApp({ root, source: 'src', name: 'fixture' })
+    const report = await measureRealApp({ root, source: 'src', name: 'fixture' })
     assert.equal(report.scope.tsxFiles, 3)
     assert.equal(report.lowering.parseOrCompileFailures, 0)
     assert.equal(report.review.confirmedWrongOutputFiles, 0)
@@ -117,7 +117,7 @@ export function Syntax() { return <><Animated.View /><SectionList /></> }
 // rather than explained. It is here as the floor: if a change ever makes a
 // corpus like this lower something, that is the mechanism #457 is asking
 // about, and this test is where it shows up.
-test('a className-only corpus with no React Native lowers nothing', () => {
+test('a className-only corpus with no React Native lowers nothing', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-dom-'))
   try {
     const source = path.join(root, 'src')
@@ -142,7 +142,7 @@ test('a className-only corpus with no React Native lowers nothing', () => {
     execFileSync('git', ['add', '.'], { cwd: root })
     execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
 
-    const report = measureRealApp({ root, source: 'src', name: 'dom-only' })
+    const report = await measureRealApp({ root, source: 'src', name: 'dom-only' })
     assert.equal(report.authoredSignals.filesImportingReactNative, 0)
     assert.equal(report.authoredSignals.filesWithDirectReactNativeJsx, 0)
     assert.equal(Object.hasOwn(report.authoredSignals, 'filesUsingAlfAtoms'), false)
@@ -175,7 +175,7 @@ test('a className-only corpus with no React Native lowers nothing', () => {
 // Regression for #457. A same-file component used to bypass import-source
 // checking because only imported foreign names were tracked; the parser then
 // fell back from a missing alias to the bare name `Text` and lowered it.
-test('a locally declared component named like a primitive does not lower', () => {
+test('a locally declared component named like a primitive does not lower', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-local-'))
   try {
     const source = path.join(root, 'src')
@@ -196,7 +196,7 @@ export function Panel() {
     execFileSync('git', ['add', '.'], { cwd: root })
     execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
 
-    const report = measureRealApp({ root, source: 'src', name: 'local-primitive' })
+    const report = await measureRealApp({ root, source: 'src', name: 'local-primitive' })
     // Nothing is imported at all, so every authored signal that could explain
     // a lowering count reads zero -- including the foreign one, which only
     // sees imports.
@@ -216,14 +216,14 @@ export function Panel() {
 })
 
 // `npx @hozo/migration-audit .` used to fail with `Missing value for .`.
-test('the CLI accepts the checkout as a positional argument', () => {
+test('the CLI accepts the checkout as a positional argument', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-cli-'))
   try {
     const source = path.join(root, 'src')
     mkdirSync(source)
     writeFileSync(path.join(source, 'App.tsx'), 'export function App() { return <div /> }\n')
     const out = path.join(root, 'audit.json')
-    const report = runCli([root, '--output', out])
+    const report = await runCli([root, '--output', out])
     assert.equal(report.corpus.name, path.basename(root))
     assert.equal(report.scope.tsxFiles, 1)
     assert.match(readFileSync(out, 'utf8'), /"schemaVersion": 3/)
@@ -245,13 +245,13 @@ function fixture(t, files) {
 
 const simpleSource = 'export function App() { return <div /> }\n'
 
-test('discovers app without src and scans both when src and app coexist', (t) => {
+test('discovers app without src and scans both when src and app coexist', async (t) => {
   const appRoot = fixture(t, { 'app/index.tsx': simpleSource })
-  const app = measureRealApp({ root: appRoot })
+  const app = await measureRealApp({ root: appRoot })
   assert.deepEqual(app.corpus.sourceDirectories, ['app'])
   assert.equal(app.scope.tsxFiles, 1)
   const bothRoot = fixture(t, { 'src/Shared.tsx': simpleSource, 'app/index.tsx': simpleSource })
-  const both = measureRealApp({ root: bothRoot })
+  const both = await measureRealApp({ root: bothRoot })
   assert.deepEqual(both.corpus.sourceDirectories, ['src', 'app'])
   assert.equal(both.scope.tsxFiles, 2)
   const markdown = renderRealAppMarkdown(both)
@@ -259,17 +259,17 @@ test('discovers app without src and scans both when src and app coexist', (t) =>
   assert.match(markdown, /--source "src" --source "app"/)
 })
 
-test('an empty src does not hide app or root-level TSX', (t) => {
+test('an empty src does not hide app or root-level TSX', async (t) => {
   const appRoot = fixture(t, {
     'src/utility.ts': 'export const x = 1',
     'app/index.tsx': simpleSource,
   })
-  assert.deepEqual(measureRealApp({ root: appRoot }).corpus.sourceDirectories, ['app'])
+  assert.deepEqual((await measureRealApp({ root: appRoot })).corpus.sourceDirectories, ['app'])
   const root = fixture(t, { 'src/utility.ts': 'export const x = 1', 'App.tsx': simpleSource })
-  assert.deepEqual(measureRealApp({ root }).corpus.sourceDirectories, ['.'])
+  assert.deepEqual((await measureRealApp({ root })).corpus.sourceDirectories, ['.'])
 })
 
-test('root fallback excludes dependencies and generated output', (t) => {
+test('root fallback excludes dependencies and generated output', async (t) => {
   const root = fixture(t, {
     'App.tsx': simpleSource,
     'components/Card.tsx': simpleSource,
@@ -282,24 +282,24 @@ test('root fallback excludes dependencies and generated output', (t) => {
     'coverage/Bad.tsx': 'not valid TSX !!!',
     'artifacts/Bad.tsx': 'not valid TSX !!!',
   })
-  const report = measureRealApp({ root })
+  const report = await measureRealApp({ root })
   assert.equal(report.scope.tsxFiles, 2)
   assert.equal(report.lowering.parseOrCompileFailures, 0)
 })
 
-test('root discovery does not follow a directory symlink back into the checkout', (t) => {
+test('root discovery does not follow a directory symlink back into the checkout', async (t) => {
   const root = fixture(t, { 'App.tsx': simpleSource })
   symlinkSync(root, path.join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir')
-  assert.equal(measureRealApp({ root }).scope.tsxFiles, 1)
+  assert.equal((await measureRealApp({ root })).scope.tsxFiles, 1)
 })
 
-test('explicit sources override discovery and overlapping sources are deduplicated', (t) => {
+test('explicit sources override discovery and overlapping sources are deduplicated', async (t) => {
   const root = fixture(t, {
     'src/App.tsx': simpleSource,
     'app/index.tsx': simpleSource,
     'custom/Card.tsx': simpleSource,
   })
-  const report = measureRealApp({ root, source: 'custom' })
+  const report = await measureRealApp({ root, source: 'custom' })
   assert.deepEqual(report.corpus.sourceDirectories, ['custom'])
   assert.equal(report.scope.tsxFiles, 1)
   const stdout = {
@@ -309,17 +309,20 @@ test('explicit sources override discovery and overlapping sources are deduplicat
       this.output += value
     },
   }
-  runCli([root, '--source', '.', '--source', 'src'], { stdout })
+  await runCli([root, '--source', '.', '--source', 'src'], { stdout })
   assert.equal(JSON.parse(stdout.output).scope.tsxFiles, 3)
 })
 
-test('no TSX, missing source, source file and missing checkout are input errors', (t) => {
+test('no TSX, missing source, source file and missing checkout are input errors', async (t) => {
   const root = fixture(t, { 'app/index.jsx': simpleSource })
-  assert.throws(() => measureRealApp({ root }), { name: 'Error', message: /No TSX.*--source/ })
+  await assert.rejects(() => measureRealApp({ root }), {
+    name: 'Error',
+    message: /No TSX.*--source/,
+  })
   for (const source of ['missing', 'app/index.jsx']) {
-    assert.throws(() => measureRealApp({ root, source }), AuditInputError)
+    await assert.rejects(() => measureRealApp({ root, source }), AuditInputError)
   }
-  assert.throws(() => measureRealApp({ root: path.join(root, 'missing') }), AuditInputError)
+  await assert.rejects(() => measureRealApp({ root: path.join(root, 'missing') }), AuditInputError)
   const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
   const result = spawnSync(process.execPath, [cli, root], { encoding: 'utf8' })
   assert.equal(result.status, 1)
@@ -328,7 +331,7 @@ test('no TSX, missing source, source file and missing checkout are input errors'
   assert.doesNotMatch(result.stderr, /ENOENT|at walk|node:fs/)
 })
 
-test('terminal output is Markdown, pipes are JSON, and explicit formats win', (t) => {
+test('terminal output is Markdown, pipes are JSON, and explicit formats win', async (t) => {
   const root = fixture(t, { 'src/App.tsx': simpleSource })
   for (const [isTTY, args, format] of [
     [true, [], 'markdown'],
@@ -343,19 +346,19 @@ test('terminal output is Markdown, pipes are JSON, and explicit formats win', (t
         this.output += value
       },
     }
-    runCli([root, ...args], { stdout })
+    await runCli([root, ...args], { stdout })
     if (format === 'json') assert.equal(JSON.parse(stdout.output).schemaVersion, 3)
     else assert.match(stdout.output, /^# Real-app measurement:/)
   }
   const md = path.join(root, 'report.md')
   const stdout = { isTTY: false, write() {} }
-  runCli([root, '--output', md], { stdout })
+  await runCli([root, '--output', md], { stdout })
   assert.match(readFileSync(md, 'utf8'), /^# Real-app measurement:/)
-  runCli([root, '--output', md, '--format', 'json'], { stdout })
+  await runCli([root, '--output', md, '--format', 'json'], { stdout })
   assert.equal(JSON.parse(readFileSync(md, 'utf8')).schemaVersion, 3)
 })
 
-test('help succeeds without a checkout and argument errors have no stack trace', () => {
+test('help succeeds without a checkout and argument errors have no stack trace', async () => {
   const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
   const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' })
   assert.equal(help.status, 0)
@@ -369,16 +372,16 @@ test('help succeeds without a checkout and argument errors have no stack trace',
   }
 })
 
-test('Bluesky-style corpus signals are opt-in and do not leak into generic output', (t) => {
+test('Bluesky-style corpus signals are opt-in and do not leak into generic output', async (t) => {
   const root = fixture(t, {
     'src/App.tsx':
       'const atoms = { box: {} }; export function App() { return <div style={atoms.box} /> }',
   })
-  const generic = measureRealApp({ root })
+  const generic = await measureRealApp({ root })
   assert.equal(generic.corpusSignals, undefined)
   assert.equal(Object.hasOwn(generic.authoredSignals, 'filesUsingAlfAtoms'), false)
   assert.doesNotMatch(renderRealAppMarkdown(generic), /ALF|filesUsingAlfAtoms/)
-  const report = measureRealApp({
+  const report = await measureRealApp({
     root,
     fileSignals: { filesUsingAlfAtoms: (source) => /\batoms(?:\.|\[)/.test(source) },
   })
@@ -389,7 +392,7 @@ test('Bluesky-style corpus signals are opt-in and do not leak into generic outpu
   assert.match(markdown, /Corpus-specific signals/)
   assert.match(markdown, /filesUsingAlfAtoms \| 1/)
   assert.match(markdown, /heuristics supplied by the corpus runner/)
-  assert.throws(
+  await assert.rejects(
     () => measureRealApp({ root, expectedCommit: 'not-the-pinned-commit' }),
     AuditInputError,
   )
@@ -398,14 +401,14 @@ test('Bluesky-style corpus signals are opt-in and do not leak into generic outpu
   assert.doesNotMatch(renderRealAppMarkdown(report), /The corpus parses cleanly/)
 })
 
-test('full Canvas findings exceed sample limits and details preserve all messages', (t) => {
+test('full Canvas findings exceed sample limits and details preserve all messages', async (t) => {
   const source = `import { Canvas } from '@hozo/canvas'
 export const App = () => <Canvas.Rect className="hover:fill-red-500" />`
   const root = fixture(
     t,
     Object.fromEntries(Array.from({ length: 15 }, (_, index) => [`src/Shape${index}.tsx`, source])),
   )
-  const report = measureRealApp({ root })
+  const report = await measureRealApp({ root })
   assert.equal(report.schemaVersion, 3)
   assert.equal(report.findings.length, 30)
   assert.equal(report.diagnostics.byCode.CANVAS_CLASS_NOT_LOWERED, 30)
@@ -423,7 +426,7 @@ export const App = () => <Canvas.Rect className="hover:fill-red-500" />`
       this.output += value
     },
   }
-  runCli([root, '--details', '--format', 'markdown'], { stdout })
+  await runCli([root, '--details', '--format', 'markdown'], { stdout })
   assert.match(stdout.output, /Shape14\.tsx/)
   assert.equal(stdout.output.match(/web\/canvas/g).length, 15)
   assert.equal(stdout.output.match(/native\/canvas/g).length, 15)
@@ -431,10 +434,10 @@ export const App = () => <Canvas.Rect className="hover:fill-red-500" />`
   assert.match(JSON.stringify(report), /hover:fill-red-500/)
 })
 
-test('provenance records actual binding, stable authored fingerprint and unresolved project facts', (t) => {
+test('provenance records actual binding, stable authored fingerprint and unresolved project facts', async (t) => {
   const root = fixture(t, { 'src/App.tsx': simpleSource })
-  const report = measureRealApp({ root })
-  const second = measureRealApp({ root })
+  const report = await measureRealApp({ root })
+  const second = await measureRealApp({ root })
   assert.match(report.toolchain.binding.sha256, /^[a-f0-9]{64}$/)
   assert.equal(report.toolchain.binding.sha256, second.toolchain.binding.sha256)
   assert.ok(report.toolchain.binding.path.endsWith('.node'))
@@ -446,15 +449,15 @@ test('provenance records actual binding, stable authored fingerprint and unresol
   assert.equal(report.analysis.runtimeBehavior, 'not-assessed')
   assert.ok(report.analysis.stageDurationMs['web:module-lowering'] >= 0)
   writeFileSync(path.join(root, 'src/App.tsx'), `${simpleSource}// edited\n`)
-  assert.notEqual(measureRealApp({ root }).corpus.sourceSha256, report.corpus.sourceSha256)
+  assert.notEqual((await measureRealApp({ root })).corpus.sourceSha256, report.corpus.sourceSha256)
 })
 
-test('module warnings and syntax failures are visible without falsely closing RN boundaries', (t) => {
+test('module warnings and syntax failures are visible without falsely closing RN boundaries', async (t) => {
   const root = fixture(t, {
     'src/API.web.tsx': `import { Platform } from 'react-native'; export const platform = Platform.OS`,
     'src/Invalid.tsx': 'export const App = () => <',
   })
-  const report = measureRealApp({ root })
+  const report = await measureRealApp({ root })
   assert.equal(report.lowering.parseOrCompileFailures, 1)
   assert.equal(report.diagnostics.filesWithErrors, 1)
   const syntax = report.findings.find((finding) => finding.code === 'SOURCE_SYNTAX_ERROR')
@@ -473,7 +476,7 @@ test('module warnings and syntax failures are visible without falsely closing RN
   assert.doesNotMatch(renderRealAppMarkdown(report), /boundary is closed/)
 })
 
-test('read-only analysis neither executes project configuration nor writes checkout caches', (t) => {
+test('read-only analysis neither executes project configuration nor writes checkout caches', async (t) => {
   const root = fixture(t, {
     'src/App.tsx': `import { View } from '@hozo/core'; export const App = () => <View className="p-2" />`,
     'package.json': JSON.stringify({ scripts: { build: 'throw sentinel' } }),
@@ -499,6 +502,93 @@ test('read-only analysis neither executes project configuration nor writes check
       ])
       .sort(([a], [b]) => a.localeCompare(b))
   const before = snapshot()
-  measureRealApp({ root })
+  const report = await measureRealApp({ root, css: 'styles.css' })
+  assert.equal(report.analysis.projectFacts.theme.status, 'unsupported')
+  assert.match(renderRealAppMarkdown(report), /boundary is not fully assessed/)
+  assert.deepEqual(snapshot(), before)
+})
+
+test('static CSS theme, preflight and trusted-source options reach canonical analysis', async (t) => {
+  const root = fixture(t, {
+    'src/App.tsx': `import { View } from '@acme/ui'; export const App = () => <View className="animate-wiggle bg-brand p-4" />`,
+    'global.css': `@theme { --color-brand: #123456; --spacing: 3px; --animate-wiggle: wiggle 1s infinite; @keyframes wiggle { to { opacity: 0.5; } } }`,
+  })
+  const stdout = {
+    isTTY: false,
+    output: '',
+    write(value) {
+      this.output += value
+    },
+  }
+  const report = await runCli(
+    [root, '--css', 'global.css', '--preflight', 'false', '--primitive-source', '@acme/ui'],
+    { stdout },
+  )
+  assert.equal(report.analysis.projectFacts.css.origin, 'explicit')
+  assert.equal(report.analysis.projectFacts.theme.origin, 'explicit')
+  assert.equal(report.analysis.projectFacts.theme.value.spacingPx, 3)
+  assert.equal(report.analysis.projectFacts.theme.value.animations, 1)
+  assert.equal(report.analysis.projectFacts.preflight.value, false)
+  assert.equal(report.analysis.contextStatus, 'prepared')
+  assert.equal(report.lowering.webComponents, 1)
+  assert.equal(report.lowering.nativeComponents, 1)
+  assert.ok(!report.findings.some((finding) => finding.message.includes('animate-wiggle')))
+  assert.ok(report.analysis.primitiveSources.includes('react-native'))
+  assert.ok(report.analysis.primitiveSources.includes('@acme/ui'))
+  assert.equal(report.analysis.stylesheetInputs.length, 1)
+  assert.match(report.toolchain.tailwindVersion, /^4\./)
+  assert.match(report.toolchain.cssParserVersion, /^8\./)
+  assert.match(report.analysis.stylesheetInputs[0].sha256, /^[a-f0-9]{64}$/)
+  assert.ok(report.analysis.stageDurationMs['project:preparation'] >= 0)
+  assert.equal(JSON.parse(stdout.output).analysis.contextStatus, 'prepared')
+  const discovered = await measureRealApp({ root })
+  assert.equal(discovered.analysis.projectFacts.css.origin, 'discovered')
+  assert.equal(
+    discovered.lowering.webComponents,
+    0,
+    'arbitrary modules are not trusted by discovery',
+  )
+  await assert.rejects(() => measureRealApp({ root, css: 'missing.css' }), AuditInputError)
+  await assert.rejects(() => runCli([root, '--preflight', 'yes']), AuditInputError)
+  await assert.rejects(() => measureRealApp({ root, primitiveSources: 'bad' }), AuditInputError)
+})
+
+test('broken discovered CSS is recorded as partial context rather than silently defaulted', async (t) => {
+  const root = fixture(t, { 'src/App.tsx': simpleSource, 'global.css': '@theme {' })
+  const report = await measureRealApp({ root })
+  assert.equal(report.analysis.projectFacts.css.status, 'resolved')
+  assert.equal(report.analysis.projectFacts.theme.status, 'invalid')
+  assert.equal(report.analysis.contextStatus, 'partial')
+  assert.equal(report.analysis.compilerAssumptions.theme, 'builtin')
+  assert.match(renderRealAppMarkdown(report), /Partial context uses builtin tokens only as a probe/)
+  assert.match(renderRealAppMarkdown(report), /boundary is not fully assessed/)
+})
+
+test('imported package CSS cannot execute a plugin and leaves the checkout byte-identical', async (t) => {
+  const root = fixture(t, {
+    'src/App.tsx': simpleSource,
+    'global.css': '@import "@acme/tokens/theme.css";',
+    'node_modules/@acme/tokens/package.json': JSON.stringify({
+      name: '@acme/tokens',
+      exports: { './theme.css': './theme.css' },
+    }),
+    'node_modules/@acme/tokens/theme.css': '@plugin "./plugin.cjs";',
+    'node_modules/@acme/tokens/plugin.cjs': `require('node:fs').writeFileSync(require('node:path').resolve(__dirname, '../../../plugin-executed'), 'unexpected'); throw new Error('must not run')`,
+  })
+  const snapshot = () =>
+    readdirSync(root, { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => [
+        path.relative(root, path.join(entry.parentPath, entry.name)),
+        readFileSync(path.join(entry.parentPath, entry.name), 'utf8'),
+      ])
+      .sort(([a], [b]) => a.localeCompare(b))
+  const before = snapshot()
+  const report = await measureRealApp({ root })
+  assert.equal(report.analysis.projectFacts.theme.status, 'unsupported')
+  assert.match(report.analysis.projectFacts.theme.reason, /theme\.css.*@plugin/)
+  assert.equal(report.analysis.stylesheetInputs.length, 2)
+  assert.equal(report.scope.authoredFiles, 1)
+  assert.equal(report.scope.contextModules, 0)
   assert.deepEqual(snapshot(), before)
 })

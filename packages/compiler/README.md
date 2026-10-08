@@ -43,9 +43,19 @@ validation still belongs to the application's tooling. Diagnostics already use U
 Positions from rewritten inputs without an authored source map are explicitly unmapped.
 
 `ProjectFact<T>` distinguishes resolved (explicit/discovered), defaulted, absent, unresolved,
-unsupported and invalid inputs for future project-aware consumers. Analysis defaults to caller-
+unsupported and invalid inputs for project-aware consumers. Analysis defaults to caller-
 prepared compiler state; it does not execute application configuration or promise shared-worker
 thread safety. See [#790](https://github.com/iray-tno/hozo/issues/790).
+
+`await prepareAnalysisProject(options, themeLoader)` prepares theme/reset/trusted-source facts once.
+Pass the shared `loadStaticProjectTheme` from `@hozo/tailwind` as the loader, and a snapshot of selected
+authored `{ file, source }` entries. The injected service avoids a compiler/Tailwind dependency cycle;
+audit does not reconstruct compiler decisions. The resulting compiler uses the same candidate-cache
+and preflight policy as builds, in memory only. The default `auto` scan is conservative (utility-shaped
+comments/unused strings can count) and limited to supplied sources, not a claim about the app's actual
+reset. Explicit primitive sources extend the defaults. Invalid/unsupported themes produce labelled
+partial context with builtin compiler assumptions; no partial theme is silently accepted. Font
+registration, import aliases and cross-file StyleX still require later preparation.
 
 ## The list that must not drift
 
