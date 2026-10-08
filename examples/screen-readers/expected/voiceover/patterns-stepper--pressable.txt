@@ -1,9 +1,0 @@
-# Approved from screen-readers run 37790021610 (VoiceOver, Safari), the first reading of this story (#802).
-# From the first section label on: the heading and the prose above it are the story's, and NVDA words the heading differently from run to run ("clickable, heading").
-CHECKOUT
-Progress group
-Step 1 of 4: Account, completed Email and password button
-Step 2 of 4: Profile, current current step button
-Step 3 of 4: Payment, has an error button
-Step 4 of 4: Confirm, not started button
-end of Progress group

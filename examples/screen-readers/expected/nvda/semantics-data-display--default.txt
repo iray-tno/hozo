@@ -1,0 +1,20 @@
+# Approved from screen-readers run 37796061776 (NVDA, Chrome), the first reading after the meter was given its percentage (#802).
+# From the table on: the heading and prose above it are the story's.
+# "progress bar" is NVDA's word for a meter, not Hozo's; the amount is what was fixed.
+table, with 4 rows and 3 columns, caption, Your order
+out of caption, row 1, column 1, Item
+column 2, Quantity
+column 3, Price
+row 2, Item, column 1, Tea
+Quantity, column 2, 2
+Price, column 3, $8
+row 3, Item, column 1, Shortbread
+Quantity, column 2, 1
+Price, column 3, $12
+row 4, Item, column 1, Total
+Quantity, column 2
+Price, column 3, $20
+out of table, STORAGE
+Disk usage, progress bar, 60 percent
+INBOX 3 unread messages
+LOADING

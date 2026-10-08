@@ -8,10 +8,10 @@ end of paragraph
 Checkout
 list, Progress
 listitem, level 1, position 1, set size 4
-button, Step 1 of 4: Account, completed Email and password
+button, Step 1 of 4: Account, completed. Email and password
 Step 1 of 4: Account, completed
-Email and password
-end of button, Step 1 of 4: Account, completed Email and password
+. Email and password
+end of button, Step 1 of 4: Account, completed. Email and password
 end of listitem, level 1, position 1, set size 4
 listitem, level 1, current step, position 2, set size 4
 button, Step 2 of 4: Profile, current

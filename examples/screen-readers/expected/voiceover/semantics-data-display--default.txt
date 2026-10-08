@@ -1,0 +1,22 @@
+# Approved from screen-readers run 37796061776 (VoiceOver, Safari), the first reading after the meter was given its percentage (#802).
+# From the table on: the heading and prose above it are the story's, and VoiceOver
+# sometimes enters the paragraph word by word ("In text").
+Your order table 3 columns, 4 rows
+Item row 1 of 4 column 1 of 3
+Quantity column 2 of 3
+Price column 3 of 3
+row 2 of 4 Item Tea column 1 of 3
+Quantity 2 column 2 of 3
+Price $8 column 3 of 3
+row 3 of 4 Item Shortbread column 1 of 3
+Quantity 1 column 2 of 3
+Price $12 column 3 of 3
+row 4 of 4 Item Total column 1 of 3
+Quantity blank column 2 of 3
+Price $20 column 3 of 3
+end of table
+STORAGE
+60% Disk usage level indicator
+INBOX
+3 unread messages
+LOADING

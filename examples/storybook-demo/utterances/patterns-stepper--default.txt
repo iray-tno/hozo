@@ -6,7 +6,7 @@ Checkout
 list, Progress
 listitem, level 1, position 1, set size 4
 Step 1 of 4: Account, completed
-Email and password
+. Email and password
 end of listitem, level 1, position 1, set size 4
 listitem, level 1, current step, position 2, set size 4
 Step 2 of 4: Profile, current
