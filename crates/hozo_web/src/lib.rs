@@ -262,6 +262,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::Badge) {
         runtime_imports.push("HozoBadge");
     }
+    if contains_primitive(root, Primitive::Chip) {
+        runtime_imports.push("HozoChip");
+    }
     if contains_primitive(root, Primitive::ActivityIndicator) {
         runtime_imports.push("HozoActivityIndicator");
     }
@@ -725,25 +728,18 @@ fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String 
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn render_node(
-    node: &Node,
-    source: &str,
+/// The CSS for one class: a rule per condition, and the dark copy a paired
+/// token needs. An element's `className` and a component's other class
+/// lists (`ClassSlot`) are both written by this.
+fn push_rules(
+    class_name: &str,
+    style: &[hozo_ir::StyleDeclaration],
+    span: hozo_ir::SourceSpan,
     theme: &Theme,
-    allocator: &mut ClassAllocator,
     rules: &mut String,
     diagnostics: &mut Vec<Diagnostic>,
-    uses_view_base: &mut bool,
-    uses_key_activation: &mut bool,
-) -> String {
-    let class_name = allocator.alloc();
-
-    // `rules` accumulates the whole tree's CSS, so "did this node write
-    // one" has to be asked about the span this node adds, not about
-    // whether the string is empty.
-    let rules_before = rules.len();
-
-    for (condition, props) in hozo_ir::group_by_condition(&node.style) {
+) {
+    for (condition, props) in hozo_ir::group_by_condition(style) {
         let props = hozo_ir::dedupe_last_wins(props);
         if props.is_empty() {
             continue;
@@ -757,7 +753,7 @@ fn render_node(
                 code: hozo_ir::DiagnosticCode::NotWiredOnWeb,
                 severity: hozo_ir::Severity::Warning,
                 message: query.web_gap_message(),
-                span: node.span,
+                span,
             });
             continue;
         }
@@ -771,7 +767,7 @@ fn render_node(
             (true, Some(shaded)) => shaded,
             _ => theme,
         };
-        let light = css::render_rule(&class_name, &condition, &props, palette);
+        let light = css::render_rule(class_name, &condition, &props, palette);
         rules.push_str(&light);
         rules.push_str("\n\n");
 
@@ -796,10 +792,10 @@ fn render_node(
         // always.
         if !condition.mentions_dark() {
             if let Some(dark) = &shaded_theme {
-                let shaded = css::render_rule(&class_name, &condition, &props, dark);
+                let shaded = css::render_rule(class_name, &condition, &props, dark);
                 if shaded != light {
                     rules.push_str(&css::render_rule(
-                        &class_name,
+                        class_name,
                         &condition.and_dark(),
                         &props,
                         dark,
@@ -809,6 +805,28 @@ fn render_node(
             }
         }
     }
+}
+
+
+#[allow(clippy::too_many_arguments)]
+fn render_node(
+    node: &Node,
+    source: &str,
+    theme: &Theme,
+    allocator: &mut ClassAllocator,
+    rules: &mut String,
+    diagnostics: &mut Vec<Diagnostic>,
+    uses_view_base: &mut bool,
+    uses_key_activation: &mut bool,
+) -> String {
+    let class_name = allocator.alloc();
+
+    // `rules` accumulates the whole tree's CSS, so "did this node write
+    // one" has to be asked about the span this node adds, not about
+    // whether the string is empty.
+    let rules_before = rules.len();
+
+    push_rules(&class_name, &node.style, node.span, theme, rules, diagnostics);
 
     let (shape, extra_attrs) = markup::element_shape(node, diagnostics);
     // A shape the backend declined to decide keeps the component, named the
@@ -980,6 +998,19 @@ fn render_node(
             .collect();
         format!(" className={{[{}].filter(Boolean).join(' ')}}", parts.join(", "))
     };
+    // A component's other class lists, compiled the same way and handed to
+    // it under the prop the author wrote (`removeClassName`).
+    for slot in &node.props.class_slots {
+        let slot_class = allocator.alloc();
+        let before = rules.len();
+        push_rules(&slot_class, &slot.style, slot.span, theme, rules, diagnostics);
+        let produced = (rules.len() != before).then_some(slot_class);
+        let classes: Vec<&str> =
+            produced.iter().map(String::as_str).chain(slot.carried.iter().map(String::as_str)).collect();
+        if !classes.is_empty() {
+            attrs.push_str(&format!(r#" {}="{}""#, slot.slot.class_prop, classes.join(" ")));
+        }
+    }
     for (key, value) in &extra_attrs {
         // `hozoInteractive` supplies it, together with everything else it
         // has to agree with.
@@ -2915,6 +2946,24 @@ const el = <Badge count={n} accessibilityLabel=\"3 unread\" className=\"rounded-
         assert!(output.jsx.starts_with("<HozoBadge className=\"hozo-0\""), "{}", output.jsx);
         assert!(output.runtime_imports.contains(&"HozoBadge"), "{:?}", output.runtime_imports);
         assert!(output.css.contains("border-radius"), "{}", output.css);
+    }
+
+    #[test]
+    fn a_chip_is_hozo_chip_with_both_class_lists_compiled() {
+        // #787: the remove button's classes are compiled like the chip's and
+        // handed over under the prop the author wrote.
+        let source = "import { Chip } from '@hozo/core'
+const el = <Chip onRemove={drop} disabled={busy} className=\"bg-red-500 my-chip\" removeClassName=\"p-2 hover:bg-red-700\">Remote</Chip>
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<HozoChip className=\"hozo-0 my-chip\""), "{}", output.jsx);
+        assert!(output.jsx.contains(" removeClassName=\"hozo-1\""), "{}", output.jsx);
+        assert!(output.jsx.contains("disabled={busy}"), "{}", output.jsx);
+        assert!(!output.jsx.contains("aria-disabled"), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoChip"), "{:?}", output.runtime_imports);
+        assert!(output.css.contains(".hozo-1:hover"), "{}", output.css);
     }
 
     #[test]

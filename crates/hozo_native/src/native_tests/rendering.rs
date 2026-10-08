@@ -935,3 +935,47 @@ fn line_breaking_is_a_text_prop_where_android_has_one_and_a_warning_where_not() 
         assert!(compile(element).diagnostics.is_empty(), "{element}");
     }
 }
+
+#[test]
+fn a_chip_is_hozo_chip_and_its_class_lists_are_style_props() {
+    // #787: on the Web a chip takes two class lists, one for itself and one
+    // for its remove button. React Native hands a component styles, so both
+    // become style props -- and neither may be dropped on the way.
+    let compile = |element: &str| {
+        let source = format!("import {{ Chip }} from '@hozo/core'\nconst el = {element}\n");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let both = compile(
+        r#"<Chip selected={on} onRemove={drop} disabled={busy} className="bg-red-500 text-white px-2 md:px-4" removeClassName="p-2">Remote</Chip>"#,
+    );
+    assert!(both.diagnostics.is_empty(), "{:?}", both.diagnostics);
+    assert!(both.jsx.starts_with("<HozoChip "), "{}", both.jsx);
+    assert!(both.runtime_imports.contains(&"HozoChip"), "{:?}", both.runtime_imports);
+    assert!(both.jsx.contains("style={[hozoStyles.hozo0, __hozoBp_md && hozoStyles.hozo0_md]}"), "{}", both.jsx);
+    assert!(both.jsx.contains("removeStyle={hozoStyles.hozo1}"), "{}", both.jsx);
+    assert!(!both.jsx.contains("className"), "{}", both.jsx);
+    // The pattern's own props, as written: `disabled` is not a host's state
+    // to translate, and the label stays a string the pattern can name its
+    // remove button from.
+    assert!(both.jsx.contains("disabled={busy}") && both.jsx.contains("onRemove={drop}"), "{}", both.jsx);
+    assert!(both.jsx.contains(">Remote</HozoChip>"), "{}", both.jsx);
+    // The text colour stays with the chip, which hands it to its label.
+    assert!(both.styles.contains("color: '#fff'"), "{}", both.styles);
+    assert!(both.styles.contains("padding: 8") || both.styles.contains("paddingTop: 8"), "{}", both.styles);
+
+    // An expression is resolved on device, and an authored `removeStyle`
+    // still wins, last.
+    let dynamic = compile(r#"<Chip onRemove={drop} removeClassName={tone} removeStyle={extra}>x</Chip>"#);
+    assert!(dynamic.jsx.contains("removeStyle={[hozoClasses(tone), extra]}"), "{}", dynamic.jsx);
+    assert!(
+        dynamic.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::DynamicClassNameNotResolved),
+        "{:?}",
+        dynamic.diagnostics
+    );
+    assert!(!dynamic.jsx.contains("removeClassName"), "{}", dynamic.jsx);
+
+    // A state the pattern does not expose is reported, not silently dropped.
+    let hovered = compile(r#"<Chip onRemove={drop} removeClassName="hover:bg-red-500">x</Chip>"#);
+    assert!(!hovered.diagnostics.is_empty(), "{}", hovered.jsx);
+}
