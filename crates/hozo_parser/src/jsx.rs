@@ -1545,6 +1545,8 @@ fn build_node(
         class_name_fallback,
         carried_classes,
         span: to_span(el.span()),
+        opening_tag_span: to_span(el.opening_element.name.span()),
+        closing_tag_span: el.closing_element.as_ref().map(|closing| to_span(closing.name.span())),
     })
 }
 

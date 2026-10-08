@@ -417,6 +417,8 @@ mod tests {
             class_name_fallback: Vec::new(),
             carried_classes: Vec::new(),
             span: empty_span(),
+            opening_tag_span: empty_span(),
+            closing_tag_span: None,
         };
         let mut diagnostics = Vec::new();
         let (component, props) = native_component(&node, &mut diagnostics);
@@ -429,6 +431,8 @@ mod tests {
     fn interactive_pressable_without_role_gets_diagnosed() {
         let node = Node {
             primitive: Primitive::Pressable,
+            opening_tag_span: empty_span(),
+            closing_tag_span: None,
             style: Vec::new(),
             props: PropSet {
                 on_press: Some(ExprRef(empty_span())),

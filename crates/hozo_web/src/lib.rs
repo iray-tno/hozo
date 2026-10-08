@@ -8,6 +8,8 @@
 
 mod css;
 mod markup;
+#[cfg(test)]
+mod tag_evidence_tests;
 
 use hozo_ir::{Diagnostic, Node, Primitive, Theme};
 
@@ -22,6 +24,14 @@ pub struct LowerOutput {
     /// Native backend has carried the same field since it needed hooks.
     pub runtime_imports: Vec<&'static str>,
     pub diagnostics: Vec<Diagnostic>,
+    /// Opt-in evidence from the same rendering branch that emitted each tag.
+    pub tag_decisions: Option<Vec<TagDecision>>,
+}
+
+pub struct TagDecision {
+    pub span: hozo_ir::SourceSpan,
+    /// None for an authored closing tag consumed by an emitted void element.
+    pub replacement: Option<String>,
 }
 
 /// What a synthesized interactive element imports from `@hozo/engine`.
@@ -189,6 +199,10 @@ impl ClassAllocator {
 /// here: candidates are a project-wide set, so their stylesheet is built
 /// once by `render_candidate_stylesheet` rather than per file.
 pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
+    lower_with_evidence(root, source, theme, false)
+}
+
+pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: bool) -> LowerOutput {
     // An `animate-<name>` the theme does not define has nothing to emit
     // here: its class is carried, which is what lets the project's own CSS
     // run it. Taken out before rendering, so it leaves no empty rule and
@@ -205,6 +219,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     let mut diagnostics = Vec::new();
     let mut uses_view_base = false;
     let mut uses_key_activation = false;
+    let mut tag_decisions = evidence.then(Vec::new);
 
     let jsx = render_node(
         root,
@@ -215,6 +230,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
         &mut diagnostics,
         &mut uses_view_base,
         &mut uses_key_activation,
+        &mut tag_decisions,
     );
 
     let mut css = String::new();
@@ -315,7 +331,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if jsx.contains("hozoDomProps(") {
         runtime_imports.push("hozoDomProps");
     }
-    LowerOutput { jsx, css, runtime_imports, diagnostics }
+    LowerOutput { jsx, css, runtime_imports, diagnostics, tag_decisions }
 }
 
 /// One stylesheet for every candidate class in the project, written under
@@ -856,6 +872,7 @@ fn render_node(
     diagnostics: &mut Vec<Diagnostic>,
     uses_view_base: &mut bool,
     uses_key_activation: &mut bool,
+    tag_decisions: &mut Option<Vec<TagDecision>>,
 ) -> String {
     let class_name = allocator.alloc();
 
@@ -1695,6 +1712,7 @@ fn render_node(
             diagnostics,
             uses_view_base,
             uses_key_activation,
+            tag_decisions,
         ));
     }
 
@@ -1702,12 +1720,13 @@ fn render_node(
     // ones the compiler doesn't model, re-emitted from source rather than
     // deleted. Order is load-bearing: `<Text>Hello {name}</Text>` and
     // `<Text>{name} Hello</Text>` differ only in it.
+    let child_decisions_start = tag_decisions.as_ref().map_or(0, Vec::len);
     let inner: String = node
         .children
         .iter()
         .map(|child| match child {
             hozo_ir::Child::Node(child_node) => {
-                render_node(child_node, source, theme, allocator, rules, diagnostics, uses_view_base, uses_key_activation)
+                render_node(child_node, source, theme, allocator, rules, diagnostics, uses_view_base, uses_key_activation, tag_decisions)
             }
             hozo_ir::Child::Text(text) => markup::html_escape(text),
             hozo_ir::Child::Verbatim { source: expr_ref, nested } => render_verbatim(
@@ -1720,6 +1739,7 @@ fn render_node(
                 diagnostics,
                 uses_view_base,
                 uses_key_activation,
+                tag_decisions,
             ),
         })
         .collect();
@@ -1727,7 +1747,22 @@ fn render_node(
     // `<input>`, `<img>`, `<hr>` are void elements: HTML forbids a closing
     // tag and React throws on children. Nothing can be inside one, so there
     // is no inner to lose by self-closing.
-    if tag == "input" || tag == "img" || tag == "hr" {
+    let void = tag == "input" || tag == "img" || tag == "hr";
+    if let Some(decisions) = tag_decisions {
+        // The renderer computes children before choosing its final output.
+        // A void element emits none of them; do not journal discarded work.
+        if void {
+            decisions.truncate(child_decisions_start);
+        }
+        decisions.push(TagDecision {
+            span: node.opening_tag_span,
+            replacement: Some(tag.to_string()),
+        });
+        if let Some(span) = node.closing_tag_span {
+            decisions.push(TagDecision { span, replacement: (!void).then(|| tag.to_string()) });
+        }
+    }
+    if void {
         return format!("<{tag}{attrs} />");
     }
     format!("<{tag}{attrs}>{inner}</{tag}>")
@@ -1752,6 +1787,7 @@ fn render_verbatim(
     diagnostics: &mut Vec<Diagnostic>,
     uses_view_base: &mut bool,
     uses_key_activation: &mut bool,
+    tag_decisions: &mut Option<Vec<TagDecision>>,
 ) -> String {
     let start = expr_ref.0.start as usize;
     let mut out = String::new();
@@ -1768,6 +1804,7 @@ fn render_verbatim(
             diagnostics,
             uses_view_base,
             uses_key_activation,
+            tag_decisions,
         ));
         cursor = entry.span.end as usize;
     }

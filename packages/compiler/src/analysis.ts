@@ -1,6 +1,10 @@
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { type ReactNativeImportAnalysis, reactNativeImportJournal } from './analysis-rn.ts'
+import {
+  type ReactNativeReferenceAnalysis,
+  reactNativeReferenceJournal,
+} from './analysis-rn-references.ts'
 import { lowerCanvasPaints } from './canvas.ts'
 import type {
   CompileDiagnostic,
@@ -64,6 +68,7 @@ export interface TargetAnalysis {
   code?: string
   directReactNativeJsxResidue?: string[]
   reactNativeImports?: ReactNativeImportAnalysis
+  reactNativeReferences?: ReactNativeReferenceAnalysis
 }
 
 export interface ModuleAnalysis {
@@ -273,6 +278,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
       result.reactNativeUsage,
       (options.unloweredReactNativeJsx ?? 'warn') !== 'allow',
     )
+    const referenceJournal = reactNativeReferenceJournal(source, result.reactNativeUsage)
     run('web', 'module-lowering', () => {
       const observed = new Set<CompileDiagnostic>()
       const lowered = lowerModule(source, file, file, compiler, root, webGraph, {
@@ -281,6 +287,10 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
           for (const diagnostic of event.diagnostics) observed.add(diagnostic)
           collect('web', event.stage, event.diagnostics, event.source)
           if (event.components) target.semanticComponents = event.components.length
+          if (event.source !== undefined) {
+            if (event.edits) referenceJournal.edits(event.source, event.edits)
+            if (event.components) referenceJournal.semantic(event.source, event.components)
+          }
           if (event.importDecisions && event.source !== undefined) {
             importJournal.record(event.source, event.importDecisions)
           }
@@ -323,6 +333,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
       else target.status = 'failed'
     }
     target.reactNativeImports = importJournal.finish(target.status === 'completed')
+    target.reactNativeReferences = referenceJournal.finish(target.status === 'completed')
   }
 
   if (options.targets.includes('native')) {

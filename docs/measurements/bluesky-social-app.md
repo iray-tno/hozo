@@ -38,6 +38,34 @@ A separate warm-source comparison uses the same loaded addon/compiler and the sa
 
 Slice 1's corrections are retained: previously omitted setup warnings stay visible, and rewritten Hozo Pressable imports are not mislabeled as direct React Native residue. This slice adds analysis scope/context, not new component compatibility.
 
+The next Slice 4 increment joins **actual backend JSX tag emissions** to authored RN symbols.
+All **1,639 Web-selected files** complete this journal, with zero partial/failed/unmapped
+cases: **5,056 replaced names and 38 preserved names**, including opening/closing occurrences.
+All 5,094 observed Web RN JSX references have an exact emission join in this corpus.
+Preserved spelling does not mean a retained RN dependency: the separate import journal may
+have moved the binding. The remaining **1,043 Web references** are explicitly not assessed by
+the tag journal: **284 runtime member reads, 39 runtime value references and 720 type
+references**. Props, handlers and factories are not classified from their containing root.
+Non-JSX reference/member compatibility remains the next Slice 4 task; this is not completion
+of the whole RN migration boundary. Component, source inventory, import-decision and diagnostic
+counts are unchanged. The pinned checkout remains clean and the authored source fingerprint
+is unchanged (`db5373982baac27062021d8503f795cdb38a78d7cc2e0a2dccfe7eab805f36d8`).
+
+This serial observation took **9.74s**, including 0.25s discovery, 0.06s snapshot reads,
+3.83s project preparation, 0.97s binding inventory, 1.02s RN usage, **2.49s Web lowering
+with both journals** and 0.85s Web residue parsing. As above, whole-audit observations
+are not controlled comparisons. The fresh development binding SHA-256 is
+`f0579bffc028bda9dc80e88db05066b072cc140e68ee66879b153da54219b991`.
+
+A separate paired warm-source observation isolates the opt-in backend tag journal on the
+same addon/compiler, two logical cores and **1,034 Web-selected TSX inputs**. Three
+alternating-order rounds took **0.670 / 0.657 / 0.668s** without tracing and
+**0.666 / 0.663 / 0.670s** with tracing. Both produced 1,193 components each round;
+the traced path emitted 5,094 tag records, while the ordinary path allocated no journal.
+These small differences are within this local observation's noise, not a speedup claim.
+This comparison excludes import journaling, authored-source joins, project preparation,
+filesystem work, bundlers and runtime/device performance.
+
 ## Authored surface
 
 | Signal | Files or bindings |
@@ -122,6 +150,28 @@ lowered while its import remains for the bundler to elide. Type-only is not proo
 Forwarding/side-effect edges and semantic reference dispositions are not assessed here. No member
 compatibility, package-resolution, production dependency-removal or runtime guarantee follows from
 an import move. Native remains a compiler probe, not an import rewrite verdict.
+
+## Web React Native JSX tag decisions
+
+| Actual tag outcome | Count |
+|---|---:|
+| filesCompleted | 1639 |
+| filesPartial | 0 |
+| filesFailed | 0 |
+| filesNotAssessed | 0 |
+| replacedJsxTags | 5056 |
+| preservedJsxTags | 38 |
+| removedJsxTags | 0 |
+| notAssessedReferences | 1043 |
+| unmappedTags | 0 |
+
+The Web renderer journals emitted opening/closing names, joined to authored binding/reference
+indices through unchanged source runs across actual import/Canvas edits. Counts are tag occurrences,
+not component counts. Preserved tags describe emitted spelling, not a retained React Native
+dependency: their import may have moved separately. Non-JSX expressions, types and tags without
+an exact emission join remain not assessed; unknown does not mean retained or unsupported.
+Member compatibility, Native rewriting, production dependency removal and runtime are not assessed.
+Partial/failed journals remain in JSON but do not enter successful tag headline counts.
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 

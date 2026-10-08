@@ -26,6 +26,7 @@ import type {
 } from './index.ts'
 import { reactNativeImports, topLevelBindings } from './index.ts'
 import { semanticModuleEligible, type UnloweredReactNativeJsxPolicy } from './project.ts'
+import type { SourceEdit } from './source-provenance.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
@@ -144,7 +145,7 @@ function rehomeReactNativeImports(
   owned: ReadonlySet<string>,
   destination: '@hozo/core' | '@hozo/rn-compat',
   file?: string,
-  observe?: (decisions: ReactNativeImportDecision[]) => void,
+  observe?: (decisions: ReactNativeImportDecision[], edits: SourceEdit[]) => void,
 ): string {
   // A module string can spell react-native with escapes. The keyword itself
   // cannot be escaped, so import-free text needs no structural parse.
@@ -161,6 +162,7 @@ function rehomeReactNativeImports(
   }
   let next = code
   const decisions: ReactNativeImportDecision[] = []
+  const edits: SourceEdit[] = []
   // Only this loop both changes imports and records that change. Audit does
   // not repeat the ownership table, or predict a rewrite from import spelling.
   for (const declaration of [...parsed.declarations].reverse()) {
@@ -215,8 +217,10 @@ function rehomeReactNativeImports(
       .join('\n')
     const replacement = `${comments ? `${comments}\n` : ''}${original}import { ${moved.map(raw).join(', ')} } from '${destination}'\n`
     next = next.slice(0, declaration.spanStart) + replacement + next.slice(declaration.spanEnd)
+    if (observe)
+      edits.push({ spanStart: declaration.spanStart, spanEnd: declaration.spanEnd, replacement })
   }
-  observe?.(decisions)
+  observe?.(decisions, edits)
   return next
 }
 
@@ -548,6 +552,8 @@ export interface LowerModuleStage {
   diagnostics: CompileDiagnostic[]
   components?: CompiledComponent[]
   importDecisions?: ReactNativeImportDecision[]
+  /** Actual pre-semantic splices, not an inferred diff of emitted source. */
+  edits?: SourceEdit[]
 }
 
 function runtimeImportOnlyModule(code: string, id: string, file: string): LoweredModule {
@@ -704,12 +710,13 @@ function lowerModuleUnchecked(
           components ? '@hozo/core' : '@hozo/rn-compat',
           file,
           options.observe
-            ? (importDecisions) =>
+            ? (importDecisions, edits) =>
                 options.observe?.({
                   stage: 'imports',
                   source: input,
                   diagnostics: [],
                   importDecisions,
+                  edits,
                 })
             : undefined,
         )
@@ -724,7 +731,12 @@ function lowerModuleUnchecked(
 
   const allowed = compiler.sources
   const canvas = lowerCanvasPaints(apiLowered, compiler, false)
-  options.observe?.({ stage: 'canvas', source: apiLowered, diagnostics: canvas.diagnostics })
+  options.observe?.({
+    stage: 'canvas',
+    source: apiLowered,
+    diagnostics: canvas.diagnostics,
+    edits: canvas.edits,
+  })
   // A cheap reject before parsing: a file mentioning none of the trusted
   // modules has nothing this can lower, and most of a project's files are
   // that. The real decision needs the AST and comes next.
@@ -756,7 +768,10 @@ function lowerModuleUnchecked(
     ? stylexModules?.bindingsFor(path.resolve(file))
     : undefined
   const components = hasSemanticCandidate
-    ? compiler.compile(canvas.code, stylexBindings, { rehomeReactNative: shouldRehome })
+    ? compiler.compile(canvas.code, stylexBindings, {
+        rehomeReactNative: shouldRehome,
+        tagEvidence: !!options.observe,
+      })
     : []
   options.observe?.({
     stage: 'semantic',
