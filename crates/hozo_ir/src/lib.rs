@@ -428,6 +428,13 @@ pub enum Primitive {
     /// `HozoBadge` on both platforms, because the Web half needs a second
     /// element -- a `<span>` cannot carry an accessible name.
     Badge,
+    /// A compact token -- a filter that is on or off, an entry that can be
+    /// removed, or both. `HozoChip` on both platforms, the pattern from
+    /// `@hozo/patterns`; the compiler's part is its styling, which is two
+    /// class lists, one for the chip and one for its remove button (#787).
+    /// React Native has no class list to hand a component, so on Native both
+    /// become style props, which `class_slots` names.
+    Chip,
     /// A loading placeholder: a box with no meaning of its own, hidden from
     /// assistive technology, whose animation stops under reduced motion
     /// whatever classes put it there (decision 007, section 5). `<div>` on
@@ -535,6 +542,15 @@ pub enum Primitive {
 }
 
 impl Primitive {
+    /// The class lists this primitive takes besides `className`; see
+    /// `ClassSlot`.
+    pub fn class_slots(self) -> &'static [ClassSlot] {
+        match self {
+            Primitive::Chip => &[ClassSlot { class_prop: "removeClassName", style_prop: "removeStyle" }],
+            _ => &[],
+        }
+    }
+
     /// React Native components that have no DOM element to become, and on
     /// the Web lower to a stand-in from `@hozo/rn-compat` instead.
     ///
@@ -1181,6 +1197,37 @@ pub struct PropSet {
     /// declarations, so the official transform remains authoritative for
     /// them without duplicating the declarations Hozo already lowered.
     pub stylex_residuals: Vec<StylexResidual>,
+    /// A runtime component's class lists other than `className`, compiled
+    /// like it. Only the props `Primitive::class_slots` names, and only when
+    /// written as a string the compiler can read.
+    pub class_slots: Vec<SlotStyle>,
+}
+
+/// A second class list on a runtime component, and the style prop that
+/// carries it where there are no classes.
+///
+/// `className` is a host element's, and every backend already knows what to
+/// do with it. A component that draws more than one element -- a chip and
+/// its remove button -- takes one class list per element on the Web; on
+/// React Native, where a component is handed styles rather than classes,
+/// each of those is a style prop. One table says which is which, so a
+/// pattern that grows a second element adds a row rather than a code path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ClassSlot {
+    /// What the author writes: `removeClassName`.
+    pub class_prop: &'static str,
+    /// What React Native is handed: `removeStyle`.
+    pub style_prop: &'static str,
+}
+
+/// A `ClassSlot` as written on one element.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SlotStyle {
+    pub slot: ClassSlot,
+    pub style: Vec<StyleDeclaration>,
+    /// Classes that produced no style, carried like `Node::carried_classes`.
+    pub carried: Vec<String>,
+    pub span: SourceSpan,
 }
 
 /// React Native `TextInput` props that the DOM has under another name.

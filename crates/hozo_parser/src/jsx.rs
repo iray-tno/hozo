@@ -737,6 +737,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Progress" => Some(Primitive::Progress),
         "Meter" => Some(Primitive::Meter),
         "Badge" => Some(Primitive::Badge),
+        "Chip" => Some(Primitive::Chip),
         "Skeleton" => Some(Primitive::Skeleton),
         "Strong" => Some(Primitive::Strong),
         "Emphasis" => Some(Primitive::Emphasis),
@@ -1082,6 +1083,48 @@ fn build_node(
             // just threaded through by span for a later codegen stage to
             // re-emit verbatim. `disabled` below additionally has a static
             // shorthand form, which needs no source expression span.
+            // A runtime component's second class list (`ClassSlot`), read
+            // the way a static `className` is. An expression is left where
+            // it was: the Web half still receives it, and the Native backend
+            // says it cannot.
+            name if primitive.class_slots().iter().any(|slot| slot.class_prop == name)
+                && matches!(&attr.value, Some(JSXAttributeValue::StringLiteral(_))) =>
+            {
+                let Some(JSXAttributeValue::StringLiteral(literal)) = &attr.value else {
+                    unreachable!("matched as a string literal above")
+                };
+                let slot = *primitive
+                    .class_slots()
+                    .iter()
+                    .find(|slot| slot.class_prop == name)
+                    .expect("matched as a slot above");
+                consumed.push(to_span(literal.span()));
+                let mut style = Vec::new();
+                let mut carried = Vec::new();
+                for token in literal.value.split_whitespace() {
+                    let groups = if tailwind::has_unstripped_variant(token) {
+                        Vec::new()
+                    } else {
+                        tailwind::expand_class(token)
+                    };
+                    let before = style.len();
+                    for (condition, properties) in groups {
+                        style.extend(properties.into_iter().map(|property| StyleDeclaration {
+                            property,
+                            condition: condition.clone(),
+                        }));
+                    }
+                    if style.len() == before {
+                        carried.push(token.to_string());
+                    }
+                }
+                props.class_slots.push(hozo_ir::SlotStyle {
+                    slot,
+                    style,
+                    carried,
+                    span: to_span(attr.span()),
+                });
+            }
             "onPress" => match &attr.value {
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
                     props.on_press = Some(to_expr_ref(container.expression.span()));
@@ -1169,7 +1212,9 @@ fn build_node(
             "scrollEventThrottle" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => {
                 capture_prop_expr(attr, &mut props.scroll_event_throttle, &mut props.passthrough, scope, diagnostics, consumed)
             }
-            "disabled" => match &attr.value {
+            // Not on a chip, whose `disabled` is a prop of the pattern rather
+            // than a host element's state to translate.
+            "disabled" if primitive != Primitive::Chip => match &attr.value {
                 None => props.disabled = Some(ConditionExpr::Static(true)),
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
                     props.disabled = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));

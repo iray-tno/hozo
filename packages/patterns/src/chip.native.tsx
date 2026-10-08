@@ -1,6 +1,14 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import {
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 
 export interface HozoChipProps {
   children?: ReactNode
@@ -13,15 +21,61 @@ export interface HozoChipProps {
   removeIcon?: ReactNode
   disabled?: boolean
   /**
-   * Tailwind classes, the same props the Web half takes. Carried and ignored
-   * here -- a Native pattern has no class list to resolve -- and accepted so
-   * the source type-checks; see `popover.native.tsx`.
+   * Tailwind classes, the same props the Web half takes. Read by the
+   * compiler, which hands them over as `style` and `removeStyle` (#787); a
+   * file the compiler did not read leaves them here, where a Native pattern
+   * has no class list to resolve.
    */
   className?: string
   removeClassName?: string
-  style?: StyleProp<ViewStyle>
-  removeStyle?: StyleProp<ViewStyle>
+  style?: StyleProp<ViewStyle | TextStyle>
+  removeStyle?: StyleProp<ViewStyle | TextStyle>
   testID?: string
+}
+
+/**
+ * The properties a `View` cannot draw and a `Text` can.
+ *
+ * On the Web a chip's colour is inherited by its label; here a style on a
+ * `Pressable` stays there, so `text-white` on a chip would colour nothing.
+ * These are moved to the label instead -- the move the compiler makes for a
+ * `View`, done here because the label is this component's own element.
+ */
+const TEXT_KEYS = new Set([
+  'color',
+  'fontFamily',
+  'fontSize',
+  'fontStyle',
+  'fontVariant',
+  'fontWeight',
+  'letterSpacing',
+  'lineHeight',
+  'textAlign',
+  'textDecorationColor',
+  'textDecorationLine',
+  'textDecorationStyle',
+  'textShadowColor',
+  'textShadowOffset',
+  'textShadowRadius',
+  'textTransform',
+])
+
+function split(style: StyleProp<ViewStyle | TextStyle>): [ViewStyle, TextStyle] {
+  const box: Record<string, unknown> = {}
+  const text: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(StyleSheet.flatten(style) ?? {})) {
+    ;(TEXT_KEYS.has(key) ? text : box)[key] = value
+  }
+  return [box as ViewStyle, text as TextStyle]
+}
+
+function label(children: ReactNode, style: TextStyle) {
+  if (Object.keys(style).length === 0) return hozoTextChildren(children)
+  return typeof children === 'string' || typeof children === 'number' ? (
+    <Text style={style}>{children}</Text>
+  ) : (
+    children
+  )
 }
 
 /**
@@ -29,6 +83,10 @@ export interface HozoChipProps {
  * is selectable -- Android's `ToggleButton`, and the counterpart of the Web
  * half's `aria-pressed` -- and a separate remove button when it is
  * removable, for the reason the Web half gives.
+ *
+ * `style` lands where the Web half puts `className`: on the toggle when the
+ * chip is only a toggle, and on the row holding both controls otherwise.
+ * `removeStyle` is the remove button's, as `removeClassName` is.
  */
 export function HozoChip({
   children,
@@ -55,17 +113,23 @@ export function HozoChip({
     onSelectedChange?.(next)
   }, [on, onSelectedChange, selected])
 
-  const label = accessibilityLabel ?? (typeof children === 'string' ? children : undefined)
+  const [box, text] = split(style)
+  const [removeBox, removeText] = split(removeStyle)
+  const name = accessibilityLabel ?? (typeof children === 'string' ? children : undefined)
   const remove = onRemove ? (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={message('hozo.chip.remove', { label: label ?? '' }, removeLabel)}
+      accessibilityLabel={message('hozo.chip.remove', { label: name ?? '' }, removeLabel)}
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
-      style={removeStyle}
+      style={removeBox}
       onPress={onRemove}
     >
-      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Text
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={removeText}
+      >
         {removeIcon}
       </Text>
     </Pressable>
@@ -77,19 +141,19 @@ export function HozoChip({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: on, disabled: Boolean(disabled) }}
       disabled={disabled}
-      style={remove ? undefined : style}
+      style={remove ? undefined : box}
       testID={remove ? undefined : testID}
       onPress={toggle}
     >
-      {hozoTextChildren(children)}
+      {label(children, text)}
     </Pressable>
   ) : (
-    <Text>{children}</Text>
+    <Text style={text}>{children}</Text>
   )
 
   if (!remove && selectable) return body
   return (
-    <View style={[{ flexDirection: 'row', alignItems: 'center' }, style]} testID={testID}>
+    <View style={[{ flexDirection: 'row', alignItems: 'center' }, box]} testID={testID}>
       {body}
       {remove}
     </View>
