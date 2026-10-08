@@ -11,6 +11,7 @@ export {
   loadProjectTheme,
   type ProjectThemeOptions,
 } from './project.ts'
+export { loadStaticProjectTheme, type StaticProjectTheme } from './static-project.ts'
 export {
   loadClassOrder,
   loadTheme,

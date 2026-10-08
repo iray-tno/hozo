@@ -18,6 +18,7 @@ import path from 'node:path'
 
 import { converter, formatHex } from 'culori'
 import { __unstable__loadDesignSystem } from 'tailwindcss'
+import { assertStaticStylesheet, ExecutableStylesheetError } from './static-css.ts'
 
 export interface ThemeColor {
   token: string
@@ -96,7 +97,16 @@ const designSystems = new Map<
   Promise<Awaited<ReturnType<typeof __unstable__loadDesignSystem>>>
 >()
 
-function designSystemFor(css: string, base: string) {
+export interface ThemeLoadOptions {
+  /** Refuse executable directives before Tailwind sees entry or imported CSS. */
+  staticOnly?: boolean
+  /** Read evidence, including the entry, for this invocation (no cache). */
+  onStylesheet?: (file: string, content: string) => void
+  file?: string
+}
+
+function designSystemFor(css: string, base: string, options: ThemeLoadOptions = {}) {
+  if (options.staticOnly) return staticDesignSystem(css, base, options)
   const key = `${base}\u0000${css}`
   let pending = designSystems.get(key)
   if (!pending) {
@@ -116,6 +126,44 @@ function designSystemFor(css: string, base: string) {
     designSystems.set(key, pending)
   }
   return pending
+}
+
+async function staticDesignSystem(css: string, base: string, options: ThemeLoadOptions) {
+  const inspect = (file: string, content: string) => {
+    options.onStylesheet?.(file, content)
+    assertStaticStylesheet(content, file)
+  }
+  inspect(options.file ?? path.join(base, '<entry>'), css)
+  let failure: unknown
+  let reads = 0
+  const design = await __unstable__loadDesignSystem(css, {
+    base,
+    loadStylesheet: async (id, from) => {
+      try {
+        // Bound cyclic/excessive import expansion without writing a cache.
+        if (++reads > 256)
+          throw new ExecutableStylesheetError('CSS import limit exceeded; not assessed')
+        const file = stylesheetPath(id, from)
+        const content = readFileSync(file, 'utf8')
+        inspect(file, content)
+        return { path: file, base: path.dirname(file), content }
+      } catch (error) {
+        failure ??= error
+        throw error
+      }
+    },
+    // Defence in depth: explicit refusal, even if Tailwind adds another module
+    // loading construct. This callback never imports or requires app code.
+    loadModule: async (id, from, kind) => {
+      const error = new ExecutableStylesheetError(`${from}: ${kind} ${id} is not assessed`)
+      failure ??= error
+      throw error
+    },
+  })
+  // Some design-system queries tolerate loader failures. Tolerating one must
+  // never turn an unsafe/incomplete theme into a trustworthy analysis result.
+  if (failure) throw failure
+  return design
 }
 
 /**
@@ -167,8 +215,12 @@ export async function loadClassOrder(
  * imports resolve against, which is the file's own directory in every
  * ordinary setup.
  */
-export async function loadTheme(css: string, base: string): Promise<Theme> {
-  const design = await designSystemFor(css, base)
+export async function loadTheme(
+  css: string,
+  base: string,
+  options?: ThemeLoadOptions,
+): Promise<Theme> {
+  const design = await designSystemFor(css, base, options)
 
   const declared = new Map<string, string>()
   for (const [name, value] of design.theme.entries()) {
