@@ -737,6 +737,35 @@ fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String 
     }
 }
 
+/// `aria-valuetext` for a `<meter>`: its amount as a percentage of its range,
+/// which is 0 to 1 when left out, clamped the way the element clamps it.
+fn meter_value_text(node: &Node, source: &str) -> Option<String> {
+    let authored = |name: &str| -> Option<String> {
+        node.props.passthrough.iter().filter(|prop| prop.name.as_deref() == Some(name)).find_map(|prop| {
+            let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
+            let value = text.split_once('=')?.1.trim();
+            value
+                .strip_prefix('{')
+                .and_then(|inner| inner.strip_suffix('}'))
+                .map(|inner| inner.trim().to_string())
+                .or_else(|| value.strip_prefix('"')?.strip_suffix('"').map(str::to_string))
+        })
+    };
+    let now = authored("value")?;
+    let min = authored("min").unwrap_or_else(|| "0".to_string());
+    let max = authored("max").unwrap_or_else(|| "1".to_string());
+    let literal = |text: &str| text.parse::<f64>().ok();
+    Some(match (literal(&now), literal(&min), literal(&max)) {
+        (Some(now), Some(min), Some(max)) => {
+            let fraction = if max > min { ((now - min) / (max - min)).clamp(0.0, 1.0) } else { 0.0 };
+            format!("'{}%'", (fraction * 100.0).round() as i64)
+        }
+        _ => format!(
+            "`${{Math.round(Math.min(Math.max((({now}) - ({min})) / (({max}) - ({min})), 0), 1) * 100)}}%`"
+        ),
+    })
+}
+
 /// The CSS for one class: a rule per condition, and the dark copy a paired
 /// token needs. An element's `className` and a component's other class
 /// lists (`ClassSlot`) are both written by this.
@@ -1033,6 +1062,19 @@ fn render_node(
         }
     }
 
+    // A meter's amount as a percentage, which is what a reader is given on
+    // Native. Without it NVDA reads `<meter value={0.6}>` as "progress bar,
+    // 0.6" and VoiceOver as "0.6" (screen-readers run 37790021610): the
+    // fraction, not the amount. Worked out at build time when the three
+    // numbers are written; otherwise the same sum runs on the page. An
+    // author's own `aria-valuetext` wins.
+    if tag == "meter"
+        && !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("aria-valuetext"))
+    {
+        if let Some(text) = meter_value_text(node, source) {
+            attrs.push_str(&format!(" aria-valuetext={{{text}}}"));
+        }
+    }
     if let Some(value) = node.props.test_id {
         let name = if is_hozo_component { "testID" } else { "data-testid" };
         attrs.push_str(&format!(" {name}={{{}}}", source_text(source, value)));
@@ -3038,6 +3080,19 @@ const el = <Meter aria-label=\"Disk usage\" value={0.6} low={0.3} high={0.8} />
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert!(output.jsx.starts_with("<meter "), "{}", output.jsx);
         assert!(output.jsx.contains("low={0.3} high={0.8}"), "{}", output.jsx);
+        // The amount as a percentage, as Native reads it, rather than the
+        // "0.6" both desktop readers said without it.
+        assert!(output.jsx.contains("aria-valuetext={'60%'}"), "{}", output.jsx);
+        let dynamic = "import { Meter } from '@hozo/core'
+const el = <Meter value={used} max={total} />
+";
+        let parsed = hozo_parser::parse_tsx(dynamic);
+        let output = lower(&parsed.roots[0].node, dynamic, &Theme::default());
+        assert!(
+            output.jsx.contains("aria-valuetext={`${Math.round(Math.min(Math.max(((used) - (0)) / ((total) - (0)), 0), 1) * 100)}%`}"),
+            "{}",
+            output.jsx
+        );
     }
 
     #[test]

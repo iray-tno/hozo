@@ -16,7 +16,7 @@ export type HozoPaginationProps = PaginationProps
 
 const row = 'flex flex-wrap items-center gap-1 text-sm text-hozo-text-body'
 const item =
-  'min-w-9 h-9 px-2 items-center justify-center rounded-hozo-control cursor-pointer hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
+  'inline-flex min-w-9 h-9 px-2 items-center justify-center rounded-hozo-control cursor-pointer hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
 const current = 'bg-hozo-accent text-hozo-on-accent font-medium'
 const disabled = 'text-hozo-text-subtle cursor-not-allowed'
 const ellipsis = 'px-1 text-hozo-text-subtle'

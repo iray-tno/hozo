@@ -1,0 +1,16 @@
+heading, Chip, level 1
+paragraph
+A toggle, a removable entry, or both -- and when both, two controls.
+end of paragraph
+Selectable
+button, Open now, pressed
+button, Free delivery, not pressed
+Removable
+Remote
+button, Remove Remote
+Full time
+button, Remove Full time
+Senior
+button, Remove Senior
+Label only
+Draft

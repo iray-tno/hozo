@@ -1,0 +1,10 @@
+# Approved from screen-readers run 37790021610 (NVDA, Chrome), the first reading of this story (#802).
+# From the first section label on: the heading and the prose above it are the story's, and NVDA words the heading differently from run to run ("clickable, heading").
+CATALOGUE
+Pagination, navigation landmark, list, with 7 items, button, Previous page
+button, Page 1
+button, Page 4
+button, current page, Page 5
+button, Page 6
+button, Page 20
+button, Next page

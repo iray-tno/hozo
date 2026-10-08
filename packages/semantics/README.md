@@ -81,6 +81,39 @@ export function Layout({ children }) {
 - **`Separator`**: Content divider. Supports `orientation="horizontal" | "vertical"` and `decorative`. Web lowers to `<hr>`; Native lowers to an accessible separator view with `accessibilityRole="separator"`.
 - **`Progress`**: Completion indicator (`value`, `max`). Web lowers to `<progress>`; Native lowers to an accessible bar with `accessibilityRole="progressbar"`.
 
+### 7. Data display
+- **`Meter`**: An amount within a known range. Web lowers to `<meter>`. Native draws a track and a fill coloured by `low`/`high`/`optimum`, and is read as a percentage ("Disk usage, 60%").
+- **`Badge`**: A short status label. With `count` it draws the number and is read as its `accessibilityLabel` ("3 unread messages").
+- **`Skeleton`**: A loading placeholder, hidden from assistive technology. Its animation stops under reduced motion, its descendants' included.
+- **`Table`** with `TableCaption`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead` and `TableCell`. Web lowers to the table elements. On Native, each column is as wide as its widest cell, and a data cell is read with its column ("Price, $12").
+
+## Verification Matrix: data display
+
+| | axe (every PR) | Virtual reader (every PR) | NVDA (weekly) | VoiceOver, macOS (weekly) | TalkBack | iOS VoiceOver |
+|---|---|---|---|---|---|---|
+| `Meter` | ✅ | ✅ approved | ✅ approved | ✅ approved | ✅ census walk | ⬜ |
+| `Badge` (`count`) | ✅ | ✅ approved | ✅ approved | ✅ approved | ✅ census walk | ⬜ |
+| `Skeleton` | ✅ | ✅ approved (silent) | ✅ approved | ✅ approved | ✅ census walk (silent) | ⬜ |
+| `Table` | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
+
+- **axe and the virtual reader** run on the `Semantics/Data Display` story. NVDA and VoiceOver walk the same story, which is named in `examples/screen-readers/stories.spec.ts`.
+- **Their first reading** (run 37790021610):
+  - Both read the table with its caption, and each cell with its row, column and header ("row 2, Item, column 1, Tea" / "Price $8 column 3 of 3").
+  - Both read the badge as "3 unread messages". The skeleton was silent.
+  - **The meter was read as the fraction:** NVDA said "Disk usage, progress bar, 0.6" and VoiceOver said "0.6, suboptimal value Disk usage level indicator".
+  - #802 gives the Web `<meter>` an `aria-valuetext` of its percentage, as Native already had.
+- **The reading after that fix** (run 37796061776) is the approved one. NVDA says "Disk usage, progress bar, 60 percent" and VoiceOver "60% Disk usage level indicator". NVDA calling a meter a progress bar is NVDA's mapping and is not something Hozo can change.
+- **TalkBack: the census walk** (`examples/native-demo/CensusWalk.tsx`, #789) has read three of them on an emulator:
+  - the meter as "Disk usage, 60%";
+  - the badge as "3 unread messages";
+  - the skeleton as nothing.
+
+  Those readings are reported by the job, not yet asserted.
+- **The virtual reader's "max value 100" for a `<meter>` with no `max` is the virtual reader's mapping.** Neither real reader mentioned a maximum.
+- **On Native, `Table`'s column widths and cell names** are asserted against React Native's test renderer with layout events fired by hand. No device has drawn one or read one.
+
+A ✅ in the reader columns means a person read the phrases and approved them, never only that a job ran.
+
 ## Features
 
 - **Semantic HTML5 Web Output**: Direct compiler lowering to real HTML5 landmark and semantic elements, completely free of `react-native-web`.

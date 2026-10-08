@@ -1,0 +1,7 @@
+# Approved from screen-readers run 37802449478, the first reading after the description joined the step's sentence (#802).
+# From the first section label on: the heading and the prose above it are the story's.
+CHECKOUT
+Progress, list, with 4 items, Step 1 of 4: Account, completed. Email and password
+current step, Step 2 of 4: Profile, current
+Step 3 of 4: Payment, has an error
+Step 4 of 4: Confirm, not started

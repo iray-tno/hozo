@@ -113,6 +113,12 @@ const EXTRA: ReadonlySet<string> = new Set([
   'form-date-and-time--clock',
   'form-date-and-time--date-and-time-open',
   'form-date-and-time--date-range-open',
+  // The table, meter, count badge and skeleton from #141 and #144. Not
+  // patterns, so not picked up by the prefix -- and new, so the least
+  // measured, which is the rule above. A real reader is the only thing that
+  // can say whether `<meter>` is read as 60% or as 0.6 of 100, which the
+  // virtual reader says and nobody has checked.
+  'semantics-data-display--default',
 ])
 
 const stories = Object.values(index.entries)

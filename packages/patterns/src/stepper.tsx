@@ -114,12 +114,21 @@ export function HozoStepper({
             >
               {stepMark(index, status)}
             </span>
+            {/* The description is part of the sentence a reader hears, after
+                a full stop, and hidden where it is drawn. Read beside the
+                sentence instead, VoiceOver ran the two together --
+                "completedEmail and password" -- and a space between them did
+                not survive, because the sentence is absolutely positioned
+                (runs 37790021610 and 37796061776). */}
             <span style={VISUALLY_HIDDEN}>
               {stepLabel(message, step, index, steps.length, status)}
+              {step.description ? `. ${step.description}` : null}
             </span>
             <span aria-hidden>{step.label}</span>
             {step.description ? (
-              <span className={descriptionClassName}>{step.description}</span>
+              <span aria-hidden className={descriptionClassName}>
+                {step.description}
+              </span>
             ) : null}
           </>
         )

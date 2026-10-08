@@ -1,0 +1,31 @@
+heading, Stepper with pressable steps, level 1
+Stepper
+with pressable steps
+end of heading, Stepper with pressable steps, level 1
+paragraph
+Each step says where it stands in words; the marks beside them are hidden.
+end of paragraph
+Checkout
+list, Progress
+listitem, level 1, position 1, set size 4
+button, Step 1 of 4: Account, completed. Email and password
+Step 1 of 4: Account, completed
+. Email and password
+end of button, Step 1 of 4: Account, completed. Email and password
+end of listitem, level 1, position 1, set size 4
+listitem, level 1, current step, position 2, set size 4
+button, Step 2 of 4: Profile, current
+Step 2 of 4: Profile, current
+end of button, Step 2 of 4: Profile, current
+end of listitem, level 1, current step, position 2, set size 4
+listitem, level 1, position 3, set size 4
+button, Step 3 of 4: Payment, has an error
+Step 3 of 4: Payment, has an error
+end of button, Step 3 of 4: Payment, has an error
+end of listitem, level 1, position 3, set size 4
+listitem, level 1, position 4, set size 4
+button, Step 4 of 4: Confirm, not started
+Step 4 of 4: Confirm, not started
+end of button, Step 4 of 4: Confirm, not started
+end of listitem, level 1, position 4, set size 4
+end of list, Progress
