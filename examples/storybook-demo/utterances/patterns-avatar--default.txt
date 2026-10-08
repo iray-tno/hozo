@@ -1,0 +1,10 @@
+heading, Avatar, level 1
+paragraph
+One image named for the person, with the status read after the name.
+end of paragraph
+Initials and status
+image, Ada Lovelace, online
+image, Grace Hopper, busy
+image, 田中太郎
+Decorative, beside a name already written
+Katherine Johnson

@@ -1,0 +1,45 @@
+heading, Pagination with links, level 1
+Pagination
+with links
+end of heading, Pagination with links, level 1
+paragraph
+Page
+5
+of 20. The current page and the disabled ends are styled by class lists the pattern applies, so the same look reaches React Native.
+end of paragraph
+Catalogue
+navigation, Pagination
+list
+listitem, level 1, position 1, set size 7
+link, Previous page
+end of listitem, level 1, position 1, set size 7
+listitem, level 1, position 2, set size 7
+link, Page 1
+1
+end of link, Page 1
+end of listitem, level 1, position 2, set size 7
+listitem, level 1, position 3, set size 7
+link, Page 4
+4
+end of link, Page 4
+end of listitem, level 1, position 3, set size 7
+listitem, level 1, position 4, set size 7
+link, Page 5, current page
+5
+end of link, Page 5, current page
+end of listitem, level 1, position 4, set size 7
+listitem, level 1, position 5, set size 7
+link, Page 6
+6
+end of link, Page 6
+end of listitem, level 1, position 5, set size 7
+listitem, level 1, position 6, set size 7
+link, Page 20
+20
+end of link, Page 20
+end of listitem, level 1, position 6, set size 7
+listitem, level 1, position 7, set size 7
+link, Next page
+end of listitem, level 1, position 7, set size 7
+end of list
+end of navigation, Pagination

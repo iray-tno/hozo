@@ -1,8 +1,8 @@
 # @hozo/patterns
 
 Accessible stateful widgets for Hozo: `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`,
-`RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Slider`, `Toolbar`, `Tree`, `Tooltip`, `Popover` and
-`BottomSheet` and `Drawer`. Each carries its WAI-ARIA
+`RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Slider`, `Toolbar`, `Tree`, `Tooltip`, `Popover`,
+`BottomSheet`, `Drawer`, `Chip`, `Avatar`, `Pagination` and `Stepper`. Each carries its WAI-ARIA
 keyboard contract on the Web and the matching accessibility semantics on React Native.
 
 `Checkbox` and `Switch` are one control with two roles, and choosing between them chooses what a
@@ -110,6 +110,23 @@ export function Settings({ open, onClose }) {
   )
 }
 ```
+
+## Verification Matrix: `Chip`, `Avatar`, `Pagination`, `Stepper`
+
+These four arrived after 0.2.0 (#141, #144, #150). What has checked them, and what has not:
+
+| | axe (every PR) | Virtual reader (every PR) | NVDA (weekly) | VoiceOver, macOS (weekly) | TalkBack | iOS VoiceOver |
+|---|---|---|---|---|---|---|
+| `Chip` | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
+| `Avatar` | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
+| `Pagination` (buttons, links) | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
+| `Stepper` (list, buttons) | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
+
+- **axe and the virtual reader** run on the `Patterns/…` Storybook stories (`examples/storybook-demo/scripts/check-a11y.mjs`, `check-utterances.mjs`). The virtual reader computes announcements from the ARIA and HTML-AAM specifications. It is not NVDA or VoiceOver. Its approved readings are in `examples/storybook-demo/utterances/`.
+- **NVDA and VoiceOver** walk every `patterns-` story weekly (`.github/workflows/screen-readers.yml`). A story with no approved phrases is reported rather than failed. These four have none yet, so the first run's readings have to be read by a person and approved into `examples/screen-readers/expected/`.
+- **TalkBack and iOS VoiceOver** have read none of them. The unit tests assert the accessibility props React Native is given (roles, labels, `selected`, `disabled`). They do not show what a reader says.
+
+A ✅ in the reader columns means a person read the phrases and approved them, never only that a job ran.
 
 <!-- generated: package-footer -->
 

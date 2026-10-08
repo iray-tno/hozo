@@ -1,0 +1,38 @@
+heading, Data display, level 1
+paragraph
+A table, a meter, a count badge and a skeleton.
+end of paragraph
+table, Your order
+caption, Your order
+rowgroup
+row, Item Quantity Price
+columnheader, Item
+columnheader, Quantity
+columnheader, Price
+end of row, Item Quantity Price
+end of rowgroup
+rowgroup
+row, Tea 2 $8
+rowheader, Tea
+cell, 2
+cell, $8
+end of row, Tea 2 $8
+row, Shortbread 1 $12
+rowheader, Shortbread
+cell, 1
+cell, $12
+end of row, Shortbread 1 $12
+end of rowgroup
+rowgroup
+row, Total $20
+rowheader, Total
+cell
+cell, $20
+end of row, Total $20
+end of rowgroup
+end of table, Your order
+Storage
+meter, Disk usage, 0.6, min value 0, max value 100, 0.6
+Inbox
+3 unread messages
+Loading

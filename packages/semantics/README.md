@@ -81,6 +81,33 @@ export function Layout({ children }) {
 - **`Separator`**: Content divider. Supports `orientation="horizontal" | "vertical"` and `decorative`. Web lowers to `<hr>`; Native lowers to an accessible separator view with `accessibilityRole="separator"`.
 - **`Progress`**: Completion indicator (`value`, `max`). Web lowers to `<progress>`; Native lowers to an accessible bar with `accessibilityRole="progressbar"`.
 
+### 7. Data display
+- **`Meter`**: An amount within a known range. Web lowers to `<meter>`. Native draws a track and a fill coloured by `low`/`high`/`optimum`, and is read as a percentage ("Disk usage, 60%").
+- **`Badge`**: A short status label. With `count` it draws the number and is read as its `accessibilityLabel` ("3 unread messages").
+- **`Skeleton`**: A loading placeholder, hidden from assistive technology. Its animation stops under reduced motion, its descendants' included.
+- **`Table`** with `TableCaption`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead` and `TableCell`. Web lowers to the table elements. On Native, each column is as wide as its widest cell, and a data cell is read with its column ("Price, $12").
+
+## Verification Matrix: data display
+
+| | axe (every PR) | Virtual reader (every PR) | NVDA (weekly) | VoiceOver, macOS (weekly) | TalkBack | iOS VoiceOver |
+|---|---|---|---|---|---|---|
+| `Meter` | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ✅ census walk | ⬜ |
+| `Badge` (`count`) | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ✅ census walk | ⬜ |
+| `Skeleton` | ✅ | ✅ approved (silent) | ⬜ not yet read | ⬜ not yet read | ✅ census walk (silent) | ⬜ |
+| `Table` | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
+
+- **axe and the virtual reader** run on the `Semantics/Data Display` story. NVDA and VoiceOver walk the same story weekly; it is named in `examples/screen-readers/stories.spec.ts`. They have not produced readings for it yet.
+- **TalkBack: the census walk** (`examples/native-demo/CensusWalk.tsx`, #789) has read three of them on an emulator:
+  - the meter as "Disk usage, 60%";
+  - the badge as "3 unread messages";
+  - the skeleton as nothing.
+
+  Those readings are reported by the job, not yet asserted.
+- **The virtual reader says something about `Meter` that nobody has checked:** "0.6, min value 0, max value 100". A `<meter>` with no `max` has a maximum of 1, so either the virtual reader's mapping is wrong or real readers say the same thing. A real reader's run is what settles it.
+- **On Native, `Table`'s column widths and cell names** are asserted against React Native's test renderer with layout events fired by hand. No device has drawn one or read one.
+
+A ✅ in the reader columns means a person read the phrases and approved them, never only that a job ran.
+
 ## Features
 
 - **Semantic HTML5 Web Output**: Direct compiler lowering to real HTML5 landmark and semantic elements, completely free of `react-native-web`.
