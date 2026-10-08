@@ -96,6 +96,10 @@
       "types": "./dist/generated/link.d.ts",
       "default": "./dist/generated/link.js"
     },
+    "./generated/meter": {
+      "types": "./dist/generated/meter.d.ts",
+      "default": "./dist/generated/meter.js"
+    },
     "./generated/pressable": {
       "types": "./dist/generated/pressable.d.ts",
       "default": "./dist/generated/pressable.js"

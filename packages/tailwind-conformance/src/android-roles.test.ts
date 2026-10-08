@@ -74,6 +74,13 @@ function androidRoleMap(): Set<string> {
 }
 
 /** Every `role="…"` the Native backend emits, over every primitive. */
+/**
+ * Roles a runtime component sets itself, so they are not in the compiled
+ * markup for the scan above to find. `HozoMeter` draws a meter's bar and
+ * carries its role with it (#788); the role is still Hozo's to answer for.
+ */
+const ROLE_OF_RUNTIME_COMPONENT: Record<string, string> = { HozoMeter: 'meter' }
+
 function rolesHozoEmits(): Set<string> {
   const roles = new Set<string>()
   for (const primitive of declaredPrimitives()) {
@@ -89,6 +96,9 @@ function rolesHozoEmits(): Set<string> {
     }
     for (const { jsx } of compiled) {
       for (const [, role] of jsx.matchAll(/\srole="([a-z]+)"/g)) roles.add(role as string)
+      for (const [component, role] of Object.entries(ROLE_OF_RUNTIME_COMPONENT)) {
+        if (jsx.includes(`<${component}`)) roles.add(role)
+      }
     }
   }
   return roles

@@ -624,17 +624,8 @@ pub(super) fn render_node(
         // author who overrides neither gets the same bar on both
         // platforms. Choosing a nicer number here would buy a divergence
         // that is invisible precisely when nobody is looking.
-        // `<meter>`'s box, measured the same way: 80 x 16 in Chrome.
-        Primitive::Meter => vec![
-            StyleDeclaration {
-                property: StyleProperty::Width(hozo_ir::Dimension::Length(Length::Px(80.0))),
-                condition: Condition::Always,
-            },
-            StyleDeclaration {
-                property: StyleProperty::Height(hozo_ir::Dimension::Length(Length::Px(16.0))),
-                condition: Condition::Always,
-            },
-        ],
+        // `<meter>`'s box, 80 x 16 in Chrome, is `HozoMeter`'s own, with the
+        // track colour the same measurement found.
         Primitive::Progress => vec![
             StyleDeclaration {
                 property: StyleProperty::Width(hozo_ir::Dimension::Length(Length::Px(160.0))),
@@ -1083,11 +1074,8 @@ pub(super) fn render_node(
     // progress bar and reported no position -- a screen reader saying
     // "progress bar" and nothing else. The expressions are re-used as
     // written, so a value that changes still changes.
-    // `<meter>` takes the same pair plus `min`, and its range defaults to 0
-    // to 1 rather than to 100 -- which is what the browser reads when either
-    // end is left out, so it is what a reader hears here too.
-    if matches!(node.primitive, Primitive::Progress | Primitive::Meter) {
-        let meter = node.primitive == Primitive::Meter;
+    // A `<meter>`'s amount is `HozoMeter`'s to work out, with its bar.
+    if node.primitive == Primitive::Progress {
         let authored = |name: &str| -> Option<String> {
             node.props
                 .passthrough
@@ -1110,16 +1098,11 @@ pub(super) fn render_node(
         };
         let now = authored("value");
         let max = authored("max");
-        let min = if meter { authored("min") } else { None };
         // Heard on a device (#789): React Native hands Android whole numbers,
-        // so a value of 0.6 in 0..1 was read as "0"; and given a range,
-        // TalkBack calls the element a "progress bar" whatever its role.
-        //
-        // So a meter's amount is a percentage *text* and no range: read as
-        // "Disk usage, 60%", which is what it is, with no widget word that
-        // says something else. A progress bar keeps its range -- "progress
-        // bar" is the right word there -- scaled to 0..100 when its `max` is
-        // known, so a fractional value is not rounded to nothing.
+        // so a value of 0.6 in 0..1 was read as "0". A progress bar keeps its
+        // range -- "progress bar" is the right word for one -- scaled to
+        // 0..100 when its `max` is known, so a fractional value is not
+        // rounded to nothing.
         // Worked out here when all three are written as numbers, so the
         // ordinary case reads as a number in the output; otherwise the same
         // sum is emitted for the runtime.
@@ -1130,15 +1113,7 @@ pub(super) fn render_node(
             }
             _ => Err(format!("Math.round((({now}) - ({min})) / (({max}) - ({min})) * 100)")),
         };
-        if meter {
-            if let Some(now) = &now {
-                let text = match percent(now, min.as_deref().unwrap_or("0"), max.as_deref().unwrap_or("1")) {
-                    Ok(amount) => format!("'{amount}%'"),
-                    Err(sum) => format!("`${{{sum}}}%`"),
-                };
-                props_text.push_str(&format!(" accessibilityValue={{{{ text: {text} }}}}"));
-            }
-        } else if now.is_some() || max.is_some() {
+        if now.is_some() || max.is_some() {
             let fields = match (&now, &max) {
                 (Some(now), Some(max)) => {
                     let now = match percent(now, "0", max) {
@@ -1440,6 +1415,9 @@ pub(super) fn render_node(
     if node.primitive == Primitive::Badge {
         runtime.need_component("HozoBadge");
     }
+    if node.primitive == Primitive::Meter {
+        runtime.need_component("HozoMeter");
+    }
     if node.primitive == Primitive::Chip {
         runtime.need_component("HozoChip");
     }
@@ -1611,17 +1589,7 @@ pub(super) fn render_node(
         {
             continue;
         }
-        // The same, and the three that only colour a `<meter>`'s bar on the
-        // Web -- where in the range counts as good -- which a View has no use
-        // for and a reader is not told on either platform.
-        if node.primitive == Primitive::Meter
-            && matches!(
-                prop.name.as_deref(),
-                Some("value" | "min" | "max" | "low" | "high" | "optimum")
-            )
-        {
-            continue;
-        }
+
         // A link's browser-only props. React Native's Pressable ignores
         // them, so they were harmless -- but still claimed behavior the
         // platform does not have. `external` is deliberately retained:

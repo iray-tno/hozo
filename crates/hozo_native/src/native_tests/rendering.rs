@@ -789,39 +789,29 @@ fn a_heading_under_a_reset_carries_its_role_and_no_size() {
 }
 
 #[test]
-fn a_meter_carries_its_amount_and_range_where_a_reader_finds_them() {
-    // `Meter`, not `Progress`: an amount within a range. The range defaults
-    // to 0..1 as `<meter>`'s does, and `low`/`high`/`optimum` -- which only
-    // colour the Web's bar -- do not reach a View that has no use for them.
+fn a_meter_is_hozo_meter_and_hands_it_everything_it_draws_with() {
+    // `Meter`, not `Progress`: an amount within a range, drawn as a bar on
+    // Native as `<meter>` draws one on the Web (#788). `HozoMeter` works the
+    // amount out -- the bar's width, its colour from `low`/`high`/`optimum`,
+    // and the percentage a reader hears -- so every one of those props has
+    // to reach it, and the author's classes are the track's style.
     let source = r#"
         import { Meter } from '@hozo/core'
-        const a = <Meter accessibilityLabel="Disk usage" value={used} min={0} max={100} low={30} high={80} optimum={20} />
-        const b = <Meter accessibilityLabel="Strength" value={0.6} />
+        const a = <Meter accessibilityLabel="Disk usage" value={used} min={0} max={100} low={30} high={80} optimum={20} className="w-40 rounded-full bg-slate-200" />
         "#;
     let parsed = hozo_parser::parse_tsx(source);
-    let sized = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(sized.diagnostics.is_empty(), "{:?}", sized.diagnostics);
-    assert!(sized.jsx.contains(r#"role="meter""#), "{}", sized.jsx);
-    // One element, or TalkBack never lands on it (#789).
-    assert!(sized.jsx.contains(" accessible"), "{}", sized.jsx);
-    // A percentage text and no range (#789): Android rounds a range to whole
-    // numbers and TalkBack calls anything with one a "progress bar".
-    assert!(
-        sized.jsx.contains("accessibilityValue={{ text: `${Math.round(((used) - (0)) / ((100) - (0)) * 100)}%` }}"),
-        "{}",
-        sized.jsx
-    );
-    assert!(!sized.jsx.contains("now:"), "{}", sized.jsx);
-    for gone in ["low=", "high=", "optimum=", " value=", " max="] {
-        assert!(!sized.jsx.contains(gone), "{gone} reached the View: {}", sized.jsx);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoMeter"), "{}", output.jsx);
+    assert!(output.runtime_imports.contains(&"HozoMeter"), "{:?}", output.runtime_imports);
+    for prop in ["value={used}", "min={0}", "max={100}", "low={30}", "high={80}", "optimum={20}", r#"accessibilityLabel={"Disk usage"}"#] {
+        assert!(output.jsx.contains(prop), "{prop} did not reach HozoMeter: {}", output.jsx);
     }
-    // `<meter>`'s box in Chrome, so it is not zero pixels and absent.
-    assert!(sized.styles.contains("width: 80") && sized.styles.contains("height: 16"), "{}", sized.styles);
-
-    let bare = lower(&parsed.roots[1].node, source, &Theme::default());
-    // The range is 0..1 when left out, as `<meter>` reads it.
-    // Written as numbers, so worked out at build time.
-    assert!(bare.jsx.contains("accessibilityValue={{ text: '60%' }}"), "{}", bare.jsx);
+    assert!(output.jsx.contains("style={hozoStyles.hozo0}"), "{}", output.jsx);
+    assert!(output.styles.contains("width: 160") && output.styles.contains("borderRadius: 9999"), "{}", output.styles);
+    // The component's to decide now, so not decided twice.
+    assert!(!output.jsx.contains("accessibilityValue"), "{}", output.jsx);
+    assert!(!output.jsx.contains("role="), "{}", output.jsx);
 }
 
 #[test]
