@@ -49,6 +49,14 @@
       "types": "./dist/generated/disclosure.d.ts",
       "default": "./dist/generated/disclosure.js"
     },
+    "./generated/meter": {
+      "react-native": {
+        "types": "./dist/generated/meter.native.d.ts",
+        "default": "./dist/generated/meter.native.js"
+      },
+      "types": "./dist/generated/meter.d.ts",
+      "default": "./dist/generated/meter.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

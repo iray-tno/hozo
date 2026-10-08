@@ -19,6 +19,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { HozoDetails, HozoSummary } from './disclosure.native.tsx'
+import { type MeterRegion, meterGauge } from './meter-gauge.ts'
 
 export interface SemanticsNativeProps {
   /**
@@ -348,7 +349,7 @@ export interface MeterProps extends SemanticsNativeProps {
   value: number
   min?: number
   max?: number
-  /** Accepted for parity with the Web, where they colour the bar; unused here. */
+  /** Where the range counts as low, high and best; they colour the bar. */
   low?: number
   high?: number
   optimum?: number
@@ -361,26 +362,35 @@ export interface MeterProps extends SemanticsNativeProps {
 }
 
 /**
- * An amount within a known range, on React Native.
+ * An amount within a known range, on React Native: the bar the browser draws
+ * for `<meter>`, and the amount a reader hears.
  *
  * React Native accepts `role="meter"`, and Android does not map it to a
  * platform role yet, so the amount is carried by `accessibilityValue`,
  * which a reader announces either way. The range is 0 to 1 when left out,
  * as `<meter>` reads it.
+ *
+ * The bar is a track and a fill, coloured by `low`, `high` and `optimum` the
+ * way Chrome colours its own (#788): the three colours are read off its
+ * pixels, not chosen. The author's `style` -- compiled from `className` --
+ * is the track's, so `bg-*`, `rounded-*` and the size all land where they
+ * would on the Web; the fill is clipped to it. Children are a `<meter>`'s
+ * fallback content, which no browser draws, so neither does this.
  */
 export function Meter({
   value,
   min,
   max,
-  low: _low,
-  high: _high,
-  optimum: _optimum,
+  low,
+  high,
+  optimum,
   role = 'meter',
   accessibilityValue,
   style,
-  children,
+  children: _children,
   ...props
 }: MeterProps) {
+  const { fraction, region } = meterGauge({ value, min, max, low, high, optimum })
   return React.createElement(
     View,
     {
@@ -390,16 +400,31 @@ export function Meter({
       accessible: true,
       // A percentage text and no range: Android rounds a range to whole
       // numbers, and TalkBack calls anything with one a "progress bar" (#789).
-      accessibilityValue: accessibilityValue ?? {
-        text: `${Math.round(((value - (min ?? 0)) / ((max ?? 1) - (min ?? 0))) * 100)}%`,
-      },
+      accessibilityValue: accessibilityValue ?? { text: `${Math.round(fraction * 100)}%` },
       // `<meter>`'s box in Chrome, 80 x 16, for the reason `Progress` has
       // one: a View with none is zero pixels and absent from the tree.
-      style: [{ width: 80, height: 16 }, style],
+      style: [METER_TRACK, style],
       ...props,
     },
-    hozoTextChildren(children),
+    React.createElement(View, {
+      style: [METER_FILL, { width: `${fraction * 100}%`, backgroundColor: METER_COLOURS[region] }],
+    }),
   )
+}
+
+const METER_TRACK: ViewStyle = {
+  width: 80,
+  height: 16,
+  backgroundColor: '#efefef',
+  overflow: 'hidden',
+  flexDirection: 'row',
+}
+const METER_FILL: ViewStyle = { height: '100%' }
+/** Chrome's, sampled from a rendered `<meter>` in each region. */
+const METER_COLOURS: Record<MeterRegion, string> = {
+  optimum: '#107c10',
+  suboptimal: '#ffb900',
+  'even-less-good': '#d83b01',
 }
 
 /**

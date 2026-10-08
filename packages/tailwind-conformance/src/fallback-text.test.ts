@@ -80,6 +80,10 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
     'A Text underneath (HozoBadge), so its children are already text and nothing wraps them.',
   ],
   ['Skeleton', 'A placeholder hidden from assistive technology; it holds no label.'],
+  [
+    'Meter',
+    "A bar (HozoMeter). Its children are <meter>'s fallback content, which no browser draws.",
+  ],
   ['HozoI18nProvider', 'A context provider; it renders its children and no text of its own.'],
   ['Presence', 'Takes one element and renders it, never a label of its own.'],
 ])
@@ -107,7 +111,6 @@ const TAKES_A_LABEL = [
   'ListItem',
   'Main',
   'Mark',
-  'Meter',
   'Nav',
   'NoBreak',
   'Paragraph',

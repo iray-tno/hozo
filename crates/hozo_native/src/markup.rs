@@ -158,10 +158,13 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
             "View",
             vec![("role", "progressbar".to_string()), ("accessible", String::new())],
         ),
-        // React Native accepts `role="meter"`, and Android does not map it to
-        // a platform role yet -- so the amount travels in `accessibilityValue`
-        // (below), which is what a reader announces either way.
-        Primitive::Meter => ("View", vec![("role", "meter".to_string()), ("accessible", String::new())]),
+        // A component, because a meter is a bar as well as an amount: the
+        // track, a fill as wide as the amount, and its colour from `low`,
+        // `high` and `optimum` (#788). It also carries the role, the
+        // `accessible` and the percentage a reader hears, which used to be
+        // emitted here; one implementation now serves this path and the
+        // uncompiled one. See `@hozo/semantics`' `Meter`.
+        Primitive::Meter => ("HozoMeter", Vec::new()),
         // A `Text` underneath, which takes an `accessibilityLabel` here as
         // it cannot on the Web; see `@hozo/semantics`' `Badge`.
         Primitive::Badge => ("HozoBadge", Vec::new()),

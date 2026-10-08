@@ -77,6 +77,12 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // modules when this was written. Crossing 500 KB is worth a look at which
 // package grew and whether an app that does not use the feature now pays
 // for it.
+//
+// Raised to 510 KB by #788, which crossed it at 501,200: Native `Meter`
+// began drawing its bar, which is `@hozo/semantics`' `meter-gauge` (2 KB,
+// paid by every app, since Metro does not tree-shake the semantics entry)
+// and the `HozoMeter` leaves the census screen's compiled Meter imports
+// (1.1 KB). A feature that was missing, not one an app pays for twice.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -90,8 +96,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 500_000,
-  `Hozo's modules stay below 500 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 510_000,
+  `Hozo's modules stay below 510 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // And a coarse ceiling on the whole, for the regression this check began
