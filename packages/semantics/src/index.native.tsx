@@ -283,11 +283,15 @@ export function Progress({
     {
       role,
       accessibilityRole: 'progressbar',
-      accessibilityValue: accessibilityValue ?? {
-        min: 0,
-        max: max ?? 100,
-        now: value,
-      },
+      // One element, or Android never focuses it; see `Meter`.
+      accessible: true,
+      // Scaled to 0..100 when `max` is given: Android takes whole numbers, so
+      // 0.5 of 1 would otherwise be read as "0" (#789).
+      accessibilityValue:
+        accessibilityValue ??
+        (max !== undefined && value !== undefined
+          ? { min: 0, max: 100, now: Math.round((value / max) * 100) }
+          : { min: 0, max: max ?? 100, now: value }),
       // The box the browser gives `<progress>` and React Native gives
       // nothing. Measured in headless Chrome under this project’s own
       // preflight: 160 x 16. Without it a `View` is zero pixels in both
@@ -381,7 +385,14 @@ export function Meter({
     View,
     {
       role,
-      accessibilityValue: accessibilityValue ?? { min: min ?? 0, max: max ?? 1, now: value },
+      // A View is one element for a screen reader on Android only when it
+      // says so; without this TalkBack's focus never landed on it (#789).
+      accessible: true,
+      // A percentage text and no range: Android rounds a range to whole
+      // numbers, and TalkBack calls anything with one a "progress bar" (#789).
+      accessibilityValue: accessibilityValue ?? {
+        text: `${Math.round(((value - (min ?? 0)) / ((max ?? 1) - (min ?? 0))) * 100)}%`,
+      },
       // `<meter>`'s box in Chrome, 80 x 16, for the reason `Progress` has
       // one: a View with none is zero pixels and absent from the tree.
       style: [{ width: 80, height: 16 }, style],

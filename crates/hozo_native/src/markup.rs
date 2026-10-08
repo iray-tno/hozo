@@ -150,11 +150,18 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // source is in reach: `value` and `max` are props of `<progress>`
         // and mean nothing on a View, so a compiled progress bar announced
         // itself as one and reported no position at all.
-        Primitive::Progress => ("View", vec![("role", "progressbar".to_string())]),
+        // `accessible`, or Android never makes the View one element: the
+        // census walk (#789) sent TalkBack's focus to a Progress and a Meter
+        // with a label and a value and heard nothing, while a `Text` -- one
+        // element by default -- was read every time.
+        Primitive::Progress => (
+            "View",
+            vec![("role", "progressbar".to_string()), ("accessible", String::new())],
+        ),
         // React Native accepts `role="meter"`, and Android does not map it to
         // a platform role yet -- so the amount travels in `accessibilityValue`
         // (below), which is what a reader announces either way.
-        Primitive::Meter => ("View", vec![("role", "meter".to_string())]),
+        Primitive::Meter => ("View", vec![("role", "meter".to_string()), ("accessible", String::new())]),
         // A `Text` underneath, which takes an `accessibilityLabel` here as
         // it cannot on the Web; see `@hozo/semantics`' `Badge`.
         Primitive::Badge => ("HozoBadge", Vec::new()),

@@ -1110,16 +1110,46 @@ pub(super) fn render_node(
         let now = authored("value");
         let max = authored("max");
         let min = if meter { authored("min") } else { None };
-        if now.is_some() || max.is_some() {
-            let mut fields = vec![format!("min: {}", min.as_deref().unwrap_or("0"))];
-            match (&max, meter) {
-                (Some(max), _) => fields.push(format!("max: {max}")),
-                (None, true) => fields.push("max: 1".to_string()),
-                (None, false) => {}
+        // Heard on a device (#789): React Native hands Android whole numbers,
+        // so a value of 0.6 in 0..1 was read as "0"; and given a range,
+        // TalkBack calls the element a "progress bar" whatever its role.
+        //
+        // So a meter's amount is a percentage *text* and no range: read as
+        // "Disk usage, 60%", which is what it is, with no widget word that
+        // says something else. A progress bar keeps its range -- "progress
+        // bar" is the right word there -- scaled to 0..100 when its `max` is
+        // known, so a fractional value is not rounded to nothing.
+        // Worked out here when all three are written as numbers, so the
+        // ordinary case reads as a number in the output; otherwise the same
+        // sum is emitted for the runtime.
+        let literal = |text: &str| text.trim_matches('\'').parse::<f64>().ok();
+        let percent = |now: &str, min: &str, max: &str| match (literal(now), literal(min), literal(max)) {
+            (Some(now), Some(min), Some(max)) if max != min => {
+                Ok(((now - min) / (max - min) * 100.0).round() as i64)
             }
+            _ => Err(format!("Math.round((({now}) - ({min})) / (({max}) - ({min})) * 100)")),
+        };
+        if meter {
             if let Some(now) = &now {
-                fields.push(format!("now: {now}"));
+                let text = match percent(now, min.as_deref().unwrap_or("0"), max.as_deref().unwrap_or("1")) {
+                    Ok(amount) => format!("'{amount}%'"),
+                    Err(sum) => format!("`${{{sum}}}%`"),
+                };
+                props_text.push_str(&format!(" accessibilityValue={{{{ text: {text} }}}}"));
             }
+        } else if now.is_some() || max.is_some() {
+            let fields = match (&now, &max) {
+                (Some(now), Some(max)) => {
+                    let now = match percent(now, "0", max) {
+                        Ok(amount) => amount.to_string(),
+                        Err(sum) => sum,
+                    };
+                    vec!["min: 0".to_string(), "max: 100".to_string(), format!("now: {now}")]
+                }
+                (Some(now), None) => vec!["min: 0".to_string(), format!("now: {now}")],
+                (None, Some(max)) => vec!["min: 0".to_string(), format!("max: {max}")],
+                (None, None) => unreachable!("one of the two was authored"),
+            };
             props_text.push_str(&format!(" accessibilityValue={{{{ {} }}}}", fields.join(", ")));
         }
     }

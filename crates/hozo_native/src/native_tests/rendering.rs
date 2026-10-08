@@ -600,6 +600,7 @@ fn progress_and_button_with_href_lower_to_native_components() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.contains(r#"role="progressbar""#), "{}", output.jsx);
+    assert!(output.jsx.contains("role=\"progressbar\" accessible"), "{}", output.jsx);
     assert!(output.jsx.contains(r#"<HozoLink href="https://example.com">"#), "{}", output.jsx);
     assert!(!output.jsx.contains(r#"accessibilityRole="button" href="https://example.com""#), "{}", output.jsx);
 }
@@ -801,7 +802,16 @@ fn a_meter_carries_its_amount_and_range_where_a_reader_finds_them() {
     let sized = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(sized.diagnostics.is_empty(), "{:?}", sized.diagnostics);
     assert!(sized.jsx.contains(r#"role="meter""#), "{}", sized.jsx);
-    assert!(sized.jsx.contains("accessibilityValue={{ min: 0, max: 100, now: used }}"), "{}", sized.jsx);
+    // One element, or TalkBack never lands on it (#789).
+    assert!(sized.jsx.contains(" accessible"), "{}", sized.jsx);
+    // A percentage text and no range (#789): Android rounds a range to whole
+    // numbers and TalkBack calls anything with one a "progress bar".
+    assert!(
+        sized.jsx.contains("accessibilityValue={{ text: `${Math.round(((used) - (0)) / ((100) - (0)) * 100)}%` }}"),
+        "{}",
+        sized.jsx
+    );
+    assert!(!sized.jsx.contains("now:"), "{}", sized.jsx);
     for gone in ["low=", "high=", "optimum=", " value=", " max="] {
         assert!(!sized.jsx.contains(gone), "{gone} reached the View: {}", sized.jsx);
     }
@@ -809,7 +819,9 @@ fn a_meter_carries_its_amount_and_range_where_a_reader_finds_them() {
     assert!(sized.styles.contains("width: 80") && sized.styles.contains("height: 16"), "{}", sized.styles);
 
     let bare = lower(&parsed.roots[1].node, source, &Theme::default());
-    assert!(bare.jsx.contains("accessibilityValue={{ min: 0, max: 1, now: 0.6 }}"), "{}", bare.jsx);
+    // The range is 0..1 when left out, as `<meter>` reads it.
+    // Written as numbers, so worked out at build time.
+    assert!(bare.jsx.contains("accessibilityValue={{ text: '60%' }}"), "{}", bare.jsx);
 }
 
 #[test]

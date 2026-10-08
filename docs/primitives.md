@@ -39,13 +39,13 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `ListItem` | `<li className="hozo-view">` | `<View role="listitem">` | ordered static list |
 | `Main` | `<main className="hozo-view">` | `<View role="main">` | landmark regions |
 | `Mark` | `<mark>` | `<Text>` | inline emphasis and its meaning |
-| `Meter` | `<meter aria-label={"Disk usage"} value={0.6}>` | `<View accessibilityValue={{ min: 0, max: 1, now: 0.6 }} role="meter" accessibilityLabel={"Disk usage"}>` | — |
+| `Meter` | `<meter aria-label={"Disk usage"} value={0.6}>` | `<View accessibilityValue={{ text: '60%' }} role="meter" accessible accessibilityLabel={"Disk usage"}>` | — |
 | `Modal` | `<HozoModal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | `<Modal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | — |
 | `Nav` | `<nav className="hozo-view">` | `<View role="navigation">` | document landmarks |
 | `NoBreak` | `<span}>` | `<Text>` | scripts, small print and an unbreakable run |
 | `Paragraph` | `<p>` | `<Text>` | semantic document structure; invalid document nesting diagnostic; a disclosure and its trigger; inline emphasis and its meaning; scripts, small print and an unbreakable run |
 | `Pressable` | `<div role="button" {...hozoInteractive(go)}>` | `<Pressable role="button" onPress={go}>` | role-bearing Pressable; missing interaction role diagnostic |
-| `Progress` | `<progress aria-label={"Upload"} value={40} max={100}>` | `<View accessibilityValue={{ min: 0, max: 100, now: 40 }} role="progressbar" accessibilityLabel={"Upload"}>` | a progress bar reports its position |
+| `Progress` | `<progress aria-label={"Upload"} value={40} max={100}>` | `<View accessibilityValue={{ min: 0, max: 100, now: 40 }} role="progressbar" accessible accessibilityLabel={"Upload"}>` | a progress bar reports its position |
 | `RefreshControl` | `<HozoRefreshControl refreshing={busy} onRefresh={reload}>` | `<RefreshControl refreshing={busy} onRefresh={reload}>` | — |
 | `Ruby` | `<ruby>` | `<Text accessibilityLabel="x">` | ruby and its reading |
 | `RubyText` | `<rt>` | `<Text>` | ruby and its reading |
