@@ -588,6 +588,23 @@ ${table(Object.entries(report.corpusSignals))}
 |---|---:|
 ${table(Object.entries(report.lowering))}
 
+## Authored React Native usage
+
+${
+  report.reactNativeUsage
+    ? `| Observed ESM signal | Count |
+|---|---:|
+${table(Object.entries(report.reactNativeUsage).filter(([, value]) => typeof value === 'number'))}`
+    : 'Not assessed.'
+}
+
+This inventory resolves direct ESM import symbols, aliases and lexical shadowing. Type references,
+unused imports, component values, member reads, reexports and side-effect edges stay distinct.
+JSON retains every authored binding/reference with UTF-16 spans. CommonJS, dynamic imports,
+TS import-equals and indirect wrapper/data-flow usage are not inventoried. These are source facts;
+actual rewrite dispositions are not assessed yet, and no member compatibility or dependency-removal
+claim follows from them.
+
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
 Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Non-TSX Web modules only use the existing runtime-import rewrite path; Native compiler results for these extensions are probes, not Metro eligibility. Each target records integrationEligibility in JSON.

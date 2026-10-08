@@ -5,8 +5,10 @@ import type {
   CompileDiagnostic,
   CompiledNativeModule,
   Compiler,
+  ReactNativeUsage,
   StylexModuleSource,
 } from './index.ts'
+import { analyzeReactNativeUsage } from './index.ts'
 import { type LowerModuleOptions, lowerModule } from './lower.ts'
 import { semanticModuleEligible } from './project.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
@@ -63,6 +65,7 @@ export interface TargetAnalysis {
 }
 
 export interface ModuleAnalysis {
+  reactNativeUsage?: ReactNativeUsage & { status: 'completed' | 'failed' }
   bindings?: Pick<CompiledNativeModule, 'imports' | 'jsxBindings' | 'foreignPrimitives'>
   targets: Partial<Record<'web' | 'native', TargetAnalysis>>
   findings: AnalysisFinding[]
@@ -237,6 +240,18 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
       jsxBindings: original.jsxBindings,
       foreignPrimitives: original.foreignPrimitives,
     }
+  }
+
+  // Inventory is authored evidence. Never infer RN binding use from emitted
+  // text, and keep it distinct from the next slice's actual rewrite decisions.
+  const usage = run('source', 'rn-usage', () => analyzeReactNativeUsage(source, file))
+  if (usage) {
+    collect('source', 'rn-usage', usage.diagnostics, source)
+    result.reactNativeUsage = {
+      ...usage,
+      status: usage.diagnostics.length === 0 ? 'completed' : 'failed',
+    }
+    if (usage.diagnostics.length > 0) result.stages.at(-1)!.status = 'failed'
   }
 
   if (options.targets.includes('web')) {

@@ -103,7 +103,7 @@ graphs are prepared, but a shared file is counted only once, for the selected pr
 
 Font registration, production builds, runtime behavior and entry-point graph reachability are
 not assessed. `contextStatus: prepared` describes successful theme/reset/static graph preparation,
-not that all project facts or unresolved graph edges have answers. RN member/rewrite metadata
+not that all project facts or unresolved graph edges have answers. Actual RN rewrite decisions
 and baseline/CI policies remain follow-ups in
 [#790](https://github.com/iray-tno/hozo/issues/790).
 
@@ -116,6 +116,22 @@ Library options also include `include`, `exclude` (arrays of globs) and `nativeP
 The pinned Bluesky runner retains its historical `filesUsingAlfAtoms` lexical heuristic through
 this extension. Bluesky's checkout pin, verification command and historical reports are preserved;
 that heuristic is not presented as a generic detector of an application's design system.
+
+### Binding-aware React Native source inventory
+
+`reactNativeUsage` counts compiler-resolved ESM references, not import spellings or a
+compatibility score. Each JSON file record retains the complete authored bindings and
+references with UTF-16 spans. Aliases and lexical shadowing are resolved; explicit type
+imports, value imports used only as types, unused values, component values, static/dynamic
+member paths, local exports, direct reexports and side-effect imports stay distinct.
+Reference counts include opening and closing JSX tag occurrences, not component/call counts.
+Parse/binding failures and unassessed files stay visible.
+
+CommonJS `require`, dynamic imports, TS import-equals, indirect wrapper modules and data-flow
+through subsequent aliases are outside this ESM inventory. Rewrite decisions remain explicitly
+`not-assessed`: moving an import, resolving its package, removing production RNW dependencies
+and runtime/member compatibility are separate claims. This foundation supplies authored
+evidence for the compiler-owned rewrite-disposition slice, not a renamed migration-ready score.
 
 <!-- generated: package-footer -->
 

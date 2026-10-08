@@ -16,6 +16,43 @@ import { fileURLToPath } from 'node:url'
 
 import { AuditInputError, measureRealApp, renderRealAppMarkdown, runCli } from './index.mjs'
 
+test('RN source census excludes types, unused values and shadowed names from runtime references', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-rn-usage-audit-'))
+  try {
+    mkdirSync(path.join(root, 'src'))
+    const source = `// 😀\r\nimport { Platform as P, Animated, Keyboard, Dimensions, type ViewStyle } from 'react-native'\r\nimport type { TextStyle } from 'react-native'\r\nconst os = P.OS; const timing = Animated.timing; const dynamic = P[key]\r\nfunction shadow(P) { return P.OS }\r\ntype D = typeof Dimensions; let a: ViewStyle; let b: TextStyle\r\nexport { Platform } from 'react-native'; export type { ViewProps } from 'react-native'\r\nimport 'react-native'`
+    const file = path.join(root, 'src', 'app.ts')
+    writeFileSync(file, source)
+    const before = readdirSync(root, { recursive: true })
+    const report = await measureRealApp({ root })
+    assert.equal(report.lowering.parseOrCompileFailures, 0)
+    const usage = report.reactNativeUsage
+    assert.equal(usage.filesAssessed, 1)
+    assert.equal(usage.filesNotAssessed, 0)
+    assert.equal(usage.importBindings, 6)
+    assert.equal(usage.explicitTypeImports, 2)
+    assert.equal(usage.importsUsedOnlyAsTypes, 1)
+    assert.equal(usage.unusedValueImports, 1)
+    assert.equal(usage.runtimeReferences, 3)
+    assert.equal(usage.typeReferences, 3)
+    assert.equal(usage.dynamicMemberReferences, 1)
+    assert.equal(usage.runtimeReexports, 1)
+    assert.equal(usage.typeReexports, 1)
+    assert.equal(usage.sideEffectImports, 1)
+    assert.equal(usage.rewriteDecisions, 'not-assessed')
+    const bindings = report.files[0].reactNativeUsage.bindings
+    assert.equal(bindings[0].references.length, 2)
+    const span = bindings[0].references[0]
+    assert.equal(source.slice(span.spanStart, span.spanEnd), 'P.OS')
+    assert.match(renderRealAppMarkdown(report), /Authored React Native usage/)
+    assert.match(renderRealAppMarkdown(report), /actual rewrite dispositions are not assessed yet/)
+    assert.deepEqual(readdirSync(root, { recursive: true }), before)
+    assert.equal(readFileSync(file, 'utf8'), source)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('measures platform-aware residue after DOM style arrays are normalized', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-migration-audit-'))
   try {

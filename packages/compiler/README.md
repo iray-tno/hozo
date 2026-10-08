@@ -100,6 +100,22 @@ retain their TSX default when no filename is supplied. StyleX registry entries c
 separately from their opaque module ID; the project cache supplies it and invalidates old snapshots.
 This is syntax parsing, not a TypeScript type-check or support for Flow syntax.
 
+### Authored React Native usage
+
+`analyzeReactNativeUsage(source, sourceFile?)` is an opt-in Rust symbol-analysis API;
+ordinary builds do not run it. `analyzeModule` includes it as the `source:rn-usage` stage.
+Direct ESM imports (including types/default/namespace forms), reexports and side-effect
+edges retain authored UTF-16 spans. References resolve to the imported symbol, excluding
+shadowed locals, strings and comments. Type references, JSX tags, component values,
+static member paths and dynamic member access remain distinct. Closing JSX tags are
+reference occurrences too; counts are not component or call counts. No data-flow through
+subsequent aliases is inferred.
+
+Parser or binding errors yield failed analysis, never a successful empty census. This
+inventory does not assess CommonJS, dynamic imports, TS import-equals, indirect wrappers,
+actual rewrite dispositions or member compatibility. Audit must consume compiler-owned
+rewrite decisions separately; an observed import/member is not dependency-removal proof.
+
 <!-- generated: package-footer -->
 
 ---
