@@ -1090,4 +1090,60 @@ else
   echo "  the app survived replacing its screen"
 fi
 
+
+# What TalkBack says for elements it never reaches by Tab -- reported, never
+# gated, for the reason the Calendar section above gives: the first run that
+# produces a reading should be read by a person before it is approved by an
+# assertion.
+#
+# Tab visits focusable controls, so a heading, a meter, a count badge or a
+# skeleton is never spoken by the walk above, and TalkBack's own linear
+# navigation does not answer anything sent from outside (see `next`). So the
+# app moves the focus itself: `hozonativedemo://census` opens
+# `CensusWalk.tsx`, which sends accessibility focus to each element in turn
+# through `@hozo/native` and logs `[hozo-census] <name>` just before. The
+# utterances are laid against those markers by logcat time and written to
+# `talkback-census.json`.
+#
+# A skeleton is in the list on purpose: it is hidden from assistive
+# technology, and what it should produce is nothing.
+echo "census walk:"
+# Whole seconds: toybox `date` may not know `%N`, and the markers are seconds
+# apart anyway.
+census_since="$(adb shell date +%s | tr -d '\r')"
+adb shell am start -a android.intent.action.VIEW -d "hozonativedemo://census" "$package" > /dev/null 2>&1 || true
+census_done=
+for _ in $(seq 1 45); do
+  if adb logcat -d -v raw -s ReactNativeJS:I | tr -d '\r' | grep -q '\[hozo-census\] done'; then
+    census_done=1
+    break
+  fi
+  sleep 2
+done
+[ -n "$census_done" ] || echo "::warning::the census walk did not finish within 90 s; what it heard so far is still written"
+adb logcat -d -v epoch -s ReactNativeJS:I HozoSpeech:I | tr -d '\r' | node --eval '
+  const fs = require("node:fs")
+  const since = Number(process.argv[1])
+  const lines = fs.readFileSync(0, "utf8").split("\n")
+  const heard = {}
+  let current = null
+  for (const line of lines) {
+    const match = /^\s*(\d+\.\d+)\s+\d+\s+\d+\s+[A-Z]\s+(\S+?)\s*:\s?(.*)$/.exec(line)
+    if (!match || Number(match[1]) < since) continue
+    const [, , tag, text] = match
+    const marker = /\[hozo-census\] (\S+)/.exec(text)
+    if (tag === "ReactNativeJS" && marker) {
+      current = marker[1] === "done" ? null : marker[1]
+      if (current) heard[current] = heard[current] ?? []
+    } else if (tag === "HozoSpeech" && current) {
+      heard[current].push(text.trim())
+    }
+  }
+  fs.writeFileSync("talkback-census.json", JSON.stringify(heard, null, 2) + "\n")
+  for (const [name, said] of Object.entries(heard)) {
+    console.log(`  ${name}: ${said.length ? said.join(" | ") : "(nothing)"}`)
+  }
+  if (Object.keys(heard).length === 0) console.log("::warning::the census walk logged no steps")
+' "$census_since" || echo "::warning::could not read the census walk"
+
 echo "ok"

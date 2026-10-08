@@ -8,9 +8,10 @@ import { useEffect, useRef, useState } from 'react'
 // What a ref to a host component holds on this platform. React Native names
 // it, so it is taken from there rather than spelled again here: `View` is a
 // function component in these types, and its *instance* is this.
-import { AppState, type HostInstance, Modal } from 'react-native'
+import { AppState, type HostInstance, Linking, Modal } from 'react-native'
 
 import CalendarScreen from './CalendarScreen.tsx'
+import CensusWalk from './CensusWalk.tsx'
 import FormScreen from './FormScreen.tsx'
 import Gallery from './Gallery.tsx'
 
@@ -24,6 +25,16 @@ export default function App() {
   const [email, setEmail] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [showingGallery, setShowingGallery] = useState(false)
+  // The TalkBack harness opens the census walk by URL; see `CensusWalk.tsx`.
+  const [showingCensus, setShowingCensus] = useState(false)
+  useEffect(() => {
+    const open = (url: string | null | undefined) => {
+      if (url?.startsWith('hozonativedemo://census')) setShowingCensus(true)
+    }
+    void Linking.getInitialURL().then(open)
+    const subscription = Linking.addEventListener('url', ({ url }) => open(url))
+    return () => subscription.remove()
+  }, [])
   const [showingCalendar, setShowingCalendar] = useState(false)
   const [showingPickers, setShowingPickers] = useState(false)
   const [gridWidth, setGridWidth] = useState(0)
@@ -75,6 +86,7 @@ export default function App() {
   // to press a button. `Gallery.tsx` is the census the accessibility
   // contract needs -- every primitive at once, rather than the eight
   // this screen happens to arrange.
+  if (showingCensus) return <CensusWalk />
   if (showingGallery) return <Gallery />
 
   return (

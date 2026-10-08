@@ -327,6 +327,7 @@ jobs:
           path: |
             talkback-speech.json
             talkback-internal.log
+            talkback-census.json
             talkback-*.png
           if-no-files-found: ignore
           retention-days: 14
