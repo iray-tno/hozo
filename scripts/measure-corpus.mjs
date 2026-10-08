@@ -86,7 +86,10 @@ const report = measureRealApp({
 })
 mkdirSync(path.dirname(artifact), { recursive: true })
 writeFileSync(artifact, renderRealAppMarkdown(report))
+const structuredArtifact = artifact.replace(/\.md$/, '.json')
+writeFileSync(structuredArtifact, `${JSON.stringify(report, null, 2)}\n`)
 console.log(`Wrote ${artifact}`)
+console.log(`Wrote ${structuredArtifact}`)
 
 const baseline = path.join(root, 'docs', 'measurements', `${key}.md`)
 if (existsSync(baseline) && readFileSync(artifact, 'utf8') === readFileSync(baseline, 'utf8')) {

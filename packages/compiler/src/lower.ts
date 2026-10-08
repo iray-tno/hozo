@@ -18,6 +18,7 @@ import { lowerCanvasPaints } from './canvas.ts'
 import { GENERATED_ABI } from './generated-abi.ts'
 import type {
   CompileDiagnostic,
+  CompiledComponent,
   CompiledNativeModule,
   Compiler,
   StylexExternalBinding,
@@ -476,6 +477,16 @@ export interface LowerModuleOptions {
    * by React Native after Hozo lowering.
    */
   unloweredReactNativeJsx?: UnloweredReactNativeJsxPolicy
+  /** Analysis observes the real pipeline, rather than compiling it a second time. */
+  observe?: (stage: LowerModuleStage) => void
+}
+
+export interface LowerModuleStage {
+  stage: 'canvas' | 'semantic' | 'residue' | 'resolution'
+  /** Coordinates belong to this text; absent means a module-wide diagnostic. */
+  source?: string
+  diagnostics: CompileDiagnostic[]
+  components?: CompiledComponent[]
 }
 
 function runtimeImportOnlyModule(code: string, id: string, file: string): LoweredModule {
@@ -562,7 +573,10 @@ export function lowerModule(
   const policy = options.unloweredReactNativeJsx
   if (lowered && (policy === 'warn' || policy === 'error')) {
     const missing = missingReactNativeCompat(lowered.code, root, file)
-    if (missing) lowered.diagnostics.push(missing)
+    if (missing) {
+      lowered.diagnostics.push(missing)
+      options.observe?.({ stage: 'resolution', diagnostics: [missing] })
+    }
   }
   return lowered
 }
@@ -633,6 +647,7 @@ function lowerModuleUnchecked(
 
   const allowed = compiler.sources
   const canvas = lowerCanvasPaints(apiLowered, compiler, false)
+  options.observe?.({ stage: 'canvas', source: apiLowered, diagnostics: canvas.diagnostics })
   // A cheap reject before parsing: a file mentioning none of the trusted
   // modules has nothing this can lower, and most of a project's files are
   // that. The real decision needs the AST and comes next.
@@ -641,6 +656,7 @@ function lowerModuleUnchecked(
     let diagnostic: CompileDiagnostic | undefined
     if (shouldRehome && apiLowered.includes('react-native')) {
       diagnostic = checkUnloweredReactNativeJsx(apiLowered, file, compiler, policy)
+      options.observe?.({ stage: 'residue', diagnostics: diagnostic ? [diagnostic] : [] })
     }
     if (loweredApiImport || diagnostic) {
       const mod = runtimeImportOnlyModule(canvas.code, id, file)
@@ -665,6 +681,12 @@ function lowerModuleUnchecked(
   const components = hasSemanticCandidate
     ? compiler.compile(canvas.code, stylexBindings, { rehomeReactNative: shouldRehome })
     : []
+  options.observe?.({
+    stage: 'semantic',
+    source: canvas.code,
+    diagnostics: components.flatMap((component) => component.diagnostics),
+    components,
+  })
   if (components.length === 0 && !canvas.touched) {
     const componentLowered = shouldRehome
       ? rehomeReactNativeComponentImports(canvas.code)
@@ -676,6 +698,7 @@ function lowerModuleUnchecked(
       policy,
       stylexBindings,
     )
+    options.observe?.({ stage: 'residue', diagnostics: diagnostic ? [diagnostic] : [] })
     if (componentLowered !== canvas.code || loweredApiImport || diagnostic) {
       const mod = runtimeImportOnlyModule(componentLowered, id, file)
       if (diagnostic) mod.diagnostics.push(diagnostic)
@@ -736,6 +759,10 @@ function lowerModuleUnchecked(
     policy,
     stylexBindings,
   )
+  options.observe?.({
+    stage: 'residue',
+    diagnostics: unloweredDiagnostic ? [unloweredDiagnostic] : [],
+  })
 
   const isDerivedModule = id.includes('?')
   const cssFileName = isDerivedModule

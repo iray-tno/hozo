@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -218,7 +226,7 @@ test('the CLI accepts the checkout as a positional argument', () => {
     const report = runCli([root, '--output', out])
     assert.equal(report.corpus.name, path.basename(root))
     assert.equal(report.scope.tsxFiles, 1)
-    assert.match(readFileSync(out, 'utf8'), /"schemaVersion": 2/)
+    assert.match(readFileSync(out, 'utf8'), /"schemaVersion": 3/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -336,7 +344,7 @@ test('terminal output is Markdown, pipes are JSON, and explicit formats win', (t
       },
     }
     runCli([root, ...args], { stdout })
-    if (format === 'json') assert.equal(JSON.parse(stdout.output).schemaVersion, 2)
+    if (format === 'json') assert.equal(JSON.parse(stdout.output).schemaVersion, 3)
     else assert.match(stdout.output, /^# Real-app measurement:/)
   }
   const md = path.join(root, 'report.md')
@@ -344,7 +352,7 @@ test('terminal output is Markdown, pipes are JSON, and explicit formats win', (t
   runCli([root, '--output', md], { stdout })
   assert.match(readFileSync(md, 'utf8'), /^# Real-app measurement:/)
   runCli([root, '--output', md, '--format', 'json'], { stdout })
-  assert.equal(JSON.parse(readFileSync(md, 'utf8')).schemaVersion, 2)
+  assert.equal(JSON.parse(readFileSync(md, 'utf8')).schemaVersion, 3)
 })
 
 test('help succeeds without a checkout and argument errors have no stack trace', () => {
@@ -388,4 +396,109 @@ test('Bluesky-style corpus signals are opt-in and do not leak into generic outpu
   report.lowering.parseOrCompileFailures = 1
   assert.match(renderRealAppMarkdown(report), /The corpus has parse or compile failures/)
   assert.doesNotMatch(renderRealAppMarkdown(report), /The corpus parses cleanly/)
+})
+
+test('full Canvas findings exceed sample limits and details preserve all messages', (t) => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export const App = () => <Canvas.Rect className="hover:fill-red-500" />`
+  const root = fixture(
+    t,
+    Object.fromEntries(Array.from({ length: 15 }, (_, index) => [`src/Shape${index}.tsx`, source])),
+  )
+  const report = measureRealApp({ root })
+  assert.equal(report.schemaVersion, 3)
+  assert.equal(report.findings.length, 30)
+  assert.equal(report.diagnostics.byCode.CANVAS_CLASS_NOT_LOWERED, 30)
+  assert.equal(report.samples['diagnostic:CANVAS_CLASS_NOT_LOWERED'].length, 12)
+  assert.equal(report.scope.authoredFiles, 15)
+  assert.equal(report.scope.contextModules, 0)
+  assert.equal(report.lowering.filesLowered, 0)
+  assert.equal(report.files.length, 15)
+  assert.ok(report.files.every((file) => file.targets.web.mode === 'web-module-lowering'))
+  assert.ok(report.files.every((file) => file.targets.native.mode === 'native-compiler-probe'))
+  const stdout = {
+    isTTY: false,
+    output: '',
+    write(value) {
+      this.output += value
+    },
+  }
+  runCli([root, '--details', '--format', 'markdown'], { stdout })
+  assert.match(stdout.output, /Shape14\.tsx/)
+  assert.equal(stdout.output.match(/web\/canvas/g).length, 15)
+  assert.equal(stdout.output.match(/native\/canvas/g).length, 15)
+  assert.match(renderRealAppMarkdown(report), /30 complete finding records/)
+  assert.match(JSON.stringify(report), /hover:fill-red-500/)
+})
+
+test('provenance records actual binding, stable authored fingerprint and unresolved project facts', (t) => {
+  const root = fixture(t, { 'src/App.tsx': simpleSource })
+  const report = measureRealApp({ root })
+  const second = measureRealApp({ root })
+  assert.match(report.toolchain.binding.sha256, /^[a-f0-9]{64}$/)
+  assert.equal(report.toolchain.binding.sha256, second.toolchain.binding.sha256)
+  assert.ok(report.toolchain.binding.path.endsWith('.node'))
+  assert.equal(report.corpus.dirty, null)
+  assert.equal(report.corpus.sourceSha256, second.corpus.sourceSha256)
+  assert.equal(report.analysis.projectFacts.theme.status, 'defaulted')
+  assert.equal(report.analysis.projectFacts.stylexGraph.status, 'unresolved')
+  assert.equal(report.analysis.productionBuild, 'not-assessed')
+  assert.equal(report.analysis.runtimeBehavior, 'not-assessed')
+  assert.ok(report.analysis.stageDurationMs['web:module-lowering'] >= 0)
+  writeFileSync(path.join(root, 'src/App.tsx'), `${simpleSource}// edited\n`)
+  assert.notEqual(measureRealApp({ root }).corpus.sourceSha256, report.corpus.sourceSha256)
+})
+
+test('module warnings and syntax failures are visible without falsely closing RN boundaries', (t) => {
+  const root = fixture(t, {
+    'src/API.web.tsx': `import { Platform } from 'react-native'; export const platform = Platform.OS`,
+    'src/Invalid.tsx': 'export const App = () => <',
+  })
+  const report = measureRealApp({ root })
+  assert.equal(report.lowering.parseOrCompileFailures, 1)
+  assert.equal(report.diagnostics.filesWithErrors, 1)
+  const syntax = report.findings.find((finding) => finding.code === 'SOURCE_SYNTAX_ERROR')
+  assert.ok(syntax)
+  assert.equal(syntax.backend, 'source')
+  assert.equal(syntax.stage, 'syntax')
+  const missing = report.findings.find((finding) => finding.code === 'RN_COMPAT_NOT_INSTALLED')
+  assert.ok(missing)
+  assert.equal(missing.stage, 'resolution')
+  assert.deepEqual(missing.location, { status: 'file' })
+  assert.equal(
+    report.files.find((file) => file.file.endsWith('API.web.tsx')).targets.native,
+    undefined,
+  )
+  assert.match(renderRealAppMarkdown(report), /boundary is not fully assessed/)
+  assert.doesNotMatch(renderRealAppMarkdown(report), /boundary is closed/)
+})
+
+test('read-only analysis neither executes project configuration nor writes checkout caches', (t) => {
+  const root = fixture(t, {
+    'src/App.tsx': `import { View } from '@hozo/core'; export const App = () => <View className="p-2" />`,
+    'package.json': JSON.stringify({ scripts: { build: 'throw sentinel' } }),
+    'vite.config.js': `throw new Error('must not execute project config')`,
+    'tailwind.config.js': `throw new Error('must not execute Tailwind config')`,
+    'pnpm-lock.yaml': 'lockfileVersion: 9.0',
+    'styles.css': '@config "./tailwind.config.js";',
+    'fsmonitor.mjs': `import { writeFileSync } from 'node:fs'; writeFileSync('hook-executed', 'unexpected')`,
+  })
+  execFileSync('git', ['init', '--quiet'], { cwd: root })
+  execFileSync('git', ['config', 'user.name', 'Hozo Test'], { cwd: root })
+  execFileSync('git', ['config', 'user.email', 'test@hozo.invalid'], { cwd: root })
+  execFileSync('git', ['add', '.'], { cwd: root })
+  execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root })
+  const hook = `"${process.execPath.replaceAll('\\', '/')}" "${path.join(root, 'fsmonitor.mjs').replaceAll('\\', '/')}"`
+  execFileSync('git', ['config', 'core.fsmonitor', hook], { cwd: root })
+  const snapshot = () =>
+    readdirSync(root, { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => [
+        path.relative(root, path.join(entry.parentPath, entry.name)),
+        readFileSync(path.join(entry.parentPath, entry.name)).toString('base64'),
+      ])
+      .sort(([a], [b]) => a.localeCompare(b))
+  const before = snapshot()
+  measureRealApp({ root })
+  assert.deepEqual(snapshot(), before)
 })

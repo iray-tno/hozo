@@ -9,6 +9,7 @@ structural wrong-output invariants.
 npx @hozo/migration-audit .
 npx @hozo/migration-audit --root ../my-react-native-app --output hozo-audit.md
 npx @hozo/migration-audit . --source app --source components --format json
+npx @hozo/migration-audit . --details --output hozo-audit.md
 ```
 
 Without `--source`, the tool scans nonempty `src/` and `app/` directories (both when present),
@@ -27,8 +28,28 @@ absence of a diagnostic is not proof that rendered behavior is correct.
 
 The package does not clone repositories. A caller that owns a corpus should acquire and pin it,
 then pass the checkout to this CLI. Hozo's own `pnpm measure:bluesky` command is one such runner.
+It saves both a readable Markdown report and complete JSON evidence under `artifacts/measurements/`.
 
-JSON schema version 2 records `corpus.sourceDirectories` and omits application-specific metrics
+JSON schema version 3 retains every finding (message, backend, pipeline stage and location),
+per-file outcomes, stage timings, tool versions, the actual loaded binding and its SHA-256,
+checkout dirty status and an authored-source fingerprint. Summary samples remain capped at 12;
+JSON findings are not capped. `--details` expands all findings in Markdown. Positions use UTF-16
+code units, already converted by NAPI. Positions belonging to rewritten input without an
+authored source map are explicitly `unmapped`, not plausible-looking line numbers. Finding
+fingerprints are content hints, not unique identities or baseline matching guarantees.
+
+Web assessment uses the shared module lowering pipeline, including Canvas and import diagnostics.
+Native assessment is a compiler-only component/Canvas probe, **not** full Metro module preparation.
+Parser-reported syntax errors and tool failures remain visible, with partial diagnostic evidence;
+the audit does not replace TypeScript or a complete syntax/semantic validation pass. A failed
+analysis cannot close the direct RN JSX boundary just because observed residue is zero.
+Project CSS, font registration, import aliases and cross-file StyleX are currently unresolved
+facts; compilation uses the builtin theme and no preflight. Production builds and runtime
+behavior are not assessed. Only authored TSX enters report counts, not dependency context sources.
+Project-aware preparation and RN member/rewrite metadata are follow-ups in
+[#790](https://github.com/iray-tno/hozo/issues/790).
+
+The schema records `corpus.sourceDirectories` and omits application-specific metrics
 from `authoredSignals`. Library callers can supply `fileSignals: { metricName: (source, file) => boolean }`
 to `measureRealApp`; these counts appear separately in `corpusSignals` and the Markdown report.
 The pinned Bluesky runner retains its historical `filesUsingAlfAtoms` lexical heuristic through
