@@ -21,7 +21,7 @@ import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { assertRuntimeImportsUnbound, generatedRuntimeImports } from '@hozo/compiler/lower'
 import type { StylexModuleCache } from '@hozo/compiler/project'
-import { importSpecifier } from '@hozo/compiler/project'
+import { importSpecifier, semanticModuleEligible } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
 const HOZO_AUTHOR_IMPORT_RE =
@@ -66,7 +66,7 @@ export function transformHozoSource(
   compiler: Compiler = defaultCompiler(),
   stylexModules?: StylexModuleCache,
 ): string | null {
-  if (!filename.endsWith('.tsx')) {
+  if (!semanticModuleEligible(filename, 'native')) {
     return null
   }
   // A cheap reject before parsing; the real decision needs the AST.

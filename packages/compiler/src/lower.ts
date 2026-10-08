@@ -24,7 +24,7 @@ import type {
   StylexExternalBinding,
 } from './index.ts'
 import { topLevelBindings } from './index.ts'
-import type { UnloweredReactNativeJsxPolicy } from './project.ts'
+import { semanticModuleEligible, type UnloweredReactNativeJsxPolicy } from './project.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
@@ -637,7 +637,7 @@ function lowerModuleUnchecked(
   const shouldRehome = policy === 'warn' || policy === 'error'
   const apiLowered = shouldRehome ? rehomeReactNativeRuntimeImports(code) : code
   const loweredApiImport = apiLowered !== code
-  if (!file.endsWith('.tsx') && !isTransformed) {
+  if (!semanticModuleEligible(file, 'web')) {
     const componentLowered = shouldRehome
       ? rehomeReactNativeComponentImports(apiLowered)
       : apiLowered

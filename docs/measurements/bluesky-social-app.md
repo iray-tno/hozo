@@ -8,40 +8,44 @@ This is a read-only compiler measurement, not a claim that the application can b
 |---|---|
 | Repository | https://github.com/bluesky-social/social-app |
 | Commit | `007c893de107c2ecbf2188d618196075f19c8f5a` |
-| Source | `src/**/*.tsx` |
-| Files | 1,050 |
-| Source bytes | 5,224,642 |
-| Shared / Web / Native | 973 / 62 / 15 |
+| Source | `src/**/*.{tsx,jsx,ts,js,mts,mjs}` |
+| Authored files / TSX subset / context modules | 1,660 / 1,049 / 0 |
+| Source bytes | 7,216,111 |
+| Shared / Web / Native | 1550 / 89 / 21 |
 
 ## Findings
 
-1. **The corpus parses cleanly:** 0 parse or compile failures across 1,050 TSX files.
+1. **The corpus has parse or compile failures:** 1 parse or compile failures across 1,660 JS/TS files (TSX parser probe, not TypeScript validation).
 2. **The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.
-3. **The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.
-4. **Styling surface:** 8 of 1050 files use `className` and 651 use `style`.
+3. **The direct RN JSX boundary is not fully assessed:** Project context or Web/binding analysis was incomplete, or no Web targets were assessed; zero observed residue is not a closed boundary.
+4. **Styling surface:** 9 of 1660 files use `className` and 651 use `style`.
 
 The separate [production dependency-graph measurement](./bluesky-rnw-free-build.md) remains a historical build experiment over the same pinned corpus. This static audit does not rerun that production build or certify runtime behavior.
 
-This Slice 2 snapshot uses the same 1,050-file authored fingerprint as Slice 1. Headline counts are unchanged: 1,193 Web components, 1,149 Native components, 573 lowered files, 200 warnings, and zero parse/compile failures, direct RN JSX residue or invalid DOM style arrays. Conventional CSS discovery found no entry; CSS is now recorded as absent rather than unassessed. Auto preflight is true using the shared conservative token scan over selected authored TSX. That is an explicit compiler assumption, not evidence that Bluesky's production Web build ships a reset. Fonts, aliases and cross-file StyleX remain unresolved.
+This Slice 3 snapshot expands the authored scope from 1,050 TSX files to **1,660 JS/TS files** (1,049 TSX + 611 TS). The shared compiler walk excludes `src/screens/Messages/components/vendor/KeyboardStickyView.tsx`; the earlier dedicated audit walker included it. Three declaration-only files are listed as excluded source inventory in JSON. Generated/dependency directory contents are not enumerated. The authored fingerprint changes because the measured scope changes, not because the pinned checkout changed.
 
-The final serial run on two logical CPU cores took 5.98s, including 2.79s of project preparation (candidate scanning included), with a freshly rebuilt development binding. These are stage observations, not a controlled performance comparison. Complete JSON evidence is emitted by the reproduction command below.
+Semantic counts remain **1,193 Web / 1,149 Native components in 573 lowered files**, with zero observed direct RN JSX residue, invalid DOM style arrays or eligible shared-backend count mismatches. Warnings increase from 200 to **219**: 18 additional `RN_COMPAT_NOT_INSTALLED` setup warnings are exposed in the newly observed TS files (135 total), plus one `PARSER_PROBE_REJECTED` at `src/components/Dialog/sheet-wrapper.ts:11:39`. Its valid generic async arrow is rejected by the compiler's current TSX-only parser. This is one failed/unassessed probe, **not an authored syntax error**, and prevents a closed-boundary verdict despite zero observed residue. No parser limitation was hidden or counted as successful lowering.
 
-Slice 1 already exposed 117 previously omitted RN_COMPAT_NOT_INSTALLED setup warnings and removed 18 false-positive JSX residues whose Pressable imports had moved to Hozo. Those corrections are retained; this slice does not claim new component support from unchanged counts. The historical pre-analysis snapshot predates this compiler and its component-count differences must not be attributed to audit alone.
+Conventional CSS remains absent; builtin tokens and auto preflight=true are explicit compiler assumptions, not evidence about Bluesky's production reset. Root tsconfig is read and hashed, but its package-based `extends` is unsupported by the local-only static alias loader; aliases are not guessed. No StyleX definitions/consumers are observed in this corpus, so its prepared graphs are empty and it loads no context modules. Cross-file/alias/reexport/platform behavior is demonstrated by dedicated fixtures, not by Bluesky. Shared/native probes select Android by default; iOS/Android-suffixed files retain their own platform.
+
+The final serial observation on two logical CPU cores took **44.60s**: 0.41s discovery, 0.09s Git provenance, **35.05s authored snapshot reads**, 5.51s project preparation, and separately recorded compiler stages. This is not a controlled speed comparison with the narrower earlier scope, nor evidence that lowering itself became 7x slower: the new timings isolate the dominant source-reading time. Node 25.9.0, Tailwind 4.3.3 and JSONC parser 3.3.1 were used with a freshly rebuilt development binding. Full input hashes, eligibility, unresolved facts and stage observations remain reproducible in JSON.
+
+Slice 1's corrections are retained: previously omitted setup warnings stay visible, and rewritten Hozo Pressable imports are not mislabeled as direct React Native residue. This slice adds analysis scope/context, not new component compatibility.
 
 ## Authored surface
 
 | Signal | Files or bindings |
 |---|---:|
-| filesImportingReactNative | 605 |
+| filesImportingReactNative | 636 |
 | filesWithDirectReactNativeJsx | 573 |
 | directReactNativeJsxBindings | 696 |
 | filesWithAliasedDirectReactNativeJsx | 13 |
 | aliasedDirectReactNativeJsxBindings | 15 |
-| filesWithForeignPrimitiveNames | 538 |
-| filesWithClassName | 8 |
+| filesWithForeignPrimitiveNames | 540 |
+| filesWithClassName | 9 |
 | filesWithBareFlexClassName | 0 |
 | filesWithStyleProp | 651 |
-| filesWithStyleSheetCreate | 46 |
+| filesWithStyleSheetCreate | 47 |
 
 Only direct imports from `react-native` are counted as direct React Native JSX. Application-specific components remain foreign by design; treating every component named `Text` or `Button` as a React Native primitive would create false transformations.
 
@@ -51,7 +55,7 @@ These are heuristics supplied by the corpus runner, not general migration guaran
 
 | Signal | Files |
 |---|---:|
-| filesUsingAlfAtoms | 430 |
+| filesUsingAlfAtoms | 434 |
 
 
 ## Lowering outcome
@@ -67,11 +71,13 @@ These are heuristics supplied by the corpus runner, not general migration guaran
 | filesWithDirectReactNativeJsxResidueOnWeb | 0 |
 | directReactNativeJsxBindingsResidueOnWeb | 0 |
 | sharedBackendShapeMismatches | 0 |
-| parseOrCompileFailures | 0 |
+| parseOrCompileFailures | 1 |
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
-Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Static CSS/theme is prepared once; executable configuration is refused. Fonts, aliases and cross-file StyleX are not assessed yet. Only authored TSX files enter the denominator; no dependency source modules are loaded.
+Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Non-TSX Web modules only use the existing runtime-import rewrite path; Native compiler results for these extensions are probes, not Metro eligibility. Each target records integrationEligibility in JSON.
+
+Cross-file StyleX uses in-memory, platform-separated graphs and static relative/tsconfig paths resolution. Shared/native probes use android; explicit iOS/Android suffixes use their own platform. Package/custom bundler resolution remains unassessed when no static answer exists. Resolution records and input hashes are retained in JSON. Context-only modules do not enter authored counts. Fonts and production entry-point reachability remain unassessed; no app configuration is executed.
 
 ## Project context
 
@@ -81,8 +87,8 @@ Web uses the shared module lowering path in memory. Native is a compiler-only co
 | theme | defaulted | "builtin" |
 | preflight | defaulted | true |
 | fonts | unresolved | "Static font registration is not supplied; CSS font faces alone do not prove Native availability." |
-| aliases | unresolved | "Project import aliases are not assessed yet." |
-| stylexGraph | unresolved | "Cross-file StyleX context is not assessed yet." |
+| aliases | unsupported | "Only local relative tsconfig extends is assessed" |
+| stylexGraph | resolved (discovered) | {"scope":"static-admitted-modules","platforms":["web","ios","android"],"modules":{"web":0,"ios":0,"android":0},"unresolvedImports":0} |
 
 Effective compiler assumptions: theme=builtin, preflight=true. Partial context uses builtin tokens only as a probe, not an assessment of the project's theme. Auto preflight uses the compiler's Tailwind facts for selected authored files; it is not discovery of the app's actual bundler settings or reset stylesheet. CSS inputs and content hashes are retained separately in JSON.
 
@@ -95,18 +101,19 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 | | Count |
 |---|---:|
 | Files with errors | 0 |
-| Files with warnings | 135 |
-| RN_COMPAT_NOT_INSTALLED | 117 |
+| Files with warnings | 154 |
+| RN_COMPAT_NOT_INSTALLED | 135 |
 | ARIA_NAME_PROHIBITED | 40 |
 | A11Y_INTERACTIVE_WITHOUT_ROLE | 30 |
 | A11Y_INTERACTIVE_NESTING | 4 |
 | A11Y_PRESS_WITHOUT_KEYBOARD | 3 |
 | A11Y_MISSING_ACCESSIBLE_NAME | 2 |
 | ARIA_INCOMPLETE_PATTERN | 2 |
+| PARSER_PROBE_REJECTED | 1 |
 | ROLE_HAS_NO_WEB_EQUIVALENT | 1 |
 | UNSAFE_PROP_SPREAD_AFTER_STYLE | 1 |
 
-200 complete finding records are available in JSON. Use --details to expand Markdown findings.
+219 complete finding records are available in JSON. Use --details to expand Markdown findings.
 
 ## Analysis provenance
 
@@ -114,8 +121,8 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 |---|---|
 | Audit / compiler versions | 0.2.0 / 0.2.0 |
 | Theme loader / Tailwind / CSS parser | 0.2.0 / 4.3.3 / 8.5.26 |
-| Loaded binding SHA-256 | 8372b25b1f93ca4eeed34487bde87fa725b0e6f836f88afb537814a16f983aca |
-| Authored source SHA-256 | 1597ac133ed3a9b765d58c7fbd3466e695f0c2941b4945e75afeef05aeb51c2a |
+| Loaded binding SHA-256 | 85d2e03ecbea4cd25474c03895a5180ceaf1f7b517df1d89cc5703502b442675 |
+| Authored source SHA-256 | db5373982baac27062021d8503f795cdb38a78d7cc2e0a2dccfe7eab805f36d8 |
 | Checkout dirty | false |
 
 Binding identity, per-file outcomes, stage timings and unresolved project facts are retained in JSON. Diagnostic positions use UTF-16 code units; rewritten positions without a source map are explicitly unmapped.
@@ -127,19 +134,19 @@ Binding identity, per-file outcomes, stage timings and unresolved project facts 
 |---|---:|
 | View | 553 |
 | Pressable | 76 |
-| StyleSheet | 51 |
-| Keyboard | 23 |
-| useWindowDimensions | 20 |
+| StyleSheet | 53 |
+| Keyboard | 25 |
+| Platform | 22 |
+| useWindowDimensions | 22 |
 | ScrollView | 18 |
+| LayoutAnimation | 17 |
 | ActivityIndicator | 16 |
-| LayoutAnimation | 16 |
-| Platform | 13 |
 | Text | 13 |
+| AppState | 9 |
 | TextInput | 9 |
-| AppState | 6 |
-| Dimensions | 5 |
-| Linking | 5 |
-| TouchableOpacity | 5 |
+| Dimensions | 7 |
+| Linking | 7 |
+| Alert | 6 |
 
 ## React Native JSX left in Web output
 
@@ -164,16 +171,16 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 
 - `src/Splash.tsx`
 - `src/ageAssurance/components/RedirectOverlay.tsx`
+- `src/ageAssurance/useBeginAgeAssurance.ts`
+- `src/alf/util/dimensions.ts`
+- `src/alf/util/flatten.ts`
+- `src/alf/util/useColorModeTheme.ts`
 - `src/analytics/index.tsx`
 - `src/components/ContextMenu/index.tsx`
 - `src/components/DebugFieldDisplay.tsx`
 - `src/components/Dialog/index.tsx`
 - `src/components/FocusScope/index.tsx`
 - `src/components/Layout/Header/index.tsx`
-- `src/components/Lightbox/Lightbox.web.tsx`
-- `src/components/Lightbox/chrome/CircleChromeButton.tsx`
-- `src/components/Lightbox/chrome/CircleChromeButton.web.tsx`
-- `src/components/Lightbox/chrome/Footer.tsx`
 
 ### foreignPrimitiveNames
 
@@ -239,6 +246,10 @@ This is a lower bound, not a complete wrong-output count. An automatic compiler 
 
 - `src/components/Dialog/index.web.tsx`
 - `src/view/com/util/EventStopper.tsx`
+
+### diagnostic:PARSER_PROBE_REJECTED
+
+- `src/components/Dialog/sheet-wrapper.ts`
 
 ### diagnostic:UNSAFE_PROP_SPREAD_AFTER_STYLE
 
