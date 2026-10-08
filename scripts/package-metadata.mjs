@@ -233,6 +233,7 @@ const PACKAGES = {
     keywords: ['react-native', 'accessibility', 'talkback', 'android', 'turbomodule'],
   },
   tailwind: {
+    dependencyOverrides: { postcss: '^8.5.26' },
     exports: { '.': './dist/index.js' },
     keywords: ['tailwindcss', 'theme', 'design-tokens', 'react-native'],
   },
@@ -257,6 +258,7 @@ const PACKAGES = {
     keywords: ['metro', 'react-native', 'expo', 'transformer'],
   },
   'migration-audit': {
+    dependencyOverrides: { '@hozo/tailwind': 'workspace:^' },
     exports: { '.': './src/index.mjs' },
     excludeMjsTests: true,
     files: ['src'],
@@ -447,6 +449,9 @@ export function applyMetadata(name) {
   // of unrelated React/platform peer ranges in the same package.
   if (PACKAGES[name].peerOverrides) {
     merged.peerDependencies = { ...json.peerDependencies, ...PACKAGES[name].peerOverrides }
+  }
+  if (PACKAGES[name].dependencyOverrides) {
+    merged.dependencies = { ...json.dependencies, ...PACKAGES[name].dependencyOverrides }
   }
   for (const key of Object.keys(merged)) if (merged[key] === undefined) delete merged[key]
   // Workspace dependencies all use the caret protocol; see `shared`.

@@ -5,6 +5,13 @@ import type { CompileDiagnostic, CompiledNativeModule, Compiler } from './index.
 import { type LowerModuleOptions, lowerModule } from './lower.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
+export {
+  type AnalysisProjectFacts,
+  type AnalysisProjectOptions,
+  type AnalysisThemeInput,
+  prepareAnalysisProject,
+} from './analysis-project.ts'
+
 export type AnalysisBackend = 'source' | 'web' | 'native'
 
 /** Absence and inability to investigate must never become the same project fact. */

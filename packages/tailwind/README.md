@@ -27,6 +27,16 @@ const theme = await loadProjectTheme(root, {
 
 Returns `undefined` when there is no entry stylesheet to read, which is the signal to fall back to Tailwind's defaults. A token that fails to resolve is reported through `warn` rather than dropped.
 
+## Read-only analysis
+
+`await loadStaticProjectTheme(root, css?)` returns separate CSS/theme facts and stylesheet content
+hashes. It uses the same discovery and import resolver, but has no silent fallback or persistent
+cache. Entry and imported CSS are parsed before Tailwind sees them; `@plugin`, `@config` and remote
+imports are explicitly not assessed. Project modules are never loaded. Comments and quoted
+declaration values are not executable directives. Missing, invalid and unsupported inputs remain
+distinct; imported edits are re-read on the next invocation. This is the service used by migration
+audit, not a replacement for the ordinary build loader above.
+
 <!-- generated: package-footer -->
 
 ---

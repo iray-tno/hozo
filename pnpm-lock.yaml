@@ -853,6 +853,9 @@ importers:
       '@hozo/compiler':
         specifier: workspace:^
         version: link:../compiler
+      '@hozo/tailwind':
+        specifier: workspace:^
+        version: link:../tailwind
 
   packages/native:
     dependencies:
@@ -1069,6 +1072,9 @@ importers:
       culori:
         specifier: ^4.0.2
         version: 4.0.2
+      postcss:
+        specifier: ^8.5.26
+        version: 8.5.26
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3

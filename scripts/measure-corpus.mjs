@@ -75,7 +75,7 @@ const artifact = path.join(root, 'artifacts', 'measurements', `${key}.md`)
 const { measureRealApp, renderRealAppMarkdown } = await import(
   '../packages/migration-audit/src/index.mjs'
 )
-const report = measureRealApp({
+const report = await measureRealApp({
   root: checkout,
   source: spec.source,
   name: spec.name,

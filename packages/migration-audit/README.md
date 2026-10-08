@@ -10,6 +10,8 @@ npx @hozo/migration-audit .
 npx @hozo/migration-audit --root ../my-react-native-app --output hozo-audit.md
 npx @hozo/migration-audit . --source app --source components --format json
 npx @hozo/migration-audit . --details --output hozo-audit.md
+npx @hozo/migration-audit . --css app/globals.css --preflight auto
+npx @hozo/migration-audit . --primitive-source @acme/ui
 ```
 
 Without `--source`, the tool scans nonempty `src/` and `app/` directories (both when present),
@@ -43,15 +45,38 @@ Native assessment is a compiler-only component/Canvas probe, **not** full Metro 
 Parser-reported syntax errors and tool failures remain visible, with partial diagnostic evidence;
 the audit does not replace TypeScript or a complete syntax/semantic validation pass. A failed
 analysis cannot close the direct RN JSX boundary just because observed residue is zero.
-Project CSS, font registration, import aliases and cross-file StyleX are currently unresolved
-facts; compilation uses the builtin theme and no preflight. Production builds and runtime
-behavior are not assessed. Only authored TSX enters report counts, not dependency context sources.
-Project-aware preparation and RN member/rewrite metadata are follow-ups in
+Static CSS/theme is discovered using the same conventional names as Hozo's integrations, or
+selected explicitly with `--css`. Imported CSS is resolved through the shared Tailwind loader.
+Colors, spacing, paired dark tokens and project keyframes reach both compiler backends.
+Theme resolution means Hozo's existing token extraction completed, not that every CSS/Tailwind
+construct is supported or every theme expression converts to Native.
+Entry and imported CSS are parsed structurally: executable `@plugin` / `@config` and remote stylesheet
+imports are explicitly not assessed, never executed. No bundler/config JavaScript or app scripts
+are loaded. Safe theme preparation is fresh on each invocation, so edited imports cannot reuse
+a stale successful result. CSS paths and content hashes are recorded separately from authored files.
+
+No CSS is an `absent` entry with a visibly defaulted builtin theme. Broken CSS is `invalid`;
+executable configuration is `unsupported`. Both yield partial context, with builtin tokens only
+as a labelled probe; they cannot close the RN JSX boundary as an authoritative project verdict.
+An explicitly missing/unreadable CSS entry is an input error. `--preflight auto|true|false` is a
+reset assumption supplied to both backends, not proof of the application's bundler configuration.
+Auto (the default) uses the compiler's Tailwind candidate facts over **selected authored TSX**;
+the shared conservative token scan can count utility-shaped comments or unused strings.
+Dependency sources and excluded/non-TSX files are not scanned yet. `--primitive-source` is
+repeatable and extends the trusted defaults; discovery never trusts arbitrary component names.
+
+Font registration, import aliases and cross-file StyleX are still unresolved. Production builds
+and runtime behavior are not assessed. Only authored TSX enters report counts, not dependency
+context sources. `contextStatus: prepared` only describes this slice's theme/reset preparation,
+not that all project facts are resolved. Source discovery/graphs and RN member/rewrite metadata
+are follow-ups in
 [#790](https://github.com/iray-tno/hozo/issues/790).
 
 The schema records `corpus.sourceDirectories` and omits application-specific metrics
 from `authoredSignals`. Library callers can supply `fileSignals: { metricName: (source, file) => boolean }`
 to `measureRealApp`; these counts appear separately in `corpusSignals` and the Markdown report.
+`measureRealApp` and `runCli` are now asynchronous; library callers must `await` them. Options
+include `css`, `preflight` and `primitiveSources` (an array of explicitly trusted additions).
 The pinned Bluesky runner retains its historical `filesUsingAlfAtoms` lexical heuristic through
 this extension. Bluesky's checkout pin, verification command and historical reports are preserved;
 that heuristic is not presented as a generic detector of an application's design system.
