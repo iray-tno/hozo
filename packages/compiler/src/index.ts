@@ -49,7 +49,7 @@ export interface CompiledNativeComponent {
   /// tag the author wrote and the compiler carried verbatim is not in
   /// here, which is the distinction a regular expression could not make.
   nativeImports: string[]
-  /// Byte offset just inside the enclosing function's `{` -- the only safe
+  /// UTF-16 code-unit offset just inside the enclosing function's `{` -- the only safe
   /// place for `prelude`, since a hook must be called unconditionally and
   /// in the same order every render. Absent (`null`/`undefined` -- napi
   /// marshals a Rust `None` as `undefined`) when this JSX isn't inside a
@@ -114,6 +114,8 @@ export interface StylexExternalBinding {
 
 /** Native output and source metadata produced by one TSX parser pass. */
 export interface CompiledNativeModule {
+  /** Source parser errors, including modules with no lowerable JSX roots. */
+  syntaxDiagnostics: CompileDiagnostic[]
   components: CompiledNativeComponent[]
   imports: SourceImport[]
   /** Local bindings used as real JSX tag roots; comments and type syntax are excluded. */
@@ -216,15 +218,26 @@ interface CompilerConstructor {
 }
 
 let native: NativeBinding | undefined
+let bindingIdentity: { specifier: string; path: string } | undefined
 
 function loadNative(): NativeBinding {
   if (!native) {
     native = loadNativeBinding<NativeBinding>({
-      require,
+      require: (specifier) => {
+        const loaded = require(specifier)
+        bindingIdentity = { specifier, path: require.resolve(specifier) }
+        return loaded
+      },
       localPath: fileURLToPath(new URL('../hozo_napi.node', import.meta.url)),
     })
   }
   return native
+}
+
+/** The binding actually loaded, not a guess from the platform or override setting. */
+export function getCompilerBindingIdentity(): { specifier: string; path: string } {
+  loadNative()
+  return { ...bindingIdentity! }
 }
 
 /**

@@ -674,6 +674,8 @@ pub struct SourceImport {
 /// must not parse the source again to recover it from text.
 #[napi(object)]
 pub struct CompiledNativeModule {
+    /// Source parser errors, even when no lowerable JSX root was recovered.
+    pub syntax_diagnostics: Vec<CompileDiagnostic>,
     pub components: Vec<CompiledNativeComponent>,
     pub imports: Vec<SourceImport>,
     pub jsx_bindings: Vec<String>,
@@ -731,7 +733,21 @@ fn lower_native_module(
     let mut jsx_bindings: Vec<String> = parsed.jsx_bindings.iter().cloned().collect();
     jsx_bindings.sort();
 
-    CompiledNativeModule { components, imports, jsx_bindings, foreign_primitives }
+    // Valid modules already built their offset table during component lowering.
+    // Do not walk/allocate it a second time just to return an empty error list.
+    let syntax_diagnostics = if parsed.syntax_errors.is_empty() {
+        Vec::new()
+    } else {
+        let offsets = Utf16Offsets::new(source);
+        parsed.syntax_errors.iter().map(|error| CompileDiagnostic {
+            code: "SOURCE_SYNTAX_ERROR".to_string(),
+            severity: "error".to_string(),
+            message: error.message.clone(),
+            span_start: offsets.at(error.span.start),
+            span_end: offsets.at(error.span.end),
+        }).collect()
+    };
+    CompiledNativeModule { components, imports, jsx_bindings, foreign_primitives, syntax_diagnostics }
 }
 
 fn lower_native_components(
@@ -945,6 +961,22 @@ pub fn foreign_primitives(source: String, sources: Vec<String>) -> Vec<String> {
 #[cfg(test)]
 mod utf16_tests {
     use super::*;
+
+    #[test]
+    fn module_syntax_errors_cross_napi_as_utf16_even_without_components() {
+        let source = "// 😀 日本語\r\nexport const value = <";
+        let parsed = hozo_parser::parse_tsx(source);
+        let module = lower_native_module(source, &hozo_ir::Theme::default(), None, None);
+        assert!(module.components.is_empty());
+        assert_eq!(module.syntax_diagnostics.len(), parsed.syntax_errors.len());
+        assert!(!module.syntax_diagnostics.is_empty());
+        for (error, diagnostic) in parsed.syntax_errors.iter().zip(&module.syntax_diagnostics) {
+            assert_eq!(diagnostic.code, "SOURCE_SYNTAX_ERROR");
+            assert_eq!(diagnostic.severity, "error");
+            assert_eq!(diagnostic.span_start, js_index_of(source, error.span.start));
+            assert_eq!(diagnostic.span_end, js_index_of(source, error.span.end));
+        }
+    }
 
     /// What JavaScript would say, so the expectation is not a second
     /// implementation of the thing under test.
