@@ -406,6 +406,13 @@ struct FromAncestor<'a> {
     direct: &'a [StyleDeclaration],
     /// An ancestor's `**:`. Applied here and passed on.
     all: &'a [StyleDeclaration],
+    /// Whether this element is inside a `Skeleton`. Web's reduced-motion
+    /// rule matches `[data-hozo-skeleton] *`, so a spinner drawn inside a
+    /// placeholder stops with it; this carries the same guard down to
+    /// every descendant the compiler renders. What it cannot reach is a
+    /// child it does not read -- a component or an expression renders
+    /// whatever it renders, and its animations are its own.
+    in_skeleton: bool,
 }
 
 /// A parent's subtree declarations, rewritten as the child's own.
