@@ -362,7 +362,10 @@ export function HozoTableCell({
       }
       accessible={words !== undefined ? true : undefined}
       accessibilityLabel={label}
-      accessibilityRole={header ? 'header' : undefined}
+      // Not `accessibilityRole="header"`: TalkBack calls that a heading and
+      // puts it in heading navigation, so every column header became a stop
+      // there -- "Price, Heading" (#804). A `<th>` is not a heading on the
+      // Web either; that a cell heads its column is in its collection item.
       // A View prop on Android that React Native's types do not declare;
       // `BaseViewManager` reads it and `ReactAccessibilityDelegate` turns
       // it into the node's `CollectionItemInfo`.

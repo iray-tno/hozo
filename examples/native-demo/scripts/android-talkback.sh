@@ -1156,7 +1156,7 @@ adb logcat -d -v epoch -s ReactNativeJS:I HozoSpeech:I | tr -d '\r' | node --eva
     console.log("::warning::the census table reported no layout")
   } else {
     console.log(`  table layout: ${tableLayout}`)
-    if (!tableLayout.startsWith("aligned")) {
+    if (!/^table aligned\b/.test(tableLayout)) {
       console.log(`::warning::the census table columns did not line up on the device: ${tableLayout}`)
     }
   }

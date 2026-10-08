@@ -137,8 +137,9 @@ test('on Native: a data cell is named with its column, and every cell knows its 
     columnSpan: 1,
     heading: false,
   })
-  // A column header is a header, read as itself, and heads its column.
-  assert.equal(all[1].props.accessibilityRole, 'header')
+  // A column header is read as itself and heads its column -- through its
+  // collection item, not a heading role (#804).
+  assert.equal(all[1].props.accessibilityRole, undefined)
   assert.equal(all[1].props.accessibilityLabel, undefined)
   assert.equal(all[1].props.accessibilityCollectionItem.heading, true)
   // A row header heads its row, so it is not a column heading.
