@@ -174,6 +174,17 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Avatar => ("HozoAvatar", Vec::new()),
         Primitive::Pagination => ("HozoPagination", Vec::new()),
         Primitive::Stepper => ("HozoStepper", Vec::new()),
+        // React Native has no table, so these are runtime components that
+        // count rows and columns through context and size the columns from
+        // their cells; see `@hozo/semantics`' `table.native.tsx`.
+        Primitive::Table => ("HozoTable", Vec::new()),
+        Primitive::TableCaption => ("HozoTableCaption", Vec::new()),
+        Primitive::TableHeader => ("HozoTableSection", vec![("section", "header".to_string())]),
+        Primitive::TableBody => ("HozoTableSection", vec![("section", "body".to_string())]),
+        Primitive::TableFooter => ("HozoTableSection", vec![("section", "footer".to_string())]),
+        Primitive::TableRow => ("HozoTableRow", Vec::new()),
+        Primitive::TableHead => ("HozoTableCell", vec![("head", String::new())]),
+        Primitive::TableCell => ("HozoTableCell", Vec::new()),
         Primitive::Skeleton => ("View", vec![("aria-hidden", String::new())]),
         Primitive::List => ("View", vec![("accessibilityRole", "list".to_string())]),
         Primitive::ListItem => ("View", vec![("role", "listitem".to_string())]),

@@ -57,6 +57,14 @@
       "types": "./dist/generated/meter.d.ts",
       "default": "./dist/generated/meter.js"
     },
+    "./generated/table": {
+      "react-native": {
+        "types": "./dist/generated/table.native.d.ts",
+        "default": "./dist/generated/table.native.js"
+      },
+      "types": "./dist/generated/table.d.ts",
+      "default": "./dist/generated/table.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

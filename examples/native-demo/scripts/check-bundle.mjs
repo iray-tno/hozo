@@ -95,6 +95,10 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // Pagination beside it: the two patterns and their rules are 14.4 KB, and
 // the census screen's leaves for them 2.3 KB. Third raise in a week -- the
 // facade split above is now the open question, not the number.
+//
+// Raised to 560 KB by #144's Table, which crossed 545 at 549,107: the
+// runtime parts are 11.5 KB (every app, through `@hozo/semantics`' entry)
+// and the census screen's leaves 1.9 KB. Recorded on #683 as well.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -108,8 +112,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 545_000,
-  `Hozo's modules stay below 545 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 560_000,
+  `Hozo's modules stay below 560 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // And a coarse ceiling on the whole, for the regression this check began

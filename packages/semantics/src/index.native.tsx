@@ -436,3 +436,24 @@ const METER_COLOURS: Record<MeterRegion, string> = {
  */
 export type DetailsProps = DetailsNativeProps
 export type TimeProps = TimeNativeProps
+
+export {
+  HozoTable,
+  HozoTableCaption,
+  HozoTableCell,
+  HozoTableRow,
+  HozoTableSection,
+  Table,
+  TableBody,
+  TableCaption,
+  type TableCaptionProps,
+  TableCell,
+  type TableCellProps,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  type TableProps,
+  TableRow,
+  type TableRowProps,
+  type TableSectionProps,
+} from './table.native.tsx'

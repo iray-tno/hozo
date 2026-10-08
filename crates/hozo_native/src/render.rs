@@ -1430,6 +1430,16 @@ pub(super) fn render_node(
     if node.primitive == Primitive::Stepper {
         runtime.need_component("HozoStepper");
     }
+    match node.primitive {
+        Primitive::Table => runtime.need_component("HozoTable"),
+        Primitive::TableCaption => runtime.need_component("HozoTableCaption"),
+        Primitive::TableHeader | Primitive::TableBody | Primitive::TableFooter => {
+            runtime.need_component("HozoTableSection")
+        }
+        Primitive::TableRow => runtime.need_component("HozoTableRow"),
+        Primitive::TableHead | Primitive::TableCell => runtime.need_component("HozoTableCell"),
+        _ => {}
+    }
     if matches!(node.primitive, Primitive::Details | Primitive::Summary) {
         runtime.need_component(if node.primitive == Primitive::Details {
             "HozoDetails"
@@ -1824,10 +1834,20 @@ pub(super) fn render_node(
 /// string label, so its children stay as written and its text styles go to
 /// it to hand on. `HozoAvatar` draws its initials in a `Text` of its own in
 /// the same way, `HozoPagination` its page numbers and `HozoStepper` its
-/// step labels.
+/// step labels. A `HozoTableCell` wraps its own content too, because a cell
+/// is nearly always written `{row.price}` -- an expression the compiler
+/// cannot hand a text style to -- and because it reads a string cell's text
+/// to name it for a reader.
 fn renders_text(component: &str) -> bool {
     matches!(
         component,
-        "Text" | "HozoBadge" | "HozoChip" | "HozoAvatar" | "HozoPagination" | "HozoStepper"
+        "Text"
+            | "HozoBadge"
+            | "HozoChip"
+            | "HozoAvatar"
+            | "HozoPagination"
+            | "HozoStepper"
+            | "HozoTableCaption"
+            | "HozoTableCell"
     )
 }

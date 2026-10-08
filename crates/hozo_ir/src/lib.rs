@@ -452,6 +452,29 @@ pub enum Primitive {
     /// like `Pagination`, its class lists include one per status, for the
     /// step and for its indicator, applied by the pattern.
     Stepper,
+    /// A data table (#144): `<table>` on Web, and on React Native a
+    /// `HozoTable` that sizes its columns from every cell in them, the way
+    /// the browser's automatic table layout does, since a flex row knows
+    /// nothing of the rows above it.
+    Table,
+    /// `<caption>`: the table's name.
+    TableCaption,
+    /// `<thead>`: the rows that head the columns. `HozoTableSection` on
+    /// Native, where their header cells name the data cells below.
+    TableHeader,
+    /// `<tbody>`: the data rows. `HozoTableSection` on Native.
+    TableBody,
+    /// `<tfoot>`: totals and notes under the data. `HozoTableSection` on
+    /// Native.
+    TableFooter,
+    /// `<tr>`; `HozoTableRow` on Native, which numbers its cells.
+    TableRow,
+    /// `<th>` -- `scope="col"` unless the author says otherwise -- and on
+    /// Native a `HozoTableCell` that names the column for its data cells.
+    TableHead,
+    /// `<td>`; on Native a `HozoTableCell` that a reader hears with its
+    /// column's header, since Android has no table to navigate.
+    TableCell,
     /// A loading placeholder: a box with no meaning of its own, hidden from
     /// assistive technology, whose animation stops under reduced motion
     /// whatever classes put it there (decision 007, section 5). `<div>` on
