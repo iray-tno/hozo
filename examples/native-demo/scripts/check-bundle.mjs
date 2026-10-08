@@ -83,6 +83,13 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // paid by every app, since Metro does not tree-shake the semantics entry)
 // and the `HozoMeter` leaves the census screen's compiled Meter imports
 // (1.1 KB). A feature that was missing, not one an app pays for twice.
+//
+// Raised to 525 KB by #144's Avatar, which crossed 510 at 514,465: the
+// pattern, its initials and its text-style split (8.3 KB together, paid by
+// every app, since `@hozo/core` re-exports `@hozo/patterns` whole), and the
+// `HozoAvatar`/`HozoChip` leaves the census screen now imports (2.3 KB).
+// Every new component costs every app this until the facade is split, so a
+// number that keeps moving is the argument for splitting it.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -96,8 +103,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 510_000,
-  `Hozo's modules stay below 510 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 525_000,
+  `Hozo's modules stay below 525 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // And a coarse ceiling on the whole, for the regression this check began

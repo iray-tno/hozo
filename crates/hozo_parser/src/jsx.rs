@@ -202,7 +202,7 @@ impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
                 return;
             }
         }
-        // Keeps descending otherwise: `<Avatar><Text/></Avatar>` and
+        // Keeps descending otherwise: `<ProfileCard><Text/></ProfileCard>` and
         // `{rows.map(() => <Text/>)}` both hide one further down.
         oxc_ast_visit::walk::walk_jsx_element(self, it);
     }
@@ -738,6 +738,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Meter" => Some(Primitive::Meter),
         "Badge" => Some(Primitive::Badge),
         "Chip" => Some(Primitive::Chip),
+        "Avatar" => Some(Primitive::Avatar),
         "Skeleton" => Some(Primitive::Skeleton),
         "Strong" => Some(Primitive::Strong),
         "Emphasis" => Some(Primitive::Emphasis),

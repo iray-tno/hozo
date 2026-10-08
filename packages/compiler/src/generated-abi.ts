@@ -7,6 +7,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoActivityIndicator: '@hozo/rn-compat/generated/activity-indicator',
   HozoAnimated: '@hozo/core/generated/animated',
   HozoAnimatedView: '@hozo/rn-compat/generated/animated-view',
+  HozoAvatar: '@hozo/core/generated/avatar',
   HozoBackdropFilter: '@hozo/core/generated/backdrop-filter',
   HozoBadge: '@hozo/core/generated/badge',
   HozoChip: '@hozo/core/generated/chip',

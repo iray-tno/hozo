@@ -58,6 +58,8 @@ const NOT_ON_THE_SCREEN = new Map([
   ['Tabs', 'As `Combobox`, driven by `tabs`.'],
   ['Toolbar', 'As `Combobox`, driven by `items`.'],
   ['Tree', 'As `Combobox`, driven by `nodes`.'],
+  ['HozoAvatar', 'The same component under its other published name.'],
+  ['HozoChip', 'The same component under its other published name.'],
   ['HozoCombobox', 'The same component under its other published name.'],
   ['HozoListbox', 'The same component under its other published name.'],
   ['HozoMenu', 'The same component under its other published name.'],

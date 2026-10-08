@@ -1421,6 +1421,9 @@ pub(super) fn render_node(
     if node.primitive == Primitive::Chip {
         runtime.need_component("HozoChip");
     }
+    if node.primitive == Primitive::Avatar {
+        runtime.need_component("HozoAvatar");
+    }
     if matches!(node.primitive, Primitive::Details | Primitive::Summary) {
         runtime.need_component(if node.primitive == Primitive::Details {
             "HozoDetails"
@@ -1813,7 +1816,8 @@ pub(super) fn render_node(
 /// would be on nothing. `HozoChip` is the same for another reason: it puts
 /// its label in a `Text` of its own, and names its remove button from a
 /// string label, so its children stay as written and its text styles go to
-/// it to hand on.
+/// it to hand on. `HozoAvatar` draws its initials in a `Text` of its own in
+/// the same way.
 fn renders_text(component: &str) -> bool {
-    matches!(component, "Text" | "HozoBadge" | "HozoChip")
+    matches!(component, "Text" | "HozoBadge" | "HozoChip" | "HozoAvatar")
 }

@@ -667,7 +667,7 @@ export function Login() {
             export function C({ show, items, name }) {
               return (
                 <View>
-                  <Avatar />
+                  <ProfilePicture />
                   {show && <Text>hi</Text>}
                   {items.map((i) => <Text key={i}>{i}</Text>)}
                   <Text>Hello {name}</Text>
@@ -687,7 +687,7 @@ export function Login() {
             })
             .collect();
         assert_eq!(verbatim.len(), 3, "{:?}", root.children);
-        assert_eq!(verbatim[0], "<Avatar />");
+        assert_eq!(verbatim[0], "<ProfilePicture />");
         assert!(verbatim[1].starts_with("{show &&"), "{}", verbatim[1]);
         assert!(verbatim[2].starts_with("{items.map"), "{}", verbatim[2]);
 

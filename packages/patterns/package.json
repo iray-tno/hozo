@@ -32,6 +32,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./generated/avatar": {
+      "react-native": {
+        "types": "./dist/generated/avatar.native.d.ts",
+        "default": "./dist/generated/avatar.native.js"
+      },
+      "types": "./dist/generated/avatar.d.ts",
+      "default": "./dist/generated/avatar.js"
+    },
     "./generated/chip": {
       "react-native": {
         "types": "./dist/generated/chip.native.d.ts",

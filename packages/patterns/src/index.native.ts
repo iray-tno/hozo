@@ -11,6 +11,15 @@ export {
   type HozoAccordionSingleProps,
 } from './accordion.native.tsx'
 export {
+  HozoAvatar as Avatar,
+  HozoAvatar,
+  type HozoAvatarProps as AvatarProps,
+  type HozoAvatarProps,
+  type HozoAvatarStatus as AvatarStatus,
+  type HozoAvatarStatus,
+} from './avatar.native.tsx'
+export { avatarInitials } from './avatar-initials.ts'
+export {
   HozoBottomSheet as BottomSheet,
   HozoBottomSheet,
   type HozoBottomSheetProps as BottomSheetProps,

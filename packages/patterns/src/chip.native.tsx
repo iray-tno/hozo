@@ -1,14 +1,7 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { type ReactNode, useCallback, useState } from 'react'
-import {
-  Pressable,
-  type StyleProp,
-  StyleSheet,
-  Text,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { splitTextStyle as split } from './text-style.native.ts'
 
 export interface HozoChipProps {
   children?: ReactNode
@@ -31,42 +24,6 @@ export interface HozoChipProps {
   style?: StyleProp<ViewStyle | TextStyle>
   removeStyle?: StyleProp<ViewStyle | TextStyle>
   testID?: string
-}
-
-/**
- * The properties a `View` cannot draw and a `Text` can.
- *
- * On the Web a chip's colour is inherited by its label; here a style on a
- * `Pressable` stays there, so `text-white` on a chip would colour nothing.
- * These are moved to the label instead -- the move the compiler makes for a
- * `View`, done here because the label is this component's own element.
- */
-const TEXT_KEYS = new Set([
-  'color',
-  'fontFamily',
-  'fontSize',
-  'fontStyle',
-  'fontVariant',
-  'fontWeight',
-  'letterSpacing',
-  'lineHeight',
-  'textAlign',
-  'textDecorationColor',
-  'textDecorationLine',
-  'textDecorationStyle',
-  'textShadowColor',
-  'textShadowOffset',
-  'textShadowRadius',
-  'textTransform',
-])
-
-function split(style: StyleProp<ViewStyle | TextStyle>): [ViewStyle, TextStyle] {
-  const box: Record<string, unknown> = {}
-  const text: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(StyleSheet.flatten(style) ?? {})) {
-    ;(TEXT_KEYS.has(key) ? text : box)[key] = value
-  }
-  return [box as ViewStyle, text as TextStyle]
 }
 
 function label(children: ReactNode, style: TextStyle) {

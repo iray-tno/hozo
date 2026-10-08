@@ -435,6 +435,12 @@ pub enum Primitive {
     /// React Native has no class list to hand a component, so on Native both
     /// become style props, which `class_slots` names.
     Chip,
+    /// A person's picture, or their initials when it is absent or fails to
+    /// load, read as one image named for the person (#144). `HozoAvatar` on
+    /// both platforms, the pattern from `@hozo/patterns`; like `Chip`, the
+    /// compiler's part is its class lists -- the avatar's, and its picture's,
+    /// initials' and status dot's, which are style props on Native.
+    Avatar,
     /// A loading placeholder: a box with no meaning of its own, hidden from
     /// assistive technology, whose animation stops under reduced motion
     /// whatever classes put it there (decision 007, section 5). `<div>` on
@@ -547,6 +553,11 @@ impl Primitive {
     pub fn class_slots(self) -> &'static [ClassSlot] {
         match self {
             Primitive::Chip => &[ClassSlot { class_prop: "removeClassName", style_prop: "removeStyle" }],
+            Primitive::Avatar => &[
+                ClassSlot { class_prop: "imageClassName", style_prop: "imageStyle" },
+                ClassSlot { class_prop: "fallbackClassName", style_prop: "fallbackStyle" },
+                ClassSlot { class_prop: "statusClassName", style_prop: "statusStyle" },
+            ],
             _ => &[],
         }
     }

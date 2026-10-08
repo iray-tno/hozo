@@ -70,8 +70,10 @@ import {
   Address,
   Article,
   Aside,
+  Avatar,
   Badge,
   Button,
+  Chip,
   Code,
   Del,
   Description,
@@ -272,6 +274,22 @@ export default function Gallery() {
         />
         <Meter value={0.6} accessibilityLabel="Disk usage" testID="gallery-Meter" />
         <Badge count={3} accessibilityLabel="3 unread messages" testID="gallery-Badge" />
+        <Chip
+          defaultSelected={false}
+          onRemove={() => {}}
+          className="self-start rounded-full bg-slate-200 px-3 py-1"
+          removeClassName="px-2"
+          testID="gallery-Chip"
+        >
+          Remote
+        </Chip>
+        <Avatar
+          name="Ada Lovelace"
+          status="online"
+          className="size-10 rounded-full bg-slate-200"
+          statusClassName="absolute bottom-0 end-0 size-3 rounded-full bg-emerald-500"
+          testID="gallery-Avatar"
+        />
 
         <Button accessibilityLabel="A button" testID="gallery-Button">
           Button

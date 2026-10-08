@@ -969,3 +969,31 @@ fn a_chip_is_hozo_chip_and_its_class_lists_are_style_props() {
     let hovered = compile(r#"<Chip onRemove={drop} removeClassName="hover:bg-red-500">x</Chip>"#);
     assert!(!hovered.diagnostics.is_empty(), "{}", hovered.jsx);
 }
+
+#[test]
+fn an_avatar_is_hozo_avatar_and_each_part_gets_its_style() {
+    // #144: four class lists, one per part, each a style prop here; the
+    // avatar keeps its text styles, which it hands to the initials.
+    let source = r#"
+        import { Avatar } from '@hozo/core'
+        const el = <Avatar src={photo} name="Ada Lovelace" status="online" className="size-10 rounded-full bg-slate-200 text-slate-700" imageClassName="opacity-90" fallbackClassName="p-1" statusClassName="size-3 bg-green-500" />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoAvatar style={hozoStyles.hozo0}"), "{}", output.jsx);
+    assert!(output.runtime_imports.contains(&"HozoAvatar"), "{:?}", output.runtime_imports);
+    for prop in [
+        "imageStyle={hozoStyles.hozo1}",
+        "fallbackStyle={hozoStyles.hozo2}",
+        "statusStyle={hozoStyles.hozo3}",
+        "src={photo}",
+        r#"status="online""#,
+    ] {
+        assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
+    }
+    assert!(!output.jsx.contains("ClassName"), "{}", output.jsx);
+    // The text colour stays on the avatar for its initials.
+    let first = output.styles.split("hozo1").next().unwrap_or_default();
+    assert!(first.contains("color:"), "{}", output.styles);
+}

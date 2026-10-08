@@ -265,6 +265,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::Chip) {
         runtime_imports.push("HozoChip");
     }
+    if contains_primitive(root, Primitive::Avatar) {
+        runtime_imports.push("HozoAvatar");
+    }
     if contains_primitive(root, Primitive::ActivityIndicator) {
         runtime_imports.push("HozoActivityIndicator");
     }
@@ -2158,7 +2161,7 @@ export function Login() {
             export function C({ show, items, name }) {
               return (
                 <View className="p-4">
-                  <Avatar />
+                  <ProfilePicture />
                   {show && <Text className="text-xl">hi</Text>}
                   {items.map((i) => <Text key={i} className="p-2">{i}</Text>)}
                   <Text>Hello {name}</Text>
@@ -2172,7 +2175,7 @@ export function Login() {
         // Carried, not interpreted: the guard and the callback survive.
         assert!(output.jsx.contains("{show && "), "{}", output.jsx);
         assert!(output.jsx.contains("{items.map((i) => "), "{}", output.jsx);
-        assert!(output.jsx.contains("<Avatar />"), "{}", output.jsx);
+        assert!(output.jsx.contains("<ProfilePicture />"), "{}", output.jsx);
         // ...while the primitives inside them are fully lowered.
         assert!(!output.jsx.contains("<Text"), "{}", output.jsx);
         assert!(output.css.contains("font-size: 20px;"), "{}", output.css);
@@ -2964,6 +2967,19 @@ const el = <Chip onRemove={drop} disabled={busy} className=\"bg-red-500 my-chip\
         assert!(!output.jsx.contains("aria-disabled"), "{}", output.jsx);
         assert!(output.runtime_imports.contains(&"HozoChip"), "{:?}", output.runtime_imports);
         assert!(output.css.contains(".hozo-1:hover"), "{}", output.css);
+    }
+
+    #[test]
+    fn an_avatar_is_hozo_avatar_with_every_class_list_compiled() {
+        let source = "import { Avatar } from '@hozo/core'
+const el = <Avatar name=\"Ada Lovelace\" status=\"busy\" className=\"size-10 rounded-full\" statusClassName=\"size-3 bg-red-500\" />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<HozoAvatar className=\"hozo-0\""), "{}", output.jsx);
+        assert!(output.jsx.contains(" statusClassName=\"hozo-1\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoAvatar"), "{:?}", output.runtime_imports);
     }
 
     #[test]

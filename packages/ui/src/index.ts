@@ -7,6 +7,14 @@ export {
   type HozoAccordionProps,
 } from './accordion.tsx'
 export {
+  Avatar,
+  type AvatarProps,
+  HozoAvatar,
+  type HozoAvatarProps,
+  type HozoAvatarSize as AvatarSize,
+  type HozoAvatarSize,
+} from './avatar.tsx'
+export {
   HozoBottomSheet as BottomSheet,
   HozoBottomSheet,
   type HozoBottomSheetProps as BottomSheetProps,

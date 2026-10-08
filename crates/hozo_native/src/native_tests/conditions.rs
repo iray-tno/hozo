@@ -992,7 +992,7 @@ fn of_type_is_named_absent_rather_than_answered_wrongly() {
 
 #[test]
 fn first_child_is_refused_when_a_sibling_is_unmodeled() {
-    // `<Avatar/>` renders and occupies the first slot, but never
+    // `<ProfilePicture/>` renders and occupies the first slot, but never
     // becomes a Node -- so the Text is index 0 in `children` and second
     // on screen. Deciding from that index would apply the style to the
     // wrong element, silently.
@@ -1000,7 +1000,7 @@ fn first_child_is_refused_when_a_sibling_is_unmodeled() {
             import { View, Text } from '@hozo/core'
             const el = (
               <View>
-                <Avatar />
+                <ProfilePicture />
                 <Text className="first:mt-0">b</Text>
               </View>
             )

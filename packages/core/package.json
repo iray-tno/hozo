@@ -40,6 +40,10 @@
       "types": "./dist/generated/animation.d.ts",
       "default": "./dist/generated/animation.js"
     },
+    "./generated/avatar": {
+      "types": "./dist/generated/avatar.d.ts",
+      "default": "./dist/generated/avatar.js"
+    },
     "./generated/backdrop-filter": {
       "types": "./dist/generated/backdrop-filter.d.ts",
       "default": "./dist/generated/backdrop-filter.js"

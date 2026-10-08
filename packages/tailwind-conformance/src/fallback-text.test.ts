@@ -81,6 +81,13 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ],
   ['Skeleton', 'A placeholder hidden from assistive technology; it holds no label.'],
   [
+    'Chip',
+    'HozoChip wraps its own label in a Text, and the compiler leaves the label as written so the pattern can name its remove button from the string.',
+  ],
+  ['HozoChip', 'The same component under its other published name.'],
+  ['Avatar', 'Draws a picture or initials from its props; it takes no children.'],
+  ['HozoAvatar', 'The same component under its other published name.'],
+  [
     'Meter',
     "A bar (HozoMeter). Its children are <meter>'s fallback content, which no browser draws.",
   ],

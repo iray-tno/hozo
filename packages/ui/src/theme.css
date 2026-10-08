@@ -133,6 +133,12 @@
   --color-hozo-on-danger: var(--color-white);
   --color-hozo-on-danger--dark: var(--color-slate-950);
 
+  /* Presence: an avatar's online dot, the one place the interface says
+   * "here" in colour. Not text, so held to WCAG 1.4.11's 3:1 against
+   * `surface` rather than 4.5:1: emerald-600 is 3.8:1 on white. */
+  --color-hozo-presence: var(--color-emerald-600);
+  --color-hozo-presence--dark: var(--color-emerald-400);
+
   /* Radii: a control, a surface, a page-level card. */
   --radius-hozo-control: var(--radius-lg);
   --radius-hozo-surface: var(--radius-xl);
