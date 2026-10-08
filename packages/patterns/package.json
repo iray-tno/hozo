@@ -64,6 +64,14 @@
       "types": "./dist/generated/pagination.d.ts",
       "default": "./dist/generated/pagination.js"
     },
+    "./generated/stepper": {
+      "react-native": {
+        "types": "./dist/generated/stepper.native.d.ts",
+        "default": "./dist/generated/stepper.native.js"
+      },
+      "types": "./dist/generated/stepper.d.ts",
+      "default": "./dist/generated/stepper.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

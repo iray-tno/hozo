@@ -34,6 +34,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   hozoScrollable: '@hozo/core/generated/scrollable',
   HozoScrollView: '@hozo/core/generated/scroll-view',
   HozoSpaced: '@hozo/core/generated/spaced',
+  HozoStepper: '@hozo/core/generated/stepper',
   HozoSummary: '@hozo/core/generated/disclosure',
   HozoText: '@hozo/core/generated/text',
   HozoTextInput: '@hozo/core/generated/text-input',

@@ -185,6 +185,12 @@ export {
   type HozoStatusTone,
 } from './status.tsx'
 export {
+  HozoStepper,
+  type HozoStepperProps,
+  Stepper,
+  type StepperProps,
+} from './stepper.tsx'
+export {
   type HozoTab as Tab,
   type HozoTab,
   HozoTabs as Tabs,

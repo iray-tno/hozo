@@ -115,6 +115,16 @@ export {
   valueAt,
 } from './slider-rules.ts'
 export {
+  type HozoStep as Step,
+  type HozoStep,
+  HozoStepper as Stepper,
+  HozoStepper,
+  type HozoStepperProps as StepperProps,
+  type HozoStepperProps,
+  type HozoStepStatus as StepStatus,
+  type HozoStepStatus,
+} from './stepper.native.tsx'
+export {
   type HozoTab as Tab,
   type HozoTab,
   HozoTabs as Tabs,

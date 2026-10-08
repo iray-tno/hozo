@@ -136,6 +136,10 @@
       "types": "./dist/generated/spaced.d.ts",
       "default": "./dist/generated/spaced.js"
     },
+    "./generated/stepper": {
+      "types": "./dist/generated/stepper.d.ts",
+      "default": "./dist/generated/stepper.js"
+    },
     "./generated/text": {
       "types": "./dist/generated/text.d.ts",
       "default": "./dist/generated/text.js"

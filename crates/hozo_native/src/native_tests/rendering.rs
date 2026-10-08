@@ -1021,3 +1021,25 @@ fn a_pagination_is_hozo_pagination_with_a_style_per_state() {
     }
     assert!(output.runtime_imports.contains(&"HozoPagination"), "{:?}", output.runtime_imports);
 }
+
+#[test]
+fn a_stepper_is_hozo_stepper_with_a_style_per_status() {
+    let source = r#"
+        import { Stepper } from '@hozo/core'
+        const el = <Stepper steps={steps} activeStep={1} className="gap-2" currentStepClassName="font-bold" completedIndicatorClassName="bg-blue-600" errorIndicatorClassName="bg-red-600" />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoStepper style={hozoStyles.hozo0}"), "{}", output.jsx);
+    for prop in [
+        "currentStepStyle={hozoStyles.hozo1}",
+        "completedIndicatorStyle={hozoStyles.hozo2}",
+        "errorIndicatorStyle={hozoStyles.hozo3}",
+        "steps={steps}",
+        "activeStep={1}",
+    ] {
+        assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
+    }
+    assert!(output.runtime_imports.contains(&"HozoStepper"), "{:?}", output.runtime_imports);
+}
