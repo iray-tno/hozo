@@ -1,10 +1,12 @@
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 
 import { createCompiler } from '@hozo/compiler'
-import { lowerModule } from '@hozo/compiler/lower'
+import { analyzeModule } from '@hozo/compiler/analysis'
+import { findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
 
 const SOURCE_EXTENSION = '.tsx'
 const SAMPLE_LIMIT = 12
@@ -42,6 +44,7 @@ Options:
   --reproduce-command <cmd>  Command recorded in the Markdown report
   --output <path>            Write the report to this path instead of stdout
   --format json|markdown     Override format (default: Markdown in a terminal, JSON in a pipe)
+  --details                 Include every finding in Markdown (JSON is always complete)
   --help                    Show this help
 
 Only .tsx files are measured. Dependencies, generated output and symlinked directories are skipped.`
@@ -52,6 +55,10 @@ function parseArgs(argv) {
     const key = argv[index]
     if (key === '--') continue
     if (key === '--help') return { help: true }
+    if (key === '--details') {
+      options.details = true
+      continue
+    }
     // `npx @hozo/migration-audit .` is the first thing anyone types, and it
     // failed with `Missing value for .` -- the `.` was read as a flag waiting
     // for its value (#457). A bare token is the checkout.
@@ -146,10 +153,16 @@ function relative(root, file) {
 }
 
 function git(checkout, args) {
-  return execFileSync('git', ['-C', checkout, ...args], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  }).trim()
+  // `status` may refresh the index or invoke a checkout's fsmonitor hook.
+  // Provenance collection must neither write Git metadata nor execute app hooks.
+  return execFileSync(
+    'git',
+    ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-C', checkout, ...args],
+    {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  ).trim()
 }
 
 function optionalGit(checkout, args) {
@@ -165,22 +178,6 @@ function directReactNativeJsxBindings(jsxBindings, imports) {
   return imports.filter((name) => used.has(name))
 }
 
-function diagnosticsFor(components, backend, file, report) {
-  const seenInFile = new Set()
-  for (const component of components) {
-    for (const diagnostic of component.diagnostics) {
-      const key = `${backend}:${diagnostic.code}:${diagnostic.spanStart}:${diagnostic.spanEnd}`
-      if (seenInFile.has(key)) continue
-      seenInFile.add(key)
-      increment(report.diagnostics.byCode, diagnostic.code)
-      increment(report.diagnostics.bySeverity, diagnostic.severity)
-      pushSample(report.samples, `diagnostic:${diagnostic.code}`, file)
-      if (diagnostic.severity === 'error') report._filesWithErrors.add(file)
-      else report._filesWithWarnings.add(file)
-    }
-  }
-}
-
 function measure(options) {
   const root = path.resolve(options.root)
   const { directories, files } = sourceFiles(root, options.source)
@@ -193,12 +190,17 @@ function measure(options) {
     options.repository ?? optionalGit(root, ['remote', 'get-url', 'origin']) ?? root
   const compiler = createCompiler()
   const started = performance.now()
+  const sourceHash = createHash('sha256')
+  const dirty = optionalGit(root, ['status', '--porcelain', '--ignore-submodules=all'])
   const report = {
-    schemaVersion: 2,
+    schemaVersion: 3,
+    toolchain: toolchainEvidence(),
     corpus: {
       name: options.name ?? path.basename(root),
       repository,
       commit,
+      dirty: dirty === undefined ? null : dirty !== '',
+      dirtyScope: 'Checkout status; submodule state is not assessed.',
       ...(directories.length === 1 ? { sourceDirectory: directories[0] } : {}),
       sourceDirectories: directories,
       reproduceCommand: options.reproduceCommand,
@@ -207,7 +209,37 @@ function measure(options) {
       tsxFiles: files.length,
       sourceBytes: 0,
       platformFiles: { shared: 0, web: 0, native: 0 },
+      authoredFiles: files.length,
+      contextModules: 0,
     },
+    analysis: {
+      workers: 1,
+      projectFacts: {
+        theme: {
+          status: 'defaulted',
+          value: 'builtin',
+          reason: 'Project CSS is not assessed yet.',
+        },
+        preflight: {
+          status: 'defaulted',
+          value: false,
+          reason: 'Default compiler has no project reset.',
+        },
+        css: { status: 'unresolved', reason: 'Static project CSS discovery is not assessed yet.' },
+        fonts: { status: 'unresolved', reason: 'Project font registration is not assessed yet.' },
+        aliases: { status: 'unresolved', reason: 'Project import aliases are not assessed yet.' },
+        stylexGraph: {
+          status: 'unresolved',
+          reason: 'Cross-file StyleX context is not assessed yet.',
+        },
+      },
+      primitiveSources: [...compiler.sources],
+      stageDurationMs: {},
+      productionBuild: 'not-assessed',
+      runtimeBehavior: 'not-assessed',
+    },
+    files: [],
+    findings: [],
     authoredSignals: {
       filesImportingReactNative: 0,
       filesWithDirectReactNativeJsx: 0,
@@ -263,6 +295,10 @@ function measure(options) {
     const file = relative(root, absolute)
     const source = readFileSync(absolute, 'utf8')
     const platform = platformFor(absolute)
+    // Length framing prevents different path/content boundaries sharing a hash.
+    for (const part of [file, source]) {
+      sourceHash.update(`${Buffer.byteLength(part)}:`).update(part)
+    }
     report.scope.sourceBytes += Buffer.byteLength(source)
     increment(report.scope.platformFiles, platform)
     if (/\bclassName\s*=/.test(source)) report.authoredSignals.filesWithClassName += 1
@@ -283,24 +319,22 @@ function measure(options) {
       if (matches(source, file)) report.corpusSignals[name] += 1
     }
 
-    let nativeModule
-    let rnImports = []
-    try {
-      nativeModule = compiler.compileNativeModule(source)
-      rnImports = nativeModule.imports.filter((item) => item.source === 'react-native')
+    const analysis = analyzeModule(source, {
+      compiler,
+      file: absolute,
+      root,
+      targets: platform === 'shared' ? ['web', 'native'] : [platform],
+    })
+    recordAnalysis(report, analysis, file, source, platform)
+    const nativeModule = analysis.bindings
+    const rnImports = nativeModule?.imports.filter((item) => item.source === 'react-native') ?? []
+    if (nativeModule) {
       if (rnImports.length > 0) report.authoredSignals.filesImportingReactNative += 1
       for (const item of rnImports) increment(report.reactNativeImports, item.imported)
       if (nativeModule.foreignPrimitives.length > 0) {
         report.authoredSignals.filesWithForeignPrimitiveNames += 1
         pushSample(report.samples, 'foreignPrimitiveNames', file)
       }
-    } catch (error) {
-      report._compileFailures.add(file)
-      pushSample(
-        report.samples,
-        'parseOrCompileFailures',
-        `${file}: ${String(error).split('\n')[0]}`,
-      )
     }
 
     const directBindings = directReactNativeJsxBindings(
@@ -319,42 +353,24 @@ function measure(options) {
       }
     }
 
-    let webComponents = []
-    let loweredWebCode = source
-    if (platform !== 'native') {
-      try {
-        // With rewriting on: the audit asks how far Hozo can take an app off
-        // React Native Web, which is what an app that opted in would get.
-        webComponents = compiler.compile(source, undefined, { rehomeReactNative: true })
-        loweredWebCode =
-          lowerModule(source, absolute, absolute, compiler, root, undefined, {
-            unloweredReactNativeJsx: 'warn',
-          })?.code ?? source
-        if (webComponents.length > 0) report.lowering.filesLoweredForWeb += 1
-        report.lowering.webComponents += webComponents.length
-        diagnosticsFor(webComponents, 'web', file, report)
-        const invalidStyleArrays = loweredWebCode.match(DOM_STYLE_ARRAY)?.length ?? 0
-        if (invalidStyleArrays > 0) {
-          report._confirmedWrongOutputFiles.add(file)
-          report.review.invalidDomStyleArrayOccurrences += invalidStyleArrays
-          pushSample(report.samples, 'invalidDomStyleArrays', `${file}: ${invalidStyleArrays}`)
-        }
-      } catch (error) {
-        report._compileFailures.add(file)
-        pushSample(
-          report.samples,
-          'parseOrCompileFailures',
-          `${file} [web]: ${String(error).split('\n')[0]}`,
-        )
+    const webComponents = analysis.targets.web?.semanticComponents ?? 0
+    const loweredWebCode = analysis.targets.web?.code
+    if (loweredWebCode !== undefined) {
+      if (webComponents > 0) report.lowering.filesLoweredForWeb += 1
+      report.lowering.webComponents += webComponents
+      const invalidStyleArrays = loweredWebCode.match(DOM_STYLE_ARRAY)?.length ?? 0
+      if (invalidStyleArrays > 0) {
+        report._confirmedWrongOutputFiles.add(file)
+        report.review.invalidDomStyleArrayOccurrences += invalidStyleArrays
+        pushSample(report.samples, 'invalidDomStyleArrays', `${file}: ${invalidStyleArrays}`)
       }
     }
 
-    const nativeComponents = platform === 'web' ? [] : (nativeModule?.components ?? [])
-    if (nativeComponents.length > 0) report.lowering.filesLoweredForNative += 1
-    report.lowering.nativeComponents += nativeComponents.length
-    diagnosticsFor(nativeComponents, 'native', file, report)
+    const nativeComponents = analysis.targets.native?.semanticComponents ?? 0
+    if (nativeComponents > 0) report.lowering.filesLoweredForNative += 1
+    report.lowering.nativeComponents += nativeComponents
 
-    if (webComponents.length > 0 || nativeComponents.length > 0) {
+    if (webComponents > 0 || nativeComponents > 0) {
       report.lowering.filesLowered += 1
       // Which file, and what in it the compiler recognised.
       //
@@ -373,7 +389,7 @@ function measure(options) {
         .map((item) => `${item.imported} from ${item.source}`)
       pushSample(report.samples, 'loweredBy', `${file}: ${recognised.join(', ') || '(none)'}`)
     }
-    if (platform !== 'native' && directBindings.length > 0 && webComponents.length === 0) {
+    if (platform !== 'native' && directBindings.length > 0 && webComponents === 0) {
       report.lowering.directReactNativeJsxPassedThroughOnWeb += 1
       const names = rnImports
         .filter((item) => directBindings.includes(item.local))
@@ -386,9 +402,8 @@ function measure(options) {
         `${file}: ${names.join(', ')}`,
       )
     }
-    if (platform !== 'native') {
-      const loweredJsxBindings = compiler.compileNativeModule(loweredWebCode).jsxBindings
-      const residue = directReactNativeJsxBindings(loweredJsxBindings, directBindings)
+    if (analysis.targets.web?.directReactNativeJsxResidue) {
+      const residue = analysis.targets.web.directReactNativeJsxResidue
       if (residue.length > 0) {
         report.lowering.filesWithDirectReactNativeJsxResidueOnWeb += 1
         report.lowering.directReactNativeJsxBindingsResidueOnWeb += residue.length
@@ -405,17 +420,18 @@ function measure(options) {
         )
       }
     }
-    if (platform === 'shared' && webComponents.length !== nativeComponents.length) {
+    if (platform === 'shared' && webComponents !== nativeComponents) {
       report.lowering.sharedBackendShapeMismatches += 1
       pushSample(
         report.samples,
         'sharedBackendShapeMismatches',
-        `${file}: web ${webComponents.length}, native ${nativeComponents.length}`,
+        `${file}: web ${webComponents}, native ${nativeComponents}`,
       )
     }
   }
 
   report.durationMs = Math.round((performance.now() - started) * 100) / 100
+  report.corpus.sourceSha256 = sourceHash.digest('hex')
   report.lowering.parseOrCompileFailures = report._compileFailures.size
   report.diagnostics.filesWithErrors = report._filesWithErrors.size
   report.diagnostics.filesWithWarnings = report._filesWithWarnings.size
@@ -446,7 +462,7 @@ function table(entries) {
   return entries.map(([key, value]) => `| ${key} | ${value} |`).join('\n')
 }
 
-function markdown(report) {
+function markdown(report, { details = false } = {}) {
   const sourceDirectories = report.corpus.sourceDirectories ?? [report.corpus.sourceDirectory]
   const sourcePatterns = sourceDirectories
     .map((directory) => `\`${directory === '.' ? '' : `${directory}/`}**/*.tsx\``)
@@ -459,7 +475,11 @@ function markdown(report) {
   const diagnostics = Object.entries(report.diagnostics.byCode)
   const rnJsxFinding = report.lowering.directReactNativeJsxBindingsResidueOnWeb
     ? `**RNW cannot yet be removed at the JSX boundary:** ${report.lowering.filesWithDirectReactNativeJsxResidueOnWeb} files retain ${report.lowering.directReactNativeJsxBindingsResidueOnWeb} direct React Native JSX bindings after Web lowering.`
-    : '**The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.'
+    : report.files?.some(
+          (file) => file.targets.web?.status === 'failed' || file.bindingsStatus === 'failed',
+        ) || report.files?.every((file) => !file.targets.web)
+      ? '**The direct RN JSX boundary is not fully assessed:** Web/binding analysis failed or no Web targets were assessed; zero observed residue is not a closed boundary.'
+      : '**The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.'
   const sampleSections = Object.entries(report.samples)
     .map(([name, values]) => `### ${name}\n\n${values.map((value) => `- \`${value}\``).join('\n')}`)
     .join('\n\n')
@@ -528,6 +548,8 @@ ${table(Object.entries(report.lowering))}
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
+Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Project CSS, fonts, aliases and cross-file StyleX are not assessed yet; the default theme and no preflight are used. Only authored TSX files enter the denominator; no dependency context modules are loaded.
+
 "Lowered" counts files the compiler produced components for. It does not mean migrated, and it is not a measure of progress.
 
 A tag is lowered only when its binding was imported from a module Hozo recognises: \`@hozo/core\`, the other \`@hozo/*\` packages, or \`react-native\`. A file importing none of them is carried verbatim and lowers nothing, however much \`className\` it contains. So a report whose authored surface shows none of those imports and whose lowering count is above zero is describing two things that cannot both be true — read the counts as suspect rather than as a result.
@@ -539,6 +561,24 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 | Files with errors | ${report.diagnostics.filesWithErrors} |
 | Files with warnings | ${report.diagnostics.filesWithWarnings} |
 ${diagnostics.length > 0 ? table(diagnostics) : '| Diagnostic occurrences | 0 |'}
+
+${findingDetails(report, details)}
+
+${
+  report.toolchain
+    ? `## Analysis provenance
+
+| | |
+|---|---|
+| Audit / compiler versions | ${report.toolchain.auditVersion} / ${report.toolchain.compilerVersion} |
+| Loaded binding SHA-256 | ${report.toolchain.binding.sha256} |
+| Authored source SHA-256 | ${report.corpus.sourceSha256} |
+| Checkout dirty | ${report.corpus.dirty === null ? 'unknown (not a Git checkout)' : report.corpus.dirty} |
+
+Binding identity, per-file outcomes, stage timings and unresolved project facts are retained in JSON. Diagnostic positions use UTF-16 code units; rewritten positions without a source map are explicitly unmapped.
+`
+    : ''
+}
 
 ## Most common React Native imports
 
@@ -592,7 +632,9 @@ export function runCli(argv = process.argv.slice(2), { stdout = process.stdout }
       : 'json'
   const report = measure(options)
   const output =
-    options.format === 'markdown' ? markdown(report) : `${JSON.stringify(report, null, 2)}\n`
+    options.format === 'markdown'
+      ? markdown(report, options)
+      : `${JSON.stringify(report, null, 2)}\n`
   if (options.output) {
     const destination = path.resolve(options.output)
     mkdirSync(path.dirname(destination), { recursive: true })

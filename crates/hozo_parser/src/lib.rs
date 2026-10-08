@@ -54,6 +54,9 @@ pub struct ImportBinding {
 }
 
 pub struct ParseOutput {
+    /// Parser recovery is useful for inventory, but not proof that source parses.
+    /// Keep these separate from target-independent semantic diagnostics.
+    pub syntax_errors: Vec<ParseSyntaxError>,
     pub roots: Vec<Root>,
     /// Local bindings that occur as the root name of an actual JSX tag.
     ///
@@ -92,6 +95,11 @@ pub struct ParseOutput {
     /// Kept because a backend may need to distinguish a carried foreign tag
     /// from one of Hozo's own primitives that unexpectedly survived.
     pub foreign_primitives: std::collections::HashSet<String>,
+}
+
+pub struct ParseSyntaxError {
+    pub message: String,
+    pub span: hozo_ir::SourceSpan,
 }
 
 fn import_bindings(module_record: &ModuleRecord<'_>) -> Vec<ImportBinding> {
@@ -358,6 +366,16 @@ fn parse(
     non_class_spans.extend(text.spans);
 
     ParseOutput {
+        syntax_errors: ret.diagnostics.iter().map(|error| {
+            let span = error.labels.first().map_or(
+                hozo_ir::SourceSpan { start: 0, end: 0 },
+                |label| hozo_ir::SourceSpan {
+                    start: label.offset(),
+                    end: label.offset() + label.len(),
+                },
+            );
+            ParseSyntaxError { message: error.to_string(), span }
+        }).collect(),
         roots: collector.roots,
         jsx_bindings: jsx_bindings.bindings,
         diagnostics: collector.diagnostics,
@@ -457,6 +475,15 @@ impl<'a> Visit<'a> for JsxTextSpans {
 mod tests {
     use super::*;
     use hozo_ir::{Child, Primitive};
+
+    #[test]
+    fn syntax_errors_survive_without_lowerable_roots() {
+        let parsed = super::parse_tsx("export const value = <");
+        assert!(parsed.roots.is_empty());
+        assert!(!parsed.syntax_errors.is_empty());
+        assert!(parsed.syntax_errors.iter().all(|error| !error.message.is_empty()));
+        assert!(super::parse_tsx("export const value = 1").syntax_errors.is_empty());
+    }
 
     #[test]
     fn stylex_module_summary_names_export_aliases_and_rule_kinds() {

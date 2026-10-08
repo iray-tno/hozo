@@ -36,6 +36,10 @@
       "types": "./dist/lower.d.ts",
       "default": "./dist/lower.js"
     },
+    "./analysis": {
+      "types": "./dist/analysis.d.ts",
+      "default": "./dist/analysis.js"
+    },
     "./canvas": {
       "types": "./dist/canvas.d.ts",
       "default": "./dist/canvas.js"

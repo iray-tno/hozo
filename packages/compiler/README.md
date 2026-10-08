@@ -27,6 +27,26 @@ complaint.
 The loader tries them in order — an adjacent development addon first, then
 the platform package — and `HOZO_NATIVE_BINDING` overrides both.
 
+## Read-only module analysis
+
+`@hozo/compiler/analysis` exposes `analyzeModule(source, { compiler, file, root, targets })`.
+It owns diagnostic aggregation over the actual Web module lowering path and a Native
+component/Canvas compiler probe. Only requested targets are assessed; imports/JSX inventory
+currently comes from the Native module parser API. Results include target modes, complete
+findings, partial failures and stage timings. No files or compiler caches are written.
+
+Consumers such as migration-audit should use this result instead of reconstructing the
+pipeline with separate compile calls. The contract does not certify full Metro preparation,
+production dependency graphs, runtime behavior or every member of an import rewritten to Hozo.
+Parser-reported syntax errors survive even if no JSX root was recovered; comprehensive semantic
+validation still belongs to the application's tooling. Diagnostics already use UTF-16 offsets.
+Positions from rewritten inputs without an authored source map are explicitly unmapped.
+
+`ProjectFact<T>` distinguishes resolved (explicit/discovered), defaulted, absent, unresolved,
+unsupported and invalid inputs for future project-aware consumers. Analysis defaults to caller-
+prepared compiler state; it does not execute application configuration or promise shared-worker
+thread safety. See [#790](https://github.com/iray-tno/hozo/issues/790).
+
 ## The list that must not drift
 
 `src/native-targets.ts` is the one table. Two independent things read it:

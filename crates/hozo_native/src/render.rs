@@ -164,8 +164,9 @@ pub(super) fn render_node(
     // class said: `animate-pulse` on one is read as
     // `motion-safe:animate-pulse` (decision 007, section 5). The Web half is
     // a base CSS rule; here it is the same guard a written `motion-safe:`
-    // gets.
-    let style = if node.primitive == Primitive::Skeleton {
+    // gets. The Web rule covers the skeleton's descendants too, so this
+    // does.
+    let style = if node.primitive == Primitive::Skeleton || from_ancestor.in_skeleton {
         style
             .into_iter()
             .map(|declaration| match declaration.property {
@@ -1417,6 +1418,9 @@ pub(super) fn render_node(
     if node.primitive == Primitive::Meter {
         runtime.need_component("HozoMeter");
     }
+    if node.primitive == Primitive::Chip {
+        runtime.need_component("HozoChip");
+    }
     if matches!(node.primitive, Primitive::Details | Primitive::Summary) {
         runtime.need_component(if node.primitive == Primitive::Details {
             "HozoDetails"
@@ -1504,12 +1508,78 @@ pub(super) fn render_node(
             ));
         }
     }
+    // A component's other class lists (`ClassSlot`), which on this platform
+    // are style props: `removeClassName="p-2"` is `removeStyle={…}`. The same
+    // lowering as `className`, so a breakpoint or `dark:` works here as it
+    // does there and an interaction state is reported the same way. Written
+    // as an expression, it is resolved on device from the candidate map,
+    // as `className` is; and an authored `removeStyle` comes last and wins,
+    // as an authored `style` does.
+    let prop_expr = |prop: &hozo_ir::PassthroughProp| -> Option<String> {
+        let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
+        let value = text.split_once('=')?.1.trim();
+        value.strip_prefix('{').and_then(|inner| inner.strip_suffix('}')).map(|inner| inner.trim().to_string())
+    };
+    for slot in node.primitive.class_slots() {
+        let mut parts: Vec<String> = Vec::new();
+        if let Some(written) = node.props.class_slots.iter().find(|written| written.slot == *slot) {
+            let mut pressed = Vec::new();
+            build_style_entries(
+                &written.style,
+                &allocator.alloc(),
+                source,
+                node,
+                position,
+                style_entries,
+                &mut parts,
+                &mut pressed,
+                diagnostics,
+                runtime,
+                false,
+                theme,
+                None,
+            );
+        }
+        for prop in node.props.passthrough.iter().filter(|prop| prop.name.as_deref() == Some(slot.class_prop)) {
+            let Some(expr) = prop_expr(prop) else { continue };
+            diagnostics.push(Diagnostic {
+                code: DiagnosticCode::DynamicClassNameNotResolved,
+                severity: Severity::Warning,
+                message: format!(
+                    "`{}` can't be resolved at build time, so it's resolved on device from the \
+                     project-wide candidate map. Conditional utilities can't be carried that way \
+                     and will warn at runtime -- write those as a static string so they compile.",
+                    slot.class_prop
+                ),
+                span: node.span,
+            });
+            parts.push(format!("hozoClasses({expr})"));
+        }
+        parts.extend(
+            node.props
+                .passthrough
+                .iter()
+                .filter(|prop| prop.name.as_deref() == Some(slot.style_prop))
+                .filter_map(prop_expr),
+        );
+        match parts.len() {
+            0 => {}
+            1 => props_text.push_str(&format!(" {}={{{}}}", slot.style_prop, parts[0])),
+            _ => props_text.push_str(&format!(" {}={{[{}]}}", slot.style_prop, parts.join(", "))),
+        }
+    }
     // Everything Hozo doesn't model, re-emitted verbatim and last so JSX's
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.
     for prop in &node.props.passthrough {
         // Already in the style array above.
         if prop.name.as_deref() == Some("style") {
+            continue;
+        }
+        // Already lowered into a style prop just above.
+        if node.primitive.class_slots().iter().any(|slot| {
+            prop.name.as_deref() == Some(slot.class_prop) || prop.name.as_deref() == Some(slot.style_prop)
+        }) {
             continue;
         }
         // Already translated into `accessibilityValue` above, and a View
@@ -1603,7 +1673,12 @@ pub(super) fn render_node(
                     current_font_size,
                     parent_size_opaque || opaque_here,
                     node.primitive == Primitive::Ruby && component == "HozoRuby",
-                    FromAncestor { direct: &to_children, all: &descendants },
+                    FromAncestor {
+                        direct: &to_children,
+                        all: &descendants,
+                        in_skeleton: from_ancestor.in_skeleton
+                            || node.primitive == Primitive::Skeleton,
+                    },
                     source,
                     allocator,
                     style_entries,
@@ -1735,7 +1810,10 @@ pub(super) fn render_node(
 /// Whether `component` is a React Native `Text` underneath, so text styles
 /// stay on it rather than moving to an inserted `Text`. `HozoBadge` is one:
 /// it draws its count rather than its children, so a colour moved inside
-/// would be on nothing.
+/// would be on nothing. `HozoChip` is the same for another reason: it puts
+/// its label in a `Text` of its own, and names its remove button from a
+/// string label, so its children stay as written and its text styles go to
+/// it to hand on.
 fn renders_text(component: &str) -> bool {
-    matches!(component, "Text" | "HozoBadge")
+    matches!(component, "Text" | "HozoBadge" | "HozoChip")
 }

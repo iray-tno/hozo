@@ -856,6 +856,40 @@ fn a_skeleton_is_hidden_and_animates_only_when_motion_is_allowed() {
 }
 
 #[test]
+fn a_skeletons_descendants_animate_only_when_motion_is_allowed() {
+    // Web's rule is `[data-hozo-skeleton], [data-hozo-skeleton] *`, so a
+    // spinner inside a placeholder stops under reduced motion there. It
+    // has to here too, at any depth, and outside a skeleton the same class
+    // is not guarded.
+    let compile = |element: &str| {
+        let source =
+            format!("import {{ Skeleton, View }} from '@hozo/core'\nconst el = {element}\n");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    for element in [
+        r#"<Skeleton><View className="animate-spin" /></Skeleton>"#,
+        r#"<Skeleton><View><View><View className="animate-spin" /></View></View></Skeleton>"#,
+    ] {
+        let output = compile(element);
+        assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
+        assert!(
+            output.jsx.contains("__hozoEnv_motion_safe && __hozoAnim_spin"),
+            "{element}: {}",
+            output.jsx
+        );
+    }
+    // Not guarded twice.
+    let written = compile(r#"<Skeleton><View className="motion-safe:animate-spin" /></Skeleton>"#);
+    assert_eq!(written.jsx.matches("__hozoEnv_motion_safe &&").count(), 1, "{}", written.jsx);
+    // A sibling outside the skeleton keeps its ordinary animation.
+    let outside =
+        compile(r#"<View><Skeleton className="h-4" /><View className="animate-spin" /></View>"#);
+    assert!(!outside.jsx.contains("__hozoEnv_motion_safe"), "{}", outside.jsx);
+    assert!(outside.jsx.contains("__hozoAnim_spin"), "{}", outside.jsx);
+}
+
+#[test]
 fn line_breaking_is_a_text_prop_where_android_has_one_and_a_warning_where_not() {
     // `text-balance` used to stop the Native build as a Web-only error,
     // for a utility that only moves where lines fall.
@@ -890,4 +924,48 @@ fn line_breaking_is_a_text_prop_where_android_has_one_and_a_warning_where_not() 
     for element in [r#"<Text className="break-normal">x</Text>"#, r#"<Text className="text-wrap">x</Text>"#] {
         assert!(compile(element).diagnostics.is_empty(), "{element}");
     }
+}
+
+#[test]
+fn a_chip_is_hozo_chip_and_its_class_lists_are_style_props() {
+    // #787: on the Web a chip takes two class lists, one for itself and one
+    // for its remove button. React Native hands a component styles, so both
+    // become style props -- and neither may be dropped on the way.
+    let compile = |element: &str| {
+        let source = format!("import {{ Chip }} from '@hozo/core'\nconst el = {element}\n");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let both = compile(
+        r#"<Chip selected={on} onRemove={drop} disabled={busy} className="bg-red-500 text-white px-2 md:px-4" removeClassName="p-2">Remote</Chip>"#,
+    );
+    assert!(both.diagnostics.is_empty(), "{:?}", both.diagnostics);
+    assert!(both.jsx.starts_with("<HozoChip "), "{}", both.jsx);
+    assert!(both.runtime_imports.contains(&"HozoChip"), "{:?}", both.runtime_imports);
+    assert!(both.jsx.contains("style={[hozoStyles.hozo0, __hozoBp_md && hozoStyles.hozo0_md]}"), "{}", both.jsx);
+    assert!(both.jsx.contains("removeStyle={hozoStyles.hozo1}"), "{}", both.jsx);
+    assert!(!both.jsx.contains("className"), "{}", both.jsx);
+    // The pattern's own props, as written: `disabled` is not a host's state
+    // to translate, and the label stays a string the pattern can name its
+    // remove button from.
+    assert!(both.jsx.contains("disabled={busy}") && both.jsx.contains("onRemove={drop}"), "{}", both.jsx);
+    assert!(both.jsx.contains(">Remote</HozoChip>"), "{}", both.jsx);
+    // The text colour stays with the chip, which hands it to its label.
+    assert!(both.styles.contains("color: '#fff'"), "{}", both.styles);
+    assert!(both.styles.contains("padding: 8") || both.styles.contains("paddingTop: 8"), "{}", both.styles);
+
+    // An expression is resolved on device, and an authored `removeStyle`
+    // still wins, last.
+    let dynamic = compile(r#"<Chip onRemove={drop} removeClassName={tone} removeStyle={extra}>x</Chip>"#);
+    assert!(dynamic.jsx.contains("removeStyle={[hozoClasses(tone), extra]}"), "{}", dynamic.jsx);
+    assert!(
+        dynamic.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::DynamicClassNameNotResolved),
+        "{:?}",
+        dynamic.diagnostics
+    );
+    assert!(!dynamic.jsx.contains("removeClassName"), "{}", dynamic.jsx);
+
+    // A state the pattern does not expose is reported, not silently dropped.
+    let hovered = compile(r#"<Chip onRemove={drop} removeClassName="hover:bg-red-500">x</Chip>"#);
+    assert!(!hovered.diagnostics.is_empty(), "{}", hovered.jsx);
 }

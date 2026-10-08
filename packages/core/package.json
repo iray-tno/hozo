@@ -48,6 +48,10 @@
       "types": "./dist/generated/badge.d.ts",
       "default": "./dist/generated/badge.js"
     },
+    "./generated/chip": {
+      "types": "./dist/generated/chip.d.ts",
+      "default": "./dist/generated/chip.js"
+    },
     "./generated/class-resolver": {
       "types": "./dist/generated/class-resolver.d.ts",
       "default": "./dist/generated/class-resolver.js"

@@ -1,0 +1,287 @@
+import path from 'node:path'
+import { performance } from 'node:perf_hooks'
+import { lowerCanvasPaints } from './canvas.ts'
+import type { CompileDiagnostic, CompiledNativeModule, Compiler } from './index.ts'
+import { type LowerModuleOptions, lowerModule } from './lower.ts'
+import type { StylexModuleCache } from './stylex-project.ts'
+
+export type AnalysisBackend = 'source' | 'web' | 'native'
+
+/** Absence and inability to investigate must never become the same project fact. */
+export type ProjectFact<T> =
+  | { status: 'resolved'; value: T; origin: 'explicit' | 'discovered' }
+  | { status: 'defaulted'; value: T; reason: string }
+  | { status: 'absent'; reason: string }
+  | { status: 'unresolved' | 'unsupported' | 'invalid'; reason: string }
+
+export interface AnalysisFinding {
+  backend: AnalysisBackend
+  stage: string
+  code: string
+  severity: string
+  message: string
+  location:
+    | { status: 'authored'; spanStart: number; spanEnd: number; line: number; column: number }
+    | { status: 'unmapped'; spanStart: number; spanEnd: number; reason: string }
+    | { status: 'file' }
+  /** Evidence anchor, not a promise that duplicate occurrences have unique identities. */
+  subject?: { kind: 'diagnostic-span'; snippet: string }
+}
+
+export interface AnalysisStage {
+  backend: AnalysisBackend
+  stage: string
+  status: 'completed' | 'failed'
+  durationMs: number
+}
+
+export interface TargetAnalysis {
+  status: 'completed' | 'failed'
+  mode: 'web-module-lowering' | 'native-compiler-probe'
+  semanticComponents: number
+  transformed?: boolean
+  /** Available only for the actual Web module path, not a fabricated Native module. */
+  code?: string
+  directReactNativeJsxResidue?: string[]
+}
+
+export interface ModuleAnalysis {
+  bindings?: Pick<CompiledNativeModule, 'imports' | 'jsxBindings' | 'foreignPrimitives'>
+  targets: Partial<Record<'web' | 'native', TargetAnalysis>>
+  findings: AnalysisFinding[]
+  stages: AnalysisStage[]
+}
+
+export interface AnalyzeModuleOptions {
+  compiler: Compiler
+  file: string
+  root: string
+  targets: readonly ('web' | 'native')[]
+  stylexModules?: StylexModuleCache
+  unloweredReactNativeJsx?: LowerModuleOptions['unloweredReactNativeJsx']
+}
+
+/**
+ * The compiler owns pipeline accounting. Consumers must not reconstruct it from
+ * unrelated compile calls: that lost Canvas and import diagnostics in audit.
+ *
+ * This first contract deliberately does not promise a single parse, a prepared
+ * project graph, member-level RN compatibility, or full Metro module rewriting.
+ */
+export function analyzeModule(source: string, options: AnalyzeModuleOptions): ModuleAnalysis {
+  const { compiler, file, root, stylexModules } = options
+  const result: ModuleAnalysis = { targets: {}, findings: [], stages: [] }
+  const seen = new Set<string>()
+
+  function collect(
+    backend: AnalysisBackend,
+    stage: string,
+    diagnostics: readonly CompileDiagnostic[],
+    input?: string,
+  ) {
+    for (const diagnostic of diagnostics) {
+      // Stage is not identity: one true occurrence can be exposed by two stages.
+      // Input text IS identity until a source map can join transformed coordinates.
+      const key = JSON.stringify([
+        backend,
+        diagnostic.code,
+        diagnostic.severity,
+        diagnostic.message,
+        diagnostic.spanStart,
+        diagnostic.spanEnd,
+        input,
+      ])
+      if (seen.has(key)) continue
+      seen.add(key)
+      const finding: AnalysisFinding = {
+        backend,
+        stage,
+        code: diagnostic.code,
+        severity: diagnostic.severity,
+        message: diagnostic.message,
+        location: { status: 'file' },
+      }
+      const { spanStart, spanEnd } = diagnostic
+      if (input !== undefined && (spanStart !== 0 || spanEnd !== 0)) {
+        if (
+          input === source &&
+          spanStart >= 0 &&
+          spanEnd >= spanStart &&
+          spanEnd <= source.length
+        ) {
+          // NAPI has already converted Rust byte spans to UTF-16 offsets.
+          const before = source.slice(0, spanStart)
+          const lastNewline = before.lastIndexOf('\n')
+          finding.location = {
+            status: 'authored',
+            spanStart,
+            spanEnd,
+            line: before.split('\n').length,
+            column: spanStart - lastNewline,
+          }
+          finding.subject = {
+            kind: 'diagnostic-span',
+            snippet: source.slice(spanStart, spanEnd).replace(/\s+/g, ' ').trim(),
+          }
+        } else {
+          finding.location = {
+            status: 'unmapped',
+            spanStart,
+            spanEnd,
+            reason:
+              input !== source
+                ? 'Diagnostic coordinates belong to rewritten input; no authored source map yet.'
+                : 'Compiler span falls outside authored source.',
+          }
+        }
+      }
+      result.findings.push(finding)
+    }
+  }
+
+  function run<T>(backend: AnalysisBackend, stage: string, action: () => T): T | undefined {
+    const started = performance.now()
+    let status: AnalysisStage['status'] = 'completed'
+    try {
+      return action()
+    } catch (error) {
+      status = 'failed'
+      collect(backend, stage, [
+        {
+          code: 'ANALYSIS_FAILED',
+          severity: 'error',
+          message: error instanceof Error ? error.message : String(error),
+          spanStart: 0,
+          spanEnd: 0,
+        },
+      ])
+      return undefined
+    } finally {
+      result.stages.push({ backend, stage, status, durationMs: performance.now() - started })
+    }
+  }
+
+  // The current metadata API also prepares Native components. Its diagnostics
+  // are not a Native verdict when only Web was requested. Slice 4 will expose
+  // richer binding/rewrite metadata rather than inferring it from printed code.
+  const original = run('source', 'bindings', () =>
+    compiler.compileNativeModule(source, stylexModules?.bindingsFor(path.resolve(file))),
+  )
+  if (original && original.syntaxDiagnostics.length > 0) {
+    collect('source', 'syntax', original.syntaxDiagnostics, source)
+    // Recovery ASTs are inventory, not successful lowering. Do not interpret
+    // missing recovered JSX as a clean RN boundary or run target transforms.
+    result.stages.push({ backend: 'source', stage: 'syntax', status: 'failed', durationMs: 0 })
+    for (const backend of new Set(options.targets)) {
+      result.targets[backend] = {
+        status: 'failed',
+        mode: backend === 'web' ? 'web-module-lowering' : 'native-compiler-probe',
+        semanticComponents: 0,
+      }
+    }
+    return result
+  }
+  if (original) {
+    result.bindings = {
+      imports: original.imports,
+      jsxBindings: original.jsxBindings,
+      foreignPrimitives: original.foreignPrimitives,
+    }
+  }
+
+  if (options.targets.includes('web')) {
+    const target: TargetAnalysis = {
+      status: 'completed',
+      mode: 'web-module-lowering',
+      semanticComponents: 0,
+    }
+    result.targets.web = target
+    run('web', 'module-lowering', () => {
+      const observed = new Set<CompileDiagnostic>()
+      const lowered = lowerModule(source, file, file, compiler, root, stylexModules, {
+        unloweredReactNativeJsx: options.unloweredReactNativeJsx ?? 'warn',
+        observe: (event) => {
+          for (const diagnostic of event.diagnostics) observed.add(diagnostic)
+          collect('web', event.stage, event.diagnostics, event.source)
+          if (event.components) target.semanticComponents = event.components.length
+        },
+      })
+      // Future module diagnostics remain visible even before a stage gains
+      // richer provenance. Never guess authored coordinates for that fallback.
+      for (const diagnostic of lowered?.diagnostics ?? []) {
+        if (!observed.has(diagnostic)) {
+          collect('web', 'module-lowering', [diagnostic], '')
+        }
+      }
+      target.code = lowered?.code ?? source
+      target.transformed = target.code !== source
+    })
+    if (target.code === undefined) target.status = 'failed'
+    else {
+      const residue = run('web', 'jsx-residue', () => {
+        const emitted = compiler.compileNativeModule(target.code!)
+        if (emitted.syntaxDiagnostics.length > 0) {
+          collect(
+            'web',
+            'jsx-residue',
+            emitted.syntaxDiagnostics.map((diagnostic) => ({
+              ...diagnostic,
+              code: 'LOWERED_SYNTAX_ERROR',
+            })),
+            target.code,
+          )
+          throw new Error(
+            'Rewritten Web output has parser-reported syntax errors; residue is not assessed.',
+          )
+        }
+        const used = new Set(emitted.jsxBindings)
+        return emitted.imports
+          .filter((entry) => entry.source === 'react-native' && used.has(entry.local))
+          .map((entry) => entry.local)
+      })
+      if (residue) target.directReactNativeJsxResidue = [...new Set(residue)]
+      else target.status = 'failed'
+    }
+  }
+
+  if (options.targets.includes('native')) {
+    const target: TargetAnalysis = {
+      status: 'completed',
+      mode: 'native-compiler-probe',
+      semanticComponents: 0,
+    }
+    result.targets.native = target
+    const canvas = run('native', 'canvas', () => lowerCanvasPaints(source, compiler, true))
+    if (canvas) {
+      collect('native', 'canvas', canvas.diagnostics, source)
+      const module = run('native', 'semantic', () => {
+        if (canvas.code === source && original) return original
+        return compiler.compileNativeModule(
+          canvas.code,
+          stylexModules?.bindingsFor(path.resolve(file)),
+        )
+      })
+      if (module) {
+        if (module.syntaxDiagnostics.length > 0) {
+          collect(
+            'native',
+            'semantic',
+            module.syntaxDiagnostics.map((diagnostic) => ({
+              ...diagnostic,
+              code: 'LOWERED_SYNTAX_ERROR',
+            })),
+            canvas.code,
+          )
+          target.status = 'failed'
+        } else target.semanticComponents = module.components.length
+        collect(
+          'native',
+          'semantic',
+          module.components.flatMap((entry) => entry.diagnostics),
+          canvas.code,
+        )
+      } else target.status = 'failed'
+    } else target.status = 'failed'
+  }
+  return result
+}
