@@ -1,9 +1,11 @@
 import {
   Children,
+  type ComponentRef,
   createContext,
   isValidElement,
   type ReactElement,
   type ReactNode,
+  type Ref,
   useCallback,
   useContext,
   useMemo,
@@ -296,6 +298,11 @@ export interface HozoTableCellProps {
   testID?: string
   /** Read by the compiler; see `SemanticsNativeProps.className`. */
   className?: string
+  /**
+   * The cell's View: for focusing it, or measuring where it landed. A prop
+   * rather than `forwardRef`, as React 19 hands a function component its ref.
+   */
+  ref?: Ref<ComponentRef<typeof View>>
 }
 
 /** What a `View` cannot draw: handed to the cell's `Text`. */
@@ -321,6 +328,7 @@ export function HozoTableCell({
   accessibilityLabel,
   style,
   testID,
+  ref,
 }: HozoTableCellProps) {
   const table = useContext(TableContext)
   const row = useContext(RowContext)
@@ -343,6 +351,7 @@ export function HozoTableCell({
 
   return (
     <View
+      ref={ref}
       style={[CELL, box, width !== undefined ? { width } : null]}
       testID={testID}
       onLayout={

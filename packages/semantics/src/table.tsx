@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, ReactNode, Ref } from 'react'
 
 /**
  * A data table on the Web: the table elements themselves, which already lay
@@ -76,6 +76,8 @@ export function HozoTableRow({ children, className, style }: HozoTableRowProps) 
 }
 
 export interface HozoTableCellProps extends PartProps {
+  /** The cell element, for focusing or measuring it. */
+  ref?: Ref<HTMLTableCellElement>
   head?: boolean
   scope?: 'col' | 'row'
   colSpan?: number
@@ -90,9 +92,11 @@ export function HozoTableCell({
   children,
   className,
   style,
+  ref,
 }: HozoTableCellProps) {
   return head ? (
     <th
+      ref={ref}
       scope={scope ?? 'col'}
       colSpan={colSpan}
       aria-label={accessibilityLabel}
@@ -102,7 +106,13 @@ export function HozoTableCell({
       {children}
     </th>
   ) : (
-    <td colSpan={colSpan} aria-label={accessibilityLabel} className={className} style={style}>
+    <td
+      ref={ref}
+      colSpan={colSpan}
+      aria-label={accessibilityLabel}
+      className={className}
+      style={style}
+    >
       {children}
     </td>
   )
