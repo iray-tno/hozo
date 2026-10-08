@@ -77,6 +77,22 @@ was written on a machine that can build one of the eight targets and cannot
 execute a workflow, so the musl and cross-architecture jobs in particular
 should be expected to need correcting on the first real attempt.
 
+### Read-only analysis scope and StyleX context
+
+`@hozo/compiler/analysis` exposes `discoverAnalysisSources` and `prepareAnalysisStylex`,
+used by `prepareAnalysisProject`. They reuse the integration source walk and StyleX registry,
+but never open/persist a checkout cache. Authored inputs and graph-only sources are separate;
+only requested imports/reexports read context files. Static JSONC alias inputs and context
+sources are hashed. Package/custom bundler resolution remains unknown, not guessed.
+
+An in-memory `StylexModuleCache(undefined, { resolverOnly: true })` accepts only recorded
+resolver edges, preventing platform-scoped graphs from falling back to an unrelated relative
+spelling. Web/iOS/Android graphs and their registry snapshots are prepared once. Pass
+`stylexContexts` and `stylexRegistries` to `analyzeModule`; the latter avoids regenerating
+registry inputs per file. The mutable compiler still belongs to one serial worker.
+Target results distinguish current integration eligibility from parser/compiler capability;
+the analysis API does not expand the Web/Metro transform extension gates or certify a build.
+
 <!-- generated: package-footer -->
 
 ---

@@ -91,15 +91,17 @@ function moduleSpellings(importer: string, target: string): Set<string> {
 
 /** Export summaries keyed by the absolute path the project walk discovered. */
 export class StylexModuleCache {
-  readonly #file: string
+  readonly #file: string | undefined
+  readonly #resolverOnly: boolean
   #snapshot: Snapshot
   #dirty = false
   #sources = new Map<string, string>()
   #resolved = new Map<string, Map<string, string>>()
 
-  constructor(file: string) {
+  constructor(file?: string, options: { resolverOnly?: boolean } = {}) {
     this.#file = file
-    this.#snapshot = loadSnapshot(file)
+    this.#resolverOnly = options.resolverOnly ?? false
+    this.#snapshot = file ? loadSnapshot(file) : emptySnapshot()
   }
 
   isCurrent(file: string, modifiedMs: number): boolean {
@@ -258,9 +260,11 @@ export class StylexModuleCache {
         const resolved = this.#resolved.get(module.path)?.get(reexport.specifier)
         const target = resolved
           ? byPath.get(resolved)
-          : candidates.find((candidate) =>
-              moduleSpellings(module.path, candidate.path).has(reexport.specifier),
-            )
+          : this.#resolverOnly
+            ? undefined
+            : candidates.find((candidate) =>
+                moduleSpellings(module.path, candidate.path).has(reexport.specifier),
+              )
         return target ? [target.path] : []
       })
       edges.set(module.path, targets)
@@ -307,7 +311,7 @@ export class StylexModuleCache {
   #bindingsFor(importer: string, modules: readonly CachedStylexModule[]): StylexExternalBinding[] {
     const bindings = new Map<string, string>()
     const included = new Set(modules.map((module) => module.path))
-    for (const module of modules) {
+    for (const module of this.#resolverOnly ? [] : modules) {
       if (module.path === importer) continue
       for (const specifier of moduleSpellings(importer, module.path)) {
         bindings.set(specifier, module.path)
@@ -320,7 +324,7 @@ export class StylexModuleCache {
   }
 
   persist(): void {
-    if (!this.#dirty) return
+    if (!this.#dirty || !this.#file) return
     mkdirSync(path.dirname(this.#file), { recursive: true })
     const temporary = `${this.#file}.tmp`
     writeFileSync(temporary, `${JSON.stringify(this.#snapshot, null, 2)}\n`)

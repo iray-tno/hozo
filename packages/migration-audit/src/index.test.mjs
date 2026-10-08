@@ -244,6 +244,15 @@ function fixture(t, files) {
 }
 
 const simpleSource = 'export function App() { return <div /> }\n'
+function checkoutSnapshot(root) {
+  return readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => [
+      path.relative(root, path.join(entry.parentPath, entry.name)),
+      readFileSync(path.join(entry.parentPath, entry.name)).toString('base64'),
+    ])
+    .sort(([a], [b]) => a.localeCompare(b))
+}
 
 test('discovers app without src and scans both when src and app coexist', async (t) => {
   const appRoot = fixture(t, { 'app/index.tsx': simpleSource })
@@ -255,17 +264,21 @@ test('discovers app without src and scans both when src and app coexist', async 
   assert.deepEqual(both.corpus.sourceDirectories, ['src', 'app'])
   assert.equal(both.scope.tsxFiles, 2)
   const markdown = renderRealAppMarkdown(both)
-  assert.match(markdown, /`src\/\*\*\/\*\.tsx`, `app\/\*\*\/\*\.tsx`/)
+  assert.match(
+    markdown,
+    /`src\/\*\*\/\*\.\{tsx,jsx,ts,js,mts,mjs\}`, `app\/\*\*\/\*\.\{tsx,jsx,ts,js,mts,mjs\}`/,
+  )
   assert.match(markdown, /--source "src" --source "app"/)
 })
 
 test('an empty src does not hide app or root-level TSX', async (t) => {
   const appRoot = fixture(t, {
-    'src/utility.ts': 'export const x = 1',
     'app/index.tsx': simpleSource,
   })
+  mkdirSync(path.join(appRoot, 'src'))
   assert.deepEqual((await measureRealApp({ root: appRoot })).corpus.sourceDirectories, ['app'])
-  const root = fixture(t, { 'src/utility.ts': 'export const x = 1', 'App.tsx': simpleSource })
+  const root = fixture(t, { 'App.tsx': simpleSource })
+  mkdirSync(path.join(root, 'src'))
   assert.deepEqual((await measureRealApp({ root })).corpus.sourceDirectories, ['.'])
 })
 
@@ -313,11 +326,11 @@ test('explicit sources override discovery and overlapping sources are deduplicat
   assert.equal(JSON.parse(stdout.output).scope.tsxFiles, 3)
 })
 
-test('no TSX, missing source, source file and missing checkout are input errors', async (t) => {
-  const root = fixture(t, { 'app/index.jsx': simpleSource })
+test('no JS/TS, missing source, source file and missing checkout are input errors', async (t) => {
+  const root = fixture(t, { 'app/readme.md': 'not source' })
   await assert.rejects(() => measureRealApp({ root }), {
     name: 'Error',
-    message: /No TSX.*--source/,
+    message: /No JS\/TS.*--source/,
   })
   for (const source of ['missing', 'app/index.jsx']) {
     await assert.rejects(() => measureRealApp({ root, source }), AuditInputError)
@@ -327,7 +340,7 @@ test('no TSX, missing source, source file and missing checkout are input errors'
   const result = spawnSync(process.execPath, [cli, root], { encoding: 'utf8' })
   assert.equal(result.status, 1)
   assert.equal(result.stdout, '')
-  assert.match(result.stderr, /^hozo-migration-audit: No TSX.*--source[^\r\n]*\r?\n$/)
+  assert.match(result.stderr, /^hozo-migration-audit: No JS\/TS.*--source[^\r\n]*\r?\n$/)
   assert.doesNotMatch(result.stderr, /ENOENT|at walk|node:fs/)
 })
 
@@ -362,7 +375,7 @@ test('help succeeds without a checkout and argument errors have no stack trace',
   const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
   const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' })
   assert.equal(help.status, 0)
-  assert.match(help.stdout, /Only \.tsx files/)
+  assert.match(help.stdout, /JS\/TS.*\.tsx\/\.jsx/)
   assert.equal(help.stderr, '')
   for (const args of [[], ['--source'], ['.', '--unknown', 'x']]) {
     const result = spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' })
@@ -444,12 +457,107 @@ test('provenance records actual binding, stable authored fingerprint and unresol
   assert.equal(report.corpus.dirty, null)
   assert.equal(report.corpus.sourceSha256, second.corpus.sourceSha256)
   assert.equal(report.analysis.projectFacts.theme.status, 'defaulted')
-  assert.equal(report.analysis.projectFacts.stylexGraph.status, 'unresolved')
+  assert.equal(report.analysis.projectFacts.stylexGraph.status, 'resolved')
   assert.equal(report.analysis.productionBuild, 'not-assessed')
   assert.equal(report.analysis.runtimeBehavior, 'not-assessed')
   assert.ok(report.analysis.stageDurationMs['web:module-lowering'] >= 0)
   writeFileSync(path.join(root, 'src/App.tsx'), `${simpleSource}// edited\n`)
   assert.notEqual((await measureRealApp({ root })).corpus.sourceSha256, report.corpus.sourceSha256)
+})
+
+test('JS/TS inventory, globs, declarations and extension eligibility are explicit', async (t) => {
+  const root = fixture(t, {
+    'packages/app/Card.jsx': `import { View } from 'react-native'; export const Card = () => <View />`,
+    'packages/app/API.js': `import { Platform } from 'react-native'; export const os = Platform.OS`,
+    'packages/app/token.ts': 'export const n = 1',
+    'packages/app/module.mts': 'export const n = 2',
+    'packages/app/module.mjs': 'export const n = 3',
+    'packages/app/Skip.tsx': simpleSource,
+    'packages/app/types.d.ts': 'invalid !!!',
+    'packages/app/types.d.mts': 'invalid !!!',
+    'packages/app/generated/Bad.tsx': 'invalid !!!',
+    'node_modules/lib/Bad.js': 'invalid !!!',
+  })
+  const stdout = {
+    output: '',
+    write(value) {
+      this.output += value
+    },
+  }
+  const report = await runCli(
+    [
+      root,
+      '--source',
+      'packages/app',
+      '--include',
+      'packages/**/*.js',
+      '--include',
+      'packages/**/*.{jsx,ts,mts,mjs,tsx}',
+      '--exclude',
+      '**/generated/**',
+      '--exclude',
+      '**/Skip.tsx',
+      '--native-platform',
+      'ios',
+    ],
+    { stdout },
+  )
+  assert.equal(report.scope.authoredFiles, 5)
+  assert.equal(report.scope.tsxFiles, 0)
+  assert.equal(report.scope.excludedFiles, 4)
+  assert.equal(report.lowering.parseOrCompileFailures, 0)
+  const jsx = report.files.find(({ file }) => file.endsWith('Card.jsx'))
+  assert.equal(jsx.targets.web.integrationEligibility, 'runtime-imports-only')
+  assert.equal(jsx.targets.web.semanticComponents, 0)
+  assert.equal(jsx.targets.native.integrationEligibility, 'compiler-probe-only')
+  assert.equal(jsx.targets.native.platform, 'ios')
+  assert.equal(report.lowering.sharedBackendShapeMismatches, 0)
+  assert.match(renderRealAppMarkdown(report), /not Metro eligibility/)
+  for (const option of [
+    { include: [] },
+    { exclude: ['../outside/**'] },
+    { nativePlatform: 'windows' },
+  ])
+    await assert.rejects(() => measureRealApp({ root, ...option }), AuditInputError)
+})
+
+test('cross-file StyleX context is read-only and remains outside authored scope', async (t) => {
+  const root = fixture(t, {
+    'app/Card.tsx': `import * as stylex from '@stylexjs/stylex'; import { View } from '@hozo/core'; import { styles } from '../tokens/barrel'; export const Card = () => <View {...stylex.props(styles.root)} />`,
+    'tokens/barrel.ts': `export { styles } from './sheet'`,
+    'tokens/sheet.ts': `import * as stylex from '@stylexjs/stylex'; export const styles = stylex.create({root:{padding:16}})`,
+    'metro.config.js': `throw new Error('must never execute')`,
+  })
+  const before = checkoutSnapshot(root)
+  const report = await measureRealApp({ root, source: 'app' })
+  assert.equal(report.scope.authoredFiles, 1)
+  assert.equal(report.scope.contextModules, 2)
+  assert.deepEqual(
+    report.files.map(({ file }) => file),
+    ['app/Card.tsx'],
+  )
+  assert.equal(report.lowering.webComponents, 1)
+  assert.equal(report.lowering.nativeComponents, 1)
+  assert.ok(!report.findings.some(({ code }) => /STYLEX.*UNRESOLVED/.test(code)))
+  assert.ok(report.analysis.graphResolutions.some(({ resolved }) => resolved === 'tokens/sheet.ts'))
+  assert.deepEqual(checkoutSnapshot(root), before)
+  symlinkSync(
+    path.join(root, 'tokens'),
+    path.join(root, 'linked'),
+    process.platform === 'win32' ? 'junction' : 'dir',
+  )
+  await assert.rejects(() => measureRealApp({ root, source: 'linked' }), AuditInputError)
+})
+
+test('valid TS rejected by the TSX parser is a probe limitation, not an authored syntax verdict', async (t) => {
+  const root = fixture(t, { 'src/generic.ts': 'export const identity = <T>(value: T): T => value' })
+  const report = await measureRealApp({ root })
+  assert.equal(report.lowering.parseOrCompileFailures, 1)
+  assert.equal(report.diagnostics.filesWithErrors, 0)
+  assert.equal(report.findings[0].code, 'PARSER_PROBE_REJECTED')
+  assert.match(report.findings[0].message, /does not prove invalid authored syntax/)
+  assert.equal(report.files[0].targets.web.integrationEligibility, 'runtime-imports-only')
+  assert.match(renderRealAppMarkdown(report), /boundary is not fully assessed/)
 })
 
 test('module warnings and syntax failures are visible without falsely closing RN boundaries', async (t) => {

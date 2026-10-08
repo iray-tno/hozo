@@ -1,8 +1,14 @@
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { lowerCanvasPaints } from './canvas.ts'
-import type { CompileDiagnostic, CompiledNativeModule, Compiler } from './index.ts'
+import type {
+  CompileDiagnostic,
+  CompiledNativeModule,
+  Compiler,
+  StylexModuleSource,
+} from './index.ts'
 import { type LowerModuleOptions, lowerModule } from './lower.ts'
+import { semanticModuleEligible } from './project.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
 export {
@@ -11,6 +17,8 @@ export {
   type AnalysisThemeInput,
   prepareAnalysisProject,
 } from './analysis-project.ts'
+export { discoverAnalysisSources, sourcePlatform } from './analysis-sources.ts'
+export { type AnalysisPlatform, prepareAnalysisStylex } from './analysis-stylex.ts'
 
 export type AnalysisBackend = 'source' | 'web' | 'native'
 
@@ -46,6 +54,8 @@ export interface TargetAnalysis {
   status: 'completed' | 'failed'
   mode: 'web-module-lowering' | 'native-compiler-probe'
   semanticComponents: number
+  integrationEligibility?: 'semantic-module' | 'runtime-imports-only' | 'compiler-probe-only'
+  platform?: 'web' | 'ios' | 'android'
   transformed?: boolean
   /** Available only for the actual Web module path, not a fabricated Native module. */
   code?: string
@@ -65,6 +75,10 @@ export interface AnalyzeModuleOptions {
   root: string
   targets: readonly ('web' | 'native')[]
   stylexModules?: StylexModuleCache
+  stylexContexts?: Partial<Record<'web' | 'ios' | 'android', StylexModuleCache>>
+  /** Immutable registry inputs from project preparation; never rebuild per file. */
+  stylexRegistries?: Partial<Record<'web' | 'ios' | 'android', StylexModuleSource[]>>
+  nativePlatform?: 'ios' | 'android'
   unloweredReactNativeJsx?: LowerModuleOptions['unloweredReactNativeJsx']
 }
 
@@ -77,6 +91,21 @@ export interface AnalyzeModuleOptions {
  */
 export function analyzeModule(source: string, options: AnalyzeModuleOptions): ModuleAnalysis {
   const { compiler, file, root, stylexModules } = options
+  const nativePlatform =
+    (file.match(/\.(ios|android)\.[^.]+$/)?.[1] as 'ios' | 'android' | undefined) ??
+    options.nativePlatform ??
+    'android'
+  const webGraph = options.stylexContexts?.web ?? stylexModules
+  const nativeGraph = options.stylexContexts?.[nativePlatform] ?? stylexModules
+  const usesStylex = source.includes('@stylexjs/stylex')
+  const activate = (graph: StylexModuleCache | undefined, platform: 'web' | 'ios' | 'android') => {
+    if (graph && usesStylex)
+      compiler.setStylexModules(options.stylexRegistries?.[platform] ?? graph.moduleSources())
+  }
+  activate(
+    options.targets.includes('native') ? nativeGraph : webGraph,
+    options.targets.includes('native') ? nativePlatform : 'web',
+  )
   const result: ModuleAnalysis = { targets: {}, findings: [], stages: [] }
   const seen = new Set<string>()
 
@@ -172,10 +201,26 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
   // are not a Native verdict when only Web was requested. Slice 4 will expose
   // richer binding/rewrite metadata rather than inferring it from printed code.
   const original = run('source', 'bindings', () =>
-    compiler.compileNativeModule(source, stylexModules?.bindingsFor(path.resolve(file))),
+    compiler.compileNativeModule(
+      source,
+      usesStylex
+        ? (options.targets.includes('native') ? nativeGraph : webGraph)?.bindingsFor(
+            path.resolve(file),
+          )
+        : undefined,
+    ),
   )
   if (original && original.syntaxDiagnostics.length > 0) {
-    collect('source', 'syntax', original.syntaxDiagnostics, source)
+    const syntaxDiagnostics =
+      file.endsWith('.tsx') || file.endsWith('.mdx')
+        ? original.syntaxDiagnostics
+        : original.syntaxDiagnostics.map((diagnostic) => ({
+            ...diagnostic,
+            code: 'PARSER_PROBE_REJECTED',
+            severity: 'warning',
+            message: `TSX parser probe rejected ${path.extname(file)} input; this does not prove invalid authored syntax: ${diagnostic.message}`,
+          }))
+    collect('source', 'syntax', syntaxDiagnostics, source)
     // Recovery ASTs are inventory, not successful lowering. Do not interpret
     // missing recovered JSX as a clean RN boundary or run target transforms.
     result.stages.push({ backend: 'source', stage: 'syntax', status: 'failed', durationMs: 0 })
@@ -184,6 +229,12 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
         status: 'failed',
         mode: backend === 'web' ? 'web-module-lowering' : 'native-compiler-probe',
         semanticComponents: 0,
+        integrationEligibility: semanticModuleEligible(file, backend)
+          ? 'semantic-module'
+          : backend === 'web'
+            ? 'runtime-imports-only'
+            : 'compiler-probe-only',
+        platform: backend === 'web' ? 'web' : nativePlatform,
       }
     }
     return result
@@ -197,15 +248,20 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
   }
 
   if (options.targets.includes('web')) {
+    activate(webGraph, 'web')
     const target: TargetAnalysis = {
       status: 'completed',
       mode: 'web-module-lowering',
       semanticComponents: 0,
+      integrationEligibility: semanticModuleEligible(file, 'web')
+        ? 'semantic-module'
+        : 'runtime-imports-only',
+      platform: 'web',
     }
     result.targets.web = target
     run('web', 'module-lowering', () => {
       const observed = new Set<CompileDiagnostic>()
-      const lowered = lowerModule(source, file, file, compiler, root, stylexModules, {
+      const lowered = lowerModule(source, file, file, compiler, root, webGraph, {
         unloweredReactNativeJsx: options.unloweredReactNativeJsx ?? 'warn',
         observe: (event) => {
           for (const diagnostic of event.diagnostics) observed.add(diagnostic)
@@ -252,10 +308,15 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
   }
 
   if (options.targets.includes('native')) {
+    activate(nativeGraph, nativePlatform)
     const target: TargetAnalysis = {
       status: 'completed',
       mode: 'native-compiler-probe',
       semanticComponents: 0,
+      integrationEligibility: semanticModuleEligible(file, 'native')
+        ? 'semantic-module'
+        : 'compiler-probe-only',
+      platform: nativePlatform,
     }
     result.targets.native = target
     const canvas = run('native', 'canvas', () => lowerCanvasPaints(source, compiler, true))
@@ -265,7 +326,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
         if (canvas.code === source && original) return original
         return compiler.compileNativeModule(
           canvas.code,
-          stylexModules?.bindingsFor(path.resolve(file)),
+          usesStylex ? nativeGraph?.bindingsFor(path.resolve(file)) : undefined,
         )
       })
       if (module) {

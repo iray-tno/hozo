@@ -12,12 +12,14 @@ export function sha256(contents) {
 export function toolchainEvidence() {
   const binding = getCompilerBindingIdentity()
   const themeRequire = createRequire(require.resolve('@hozo/tailwind/package.json'))
+  const compilerRequire = createRequire(require.resolve('@hozo/compiler/package.json'))
   return {
     auditVersion: JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version,
     compilerVersion: require('@hozo/compiler/package.json').version,
     themeLoaderVersion: themeRequire('@hozo/tailwind/package.json').version,
     tailwindVersion: themeRequire('tailwindcss/package.json').version,
     cssParserVersion: themeRequire('postcss/package.json').version,
+    configParserVersion: compilerRequire('jsonc-parser/package.json').version,
     nodeVersion: process.version,
     binding: { ...binding, sha256: sha256(readFileSync(binding.path)) },
   }

@@ -424,6 +424,11 @@ export function isTransformedSource(file: string): boolean {
   return path.extname(file) === '.mdx'
 }
 
+/** Actual integration gate, deliberately narrower than the source inventory. */
+export function semanticModuleEligible(file: string, target: 'web' | 'native'): boolean {
+  return file.endsWith('.tsx') || (target === 'web' && isTransformedSource(file))
+}
+
 /**
  * The transformed sources on disk, which `discoverSources` deliberately
  * omits.

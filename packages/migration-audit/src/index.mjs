@@ -1,32 +1,19 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 
-import { analyzeModule, prepareAnalysisProject } from '@hozo/compiler/analysis'
+import {
+  analyzeModule,
+  discoverAnalysisSources,
+  prepareAnalysisProject,
+  sourcePlatform,
+} from '@hozo/compiler/analysis'
 import { loadStaticProjectTheme } from '@hozo/tailwind'
 import { findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
 
-const SOURCE_EXTENSION = '.tsx'
 const SAMPLE_LIMIT = 12
-const EXCLUDED_DIRECTORIES = new Set([
-  'node_modules',
-  '.git',
-  '.hg',
-  '.svn',
-  '.next',
-  '.nuxt',
-  '.expo',
-  '.turbo',
-  '.cache',
-  'dist',
-  'build',
-  'coverage',
-  '.test-build',
-  'artifacts',
-  'temp',
-])
 const DOM_STYLE_ARRAY =
   /<(?:a|article|aside|button|div|fieldset|footer|h[1-6]|header|hr|img|input|label|legend|li|main|meter|nav|ol|p|progress|section|select|span|textarea|ul)\b[^>]*?\bstyle=\{\[/g
 
@@ -38,6 +25,9 @@ const HELP = `Usage:
 
 Options:
   --source <directory>       Source directory; repeat to scan several (default: src/app, then root)
+  --include <glob>           Authored source glob relative to checkout; repeat to combine
+  --exclude <glob>           Additional authored source exclusion; repeat to combine
+  --native-platform ios|android Native probe graph for shared/native files (default: android)
   --css <file>               Static Tailwind CSS entry (default: conventional CSS discovery)
   --preflight auto|true|false Reset assumption for both backends (default: auto in selected scope)
   --primitive-source <name>  Explicit trusted re-export source; repeat to extend defaults
@@ -50,7 +40,9 @@ Options:
   --details                 Include every finding in Markdown (JSON is always complete)
   --help                    Show this help
 
-Only .tsx files are measured. Dependencies, generated output and symlinked directories are skipped.`
+JS/TS (.tsx/.jsx/.ts/.js/.mts/.mjs) source is observed. Dependencies, declarations,
+generated output and symlinked directories stay outside authored counts. Non-TSX
+compiler capability is not evidence of full integration lowering.`
 
 function parseArgs(argv) {
   const options = {}
@@ -75,6 +67,10 @@ function parseArgs(argv) {
     index += 1
     if (key === '--root') options.root = value
     else if (key === '--source') (options.source ??= []).push(value)
+    else if (key === '--include') (options.include ??= []).push(value)
+    else if (key === '--exclude') (options.exclude ??= []).push(value)
+    else if (key === '--native-platform' && ['ios', 'android'].includes(value))
+      options.nativePlatform = value
     else if (key === '--css') options.css = value
     else if (key === '--primitive-source') (options.primitiveSources ??= []).push(value)
     else if (key === '--preflight' && ['auto', 'true', 'false'].includes(value))
@@ -92,16 +88,6 @@ function parseArgs(argv) {
   return options
 }
 
-function walk(directory) {
-  const files = []
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const absolute = path.join(directory, entry.name)
-    if (entry.isDirectory() && !EXCLUDED_DIRECTORIES.has(entry.name)) files.push(...walk(absolute))
-    else if (entry.isFile() && path.extname(entry.name) === SOURCE_EXTENSION) files.push(absolute)
-  }
-  return files.sort()
-}
-
 function isDirectory(directory) {
   try {
     return statSync(directory).isDirectory()
@@ -111,39 +97,28 @@ function isDirectory(directory) {
   }
 }
 
-function sourceFiles(root, source) {
+function sourceFiles(root, options) {
   if (!isDirectory(root)) throw new AuditInputError(`Checkout is not a directory: ${root}`)
-  const explicit = source !== undefined
-  let directories = explicit ? (Array.isArray(source) ? source : [source]) : ['src', 'app']
-  const found = []
-  for (const directory of directories) {
-    const absolute = path.resolve(root, directory)
-    if (!isDirectory(absolute)) {
-      if (explicit)
-        throw new AuditInputError(
-          `Source is not a directory: ${directory}; use --source <directory>`,
-        )
-      continue
-    }
-    const files = walk(absolute)
-    if (files.length > 0) found.push({ directory: relative(root, absolute) || '.', files })
-  }
-  // Both src/ and app/ can contain application code. Never let an empty src/
-  // hide app/, or scan installed packages when falling back to the checkout.
-  if (!explicit && found.length === 0) found.push({ directory: '.', files: walk(root) })
-  const files = [...new Set(found.flatMap((item) => item.files))].sort()
-  if (files.length === 0)
-    throw new AuditInputError(
-      'No TSX source files found; use --source <directory> containing .tsx files',
+  for (const key of ['include', 'exclude']) {
+    if (
+      options[key] !== undefined &&
+      (!Array.isArray(options[key]) ||
+        !options[key].length ||
+        options[key].some(
+          (glob) =>
+            typeof glob !== 'string' ||
+            !glob.trim() ||
+            path.isAbsolute(glob) ||
+            glob.split(/[\\/]/).includes('..'),
+        ))
     )
-  directories = [...new Set(found.map((item) => item.directory))]
-  return { directories, files }
-}
-
-function platformFor(file) {
-  if (file.endsWith('.web.tsx')) return 'web'
-  if (/\.(?:native|ios|android)\.tsx$/.test(file)) return 'native'
-  return 'shared'
+      throw new AuditInputError(`${key} must be nonempty checkout-relative globs`)
+  }
+  try {
+    return discoverAnalysisSources(root, options)
+  } catch (error) {
+    throw new AuditInputError(error.message)
+  }
 }
 
 function increment(record, key, amount = 1) {
@@ -188,7 +163,9 @@ function directReactNativeJsxBindings(jsxBindings, imports) {
 async function measure(options) {
   const started = performance.now()
   const root = path.resolve(options.root)
-  const { directories, files } = sourceFiles(root, options.source)
+  const { directories, files, contextCandidates, excludedFiles } = sourceFiles(root, options)
+  const discoveryDurationMs = performance.now() - started
+  const provenanceStarted = performance.now()
   const commit = optionalGit(root, ['rev-parse', 'HEAD']) ?? 'unknown'
   if (options.expectedCommit && !commit.startsWith(options.expectedCommit)) {
     throw new AuditInputError(`Expected corpus commit ${options.expectedCommit}, found ${commit}`)
@@ -198,6 +175,8 @@ async function measure(options) {
     options.repository ?? optionalGit(root, ['remote', 'get-url', 'origin']) ?? root
   if (options.preflight !== undefined && ![true, false, 'auto'].includes(options.preflight))
     throw new AuditInputError('preflight must be auto, true or false')
+  if (options.nativePlatform !== undefined && !['ios', 'android'].includes(options.nativePlatform))
+    throw new AuditInputError('nativePlatform must be ios or android')
   if (options.css !== undefined && (typeof options.css !== 'string' || !options.css.trim()))
     throw new AuditInputError('css must name a stylesheet')
   if (
@@ -206,16 +185,19 @@ async function measure(options) {
       options.primitiveSources.some((source) => typeof source !== 'string' || !source.trim()))
   )
     throw new AuditInputError('primitiveSources must be an array of nonempty module names')
+  const dirty = optionalGit(root, ['status', '--porcelain', '--ignore-submodules=all'])
+  const provenanceDurationMs = performance.now() - provenanceStarted
+  const sourceReadStarted = performance.now()
   const authoredSources = files.map((file) => ({ file, source: readFileSync(file, 'utf8') }))
+  const sourceReadDurationMs = performance.now() - sourceReadStarted
   const project = await prepareAnalysisProject(
-    { ...options, root, authoredSources },
+    { ...options, root, authoredSources, contextCandidates },
     loadStaticProjectTheme,
   )
   if (options.css !== undefined && project.projectFacts.css.status === 'invalid')
     throw new AuditInputError(project.projectFacts.css.reason)
   const { compiler } = project
   const sourceHash = createHash('sha256')
-  const dirty = optionalGit(root, ['status', '--porcelain', '--ignore-submodules=all'])
   const report = {
     schemaVersion: 3,
     toolchain: toolchainEvidence(),
@@ -230,16 +212,52 @@ async function measure(options) {
       reproduceCommand: options.reproduceCommand,
     },
     scope: {
-      tsxFiles: files.length,
+      tsxFiles: files.filter((file) => file.endsWith('.tsx')).length,
+      extensions: Object.fromEntries(
+        ['.tsx', '.jsx', '.ts', '.js', '.mts', '.mjs'].map((ext) => [
+          ext,
+          files.filter((file) => path.extname(file) === ext).length,
+        ]),
+      ),
       sourceBytes: 0,
       platformFiles: { shared: 0, web: 0, native: 0 },
       authoredFiles: files.length,
-      contextModules: 0,
+      contextModules: project.stylex.contextSources.length,
+      excludedFiles: excludedFiles.length,
     },
     analysis: {
       workers: 1,
       projectFacts: project.projectFacts,
       contextStatus: project.contextStatus,
+      sourceSelection: {
+        include: options.include ?? null,
+        exclude: options.exclude ?? [],
+        extensions: ['.tsx', '.jsx', '.ts', '.js', '.mts', '.mjs'],
+      },
+      excludedFiles: excludedFiles.map(({ file, reason }) => ({
+        file: relative(root, file),
+        reason,
+      })),
+      omittedScope:
+        'Built-in excluded directory contents and unsupported extensions are not enumerated; this is a source inventory, not an entry-point production graph.',
+      nativePlatform: options.nativePlatform ?? 'android',
+      resolutionPolicy:
+        'static-relative-and-tsconfig-paths; platform suffix preference; ambiguous extensions unresolved; not authoritative bundler resolution',
+      parserMode: 'TSX compiler probe for all source extensions; not TypeScript validation',
+      contextModules: project.stylex.contextSources.map(({ file, sha256 }) => ({
+        file: relative(root, file),
+        sha256,
+        purpose: 'StyleX import/reexport context',
+      })),
+      configurationInputs: project.stylex.configurationInputs.map(({ file, sha256 }) => ({
+        file: relative(root, file),
+        sha256,
+      })),
+      graphResolutions: project.stylex.resolutions.map(({ importer, resolved, ...rest }) => ({
+        ...rest,
+        importer: relative(root, importer),
+        ...(resolved ? { resolved: relative(root, resolved) } : {}),
+      })),
       stylesheetInputs: project.stylesheets,
       preflightBasis: project.preflightBasis,
       compilerAssumptions: {
@@ -247,7 +265,12 @@ async function measure(options) {
         preflight: project.compilerInputs.theme.preflight,
       },
       primitiveSources: [...compiler.sources],
-      stageDurationMs: { 'project:preparation': project.durationMs },
+      stageDurationMs: {
+        'source:discovery': discoveryDurationMs,
+        'corpus:provenance': provenanceDurationMs,
+        'source:snapshot': sourceReadDurationMs,
+        'project:preparation': project.durationMs,
+      },
       productionBuild: 'not-assessed',
       runtimeBehavior: 'not-assessed',
     },
@@ -306,7 +329,7 @@ async function measure(options) {
 
   for (const { file: absolute, source } of authoredSources) {
     const file = relative(root, absolute)
-    const platform = platformFor(absolute)
+    const platform = sourcePlatform(absolute)
     // Length framing prevents different path/content boundaries sharing a hash.
     for (const part of [file, source]) {
       sourceHash.update(`${Buffer.byteLength(part)}:`).update(part)
@@ -335,6 +358,9 @@ async function measure(options) {
       compiler,
       file: absolute,
       root,
+      stylexContexts: project.stylex.graphs,
+      stylexRegistries: project.stylex.registries,
+      nativePlatform: options.nativePlatform ?? 'android',
       targets: platform === 'shared' ? ['web', 'native'] : [platform],
     })
     recordAnalysis(report, analysis, file, source, platform)
@@ -432,7 +458,7 @@ async function measure(options) {
         )
       }
     }
-    if (platform === 'shared' && webComponents !== nativeComponents) {
+    if (absolute.endsWith('.tsx') && platform === 'shared' && webComponents !== nativeComponents) {
       report.lowering.sharedBackendShapeMismatches += 1
       pushSample(
         report.samples,
@@ -477,7 +503,9 @@ function table(entries) {
 function markdown(report, { details = false } = {}) {
   const sourceDirectories = report.corpus.sourceDirectories ?? [report.corpus.sourceDirectory]
   const sourcePatterns = sourceDirectories
-    .map((directory) => `\`${directory === '.' ? '' : `${directory}/`}**/*.tsx\``)
+    .map(
+      (directory) => `\`${directory === '.' ? '' : `${directory}/`}**/*.{tsx,jsx,ts,js,mts,mjs}\``,
+    )
     .join(', ')
   const sourceArguments = sourceDirectories
     .map((directory) => `--source ${JSON.stringify(directory)}`)
@@ -507,7 +535,7 @@ function markdown(report, { details = false } = {}) {
   // `style` -- the opposite of what the README documents as the headline
   // feature. It was believed over the README and had to be walked back
   // (#457), which is the cost of a report that reasons instead of reporting.
-  const stylingFinding = `**Styling surface:** ${report.authoredSignals.filesWithClassName} of ${report.scope.tsxFiles} files use \`className\` and ${report.authoredSignals.filesWithStyleProp} use \`style\`.${report.authoredSignals.filesWithBareFlexClassName > 0 ? ` ${report.authoredSignals.filesWithBareFlexClassName} write a bare \`flex\` class, which means a row in React DOM and lowers to a column on Native.` : ''}`
+  const stylingFinding = `**Styling surface:** ${report.authoredSignals.filesWithClassName} of ${report.scope.authoredFiles} files use \`className\` and ${report.authoredSignals.filesWithStyleProp} use \`style\`.${report.authoredSignals.filesWithBareFlexClassName > 0 ? ` ${report.authoredSignals.filesWithBareFlexClassName} write a bare \`flex\` class, which means a row in React DOM and lowers to a column on Native.` : ''}`
   const webStyleFinding = report.review.invalidDomStyleArrayOccurrences
     ? `**Unchanged Web output is not safe yet:** ${report.review.confirmedWrongOutputFiles} files contain ${report.review.invalidDomStyleArrayOccurrences.toLocaleString()} lowered DOM style arrays, a confirmed invalid React DOM shape.`
     : '**The DOM style-array invariant holds:** Web lowering emitted no React Native style arrays into DOM style props.'
@@ -522,13 +550,13 @@ This is a read-only compiler measurement, not a claim that the application can b
 | Repository | ${report.corpus.repository} |
 | Commit | \`${report.corpus.commit}\` |
 | Source | ${sourcePatterns} |
-| Files | ${report.scope.tsxFiles.toLocaleString()} |
+| Authored files / TSX subset / context modules | ${report.scope.authoredFiles.toLocaleString()} / ${report.scope.tsxFiles.toLocaleString()} / ${report.scope.contextModules} |
 | Source bytes | ${report.scope.sourceBytes.toLocaleString()} |
 | Shared / Web / Native | ${report.scope.platformFiles.shared} / ${report.scope.platformFiles.web} / ${report.scope.platformFiles.native} |
 
 ## Findings
 
-1. **${report.lowering.parseOrCompileFailures === 0 ? 'The corpus parses cleanly' : 'The corpus has parse or compile failures'}:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.tsxFiles.toLocaleString()} TSX files.
+1. **${report.lowering.parseOrCompileFailures === 0 ? 'The corpus parses cleanly' : 'The corpus has parse or compile failures'}:** ${report.lowering.parseOrCompileFailures} parse or compile failures across ${report.scope.authoredFiles.toLocaleString()} JS/TS files (TSX parser probe, not TypeScript validation).
 2. ${webStyleFinding}
 3. ${rnJsxFinding}
 4. ${stylingFinding}
@@ -562,7 +590,9 @@ ${table(Object.entries(report.lowering))}
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
-Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Static CSS/theme is prepared once; executable configuration is refused. Fonts, aliases and cross-file StyleX are not assessed yet. Only authored TSX files enter the denominator; no dependency source modules are loaded.
+Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Non-TSX Web modules only use the existing runtime-import rewrite path; Native compiler results for these extensions are probes, not Metro eligibility. Each target records integrationEligibility in JSON.
+
+Cross-file StyleX uses in-memory, platform-separated graphs and static relative/tsconfig paths resolution. Shared/native probes use ${report.analysis.nativePlatform}; explicit iOS/Android suffixes use their own platform. Package/custom bundler resolution remains unassessed when no static answer exists. Resolution records and input hashes are retained in JSON. Context-only modules do not enter authored counts. Fonts and production entry-point reachability remain unassessed; no app configuration is executed.
 
 ## Project context
 

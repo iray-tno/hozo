@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks'
 import type { ProjectFact } from './analysis.ts'
+import { prepareAnalysisStylex } from './analysis-stylex.ts'
 import { createCompiler, openCandidateCache, type Theme } from './index.ts'
 import { preflightEnabled } from './project.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
@@ -14,6 +15,7 @@ export interface AnalysisProjectOptions {
   root: string
   /** Authored scope is supplied by the caller, never a persistent project scan. */
   authoredSources: readonly { file: string; source: string }[]
+  contextCandidates?: readonly string[]
   css?: string
   preflight?: boolean | 'auto'
   /** Explicit additions, not a replacement for the canonical default sources. */
@@ -89,7 +91,26 @@ export async function prepareAnalysisProject(
     },
   }
   const compilerInputs = { theme: { colors: [], ...theme, preflight }, sources: primitiveSources }
+  const stylex = prepareAnalysisStylex(
+    options.root,
+    options.authoredSources,
+    options.contextCandidates ?? options.authoredSources.map(({ file }) => file),
+  )
+  projectFacts.aliases = stylex.aliases
+  projectFacts.stylexGraph = {
+    status: 'resolved',
+    origin: 'discovered',
+    value: {
+      scope: 'static-admitted-modules',
+      platforms: ['web', 'ios', 'android'],
+      modules: Object.fromEntries(
+        Object.entries(stylex.graphs).map(([platform, graph]) => [platform, graph.size]),
+      ),
+      unresolvedImports: stylex.resolutions.filter(({ status }) => status === 'unresolved').length,
+    },
+  }
   return {
+    stylex,
     compiler: createCompiler(compilerInputs.theme, primitiveSources),
     compilerInputs,
     projectFacts,

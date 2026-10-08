@@ -83,6 +83,7 @@ const PACKAGES = {
     keywords: ['react-native', 'three.js', '3d', 'canvas', 'graphics'],
   },
   compiler: {
+    dependencyOverrides: { 'jsonc-parser': '^3.3.1' },
     exports: {
       '.': './dist/index.js',
       './project': './dist/project.js',

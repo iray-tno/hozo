@@ -710,6 +710,9 @@ importers:
       globby:
         specifier: ^14.1.0
         version: 14.1.0
+      jsonc-parser:
+        specifier: ^3.3.1
+        version: 3.3.1
     devDependencies:
       '@babel/core':
         specifier: 7.29.7
