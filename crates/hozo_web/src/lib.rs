@@ -268,6 +268,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::Avatar) {
         runtime_imports.push("HozoAvatar");
     }
+    if contains_primitive(root, Primitive::Pagination) {
+        runtime_imports.push("HozoPagination");
+    }
     if contains_primitive(root, Primitive::ActivityIndicator) {
         runtime_imports.push("HozoActivityIndicator");
     }
@@ -2980,6 +2983,19 @@ const el = <Avatar name=\"Ada Lovelace\" status=\"busy\" className=\"size-10 rou
         assert!(output.jsx.starts_with("<HozoAvatar className=\"hozo-0\""), "{}", output.jsx);
         assert!(output.jsx.contains(" statusClassName=\"hozo-1\""), "{}", output.jsx);
         assert!(output.runtime_imports.contains(&"HozoAvatar"), "{:?}", output.runtime_imports);
+    }
+
+    #[test]
+    fn a_pagination_is_hozo_pagination_with_its_state_class_lists_compiled() {
+        let source = "import { Pagination } from '@hozo/core'
+const el = <Pagination pageCount={9} className=\"flex gap-1\" currentItemClassName=\"font-bold\" />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<HozoPagination className=\"hozo-0\""), "{}", output.jsx);
+        assert!(output.jsx.contains(" currentItemClassName=\"hozo-1\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoPagination"), "{:?}", output.runtime_imports);
     }
 
     #[test]

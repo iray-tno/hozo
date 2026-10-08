@@ -925,6 +925,9 @@ importers:
       '@hozo/behaviors':
         specifier: workspace:^
         version: link:../behaviors
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../engine
     devDependencies:
       '@types/react':
         specifier: ^19.2.18

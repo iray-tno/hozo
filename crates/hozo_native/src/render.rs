@@ -1424,6 +1424,9 @@ pub(super) fn render_node(
     if node.primitive == Primitive::Avatar {
         runtime.need_component("HozoAvatar");
     }
+    if node.primitive == Primitive::Pagination {
+        runtime.need_component("HozoPagination");
+    }
     if matches!(node.primitive, Primitive::Details | Primitive::Summary) {
         runtime.need_component(if node.primitive == Primitive::Details {
             "HozoDetails"
@@ -1817,7 +1820,7 @@ pub(super) fn render_node(
 /// its label in a `Text` of its own, and names its remove button from a
 /// string label, so its children stay as written and its text styles go to
 /// it to hand on. `HozoAvatar` draws its initials in a `Text` of its own in
-/// the same way.
+/// the same way, and `HozoPagination` its page numbers.
 fn renders_text(component: &str) -> bool {
-    matches!(component, "Text" | "HozoBadge" | "HozoChip" | "HozoAvatar")
+    matches!(component, "Text" | "HozoBadge" | "HozoChip" | "HozoAvatar" | "HozoPagination")
 }

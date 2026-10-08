@@ -441,6 +441,12 @@ pub enum Primitive {
     /// compiler's part is its class lists -- the avatar's, and its picture's,
     /// initials' and status dot's, which are style props on Native.
     Avatar,
+    /// Numbered pages with previous and next (#150): a named `<nav>` of
+    /// buttons, or of links with `getPageHref`. `HozoPagination` on both
+    /// platforms; the compiler's part is its class lists, including the
+    /// ones for a state -- the current page, a disabled end -- which the
+    /// pattern applies because React Native has no selector to.
+    Pagination,
     /// A loading placeholder: a box with no meaning of its own, hidden from
     /// assistive technology, whose animation stops under reduced motion
     /// whatever classes put it there (decision 007, section 5). `<div>` on
@@ -557,6 +563,12 @@ impl Primitive {
                 ClassSlot { class_prop: "imageClassName", style_prop: "imageStyle" },
                 ClassSlot { class_prop: "fallbackClassName", style_prop: "fallbackStyle" },
                 ClassSlot { class_prop: "statusClassName", style_prop: "statusStyle" },
+            ],
+            Primitive::Pagination => &[
+                ClassSlot { class_prop: "itemClassName", style_prop: "itemStyle" },
+                ClassSlot { class_prop: "currentItemClassName", style_prop: "currentItemStyle" },
+                ClassSlot { class_prop: "disabledItemClassName", style_prop: "disabledItemStyle" },
+                ClassSlot { class_prop: "ellipsisClassName", style_prop: "ellipsisStyle" },
             ],
             _ => &[],
         }

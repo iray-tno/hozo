@@ -66,6 +66,13 @@ export {
   type HozoMenuProps,
 } from './menu.native.tsx'
 export {
+  HozoPagination as Pagination,
+  HozoPagination,
+  type HozoPaginationProps as PaginationProps,
+  type HozoPaginationProps,
+} from './pagination.native.tsx'
+export { type PaginationItem, paginationItems } from './pagination-rules.ts'
+export {
   HozoPopover as Popover,
   HozoPopover,
   type HozoPopoverProps as PopoverProps,

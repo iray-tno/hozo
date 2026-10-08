@@ -95,6 +95,7 @@ import {
   Meter,
   Nav,
   NoBreak,
+  Pagination,
   Paragraph,
   Pressable,
   Progress,
@@ -289,6 +290,15 @@ export default function Gallery() {
           className="size-10 rounded-full bg-slate-200"
           statusClassName="absolute bottom-0 end-0 size-3 rounded-full bg-emerald-500"
           testID="gallery-Avatar"
+        />
+        <Pagination
+          defaultPage={5}
+          pageCount={20}
+          className="flex-row gap-1"
+          itemClassName="px-2 py-1"
+          currentItemClassName="bg-slate-800 text-white"
+          disabledItemClassName="opacity-50"
+          testID="gallery-Pagination"
         />
 
         <Button accessibilityLabel="A button" testID="gallery-Button">

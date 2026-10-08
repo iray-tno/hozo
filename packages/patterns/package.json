@@ -56,6 +56,14 @@
       "types": "./dist/generated/dialog.d.ts",
       "default": "./dist/generated/dialog.js"
     },
+    "./generated/pagination": {
+      "react-native": {
+        "types": "./dist/generated/pagination.native.d.ts",
+        "default": "./dist/generated/pagination.native.js"
+      },
+      "types": "./dist/generated/pagination.d.ts",
+      "default": "./dist/generated/pagination.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -76,7 +84,8 @@
     "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
   },
   "dependencies": {
-    "@hozo/behaviors": "workspace:^"
+    "@hozo/behaviors": "workspace:^",
+    "@hozo/engine": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",

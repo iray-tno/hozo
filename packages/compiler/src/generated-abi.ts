@@ -25,6 +25,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoLink: '@hozo/core/generated/link',
   HozoMeter: '@hozo/core/generated/meter',
   HozoModal: '@hozo/rn-compat/generated/modal',
+  HozoPagination: '@hozo/core/generated/pagination',
   HozoPressable: '@hozo/core/generated/pressable',
   HozoRefreshControl: '@hozo/core/generated/refresh-control',
   HozoRelativeText: '@hozo/core/generated/text-size',
