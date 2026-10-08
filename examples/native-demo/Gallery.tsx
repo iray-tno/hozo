@@ -106,6 +106,7 @@ import {
   Section,
   Separator,
   Small,
+  Stepper,
   Strikethrough,
   Strong,
   Sub,
@@ -299,6 +300,15 @@ export default function Gallery() {
           currentItemClassName="bg-slate-800 text-white"
           disabledItemClassName="opacity-50"
           testID="gallery-Pagination"
+        />
+        <Stepper
+          steps={[{ label: 'Account' }, { label: 'Profile' }, { label: 'Confirm' }]}
+          activeStep={1}
+          className="gap-2"
+          stepClassName="flex-row items-center gap-2"
+          indicatorClassName="size-6 items-center justify-center rounded-full border"
+          currentIndicatorClassName="bg-slate-800 text-white"
+          testID="gallery-Stepper"
         />
 
         <Button accessibilityLabel="A button" testID="gallery-Button">

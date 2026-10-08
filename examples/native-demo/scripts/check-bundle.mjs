@@ -90,6 +90,11 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // `HozoAvatar`/`HozoChip` leaves the census screen now imports (2.3 KB).
 // Every new component costs every app this until the facade is split, so a
 // number that keeps moving is the argument for splitting it.
+//
+// Raised to 545 KB by #150's Stepper, which crossed 525 at 533,434 with
+// Pagination beside it: the two patterns and their rules are 14.4 KB, and
+// the census screen's leaves for them 2.3 KB. Third raise in a week -- the
+// facade split above is now the open question, not the number.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -103,8 +108,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 525_000,
-  `Hozo's modules stay below 525 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 545_000,
+  `Hozo's modules stay below 545 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // And a coarse ceiling on the whole, for the regression this check began

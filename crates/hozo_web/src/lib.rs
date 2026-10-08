@@ -271,6 +271,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
     if contains_primitive(root, Primitive::Pagination) {
         runtime_imports.push("HozoPagination");
     }
+    if contains_primitive(root, Primitive::Stepper) {
+        runtime_imports.push("HozoStepper");
+    }
     if contains_primitive(root, Primitive::ActivityIndicator) {
         runtime_imports.push("HozoActivityIndicator");
     }
@@ -2996,6 +2999,19 @@ const el = <Pagination pageCount={9} className=\"flex gap-1\" currentItemClassNa
         assert!(output.jsx.starts_with("<HozoPagination className=\"hozo-0\""), "{}", output.jsx);
         assert!(output.jsx.contains(" currentItemClassName=\"hozo-1\""), "{}", output.jsx);
         assert!(output.runtime_imports.contains(&"HozoPagination"), "{:?}", output.runtime_imports);
+    }
+
+    #[test]
+    fn a_stepper_is_hozo_stepper_with_its_status_class_lists_compiled() {
+        let source = "import { Stepper } from '@hozo/core'
+const el = <Stepper steps={steps} activeStep={0} className=\"flex gap-2\" currentIndicatorClassName=\"bg-blue-600\" />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<HozoStepper className=\"hozo-0\""), "{}", output.jsx);
+        assert!(output.jsx.contains(" currentIndicatorClassName=\"hozo-1\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoStepper"), "{:?}", output.runtime_imports);
     }
 
     #[test]

@@ -447,6 +447,11 @@ pub enum Primitive {
     /// ones for a state -- the current page, a disabled end -- which the
     /// pattern applies because React Native has no selector to.
     Pagination,
+    /// Where a person is in a process of several steps (#150), each step's
+    /// position and status said in words. `HozoStepper` on both platforms;
+    /// like `Pagination`, its class lists include one per status, for the
+    /// step and for its indicator, applied by the pattern.
+    Stepper,
     /// A loading placeholder: a box with no meaning of its own, hidden from
     /// assistive technology, whose animation stops under reduced motion
     /// whatever classes put it there (decision 007, section 5). `<div>` on
@@ -569,6 +574,17 @@ impl Primitive {
                 ClassSlot { class_prop: "currentItemClassName", style_prop: "currentItemStyle" },
                 ClassSlot { class_prop: "disabledItemClassName", style_prop: "disabledItemStyle" },
                 ClassSlot { class_prop: "ellipsisClassName", style_prop: "ellipsisStyle" },
+            ],
+            Primitive::Stepper => &[
+                ClassSlot { class_prop: "stepClassName", style_prop: "stepStyle" },
+                ClassSlot { class_prop: "completedStepClassName", style_prop: "completedStepStyle" },
+                ClassSlot { class_prop: "currentStepClassName", style_prop: "currentStepStyle" },
+                ClassSlot { class_prop: "errorStepClassName", style_prop: "errorStepStyle" },
+                ClassSlot { class_prop: "indicatorClassName", style_prop: "indicatorStyle" },
+                ClassSlot { class_prop: "completedIndicatorClassName", style_prop: "completedIndicatorStyle" },
+                ClassSlot { class_prop: "currentIndicatorClassName", style_prop: "currentIndicatorStyle" },
+                ClassSlot { class_prop: "errorIndicatorClassName", style_prop: "errorIndicatorStyle" },
+                ClassSlot { class_prop: "descriptionClassName", style_prop: "descriptionStyle" },
             ],
             _ => &[],
         }
