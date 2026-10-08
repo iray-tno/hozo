@@ -674,6 +674,55 @@ pub struct SourceImport {
     pub local: String,
 }
 
+#[napi(object)]
+pub struct ReactNativeReference {
+    pub kind: String,
+    pub access: String,
+    pub member: Option<String>,
+    pub span_start: u32,
+    pub span_end: u32,
+}
+
+#[napi(object)]
+pub struct ReactNativeBindingUsage {
+    pub imported: String,
+    pub local: Option<String>,
+    pub exported: Option<String>,
+    pub kind: String,
+    pub type_only: bool,
+    pub span_start: u32,
+    pub span_end: u32,
+    pub references: Vec<ReactNativeReference>,
+}
+
+#[napi(object)]
+pub struct ReactNativeUsage {
+    pub diagnostics: Vec<CompileDiagnostic>,
+    pub bindings: Vec<ReactNativeBindingUsage>,
+}
+
+/// Explicit analysis API: do not add a scope-building pass to ordinary builds.
+#[napi]
+pub fn analyze_react_native_usage(source: String, source_file: Option<String>) -> ReactNativeUsage {
+    let usage = hozo_parser::analyze_react_native_usage(&source, source_file.as_deref());
+    let offsets = Utf16Offsets::new(&source);
+    ReactNativeUsage {
+        diagnostics: usage.diagnostics.into_iter().map(|error| CompileDiagnostic {
+            code: "RN_USAGE_ANALYSIS_FAILED".into(), severity: "error".into(), message: error.message,
+            span_start: offsets.at(error.span.start), span_end: offsets.at(error.span.end),
+        }).collect(),
+        bindings: usage.bindings.into_iter().map(|binding| ReactNativeBindingUsage {
+            imported: binding.imported, local: binding.local, exported: binding.exported,
+            kind: binding.kind, type_only: binding.type_only,
+            span_start: offsets.at(binding.span.start), span_end: offsets.at(binding.span.end),
+            references: binding.references.into_iter().map(|reference| ReactNativeReference {
+                kind: reference.kind, access: reference.access, member: reference.member,
+                span_start: offsets.at(reference.span.start), span_end: offsets.at(reference.span.end),
+            }).collect(),
+        }).collect(),
+    }
+}
+
 /// Per-module Native output. The import and foreign-binding metadata comes
 /// from the exact parser pass that produced `components`; bundler adapters
 /// must not parse the source again to recover it from text.

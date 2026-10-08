@@ -69,6 +69,31 @@ export interface SourceImport {
   local: string
 }
 
+export interface ReactNativeReference {
+  kind: 'runtime' | 'type'
+  access: 'value' | 'static-member' | 'dynamic-member' | 'jsx' | 'reexport'
+  member?: string
+  /** Authored UTF-16 offsets, already converted at the NAPI boundary. */
+  spanStart: number
+  spanEnd: number
+}
+
+export interface ReactNativeBindingUsage {
+  imported: string
+  local?: string
+  exported?: string
+  kind: 'import' | 'reexport' | 'side-effect'
+  typeOnly: boolean
+  spanStart: number
+  spanEnd: number
+  references: ReactNativeReference[]
+}
+
+export interface ReactNativeUsage {
+  diagnostics: CompileDiagnostic[]
+  bindings: ReactNativeBindingUsage[]
+}
+
 export interface StylexModuleMemberSummary {
   name: string
   status: 'static' | 'partial' | 'function' | 'unsupported'
@@ -189,6 +214,7 @@ interface CandidateCacheConstructor {
  * the one to move to when `pack:native` grows up into its CLI.
  */
 interface NativeBinding {
+  analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
   compile(source: string): CompiledComponent[]
   compileNative(source: string): CompiledNativeComponent[]
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
@@ -453,6 +479,11 @@ export function createCompiler(
 /** Exported StyleX sheets and variable tables visible to another module. */
 export function summarizeStylexModule(source: string, sourceFile?: string): StylexModuleSummary {
   return loadNative().summarizeStylexModule(source, sourceFile)
+}
+
+/** Binding-aware authored ESM inventory; no transform or member compatibility claim. */
+export function analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage {
+  return loadNative().analyzeReactNativeUsage(source, sourceFile)
 }
 
 /**

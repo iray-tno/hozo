@@ -28,7 +28,9 @@ Semantic counts remain **1,193 Web / 1,149 Native components in 573 lowered file
 
 Conventional CSS remains absent; builtin tokens and auto preflight=true are explicit compiler assumptions, not evidence about Bluesky's production reset. Root tsconfig is read and hashed, but its package-based `extends` is unsupported by the local-only static alias loader; aliases are not guessed. No StyleX definitions/consumers are observed in this corpus, so its prepared graphs are empty and it loads no context modules. Cross-file/alias/reexport/platform behavior is demonstrated by dedicated fixtures, not by Bluesky. Shared/native probes select Android by default; iOS/Android-suffixed files retain their own platform.
 
-The final follow-up serial observation on two logical CPU cores took **26.41s**: 0.27s discovery, 0.10s Git provenance, 18.71s authored snapshot reads, 3.86s project preparation, 0.93s bindings, 1.58s Web lowering and 0.82s Web residue parsing. An earlier follow-up observation took 7.89s with 0.06s source reads and the same outcome counts; the earlier Slice 3 observation took 44.60s, including 35.05s source reads. These are **not a controlled performance comparison**, and the difference must not be attributed to this syntax fix. Node 25.9.0, Tailwind 4.3.3 and JSONC parser 3.3.1 were used with a freshly rebuilt development binding. Full input hashes, eligibility, unresolved facts and stage observations remain reproducible in JSON.
+The Slice 4 source-usage foundation adds an opt-in compiler-owned ESM symbol census, **not actual rewrite dispositions yet**. All 1,660 files complete it: 1,300 direct RN import bindings include 406 explicit type imports, one value import used only as a type, and zero unused value imports. There are 5,442 authored runtime reference occurrences, 720 type references and two direct runtime reexport edges. Reference counts include opening/closing JSX tags, not component/call counts; member reads, component values and exports remain separate in JSON. Aliases and lexical shadowing are resolved rather than matched by spelling. Existing component, residue and diagnostic counts are unchanged. CommonJS, dynamic import, TS import-equals and indirect wrapper/data-flow usage remain outside this ESM inventory; zero dynamic-member references here is not proof those other forms are absent.
+
+The final serial observation on two logical CPU cores took **8.89s**: 0.25s discovery, 0.09s Git provenance, 0.21s authored snapshot reads, 3.81s project preparation, 0.93s bindings, **1.00s added RN usage analysis**, 1.62s Web lowering and 0.82s Web residue parsing. The first observation of this slice took 27.47s with 18.51s reads and 1.02s usage analysis. The prior grammar follow-up took 26.41s, including 18.71s source reads; another observation took 7.89s with 0.06s reads, and the earlier Slice 3 run took 44.60s including 35.05s reads. These are **not a controlled performance comparison**. Node 25.9.0, Tailwind 4.3.3 and JSONC parser 3.3.1 were used with a freshly rebuilt development binding. Full input hashes, eligibility, unresolved facts and stage observations remain reproducible in JSON.
 
 Slice 1's corrections are retained: previously omitted setup warnings stay visible, and rewritten Hozo Pressable imports are not mislabeled as direct React Native residue. This slice adds analysis scope/context, not new component compatibility.
 
@@ -120,12 +122,33 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 |---|---|
 | Audit / compiler versions | 0.2.0 / 0.2.0 |
 | Theme loader / Tailwind / CSS parser | 0.2.0 / 4.3.3 / 8.5.26 |
-| Loaded binding SHA-256 | 1f7674a6356ad7f80e374e00f8f7e0266f4c3fb48003f5788e663274890def48 |
+| Loaded binding SHA-256 | 7b068bb559acfd57724e145d4cab86bcb1ca29fd17f5dcfd6b3e233ea7b4aaab |
 | Authored source SHA-256 | db5373982baac27062021d8503f795cdb38a78d7cc2e0a2dccfe7eab805f36d8 |
 | Checkout dirty | false |
 
 Binding identity, per-file outcomes, stage timings and unresolved project facts are retained in JSON. Diagnostic positions use UTF-16 code units; rewritten positions without a source map are explicitly unmapped.
 
+
+## Authored React Native usage
+
+| Observed ESM signal | Count |
+|---|---:|
+| filesAssessed | 1660 |
+| filesNotAssessed | 0 |
+| importBindings | 1300 |
+| explicitTypeImports | 406 |
+| importsUsedOnlyAsTypes | 1 |
+| unusedValueImports | 0 |
+| runtimeReferences | 5442 |
+| typeReferences | 720 |
+| dynamicMemberReferences | 0 |
+| runtimeReexports | 2 |
+| typeReexports | 0 |
+| sideEffectImports | 0 |
+
+This inventory resolves direct ESM import symbols, aliases and lexical shadowing. JSON retains
+every authored binding/reference with UTF-16 spans. Actual rewrite dispositions are explicitly
+not assessed yet; no member compatibility or production dependency-removal claim follows.
 
 ## Most common React Native imports
 

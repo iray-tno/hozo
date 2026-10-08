@@ -34,6 +34,7 @@ export function recordAnalysis(report, analysis, file, source, platform) {
     platform,
     sourceSha256: sha256(source),
     bindingsStatus: analysis.bindings ? 'completed' : 'failed',
+    reactNativeUsage: analysis.reactNativeUsage ?? { status: 'failed', bindings: [] },
     targets: Object.fromEntries(
       Object.entries(analysis.targets).map(([target, { code: _code, ...outcome }]) => [
         target,
@@ -42,6 +43,51 @@ export function recordAnalysis(report, analysis, file, source, platform) {
     ),
     stages: analysis.stages,
   })
+  // Count compiler-resolved authored references, not spelling matches or
+  // dependency survival. Import movement will be a separate compiler fact.
+  const usage = analysis.reactNativeUsage
+  const census = (report.reactNativeUsage ??= {
+    mode: 'authored-esm-symbols',
+    rewriteDecisions: 'not-assessed',
+    limitations: [
+      'CommonJS require, dynamic import, TS import-equals, and indirect wrapper modules are not inventoried.',
+      'No alias/data-flow propagation beyond the directly imported symbol.',
+      'Observed members are not adapter compatibility, build, dependency-removal, or runtime evidence.',
+    ],
+    filesAssessed: 0,
+    filesNotAssessed: 0,
+    importBindings: 0,
+    explicitTypeImports: 0,
+    importsUsedOnlyAsTypes: 0,
+    unusedValueImports: 0,
+    runtimeReferences: 0,
+    typeReferences: 0,
+    dynamicMemberReferences: 0,
+    runtimeReexports: 0,
+    typeReexports: 0,
+    sideEffectImports: 0,
+  })
+  if (usage?.status === 'completed') {
+    census.filesAssessed += 1
+    for (const binding of usage.bindings) {
+      const runtime = binding.references.filter((reference) => reference.kind === 'runtime')
+      const types = binding.references.filter((reference) => reference.kind === 'type')
+      census.runtimeReferences += runtime.length
+      census.typeReferences += types.length
+      census.dynamicMemberReferences += runtime.filter(
+        (reference) => reference.access === 'dynamic-member',
+      ).length
+      if (binding.kind === 'reexport')
+        census[binding.typeOnly ? 'typeReexports' : 'runtimeReexports'] += 1
+      else if (binding.kind === 'side-effect') census.sideEffectImports += 1
+      else {
+        census.importBindings += 1
+        if (binding.typeOnly) census.explicitTypeImports += 1
+        else if (runtime.length === 0 && types.length > 0) census.importsUsedOnlyAsTypes += 1
+        else if (runtime.length === 0) census.unusedValueImports += 1
+      }
+    }
+  } else census.filesNotAssessed += 1
   for (const stage of analysis.stages) {
     const key = `${stage.backend}:${stage.stage}`
     report.analysis.stageDurationMs[key] =
