@@ -114,7 +114,9 @@ export function Layout({ children }) {
   - **Layout:** every column's cells landed at the same x and width, measured with `measureInWindow` on the device's own layout engine, not the stub the unit tests use.
   - **Speech:** TalkBack read the data cell as "Price, $12".
   - **Not announced:** row and column numbers. Android sets a table's `CollectionInfo` only inside a ScrollView, through the cast #525 is waiting on.
-  - Header cells were first read as "Price, Heading", which put every column header into heading navigation. They no longer carry a heading role.
+  - **Header cells:** a column header is read as "Price, Heading".
+    - That word comes from Android's `CollectionItemInfo.isHeading`, which every column header sets, and is the platform's own mark for a header cell.
+    - Header cells also had `accessibilityRole="header"` at first. That made row headers headings as well, so it was removed: a row header is now read as just "Shortbread".
 
 A ✅ in the reader columns means a person read the phrases and approved them, never only that a job ran.
 
