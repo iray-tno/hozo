@@ -41,7 +41,7 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `ListItem` | `<li className="hozo-view">` | `<View role="listitem">` | ordered static list |
 | `Main` | `<main className="hozo-view">` | `<View role="main">` | landmark regions |
 | `Mark` | `<mark>` | `<Text>` | inline emphasis and its meaning |
-| `Meter` | `<meter aria-label={"Disk usage"} value={0.6}>` | `<HozoMeter accessibilityLabel={"Disk usage"} value={0.6}>` | — |
+| `Meter` | `<meter aria-valuetext={'60%'} aria-label={"Disk usage"} value={0.6}>` | `<HozoMeter accessibilityLabel={"Disk usage"} value={0.6}>` | — |
 | `Modal` | `<HozoModal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | `<Modal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | — |
 | `Nav` | `<nav className="hozo-view">` | `<View role="navigation">` | document landmarks |
 | `NoBreak` | `<span}>` | `<Text>` | scripts, small print and an unbreakable run |
