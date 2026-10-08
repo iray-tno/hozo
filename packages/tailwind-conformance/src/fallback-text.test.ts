@@ -87,6 +87,8 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['HozoChip', 'The same component under its other published name.'],
   ['Avatar', 'Draws a picture or initials from its props; it takes no children.'],
   ['HozoAvatar', 'The same component under its other published name.'],
+  ['Pagination', 'Draws numbered controls from its props; it takes no children.'],
+  ['HozoPagination', 'The same component under its other published name.'],
   [
     'Meter',
     "A bar (HozoMeter). Its children are <meter>'s fallback content, which no browser draws.",

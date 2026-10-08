@@ -86,6 +86,8 @@ const SNIPPETS = {
   Chip: '<Chip onRemove={remove} className="px-2" removeClassName="p-1">Draft</Chip>',
   Avatar:
     '<Avatar src={photo} name="Ada Lovelace" status="online" className="size-10 rounded-full" statusClassName="size-3" />',
+  Pagination:
+    '<Pagination page={page} pageCount={20} onPageChange={setPage} className="gap-1" currentItemClassName="font-bold" />',
   Skeleton: '<Skeleton className="h-4 w-32 animate-pulse" />',
   RefreshControl: '<RefreshControl refreshing={busy} onRefresh={reload} />',
   Ruby: '<Ruby>x<RubyText>y</RubyText></Ruby>',

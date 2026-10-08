@@ -997,3 +997,27 @@ fn an_avatar_is_hozo_avatar_and_each_part_gets_its_style() {
     let first = output.styles.split("hozo1").next().unwrap_or_default();
     assert!(first.contains("color:"), "{}", output.styles);
 }
+
+#[test]
+fn a_pagination_is_hozo_pagination_with_a_style_per_state() {
+    // #150: the current page and a disabled end are styled by class lists
+    // the pattern applies, so each is a style prop here.
+    let source = r#"
+        import { Pagination } from '@hozo/core'
+        const el = <Pagination page={page} pageCount={20} onPageChange={setPage} className="gap-1 text-sm" itemClassName="px-2" currentItemClassName="bg-blue-600 text-white" disabledItemClassName="opacity-50" ellipsisClassName="px-1" />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoPagination style={hozoStyles.hozo0}"), "{}", output.jsx);
+    for prop in [
+        "itemStyle={hozoStyles.hozo1}",
+        "currentItemStyle={hozoStyles.hozo2}",
+        "disabledItemStyle={hozoStyles.hozo3}",
+        "ellipsisStyle={hozoStyles.hozo4}",
+        "pageCount={20}",
+    ] {
+        assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
+    }
+    assert!(output.runtime_imports.contains(&"HozoPagination"), "{:?}", output.runtime_imports);
+}

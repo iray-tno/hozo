@@ -125,6 +125,12 @@ export {
   type HozoNativeSelectProps,
 } from './native-select.tsx'
 export {
+  HozoPagination,
+  type HozoPaginationProps,
+  Pagination,
+  type PaginationProps,
+} from './pagination.tsx'
+export {
   HozoPopover as Popover,
   HozoPopover,
   type HozoPopoverProps as PopoverProps,
