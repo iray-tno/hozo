@@ -164,8 +164,9 @@ pub(super) fn render_node(
     // class said: `animate-pulse` on one is read as
     // `motion-safe:animate-pulse` (decision 007, section 5). The Web half is
     // a base CSS rule; here it is the same guard a written `motion-safe:`
-    // gets.
-    let style = if node.primitive == Primitive::Skeleton {
+    // gets. The Web rule covers the skeleton's descendants too, so this
+    // does.
+    let style = if node.primitive == Primitive::Skeleton || from_ancestor.in_skeleton {
         style
             .into_iter()
             .map(|declaration| match declaration.property {
@@ -1635,7 +1636,12 @@ pub(super) fn render_node(
                     current_font_size,
                     parent_size_opaque || opaque_here,
                     node.primitive == Primitive::Ruby && component == "HozoRuby",
-                    FromAncestor { direct: &to_children, all: &descendants },
+                    FromAncestor {
+                        direct: &to_children,
+                        all: &descendants,
+                        in_skeleton: from_ancestor.in_skeleton
+                            || node.primitive == Primitive::Skeleton,
+                    },
                     source,
                     allocator,
                     style_entries,

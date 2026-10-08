@@ -866,6 +866,40 @@ fn a_skeleton_is_hidden_and_animates_only_when_motion_is_allowed() {
 }
 
 #[test]
+fn a_skeletons_descendants_animate_only_when_motion_is_allowed() {
+    // Web's rule is `[data-hozo-skeleton], [data-hozo-skeleton] *`, so a
+    // spinner inside a placeholder stops under reduced motion there. It
+    // has to here too, at any depth, and outside a skeleton the same class
+    // is not guarded.
+    let compile = |element: &str| {
+        let source =
+            format!("import {{ Skeleton, View }} from '@hozo/core'\nconst el = {element}\n");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    for element in [
+        r#"<Skeleton><View className="animate-spin" /></Skeleton>"#,
+        r#"<Skeleton><View><View><View className="animate-spin" /></View></View></Skeleton>"#,
+    ] {
+        let output = compile(element);
+        assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
+        assert!(
+            output.jsx.contains("__hozoEnv_motion_safe && __hozoAnim_spin"),
+            "{element}: {}",
+            output.jsx
+        );
+    }
+    // Not guarded twice.
+    let written = compile(r#"<Skeleton><View className="motion-safe:animate-spin" /></Skeleton>"#);
+    assert_eq!(written.jsx.matches("__hozoEnv_motion_safe &&").count(), 1, "{}", written.jsx);
+    // A sibling outside the skeleton keeps its ordinary animation.
+    let outside =
+        compile(r#"<View><Skeleton className="h-4" /><View className="animate-spin" /></View>"#);
+    assert!(!outside.jsx.contains("__hozoEnv_motion_safe"), "{}", outside.jsx);
+    assert!(outside.jsx.contains("__hozoAnim_spin"), "{}", outside.jsx);
+}
+
+#[test]
 fn line_breaking_is_a_text_prop_where_android_has_one_and_a_warning_where_not() {
     // `text-balance` used to stop the Native build as a Web-only error,
     // for a utility that only moves where lines fall.
