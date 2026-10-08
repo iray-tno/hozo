@@ -119,7 +119,11 @@ export function HozoStepper({
             </span>
             <span aria-hidden>{step.label}</span>
             {step.description ? (
-              <span className={descriptionClassName}>{step.description}</span>
+              <>
+                {/* A space a reader keeps: without it VoiceOver ran the two
+                    together, "completedEmail and password" (run 37790021610). */}{' '}
+                <span className={descriptionClassName}>{step.description}</span>
+              </>
             ) : null}
           </>
         )

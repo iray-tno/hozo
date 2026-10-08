@@ -1,0 +1,8 @@
+# Approved from screen-readers run 37790021610 (NVDA, Chrome), the first reading of this story (#802).
+# From the first section label on: the heading and the prose above it are the story's, and NVDA words the heading differently from run to run ("clickable, heading").
+INITIALS AND STATUS
+graphic, Ada Lovelace, online
+graphic, Grace Hopper, busy
+graphic, 田中太郎
+DECORATIVE, BESIDE A NAME ALREADY WRITTEN
+Katherine Johnson

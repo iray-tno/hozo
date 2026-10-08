@@ -91,19 +91,24 @@ export function Layout({ children }) {
 
 | | axe (every PR) | Virtual reader (every PR) | NVDA (weekly) | VoiceOver, macOS (weekly) | TalkBack | iOS VoiceOver |
 |---|---|---|---|---|---|---|
-| `Meter` | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ✅ census walk | ⬜ |
-| `Badge` (`count`) | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ✅ census walk | ⬜ |
-| `Skeleton` | ✅ | ✅ approved (silent) | ⬜ not yet read | ⬜ not yet read | ✅ census walk (silent) | ⬜ |
-| `Table` | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
+| `Meter` | ✅ | ✅ approved | ⬜ re-read pending | ⬜ re-read pending | ✅ census walk | ⬜ |
+| `Badge` (`count`) | ✅ | ✅ approved | ⬜ re-read pending | ⬜ re-read pending | ✅ census walk | ⬜ |
+| `Skeleton` | ✅ | ✅ approved (silent) | ⬜ re-read pending | ⬜ re-read pending | ✅ census walk (silent) | ⬜ |
+| `Table` | ✅ | ✅ approved | ⬜ re-read pending | ⬜ re-read pending | ⬜ | ⬜ |
 
-- **axe and the virtual reader** run on the `Semantics/Data Display` story. NVDA and VoiceOver walk the same story weekly; it is named in `examples/screen-readers/stories.spec.ts`. They have not produced readings for it yet.
+- **axe and the virtual reader** run on the `Semantics/Data Display` story. NVDA and VoiceOver walk the same story, which is named in `examples/screen-readers/stories.spec.ts`.
+- **Their first reading** (run 37790021610):
+  - Both read the table with its caption, and each cell with its row, column and header ("row 2, Item, column 1, Tea" / "Price $8 column 3 of 3").
+  - Both read the badge as "3 unread messages". The skeleton was silent.
+  - **The meter was read as the fraction:** NVDA said "Disk usage, progress bar, 0.6" and VoiceOver said "0.6, suboptimal value Disk usage level indicator".
+  - #802 gives the Web `<meter>` an `aria-valuetext` of its percentage, as Native already had. That changes the reading, so the whole story is approved from the next run. NVDA calling a meter a progress bar is NVDA's mapping and is not something Hozo can change.
 - **TalkBack: the census walk** (`examples/native-demo/CensusWalk.tsx`, #789) has read three of them on an emulator:
   - the meter as "Disk usage, 60%";
   - the badge as "3 unread messages";
   - the skeleton as nothing.
 
   Those readings are reported by the job, not yet asserted.
-- **The virtual reader says something about `Meter` that nobody has checked:** "0.6, min value 0, max value 100". A `<meter>` with no `max` has a maximum of 1, so either the virtual reader's mapping is wrong or real readers say the same thing. A real reader's run is what settles it.
+- **The virtual reader's "max value 100" for a `<meter>` with no `max` is the virtual reader's mapping.** Neither real reader mentioned a maximum.
 - **On Native, `Table`'s column widths and cell names** are asserted against React Native's test renderer with layout events fired by hand. No device has drawn one or read one.
 
 A ✅ in the reader columns means a person read the phrases and approved them, never only that a job ran.

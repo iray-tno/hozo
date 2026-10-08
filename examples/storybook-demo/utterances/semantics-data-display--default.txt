@@ -32,7 +32,7 @@ end of row, Total $20
 end of rowgroup
 end of table, Your order
 Storage
-meter, Disk usage, 0.6, min value 0, max value 100, 0.6
+meter, Disk usage, min value 0, max value 100, current value 60%
 Inbox
 3 unread messages
 Loading

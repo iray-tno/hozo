@@ -42,7 +42,10 @@ test('the overflow sentence comes from the project’s i18n', () => {
 
 test('a meter is the meter element with its range as written', () => {
   const html = renderToStaticMarkup(<Meter value={0.6} low={0.3} aria-label="Strength" />)
-  assert.equal(html, '<meter value="0.6" low="0.3" aria-label="Strength"></meter>')
+  assert.equal(
+    html,
+    '<meter value="0.6" low="0.3" aria-valuetext="60%" aria-label="Strength"></meter>',
+  )
 })
 
 test('a skeleton is hidden from assistive technology and marked for the reduced-motion rule', () => {

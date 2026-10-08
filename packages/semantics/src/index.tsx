@@ -1,6 +1,7 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { hozoViewBase, hozoViewClassName } from '@hozo/engine'
 import type { CSSProperties, ReactNode } from 'react'
+import { meterGauge } from './meter-gauge.ts'
 
 export interface SemanticsUniversalProps {
   className?: string
@@ -418,6 +419,10 @@ export function Meter({
       optimum={optimum}
       className={className}
       style={style}
+      // The amount as a percentage, as Native reads it: without this NVDA
+      // says "progress bar, 0.6" and VoiceOver "0.6". Before the spread, so
+      // an author's own `aria-valuetext` wins.
+      aria-valuetext={`${Math.round(meterGauge({ value, min, max }).fraction * 100)}%`}
       {...domProps(props)}
     >
       {children}

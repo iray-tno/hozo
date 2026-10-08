@@ -117,13 +117,16 @@ These four arrived after 0.2.0 (#141, #144, #150). What has checked them, and wh
 
 | | axe (every PR) | Virtual reader (every PR) | NVDA (weekly) | VoiceOver, macOS (weekly) | TalkBack | iOS VoiceOver |
 |---|---|---|---|---|---|---|
-| `Chip` | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
-| `Avatar` | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
-| `Pagination` (buttons, links) | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
-| `Stepper` (list, buttons) | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
+| `Chip` | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
+| `Avatar` | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
+| `Pagination` (buttons, links) | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
+| `Stepper` (buttons) | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
+| `Stepper` (list) | ✅ | ✅ approved | ⬜ re-read pending | ⬜ re-read pending | ⬜ | ⬜ |
 
 - **axe and the virtual reader** run on the `Patterns/…` Storybook stories (`examples/storybook-demo/scripts/check-a11y.mjs`, `check-utterances.mjs`). The virtual reader computes announcements from the ARIA and HTML-AAM specifications. It is not NVDA or VoiceOver. Its approved readings are in `examples/storybook-demo/utterances/`.
-- **NVDA and VoiceOver** walk every `patterns-` story weekly (`.github/workflows/screen-readers.yml`). A story with no approved phrases is reported rather than failed. These four have none yet, so the first run's readings have to be read by a person and approved into `examples/screen-readers/expected/`.
+- **NVDA and VoiceOver** walk every `patterns-` story weekly and on any change to `examples/screen-readers/` (`.github/workflows/screen-readers.yml`). Their first reading of these stories was run 37790021610, and the phrases approved from it are in `examples/screen-readers/expected/`.
+  - The list form of `Stepper` read correctly on NVDA. On VoiceOver it ran a step and its description together ("completedEmail and password").
+  - #802 put a space between them. That changes the reading, so this row is approved from the next run rather than this one.
 - **TalkBack and iOS VoiceOver** have read none of them. The unit tests assert the accessibility props React Native is given (roles, labels, `selected`, `disabled`). They do not show what a reader says.
 
 A ✅ in the reader columns means a person read the phrases and approved them, never only that a job ran.

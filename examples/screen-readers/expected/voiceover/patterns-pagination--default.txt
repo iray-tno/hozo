@@ -1,0 +1,14 @@
+# Approved from screen-readers run 37790021610 (VoiceOver, Safari), the first reading of this story (#802).
+# From the first section label on: the heading and the prose above it are the story's, and NVDA words the heading differently from run to run ("clickable, heading").
+CATALOGUE
+Pagination navigation
+list 7 items
+Previous page button 1 of 7
+Page 1 button 2 of 7
+Page 4 button 3 of 7
+Page 5 current page button 4 of 7
+Page 6 button 5 of 7
+Page 20 button 6 of 7
+Next page button 7 of 7
+end of list
+end of Pagination navigation
