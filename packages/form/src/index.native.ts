@@ -82,6 +82,16 @@ export {
   withDate,
   withTime,
 } from './date-time-rules.ts'
+export type { HozoFilePicker } from './file-dropzone.native.tsx'
+export {
+  HozoFileDropzone as FileDropzone,
+  HozoFileDropzone,
+  type HozoFileDropzoneProps as FileDropzoneProps,
+  type HozoFileDropzoneProps,
+  type HozoFileRejection,
+  type HozoPickedFile,
+} from './file-dropzone.native.tsx'
+export { formatFileSize, isAccepted, sortFiles } from './file-rules.ts'
 export {
   HozoForm as Form,
   HozoForm,

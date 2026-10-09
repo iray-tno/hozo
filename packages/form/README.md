@@ -58,6 +58,17 @@ On the Web the grid carries `aria-multiselectable="true"` and *every* day in the
 
 For styling, cells carry `data-hozo-range-start`, `data-hozo-range-end` and `data-hozo-in-range`, and `renderDay` receives `rangeStart`, `rangeEnd` and `inRange` on each day. None of them appear in single mode, so a stylesheet's end caps cannot leak onto a lone selected day.
 
+## `FileDropzone`
+
+A place to add files (#151), which is **a button first**. Dragging has no keyboard or screen-reader equivalent, so the zone is a real `<button>` that opens the file input on Enter, Space or a click. Dropping files on it is the shortcut on top, never the only way in.
+
+- **Validation:** `accept` (MIME types, `image/*`, or extensions such as `.pdf`), `maxSize`, `minSize`, `multiple` and `maxFiles` sort every pick with one shared function (`sortFiles`). The files kept go to `onFilesSelected`, and each refusal goes to `onRejected` with its reason.
+- **Announced:** after a pick, what was added and what was refused is announced politely in one sentence, for example "photo.png selected, 2.4 MB. anim.gif is not an accepted kind of file". The words go through the i18n connection, and sizes use the locale.
+- **React Native:** a button that opens a picker. Hozo ships no native code, so it uses one the application has, in this order:
+  1. `pickFiles`, the application's own picker;
+  2. `expo-document-picker`, if installed;
+  3. otherwise nothing. The button is then disabled, a reader hears "No file picker is available", and a warning says what to install. This is the resolved-provider seam from #353.
+
 ## Why the week data is a table
 
 `Intl.Locale.prototype.getWeekInfo` would say which day a locale's week starts on. It is a later addition to ECMA-402, and Hermes ships only `Collator`, `DateTimeFormat` and `NumberFormat` — the same wall [`@hozo/canvas`](https://www.npmjs.com/package/@hozo/canvas) met with `Intl.Segmenter`. A lookup that worked on the Web and guessed on a phone would mean the same month drawn two ways, so `firstDayOfWeek` is a deterministic table instead, identical on both platforms, with a prop to override it.

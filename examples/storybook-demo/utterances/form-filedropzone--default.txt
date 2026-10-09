@@ -1,0 +1,10 @@
+heading, FileDropzone, level 1
+paragraph
+PNG or JPEG, up to 5 MB. Selected:
+none
+end of paragraph
+button, Upload a photo
+Drop a photo here
+or press to choose one
+end of button, Upload a photo
+status
