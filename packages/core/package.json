@@ -104,6 +104,10 @@
       "types": "./dist/generated/meter.d.ts",
       "default": "./dist/generated/meter.js"
     },
+    "./generated/otp-input": {
+      "types": "./dist/generated/otp-input.d.ts",
+      "default": "./dist/generated/otp-input.js"
+    },
     "./generated/pagination": {
       "types": "./dist/generated/pagination.d.ts",
       "default": "./dist/generated/pagination.js"

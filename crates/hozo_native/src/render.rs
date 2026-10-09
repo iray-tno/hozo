@@ -1430,6 +1430,9 @@ pub(super) fn render_node(
     if node.primitive == Primitive::Stepper {
         runtime.need_component("HozoStepper");
     }
+    if node.primitive == Primitive::OtpInput {
+        runtime.need_component("HozoOtpInput");
+    }
     match node.primitive {
         Primitive::Table => runtime.need_component("HozoTable"),
         Primitive::TableCaption => runtime.need_component("HozoTableCaption"),
@@ -1847,6 +1850,7 @@ fn renders_text(component: &str) -> bool {
             | "HozoAvatar"
             | "HozoPagination"
             | "HozoStepper"
+            | "HozoOtpInput"
             | "HozoTableCaption"
             | "HozoTableCell"
     )

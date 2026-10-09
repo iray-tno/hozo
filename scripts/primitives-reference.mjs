@@ -90,6 +90,8 @@ const SNIPPETS = {
     '<Pagination page={page} pageCount={20} onPageChange={setPage} className="gap-1" currentItemClassName="font-bold" />',
   Stepper:
     '<Stepper steps={steps} activeStep={1} className="gap-2" currentStepClassName="font-bold" />',
+  OtpInput:
+    '<OtpInput length={6} onComplete={verify} accessibilityLabel="Verification code" cellClassName="size-10 border" activeCellClassName="border-blue-600" />',
   Table: '<Table className="w-full"><TableRow><TableCell>A</TableCell></TableRow></Table>',
   TableCaption: '<TableCaption>Orders</TableCaption>',
   TableHeader: '<TableHeader><TableRow><TableHead>Item</TableHead></TableRow></TableHeader>',

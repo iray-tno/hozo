@@ -49,6 +49,10 @@ export {
   type HozoMenuItem,
   type HozoMenuProps as MenuProps,
   type HozoMenuProps,
+  HozoOtpInput as OtpInput,
+  HozoOtpInput,
+  type HozoOtpInputProps as OtpInputProps,
+  type HozoOtpInputProps,
   HozoPagination as Pagination,
   HozoPagination,
   type HozoPaginationProps as PaginationProps,
@@ -85,6 +89,7 @@ export {
   HozoTree,
   type HozoTreeProps as TreeProps,
   type HozoTreeProps,
+  type OtpType,
   type TreeNode,
 } from '@hozo/patterns'
 export * from '@hozo/primitives'

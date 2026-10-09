@@ -39,6 +39,7 @@ export const hozoMessages = {
   'hozo.dateTimePicker.dialog': 'Choose a date and time',
   'hozo.dateTimePicker.done': 'Done',
   'hozo.nativeSelect.cancel': 'Cancel',
+  'hozo.otpInput.hint': '{length} characters',
   'hozo.pagination.label': 'Pagination',
   'hozo.pagination.next': 'Next page',
   'hozo.pagination.page': 'Page {page}',

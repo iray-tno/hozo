@@ -174,6 +174,7 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Avatar => ("HozoAvatar", Vec::new()),
         Primitive::Pagination => ("HozoPagination", Vec::new()),
         Primitive::Stepper => ("HozoStepper", Vec::new()),
+        Primitive::OtpInput => ("HozoOtpInput", Vec::new()),
         // React Native has no table, so these are runtime components that
         // count rows and columns through context and size the columns from
         // their cells; see `@hozo/semantics`' `table.native.tsx`.

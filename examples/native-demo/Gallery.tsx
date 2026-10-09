@@ -95,6 +95,7 @@ import {
   Meter,
   Nav,
   NoBreak,
+  OtpInput,
   Pagination,
   Paragraph,
   Pressable,
@@ -317,6 +318,14 @@ export default function Gallery() {
           indicatorClassName="size-6 items-center justify-center rounded-full border"
           currentIndicatorClassName="bg-slate-800 text-white"
           testID="gallery-Stepper"
+        />
+        <OtpInput
+          length={6}
+          accessibilityLabel="Verification code"
+          className="gap-2"
+          cellClassName="size-10 items-center justify-center rounded border border-slate-400"
+          activeCellClassName="border-2 border-slate-800"
+          testID="gallery-OtpInput"
         />
         <Table className="border border-slate-300" testID="gallery-Table">
           <TableCaption testID="gallery-TableCaption">Orders</TableCaption>

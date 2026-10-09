@@ -1066,3 +1066,24 @@ fn a_table_is_runtime_parts_whose_cells_keep_their_text_styles() {
         assert!(output.runtime_imports.contains(&name), "{name}: {:?}", output.runtime_imports);
     }
 }
+
+#[test]
+fn an_otp_input_is_hozo_otp_input_with_a_style_per_cell_state() {
+    let source = r#"
+        import { OtpInput } from '@hozo/core'
+        const el = <OtpInput length={6} onComplete={verify} accessibilityLabel="Verification code" className="gap-2" cellClassName="size-10 border text-lg" activeCellClassName="border-blue-600" filledCellClassName="bg-slate-100" />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoOtpInput style={hozoStyles.hozo0}"), "{}", output.jsx);
+    for prop in [
+        "cellStyle={hozoStyles.hozo1}",
+        "activeCellStyle={hozoStyles.hozo2}",
+        "filledCellStyle={hozoStyles.hozo3}",
+        "onComplete={verify}",
+    ] {
+        assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
+    }
+    assert!(output.runtime_imports.contains(&"HozoOtpInput"), "{:?}", output.runtime_imports);
+}
