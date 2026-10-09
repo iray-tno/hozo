@@ -99,6 +99,11 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // Raised to 560 KB by #144's Table, which crossed 545 at 549,107: the
 // runtime parts are 11.5 KB (every app, through `@hozo/semantics`' entry)
 // and the census screen's leaves 1.9 KB. Recorded on #683 as well.
+//
+// Raised to 590 KB by #152's CommandPalette, which crossed 560 at 574,439:
+// the pattern, its ranking and the shortcut hook are 12.2 KB (every app),
+// the census screen's leaves 1.2 KB. #149's OtpInput had already used most
+// of the room that 560 left. Fifth raise; #683 again.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -112,8 +117,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 560_000,
-  `Hozo's modules stay below 560 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 590_000,
+  `Hozo's modules stay below 590 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // And a coarse ceiling on the whole, for the regression this check began

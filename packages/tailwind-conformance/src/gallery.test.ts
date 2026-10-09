@@ -62,6 +62,7 @@ const NOT_ON_THE_SCREEN = new Map([
   ['HozoPagination', 'The same component under its other published name.'],
   ['HozoStepper', 'The same component under its other published name.'],
   ['HozoOtpInput', 'The same component under its other published name.'],
+  ['HozoCommandPalette', 'The same component under its other published name.'],
   ['HozoTable', 'The same component as Table, under the name compiled output imports.'],
   [
     'HozoTableCaption',

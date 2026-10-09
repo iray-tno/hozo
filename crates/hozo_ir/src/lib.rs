@@ -458,6 +458,12 @@ pub enum Primitive {
     /// the box, every cell, and the active and filled cells, applied by the
     /// pattern.
     OtpInput,
+    /// A searchable list of commands in a modal (#152): a dialog holding a
+    /// combobox and a grouped listbox. `HozoCommandPalette` on both
+    /// platforms; the compiler's part is its class lists -- the overlay,
+    /// scrim, panel, field, list, headings, items, the active item and the
+    /// shortcut badge -- which are style props on Native.
+    CommandPalette,
     /// A data table (#144): `<table>` on Web, and on React Native a
     /// `HozoTable` that sizes its columns from every cell in them, the way
     /// the browser's automatic table layout does, since a flex row knows
@@ -603,6 +609,17 @@ impl Primitive {
                 ClassSlot { class_prop: "currentItemClassName", style_prop: "currentItemStyle" },
                 ClassSlot { class_prop: "disabledItemClassName", style_prop: "disabledItemStyle" },
                 ClassSlot { class_prop: "ellipsisClassName", style_prop: "ellipsisStyle" },
+            ],
+            Primitive::CommandPalette => &[
+                ClassSlot { class_prop: "scrimClassName", style_prop: "scrimStyle" },
+                ClassSlot { class_prop: "panelClassName", style_prop: "panelStyle" },
+                ClassSlot { class_prop: "inputClassName", style_prop: "inputStyle" },
+                ClassSlot { class_prop: "listClassName", style_prop: "listStyle" },
+                ClassSlot { class_prop: "groupHeadingClassName", style_prop: "groupHeadingStyle" },
+                ClassSlot { class_prop: "itemClassName", style_prop: "itemStyle" },
+                ClassSlot { class_prop: "activeItemClassName", style_prop: "activeItemStyle" },
+                ClassSlot { class_prop: "shortcutClassName", style_prop: "shortcutStyle" },
+                ClassSlot { class_prop: "emptyClassName", style_prop: "emptyStyle" },
             ],
             Primitive::OtpInput => &[
                 ClassSlot { class_prop: "cellClassName", style_prop: "cellStyle" },

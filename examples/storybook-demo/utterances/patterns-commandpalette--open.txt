@@ -1,0 +1,30 @@
+heading, Command palette, level 1
+paragraph
+Press ⌘K or Ctrl+K, or the button. Last run:
+nothing yet
+.
+end of paragraph
+button, Open command palette
+dialog, Command palette, modal
+dialog, Command palette, modal
+combobox, Type a command or search, has popup listbox, expanded, active descendant Create project, autocomplete in list, 1 control
+listbox, Command palette, orientated vertically
+group, Actions
+Actions
+option, Create project, selected, position 1, set size 3
+Create project
+end of option, Create project, selected, position 1, set size 3
+option, Invite people, not selected, position 2, set size 3
+option, Archive project, not selected, disabled, position 3, set size 3
+end of group, Actions
+group, Navigation
+Navigation
+option, Settings, not selected, position 1, set size 2
+Settings
+end of option, Settings, not selected, position 1, set size 2
+option, Profile, not selected, position 2, set size 2
+end of group, Navigation
+end of listbox, Command palette, orientated vertically
+status
+end of dialog, Command palette, modal
+dialog, Command palette, modal

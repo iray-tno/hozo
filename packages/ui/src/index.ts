@@ -53,6 +53,12 @@ export {
   type HozoComboboxProps,
 } from './combobox.tsx'
 export {
+  CommandPalette,
+  type CommandPaletteProps,
+  HozoCommandPalette,
+  type HozoCommandPaletteProps,
+} from './command-palette.tsx'
+export {
   HozoDatePicker as DatePicker,
   HozoDatePicker,
   type HozoDatePickerProps as DatePickerProps,

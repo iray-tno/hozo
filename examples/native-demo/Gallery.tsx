@@ -75,6 +75,7 @@ import {
   Button,
   Chip,
   Code,
+  CommandPalette,
   Del,
   Description,
   Details,
@@ -326,6 +327,14 @@ export default function Gallery() {
           cellClassName="size-10 items-center justify-center rounded border border-slate-400"
           activeCellClassName="border-2 border-slate-800"
           testID="gallery-OtpInput"
+        />
+        {/* Closed: a palette is opened from a control, and an open one would
+            cover the census. Rendered so the screen holds every component. */}
+        <CommandPalette
+          open={false}
+          commands={[]}
+          panelClassName="bg-white"
+          testID="gallery-CommandPalette"
         />
         <Table className="border border-slate-300" testID="gallery-Table">
           <TableCaption testID="gallery-TableCaption">Orders</TableCaption>

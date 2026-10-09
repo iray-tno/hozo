@@ -1123,3 +1123,27 @@ fn an_image_srcset_of_widths_is_said_to_be_density_only_on_native() {
     let densities = compile("a.jpg 1x, a@2x.jpg 2x");
     assert!(densities.diagnostics.is_empty(), "{:?}", densities.diagnostics);
 }
+
+#[test]
+fn a_command_palette_is_hozo_command_palette_with_a_style_per_part() {
+    let source = r#"
+        import { CommandPalette } from '@hozo/core'
+        const el = <CommandPalette open={open} onOpenChange={setOpen} commands={commands} panelClassName="bg-white text-sm" itemClassName="px-3" activeItemClassName="bg-slate-100" groupHeadingClassName="text-xs" />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoCommandPalette "), "{}", output.jsx);
+    for prop in [
+        // Numbered in the slot table's order, not the order they were written.
+        "panelStyle={hozoStyles.hozo1}",
+        "groupHeadingStyle={hozoStyles.hozo2}",
+        "itemStyle={hozoStyles.hozo3}",
+        "activeItemStyle={hozoStyles.hozo4}",
+        "commands={commands}",
+        "onOpenChange={setOpen}",
+    ] {
+        assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
+    }
+    assert!(output.runtime_imports.contains(&"HozoCommandPalette"), "{:?}", output.runtime_imports);
+}
