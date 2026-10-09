@@ -150,6 +150,23 @@ types and unjoined tags stay `not-assessed`, not assumed retained or unsupported
 targets retain evidence without successful headline claims. Native/member/runtime compatibility
 and production dependency removal remain separate work.
 
+### Actual Web non-JSX value evidence
+
+`targets.web.reactNativeValues` follows authored non-JSX runtime references through every
+actual module splice (import movement, Canvas edits, semantic roots, authoring-import cleanup,
+and generated helper imports). Only unchanged source runs that reach the final output can
+carry authored identity. Their final UTF-16 `emittedSpan` is joined to the actual import
+journal: `rewritten-to-hozo`, `remains-react-native`, or `not-assessed`. Ordinary lowering
+does not allocate this provenance journal or collect semantic edit arrays.
+
+Generated/replaced expressions remain unknown, even when the same spelling appears in output.
+This includes props/handlers/children inside generated semantic roots; there is no inferred
+source map for arbitrary generated JSX. Type references are excluded. An unrecorded edit makes
+output provenance `unmapped`/`partial`, not a positive claim; later failures preserve evidence
+but set the verdict to `failed`. Import-policy `allow` has no assessed origin verdict.
+Moving a dynamic member read, namespace value or factory does not certify the adapter's member
+contract, Native rewriting, production dependency removal or runtime behavior.
+
 <!-- generated: package-footer -->
 
 ---

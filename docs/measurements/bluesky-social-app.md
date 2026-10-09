@@ -46,7 +46,7 @@ Preserved spelling does not mean a retained RN dependency: the separate import j
 have moved the binding. The remaining **1,043 Web references** are explicitly not assessed by
 the tag journal: **284 runtime member reads, 39 runtime value references and 720 type
 references**. Props, handlers and factories are not classified from their containing root.
-Non-JSX reference/member compatibility remains the next Slice 4 task; this is not completion
+At that increment, non-JSX reference/member compatibility remained the next Slice 4 task; this was not completion
 of the whole RN migration boundary. Component, source inventory, import-decision and diagnostic
 counts are unchanged. The pinned checkout remains clean and the authored source fingerprint
 is unchanged (`db5373982baac27062021d8503f795cdb38a78d7cc2e0a2dccfe7eab805f36d8`).
@@ -65,6 +65,31 @@ the traced path emitted 5,094 tag records, while the ordinary path allocated no 
 These small differences are within this local observation's noise, not a speedup claim.
 This comparison excludes import journaling, authored-source joins, project preparation,
 filesystem work, bundlers and runtime/device performance.
+
+The next Slice 4 increment follows non-JSX runtime references through **all actual module
+splices**, retaining only unchanged-source provenance and joining the actual import journal.
+All **1,639 Web-selected files** complete the value journal with zero partial/failed/unmapped
+cases. Of **323 non-JSX runtime references**, **187 survive with an import moved to Hozo,
+121 survive RN-backed, and 15 remain unassessed** inside generated/replaced expressions.
+The **720 type references** are excluded separately, not classified as runtime migration work.
+No post-lowering spelling census or containing-root inference is used.
+
+The generic member/access inventory is a review queue, not an adapter-compatibility matrix.
+It makes retained `Alert.alert` (28), `LayoutAnimation.configureNext` (23),
+`LayoutAnimation.Presets.easeInEaseOut` (22), `AppState.addEventListener` (7) and
+`Linking.openURL` (6) visible. Counts are authored reference occurrences, not call counts.
+Moved `StyleSheet.create` (47), `Platform.OS` (32) and `Keyboard.dismiss` (24) still need
+member-contract/runtime evidence; import movement alone does not certify them. The 15 unknowns
+must not be added to retained RN counts. Generated expression provenance, member compatibility,
+third-party dependencies, production removal and runtime remain open; Slice 4 is not complete.
+Component/import/tag/source/diagnostic counts remain unchanged, as do the clean pinned checkout
+and authored fingerprint.
+
+This serial observation took **28.97s**, including 0.29s discovery, 18.77s snapshot reads,
+4.11s preparation, 0.98s bindings, 1.06s source usage, **2.60s Web lowering with journals**
+and 0.87s residue parsing. Filesystem read variation dominates; this is not a controlled
+performance comparison with previous observations. The freshly rebuilt development binding is
+`0867a53a54e86f5f915ce309b3b323dc8391e954a5c798844219d65d7e4d90af`.
 
 ## Authored surface
 
@@ -173,6 +198,44 @@ an exact emission join remain not assessed; unknown does not mean retained or un
 Member compatibility, Native rewriting, production dependency removal and runtime are not assessed.
 Partial/failed journals remain in JSON but do not enter successful tag headline counts.
 
+## Web React Native non-JSX value decisions
+
+| Actual unchanged-module reference outcome | Count |
+|---|---:|
+| filesCompleted | 1639 |
+| filesPartial | 0 |
+| filesFailed | 0 |
+| filesNotAssessed | 0 |
+| rewrittenReferences | 187 |
+| retainedReferences | 121 |
+| notAssessedReferences | 15 |
+| typeReferencesExcluded | 720 |
+
+References are mapped only through actual edits and unchanged source runs that reach final
+output, then joined to actual import-origin decisions. JSON retains authored binding/reference
+indices, final emitted UTF-16 spans, and all grouped member/access rows. Generated/replaced
+expressions (including props/handlers/children in lowered roots) remain unknown even when their
+spelling appears in output. Failed/partial journals do not enter these completed-file totals.
+
+The retained-value review queue includes the following most frequent rows (not the complete
+inventory; reproduce to obtain all rows and per-file evidence):
+
+| Authored import/member | RN-backed references | Distinct files |
+|---|---:|---:|
+| Alert.alert | 28 | 5 |
+| LayoutAnimation.configureNext | 23 | 13 |
+| LayoutAnimation.Presets.easeInEaseOut | 22 | 12 |
+| AppState.addEventListener | 7 | 7 |
+| AppState.currentState | 6 | 4 |
+| Linking.openURL | 6 | 4 |
+| Image.resolveAssetSource | 5 | 3 |
+
+Rows describe origin, not unsupported APIs. Review moved values against adapter member contracts
+separately. Dynamic/namespace accesses need manual review; unknown generated expressions are not
+evidence of retained RN use. Up to 12 sample files per row do not limit reference/distinct-file
+counts or complete per-file JSON. Native rewriting, member compatibility, dependency removal,
+production builds and runtime are unassessed by this journal.
+
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
 Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Non-TSX Web modules only use the existing runtime-import rewrite path; Native compiler results for these extensions are probes, not Metro eligibility. Each target records integrationEligibility in JSON.
@@ -220,7 +283,7 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 |---|---|
 | Audit / compiler versions | 0.2.0 / 0.2.0 |
 | Theme loader / Tailwind / CSS parser | 0.2.0 / 4.3.3 / 8.5.26 |
-| Loaded binding SHA-256 | 8df69f4269d95b3a67fd44eb4c7cde89d6b9bcbee23501f128a8c55c549d39f5 |
+| Loaded binding SHA-256 | 0867a53a54e86f5f915ce309b3b323dc8391e954a5c798844219d65d7e4d90af |
 | Authored source SHA-256 | db5373982baac27062021d8503f795cdb38a78d7cc2e0a2dccfe7eab805f36d8 |
 | Checkout dirty | false |
 

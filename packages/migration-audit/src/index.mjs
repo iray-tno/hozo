@@ -11,7 +11,7 @@ import {
   sourcePlatform,
 } from '@hozo/compiler/analysis'
 import { loadStaticProjectTheme } from '@hozo/tailwind'
-import { findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
+import { escapeMarkdown, findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
 
 const SAMPLE_LIMIT = 12
 const DOM_STYLE_ARRAY =
@@ -478,6 +478,9 @@ async function measure(options) {
   delete report._filesWithWarnings
   delete report._compileFailures
   delete report._confirmedWrongOutputFiles
+  report.reactNativeValueDecisions?.inventory.sort(
+    (a, b) => b.references - a.references || JSON.stringify(a).localeCompare(JSON.stringify(b)),
+  )
   report.reactNativeImports = Object.fromEntries(
     Object.entries(report.reactNativeImports).sort(
       (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
@@ -638,6 +641,41 @@ dependency: their import may have moved separately. Non-JSX expressions, types a
 an exact emission join remain not assessed; unknown does not mean retained or unsupported.
 Member compatibility, Native rewriting, production dependency removal and runtime are not assessed.
 Partial/failed journals remain in JSON but do not enter successful tag headline counts.
+
+## Web React Native non-JSX value decisions
+
+${
+  report.reactNativeValueDecisions
+    ? `| Actual unchanged-module reference outcome | Count |
+|---|---:|
+${table(Object.entries(report.reactNativeValueDecisions).filter(([, value]) => typeof value === 'number'))}`
+    : 'Not assessed.'
+}
+
+References outside generated/replaced source are tracked through every actual module splice,
+then joined to actual import-origin decisions. This is not a post-lowering spelling search.
+JSON keeps authored binding/reference indices and final emitted UTF-16 spans. Expressions inside
+generated JSX, props, handlers or replaced Canvas ranges remain unknown even if their text appears
+in output. Types are excluded; completed-file counts include unknowns, not partial/failed journals.
+No member compatibility, dependency removal, production build or runtime guarantee is assessed.
+
+| Authored import | Member | Access | Actual origin outcome | Destination | References | Files |
+|---|---|---|---|---|---:|---:|
+${
+  report.reactNativeValueDecisions?.inventory.length
+    ? report.reactNativeValueDecisions.inventory
+        .map(
+          (row) =>
+            `| ${escapeMarkdown(row.imported)} | ${escapeMarkdown(row.member ?? '(not statically named)')} | ${escapeMarkdown(row.access)} | ${row.disposition} | ${escapeMarkdown(row.replacement ?? (row.disposition === 'remains-react-native' ? 'react-native' : '(not assessed)'))} | ${row.references} | ${row.files} |`,
+        )
+        .join('\n')
+    : '| None assessed | — | — | — | — | 0 | 0 |'
+}
+
+Review retained RN-backed values for remaining migration work; review moved values against the
+adapter's member contract rather than treating them as supported. Dynamic/namespace access needs
+manual review, and unknown generated expressions are not evidence of retained RN use. JSON holds
+up to 12 sample files per row and all individual outcomes; sample limits do not limit counts.
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 

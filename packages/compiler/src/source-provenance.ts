@@ -86,4 +86,23 @@ export class SourceProvenance {
     const spanStart = piece.authoredStart + start - piece.start
     return { spanStart, spanEnd: spanStart + end - start }
   }
+
+  matches(input: string): boolean {
+    return this.valid && input === this.input
+  }
+
+  /** Reverse lookup for an authored reference carried through unchanged runs. */
+  emitted(input: string, start: number, end: number) {
+    if (!this.matches(input) || start < 0 || end <= start) return undefined
+    const matches = this.pieces.filter(
+      (piece) =>
+        piece.authoredStart !== undefined &&
+        piece.authoredStart <= start &&
+        piece.authoredStart + piece.end - piece.start >= end,
+    )
+    if (matches.length !== 1) return undefined
+    const piece = matches[0]!
+    const spanStart = piece.start + start - piece.authoredStart!
+    return { spanStart, spanEnd: spanStart + end - start }
+  }
 }
