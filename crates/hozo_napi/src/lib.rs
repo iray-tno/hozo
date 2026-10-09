@@ -156,6 +156,7 @@ pub struct CompiledComponent {
     pub runtime_imports: Vec<String>,
     pub diagnostics: Vec<CompileDiagnostic>,
     pub tag_decisions: Option<Vec<CompiledTagDecision>>,
+    pub source_copies: Option<Vec<CompiledSourceCopy>>,
     pub span_start: u32,
     pub span_end: u32,
 }
@@ -165,6 +166,14 @@ pub struct CompiledTagDecision {
     pub span_start: u32,
     pub span_end: u32,
     pub replacement: Option<String>,
+}
+
+#[napi(object)]
+pub struct CompiledSourceCopy {
+    pub span_start: u32,
+    pub span_end: u32,
+    pub emitted_start: u32,
+    pub emitted_end: u32,
 }
 
 #[napi(object)]
@@ -349,6 +358,7 @@ fn lower_web(
         .iter()
         .map(|root| {
             let output = hozo_web::lower_with_evidence(&root.node, source, theme, evidence);
+            let emitted_offsets = evidence.then(|| Utf16Offsets::new(&output.jsx));
             let mut diagnostics = parser_diagnostics_for(&parsed, &root.node, &offsets);
             diagnostics.extend(
                 output.diagnostics.into_iter().map(|d| to_js_diagnostic(d, &offsets)),
@@ -369,6 +379,12 @@ fn lower_web(
                         replacement: decision.replacement,
                     }).collect()
                 }),
+                source_copies: output.source_copies.map(|copies| copies.into_iter().map(|copy| CompiledSourceCopy {
+                    span_start: offsets.at(copy.span.start),
+                    span_end: offsets.at(copy.span.end),
+                    emitted_start: emitted_offsets.as_ref().unwrap().at(copy.emitted_start as u32),
+                    emitted_end: emitted_offsets.as_ref().unwrap().at(copy.emitted_end as u32),
+                }).collect()),
                 span_start: offsets.at(root.node.span.start),
                 span_end: offsets.at(root.node.span.end),
             }

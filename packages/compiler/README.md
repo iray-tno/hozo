@@ -136,8 +136,9 @@ resolution or production dependency removal. These remain separate evidence laye
 
 ### Actual Web JSX tag evidence
 
-`compile(..., ..., { tagEvidence: true })` opts into the Web renderer's exact opening/closing
-name decisions. Ordinary compilation allocates no tag journal. `analyzeModule` uses this same
+`compile(..., ..., { tagEvidence: true })` opts into the Web renderer's emission evidence:
+exact opening/closing name decisions and copied source fragments. Ordinary compilation
+allocates neither journal. `analyzeModule` uses this same
 path and exposes `targets.web.reactNativeReferences`, joined by `bindingIndex` and
 `referenceIndex` to the authored symbol inventory. Actual import/Canvas splices preserve
 coordinates only for unchanged source runs; generated or ambiguous spans stay unjoined.
@@ -154,18 +155,28 @@ and production dependency removal remain separate work.
 
 `targets.web.reactNativeValues` follows authored non-JSX runtime references through every
 actual module splice (import movement, Canvas edits, semantic roots, authoring-import cleanup,
-and generated helper imports). Only unchanged source runs that reach the final output can
-carry authored identity. Their final UTF-16 `emittedSpan` is joined to the actual import
+and generated helper imports). Unchanged module runs and explicitly recorded backend copies
+that reach final output carry authored identity. Their final UTF-16 `emittedSpan` is joined to the actual import
 journal: `rewritten-to-hozo`, `remains-react-native`, or `not-assessed`. Ordinary lowering
 does not allocate this provenance journal or collect semantic edit arrays.
 
-Generated/replaced expressions remain unknown, even when the same spelling appears in output.
-This includes props/handlers/children inside generated semantic roots; there is no inferred
-source map for arbitrary generated JSX. Type references are excluded. An unrecorded edit makes
+`CompiledComponent.sourceCopies` uses authored-input and root-relative emitted UTF-16 spans,
+converted independently from Rust byte offsets. It records actual verbatim prop/child fragments
+(excluding nested replaced nodes), and values emitted into DOM style/spread normalizer calls.
+These calls introduce no lexical binder around the copied value. Void children are discarded
+from the trace. The module path validates the ranges and composes class namespacing only over
+unchanged fragments; matching strings alone cannot create identity. `sourceEvidence` distinguishes
+`unchanged-module-run` from `backend-copied-run` in final outcomes.
+
+Other generated expressions remain unknown, even when their spelling appears in output.
+Synthesized canonical handlers, condition reconstruction and other canonical expressions without
+copy records are not mapped. Duplicated output copies do not yield a unique final reference.
+There is no inferred map for arbitrary generated JSX. Type references are excluded. An unrecorded edit makes
 output provenance `unmapped`/`partial`, not a positive claim; later failures preserve evidence
 but set the verdict to `failed`. Import-policy `allow` has no assessed origin verdict.
 Moving a dynamic member read, namespace value or factory does not certify the adapter's member
-contract, Native rewriting, production dependency removal or runtime behavior.
+contract, Native rewriting, production dependency removal or runtime behavior. The scope is
+`non-jsx-source-runs` with `generatedExpressions: copied-runs-only`, not full expression coverage.
 
 <!-- generated: package-footer -->
 

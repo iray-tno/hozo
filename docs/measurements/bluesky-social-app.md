@@ -91,6 +91,37 @@ and 0.87s residue parsing. Filesystem read variation dominates; this is not a co
 performance comparison with previous observations. The freshly rebuilt development binding is
 `0867a53a54e86f5f915ce309b3b323dc8391e954a5c798844219d65d7e4d90af`.
 
+The next Slice 4 increment adds **backend-proven copied expressions**: actual verbatim
+prop/child fragments and DOM style/spread normalizer values, composed through nested replacements,
+class namespacing and later module splices. All **1,639 Web-selected files** complete the value
+journal with zero partial/failed/unmapped cases. The same **323 non-JSX runtime references** now
+split into **195 Hozo-backed, 126 RN-backed and two unassessed**. Of the 15 previous unknowns,
+13 acquire copy evidence (eight Hozo-backed, five RN-backed); the other 308 assessed references
+retain unchanged-module evidence. This is increased audit visibility, not new compatibility.
+The remaining unknowns are `LayoutAnimation.configureNext` and
+`LayoutAnimation.Presets.easeInEaseOut` in `src/components/moderation/PostHider.tsx`, inside a
+synthesized canonical handler with no emission provenance. Unknown does not mean retained.
+Source/component/import/tag/diagnostic counts, pinned checkout cleanliness and authored fingerprint
+are unchanged. Member compatibility, third-party dependencies, production removal and runtime
+remain unassessed; generated-expression scope is explicitly `copied-runs-only`.
+
+This serial observation took **10.24s**, including 0.29s discovery, 0.06s snapshot reads,
+3.99s preparation, 0.99s bindings, 1.05s source usage, **2.68s Web lowering with journals**
+and 0.87s residue parsing. This is not a controlled whole-audit performance comparison. The freshly
+rebuilt development binding SHA-256 is
+`95c3d881a594a394ceef62c4d3549b2a127863040222d5db2dc71778994f862a`.
+
+A separate paired warm-source observation on the same addon/compiler, two logical cores and
+**1,034 Web-selected TSX inputs** took **0.660 / 0.655 / 0.661s** without tracing and
+**0.698 / 0.697 / 0.695s** with tag plus copied-expression tracing. Both produced 1,193 components
+each round, with 5,094 tag records on the traced path. Median tracing overhead was **37ms (5.6%)**.
+Ordinary compilation allocates neither journal. This local opt-in emission-tracing observation
+excludes import journaling, authored-source joins, project preparation, filesystem work, bundlers
+and runtime/device performance; it does not measure before/after changes to ordinary compilation.
+An untimed parity pass over the same inputs confirms identical JSX/CSS/imports/diagnostics with
+tracing on or off, 7,024 exact source-copy fragments and no ordinary copy journal. Both source and
+emitted UTF-16 slices are checked directly for every fragment.
+
 ## Authored surface
 
 | Signal | Files or bindings |
@@ -200,22 +231,26 @@ Partial/failed journals remain in JSON but do not enter successful tag headline 
 
 ## Web React Native non-JSX value decisions
 
-| Actual unchanged-module reference outcome | Count |
+| Actual source-run reference outcome | Count |
 |---|---:|
 | filesCompleted | 1639 |
 | filesPartial | 0 |
 | filesFailed | 0 |
 | filesNotAssessed | 0 |
-| rewrittenReferences | 187 |
-| retainedReferences | 121 |
-| notAssessedReferences | 15 |
+| rewrittenReferences | 195 |
+| retainedReferences | 126 |
+| notAssessedReferences | 2 |
 | typeReferencesExcluded | 720 |
+| unchangedModuleReferences | 308 |
+| backendCopiedReferences | 13 |
 
-References are mapped only through actual edits and unchanged source runs that reach final
-output, then joined to actual import-origin decisions. JSON retains authored binding/reference
-indices, final emitted UTF-16 spans, and all grouped member/access rows. Generated/replaced
-expressions (including props/handlers/children in lowered roots) remain unknown even when their
-spelling appears in output. Failed/partial journals do not enter these completed-file totals.
+References are tracked through actual module splices and verified backend copies that reach
+final output, then joined to actual import-origin decisions. JSON retains authored binding/reference
+indices, final emitted UTF-16 spans, and all grouped member/access rows. Actual carried prop/child
+fragments and DOM style/spread normalizer values acquire copy evidence; class namespacing preserves
+only unaffected fragments and discarded void children are excluded. Synthesized handlers and other
+canonical expressions without emission records remain unknown even when their spelling appears in
+output. Failed/partial journals do not enter these completed-file totals.
 
 The retained-value review queue includes the following most frequent rows (not the complete
 inventory; reproduce to obtain all rows and per-file evidence):
@@ -223,11 +258,11 @@ inventory; reproduce to obtain all rows and per-file evidence):
 | Authored import/member | RN-backed references | Distinct files |
 |---|---:|---:|
 | Alert.alert | 28 | 5 |
-| LayoutAnimation.configureNext | 23 | 13 |
+| LayoutAnimation.configureNext | 26 | 16 |
 | LayoutAnimation.Presets.easeInEaseOut | 22 | 12 |
 | AppState.addEventListener | 7 | 7 |
 | AppState.currentState | 6 | 4 |
-| Linking.openURL | 6 | 4 |
+| Linking.openURL | 7 | 5 |
 | Image.resolveAssetSource | 5 | 3 |
 
 Rows describe origin, not unsupported APIs. Review moved values against adapter member contracts

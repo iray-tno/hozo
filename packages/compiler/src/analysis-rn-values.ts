@@ -1,12 +1,12 @@
 import type { ReactNativeImportAnalysis } from './analysis-rn.ts'
 import type { ReactNativeUsage } from './index.ts'
-import { type SourceEdit, SourceProvenance } from './source-provenance.ts'
+import { type SourceEdit, type SourceEvidence, SourceProvenance } from './source-provenance.ts'
 
 export interface ReactNativeValueOutcome {
   bindingIndex: number
   referenceIndex: number
   disposition: 'rewritten-to-hozo' | 'remains-react-native' | 'not-assessed'
-  sourceEvidence: 'unchanged-module-run' | 'not-assessed'
+  sourceEvidence: SourceEvidence | 'not-assessed'
   /** Coordinates in emitted code; authored coordinates stay on the source reference. */
   emittedSpan?: { spanStart: number; spanEnd: number }
   replacement?: string
@@ -15,9 +15,9 @@ export interface ReactNativeValueOutcome {
 
 export interface ReactNativeValueAnalysis {
   status: 'completed' | 'partial' | 'failed' | 'not-assessed'
-  scope: 'non-jsx-unchanged-module-runs'
+  scope: 'non-jsx-source-runs'
   outputProvenance: 'completed' | 'unmapped' | 'not-assessed'
-  generatedExpressions: 'not-assessed'
+  generatedExpressions: 'copied-runs-only'
   memberCompatibility: 'not-assessed'
   dependencyRemoval: 'not-assessed'
   typeReferencesExcluded: number
@@ -25,10 +25,10 @@ export interface ReactNativeValueAnalysis {
 }
 
 /**
- * A reference survives only with exact unchanged-run evidence through every
- * module splice AND an actual import-origin decision. A generated root may
- * carry an expression, but root membership or matching emitted text is not
- * proof of that reference's fate. Those expressions deliberately stay unknown.
+ * An origin verdict requires exact source-run evidence through every splice
+ * AND an actual import decision. Backend copies retain only the ranges actually
+ * emitted, not every source_text read or all expressions in a containing root.
+ * Unsupported synthesized expressions stay unknown, not inferred from text.
  */
 export function reactNativeValueJournal(
   source: string,
@@ -37,9 +37,9 @@ export function reactNativeValueJournal(
   const provenance = new SourceProvenance(source)
   const analysis: ReactNativeValueAnalysis = {
     status: usage?.status === 'completed' ? 'completed' : 'failed',
-    scope: 'non-jsx-unchanged-module-runs',
+    scope: 'non-jsx-source-runs',
     outputProvenance: 'not-assessed',
-    generatedExpressions: 'not-assessed',
+    generatedExpressions: 'copied-runs-only',
     memberCompatibility: 'not-assessed',
     dependencyRemoval: 'not-assessed',
     typeReferencesExcluded: 0,
@@ -79,10 +79,14 @@ export function reactNativeValueJournal(
             const emitted = provenance.emitted(output, reference.spanStart, reference.spanEnd)
             if (!emitted) {
               outcome.reason =
-                'Reference lies in generated/replaced source; unchanged-run evidence cannot determine whether it survived.'
+                'Reference has no unique validated source run through generated/replaced output; its fate is not assessed.'
               continue
             }
-            outcome.sourceEvidence = 'unchanged-module-run'
+            outcome.sourceEvidence = provenance.evidence(
+              output,
+              reference.spanStart,
+              reference.spanEnd,
+            )!
             outcome.emittedSpan = emitted
             const origin = origins.get(outcome.bindingIndex)
             if (origin?.disposition === 'rewritten-to-hozo') {
