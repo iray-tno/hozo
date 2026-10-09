@@ -15,3 +15,9 @@ minimumReleaseAgeExclude:
   - '@storybook/react-vite@10.5.9'
   - '@storybook/react@10.5.9'
   - storybook@10.5.9
+overrides:
+  # GHSA-8r5x-fm3f-whwj and its sibling: two critical injections in
+  # Handlebars' compiler, patched in 4.7.10. It reaches the tree only through
+  # `@hozo/test-reporter` > allure, which pins no newer one yet; remove this
+  # once allure's own range moves past 4.7.9.
+  handlebars: '>=4.7.10'
