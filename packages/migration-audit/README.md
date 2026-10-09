@@ -164,6 +164,23 @@ Member compatibility, Native module rewriting, production builds and runtime sti
 separate evidence. The audit does not reimplement backend policy or parse emitted code to
 invent reference decisions.
 
+### Actual Web non-JSX values and review inventory
+
+`reactNativeValueDecisions` separately summarizes non-JSX runtime references with unchanged-run
+evidence across all actual module edits and an actual import-origin decision. Per-file
+`targets.web.reactNativeValues` retains authored binding/reference indices, final emitted UTF-16
+spans, reasons and explicit scope. Generated/replaced expressions stay unknown, not retained:
+this slice does not map props/handlers/children carried inside generated JSX. Type references
+are excluded separately. Completed-file counts include unknowns; failed/partial/unassessed
+journals stay in JSON without padding successful headline counts or inventory rows.
+
+The generic inventory groups authored import/member/access and observed origin outcomes, not
+adapter support guesses. Each row has occurrence counts, distinct-file counts and up to 12
+sample files; JSON keeps all individual outcomes regardless of sampling. Retained RN-backed
+values are a migration review queue, moved values still require member-contract verification,
+and dynamic/namespace access needs manual review. The audit does not certify member compatibility,
+package installation, third-party RNW dependence, production dependency removal or runtime.
+
 <!-- generated: package-footer -->
 
 ---

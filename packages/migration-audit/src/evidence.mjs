@@ -48,7 +48,7 @@ export function recordAnalysis(report, analysis, file, source, platform) {
   const usage = analysis.reactNativeUsage
   const census = (report.reactNativeUsage ??= {
     mode: 'authored-esm-symbols',
-    rewriteDecisions: 'web-import-declarations-and-jsx-tags',
+    rewriteDecisions: 'web-imports-jsx-tags-and-unchanged-module-values',
     limitations: [
       'CommonJS require, dynamic import, TS import-equals, and indirect wrapper modules are not inventoried.',
       'No alias/data-flow propagation beyond the directly imported symbol.',
@@ -89,6 +89,7 @@ export function recordAnalysis(report, analysis, file, source, platform) {
     }
   } else census.filesNotAssessed += 1
   if (analysis.targets.web) {
+    recordValueDecisions(report, analysis, file)
     const references = (report.reactNativeReferenceDecisions ??= {
       scope: 'web-jsx-tag-emissions',
       nonJsxReferences: 'not-assessed',
@@ -199,8 +200,78 @@ export function recordAnalysis(report, analysis, file, source, platform) {
   }
 }
 
-function escapeMarkdown(text) {
-  return String(text).replace(/[\\`*_{}[\]<>()#!|]/g, '\\$&')
+function valueKey(row) {
+  return JSON.stringify([row.imported, row.access, row.member, row.disposition, row.replacement])
+}
+
+function recordValueDecisions(report, analysis, file) {
+  const values = (report.reactNativeValueDecisions ??= {
+    scope: 'web-non-jsx-unchanged-module-runs',
+    generatedExpressions: 'not-assessed',
+    memberCompatibility: 'not-assessed',
+    dependencyRemoval: 'not-assessed',
+    filesCompleted: 0,
+    filesPartial: 0,
+    filesFailed: 0,
+    filesNotAssessed: 0,
+    rewrittenReferences: 0,
+    retainedReferences: 0,
+    notAssessedReferences: 0,
+    typeReferencesExcluded: 0,
+    inventory: [],
+  })
+  const journal = analysis.targets.web.reactNativeValues
+  const status =
+    journal?.status ?? (analysis.targets.web.status === 'failed' ? 'failed' : 'not-assessed')
+  values[
+    {
+      completed: 'filesCompleted',
+      partial: 'filesPartial',
+      failed: 'filesFailed',
+      'not-assessed': 'filesNotAssessed',
+    }[status]
+  ] += 1
+  // Counts/inventory have the same completed-file denominator. Incomplete
+  // journals are preserved per file, never promoted into success or retention.
+  if (status !== 'completed') return
+  values.typeReferencesExcluded += journal.typeReferencesExcluded
+  const fileKeys = new Set()
+  for (const outcome of journal.outcomes) {
+    values[
+      {
+        'rewritten-to-hozo': 'rewrittenReferences',
+        'remains-react-native': 'retainedReferences',
+        'not-assessed': 'notAssessedReferences',
+      }[outcome.disposition]
+    ] += 1
+    const binding = analysis.reactNativeUsage.bindings[outcome.bindingIndex]
+    const reference = binding.references[outcome.referenceIndex]
+    const identity = {
+      imported: binding.imported,
+      access: reference.access,
+      ...(reference.member !== undefined ? { member: reference.member } : {}),
+      disposition: outcome.disposition,
+      ...(outcome.replacement ? { replacement: outcome.replacement } : {}),
+    }
+    const key = valueKey(identity)
+    let row = values.inventory.find((item) => valueKey(item) === key)
+    if (!row) {
+      row = { ...identity, references: 0, files: 0, samples: [] }
+      values.inventory.push(row)
+    }
+    row.references += 1
+    if (!fileKeys.has(key)) {
+      row.files += 1
+      fileKeys.add(key)
+      if (row.samples.length < 12) row.samples.push(file)
+    }
+  }
+}
+
+export function escapeMarkdown(text) {
+  return String(text)
+    .replace(/[\\`*_{}[\]<>()#!|]/g, '\\$&')
+    .replace(/\r?\n/g, ' ')
 }
 
 export function findingDetails(report, details) {

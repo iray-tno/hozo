@@ -13,8 +13,160 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { recordAnalysis } from './evidence.mjs'
+import { escapeMarkdown, recordAnalysis } from './evidence.mjs'
 import { AuditInputError, measureRealApp, renderRealAppMarkdown, runCli } from './index.mjs'
+
+test('non-JSX value inventory records actual origins, excludes generated expressions and stays read-only', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-rn-values-audit-'))
+  try {
+    mkdirSync(path.join(root, 'src'))
+    const source = `// 😀\r\nimport { Platform as P, View, Animated, type ViewStyle } from 'react-native';
+const a = P.OS; const b = P.OS; const c = P['a|b']; const d = P[key];
+const timing = Animated.timing; const factory = View; type V = ViewStyle;
+const x = <View custom={View}>{P.OS}<Animated.View /></View>`
+    const file = path.join(root, 'src', 'app.tsx')
+    writeFileSync(file, source)
+    const before = readdirSync(root, { recursive: true })
+    const report = await measureRealApp({ root })
+    const values = report.reactNativeValueDecisions
+    assert.equal(values.scope, 'web-non-jsx-unchanged-module-runs')
+    assert.equal(values.filesCompleted, 1)
+    assert.equal(values.rewrittenReferences, 4)
+    assert.equal(values.retainedReferences, 2)
+    assert.equal(values.notAssessedReferences, 2)
+    assert.equal(values.typeReferencesExcluded, 1)
+    assert.equal(values.memberCompatibility, 'not-assessed')
+    assert.equal(values.generatedExpressions, 'not-assessed')
+    assert.equal(values.dependencyRemoval, 'not-assessed')
+    const os = values.inventory.find(
+      (row) => row.member === 'OS' && row.disposition === 'rewritten-to-hozo',
+    )
+    assert.equal(os.references, 2)
+    assert.equal(os.files, 1)
+    assert.deepEqual(os.samples, ['src/app.tsx'])
+    assert.ok(values.inventory.some((row) => row.access === 'dynamic-member'))
+    assert.ok(
+      values.inventory.some((row) => row.member === 'OS' && row.disposition === 'not-assessed'),
+    )
+    assert.equal(
+      values.inventory.reduce((count, row) => count + row.references, 0),
+      8,
+    )
+    const markdown = renderRealAppMarkdown(report)
+    assert.match(markdown, /Web React Native non-JSX value decisions/)
+    assert.match(markdown, /a\\\|b/)
+    assert.match(markdown, /unknown generated expressions are not evidence of retained RN use/)
+    assert.deepEqual(readdirSync(root, { recursive: true }), before)
+    assert.equal(readFileSync(file, 'utf8'), source)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('partial/failed value journals remain visible but are excluded from counts and inventory', () => {
+  const report = {
+    files: [],
+    findings: [],
+    analysis: { stageDurationMs: {} },
+    samples: {},
+    diagnostics: { byCode: {}, bySeverity: {} },
+    _compileFailures: new Set(),
+    _filesWithErrors: new Set(),
+    _filesWithWarnings: new Set(),
+  }
+  for (const status of ['partial', 'failed']) {
+    recordAnalysis(
+      report,
+      {
+        targets: {
+          web: {
+            status: status === 'failed' ? 'failed' : 'completed',
+            reactNativeValues: {
+              status,
+              typeReferencesExcluded: 2,
+              outcomes: [
+                {
+                  bindingIndex: 0,
+                  referenceIndex: 0,
+                  disposition: 'rewritten-to-hozo',
+                  sourceEvidence: 'unchanged-module-run',
+                },
+              ],
+            },
+          },
+        },
+        stages: [],
+        findings: [],
+      },
+      `${status}.tsx`,
+      'source',
+      'shared',
+    )
+  }
+  const values = report.reactNativeValueDecisions
+  assert.equal(values.filesPartial, 1)
+  assert.equal(values.filesFailed, 1)
+  assert.equal(values.rewrittenReferences, 0)
+  assert.equal(values.typeReferencesExcluded, 0)
+  assert.deepEqual(values.inventory, [])
+  assert.equal(report.files[0].targets.web.reactNativeValues.outcomes.length, 1)
+})
+
+test('value inventory sampling does not cap counts or distinct-file totals', () => {
+  const report = {
+    files: [],
+    findings: [],
+    analysis: { stageDurationMs: {} },
+    samples: {},
+    diagnostics: { byCode: {}, bySeverity: {} },
+    _compileFailures: new Set(),
+    _filesWithErrors: new Set(),
+    _filesWithWarnings: new Set(),
+  }
+  for (let index = 0; index < 15; index += 1) {
+    recordAnalysis(
+      report,
+      {
+        reactNativeUsage: {
+          status: 'completed',
+          bindings: [
+            {
+              imported: 'Platform',
+              kind: 'import',
+              typeOnly: false,
+              references: [{ kind: 'runtime', access: 'static-member', member: 'OS' }],
+            },
+          ],
+        },
+        targets: {
+          web: {
+            status: 'completed',
+            reactNativeValues: {
+              status: 'completed',
+              typeReferencesExcluded: 0,
+              outcomes: [0, 1].map(() => ({
+                bindingIndex: 0,
+                referenceIndex: 0,
+                disposition: 'rewritten-to-hozo',
+                replacement: '@hozo/rn-compat',
+              })),
+            },
+          },
+        },
+        stages: [],
+        findings: [],
+      },
+      `${index}.ts`,
+      'source',
+      'shared',
+    )
+  }
+  const row = report.reactNativeValueDecisions.inventory[0]
+  assert.equal(row.references, 30)
+  assert.equal(row.files, 15)
+  assert.equal(row.samples.length, 12)
+  assert.equal(escapeMarkdown('a|b\n`c`'), 'a\\|b \\`c\\`')
+})
 
 test('actual tag decisions aggregate separately from retained imports and never certify prop/API uses', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-rn-tags-audit-'))
@@ -165,7 +317,7 @@ test('RN source census excludes types, unused values and shadowed names from run
     assert.equal(usage.runtimeReexports, 1)
     assert.equal(usage.typeReexports, 1)
     assert.equal(usage.sideEffectImports, 1)
-    assert.equal(usage.rewriteDecisions, 'web-import-declarations-and-jsx-tags')
+    assert.equal(usage.rewriteDecisions, 'web-imports-jsx-tags-and-unchanged-module-values')
     assert.equal(report.reactNativeImportDecisions.filesCompleted, 1)
     assert.equal(report.reactNativeImportDecisions.rewrittenBindings, 3)
     assert.equal(report.reactNativeImportDecisions.retainedBindings, 1)

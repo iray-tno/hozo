@@ -546,13 +546,13 @@ export interface LowerModuleOptions {
 }
 
 export interface LowerModuleStage {
-  stage: 'canvas' | 'semantic' | 'residue' | 'resolution' | 'imports'
+  stage: 'canvas' | 'semantic' | 'residue' | 'resolution' | 'imports' | 'edits'
   /** Coordinates belong to this text; absent means a module-wide diagnostic. */
   source?: string
   diagnostics: CompileDiagnostic[]
   components?: CompiledComponent[]
   importDecisions?: ReactNativeImportDecision[]
-  /** Actual pre-semantic splices, not an inferred diff of emitted source. */
+  /** Actual splices in this stage's input, not an inferred diff of emitted source. */
   edits?: SourceEdit[]
 }
 
@@ -805,12 +805,25 @@ function lowerModuleUnchecked(
     .map((component, index) => ({ component, index }))
     .sort((a, b) => b.component.spanStart - a.component.spanStart)
   const scope = moduleScope(root, file, id)
+  const semanticEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
   for (const { component, index } of bySpanDescending) {
     const jsx = namespaceHozoClasses(component.jsx, index, scope)
     const componentCss = namespaceHozoClasses(component.css, index, scope)
     next = next.slice(0, component.spanStart) + jsx + next.slice(component.spanEnd)
+    semanticEdits?.push({
+      spanStart: component.spanStart,
+      spanEnd: component.spanEnd,
+      replacement: jsx,
+    })
     css = componentCss + css
   }
+  if (semanticEdits)
+    options.observe?.({
+      stage: 'edits',
+      source: canvas.code,
+      diagnostics: [],
+      edits: semanticEdits,
+    })
 
   // Only when nothing needs it. A primitive that survived lowering (carried
   // through `Child::Verbatim`) still has to resolve, and `@hozo/core`
@@ -827,8 +840,16 @@ function lowerModuleUnchecked(
   // is not one. The import then reaches the graph, `@hozo/core` is pulled
   // in, and Next's App Router rejects the page for calling `useState` in a
   // server component -- naming neither MDX nor the import.
-  const withoutImport = next.replace(HOZO_AUTHORING_IMPORT_RE, '')
+  const authoringEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
+  const withoutImport = authoringEdits
+    ? next.replace(HOZO_AUTHORING_IMPORT_RE, (match, offset) => {
+        authoringEdits.push({ spanStart: offset, spanEnd: offset + match.length, replacement: '' })
+        return ''
+      })
+    : next.replace(HOZO_AUTHORING_IMPORT_RE, '')
   if (!referencesHozoPrimitive(isTransformed ? withoutImport : next)) {
+    if (authoringEdits)
+      options.observe?.({ stage: 'edits', source: next, diagnostics: [], edits: authoringEdits })
     next = withoutImport
   }
 
@@ -838,7 +859,14 @@ function lowerModuleUnchecked(
   const runtimeImports = [...new Set(components.flatMap((component) => component.runtimeImports))]
   if (runtimeImports.length > 0) {
     assertRuntimeImportsUnbound(next, runtimeImports, file)
-    next = `${generatedRuntimeImports(runtimeImports.sort())}${next}`
+    const replacement = generatedRuntimeImports(runtimeImports.sort())
+    options.observe?.({
+      stage: 'edits',
+      source: next,
+      diagnostics: [],
+      edits: [{ spanStart: 0, spanEnd: 0, replacement }],
+    })
+    next = `${replacement}${next}`
   }
 
   next = rehome(next, true)
