@@ -119,6 +119,8 @@ fn hover_and_focus_still_do_not_merge_into_anything() {
         class_name_fallback: Vec::new(),
         carried_classes: Vec::new(),
         span: hozo_ir::SourceSpan { start: 0, end: 0 },
+        opening_tag_span: hozo_ir::SourceSpan { start: 0, end: 0 },
+        closing_tag_span: None,
     };
     let output = lower(&node, "", &Theme::default());
     assert!(output.jsx.contains("style={hozoStyles.hozo0}"));

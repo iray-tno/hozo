@@ -33,6 +33,15 @@ export interface CompiledComponent {
   diagnostics: CompileDiagnostic[]
   spanStart: number
   spanEnd: number
+  /** Opt-in actual backend tag emissions, with input UTF-16 name spans. */
+  tagDecisions?: CompiledTagDecision[]
+}
+
+export interface CompiledTagDecision {
+  spanStart: number
+  spanEnd: number
+  /** Absent for an authored closing tag consumed by an emitted void element. */
+  replacement?: string
 }
 
 export interface CompiledNativeComponent {
@@ -258,6 +267,7 @@ interface NativeCompiler {
     source: string,
     bindings?: StylexExternalBinding[],
     rehomeReactNative?: boolean,
+    tagEvidence?: boolean,
   ): CompiledComponent[]
   compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
   compileNativeModule(
@@ -387,6 +397,8 @@ export interface CompileOptions {
    * `@hozo/rn-compat` itself they lower either way.
    */
   rehomeReactNative?: boolean
+  /** No tag journal is allocated on the ordinary build path. */
+  tagEvidence?: boolean
 }
 
 export interface Compiler {
@@ -448,19 +460,26 @@ export function createCompiler(
   const inner = new (loadNative().Compiler)(theme, allowed)
   return {
     compile: (source, bindings, options) =>
-      inner.compile(source, bindings, options?.rehomeReactNative ?? false).map((result) => ({
-        ...result,
-        diagnostics: [
-          ...result.diagnostics,
-          ...diagnoseStaticFonts(
-            result.css,
-            'web',
-            fontAvailability,
-            result.spanStart,
-            result.spanEnd,
-          ),
-        ],
-      })),
+      inner
+        .compile(
+          source,
+          bindings,
+          options?.rehomeReactNative ?? false,
+          options?.tagEvidence ?? false,
+        )
+        .map((result) => ({
+          ...result,
+          diagnostics: [
+            ...result.diagnostics,
+            ...diagnoseStaticFonts(
+              result.css,
+              'web',
+              fontAvailability,
+              result.spanStart,
+              result.spanEnd,
+            ),
+          ],
+        })),
     compileNative: (source, bindings) =>
       inner.compileNative(source, bindings).map((result) => ({
         ...result,

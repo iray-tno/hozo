@@ -48,7 +48,7 @@ export function recordAnalysis(report, analysis, file, source, platform) {
   const usage = analysis.reactNativeUsage
   const census = (report.reactNativeUsage ??= {
     mode: 'authored-esm-symbols',
-    rewriteDecisions: 'web-import-declarations-only',
+    rewriteDecisions: 'web-import-declarations-and-jsx-tags',
     limitations: [
       'CommonJS require, dynamic import, TS import-equals, and indirect wrapper modules are not inventoried.',
       'No alias/data-flow propagation beyond the directly imported symbol.',
@@ -89,6 +89,46 @@ export function recordAnalysis(report, analysis, file, source, platform) {
     }
   } else census.filesNotAssessed += 1
   if (analysis.targets.web) {
+    const references = (report.reactNativeReferenceDecisions ??= {
+      scope: 'web-jsx-tag-emissions',
+      nonJsxReferences: 'not-assessed',
+      memberCompatibility: 'not-assessed',
+      dependencyRemoval: 'not-assessed',
+      filesCompleted: 0,
+      filesPartial: 0,
+      filesFailed: 0,
+      filesNotAssessed: 0,
+      replacedJsxTags: 0,
+      preservedJsxTags: 0,
+      removedJsxTags: 0,
+      notAssessedReferences: 0,
+      unmappedTags: 0,
+    })
+    const referenceJournal = analysis.targets.web.reactNativeReferences
+    const referenceStatus =
+      referenceJournal?.status ??
+      (analysis.targets.web.status === 'failed' ? 'failed' : 'not-assessed')
+    references[
+      {
+        completed: 'filesCompleted',
+        partial: 'filesPartial',
+        failed: 'filesFailed',
+        'not-assessed': 'filesNotAssessed',
+      }[referenceStatus]
+    ] += 1
+    references.unmappedTags += referenceJournal?.unmappedTags ?? 0
+    if (referenceStatus === 'completed') {
+      for (const outcome of referenceJournal.outcomes) {
+        references[
+          {
+            'replaced-jsx-tag': 'replacedJsxTags',
+            'preserved-jsx-tag': 'preservedJsxTags',
+            'removed-jsx-tag': 'removedJsxTags',
+            'not-assessed': 'notAssessedReferences',
+          }[outcome.disposition]
+        ] += 1
+      }
+    }
     const imports = (report.reactNativeImportDecisions ??= {
       scope: 'web-import-declarations',
       semanticReferences: 'not-assessed',

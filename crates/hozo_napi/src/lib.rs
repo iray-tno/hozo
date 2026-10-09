@@ -155,8 +155,16 @@ pub struct CompiledComponent {
     /// backend's field of this name.
     pub runtime_imports: Vec<String>,
     pub diagnostics: Vec<CompileDiagnostic>,
+    pub tag_decisions: Option<Vec<CompiledTagDecision>>,
     pub span_start: u32,
     pub span_end: u32,
+}
+
+#[napi(object)]
+pub struct CompiledTagDecision {
+    pub span_start: u32,
+    pub span_end: u32,
+    pub replacement: Option<String>,
 }
 
 #[napi(object)]
@@ -316,6 +324,7 @@ pub fn compile(source: String) -> Vec<CompiledComponent> {
         None,
         None,
         hozo_parser::ReactNativeCompat::Lower,
+        false,
     )
 }
 
@@ -325,6 +334,7 @@ fn lower_web(
     sources: Option<&[String]>,
     stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
     compat: hozo_parser::ReactNativeCompat,
+    evidence: bool,
 ) -> Vec<CompiledComponent> {
     let parsed = hozo_parser::parse_tsx_for_web(
         source,
@@ -338,7 +348,7 @@ fn lower_web(
         .roots
         .iter()
         .map(|root| {
-            let output = hozo_web::lower(&root.node, source, theme);
+            let output = hozo_web::lower_with_evidence(&root.node, source, theme, evidence);
             let mut diagnostics = parser_diagnostics_for(&parsed, &root.node, &offsets);
             diagnostics.extend(
                 output.diagnostics.into_iter().map(|d| to_js_diagnostic(d, &offsets)),
@@ -352,6 +362,13 @@ fn lower_web(
                     .map(str::to_string)
                     .collect(),
                 diagnostics,
+                tag_decisions: output.tag_decisions.map(|decisions| {
+                    decisions.into_iter().map(|decision| CompiledTagDecision {
+                        span_start: offsets.at(decision.span.start),
+                        span_end: offsets.at(decision.span.end),
+                        replacement: decision.replacement,
+                    }).collect()
+                }),
                 span_start: offsets.at(root.node.span.start),
                 span_end: offsets.at(root.node.span.end),
             }
@@ -412,6 +429,7 @@ impl Compiler {
         source: String,
         bindings: Option<Vec<StylexExternalBinding>>,
         rehome_react_native: Option<bool>,
+        tag_evidence: Option<bool>,
     ) -> Vec<CompiledComponent> {
         let bindings = external_bindings(bindings);
         let compat = if rehome_react_native.unwrap_or(false) {
@@ -425,6 +443,7 @@ impl Compiler {
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
             compat,
+            tag_evidence.unwrap_or(false),
         )
     }
 

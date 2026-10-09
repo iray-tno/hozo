@@ -1,4 +1,5 @@
 import type { CompileDiagnostic, Compiler } from './index.ts'
+import type { SourceEdit } from './source-provenance.ts'
 
 export interface LoweredCanvasPaints {
   code: string
@@ -6,6 +7,7 @@ export interface LoweredCanvasPaints {
   /** True when a Canvas shape className was inspected, even if left intact. */
   touched: boolean
   changed: boolean
+  edits: SourceEdit[]
 }
 
 /** Applies the Canvas-only AST edits back-to-front so source offsets remain valid. */
@@ -15,7 +17,7 @@ export function lowerCanvasPaints(
   native: boolean,
 ): LoweredCanvasPaints {
   if (!code.includes('@hozo/canvas')) {
-    return { code, diagnostics: [], touched: false, changed: false }
+    return { code, diagnostics: [], touched: false, changed: false, edits: [] }
   }
   const edits = compiler.compileCanvasPaints(code, native)
   let next = code
@@ -30,5 +32,6 @@ export function lowerCanvasPaints(
     diagnostics: edits.flatMap((edit) => edit.diagnostics),
     touched: edits.length > 0,
     changed,
+    edits,
   }
 }

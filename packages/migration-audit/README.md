@@ -103,8 +103,8 @@ graphs are prepared, but a shared file is counted only once, for the selected pr
 
 Font registration, production builds, runtime behavior and entry-point graph reachability are
 not assessed. `contextStatus: prepared` describes successful theme/reset/static graph preparation,
-not that all project facts or unresolved graph edges have answers. Semantic RN reference
-rewrite decisions and baseline/CI policies remain follow-ups in
+not that all project facts or unresolved graph edges have answers. Non-JSX RN reference
+decisions, member compatibility and baseline/CI policies remain follow-ups in
 [#790](https://github.com/iray-tno/hozo/issues/790).
 
 The schema records `corpus.sourceDirectories` and omits application-specific metrics
@@ -147,6 +147,22 @@ with attributes are deliberately retained; policy `allow` leaves rewriting not a
 Forwarding/side-effect edges, semantic-reference dispositions, member compatibility,
 package resolution, production dependency removal and Native import rewriting remain
 unassessed by this journal. Native analysis is still a compiler-only probe.
+
+### Actual Web JSX tag journal
+
+`reactNativeReferenceDecisions` summarizes exact tag emissions from the Web backend.
+`targets.web.reactNativeReferences` retains each authored `bindingIndex`/`referenceIndex`
+outcome in JSON. Import/Canvas edits remap unchanged source runs only; generated text is
+not guessed back to an authored identifier. Opening/closing names count separately, not
+as component instances. Void elements can consume authored closing tags.
+
+Preserved tag spelling is not a remaining RN dependency: an import may have moved to Hozo.
+Non-JSX APIs, factories, type references, prop/handler expressions and tags without an exact
+backend emission remain `not-assessed`, not implicitly retained or unsupported. Only completed
+journals enter successful tag counts; partial/failed evidence stays visible in JSON.
+Member compatibility, Native module rewriting, production builds and runtime still require
+separate evidence. The audit does not reimplement backend policy or parse emitted code to
+invent reference decisions.
 
 <!-- generated: package-footer -->
 

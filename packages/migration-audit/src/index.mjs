@@ -621,6 +621,24 @@ Forwarding/side-effect edges and semantic reference dispositions are not assesse
 compatibility, package-resolution, production dependency-removal or runtime guarantee follows from
 an import move. Native remains a compiler probe, not an import rewrite verdict.
 
+## Web React Native JSX tag decisions
+
+${
+  report.reactNativeReferenceDecisions
+    ? `| Actual tag outcome | Count |
+|---|---:|
+${table(Object.entries(report.reactNativeReferenceDecisions).filter(([, value]) => typeof value === 'number'))}`
+    : 'Not assessed.'
+}
+
+The Web renderer journals emitted opening/closing names, joined to authored binding/reference
+indices through unchanged source runs across actual import/Canvas edits. Counts are tag occurrences,
+not component counts. Preserved tags describe emitted spelling, not a retained React Native
+dependency: their import may have moved separately. Non-JSX expressions, types and tags without
+an exact emission join remain not assessed; unknown does not mean retained or unsupported.
+Member compatibility, Native rewriting, production dependency removal and runtime are not assessed.
+Partial/failed journals remain in JSON but do not enter successful tag headline counts.
+
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
 Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Non-TSX Web modules only use the existing runtime-import rewrite path; Native compiler results for these extensions are probes, not Metro eligibility. Each target records integrationEligibility in JSON.

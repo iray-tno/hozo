@@ -924,6 +924,10 @@ pub struct Node {
     /// for it will still apply". This is what makes that true.
     pub carried_classes: Vec<String>,
     pub span: SourceSpan,
+    /// Exact authored names, not the whole element: props and child expressions
+    /// can still reference RN after its surrounding tag has been lowered.
+    pub opening_tag_span: SourceSpan,
+    pub closing_tag_span: Option<SourceSpan>,
 }
 
 /// One thing between an element's tags.

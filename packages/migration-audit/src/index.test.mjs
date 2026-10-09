@@ -16,6 +16,87 @@ import { fileURLToPath } from 'node:url'
 import { recordAnalysis } from './evidence.mjs'
 import { AuditInputError, measureRealApp, renderRealAppMarkdown, runCli } from './index.mjs'
 
+test('actual tag decisions aggregate separately from retained imports and never certify prop/API uses', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-rn-tags-audit-'))
+  try {
+    mkdirSync(path.join(root, 'src'))
+    writeFileSync(
+      path.join(root, 'src', 'app.tsx'),
+      `// 😀\nimport { View, Text, Platform } from 'react-native'; const x = <View custom={View}>{Platform.OS}<Text /></View>; const factory = View`,
+    )
+    const report = await measureRealApp({ root })
+    const tags = report.reactNativeReferenceDecisions
+    assert.equal(tags.filesCompleted, 1)
+    assert.equal(tags.unmappedTags, 0)
+    assert.equal(tags.replacedJsxTags, 3)
+    assert.equal(tags.notAssessedReferences, 3)
+    assert.equal(report.reactNativeImportDecisions.retainedBindings, 2)
+    assert.equal(tags.nonJsxReferences, 'not-assessed')
+    assert.equal(tags.memberCompatibility, 'not-assessed')
+    const file = report.files[0]
+    const journal = file.targets.web.reactNativeReferences
+    assert.equal(journal.outcomes.length, 6)
+    const tag = journal.outcomes.find((item) => item.replacement === 'span')
+    assert.equal(
+      file.reactNativeUsage.bindings[tag.bindingIndex].references[tag.referenceIndex].access,
+      'jsx',
+    )
+    assert.match(renderRealAppMarkdown(report), /Web React Native JSX tag decisions/)
+    assert.match(renderRealAppMarkdown(report), /unknown does not mean retained or unsupported/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('partial and failed tag journals retain evidence without padding successful totals', () => {
+  const report = {
+    files: [],
+    findings: [],
+    analysis: { stageDurationMs: {} },
+    samples: {},
+    diagnostics: { byCode: {}, bySeverity: {} },
+    _compileFailures: new Set(),
+    _filesWithErrors: new Set(),
+    _filesWithWarnings: new Set(),
+  }
+  for (const status of ['partial', 'failed']) {
+    recordAnalysis(
+      report,
+      {
+        targets: {
+          web: {
+            status: status === 'failed' ? 'failed' : 'completed',
+            reactNativeReferences: {
+              status,
+              scope: 'jsx-tag-emissions',
+              unmappedTags: 1,
+              outcomes: [
+                {
+                  bindingIndex: 0,
+                  referenceIndex: 0,
+                  disposition: 'replaced-jsx-tag',
+                  replacement: 'div',
+                  reason: 'emitted before failure',
+                },
+              ],
+            },
+          },
+        },
+        stages: [],
+        findings: [],
+      },
+      `${status}.tsx`,
+      'source',
+      'shared',
+    )
+  }
+  assert.equal(report.reactNativeReferenceDecisions.filesPartial, 1)
+  assert.equal(report.reactNativeReferenceDecisions.filesFailed, 1)
+  assert.equal(report.reactNativeReferenceDecisions.replacedJsxTags, 0)
+  assert.equal(report.reactNativeReferenceDecisions.unmappedTags, 2)
+  assert.equal(report.files[0].targets.web.reactNativeReferences.outcomes.length, 1)
+})
+
 test('aborted import journals stay in file evidence but do not enter successful rewrite counts', () => {
   const report = {
     files: [],
@@ -84,7 +165,7 @@ test('RN source census excludes types, unused values and shadowed names from run
     assert.equal(usage.runtimeReexports, 1)
     assert.equal(usage.typeReexports, 1)
     assert.equal(usage.sideEffectImports, 1)
-    assert.equal(usage.rewriteDecisions, 'web-import-declarations-only')
+    assert.equal(usage.rewriteDecisions, 'web-import-declarations-and-jsx-tags')
     assert.equal(report.reactNativeImportDecisions.filesCompleted, 1)
     assert.equal(report.reactNativeImportDecisions.rewrittenBindings, 3)
     assert.equal(report.reactNativeImportDecisions.retainedBindings, 1)

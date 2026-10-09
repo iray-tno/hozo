@@ -134,6 +134,22 @@ the bundler to elide. This journal deliberately does not assess semantic referen
 dispositions, forwarding edges, member compatibility, Native module imports, package
 resolution or production dependency removal. These remain separate evidence layers.
 
+### Actual Web JSX tag evidence
+
+`compile(..., ..., { tagEvidence: true })` opts into the Web renderer's exact opening/closing
+name decisions. Ordinary compilation allocates no tag journal. `analyzeModule` uses this same
+path and exposes `targets.web.reactNativeReferences`, joined by `bindingIndex` and
+`referenceIndex` to the authored symbol inventory. Actual import/Canvas splices preserve
+coordinates only for unchanged source runs; generated or ambiguous spans stay unjoined.
+
+`replaced-jsx-tag`, `preserved-jsx-tag` and `removed-jsx-tag` describe emitted names (including
+closing tags consumed by void elements). A preserved name may resolve through a moved import;
+its spelling does not certify an RN dependency. Neither containing-root spans nor a census of
+emitted code are used to classify references. Non-JSX APIs, factories, handler/prop expressions,
+types and unjoined tags stay `not-assessed`, not assumed retained or unsupported. Failed/partial
+targets retain evidence without successful headline claims. Native/member/runtime compatibility
+and production dependency removal remain separate work.
+
 <!-- generated: package-footer -->
 
 ---
