@@ -100,7 +100,7 @@ type A = typeof P; let style: ViewStyle; function shadow(P) { return P.OS }`
   assert.ok(allowed.outcomes.every((item) => item.sourceEvidence === 'unchanged-module-run'))
 })
 
-test('actual copied props/children are assessed but synthesized handlers stay unknown', () => {
+test('actual copied props, children and renamed handlers are assessed from emission records', () => {
   const source = `import { View, Platform } from 'react-native'; const x = <View onPress={() => Platform.select({ web: View })} custom={Platform.OS}>{Platform.OS}</View>`
   const result = analyze(source)
   const journal = result.targets.web!.reactNativeValues!
@@ -108,14 +108,17 @@ test('actual copied props/children are assessed but synthesized handlers stay un
   assert.equal(journal.outcomes.length, 4)
   assert.equal(
     journal.outcomes.filter((item) => item.sourceEvidence === 'backend-copied-run').length,
-    2,
+    4,
   )
-  assert.equal(journal.outcomes.filter((item) => item.disposition === 'not-assessed').length, 2)
-  assert.ok(
-    journal.outcomes
-      .filter((item) => item.disposition === 'not-assessed')
-      .every((item) => item.emittedSpan === undefined),
+  assert.equal(
+    journal.outcomes.filter((item) => item.disposition === 'rewritten-to-hozo').length,
+    3,
   )
+  assert.equal(
+    journal.outcomes.filter((item) => item.disposition === 'remains-react-native').length,
+    1,
+  )
+  assert.ok(journal.outcomes.every((item) => item.emittedSpan))
   assert.match(result.targets.web!.code!, /Platform\.OS/)
 })
 

@@ -168,9 +168,16 @@ from the trace. The module path validates the ranges and composes class namespac
 unchanged fragments; matching strings alone cannot create identity. `sourceEvidence` distinguishes
 `unchanged-module-run` from `backend-copied-run` in final outcomes.
 
+Canonical onPress and responder handler values also receive copy records when actually emitted.
+Renaming an event prop or passing a function value to `hozoInteractive(...)` does not wrap the
+authored function body in a new scope. A disabled link's generated `(event) => ...` exists only
+in the sibling conditional arm, not around its authored handler. Only the copied handler value
+is traced, not synthesized callback syntax or an unrecorded disabled guard. A handler omitted
+because its mapped prop collides with an authored target gains no copy evidence.
+
 Other generated expressions remain unknown, even when their spelling appears in output.
-Synthesized canonical handlers, condition reconstruction and other canonical expressions without
-copy records are not mapped. Duplicated output copies do not yield a unique final reference.
+Condition reconstruction and other canonical expressions without copy records are not mapped.
+Duplicated output copies do not yield a unique final reference.
 There is no inferred map for arbitrary generated JSX. Type references are excluded. An unrecorded edit makes
 output provenance `unmapped`/`partial`, not a positive claim; later failures preserve evidence
 but set the verdict to `failed`. Import-policy `allow` has no assessed origin verdict.

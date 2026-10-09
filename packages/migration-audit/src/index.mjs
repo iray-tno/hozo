@@ -656,8 +656,10 @@ References are tracked through actual module splices and verified backend copies
 to actual import-origin decisions. This is not a post-lowering spelling search.
 JSON keeps authored binding/reference indices and final emitted UTF-16 spans. Expressions inside
 generated JSX gain evidence only for actual carried prop/child fragments or DOM style/spread
-normalizer values. Synthesized handlers, canonical expressions without emission records and
-replaced Canvas ranges remain unknown even if their text appears in output. Type references are
+normalizer values. Renamed onPress/responder handlers and handler values passed to hozoInteractive
+or a disabled link's sibling arm also retain their authored scope. Synthesized callback syntax,
+unrecorded canonical expressions and replaced Canvas ranges remain unknown even if their text
+appears in output. Type references are
 excluded; completed-file counts include unknowns, not partial/failed journals. Class namespacing
 preserves only unaffected copied fragments; discarded void children never enter the copy journal.
 No member compatibility, dependency removal, production build or runtime guarantee is assessed.

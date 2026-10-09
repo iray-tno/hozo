@@ -122,6 +122,38 @@ An untimed parity pass over the same inputs confirms identical JSX/CSS/imports/d
 tracing on or off, 7,024 exact source-copy fragments and no ordinary copy journal. Both source and
 emitted UTF-16 slices are checked directly for every fragment.
 
+The next Slice 4 increment records **actually emitted canonical handler values**: renamed
+onPress/responder props, the function argument to `hozoInteractive(...)`, and the authored
+handler in the sibling arm of a disabled link's conditional. None of these places the authored
+function body inside a new lexical binder. Generated callback syntax and disabled guards are
+not inferred as copies; a handler omitted by a target-prop collision receives no record.
+
+All **1,639 Web-selected files** complete the value journal with zero partial/failed/unmapped
+cases. The same **323 non-JSX runtime references** now split into **195 Hozo-backed,
+128 RN-backed and zero unassessed**. The last two unknowns, PostHider's
+`LayoutAnimation.configureNext` and `LayoutAnimation.Presets.easeInEaseOut`, are confirmed
+RN-backed through the copied helper argument. The proof split is **308 unchanged-module /
+15 backend-copied** references, with **720 type references** excluded separately. This closes
+unassessed references in this pinned Web source inventory, not the RN migration boundary:
+member contracts, third-party APIs, production dependency removal and runtime remain unassessed.
+Other canonical expressions without copy records can still be unknown in other applications;
+generated-expression scope remains `copied-runs-only`. Component/import/tag/source/diagnostic
+counts, the clean checkout and authored fingerprint are unchanged.
+
+This serial two-core observation took **16.50s**, including 0.29s discovery, 5.88s snapshot reads,
+4.14s preparation, 1.04s bindings, 1.10s source usage, **2.80s Web lowering with journals** and
+0.92s residue parsing. Filesystem variation makes this unsuitable as a controlled whole-audit
+comparison. The freshly rebuilt development binding SHA-256 is
+`7497bfe0ef766db4d09ab47208b5cb69f27558d2268cde02af7dd516df206339`.
+
+A separate paired warm-source observation on the same addon/compiler and **1,034 TSX inputs**
+took **0.710 / 0.707 / 0.697s** ordinarily and **0.743 / 0.745 / 0.740s** with tag+copy tracing.
+Median opt-in tracing overhead was **36ms (5.0%)**, not a before/after ordinary-build comparison.
+Both paths produce 1,193 components, with 5,094 traced tag records. An untimed parity pass confirms
+identical JSX/CSS/imports/diagnostics, **7,128** matching authored/emitted copy fragments and no
+ordinary copy journal. Preparation, filesystem, import journals, authored-source joins,
+bundlers and device/runtime performance are outside this paired observation.
+
 ## Authored surface
 
 | Signal | Files or bindings |
@@ -238,19 +270,20 @@ Partial/failed journals remain in JSON but do not enter successful tag headline 
 | filesFailed | 0 |
 | filesNotAssessed | 0 |
 | rewrittenReferences | 195 |
-| retainedReferences | 126 |
-| notAssessedReferences | 2 |
+| retainedReferences | 128 |
+| notAssessedReferences | 0 |
 | typeReferencesExcluded | 720 |
 | unchangedModuleReferences | 308 |
-| backendCopiedReferences | 13 |
+| backendCopiedReferences | 15 |
 
 References are tracked through actual module splices and verified backend copies that reach
 final output, then joined to actual import-origin decisions. JSON retains authored binding/reference
 indices, final emitted UTF-16 spans, and all grouped member/access rows. Actual carried prop/child
 fragments and DOM style/spread normalizer values acquire copy evidence; class namespacing preserves
-only unaffected fragments and discarded void children are excluded. Synthesized handlers and other
-canonical expressions without emission records remain unknown even when their spelling appears in
-output. Failed/partial journals do not enter these completed-file totals.
+only unaffected fragments and discarded void children are excluded. Canonical onPress/responder
+handler values preserve scope in event-name changes, interactive call arguments and the sibling
+disabled-link arm. Synthesized callback syntax and unrecorded canonical expressions remain unknown
+even when their spelling appears in output. Failed/partial journals do not enter these completed-file totals.
 
 The retained-value review queue includes the following most frequent rows (not the complete
 inventory; reproduce to obtain all rows and per-file evidence):
@@ -258,8 +291,8 @@ inventory; reproduce to obtain all rows and per-file evidence):
 | Authored import/member | RN-backed references | Distinct files |
 |---|---:|---:|
 | Alert.alert | 28 | 5 |
-| LayoutAnimation.configureNext | 26 | 16 |
-| LayoutAnimation.Presets.easeInEaseOut | 22 | 12 |
+| LayoutAnimation.configureNext | 27 | 17 |
+| LayoutAnimation.Presets.easeInEaseOut | 23 | 13 |
 | AppState.addEventListener | 7 | 7 |
 | AppState.currentState | 6 | 4 |
 | Linking.openURL | 7 | 5 |

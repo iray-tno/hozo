@@ -1375,11 +1375,13 @@ fn render_node(
             // for copying, SEO, and browser menus, but suppress ordinary
             // activation while disabled. The uncompiled HozoLink uses the
             // same conditional handler shape.
-            attrs.push_str(&format!(
-                " onClick={{({}) ? (event) => event.preventDefault() : {}}}",
+            // `event` binds only the disabled arm, not the authored handler
+            // in the other arm. Trace that value, not the generated callback.
+            let prefix = format!(
+                " onClick={{({}) ? (event) => event.preventDefault() : ",
                 disabled_expr.as_deref().unwrap_or("false"),
-                source_text(source, on_press)
-            ));
+            );
+            source_evidence::expression(&mut attrs, &mut attr_copies, source, source_text(source, on_press), &prefix, "}");
         } else if synthesized_control {
             // One call, not five expressions. `disabled` means five things
             // at once (see docs/decisions/001) and emitting them
@@ -1389,14 +1391,16 @@ fn render_node(
             //
             // It also means the guard expression is evaluated once rather
             // than once per thing it decides.
-            attrs.push_str(&format!(
-                " {{...hozoInteractive({}{})}}",
-                source_text(source, on_press),
+            // The authored function is created in its original scope and
+            // passed as a value. The helper does not wrap its source body.
+            let suffix = format!(
+                "{})}}",
                 disabled_expr
                     .as_ref()
                     .map(|expr| format!(", {expr}"))
                     .unwrap_or_default(),
-            ));
+            );
+            source_evidence::expression(&mut attrs, &mut attr_copies, source, source_text(source, on_press), " {...hozoInteractive(", &suffix);
             *uses_key_activation = true;
         } else if authored_target {
             diagnostics.push(hozo_ir::Diagnostic {
@@ -1408,7 +1412,7 @@ fn render_node(
                 span: node.span,
             });
         } else {
-            attrs.push_str(&format!(" {name}={{{}}}", source_text(source, on_press)));
+            source_evidence::expression(&mut attrs, &mut attr_copies, source, source_text(source, on_press), &format!(" {name}={{"), "}");
         }
     }
     if tag == "a" && node.props.on_press.is_none() {
@@ -1433,7 +1437,7 @@ fn render_node(
         ("onResponderTerminationRequest", node.props.on_responder_termination_request),
     ] {
         if let Some(value) = value {
-            attrs.push_str(&format!(" {name}={{{}}}", source_text(source, value)));
+            source_evidence::expression(&mut attrs, &mut attr_copies, source, source_text(source, value), &format!(" {name}={{"), "}");
         }
     }
     if let Some(disabled) = node.props.disabled.as_ref().filter(|_| !synthesized_control) {

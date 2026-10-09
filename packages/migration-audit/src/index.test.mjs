@@ -68,27 +68,30 @@ const x = <View custom={View}>{P.OS}<Animated.View /></View>`
   }
 })
 
-test('copied props and synthesized handlers stay separate in audit totals', async () => {
+test('handler copies and unrecorded canonical expressions stay separate in audit totals', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-rn-copies-audit-'))
   try {
     mkdirSync(path.join(root, 'src'))
     const source = `import { View, Platform as P } from 'react-native';
 const moduleValue = P.OS;
-const x = <View onPress={() => P.OS} custom={P.OS}>{P.OS}</View>`
+const x = <View className={P.OS} onPress={() => P.OS} custom={P.OS}>{P.OS}</View>`
     writeFileSync(path.join(root, 'src', 'app.tsx'), source)
     const report = await measureRealApp({ root })
     const values = report.reactNativeValueDecisions
     assert.equal(values.filesCompleted, 1)
-    assert.equal(values.rewrittenReferences, 3)
+    assert.equal(values.rewrittenReferences, 4)
     assert.equal(values.retainedReferences, 0)
     assert.equal(values.notAssessedReferences, 1)
     assert.equal(values.unchangedModuleReferences, 1)
-    assert.equal(values.backendCopiedReferences, 2)
+    assert.equal(values.backendCopiedReferences, 3)
     const outcomes = report.files[0].targets.web.reactNativeValues.outcomes
     const unknown = outcomes.find((item) => item.disposition === 'not-assessed')
     assert.equal(unknown.sourceEvidence, 'not-assessed')
     assert.equal(unknown.emittedSpan, undefined)
-    assert.match(renderRealAppMarkdown(report), /Synthesized handlers,[\s\S]*?remain unknown/)
+    assert.match(
+      renderRealAppMarkdown(report),
+      /unrecorded canonical expressions[\s\S]*?remain unknown/,
+    )
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

@@ -58,8 +58,9 @@ pub(crate) fn shift_into(copies: &mut Vec<SourceCopy>, incoming: Vec<SourceCopy>
     }));
 }
 
-/// Only a value already sliced from the source may reach this helper. Wrapped
-/// DOM normalizers introduce calls, not lexical binders around that value.
+/// Only a value already sliced from the source may reach this helper. Added
+/// syntax must not enclose it in a new lexical binder: normalizer/interactive
+/// calls take a value, and a disabled anchor's callback is in the sibling arm.
 pub(crate) fn expression(
     text: &mut String,
     copies: &mut Option<Vec<SourceCopy>>,
