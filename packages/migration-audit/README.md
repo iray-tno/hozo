@@ -172,8 +172,11 @@ source-run evidence across actual module edits and an actual import-origin decis
 spans, reasons and explicit scope. `unchangedModuleReferences` and `backendCopiedReferences`
 distinguish untouched module source from actual backend-carried prop/child fragments and DOM
 style/spread normalizer values. Nested replacements, discarded void children and changed class
-name fragments cannot acquire copied identity. Synthesized handlers and other expressions without
-emission records stay unknown, not retained; generated expression scope is `copied-runs-only`.
+name fragments cannot acquire copied identity. Emitted onPress/responder handler values receive
+records too: the function value stays in its authored scope, outside the interactive helper or
+the sibling disabled-link callback. Dropped handlers, synthesized callback syntax and other
+expressions without emission records stay unknown, not retained; generated expression scope is
+`copied-runs-only`.
 Type references
 are excluded separately. Completed-file counts include unknowns; failed/partial/unassessed
 journals stay in JSON without padding successful headline counts or inventory rows.

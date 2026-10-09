@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { analyzeModule } from './analysis.ts'
 import { createCompiler } from './index.ts'
+import { lowerModule } from './lower.ts'
 import { SourceProvenance } from './source-provenance.ts'
 
 function analyze(source: string, compiler = createCompiler()) {
@@ -42,18 +43,82 @@ other={<T>{P.OS}<V />{A.timing}</T>}>
   assert.equal(createCompiler().compile(source)[0]!.sourceCopies, undefined)
 })
 
-test('void children, read-only canonical expressions and synthesized callbacks remain unassessed', () => {
+test('void children and unrecorded canonical expressions stay unknown while handler values acquire copies', () => {
   const source = `import { TextInput, View, Platform as P } from 'react-native';
 const a = <TextInput><View>{P.OS}</View></TextInput>;
 const b = <View onPress={() => P.OS} className={P.OS} custom={P.OS} />`
   const result = analyze(source)
   const journal = result.targets.web!.reactNativeValues!
   assert.equal(journal.outcomes.length, 4)
-  assert.equal(journal.outcomes.filter((item) => item.disposition === 'not-assessed').length, 3)
+  assert.equal(journal.outcomes.filter((item) => item.disposition === 'not-assessed').length, 2)
   assert.equal(
     journal.outcomes.filter((item) => item.sourceEvidence === 'backend-copied-run').length,
-    1,
+    2,
   )
+})
+
+test('renamed, interactive, disabled-link and responder handler values keep their authored scope', () => {
+  const source = `// 😀\r\nimport { Pressable, View, Platform as event, LayoutAnimation as A } from 'react-native';
+import { Button, Link } from '@hozo/core';
+const a = <Pressable accessibilityRole="button" disabled={blocked}
+  onPress={() => { event.OS; A.configureNext(A.Presets.easeInEaseOut) }} />;
+const b = <Button onPress={event.select} />;
+const c = <Link href="/" disabled={blocked} onPress={() => event.OS} />;
+const d = <View onResponderGrant={() => A.configureNext()} />`
+  const result = analyze(source)
+  const web = result.targets.web!
+  const journal = web.reactNativeValues!
+  assert.equal(web.status, 'completed')
+  assert.equal(journal.outcomes.length, 6)
+  assert.ok(journal.outcomes.every((item) => item.sourceEvidence === 'backend-copied-run'))
+  assert.equal(
+    journal.outcomes.filter((item) => item.disposition === 'rewritten-to-hozo').length,
+    3,
+  )
+  assert.equal(
+    journal.outcomes.filter((item) => item.disposition === 'remains-react-native').length,
+    3,
+  )
+  assert.match(web.code!, /hozoInteractive\(\(\) => \{ event\.OS;/)
+  // The synthetic `event` parameter encloses only the disabled sibling arm,
+  // not the copied handler that refers to the imported `event` binding.
+  assert.match(web.code!, /\(event\) => event\.preventDefault\(\) : \(\) => event\.OS/)
+  for (const outcome of journal.outcomes) {
+    const ref =
+      result.reactNativeUsage!.bindings[outcome.bindingIndex]!.references[outcome.referenceIndex]!
+    assert.equal(
+      source.slice(ref.spanStart, ref.spanEnd),
+      web.code!.slice(outcome.emittedSpan!.spanStart, outcome.emittedSpan!.spanEnd),
+    )
+  }
+  assert.equal(
+    web.code,
+    lowerModule(source, 'app.tsx', 'app.tsx', createCompiler(), '', undefined, {
+      unloweredReactNativeJsx: 'warn',
+    })!.code,
+  )
+})
+
+test('a collided handler that is not emitted and untraced disabled expressions stay unknown', () => {
+  const source = `import { Platform as P, Animated as A, Pressable } from 'react-native';
+import { Button } from '@hozo/core';
+const a = <Button onPress={() => P.OS} onClick={() => A.timing()} />;
+const b = <Pressable accessibilityRole="button" disabled={P.OS} onPress={() => P.select()} />`
+  const result = analyze(source)
+  const web = result.targets.web!
+  const journal = web.reactNativeValues!
+  assert.equal(journal.outcomes.length, 4)
+  assert.equal(journal.outcomes.filter((item) => item.disposition === 'not-assessed').length, 2)
+  assert.equal(
+    journal.outcomes.filter((item) => item.sourceEvidence === 'backend-copied-run').length,
+    2,
+  )
+  assert.ok(
+    journal.outcomes
+      .filter((item) => item.disposition === 'not-assessed')
+      .every((item) => item.emittedSpan === undefined),
+  )
+  assert.ok(result.findings.some((item) => item.code === 'PROP_COLLIDES_WITH_PLATFORM_NAME'))
 })
 
 test('malformed backend copy evidence fails the target rather than manufacturing authored provenance', () => {

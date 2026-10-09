@@ -43,8 +43,11 @@ fn copies_are_actual_emission_ranges_across_nested_props_children_and_normalizer
 }
 
 #[test]
-fn discarded_children_and_synthesized_handlers_do_not_gain_copy_evidence() {
-    let void = output("import { TextInput, Text } from 'react-native'; const x = <TextInput><Text>{P.OS}</Text></TextInput>", true);
+fn discarded_children_stay_unmapped_but_interactive_arguments_are_actual_copies() {
+    let void = output(
+        "import { TextInput, Text } from 'react-native'; const x = <TextInput><Text>{P.OS}</Text></TextInput>",
+        true,
+    );
     assert!(!void.jsx.contains("P.OS"));
     assert!(void.source_copies.unwrap().is_empty());
     let source = "import { View } from 'react-native'; const x = <View onPress={() => P.OS} custom={P.OS}>{P.OS}</View>";
@@ -57,4 +60,68 @@ fn discarded_children_and_synthesized_handlers_do_not_gain_copy_evidence() {
     assert!(carried.contains("custom={P.OS}"));
     assert!(carried.contains("{P.OS}"));
     assert!(!carried.contains("onPress"));
+    assert!(carried.contains("() => P.OS"));
+    assert!(traced.jsx.contains("onClick={() => P.OS}"));
+}
+
+#[test]
+fn handler_copies_cover_arguments_not_generated_syntax_or_dropped_handlers() {
+    for (source, expected, absent) in [
+        (
+            "import { Pressable } from '@hozo/core'; const x = <Pressable accessibilityRole=\"button\" disabled={P.OS} onPress={() => P.select()} />",
+            "{...hozoInteractive(() => P.select(), P.OS)}",
+            "P.OS",
+        ),
+        (
+            "import { Link } from '@hozo/core'; const x = <Link href=\"/\" disabled={P.OS} onPress={() => event.OS} />",
+            "onClick={(P.OS) ? (event) => event.preventDefault() : () => event.OS}",
+            "event.preventDefault()",
+        ),
+        (
+            "import { Button } from '@hozo/core'; const x = <Button onPress={() => P.select()} />",
+            "onClick={() => P.select()}",
+            "onClick",
+        ),
+        (
+            "import { View } from '@hozo/core'; const x = <View onResponderGrant={() => P.select()} />",
+            "onResponderGrant={() => P.select()}",
+            "onResponderGrant",
+        ),
+    ] {
+        let plain = output(source, false);
+        let traced = output(source, true);
+        assert_eq!(plain.jsx, traced.jsx);
+        assert_eq!(plain.css, traced.css);
+        assert_eq!(plain.runtime_imports, traced.runtime_imports);
+        assert!(plain.source_copies.is_none());
+        assert!(traced.jsx.contains(expected), "{}", traced.jsx);
+        let copies = traced.source_copies.unwrap();
+        for copy in &copies {
+            assert_eq!(
+                &source[copy.span.start as usize..copy.span.end as usize],
+                &traced.jsx[copy.emitted_start..copy.emitted_end]
+            );
+        }
+        let handlers: Vec<_> = copies
+            .iter()
+            .filter(|copy| {
+                source[copy.span.start as usize..copy.span.end as usize].starts_with("() => ")
+            })
+            .collect();
+        assert_eq!(handlers.len(), 1);
+        let copy = handlers[0];
+        let authored = &source[copy.span.start as usize..copy.span.end as usize];
+        assert_eq!(authored, &traced.jsx[copy.emitted_start..copy.emitted_end]);
+        assert!(authored.starts_with("() => "));
+        assert!(!authored.contains(absent));
+    }
+    let source = "import { Button } from '@hozo/core'; const x = <Button onPress={() => P.OS} onClick={() => A.timing()} />";
+    let traced = output(source, true);
+    assert!(!traced.jsx.contains("P.OS"));
+    let copies = traced.source_copies.unwrap();
+    assert!(
+        !copies
+            .iter()
+            .any(|copy| source[copy.span.start as usize..copy.span.end as usize].contains("P.OS"))
+    );
 }
