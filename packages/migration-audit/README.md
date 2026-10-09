@@ -14,6 +14,7 @@ npx @hozo/migration-audit . --css app/globals.css --preflight auto
 npx @hozo/migration-audit . --primitive-source @acme/ui
 npx @hozo/migration-audit . --source packages/app --include 'packages/**/*.{tsx,jsx,ts}' --exclude '**/*.test.*'
 npx @hozo/migration-audit . --native-platform ios
+npx @hozo/migration-audit . --compare previous-audit.json --output changes.md
 ```
 
 Without `--source`, the tool scans nonempty `src/` and `app/` directories (both when present),
@@ -104,7 +105,7 @@ graphs are prepared, but a shared file is counted only once, for the selected pr
 Font registration, production builds, runtime behavior and entry-point graph reachability are
 not assessed. `contextStatus: prepared` describes successful theme/reset/static graph preparation,
 not that all project facts or unresolved graph edges have answers. Unrecorded generated RN
-expressions, member compatibility and baseline/CI policies remain follow-ups in
+expressions, member compatibility and explicit CI failure policies remain follow-ups in
 [#790](https://github.com/iray-tno/hozo/issues/790).
 
 The schema records `corpus.sourceDirectories` and omits application-specific metrics
@@ -208,6 +209,42 @@ data flow, installed adapter versions, Native or runtime behavior. `memberCompat
 `not-assessed`. Source paths refer to the compiler's Hozo review, not the audited checkout.
 Markdown evidence links point to current main, not a frozen installed-tool source revision.
 Partial/failed journals do not contribute positive reviews. No app code/config is executed.
+
+### Baseline comparison
+
+Save a JSON audit, then pass it to `--compare`. The current audit stays complete and gains a
+`comparison` field; Markdown includes the summary and up to 12 records per category, with
+`--details` expanding all finding outcomes. Display limits never cap JSON counts. Library
+callers can use `compareReports(current, baseline)` without running either application.
+
+Comparison is informational. It does not fail a command for findings or claim an improvement
+percentage. Malformed/unreadable baseline input fails with a short message. Explicit CI failure
+policies are the next slice of #790, not an implicit change to today's exit status.
+
+- Unique compiler subjects match within the same relative file, backend and diagnostic code.
+  Ordinary line movement is continued, not added. Message/severity changes retain both records.
+- Duplicate subjects in edited files, missing authored anchors and possible cross-file
+  moves/clones stay unassessed. Exact duplicate records can continue when source is unchanged.
+  Removed files are inventory changes, not proven diagnostic resolutions.
+- Repository identities, source selection, effective reset/theme/trusted sources, stylesheet,
+  alias configuration and graph-only context input hashes must agree. Different settings or
+  schemas are non-comparable, not lower-error successes. Partial context, failed probes and
+  target/journal contract changes are explicit. Relocated checkouts need the same `--repository`
+  identity; newly recorded stylesheet paths are checkout-relative like graph/config inputs.
+  Older absolute-path CSS records are not guessed into a new location. No app configuration is
+  executed to reconstruct missing inputs.
+- File-level Web RN boundaries compare the compiler's actual import/tag/value journal category
+  counts, joined to authored usage. Unknowns/types remain visible. These are not matched
+  cross-edit runtime references, member certification or production dependency-removal evidence.
+  Member-review prose/evidence edits alone are not rewrite changes; reviews stay in the audit's
+  separate member guidance inventory.
+- Toolchain/source provenance differences are displayed independently. Two reports cannot
+  attribute a count change to a tool upgrade rather than an app edit. Binding install paths are
+  not tool identity; binary hashes and recorded versions remain evidence.
+
+`comparable` describes this static observation comparison, not that all application behavior,
+fonts, indirect RN references, production dependencies or devices were assessed. JSON retains
+all ambiguous/partial records and before/after boundaries regardless of Markdown sample limits.
 
 <!-- generated: package-footer -->
 

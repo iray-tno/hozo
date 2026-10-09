@@ -11,6 +11,7 @@ import {
   sourcePlatform,
 } from '@hozo/compiler/analysis'
 import { loadStaticProjectTheme } from '@hozo/tailwind'
+import { compareReports, comparisonMarkdown, validateBaseline } from './comparison.mjs'
 import { escapeMarkdown, findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
 
 const SAMPLE_LIMIT = 12
@@ -38,6 +39,7 @@ Options:
   --output <path>            Write the report to this path instead of stdout
   --format json|markdown     Override format (default: Markdown in a terminal, JSON in a pipe)
   --details                 Include every finding in Markdown (JSON is always complete)
+  --compare <report>         Compare with a previous JSON audit (informational by default)
   --help                    Show this help
 
 JS/TS (.tsx/.jsx/.ts/.js/.mts/.mjs) source is observed. Dependencies, declarations,
@@ -79,6 +81,7 @@ function parseArgs(argv) {
     else if (key === '--repository') options.repository = value
     else if (key === '--expected-commit') options.expectedCommit = value
     else if (key === '--output') options.output = value
+    else if (key === '--compare') options.compare = value
     else if (key === '--reproduce-command') options.reproduceCommand = value
     else if (key === '--format' && (value === 'json' || value === 'markdown'))
       options.format = value
@@ -258,7 +261,10 @@ async function measure(options) {
         importer: relative(root, importer),
         ...(resolved ? { resolved: relative(root, resolved) } : {}),
       })),
-      stylesheetInputs: project.stylesheets,
+      stylesheetInputs: project.stylesheets.map(({ file, sha256 }) => ({
+        file: relative(root, file),
+        sha256,
+      })),
       preflightBasis: project.preflightBasis,
       compilerAssumptions: {
         theme: project.projectFacts.theme.status === 'resolved' ? 'project' : 'builtin',
@@ -747,7 +753,7 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 | Files with warnings | ${report.diagnostics.filesWithWarnings} |
 ${diagnostics.length > 0 ? table(diagnostics) : '| Diagnostic occurrences | 0 |'}
 
-${findingDetails(report, details)}
+${findingDetails(report, details)}${report.comparison ? `\n\n${comparisonMarkdown(report.comparison, { details })}` : ''}
 
 ${
   report.toolchain
@@ -816,7 +822,18 @@ export async function runCli(argv = process.argv.slice(2), { stdout = process.st
     : stdout.isTTY
       ? 'markdown'
       : 'json'
+  let baseline
+  if (options.compare) {
+    if (options.output && path.resolve(options.output) === path.resolve(options.compare))
+      throw new AuditInputError('comparison output must not overwrite its baseline')
+    try {
+      baseline = validateBaseline(JSON.parse(readFileSync(path.resolve(options.compare), 'utf8')))
+    } catch (error) {
+      throw new AuditInputError(`cannot compare baseline: ${error.message.replace(/\s+/g, ' ')}`)
+    }
+  }
   const report = await measure(options)
+  if (baseline) report.comparison = compareReports(report, baseline)
   const output =
     options.format === 'markdown'
       ? markdown(report, options)
@@ -832,4 +849,4 @@ export async function runCli(argv = process.argv.slice(2), { stdout = process.st
   return report
 }
 
-export { markdown as renderRealAppMarkdown, measure as measureRealApp }
+export { compareReports, markdown as renderRealAppMarkdown, measure as measureRealApp }
