@@ -119,6 +119,9 @@ const EXTRA: ReadonlySet<string> = new Set([
   // can say whether `<meter>` is read as 60% or as 0.6 of 100, which the
   // virtual reader says and nobody has checked.
   'semantics-data-display--default',
+  // `FileDropzone` (#151): a button with a drop target on it, which a real
+  // reader should call a button and nothing else.
+  'form-filedropzone--default',
 ])
 
 const stories = Object.values(index.entries)

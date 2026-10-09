@@ -103,6 +103,12 @@ export {
   type HozoFieldProps,
 } from './field.tsx'
 export {
+  FileDropzone,
+  type FileDropzoneProps,
+  HozoFileDropzone,
+  type HozoFileDropzoneProps,
+} from './file-dropzone.tsx'
+export {
   HozoForm as Form,
   HozoForm,
   type HozoFormProps as FormProps,
