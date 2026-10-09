@@ -468,7 +468,7 @@ pub(super) fn text_break_strategy(node: &Node) -> Option<&'static str> {
 /// `hangul-word`, which keeps Korean words whole and leaves Chinese and
 /// Japanese breaking between characters as before. So it is lowered for the
 /// half it covers and still reported for the half it does not (`render.rs`).
-/// Android has no such prop; see `docs/upstream/react-native-line-break.md`.
+/// Android has no such prop; see #813.
 pub(super) fn line_break_strategy_ios(node: &Node) -> Option<&'static str> {
     if !is_text_primitive(node.primitive) {
         return None;

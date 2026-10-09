@@ -332,7 +332,7 @@ pub(super) fn render_node(
                         "iOS keeps Korean words whole (`lineBreakStrategyIOS=\"hangul-word\"`, \
                          set here), but still breaks Chinese and Japanese between characters, \
                          and Android has no control for it -- see \
-                         docs/upstream/react-native-line-break.md"
+                         https://github.com/iray-tno/hozo/issues/813"
                     } else if name == "text-wrap"
                         && matches!(value.as_str(), "balance" | "pretty")
                     {
@@ -347,7 +347,7 @@ pub(super) fn render_node(
                          Android's `textBreakStrategy`, so the platform decides. Its default \
                          already keeps closing punctuation off the start of a line; strict and \
                          loose rules, and breaking by phrase, wait on React Native -- see \
-                         docs/upstream/react-native-line-break.md"
+                         https://github.com/iray-tno/hozo/issues/813"
                     };
                     diagnostics.push(Diagnostic {
                         code: DiagnosticCode::WebOnlyPropertyOnNative,
