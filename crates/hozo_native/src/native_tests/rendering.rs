@@ -903,6 +903,17 @@ fn line_breaking_is_a_text_prop_where_android_has_one_and_a_warning_where_not() 
     assert!(balanced.diagnostics.is_empty(), "{:?}", balanced.diagnostics);
     let pretty = compile(r#"<Text className="text-pretty">x</Text>"#);
     assert!(pretty.jsx.contains(r#"textBreakStrategy="highQuality""#), "{}", pretty.jsx);
+    // `break-keep` is iOS's `hangul-word` for the Korean it covers, and still
+    // reported for the Chinese and Japanese it does not, and for Android.
+    let keep = compile(r#"<Text className="break-keep">x</Text>"#);
+    assert!(keep.jsx.contains(r#"lineBreakStrategyIOS="hangul-word""#), "{}", keep.jsx);
+    assert!(
+        keep.diagnostics.iter().any(|d| d.severity == hozo_ir::Severity::Warning && d.message.contains("Korean")),
+        "{:?}",
+        keep.diagnostics
+    );
+    assert!(!compile(r#"<View className="break-keep">x</View>"#).jsx.contains("lineBreakStrategyIOS"));
+    assert!(!compile(r#"<Text className="md:break-keep">x</Text>"#).jsx.contains("lineBreakStrategyIOS"));
 
     for element in [
         r#"<Text className="break-keep">x</Text>"#,
