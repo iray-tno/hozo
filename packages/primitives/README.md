@@ -37,6 +37,23 @@ child that does not carry the matching per-item tag — which `VirtualizedList`'
 spacers do not. See [#512](https://github.com/iray-tno/hozo/issues/512); it comes back when React
 Native stops casting that tag with `as` instead of `as?`.
 
+### Responsive images
+
+`Image` does what [#155](https://github.com/iray-tno/hozo/issues/155) asked for with what each platform already has, rather than with a second image component:
+
+| | Web | React Native |
+|---|---|---|
+| A box before the image loads | `aspect-video`, `aspect-[4/3]`: CSS `aspect-ratio` | the same classes: `aspectRatio` |
+| Several resolutions | `srcSet` and `sizes`, passed to `<img>` | `srcSet`, which React Native reads itself, by **density only** (`1x`, `2x`, `3x`) |
+| A picture to show instead | `defaultSource`, shown if the image **fails** | `defaultSource`, shown **while it loads** on iOS |
+| `loading="lazy"` | the browser's | ignored |
+
+Width descriptors (`800w`) are skipped on device with a runtime warning, and `sizes` is not read there, so the compiler warns about a `srcSet` written with them.
+
+Not provided:
+- **BlurHash:** decoding one needs a library, which is a dependency for the application to choose (`expo-image` on Native).
+- **A `<Picture>` with format negotiation:** that is the server's or the CDN's job, done with `Accept`.
+
 What each primitive compiles to on both platforms is generated into
 [docs/primitives.md](https://github.com/iray-tno/hozo/blob/main/docs/primitives.md).
 

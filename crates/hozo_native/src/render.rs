@@ -1316,6 +1316,36 @@ pub(super) fn render_node(
             props_text.push_str(&format!(" source={{hozoImageSource({value})}}"));
         }
     }
+    // React Native's `Image` reads `srcSet` itself and picks a candidate by
+    // the screen's density -- but only density descriptors. A width
+    // descriptor (`800w`) is skipped with a runtime warning, and a `srcSet`
+    // made only of them draws nothing, where the browser would choose by
+    // `sizes`. Said here, for a `srcSet` written as a string, rather than
+    // left to a warning on the device.
+    if node.primitive == Primitive::Image {
+        let literal = |name: &str| {
+            node.props.passthrough.iter().find(|p| p.name.as_deref() == Some(name)).and_then(|p| {
+                let text = &source[p.span.0.start as usize..p.span.0.end as usize];
+                let value = text.split_once('=')?.1.trim();
+                value.strip_prefix('"')?.strip_suffix('"').map(str::to_string)
+            })
+        };
+        if let Some(set) = literal("srcSet") {
+            let widths = set
+                .split(',')
+                .filter_map(|candidate| candidate.split_whitespace().nth(1))
+                .any(|descriptor| {
+                    descriptor.strip_suffix('w').is_some_and(|n| n.parse::<u32>().is_ok())
+                });
+            if widths {
+                diagnostics.push(unwired_variant(
+                    node,
+                    "React Native's Image reads `srcSet` by density only (`1x`, `2x`, `3x`). Its width descriptors (`800w`) are skipped on device with a warning, and `sizes` is not read at all, so the image may draw nothing there. Give density descriptors, or a `src` it can fall back to. On Web the same `srcSet` is chosen by `sizes`.",
+                    Severity::Warning,
+                ));
+            }
+        }
+    }
     if let Some(src) = node.props.image_default_source {
         let value = source_text(source, src);
         let static_uri = value.starts_with(['\"', '\'']);
