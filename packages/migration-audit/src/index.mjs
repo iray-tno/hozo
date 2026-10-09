@@ -602,8 +602,24 @@ This inventory resolves direct ESM import symbols, aliases and lexical shadowing
 unused imports, component values, member reads, reexports and side-effect edges stay distinct.
 JSON retains every authored binding/reference with UTF-16 spans. CommonJS, dynamic imports,
 TS import-equals and indirect wrapper/data-flow usage are not inventoried. These are source facts;
-actual rewrite dispositions are not assessed yet, and no member compatibility or dependency-removal
-claim follows from them.
+no member compatibility or dependency-removal claim follows from them.
+
+## Web React Native import decisions
+
+${
+  report.reactNativeImportDecisions
+    ? `| Actual import outcome | Count |
+|---|---:|
+${table(Object.entries(report.reactNativeImportDecisions).filter(([, value]) => typeof value === 'number'))}`
+    : 'Not assessed.'
+}
+
+The shared Web lowerer journals actual import-specifier edits; JSON joins outcomes to authored
+binding indices. Retained imports are not remaining runtime-use counts: JSX can already have been
+lowered while its import remains for the bundler to elide. Type-only is not proof of type erasure.
+Forwarding/side-effect edges and semantic reference dispositions are not assessed here. No member
+compatibility, package-resolution, production dependency-removal or runtime guarantee follows from
+an import move. Native remains a compiler probe, not an import rewrite verdict.
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 

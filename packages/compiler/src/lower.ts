@@ -21,9 +21,10 @@ import type {
   CompiledComponent,
   CompiledNativeModule,
   Compiler,
+  ReactNativeImportSpecifier,
   StylexExternalBinding,
 } from './index.ts'
-import { topLevelBindings } from './index.ts'
+import { reactNativeImports, topLevelBindings } from './index.ts'
 import { semanticModuleEligible, type UnloweredReactNativeJsxPolicy } from './project.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
@@ -104,8 +105,6 @@ export function assertRuntimeImportsUnbound(
 const HOZO_AUTHORING_IMPORT_RE =
   /import\s*\{[^}]*\}\s*from\s*['"](?:@hozo\/core|@hozo\/patterns|@hozo\/primitives|@hozo\/semantics|@hozo\/svg|@hozo\/typography)['"]\s*\n?/g
 
-const RN_NAMED_IMPORT_RE = /\bimport\s+(type\s+)?\{([^}]*)\}\s+from\s*(['"])react-native\3\s*;?/g
-
 /** React Native value exports whose Web contract Hozo owns when checking unlowered JSX. */
 const RN_OWNED_RUNTIME_EXPORTS = new Set([
   'AccessibilityInfo',
@@ -118,6 +117,18 @@ const RN_OWNED_RUNTIME_EXPORTS = new Set([
   'useWindowDimensions',
 ])
 const RN_OWNED_COMPONENT_EXPORTS = new Set(['Pressable', 'TextInput'])
+
+export interface ReactNativeImportDecision {
+  imported: string
+  local: string
+  typeOnly: boolean
+  /** Coordinates in the input attached to the observer event, not necessarily authored input. */
+  spanStart: number
+  spanEnd: number
+  disposition: 'rewritten-to-hozo' | 'retained-react-native' | 'type-only'
+  replacement?: '@hozo/core' | '@hozo/rn-compat'
+  reason: string
+}
 
 /**
  * Moves supported value imports out of `react-native` before a Web bundler
@@ -132,42 +143,91 @@ function rehomeReactNativeImports(
   code: string,
   owned: ReadonlySet<string>,
   destination: '@hozo/core' | '@hozo/rn-compat',
+  file?: string,
+  observe?: (decisions: ReactNativeImportDecision[]) => void,
 ): string {
-  return code.replace(
-    RN_NAMED_IMPORT_RE,
-    (statement, importType: string | undefined, body: string, quote: string) => {
-      if (importType) return statement
-      const remaining: string[] = []
-      const moved: string[] = []
-      for (const raw of body.split(',')) {
-        const normalized = raw.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').trim()
-        const match = /^(type\s+)?([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/.exec(
-          normalized,
-        )
-        const imported = match?.[2]
-        if (!match || match[1] || !imported || !owned.has(imported)) {
-          remaining.push(raw)
-          continue
-        }
-        moved.push(match[3] ? `${imported} as ${match[3]}` : imported)
-      }
-      if (moved.length === 0) return statement
-      const original = remaining.some((part) => part.trim() !== '')
-        ? `import { ${remaining.map((part) => part.trim()).join(', ')} } from ${quote}react-native${quote}\n`
+  // A module string can spell react-native with escapes. The keyword itself
+  // cannot be escaped, so import-free text needs no structural parse.
+  if (!code.includes('import')) return code
+  const escaped = code.includes('\\')
+  if (!escaped && !code.includes('react-native')) return code
+  // Ordinary builds need a parse only when this pass could move something.
+  // Analysis observers also request retained decisions, so cannot take that
+  // shortcut. Any escape disables the name gate: imported names can escape too.
+  if (!observe && !escaped && ![...owned].some((name) => code.includes(name))) return code
+  const parsed = reactNativeImports(code, file)
+  if (parsed.diagnostics.length > 0) {
+    throw new Error(`RN_IMPORT_PARSE_FAILED: ${parsed.diagnostics[0]!.message}`)
+  }
+  let next = code
+  const decisions: ReactNativeImportDecision[] = []
+  // Only this loop both changes imports and records that change. Audit does
+  // not repeat the ownership table, or predict a rewrite from import spelling.
+  for (const declaration of [...parsed.declarations].reverse()) {
+    const moved: ReactNativeImportSpecifier[] = []
+    const remaining: ReactNativeImportSpecifier[] = []
+    for (const specifier of declaration.specifiers) {
+      const move =
+        !specifier.typeOnly &&
+        specifier.kind === 'named' &&
+        !declaration.hasAttributes &&
+        owned.has(specifier.imported)
+      if (move) moved.push(specifier)
+      else remaining.push(specifier)
+      decisions.push({
+        imported: specifier.imported,
+        local: specifier.local,
+        typeOnly: specifier.typeOnly,
+        spanStart: specifier.spanStart,
+        spanEnd: specifier.spanEnd,
+        disposition: specifier.typeOnly
+          ? 'type-only'
+          : move
+            ? 'rewritten-to-hozo'
+            : 'retained-react-native',
+        ...(move ? { replacement: destination } : {}),
+        reason: specifier.typeOnly
+          ? 'Explicit type import; no value import rewritten.'
+          : declaration.hasAttributes
+            ? 'Import attributes are not split.'
+            : specifier.kind !== 'named'
+              ? 'Default and namespace imports are not split.'
+              : move
+                ? 'Value import moved by the Web lowerer.'
+                : 'Not owned by this import rewrite stage.',
+      })
+    }
+    if (moved.length === 0) continue
+    const raw = (specifier: ReactNativeImportSpecifier) =>
+      code.slice(specifier.spanStart, specifier.spanEnd)
+    const named = remaining.filter((specifier) => specifier.kind === 'named')
+    const others = remaining.filter((specifier) => specifier.kind !== 'named')
+    const parts = [
+      ...others.map(raw),
+      ...(named.length > 0 ? [`{ ${named.map(raw).join(', ')} }`] : []),
+    ]
+    const original =
+      parts.length > 0
+        ? `import ${parts.join(', ')} from ${code.slice(declaration.sourceStart, declaration.sourceEnd)}\n`
         : ''
-      return `${original}import { ${moved.join(', ')} } from '${destination}'\n`
-    },
-  )
+    const comments = declaration.comments
+      .map((span) => code.slice(span.spanStart, span.spanEnd))
+      .join('\n')
+    const replacement = `${comments ? `${comments}\n` : ''}${original}import { ${moved.map(raw).join(', ')} } from '${destination}'\n`
+    next = next.slice(0, declaration.spanStart) + replacement + next.slice(declaration.spanEnd)
+  }
+  observe?.(decisions)
+  return next
 }
 
-export function rehomeReactNativeRuntimeImports(code: string): string {
-  return rehomeReactNativeImports(code, RN_OWNED_RUNTIME_EXPORTS, '@hozo/rn-compat')
+export function rehomeReactNativeRuntimeImports(code: string, file?: string): string {
+  return rehomeReactNativeImports(code, RN_OWNED_RUNTIME_EXPORTS, '@hozo/rn-compat', file)
 }
 
-export function rehomeReactNativeComponentImports(code: string): string {
+export function rehomeReactNativeComponentImports(code: string, file?: string): string {
   // `@hozo/core` rather than the owner, for the reason compiled imports go
   // through it: the application declared core, not `@hozo/primitives`.
-  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS, '@hozo/core')
+  return rehomeReactNativeImports(code, RN_OWNED_COMPONENT_EXPORTS, '@hozo/core', file)
 }
 
 /** @deprecated Alias for internal backward-compat if needed */
@@ -482,11 +542,12 @@ export interface LowerModuleOptions {
 }
 
 export interface LowerModuleStage {
-  stage: 'canvas' | 'semantic' | 'residue' | 'resolution'
+  stage: 'canvas' | 'semantic' | 'residue' | 'resolution' | 'imports'
   /** Coordinates belong to this text; absent means a module-wide diagnostic. */
   source?: string
   diagnostics: CompileDiagnostic[]
   components?: CompiledComponent[]
+  importDecisions?: ReactNativeImportDecision[]
 }
 
 function runtimeImportOnlyModule(code: string, id: string, file: string): LoweredModule {
@@ -635,12 +696,28 @@ function lowerModuleUnchecked(
   const isTransformed = file.endsWith('.mdx')
   const policy = options.unloweredReactNativeJsx
   const shouldRehome = policy === 'warn' || policy === 'error'
-  const apiLowered = shouldRehome ? rehomeReactNativeRuntimeImports(code) : code
+  const rehome = (input: string, components: boolean) =>
+    shouldRehome
+      ? rehomeReactNativeImports(
+          input,
+          components ? RN_OWNED_COMPONENT_EXPORTS : RN_OWNED_RUNTIME_EXPORTS,
+          components ? '@hozo/core' : '@hozo/rn-compat',
+          file,
+          options.observe
+            ? (importDecisions) =>
+                options.observe?.({
+                  stage: 'imports',
+                  source: input,
+                  diagnostics: [],
+                  importDecisions,
+                })
+            : undefined,
+        )
+      : input
+  const apiLowered = rehome(code, false)
   const loweredApiImport = apiLowered !== code
   if (!semanticModuleEligible(file, 'web')) {
-    const componentLowered = shouldRehome
-      ? rehomeReactNativeComponentImports(apiLowered)
-      : apiLowered
+    const componentLowered = rehome(apiLowered, true)
     if (componentLowered !== apiLowered) return runtimeImportOnlyModule(componentLowered, id, file)
     return loweredApiImport ? runtimeImportOnlyModule(apiLowered, id, file) : undefined
   }
@@ -688,9 +765,7 @@ function lowerModuleUnchecked(
     components,
   })
   if (components.length === 0 && !canvas.touched) {
-    const componentLowered = shouldRehome
-      ? rehomeReactNativeComponentImports(canvas.code)
-      : canvas.code
+    const componentLowered = rehome(canvas.code, true)
     const diagnostic = checkUnloweredReactNativeJsx(
       componentLowered,
       file,
@@ -751,7 +826,7 @@ function lowerModuleUnchecked(
     next = `${generatedRuntimeImports(runtimeImports.sort())}${next}`
   }
 
-  if (shouldRehome) next = rehomeReactNativeComponentImports(next)
+  next = rehome(next, true)
   const unloweredDiagnostic = checkUnloweredReactNativeJsx(
     next,
     file,

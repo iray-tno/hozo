@@ -94,6 +94,30 @@ export interface ReactNativeUsage {
   bindings: ReactNativeBindingUsage[]
 }
 
+export interface ReactNativeImportSpecifier {
+  imported: string
+  local: string
+  kind: 'named' | 'default' | 'namespace'
+  typeOnly: boolean
+  spanStart: number
+  spanEnd: number
+}
+
+export interface ReactNativeImportDeclaration {
+  spanStart: number
+  spanEnd: number
+  sourceStart: number
+  sourceEnd: number
+  hasAttributes: boolean
+  specifiers: ReactNativeImportSpecifier[]
+  comments: { spanStart: number; spanEnd: number }[]
+}
+
+export interface ReactNativeImports {
+  diagnostics: CompileDiagnostic[]
+  declarations: ReactNativeImportDeclaration[]
+}
+
 export interface StylexModuleMemberSummary {
   name: string
   status: 'static' | 'partial' | 'function' | 'unsupported'
@@ -214,6 +238,7 @@ interface CandidateCacheConstructor {
  * the one to move to when `pack:native` grows up into its CLI.
  */
 interface NativeBinding {
+  reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
   analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
   compile(source: string): CompiledComponent[]
   compileNative(source: string): CompiledNativeComponent[]
@@ -484,6 +509,11 @@ export function summarizeStylexModule(source: string, sourceFile?: string): Styl
 /** Binding-aware authored ESM inventory; no transform or member compatibility claim. */
 export function analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage {
   return loadNative().analyzeReactNativeUsage(source, sourceFile)
+}
+
+/** Structural declarations used by the actual Web import rewrite; no scope pass. */
+export function reactNativeImports(source: string, sourceFile?: string): ReactNativeImports {
+  return loadNative().reactNativeImports(source, sourceFile)
 }
 
 /**

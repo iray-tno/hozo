@@ -103,8 +103,8 @@ graphs are prepared, but a shared file is counted only once, for the selected pr
 
 Font registration, production builds, runtime behavior and entry-point graph reachability are
 not assessed. `contextStatus: prepared` describes successful theme/reset/static graph preparation,
-not that all project facts or unresolved graph edges have answers. Actual RN rewrite decisions
-and baseline/CI policies remain follow-ups in
+not that all project facts or unresolved graph edges have answers. Semantic RN reference
+rewrite decisions and baseline/CI policies remain follow-ups in
 [#790](https://github.com/iray-tno/hozo/issues/790).
 
 The schema records `corpus.sourceDirectories` and omits application-specific metrics
@@ -128,10 +128,25 @@ Reference counts include opening and closing JSX tag occurrences, not component/
 Parse/binding failures and unassessed files stay visible.
 
 CommonJS `require`, dynamic imports, TS import-equals, indirect wrapper modules and data-flow
-through subsequent aliases are outside this ESM inventory. Rewrite decisions remain explicitly
-`not-assessed`: moving an import, resolving its package, removing production RNW dependencies
-and runtime/member compatibility are separate claims. This foundation supplies authored
-evidence for the compiler-owned rewrite-disposition slice, not a renamed migration-ready score.
+through subsequent aliases are outside this ESM inventory. Moving an import, resolving its
+package, removing production RNW dependencies and runtime/member compatibility are separate
+claims, not a renamed migration-ready score.
+
+### Actual Web import rewrite journal
+
+`reactNativeImportDecisions` summarizes the shared compiler lowerer's actual import-specifier
+decisions. Complete per-file outcomes are in `targets.web.reactNativeImports`, joined by
+`bindingIndex` to authored source usage. The audit owns no import replacement table and
+does not infer these decisions by re-reading emitted code. Only completed targets enter
+the successful headline counts; partial/failed journals remain in JSON with their status.
+
+`retained-react-native` describes an import declaration, **not** a remaining runtime
+reference: JSX lowering may already have removed its uses while leaving the import for
+the bundler. `type-only` does not certify erasure. Namespace/default imports and imports
+with attributes are deliberately retained; policy `allow` leaves rewriting not assessed.
+Forwarding/side-effect edges, semantic-reference dispositions, member compatibility,
+package resolution, production dependency removal and Native import rewriting remain
+unassessed by this journal. Native analysis is still a compiler-only probe.
 
 <!-- generated: package-footer -->
 

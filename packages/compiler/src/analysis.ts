@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
+import { type ReactNativeImportAnalysis, reactNativeImportJournal } from './analysis-rn.ts'
 import { lowerCanvasPaints } from './canvas.ts'
 import type {
   CompileDiagnostic,
@@ -62,6 +63,7 @@ export interface TargetAnalysis {
   /** Available only for the actual Web module path, not a fabricated Native module. */
   code?: string
   directReactNativeJsxResidue?: string[]
+  reactNativeImports?: ReactNativeImportAnalysis
 }
 
 export interface ModuleAnalysis {
@@ -266,6 +268,11 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
       platform: 'web',
     }
     result.targets.web = target
+    const importJournal = reactNativeImportJournal(
+      source,
+      result.reactNativeUsage,
+      (options.unloweredReactNativeJsx ?? 'warn') !== 'allow',
+    )
     run('web', 'module-lowering', () => {
       const observed = new Set<CompileDiagnostic>()
       const lowered = lowerModule(source, file, file, compiler, root, webGraph, {
@@ -274,6 +281,9 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
           for (const diagnostic of event.diagnostics) observed.add(diagnostic)
           collect('web', event.stage, event.diagnostics, event.source)
           if (event.components) target.semanticComponents = event.components.length
+          if (event.importDecisions && event.source !== undefined) {
+            importJournal.record(event.source, event.importDecisions)
+          }
         },
       })
       // Future module diagnostics remain visible even before a stage gains
@@ -312,6 +322,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
       if (residue) target.directReactNativeJsxResidue = [...new Set(residue)]
       else target.status = 'failed'
     }
+    target.reactNativeImports = importJournal.finish(target.status === 'completed')
   }
 
   if (options.targets.includes('native')) {
