@@ -607,6 +607,7 @@ packages/
   canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
   compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
   core/                    Zero-setup facade over Hozo's canonical authoring packages.
+  embed/                   Universal embedded web content for Hozo: an iframe on the Web and react-native-webview on Native.
   engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   form/                    Accessible universal form and date-selection components for Hozo applications.
   metro/                   Metro integration for the Hozo compiler (Native lowering backend).

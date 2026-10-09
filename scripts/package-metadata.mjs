@@ -165,6 +165,12 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'compatibility', 'migration', 'react-native-web'],
   },
+  embed: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    peerOverrides: { 'react-native-webview': '>=13' },
+    keywords: ['react-native', 'react', 'webview', 'iframe', 'embed'],
+  },
   svg: {
     exports: { '.': './dist/index.js' },
     native: true,
