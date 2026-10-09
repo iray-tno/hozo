@@ -201,7 +201,14 @@ export function recordAnalysis(report, analysis, file, source, platform) {
 }
 
 function valueKey(row) {
-  return JSON.stringify([row.imported, row.access, row.member, row.disposition, row.replacement])
+  return JSON.stringify([
+    row.imported,
+    row.access,
+    row.member,
+    row.disposition,
+    row.replacement,
+    row.memberContract,
+  ])
 }
 
 function recordValueDecisions(report, analysis, file) {
@@ -209,6 +216,7 @@ function recordValueDecisions(report, analysis, file) {
     scope: 'web-non-jsx-source-runs',
     generatedExpressions: 'copied-runs-only',
     memberCompatibility: 'not-assessed',
+    memberContracts: 'compiler-reviewed-web-subsets',
     dependencyRemoval: 'not-assessed',
     filesCompleted: 0,
     filesPartial: 0,
@@ -220,6 +228,9 @@ function recordValueDecisions(report, analysis, file) {
     typeReferencesExcluded: 0,
     unchangedModuleReferences: 0,
     backendCopiedReferences: 0,
+    reviewedAdapterReferences: 0,
+    retainedGuidanceReferences: 0,
+    unreviewedMemberReferences: 0,
     inventory: [],
   })
   const journal = analysis.targets.web.reactNativeValues
@@ -239,6 +250,14 @@ function recordValueDecisions(report, analysis, file) {
   values.typeReferencesExcluded += journal.typeReferencesExcluded
   const fileKeys = new Set()
   for (const outcome of journal.outcomes) {
+    const contract = outcome.memberContract
+    values[
+      contract?.status === 'reviewed-adapter-subset'
+        ? 'reviewedAdapterReferences'
+        : contract?.status === 'retained-guidance'
+          ? 'retainedGuidanceReferences'
+          : 'unreviewedMemberReferences'
+    ] += 1
     if (outcome.sourceEvidence === 'backend-copied-run') values.backendCopiedReferences += 1
     else if (outcome.sourceEvidence === 'unchanged-module-run')
       values.unchangedModuleReferences += 1
@@ -257,6 +276,7 @@ function recordValueDecisions(report, analysis, file) {
       ...(reference.member !== undefined ? { member: reference.member } : {}),
       disposition: outcome.disposition,
       ...(outcome.replacement ? { replacement: outcome.replacement } : {}),
+      ...(contract ? { memberContract: contract } : {}),
     }
     const key = valueKey(identity)
     let row = values.inventory.find((item) => valueKey(item) === key)

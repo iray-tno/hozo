@@ -1,4 +1,5 @@
 import type { ReactNativeImportAnalysis } from './analysis-rn.ts'
+import { type ReactNativeMemberContract, reviewReactNativeMember } from './analysis-rn-contracts.ts'
 import type { ReactNativeUsage } from './index.ts'
 import { type SourceEdit, type SourceEvidence, SourceProvenance } from './source-provenance.ts'
 
@@ -11,6 +12,7 @@ export interface ReactNativeValueOutcome {
   emittedSpan?: { spanStart: number; spanEnd: number }
   replacement?: string
   reason: string
+  memberContract?: ReactNativeMemberContract
 }
 
 export interface ReactNativeValueAnalysis {
@@ -19,6 +21,7 @@ export interface ReactNativeValueAnalysis {
   outputProvenance: 'completed' | 'unmapped' | 'not-assessed'
   generatedExpressions: 'copied-runs-only'
   memberCompatibility: 'not-assessed'
+  memberContracts: 'reviewed-web-subsets-v1'
   dependencyRemoval: 'not-assessed'
   typeReferencesExcluded: number
   outcomes: ReactNativeValueOutcome[]
@@ -41,6 +44,7 @@ export function reactNativeValueJournal(
     outputProvenance: 'not-assessed',
     generatedExpressions: 'copied-runs-only',
     memberCompatibility: 'not-assessed',
+    memberContracts: 'reviewed-web-subsets-v1',
     dependencyRemoval: 'not-assessed',
     typeReferencesExcluded: 0,
     outcomes: [],
@@ -112,6 +116,17 @@ export function reactNativeValueJournal(
         if (imports.status === 'partial') analysis.status = 'partial'
         else if (imports.status === 'not-assessed' && analysis.status === 'completed')
           analysis.status = 'not-assessed'
+      }
+      // No new compatibility claim is promoted from an aborted/partial run.
+      if (analysis.status === 'completed') {
+        for (const outcome of analysis.outcomes) {
+          const binding = usage!.bindings[outcome.bindingIndex]!
+          outcome.memberContract = reviewReactNativeMember(
+            binding,
+            binding.references[outcome.referenceIndex]!,
+            outcome,
+          )
+        }
       }
       return analysis
     },

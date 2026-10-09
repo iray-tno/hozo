@@ -180,4 +180,5 @@ test('final pipeline failure keeps individual evidence but never a completed val
   assert.equal(result.targets.web!.status, 'failed')
   assert.equal(result.targets.web!.reactNativeValues!.status, 'failed')
   assert.equal(result.targets.web!.reactNativeValues!.outcomes[0]!.disposition, 'rewritten-to-hozo')
+  assert.equal(result.targets.web!.reactNativeValues!.outcomes[0]!.memberContract, undefined)
 })
