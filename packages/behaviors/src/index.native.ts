@@ -1,4 +1,9 @@
 export {
+  type CommandShortcutOptions,
+  isApplePlatform,
+  useCommandShortcut,
+} from './command-shortcut.native.ts'
+export {
   DismissableLayer,
   type DismissableLayerProps,
 } from './dismissable-layer.native.tsx'

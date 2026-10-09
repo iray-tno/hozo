@@ -302,6 +302,9 @@ pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: b
     if contains_primitive(root, Primitive::OtpInput) {
         runtime_imports.push("HozoOtpInput");
     }
+    if contains_primitive(root, Primitive::CommandPalette) {
+        runtime_imports.push("HozoCommandPalette");
+    }
     if contains_primitive(root, Primitive::ActivityIndicator) {
         runtime_imports.push("HozoActivityIndicator");
     }
@@ -3147,6 +3150,19 @@ const el = <OtpInput accessibilityLabel=\"Code\" className=\"flex gap-2\" active
         assert!(output.jsx.starts_with("<HozoOtpInput className=\"hozo-0\""), "{}", output.jsx);
         assert!(output.jsx.contains(" activeCellClassName=\"hozo-1\""), "{}", output.jsx);
         assert!(output.runtime_imports.contains(&"HozoOtpInput"), "{:?}", output.runtime_imports);
+    }
+
+    #[test]
+    fn a_command_palette_is_hozo_command_palette_with_its_class_lists_compiled() {
+        let source = "import { CommandPalette } from '@hozo/core'
+const el = <CommandPalette open={open} commands={commands} panelClassName=\"w-96\" activeItemClassName=\"bg-slate-100\" />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<HozoCommandPalette panelClassName=\"hozo-1\""), "{}", output.jsx);
+        assert!(output.jsx.contains(" activeItemClassName=\"hozo-2\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoCommandPalette"), "{:?}", output.runtime_imports);
     }
 
     #[test]

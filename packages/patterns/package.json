@@ -48,6 +48,14 @@
       "types": "./dist/generated/chip.d.ts",
       "default": "./dist/generated/chip.js"
     },
+    "./generated/command-palette": {
+      "react-native": {
+        "types": "./dist/generated/command-palette.native.d.ts",
+        "default": "./dist/generated/command-palette.native.js"
+      },
+      "types": "./dist/generated/command-palette.d.ts",
+      "default": "./dist/generated/command-palette.js"
+    },
     "./generated/dialog": {
       "react-native": {
         "types": "./dist/generated/dialog.native.d.ts",

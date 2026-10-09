@@ -14,6 +14,7 @@ export {
   hozoMessages,
   type I18nextLike,
   type ReactIntlLike,
+  useCommandShortcut,
   useHozoI18n,
 } from '@hozo/behaviors'
 export type { Autocomplete } from '@hozo/patterns'
@@ -37,6 +38,12 @@ export {
   type HozoComboboxOption,
   type HozoComboboxProps as ComboboxProps,
   type HozoComboboxProps,
+  type HozoCommand as Command,
+  type HozoCommand,
+  HozoCommandPalette as CommandPalette,
+  HozoCommandPalette,
+  type HozoCommandPaletteProps as CommandPaletteProps,
+  type HozoCommandPaletteProps,
   HozoListbox as Listbox,
   HozoListbox,
   type HozoListboxOption as ListboxOption,

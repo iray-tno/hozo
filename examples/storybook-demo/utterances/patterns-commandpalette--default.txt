@@ -1,0 +1,7 @@
+heading, Command palette, level 1
+paragraph
+Press ⌘K or Ctrl+K, or the button. Last run:
+nothing yet
+.
+end of paragraph
+button, Open command palette

@@ -40,6 +40,15 @@ export {
   type HozoComboboxProps as ComboboxProps,
   type HozoComboboxProps,
 } from './combobox.tsx'
+export {
+  type HozoCommand as Command,
+  type HozoCommand,
+  HozoCommandPalette as CommandPalette,
+  HozoCommandPalette,
+  type HozoCommandPaletteProps as CommandPaletteProps,
+  type HozoCommandPaletteProps,
+} from './command-palette.tsx'
+export { rankCommands } from './command-rules.ts'
 export { Dialog, type DialogProps, HozoDialog, type HozoDialogProps } from './dialog.tsx'
 export {
   HozoDrawer as Drawer,

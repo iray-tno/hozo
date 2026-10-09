@@ -1481,6 +1481,9 @@ pub(super) fn render_node(
     if node.primitive == Primitive::OtpInput {
         runtime.need_component("HozoOtpInput");
     }
+    if node.primitive == Primitive::CommandPalette {
+        runtime.need_component("HozoCommandPalette");
+    }
     match node.primitive {
         Primitive::Table => runtime.need_component("HozoTable"),
         Primitive::TableCaption => runtime.need_component("HozoTableCaption"),
@@ -1899,6 +1902,7 @@ fn renders_text(component: &str) -> bool {
             | "HozoPagination"
             | "HozoStepper"
             | "HozoOtpInput"
+            | "HozoCommandPalette"
             | "HozoTableCaption"
             | "HozoTableCell"
     )

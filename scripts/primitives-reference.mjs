@@ -92,6 +92,8 @@ const SNIPPETS = {
     '<Stepper steps={steps} activeStep={1} className="gap-2" currentStepClassName="font-bold" />',
   OtpInput:
     '<OtpInput length={6} onComplete={verify} accessibilityLabel="Verification code" cellClassName="size-10 border" activeCellClassName="border-blue-600" />',
+  CommandPalette:
+    '<CommandPalette open={open} onOpenChange={setOpen} commands={commands} panelClassName="w-96" activeItemClassName="bg-slate-100" />',
   Table: '<Table className="w-full"><TableRow><TableCell>A</TableCell></TableRow></Table>',
   TableCaption: '<TableCaption>Orders</TableCaption>',
   TableHeader: '<TableHeader><TableRow><TableHead>Item</TableHead></TableRow></TableHeader>',
