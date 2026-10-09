@@ -75,10 +75,13 @@ arithmetic is still `sheet-rules.ts`: it is written as "fraction showing", "trav
 and "velocity away from open" and knows nothing about which direction away is, so a left-hand drawer
 negates one axis and reuses every line of it.
 
-`side` is `'left' | 'right'` rather than logical `start`/`end`, which is a deferral and not a
-preference: turning a logical side into a physical one needs a resolved writing direction, which is
-[#157](https://github.com/iray-tno/hozo/issues/157)'s substrate, and naming it `start` today would
-only put a better word on a guess. **Edge-swipe-to-open is deliberately absent**, in both halves: a
+`side` is `'start'` or `'end'` as well as `'left'` or `'right'`.
+- `'start'` is the edge a line of text begins at, so a navigation drawer written `side="start"` opens from the right in Arabic or Hebrew without the application choosing a side per language.
+- The direction comes from `HozoI18nProvider`'s `dir` when there is one (decision 008). Otherwise it comes from the platform: the document's resolved direction on the Web, `I18nManager.isRTL` on React Native.
+- `useHozoDrawerSide` is exported for a look that needs the resolved edge, as `@hozo/ui`'s does.
+- The default is still `'left'`, so existing drawers do not move.
+
+**Edge-swipe-to-open is deliberately absent**, in both halves: a
 closed drawer cannot listen at the screen's edge without keeping an invisible catcher over the
 application's content for as long as it is closed, which is a decision about the screen rather than
 about the drawer, and it collides with the platforms' own back gestures. It can never be the only

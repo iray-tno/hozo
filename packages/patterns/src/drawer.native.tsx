@@ -8,9 +8,11 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import type { HozoDrawerSide } from './drawer-side.ts'
+import { useHozoDrawerSide } from './drawer-side-hook.native.ts'
 import { clampToDetents, fractionAfter, restingFraction, travelFor } from './sheet-rules.ts'
 
-export type HozoDrawerSide = 'left' | 'right'
+export type { HozoDrawerSide }
 
 export interface HozoDrawerProps {
   open?: boolean
@@ -100,7 +102,7 @@ export function HozoDrawer({
    * This single number is the whole of the axis mapping, which is what keeps the
    * arithmetic shared with the bottom sheet.
    */
-  const away = side === 'left' ? -1 : 1
+  const away = useHozoDrawerSide(side) === 'left' ? -1 : 1
 
   const live = useRef({ fraction, width, away, onClose })
   live.current = { fraction, width, away, onClose }
