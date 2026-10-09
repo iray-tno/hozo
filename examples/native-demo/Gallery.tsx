@@ -75,6 +75,7 @@ import {
   Button,
   Chip,
   Code,
+  ColorPicker,
   CommandPalette,
   Del,
   Description,
@@ -335,6 +336,17 @@ export default function Gallery() {
           commands={[]}
           panelClassName="bg-white"
           testID="gallery-CommandPalette"
+        />
+        <ColorPicker
+          defaultValue="#3b82f6"
+          presets={['#ef4444', '#3b82f6', '#10b981']}
+          accessibilityLabel="Theme colour"
+          swatchClassName="size-8 rounded-full"
+          selectedSwatchClassName="border-2 border-slate-900"
+          sliderClassName="h-3 bg-slate-200"
+          thumbClassName="size-5 rounded-full bg-slate-800"
+          inputClassName="border border-slate-400 px-2"
+          testID="gallery-ColorPicker"
         />
         <Table className="border border-slate-300" testID="gallery-Table">
           <TableCaption testID="gallery-TableCaption">Orders</TableCaption>

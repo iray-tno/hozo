@@ -464,6 +464,12 @@ pub enum Primitive {
     /// scrim, panel, field, list, headings, items, the active item and the
     /// shortcut badge -- which are style props on Native.
     CommandPalette,
+    /// A colour, from swatches, three sliders or its hex (#153): a radio
+    /// group of swatches, hue/saturation/lightness as ordinary sliders
+    /// rather than a two-dimensional square, each read in words.
+    /// `HozoColorPicker` on both platforms; its class lists are the swatch,
+    /// the selected swatch, the slider track and thumb, and the field.
+    ColorPicker,
     /// A data table (#144): `<table>` on Web, and on React Native a
     /// `HozoTable` that sizes its columns from every cell in them, the way
     /// the browser's automatic table layout does, since a flex row knows
@@ -609,6 +615,13 @@ impl Primitive {
                 ClassSlot { class_prop: "currentItemClassName", style_prop: "currentItemStyle" },
                 ClassSlot { class_prop: "disabledItemClassName", style_prop: "disabledItemStyle" },
                 ClassSlot { class_prop: "ellipsisClassName", style_prop: "ellipsisStyle" },
+            ],
+            Primitive::ColorPicker => &[
+                ClassSlot { class_prop: "swatchClassName", style_prop: "swatchStyle" },
+                ClassSlot { class_prop: "selectedSwatchClassName", style_prop: "selectedSwatchStyle" },
+                ClassSlot { class_prop: "sliderClassName", style_prop: "sliderStyle" },
+                ClassSlot { class_prop: "thumbClassName", style_prop: "thumbStyle" },
+                ClassSlot { class_prop: "inputClassName", style_prop: "inputStyle" },
             ],
             Primitive::CommandPalette => &[
                 ClassSlot { class_prop: "scrimClassName", style_prop: "scrimStyle" },

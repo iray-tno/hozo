@@ -104,6 +104,11 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // the pattern, its ranking and the shortcut hook are 12.2 KB (every app),
 // the census screen's leaves 1.2 KB. #149's OtpInput had already used most
 // of the room that 560 left. Fifth raise; #683 again.
+//
+// Raised to 610 KB by #153's ColorPicker, which crossed 590 at 590,893: the
+// pattern, its colour arithmetic and names are 13 KB (every app), the
+// census leaves 1.2 KB. Sixth raise. The next component should wait for
+// #683 rather than raise this again.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -117,8 +122,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 590_000,
-  `Hozo's modules stay below 590 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 610_000,
+  `Hozo's modules stay below 610 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // And a coarse ceiling on the whole, for the regression this check began

@@ -45,6 +45,12 @@ export {
   type HozoCardProps,
 } from './card.tsx'
 export {
+  ColorPicker,
+  type ColorPickerProps,
+  HozoColorPicker,
+  type HozoColorPickerProps,
+} from './color-picker.tsx'
+export {
   HozoCombobox as Combobox,
   HozoCombobox,
   type HozoComboboxOption as ComboboxOption,

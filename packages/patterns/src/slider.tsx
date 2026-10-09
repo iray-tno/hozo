@@ -24,7 +24,14 @@
  * two cannot disagree about where a drag lands.
  */
 
-import { type KeyboardEvent, type PointerEvent, useCallback, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+  useCallback,
+  useRef,
+  useState,
+} from 'react'
 import { fractionAt, fractionOf, movedBy, type SliderRange, snap, valueAt } from './slider-rules.ts'
 
 export interface HozoSliderProps extends Partial<SliderRange> {
@@ -62,6 +69,12 @@ export interface HozoSliderProps extends Partial<SliderRange> {
    * than a second copy of it.
    */
   fillClassName?: string
+  /**
+   * On the track, for a style that is the value's meaning rather than a
+   * look -- a colour picker's hue spectrum, which changes with the colour.
+   * React Native's half has always taken one.
+   */
+  style?: CSSProperties
 }
 
 export function HozoSlider({
@@ -80,6 +93,7 @@ export function HozoSlider({
   className,
   thumbClassName,
   fillClassName,
+  style,
 }: HozoSliderProps) {
   const range: SliderRange = { min, max, step, bigStep }
   const track = useRef<HTMLDivElement>(null)
@@ -155,6 +169,7 @@ export function HozoSlider({
     <div
       ref={track}
       className={className}
+      style={style}
       data-hozo-orientation={orientation}
       data-hozo-disabled={disabled ? '' : undefined}
       onPointerDown={onPointerDown}

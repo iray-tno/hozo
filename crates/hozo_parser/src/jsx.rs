@@ -743,6 +743,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Stepper" => Some(Primitive::Stepper),
         "OtpInput" => Some(Primitive::OtpInput),
         "CommandPalette" => Some(Primitive::CommandPalette),
+        "ColorPicker" => Some(Primitive::ColorPicker),
         "Table" => Some(Primitive::Table),
         "TableCaption" => Some(Primitive::TableCaption),
         "TableHeader" => Some(Primitive::TableHeader),

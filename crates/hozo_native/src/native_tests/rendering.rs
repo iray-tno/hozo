@@ -1147,3 +1147,26 @@ fn a_command_palette_is_hozo_command_palette_with_a_style_per_part() {
     }
     assert!(output.runtime_imports.contains(&"HozoCommandPalette"), "{:?}", output.runtime_imports);
 }
+
+#[test]
+fn a_color_picker_is_hozo_color_picker_with_a_style_per_part() {
+    let source = r#"
+        import { ColorPicker } from '@hozo/core'
+        const el = <ColorPicker value={color} onChange={setColor} presets={presets} accessibilityLabel="Theme" swatchClassName="size-8" selectedSwatchClassName="border-2" sliderClassName="h-3" thumbClassName="size-5" inputClassName="px-2" />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoColorPicker "), "{}", output.jsx);
+    for prop in [
+        "swatchStyle={hozoStyles.hozo1}",
+        "selectedSwatchStyle={hozoStyles.hozo2}",
+        "sliderStyle={hozoStyles.hozo3}",
+        "thumbStyle={hozoStyles.hozo4}",
+        "inputStyle={hozoStyles.hozo5}",
+        "presets={presets}",
+    ] {
+        assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
+    }
+    assert!(output.runtime_imports.contains(&"HozoColorPicker"), "{:?}", output.runtime_imports);
+}
