@@ -1484,6 +1484,9 @@ pub(super) fn render_node(
     if node.primitive == Primitive::CommandPalette {
         runtime.need_component("HozoCommandPalette");
     }
+    if node.primitive == Primitive::ColorPicker {
+        runtime.need_component("HozoColorPicker");
+    }
     match node.primitive {
         Primitive::Table => runtime.need_component("HozoTable"),
         Primitive::TableCaption => runtime.need_component("HozoTableCaption"),

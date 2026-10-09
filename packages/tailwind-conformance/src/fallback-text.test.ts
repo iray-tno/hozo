@@ -92,6 +92,8 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['Stepper', 'Draws its steps from the `steps` prop; it takes no children.'],
   ['OtpInput', 'An input drawn as cells from its value; it takes no children.'],
   ['CommandPalette', 'Draws its commands from the `commands` prop; it takes no children.'],
+  ['ColorPicker', 'Draws swatches, sliders and a field from its value; it takes no children.'],
+  ['HozoColorPicker', 'The same component under its other published name.'],
   ['HozoCommandPalette', 'The same component under its other published name.'],
   ['HozoOtpInput', 'The same component under its other published name.'],
   ['HozoStepper', 'The same component under its other published name.'],

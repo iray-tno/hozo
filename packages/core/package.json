@@ -60,6 +60,10 @@
       "types": "./dist/generated/class-resolver.d.ts",
       "default": "./dist/generated/class-resolver.js"
     },
+    "./generated/color-picker": {
+      "types": "./dist/generated/color-picker.d.ts",
+      "default": "./dist/generated/color-picker.js"
+    },
     "./generated/command-palette": {
       "types": "./dist/generated/command-palette.d.ts",
       "default": "./dist/generated/command-palette.js"

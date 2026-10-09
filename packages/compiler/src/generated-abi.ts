@@ -11,6 +11,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoBackdropFilter: '@hozo/core/generated/backdrop-filter',
   HozoBadge: '@hozo/core/generated/badge',
   HozoChip: '@hozo/core/generated/chip',
+  HozoColorPicker: '@hozo/core/generated/color-picker',
   HozoCommandPalette: '@hozo/core/generated/command-palette',
   HozoContainer: '@hozo/core/generated/container',
   HozoContainerQuery: '@hozo/core/generated/container',

@@ -1,0 +1,20 @@
+heading, ColorPicker, level 1
+paragraph
+Chosen:
+#3b82f6
+end of paragraph
+Theme colour
+group, Theme colour
+radiogroup, Presets
+radio, red, #ef4444, not checked, position 1, set size 6
+radio, orange, #f59e0b, not checked, position 2, set size 6
+radio, green, #10b981, not checked, position 3, set size 6
+radio, blue, #3b82f6, checked, position 4, set size 6
+radio, dark blue, #1e3a8a, not checked, position 5, set size 6
+radio, purple, #a855f7, not checked, position 6, set size 6
+end of radiogroup, Presets
+slider, Hue, orientated horizontally, max value 359, min value 0, current value 217 degrees, blue
+slider, Saturation, orientated horizontally, max value 100, min value 0, current value 91%
+slider, Lightness, orientated horizontally, max value 100, min value 0, current value 60%
+textbox, Hex colour, #3b82f6, blue, #3b82f6
+end of group, Theme colour
