@@ -1087,3 +1087,28 @@ fn an_otp_input_is_hozo_otp_input_with_a_style_per_cell_state() {
     }
     assert!(output.runtime_imports.contains(&"HozoOtpInput"), "{:?}", output.runtime_imports);
 }
+
+#[test]
+fn an_image_srcset_of_widths_is_said_to_be_density_only_on_native() {
+    // React Native picks a `srcSet` candidate by density and skips a width
+    // descriptor at runtime, so a set of widths can draw nothing on device.
+    let compile = |src_set: &str| {
+        let source = format!(
+            "import {{ Image }} from '@hozo/core'\nconst el = <Image src=\"a.jpg\" srcSet=\"{src_set}\" alt=\"A\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let widths = compile("a-400.jpg 400w, a-800.jpg 800w");
+    assert!(
+        widths.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::NotWiredOnNative
+            && d.severity == hozo_ir::Severity::Warning
+            && d.message.contains("density")),
+        "{:?}",
+        widths.diagnostics
+    );
+    // Passed through either way: React Native reads it.
+    assert!(widths.jsx.contains(r#"srcSet="a-400.jpg 400w, a-800.jpg 800w""#), "{}", widths.jsx);
+    let densities = compile("a.jpg 1x, a@2x.jpg 2x");
+    assert!(densities.diagnostics.is_empty(), "{:?}", densities.diagnostics);
+}
