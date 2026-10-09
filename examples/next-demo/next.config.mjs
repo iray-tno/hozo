@@ -22,6 +22,9 @@ export default withMDX(
       // Turbopack refuses to read anything above the root it is given.
       turbopack: { root: path.resolve(import.meta.dirname, '../..') },
       pageExtensions: ['ts', 'tsx', 'mdx'],
+      // Next counts all host CPUs even when the local test process is pinned
+      // to fewer cores. Bound its internal build pool as well as Turbo tasks.
+      experimental: { cpus: 2 },
       // Where this build writes, so that two of them in this package do
       // not share one directory.
       //
