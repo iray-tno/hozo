@@ -188,6 +188,27 @@ values are a migration review queue, moved values still require member-contract 
 and dynamic/namespace access needs manual review. The audit does not certify member compatibility,
 package installation, third-party RNW dependence, production dependency removal or runtime.
 
+### Reviewed member contracts and next actions
+
+Completed Web value outcomes also carry the compiler's `memberContract`; the report does not keep
+its own ownership/support table. Inventory rows retain the status, declaration-subset limitations,
+next action and implementation/test paths. Markdown displays these separately from import origin.
+`reviewedAdapterReferences`, `retainedGuidanceReferences` and `unreviewedMemberReferences` partition
+the same completed-file non-JSX runtime references, not all RN APIs or a compatibility percentage.
+
+The initial catalogue reviews 18 Platform/StyleSheet/Keyboard/Dimensions members and gives next
+actions for 10 retained RN members. No-op Keyboard notifications, placeholder Platform.Version and
+object-only StyleSheet assumptions are explicit. Only direct named-import static members with
+actual final origin evidence are reviewed; aliases work, while dynamic/namespace accesses, whole
+values, missing entries and untraced expressions stay unassessed. Missing review means unknown,
+not unsupported. JSON keeps per-reference reviews; the 12-file sample cap does not cap counts.
+
+These are reviewed declarations and migration guidance, not checks of call arguments, writes,
+data flow, installed adapter versions, Native or runtime behavior. `memberCompatibility` remains
+`not-assessed`. Source paths refer to the compiler's Hozo review, not the audited checkout.
+Markdown evidence links point to current main, not a frozen installed-tool source revision.
+Partial/failed journals do not contribute positive reviews. No app code/config is executed.
+
 <!-- generated: package-footer -->
 
 ---

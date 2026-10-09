@@ -185,6 +185,23 @@ Moving a dynamic member read, namespace value or factory does not certify the ad
 contract, Native rewriting, production dependency removal or runtime behavior. The scope is
 `non-jsx-source-runs` with `generatedExpressions: copied-runs-only`, not full expression coverage.
 
+### Reviewed Web member subsets
+
+Completed value journals additionally attach `memberContract` to each outcome. This compiler-owned
+review is gated by the actual origin and final source-run evidence; audit only aggregates it.
+`reviewed-adapter-subset` describes a declared Web subset with implementation/test paths,
+`retained-guidance` gives a reviewed next action for an RN-backed member, and `not-assessed` keeps
+unknown members, whole values, forwarding, namespace/default/dynamic access and untraced expressions
+explicit. Missing catalogue entries do not mean unsupported. The initial review covers 18 members
+of Platform, StyleSheet, Keyboard and Dimensions, plus guidance for 10 retained RN members.
+
+`memberContracts: reviewed-web-subsets-v1` is a review format, not an installed-adapter version or
+compatibility score. `memberCompatibility` and `dependencyRemoval` remain `not-assessed`: argument
+shapes, writes, data flow, installed package versions, Native behavior and runtime are not verified.
+For example, Keyboard listeners are no-op subscriptions and Platform.Version is a placeholder;
+neither is described as an unrestricted API match. Partial/failed/policy-disabled journals do not
+acquire member reviews. Evidence paths name this tool's Hozo source, not files resolved in the app.
+
 <!-- generated: package-footer -->
 
 ---

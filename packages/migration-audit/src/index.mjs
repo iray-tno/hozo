@@ -682,6 +682,36 @@ adapter's member contract rather than treating them as supported. Dynamic/namesp
 manual review, and unknown generated expressions are not evidence of retained RN use. JSON holds
 up to 12 sample files per row and all individual outcomes; sample limits do not limit counts.
 
+### Reviewed Web member contracts and next actions
+
+Compiler-owned reviews describe a declared adapter subset or a retained-RN migration action,
+not certification that a call's arguments, installed package, runtime or Native behavior match.
+Only direct named-import static members with an assessed final origin can acquire a review.
+Unknown members, dynamic/namespace access and untraced references remain not assessed; missing
+entries do not mean unsupported. This is not an overall compatibility percentage. Evidence paths
+refer to the tool's Hozo source review, not files resolved in the audited application. Links use
+Hozo's current main branch, not a frozen copy of the installed tool's source.
+
+| Authored import/member | Contract review | References | Declared subset / limitation | Next action | Review evidence |
+|---|---|---:|---|---|---|
+${
+  report.reactNativeValueDecisions?.inventory.length
+    ? report.reactNativeValueDecisions.inventory
+        .map((row) => {
+          const contract = row.memberContract
+          const evidence = contract?.evidence
+            ?.flatMap((item) => [item.implementation, item.tests])
+            .map(
+              (file) =>
+                `[${escapeMarkdown(file)}](https://github.com/iray-tno/hozo/blob/main/${file.split('/').map(encodeURIComponent).join('/')})`,
+            )
+            .join('; ')
+          return `| ${escapeMarkdown(`${row.imported}.${row.member ?? '(not statically named)'}`)} | ${escapeMarkdown(contract?.status ?? 'not-assessed')} | ${row.references} | ${escapeMarkdown(contract?.summary ?? 'No compiler member review supplied.')} | ${escapeMarkdown(contract?.nextAction ?? 'Review the actual API; no member compatibility verdict is inferred.')} | ${evidence ?? '—'} |`
+        })
+        .join('\n')
+    : '| None assessed | — | 0 | — | — | — |'
+}
+
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
 Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Non-TSX Web modules only use the existing runtime-import rewrite path; Native compiler results for these extensions are probes, not Metro eligibility. Each target records integrationEligibility in JSON.

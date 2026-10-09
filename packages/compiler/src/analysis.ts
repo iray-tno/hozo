@@ -25,6 +25,7 @@ export {
   type AnalysisThemeInput,
   prepareAnalysisProject,
 } from './analysis-project.ts'
+export type { ReactNativeMemberContract } from './analysis-rn-contracts.ts'
 export { discoverAnalysisSources, sourcePlatform } from './analysis-sources.ts'
 export { type AnalysisPlatform, prepareAnalysisStylex } from './analysis-stylex.ts'
 

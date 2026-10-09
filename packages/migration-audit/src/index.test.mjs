@@ -38,6 +38,15 @@ const x = <View custom={View}>{P.OS}<Animated.View /></View>`
     assert.equal(values.backendCopiedReferences, 2)
     assert.equal(values.typeReferencesExcluded, 1)
     assert.equal(values.memberCompatibility, 'not-assessed')
+    assert.equal(values.reviewedAdapterReferences, 3)
+    assert.equal(values.retainedGuidanceReferences, 1)
+    assert.equal(values.unreviewedMemberReferences, 4)
+    assert.equal(
+      values.reviewedAdapterReferences +
+        values.retainedGuidanceReferences +
+        values.unreviewedMemberReferences,
+      8,
+    )
     assert.equal(values.generatedExpressions, 'copied-runs-only')
     assert.equal(values.dependencyRemoval, 'not-assessed')
     const os = values.inventory.find(
@@ -46,6 +55,8 @@ const x = <View custom={View}>{P.OS}<Animated.View /></View>`
     assert.equal(os.references, 3)
     assert.equal(os.files, 1)
     assert.deepEqual(os.samples, ['src/app.tsx'])
+    assert.equal(os.memberContract.status, 'reviewed-adapter-subset')
+    assert.match(os.memberContract.evidence[0].tests, /platform.test.ts$/)
     assert.ok(values.inventory.some((row) => row.access === 'dynamic-member'))
     assert.equal(
       report.files[0].targets.web.reactNativeValues.outcomes.filter(
@@ -61,6 +72,13 @@ const x = <View custom={View}>{P.OS}<Animated.View /></View>`
     assert.match(markdown, /Web React Native non-JSX value decisions/)
     assert.match(markdown, /a\\\|b/)
     assert.match(markdown, /unknown generated expressions are not evidence of retained RN use/)
+    assert.match(markdown, /Reviewed Web member contracts and next actions/)
+    assert.match(markdown, /Animated.View lowering alone does not supply timing/)
+    assert.match(markdown, /not certification that a call's arguments/)
+    assert.match(
+      markdown,
+      /\[packages\/rn-compat\/src\/platform\.test\.ts\]\(https:\/\/github.com\/iray-tno\/hozo\/blob\/main\//,
+    )
     assert.deepEqual(readdirSync(root, { recursive: true }), before)
     assert.equal(readFileSync(file, 'utf8'), source)
   } finally {
@@ -84,6 +102,8 @@ const x = <View className={P.OS} onPress={() => P.OS} custom={P.OS}>{P.OS}</View
     assert.equal(values.notAssessedReferences, 1)
     assert.equal(values.unchangedModuleReferences, 1)
     assert.equal(values.backendCopiedReferences, 3)
+    assert.equal(values.reviewedAdapterReferences, 4)
+    assert.equal(values.unreviewedMemberReferences, 1)
     const outcomes = report.files[0].targets.web.reactNativeValues.outcomes
     const unknown = outcomes.find((item) => item.disposition === 'not-assessed')
     assert.equal(unknown.sourceEvidence, 'not-assessed')
@@ -124,6 +144,11 @@ test('partial/failed value journals remain visible but are excluded from counts 
                   referenceIndex: 0,
                   disposition: 'rewritten-to-hozo',
                   sourceEvidence: 'unchanged-module-run',
+                  memberContract: {
+                    status: 'reviewed-adapter-subset',
+                    summary: 'not promoted',
+                    nextAction: 'not promoted',
+                  },
                 },
               ],
             },
@@ -142,6 +167,9 @@ test('partial/failed value journals remain visible but are excluded from counts 
   assert.equal(values.filesFailed, 1)
   assert.equal(values.rewrittenReferences, 0)
   assert.equal(values.typeReferencesExcluded, 0)
+  assert.equal(values.reviewedAdapterReferences, 0)
+  assert.equal(values.retainedGuidanceReferences, 0)
+  assert.equal(values.unreviewedMemberReferences, 0)
   assert.deepEqual(values.inventory, [])
   assert.equal(report.files[0].targets.web.reactNativeValues.outcomes.length, 1)
 })
@@ -199,6 +227,7 @@ test('value inventory sampling does not cap counts or distinct-file totals', () 
   assert.equal(row.references, 30)
   assert.equal(row.files, 15)
   assert.equal(row.samples.length, 12)
+  assert.equal(report.reactNativeValueDecisions.unreviewedMemberReferences, 30)
   assert.equal(escapeMarkdown('a|b\n`c`'), 'a\\|b \\`c\\`')
 })
 

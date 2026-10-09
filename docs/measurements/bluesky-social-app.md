@@ -156,6 +156,33 @@ bundlers and device/runtime performance are outside this paired observation.
 
 ## Authored surface
 
+The next Slice 4 increment attaches **compiler-owned reviewed Web member subsets and residual
+API guidance**, without changing import or source-copy decisions. The catalogue reviews 18
+Platform/StyleSheet/Keyboard/Dimensions members and gives next actions for 10 retained RN members.
+Only direct named-import static members with an assessed final origin can match; no missing
+entry is inferred unsupported. In the same pinned source inventory, **154 references** acquire
+a declared adapter subset, **105** acquire retained-RN guidance and **64 remain unreviewed**.
+These three categories partition the same 323 references; they are not compatibility scores.
+The 64 unreviewed member uses are distinct from the zero unknown final-origin decisions.
+
+The clean commit/fingerprint, 1,639 completed Web value journals, 195 moved / 128 retained /
+zero unknown origins, 308 module / 15 copied proofs, 720 excluded types, component/tag/import
+counts and 218 warnings are unchanged. No production RNW-free or device test was rerun.
+This serial two-core audit took **24.10s**, including **13.09s snapshot reads**, 4.01s preparation,
+1.06s binding analysis, 1.14s source usage, **3.09s Web lowering** and 0.94s residue checks.
+Filesystem variation prevents a controlled whole-audit performance comparison with earlier runs.
+The final-render repeat reports the same counts and binding in **10.15s** (snapshot reads 0.05s,
+preparation 3.81s, Web lowering 2.55s), demonstrating why the total alone is not a compiler-speed
+regression measurement. Markdown now links the reviewed implementation and tests on Hozo main.
+The fresh development binding SHA-256 is
+`bee7dd7a4e1776f24f705c0f067ea4d58a2b3f6c0172ab2decfb50e915774145`.
+
+`memberCompatibility` stays `not-assessed`: these are declaration-subset reviews, not validation
+of calls, writes, data flow, installed adapter versions or Native/runtime behavior. For example,
+Keyboard notifications do not fire and Platform.Version is a placeholder. Per-reference JSON
+and grouped Markdown retain limitations, next actions and implementation/test paths. Evidence
+links use Hozo main, not the audited application or a frozen installed-tool revision.
+
 | Signal | Files or bindings |
 |---|---:|
 | filesImportingReactNative | 636 |
@@ -275,6 +302,9 @@ Partial/failed journals remain in JSON but do not enter successful tag headline 
 | typeReferencesExcluded | 720 |
 | unchangedModuleReferences | 308 |
 | backendCopiedReferences | 15 |
+| reviewedAdapterReferences | 154 |
+| retainedGuidanceReferences | 105 |
+| unreviewedMemberReferences | 64 |
 
 References are tracked through actual module splices and verified backend copies that reach
 final output, then joined to actual import-origin decisions. JSON retains authored binding/reference
@@ -303,6 +333,29 @@ separately. Dynamic/namespace accesses need manual review; unknown generated exp
 evidence of retained RN use. Up to 12 sample files per row do not limit reference/distinct-file
 counts or complete per-file JSON. Native rewriting, member compatibility, dependency removal,
 production builds and runtime are unassessed by this journal.
+
+### Reviewed Web member subsets and next actions
+
+Selected examples from the complete compiler-owned inventory (the reproduced JSON/Markdown
+contains all rows, including unreviewed ones):
+
+| Authored member | References | Review | Declared limit / next action |
+|---|---:|---|---|
+| StyleSheet.create | 47 | reviewed-adapter-subset | Named object styles; no numeric style-ID registry. |
+| Platform.OS | 32 | reviewed-adapter-subset | Web reports web; Native OS behavior is separate. |
+| Keyboard.dismiss | 26 | reviewed-adapter-subset | Browser focus blur, not a guaranteed software-keyboard close. |
+| Keyboard.isVisible | 7 | reviewed-adapter-subset | Always false on Web; does not prove a keyboard is absent. |
+| Platform.Version | 5 | reviewed-adapter-subset | Placeholder 0.0.0, not the browser or OS version. |
+| Keyboard.addListener | 3 | reviewed-adapter-subset | Removable no-op subscription; notifications never fire. |
+| LayoutAnimation.configureNext | 27 | retained-guidance | Review each platform's layout-animation requirements; no replacement is applied. |
+| Alert.alert | 28 | retained-guidance | Review buttons, cancellation and focus before a dialog alternative; no automatic window.alert swap. |
+
+The catalogue lives in [compiler member reviews](../../packages/compiler/src/analysis-rn-contracts.ts),
+with [origin/unknown boundary tests](../../packages/compiler/src/rn-contract.test.ts).
+Adapter reviews reference their own implementation/tests, for example
+[Keyboard](../../packages/rn-compat/src/keyboard.ts) and
+[its tests](../../packages/rn-compat/src/keyboard.test.ts). Evidence paths name Hozo's reviewed
+source, not resolved files in this app. Slice 5 baseline/CI policies remain separate work.
 
 Platform suffixes are respected: Web-only files run through Web lowering, iOS/Android/Native files through Native lowering, and shared files through both.
 
