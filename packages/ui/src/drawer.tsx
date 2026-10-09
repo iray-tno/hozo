@@ -22,11 +22,11 @@
  * enough of the page left showing to be worth calling a drawer.
  */
 
-import { Drawer as DrawerPattern, type DrawerProps, type DrawerSide } from '@hozo/patterns'
+import { Drawer as DrawerPattern, type DrawerProps, useHozoDrawerSide } from '@hozo/patterns'
 
 export type HozoDrawerProps = Omit<DrawerProps, 'className' | 'scrimClassName' | 'panelClassName'>
 
-const ROOT: Record<DrawerSide, string> = {
+const ROOT: Record<'left' | 'right', string> = {
   left: 'fixed inset-0 z-50 flex justify-start',
   right: 'fixed inset-0 z-50 flex justify-end',
 }
@@ -39,20 +39,23 @@ const scrim =
  * The radius and the border are on the inner edge only -- the outer one is
  * against the viewport, where a rounded corner would show the page through it.
  */
-const PANEL: Record<DrawerSide, string> = {
+const PANEL: Record<'left' | 'right', string> = {
   left: 'relative flex h-full w-80 max-w-[85vw] flex-col gap-4 overflow-y-auto rounded-r-hozo-panel border-r border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface transition duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0 motion-safe:starting:-translate-x-full motion-safe:data-[state=closed]:-translate-x-full',
   right:
     'relative flex h-full w-80 max-w-[85vw] flex-col gap-4 overflow-y-auto rounded-l-hozo-panel border-l border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface transition duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0 motion-safe:starting:translate-x-full motion-safe:data-[state=closed]:translate-x-full',
 }
 
 export function HozoDrawer({ side = 'left', ...rest }: HozoDrawerProps) {
+  // Keyed by the edge it lands on, so `start` in a right-to-left interface
+  // draws the right-hand look.
+  const edge = useHozoDrawerSide(side)
   return (
     <DrawerPattern
       {...rest}
       side={side}
-      className={ROOT[side]}
+      className={ROOT[edge]}
       scrimClassName={scrim}
-      panelClassName={PANEL[side]}
+      panelClassName={PANEL[edge]}
     />
   )
 }

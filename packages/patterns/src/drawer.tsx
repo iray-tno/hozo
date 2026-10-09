@@ -1,18 +1,15 @@
 import { DismissableLayer, FocusScope, Portal, usePresence } from '@hozo/behaviors'
 import type { ReactNode } from 'react'
+import type { HozoDrawerSide } from './drawer-side.ts'
+import { useHozoDrawerSide } from './drawer-side-hook.ts'
 import { useScrollLock } from './scroll-lock.ts'
 
 /**
- * Which edge the drawer comes in from.
- *
- * Physical rather than logical, and that is a deferral rather than a preference.
- * A logical `start`/`end` would have to become a physical edge somewhere, and
- * the only thing that can turn one into the other is a resolved writing
- * direction -- which is #157's substrate and does not exist yet. Naming it
- * `start` today would mean guessing left, which is the same bug with a better
- * word on it.
+ * `'start'` and `'end'` follow the reading direction: `HozoI18nProvider`'s
+ * `dir`, or the document's own when there is no provider. `'left'` and
+ * `'right'` are physical. See `drawer-side.ts`.
  */
-export type HozoDrawerSide = 'left' | 'right'
+export type { HozoDrawerSide }
 
 export interface HozoDrawerProps {
   /** Whether the drawer is showing. The caller owns this, as with `Dialog`. */
@@ -85,6 +82,7 @@ export function HozoDrawer({
   children,
 }: HozoDrawerProps) {
   useScrollLock(open)
+  const edge = useHozoDrawerSide(side)
   // The panel stays mounted while it animates out, as `data-state="closed"`
   // on the wrapper, the scrim and the panel (decision 007). The panel's
   // transition is the one waited for; with none it goes at once.
@@ -97,7 +95,7 @@ export function HozoDrawer({
     <Portal disabled={!portal}>
       <div
         className={className}
-        data-hozo-side={side}
+        data-hozo-side={edge}
         data-hozo-state={presence.state}
         data-state={presence.state}
         // Leaving: still drawn, no longer there. `inert` takes the whole layer
@@ -129,7 +127,7 @@ export function HozoDrawer({
               aria-modal="true"
               aria-label={accessibilityLabelledBy ? undefined : accessibilityLabel}
               aria-labelledby={accessibilityLabelledBy}
-              data-hozo-side={side}
+              data-hozo-side={edge}
               data-hozo-state={presence.state}
               data-testid={testID}
               className={panelClassName}

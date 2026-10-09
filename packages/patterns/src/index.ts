@@ -49,6 +49,7 @@ export {
   type HozoDrawerSide as DrawerSide,
   type HozoDrawerSide,
 } from './drawer.tsx'
+export { useHozoDrawerSide } from './drawer-side-hook.ts'
 export {
   HozoListbox as Listbox,
   HozoListbox,
