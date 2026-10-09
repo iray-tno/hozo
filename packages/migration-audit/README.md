@@ -103,8 +103,8 @@ graphs are prepared, but a shared file is counted only once, for the selected pr
 
 Font registration, production builds, runtime behavior and entry-point graph reachability are
 not assessed. `contextStatus: prepared` describes successful theme/reset/static graph preparation,
-not that all project facts or unresolved graph edges have answers. Non-JSX RN reference
-decisions, member compatibility and baseline/CI policies remain follow-ups in
+not that all project facts or unresolved graph edges have answers. Unrecorded generated RN
+expressions, member compatibility and baseline/CI policies remain follow-ups in
 [#790](https://github.com/iray-tno/hozo/issues/790).
 
 The schema records `corpus.sourceDirectories` and omits application-specific metrics
@@ -166,11 +166,15 @@ invent reference decisions.
 
 ### Actual Web non-JSX values and review inventory
 
-`reactNativeValueDecisions` separately summarizes non-JSX runtime references with unchanged-run
-evidence across all actual module edits and an actual import-origin decision. Per-file
+`reactNativeValueDecisions` separately summarizes non-JSX runtime references with validated
+source-run evidence across actual module edits and an actual import-origin decision. Per-file
 `targets.web.reactNativeValues` retains authored binding/reference indices, final emitted UTF-16
-spans, reasons and explicit scope. Generated/replaced expressions stay unknown, not retained:
-this slice does not map props/handlers/children carried inside generated JSX. Type references
+spans, reasons and explicit scope. `unchangedModuleReferences` and `backendCopiedReferences`
+distinguish untouched module source from actual backend-carried prop/child fragments and DOM
+style/spread normalizer values. Nested replacements, discarded void children and changed class
+name fragments cannot acquire copied identity. Synthesized handlers and other expressions without
+emission records stay unknown, not retained; generated expression scope is `copied-runs-only`.
+Type references
 are excluded separately. Completed-file counts include unknowns; failed/partial/unassessed
 journals stay in JSON without padding successful headline counts or inventory rows.
 

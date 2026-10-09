@@ -48,7 +48,7 @@ export function recordAnalysis(report, analysis, file, source, platform) {
   const usage = analysis.reactNativeUsage
   const census = (report.reactNativeUsage ??= {
     mode: 'authored-esm-symbols',
-    rewriteDecisions: 'web-imports-jsx-tags-and-unchanged-module-values',
+    rewriteDecisions: 'web-imports-jsx-tags-and-source-runs',
     limitations: [
       'CommonJS require, dynamic import, TS import-equals, and indirect wrapper modules are not inventoried.',
       'No alias/data-flow propagation beyond the directly imported symbol.',
@@ -206,8 +206,8 @@ function valueKey(row) {
 
 function recordValueDecisions(report, analysis, file) {
   const values = (report.reactNativeValueDecisions ??= {
-    scope: 'web-non-jsx-unchanged-module-runs',
-    generatedExpressions: 'not-assessed',
+    scope: 'web-non-jsx-source-runs',
+    generatedExpressions: 'copied-runs-only',
     memberCompatibility: 'not-assessed',
     dependencyRemoval: 'not-assessed',
     filesCompleted: 0,
@@ -218,6 +218,8 @@ function recordValueDecisions(report, analysis, file) {
     retainedReferences: 0,
     notAssessedReferences: 0,
     typeReferencesExcluded: 0,
+    unchangedModuleReferences: 0,
+    backendCopiedReferences: 0,
     inventory: [],
   })
   const journal = analysis.targets.web.reactNativeValues
@@ -237,6 +239,9 @@ function recordValueDecisions(report, analysis, file) {
   values.typeReferencesExcluded += journal.typeReferencesExcluded
   const fileKeys = new Set()
   for (const outcome of journal.outcomes) {
+    if (outcome.sourceEvidence === 'backend-copied-run') values.backendCopiedReferences += 1
+    else if (outcome.sourceEvidence === 'unchanged-module-run')
+      values.unchangedModuleReferences += 1
     values[
       {
         'rewritten-to-hozo': 'rewrittenReferences',

@@ -29,8 +29,8 @@ const second = <箱 />; export { P }; const tail = P.select({ web: 1 })`
   assert.equal(web.status, 'completed')
   assert.equal(journal.status, 'completed')
   assert.equal(journal.outputProvenance, 'completed')
-  assert.equal(journal.scope, 'non-jsx-unchanged-module-runs')
-  assert.equal(journal.generatedExpressions, 'not-assessed')
+  assert.equal(journal.scope, 'non-jsx-source-runs')
+  assert.equal(journal.generatedExpressions, 'copied-runs-only')
   assert.equal(journal.memberCompatibility, 'not-assessed')
   assert.equal(journal.dependencyRemoval, 'not-assessed')
   assert.equal(result.targets.native!.reactNativeValues, undefined)
@@ -52,7 +52,10 @@ const second = <箱 />; export { P }; const tail = P.select({ web: 1 })`
     }
   })
   const moved = resolved.filter((item) => item.disposition === 'rewritten-to-hozo')
-  assert.deepEqual(moved.map((item) => item.text).sort(), ['I', 'P', 'P.OS', 'P.select'].sort())
+  assert.deepEqual(
+    moved.map((item) => item.text).sort(),
+    ['I', 'P', 'P.OS', 'P.OS', 'P.select'].sort(),
+  )
   assert.ok(moved.some((item) => item.replacement === '@hozo/core'))
   assert.ok(moved.some((item) => item.replacement === '@hozo/rn-compat'))
   assert.deepEqual(
@@ -60,13 +63,13 @@ const second = <箱 />; export { P }; const tail = P.select({ web: 1 })`
       .filter((item) => item.disposition === 'remains-react-native')
       .map((item) => item.text)
       .sort(),
-    ['A.timing', '箱'].sort(),
+    ['A.timing', '箱', '箱'].sort(),
   )
   const unknown = resolved.filter((item) => item.disposition === 'not-assessed')
-  assert.deepEqual(unknown.map((item) => item.text).sort(), ['P.OS', '箱'].sort())
-  assert.ok(unknown.every((item) => item.emittedSpan === undefined))
+  assert.equal(unknown.length, 0)
+  assert.equal(resolved.filter((item) => item.sourceEvidence === 'backend-copied-run').length, 2)
   for (const item of resolved.filter((item) => item.emittedSpan)) {
-    assert.equal(item.sourceEvidence, 'unchanged-module-run')
+    assert.ok(['unchanged-module-run', 'backend-copied-run'].includes(item.sourceEvidence))
     assert.equal(web.code!.slice(item.emittedSpan!.spanStart, item.emittedSpan!.spanEnd), item.text)
   }
 })
@@ -97,15 +100,22 @@ type A = typeof P; let style: ViewStyle; function shadow(P) { return P.OS }`
   assert.ok(allowed.outcomes.every((item) => item.sourceEvidence === 'unchanged-module-run'))
 })
 
-test('prop/handler/generated-child references are unknown even if emitted text looks identical', () => {
+test('actual copied props/children are assessed but synthesized handlers stay unknown', () => {
   const source = `import { View, Platform } from 'react-native'; const x = <View onPress={() => Platform.select({ web: View })} custom={Platform.OS}>{Platform.OS}</View>`
   const result = analyze(source)
   const journal = result.targets.web!.reactNativeValues!
   assert.equal(journal.status, 'completed')
   assert.equal(journal.outcomes.length, 4)
-  assert.ok(journal.outcomes.every((item) => item.disposition === 'not-assessed'))
-  assert.ok(journal.outcomes.every((item) => item.sourceEvidence === 'not-assessed'))
-  assert.ok(journal.outcomes.every((item) => item.emittedSpan === undefined))
+  assert.equal(
+    journal.outcomes.filter((item) => item.sourceEvidence === 'backend-copied-run').length,
+    2,
+  )
+  assert.equal(journal.outcomes.filter((item) => item.disposition === 'not-assessed').length, 2)
+  assert.ok(
+    journal.outcomes
+      .filter((item) => item.disposition === 'not-assessed')
+      .every((item) => item.emittedSpan === undefined),
+  )
   assert.match(result.targets.web!.code!, /Platform\.OS/)
 })
 

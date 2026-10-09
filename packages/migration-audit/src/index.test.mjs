@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { escapeMarkdown, recordAnalysis } from './evidence.mjs'
 import { AuditInputError, measureRealApp, renderRealAppMarkdown, runCli } from './index.mjs'
 
-test('non-JSX value inventory records actual origins, excludes generated expressions and stays read-only', async () => {
+test('non-JSX value inventory records actual origins and verified copied expressions, staying read-only', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-rn-values-audit-'))
   try {
     mkdirSync(path.join(root, 'src'))
@@ -29,24 +29,29 @@ const x = <View custom={View}>{P.OS}<Animated.View /></View>`
     const before = readdirSync(root, { recursive: true })
     const report = await measureRealApp({ root })
     const values = report.reactNativeValueDecisions
-    assert.equal(values.scope, 'web-non-jsx-unchanged-module-runs')
+    assert.equal(values.scope, 'web-non-jsx-source-runs')
     assert.equal(values.filesCompleted, 1)
-    assert.equal(values.rewrittenReferences, 4)
-    assert.equal(values.retainedReferences, 2)
-    assert.equal(values.notAssessedReferences, 2)
+    assert.equal(values.rewrittenReferences, 5)
+    assert.equal(values.retainedReferences, 3)
+    assert.equal(values.notAssessedReferences, 0)
+    assert.equal(values.unchangedModuleReferences, 6)
+    assert.equal(values.backendCopiedReferences, 2)
     assert.equal(values.typeReferencesExcluded, 1)
     assert.equal(values.memberCompatibility, 'not-assessed')
-    assert.equal(values.generatedExpressions, 'not-assessed')
+    assert.equal(values.generatedExpressions, 'copied-runs-only')
     assert.equal(values.dependencyRemoval, 'not-assessed')
     const os = values.inventory.find(
       (row) => row.member === 'OS' && row.disposition === 'rewritten-to-hozo',
     )
-    assert.equal(os.references, 2)
+    assert.equal(os.references, 3)
     assert.equal(os.files, 1)
     assert.deepEqual(os.samples, ['src/app.tsx'])
     assert.ok(values.inventory.some((row) => row.access === 'dynamic-member'))
-    assert.ok(
-      values.inventory.some((row) => row.member === 'OS' && row.disposition === 'not-assessed'),
+    assert.equal(
+      report.files[0].targets.web.reactNativeValues.outcomes.filter(
+        (item) => item.sourceEvidence === 'backend-copied-run',
+      ).length,
+      2,
     )
     assert.equal(
       values.inventory.reduce((count, row) => count + row.references, 0),
@@ -58,6 +63,32 @@ const x = <View custom={View}>{P.OS}<Animated.View /></View>`
     assert.match(markdown, /unknown generated expressions are not evidence of retained RN use/)
     assert.deepEqual(readdirSync(root, { recursive: true }), before)
     assert.equal(readFileSync(file, 'utf8'), source)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('copied props and synthesized handlers stay separate in audit totals', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-rn-copies-audit-'))
+  try {
+    mkdirSync(path.join(root, 'src'))
+    const source = `import { View, Platform as P } from 'react-native';
+const moduleValue = P.OS;
+const x = <View onPress={() => P.OS} custom={P.OS}>{P.OS}</View>`
+    writeFileSync(path.join(root, 'src', 'app.tsx'), source)
+    const report = await measureRealApp({ root })
+    const values = report.reactNativeValueDecisions
+    assert.equal(values.filesCompleted, 1)
+    assert.equal(values.rewrittenReferences, 3)
+    assert.equal(values.retainedReferences, 0)
+    assert.equal(values.notAssessedReferences, 1)
+    assert.equal(values.unchangedModuleReferences, 1)
+    assert.equal(values.backendCopiedReferences, 2)
+    const outcomes = report.files[0].targets.web.reactNativeValues.outcomes
+    const unknown = outcomes.find((item) => item.disposition === 'not-assessed')
+    assert.equal(unknown.sourceEvidence, 'not-assessed')
+    assert.equal(unknown.emittedSpan, undefined)
+    assert.match(renderRealAppMarkdown(report), /Synthesized handlers,[\s\S]*?remain unknown/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -317,7 +348,7 @@ test('RN source census excludes types, unused values and shadowed names from run
     assert.equal(usage.runtimeReexports, 1)
     assert.equal(usage.typeReexports, 1)
     assert.equal(usage.sideEffectImports, 1)
-    assert.equal(usage.rewriteDecisions, 'web-imports-jsx-tags-and-unchanged-module-values')
+    assert.equal(usage.rewriteDecisions, 'web-imports-jsx-tags-and-source-runs')
     assert.equal(report.reactNativeImportDecisions.filesCompleted, 1)
     assert.equal(report.reactNativeImportDecisions.rewrittenBindings, 3)
     assert.equal(report.reactNativeImportDecisions.retainedBindings, 1)

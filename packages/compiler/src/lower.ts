@@ -26,7 +26,7 @@ import type {
 } from './index.ts'
 import { reactNativeImports, topLevelBindings } from './index.ts'
 import { semanticModuleEligible, type UnloweredReactNativeJsxPolicy } from './project.ts'
-import type { SourceEdit } from './source-provenance.ts'
+import { type SourceCopy, type SourceEdit, SourceProvenance } from './source-provenance.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
@@ -454,8 +454,63 @@ export function outputNeedsClientBoundary(
  * cannot be rewritten a second time -- an all-digit hash would otherwise
  * read as the counter.
  */
-export function namespaceHozoClasses(text: string, rootIndex: number, scope: string): string {
-  return text.replace(/\bhozo-(\d+)(?![\w-])/g, `hozo-${scope}-r${rootIndex}-$1`)
+export function namespaceHozoClasses(
+  text: string,
+  rootIndex: number,
+  scope: string,
+  edits?: SourceEdit[],
+): string {
+  if (!edits) return text.replace(/\bhozo-(\d+)(?![\w-])/g, `hozo-${scope}-r${rootIndex}-$1`)
+  return text.replace(/\bhozo-(\d+)(?![\w-])/g, (match, counter, offset) => {
+    const replacement = `hozo-${scope}-r${rootIndex}-${counter}`
+    edits.push({ spanStart: offset, spanEnd: offset + match.length, replacement })
+    return replacement
+  })
+}
+
+/** Compose copied fragments with actual class-name edits, not a spelling search. */
+function namespaceSourceCopies(
+  source: string,
+  component: CompiledComponent,
+  raw: string,
+  jsx: string,
+  copies: SourceCopy[],
+  edits: SourceEdit[],
+): SourceCopy[] {
+  let previousEnd = 0
+  for (const copy of [...copies].sort((a, b) => a.emittedStart - b.emittedStart)) {
+    if (
+      ![copy.spanStart, copy.spanEnd, copy.emittedStart, copy.emittedEnd].every(Number.isInteger) ||
+      copy.spanStart < component.spanStart ||
+      copy.spanEnd > component.spanEnd ||
+      copy.spanEnd <= copy.spanStart ||
+      copy.emittedStart < previousEnd ||
+      copy.emittedEnd > raw.length ||
+      copy.emittedEnd <= copy.emittedStart ||
+      source.slice(copy.spanStart, copy.spanEnd) !== raw.slice(copy.emittedStart, copy.emittedEnd)
+    ) {
+      throw new Error('Invalid backend source-copy evidence; reference provenance is not assessed.')
+    }
+    previousEnd = copy.emittedEnd
+  }
+  const map = new SourceProvenance(raw)
+  map.apply(raw, edits)
+  const runs = map.unchangedRuns(jsx) ?? []
+  return copies.flatMap((copy) =>
+    runs.flatMap((run) => {
+      const start = Math.max(copy.emittedStart, run.spanStart)
+      const end = Math.min(copy.emittedEnd, run.spanEnd)
+      if (start >= end) return []
+      return [
+        {
+          spanStart: copy.spanStart + start - copy.emittedStart,
+          spanEnd: copy.spanStart + end - copy.emittedStart,
+          emittedStart: run.emittedStart + start - run.spanStart,
+          emittedEnd: run.emittedStart + end - run.spanStart,
+        },
+      ]
+    }),
+  )
 }
 
 /**
@@ -807,13 +862,26 @@ function lowerModuleUnchecked(
   const scope = moduleScope(root, file, id)
   const semanticEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
   for (const { component, index } of bySpanDescending) {
-    const jsx = namespaceHozoClasses(component.jsx, index, scope)
+    const namespaceEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
+    const jsx = namespaceHozoClasses(component.jsx, index, scope, namespaceEdits)
     const componentCss = namespaceHozoClasses(component.css, index, scope)
     next = next.slice(0, component.spanStart) + jsx + next.slice(component.spanEnd)
     semanticEdits?.push({
       spanStart: component.spanStart,
       spanEnd: component.spanEnd,
       replacement: jsx,
+      ...(component.sourceCopies && namespaceEdits
+        ? {
+            copies: namespaceSourceCopies(
+              canvas.code,
+              component,
+              component.jsx,
+              jsx,
+              component.sourceCopies,
+              namespaceEdits,
+            ),
+          }
+        : {}),
     })
     css = componentCss + css
   }

@@ -35,6 +35,15 @@ export interface CompiledComponent {
   spanEnd: number
   /** Opt-in actual backend tag emissions, with input UTF-16 name spans. */
   tagDecisions?: CompiledTagDecision[]
+  /** Opt-in copied source fragments; emitted coordinates are relative to `jsx`. */
+  sourceCopies?: CompiledSourceCopy[]
+}
+
+export interface CompiledSourceCopy {
+  spanStart: number
+  spanEnd: number
+  emittedStart: number
+  emittedEnd: number
 }
 
 export interface CompiledTagDecision {
@@ -397,7 +406,7 @@ export interface CompileOptions {
    * `@hozo/rn-compat` itself they lower either way.
    */
   rehomeReactNative?: boolean
-  /** No tag journal is allocated on the ordinary build path. */
+  /** Opt-in tag and copied-expression emission records; neither is allocated ordinarily. */
   tagEvidence?: boolean
 }
 

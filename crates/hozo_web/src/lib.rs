@@ -8,8 +8,13 @@
 
 mod css;
 mod markup;
+mod source_evidence;
+pub use source_evidence::SourceCopy;
+use source_evidence::Rendered;
 #[cfg(test)]
 mod tag_evidence_tests;
+#[cfg(test)]
+mod source_evidence_tests;
 
 use hozo_ir::{Diagnostic, Node, Primitive, Theme};
 
@@ -26,6 +31,8 @@ pub struct LowerOutput {
     pub diagnostics: Vec<Diagnostic>,
     /// Opt-in evidence from the same rendering branch that emitted each tag.
     pub tag_decisions: Option<Vec<TagDecision>>,
+    /// Exact carried fragments, scoped to branches that actually emitted them.
+    pub source_copies: Option<Vec<SourceCopy>>,
 }
 
 pub struct TagDecision {
@@ -221,7 +228,7 @@ pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: b
     let mut uses_key_activation = false;
     let mut tag_decisions = evidence.then(Vec::new);
 
-    let jsx = render_node(
+    let rendered = render_node(
         root,
         source,
         theme,
@@ -232,6 +239,8 @@ pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: b
         &mut uses_key_activation,
         &mut tag_decisions,
     );
+    let jsx = rendered.text;
+    let source_copies = rendered.copies;
 
     let mut css = String::new();
     if uses_view_base {
@@ -334,7 +343,7 @@ pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: b
     if jsx.contains("hozoDomProps(") {
         runtime_imports.push("hozoDomProps");
     }
-    LowerOutput { jsx, css, runtime_imports, diagnostics, tag_decisions }
+    LowerOutput { jsx, css, runtime_imports, diagnostics, tag_decisions, source_copies }
 }
 
 /// One stylesheet for every candidate class in the project, written under
@@ -729,17 +738,19 @@ fn written_tag(source: &str, span: hozo_ir::SourceSpan) -> Option<&str> {
 /// A boolean shorthand (`<Link external>`) has no `=` at all and reads as
 /// `true`, which is what JSX means by it.
 fn attribute_value_source(source: &str, span: hozo_ir::ExprRef) -> String {
+    attribute_value_slice(source, span).unwrap_or("true").to_string()
+}
+
+fn attribute_value_slice(source: &str, span: hozo_ir::ExprRef) -> Option<&str> {
     let text = source_text(source, span);
-    let Some((_, value)) = text.split_once('=') else {
-        return "true".to_string();
-    };
+    let (_, value) = text.split_once('=')?;
     let value = value.trim();
-    value
+    Some(value
         .strip_prefix('{')
         .and_then(|rest| rest.strip_suffix('}'))
         .unwrap_or(value)
         .trim()
-        .to_string()
+    )
 }
 fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String {
     use hozo_ir::ConditionExpr;
@@ -876,8 +887,9 @@ fn render_node(
     uses_view_base: &mut bool,
     uses_key_activation: &mut bool,
     tag_decisions: &mut Option<Vec<TagDecision>>,
-) -> String {
+) -> Rendered {
     let class_name = allocator.alloc();
+    let mut attr_copies = tag_decisions.is_some().then(Vec::new);
 
     // `rules` accumulates the whole tree's CSS, so "did this node write
     // one" has to be asked about the span this node adds, not about
@@ -1667,8 +1679,11 @@ fn render_node(
         // Keep the native-shaped value and normalize it only on a host DOM
         // element. A fallback component owns the same conversion itself.
         if !is_hozo_component && prop.name.as_deref() == Some("style") {
-            let value = attribute_value_source(source, prop.span);
-            attrs.push_str(&format!(" style={{hozoDomStyle({value})}}"));
+            if let Some(value) = attribute_value_slice(source, prop.span) {
+                source_evidence::expression(&mut attrs, &mut attr_copies, source, value, " style={hozoDomStyle(", ")}");
+            } else {
+                attrs.push_str(" style={hozoDomStyle(true)}");
+            }
             continue;
         }
         // A spread can carry the same style without naming it in source.
@@ -1682,7 +1697,7 @@ fn render_node(
                 .and_then(|rest| rest.strip_suffix('}'))
                 .unwrap_or(text)
                 .trim();
-            attrs.push_str(&format!(" {{...hozoDomProps({value})}}"));
+            source_evidence::expression(&mut attrs, &mut attr_copies, source, value, " {...hozoDomProps(", ")}");
             continue;
         }
         // `external` is not an attribute the DOM has; it was lowered into
@@ -1705,7 +1720,7 @@ fn render_node(
             continue;
         }
         attrs.push(' ');
-        attrs.push_str(&render_verbatim(
+        source_evidence::append(&mut attrs, &mut attr_copies, render_verbatim(
             prop.span,
             &prop.nested,
             source,
@@ -1724,15 +1739,14 @@ fn render_node(
     // deleted. Order is load-bearing: `<Text>Hello {name}</Text>` and
     // `<Text>{name} Hello</Text>` differ only in it.
     let child_decisions_start = tag_decisions.as_ref().map_or(0, Vec::len);
-    let inner: String = node
-        .children
-        .iter()
-        .map(|child| match child {
+    let mut inner = Rendered::new(tag_decisions.is_some());
+    for child in &node.children {
+        match child {
             hozo_ir::Child::Node(child_node) => {
-                render_node(child_node, source, theme, allocator, rules, diagnostics, uses_view_base, uses_key_activation, tag_decisions)
+                inner.append(render_node(child_node, source, theme, allocator, rules, diagnostics, uses_view_base, uses_key_activation, tag_decisions));
             }
-            hozo_ir::Child::Text(text) => markup::html_escape(text),
-            hozo_ir::Child::Verbatim { source: expr_ref, nested } => render_verbatim(
+            hozo_ir::Child::Text(text) => inner.text.push_str(&markup::html_escape(text)),
+            hozo_ir::Child::Verbatim { source: expr_ref, nested } => inner.append(render_verbatim(
                 *expr_ref,
                 nested,
                 source,
@@ -1743,9 +1757,9 @@ fn render_node(
                 uses_view_base,
                 uses_key_activation,
                 tag_decisions,
-            ),
-        })
-        .collect();
+            )),
+        }
+    }
 
     // `<input>`, `<img>`, `<hr>` are void elements: HTML forbids a closing
     // tag and React throws on children. Nothing can be inside one, so there
@@ -1765,10 +1779,18 @@ fn render_node(
             decisions.push(TagDecision { span, replacement: (!void).then(|| tag.to_string()) });
         }
     }
-    if void {
-        return format!("<{tag}{attrs} />");
+    let mut copies = attr_copies.map(|incoming| {
+        let mut copies = Vec::new();
+        source_evidence::shift_into(&mut copies, incoming, 1 + tag.len());
+        copies
+    });
+    if !void {
+        if let (Some(copies), Some(incoming)) = (&mut copies, inner.copies) {
+            source_evidence::shift_into(copies, incoming, 2 + tag.len() + attrs.len());
+        }
     }
-    format!("<{tag}{attrs}>{inner}</{tag}>")
+    let text = if void { format!("<{tag}{attrs} />") } else { format!("<{tag}{attrs}>{}</{tag}>", inner.text) };
+    Rendered { text, copies }
 }
 
 /// Re-emits a carried expression from source, with each Hozo primitive
@@ -1791,14 +1813,14 @@ fn render_verbatim(
     uses_view_base: &mut bool,
     uses_key_activation: &mut bool,
     tag_decisions: &mut Option<Vec<TagDecision>>,
-) -> String {
+) -> Rendered {
     let start = expr_ref.0.start as usize;
-    let mut out = String::new();
+    let mut out = Rendered::new(tag_decisions.is_some());
     let mut cursor = start;
     for entry in nested {
         let from = entry.span.start as usize;
-        out.push_str(&source[cursor..from]);
-        out.push_str(&render_node(
+        out.copy(source, cursor, from);
+        out.append(render_node(
             &entry.node,
             source,
             theme,
@@ -1811,7 +1833,7 @@ fn render_verbatim(
         ));
         cursor = entry.span.end as usize;
     }
-    out.push_str(&source[cursor..expr_ref.0.end as usize]);
+    out.copy(source, cursor, expr_ref.0.end as usize);
     out
 }
 
