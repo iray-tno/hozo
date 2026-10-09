@@ -66,6 +66,13 @@ export {
   type HozoMenuProps,
 } from './menu.tsx'
 export {
+  HozoOtpInput as OtpInput,
+  HozoOtpInput,
+  type HozoOtpInputProps as OtpInputProps,
+  type HozoOtpInputProps,
+  type OtpType,
+} from './otp-input.tsx'
+export {
   HozoPagination as Pagination,
   HozoPagination,
   type HozoPaginationProps as PaginationProps,

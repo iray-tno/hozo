@@ -90,6 +90,8 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['Pagination', 'Draws numbered controls from its props; it takes no children.'],
   ['HozoPagination', 'The same component under its other published name.'],
   ['Stepper', 'Draws its steps from the `steps` prop; it takes no children.'],
+  ['OtpInput', 'An input drawn as cells from its value; it takes no children.'],
+  ['HozoOtpInput', 'The same component under its other published name.'],
   ['HozoStepper', 'The same component under its other published name.'],
   ['Table', 'Holds sections and rows, not text.'],
   ['TableHeader', 'Holds rows, not text.'],

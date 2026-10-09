@@ -1,0 +1,9 @@
+heading, OtpInput, level 1
+paragraph
+One field drawn as cells; paste a whole code, or let the system fill it.
+end of paragraph
+Verification code
+textbox, Verification code, 6 characters
+Waiting for 6 digits
+PIN
+PIN, 4 characters

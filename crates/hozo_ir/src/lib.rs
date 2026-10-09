@@ -452,6 +452,12 @@ pub enum Primitive {
     /// like `Pagination`, its class lists include one per status, for the
     /// step and for its indicator, applied by the pattern.
     Stepper,
+    /// A one-time code or a PIN (#149): one real input drawn as cells, so a
+    /// reader finds one field and the operating system can fill it from a
+    /// text message. `HozoOtpInput` on both platforms; its class lists are
+    /// the box, every cell, and the active and filled cells, applied by the
+    /// pattern.
+    OtpInput,
     /// A data table (#144): `<table>` on Web, and on React Native a
     /// `HozoTable` that sizes its columns from every cell in them, the way
     /// the browser's automatic table layout does, since a flex row knows
@@ -597,6 +603,11 @@ impl Primitive {
                 ClassSlot { class_prop: "currentItemClassName", style_prop: "currentItemStyle" },
                 ClassSlot { class_prop: "disabledItemClassName", style_prop: "disabledItemStyle" },
                 ClassSlot { class_prop: "ellipsisClassName", style_prop: "ellipsisStyle" },
+            ],
+            Primitive::OtpInput => &[
+                ClassSlot { class_prop: "cellClassName", style_prop: "cellStyle" },
+                ClassSlot { class_prop: "activeCellClassName", style_prop: "activeCellStyle" },
+                ClassSlot { class_prop: "filledCellClassName", style_prop: "filledCellStyle" },
             ],
             Primitive::Stepper => &[
                 ClassSlot { class_prop: "stepClassName", style_prop: "stepStyle" },

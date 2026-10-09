@@ -125,6 +125,12 @@ export {
   type HozoNativeSelectProps,
 } from './native-select.tsx'
 export {
+  HozoOtpInput,
+  type HozoOtpInputProps,
+  OtpInput,
+  type OtpInputProps,
+} from './otp-input.tsx'
+export {
   HozoPagination,
   type HozoPaginationProps,
   Pagination,

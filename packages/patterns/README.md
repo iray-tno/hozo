@@ -2,7 +2,7 @@
 
 Accessible stateful widgets for Hozo: `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`,
 `RadioGroup`, `Checkbox`, `Switch`, `Accordion`, `Slider`, `Toolbar`, `Tree`, `Tooltip`, `Popover`,
-`BottomSheet`, `Drawer`, `Chip`, `Avatar`, `Pagination` and `Stepper`. Each carries its WAI-ARIA
+`BottomSheet`, `Drawer`, `Chip`, `Avatar`, `Pagination`, `Stepper` and `OtpInput`. Each carries its WAI-ARIA
 keyboard contract on the Web and the matching accessibility semantics on React Native.
 
 `Checkbox` and `Switch` are one control with two roles, and choosing between them chooses what a
@@ -111,9 +111,9 @@ export function Settings({ open, onClose }) {
 }
 ```
 
-## Verification Matrix: `Chip`, `Avatar`, `Pagination`, `Stepper`
+## Verification Matrix: `Chip`, `Avatar`, `Pagination`, `Stepper`, `OtpInput`
 
-These four arrived after 0.2.0 (#141, #144, #150). What has checked them, and what has not:
+These arrived after 0.2.0 (#141, #144, #149, #150). What has checked them, and what has not:
 
 | | axe (every PR) | Virtual reader (every PR) | NVDA (weekly) | VoiceOver, macOS (weekly) | TalkBack | iOS VoiceOver |
 |---|---|---|---|---|---|---|
@@ -121,6 +121,7 @@ These four arrived after 0.2.0 (#141, #144, #150). What has checked them, and wh
 | `Avatar` | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
 | `Pagination` (buttons, links) | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
 | `Stepper` (list, buttons) | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
+| `OtpInput` (code, PIN) | ✅ | ✅ approved | ⬜ not yet read | ⬜ not yet read | ⬜ | ⬜ |
 
 - **axe and the virtual reader** run on the `Patterns/…` Storybook stories (`examples/storybook-demo/scripts/check-a11y.mjs`, `check-utterances.mjs`). The virtual reader computes announcements from the ARIA and HTML-AAM specifications. It is not NVDA or VoiceOver. Its approved readings are in `examples/storybook-demo/utterances/`.
 - **NVDA and VoiceOver** walk every `patterns-` story weekly and on any change to `examples/screen-readers/` (`.github/workflows/screen-readers.yml`). Their first reading of these stories was run 37790021610, and the phrases approved from it are in `examples/screen-readers/expected/`.

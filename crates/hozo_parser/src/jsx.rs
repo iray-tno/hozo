@@ -741,6 +741,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Avatar" => Some(Primitive::Avatar),
         "Pagination" => Some(Primitive::Pagination),
         "Stepper" => Some(Primitive::Stepper),
+        "OtpInput" => Some(Primitive::OtpInput),
         "Table" => Some(Primitive::Table),
         "TableCaption" => Some(Primitive::TableCaption),
         "TableHeader" => Some(Primitive::TableHeader),

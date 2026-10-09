@@ -290,6 +290,9 @@ pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: b
     if contains_primitive(root, Primitive::Stepper) {
         runtime_imports.push("HozoStepper");
     }
+    if contains_primitive(root, Primitive::OtpInput) {
+        runtime_imports.push("HozoOtpInput");
+    }
     if contains_primitive(root, Primitive::ActivityIndicator) {
         runtime_imports.push("HozoActivityIndicator");
     }
@@ -3105,6 +3108,19 @@ const el = <Table className=\"w-full\"><TableHeader><TableRow><TableHead>Item</T
         assert!(output.jsx.contains("<th scope=\"col\">Item</th>"), "{}", output.jsx);
         assert!(output.jsx.contains("<th scope=\"row\">x</th><td>y</td>"), "{}", output.jsx);
         assert!(output.runtime_imports.is_empty(), "{:?}", output.runtime_imports);
+    }
+
+    #[test]
+    fn an_otp_input_is_hozo_otp_input_with_its_cell_class_lists_compiled() {
+        let source = "import { OtpInput } from '@hozo/core'
+const el = <OtpInput accessibilityLabel=\"Code\" className=\"flex gap-2\" activeCellClassName=\"border-blue-600\" />
+";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.jsx.starts_with("<HozoOtpInput className=\"hozo-0\""), "{}", output.jsx);
+        assert!(output.jsx.contains(" activeCellClassName=\"hozo-1\""), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoOtpInput"), "{:?}", output.runtime_imports);
     }
 
     #[test]

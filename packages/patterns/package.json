@@ -56,6 +56,14 @@
       "types": "./dist/generated/dialog.d.ts",
       "default": "./dist/generated/dialog.js"
     },
+    "./generated/otp-input": {
+      "react-native": {
+        "types": "./dist/generated/otp-input.native.d.ts",
+        "default": "./dist/generated/otp-input.native.js"
+      },
+      "types": "./dist/generated/otp-input.d.ts",
+      "default": "./dist/generated/otp-input.js"
+    },
     "./generated/pagination": {
       "react-native": {
         "types": "./dist/generated/pagination.native.d.ts",
