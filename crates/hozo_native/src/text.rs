@@ -461,6 +461,29 @@ pub(super) fn text_break_strategy(node: &Node) -> Option<&'static str> {
     })
 }
 
+/// iOS's `lineBreakStrategy` for `break-keep`, which React Native exposes
+/// as `lineBreakStrategyIOS`.
+///
+/// `word-break: keep-all` keeps CJK runs whole; iOS's nearest strategy is
+/// `hangul-word`, which keeps Korean words whole and leaves Chinese and
+/// Japanese breaking between characters as before. So it is lowered for the
+/// half it covers and still reported for the half it does not (`render.rs`).
+/// Android has no such prop; see `docs/upstream/react-native-line-break.md`.
+pub(super) fn line_break_strategy_ios(node: &Node) -> Option<&'static str> {
+    if !is_text_primitive(node.primitive) {
+        return None;
+    }
+    node.style.iter().rev().find_map(|declaration| {
+        if declaration.condition != hozo_ir::Condition::Always {
+            return None;
+        }
+        match line_breaking(&declaration.property) {
+            Some((name, value)) if name == "word-break" && value == "keep-all" => Some("hangul-word"),
+            _ => None,
+        }
+    })
+}
+
 /// The property and value of a declaration about where text breaks into
 /// lines -- `text-wrap`, `word-break`, `overflow-wrap`, `line-break` --
 /// whichever of the IR's shapes carries it: a keyword (`text-balance`), a

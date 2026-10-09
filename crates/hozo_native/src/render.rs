@@ -147,6 +147,8 @@ pub(super) fn render_node(
     // `text-balance` and `text-pretty` are a Text prop here, Android's
     // `textBreakStrategy`, the way `truncate` is `numberOfLines`.
     let text_break = text_break_strategy(node);
+    // `break-keep` on iOS: `lineBreakStrategyIOS`, for Korean.
+    let ios_line_break = crate::text::line_break_strategy_ios(node);
     // Same shape as truncation: a CSS concept React Native keeps on a prop,
     // absorbed before the refusal check so the thing that *does* express it
     // isn't reported as impossible.
@@ -322,7 +324,16 @@ pub(super) fn render_node(
                     _ => false,
                 };
                 if !lowered && !default {
-                    let reason = if name == "text-wrap"
+                    let keep_all_on_text = ios_line_break.is_some()
+                        && name == "word-break"
+                        && value == "keep-all"
+                        && declaration.condition == Condition::Always;
+                    let reason = if keep_all_on_text {
+                        "iOS keeps Korean words whole (`lineBreakStrategyIOS=\"hangul-word\"`, \
+                         set here), but still breaks Chinese and Japanese between characters, \
+                         and Android has no control for it -- see \
+                         docs/upstream/react-native-line-break.md"
+                    } else if name == "text-wrap"
                         && matches!(value.as_str(), "balance" | "pretty")
                     {
                         if declaration.condition == Condition::Always {
@@ -333,7 +344,10 @@ pub(super) fn render_node(
                         }
                     } else {
                         "React Native's `Text` has no control over where lines break beyond \
-                         Android's `textBreakStrategy`, so the platform decides"
+                         Android's `textBreakStrategy`, so the platform decides. Its default \
+                         already keeps closing punctuation off the start of a line; strict and \
+                         loose rules, and breaking by phrase, wait on React Native -- see \
+                         docs/upstream/react-native-line-break.md"
                     };
                     diagnostics.push(Diagnostic {
                         code: DiagnosticCode::WebOnlyPropertyOnNative,
@@ -1292,6 +1306,10 @@ pub(super) fn render_node(
     // `text-wrap: balance` to a browser that predates it.
     if let Some(strategy) = text_break {
         props_text.push_str(&format!(r#" textBreakStrategy="{strategy}""#));
+    }
+    // iOS only, the mirror of the above: Android ignores the prop.
+    if let Some(strategy) = ios_line_break {
+        props_text.push_str(&format!(r#" lineBreakStrategyIOS="{strategy}""#));
     }
     for (key, value) in truncation.into_iter().flatten() {
         if value.parse::<u32>().is_ok() {
