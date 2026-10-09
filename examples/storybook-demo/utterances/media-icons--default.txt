@@ -1,0 +1,11 @@
+heading, Icons, level 1
+paragraph
+Decoration beside a word, named only when the icon is the information.
+end of paragraph
+Beside a word
+button, Search
+The only thing on a button
+button, Like post
+The information itself
+image, Connected
+Home network

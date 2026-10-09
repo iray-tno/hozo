@@ -146,3 +146,4 @@ export const Svg = Object.assign(Root, {
   FeMergeNode,
   FeOffset,
 })
+export { Icon, type IconNode, type IconProps } from './icon.tsx'
