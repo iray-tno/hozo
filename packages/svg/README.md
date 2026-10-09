@@ -24,6 +24,23 @@ on Native. The minimum includes upstream's implemented shadow and composite filt
 `Svg.Link` is a semantic SVG anchor on Web and a router-aware pressable group on Native. It uses
 the same navigation provider as `@hozo/navigation`.
 
+## Icons
+
+`Icon` draws an icon from data, as an inline `<svg>` on the Web and `react-native-svg` on Native (#145):
+
+```tsx
+import { Icon } from '@hozo/svg'
+import { Search } from 'lucide'                       // or the set's per-icon module, on Metro
+
+<Icon icon={Search} size={16} />                      // beside a word: decoration, hidden
+<Icon icon={Wifi} accessibilityLabel="Connected" />   // the information itself: an image
+```
+
+- **No icon set is bundled.** `icon` takes the `IconNode` shape that `lucide` exports for every icon (`[['path', { d }], ['circle', { cx, cy, r }], …]`), so an application brings the set it chose and imports only the icons it uses. A set re-exported from one module would be every icon in every Native bundle, because Metro does not tree-shake. Importing an icon's own module costs that icon alone.
+- **Decoration unless named.** With no `accessibilityLabel`, an icon is `aria-hidden` on the Web and hidden from TalkBack and VoiceOver on Native. With one, it is `role="img"` with a `<title>` on the Web, and a single `image` element on Native. An icon that is the only thing on a button leaves the name to the button.
+- **Colour.** It is stroked in `currentColor`, so on the Web it takes the text's colour. React Native passes no text colour to a `View`, so pass `color` there; without it the icon is black.
+- **Not part of `@hozo/core`.** `@hozo/svg` is opt-in, and an application that draws no icons carries none of this.
+
 ## Filters
 
 The fallback namespace and compiler expose the filter subset backed by Native upstream:

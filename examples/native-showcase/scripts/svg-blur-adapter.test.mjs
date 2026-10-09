@@ -71,6 +71,9 @@ function loadAdapter(platform = 'android') {
       if (name === './blur-raster.ts') return evaluate('blur-raster.ts')
       if (name === './blur.native.tsx') return evaluate('blur.native.tsx')
       if (name === './svg-link.native.tsx') return { SvgLink: 'SvgLink' }
+      // `Icon` draws with upstream elements directly and is not part of the
+      // blur correction this file checks.
+      if (name === './icon.native.tsx') return { Icon: 'Icon' }
       throw new Error(`Unexpected dependency: ${name}`)
     }, module)
     return module.exports
