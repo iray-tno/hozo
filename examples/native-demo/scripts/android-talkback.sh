@@ -1127,21 +1127,38 @@ adb logcat -d -v epoch -s ReactNativeJS:I HozoSpeech:I | tr -d '\r' | node --eva
   const lines = fs.readFileSync(0, "utf8").split("\n")
   const heard = {}
   let current = null
+  let tableLayout = null
   for (const line of lines) {
     const match = /^\s*(\d+\.\d+)\s+\d+\s+\d+\s+[A-Z]\s+(\S+?)\s*:\s?(.*)$/.exec(line)
     if (!match || Number(match[1]) < since) continue
     const [, , tag, text] = match
     const marker = /\[hozo-census\] (\S+)/.exec(text)
-    if (tag === "ReactNativeJS" && marker) {
+    const layout = /\[hozo-census-layout\] (.*)$/.exec(text)
+    if (tag === "ReactNativeJS" && layout) {
+      tableLayout = layout[1].trim()
+    } else if (tag === "ReactNativeJS" && marker) {
       current = marker[1] === "done" ? null : marker[1]
       if (current) heard[current] = heard[current] ?? []
     } else if (tag === "HozoSpeech" && current) {
       heard[current].push(text.trim())
     }
   }
-  fs.writeFileSync("talkback-census.json", JSON.stringify(heard, null, 2) + "\n")
+  fs.writeFileSync(
+    "talkback-census.json",
+    JSON.stringify({ ...heard, "table-layout": tableLayout }, null, 2) + "\n",
+  )
   for (const [name, said] of Object.entries(heard)) {
     console.log(`  ${name}: ${said.length ? said.join(" | ") : "(nothing)"}`)
+  }
+  // Where the table cells landed on the device: whether every column lined
+  // up, which only a real layout engine can say (`CensusWalk.tsx`).
+  if (tableLayout === null) {
+    console.log("::warning::the census table reported no layout")
+  } else {
+    console.log(`  table layout: ${tableLayout}`)
+    if (!/^table aligned\b/.test(tableLayout)) {
+      console.log(`::warning::the census table columns did not line up on the device: ${tableLayout}`)
+    }
   }
   if (Object.keys(heard).length === 0) console.log("::warning::the census walk logged no steps")
 ' "$census_since" || echo "::warning::could not read the census walk"

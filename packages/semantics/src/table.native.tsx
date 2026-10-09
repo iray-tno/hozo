@@ -1,9 +1,11 @@
 import {
   Children,
+  type ComponentRef,
   createContext,
   isValidElement,
   type ReactElement,
   type ReactNode,
+  type Ref,
   useCallback,
   useContext,
   useMemo,
@@ -296,6 +298,11 @@ export interface HozoTableCellProps {
   testID?: string
   /** Read by the compiler; see `SemanticsNativeProps.className`. */
   className?: string
+  /**
+   * The cell's View: for focusing it, or measuring where it landed. A prop
+   * rather than `forwardRef`, as React 19 hands a function component its ref.
+   */
+  ref?: Ref<ComponentRef<typeof View>>
 }
 
 /** What a `View` cannot draw: handed to the cell's `Text`. */
@@ -321,6 +328,7 @@ export function HozoTableCell({
   accessibilityLabel,
   style,
   testID,
+  ref,
 }: HozoTableCellProps) {
   const table = useContext(TableContext)
   const row = useContext(RowContext)
@@ -343,6 +351,7 @@ export function HozoTableCell({
 
   return (
     <View
+      ref={ref}
       style={[CELL, box, width !== undefined ? { width } : null]}
       testID={testID}
       onLayout={
@@ -353,7 +362,10 @@ export function HozoTableCell({
       }
       accessible={words !== undefined ? true : undefined}
       accessibilityLabel={label}
-      accessibilityRole={header ? 'header' : undefined}
+      // Not `accessibilityRole="header"`: TalkBack calls that a heading,
+      // and it made row headers headings too (#804). A column header is
+      // still read "Price, Heading", from `heading` in its collection item
+      // below, which is Android's own mark for a header cell.
       // A View prop on Android that React Native's types do not declare;
       // `BaseViewManager` reads it and `ReactAccessibilityDelegate` turns
       // it into the node's `CollectionItemInfo`.

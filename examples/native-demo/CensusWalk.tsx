@@ -13,7 +13,21 @@
 // TalkBack's utterances against the elements by time. Logged, not announced:
 // an announcement would itself be what TalkBack says.
 
-import { Badge, Heading, Meter, Paragraph, Progress, Skeleton, View } from '@hozo/core'
+import {
+  Badge,
+  Heading,
+  Meter,
+  Paragraph,
+  Progress,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  View,
+} from '@hozo/core'
 import { moveAccessibilityFocus } from '@hozo/native'
 import { type ComponentRef, useEffect, useRef } from 'react'
 import { AccessibilityInfo, findNodeHandle } from 'react-native'
@@ -33,7 +47,60 @@ const NAMES = [
   'badge-word',
   'progress',
   'skeleton',
+  // A table, which Android has no role or navigation for: a column header,
+  // a data cell -- named with its column, "Price, $12" -- and a row header.
+  'table-column-header',
+  'table-cell',
+  'table-row-header',
 ] as const
+
+/** The table's cells, row by row, for checking that its columns line up. */
+const GRID = [
+  ['Item', 'Qty', 'Price'],
+  ['Tea', '2', '$8'],
+  ['Shortbread', '1', '$12'],
+] as const
+
+/**
+ * Whether every cell in a column landed at the same x and width, on the
+ * device's own layout engine. The column sizing is asserted in tests with
+ * `onLayout` fired by hand; this is the one place a real Yoga answers.
+ * Logged rather than announced, like the step markers.
+ */
+function reportTableLayout(cells: (Target | null)[][]) {
+  const boxes: { x: number; width: number }[][] = cells.map(() => [])
+  let pending = cells.flat().length
+  cells.forEach((row, r) => {
+    row.forEach((cell, c) => {
+      if (!cell) {
+        pending -= 1
+        return
+      }
+      cell.measureInWindow((x, _y, width) => {
+        ;(boxes[r] as { x: number; width: number }[])[c] = { x, width }
+        pending -= 1
+        if (pending > 0) return
+        const columns = GRID[0].map((_, column) => boxes.map((line) => line[column]))
+        const aligned = columns.every((column) =>
+          column.every(
+            (box) =>
+              box !== undefined &&
+              Math.abs(box.x - (column[0]?.x ?? 0)) <= 1 &&
+              Math.abs(box.width - (column[0]?.width ?? 0)) <= 1,
+          ),
+        )
+        const shape = boxes
+          .map((line) =>
+            line
+              .map((box) => `${Math.round(box?.x ?? -1)}+${Math.round(box?.width ?? -1)}`)
+              .join(' '),
+          )
+          .join(' | ')
+        console.info(`[hozo-census-layout] table ${aligned ? 'aligned' : 'misaligned'} ${shape}`)
+      })
+    })
+  })
+}
 
 function focus(target: Target | null) {
   if (!target) return
@@ -50,10 +117,22 @@ export default function CensusWalk() {
   const bind = (name: (typeof NAMES)[number]) => (node: Target | null) => {
     refs.current[name] = node
   }
+  const grid = useRef<(Target | null)[][]>(GRID.map((row) => row.map(() => null)))
+  const cell =
+    (row: number, column: number, name?: (typeof NAMES)[number]) => (node: Target | null) => {
+      ;(grid.current[row] as (Target | null)[])[column] = node
+      if (name) refs.current[name] = node
+    }
 
   useEffect(() => {
     let cancelled = false
     const timers: ReturnType<typeof setTimeout>[] = []
+    // Measured by then: the table hides itself until its columns are sized.
+    timers.push(
+      setTimeout(() => {
+        if (!cancelled) reportTableLayout(grid.current)
+      }, SETTLE_MS),
+    )
     NAMES.forEach((name, index) => {
       timers.push(
         setTimeout(
@@ -105,6 +184,43 @@ export default function CensusWalk() {
       <Progress ref={bind('progress')} value={40} max={100} accessibilityLabel="Upload" />
       {/* @ts-expect-error -- the compiler passes `ref` through to the host element; the props types do not list it. */}
       <Skeleton ref={bind('skeleton')} className="h-4 w-48 rounded bg-slate-200 animate-pulse" />
+      <Table className="border border-slate-300">
+        <TableHeader>
+          <TableRow>
+            {GRID[0].map((label, column) => (
+              <TableHead
+                key={label}
+                ref={cell(0, column, column === 2 ? 'table-column-header' : undefined)}
+                className="px-2"
+              >
+                {label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {GRID.slice(1).map((line, index) => (
+            <TableRow key={line[0]}>
+              <TableHead
+                scope="row"
+                ref={cell(index + 1, 0, index === 1 ? 'table-row-header' : undefined)}
+                className="px-2"
+              >
+                {line[0]}
+              </TableHead>
+              <TableCell ref={cell(index + 1, 1)} className="px-2 text-right">
+                {line[1]}
+              </TableCell>
+              <TableCell
+                ref={cell(index + 1, 2, index === 1 ? 'table-cell' : undefined)}
+                className="px-2 text-right"
+              >
+                {line[2]}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </View>
   )
 }

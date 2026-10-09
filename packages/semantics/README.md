@@ -94,7 +94,7 @@ export function Layout({ children }) {
 | `Meter` | ✅ | ✅ approved | ✅ approved | ✅ approved | ✅ census walk | ⬜ |
 | `Badge` (`count`) | ✅ | ✅ approved | ✅ approved | ✅ approved | ✅ census walk | ⬜ |
 | `Skeleton` | ✅ | ✅ approved (silent) | ✅ approved | ✅ approved | ✅ census walk (silent) | ⬜ |
-| `Table` | ✅ | ✅ approved | ✅ approved | ✅ approved | ⬜ | ⬜ |
+| `Table` | ✅ | ✅ approved | ✅ approved | ✅ approved | ✅ census walk | ⬜ |
 
 - **axe and the virtual reader** run on the `Semantics/Data Display` story. NVDA and VoiceOver walk the same story, which is named in `examples/screen-readers/stories.spec.ts`.
 - **Their first reading** (run 37790021610):
@@ -110,7 +110,13 @@ export function Layout({ children }) {
 
   Those readings are reported by the job, not yet asserted.
 - **The virtual reader's "max value 100" for a `<meter>` with no `max` is the virtual reader's mapping.** Neither real reader mentioned a maximum.
-- **On Native, `Table`'s column widths and cell names** are asserted against React Native's test renderer with layout events fired by hand. No device has drawn one or read one.
+- **On Native, `Table` on an Android emulator** (the census walk, #804):
+  - **Layout:** every column's cells landed at the same x and width, measured with `measureInWindow` on the device's own layout engine, not the stub the unit tests use.
+  - **Speech:** TalkBack read the data cell as "Price, $12".
+  - **Not announced:** row and column numbers. Android sets a table's `CollectionInfo` only inside a ScrollView, through the cast #525 is waiting on.
+  - **Header cells:** a column header is read as "Price, Heading".
+    - That word comes from Android's `CollectionItemInfo.isHeading`, which every column header sets, and is the platform's own mark for a header cell.
+    - Header cells also had `accessibilityRole="header"` at first. That made row headers headings as well, so it was removed: a row header is now read as just "Shortbread".
 
 A ✅ in the reader columns means a person read the phrases and approved them, never only that a job ran.
 
