@@ -28,6 +28,44 @@ Semantic counts remain **1,193 Web / 1,149 Native components in 573 lowered file
 
 Conventional CSS remains absent; builtin tokens and auto preflight=true are explicit compiler assumptions, not evidence about Bluesky's production reset. Root tsconfig is read and hashed, but its package-based `extends` is unsupported by the local-only static alias loader; aliases are not guessed. No StyleX definitions/consumers are observed in this corpus, so its prepared graphs are empty and it loads no context modules. Cross-file/alias/reexport/platform behavior is demonstrated by dedicated fixtures, not by Bluesky. Shared/native probes select Android by default; iOS/Android-suffixed files retain their own platform.
 
+### Static font-facts completion
+
+Two fresh, sequential `pnpm measure:bluesky` observations at the same clean pin and
+authored fingerprint introduce `static-font-availability-v1`. Every existing headline,
+source/import/tag/value/member-review summary, ALF signal and full finding record is
+asserted equal to the preceding required-context snapshot: **1,660 authored files,
+218 warnings / zero errors**, 1,193 Web / 1,149 Native components and zero direct RN JSX
+residue or compile failures. No font registry is supplied for this pinned corpus, so
+fonts remain explicitly **unresolved**, `fontInputs` is empty and no font diagnostic
+stage runs. These measurements do not invent registration facts from CSS or family names.
+
+The new audit accepts explicit `createFontAvailability()` JSON/values and checks literal
+generated declarations with the shared compiler font diagnostic, scoped to requested
+Web/Native targets and the selected Native platform. Dedicated fixtures exercise real
+StyleX font declarations, missing platforms/variants, external and unknown families,
+Unicode/rewritten coordinate confidence, invalid/executable/outside inputs, checkout
+snapshots and changed font facts/hashes. The corpus itself does not exercise supplied
+font registration. Assets are not opened, fetched, registered, bundled or device-tested.
+
+The two new observations compare as **comparable**, with **218 continued findings**,
+zero added/resolved/changed/unassessed findings, 1,639 continued Web boundaries and 21
+Native-only not-applicable boundaries. `new-errors` passes with zero new errors. An
+older report without the font-analysis policy is **non-comparable**, even when no font
+input was supplied: the old diagnostic configuration must not be inferred. Changed or
+removed explicit font facts/hashes likewise cannot masquerade as resolved findings.
+The actual CLI was also run against the first new baseline with `--compare` and
+`--fail-on new-errors`: exit 0, comparable, zero new errors, 218 retained findings.
+
+With one worker and two logical CPU cores, the observations took **10.17s / 10.09s**:
+snapshot reads **72.0ms / 51.3ms**, preparation **4.00s / 3.92s** and Web lowering
+**2.63s / 2.63s**. Comparing already-read reports took **164.4ms**, excluding JSON I/O
+and rendering. These are local warm-read observations, not a controlled performance
+comparison. Node 25.9.0, Tailwind 4.3.3, CSS parser 8.5.26 and JSONC parser 3.3.1 used
+fresh development binding SHA-256
+`6cb24b4bafa5e3c17646756b68a0a0304e4f4abf4bf56d85ead16609bbdaf5bf`.
+Raw observations/comparison remain local evidence artifacts. The historical production
+experiment is retained; production builds and device/font-loading behavior were not rerun.
+
 ### Compiler-required context follow-up
 
 Two fresh, sequential `pnpm measure:bluesky` observations under the
