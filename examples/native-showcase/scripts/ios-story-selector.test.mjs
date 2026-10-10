@@ -80,6 +80,30 @@ test('an already settled target still requires three observations spanning at le
   assert.equal(run.taps.length, 1)
 })
 
+test('PR #832 failed OCR selects the actual Typography row, not the adjacent Form row', async () => {
+  // Exact Vision output from run 38042524519, sample 17. The bookmark was read
+  // as W, so all 17 old observations had no target despite the visible label.
+  const boxes = JSON.parse(
+    readFileSync(new URL('./fixtures/pr832-ios-menu-ocr.json', import.meta.url), 'utf8'),
+  )
+  const typographyBox = boxes.find((box) => box.text === 'W Typography')
+  const formBox = boxes.find((box) => box.text === 'W Form')
+  assert.ok(typographyBox)
+  assert.ok(formBox)
+  const run = schedule([boxes])
+  const selected = await selectStableIosText('Typography', screen, run.options)
+  const [x, y] = centre(selected)
+  assert.equal(run.reads(), 3)
+  assert.deepEqual(run.taps, [[x, y]])
+  assert.ok(y >= (1 - typographyBox.y - typographyBox.height) * screen[3])
+  assert.ok(y <= (1 - typographyBox.y) * screen[3])
+  assert.ok(y < (1 - formBox.y - formBox.height) * screen[3])
+  // Recognizing two apparent matches must still fail without sending input.
+  const ambiguous = schedule([[...boxes, { ...typographyBox, text: 'Typography' }]])
+  await assert.rejects(selectStableIosText('Typography', screen, ambiguous.options), /ambiguous/)
+  assert.equal(ambiguous.taps.length, 0)
+})
+
 test('small OCR rounding variation is tolerated but the latest measured box supplies the tap', async () => {
   const run = schedule([[typography(698)], [typography(698.5)], [typography(699)]])
   await selectStableIosText('Typography', screen, run.options)

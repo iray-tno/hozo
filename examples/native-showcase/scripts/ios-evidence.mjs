@@ -58,10 +58,12 @@ export function openShowcaseConfirmation(nodes) {
 }
 
 export function visualTextControl(boxes, text, screenRect) {
-  // Vision can include Storybook's leading bullet in the same text box. Strip
-  // only that observed decoration; keep exact wording and ambiguity checks.
+  // Vision merges the bookmark icon into the row label: it read it as a bullet
+  // in earlier runs and as "W" in PR #832 run 38042524519. Normalize only these
+  // observed decorations, not arbitrary prefixes/substrings. The smoke still
+  // requires stable geometry and verifies the exact selected story after input.
   const matches = boxes.filter(
-    (box) => box.text.replace(/^•\s+/, '') === text && box.confidence >= 0.8,
+    (box) => box.text.replace(/^(?:•|W)\s+/, '') === text && box.confidence >= 0.8,
   )
   assert.ok(matches.length <= 1, `ambiguous visible text: ${text}`)
   if (!matches.length) return undefined
