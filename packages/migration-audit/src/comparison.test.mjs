@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -7,6 +7,82 @@ import { compareReports, comparisonMarkdown, validateBaseline } from './comparis
 import { AuditInputError, measureRealApp, runCli } from './index.mjs'
 
 const clone = (value) => structuredClone(value)
+
+test('installed static package settings permit CI comparison; metadata/config edits or missing install do not', async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-installed-config-'))
+  const output = mkdtempSync(path.join(tmpdir(), 'hozo-installed-config-output-'))
+  t.after(() => {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(output, { recursive: true, force: true })
+  })
+  const files = {
+    'app/Card.tsx': `import { View } from '@hozo/core'; export const Card = () => <View />`,
+    'tsconfig.json':
+      '{"extends":"@app/config", "compilerOptions":{"baseUrl":".","paths":{"@/*":["tokens/*"]},"plugins":[{"name":"./execute.cjs"}]}}',
+    'execute.cjs': `throw new Error('app configuration must not execute')`,
+    'node_modules/@app/config/package.json': '{"tsconfig":"./base.json","main":"./execute.cjs"}',
+    'node_modules/@app/config/base.json':
+      '{ // static JSONC\n "compilerOptions":{"strict":true}, }',
+    'node_modules/@app/config/other.json': '{}',
+    'node_modules/@app/config/execute.cjs': `throw new Error('package main must not execute')`,
+    'tokens/sheet.ts': `import * as stylex from '@stylexjs/stylex'; export const styles = stylex.create({root:{padding:8}})`,
+  }
+  for (const [file, source] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+    writeFileSync(path.join(root, file), source)
+  }
+  const snapshot = readdirSync(root, { recursive: true })
+  const before = await measureRealApp({ root })
+  assert.equal(before.analysis.projectFacts.aliases.status, 'resolved')
+  assert.match(before.analysis.resolutionPolicy, /checkout-static-json-extends-v1/)
+  assert.equal(before.scope.authoredFiles, 1)
+  assert.equal(before.scope.contextModules, 0)
+  assert.equal(before.analysis.configurationInputs.length, 3)
+  assert.equal(before.lowering.webComponents, 1)
+  assert.equal(before.lowering.nativeComponents, 1)
+  assert.equal(before.lowering.parseOrCompileFailures, 0)
+  assert.ok(!before.findings.some(({ code }) => /STYLEX.*UNRESOLVED/.test(code)))
+  const baseline = path.join(output, 'baseline.json')
+  writeFileSync(baseline, JSON.stringify(before))
+  const args = [root, '--compare', baseline, '--fail-on', 'new-errors']
+  const stdout = { write() {} }
+  const same = await runCli(args, { stdout })
+  assert.equal(same.comparison.status, 'comparable')
+  assert.equal(same.failurePolicy.exitCode, 0)
+  assert.equal(same.failurePolicy.newErrors, 0)
+  const legacy = clone(before)
+  legacy.analysis.resolutionPolicy = before.analysis.resolutionPolicy.replace(
+    'checkout-static-json-extends-v1; ',
+    '',
+  )
+  assert.equal(compareReports(before, legacy).status, 'not-comparable')
+  assert.deepEqual(readdirSync(root, { recursive: true }), snapshot)
+  for (const [file, source] of Object.entries(files))
+    assert.equal(readFileSync(path.join(root, file), 'utf8'), source)
+  const manifest = path.join(root, 'node_modules/@app/config/package.json')
+  writeFileSync(manifest, '{"tsconfig":"./other.json"}')
+  const changed = await runCli(args, { stdout })
+  assert.equal(changed.comparison.status, 'not-comparable')
+  assert.equal(changed.failurePolicy.status, 'blocked')
+  assert.equal(changed.failurePolicy.newErrors, null)
+  assert.equal(changed.corpus.sourceSha256, before.corpus.sourceSha256)
+  assert.notEqual(
+    changed.analysis.configurationInputs[1].sha256,
+    before.analysis.configurationInputs[1].sha256,
+  )
+  writeFileSync(manifest, files['node_modules/@app/config/package.json'])
+  writeFileSync(path.join(root, 'node_modules/@app/config/base.json'), '{}')
+  const configChanged = await runCli(args, { stdout })
+  assert.equal(configChanged.comparison.status, 'not-comparable')
+  assert.equal(configChanged.failurePolicy.exitCode, 1)
+  rmSync(path.join(root, 'node_modules/@app/config/base.json'))
+  const missing = await runCli(args, { stdout })
+  assert.equal(missing.analysis.projectFacts.aliases.status, 'unresolved')
+  assert.equal(missing.failurePolicy.exitCode, 1)
+  assert.equal(missing.failurePolicy.newErrors, null)
+  assert.equal(missing.analysis.configurationInputs.length, 2)
+})
+
 function report() {
   const journal = { status: 'completed', scope: 'test-contract', outcomes: [] }
   return {
