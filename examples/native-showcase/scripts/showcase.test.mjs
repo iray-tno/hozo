@@ -10,6 +10,107 @@ import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
 
+function compiledVideoProbe(hooks = {}) {
+  const react = require('react')
+  const { transformSync } = require('esbuild')
+  const file = path.join(root, '../showcase/src/video-probe.tsx')
+  const source = transformHozoSource(readFileSync(file, 'utf8'), file)
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
+  const module = { exports: {} }
+  new Function('require', 'module', code)((name) => {
+    if (name === 'react') return { ...react, ...hooks }
+    if (name === 'react/jsx-runtime') return require(name)
+    if (name === 'react-native')
+      return {
+        View: 'NativeView',
+        Text: 'NativeText',
+        Pressable: 'NativePressable',
+        StyleSheet: { create: (styles) => styles },
+      }
+    if (name === '@hozo/media') return { Video: 'Video' }
+    throw new Error(`Unexpected Video probe dependency: ${name}`)
+  }, module)
+  return module.exports
+}
+
+const probeStatus = (changes = {}) => ({
+  src: 'fixture.mp4',
+  status: 'ready',
+  playing: false,
+  buffering: false,
+  currentTime: 0,
+  duration: 4.01,
+  error: null,
+  ...changes,
+})
+
+test('compiled probe callback retains a real playback advance without keeping the AX tree busy', () => {
+  const react = require('react')
+  let displayed = null
+  let updates = 0
+  const { VideoPlaybackProbe } = compiledVideoProbe({
+    useRef: () => ({ current: null }),
+    useState: (initial) =>
+      initial === true
+        ? [true, () => {}]
+        : [
+            displayed,
+            (update) => {
+              const next = typeof update === 'function' ? update(displayed) : update
+              if (displayed !== next) updates++
+              displayed = next
+            },
+          ],
+  })
+  const tree = VideoPlaybackProbe({ src: 'fixture.mp4' })
+  const viewport = react.Children.toArray(tree.props.children).find(
+    (node) => node.props.children?.type === 'Video',
+  )
+  const notify = viewport.props.children.props.onStatusChange
+  notify(probeStatus())
+  updates = 0
+  notify(probeStatus({ playing: true }))
+  notify(probeStatus({ playing: true, currentTime: 0.25 }))
+  assert.equal(displayed.currentTime, 0, 'playing alone or time=0.25 cannot prove advance')
+  const firstAdvance = probeStatus({ playing: true, currentTime: 0.5 })
+  notify(firstAdvance)
+  // Realistic quarter-second callbacks, including looping back to zero.
+  for (let tick = 3; tick <= 32; tick++) {
+    notify(probeStatus({ playing: true, currentTime: (tick % 16) / 4 }))
+  }
+  assert.equal(displayed, firstAdvance)
+  assert.equal(updates, 2, 'only playing and the first measured advance change the display')
+  notify(probeStatus({ currentTime: 3.25 }))
+  assert.equal(displayed.currentTime, 3.25, 'pause must use the fresh decoder time')
+  notify(probeStatus({ currentTime: 3.5 }))
+  assert.equal(displayed.currentTime, 3.5, 'unexpected paused drift must remain detectable')
+  notify(probeStatus({ currentTime: 2 }))
+  assert.equal(displayed.currentTime, 2, 'paused seek must remain observable')
+})
+
+test('probe clock coalescing preserves source, lifecycle, buffering, duration and error transitions', () => {
+  const { nextVideoProbeStatus } = compiledVideoProbe()
+  const previous = probeStatus({ playing: true, currentTime: 0.5 })
+  for (const change of [
+    { src: 'other.mp4' },
+    { status: 'loading' },
+    { status: 'ended' },
+    { playing: false },
+    { buffering: true },
+    { duration: null },
+    { status: 'error', error: { src: 'fixture.mp4', operation: 'play', message: 'failed' } },
+  ]) {
+    const next = { ...previous, ...change }
+    assert.equal(nextVideoProbeStatus(previous, next), next)
+  }
+  const failed = {
+    ...previous,
+    error: { src: 'fixture.mp4', operation: 'seek', message: 'failed' },
+  }
+  assert.equal(nextVideoProbeStatus(failed, previous), previous, 'error recovery is observable')
+  assert.equal(nextVideoProbeStatus(null, previous), previous)
+})
+
 test('Video decoder probe keeps its Native media host and static control styles', () => {
   const file = path.join(root, '../showcase/src/video-probe.tsx')
   const output = transformHozoSource(readFileSync(file, 'utf8'), file)

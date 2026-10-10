@@ -78,5 +78,13 @@ never repeated. Captures, failed observations, phase, source hash and timings
 are retained in `evidence.json`. No emulator success is claimed until these
 gates pass on the actual CI app, with its binary/source provenance.
 
+During playback the diagnostic status label retains the first real decoder
+time above 0.25s, rather than repainting at every tick: Android UIAutomator
+otherwise cannot obtain an idle AX tree. No time is invented from a play
+request. The player callbacks and ordinary story are unchanged; paused time,
+seek results, buffering, lifecycle and errors still update the label. Pixel
+checks remain independent of this display. Unnamed iOS AX nodes are skipped,
+not interpreted as status; a loading-only tree still times out.
+
 Sources: [Expo Video API](https://docs.expo.dev/versions/latest/sdk/video/),
 [Expo Audio API](https://docs.expo.dev/versions/latest/sdk/audio/).

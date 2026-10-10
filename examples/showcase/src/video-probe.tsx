@@ -10,6 +10,28 @@ function VideoViewport({ children }: PropsWithChildren) {
   )
 }
 
+// Diagnostic display only: keep the first observed playback advance so Android
+// UIAutomator can obtain an idle accessibility tree. The player still reports
+// every real tick; paused times and all non-clock transitions remain observable.
+export function nextVideoProbeStatus(previous: VideoStatus | null, next: VideoStatus): VideoStatus {
+  if (
+    !previous ||
+    previous.src !== next.src ||
+    previous.status !== next.status ||
+    previous.playing !== next.playing ||
+    previous.buffering !== next.buffering ||
+    previous.duration !== next.duration ||
+    previous.error?.src !== next.error?.src ||
+    previous.error?.operation !== next.error?.operation ||
+    previous.error?.message !== next.error?.message ||
+    (!next.playing && previous.currentTime !== next.currentTime) ||
+    (next.playing && previous.currentTime <= 0.25 && next.currentTime > 0.25)
+  ) {
+    return next
+  }
+  return previous
+}
+
 /** A real player, not a simulated clock; paused seeks isolate pixels from UI text. */
 export function VideoPlaybackProbe({
   src,
@@ -34,7 +56,7 @@ export function VideoPlaybackProbe({
             controls={false}
             muted
             loop
-            onStatusChange={setStatus}
+            onStatusChange={(next) => setStatus((previous) => nextVideoProbeStatus(previous, next))}
             style={{ width: '100%', height: 180, backgroundColor: '#0f172b' }}
           />
         </Viewport>
