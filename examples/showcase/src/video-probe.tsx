@@ -81,7 +81,7 @@ export function VideoPlaybackProbe({
             setMounted((value) => !value)
           }}
         >
-          {mounted ? 'Remove probe' : 'Mount probe'}
+          <Text className="text-base text-white">{mounted ? 'Remove probe' : 'Mount probe'}</Text>
         </Button>
       </View>
     </View>

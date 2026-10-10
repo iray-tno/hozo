@@ -28,6 +28,43 @@ test('Video decoder probe keeps its Native media host and static control styles'
   assert.match(host, /Viewport=\{NativeVideoViewport\}/)
 })
 
+test('compiled Video removal and remount buttons render their dynamic label inside Native Text', () => {
+  const react = require('react')
+  const { transformSync } = require('esbuild')
+  const file = path.join(root, '../showcase/src/video-probe.tsx')
+  const source = transformHozoSource(readFileSync(file, 'utf8'), file)
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
+  for (const mounted of [true, false]) {
+    const module = { exports: {} }
+    new Function('require', 'module', code)((name) => {
+      if (name === 'react')
+        return {
+          ...react,
+          useRef: () => ({ current: null }),
+          useState: (initial) => [initial === true ? mounted : initial, () => {}],
+        }
+      if (name === 'react/jsx-runtime') return require(name)
+      if (name === 'react-native')
+        return {
+          View: 'NativeView',
+          Text: 'NativeText',
+          Pressable: 'NativePressable',
+          StyleSheet: { create: (styles) => styles },
+        }
+      if (name === '@hozo/media') return { Video: 'Video' }
+      throw new Error(`Unexpected Video probe dependency: ${name}`)
+    }, module)
+    const tree = module.exports.VideoPlaybackProbe({ src: 'fixture.mp4' })
+    const controls = react.Children.toArray(tree.props.children).at(-1)
+    const toggle = react.Children.toArray(controls.props.children).at(-1)
+    assert.equal(toggle.type, 'NativePressable')
+    assert.equal(toggle.props.children.type, 'NativeText')
+    assert.equal(toggle.props.children.props.children, mounted ? 'Remove probe' : 'Mount probe')
+    assert.equal(toggle.props.children.props.style.color, '#fff')
+    assert.equal(toggle.props.children.props.style.fontSize, 16)
+  }
+})
+
 test('shared Video retains the media host while its control variants compile statically for Native', () => {
   const file = path.join(root, '../showcase/src/video.tsx')
   const output = transformHozoSource(readFileSync(file, 'utf8'), file)

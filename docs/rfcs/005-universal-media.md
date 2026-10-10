@@ -28,6 +28,13 @@ Methods express requests. Events express observations. `play()` resolving is
 not a claim that a frame was decoded; a seek target is not a guarantee of
 frame-exact decoder positioning. Unknown/live duration stays null. Denied
 autoplay is observable. Engine-generated callbacks identify their source.
+Container seekability is also engine-owned: a loaded finite duration does not
+prove that a source can seek. In particular, Expo SDK 57's Media3 1.9 engine
+cannot seek our original Chrome fragmented MP4 with only an `mfra` index
+([upstream](https://github.com/androidx/media/issues/3088)). The owned fixture
+now includes a `sidx` index without changing its encoded samples or timing.
+This fixes the measurement source, not arbitrary application containers;
+explicit seekability/capability reporting remains follow-up work.
 
 ## Boundaries and next slices
 

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { fixtureBoxes, indexVideoFixture } from '../../showcase/scripts/index-video-fixture.mjs'
 import { exerciseVideo, VIDEO_PROBE_LABEL, videoFrame, videoStatus } from './video-evidence.mjs'
 
 function image(time = 0, scale = 1) {
@@ -135,7 +137,7 @@ test('one action per phase yields decoder, playback and lifetime checks, with or
   assert.equal(h.evidence.video.passed, true)
   assert.equal(
     h.evidence.video.fixtureSha256,
-    '42cc32226e5100184847e9e3394c6df889f2f944c921126b21fc3094aaa4458c',
+    'ec717bea2e39273270213654f7774a51aaed47b75b37ef843276f7d765322f58',
   )
   assert.equal(h.checks.length, 3)
   assert.equal(h.routes[0], 'media-video--playback-evidence')
@@ -151,6 +153,49 @@ test('one action per phase yields decoder, playback and lifetime checks, with or
   ])
   assert.equal(h.evidence.video.captures.length, 4)
   assert.ok(h.evidence.video.observations.some((s) => s.playing === true && s.time > 0))
+})
+
+test('the seek index preserves every recorded byte except the relocated mfra offset', () => {
+  const indexed = readFileSync(new URL('../../showcase/assets/hozo-video.mp4', import.meta.url))
+  const boxes = fixtureBoxes(indexed)
+  assert.deepEqual(
+    boxes.map((box) => box.type),
+    ['ftyp', 'moov', 'sidx', 'moof', 'mdat', 'mfra'],
+  )
+  const [, , sidx, moof, mdat, mfra] = boxes
+  assert.equal(sidx.size, 44)
+  assert.equal(indexed.readUInt32BE(sidx.data), 0)
+  assert.equal(indexed.readUInt32BE(sidx.data + 4), 1)
+  assert.equal(indexed.readUInt32BE(sidx.data + 8), 30000)
+  assert.equal(indexed.readUInt32BE(sidx.data + 12), 0)
+  assert.equal(indexed.readUInt32BE(sidx.data + 16), 0)
+  assert.equal(indexed.readUInt16BE(sidx.data + 22), 1)
+  assert.equal(indexed.readUInt32BE(sidx.data + 24), moof.size + mdat.size)
+  assert.ok(indexed.readUInt32BE(sidx.data + 28) / 30000 > 4)
+  assert.ok(indexed.readUInt32BE(sidx.data + 28) / 30000 < 4.1)
+  assert.equal(indexed.readUInt32BE(sidx.data + 32), 0x90000000)
+  const tail = Buffer.from(indexed.subarray(mfra.at))
+  const tfra = fixtureBoxes(tail).flatMap((box) => fixtureBoxes(tail, box.data, box.size))[0]
+  assert.equal(tfra.type, 'tfra')
+  assert.equal(tail.readBigUInt64BE(tfra.data + 24), BigInt(moof.at))
+  tail.writeBigUInt64BE(BigInt(moof.at - sidx.size), tfra.data + 24)
+  const original = Buffer.concat([
+    indexed.subarray(0, sidx.at),
+    indexed.subarray(moof.at, mfra.at),
+    tail,
+  ])
+  assert.equal(
+    createHash('sha256').update(original).digest('hex'),
+    '42cc32226e5100184847e9e3394c6df889f2f944c921126b21fc3094aaa4458c',
+    'the original recording, including encoded samples and timing, is unchanged',
+  )
+  assert.deepEqual(indexVideoFixture(original), indexed)
+  assert.throws(() => indexVideoFixture(indexed), /deep-equal/)
+  assert.throws(() => fixtureBoxes(original.subarray(0, 100)), /invalid fixture box size/)
+  const corrupt = Buffer.from(original)
+  corrupt.writeUInt32BE(0, 848) // first sample duration
+  corrupt.writeUInt32BE(0, 852) // first sample byte length
+  assert.throws(() => indexVideoFixture(corrupt), /equal/)
 })
 
 test('a static poster cannot pass the seek gate even when status labels advance', async () => {
