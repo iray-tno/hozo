@@ -55,7 +55,19 @@ and preflight policy as builds, in memory only. The default `auto` scan is conse
 comments/unused strings can count) and limited to supplied sources, not a claim about the app's actual
 reset. Explicit primitive sources extend the defaults. Invalid/unsupported themes produce labelled
 partial context with builtin compiler assumptions; no partial theme is silently accepted. Font
-registration, import aliases and cross-file StyleX still require later preparation.
+registration remains unassessed. Preparation also supplies separate Web/iOS/Android static
+StyleX graphs, with checkout-relative imports and supported tsconfig aliases; context modules
+never inflate the caller's authored inventory.
+
+Static root JSONC `tsconfig.json` inheritance supports local paths and installed package config
+files, including a package's `tsconfig` field, default `tsconfig.json` and explicit subpaths.
+Lookup stays inside the checkout (including internal package links), never the tool's dependencies
+or global/parent installs. Missing configs/packages are unresolved, not absent/defaulted aliases.
+Selected package manifests and config files are hashed as configuration inputs. No app/package
+JavaScript, config plugins, scripts or package `main` are loaded. The recorded policy is
+`checkout-static-json-extends-v1`; it is an alias-settings subset, not complete TypeScript/bundler
+resolution. Multiple extends, config templates, package exports and outside-checkout links remain
+unsupported. See [TypeScript's package config lookup](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-2.html#tsconfigjson-inheritance-via-nodejs-packages).
 
 ## The list that must not drift
 

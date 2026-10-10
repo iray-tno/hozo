@@ -229,6 +229,27 @@ new Native errors, continued errors, warning escalation, ambiguous subjects, sou
 rejection, changed scope/schema and malformed inputs. This corpus's zero current errors does
 not exercise those cases or make partial project context complete.
 
+The next increment resolves **installed static package tsconfig presets** in the shared compiler,
+without installing dependencies or executing project configuration. A fresh serial, two-core rerun
+of the same clean pin retains all authored/lowering/diagnostic/RN binding and member-review summaries
+(asserted equal to the prior JSON): **1,660 files**, **218 warnings**, zero compile errors or direct
+RN JSX residue. This checkout has **no installed `@react-native/typescript-config`**, so its alias
+fact changes from unsupported package extends to **unresolved missing package**, not resolved
+context. Only the root `tsconfig.json` enters configuration inputs; no preset bytes were invented.
+Installed-preset fixtures independently prove inherited aliases, Web/iOS/Android StyleX lowering,
+read-only operation and manifest/config hash invalidation.
+
+The new `checkout-static-json-extends-v1` resolution policy makes the previous-policy baseline
+**not comparable**. A same-report self-comparison under the new policy remains **partial**:
+436 before/after finding records and 1,639 Web boundaries are unassessed; 21 Native-only files are
+not applicable. This is not an independent second-run comparison or a zero-regression verdict.
+`none` and `error` return exit 0; `new-errors` stays **blocked / exit 1**, with `newErrors: null`.
+The audit took **11.15s**, including **0.063s snapshot reads**, 4.87s preparation, 1.00s bindings,
+1.07s source usage, **2.67s Web lowering** and 0.88s residue checks. Filesystem/cache variation
+prevents attributing the whole-audit timing change to this resolver. The rebuilt development binding
+SHA-256 is `109cbcc44162c5aaa13203dc5d798c197b031ba616ab29bff8e9afcfdd28182a`.
+No production build, dependency removal or device verification was rerun for this increment.
+
 | Signal | Files or bindings |
 |---|---:|
 | filesImportingReactNative | 636 |

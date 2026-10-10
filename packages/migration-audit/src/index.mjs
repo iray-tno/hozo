@@ -250,8 +250,7 @@ async function measure(options) {
       omittedScope:
         'Built-in excluded directory contents and unsupported extensions are not enumerated; this is a source inventory, not an entry-point production graph.',
       nativePlatform: options.nativePlatform ?? 'android',
-      resolutionPolicy:
-        'static-relative-and-tsconfig-paths; platform suffix preference; ambiguous extensions unresolved; not authoritative bundler resolution',
+      resolutionPolicy: `${project.stylex.configurationResolutionPolicy}; static-relative-and-tsconfig-paths; platform suffix preference; ambiguous extensions unresolved; not authoritative bundler resolution`,
       parserMode: 'extension-aware JS/TS syntax; JavaScript accepts JSX; not TypeScript validation',
       contextModules: project.stylex.contextSources.map(({ file, sha256 }) => ({
         file: relative(root, file),

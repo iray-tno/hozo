@@ -91,10 +91,23 @@ memory, with **separate Web/iOS/Android resolver-owned edges**, never another ut
 Only graph-requested context files are read outside the authored selection; their hashes and
 purpose are retained without inflating `files`, source bytes or authored signal counts.
 Static resolution handles relative imports, directory indexes, ESM `.js` spellings for TS,
-and exact/single-wildcard `paths` in root JSONC `tsconfig.json` with local relative extends.
+and exact/single-wildcard `paths` in root JSONC `tsconfig.json` with local or installed package extends.
 The alias fact is scoped to these settings, not all TypeScript/bundler configuration.
-Package extends, package exports/custom resolver hooks and bundler aliases remain explicitly
-unassessed. No configuration JS, tsconfig plugins, application imports or scripts are executed.
+The shared compiler resolves explicit package subpaths (including omitted `.json`), a package's
+static `tsconfig` field or default `tsconfig.json`, with lookup bounded by the checkout. Internal
+package links are accepted only when their physical targets also stay inside it. No install is
+performed; missing packages/settings are `unresolved`, not absent/defaulted success. Both selected
+manifests and configuration files enter `configurationInputs` with hashes, without entering authored
+file/byte counts. Base URLs and inherited path origins remain attached to their declaring config;
+an effective child base URL takes precedence when resolving paths. Settings are read fresh per audit.
+This follows the static subset of [TypeScript config inheritance](https://www.typescriptlang.org/tsconfig/extends.html),
+not a second application/bundler resolver. The report records `checkout-static-json-extends-v1`
+so previous resolver policies cannot silently provide comparable baseline evidence.
+
+Multiple extends, configuration templates, package exports/custom resolver hooks and bundler aliases
+remain explicitly unassessed. Nearest installed-but-broken configs are not guessed into an outer
+package, and lookup never escapes to the audit tool's own dependencies or global installs.
+No configuration JS, tsconfig plugins, application imports or scripts are executed.
 Nonselected but admitted sources can supply graph facts (including excluded authored files);
 this does not turn them into migration targets. Unresolved edges are retained per platform.
 Default platform preference is `.web` then unsuffixed for Web, and `.ios` / `.android` then

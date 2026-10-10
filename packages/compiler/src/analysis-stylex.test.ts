@@ -120,6 +120,57 @@ test('local config inheritance, alias precedence, index and ESM spellings are st
   assert.doesNotMatch(result.targets.web!.code!, /stylex\.props/)
 })
 
+test('installed package config feeds the same real Web/Native graph without authored inflation', async (t) => {
+  const root = fixture(t, {
+    'app/Card.tsx': card,
+    'tsconfig.json':
+      '{"extends":"@app/config/tsconfig.base", "compilerOptions":{"baseUrl":".","paths":{"@/*":["tokens/*"]}}}',
+    'node_modules/@app/config/package.json': '{"main":"./execute.cjs"}',
+    'node_modules/@app/config/tsconfig.base.json':
+      '{"extends":"./defaults", "compilerOptions":{"jsx":"react-jsx"}}',
+    'node_modules/@app/config/defaults.json': '{}',
+    'node_modules/@app/config/execute.cjs':
+      'throw new Error("configuration code must never execute")',
+    'tokens/barrel.ts': `export { styles } from './sheet'`,
+    'tokens/sheet.web.ts': sheet(11),
+    'tokens/sheet.ios.ts': sheet(22),
+    'tokens/sheet.android.ts': sheet(33),
+  })
+  const context = await prepare(root)
+  assert.equal(context.projectFacts.aliases.status, 'resolved')
+  assert.equal(context.stylex.configurationInputs.length, 4)
+  assert.equal(context.stylex.contextSources.length, 4)
+  assert.ok(
+    context.stylex.resolutions.some(
+      ({ specifier, status }) => specifier === '@/barrel' && status === 'resolved',
+    ),
+  )
+  assert.ok(
+    context.stylex.resolutions.some(
+      ({ specifier, status }) => specifier === './sheet' && status === 'resolved',
+    ),
+  )
+  const file = path.join(root, 'app/Card.tsx')
+  for (const [platform, padding] of [
+    ['web', 11],
+    ['ios', 22],
+    ['android', 33],
+  ] as const) {
+    const graph = context.stylex.graphs[platform]
+    context.compiler.setStylexModules(graph.moduleSources())
+    if (platform === 'web')
+      assert.match(
+        context.compiler.compile(card, graph.bindingsFor(file))[0]!.css,
+        /padding-top: 11px/,
+      )
+    else
+      assert.match(
+        context.compiler.compileNative(card, graph.bindingsFor(file))[0]!.styles,
+        new RegExp(`paddingTop: ${padding}`),
+      )
+  }
+})
+
 test('unsupported configs and unresolved/cyclic graph edges do not get guessed', async (t) => {
   for (const config of [
     '{"extends":"@app/executable-config"}',
@@ -134,7 +185,9 @@ test('unsupported configs and unresolved/cyclic graph edges do not get guessed',
       'tokens/barrel.ts': sheet(99),
     })
     const context = await prepare(root)
-    assert.ok(['unsupported', 'invalid'].includes(context.projectFacts.aliases.status))
+    assert.ok(
+      ['unsupported', 'invalid', 'unresolved'].includes(context.projectFacts.aliases.status),
+    )
     assert.ok(
       context.stylex.resolutions.some(
         ({ specifier, status }) => specifier === '@/barrel' && status === 'unresolved',
