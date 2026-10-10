@@ -183,6 +183,32 @@ Keyboard notifications do not fire and Platform.Version is a placeholder. Per-re
 and grouped Markdown retain limitations, next actions and implementation/test paths. Evidence
 links use Hozo main, not the audited application or a frozen installed-tool revision.
 
+The first Slice 5 increment adds **optional JSON baseline comparison**, without changing the
+audited source or compiler decisions. A serial rerun over the same clean pin retains all
+1,660 authored files, the same authored fingerprint, **218 warnings**, 1,193 Web / 1,149 Native
+components, and the same 323 non-JSX references and 154 / 105 / 64 member-review partition.
+Source/import/tag/value/diagnostic summaries are asserted equal to the previous raw JSON.
+No production dependency graph or device test is rerun.
+
+The comparison is deliberately **partial**, not a zero-regression certification: the existing
+unsupported package-based tsconfig extends leaves alias context unassessed. It reports no
+added/removed/source-changed/target-changed files, but does not promote either observation's
+218 warnings to new/resolved/continued verdicts (**436 retained unassessed records**).
+The **1,639 Web-selected boundaries** remain unassessed for comparison; 21 Native-only files
+are separately not applicable. This is a limitation of strict context comparability, not newly
+broken source or additional diagnostics. Line movement, changed severity, duplicates, moves,
+failed probes, CSS/config changes and actual RN boundary categories have dedicated fixtures;
+this corpus does not substitute for those fixtures.
+
+Comparison of the already-read reports took **52.5ms**, excluding JSON reads/parsing and Markdown
+rendering. The fresh serial two-core audit took **29.63s**, including **19.80s snapshot reads**,
+3.87s preparation, 0.93s binding analysis, 1.00s source usage, **2.52s Web lowering** and 0.85s
+residue checks. Filesystem variation again prevents a controlled whole-audit speed comparison.
+The rebuilt development binding SHA-256 is
+`fc0171e9fe932b1418d8040f6d173ef7db99718ee4829ebd0a5c6378db724e00`.
+Different recorded tool identities are provenance, not a causal explanation for count changes.
+Explicit CI failure policies remain the next Slice 5 increment.
+
 | Signal | Files or bindings |
 |---|---:|
 | filesImportingReactNative | 636 |
