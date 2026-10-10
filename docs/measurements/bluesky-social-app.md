@@ -207,7 +207,27 @@ residue checks. Filesystem variation again prevents a controlled whole-audit spe
 The rebuilt development binding SHA-256 is
 `fc0171e9fe932b1418d8040f6d173ef7db99718ee4829ebd0a5c6378db724e00`.
 Different recorded tool identities are provenance, not a causal explanation for count changes.
-Explicit CI failure policies remain the next Slice 5 increment.
+
+The next Slice 5 increment supplies **explicit CI failure policies** without changing compiler
+decisions. Another clean, pinned rerun again retains the same 1,660 files, authored fingerprint,
+218 warnings and source/import/tag/value/member-review summaries (asserted equal to the prior
+JSON). Evaluating those uncapped records with `none` or `error` returns exit **0** for this
+warning-only observation. `new-errors` returns **blocked / exit 1**, with `newErrors: null`,
+because the unchanged unsupported tsconfig extends still makes comparison partial. It does
+**not** convert 436 unassessed before/after findings or 1,639 unassessed Web boundaries into a
+zero-regression verdict. No build graph, dependency-removal or device claim is added.
+
+Comparison over already-read reports took **49.3ms**; separate policy evaluations took
+**1.01 / 0.81 / 0.29ms** for none/error/new-errors, excluding JSON I/O and rendering. These
+single local observations are not a controlled performance benchmark. The serial two-core
+audit took **27.87s**, including **17.92s snapshot reads**, 3.98s project preparation, 0.95s
+bindings, 1.01s source usage, 2.56s Web lowering and 0.83s residue checks. The freshly rebuilt
+development binding SHA-256 is
+`56d3fe72555b4f2b8ad5c5b6adfa4d98c2c4124a57fc439c3ea2de2261e6f61f`.
+The CLI writes failed/blocked policy reports before exiting; dedicated fixtures cover real
+new Native errors, continued errors, warning escalation, ambiguous subjects, source syntax
+rejection, changed scope/schema and malformed inputs. This corpus's zero current errors does
+not exercise those cases or make partial project context complete.
 
 | Signal | Files or bindings |
 |---|---:|

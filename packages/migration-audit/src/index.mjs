@@ -13,6 +13,7 @@ import {
 import { loadStaticProjectTheme } from '@hozo/tailwind'
 import { compareReports, comparisonMarkdown, validateBaseline } from './comparison.mjs'
 import { escapeMarkdown, findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
+import { evaluateFailurePolicy, failurePolicyMarkdown } from './policy.mjs'
 
 const SAMPLE_LIMIT = 12
 const DOM_STYLE_ARRAY =
@@ -40,6 +41,7 @@ Options:
   --format json|markdown     Override format (default: Markdown in a terminal, JSON in a pipe)
   --details                 Include every finding in Markdown (JSON is always complete)
   --compare <report>         Compare with a previous JSON audit (informational by default)
+  --fail-on none|error|new-errors CI finding policy (default: none); new-errors requires --compare
   --help                    Show this help
 
 JS/TS (.tsx/.jsx/.ts/.js/.mts/.mjs) source is observed. Dependencies, declarations,
@@ -82,12 +84,16 @@ function parseArgs(argv) {
     else if (key === '--expected-commit') options.expectedCommit = value
     else if (key === '--output') options.output = value
     else if (key === '--compare') options.compare = value
+    else if (key === '--fail-on' && ['none', 'error', 'new-errors'].includes(value))
+      options.failOn = value
     else if (key === '--reproduce-command') options.reproduceCommand = value
     else if (key === '--format' && (value === 'json' || value === 'markdown'))
       options.format = value
     else throw new AuditInputError(`Unknown option or value: ${key} ${value}`)
   }
   if (!options.root) throw new AuditInputError('A checkout is required; use --help for usage')
+  if (options.failOn === 'new-errors' && !options.compare)
+    throw new AuditInputError('--fail-on new-errors requires --compare <JSON report>')
   return options
 }
 
@@ -753,7 +759,7 @@ A tag is lowered only when its binding was imported from a module Hozo recognise
 | Files with warnings | ${report.diagnostics.filesWithWarnings} |
 ${diagnostics.length > 0 ? table(diagnostics) : '| Diagnostic occurrences | 0 |'}
 
-${findingDetails(report, details)}${report.comparison ? `\n\n${comparisonMarkdown(report.comparison, { details })}` : ''}
+${findingDetails(report, details)}${report.comparison ? `\n\n${comparisonMarkdown(report.comparison, { details })}` : ''}${report.failurePolicy ? `\n\n${failurePolicyMarkdown(report.failurePolicy)}` : ''}
 
 ${
   report.toolchain
@@ -834,6 +840,7 @@ export async function runCli(argv = process.argv.slice(2), { stdout = process.st
   }
   const report = await measure(options)
   if (baseline) report.comparison = compareReports(report, baseline)
+  report.failurePolicy = evaluateFailurePolicy(report, options.failOn)
   const output =
     options.format === 'markdown'
       ? markdown(report, options)
@@ -849,4 +856,9 @@ export async function runCli(argv = process.argv.slice(2), { stdout = process.st
   return report
 }
 
-export { compareReports, markdown as renderRealAppMarkdown, measure as measureRealApp }
+export {
+  compareReports,
+  evaluateFailurePolicy,
+  markdown as renderRealAppMarkdown,
+  measure as measureRealApp,
+}
