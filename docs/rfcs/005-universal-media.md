@@ -57,5 +57,19 @@ Treat these as separate layers. No codec support or native accessibility
 claims follow from bundle success. Native decoding/pixels and TalkBack/
 VoiceOver manipulation require their own device or emulator evidence.
 
+The Native full-showcase drivers now request `Media/Video/PlaybackEvidence`,
+using the same local MP4 and real media host. The ordinary platform-control
+story is unchanged. The probe keeps standard controls off and supplies named
+external controls, with a named image region around only the video viewport.
+This is a measurement surface, not a certification of Expo's control-bar AX.
+Both drivers require actual square pixels at the first frame and a paused 2s
+seek, a changed horizontal centroid, an advancing observed playback clock,
+pause, viewport removal, and a fresh paused-at-zero remount with first-frame
+pixels. Three additional checks run within `full`; isolated SVG/GL/Canvas
+scenarios are unchanged. Pixel polling is read-only, and a failed input is
+never repeated. Captures, failed observations, phase, source hash and timings
+are retained in `evidence.json`. No emulator success is claimed until these
+gates pass on the actual CI app, with its binary/source provenance.
+
 Sources: [Expo Video API](https://docs.expo.dev/versions/latest/sdk/video/),
 [Expo Audio API](https://docs.expo.dev/versions/latest/sdk/audio/).
