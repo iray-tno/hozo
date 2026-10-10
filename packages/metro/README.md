@@ -19,6 +19,12 @@ module.exports = withHozo(config, { root: projectRoot })
 
 Metro accepts a promised config, so `withHozo` can resolve the Tailwind theme and generate the dynamic candidate module before bundling begins. It preserves the supplied config and records an existing Babel transformer as its upstream, including Expo's or another tool's transformer.
 
+## Importing from `@hozo/core` costs only what you use
+
+Metro does not tree-shake, so a plain `import { Button } from '@hozo/core'` would load every pattern, primitive and form control the facade re-exports, used or not. The transformer rewrites named imports from `@hozo/core`, `@hozo/patterns`, `@hozo/primitives`, `@hozo/semantics`, `@hozo/typography`, `@hozo/behaviors` and `@hozo/form` to the modules that define each name, so an app pays for the components it imports. On the example app this took Hozo's share of the bundle from 591 KB to 436 KB.
+
+This happens only for files Metro transforms through `withHozo`. A project that resolves Hozo packages through a plain Metro config still gets the whole facade. Web bundlers (Vite, webpack, Rollup) tree-shake the same imports themselves. A `type` import, a namespace import (`import * as Hozo`) or a name the rewrite cannot trace stays on the barrel.
+
 ## TypeScript
 
 Nothing to configure, as long as the project's `tsconfig.json` extends `expo/tsconfig.base` or `@react-native/typescript-config`. Both set:

@@ -132,6 +132,27 @@ expect(
   `Hozo's modules stay below 460 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
+// The cause behind the six raises above, watched directly rather than
+// through the number. A barrel that only re-exports reaches the bundle when
+// some import of it was not rewritten -- a new package missing from
+// `MODULAR_SOURCES`, a name the export table cannot follow, a compiled leaf
+// importing the facade -- and from then on every component behind it is
+// paid for again. The budget would show that eventually, after enough
+// components; this shows it the first time. `@hozo/semantics` and
+// `@hozo/typography` are not listed: their entries define the components
+// themselves, so loading them is the cost of using them.
+const barrels = [...bundle.matchAll(/,"([^"]+)"\);/g)]
+  .map((match) => match[1])
+  .filter((name) =>
+    /(^|[\/])packages[\/](core|patterns|primitives|behaviors|form)[\/]dist[\/]index(\.native)?\.js$/.test(
+      name,
+    ),
+  )
+expect(
+  barrels.length === 0,
+  `no re-exporting Hozo barrel is in the bundle (found ${barrels.join(', ')})`,
+)
+
 // And a coarse ceiling on the whole, for the regression this check began
 // as: a feature pulling a second platform layer or another large dependency
 // into every Native app. Skia was that once (+1.3 MB, now its own entry).
