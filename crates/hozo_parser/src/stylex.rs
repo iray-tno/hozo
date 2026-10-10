@@ -37,6 +37,10 @@ use oxc_syntax::scope::ScopeFlags;
 
 use crate::tailwind;
 
+mod context;
+pub use context::ModuleContextSummary;
+pub(crate) use context::summarize as context_summary;
+
 const STYLEX_MODULE: &str = "@stylexjs/stylex";
 
 #[derive(Debug, Clone)]
@@ -101,6 +105,8 @@ pub struct ModuleSummary {
     pub exports: Vec<ModuleExportSummary>,
     pub reexports: Vec<ModuleReexportSummary>,
     pub imports: Vec<String>,
+    /// Absent for internal export-only scans; absence is not a complete analysis.
+    pub context: Option<ModuleContextSummary>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -7408,7 +7414,7 @@ impl Frontend {
             .collect::<Vec<_>>();
         imports.sort();
         imports.dedup();
-        ModuleSummary { exports, reexports, imports }
+        ModuleSummary { exports, reexports, imports, context: None }
     }
 
     fn exported_static_sheets(

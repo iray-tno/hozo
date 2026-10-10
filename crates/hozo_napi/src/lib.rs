@@ -52,6 +52,14 @@ pub struct StylexModuleSummary {
     pub exports: Vec<StylexModuleExportSummary>,
     pub reexports: Vec<StylexModuleReexportSummary>,
     pub imports: Vec<String>,
+    pub context: Option<StylexModuleContextSummary>,
+}
+
+#[napi(object)]
+pub struct StylexModuleContextSummary {
+    pub parse_complete: bool,
+    pub has_stylex_import: bool,
+    pub value_imports: Vec<String>,
 }
 
 #[napi(object)]
@@ -135,6 +143,11 @@ pub fn summarize_stylex_module(source: String, source_file: Option<String>) -> S
             })
             .collect(),
         imports: summary.imports,
+        context: summary.context.map(|context| StylexModuleContextSummary {
+            parse_complete: context.parse_complete,
+            has_stylex_import: context.has_stylex_import,
+            value_imports: context.value_imports,
+        }),
     }
 }
 

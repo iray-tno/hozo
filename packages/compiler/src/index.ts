@@ -156,6 +156,16 @@ export interface StylexModuleSummary {
   reexports: StylexModuleReexportSummary[]
   /** Unique runtime import specifiers for the active bundler to resolve. */
   imports: string[]
+  /** Missing on the byte-scan fast path; absence is not proof of completeness. */
+  context?: StylexModuleContextSummary
+}
+
+/** Conservative AST reference evidence, not runtime resolution or minimal data flow. */
+export interface StylexModuleContextSummary {
+  parseComplete: boolean
+  hasStylexImport: boolean
+  /** Non-intrinsic imports referenced as values, including possible type/shadowing false positives. */
+  valueImports: string[]
 }
 
 export interface StylexModuleReexportSummary {

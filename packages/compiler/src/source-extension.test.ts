@@ -117,6 +117,6 @@ test('persistent TSX-era summaries cannot make unchanged TS source look current'
   assert.equal(cache.modules()[0]?.summary.exports[0]?.exported, 'styles')
   assert.equal(cache.moduleSources()[0]?.sourceFile, file)
   cache.persist()
-  assert.equal(JSON.parse(readFileSync(cacheFile, 'utf8')).version, 4)
+  assert.equal(JSON.parse(readFileSync(cacheFile, 'utf8')).version, 5)
   assert.equal(new StylexModuleCache(cacheFile).isCurrent(file, 1), true)
 })

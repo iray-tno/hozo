@@ -18,8 +18,9 @@ import {
   summarizeStylexModule,
 } from './index.ts'
 
-// Extension-aware grammar changes export recovery, even for unchanged bytes.
-const SNAPSHOT_VERSION = 4
+// Import-reference evidence changes the meaning of a summary even when its
+// export facts and defining bytes are identical. Old caches must be rescanned.
+const SNAPSHOT_VERSION = 5
 
 interface FileEntry {
   modifiedMs: number
