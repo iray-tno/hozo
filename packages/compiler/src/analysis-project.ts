@@ -1,6 +1,8 @@
 import { performance } from 'node:perf_hooks'
 import type { ProjectFact } from './analysis.ts'
+import { readAnalysisFonts } from './analysis-fonts.ts'
 import { prepareAnalysisStylex } from './analysis-stylex.ts'
+import type { FontAvailability } from './font-diagnostics.ts'
 import { createCompiler, openCandidateCache, type Theme } from './index.ts'
 import { preflightEnabled } from './project.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
@@ -20,13 +22,16 @@ export interface AnalysisProjectOptions {
   preflight?: boolean | 'auto'
   /** Explicit additions, not a replacement for the canonical default sources. */
   primitiveSources?: readonly string[]
+  /** Explicit serializable createFontAvailability facts; never discover/execute loaders. */
+  fontAvailability?: FontAvailability
+  fontAvailabilityFile?: string
 }
 
 export interface AnalysisProjectFacts {
   css: ProjectFact<string>
   theme: ProjectFact<'builtin' | { colors: number; animations: number; spacingPx?: number }>
   preflight: ProjectFact<boolean>
-  fonts: ProjectFact<unknown>
+  fonts: ProjectFact<FontAvailability>
   aliases: ProjectFact<unknown>
   stylexGraph: ProjectFact<unknown>
 }
@@ -43,6 +48,7 @@ export async function prepareAnalysisProject(
   loadTheme: (root: string, css?: string) => Promise<AnalysisThemeInput>,
 ) {
   const started = performance.now()
+  const fonts = readAnalysisFonts(options.root, options)
   const loaded = await loadTheme(options.root, options.css)
   const primitiveSources = [
     ...new Set([...DEFAULT_PRIMITIVE_SOURCES, ...(options.primitiveSources ?? [])]),
@@ -76,11 +82,7 @@ export async function prepareAnalysisProject(
               'auto, evaluated using compiler candidate facts in the selected authored scope.',
           }
         : { status: 'resolved' as const, value: preflight, origin: 'explicit' as const },
-    fonts: {
-      status: 'unresolved' as const,
-      reason:
-        'Static font registration is not supplied; CSS font faces alone do not prove Native availability.',
-    },
+    fonts: fonts.fact,
     aliases: {
       status: 'unresolved' as const,
       reason: 'Project import aliases are not assessed yet.',
@@ -90,7 +92,11 @@ export async function prepareAnalysisProject(
       reason: 'Cross-file StyleX context is not assessed yet.',
     },
   }
-  const compilerInputs = { theme: { colors: [], ...theme, preflight }, sources: primitiveSources }
+  const compilerInputs = {
+    theme: { colors: [], ...theme, preflight },
+    sources: primitiveSources,
+    fontAvailability: fonts.fact.status === 'resolved' ? fonts.fact.value : undefined,
+  }
   const stylex = prepareAnalysisStylex(
     options.root,
     options.authoredSources,
@@ -111,8 +117,11 @@ export async function prepareAnalysisProject(
   }
   return {
     stylex,
+    // Fonts are checked by analyzeModule against its actual selected Native
+    // platform. The general createCompiler font hook checks both platforms.
     compiler: createCompiler(compilerInputs.theme, primitiveSources),
     compilerInputs,
+    fontInputs: fonts.inputs,
     projectFacts,
     stylesheets: loaded.stylesheets,
     contextStatus:

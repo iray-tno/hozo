@@ -14,6 +14,7 @@ npx @hozo/migration-audit . --css app/globals.css --preflight auto
 npx @hozo/migration-audit . --primitive-source @acme/ui
 npx @hozo/migration-audit . --source packages/app --include 'packages/**/*.{tsx,jsx,ts}' --exclude '**/*.test.*'
 npx @hozo/migration-audit . --native-platform ios
+npx @hozo/migration-audit . --font-availability hozo-font-availability.json
 npx @hozo/migration-audit . --compare previous-audit.json --output changes.md
 npx @hozo/migration-audit . --fail-on error --output hozo-audit.json
 npx @hozo/migration-audit . --compare previous-audit.json --fail-on new-errors --output changes.md
@@ -117,18 +118,57 @@ applied. Shared/native component probes use Android by default; `--native-platfo
 iOS instead. Explicit `.ios` / `.android` filenames always use their own graph. Both native
 graphs are prepared, but a shared file is counted only once, for the selected probe platform.
 
-Font registration, production builds, runtime behavior and entry-point graph reachability are
-not assessed. `contextStatus: prepared` describes successful theme/reset/static graph preparation,
+Production builds, runtime behavior and entry-point graph reachability are not assessed.
+`contextStatus: prepared` describes successful theme/reset/static graph preparation,
 not that all project facts or unresolved graph edges have answers. Unrecorded generated RN
-expressions and complete member compatibility remain follow-ups in
+expressions and complete member compatibility remain explicit analysis limitations, not
+requirements for completing the bounded migration-audit work in
 [#790](https://github.com/iray-tno/hozo/issues/790).
+
+### Explicit static font registration facts
+
+`--font-availability <file.json>` reads the serializable registry returned by
+`createFontAvailability()` from `@hozo/typography/fonts`. Export JSON from the **same manifest
+used by the application's integrations**, rather than maintaining a separate font inventory:
+
+```js
+import { writeFileSync } from 'node:fs'
+import { createFontAvailability } from '@hozo/typography/fonts'
+
+// Run this explicitly in your own setup, with your existing font manifest.
+writeFileSync('hozo-font-availability.json', JSON.stringify(createFontAvailability(fonts)))
+```
+
+The audit itself never imports that setup or an application font loader. Library callers can
+instead pass `fontAvailability: createFontAvailability(fonts)` directly, or `fontAvailabilityFile`;
+the two inputs are mutually exclusive. Data is validated and snapshotted once per audit.
+Missing, malformed or executable explicitly selected files are input errors, not a silently
+successful default. File paths and physical link targets must stay inside the checkout.
+Normalized facts appear in `projectFacts.fonts`; file paths/content hashes appear in `fontInputs`,
+outside authored file counts. Duplicate IDs/ambiguous platform names, invalid weights/platforms
+and contradictory externally managed registrations are rejected rather than guessed.
+
+The canonical compiler analysis uses the **existing static font diagnostic**, not a second
+audit font checker. It checks literal generated family/weight/style declarations for managed
+families on Web and the selected Native platform; explicit `.ios`/`.android` filenames win over
+the default probe platform. Missing platform registrations and variants produce
+`FONT_FAMILY_NOT_REGISTERED` / `FONT_VARIANT_NOT_REGISTERED` warnings with backend and coordinate
+confidence. Unknown families, external platforms, dynamic declarations and host-owned styles
+remain unassessed. No input leaves fonts `unresolved`, even if CSS contains `@font-face`.
+
+These are supplied registration facts, **not proof that font assets exist, are bundled or load on
+a device**. No asset bytes are opened, remote URLs fetched or registration code executed.
+`static-font-availability-v1` records this analysis policy. Font facts/input hashes and the policy
+participate in baseline comparability; changing/removing them cannot silently resolve warnings.
+Older reports without this evidence need a fresh baseline against the new policy.
 
 The schema records `corpus.sourceDirectories` and omits application-specific metrics
 from `authoredSignals`. Library callers can supply `fileSignals: { metricName: (source, file) => boolean }`
 to `measureRealApp`; these counts appear separately in `corpusSignals` and the Markdown report.
 `measureRealApp` and `runCli` are now asynchronous; library callers must `await` them. Options
 include `css`, `preflight` and `primitiveSources` (an array of explicitly trusted additions).
-Library options also include `include`, `exclude` (arrays of globs) and `nativePlatform`.
+Library options also include `include`, `exclude` (arrays of globs), `nativePlatform`,
+`fontAvailability` and `fontAvailabilityFile`.
 The pinned Bluesky runner retains its historical `filesUsingAlfAtoms` lexical heuristic through
 this extension. Bluesky's checkout pin, verification command and historical reports are preserved;
 that heuristic is not presented as a generic detector of an application's design system.
