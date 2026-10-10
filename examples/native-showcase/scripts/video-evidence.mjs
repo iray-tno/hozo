@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs'
 export const VIDEO_PROBE_LABEL = 'Local video pixel probe'
 
 export function videoStatus(text = '') {
+  // Unnamed AX nodes have null labels, including while the player is loading.
+  if (typeof text !== 'string') return undefined
   const match =
     /^Video probe: (loading|ready|ended|error); (playing|paused); time=(\d+\.\d+); duration=(unknown|\d+\.\d+)$/.exec(
       text.replace(/\s+/g, ' ').trim(),

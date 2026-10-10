@@ -3,7 +3,62 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { fixtureBoxes, indexVideoFixture } from '../../showcase/scripts/index-video-fixture.mjs'
+import { parseIosNodes } from './ios-evidence.mjs'
+import { waitForIosControl } from './ios-ui-wait.mjs'
 import { exerciseVideo, VIDEO_PROBE_LABEL, videoFrame, videoStatus } from './video-evidence.mjs'
+
+test('unnamed and non-string accessibility labels are not video status', () => {
+  for (const label of [undefined, null, 0, true, {}, [], '']) {
+    assert.equal(videoStatus(label), undefined)
+  }
+})
+
+// Captured failure.json from run 38093324215, not a simplified fake AX tree.
+const loadingSnapshot = readFileSync(
+  new URL('./fixtures/video-loading-ios.json', import.meta.url),
+  'utf8',
+)
+const readyLabel = 'Video probe: ready; paused; time=0.00; duration=4.01'
+const readySnapshot = loadingSnapshot.replace(
+  'Video probe: loading; paused; time=0.00; duration=unknown',
+  readyLabel,
+)
+
+function iosStatusWait(snapshots) {
+  let time = 0
+  let reads = 0
+  let taps = 0
+  const promise = waitForIosControl(
+    (node) => videoStatus(node.AXLabel)?.status === 'ready',
+    'video ready',
+    {
+      readNodes: () => parseIosNodes(snapshots[Math.min(reads++, snapshots.length - 1)]),
+      tapConfirmation: () => taps++,
+      observation: {},
+      timeout: 3_000,
+      now: () => time,
+      sleep: async (ms) => {
+        time += ms
+      },
+    },
+  )
+  return { promise, reads: () => reads, taps: () => taps }
+}
+
+test('real iOS loading tree continues through null labels until a fresh ready snapshot', async () => {
+  assert.ok(parseIosNodes(loadingSnapshot).some((node) => node.AXLabel === null))
+  const wait = iosStatusWait([loadingSnapshot, readySnapshot])
+  assert.equal((await wait.promise).AXLabel, readyLabel)
+  assert.equal(wait.reads(), 2)
+  assert.equal(wait.taps(), 0)
+})
+
+test('real iOS loading tree still times out without a ready status', async () => {
+  const wait = iosStatusWait([loadingSnapshot])
+  await assert.rejects(wait.promise, /Timed out: video ready/)
+  assert.equal(wait.reads(), 3)
+  assert.equal(wait.taps(), 0)
+})
 
 function image(time = 0, scale = 1) {
   const width = 320 * scale
