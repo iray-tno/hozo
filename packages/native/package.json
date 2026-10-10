@@ -1,6 +1,6 @@
 {
   "name": "@hozo/native",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Hozo's optional native module: the accessibility capabilities React Native does not expose to JavaScript.",
   "keywords": [
     "react-native",

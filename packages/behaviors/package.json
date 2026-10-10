@@ -1,6 +1,6 @@
 {
   "name": "@hozo/behaviors",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Hozo's accessibility and internationalisation behaviours (FocusScope, RovingFocus, LiveRegion, Portal, DismissableLayer, FloatingPositioner), shared by Web and React Native.",
   "keywords": [
     "react-native",

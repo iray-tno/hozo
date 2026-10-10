@@ -1,5 +1,12 @@
 # @hozo/canvas
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @hozo/engine@0.3.0
+
 ## 0.2.0
 
 - Add portable triangle meshes with interpolated vertex colours/alpha and affine colour textures. Preserve per-axis clamp, repeat and mirrored wrapping, and multiply texture tints in linear RGB.

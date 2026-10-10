@@ -1,5 +1,13 @@
 # @hozo/typography
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @hozo/primitives@0.3.0
+  - @hozo/engine@0.3.0
+
 ## 0.2.0
 
 - No package-specific public API change. Release in lockstep with the compiler, engine and Text primitive owner at 0.2.0.

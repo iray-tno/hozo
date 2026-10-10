@@ -1,5 +1,7 @@
 # @hozo/tailwind
 
+## 0.3.0
+
 ## 0.2.0
 
 - Resolve chained theme aliases and paired `--dark` colour tokens for static Web/Native output.

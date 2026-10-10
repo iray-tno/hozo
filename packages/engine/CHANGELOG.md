@@ -1,5 +1,7 @@
 # @hozo/engine
 
+## 0.3.0
+
 ## 0.2.0
 
 - Add the Native `useHozoKeyframes` hook and generated animation ABI for the supported project-keyframe subset.

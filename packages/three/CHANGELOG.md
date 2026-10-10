@@ -1,5 +1,13 @@
 # @hozo/three
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @hozo/canvas@0.3.0
+  - @hozo/engine@0.3.0
+
 ## 0.2.0
 
 - Introduce portable Three scene projection and responsive `ThreeCanvas`, with demand/continuous frames, picking and named semantic object controls.

@@ -1,5 +1,12 @@
 # @hozo/storybook
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @hozo/vite@0.3.0
+
 ## 0.2.0
 
 - Correct the Vite peer range to `^8.0.0` in line with the Vite integration.
