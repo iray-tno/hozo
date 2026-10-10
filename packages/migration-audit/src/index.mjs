@@ -8,6 +8,7 @@ import {
   analyzeModule,
   discoverAnalysisSources,
   prepareAnalysisProject,
+  REQUIRED_CONTEXT_POLICY,
   sourcePlatform,
 } from '@hozo/compiler/analysis'
 import { loadStaticProjectTheme } from '@hozo/tailwind'
@@ -238,6 +239,7 @@ async function measure(options) {
       workers: 1,
       projectFacts: project.projectFacts,
       contextStatus: project.contextStatus,
+      requiredContextPolicy: REQUIRED_CONTEXT_POLICY,
       sourceSelection: {
         include: options.include ?? null,
         exclude: options.exclude ?? [],
@@ -371,10 +373,11 @@ async function measure(options) {
       root,
       stylexContexts: project.stylex.graphs,
       stylexRegistries: project.stylex.registries,
+      stylexContextAnalysis: project.stylex.contextFor,
       nativePlatform: options.nativePlatform ?? 'android',
       targets: platform === 'shared' ? ['web', 'native'] : [platform],
     })
-    recordAnalysis(report, analysis, file, source, platform)
+    recordAnalysis(report, analysis, file, source, platform, root)
     const nativeModule = analysis.bindings
     const rnImports = nativeModule?.imports.filter((item) => item.source === 'react-native') ?? []
     if (nativeModule) {
@@ -533,6 +536,12 @@ function markdown(report, { details = false } = {}) {
         report.files?.some(
           (file) => file.targets.web?.status === 'failed' || file.bindingsStatus === 'failed',
         ) ||
+        (report.analysis.requiredContextPolicy === REQUIRED_CONTEXT_POLICY &&
+          report.files?.some(
+            (file) =>
+              file.targets.web &&
+              !['complete', 'not-required'].includes(file.targets.web.stylexContext?.status),
+          )) ||
         report.files?.every((file) => !file.targets.web)
       ? '**The direct RN JSX boundary is not fully assessed:** Project context or Web/binding analysis was incomplete, or no Web targets were assessed; zero observed residue is not a closed boundary.'
       : '**The direct RN JSX boundary is closed:** Web lowering retains no JSX bindings imported from React Native. Non-JSX React Native APIs and third-party native libraries remain separate migration boundaries.'
@@ -730,6 +739,14 @@ Web uses the shared module lowering path in memory. Native is a compiler-only co
 Cross-file StyleX uses in-memory, platform-separated graphs and static relative/tsconfig paths resolution. Shared/native probes use ${report.analysis.nativePlatform}; explicit iOS/Android suffixes use their own platform. Package/custom bundler resolution remains unassessed when no static answer exists. Resolution records and input hashes are retained in JSON. Context-only modules do not enter authored counts. Fonts and production entry-point reachability remain unassessed; no app configuration is executed.
 
 ## Project context
+
+### Required StyleX context
+
+| Compiler verdict | Web targets | Native targets |
+|---|---:|---:|
+${['not-required', 'complete', 'unresolved', 'not-assessed'].map((status) => `| ${status} | ${['web', 'native'].map((backend) => (report.files ?? []).filter((file) => file.targets[backend] && (file.targets[backend].stylexContext?.status ?? 'not-assessed') === status).length).join(' | ')} |`).join('\n')}
+
+These are per-target static lowering requirements, not compatibility or runtime dependency verdicts. Unresolved project facts and all resolution records remain below/in JSON. A missing alias preset or unrelated runtime import does not block files whose compiler evidence shows that context is unnecessary. Required unresolved values/reexports, missing metadata and recovery still block strict baseline comparison. Theme/CSS context and input/policy equality remain required.
 
 | Fact | Status | Value or reason |
 |---|---|---|

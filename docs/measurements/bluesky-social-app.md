@@ -28,6 +28,44 @@ Semantic counts remain **1,193 Web / 1,149 Native components in 573 lowered file
 
 Conventional CSS remains absent; builtin tokens and auto preflight=true are explicit compiler assumptions, not evidence about Bluesky's production reset. Root tsconfig is read and hashed, but its package-based `extends` is unsupported by the local-only static alias loader; aliases are not guessed. No StyleX definitions/consumers are observed in this corpus, so its prepared graphs are empty and it loads no context modules. Cross-file/alias/reexport/platform behavior is demonstrated by dedicated fixtures, not by Bluesky. Shared/native probes select Android by default; iOS/Android-suffixed files retain their own platform.
 
+### Compiler-required context follow-up
+
+Two fresh, sequential `pnpm measure:bluesky` observations under the
+`compiler-stylex-reference-context-v1` policy retain the clean pinned checkout,
+source fingerprint `db5373982baac27062021d8503f795cdb38a78d7cc2e0a2dccfe7eab805f36d8`,
+**1,660 authored files, 218 warnings / zero errors**, the same 1,193 Web / 1,149
+Native components and zero direct RN JSX residue or compile failures. Every finding and
+existing source/import/tag/value/member-review summary is asserted equal to the prior raw
+JSON; the Bluesky-specific ALF signal is also unchanged. This improves comparison precision,
+not component coverage.
+
+The compiler's original binding inventory proves StyleX context **not required** for all
+**1,639 Web / 1,571 Native targets**. The alias fact remains **unresolved** because
+`@react-native/typescript-config` is not installed in this checkout (the shared loader now
+supports installed static package presets). Font facts remain unresolved, the 135 missing
+compat-package warnings remain present, and no dependencies were installed. The earlier
+context observations below are retained as history, not silently rewritten as resolved facts.
+
+Comparing the two new observations is **comparable**: **218 continued findings, zero
+added/resolved/changed/unassessed findings**, **1,639 continued Web boundaries** and **21
+Native-only not-applicable boundaries**. `new-errors` passes with zero new errors. Old-policy
+reports are **non-comparable** with the new policy and need a fresh baseline; their missing
+evidence is not backfilled. Dedicated fixtures, rather than this StyleX-free corpus, prove
+relative/reexport/platform context requirements and keep missing aliases, parser recovery,
+stale sources/links, contradictory recorded hashes/edges and changed authored dependencies
+partial. CSS/theme completeness and equal effective inputs/settings still gate comparisons.
+Unknown runtime dependencies, Native fonts and device behavior are not inferred from this pass.
+
+With one audit worker and two logical CPU cores, the observations took **32.09s / 11.28s**:
+source reads **20.85s / 0.05s**, preparation **4.39s / 4.41s**, Web lowering **2.90s / 2.96s**,
+and new Web+Native required-context stages **63.3ms / 66.5ms** combined. Comparing already-read
+reports took **161.4ms**, excluding JSON I/O/rendering. These are local observations, not a
+controlled performance comparison. Node 25.9.0, Tailwind 4.3.3, JSONC parser 3.3.1 and the
+fresh development addon hash
+`e183a646efc8cfddd48a93ea5bb49c0725a9e2598e860e8db0eda91179560180` were recorded.
+Both raw reports and the comparison/policy verification remain local evidence artifacts.
+The historical production experiment and device claims are unchanged; neither was rerun.
+
 The Slice 4 source census remains an independent compiler-owned observation. All 1,660 files complete it: 1,300 direct RN import bindings include 406 explicit type imports, one value import used only as a type, and zero unused value imports. There are 5,442 authored runtime reference occurrences, 720 type references and two direct runtime reexport edges. Reference counts include opening/closing JSX tags, not component/call counts; member reads, component values and exports remain separate in JSON. Aliases and lexical shadowing are resolved rather than matched by spelling. CommonJS, dynamic import, TS import-equals and indirect wrapper/data-flow usage remain outside this ESM inventory; zero dynamic-member references here is not proof those other forms are absent.
 
 The next Slice 4 increment records **actual Web import-specifier decisions** from the shared lowerer, not a second audit replacement table or a post-lowering usage guess. All **1,639 Web-selected files** complete the journal, with zero partial/failed/unmapped cases: **213 imports moved to Hozo, 668 retained RN import declarations, 406 explicit type-only imports and two unassessed forwarding edges**. Native-only files are not in this Web denominator. A retained declaration is not a remaining runtime-use count: JSX lowering can already have removed its uses and left the import for bundler elision. Semantic-reference rewrite dispositions and member compatibility are still unassessed, so Slice 4 is not complete. Existing component, residue and diagnostic counts are unchanged, including 135 missing-compat-package warnings; an import move does not certify package resolution, dependency removal or runtime behavior.

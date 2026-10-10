@@ -126,6 +126,23 @@ is complete. The byte-scan fast path omits `context` entirely, and persisted exp
 cache schemas are invalidated. Consumers must not treat missing evidence as complete.
 This metadata alone does not relax migration-audit baseline/CI completeness checks.
 
+Pass `prepareAnalysisStylex(...).contextFor` (or `prepareAnalysisProject(...).stylex.contextFor`)
+as `stylexContextAnalysis` to `analyzeModule` for a compiler-owned, per-target
+`stylexContext` verdict. The versioned `compiler-stylex-reference-context-v1` policy
+distinguishes `not-required`, `complete` and `unresolved`. Absence of a runtime StyleX
+import is proved from the original import bindings, not a substring scan. StyleX consumers
+require the conservative reference candidates and every reached runtime reexport edge to
+resolve to the prepared registry. Cycles terminate; missing/recovered reference evidence,
+missing providers, changed source bytes/definitions and changed resolver-owned links remain
+unresolved. Unrelated expression imports can conservatively block completeness; this is not
+minimal data-flow analysis or runtime dependency certification.
+
+Preparation snapshots source hashes/reference facts and indexes registry membership once.
+Per-file verdicts read no filesystem and do not enumerate the whole registry per dependency.
+The audit retains all resolver observations, including unresolved imports that do not enter a
+file's static lowering requirements. It joins verdict modules/edges to those observations
+before comparison, rather than independently deciding what the compiler required.
+
 ### Authored React Native usage
 
 `analyzeReactNativeUsage(source, sourceFile?)` is an opt-in Rust symbol-analysis API;

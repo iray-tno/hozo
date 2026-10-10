@@ -311,6 +311,11 @@ export class StylexModuleCache {
     return this.#bindingsFor(importer, this.modules())
   }
 
+  /** Exact resolver-owned link; unlike bindingsFor, this does not infer registry membership. */
+  resolvedBindingFor(importer: string, specifier: string): string | undefined {
+    return this.#resolved.get(path.resolve(importer))?.get(specifier)
+  }
+
   #bindingsFor(importer: string, modules: readonly CachedStylexModule[]): StylexExternalBinding[] {
     const bindings = new Map<string, string>()
     const included = new Set(modules.map((module) => module.path))

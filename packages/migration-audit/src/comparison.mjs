@@ -1,3 +1,4 @@
+import { REQUIRED_CONTEXT_POLICY } from '@hozo/compiler/analysis'
 import { escapeMarkdown } from './evidence.mjs'
 
 // Compare compiler records, not a second lowering pipeline or emitted-code scan.
@@ -15,6 +16,14 @@ const stable = (value) =>
   )
 const equal = (a, b) => stable(a) === stable(b)
 const sorted = (items) => [...items].sort((a, b) => stable(a).localeCompare(stable(b)))
+const resolutionKey = (edge) => stable([edge.platform, edge.importer, edge.specifier])
+const validEdge = (edge) =>
+  object(edge) &&
+  ['web', 'ios', 'android'].includes(edge.platform) &&
+  typeof edge.importer === 'string' &&
+  typeof edge.specifier === 'string' &&
+  ['resolved', 'unresolved'].includes(edge.status) &&
+  (edge.resolved === undefined || typeof edge.resolved === 'string')
 
 export function validateBaseline(report) {
   if (!object(report) || !Number.isInteger(report.schemaVersion) || report.schemaVersion < 1)
@@ -30,6 +39,13 @@ export function validateBaseline(report) {
   )
     throw new Error('schema 3 requires corpus, analysis, files and findings')
   const a = report.analysis
+  if (a.requiredContextPolicy !== undefined && typeof a.requiredContextPolicy !== 'string')
+    throw new Error('invalid schema 3 requiredContextPolicy')
+  if (
+    a.graphResolutions !== undefined &&
+    (!Array.isArray(a.graphResolutions) || a.graphResolutions.some((edge) => !validEdge(edge)))
+  )
+    throw new Error('invalid schema 3 graphResolutions')
   if (
     a.primitiveSources !== undefined &&
     (!Array.isArray(a.primitiveSources) ||
@@ -82,6 +98,28 @@ export function validateBaseline(report) {
     )
       throw new Error('invalid schema 3 stage/target record')
     const usage = file.reactNativeUsage
+    for (const target of Object.values(file.targets)) {
+      const evidence = target.stylexContext
+      if (evidence === undefined) continue
+      if (
+        !object(evidence) ||
+        typeof evidence.policy !== 'string' ||
+        !['web', 'ios', 'android'].includes(evidence.platform) ||
+        typeof evidence.sourceSha256 !== 'string' ||
+        typeof evidence.evidence !== 'string' ||
+        !['not-required', 'complete', 'unresolved'].includes(evidence.status) ||
+        !Array.isArray(evidence.modules) ||
+        evidence.modules.some(
+          (entry) =>
+            !object(entry) || typeof entry.file !== 'string' || typeof entry.sha256 !== 'string',
+        ) ||
+        !Array.isArray(evidence.edges) ||
+        evidence.edges.some((edge) => !validEdge(edge)) ||
+        !Array.isArray(evidence.issues) ||
+        evidence.issues.some((issue) => typeof issue !== 'string')
+      )
+        throw new Error('invalid schema 3 StyleX context evidence')
+    }
     if (
       usage !== undefined &&
       (!object(usage) ||
@@ -146,6 +184,7 @@ function context(report) {
     nativePlatform: a.nativePlatform,
     resolutionPolicy: a.resolutionPolicy,
     parserMode: a.parserMode,
+    requiredContextPolicy: a.requiredContextPolicy,
     assumptions: a.compilerAssumptions,
     preflightRequested: a.preflightBasis?.requested,
     primitiveSources: sorted(a.primitiveSources ?? []),
@@ -173,8 +212,11 @@ function contextComplete(report) {
     a.contextStatus === 'prepared' &&
     ['absent', 'resolved'].includes(a.projectFacts.css?.status) &&
     ['defaulted', 'resolved'].includes(a.projectFacts.theme?.status) &&
-    ['absent', 'resolved'].includes(a.projectFacts.aliases?.status) &&
-    a.projectFacts.stylexGraph?.value?.unresolvedImports === 0
+    (a.requiredContextPolicy === REQUIRED_CONTEXT_POLICY
+      ? a.projectFacts.stylexGraph?.status === 'resolved' && Array.isArray(a.graphResolutions)
+      : a.requiredContextPolicy === undefined &&
+        ['absent', 'resolved'].includes(a.projectFacts.aliases?.status) &&
+        a.projectFacts.stylexGraph?.value?.unresolvedImports === 0)
   )
 }
 
@@ -185,6 +227,82 @@ function complete(file) {
     file.stages.every((stage) => stage.status === 'completed') &&
     Object.values(file.targets).every((target) => target.status === 'completed')
   )
+}
+
+function contextIndex(report) {
+  const hashes = new Map()
+  for (const entry of [
+    ...report.files.map((file) => ({ file: file.file, sha256: file.sourceSha256 })),
+    ...(report.analysis.contextModules ?? []),
+  ]) {
+    // Conflicting recorded hashes cannot certify either copy as the prepared input.
+    hashes.set(
+      entry.file,
+      hashes.has(entry.file) && hashes.get(entry.file) !== entry.sha256 ? null : entry.sha256,
+    )
+  }
+  const edges = new Map()
+  for (const edge of report.analysis.graphResolutions ?? []) {
+    const key = resolutionKey(edge)
+    const previous = edges.get(key)
+    edges.set(key, edges.has(key) && !equal(previous, edge) ? null : edge)
+  }
+  return { hashes, edges }
+}
+
+function fileContextComplete(report, file, index) {
+  if (report.analysis.requiredContextPolicy !== REQUIRED_CONTEXT_POLICY) return true
+  return Object.values(file.targets).every((target) => {
+    const context = target.stylexContext
+    if (
+      !context ||
+      context.policy !== REQUIRED_CONTEXT_POLICY ||
+      context.evidence !== 'module-import-bindings-and-conservative-references' ||
+      context.sourceSha256 !== file.sourceSha256 ||
+      context.platform !== target.platform ||
+      context.issues.length !== 0
+    )
+      return false
+    if (context.status === 'not-required')
+      return context.modules.length === 0 && context.edges.length === 0
+    const modules = new Map(context.modules.map((entry) => [entry.file, entry.sha256]))
+    return (
+      context.status === 'complete' &&
+      modules.size === context.modules.length &&
+      modules.get(file.file) === file.sourceSha256 &&
+      context.modules.every((entry) => index.hashes.get(entry.file) === entry.sha256) &&
+      context.edges.every(
+        (edge) =>
+          edge.status === 'resolved' &&
+          typeof edge.resolved === 'string' &&
+          edge.platform === target.platform &&
+          modules.has(edge.importer) &&
+          modules.has(edge.resolved) &&
+          index.edges.get(resolutionKey(edge))?.status === 'resolved' &&
+          index.edges.get(resolutionKey(edge))?.resolved === edge.resolved,
+      )
+    )
+  })
+}
+
+function dependencyContextChanged(before, after) {
+  return Object.entries(after.targets).some(([backend, target]) => {
+    const left = before.targets[backend]?.stylexContext
+    const right = target.stylexContext
+    if (left?.status !== 'complete' || right?.status !== 'complete') return false
+    const inputs = (context, root) => ({
+      modules: sorted(context.modules.filter((entry) => entry.file !== root)),
+      edges: sorted(
+        context.edges.map(({ platform, importer, specifier, resolved }) => ({
+          platform,
+          importer,
+          specifier,
+          resolved,
+        })),
+      ),
+    })
+    return !equal(inputs(left, before.file), inputs(right, after.file))
+  })
 }
 
 const targetContract = (file) =>
@@ -337,6 +455,8 @@ export function compareReports(current, baseline) {
     result.reasons.push('Project context is incomplete or lacks comparison evidence.')
   }
   const usableContext = result.status === 'comparable'
+  const beforeContext = contextIndex(baseline)
+  const afterContext = contextIndex(current)
   const baselineGroups = group(baseline.findings)
   const currentGroups = group(current.findings)
   const findingsByFile = (report) => {
@@ -364,9 +484,14 @@ export function compareReports(current, baseline) {
         ? 'File left the authored inventory; its findings were not proven resolved.'
         : !complete(after) || (before && !complete(before))
           ? 'File analysis incomplete; missing diagnostics are not resolution evidence.'
-          : before && targetChanged.has(file)
-            ? 'Target set, mode, platform or integration eligibility changed.'
-            : undefined
+          : !fileContextComplete(current, after, afterContext) ||
+              (before && !fileContextComplete(baseline, before, beforeContext))
+            ? 'Required compiler context is incomplete or lacks matching file/target evidence.'
+            : before && targetChanged.has(file)
+              ? 'Target set, mode, platform or integration eligibility changed.'
+              : before && dependencyContextChanged(before, after)
+                ? 'Required dependency inputs or resolver-owned bindings changed.'
+                : undefined
     if (reason) {
       result.files.notAssessed.push({ file, reason })
       if (before && after && !before.targets.web && !after.targets.web)

@@ -157,7 +157,7 @@ test('CLI blocks incomplete context and different scope/schema but writes both o
   const baselineFile = path.join(output, 'baseline.json')
   for (const kind of ['partial', 'scope', 'schema']) {
     const previous = structuredClone(baseline)
-    if (kind === 'partial') previous.analysis.projectFacts.aliases = { status: 'unsupported' }
+    if (kind === 'partial') previous.analysis.projectFacts.theme = { status: 'unresolved' }
     if (kind === 'scope') previous.analysis.nativePlatform = 'ios'
     writeFileSync(baselineFile, JSON.stringify(kind === 'schema' ? { schemaVersion: 2 } : previous))
     const before = readFileSync(baselineFile, 'utf8')

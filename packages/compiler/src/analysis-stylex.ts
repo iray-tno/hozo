@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { CONFIGURATION_RESOLUTION_POLICY, readAnalysisAliases } from './analysis-config.ts'
+import { createStylexContextAnalyzer } from './analysis-context.ts'
 import { sourcePlatform } from './analysis-sources.ts'
 import { StylexModuleCache } from './stylex-project.ts'
 
@@ -148,6 +149,11 @@ export function prepareAnalysisStylex(
       Object.entries(graphs).map(([platform, graph]) => [platform, graph.moduleSources()]),
     ) as Record<AnalysisPlatform, ReturnType<StylexModuleCache['moduleSources']>>,
     resolutions,
+    contextFor: createStylexContextAnalyzer(
+      graphs,
+      resolutions,
+      authored.map(({ file }) => file),
+    ),
     aliases: alias.fact,
     configurationInputs: alias.inputs,
     configurationResolutionPolicy: CONFIGURATION_RESOLUTION_POLICY,
