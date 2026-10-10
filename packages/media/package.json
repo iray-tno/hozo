@@ -1,0 +1,80 @@
+{
+  "name": "@hozo/media",
+  "version": "0.2.0",
+  "description": "Universal video playback: HTML video on Web and expo-video on Native.",
+  "keywords": [
+    "react-native",
+    "react",
+    "video",
+    "media",
+    "expo"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iray-tno/hozo.git",
+    "directory": "packages/media"
+  },
+  "homepage": "https://iray-tno.github.io/hozo/",
+  "bugs": {
+    "url": "https://github.com/iray-tno/hozo/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "react-native": {
+        "types": "./dist/index.native.d.ts",
+        "default": "./dist/index.native.js"
+      },
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "CHANGELOG.md",
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/*.bench.ts"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test --test-concurrency=1 .test-build/*.test.js tests/*.test.mjs"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-native": ">=0.86",
+    "expo-video": ">=57.0.5 <58"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    },
+    "expo-video": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/react-test-renderer": "^19.1.0",
+    "esbuild": "0.28.2",
+    "expo-video": "~57.0.5",
+    "playwright-core": "^1.63.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-native": "^0.87.1",
+    "react-test-renderer": "^19.2.8"
+  }
+}

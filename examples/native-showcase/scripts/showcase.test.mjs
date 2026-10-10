@@ -10,6 +10,19 @@ import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
 
+test('shared Video retains the media host while its control variants compile statically for Native', () => {
+  const file = path.join(root, '../showcase/src/video.tsx')
+  const output = transformHozoSource(readFileSync(file, 'utf8'), file)
+  assert.match(output, /from ['"]@hozo\/media['"]/, 'media stays a platform component')
+  assert.match(output, /<Video\b/, 'the Native player must not become an HTML video')
+  assert.doesNotMatch(
+    output,
+    /<video\b|resolveClassName/,
+    'no DOM tag or dynamic control-style fallback',
+  )
+  assert.ok(output.includes('Moving square, silent video'))
+})
+
 test('cold Native Storybook starts with a lightweight primitive, not implicit GPU work', () => {
   const { transformSync } = require('esbuild')
   const source = readFileSync(path.join(root, '.rnstorybook/index.tsx'), 'utf8')
@@ -325,6 +338,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === '@hozo/core/generated/text-input') return { HozoTextInput: 'TextInput' }
     if (name === './patterns.tsx') return {}
     if (name === './svg-filters.tsx') return {}
+    if (name === './video.tsx') return {}
     throw new Error(`Unexpected form dependency: ${name}`)
   }
   new Function('require', 'module', code)(load, module)

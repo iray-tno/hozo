@@ -106,6 +106,25 @@ async function run() {
   checkReferences()
   passed.push('five shared SVG scenes with reversible filter references')
 
+  await loadStory('media-video--default')
+  const video = frame.contentDocument.querySelector('video')
+  check(video?.controls && video.getAttribute('aria-label') === 'Moving square, silent video', 'Missing named video')
+  if (video.readyState < 1) await new Promise((resolve, reject) => {
+    video.addEventListener('loadedmetadata', resolve, { once: true })
+    video.addEventListener('error', () => reject(new Error('Bundled video could not load')), { once: true })
+  })
+  named('button', 'Play video').click(); await pause()
+  check(!video.paused && frame.contentDocument.body.textContent.includes('playing'), 'Showcase play did not update')
+  named('button', 'Pause video').click(); await pause()
+  check(video.paused, 'Showcase pause did not stop')
+  named('button', 'Enable video loop').click(); await pause()
+  check(video.loop, 'Showcase loop did not change')
+  named('button', 'Remove video').click(); await pause()
+  check(!frame.contentDocument.querySelector('video') && video.paused && !video.hasAttribute('src'), 'Showcase removal did not clean up')
+  named('button', 'Mount video').click(); await pause()
+  check(frame.contentDocument.querySelector('video'), 'Showcase did not remount')
+  passed.push('shared Video controls, local MP4 and lifetime cleanup')
+
   // A popover's first focus goes into the panel. FloatingPositioner draws
   // the panel hidden until it has measured, and focus used to be tried in
   // that frame and land on nothing, leaving it on the trigger.
@@ -166,7 +185,7 @@ try {
   assert.ok(output && output !== 'pending', 'browser did not complete interactions')
   const result = JSON.parse(output.replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
   assert.equal(result.error, undefined, result.error)
-  assert.equal(result.passed.length, 5)
+  assert.equal(result.passed.length, 6)
   console.log(`[shared-showcase] ${result.passed.join('; ')}`)
 } finally {
   server.closeAllConnections()

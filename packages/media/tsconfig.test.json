@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./.test-build",
+    "types": ["react", "node"],
+    "declaration": false,
+    "declarationMap": false
+  },
+  "exclude": []
+}

@@ -609,6 +609,7 @@ packages/
   core/                    Zero-setup facade over Hozo's canonical authoring packages.
   engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   form/                    Accessible universal form and date-selection components for Hozo applications.
+  media/                   Universal video playback: HTML video on Web and expo-video on Native.
   metro/                   Metro integration for the Hozo compiler (Native lowering backend).
   migration-audit/         Measure how safely Hozo can lower a real React Native application.
   native/                  Hozo's optional native module: the accessibility capabilities React Native does not expose to JavaScript.

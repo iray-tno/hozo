@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
 const cli = path.join(path.dirname(require.resolve('expo/package.json')), 'bin/cli')
+const videoFixture = readFileSync(path.join(root, '../showcase/assets/hozo-video.mp4'))
 
 // Real production Metro exports run in main's integration report, not every
 // PR. Separate output directories do not race the user's interactive bundle.
@@ -45,6 +46,8 @@ for (const platform of ['android', 'ios']) {
   ).replace(/\\u([\da-f]{4})/gi, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)))
   for (const label of [
     'Primitives/Shared showcase',
+    'Media/Video',
+    'Moving square, silent video',
     'Three/Kumimono',
     'Patterns/Shared showcase',
     'Email notifications',
@@ -64,5 +67,11 @@ for (const platform of ['android', 'ios']) {
     assert.ok(bundle.includes(label), `${platform}: missing story content ${label}`)
   }
   assert.ok(bundle.includes('getStorybookUI'), `${platform}: missing on-device Storybook UI`)
+  assert.ok(bundle.includes('ExpoVideo'), `${platform}: media must resolve to the Native engine`)
+  const videos = metadata.fileMetadata[platform].assets.filter((asset) => asset.ext === 'mp4')
+  assert.ok(
+    videos.some((asset) => readFileSync(path.join(output, asset.path)).equals(videoFixture)),
+    `${platform}: the exact local showcase video was not exported`,
+  )
   console.log(`[native-showcase] ${platform}: Storybook and all demo content bundled`)
 }

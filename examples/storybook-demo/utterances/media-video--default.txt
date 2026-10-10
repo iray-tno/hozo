@@ -1,0 +1,10 @@
+heading, Video playback, level 2
+Silent animation: a purple square moves from left to right across a dark background.
+Moving square, silent video
+Video: ready; paused
+button, Play video
+button, Pause video
+button, Restart video
+button, Unmute video
+button, Enable video loop
+button, Remove video
