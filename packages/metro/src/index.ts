@@ -16,6 +16,7 @@ import { CACHE_DIR, importSpecifier, StylexModuleCache } from '@hozo/compiler/pr
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { loadProjectTheme } from '@hozo/tailwind'
 import { readMetroState } from './config.ts'
+import { modularizeHozoImports } from './modular-imports.ts'
 import { transformHozoSource } from './transform.ts'
 
 const require = createRequire(import.meta.url)
@@ -185,10 +186,16 @@ export async function transform(params: TransformParams): Promise<unknown> {
     rewritten === null
       ? null
       : withWebFontFaces(rewritten, params.filename, platform, state?.fontFaceCssPath)
-  const nextParams = withFonts === null ? params : { ...params, src: withFonts }
+  // After everything else, so it sees the imports the compiler left standing
+  // as well as files it did not touch at all (`modular-imports.ts`).
+  const before = withFonts ?? params.src
+  const absolute = projectRoot ? path.resolve(projectRoot, params.filename) : params.filename
+  const modular = modularizeHozoImports(before, absolute)
+  const nextParams = modular === params.src ? params : { ...params, src: modular }
   return loadUpstream(projectRoot).transform(nextParams)
 }
 
 export { type HozoMetroOptions, withHozo } from './config.ts'
+export { MODULAR_SOURCES, modularizeHozoImports } from './modular-imports.ts'
 export { candidateModulePath, generateCandidateModule } from './project.ts'
 export { transformHozoSource } from './transform.ts'

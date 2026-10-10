@@ -109,6 +109,12 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // pattern, its colour arithmetic and names are 13 KB (every app), the
 // census leaves 1.2 KB. Sixth raise. The next component should wait for
 // #683 rather than raise this again.
+//
+// Lowered to 460 KB when `@hozo/metro` began rewriting imports from Hozo's
+// barrels to the modules that define each name (`modular-imports.ts`): the
+// barrels stopped pulling every pattern in, and Hozo's share fell from
+// 590,941 to 436,487 bytes with the census screen still using nearly every
+// component. The budget sits just above that, so a regression shows.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -122,8 +128,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 610_000,
-  `Hozo's modules stay below 610 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 460_000,
+  `Hozo's modules stay below 460 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // And a coarse ceiling on the whole, for the regression this check began
