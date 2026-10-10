@@ -16,7 +16,7 @@
 // dependencies, peer ranges and scripts are its own business. This writes
 // only the fields listed in `SHARED` and `PACKAGES`.
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -170,6 +170,44 @@ const PACKAGES = {
     native: true,
     peerOverrides: { 'react-native-webview': '>=13' },
     keywords: ['react-native', 'react', 'webview', 'iframe', 'embed'],
+  },
+  media: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'react', 'video', 'media', 'expo'],
+    // Bootstrap a new manifest here rather than hand-writing generated fields.
+    initial: {
+      name: '@hozo/media',
+      type: 'module',
+      description: 'Universal video playback: HTML video on Web and expo-video on Native.',
+      scripts: {
+        build: 'node ../../scripts/clean-package-dist.mjs && tsc -p .',
+        typecheck: 'tsc -p . --noEmit',
+        test: 'tsc -p tsconfig.test.json && node --test --test-concurrency=1 .test-build/*.test.js tests/*.test.mjs',
+      },
+      peerDependencies: {
+        react: '^19.0.0',
+        'react-native': '>=0.86',
+        'expo-video': '>=57.0.5 <58',
+      },
+      peerDependenciesMeta: {
+        'react-native': { optional: true },
+        'expo-video': { optional: true },
+      },
+      devDependencies: {
+        '@types/node': '26.2.0',
+        '@types/react': '^19.2.18',
+        '@types/react-dom': '^19.2.4',
+        '@types/react-test-renderer': '^19.1.0',
+        esbuild: '0.28.2',
+        'expo-video': '~57.0.5',
+        'playwright-core': '^1.63.0',
+        react: '^19.2.8',
+        'react-dom': '^19.2.8',
+        'react-native': '^0.87.1',
+        'react-test-renderer': '^19.2.8',
+      },
+    },
   },
   svg: {
     exports: { '.': './dist/index.js' },
@@ -449,9 +487,15 @@ function ordered(json) {
 /** `package.json` for `name`, with the shared metadata applied. */
 export function applyMetadata(name) {
   const file = path.join(root, 'packages', name, 'package.json')
-  const json = JSON.parse(readFileSync(file, 'utf8'))
+  const json = existsSync(file)
+    ? { ...PACKAGES[name].initial, ...JSON.parse(readFileSync(file, 'utf8')) }
+    : PACKAGES[name].initial
+  if (!json) throw new Error(`No manifest or initial metadata for @hozo/${name}`)
   delete json.private
   const merged = { ...json, ...metadataFor(name) }
+  if (PACKAGES[name].initial?.devDependencies) {
+    merged.devDependencies = { ...PACKAGES[name].initial.devDependencies, ...json.devDependencies }
+  }
   // Pin feature-dependent peers in the generator without taking ownership
   // of unrelated React/platform peer ranges in the same package.
   if (PACKAGES[name].peerOverrides) {
