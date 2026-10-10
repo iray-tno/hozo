@@ -12,6 +12,7 @@ import {
 } from './analysis-rn-references.ts'
 import { type ReactNativeValueAnalysis, reactNativeValueJournal } from './analysis-rn-values.ts'
 import { lowerCanvasPaints } from './canvas.ts'
+import { diagnoseStaticFonts, type FontAvailability } from './font-diagnostics.ts'
 import type {
   CompileDiagnostic,
   CompiledNativeModule,
@@ -26,6 +27,11 @@ import type { StylexModuleCache } from './stylex-project.ts'
 
 export { REQUIRED_CONTEXT_POLICY, type StylexContextVerdict } from './analysis-context.ts'
 export {
+  AnalysisFontInputError,
+  FONT_ANALYSIS_POLICY,
+  validateFontAvailability,
+} from './analysis-fonts.ts'
+export {
   type AnalysisProjectFacts,
   type AnalysisProjectOptions,
   type AnalysisThemeInput,
@@ -34,6 +40,7 @@ export {
 export type { ReactNativeMemberContract } from './analysis-rn-contracts.ts'
 export { discoverAnalysisSources, sourcePlatform } from './analysis-sources.ts'
 export { type AnalysisPlatform, prepareAnalysisStylex } from './analysis-stylex.ts'
+export type { FontAvailability } from './font-diagnostics.ts'
 
 export type AnalysisBackend = 'source' | 'web' | 'native'
 
@@ -101,6 +108,7 @@ export interface AnalyzeModuleOptions {
   /** Compiler-owned prepared resolver/reference evidence; no audit-side graph reconstruction. */
   stylexContextAnalysis?: StylexContextAnalyzer
   nativePlatform?: 'ios' | 'android'
+  fontAvailability?: FontAvailability
   unloweredReactNativeJsx?: LowerModuleOptions['unloweredReactNativeJsx']
 }
 
@@ -316,6 +324,24 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
           for (const diagnostic of event.diagnostics) observed.add(diagnostic)
           collect('web', event.stage, event.diagnostics, event.source)
           if (event.components) target.semanticComponents = event.components.length
+          if (event.components && options.fontAvailability) {
+            run('web', 'fonts', () =>
+              collect(
+                'web',
+                'fonts',
+                event.components!.flatMap((component) =>
+                  diagnoseStaticFonts(
+                    component.css,
+                    'web',
+                    options.fontAvailability,
+                    component.spanStart,
+                    component.spanEnd,
+                  ),
+                ),
+                event.source,
+              ),
+            )
+          }
           if (event.source !== undefined) {
             if (event.edits) {
               referenceJournal.edits(event.source, event.edits)
@@ -416,6 +442,25 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
           module.components.flatMap((entry) => entry.diagnostics),
           canvas.code,
         )
+        if (options.fontAvailability && module.syntaxDiagnostics.length === 0) {
+          run('native', 'fonts', () =>
+            collect(
+              'native',
+              'fonts',
+              module.components.flatMap((component) =>
+                diagnoseStaticFonts(
+                  component.styles,
+                  'native',
+                  options.fontAvailability,
+                  component.spanStart,
+                  component.spanEnd,
+                  nativePlatform,
+                ),
+              ),
+              canvas.code,
+            ),
+          )
+        }
       } else target.status = 'failed'
     } else target.status = 'failed'
   }

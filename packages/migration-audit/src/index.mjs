@@ -5,8 +5,10 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 
 import {
+  AnalysisFontInputError,
   analyzeModule,
   discoverAnalysisSources,
+  FONT_ANALYSIS_POLICY,
   prepareAnalysisProject,
   REQUIRED_CONTEXT_POLICY,
   sourcePlatform,
@@ -32,6 +34,7 @@ Options:
   --exclude <glob>           Additional authored source exclusion; repeat to combine
   --native-platform ios|android Native probe graph for shared/native files (default: android)
   --css <file>               Static Tailwind CSS entry (default: conventional CSS discovery)
+  --font-availability <json> Explicit createFontAvailability JSON facts inside the checkout
   --preflight auto|true|false Reset assumption for both backends (default: auto in selected scope)
   --primitive-source <name>  Explicit trusted re-export source; repeat to extend defaults
   --name <name>              Human-readable corpus name
@@ -77,6 +80,7 @@ function parseArgs(argv) {
     else if (key === '--native-platform' && ['ios', 'android'].includes(value))
       options.nativePlatform = value
     else if (key === '--css') options.css = value
+    else if (key === '--font-availability') options.fontAvailabilityFile = value
     else if (key === '--primitive-source') (options.primitiveSources ??= []).push(value)
     else if (key === '--preflight' && ['auto', 'true', 'false'].includes(value))
       options.preflight = value === 'auto' ? 'auto' : value === 'true'
@@ -200,10 +204,16 @@ async function measure(options) {
   const sourceReadStarted = performance.now()
   const authoredSources = files.map((file) => ({ file, source: readFileSync(file, 'utf8') }))
   const sourceReadDurationMs = performance.now() - sourceReadStarted
-  const project = await prepareAnalysisProject(
-    { ...options, root, authoredSources, contextCandidates },
-    loadStaticProjectTheme,
-  )
+  let project
+  try {
+    project = await prepareAnalysisProject(
+      { ...options, root, authoredSources, contextCandidates },
+      loadStaticProjectTheme,
+    )
+  } catch (error) {
+    if (error instanceof AnalysisFontInputError) throw new AuditInputError(error.message)
+    throw error
+  }
   if (options.css !== undefined && project.projectFacts.css.status === 'invalid')
     throw new AuditInputError(project.projectFacts.css.reason)
   const { compiler } = project
@@ -240,6 +250,11 @@ async function measure(options) {
       projectFacts: project.projectFacts,
       contextStatus: project.contextStatus,
       requiredContextPolicy: REQUIRED_CONTEXT_POLICY,
+      fontAnalysisPolicy: FONT_ANALYSIS_POLICY,
+      fontInputs: project.fontInputs.map(({ file, sha256 }) => ({
+        file: relative(root, file),
+        sha256,
+      })),
       sourceSelection: {
         include: options.include ?? null,
         exclude: options.exclude ?? [],
@@ -375,6 +390,7 @@ async function measure(options) {
       stylexRegistries: project.stylex.registries,
       stylexContextAnalysis: project.stylex.contextFor,
       nativePlatform: options.nativePlatform ?? 'android',
+      fontAvailability: project.compilerInputs.fontAvailability,
       targets: platform === 'shared' ? ['web', 'native'] : [platform],
     })
     recordAnalysis(report, analysis, file, source, platform, root)
@@ -736,9 +752,13 @@ Platform suffixes are respected: Web-only files run through Web lowering, iOS/An
 
 Web uses the shared module lowering path in memory. Native is a compiler-only component/Canvas probe, not full Metro preparation. Neither certifies production builds or runtime behavior. Non-TSX Web modules only use the existing runtime-import rewrite path; Native compiler results for these extensions are probes, not Metro eligibility. Each target records integrationEligibility in JSON.
 
-Cross-file StyleX uses in-memory, platform-separated graphs and static relative/tsconfig paths resolution. Shared/native probes use ${report.analysis.nativePlatform}; explicit iOS/Android suffixes use their own platform. Package/custom bundler resolution remains unassessed when no static answer exists. Resolution records and input hashes are retained in JSON. Context-only modules do not enter authored counts. Fonts and production entry-point reachability remain unassessed; no app configuration is executed.
+Cross-file StyleX uses in-memory, platform-separated graphs and static relative/tsconfig paths resolution. Shared/native probes use ${report.analysis.nativePlatform}; explicit iOS/Android suffixes use their own platform. Package/custom bundler resolution remains unassessed when no static answer exists. Resolution records and input hashes are retained in JSON. Context-only modules do not enter authored counts. Production entry-point reachability remains unassessed; no app configuration is executed.
 
 ## Project context
+
+### Static font registration
+
+Font facts are ${report.analysis.projectFacts.fonts.status}${report.analysis.projectFacts.fonts.origin ? ` (${report.analysis.projectFacts.fonts.origin})` : ''}. Only explicitly supplied \`createFontAvailability()\` JSON/values are consumed; CSS \`@font-face\` or a family identifier does not establish Native availability. Known managed families are checked against literal generated family/weight/style declarations using the shared compiler diagnostic, for Web and the selected Native platform. Unknown families, external platforms and dynamic/host-managed styles are not certified. No font assets are opened, registration code executed, remote URLs fetched or runtime loading verified. JSON retains the normalized facts and selected file hashes; changed facts invalidate baseline comparability.
 
 ### Required StyleX context
 

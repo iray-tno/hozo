@@ -96,9 +96,11 @@ export function diagnoseStaticFonts(
   availability: FontAvailability | undefined,
   spanStart: number,
   spanEnd: number,
+  nativePlatform?: 'ios' | 'android',
 ): CompileDiagnostic[] {
   if (!availability) return []
-  const platforms: readonly FontPlatform[] = target === 'web' ? ['web'] : ['ios', 'android']
+  const platforms: readonly FontPlatform[] =
+    target === 'web' ? ['web'] : nativePlatform ? [nativePlatform] : ['ios', 'android']
   const diagnostics = new Map<string, CompileDiagnostic>()
 
   for (const use of staticUses(output, target)) {

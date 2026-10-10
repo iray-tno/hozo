@@ -1,4 +1,8 @@
-import { REQUIRED_CONTEXT_POLICY } from '@hozo/compiler/analysis'
+import {
+  FONT_ANALYSIS_POLICY,
+  REQUIRED_CONTEXT_POLICY,
+  validateFontAvailability,
+} from '@hozo/compiler/analysis'
 import { escapeMarkdown } from './evidence.mjs'
 
 // Compare compiler records, not a second lowering pipeline or emitted-code scan.
@@ -41,6 +45,15 @@ export function validateBaseline(report) {
   const a = report.analysis
   if (a.requiredContextPolicy !== undefined && typeof a.requiredContextPolicy !== 'string')
     throw new Error('invalid schema 3 requiredContextPolicy')
+  if (a.fontAnalysisPolicy !== undefined && typeof a.fontAnalysisPolicy !== 'string')
+    throw new Error('invalid schema 3 fontAnalysisPolicy')
+  if (a.fontAnalysisPolicy === FONT_ANALYSIS_POLICY) {
+    const fonts = a.projectFacts?.fonts
+    if (!object(fonts) || !['resolved', 'unresolved'].includes(fonts.status))
+      throw new Error('invalid schema 3 font facts')
+    if (fonts.status === 'resolved') validateFontAvailability(fonts.value)
+    else if (typeof fonts.reason !== 'string') throw new Error('invalid schema 3 unresolved fonts')
+  }
   if (
     a.graphResolutions !== undefined &&
     (!Array.isArray(a.graphResolutions) || a.graphResolutions.some((edge) => !validEdge(edge)))
@@ -58,7 +71,7 @@ export function validateBaseline(report) {
       report.corpus.sourceDirectories.some((item) => typeof item !== 'string'))
   )
     throw new Error('invalid schema 3 sourceDirectories')
-  for (const key of ['stylesheetInputs', 'configurationInputs', 'contextModules']) {
+  for (const key of ['stylesheetInputs', 'configurationInputs', 'contextModules', 'fontInputs']) {
     if (
       a[key] !== undefined &&
       (!Array.isArray(a[key]) ||
@@ -185,6 +198,9 @@ function context(report) {
     resolutionPolicy: a.resolutionPolicy,
     parserMode: a.parserMode,
     requiredContextPolicy: a.requiredContextPolicy,
+    fontAnalysisPolicy: a.fontAnalysisPolicy,
+    fontFacts: a.fontAnalysisPolicy === undefined ? undefined : a.projectFacts?.fonts,
+    fontInputs: a.fontAnalysisPolicy === undefined ? undefined : sorted(a.fontInputs ?? []),
     assumptions: a.compilerAssumptions,
     preflightRequested: a.preflightBasis?.requested,
     primitiveSources: sorted(a.primitiveSources ?? []),
@@ -210,6 +226,11 @@ function contextComplete(report) {
     Array.isArray(a.contextModules) &&
     a.projectFacts !== undefined &&
     a.contextStatus === 'prepared' &&
+    (a.fontAnalysisPolicy === undefined ||
+      (a.fontAnalysisPolicy === FONT_ANALYSIS_POLICY &&
+        Array.isArray(a.fontInputs) &&
+        (a.projectFacts?.fonts?.status === 'resolved' ||
+          (a.projectFacts?.fonts?.status === 'unresolved' && a.fontInputs.length === 0)))) &&
     ['absent', 'resolved'].includes(a.projectFacts.css?.status) &&
     ['defaulted', 'resolved'].includes(a.projectFacts.theme?.status) &&
     (a.requiredContextPolicy === REQUIRED_CONTEXT_POLICY
