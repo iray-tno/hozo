@@ -11,6 +11,11 @@
     },
     "@hozo/example-storybook#build": {
       "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/examples/showcase/src/**",
+        "$TURBO_ROOT$/examples/showcase/assets/**"
+      ],
       "outputs": ["storybook-static/**"]
     },
     "@hozo/example-tanstack-start#build": {
@@ -30,6 +35,22 @@
     "@hozo/media#test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/examples/showcase/assets/**"]
+    },
+    "@hozo/example-storybook#test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/examples/showcase/src/**",
+        "$TURBO_ROOT$/examples/showcase/assets/**"
+      ]
+    },
+    "@hozo/example-native-showcase#test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/examples/showcase/src/**",
+        "$TURBO_ROOT$/examples/showcase/assets/**"
+      ]
     },
     "test:performance": {
       "dependsOn": ["^build"],

@@ -10,8 +10,6 @@ export function VideoDemo({ src }: { src: string }) {
   const [muted, setMuted] = useState(true)
   const [loop, setLoop] = useState(false)
   const [visible, setVisible] = useState(true)
-  const button =
-    'rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
   return (
     <View className="w-full max-w-lg gap-4 rounded-2xl bg-white p-6">
       <Heading level={2} className="text-xl font-bold text-slate-900">
@@ -41,30 +39,40 @@ export function VideoDemo({ src }: { src: string }) {
       {status?.error && <Text className="text-base text-red-700">{status.error.message}</Text>}
       <View className="gap-2">
         <Button
-          className={button}
+          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           disabled={!visible}
           onPress={() => void video.current?.play().catch(() => {})}
         >
           Play video
         </Button>
-        <Button className={button} disabled={!visible} onPress={() => video.current?.pause()}>
+        <Button
+          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          disabled={!visible}
+          onPress={() => video.current?.pause()}
+        >
           Pause video
         </Button>
         <Button
-          className={button}
+          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           disabled={!visible || status?.status === 'loading' || status?.status === 'error'}
           onPress={() => video.current?.seekTo(0)}
         >
           Restart video
         </Button>
-        <Button className={button} onPress={() => setMuted((value) => !value)}>
+        <Button
+          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          onPress={() => setMuted((value) => !value)}
+        >
           {muted ? 'Unmute video' : 'Mute video'}
         </Button>
-        <Button className={button} onPress={() => setLoop((value) => !value)}>
+        <Button
+          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          onPress={() => setLoop((value) => !value)}
+        >
           {loop ? 'Disable video loop' : 'Enable video loop'}
         </Button>
         <Button
-          className={button}
+          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           onPress={() => {
             setVisible((value) => !value)
             setStatus(null)
