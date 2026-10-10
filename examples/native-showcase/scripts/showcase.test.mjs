@@ -10,6 +10,24 @@ import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
 
+test('Video decoder probe keeps its Native media host and static control styles', () => {
+  const file = path.join(root, '../showcase/src/video-probe.tsx')
+  const output = transformHozoSource(readFileSync(file, 'utf8'), file)
+  assert.match(output, /from ['"]@hozo\/media['"]/)
+  assert.match(output, /<Video\b/)
+  assert.doesNotMatch(output, /<video\b|resolveClassName/)
+  assert.ok(output.includes('Local video pixel probe'))
+  assert.ok(output.includes('setStatus'))
+  assert.doesNotMatch(output, /setInterval|setTimeout|Date\.now/)
+  const host = readFileSync(path.join(root, 'src/Video.stories.tsx'), 'utf8')
+  assert.match(host, /PlaybackEvidence: Story = \{ args: \{ probe: true \} \}/)
+  assert.match(
+    host,
+    /accessible\s+accessibilityRole="image"\s+accessibilityLabel="Local video pixel probe"/,
+  )
+  assert.match(host, /Viewport=\{NativeVideoViewport\}/)
+})
+
 test('shared Video retains the media host while its control variants compile statically for Native', () => {
   const file = path.join(root, '../showcase/src/video.tsx')
   const output = transformHozoSource(readFileSync(file, 'utf8'), file)
@@ -339,6 +357,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === './patterns.tsx') return {}
     if (name === './svg-filters.tsx') return {}
     if (name === './video.tsx') return {}
+    if (name === './video-probe.tsx') return {}
     throw new Error(`Unexpected form dependency: ${name}`)
   }
   new Function('require', 'module', code)(load, module)
