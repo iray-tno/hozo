@@ -627,6 +627,7 @@ packages/
   typography/              Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.
   ui/                      A styled component library for Hozo, shipped as source and compiled by your own build.
   vite/                    Vite integration for the Hozo compiler (Web lowering backend).
+  webview/                 Universal embedded web content for Hozo: an iframe on the Web and react-native-webview on Native.
 
 crates/
   hozo_cache/     Build cache for Hozo's candidate-class scan, with a swappable backing store.

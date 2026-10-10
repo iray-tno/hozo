@@ -12,10 +12,10 @@
     "check:a11y": "node scripts/check-a11y.mjs"
   },
   "dependencies": {
-    "@hozo/example-showcase": "workspace:*",
     "@hozo/behaviors": "workspace:*",
     "@hozo/core": "workspace:*",
     "@hozo/engine": "workspace:*",
+    "@hozo/example-showcase": "workspace:*",
     "@hozo/form": "workspace:*",
     "@hozo/patterns": "workspace:*",
     "@hozo/primitives": "workspace:*",
@@ -25,6 +25,7 @@
     "@hozo/three": "workspace:*",
     "@hozo/typography": "workspace:*",
     "@hozo/ui": "workspace:*",
+    "@hozo/webview": "workspace:*",
     "@react-three/fiber": "^9.8.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
