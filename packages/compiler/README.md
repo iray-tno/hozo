@@ -112,6 +112,20 @@ retain their TSX default when no filename is supplied. StyleX registry entries c
 separately from their opaque module ID; the project cache supplies it and invalidates old snapshots.
 This is syntax parsing, not a TypeScript type-check or support for Flow syntax.
 
+`summarizeStylexModule` also supplies optional `context` reference evidence. Its
+`valueImports` are sorted non-intrinsic import specifiers referenced in expressions or
+value exports, excluding JSX-tag-only bindings. This is deliberately wider than the
+minimal StyleX dependency set: unrelated expression uses, shadowed names and type
+references can remain included. The intrinsic `@stylexjs/stylex` import is recorded by
+`hasStylexImport`, not treated as a project definition to resolve. Existing `imports`
+and resolver requests remain intact; this evidence does not certify runtime imports,
+side effects, production dependencies or Native font availability.
+
+`parseComplete: false` preserves parser recovery without claiming an empty context
+is complete. The byte-scan fast path omits `context` entirely, and persisted export-only
+cache schemas are invalidated. Consumers must not treat missing evidence as complete.
+This metadata alone does not relax migration-audit baseline/CI completeness checks.
+
 ### Authored React Native usage
 
 `analyzeReactNativeUsage(source, sourceFile?)` is an opt-in Rust symbol-analysis API;

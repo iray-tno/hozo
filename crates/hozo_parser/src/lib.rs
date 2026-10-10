@@ -39,6 +39,7 @@ pub use stylex::{
     ModuleMemberSummary as StylexModuleMemberSummary,
     ModuleReexportSummary as StylexModuleReexportSummary,
     ModuleSummary as StylexModuleSummary,
+    ModuleContextSummary as StylexModuleContextSummary,
 };
 
 use hozo_ir::Diagnostic;
@@ -251,7 +252,11 @@ pub fn summarize_stylex_module_for_file(source_text: &str, file: Option<&str>) -
     let source_type = source_type_for_file(file);
     let ret = Parser::new(&allocator, source_text, source_type).parse();
     let frontend = stylex::Frontend::collect(&ret.program, &ret.module_record);
-    frontend.module_summary(&ret.program, &ret.module_record)
+    let mut summary = frontend.module_summary(&ret.program, &ret.module_record);
+    summary.context = Some(stylex::context_summary(
+        &ret.program, &ret.module_record, ret.diagnostics.is_empty(),
+    ));
+    summary
 }
 
 /// Parses TSX, lowering only primitives imported from `sources`.
