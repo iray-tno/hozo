@@ -15,6 +15,8 @@ npx @hozo/migration-audit . --primitive-source @acme/ui
 npx @hozo/migration-audit . --source packages/app --include 'packages/**/*.{tsx,jsx,ts}' --exclude '**/*.test.*'
 npx @hozo/migration-audit . --native-platform ios
 npx @hozo/migration-audit . --compare previous-audit.json --output changes.md
+npx @hozo/migration-audit . --fail-on error --output hozo-audit.json
+npx @hozo/migration-audit . --compare previous-audit.json --fail-on new-errors --output changes.md
 ```
 
 Without `--source`, the tool scans nonempty `src/` and `app/` directories (both when present),
@@ -105,7 +107,7 @@ graphs are prepared, but a shared file is counted only once, for the selected pr
 Font registration, production builds, runtime behavior and entry-point graph reachability are
 not assessed. `contextStatus: prepared` describes successful theme/reset/static graph preparation,
 not that all project facts or unresolved graph edges have answers. Unrecorded generated RN
-expressions, member compatibility and explicit CI failure policies remain follow-ups in
+expressions and complete member compatibility remain follow-ups in
 [#790](https://github.com/iray-tno/hozo/issues/790).
 
 The schema records `corpus.sourceDirectories` and omits application-specific metrics
@@ -217,9 +219,9 @@ Save a JSON audit, then pass it to `--compare`. The current audit stays complete
 `--details` expanding all finding outcomes. Display limits never cap JSON counts. Library
 callers can use `compareReports(current, baseline)` without running either application.
 
-Comparison is informational. It does not fail a command for findings or claim an improvement
-percentage. Malformed/unreadable baseline input fails with a short message. Explicit CI failure
-policies are the next slice of #790, not an implicit change to today's exit status.
+Comparison is informational by default. It does not fail a command for findings or claim an
+improvement percentage. Malformed/unreadable baseline input fails with a short message.
+Explicit `--fail-on` policies can turn findings into a CI gate, as described below.
 
 - Unique compiler subjects match within the same relative file, backend and diagnostic code.
   Ordinary line movement is continued, not added. Message/severity changes retain both records.
@@ -245,6 +247,40 @@ policies are the next slice of #790, not an implicit change to today's exit stat
 `comparable` describes this static observation comparison, not that all application behavior,
 fonts, indirect RN references, production dependencies or devices were assessed. JSON retains
 all ambiguous/partial records and before/after boundaries regardless of Markdown sample limits.
+
+### Explicit CI failure policies
+
+`--fail-on none|error|new-errors` controls diagnostic exits. The default is `none`.
+
+| Policy | Exit behavior |
+|---|---|
+| `none` | Findings are informational, including authored syntax errors. |
+| `error` | Fail for any current error finding across Source, Web or Native. Warnings do not fail. |
+| `new-errors` | Require `--compare` and a `comparable` result; fail for added errors or a matched finding escalating from non-error to error. Continued errors and error-message-only changes do not fail. |
+
+Input errors and tool/analysis failures are nonzero in **every** mode. A compiler exception
+(`ANALYSIS_FAILED`) or incomplete file analysis cannot be grandfathered by a baseline. Authored
+syntax rejection (`SOURCE_SYNTAX_ERROR`) is a diagnostic, not a crashed compiler; it stays
+informational in `none`, fails `error`, and prevents a complete `new-errors` comparison.
+
+Partial/non-comparable baselines are **blocked**, not zero new errors. This includes missing
+project facts, ambiguous/moved subjects, removed files, changed scope/settings and failed probes.
+For such a project, use `error` for the current known errors or keep `none` for observation;
+do not clear unknowns or weaken the baseline's evidence to get a green result. Even a passed
+policy is not migration readiness, runtime correctness or a full compatibility assessment.
+
+The CLI writes the complete JSON/Markdown report **before** returning a policy failure, so CI
+can upload evidence on failed steps. Invalid arguments/baseline input fail before analysis or
+output. Exit `0` means the selected policy passed; `1` means a failed/blocked policy or input/tool
+failure. A failed/blocked policy also emits a brief stderr explanation without polluting JSON stdout.
+
+`failurePolicy` version 1 records mode, status, exit code, reasons and uncapped finding indices.
+`errorFindings` and `analysisFailures` index current `findings`; `newErrorFindings` index the
+comparison's `findings.added` or `findings.changed` array. `newErrors: null` means not assessed,
+not zero. Counts describe backend finding occurrences, not distinct source defects.
+Library callers can use `evaluateFailurePolicy(report, mode)` after `measureRealApp`/`compareReports`.
+`runCli` records the policy and returns the report without changing `process.exitCode`; only the
+executable applies the exit. This keeps embedded audit calls independent of the caller's process.
 
 <!-- generated: package-footer -->
 
