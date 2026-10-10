@@ -21,6 +21,7 @@ const singletons = new Map(
     'react/jsx-dev-runtime',
     'react-native',
     'react-native-svg',
+    'expo-video',
     '@react-three/fiber',
     '@react-three/fiber/native',
     'three',

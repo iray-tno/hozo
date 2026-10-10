@@ -27,6 +27,10 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "@hozo/media#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/examples/showcase/assets/**"]
+    },
     "test:performance": {
       "dependsOn": ["^build"],
       "cache": false
