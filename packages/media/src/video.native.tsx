@@ -1,5 +1,5 @@
-import { useVideoPlayer, VideoView } from 'expo-video'
-import { useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
+import { createVideoPlayer, type VideoPlayer, VideoView } from 'expo-video'
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { NativeVideoSession } from './native-session.ts'
 import { type VideoProps, validateVideoProps } from './types.ts'
 
@@ -9,7 +9,7 @@ export function Video(props: VideoProps) {
 }
 
 function SourceVideo(props: VideoProps) {
-  const player = useVideoPlayer(null)
+  const [player, setPlayer] = useState<VideoPlayer | null>(null)
   const latest = useRef(props)
   latest.current = props
   const session = useRef<NativeVideoSession | null>(null)
@@ -20,14 +20,28 @@ function SourceVideo(props: VideoProps) {
   }
 
   useLayoutEffect(() => {
+    // Native resources belong to a committed host, never an abandoned render.
+    // Effect replay gets a fresh resource instead of reusing a released player.
+    const player = createVideoPlayer(null)
     const controller = new NativeVideoSession(player, props.src, () => latest.current)
     session.current = controller
-    controller.start(latest.current)
-    return () => {
+    setPlayer(player)
+    const dispose = () => {
       session.current = null
-      controller.dispose()
+      try {
+        controller.dispose()
+      } finally {
+        player.release()
+      }
     }
-  }, [player, props.src])
+    try {
+      controller.start(latest.current)
+    } catch (error) {
+      dispose()
+      throw error
+    }
+    return dispose
+  }, [props.src])
 
   useImperativeHandle(props.ref, () => ({
     play: async () => requireSession().play(),

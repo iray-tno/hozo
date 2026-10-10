@@ -11,7 +11,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const require = createRequire(import.meta.url)
 const root = fileURLToPath(new URL('../', import.meta.url))
 
-test('Native host wires the real session, keeps callback updates, isolates sources and releases through Expo', async () => {
+test('Native host wires the real session, keeps callback updates, isolates sources and releases committed resources', async () => {
   const players = []
   function makePlayer() {
     const listeners = new Map()
@@ -26,6 +26,9 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
       loads: [],
       released: 0,
       pauses: 0,
+      release() {
+        this.released++
+      },
       replaceAsync(src) {
         this.loads.push(src)
         return Promise.resolve()
@@ -57,16 +60,9 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   }
   const expo = {
     VideoView: 'ExpoVideoView',
-    useVideoPlayer(source) {
+    createVideoPlayer(source) {
       assert.equal(source, null, 'source loading uses replaceAsync, not the native constructor')
-      const [player] = React.useState(makePlayer)
-      React.useEffect(
-        () => () => {
-          player.released++
-        },
-        [player],
-      )
-      return player
+      return makePlayer()
     },
   }
   const result = await build({
@@ -146,4 +142,27 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   assert.equal(players[1].released, 1)
   assert.equal(players[1].listenerCount(), 0)
   assert.equal(ref.current, null)
+
+  const start = players.length
+  await act(async () => {
+    renderer = create(
+      React.createElement(
+        React.StrictMode,
+        null,
+        render('strict.mp4', () => {}),
+      ),
+    )
+  })
+  const replayed = players.slice(start)
+  assert.equal(replayed.length, 2, 'StrictMode creates only committed/replayed players')
+  assert.equal(replayed[0].released, 1)
+  assert.equal(replayed[0].listenerCount(), 0)
+  assert.equal(replayed[1].released, 0)
+  assert.equal(ref.current.getStatus().src, 'strict.mp4')
+  assert.equal(renderer.root.findByType('ExpoVideoView').props.player, replayed[1])
+  await act(async () => {
+    renderer.unmount()
+  })
+  assert.equal(replayed[1].released, 1)
+  assert.equal(replayed[1].listenerCount(), 0)
 })

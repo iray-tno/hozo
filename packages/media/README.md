@@ -51,7 +51,8 @@ includes src, operation (load/play/seek), and message. Load failure is terminal
 for that source; command denial is not a decoder failure.
 
 A changed src creates a fresh playback host, resets time/status, and retires old
-listeners. Native loads asynchronously; Expo owns player release. Web cleanup
+listeners. Native loads asynchronously; the committed component host releases
+its Expo player after retiring its session, including StrictMode effect replay. Web cleanup
 pauses, removes the src and stops resource loading. Callback updates do not
 replace the source; stale asynchronous failures cannot report as the new movie.
 

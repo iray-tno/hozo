@@ -82,7 +82,7 @@ test('Native async loading, autoplay, observed playback, seeking and dynamic opt
   fake.emit('playToEnd')
   assert.deepEqual(events, ['play', 'pause', 'ended'])
   session.dispose()
-  assert.equal(fake.calls.includes('release'), false, 'Expo hook owns release')
+  assert.equal(fake.calls.includes('release'), false, 'component host owns release')
   assert.equal(
     [...fake.listeners.values()].every((set) => set.size === 0),
     true,

@@ -20,7 +20,8 @@ Changing the source remounts its host. This costs one fresh player, but makes
 the lifetime boundary explicit: no in-flight replacement can emit an old
 decoder error against a new URI. Both hosts clean listeners before retiring
 the source. Native creates an empty managed player and loads asynchronously;
-the Expo hook releases it. Web stops both playback and resource loading and
+the committed host releases it after removing listeners. No Native resource
+is allocated in render, and effect replay creates a fresh player. Web stops both playback and resource loading and
 restores the resource when React StrictMode replays effects.
 
 Methods express requests. Events express observations. `play()` resolving is

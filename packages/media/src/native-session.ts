@@ -119,12 +119,7 @@ export class NativeVideoSession implements VideoHandle {
     this.observer.dispose()
     for (const subscription of this.subscriptions) subscription.remove()
     this.subscriptions = []
-    // useVideoPlayer owns release; this session must not double-release it.
-    // React may already have cleaned that hook up when our passive cleanup runs.
-    try {
-      this.player.pause()
-    } catch {
-      // A released player cannot keep playing or notify our retired observer.
-    }
+    // The committed host owns release, after listeners and playback stop.
+    this.player.pause()
   }
 }
