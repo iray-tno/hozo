@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import path from 'node:path'
 import { getCompilerBindingIdentity } from '@hozo/compiler'
 
 const require = createRequire(import.meta.url)
@@ -25,7 +26,7 @@ export function toolchainEvidence() {
   }
 }
 
-export function recordAnalysis(report, analysis, file, source, platform) {
+export function recordAnalysis(report, analysis, file, source, platform, root) {
   if (Object.values(analysis.targets).some((target) => target.status === 'failed')) {
     report._compileFailures.add(file)
   }
@@ -36,10 +37,32 @@ export function recordAnalysis(report, analysis, file, source, platform) {
     bindingsStatus: analysis.bindings ? 'completed' : 'failed',
     reactNativeUsage: analysis.reactNativeUsage ?? { status: 'failed', bindings: [] },
     targets: Object.fromEntries(
-      Object.entries(analysis.targets).map(([target, { code: _code, ...outcome }]) => [
-        target,
-        outcome,
-      ]),
+      Object.entries(analysis.targets).map(
+        ([target, { code: _code, stylexContext, ...outcome }]) => [
+          target,
+          {
+            ...outcome,
+            ...(stylexContext
+              ? {
+                  stylexContext: {
+                    ...stylexContext,
+                    modules: stylexContext.modules.map((entry) => ({
+                      ...entry,
+                      file: path.relative(root, entry.file).replaceAll('\\', '/'),
+                    })),
+                    edges: stylexContext.edges.map(({ importer, resolved, ...edge }) => ({
+                      ...edge,
+                      importer: path.relative(root, importer).replaceAll('\\', '/'),
+                      ...(resolved
+                        ? { resolved: path.relative(root, resolved).replaceAll('\\', '/') }
+                        : {}),
+                    })),
+                  },
+                }
+              : {}),
+          },
+        ],
+      ),
     ),
     stages: analysis.stages,
   })

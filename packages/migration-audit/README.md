@@ -261,6 +261,23 @@ Explicit `--fail-on` policies can turn findings into a CI gate, as described bel
 fonts, indirect RN references, production dependencies or devices were assessed. JSON retains
 all ambiguous/partial records and before/after boundaries regardless of Markdown sample limits.
 
+Reports record the compiler's `compiler-stylex-reference-context-v1` required-context policy
+and per-target `stylexContext` evidence. An actual import-binding inventory can prove that a
+file does not require StyleX context. Consumers instead require conservative reference and
+reexport candidates, matching source/dependency hashes, target platform and recorded resolver
+edges. Missing, recovered, stale or contradictory evidence is unassessed, not a successful
+empty graph. Runtime imports and all unresolved alias/graph observations remain in JSON;
+this policy does not certify them or suppress setup warnings.
+
+An unresolved alias preset no longer blocks every file if the compiler proves the missing
+settings unnecessary for that file's static lowering. CSS/theme preparation remains a global
+requirement, and effective input/settings equality still applies. Edited authored StyleX
+dependencies leave affected consumers unassessed; unrelated files can still be compared.
+If any file is unassessed the aggregate comparison is `partial`, so `new-errors` stays blocked
+with `newErrors: null`. The new policy cannot inherit an old-policy baseline: take a fresh
+baseline. Legacy and unknown policy reports retain conservative completeness handling.
+The Markdown required-context table is a static analysis observation, not a compatibility score.
+
 ### Explicit CI failure policies
 
 `--fail-on none|error|new-errors` controls diagnostic exits. The default is `none`.

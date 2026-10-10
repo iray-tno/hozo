@@ -1,5 +1,10 @@
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
+import {
+  contextVerdict,
+  type StylexContextAnalyzer,
+  type StylexContextVerdict,
+} from './analysis-context.ts'
 import { type ReactNativeImportAnalysis, reactNativeImportJournal } from './analysis-rn.ts'
 import {
   type ReactNativeReferenceAnalysis,
@@ -19,6 +24,7 @@ import { type LowerModuleOptions, lowerModule } from './lower.ts'
 import { semanticModuleEligible } from './project.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
+export { REQUIRED_CONTEXT_POLICY, type StylexContextVerdict } from './analysis-context.ts'
 export {
   type AnalysisProjectFacts,
   type AnalysisProjectOptions,
@@ -65,6 +71,7 @@ export interface TargetAnalysis {
   semanticComponents: number
   integrationEligibility?: 'semantic-module' | 'runtime-imports-only' | 'compiler-probe-only'
   platform?: 'web' | 'ios' | 'android'
+  stylexContext?: StylexContextVerdict
   transformed?: boolean
   /** Available only for the actual Web module path, not a fabricated Native module. */
   code?: string
@@ -91,6 +98,8 @@ export interface AnalyzeModuleOptions {
   stylexContexts?: Partial<Record<'web' | 'ios' | 'android', StylexModuleCache>>
   /** Immutable registry inputs from project preparation; never rebuild per file. */
   stylexRegistries?: Partial<Record<'web' | 'ios' | 'android', StylexModuleSource[]>>
+  /** Compiler-owned prepared resolver/reference evidence; no audit-side graph reconstruction. */
+  stylexContextAnalysis?: StylexContextAnalyzer
   nativePlatform?: 'ios' | 'android'
   unloweredReactNativeJsx?: LowerModuleOptions['unloweredReactNativeJsx']
 }
@@ -252,6 +261,21 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
     }
   }
 
+  const requiredContext = (platform: 'web' | 'ios' | 'android') => {
+    if (!original)
+      return contextVerdict(source, platform, 'unresolved', ['Source binding analysis failed.'])
+    // The byte gate only optimizes registry activation. Absence of a context
+    // requirement comes from the compiler's actual runtime ESM import table.
+    if (!original.imports.some(({ source }) => source === '@stylexjs/stylex'))
+      return contextVerdict(source, platform, 'not-required')
+    return (
+      options.stylexContextAnalysis?.(file, platform, source) ??
+      contextVerdict(source, platform, 'unresolved', [
+        'Prepared StyleX reference/resolution evidence was not supplied.',
+      ])
+    )
+  }
+
   // Inventory is authored evidence. Never infer RN binding use from emitted
   // text, and keep it distinct from the next slice's actual rewrite decisions.
   const usage = run('source', 'rn-usage', () => analyzeReactNativeUsage(source, file))
@@ -274,6 +298,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
         ? 'semantic-module'
         : 'runtime-imports-only',
       platform: 'web',
+      stylexContext: run('web', 'required-context', () => requiredContext('web')),
     }
     result.targets.web = target
     const importJournal = reactNativeImportJournal(
@@ -358,6 +383,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
         ? 'semantic-module'
         : 'compiler-probe-only',
       platform: nativePlatform,
+      stylexContext: run('native', 'required-context', () => requiredContext(nativePlatform)),
     }
     result.targets.native = target
     const canvas = run('native', 'canvas', () => lowerCanvasPaints(source, compiler, true))
