@@ -1,9 +1,9 @@
-# @hozo/embed
+# @hozo/webview
 
 Web content inside a Hozo application (#160): an `<iframe>` on the Web, and `react-native-webview` on React Native.
 
 ```tsx
-import { WebView } from '@hozo/embed'
+import { WebView } from '@hozo/webview'
 
 <WebView
   src="https://example.com/checkout"

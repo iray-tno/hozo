@@ -2,9 +2,9 @@
 // title before deciding to enter it, and `onMessage` hears only the page in
 // this frame -- here, a button inside it posting a message out.
 
-import { WebView } from '@hozo/embed'
 import { View } from '@hozo/primitives'
 import { Heading, Paragraph } from '@hozo/typography'
+import { WebView } from '@hozo/webview'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 

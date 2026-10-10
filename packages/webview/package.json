@@ -1,5 +1,5 @@
 {
-  "name": "@hozo/embed",
+  "name": "@hozo/webview",
   "version": "0.2.0",
   "description": "Universal embedded web content for Hozo: an iframe on the Web and react-native-webview on Native.",
   "keywords": [
@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iray-tno/hozo.git",
-    "directory": "packages/embed"
+    "directory": "packages/webview"
   },
   "homepage": "https://iray-tno.github.io/hozo/",
   "bugs": {

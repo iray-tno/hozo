@@ -483,9 +483,6 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@hozo/embed':
-        specifier: workspace:*
-        version: link:../../packages/embed
       '@hozo/engine':
         specifier: workspace:*
         version: link:../../packages/engine
@@ -519,6 +516,9 @@ importers:
       '@hozo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@hozo/webview':
+        specifier: workspace:*
+        version: link:../../packages/webview
       '@react-three/fiber':
         specifier: ^9.8.1
         version: 9.8.1(35b2debcf61ed038438baf0c94e3cd0b)
@@ -772,28 +772,6 @@ importers:
       react-test-renderer:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
-
-  packages/embed:
-    dependencies:
-      react-native-webview:
-        specifier: '>=13'
-        version: 14.0.1(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8)
-    devDependencies:
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.5(@types/react@19.2.18)
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.2.8(react@19.2.8)
-      react-native:
-        specifier: ^0.87.1
-        version: 0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
 
   packages/engine:
     dependencies:
@@ -1349,6 +1327,28 @@ importers:
       vite:
         specifier: ^8.2.1
         version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0)
+
+  packages/webview:
+    dependencies:
+      react-native-webview:
+        specifier: '>=13'
+        version: 14.0.1(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.5(@types/react@19.2.18)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      react-native:
+        specifier: ^0.87.1
+        version: 0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native-community/cli@20.2.0(supports-color@8.1.1)(typescript@7.0.2))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
 
 packages:
 

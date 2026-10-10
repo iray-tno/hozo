@@ -15,7 +15,7 @@ const renderer = require('react-test-renderer')
 const stub = require('react-native')
 
 test('on the Web, a message is delivered only when its source is this frame', () => {
-  const { HozoWebView } = require('../../embed/dist/webview.js') as { HozoWebView: unknown }
+  const { HozoWebView } = require('../../webview/dist/webview.js') as { HozoWebView: unknown }
   const listeners: ((event: unknown) => void)[] = []
   const globals = globalThis as Record<string, unknown>
   const had = 'window' in globals
@@ -54,7 +54,9 @@ test('on the Web, a message is delivered only when its source is this frame', ()
 })
 
 test('on Native without react-native-webview, the address is a named link to the browser', () => {
-  const { HozoWebView } = require('../../embed/src/webview.native.tsx') as { HozoWebView: unknown }
+  const { HozoWebView } = require('../../webview/src/webview.native.tsx') as {
+    HozoWebView: unknown
+  }
   const opened: string[] = []
   const original = stub.Linking.openURL
   stub.Linking.openURL = async (url: string) => {

@@ -607,7 +607,6 @@ packages/
   canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
   compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
   core/                    Zero-setup facade over Hozo's canonical authoring packages.
-  embed/                   Universal embedded web content for Hozo: an iframe on the Web and react-native-webview on Native.
   engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
   form/                    Accessible universal form and date-selection components for Hozo applications.
   metro/                   Metro integration for the Hozo compiler (Native lowering backend).
@@ -628,6 +627,7 @@ packages/
   typography/              Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.
   ui/                      A styled component library for Hozo, shipped as source and compiled by your own build.
   vite/                    Vite integration for the Hozo compiler (Web lowering backend).
+  webview/                 Universal embedded web content for Hozo: an iframe on the Web and react-native-webview on Native.
 
 crates/
   hozo_cache/     Build cache for Hozo's candidate-class scan, with a swappable backing store.

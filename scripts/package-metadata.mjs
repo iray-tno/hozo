@@ -165,7 +165,7 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'compatibility', 'migration', 'react-native-web'],
   },
-  embed: {
+  webview: {
     exports: { '.': './dist/index.js' },
     native: true,
     peerOverrides: { 'react-native-webview': '>=13' },
