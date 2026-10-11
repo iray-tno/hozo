@@ -1,6 +1,7 @@
 # @hozo/media
 
-Video playback outside the core facade: HTML `<video>` on Web, `expo-video` on Native.
+Video and audio playback outside the core facade: actual HTML media elements
+on Web, independent `expo-video` / `expo-audio` engines on Native.
 
 ```tsx
 import { Video, type VideoHandle } from '@hozo/media'
@@ -20,7 +21,7 @@ The Web entry never imports Expo or React Native. The optional native peer
 does not implement a fallback player: an app that uses Native Video must install
 its engine. Neither `@hozo/core` nor a non-media screen gains this dependency.
 
-## Shared contract
+## Video contract
 
 - `src`: nonempty URL or URI. For bundled files, Web can pass its bundler's URL;
   Native can pass `expo-asset`'s resolved `localUri`. A numeric Metro asset ID,
@@ -55,6 +56,77 @@ listeners. Native loads asynchronously; the committed component host releases
 its Expo player after retiring its session, including StrictMode effect replay. Web cleanup
 pauses, removes the src and stops resource loading. Callback updates do not
 replace the source; stale asynchronous failures cannot report as the new movie.
+
+## Audio
+
+```tsx
+import { Audio, type AudioHandle } from '@hozo/media/audio'
+import { useRef } from 'react'
+
+function Sound({ src }: { src: string }) {
+  const player = useRef<AudioHandle>(null)
+  return <Audio ref={player} src={src} accessibilityLabel="Three rising tones"
+    onError={error => console.warn(error.message)} />
+}
+```
+
+Native Audio additionally needs Expo modules and `npx expo install expo-audio`
+(SDK 57, 57.0.5). The `/audio` entry does not import `expo-video`; the root
+Video entry does not import `expo-audio`. Web imports neither Native engine.
+Both optional peers must be installed when their respective Native entry is
+used; this is not a silent fallback. Adding the native module requires a new
+app binary, not just a Metro reload.
+
+`src` and `accessibilityLabel` are required, nonempty strings. URLs/URIs,
+`autoPlay`, `loop`, `muted`, and the status/play/pause/end/error callbacks use
+the same observed contract as Video. By default Audio includes shared Hozo
+play/pause and backward/forward controls on **both** platforms. Native has no
+HTML-audio-style control bar, so Audio does not substitute a browser-only UI.
+No autoplay is enabled by default. `controls={false}` gives headless playback;
+pass the handle ref and `onStatusChange` snapshot to `AudioControls` for a
+separate or localized control group:
+
+```tsx
+import { Audio, AudioControls, type AudioHandle, type AudioStatus } from '@hozo/media/audio'
+import { useRef, useState } from 'react'
+
+function SoundWithControls({ src }: { src: string }) {
+  const player = useRef<AudioHandle>(null)
+  const [status, setStatus] = useState<AudioStatus | null>(null)
+  return <>
+    <Audio ref={player} src={src} accessibilityLabel="Three rising tones"
+      controls={false} onStatusChange={setStatus} />
+    <AudioControls player={player} status={status} seekStep={1}
+      labels={{ play: 'Listen', pause: 'Pause' }} />
+  </>
+}
+```
+
+Audio's `seekTo(seconds)` returns a promise on both platforms because the
+Native engine seeks asynchronously. Rejection is observable and handled by
+the supplied controls. Replay waits for a rewind before requesting play;
+late completion cannot restart a retired or disabled player. Acceptance is
+not sample-exact positioning or proof that every source is seekable.
+Unknown/live duration is null, not an invented zero. Source changes retire
+listeners/resources; StrictMode effect replay creates a fresh committed
+Native player. Merely rendering Audio does not allocate Native resources.
+
+Audio never sets global audio mode, silent-switch behavior, background
+playback or lock-screen policy and never requests recording permission.
+Those decisions belong to the application/OS (see the
+[SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/)).
+The playback-only Native showcase disables microphone/recording permissions
+and background modes in its Expo config. Streams, recording, volume/rate,
+session/interruptions, transcripts and other content alternatives remain
+follow-ups. Authors still need appropriate alternatives for spoken content.
+
+Real Chromium tests use an original checked-in PCM WAV and measure non-silent
+samples from the actual audio element, keyboard play/pause, bounded seek,
+end/replay/loop and source retirement. Mocked Expo event/lifetime tests and
+Android/iOS Metro exports are separate evidence. They do **not** establish
+Native audible output, interruption/silent-switch behavior, or screen-reader
+operation. Both Storybooks include the same original three-tone demo; the
+description supplies its non-speech alternative.
 
 ## Accessibility and evidence
 
@@ -100,7 +172,7 @@ fullscreen controls; standard engine controls remain an alternative.
 
 A label and native controls do not establish media accessibility. Authors must
 supply appropriate alternatives for content. External WebVTT tracks, captions,
-audio description, poster, Audio, fullscreen/PiP
+audio description, poster, fullscreen/PiP
 configuration and background playback are follow-ups in [#147](https://github.com/iray-tno/hozo/issues/147).
 Do not use this first slice to claim caption or screen-reader conformance.
 

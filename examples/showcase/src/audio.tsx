@@ -1,0 +1,56 @@
+import { Audio, type AudioStatus } from '@hozo/media/audio'
+import { Button, Text, View } from '@hozo/primitives'
+import { Heading } from '@hozo/typography'
+import { useState } from 'react'
+
+export function AudioDemo({ src }: { src: string }) {
+  const [status, setStatus] = useState<AudioStatus | null>(null)
+  const [visible, setVisible] = useState(true)
+  const [muted, setMuted] = useState(false)
+  const [loop, setLoop] = useState(false)
+  return (
+    <View className="w-full max-w-lg gap-4 rounded-2xl bg-white p-6">
+      <Heading level={2} className="text-xl font-bold text-slate-900">
+        Audio playback
+      </Heading>
+      <Text className="text-base text-slate-700">
+        Three soft tones rise in pitch, with silence between them. No speech or music.
+      </Text>
+      {visible && (
+        <Audio
+          src={src}
+          accessibilityLabel="Three rising tones"
+          muted={muted}
+          loop={loop}
+          onStatusChange={setStatus}
+        />
+      )}
+      <Text className="text-base text-slate-700">
+        {visible
+          ? `Audio: ${status?.status ?? 'loading'}; ${status?.playing ? 'playing' : 'paused'}`
+          : 'Audio removed'}
+      </Text>
+      <Button
+        className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        onPress={() => setMuted((value) => !value)}
+      >
+        {muted ? 'Unmute audio' : 'Mute audio'}
+      </Button>
+      <Button
+        className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        onPress={() => setLoop((value) => !value)}
+      >
+        {loop ? 'Disable audio loop' : 'Enable audio loop'}
+      </Button>
+      <Button
+        className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        onPress={() => {
+          setStatus(null)
+          setVisible((value) => !value)
+        }}
+      >
+        {visible ? 'Remove audio' : 'Remount audio'}
+      </Button>
+    </View>
+  )
+}

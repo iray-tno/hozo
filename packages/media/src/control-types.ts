@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import type { VideoHandle, VideoStatus } from './types.ts'
+import type { MediaHandle, VideoStatus } from './types.ts'
 
 export interface VideoControlsLabels {
   play: string
@@ -11,7 +11,7 @@ export interface VideoControlsLabels {
 }
 
 export interface VideoControlsProps {
-  player: RefObject<VideoHandle | null>
+  player: RefObject<MediaHandle | null>
   /** Connect to Video.onStatusChange; commands never optimistically change this state. */
   status: VideoStatus | null
   disabled?: boolean

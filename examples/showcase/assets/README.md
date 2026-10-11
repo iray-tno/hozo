@@ -1,4 +1,19 @@
-# Video fixture
+# Owned media fixtures
+
+## Audio
+
+`hozo-audio.wav` is an original four-second mono 16-bit PCM WAV at 16 kHz.
+Three quiet tones (440, 660, 880 Hz) start at 0.25, 1.25 and 2.25 seconds,
+each lasting 0.4 seconds with gentle 10ms ramps. There is no speech or music;
+the shared story describes the sequence. It is covered by the repository's
+MIT license. It is never autoplayed by the story.
+
+`node scripts/generate-audio-fixture.mjs` from `examples/showcase` reproduces
+the checked-in bytes without a browser, microphone, network or external
+codec tool. Tests verify those exact bytes and actual non-silent browser
+samples; Native output is not claimed from an advancing clock or mock.
+
+## Video
 
 `hozo-video.mp4` is an original silent animation: a purple square travels across
 a dark background for about four seconds. No speech, music, or other audio is

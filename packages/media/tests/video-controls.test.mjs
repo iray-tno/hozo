@@ -19,11 +19,14 @@ const status = (patch = {}) => ({
   ...patch,
 })
 
-async function component(native) {
+async function component(native, audio = false) {
   const result = await build({
     entryPoints: [
       fileURLToPath(
-        new URL(`../src/video-controls${native ? '.native' : ''}.tsx`, import.meta.url),
+        new URL(
+          `../src/${audio ? 'audio' : 'video'}-controls${native ? '.native' : ''}.tsx`,
+          import.meta.url,
+        ),
       ),
     ],
     bundle: true,
@@ -41,11 +44,70 @@ async function component(native) {
     module,
     module.exports,
   )
-  return module.exports.VideoControls
+  return module.exports[audio ? 'AudioControls' : 'VideoControls']
 }
 
 for (const native of [false, true]) {
   const platform = native ? 'Native' : 'Web'
+  test(`${platform} Audio controls await rewind, catch async seeks and never restart disabled/retired players`, async () => {
+    const Controls = await component(native, true)
+    let observed = status({ status: 'ended', currentTime: 8 })
+    let complete
+    let reject
+    let plays = 0
+    const player = {
+      getStatus: () => observed,
+      play: async () => {
+        plays++
+      },
+      pause() {},
+      seekTo: () =>
+        new Promise((resolve, fail) => {
+          complete = resolve
+          reject = fail
+        }),
+    }
+    const ref = { current: player }
+    let renderer
+    const render = (props = {}) =>
+      React.createElement(Controls, { player: ref, status: observed, ...props })
+    const buttons = () => renderer.root.findAllByType(native ? 'RNPressable' : 'button')
+    const activate = (index) => buttons()[index].props[native ? 'onPress' : 'onClick']()
+    await act(async () => {
+      renderer = create(render())
+    })
+    assert.match(JSON.stringify(renderer.toJSON()), /Play audio/)
+    assert.match(JSON.stringify(renderer.toJSON()), /Audio playback controls/)
+    await act(async () => activate(0))
+    assert.equal(plays, 0, 'no playback before the async rewind completes')
+    observed = status({ currentTime: 0 })
+    await act(async () => {
+      renderer.update(render())
+      complete()
+    })
+    assert.equal(plays, 1, 'a status observation must not retire the active handle')
+    await act(async () => {
+      activate(2)
+      reject(new Error('asynchronous seek denied'))
+    })
+    assert.match(JSON.stringify(renderer.toJSON()), /asynchronous seek denied/)
+    observed = status({ status: 'ended', currentTime: 8 })
+    await act(async () => renderer.update(render()))
+    await act(async () => activate(0))
+    await act(async () => renderer.update(render({ disabled: true })))
+    await act(async () => complete())
+    assert.equal(plays, 1, 'a pending rewind cannot resume a disabled player')
+    await act(async () => renderer.update(render()))
+    await act(async () => activate(0))
+    ref.current = { ...player, getStatus: () => status({ src: 'replacement.wav' }) }
+    observed = status({ src: 'replacement.wav' })
+    await act(async () => {
+      renderer.update(render())
+      complete()
+    })
+    assert.equal(plays, 1, 'retired completion cannot start either player')
+    await act(async () => renderer.unmount())
+  })
   test(`${platform} controls keep observed state, fresh/clamped seeks, disabled boundaries and named controls`, async () => {
     const Controls = await component(native)
     let observed = status()

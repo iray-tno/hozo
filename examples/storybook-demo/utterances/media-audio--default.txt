@@ -1,0 +1,13 @@
+heading, Audio playback, level 2
+Three soft tones rise in pitch, with silence between them. No speech or music.
+group, Three rising tones playback controls
+Three rising tones playback controls
+button, Play audio
+button, Seek backward 10 seconds, disabled
+button, Seek forward 10 seconds
+0:00 / 0:04
+end of group, Three rising tones playback controls
+Audio: ready; paused
+button, Mute audio
+button, Enable audio loop
+button, Remove audio

@@ -6,6 +6,17 @@
     "version": "1.0.0",
     "orientation": "default",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ]
+    ],
     "ios": { "bundleIdentifier": "dev.hozo.showcase", "supportsTablet": true },
     "android": { "package": "dev.hozo.showcase" }
   }
