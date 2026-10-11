@@ -178,6 +178,20 @@ source and binary provenance retained in the artifacts. This is emulator
 decoder/pixel evidence for the diagnostic probe, not a physical-device or
 screen-reader validation of `VideoControls`, nor proof of zero flakiness.
 
+The later [run 38158796411](https://github.com/iray-tno/hozo/actions/runs/38158796411)
+passed iOS but failed Android's initial paused frame: the source reported ready
+at time zero, while all 18 viewport captures were black. Logcat recorded a
+decoder output-surface generation change followed by `queueBuffer failed: -32`.
+This is a presentation failure, not a caption-selector failure; its exact
+relationship to Expo/Media3's SurfaceView lifecycle is not established.
+The Native host now waits for both the commit carrying its player and a
+positive-area host layout before asynchronous source loading. Resizing does
+not reload, and source replacement/effect replay retire their own resources.
+No delay, warm-up playback, forced seek, alternate surface or weaker pixel gate
+is used. Mocked ordering/lifetime tests do not prove that this resolves the
+emulator failure; a fresh-build run must still pass the same initial-frame,
+seek/play and remount pixel gates.
+
 During playback the diagnostic status label retains the first real decoder
 time whose two-decimal display is above 0.25s, rather than repainting at every
 tick: Android UIAutomator otherwise cannot obtain an idle AX tree. No time is
