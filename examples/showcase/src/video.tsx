@@ -1,13 +1,9 @@
 import { Video, VideoControls, type VideoHandle, type VideoStatus } from '@hozo/media'
-import { MediaCaptions, type MediaCue } from '@hozo/media/captions'
+import { MediaCaptions } from '@hozo/media/captions'
 import { Button, Text, View } from '@hozo/primitives'
 import { Heading } from '@hozo/typography'
 import { useRef, useState } from 'react'
-
-const squareCues: readonly MediaCue[] = [
-  { start: 0, end: 2, text: '[Silent animation]\nA purple square travels toward the center.' },
-  { start: 2, end: 4, text: 'The purple square continues toward the right.' },
-]
+import { squareCues } from './video-captions.ts'
 
 /** The two hosts supply the same checked-in MP4 through their own asset loader. */
 export function VideoDemo({

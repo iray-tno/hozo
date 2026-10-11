@@ -199,7 +199,7 @@ the array to change tracks/language. Intervals include start and exclude end.
 Overlaps retain authored order, joined by newlines; gaps render nothing.
 Times must be finite with `0 <= start < end`, and cue text/names must be nonempty.
 Invalid requests throw instead of silently dropping text. Markup is literal
-text, not HTML, JSX, or a WebVTT parser. Cue preparation snapshots/indexes once
+text, not HTML or JSX. Cue preparation snapshots/indexes once
 per array; lookup skips future and wholly expired prefixes, although long
 overlaps can still scan a prefix.
 
@@ -221,6 +221,49 @@ It imports neither Expo engine. The `TimedCaptions` story demonstrates the
 same cue list, toggle, seek and removal on both platforms. Real Chromium
 playback, shared interval tests and mocked Native rendering verify distinct
 layers, not TalkBack/VoiceOver or Native pixel certification.
+
+### Converting plain-text WebVTT
+
+The pure `@hozo/media/webvtt` entry exports `parsePlainTextWebVTT(text)` and
+`WebVTTParseError`. It imports no React, Native host or playback engine and
+returns the same `readonly MediaCue[]` for Web and Native. Load/decode text
+using your application's file/network policy, then convert it once per track:
+
+```tsx
+import { parsePlainTextWebVTT, WebVTTParseError } from '@hozo/media/webvtt'
+
+try {
+  const cues = parsePlainTextWebVTT(decodedVttText)
+  // Pass cues and their associated media src to MediaCaptions.
+} catch (error) {
+  if (error instanceof WebVTTParseError)
+    console.warn(error.code, error.line, error.message)
+  else throw error
+}
+```
+
+This explicitly bounded subset accepts the `WEBVTT` signature (optional BOM
+and signature comment), LF/CRLF/CR, cue identifiers, NOTE comments, ordered
+overlapping cues, optional hour fields, three-digit milliseconds and multiline
+plain text. Six semicolon-terminated references decode once: `&amp;`, `&lt;`,
+`&gt;`, `&nbsp;`, `&lrm;`, `&rlm;`. Decoded angle brackets remain literal text.
+Cue identifiers are validated but are not part of the rendered `MediaCue`.
+
+Invalid syntax/intervals/order/duplicate identifiers/empty text raise
+`code: 'invalid-webvtt'`; unimplemented constructs raise
+`code: 'unsupported-webvtt'`. Both include a one-based line and message, and
+never return a partially accepted track. STYLE/REGION, cue settings, markup
+(including voice/ruby/language annotations), karaoke timestamps, other/numeric
+references and stream timestamp maps are not supported. This is not the
+browser's forgiving full WebVTT parser; do not strip these constructs to make
+a file appear compatible. Convert errors into an application-visible failure.
+
+No fetching, cache, UTF-8 byte decoder, source association or fullscreen track
+installation is hidden inside conversion. The shared caption demo now converts
+the same bundled original WebVTT text on both platforms, with unchanged output.
+Chromium's actual hidden `<track>` parser independently verifies the accepted
+fixture's timings and text; renderer tests consume its converted cues on both
+platforms. See the [WebVTT specification](https://www.w3.org/TR/webvtt1/).
 
 `pnpm --filter @hozo/media test` checks common state rules, DOM/Expo adapter
 events and Native component wiring. With Chrome it also decodes the checked-in

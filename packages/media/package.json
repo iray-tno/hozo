@@ -49,6 +49,14 @@
       "types": "./dist/captions-index.d.ts",
       "default": "./dist/captions-index.js"
     },
+    "./webvtt": {
+      "react-native": {
+        "types": "./dist/webvtt-index.native.d.ts",
+        "default": "./dist/webvtt-index.native.js"
+      },
+      "types": "./dist/webvtt-index.d.ts",
+      "default": "./dist/webvtt-index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

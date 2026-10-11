@@ -243,6 +243,9 @@ test('shared captions retain the independent media companion on both showcase ho
   assert.match(output, /status=\{visible \? status : null\}/)
   assert.match(output, /enabled=\{captionsEnabled\}/)
   assert.doesNotMatch(output, /resolveClassName|<div\b|expo-video/)
+  const fixture = readFileSync(path.join(root, '../showcase/src/video-captions.ts'), 'utf8')
+  assert.match(fixture, /from ['"]@hozo\/media\/webvtt['"]/)
+  assert.match(fixture, /squareCues = parsePlainTextWebVTT\(squareWebVTT\)/)
   for (const story of ['src/Video.stories.tsx', '../storybook-demo/src/Video.stories.tsx']) {
     const source = readFileSync(path.join(root, story), 'utf8')
     assert.match(source, /export const TimedCaptions/)

@@ -34,6 +34,31 @@ test('published Audio and Video entries resolve independently; Web loads neither
     }
 })
 
+test('published WebVTT conversion resolves without React, Native hosts or media engines', async () => {
+  for (const native of [false, true]) {
+    const result = await build({
+      stdin: {
+        contents: "export { parsePlainTextWebVTT, WebVTTParseError } from '@hozo/media/webvtt'",
+        resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+      },
+      bundle: true,
+      write: false,
+      platform: native ? 'node' : 'browser',
+      conditions: native ? ['react-native'] : [],
+      metafile: true,
+    })
+    assert.deepEqual(
+      Object.values(result.metafile.outputs).flatMap((output) => output.imports),
+      [],
+    )
+    assert.ok(
+      !Object.keys(result.metafile.inputs).some((file) =>
+        /node_modules|captions\.(native\.)?js/.test(file),
+      ),
+    )
+  }
+})
+
 test('published captions load neither playback engine on either platform', async () => {
   for (const native of [false, true]) {
     const result = await build({
