@@ -421,6 +421,23 @@ zero new frames separately if the device goes idle. Actions/captures are never
 repeated until they pass. A missing sink, short recording, noise, wrong notes,
 wrong order or sound while muted fails rather than falling back to a clock test.
 
+Tone detection is normalized by each window's RMS, not the source file's
+amplitude: Android's OS/mixer can attenuate recognizable sound. A window must
+still exceed sixteen 16-bit PCM quantization steps of RMS and 0.85 spectral
+coherence; all three notes and their order are required. Mute and removal also
+reject any recognizable fixture-tone window, even a sparse leak below the
+whole-recording silence RMS/peak limits. The driver retains the requested
+music volume index and Android's `--get` response instead of treating a volume
+request as proof of the effective gain.
+
+Fresh-build [run 38138743091](https://github.com/iray-tno/hozo/actions/runs/38138743091)
+failed at the first playback assertion. Its retained 6.014-second recording
+does contain the fixture (440, 660, 880, 440Hz; 6/3/3 coherent windows) at RMS
+0.001016/peak 0.002838. The original 0.005 window-RMS prefilter discarded those
+tones. Reanalysis identifies output, but does not turn that failed run into
+a successful series: mute, unmute, removal and remount were never reached.
+The revised gate requires a separate fresh-build run through every phase.
+
 `hozo-native-showcase-android-audio-evidence` retains the raw `qemu-output.wav`,
 listenable per-phase WAV slices and `evidence.json`: source/binary provenance,
 fixture/recording hashes, frame ranges, sample rate/channels, timing, RMS/peak,

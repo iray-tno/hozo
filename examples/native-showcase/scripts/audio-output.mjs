@@ -5,6 +5,11 @@ import { resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 
 const tones = [440, 660, 880]
+// PCM output includes the OS/mixer gain, not just the fixture's amplitude.
+// Require sixteen 16-bit quantization steps of RMS, then identify the tone
+// by normalized spectral coherence. Quiet recognizable output is not silence.
+const minimumToneRms = 16 / 32768
+const minimumCoherence = 0.85
 
 // QEMU's WAV sink writes a canonical 44-byte PCM header. While the emulator
 // runs its RIFF/data lengths are still zero; the actual written frames, not
@@ -57,7 +62,7 @@ export function audioMetrics({ rate, samples }) {
         energy += sample * sample
       }
       const rms = Math.sqrt(energy / size)
-      if (rms < 0.005) continue
+      if (rms < minimumToneRms) continue
       for (const frequency of tones) {
         const coefficient = 2 * Math.cos((2 * Math.PI * frequency) / rate)
         let previous = 0
@@ -70,7 +75,7 @@ export function audioMetrics({ rate, samples }) {
         const power = Math.max(0, previous ** 2 + before ** 2 - coefficient * previous * before)
         const amplitude = (2 * Math.sqrt(power)) / size
         const coherence = amplitude / (Math.SQRT2 * rms)
-        if (coherence > 0.85 && coherence > strength) {
+        if (coherence > minimumCoherence && coherence > strength) {
           strength = coherence
           winner = frequency
         }
@@ -95,6 +100,10 @@ export function verifyAudio(metrics, audible) {
   assert.ok(metrics.duration >= 5, `insufficient output frames: ${metrics.duration}s`)
   if (!audible) {
     assert.ok(metrics.rms <= 0.0005 && metrics.peak <= 0.003, 'muted output is not silent')
+    assert.ok(
+      Object.values(metrics.toneWindows).every((count) => count === 0),
+      'muted output contains recognizable fixture tones',
+    )
     return
   }
   for (const tone of tones)
@@ -130,6 +139,7 @@ export async function exerciseAudioOutput(driver, evidence, file, output, { slee
     captures: [],
     phase: 'load',
     backend: 'QEMU WAV sound-card output',
+    toneDetection: { minimumWindowRms: minimumToneRms, minimumCoherence },
   }
   evidence.audioOutput = result
   result.fixtureSha256 = createHash('sha256')
@@ -190,6 +200,10 @@ export async function exerciseAudioOutput(driver, evidence, file, output, { slee
     assert.ok(
       result.removed.rms <= 0.0005 && result.removed.peak <= 0.003,
       'unmounted audio still sounds',
+    )
+    assert.ok(
+      Object.values(result.removed.toneWindows).every((count) => count === 0),
+      'unmounted audio still emits recognizable fixture tones',
     )
     result.phase = 'remount'
     await driver.tap('Mount audio probe')

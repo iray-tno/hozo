@@ -204,5 +204,17 @@ successful actual fresh-build run establishes Android virtual-output behavior.
 Even that is not physical-speaker audibility, iOS output, interruption/silent-switch
 or TalkBack/VoiceOver validation. Those remain separate verification work.
 
+The first actual output capture in [run 38138743091](https://github.com/iray-tno/hozo/actions/runs/38138743091)
+failed its playback gate, not because the original tones were absent but
+because the analyzer excluded windows with RMS below 0.005. Its retained
+6.014-second PCM contains 440/660/880/440Hz at whole-recording RMS 0.001016.
+Tone identification now uses gain-normalized coherence with a PCM quantization
+floor, while preserving frame length, note count/order and coherence requirements.
+Mute/removal additionally reject recognizable fixture tones, including sparse
+low-level leaks that fall below aggregate silence limits. The volume command's
+response is retained; no fixed effective system gain is assumed. Reanalysis
+proves only that first captured output, not the unexecuted negative/lifetime
+phases or a successful full series; the failed result stays failed.
+
 Sources: [Expo SDK 57 Video API](https://docs.expo.dev/versions/v57.0.0/sdk/video/),
 [Expo SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/).
