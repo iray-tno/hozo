@@ -398,6 +398,44 @@ The Storybook Metro wrapper composes with `withHozo`; there is no separate
 Native `@hozo/storybook` preset yet. This example demonstrates the complete
 configuration without extending that Web-only package prematurely.
 
+## Isolated Android audio output
+
+Manual `native-showcase` dispatch with `platform=android`,
+`android-scenario=audio-output`, `diagnostics=false`, and no `reuse-build-run`
+builds a fresh app and selects `Media/Audio/OutputEvidence`. Normal full/SVG runs
+still use `-noaudio`; this separate run deliberately enables QEMU's WAV sound
+card (`QEMU_AUDIO_DRV=wav`, `QEMU_WAV_PATH`). It does not add microphone
+permission, a native recording module or global audio-session policy to the app.
+See the [emulator command-line reference](https://developer.android.com/studio/run/emulator-commandline)
+and [QEMU WAV backend source](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/audio/wavaudio.c).
+
+The story uses the ordinary Native Hozo Audio engine with the owned four-second
+WAV looped. Named play/mute/remove/remount controls keep AX observation idle;
+there is no ticking clock label and no app-generated output measurement.
+After each command and observable state, a fixed one-second transition exclusion
+is followed by one six-second output capture. The analyzer requires at least
+five seconds of actual PCM, all three 440/660/880Hz notes with coherent tone
+windows in cyclic rising order, and a nonempty digitally silent muted capture.
+Unmute and remount must restore the tones; removal must stop sound, recording
+zero new frames separately if the device goes idle. Actions/captures are never
+repeated until they pass. A missing sink, short recording, noise, wrong notes,
+wrong order or sound while muted fails rather than falling back to a clock test.
+
+`hozo-native-showcase-android-audio-evidence` retains the raw `qemu-output.wav`,
+listenable per-phase WAV slices and `evidence.json`: source/binary provenance,
+fixture/recording hashes, frame ranges, sample rate/channels, timing, RMS/peak,
+tone counts/order and the failed phase. QEMU finalizes its raw RIFF lengths on
+shutdown; the live reader uses actual written bytes and snapshots valid headers.
+No production player or decoder hook is changed for the analyzer.
+
+This is an opt-in measurement, not yet an addition to full/weekly/release gates.
+Unit tests validate its rejection behavior and orchestration with synthetic
+recordings; they do not prove the emulator emitted sound. An actual successful
+fresh-source run establishes virtual sound-card output only: physical Android
+speakers, iOS output, audio-session interruptions and TalkBack/VoiceOver
+operation remain separate checks. Do not describe these as measured until their
+own evidence exists.
+
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and
 disassemble the 3D scene; enable reduced motion; background/resume; switch away

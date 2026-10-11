@@ -62,9 +62,9 @@ on:
         type: string
         default: '1'
       android-scenario:
-        description: 'Full showcase plus isolated SVG filters, or SVG filters only (no Canvas)'
+        description: 'Full showcase plus SVG, SVG only, or isolated actual Android audio output'
         type: choice
-        options: [full, svg-filters]
+        options: [full, svg-filters, audio-output]
         default: full
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'
@@ -164,7 +164,13 @@ jobs:
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Exercise isolated SVG filters, then full Storybook and Expo GL
+      - name: Enable an independent virtual sound-card capture for audio diagnosis
+        if: inputs.android-scenario == 'audio-output'
+        run: |
+          mkdir -p artifacts/native-showcase-audio
+          echo 'QEMU_AUDIO_DRV=wav' >> "$GITHUB_ENV"
+          echo "QEMU_WAV_PATH=$GITHUB_WORKSPACE/artifacts/native-showcase-audio/qemu-output.wav" >> "$GITHUB_ENV"
+      - name: Exercise selected Android showcase scenario
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -173,16 +179,27 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
+          emulator-options: -no-window -gpu swiftshader_indirect ${{ inputs.android-scenario == 'audio-output' && '-verbose' || '-noaudio' }} -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: |
-            HOZO_ANDROID_SCENARIO=svg-filters node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase-svg
-            if [ "$HOZO_ANDROID_SCENARIO" = full ]; then node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase; fi
+            if [ "$HOZO_ANDROID_SCENARIO" = audio-output ]; then
+              node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase-audio
+            else
+              HOZO_ANDROID_SCENARIO=svg-filters node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase-svg
+              if [ "$HOZO_ANDROID_SCENARIO" = full ]; then node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase; fi
+            fi
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
           HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
           HOZO_ANDROID_TARGET: ${{ inputs.android-target || 'google_apis' }}
           HOZO_ANDROID_CANVAS_ROUNDS: ${{ inputs.android-canvas-rounds || '1' }}
           HOZO_ANDROID_SCENARIO: ${{ inputs.android-scenario || 'full' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-android-audio-evidence
+          path: artifacts/native-showcase-audio
+          if-no-files-found: ignore
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:

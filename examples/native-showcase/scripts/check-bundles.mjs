@@ -52,6 +52,8 @@ for (const platform of ['android', 'ios']) {
     'Animation captions',
     'Hide captions',
     'Three rising tones',
+    'Native audio output',
+    'Play audio probe',
     'Moving square, silent video',
     'Native video playback',
     'Local video pixel probe',

@@ -3,6 +3,7 @@ import { Emphasis, Heading, Paragraph, Strong } from '@hozo/typography'
 import { useState } from 'react'
 
 export { AudioDemo } from './audio.tsx'
+export { AudioPlaybackProbe } from './audio-probe.tsx'
 export { DialogDemo, PreferencesDemo, TabsDemo } from './patterns.tsx'
 export { SvgFiltersDemo } from './svg-filters.tsx'
 export { VideoDemo } from './video.tsx'
