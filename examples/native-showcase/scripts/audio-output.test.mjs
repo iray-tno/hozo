@@ -156,5 +156,5 @@ test('audio diagnosis is isolated, capture-enabled and does not change full/SVG 
   assert.match(workflow, /QEMU_AUDIO_DRV=wav/)
   assert.match(workflow, /QEMU_WAV_PATH=/)
   assert.match(workflow, /hozo-native-showcase-android-audio-evidence/)
-  assert.match(workflow, /if \[ "\$HOZO_ANDROID_SCENARIO" = audio-output \]/)
+  assert.match(workflow, /script: node examples\/native-showcase\/scripts\/android-scenarios\.mjs/)
 })

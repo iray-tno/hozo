@@ -180,13 +180,7 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect ${{ inputs.android-scenario == 'audio-output' && '-verbose' || '-noaudio' }} -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
-          script: |
-            if [ "$HOZO_ANDROID_SCENARIO" = audio-output ]; then
-              node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase-audio
-            else
-              HOZO_ANDROID_SCENARIO=svg-filters node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase-svg
-              if [ "$HOZO_ANDROID_SCENARIO" = full ]; then node examples/native-showcase/scripts/android-smoke.mjs artifacts/native-showcase; fi
-            fi
+          script: node examples/native-showcase/scripts/android-scenarios.mjs
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
           HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
