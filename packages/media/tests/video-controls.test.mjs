@@ -1,0 +1,243 @@
+import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
+import test from 'node:test'
+import { fileURLToPath } from 'node:url'
+import { build } from 'esbuild'
+import React, { act } from 'react'
+import { create } from 'react-test-renderer'
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true
+const require = createRequire(import.meta.url)
+const status = (patch = {}) => ({
+  src: 'a.mp4',
+  status: 'ready',
+  playing: false,
+  buffering: false,
+  currentTime: 1,
+  duration: 8,
+  error: null,
+  ...patch,
+})
+
+async function component(native) {
+  const result = await build({
+    entryPoints: [
+      fileURLToPath(
+        new URL(`../src/video-controls${native ? '.native' : ''}.tsx`, import.meta.url),
+      ),
+    ],
+    bundle: true,
+    write: false,
+    platform: 'node',
+    format: 'cjs',
+    packages: 'external',
+  })
+  const module = { exports: {} }
+  new Function('require', 'module', 'exports', result.outputFiles[0].text)(
+    (name) =>
+      name === 'react-native'
+        ? { View: 'RNView', Text: 'RNText', Pressable: 'RNPressable' }
+        : require(name),
+    module,
+    module.exports,
+  )
+  return module.exports.VideoControls
+}
+
+for (const native of [false, true]) {
+  const platform = native ? 'Native' : 'Web'
+  test(`${platform} controls keep observed state, fresh/clamped seeks, disabled boundaries and named controls`, async () => {
+    const Controls = await component(native)
+    let observed = status()
+    const requests = []
+    const player = {
+      getStatus: () => ({ ...observed }),
+      play: async () => {
+        requests.push('play')
+      },
+      pause: () => requests.push('pause'),
+      seekTo: (time) => requests.push(time),
+    }
+    const ref = { current: player }
+    let renderer
+    const render = (snapshot = observed, props = {}) =>
+      React.createElement(Controls, { player: ref, status: snapshot, ...props })
+    const buttons = () => renderer.root.findAllByType(native ? 'RNPressable' : 'button')
+    const label = (button) => (native ? button.props.accessibilityLabel : button.props.children)
+    const activate = (index) => buttons()[index].props[native ? 'onPress' : 'onClick']()
+    await act(async () => {
+      renderer = create(render())
+    })
+    assert.deepEqual(buttons().map(label), [
+      'Play video',
+      'Seek backward 10 seconds',
+      'Seek forward 10 seconds',
+    ])
+    if (native) {
+      assert.ok(
+        renderer.root.findAllByType('RNView').every((node) => node.props.accessible === false),
+      )
+      for (const button of buttons()) {
+        assert.equal(button.props.accessibilityRole, 'button')
+        assert.deepEqual(button.props.accessibilityState, { disabled: false })
+        assert.equal(button.props.children.type, 'RNText')
+        assert.ok(button.props.style.minHeight >= 44)
+      }
+    } else {
+      assert.equal(renderer.root.findByType('legend').props.children, 'Video playback controls')
+      assert.ok(buttons().every((button) => button.props.type === 'button'))
+    }
+    const toggle = buttons()[0]
+    await act(async () => activate(0))
+    assert.deepEqual(requests, ['play'])
+    assert.equal(
+      label(buttons()[0]),
+      'Play video',
+      'a resolved request is not an observed playing event',
+    )
+    observed = status({ playing: true })
+    await act(async () => renderer.update(render()))
+    assert.equal(
+      buttons()[0],
+      toggle,
+      'the focused toggle host must not remount when its name changes',
+    )
+    assert.equal(label(buttons()[0]), 'Pause video')
+    await act(async () => activate(0))
+    assert.equal(requests.at(-1), 'pause')
+    assert.equal(label(buttons()[0]), 'Pause video', 'pause awaits an observation too')
+    const stale = status()
+    observed = status({ currentTime: 5 })
+    await act(async () => renderer.update(render(stale)))
+    await act(async () => activate(2))
+    assert.equal(requests.at(-1), 8, 'seek from live 5s, clamped to duration, not stale 1s')
+    await act(async () => activate(1))
+    assert.equal(requests.at(-1), 0)
+    observed = status({ currentTime: 0 })
+    await act(async () => renderer.update(render()))
+    assert.equal(buttons()[1].props.disabled, true)
+    observed = status({ currentTime: 8, status: 'ended' })
+    await act(async () => renderer.update(render()))
+    assert.equal(buttons()[2].props.disabled, true)
+    await act(async () => activate(0))
+    assert.deepEqual(
+      requests.slice(-2),
+      [0, 'play'],
+      'replay requests a reset before play on both engines',
+    )
+    observed = status({ duration: null, currentTime: 5 })
+    await act(async () => renderer.update(render()))
+    assert.equal(buttons()[2].props.disabled, false)
+    assert.match(JSON.stringify(renderer.toJSON()), /duration unknown/)
+    await act(async () => activate(2))
+    assert.equal(requests.at(-1), 15)
+    observed = status({ status: 'loading', playing: true, buffering: true })
+    await act(async () => renderer.update(render()))
+    assert.equal(buttons()[0].props.disabled, false, 'buffering playback remains pausable')
+    assert.ok(
+      buttons()
+        .slice(1)
+        .every((button) => button.props.disabled),
+    )
+    await act(async () => renderer.update(render(null)))
+    assert.ok(buttons().every((button) => button.props.disabled))
+    await act(async () => renderer.update(render(observed, { disabled: true })))
+    const before = requests.length
+    await act(async () => {
+      activate(0)
+      activate(1)
+      activate(2)
+    })
+    assert.equal(requests.length, before, 'disabled also guards programmatic handler calls')
+    await act(async () => renderer.unmount())
+  })
+
+  test(`${platform} controls surface command failures but not rejected requests from a retired player`, async () => {
+    const Controls = await component(native)
+    let reject
+    let observed = status()
+    const a = {
+      getStatus: () => observed,
+      play: () =>
+        new Promise((_, fail) => {
+          reject = fail
+        }),
+      pause() {},
+      seekTo() {
+        throw new Error('not seekable')
+      },
+    }
+    const ref = { current: a }
+    let renderer
+    const render = (props = {}) =>
+      React.createElement(Controls, { player: ref, status: observed, ...props })
+    const buttons = () => renderer.root.findAllByType(native ? 'RNPressable' : 'button')
+    const activate = (index) => buttons()[index].props[native ? 'onPress' : 'onClick']()
+    await act(async () => {
+      renderer = create(render())
+    })
+    await act(async () => {
+      activate(0)
+      reject(new Error('play denied'))
+    })
+    assert.match(JSON.stringify(renderer.toJSON()), /play denied/)
+    if (!native)
+      assert.equal(renderer.root.findByProps({ role: 'alert' }).props.children, 'play denied')
+    else
+      assert.equal(
+        renderer.root.findByProps({ accessibilityLiveRegion: 'polite' }).props.children,
+        'play denied',
+      )
+    await act(async () => activate(2))
+    assert.match(JSON.stringify(renderer.toJSON()), /not seekable/)
+    await act(async () => activate(0))
+    const oldReject = reject
+    const b = {
+      ...a,
+      play: async () => {
+        throw new Error('new denial')
+      },
+      getStatus: () => status({ src: 'b.mp4' }),
+    }
+    ref.current = b
+    observed = status({ src: 'b.mp4' })
+    await act(async () => {
+      renderer.update(render())
+      oldReject(new Error('old source denial'))
+    })
+    assert.doesNotMatch(JSON.stringify(renderer.toJSON()), /old source denial|not seekable/)
+    let plays = 0
+    b.play = async () => {
+      plays++
+    }
+    await act(async () => renderer.update(render({ status: status() })))
+    await act(async () => activate(0))
+    assert.equal(plays, 0, 'an old rendered source cannot command the new player')
+    await act(async () =>
+      renderer.update(
+        render({
+          accessibilityLabel: 'Lecteur',
+          labels: {
+            play: 'Lire',
+            pause: 'Pause',
+            backward: 'Reculer',
+            forward: 'Avancer',
+            position: () => 'Position inconnue',
+          },
+          seekStep: 1,
+        }),
+      ),
+    )
+    assert.match(JSON.stringify(renderer.toJSON()), /Lire/)
+    assert.match(JSON.stringify(renderer.toJSON()), /Position inconnue/)
+    let unmountReject
+    b.play = () =>
+      new Promise((_, fail) => {
+        unmountReject = fail
+      })
+    await act(async () => activate(0))
+    assert.equal(typeof unmountReject, 'function')
+    await act(async () => renderer.unmount())
+    await act(async () => unmountReject(new Error('late unmount denial')))
+  })
+}

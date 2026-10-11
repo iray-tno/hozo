@@ -58,9 +58,49 @@ replace the source; stale asynchronous failures cannot report as the new movie.
 
 ## Accessibility and evidence
 
+### Shared controls
+
+`VideoControls` is an optional companion to a `Video` with `controls={false}`:
+
+```tsx
+import { Video, VideoControls, type VideoHandle, type VideoStatus } from '@hozo/media'
+import { useRef, useState } from 'react'
+
+function ClipWithControls({ src }: { src: string }) {
+  const player = useRef<VideoHandle>(null)
+  const [status, setStatus] = useState<VideoStatus | null>(null)
+  return <>
+    <Video ref={player} src={src} accessibilityLabel="Product walkthrough"
+      controls={false} onStatusChange={setStatus} />
+    <VideoControls player={player} status={status} seekStep={10} />
+  </>
+}
+```
+
+Both platforms provide a named play/pause toggle, backward
+and forward seek buttons, observed elapsed/duration text and error text.
+Web uses real buttons (including Enter/Space); Native uses separately named
+Pressables with supported button/disabled semantics, never a made-up playing
+accessibility state. The toggle keeps its host/focus when its name changes.
+The time text is not a live announcement on every playback tick.
+
+The play label only becomes pause after an engine observation. Requests use
+the current handle's clock, clamp seeks to a known duration and rewind an
+ended source before replay. Unknown duration stays unknown; seek buttons
+request a seek, not proof that the source/container supports one. A denied
+request is visible, and a retired source's asynchronous failure cannot label
+its replacement. Pass `disabled` when your player is unavailable/unmounted.
+
+`seekStep` must be positive and finite (default 10 seconds).
+`accessibilityLabel` names the control group (default "Video playback controls").
+`labels` overrides `play`, `pause`, `backward`, `forward` and the
+`position(currentTime, duration)` formatter for localization. Names must not
+be empty. This first companion has no draggable slider, volume, captions or
+fullscreen controls; standard engine controls remain an alternative.
+
 A label and native controls do not establish media accessibility. Authors must
 supply appropriate alternatives for content. External WebVTT tracks, captions,
-audio description, poster, custom accessible controls, Audio, fullscreen/PiP
+audio description, poster, Audio, fullscreen/PiP
 configuration and background playback are follow-ups in [#147](https://github.com/iray-tno/hozo/issues/147).
 Do not use this first slice to claim caption or screen-reader conformance.
 
@@ -70,8 +110,13 @@ silent AVC fixture and exercises actual play/pause/seek/end/loop, bad-source
 recovery, source switching and StrictMode cleanup. Chrome is required in CI;
 without it a local playback test explicitly skips, not passes. Native mocks and
 Metro exports **are not** iOS/Android decoder, pixel or assistive-technology
-evidence. Both Storybooks share the same `VideoDemo` and local MP4 for that next
-device check.
+evidence. Both Storybooks share the same `VideoDemo` and local MP4. The separate
+decoder probe passed the Android/iOS full-scenario gates in fresh-build
+[run 38097310264](https://github.com/iray-tno/hozo/actions/runs/38097310264);
+that emulator evidence does not validate this companion's screen-reader UI.
+The additional `CustomControls` story demonstrates this companion
+on both platforms. Chromium keyboard tests and mocked Native control wiring
+are not TalkBack/VoiceOver certification of the new controls.
 
 <!-- generated: package-footer -->
 

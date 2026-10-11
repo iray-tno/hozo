@@ -27,17 +27,19 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
       contents: `
         import React, {useState} from 'react'
         import {createRoot} from 'react-dom/client'
-        import {Video} from './src/index.ts'
+        import {Video, VideoControls} from './src/index.ts'
         window.statuses = []; window.errors = []; window.ended = 0
         window.ref = React.createRef()
         function App() {
           const [src, change] = useState('/clip.mp4')
           const [mounted, mount] = useState(true)
           const [options, configure] = useState({muted:true, loop:false})
+          const [status, setStatus] = useState(null)
           window.change = change; window.mount = mount; window.configure = configure
-          return mounted && <Video ref={window.ref} src={src} accessibilityLabel="Local silent clip"
-            {...options} onStatusChange={s => window.statuses.push(s)}
+          return mounted && <><Video ref={window.ref} src={src} accessibilityLabel="Local silent clip"
+            {...options} onStatusChange={s => {window.statuses.push(s); setStatus(s)}}
             onError={e => window.errors.push(e)} onEnded={() => window.ended++}/>
+            <VideoControls player={window.ref} status={status} seekStep={1}/></>
         }
         createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>)
       `,
@@ -111,13 +113,31 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     assert.equal(await page.evaluate(() => document.querySelector('video').controls), true)
     const duration = await page.evaluate(() => window.ref.current.getStatus().duration)
     assert.ok(duration > 3 && duration < 6, `Recorded fixture duration ${duration}`)
-    await page.evaluate(() => window.ref.current.play())
+    const toggle = page.getByRole('button', { name: 'Play video', exact: true })
+    await toggle.focus()
+    await page.keyboard.press('Enter')
     await page.waitForFunction(
       () =>
         window.ref.current.getStatus().playing && window.ref.current.getStatus().currentTime > 0.1,
     )
-    await page.evaluate(() => window.ref.current.pause())
+    await page.getByRole('button', { name: 'Pause video', exact: true }).waitFor()
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent), 'Pause video')
+    await page.keyboard.press('Space')
     await page.waitForFunction(() => !window.ref.current.getStatus().playing)
+    await page.evaluate(() => window.ref.current.seekTo(0))
+    await page.waitForFunction(
+      () =>
+        Array.from(document.querySelectorAll('button')).find(
+          (button) => button.textContent === 'Seek backward 1 second',
+        )?.disabled,
+    )
+    assert.equal(
+      await page.getByRole('button', { name: 'Seek backward 1 second' }).isDisabled(),
+      true,
+    )
+    await page.getByRole('button', { name: 'Seek forward 1 second' }).focus()
+    await page.keyboard.press('Enter')
+    await page.waitForFunction(() => window.ref.current.getStatus().currentTime >= 1)
     await page.evaluate(() => window.ref.current.seekTo(1))
     await page
       .waitForFunction(() => Math.abs(window.ref.current.getStatus().currentTime - 1) < 0.2)

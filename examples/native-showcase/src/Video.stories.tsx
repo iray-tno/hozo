@@ -19,7 +19,13 @@ function NativeVideoViewport({ children }: PropsWithChildren) {
   )
 }
 
-function LocalVideo({ probe = false }: { probe?: boolean }) {
+function LocalVideo({
+  probe = false,
+  customControls = false,
+}: {
+  probe?: boolean
+  customControls?: boolean
+}) {
   const [src, setSrc] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -42,7 +48,7 @@ function LocalVideo({ probe = false }: { probe?: boolean }) {
   return probe ? (
     <VideoPlaybackProbe src={src} Viewport={NativeVideoViewport} />
   ) : (
-    <VideoDemo src={src} />
+    <VideoDemo src={src} customControls={customControls} />
   )
 }
 
@@ -60,4 +66,5 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {}
+export const CustomControls: Story = { args: { customControls: true } }
 export const PlaybackEvidence: Story = { args: { probe: true } }

@@ -220,12 +220,19 @@ test('shared Video retains the media host while its control variants compile sta
   const output = transformHozoSource(readFileSync(file, 'utf8'), file)
   assert.match(output, /from ['"]@hozo\/media['"]/, 'media stays a platform component')
   assert.match(output, /<Video\b/, 'the Native player must not become an HTML video')
+  assert.match(output, /<VideoControls\b/, 'the companion remains a Native media component')
+  assert.match(output, /controls=\{!customControls\}/)
+  assert.match(output, /<VideoControls[^>]+player=\{video\}[^>]+status=\{status\}/)
   assert.doesNotMatch(
     output,
     /<video\b|resolveClassName/,
     'no DOM tag or dynamic control-style fallback',
   )
   assert.ok(output.includes('Moving square, silent video'))
+  for (const story of ['src/Video.stories.tsx', '../storybook-demo/src/Video.stories.tsx']) {
+    const source = readFileSync(path.join(root, story), 'utf8')
+    assert.match(source, /CustomControls: Story = \{ args: \{ customControls: true \} \}/)
+  }
 })
 
 test('cold Native Storybook starts with a lightweight primitive, not implicit GPU work', () => {

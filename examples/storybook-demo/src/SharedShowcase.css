@@ -3,6 +3,7 @@
 .shared-showcase input:focus-visible,
 .shared-showcase [role="button"]:focus-visible,
 .shared-showcase button[role]:focus-visible,
+.shared-showcase button:focus-visible,
 .shared-showcase [role="tabpanel"]:focus-visible {
   outline: 2px solid #4f39f6;
   outline-offset: 2px;
