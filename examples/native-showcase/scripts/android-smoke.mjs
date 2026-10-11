@@ -333,7 +333,22 @@ try {
     assert.equal(process.env.QEMU_AUDIO_DRV, 'wav', 'audio output needs the QEMU WAV backend')
     assert.ok(process.env.QEMU_WAV_PATH, 'missing QEMU output path')
     adb('shell', 'settings', 'put', 'system', 'sound_effects_enabled', '0')
-    adb('shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', '15')
+    evidence.audioVolume = {
+      requestedMusicIndex: 15,
+      // A requested volume is not an observed gain. Retain Android's response
+      // (including --get or command errors) alongside the independently captured PCM.
+      response: adb(
+        'shell',
+        'cmd',
+        'media_session',
+        'volume',
+        '--stream',
+        '3',
+        '--set',
+        '15',
+        '--get',
+      ).toString(),
+    }
     await exerciseAudioOutput(
       {
         story,
