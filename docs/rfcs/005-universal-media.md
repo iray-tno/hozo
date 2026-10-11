@@ -183,5 +183,26 @@ or bundle is not evidence of Android/iOS audible output or assistive-technology
 operation. Native Audio output/interruption/silent-switch verification remains
 a follow-up, separate from the completed Video pixel probe.
 
+An opt-in Android `audio-output` scenario now captures the emulator's actual
+virtual sound-card output using QEMU's WAV backend. It uses a separate
+`Media/Audio/OutputEvidence` story with the canonical Hozo Audio host and the
+same owned WAV, not an Expo decoded-sample callback. The diagnostic status
+omits ticking time so UIAutomator can read the tree; this status cannot satisfy
+the output assertion. Four fixed six-second captures require the expected
+440/660/880Hz notes in cyclic rising order during play, digital silence while
+muted with playback still active, restored notes after unmute, and new output
+after resource removal/remount. Removal separately requires no remaining sound;
+zero new frames there is recorded distinctly from a nonempty muted capture.
+
+Capture intervals, RMS/peak, tone windows/order, source hash, recording hashes,
+raw output and normalized listenable WAV slices are retained, including failures.
+Each input is sent once; a failed capture ends the sequence without retry.
+The existing full/SVG and iOS runs keep their configuration and release gates.
+This isolated diagnosis does not count as their success or become a mandatory
+release check. Its analyzer/protocol tests are not emulator evidence; only a
+successful actual fresh-build run establishes Android virtual-output behavior.
+Even that is not physical-speaker audibility, iOS output, interruption/silent-switch
+or TalkBack/VoiceOver validation. Those remain separate verification work.
+
 Sources: [Expo SDK 57 Video API](https://docs.expo.dev/versions/v57.0.0/sdk/video/),
 [Expo SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/).

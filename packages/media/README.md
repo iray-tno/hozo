@@ -128,6 +128,16 @@ Native audible output, interruption/silent-switch behavior, or screen-reader
 operation. Both Storybooks include the same original three-tone demo; the
 description supplies its non-speech alternative.
 
+The Native showcase additionally has an isolated Android `audio-output`
+diagnosis: QEMU records the virtual sound card, independent of the playback
+clock or Expo sample callbacks. It checks the original tone frequencies/order,
+nonempty silence while muted, restored output and resource removal/remount,
+retaining WAV recordings and failed observations. This measurement path is not
+a claimed pass until its actual CI evidence succeeds; analyzer/unit tests alone
+are not output evidence. Physical speakers, iOS capture and AT/session behavior
+still need their own checks. See the
+[Native showcase instructions](../../examples/native-showcase/README.md).
+
 ## Accessibility and evidence
 
 ### Shared controls

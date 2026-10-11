@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { exerciseAudioOutput } from './audio-output.mjs'
 import { readCanvasRounds } from './canvas-rounds.mjs'
 import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './device-evidence.mjs'
 import { waitForImage } from './image-ready.mjs'
@@ -328,7 +329,23 @@ try {
   adb('install', '-r', resolve(root, 'android/app/build/outputs/apk/release/app-release.apk'))
   adb('logcat', '-c')
   adb('shell', 'am', 'force-stop', app)
-  if (evidence.scenario === 'svg-filters') {
+  if (evidence.scenario === 'audio-output') {
+    assert.equal(process.env.QEMU_AUDIO_DRV, 'wav', 'audio output needs the QEMU WAV backend')
+    assert.ok(process.env.QEMU_WAV_PATH, 'missing QEMU output path')
+    adb('shell', 'settings', 'put', 'system', 'sound_effects_enabled', '0')
+    adb('shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', '15')
+    await exerciseAudioOutput(
+      {
+        story,
+        waitFor: (value) => waitFor(label(value), value),
+        tap: (value) => tap(label(value), value),
+        record,
+      },
+      evidence,
+      process.env.QEMU_WAV_PATH,
+      output,
+    )
+  } else if (evidence.scenario === 'svg-filters') {
     evidence.sceneSourceSha256 = createHash('sha256')
       .update(readFileSync(resolve(root, '../showcase/src/svg-filter-scene.tsx')))
       .digest('hex')

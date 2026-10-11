@@ -5,7 +5,10 @@ import { comparePixels, verifyEffect } from '../../showcase/scripts/svg-filter-p
 export const SVG_FILTER_KINDS = ['color', 'blur', 'shadow', 'composition', 'blend']
 
 export function readAndroidScenario(value = 'full') {
-  assert.ok(['full', 'svg-filters'].includes(value), `Unknown Android scenario: ${value}`)
+  assert.ok(
+    ['full', 'svg-filters', 'audio-output'].includes(value),
+    `Unknown Android scenario: ${value}`,
+  )
   return value
 }
 
