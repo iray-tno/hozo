@@ -438,6 +438,15 @@ tones. Reanalysis identifies output, but does not turn that failed run into
 a successful series: mute, unmute, removal and remount were never reached.
 The revised gate requires a separate fresh-build run through every phase.
 
+That separate fresh-build [run 38153397087](https://github.com/iray-tno/hozo/actions/runs/38153397087)
+passed all three audio-output checks, with diagnostics off and source
+`6c226b469cb4cb82a2da9599b25062105aca9d71`; its binary came from the same run.
+Four verified 6.014s captures contain the fixture during play/unmute/remount
+and digitally silent but nonempty PCM during mute. Removal produced zero new
+frames. Downloaded recording/fixture hashes and recomputed metrics match the
+evidence. This is one successful emulator virtual-output series, not physical
+speakers, iOS audio, AT/session verification or proof of zero flakiness.
+
 `hozo-native-showcase-android-audio-evidence` retains the raw `qemu-output.wav`,
 listenable per-phase WAV slices and `evidence.json`: source/binary provenance,
 fixture/recording hashes, frame ranges, sample rate/channels, timing, RMS/peak,

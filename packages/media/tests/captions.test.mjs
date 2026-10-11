@@ -28,7 +28,7 @@ for (const native of [false, true]) {
     new Function('require', 'module', 'exports', result.outputFiles[0].text)(
       (name) =>
         name === 'react-native'
-          ? { View: 'RNView', Text: 'RNText' }
+          ? { View: 'RNView', Text: 'RNText', Pressable: 'RNPressable' }
           : /expo-/.test(name)
             ? assert.fail('captions must not instantiate either playback engine')
             : require(name),

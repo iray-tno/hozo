@@ -17,3 +17,18 @@ The purple square continues toward the right.
 `
 
 export const squareCues = parsePlainTextWebVTT(squareWebVTT)
+
+export const japaneseSquareCues = parsePlainTextWebVTT(`WEBVTT
+
+00:00.000 --> 00:02.000
+[無音のアニメーション]
+紫の四角が中央に向かって動きます。
+
+00:02.000 --> 00:04.000
+紫の四角が右に向かって動き続けます。
+`)
+
+export const squareCaptionOptions = [
+  { id: 'en', label: 'English' },
+  { id: 'ja', label: '日本語' },
+] as const

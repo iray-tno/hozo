@@ -1,3 +1,5 @@
+export type { MediaCaptionOption, MediaCaptionSelectorProps } from './caption-selection.ts'
+export { MediaCaptionSelector } from './caption-selector.tsx'
 export type { MediaCaptionsProps, MediaCue } from './caption-types.ts'
 export { MediaCaptions } from './captions.tsx'
 export { useWebVTTCaptions } from './use-webvtt-captions.ts'

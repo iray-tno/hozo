@@ -14,7 +14,15 @@ button, Seek backward 1 second, disabled
 button, Seek forward 1 second
 0:00 / 0:04
 end of group, Video playback controls
-button, Hide captions
+group, Caption language
+Caption language
+radio, Captions off, not checked, position 1, set size 3
+Captions off
+radio, English, checked, position 2, set size 3
+English
+radio, 日本語, not checked, position 3, set size 3
+日本語
+end of group, Caption language
 button, Unmute video
 button, Enable video loop
 button, Remove video
