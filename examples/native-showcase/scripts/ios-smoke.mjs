@@ -26,6 +26,7 @@ import { selectStableIosText, waitForIosStorySelection } from './ios-story-selec
 import { iosSvgEvidence, iosSvgRegion, readIosScenario } from './ios-svg-filter-evidence.mjs'
 import { waitForIosControl } from './ios-ui-wait.mjs'
 import { exerciseSvgFilters } from './svg-filter-evidence.mjs'
+import { exerciseVideo, VIDEO_PROBE_LABEL, videoStatus } from './video-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -490,6 +491,26 @@ try {
       await waitFor(label('Changes: saved'), 'dialog confirmation result')
       screenshot('09-confirmation-saved')
       record('shared dialog opens, cancels and confirms')
+
+      await exerciseVideo(
+        {
+          story,
+          waitFor: (text) => waitFor(label(text), `video control: ${text}`),
+          waitStatus: async (accept, description) => {
+            const node = await waitFor((node) => {
+              const status = videoStatus(node.AXLabel)
+              return status && accept(status)
+            }, description)
+            return videoStatus(node.AXLabel)
+          },
+          tap: (text) => tap(label(text), `video action: ${text}`),
+          hasVideo: () => nodes().some(label(VIDEO_PROBE_LABEL)),
+          capture: (name, node) => canvasImage(name, node),
+          waitForImage,
+          record,
+        },
+        evidence,
+      )
 
       // Share the established app/input connection instead of launching a
       // second full scenario on a window left in the previous SVG story.

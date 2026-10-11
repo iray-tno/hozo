@@ -6,9 +6,214 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { createCompiler } from '../../../packages/compiler/src/index.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
+import { videoStatus } from './video-evidence.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
+
+function compiledVideoProbe(hooks = {}) {
+  const react = require('react')
+  const { transformSync } = require('esbuild')
+  const file = path.join(root, '../showcase/src/video-probe.tsx')
+  const source = transformHozoSource(readFileSync(file, 'utf8'), file)
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
+  const module = { exports: {} }
+  new Function('require', 'module', code)((name) => {
+    if (name === 'react') return { ...react, ...hooks }
+    if (name === 'react/jsx-runtime') return require(name)
+    if (name === 'react-native')
+      return {
+        View: 'NativeView',
+        Text: 'NativeText',
+        Pressable: 'NativePressable',
+        StyleSheet: { create: (styles) => styles },
+      }
+    if (name === '@hozo/media') return { Video: 'Video' }
+    throw new Error(`Unexpected Video probe dependency: ${name}`)
+  }, module)
+  return module.exports
+}
+
+const probeStatus = (changes = {}) => ({
+  src: 'fixture.mp4',
+  status: 'ready',
+  playing: false,
+  buffering: false,
+  currentTime: 0,
+  duration: 4.01,
+  error: null,
+  ...changes,
+})
+
+test('compiled probe callback retains a real playback advance without keeping the AX tree busy', () => {
+  const react = require('react')
+  let displayed = null
+  let updates = 0
+  const { VideoPlaybackProbe } = compiledVideoProbe({
+    useRef: () => ({ current: null }),
+    useState: (initial) =>
+      initial === true
+        ? [true, () => {}]
+        : [
+            displayed,
+            (update) => {
+              const next = typeof update === 'function' ? update(displayed) : update
+              if (displayed !== next) updates++
+              displayed = next
+            },
+          ],
+  })
+  const tree = VideoPlaybackProbe({ src: 'fixture.mp4' })
+  const viewport = react.Children.toArray(tree.props.children).find(
+    (node) => node.props.children?.type === 'Video',
+  )
+  const notify = viewport.props.children.props.onStatusChange
+  notify(probeStatus())
+  updates = 0
+  notify(probeStatus({ playing: true }))
+  notify(probeStatus({ playing: true, currentTime: 0.25 }))
+  notify(probeStatus({ playing: true, currentTime: 0.250001 }))
+  notify(probeStatus({ playing: true, currentTime: 0.254999 }))
+  assert.equal(displayed.currentTime, 0, 'playing alone or time=0.25 cannot prove advance')
+  const firstAdvance = probeStatus({ playing: true, currentTime: 0.5 })
+  notify(firstAdvance)
+  // Realistic quarter-second callbacks, including looping back to zero.
+  for (let tick = 3; tick <= 32; tick++) {
+    notify(probeStatus({ playing: true, currentTime: (tick % 16) / 4 }))
+  }
+  assert.equal(displayed, firstAdvance)
+  assert.equal(updates, 2, 'only playing and the first measured advance change the display')
+  notify(probeStatus({ currentTime: 3.25 }))
+  assert.equal(displayed.currentTime, 3.25, 'pause must use the fresh decoder time')
+  notify(probeStatus({ currentTime: 3.5 }))
+  assert.equal(displayed.currentTime, 3.5, 'unexpected paused drift must remain detectable')
+  notify(probeStatus({ currentTime: 2 }))
+  assert.equal(displayed.currentTime, 2, 'paused seek must remain observable')
+})
+
+test('fractional iOS ticks remain observable until the rendered status proves playback advance', () => {
+  const react = require('react')
+  let displayed = null
+  const { nextVideoProbeStatus, VideoPlaybackProbe } = compiledVideoProbe({
+    useRef: () => ({ current: null }),
+    useState: (initial) => [initial === true ? true : displayed, () => {}],
+  })
+  function readStatus() {
+    const tree = VideoPlaybackProbe({ src: 'fixture.mp4' })
+    const label = react.Children.toArray(tree.props.children).find(
+      (node) =>
+        typeof node.props.children === 'string' && node.props.children.startsWith('Video probe:'),
+    )
+    return videoStatus(label.props.children)
+  }
+  // Run 38095325674's iOS AX tree was stuck at ready/playing/time=0.25.
+  // Replay both a separate playing event and one that already includes a tick.
+  for (const playingTime of [0, 0.250001]) {
+    displayed = probeStatus()
+    displayed = nextVideoProbeStatus(
+      displayed,
+      probeStatus({ playing: true, currentTime: playingTime }),
+    )
+    displayed = nextVideoProbeStatus(
+      displayed,
+      probeStatus({ playing: true, currentTime: 0.254999 }),
+    )
+    assert.ok(readStatus().time <= 0.25, 'rounded 0.25 must not be claimed as advancement')
+    displayed = nextVideoProbeStatus(
+      displayed,
+      probeStatus({ playing: true, currentTime: 0.500001 }),
+    )
+    assert.equal(readStatus().playing, true)
+    assert.equal(readStatus().time, 0.5, 'a later real tick must replace the unreadable advance')
+    const latched = displayed
+    displayed = nextVideoProbeStatus(
+      displayed,
+      probeStatus({ playing: true, currentTime: 0.750001 }),
+    )
+    assert.equal(displayed, latched, 'once visibly advanced, the tree can remain idle')
+    displayed = nextVideoProbeStatus(displayed, probeStatus({ currentTime: 1.250001 }))
+    assert.equal(readStatus().playing, false)
+    assert.equal(readStatus().time, 1.25, 'pause still displays the fresh time')
+  }
+})
+
+test('probe clock coalescing preserves source, lifecycle, buffering, duration and error transitions', () => {
+  const { nextVideoProbeStatus } = compiledVideoProbe()
+  const previous = probeStatus({ playing: true, currentTime: 0.5 })
+  for (const change of [
+    { src: 'other.mp4' },
+    { status: 'loading' },
+    { status: 'ended' },
+    { playing: false },
+    { buffering: true },
+    { duration: null },
+    { status: 'error', error: { src: 'fixture.mp4', operation: 'play', message: 'failed' } },
+  ]) {
+    const next = { ...previous, ...change }
+    assert.equal(nextVideoProbeStatus(previous, next), next)
+  }
+  const failed = {
+    ...previous,
+    error: { src: 'fixture.mp4', operation: 'seek', message: 'failed' },
+  }
+  assert.equal(nextVideoProbeStatus(failed, previous), previous, 'error recovery is observable')
+  assert.equal(nextVideoProbeStatus(null, previous), previous)
+})
+
+test('Video decoder probe keeps its Native media host and static control styles', () => {
+  const file = path.join(root, '../showcase/src/video-probe.tsx')
+  const output = transformHozoSource(readFileSync(file, 'utf8'), file)
+  assert.match(output, /from ['"]@hozo\/media['"]/)
+  assert.match(output, /<Video\b/)
+  assert.doesNotMatch(output, /<video\b|resolveClassName/)
+  assert.ok(output.includes('Local video pixel probe'))
+  assert.ok(output.includes('setStatus'))
+  assert.doesNotMatch(output, /setInterval|setTimeout|Date\.now/)
+  const host = readFileSync(path.join(root, 'src/Video.stories.tsx'), 'utf8')
+  assert.match(host, /PlaybackEvidence: Story = \{ args: \{ probe: true \} \}/)
+  assert.match(
+    host,
+    /accessible\s+accessibilityRole="image"\s+accessibilityLabel="Local video pixel probe"/,
+  )
+  assert.match(host, /Viewport=\{NativeVideoViewport\}/)
+})
+
+test('compiled Video removal and remount buttons render their dynamic label inside Native Text', () => {
+  const react = require('react')
+  const { transformSync } = require('esbuild')
+  const file = path.join(root, '../showcase/src/video-probe.tsx')
+  const source = transformHozoSource(readFileSync(file, 'utf8'), file)
+  const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
+  for (const mounted of [true, false]) {
+    const module = { exports: {} }
+    new Function('require', 'module', code)((name) => {
+      if (name === 'react')
+        return {
+          ...react,
+          useRef: () => ({ current: null }),
+          useState: (initial) => [initial === true ? mounted : initial, () => {}],
+        }
+      if (name === 'react/jsx-runtime') return require(name)
+      if (name === 'react-native')
+        return {
+          View: 'NativeView',
+          Text: 'NativeText',
+          Pressable: 'NativePressable',
+          StyleSheet: { create: (styles) => styles },
+        }
+      if (name === '@hozo/media') return { Video: 'Video' }
+      throw new Error(`Unexpected Video probe dependency: ${name}`)
+    }, module)
+    const tree = module.exports.VideoPlaybackProbe({ src: 'fixture.mp4' })
+    const controls = react.Children.toArray(tree.props.children).at(-1)
+    const toggle = react.Children.toArray(controls.props.children).at(-1)
+    assert.equal(toggle.type, 'NativePressable')
+    assert.equal(toggle.props.children.type, 'NativeText')
+    assert.equal(toggle.props.children.props.children, mounted ? 'Remove probe' : 'Mount probe')
+    assert.equal(toggle.props.children.props.style.color, '#fff')
+    assert.equal(toggle.props.children.props.style.fontSize, 16)
+  }
+})
 
 test('shared Video retains the media host while its control variants compile statically for Native', () => {
   const file = path.join(root, '../showcase/src/video.tsx')
@@ -339,6 +544,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === './patterns.tsx') return {}
     if (name === './svg-filters.tsx') return {}
     if (name === './video.tsx') return {}
+    if (name === './video-probe.tsx') return {}
     throw new Error(`Unexpected form dependency: ${name}`)
   }
   new Function('require', 'module', code)(load, module)

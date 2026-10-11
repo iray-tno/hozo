@@ -28,6 +28,13 @@ Methods express requests. Events express observations. `play()` resolving is
 not a claim that a frame was decoded; a seek target is not a guarantee of
 frame-exact decoder positioning. Unknown/live duration stays null. Denied
 autoplay is observable. Engine-generated callbacks identify their source.
+Container seekability is also engine-owned: a loaded finite duration does not
+prove that a source can seek. In particular, Expo SDK 57's Media3 1.9 engine
+cannot seek our original Chrome fragmented MP4 with only an `mfra` index
+([upstream](https://github.com/androidx/media/issues/3088)). The owned fixture
+now includes a `sidx` index without changing its encoded samples or timing.
+This fixes the measurement source, not arbitrary application containers;
+explicit seekability/capability reporting remains follow-up work.
 
 ## Boundaries and next slices
 
@@ -56,6 +63,30 @@ Web Storybook a11y/reading-order checks and production Native Metro exports.
 Treat these as separate layers. No codec support or native accessibility
 claims follow from bundle success. Native decoding/pixels and TalkBack/
 VoiceOver manipulation require their own device or emulator evidence.
+
+The Native full-showcase drivers now request `Media/Video/PlaybackEvidence`,
+using the same local MP4 and real media host. The ordinary platform-control
+story is unchanged. The probe keeps standard controls off and supplies named
+external controls, with a named image region around only the video viewport.
+This is a measurement surface, not a certification of Expo's control-bar AX.
+Both drivers require actual square pixels at the first frame and a paused 2s
+seek, a changed horizontal centroid, an advancing observed playback clock,
+pause, viewport removal, and a fresh paused-at-zero remount with first-frame
+pixels. Three additional checks run within `full`; isolated SVG/GL/Canvas
+scenarios are unchanged. Pixel polling is read-only, and a failed input is
+never repeated. Captures, failed observations, phase, source hash and timings
+are retained in `evidence.json`. No emulator success is claimed until these
+gates pass on the actual CI app, with its binary/source provenance.
+
+During playback the diagnostic status label retains the first real decoder
+time whose two-decimal display is above 0.25s, rather than repainting at every
+tick: Android UIAutomator otherwise cannot obtain an idle AX tree. No time is
+invented from a play request. The player callbacks and ordinary story are unchanged; paused time,
+seek results, buffering, lifecycle and errors still update the label. Pixel
+checks remain independent of this display. Unnamed iOS AX nodes are skipped,
+not interpreted as status; a loading-only tree still times out.
+The display and latch share one formatter, so a fractional tick such as
+0.250001s cannot pin the readable status at 0.25s and conceal later advances.
 
 Sources: [Expo Video API](https://docs.expo.dev/versions/latest/sdk/video/),
 [Expo Audio API](https://docs.expo.dev/versions/latest/sdk/audio/).

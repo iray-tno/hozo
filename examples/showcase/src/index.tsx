@@ -5,6 +5,7 @@ import { useState } from 'react'
 export { DialogDemo, PreferencesDemo, TabsDemo } from './patterns.tsx'
 export { SvgFiltersDemo } from './svg-filters.tsx'
 export { VideoDemo } from './video.tsx'
+export { VideoPlaybackProbe } from './video-probe.tsx'
 
 // Shared story bodies: no DOM, React Native imports, or Storybook APIs.
 export function ButtonDemo({ disabled = false }: { disabled?: boolean }) {

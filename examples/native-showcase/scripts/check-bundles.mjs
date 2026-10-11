@@ -48,6 +48,8 @@ for (const platform of ['android', 'ios']) {
     'Primitives/Shared showcase',
     'Media/Video',
     'Moving square, silent video',
+    'Native video playback',
+    'Local video pixel probe',
     'Three/Kumimono',
     'Patterns/Shared showcase',
     'Email notifications',

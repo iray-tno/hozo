@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { indexVideoFixture } from './index-video-fixture.mjs'
 
 const executablePath = [
   process.env.CHROME_PATH,
@@ -46,7 +47,7 @@ try {
   })
   const output = fileURLToPath(new URL('../assets/', import.meta.url))
   mkdirSync(output, { recursive: true })
-  const buffer = Buffer.from(bytes)
+  const buffer = indexVideoFixture(Buffer.from(bytes))
   writeFileSync(`${output}/hozo-video.mp4`, buffer)
   console.log(
     `Generated ${buffer.length} bytes; sha256 ${createHash('sha256').update(buffer).digest('hex')}`,

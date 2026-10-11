@@ -1,10 +1,25 @@
-import { VideoDemo } from '@hozo/example-showcase'
+import { VideoDemo, VideoPlaybackProbe } from '@hozo/example-showcase'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { Asset } from 'expo-asset'
-import { useEffect, useState } from 'react'
-import { ScrollView, Text } from 'react-native'
+import { type PropsWithChildren, useEffect, useState } from 'react'
+import { ScrollView, Text, View } from 'react-native'
 
-function LocalVideo() {
+// Make only the measurement viewport a named AX node. The ordinary engine
+// controls and their accessibility tree remain untouched in the Default story.
+function NativeVideoViewport({ children }: PropsWithChildren) {
+  return (
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="Local video pixel probe"
+      style={{ width: '100%', maxWidth: 320 }}
+    >
+      {children}
+    </View>
+  )
+}
+
+function LocalVideo({ probe = false }: { probe?: boolean }) {
   const [src, setSrc] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -23,7 +38,12 @@ function LocalVideo() {
     }
   }, [])
   if (error) return <Text>Video asset: {error}</Text>
-  return src ? <VideoDemo src={src} /> : <Text>Loading bundled video</Text>
+  if (!src) return <Text>Loading bundled video</Text>
+  return probe ? (
+    <VideoPlaybackProbe src={src} Viewport={NativeVideoViewport} />
+  ) : (
+    <VideoDemo src={src} />
+  )
 }
 
 const meta = {
@@ -40,3 +60,4 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {}
+export const PlaybackEvidence: Story = { args: { probe: true } }
