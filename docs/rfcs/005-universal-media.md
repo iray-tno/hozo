@@ -79,12 +79,14 @@ are retained in `evidence.json`. No emulator success is claimed until these
 gates pass on the actual CI app, with its binary/source provenance.
 
 During playback the diagnostic status label retains the first real decoder
-time above 0.25s, rather than repainting at every tick: Android UIAutomator
-otherwise cannot obtain an idle AX tree. No time is invented from a play
-request. The player callbacks and ordinary story are unchanged; paused time,
+time whose two-decimal display is above 0.25s, rather than repainting at every
+tick: Android UIAutomator otherwise cannot obtain an idle AX tree. No time is
+invented from a play request. The player callbacks and ordinary story are unchanged; paused time,
 seek results, buffering, lifecycle and errors still update the label. Pixel
 checks remain independent of this display. Unnamed iOS AX nodes are skipped,
 not interpreted as status; a loading-only tree still times out.
+The display and latch share one formatter, so a fractional tick such as
+0.250001s cannot pin the readable status at 0.25s and conceal later advances.
 
 Sources: [Expo Video API](https://docs.expo.dev/versions/latest/sdk/video/),
 [Expo Audio API](https://docs.expo.dev/versions/latest/sdk/audio/).

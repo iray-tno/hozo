@@ -6,6 +6,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { createCompiler } from '../../../packages/compiler/src/index.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
+import { videoStatus } from './video-evidence.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
@@ -71,6 +72,8 @@ test('compiled probe callback retains a real playback advance without keeping th
   updates = 0
   notify(probeStatus({ playing: true }))
   notify(probeStatus({ playing: true, currentTime: 0.25 }))
+  notify(probeStatus({ playing: true, currentTime: 0.250001 }))
+  notify(probeStatus({ playing: true, currentTime: 0.254999 }))
   assert.equal(displayed.currentTime, 0, 'playing alone or time=0.25 cannot prove advance')
   const firstAdvance = probeStatus({ playing: true, currentTime: 0.5 })
   notify(firstAdvance)
@@ -86,6 +89,52 @@ test('compiled probe callback retains a real playback advance without keeping th
   assert.equal(displayed.currentTime, 3.5, 'unexpected paused drift must remain detectable')
   notify(probeStatus({ currentTime: 2 }))
   assert.equal(displayed.currentTime, 2, 'paused seek must remain observable')
+})
+
+test('fractional iOS ticks remain observable until the rendered status proves playback advance', () => {
+  const react = require('react')
+  let displayed = null
+  const { nextVideoProbeStatus, VideoPlaybackProbe } = compiledVideoProbe({
+    useRef: () => ({ current: null }),
+    useState: (initial) => [initial === true ? true : displayed, () => {}],
+  })
+  function readStatus() {
+    const tree = VideoPlaybackProbe({ src: 'fixture.mp4' })
+    const label = react.Children.toArray(tree.props.children).find(
+      (node) =>
+        typeof node.props.children === 'string' && node.props.children.startsWith('Video probe:'),
+    )
+    return videoStatus(label.props.children)
+  }
+  // Run 38095325674's iOS AX tree was stuck at ready/playing/time=0.25.
+  // Replay both a separate playing event and one that already includes a tick.
+  for (const playingTime of [0, 0.250001]) {
+    displayed = probeStatus()
+    displayed = nextVideoProbeStatus(
+      displayed,
+      probeStatus({ playing: true, currentTime: playingTime }),
+    )
+    displayed = nextVideoProbeStatus(
+      displayed,
+      probeStatus({ playing: true, currentTime: 0.254999 }),
+    )
+    assert.ok(readStatus().time <= 0.25, 'rounded 0.25 must not be claimed as advancement')
+    displayed = nextVideoProbeStatus(
+      displayed,
+      probeStatus({ playing: true, currentTime: 0.500001 }),
+    )
+    assert.equal(readStatus().playing, true)
+    assert.equal(readStatus().time, 0.5, 'a later real tick must replace the unreadable advance')
+    const latched = displayed
+    displayed = nextVideoProbeStatus(
+      displayed,
+      probeStatus({ playing: true, currentTime: 0.750001 }),
+    )
+    assert.equal(displayed, latched, 'once visibly advanced, the tree can remain idle')
+    displayed = nextVideoProbeStatus(displayed, probeStatus({ currentTime: 1.250001 }))
+    assert.equal(readStatus().playing, false)
+    assert.equal(readStatus().time, 1.25, 'pause still displays the fresh time')
+  }
 })
 
 test('probe clock coalescing preserves source, lifecycle, buffering, duration and error transitions', () => {

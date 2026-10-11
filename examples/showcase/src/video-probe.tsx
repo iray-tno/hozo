@@ -10,7 +10,11 @@ function VideoViewport({ children }: PropsWithChildren) {
   )
 }
 
-// Diagnostic display only: keep the first observed playback advance so Android
+function videoProbeTime(time: number): string {
+  return time.toFixed(2)
+}
+
+// Diagnostic display only: keep the first visibly observed playback advance so Android
 // UIAutomator can obtain an idle accessibility tree. The player still reports
 // every real tick; paused times and all non-clock transitions remain observable.
 export function nextVideoProbeStatus(previous: VideoStatus | null, next: VideoStatus): VideoStatus {
@@ -25,7 +29,11 @@ export function nextVideoProbeStatus(previous: VideoStatus | null, next: VideoSt
     previous.error?.operation !== next.error?.operation ||
     previous.error?.message !== next.error?.message ||
     (!next.playing && previous.currentTime !== next.currentTime) ||
-    (next.playing && previous.currentTime <= 0.25 && next.currentTime > 0.25)
+    // Use the label's precision: a real 0.250001s tick still reads as 0.25s.
+    // Latching it would hide every later tick from the status reader forever.
+    (next.playing &&
+      Number(videoProbeTime(previous.currentTime)) <= 0.25 &&
+      Number(videoProbeTime(next.currentTime)) > 0.25)
   ) {
     return next
   }
@@ -63,7 +71,7 @@ export function VideoPlaybackProbe({
       )}
       <Text className="text-base text-slate-900">
         {mounted
-          ? `Video probe: ${status?.status ?? 'loading'}; ${status?.playing ? 'playing' : 'paused'}; time=${(status?.currentTime ?? 0).toFixed(2)}; duration=${status?.duration?.toFixed(2) ?? 'unknown'}`
+          ? `Video probe: ${status?.status ?? 'loading'}; ${status?.playing ? 'playing' : 'paused'}; time=${videoProbeTime(status?.currentTime ?? 0)}; duration=${status?.duration?.toFixed(2) ?? 'unknown'}`
           : 'Video probe removed'}
       </Text>
       {status?.error && <Text className="text-base text-red-700">{status.error.message}</Text>}
