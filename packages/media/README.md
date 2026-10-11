@@ -171,7 +171,7 @@ be empty. This first companion has no draggable slider, volume, caption selector
 fullscreen controls; standard engine controls remain an alternative.
 
 A label and native controls do not establish media accessibility. Authors must
-supply appropriate alternatives for content. External WebVTT tracks, embedded track selection,
+supply appropriate alternatives for content. Embedded track selection,
 audio description, poster, fullscreen/PiP
 configuration and background playback are follow-ups in [#147](https://github.com/iray-tno/hozo/issues/147).
 Do not use this first slice to claim complete caption or screen-reader conformance.
@@ -214,7 +214,7 @@ descriptions remain author-supplied alternatives.
 Web renders a named group with readable text; Native combines the name and
 text in one accessible node. Neither sets a live region, which would speak
 each cue over the soundtrack. This inline companion does not appear in OS
-fullscreen/PiP, replace embedded subtitles, fetch external `.vtt` files, or
+fullscreen/PiP, replace embedded subtitles, fetch external `.vtt` files by itself, or
 promise frame-exact synchronization (events are sampled by the engine). It
 has no language selector; applications own selection and toggle controls.
 It imports neither Expo engine. The `TimedCaptions` story demonstrates the
@@ -264,6 +264,64 @@ the same bundled original WebVTT text on both platforms, with unchanged output.
 Chromium's actual hidden `<track>` parser independently verifies the accepted
 fixture's timings and text; renderer tests consume its converted cues on both
 platforms. See the [WebVTT specification](https://www.w3.org/TR/webvtt1/).
+
+### Loading a caption track
+
+`useWebVTTCaptions` from `/captions` loads and converts the same bounded
+plain-text WebVTT subset on both platforms. Associate the track with the
+recording it describes, and display its loading/error state separately from
+playback. A failed caption track does not stop the video/audio:
+
+```tsx
+import { MediaCaptions, useWebVTTCaptions } from '@hozo/media/captions'
+import { Button, Text } from '@hozo/primitives'
+
+// Inside a component; status comes from Video/Audio's onStatusChange.
+const track = useWebVTTCaptions({ mediaSrc: src, trackSrc: captionUrl })
+
+return <>
+  <MediaCaptions src={track.mediaSrc} status={status} cues={track.cues}
+    accessibilityLabel="English captions" />
+  {track.status === 'loading' && <Text>Loading captions</Text>}
+  {track.error && <>
+    <Text>Captions unavailable: {track.error.message}</Text>
+    <Button onPress={track.reload}>Retry captions</Button>
+  </>}
+</>
+```
+
+The result includes `mediaSrc`, `trackSrc`, `status` (idle/loading/ready/error),
+`cues`, `error` and `reload()`. Errors identify both sources and the load/parse
+operation; parser errors retain `code` and one-based `line`. Failed or pending
+requests return an empty cue array, never a partially parsed track or the last
+successful language. `trackSrc: null` selects no track; `enabled: false` stops
+loading and clears cues. Selecting, enabling, changing either source or the
+loader, or explicitly reloading starts a fresh request. An ordinary render or
+playback tick does not. There are no automatic retries or Hozo-owned caches.
+
+Cleanup requests abortion, but correctness does not depend on the transport
+honoring it: late success/failure cannot replace the current track, including
+StrictMode replay and A → B → A source changes. Render immediately hides the
+previous request's data; no request starts during server rendering. A loaded
+track remains independent of the player's sampled clock and pause state.
+
+The default loader uses platform `fetch`, checks HTTP success, then reads
+`response.text()`. It is not a universal filesystem/asset decoder. Web CORS,
+Native transport security, authentication/cookies, offline caching and timeouts
+remain application/platform policy; the hook does not relax them. See
+[React Native networking](https://reactnative.dev/docs/network) and
+[Fetch behavior](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch).
+For resolved local assets, headers, strict byte decoding or another network
+client, supply a stable `loadText(trackSrc, signal): Promise<string>` function.
+It must return decoded WebVTT, can honor the abort signal, and should throw
+on acquisition failures. Define it outside render or memoize it to avoid a
+request on every render. A numeric asset ID still needs an application adapter.
+
+This hook installs no browser/OS subtitle track or fullscreen overlay. Track
+names, language selection, error wording and retry UI belong to the application.
+Tests exercise both host entries and real Chromium HTTP success, HTTP failure,
+explicit retry and visible unsupported-format errors; mocked Native loading
+does not establish native transport/file or screen-reader behavior.
 
 `pnpm --filter @hozo/media test` checks common state rules, DOM/Expo adapter
 events and Native component wiring. With Chrome it also decodes the checked-in

@@ -93,12 +93,33 @@ six named character references. It validates before returning the full cue
 array; invalid syntax or unsupported richer constructs throw a typed error
 with a one-based line. Layout/settings, STYLE/REGION, markup, karaoke, other
 references and stream clock maps are not silently discarded. This is not a
-complete/fault-tolerant WebVTT implementation. File/network acquisition,
-UTF-8 decoding, source/track lifecycle and errors displayed to the user remain
-application-owned. The two hosts' existing timed-caption example now converts
+complete/fault-tolerant WebVTT implementation. The two hosts' existing timed-caption example converts
 the same bundled WebVTT text; it does not install a native subtitle track.
 
-1. External loading, richer WebVTT/embedded subtitle contracts and further accessible content alternatives. The original
+`useWebVTTCaptions` in `/captions` now owns an optional source-bound acquisition
+lifetime. It fetches decoded text and atomically converts this same plain-text
+subset. The result identifies media/track sources, idle/loading/ready/error,
+current cues and structured load/parse errors (including parser code/line),
+plus explicit reload. Changing either source, selection/enable, loader or reload
+retires the previous request. Abort is requested, but late results are ignored
+even when the transport cannot cancel. Old cues disappear during render,
+before effect cleanup; disabled/deselected, pending and failed requests expose
+no cues. Playback events do not refetch, and loading does not start in render.
+There is no automatic retry, cache, synthetic media clock or playback mutation.
+
+Default acquisition is platform fetch with HTTP success checked before
+`response.text()`. A stable custom text-loader adapter can provide local assets,
+headers, strict decoding, timeout or application cache policy. No universal
+filesystem support, CORS/transport-security bypass, credential policy or
+fullscreen track installation is claimed. Applications display the returned
+loading/error state and supply selection/retry UI. Real Chromium tests now
+serve the VTT over HTTP, compare accepted cues with its independent hidden
+track parser, and check visible HTTP/unsupported-format failures and explicit
+recovery. Shared host tests cover StrictMode, cancellation, reverse completion,
+disabled/deselected sources, loader replacement and render-time retirement.
+They are not Native networking or assistive-technology certification.
+
+1. Richer WebVTT/embedded subtitle contracts and further accessible content alternatives. The original
    issue's assumption that an external Web `<track src="…vtt">` can simply be
    forwarded to every Native engine is **not established**. Expo's exposed
    subtitle selection targets tracks reported by its loaded source; assess

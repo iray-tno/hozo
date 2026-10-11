@@ -30,7 +30,7 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
         import React, {useState} from 'react'
         import {createRoot} from 'react-dom/client'
         import {Video, VideoControls} from './src/index.ts'
-        import {MediaCaptions} from './src/captions-index.ts'
+        import {MediaCaptions, useWebVTTCaptions} from './src/captions-index.ts'
         import {parsePlainTextWebVTT} from './src/webvtt-index.ts'
         window.vtt = ${JSON.stringify(plainWebVTT)}
         const cues = parsePlainTextWebVTT(window.vtt)
@@ -42,12 +42,16 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
           const [mounted, mount] = useState(true)
           const [options, configure] = useState({muted:true, loop:false})
           const [status, setStatus] = useState(null)
+          const [trackSrc, setTrack] = useState('/captions.vtt')
+          const track = useWebVTTCaptions({mediaSrc:src, trackSrc, enabled:mounted})
+          window.captionState = track; window.setTrack = setTrack
           window.change = change; window.mount = mount; window.configure = configure
           return mounted && <><Video ref={window.ref} src={src} accessibilityLabel="Local silent clip"
             {...options} onStatusChange={s => {window.statuses.push(s); setStatus(s)}}
             onError={e => window.errors.push(e)} onEnded={() => window.ended++}/>
             <VideoControls player={window.ref} status={status} seekStep={1}/>
-            <MediaCaptions src={src} status={status} cues={cues} accessibilityLabel="Clip captions"/></>
+            <MediaCaptions src={track.mediaSrc} status={status} cues={track.cues} accessibilityLabel="Clip captions"/>
+            <p role="status">{track.error ? track.error.message : 'Captions: ' + track.status}</p></>
         }
         createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>)
       `,
@@ -66,6 +70,7 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     false,
   )
   const clip = readFileSync(path.join(root, '../../examples/showcase/assets/hozo-video.mp4'))
+  let retryRequests = 0
   const server = createServer((request, response) => {
     const url = request.url.split('?')[0]
     if (url === '/app.js') {
@@ -87,7 +92,13 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
         })
         response.end(clip.subarray(start, end + 1))
       }
-    } else if (url === '/bad.mp4') {
+    } else if (url === '/captions.vtt' || (url === '/retry.vtt' && ++retryRequests > 1)) {
+      response.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8' })
+      response.end(plainWebVTT)
+    } else if (url === '/invalid.vtt') {
+      response.writeHead(200, { 'Content-Type': 'text/vtt' })
+      response.end('WEBVTT\n\n00:00.000 --> 00:01.000\n<b>Unsupported</b>')
+    } else if (url === '/bad.mp4' || url === '/retry.vtt') {
       response.writeHead(404)
       response.end('Not a movie')
     } else {
@@ -120,6 +131,7 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     assert.equal(await page.locator('video').getAttribute('aria-label'), 'Local silent clip')
     assert.equal(await page.evaluate(() => document.querySelector('video').controls), true)
     const captions = page.getByRole('group', { name: 'Clip captions', exact: true })
+    await page.waitForFunction(() => window.captionState.status === 'ready')
     assert.equal(await captions.textContent(), 'First square position')
     assert.equal(await captions.getAttribute('aria-live'), null)
     // Compare against Chromium's actual WebVTT parser, not another handwritten
@@ -159,10 +171,31 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
       await page.evaluate(() => window.trackResult),
       await page.evaluate(() => window.parsedCues),
     )
+    assert.deepEqual(
+      await page.evaluate(() => window.captionState.cues),
+      await page.evaluate(() => window.trackResult),
+      'real HTTP acquisition preserves the independently parsed cue text and timing',
+    )
     await page.evaluate(() => {
       window.referenceTrack.remove()
       URL.revokeObjectURL(window.referenceTrackUrl)
     })
+    await page.evaluate(() => window.setTrack('/retry.vtt'))
+    await page.waitForFunction(() => window.captionState.status === 'error')
+    assert.equal(await captions.count(), 0)
+    assert.equal(await page.getByRole('status').textContent(), 'Caption request failed (HTTP 404)')
+    await page.evaluate(() => window.captionState.reload())
+    await page.waitForFunction(() => window.captionState.status === 'ready')
+    assert.equal(retryRequests, 2, 'only an explicit reload retries a failed track')
+    assert.equal(await captions.textContent(), 'First square position')
+    await page.evaluate(() => window.setTrack('/invalid.vtt'))
+    await page.waitForFunction(() => window.captionState.status === 'error')
+    assert.equal(await captions.count(), 0)
+    assert.equal(await page.evaluate(() => window.captionState.error.code), 'unsupported-webvtt')
+    assert.equal(await page.evaluate(() => window.captionState.error.line), 4)
+    assert.match(await page.getByRole('status').textContent(), /WebVTT line 4/)
+    await page.evaluate(() => window.setTrack('/captions.vtt'))
+    await page.waitForFunction(() => window.captionState.status === 'ready')
     const duration = await page.evaluate(() => window.ref.current.getStatus().duration)
     assert.ok(duration > 3 && duration < 6, `Recorded fixture duration ${duration}`)
     const toggle = page.getByRole('button', { name: 'Play video', exact: true })
