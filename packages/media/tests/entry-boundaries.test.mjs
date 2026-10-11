@@ -33,3 +33,30 @@ test('published Audio and Video entries resolve independently; Web loads neither
       } else assert.ok(!imports.some((entry) => /expo-|react-native/.test(entry)))
     }
 })
+
+test('published captions load neither playback engine on either platform', async () => {
+  for (const native of [false, true]) {
+    const result = await build({
+      stdin: {
+        contents: "export { MediaCaptions } from '@hozo/media/captions'",
+        resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+      },
+      bundle: true,
+      write: false,
+      platform: native ? 'node' : 'browser',
+      conditions: native ? ['react-native'] : [],
+      metafile: true,
+      external: ['expo-audio', 'expo-video', 'react-native', 'react', 'react/jsx-runtime'],
+    })
+    const imports = Object.values(result.metafile.outputs).flatMap((output) =>
+      output.imports.map((entry) => entry.path),
+    )
+    assert.ok(!imports.some((entry) => /expo-/.test(entry)))
+    assert.equal(imports.includes('react-native'), native)
+    assert.ok(
+      Object.keys(result.metafile.inputs).some((file) =>
+        file.endsWith(native ? '/captions.native.js' : '/captions.js'),
+      ),
+    )
+  }
+})

@@ -28,6 +28,9 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
         import React, {useState} from 'react'
         import {createRoot} from 'react-dom/client'
         import {Video, VideoControls} from './src/index.ts'
+        import {MediaCaptions} from './src/captions-index.ts'
+        const cues = [{start:0,end:1,text:'First square position'},
+          {start:1,end:4,text:'<b>Moving square</b>\\nNo speech'}]
         window.statuses = []; window.errors = []; window.ended = 0
         window.ref = React.createRef()
         function App() {
@@ -39,7 +42,8 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
           return mounted && <><Video ref={window.ref} src={src} accessibilityLabel="Local silent clip"
             {...options} onStatusChange={s => {window.statuses.push(s); setStatus(s)}}
             onError={e => window.errors.push(e)} onEnded={() => window.ended++}/>
-            <VideoControls player={window.ref} status={status} seekStep={1}/></>
+            <VideoControls player={window.ref} status={status} seekStep={1}/>
+            <MediaCaptions src={src} status={status} cues={cues} accessibilityLabel="Clip captions"/></>
         }
         createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>)
       `,
@@ -111,6 +115,9 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
       })
     assert.equal(await page.locator('video').getAttribute('aria-label'), 'Local silent clip')
     assert.equal(await page.evaluate(() => document.querySelector('video').controls), true)
+    const captions = page.getByRole('group', { name: 'Clip captions', exact: true })
+    assert.equal(await captions.textContent(), 'First square position')
+    assert.equal(await captions.getAttribute('aria-live'), null)
     const duration = await page.evaluate(() => window.ref.current.getStatus().duration)
     assert.ok(duration > 3 && duration < 6, `Recorded fixture duration ${duration}`)
     const toggle = page.getByRole('button', { name: 'Play video', exact: true })
@@ -183,6 +190,8 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     assert.equal(pixels.width, 320)
     assert.equal(pixels.height, 180)
     assert.ok(pixels.purple > 800, `Decoded square pixel count ${pixels.purple}`)
+    assert.equal(await captions.textContent(), '<b>Moving square</b>\nNo speech')
+    assert.equal(await captions.locator('b').count(), 0, 'cue markup is literal, never HTML')
     await page.evaluate(() => {
       window.ref.current.seekTo(window.ref.current.getStatus().duration - 0.15)
       return window.ref.current.play()
@@ -218,6 +227,11 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     await page.evaluate(() => window.change('/bad.mp4'))
     await page.waitForFunction(() => window.ref.current.getStatus().status === 'error')
     assert.equal(await page.evaluate(() => window.errors.at(-1).operation), 'load')
+    assert.equal(
+      await captions.count(),
+      0,
+      'a failed source cannot retain its predecessor captions',
+    )
     await page.evaluate(() => window.change('/clip.mp4?source=recovered'))
     await page.waitForFunction(() => window.ref.current.getStatus().status === 'ready')
     await page.evaluate(() => window.ref.current.play())
@@ -227,6 +241,7 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
       window.mount(false)
     })
     await page.waitForFunction(() => window.ref.current === null)
+    assert.equal(await captions.count(), 0)
     assert.equal(
       await page.evaluate(() => window.old.paused && !window.old.hasAttribute('src')),
       true,

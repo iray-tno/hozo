@@ -49,6 +49,8 @@ for (const platform of ['android', 'ios']) {
     'Primitives/Shared showcase',
     'Media/Video',
     'Media/Audio',
+    'Animation captions',
+    'Hide captions',
     'Three rising tones',
     'Moving square, silent video',
     'Native video playback',

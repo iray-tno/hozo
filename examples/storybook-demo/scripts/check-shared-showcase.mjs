@@ -125,6 +125,23 @@ async function run() {
   check(frame.contentDocument.querySelector('video'), 'Showcase did not remount')
   passed.push('shared Video controls, local MP4 and lifetime cleanup')
 
+  await loadStory('media-video--timed-captions')
+  const captionVideo = frame.contentDocument.querySelector('video')
+  if (captionVideo.readyState < 3) await new Promise((resolve, reject) => {
+    captionVideo.addEventListener('canplay', resolve, { once: true })
+    captionVideo.addEventListener('error', () => reject(new Error('Caption video could not load')), { once: true })
+  })
+  await pause()
+  const caption = () => frame.contentDocument.querySelector('[role=group][aria-label="Animation captions"]')
+  check(caption()?.textContent.includes('A purple square travels toward the center.'), 'Observed first cue missing')
+  named('button', 'Hide captions').click(); await pause()
+  check(!caption(), 'Captions did not hide')
+  named('button', 'Show captions').click(); await pause()
+  check(caption(), 'Captions did not return')
+  named('button', 'Remove video').click(); await pause()
+  check(!caption(), 'Captions survived source removal')
+  passed.push('shared timed captions follow observations, toggle and source removal')
+
   // A popover's first focus goes into the panel. FloatingPositioner draws
   // the panel hidden until it has measured, and focus used to be tried in
   // that frame and land on nothing, leaving it on the trigger.
@@ -185,7 +202,7 @@ try {
   assert.ok(output && output !== 'pending', 'browser did not complete interactions')
   const result = JSON.parse(output.replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
   assert.equal(result.error, undefined, result.error)
-  assert.equal(result.passed.length, 6)
+  assert.equal(result.passed.length, 7)
   console.log(`[shared-showcase] ${result.passed.join('; ')}`)
 } finally {
   server.closeAllConnections()

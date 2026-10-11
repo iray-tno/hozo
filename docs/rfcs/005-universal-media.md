@@ -1,6 +1,6 @@
 # Universal media: a shared playback contract, platform-owned engines
 
-Status: Video/Audio playback and shared basic controls, tracked by [#147](https://github.com/iray-tno/hozo/issues/147).
+Status: Video/Audio playback, shared basic controls and inline timed captions, tracked by [#147](https://github.com/iray-tno/hozo/issues/147).
 
 `@hozo/media` is an opt-in domain, not part of the core facade. Web uses the
 actual HTML video element. Native's first engine is Expo SDK 57 `expo-video`;
@@ -45,7 +45,7 @@ fresh handle clocks drive seeks and retired request failures stay retired.
 Labels/time formatting can be localized. The ordinary platform controls and
 diagnostic playback probe are unchanged. Real browser keyboard and mocked
 Native adapter tests do not certify assistive-technology operation. Slider,
-volume and captions are not in this companion's first slice.
+volume and caption selection are not in this companion's first slice.
 
 `Audio` and `AudioControls` use the independent `@hozo/media/audio` entry.
 Web owns a real HTML audio element, reusing the video adapter's
@@ -70,7 +70,22 @@ controls or background behavior is configured by the component. Those are
 application/OS decisions. The showcase's Expo config explicitly disables
 recording permissions and background modes for this playback-only example.
 
-1. Captions/subtitle contracts and accessible content alternatives. The original
+`MediaCaptions` is now a separate, engine-independent `/captions` entry for
+Audio and Video. Authors supply an immutable start-sorted array of plain-text
+`{ start, end, text }` cues and the source URI they describe. The companion
+renders inline beside the player on both platforms, using its observed status,
+not a requested seek or synthetic timer. It clears for unavailable/failed or
+different-source observations, supports overlapping cues, gaps, disable and
+backward seeks, and preserves line breaks without interpreting markup. It is
+readable on demand, never an automatic live announcement over the soundtrack.
+This is a deliberately smaller shared contract than browser `<track>`: no
+external VTT parsing, embedded track selection or OS fullscreen/PiP overlay.
+Engine event granularity limits synchronization; complete transcripts and
+audio descriptions remain authored alternatives. Captions alone do not certify
+media accessibility. A caller that requests external/embedded subtitles must
+not be silently rerouted to this different inline API.
+
+1. External/embedded subtitle contracts and further accessible content alternatives. The original
    issue's assumption that an external Web `<track src="…vtt">` can simply be
    forwarded to every Native engine is **not established**. Expo's exposed
    subtitle selection targets tracks reported by its loaded source; assess
@@ -134,5 +149,5 @@ or bundle is not evidence of Android/iOS audible output or assistive-technology
 operation. Native Audio output/interruption/silent-switch verification remains
 a follow-up, separate from the completed Video pixel probe.
 
-Sources: [Expo Video API](https://docs.expo.dev/versions/latest/sdk/video/),
-[Expo Audio API](https://docs.expo.dev/versions/latest/sdk/audio/).
+Sources: [Expo SDK 57 Video API](https://docs.expo.dev/versions/v57.0.0/sdk/video/),
+[Expo SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/).

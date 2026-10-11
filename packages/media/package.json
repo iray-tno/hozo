@@ -41,6 +41,14 @@
       "types": "./dist/audio-index.d.ts",
       "default": "./dist/audio-index.js"
     },
+    "./captions": {
+      "react-native": {
+        "types": "./dist/captions-index.native.d.ts",
+        "default": "./dist/captions-index.native.js"
+      },
+      "types": "./dist/captions-index.d.ts",
+      "default": "./dist/captions-index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

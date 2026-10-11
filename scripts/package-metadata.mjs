@@ -174,7 +174,11 @@ const PACKAGES = {
   media: {
     description:
       'Universal video and audio playback with shared controls and platform-owned engines.',
-    exports: { '.': './dist/index.js', './audio': './dist/audio-index.js' },
+    exports: {
+      '.': './dist/index.js',
+      './audio': './dist/audio-index.js',
+      './captions': './dist/captions-index.js',
+    },
     native: true,
     peerOverrides: { 'expo-audio': '>=57.0.5 <58' },
     peerMetadataOverrides: { 'expo-audio': { optional: true } },
